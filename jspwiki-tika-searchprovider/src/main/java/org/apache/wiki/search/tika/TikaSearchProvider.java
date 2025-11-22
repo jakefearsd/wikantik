@@ -28,7 +28,6 @@ import org.apache.tika.metadata.HttpHeaders;
 import org.apache.tika.metadata.IPTC;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.Office;
-import org.apache.tika.metadata.OfficeOpenXMLCore;
 import org.apache.tika.metadata.PDF;
 import org.apache.tika.metadata.TikaCoreProperties;
 import org.apache.tika.parser.AutoDetectParser;
@@ -71,7 +70,6 @@ public class TikaSearchProvider extends LuceneSearchProvider {
         textualMetadataFields.add( PDF.DOC_INFO_TITLE.getName() );
         textualMetadataFields.add( PDF.DOC_INFO_KEY_WORDS.getName() );
         textualMetadataFields.add( PDF.DOC_INFO_SUBJECT.getName() );
-        textualMetadataFields.add( OfficeOpenXMLCore.SUBJECT.getName() );
         textualMetadataFields.add( Office.KEYWORDS.getName() );
         textualMetadataFields.add( TikaCoreProperties.TYPE.getName() );
         textualMetadataFields.add( HttpHeaders.CONTENT_TYPE );

@@ -67,7 +67,7 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
     /** {@inheritDoc} */
     @Override
     public void initialize( final Engine engine, final Properties props ) throws WikiException {
-        final String cacheEnabled = TextUtil.getStringProperty( props, PROP_CACHE_ENABLE, PROP_USECACHE_DEPRECATED, "true" );
+        final String cacheEnabled = TextUtil.getStringProperty( props, PROP_CACHE_ENABLE, "jspwiki.usePageCache", "true" );
         final boolean useCache = "true".equalsIgnoreCase( cacheEnabled );
         final String confLocation = "/" + TextUtil.getStringProperty( props, PROP_CACHE_CONF_FILE, "ehcache-jspwiki.xml" );
         if( useCache ) {

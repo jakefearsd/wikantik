@@ -18,11 +18,11 @@
  */
 package org.apache.wiki;
 
+import org.apache.wiki.api.core.Acl;
+import org.apache.wiki.api.core.AclEntry;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.providers.PageProvider;
-import org.apache.wiki.auth.acl.Acl;
-import org.apache.wiki.auth.acl.AclEntry;
 import org.apache.wiki.auth.acl.AclImpl;
 import org.apache.wiki.pages.PageManager;
 
@@ -213,24 +213,10 @@ public class WikiPage implements Page {
      * {@link org.apache.wiki.auth.acl.AclManager#setPermissions(Page, org.apache.wiki.api.core.Acl)}.
      *
      * @param acl The Acl to set
-     * @deprecated use {@link #setAcl(org.apache.wiki.api.core.Acl)}
-     * @see #setAcl(org.apache.wiki.api.core.Acl)
-     */
-    @Deprecated
-    public void setAcl( final Acl acl ) {
-        setAcl( ( org.apache.wiki.api.core.Acl )acl );
-    }
-
-    /**
-     * Sets the Acl for this page. Note that method does <em>not</em> persist the Acl itself to back-end storage or in page markup;
-     * it merely sets the internal field that stores the Acl. To persist the Acl, callers should invoke
-     * {@link org.apache.wiki.auth.acl.AclManager#setPermissions(Page, org.apache.wiki.api.core.Acl)}.
-     *
-     * @param acl The Acl to set
      */
     @Override
-    public void setAcl(final org.apache.wiki.api.core.Acl acl ) {
-        m_accessList = ( Acl )acl;
+    public void setAcl( final Acl acl ) {
+        m_accessList = acl;
     }
 
     /**
@@ -322,7 +308,7 @@ public class WikiPage implements Page {
 
         if( m_accessList != null ) {
             p.m_accessList = new AclImpl();
-            for( final Enumeration< AclEntry > entries = m_accessList.entries(); entries.hasMoreElements(); ) {
+            for( final Enumeration< AclEntry > entries = m_accessList.aclEntries(); entries.hasMoreElements(); ) {
                 final AclEntry e = entries.nextElement();
                 p.m_accessList.addEntry( e );
             }

@@ -34,7 +34,7 @@ import java.util.Vector;
  *
  * @since 2.3
  */
-public class AclImpl implements Acl, Serializable {
+public class AclImpl implements org.apache.wiki.api.core.Acl, Serializable {
 
     private static final long serialVersionUID = 1L;
     private final Vector< AclEntry > m_entries = new Vector<>();

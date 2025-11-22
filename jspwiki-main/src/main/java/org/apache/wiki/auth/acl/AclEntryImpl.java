@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
  *
  * @since 2.3
  */
-public class AclEntryImpl implements AclEntry, Serializable {
+public class AclEntryImpl implements org.apache.wiki.api.core.AclEntry, Serializable {
 
     private static final long serialVersionUID = 1L;
     private final Vector< Permission > m_permissions = new Vector<>();

@@ -21,7 +21,10 @@ package org.apache.wiki.pages.haddock;
 import org.apache.wiki.pages.Page;
 import org.openqa.selenium.By;
 
+import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
+
+import java.time.Duration;
 
 public interface HaddockPage extends Page {
     
@@ -38,7 +41,10 @@ public interface HaddockPage extends Page {
      */
     @Override
     default String wikiPageContent() {
-        return Selenide.$( By.className( "page-content" ) ).text(); 
+        // Wait for page content to be visible and stable
+        return Selenide.$( By.className( "page-content" ) )
+                       .shouldBe( Condition.visible, Duration.ofSeconds( 2 ) )
+                       .text();
     }
 
 }

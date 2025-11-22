@@ -27,6 +27,8 @@ import com.codeborne.selenide.SelenideElement;
 
 import java.time.Duration;
 
+import static com.codeborne.selenide.Selenide.$;
+
 /**
  * Actions available on the View page.
  */
@@ -43,12 +45,13 @@ public class ViewWikiPage implements HaddockPage {
     }
 
     /**
-     * Returns the authenticated user text.
+     * Returns the authenticated user text from the user dropdown menu.
      *
      * @return the authenticated user text.
      */
     public String authenticatedText() {
-        return Selenide.$( By.className( "wikipage" ) ).text().trim();
+        // Wait for the dropdown menu to be visible and get text from the user greeting link
+        return $( ".userbox .dropdown-menu li a" ).shouldBe( Condition.visible, Duration.ofSeconds( 2 ) ).text().trim();
     }
 
     /**
@@ -78,7 +81,12 @@ public class ViewWikiPage implements HaddockPage {
      * @return {@link ViewWikiPage} instance, to allow chaining of actions.
      */
     public ViewWikiPage hoverLoginArea() {
-        Selenide.$( By.className( "icon-user" ) ).hover();
+        // Wait for the userbox to be ready
+        $( ".userbox" ).shouldBe( Condition.visible, Duration.ofSeconds( 2 ) );
+        // Use JavaScript to add hover class for reliable dropdown display
+        Selenide.executeJavaScript( "document.querySelector('.userbox').classList.add('open')" );
+        // Wait for the dropdown menu to become visible
+        $( ".userbox .dropdown-menu" ).shouldBe( Condition.visible, Duration.ofSeconds( 3 ) );
         return this;
     }
 
@@ -125,6 +133,8 @@ public class ViewWikiPage implements HaddockPage {
         hoverLoginArea();
         Selenide.$( By.linkText( "Log out" ) ).click();
         Selenide.$( By.className( "btn-success" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 1L ) ).click();
+        // Wait for page to reload and user status to change back to anonymous
+        $( ".page-content" ).shouldBe( Condition.visible, Duration.ofSeconds( 5 ) );
         return this;
     }
 

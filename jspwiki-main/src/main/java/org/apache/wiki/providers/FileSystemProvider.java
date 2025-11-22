@@ -66,6 +66,7 @@ public class FileSystemProvider extends AbstractFileProvider {
         final String author = page.getAuthor();
         final String changenote = page.getAttribute( Page.CHANGENOTE );
         final String viewcount = page.getAttribute( Page.VIEWCOUNT );
+        final String markupSyntax = page.getAttribute( Page.MARKUP_SYNTAX );
 
         if( author != null ) {
             props.setProperty( Page.AUTHOR, author );
@@ -77,6 +78,10 @@ public class FileSystemProvider extends AbstractFileProvider {
 
         if( viewcount != null ) {
             props.setProperty( Page.VIEWCOUNT, viewcount );
+        }
+
+        if( markupSyntax != null ) {
+            props.setProperty( Page.MARKUP_SYNTAX, markupSyntax );
         }
 
         // Get additional custom properties from page and add to props
@@ -109,8 +114,29 @@ public class FileSystemProvider extends AbstractFileProvider {
                     page.setAttribute( Page.VIEWCOUNT, viewcount );
                 }
 
+                // Get markup syntax from properties, or infer from file extension
+                String markupSyntax = props.getProperty( Page.MARKUP_SYNTAX );
+                if( markupSyntax == null ) {
+                    // Infer from file extension
+                    final String extension = getPageFileExtension( page.getName() );
+                    if( MARKDOWN_EXT.equals( extension ) ) {
+                        markupSyntax = "markdown";
+                    } else {
+                        markupSyntax = "jspwiki";
+                    }
+                }
+                page.setAttribute( Page.MARKUP_SYNTAX, markupSyntax );
+
                 // Set the props values to the page attributes
                 setCustomProperties( page, props );
+            }
+        } else {
+            // No properties file exists, infer markup syntax from file extension
+            final String extension = getPageFileExtension( page.getName() );
+            if( MARKDOWN_EXT.equals( extension ) ) {
+                page.setAttribute( Page.MARKUP_SYNTAX, "markdown" );
+            } else {
+                page.setAttribute( Page.MARKUP_SYNTAX, "jspwiki" );
             }
         }
     }
@@ -153,6 +179,13 @@ public class FileSystemProvider extends AbstractFileProvider {
         final File fromPage = findPage( from );
         final File toPage = findPage( to );
         fromPage.renameTo( toPage );
+
+        // Also move the properties file
+        final File fromProps = new File( getPageDirectory(), mangleName( from ) + PROP_EXT );
+        final File toProps = new File( getPageDirectory(), mangleName( to ) + PROP_EXT );
+        if( fromProps.exists() ) {
+            fromProps.renameTo( toProps );
+        }
     }
 
 }

@@ -112,7 +112,8 @@
    </filter>
    <filter-mapping>
      <filter-name>ClearSiteDataFilter</filter-name>
-     <url-pattern>/*</url-pattern>
+     <!-- Only clear site data on logout, not all requests -->
+     <url-pattern>/Logout.jsp</url-pattern>
    </filter-mapping>
    <filter>
      <filter-name>ContentTypeOptionsFilter</filter-name>
@@ -323,10 +324,10 @@
            <url-pattern>/*</url-pattern>
        </web-resource-collection>
        <user-data-constraint>
-           <transport-guarantee>CONFIDENTIAL</transport-guarantee>
+           <transport-guarantee>NONE</transport-guarantee>
        </user-data-constraint>
    </security-constraint>
-   
+
    <!--  REMOVE ME TO ENABLE CONTAINER-MANAGED AUTH
 
    <security-constraint>

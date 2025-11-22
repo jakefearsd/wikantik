@@ -535,6 +535,19 @@
           </execution>
         </executions>
       </plugin>
+
+      <!-- Configure maven-dependency-plugin to resolve Mockito JAR path for agent -->
+      <plugin>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>setup-mockito-agent</id>
+            <goals>
+              <goal>properties</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
 
     <pluginManagement> <!-- defines what configuration is going to be used if, and only if, the plugin is used                          -->
@@ -673,7 +686,7 @@
           <artifactId>maven-surefire-plugin</artifactId>
           <version>${plugin.surefire.version}</version>
           <configuration>
-            <argLine>@{argLine}</argLine>
+            <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}</argLine>
             <consoleOutputReporter>
               <disable>true</disable>
             </consoleOutputReporter>
@@ -1110,7 +1123,7 @@
           <plugin>
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
-              <argLine>@{argLine} -javaagent:${com.github.jbellis:jamm:jar}</argLine>
+              <argLine>@{argLine} -javaagent:${com.github.jbellis:jamm:jar} -javaagent:${org.mockito:mockito-core:jar}</argLine>
               <consoleOutputReporter>
                 <disable>false</disable>
               </consoleOutputReporter>

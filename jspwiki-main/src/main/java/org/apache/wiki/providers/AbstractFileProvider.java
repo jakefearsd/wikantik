@@ -103,6 +103,11 @@ public abstract class AbstractFileProvider implements PageProvider {
      */
     public static final String FILE_EXT = ".txt";
 
+    /**
+     *  Markdown files should have this extension to be recognized as Markdown syntax files.
+     */
+    public static final String MARKDOWN_EXT = ".md";
+
     /** The default encoding. */
     public static final String DEFAULT_ENCODING = StandardCharsets.ISO_8859_1.toString();
 
@@ -202,13 +207,40 @@ public abstract class AbstractFileProvider implements PageProvider {
     }
 
     /**
-     *  Finds a Wiki page from the page repository.
+     *  Finds a Wiki page from the page repository. Checks for both .md (Markdown) and .txt (Wiki) extensions,
+     *  with .md taking precedence if both exist.
      *
      *  @param page The name of the page.
-     *  @return A File to the page.  May be null.
+     *  @return A File to the page. Returns the file even if it doesn't exist (for creation purposes).
      */
     protected File findPage( final String page ) {
-        return new File( m_pageDirectory, mangleName( page ) + FILE_EXT );
+        final String mangledName = mangleName( page );
+
+        // First try .md extension (Markdown takes precedence)
+        final File mdFile = new File( m_pageDirectory, mangledName + MARKDOWN_EXT );
+        if( mdFile.exists() ) {
+            return mdFile;
+        }
+
+        // Fall back to .txt extension (traditional wiki syntax)
+        return new File( m_pageDirectory, mangledName + FILE_EXT );
+    }
+
+    /**
+     *  Determines the file extension for a given page based on which file exists.
+     *
+     *  @param page The name of the page.
+     *  @return The file extension (".md" or ".txt"), or ".txt" if neither exists (default for new pages).
+     */
+    protected String getPageFileExtension( final String page ) {
+        final String mangledName = mangleName( page );
+        final File mdFile = new File( m_pageDirectory, mangledName + MARKDOWN_EXT );
+
+        if( mdFile.exists() ) {
+            return MARKDOWN_EXT;
+        }
+
+        return FILE_EXT;
     }
 
     /**
@@ -266,7 +298,20 @@ public abstract class AbstractFileProvider implements PageProvider {
      */
     @Override
     public void putPageText( final Page page, final String text ) throws ProviderException {
-        final File file = findPage( page.getName() );
+        // Determine the correct file extension based on markup syntax attribute
+        String extension = FILE_EXT; // default to wiki syntax
+        final String markupSyntax = page.getAttribute( Page.MARKUP_SYNTAX );
+        if( "markdown".equals( markupSyntax ) ) {
+            extension = MARKDOWN_EXT;
+        }
+
+        // If page already exists, use findPage to get the existing file
+        // Otherwise, create a new file with the appropriate extension
+        File file = findPage( page.getName() );
+        if( !file.exists() ) {
+            file = new File( m_pageDirectory, mangleName( page.getName() ) + extension );
+        }
+
         try( final PrintWriter out = new PrintWriter( new OutputStreamWriter( Files.newOutputStream( file.toPath() ), m_encoding ) ) ) {
             out.print( text );
         } catch( final IOException e ) {
@@ -291,7 +336,15 @@ public abstract class AbstractFileProvider implements PageProvider {
 
         for( final File wikipage : wikipages ) {
             final String wikiname = wikipage.getName();
-            final int cutpoint = wikiname.lastIndexOf( FILE_EXT );
+
+            // Determine the extension and extract the base name
+            int cutpoint;
+            if( wikiname.endsWith( MARKDOWN_EXT ) ) {
+                cutpoint = wikiname.lastIndexOf( MARKDOWN_EXT );
+            } else {
+                cutpoint = wikiname.lastIndexOf( FILE_EXT );
+            }
+
             final Page page = getPageInfo( unmangleName( wikiname.substring( 0, cutpoint ) ), PageProvider.LATEST_VERSION );
             if( page == null ) {
                 // This should not really happen.
@@ -343,7 +396,15 @@ public abstract class AbstractFileProvider implements PageProvider {
         if( wikipages != null ) {
             for( final File wikipage : wikipages ) {
                 final String filename = wikipage.getName();
-                final int cutpoint = filename.lastIndexOf( FILE_EXT );
+
+                // Determine the extension and extract the base name
+                int cutpoint;
+                if( filename.endsWith( MARKDOWN_EXT ) ) {
+                    cutpoint = filename.lastIndexOf( MARKDOWN_EXT );
+                } else {
+                    cutpoint = filename.lastIndexOf( FILE_EXT );
+                }
+
                 final String wikiname = unmangleName( filename.substring( 0, cutpoint ) );
                 try( final InputStream input = Files.newInputStream( wikipage.toPath() ) ) {
                     final String pagetext = FileUtil.readContents( input, m_encoding );
@@ -512,7 +573,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 
     /**
      *  A simple filter which filters only those filenames which correspond to the
-     *  file extension used.
+     *  file extensions used (.txt for wiki syntax, .md for markdown syntax).
      */
     public static class WikiFileFilter implements FilenameFilter {
         /**
@@ -520,7 +581,7 @@ public abstract class AbstractFileProvider implements PageProvider {
          */
         @Override
         public boolean accept( final File dir, final String name ) {
-            return name.endsWith( FILE_EXT );
+            return name.endsWith( FILE_EXT ) || name.endsWith( MARKDOWN_EXT );
         }
     }
 

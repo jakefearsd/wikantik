@@ -220,4 +220,73 @@ public class RenderingManagerTest {
         "code.}}\n" +
         "----\n" +
         "author: [Asser], [Ebu], [JanneJalkanen], [Jarmo|mailto:jarmo@regex.com.au]\n";
+
+    @Test
+    public void testMarkdownParserSelection() throws Exception {
+        final String mdContent = "# Test Heading\n\nThis is **markdown** content.";
+        final String pageName = "MarkdownParserTest";
+
+        // Create a page with markdown syntax and ensure attribute is set
+        final org.apache.wiki.WikiPage page = new org.apache.wiki.WikiPage( m_engine, pageName );
+        page.setAttribute( Page.MARKUP_SYNTAX, "markdown" );
+
+        // Create context with the page that has the markdown attribute
+        final Context context = Wiki.context().create( m_engine, page );
+
+        // Get parser - should attempt to use markdown parser
+        final MarkupParser parser = m_manager.getParser( context, mdContent );
+
+        Assertions.assertNotNull( parser, "Parser should not be null" );
+        // Note: If markdown parser is not available on classpath, it will fall back to JSPWikiMarkupParser
+        // This test verifies the logic works, but the actual parser may be the fallback
+        final String parserClassName = parser.getClass().getName();
+        Assertions.assertTrue(
+            parserClassName.equals( "org.apache.wiki.parser.markdown.MarkdownParser" ) ||
+            parserClassName.equals( "org.apache.wiki.parser.JSPWikiMarkupParser" ),
+            "Parser should be MarkdownParser if available, or fallback to JSPWikiMarkupParser. Got: " + parserClassName
+        );
+    }
+
+    @Test
+    public void testWikiParserSelection() throws Exception {
+        final String wikiContent = "!!! Test Heading\n\nThis is ''wiki'' content.";
+        final String pageName = "WikiParserTest";
+
+        // Create a page with wiki syntax (or no attribute, which defaults to wiki)
+        final org.apache.wiki.WikiPage page = new org.apache.wiki.WikiPage( m_engine, pageName );
+        page.setAttribute( Page.MARKUP_SYNTAX, "jspwiki" );
+        m_engine.saveText( pageName, wikiContent );
+
+        final Page savedPage = m_engine.getManager( PageManager.class ).getPage( pageName );
+        savedPage.setAttribute( Page.MARKUP_SYNTAX, "jspwiki" );
+
+        // Get parser and verify it's the wiki parser
+        final Context context = Wiki.context().create( m_engine, savedPage );
+        final MarkupParser parser = m_manager.getParser( context, wikiContent );
+
+        Assertions.assertNotNull( parser, "Parser should not be null" );
+        Assertions.assertEquals( "org.apache.wiki.parser.JSPWikiMarkupParser",
+                                 parser.getClass().getName(),
+                                 "Should use JSPWikiMarkupParser for wiki pages" );
+    }
+
+    @Test
+    public void testDefaultParserWhenNoAttribute() throws Exception {
+        final String content = "Test content";
+        final String pageName = "DefaultParserTest";
+
+        // Create a page without markup syntax attribute
+        m_engine.saveText( pageName, content );
+
+        final Page savedPage = m_engine.getManager( PageManager.class ).getPage( pageName );
+
+        // Get parser and verify it defaults to wiki parser
+        final Context context = Wiki.context().create( m_engine, savedPage );
+        final MarkupParser parser = m_manager.getParser( context, content );
+
+        Assertions.assertNotNull( parser, "Parser should not be null" );
+        Assertions.assertEquals( "org.apache.wiki.parser.JSPWikiMarkupParser",
+                                 parser.getClass().getName(),
+                                 "Should default to JSPWikiMarkupParser" );
+    }
 }

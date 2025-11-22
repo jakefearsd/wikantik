@@ -388,6 +388,12 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 props.setProperty( versionNumber + ".changenote", changeNote );
             }
 
+            // Store markup syntax for this version
+            final String markupSyntax = page.getAttribute( Page.MARKUP_SYNTAX );
+            if( markupSyntax != null ) {
+                props.setProperty( versionNumber + ".markup.syntax", markupSyntax );
+            }
+
             // Get additional custom properties from page and add to props
             getCustomProperties( page, props );
             putPageProperties( page.getName(), props );
@@ -456,6 +462,19 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 if( changenote != null ) {
                     p.setAttribute( Page.CHANGENOTE, changenote );
                 }
+
+                // Get markup syntax for this version, or infer from file extension
+                String markupSyntax = props.getProperty( realVersion + ".markup.syntax" );
+                if( markupSyntax == null ) {
+                    // Infer from file extension of the current version
+                    final String extension = getPageFileExtension( page );
+                    if( MARKDOWN_EXT.equals( extension ) ) {
+                        markupSyntax = "markdown";
+                    } else {
+                        markupSyntax = "jspwiki";
+                    }
+                }
+                p.setAttribute( Page.MARKUP_SYNTAX, markupSyntax );
 
                 // Set the props values to the page attributes
                 setCustomProperties( p, props );

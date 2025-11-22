@@ -301,4 +301,178 @@ public class FileSystemProviderTest {
         Assertions.assertFalse( file.exists() );
     }
 
+    @Test
+    public void testMarkdownPageCreation() throws Exception {
+        final String pageDir = props.getProperty( FileSystemProvider.PROP_PAGEDIR );
+        final String pageName = "MarkdownTest";
+        final WikiPage page = new WikiPage( m_engine, pageName );
+        page.setAttribute( Page.MARKUP_SYNTAX, "markdown" );
+        page.setAuthor( "TestAuthor" );
+
+        m_provider.putPageText( page, "# Markdown Test\n\nThis is **markdown**." );
+
+        // Verify file was created with .md extension
+        final File mdFile = new File( pageDir, pageName + AbstractFileProvider.MARKDOWN_EXT );
+        Assertions.assertTrue( mdFile.exists(), "Markdown file should exist" );
+
+        // Verify .txt file was not created
+        final File txtFile = new File( pageDir, pageName + AbstractFileProvider.FILE_EXT );
+        Assertions.assertFalse( txtFile.exists(), "Wiki file should not exist" );
+
+        // Cleanup
+        mdFile.delete();
+        new File( pageDir, pageName + ".properties" ).delete();
+    }
+
+    @Test
+    public void testMarkdownPageRetrieval() throws Exception {
+        final String pageDir = props.getProperty( FileSystemProvider.PROP_PAGEDIR );
+        final String pageName = "MarkdownRetrievalTest";
+        final WikiPage page = new WikiPage( m_engine, pageName );
+        page.setAttribute( Page.MARKUP_SYNTAX, "markdown" );
+        page.setAuthor( "TestAuthor" );
+
+        final String content = "# Markdown Test\n\nThis is **markdown**.";
+        m_provider.putPageText( page, content );
+
+        // Retrieve page info and verify markup syntax
+        final Page retrievedPage = m_provider.getPageInfo( pageName, -1 );
+        Assertions.assertNotNull( retrievedPage, "Page should be retrieved" );
+        Assertions.assertEquals( "markdown", retrievedPage.getAttribute( Page.MARKUP_SYNTAX ), "Markup syntax should be markdown" );
+        Assertions.assertEquals( "TestAuthor", retrievedPage.getAuthor(), "Author should be preserved" );
+
+        // Retrieve page text
+        final String retrievedContent = m_provider.getPageText( pageName, -1 );
+        Assertions.assertEquals( content, retrievedContent, "Content should match" );
+
+        // Cleanup
+        new File( pageDir, pageName + AbstractFileProvider.MARKDOWN_EXT ).delete();
+        new File( pageDir, pageName + ".properties" ).delete();
+    }
+
+    @Test
+    public void testMarkdownPrecedenceOverWiki() throws Exception {
+        final String pageDir = props.getProperty( FileSystemProvider.PROP_PAGEDIR );
+        final String pageName = "PrecedenceTest";
+
+        // Manually create both .txt and .md files to test precedence
+        final File txtFile = new File( pageDir, pageName + AbstractFileProvider.FILE_EXT );
+        final File mdFile = new File( pageDir, pageName + AbstractFileProvider.MARKDOWN_EXT );
+
+        FileUtil.copyContents( new java.io.ByteArrayInputStream( "Wiki content".getBytes() ),
+                               new java.io.FileOutputStream( txtFile ) );
+        FileUtil.copyContents( new java.io.ByteArrayInputStream( "# Markdown content".getBytes() ),
+                               new java.io.FileOutputStream( mdFile ) );
+
+        // Verify both files exist
+        Assertions.assertTrue( txtFile.exists(), "Wiki file should exist" );
+        Assertions.assertTrue( mdFile.exists(), "Markdown file should exist" );
+
+        // Retrieve page and verify markdown takes precedence
+        final String content = m_provider.getPageText( pageName, -1 );
+        Assertions.assertEquals( "# Markdown content", content, "Markdown content should take precedence" );
+
+        final Page retrievedPage = m_provider.getPageInfo( pageName, -1 );
+        Assertions.assertEquals( "markdown", retrievedPage.getAttribute( Page.MARKUP_SYNTAX ), "Should use markdown syntax" );
+
+        // Cleanup
+        txtFile.delete();
+        mdFile.delete();
+        final File propsFile = new File( pageDir, pageName + ".properties" );
+        if( propsFile.exists() ) {
+            propsFile.delete();
+        }
+    }
+
+    @Test
+    public void testGetAllPagesWithMixedExtensions() throws Exception {
+        final String pageDir = props.getProperty( FileSystemProvider.PROP_PAGEDIR );
+
+        // Create wiki syntax pages
+        for( int i = 1; i <= 3; i++ ) {
+            final WikiPage page = new WikiPage( m_engine, "WikiPage" + i );
+            page.setAttribute( Page.MARKUP_SYNTAX, "jspwiki" );
+            m_provider.putPageText( page, "Wiki content " + i );
+        }
+
+        // Create markdown pages
+        for( int i = 1; i <= 3; i++ ) {
+            final WikiPage page = new WikiPage( m_engine, "MarkdownPage" + i );
+            page.setAttribute( Page.MARKUP_SYNTAX, "markdown" );
+            m_provider.putPageText( page, "# Markdown content " + i );
+        }
+
+        // Get all pages
+        final var allPages = m_provider.getAllPages();
+        Assertions.assertEquals( 6, allPages.size(), "Should have 6 pages total" );
+
+        // Verify markup syntax is correctly set for each page
+        int wikiCount = 0;
+        int markdownCount = 0;
+        for( final Page page : allPages ) {
+            final String syntax = page.getAttribute( Page.MARKUP_SYNTAX );
+            if( "jspwiki".equals( syntax ) ) {
+                wikiCount++;
+            } else if( "markdown".equals( syntax ) ) {
+                markdownCount++;
+            }
+        }
+
+        Assertions.assertEquals( 3, wikiCount, "Should have 3 wiki pages" );
+        Assertions.assertEquals( 3, markdownCount, "Should have 3 markdown pages" );
+
+        // Cleanup
+        for( int i = 1; i <= 3; i++ ) {
+            new File( pageDir, "WikiPage" + i + AbstractFileProvider.FILE_EXT ).delete();
+            new File( pageDir, "WikiPage" + i + ".properties" ).delete();
+            new File( pageDir, "MarkdownPage" + i + AbstractFileProvider.MARKDOWN_EXT ).delete();
+            new File( pageDir, "MarkdownPage" + i + ".properties" ).delete();
+        }
+    }
+
+    @Test
+    public void testExternalMarkdownFileDetection() throws Exception {
+        final String pageDir = props.getProperty( FileSystemProvider.PROP_PAGEDIR );
+        final String pageName = "ExternalMarkdown";
+
+        // Manually create a .md file (simulating external creation)
+        final File mdFile = new File( pageDir, pageName + AbstractFileProvider.MARKDOWN_EXT );
+        FileUtil.copyContents( new java.io.ByteArrayInputStream( "# External Markdown".getBytes() ),
+                               new java.io.FileOutputStream( mdFile ) );
+
+        // Retrieve page info without properties file
+        final Page page = m_provider.getPageInfo( pageName, -1 );
+        Assertions.assertNotNull( page, "Page should be retrieved" );
+        Assertions.assertEquals( "markdown", page.getAttribute( Page.MARKUP_SYNTAX ),
+                                 "Should infer markdown syntax from .md extension" );
+
+        // Verify content can be read
+        final String content = m_provider.getPageText( pageName, -1 );
+        Assertions.assertEquals( "# External Markdown", content, "Content should match" );
+
+        // Cleanup
+        mdFile.delete();
+    }
+
+    @Test
+    public void testMarkdownPageDeletion() throws Exception {
+        final String pageDir = props.getProperty( FileSystemProvider.PROP_PAGEDIR );
+        final String pageName = "MarkdownDeleteTest";
+        final WikiPage page = new WikiPage( m_engine, pageName );
+        page.setAttribute( Page.MARKUP_SYNTAX, "markdown" );
+
+        m_provider.putPageText( page, "# To be deleted" );
+
+        final File mdFile = new File( pageDir, pageName + AbstractFileProvider.MARKDOWN_EXT );
+        final File propsFile = new File( pageDir, pageName + ".properties" );
+
+        Assertions.assertTrue( mdFile.exists(), "Markdown file should exist" );
+        Assertions.assertTrue( propsFile.exists(), "Properties file should exist" );
+
+        m_provider.deletePage( pageName );
+
+        Assertions.assertFalse( mdFile.exists(), "Markdown file should be deleted" );
+        Assertions.assertFalse( propsFile.exists(), "Properties file should be deleted" );
+    }
+
 }

@@ -42,6 +42,9 @@ public interface Page extends Cloneable, Comparable< Page > {
     /** A special variable name for storing a viewcount. */
     String VIEWCOUNT = "viewcount";
 
+    /** A special variable name for storing the markup syntax type (e.g., "jspwiki" or "markdown"). */
+    String MARKUP_SYNTAX = "markup.syntax";
+
     /**
      *  Returns the name of the page.
      *

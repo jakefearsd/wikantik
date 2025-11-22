@@ -72,10 +72,17 @@ public class DefaultRenderingManager implements RenderingManager {
     private static final String VERSION_DELIMITER = "::";
     /** The name of the default renderer. */
     private static final String DEFAULT_PARSER = JSPWikiMarkupParser.class.getName();
+    /** The name of the markdown parser. */
+    private static final String DEFAULT_MARKDOWN_PARSER = "org.apache.wiki.parser.markdown.MarkdownParser";
     /** The name of the default renderer. */
     private static final String DEFAULT_RENDERER = XHTMLRenderer.class.getName();
+    /** The name of the default Markdown renderer. */
+    private static final String DEFAULT_MARKDOWN_RENDERER = "org.apache.wiki.render.markdown.MarkdownRenderer";
     /** The name of the default WYSIWYG renderer. */
     private static final String DEFAULT_WYSIWYG_RENDERER = WysiwygEditingRenderer.class.getName();
+
+    /** markdown parser property. */
+    String PROP_MARKDOWN_PARSER = "jspwiki.renderingManager.markdownParser";
 
     private Engine m_engine;
     private CachingManager cachingManager;
@@ -85,7 +92,9 @@ public class DefaultRenderingManager implements RenderingManager {
 
     private Constructor< ? > m_rendererConstructor;
     private Constructor< ? > m_rendererWysiwygConstructor;
+    private Constructor< ? > m_markdownRendererConstructor;
     private String m_markupParserClass = DEFAULT_PARSER;
+    private String m_markdownParserClass = DEFAULT_MARKDOWN_PARSER;
 
     /**
      *  {@inheritDoc}
@@ -104,6 +113,13 @@ public class DefaultRenderingManager implements RenderingManager {
         }
         LOG.info( "Using {} as markup parser.", m_markupParserClass );
 
+        m_markdownParserClass = properties.getProperty( PROP_MARKDOWN_PARSER, DEFAULT_MARKDOWN_PARSER );
+        if( !ClassUtil.assignable( m_markdownParserClass, MarkupParser.class.getName() ) ) {
+        	LOG.warn( "{} does not subclass {} reverting to default markdown parser.", m_markdownParserClass, MarkupParser.class.getName() );
+        	m_markdownParserClass = DEFAULT_MARKDOWN_PARSER;
+        }
+        LOG.info( "Using {} as markdown parser.", m_markdownParserClass );
+
         m_beautifyTitle  = TextUtil.getBooleanProperty( properties, PROP_BEAUTIFYTITLE, m_beautifyTitle );
         final String renderImplName = properties.getProperty( PROP_RENDERER, DEFAULT_RENDERER );
         final String renderWysiwygImplName = properties.getProperty( PROP_WYSIWYG_RENDERER, DEFAULT_WYSIWYG_RENDERER );
@@ -111,6 +127,15 @@ public class DefaultRenderingManager implements RenderingManager {
         final Class< ? >[] rendererParams = { Context.class, WikiDocument.class };
         m_rendererConstructor = initRenderer( renderImplName, rendererParams );
         m_rendererWysiwygConstructor = initRenderer( renderWysiwygImplName, rendererParams );
+
+        // Initialize Markdown renderer if available
+        try {
+            m_markdownRendererConstructor = initRenderer( DEFAULT_MARKDOWN_RENDERER, rendererParams );
+            LOG.info( "Using {} as markdown renderer.", DEFAULT_MARKDOWN_RENDERER );
+        } catch( final WikiException e ) {
+            LOG.warn( "Markdown renderer not available: {}", e.getMessage() );
+            m_markdownRendererConstructor = null;
+        }
 
         LOG.info( "Rendering content with {}.", renderImplName );
 
@@ -174,10 +199,24 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public MarkupParser getParser( final Context context, final String pagedata ) {
+        String parserClass = m_markupParserClass; // default to JSPWiki parser
+
+        // Check if the page has a markup syntax attribute
+        final Page page = context.getRealPage();
+        if( page != null ) {
+            final String syntax = page.getAttribute( Page.MARKUP_SYNTAX );
+            if( "markdown".equals( syntax ) ) {
+                parserClass = m_markdownParserClass;
+            }
+        }
+
     	try {
-			return ClassUtil.getMappedObject( m_markupParserClass, context, new StringReader( pagedata ) );
+			return ClassUtil.getMappedObject( parserClass, context, new StringReader( pagedata ) );
 		} catch( final ReflectiveOperationException | IllegalArgumentException e ) {
-			LOG.error( "unable to get an instance of {} ({}), returning default markup parser.", m_markupParserClass, e.getMessage(), e );
+			LOG.error( "unable to get an instance of {} ({}), returning default markup parser.", parserClass, e.getMessage(), e );
+			return new JSPWikiMarkupParser( context, new StringReader( pagedata ) );
+		} catch( final Exception e ) {
+			LOG.error( "Unexpected exception creating parser {} for page {}: {}", parserClass, page != null ? page.getName() : "unknown", e.getMessage(), e );
 			return new JSPWikiMarkupParser( context, new StringReader( pagedata ) );
 		}
     }
@@ -216,7 +255,9 @@ public class DefaultRenderingManager implements RenderingManager {
             }
             return doc;
         } catch( final IOException ex ) {
-            LOG.error( "Unable to parse", ex );
+            LOG.error( "Unable to parse page {}: {}", context.getRealPage().getName(), ex.getMessage(), ex );
+        } catch( final Exception ex ) {
+            LOG.error( "Unexpected exception parsing page {}: {}", context.getRealPage().getName(), ex.getMessage(), ex );
         }
 
         return null;
@@ -366,6 +407,13 @@ public class DefaultRenderingManager implements RenderingManager {
     @Override
     public WikiRenderer getRenderer( final Context context, final WikiDocument doc ) {
         final Object[] params = { context, doc };
+
+        // Use MarkdownRenderer for MarkdownDocument if available
+        if( m_markdownRendererConstructor != null &&
+            doc.getClass().getName().equals( "org.apache.wiki.parser.markdown.MarkdownDocument" ) ) {
+            return getRenderer( params, m_markdownRendererConstructor );
+        }
+
         return getRenderer( params, m_rendererConstructor );
     }
 

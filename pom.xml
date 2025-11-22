@@ -84,7 +84,7 @@
     <selenide.version>7.10.1</selenide.version>
     <slf4j.version>2.0.17</slf4j.version>
     <tika.version>3.2.3</tika.version>
-    <tomcat.version>10.1.49</tomcat.version>
+    <tomcat.version>11.0.14</tomcat.version>
     <xmlrpc.version>2.0.1</xmlrpc.version>
     <xstream.version>1.4.21</xstream.version>
 
@@ -861,7 +861,7 @@
           <configuration>
             <container>
               <!-- https://codehaus-cargo.github.io/cargo/Maven2+Plugin+Reference+Guide.html#Maven2PluginReferenceGuide-container -->
-              <containerId>tomcat10x</containerId>
+              <containerId>tomcat11x</containerId>
               <zipUrlInstaller>
                 <url>https://repo1.maven.org/maven2/org/apache/tomcat/tomcat/${tomcat.version}/tomcat-${tomcat.version}.zip</url>
               </zipUrlInstaller>
@@ -873,7 +873,7 @@
             </container>
             <configuration>
               <type>standalone</type>
-              <home>${project.build.directory}/tomcat10x</home>
+              <home>${project.build.directory}/tomcat11x</home>
               <properties>
                 <cargo.servlet.port>8080</cargo.servlet.port>
                 <cargo.jvmargs>-Xms256m -Xmx3072m -Xdebug -Xnoagent -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005 -XX:+DisableExplicitGC -Xverify:none -Djava.awt.headless=true</cargo.jvmargs>

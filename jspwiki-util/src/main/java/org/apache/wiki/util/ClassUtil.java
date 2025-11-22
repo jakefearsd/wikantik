@@ -222,7 +222,7 @@ public final class ClassUtil {
             while( files.hasNext() ) {
                 final File subfile = files.next();
                 // store an entry similar to the jarSearch(..) below ones
-                final String entry = StringUtils.replace( subfile.getAbsolutePath(), file.getAbsolutePath() + File.separatorChar, StringUtils.EMPTY );
+                final String entry = subfile.getAbsolutePath().replace( file.getAbsolutePath() + File.separatorChar, "" );
                 results.add( rootPackage + "/" + entry );
             }
         } else {

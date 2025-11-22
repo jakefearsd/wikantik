@@ -19,9 +19,8 @@
 
 package org.apache.wiki.util.comparators;
 
-import org.apache.commons.lang3.StringUtils;
-
 import java.util.Comparator;
+import java.util.Objects;
 
 /**
  * A comparator that sorts Strings using "human" ordering, including decimal
@@ -82,7 +81,7 @@ public class HumanComparator implements Comparator< String > {
     public int compare(final String str1, final String str2 )
     {
         // Some quick and easy checks
-        if( StringUtils.equals( str1, str2 ) ) {
+        if( Objects.equals( str1, str2 ) ) {
             // they're identical, possibly both null
             return 0;
         } else if ( str1 == null ) {

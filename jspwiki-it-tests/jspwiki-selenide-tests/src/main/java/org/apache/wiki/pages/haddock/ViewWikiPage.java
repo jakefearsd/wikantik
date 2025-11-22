@@ -110,7 +110,7 @@ public class ViewWikiPage implements HaddockPage {
      */
     public SearchResultsPage searchFor( final String text ) {
         Selenide.$( By.className( "icon-search" ) ).hover();
-        Selenide.$( By.id( "query" ) ).click();
+        Selenide.$( By.id( "query" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 2L ) ).click();
         Selenide.$( By.id( "query" ) ).val( text );
         Selenide.$( By.id( "searchSubmit" ) ).click();
         return new SearchResultsPage();

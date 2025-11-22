@@ -1,0 +1,6 @@
+Bash(mvn clean install -Dmaven.test.skip -q 2>&1) timeout: 5m 0s
+  ⎿ Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mo
+    ckito/Mockito.html#0.3
+    WARNING: A Java agent has been loaded dynamically (/home/jakefear/.m2/repository/net/bytebuddy/byte-buddy-agent/1.17.7/byte-buddy-agent-1.17.7.jar)
+    … +6 lines (ctrl+o to expand)
+

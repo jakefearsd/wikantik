@@ -1,0 +1,25 @@
+version: '3.7'
+
+services:
+  jspwiki:
+    build: .
+    container_name: jspwiki
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+      - jspwiki-data:/var/jspwiki
+
+  backup:
+    image: alpine
+    container_name: jspwiki-backup
+    restart: always
+    volumes:
+      - jspwiki-data:/var/jspwiki:ro
+      - type: bind
+        source: /home/jakefear/backups
+        target: /backups
+    command: ["crond", "-f", "-d", "8"]
+
+volumes:
+  jspwiki-data:

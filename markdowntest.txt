@@ -1,0 +1,119 @@
+● Based on my analysis of the changes, here's a comprehensive manual testing path for the Markdown support feature:
+
+  ---
+  Manual Testing Path for Markdown Support
+
+  Summary of Changes
+
+  The implementation adds support for Markdown pages alongside traditional JSPWiki markup:
+  - Pages with .md extension are automatically detected as Markdown
+  - A markup.syntax attribute is stored on pages ("markdown" or "jspwiki")
+  - The RenderingManager uses the appropriate parser based on this attribute
+
+  ---
+  Prerequisites
+
+  # Build the project first
+  mvn clean install -Dmaven.test.skip
+
+  # Start the development server (from jspwiki-war module)
+  cd jspwiki-war
+  mvn org.codehaus.cargo:cargo-maven3-plugin:run
+
+  Access the wiki at: http://localhost:8080/JSPWiki
+
+  ---
+  Test Cases
+
+  1. Create a Markdown Page via File System
+
+  1. Locate the wiki pages directory (configured via jspwiki.fileSystemProvider.pageDir)
+  2. Create a new file TestMarkdown.md with content:
+  # Heading 1
+
+  This is **bold** and *italic* text.
+
+  ## Heading 2
+
+  - Bullet point 1
+  - Bullet point 2
+
+  [Link to Main](Main)
+
+  ```java
+  public class Example {
+      // code block
+  }
+
+  3. Access http://localhost:8080/JSPWiki/Wiki.jsp?page=TestMarkdown
+  4. Verify: Page renders with Markdown formatting (not JSPWiki syntax)
+  2. Existing JSPWiki Pages Still Work
+
+  1. Access an existing wiki page (e.g., Main)
+  2. Verify: Traditional wiki markup renders correctly
+  3. Check that .txt files are still recognized
+
+  3. File Extension Precedence
+
+  1. Create both TestPrecedence.md and TestPrecedence.txt in the pages directory
+  2. Put different content in each file
+  3. Access http://localhost:8080/JSPWiki/Wiki.jsp?page=TestPrecedence
+  4. Verify: The .md file takes precedence (Markdown content shows)
+
+  4. Page Listing Includes Both Types
+
+  1. Go to the "Recent Changes" or "All Pages" view
+  2. Verify: Both .md and .txt pages appear in listings
+
+  5. Search Functionality
+
+  1. Add searchable content to your Markdown test page
+  2. Use the wiki search feature
+  3. Verify: Content from Markdown pages appears in search results
+
+  6. Page Properties Persistence
+
+  1. View the properties file for a Markdown page (e.g., TestMarkdown.properties)
+  2. Verify: Contains markup.syntax=markdown
+
+  7. Mixed Content in Same Wiki
+
+  1. Have multiple pages with different syntaxes
+  2. Navigate between them
+  3. Verify: Each page renders with its correct parser
+
+  8. VersioningFileProvider Support (if using versioning)
+
+  1. Check if VersioningFileProvider also handles .md files
+  2. Create/modify a Markdown page and verify version history works
+
+  ---
+  Key Verification Points
+
+  | Feature                                     | How to Verify                                     |
+  |---------------------------------------------|---------------------------------------------------|
+  | Markdown headers render as <h1>, <h2>       | View page source or inspect element               |
+  | Code blocks have proper syntax highlighting | Check <pre><code> tags                            |
+  | Links work correctly                        | Click internal wiki links                         |
+  | No JSPWiki syntax in Markdown pages         | Ensure [{Plugin}] style syntax is NOT interpreted |
+  | Page metadata preserved                     | Check .properties file has markup.syntax          |
+
+  ---
+  Debug/Troubleshooting
+
+  Check logs for:
+  Using org.apache.wiki.parser.markdown.MarkdownParser as markdown parser.
+
+  If issues occur, verify:
+  1. The jspwiki-markdown module is included in the WAR
+  2. Properties file has correct configuration
+  3. File permissions allow reading .md files
+
+  ---
+  Automated Test Verification
+
+  Before manual testing, ensure unit tests pass:
+  # Run the specific tests for the changed components
+  mvn test -Dtest=RenderingManagerTest
+  mvn test -Dtest=FileSystemProviderTest
+

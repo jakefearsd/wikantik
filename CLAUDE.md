@@ -46,6 +46,7 @@ mvn test -Dtest=MemoryProfiling
 ### Development Server
 ```bash
 # Start JSPWiki on Tomcat at http://localhost:8080/JSPWiki with debugger on port 5005
+# The tomcat server is under the tomcat/tomcat-11 directory, and you must use this instances for running and testing.
 mvn org.codehaus.cargo:cargo-maven3-plugin:run   # from jspwiki-war module
 ```
 

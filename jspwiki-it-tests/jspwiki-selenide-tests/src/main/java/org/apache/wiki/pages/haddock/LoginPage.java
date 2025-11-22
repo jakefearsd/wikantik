@@ -18,9 +18,12 @@
  */
 package org.apache.wiki.pages.haddock;
 
+import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
 import org.apache.wiki.its.environment.Env;
 import org.openqa.selenium.By;
+
+import java.time.Duration;
 
 /**
  * Actions available on the Login page.
@@ -47,7 +50,11 @@ public class LoginPage implements HaddockPage {
         Selenide.$( By.id( "j_username" ) ).val( login );
         Selenide.$( By.id( "j_password" ) ).val( password );
         Selenide.$( By.name( "submitlogin" ) ).click();
-        
+
+        // Wait for the page to stabilize after login attempt
+        // This handles both successful redirects and failed logins that stay on the page
+        Selenide.$( By.className( "page-content" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 5 ) );
+
         return new ViewWikiPage();
     }
 

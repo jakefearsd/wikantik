@@ -68,7 +68,7 @@ public class ViewWikiPage implements HaddockPage {
      * @return {@link ViewWikiPage} instance, to allow chaining of actions.
      */
     public ViewWikiPage clickOnShowReaderView() {
-        Selenide.$( By.linkText( "Show Reader View" ) ).click();
+        Selenide.$( By.linkText( "Show Reader View" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 2L ) ).click();
         return this;
     }
 

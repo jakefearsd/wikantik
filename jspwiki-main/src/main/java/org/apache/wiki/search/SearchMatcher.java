@@ -71,12 +71,13 @@ public class SearchMatcher {
      * object describing the quality of the match.
      *
      * <p>This method would benefit of regexps (1.4) and streaming. FIXME!
-     * 
+     *
      * @param wikiname The name of the page
      * @param pageText The content of the page
      * @return A SearchResult item, or null, there are no queries
      * @throws IOException If reading page content fails
      */
+    @SuppressWarnings( "deprecation" )
     public org.apache.wiki.search.SearchResult matchPageContent( final String wikiname, final String pageText ) throws IOException {
         if( m_queries == null ) {
             return null;
@@ -131,6 +132,7 @@ public class SearchMatcher {
     /**
      *  A local search result.
      */
+    @SuppressWarnings( "deprecation" )
     public class SearchResultImpl implements org.apache.wiki.search.SearchResult {
     	
         final int  m_score;

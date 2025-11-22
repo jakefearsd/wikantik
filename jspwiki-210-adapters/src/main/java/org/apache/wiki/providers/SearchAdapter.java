@@ -23,6 +23,7 @@ import org.apache.wiki.api.search.QueryItem;
 import org.apache.wiki.api.search.SearchResult;
 
 
+@SuppressWarnings( "deprecation" )
 class SearchAdapter {
 
     static org.apache.wiki.search.QueryItem oldQueryItemfrom( final QueryItem item ) {

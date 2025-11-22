@@ -79,7 +79,7 @@ public class DefaultAttachmentManager implements AttachmentManager {
         if( cachingManager.enabled( CachingManager.CACHE_ATTACHMENTS_DYNAMIC ) ) {
             classname = "org.apache.wiki.providers.CachingAttachmentProvider";
         } else {
-            classname = TextUtil.getRequiredProperty( props, PROP_PROVIDER, PROP_PROVIDER_DEPRECATED );
+            classname = TextUtil.getRequiredProperty( props, PROP_PROVIDER, "jspwiki.attachmentProvider" );
         }
 
         //  If no class defined, then will just simply fail.

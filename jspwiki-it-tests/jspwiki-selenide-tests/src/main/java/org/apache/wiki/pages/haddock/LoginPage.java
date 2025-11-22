@@ -20,8 +20,11 @@ package org.apache.wiki.pages.haddock;
 
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
+import com.codeborne.selenide.WebDriverRunner;
 import org.apache.wiki.its.environment.Env;
 import org.openqa.selenium.By;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
 
@@ -47,6 +50,8 @@ public class LoginPage implements HaddockPage {
      * @return {@link ViewWikiPage} instance, to allow chaining of actions.
      */
     public ViewWikiPage performLogin(final String login, final String password ) {
+        final String currentUrl = WebDriverRunner.url();
+
         Selenide.$( By.id( "j_username" ) ).val( login );
         Selenide.$( By.id( "j_password" ) ).val( password );
         Selenide.$( By.name( "submitlogin" ) ).click();
@@ -54,6 +59,18 @@ public class LoginPage implements HaddockPage {
         // Wait for the page to stabilize after login attempt
         // This handles both successful redirects and failed logins that stay on the page
         Selenide.$( By.className( "page-content" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 5 ) );
+
+        // Additional wait for page URL or content to change/stabilize
+        // For failed logins, we stay on Login page; for successful logins, we redirect
+        new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 5 ) )
+            .until( driver -> {
+                // Wait until either URL changes (successful login) or error message appears (failed login)
+                final String newUrl = driver.getCurrentUrl();
+                final boolean urlChanged = !newUrl.equals( currentUrl );
+                final boolean hasError = !driver.findElements( By.className( "error" ) ).isEmpty();
+                final boolean pageLoaded = !driver.findElements( By.className( "page-content" ) ).isEmpty();
+                return ( urlChanged || hasError ) && pageLoaded;
+            } );
 
         return new ViewWikiPage();
     }

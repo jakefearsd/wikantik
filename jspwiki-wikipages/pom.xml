@@ -41,7 +41,6 @@
     <module>nl</module>
     <module>pt_BR</module>
     <module>ru</module>
-    <module>zh_CN</module>
   </modules>
   
   <build>

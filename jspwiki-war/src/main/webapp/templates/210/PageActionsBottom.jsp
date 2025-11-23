@@ -50,7 +50,6 @@
       </fmt:message>
     </wiki:CheckVersion>
 
-   <wiki:RSSImageLink mode="wiki" />
 
   </wiki:PageExists>
 

@@ -112,7 +112,6 @@
     <fmt:param><wiki:Author /></fmt:param>
   </fmt:message>
 
-  <wiki:RSSImageLink mode="wiki"/>
   </p>
 
   <wiki:CheckVersion mode="notfirst">

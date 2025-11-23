@@ -74,18 +74,6 @@
        <url-pattern>/attach/*</url-pattern>
    </filter-mapping>
    <filter-mapping>
-       <filter-name>WikiServletFilter</filter-name>
-       <url-pattern>/atom/*</url-pattern>
-   </filter-mapping>
-   <filter-mapping>
-       <filter-name>WikiServletFilter</filter-name>
-       <url-pattern>/RPCU/</url-pattern>
-   </filter-mapping>
-   <filter-mapping>
-       <filter-name>WikiServletFilter</filter-name>
-       <url-pattern>/RPC2/</url-pattern>
-   </filter-mapping>
-   <filter-mapping>
        <filter-name>WikiJSPFilter</filter-name>
        <url-pattern>/wiki/*</url-pattern>
    </filter-mapping>
@@ -106,56 +94,12 @@
        <listener-class>org.apache.wiki.bootstrap.WikiBootstrapServletContextListener</listener-class>
    </listener>
 
-   <!--
-       Now, let's define the XML-RPC interfaces.  You probably don't have to
-       touch these.
-
-       First, we'll define the standard XML-RPC interface.
-     -->
-   <servlet>
-       <servlet-name>XMLRPC</servlet-name>
-       <servlet-class>org.apache.wiki.xmlrpc.RPCServlet</servlet-class>
-       <init-param>
-           <param-name>handler</param-name>
-           <param-value>org.apache.wiki.xmlrpc.RPCHandler</param-value>
-       </init-param>
-
-       <init-param>
-           <param-name>prefix</param-name>
-           <param-value>wiki</param-value>
-       </init-param>
-   </servlet>
-
-   <!--
-       OK, this then defines that our UTF-8 -capable server.
-     -->
-
-   <servlet>
-       <servlet-name>XMLRPC-UTF8</servlet-name>
-       <servlet-class>org.apache.wiki.xmlrpc.RPCServlet</servlet-class>
-       <init-param>
-           <param-name>handler</param-name>
-           <param-value>org.apache.wiki.xmlrpc.RPCHandlerUTF8</param-value>
-       </init-param>
-
-       <init-param>
-           <param-name>prefix</param-name>
-           <param-value>wiki</param-value>
-       </init-param>
-   </servlet>
-
     <!-- WikiAjaxDispatcherServlet -->
     <servlet>
         <servlet-name>WikiAjaxDispatcherServlet</servlet-name>
         <servlet-class>org.apache.wiki.ajax.WikiAjaxDispatcherServlet</servlet-class>
         <load-on-startup>1</load-on-startup>
     </servlet>
-
-   <!-- Atom Publishing Protocol -->
-   <servlet>
-       <servlet-name>ATOM</servlet-name>
-       <servlet-class>org.apache.wiki.rpc.atom.AtomAPIServlet</servlet-class>
-   </servlet>
 
    <!-- Maps short URLS to JSPs; also, detects webapp shutdown. -->
    <servlet>
@@ -174,33 +118,6 @@
    </servlet>
 
    <!-- PLACEHOLDER FOR PRE-COMPILED JSP SERVLETS -->
-
-   <!--
-       And finally, let us tell the servlet container which
-       URLs should correspond to which XML RPC servlet.
-     -->
-
-   <!-- By default, this is disabled.  If you want to enabled it,
-        just uncomment the whole section. -->
-
-   <!--  REMOVE ME TO ENABLE XML-RPC
-
-   <servlet-mapping>
-       <servlet-name>XMLRPC</servlet-name>
-       <url-pattern>/RPC2/</url-pattern>
-   </servlet-mapping>
-
-   <servlet-mapping>
-       <servlet-name>XMLRPC-UTF8</servlet-name>
-       <url-pattern>/RPCU/</url-pattern>
-   </servlet-mapping>
-
-   <servlet-mapping>
-       <servlet-name>ATOM</servlet-name>
-       <url-pattern>/atom/*</url-pattern>
-   </servlet-mapping>
-
-   AND REMOVE ME TOO -->
 
    <servlet-mapping>
        <servlet-name>AttachmentServlet</servlet-name>

@@ -70,11 +70,13 @@
         <url-pattern>/atom/*</url-pattern>
         <url-pattern>/RPCU/</url-pattern>
         <url-pattern>/RPC2/</url-pattern>
+        <url-pattern>/wiki/*</url-pattern>
     </filter-mapping>
     <filter-mapping>
         <filter-name>WikiJSPFilter</filter-name>
-        <url-pattern>/wiki/*</url-pattern>
         <url-pattern>*.jsp</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
     </filter-mapping>
 
    <!--

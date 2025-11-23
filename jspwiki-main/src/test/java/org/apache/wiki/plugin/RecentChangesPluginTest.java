@@ -67,9 +67,9 @@ public class RecentChangesPluginTest {
         // we don't want to compare the complete html returned, but check if
         // certain Strings are present and other Strings are not present
         Assertions.assertTrue(res.contains("<table class=\"recentchanges\" cellpadding=\"4\">"));
-        Assertions.assertTrue(res.contains("<a href=\"/test/Wiki.jsp?page=TestPage01\">Test Page 01</a>"));
-        Assertions.assertTrue(res.contains("<a href=\"/test/Wiki.jsp?page=TestPage02\">Test Page 02</a>"));
-        Assertions.assertTrue(res.contains("<a href=\"/test/Wiki.jsp?page=TestPage03\">Test Page 03</a>"));
+        Assertions.assertTrue(res.contains("<a href=\"/test/wiki/TestPage01\">Test Page 01</a>"));
+        Assertions.assertTrue(res.contains("<a href=\"/test/wiki/TestPage02\">Test Page 02</a>"));
+        Assertions.assertTrue(res.contains("<a href=\"/test/wiki/TestPage03\">Test Page 03</a>"));
     }
 
     /**
@@ -84,9 +84,9 @@ public class RecentChangesPluginTest {
         final String res = manager.execute( context, "{INSERT org.apache.wiki.plugin.RecentChangesPlugin include='TestPage02*'}" );
 
         Assertions.assertTrue(res.contains("<table class=\"recentchanges\" cellpadding=\"4\">"));
-        Assertions.assertFalse(res.contains("<a href=\"/test/Wiki.jsp?page=TestPage01\">Test Page 01</a>"));
-        Assertions.assertTrue(res.contains("<a href=\"/test/Wiki.jsp?page=TestPage02\">Test Page 02</a>"));
-        Assertions.assertFalse(res.contains("<a href=\"/test/Wiki.jsp?page=TestPage03\">Test Page 03</a>"));
+        Assertions.assertFalse(res.contains("<a href=\"/test/wiki/TestPage01\">Test Page 01</a>"));
+        Assertions.assertTrue(res.contains("<a href=\"/test/wiki/TestPage02\">Test Page 02</a>"));
+        Assertions.assertFalse(res.contains("<a href=\"/test/wiki/TestPage03\">Test Page 03</a>"));
     }
 
     /**
@@ -101,9 +101,9 @@ public class RecentChangesPluginTest {
         final String res = manager.execute( context, "{INSERT org.apache.wiki.plugin.RecentChangesPlugin exclude='TestPage03*'}" );
 
         Assertions.assertTrue(res.contains("<table class=\"recentchanges\" cellpadding=\"4\">"));
-        Assertions.assertTrue(res.contains("<a href=\"/test/Wiki.jsp?page=TestPage01\">Test Page 01</a>"));
-        Assertions.assertTrue(res.contains("<a href=\"/test/Wiki.jsp?page=TestPage02\">Test Page 02</a>"));
-        Assertions.assertFalse(res.contains("<a href=\"/test/Wiki.jsp?page=TestPage03\">Test Page 03</a>"));
+        Assertions.assertTrue(res.contains("<a href=\"/test/wiki/TestPage01\">Test Page 01</a>"));
+        Assertions.assertTrue(res.contains("<a href=\"/test/wiki/TestPage02\">Test Page 02</a>"));
+        Assertions.assertFalse(res.contains("<a href=\"/test/wiki/TestPage03\">Test Page 03</a>"));
     }
 
     /**

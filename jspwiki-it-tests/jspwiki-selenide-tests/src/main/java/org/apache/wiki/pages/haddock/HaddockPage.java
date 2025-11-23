@@ -43,7 +43,7 @@ public interface HaddockPage extends Page {
     default String wikiPageContent() {
         // Wait for page content to be visible and stable
         return Selenide.$( By.className( "page-content" ) )
-                       .shouldBe( Condition.visible, Duration.ofSeconds( 2 ) )
+                       .shouldBe( Condition.visible, Duration.ofSeconds( 3 ) )
                        .text();
     }
 

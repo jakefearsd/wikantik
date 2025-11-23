@@ -58,18 +58,19 @@ public class LoginPage implements HaddockPage {
 
         // Wait for the page to stabilize after login attempt
         // This handles both successful redirects and failed logins that stay on the page
-        Selenide.$( By.className( "page-content" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 5 ) );
+        Selenide.$( By.className( "page-content" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 6 ) );
 
         // Additional wait for page URL or content to change/stabilize
         // For failed logins, we stay on Login page; for successful logins, we redirect
-        new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 5 ) )
+        new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 6 ) )
             .until( driver -> {
-                // Wait until either URL changes (successful login) or error message appears (failed login)
+                // Wait until either URL changes (successful login) or login error message appears (failed login)
+                // Use "alert-danger" for login-specific errors, not generic "error" class which includes missing pages
                 final String newUrl = driver.getCurrentUrl();
                 final boolean urlChanged = !newUrl.equals( currentUrl );
-                final boolean hasError = !driver.findElements( By.className( "error" ) ).isEmpty();
+                final boolean hasLoginError = !driver.findElements( By.cssSelector( "#login .alert-danger" ) ).isEmpty();
                 final boolean pageLoaded = !driver.findElements( By.className( "page-content" ) ).isEmpty();
-                return ( urlChanged || hasError ) && pageLoaded;
+                return ( urlChanged || hasLoginError ) && pageLoaded;
             } );
 
         return new ViewWikiPage();

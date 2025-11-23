@@ -66,7 +66,7 @@ public class WeblogPluginTest {
 
         final String res = testEngine.getI18nHTML( "Test3" );
         Assertions.assertTrue( res.startsWith( "<div class=\"weblog\">\n<div class=\"weblogentry\">\n<div class=\"weblogentryheading\">\n" ), res );
-        Assertions.assertTrue( res.contains( "<div class=\"weblogentrybody\">\nMy first blog entry, W00t! <a href=\"/test/Wiki.jsp?page="+ blogEntryPage + "\">(more)</a>\n</div>\n" ), res );
+        Assertions.assertTrue( res.contains( "<div class=\"weblogentrybody\">\nMy first blog entry, W00t! <a href=\"/test/wiki/"+ blogEntryPage + "\">(more)</a>\n</div>\n" ), res );
     }
 
     @Test
@@ -79,7 +79,7 @@ public class WeblogPluginTest {
 
         final String res = testEngine.getI18nHTML( "Test4" );
         Assertions.assertTrue( res.startsWith( "<div class=\"weblog\">\n<div class=\"weblogentry\">\n<div class=\"weblogentryheading\">\n" ), res );
-        Assertions.assertTrue( res.contains( "<div class=\"weblogentrybody\">\nAnother blog entry  <a href=\"/test/Wiki.jsp?page="+ blogEntryPage + "\">(more)</a>\n</div>\n" ), res );
+        Assertions.assertTrue( res.contains( "<div class=\"weblogentrybody\">\nAnother blog entry  <a href=\"/test/wiki/"+ blogEntryPage + "\">(more)</a>\n</div>\n" ), res );
     }
 
 }

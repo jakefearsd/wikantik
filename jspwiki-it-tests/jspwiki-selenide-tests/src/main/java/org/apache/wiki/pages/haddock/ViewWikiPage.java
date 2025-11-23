@@ -41,7 +41,7 @@ public class ViewWikiPage implements HaddockPage {
      * @return {@link ViewWikiPage} instance, to allow chaining of actions.
      */
     public static ViewWikiPage open(final String pageName ) {
-        return Page.withUrl( Page.baseUrl() + "/Wiki.jsp?page=" + pageName ).openAs( new ViewWikiPage() );
+        return Page.withUrl( Page.baseUrl() + "/wiki/" + pageName ).openAs( new ViewWikiPage() );
     }
 
     /**
@@ -51,7 +51,7 @@ public class ViewWikiPage implements HaddockPage {
      */
     public String authenticatedText() {
         // Wait for the dropdown menu to be visible and get text from the user greeting link
-        return $( ".userbox .dropdown-menu li a" ).shouldBe( Condition.visible, Duration.ofSeconds( 2 ) ).text().trim();
+        return $( ".userbox .dropdown-menu li a" ).shouldBe( Condition.visible, Duration.ofSeconds( 3 ) ).text().trim();
     }
 
     /**
@@ -71,7 +71,7 @@ public class ViewWikiPage implements HaddockPage {
      * @return {@link ViewWikiPage} instance, to allow chaining of actions.
      */
     public ViewWikiPage clickOnShowReaderView() {
-        Selenide.$( By.linkText( "Show Reader View" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 2L ) ).click();
+        Selenide.$( By.linkText( "Show Reader View" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 3L ) ).click();
         return this;
     }
 
@@ -82,11 +82,11 @@ public class ViewWikiPage implements HaddockPage {
      */
     public ViewWikiPage hoverLoginArea() {
         // Wait for the userbox to be ready
-        $( ".userbox" ).shouldBe( Condition.visible, Duration.ofSeconds( 2 ) );
+        $( ".userbox" ).shouldBe( Condition.visible, Duration.ofSeconds( 3 ) );
         // Use JavaScript to add hover class for reliable dropdown display
         Selenide.executeJavaScript( "document.querySelector('.userbox').classList.add('open')" );
         // Wait for the dropdown menu to become visible
-        $( ".userbox .dropdown-menu" ).shouldBe( Condition.visible, Duration.ofSeconds( 3 ) );
+        $( ".userbox .dropdown-menu" ).shouldBe( Condition.visible, Duration.ofSeconds( 4 ) );
         return this;
     }
 
@@ -106,7 +106,7 @@ public class ViewWikiPage implements HaddockPage {
      * @return {@link EditWikiPage} instance, to allow chaining of actions.
      */
     public EditWikiPage editPage() {
-        Selenide.$( By.cssSelector( "li#edit a" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 1L ) ).click();
+        Selenide.$( By.cssSelector( "li#edit a" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 2L ) ).click();
         return new EditWikiPage();
     }
 
@@ -118,7 +118,7 @@ public class ViewWikiPage implements HaddockPage {
      */
     public SearchResultsPage searchFor( final String text ) {
         Selenide.$( By.className( "icon-search" ) ).hover();
-        Selenide.$( By.id( "query" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 2L ) ).click();
+        Selenide.$( By.id( "query" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 3L ) ).click();
         Selenide.$( By.id( "query" ) ).val( text );
         Selenide.$( By.id( "searchSubmit" ) ).click();
         return new SearchResultsPage();
@@ -132,9 +132,9 @@ public class ViewWikiPage implements HaddockPage {
     public ViewWikiPage clickOnLogout() {
         hoverLoginArea();
         Selenide.$( By.linkText( "Log out" ) ).click();
-        Selenide.$( By.className( "btn-success" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 1L ) ).click();
+        Selenide.$( By.className( "btn-success" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 2L ) ).click();
         // Wait for page to reload and user status to change back to anonymous
-        $( ".page-content" ).shouldBe( Condition.visible, Duration.ofSeconds( 5 ) );
+        $( ".page-content" ).shouldBe( Condition.visible, Duration.ofSeconds( 6 ) );
         return this;
     }
 

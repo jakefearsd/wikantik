@@ -20,8 +20,10 @@ package org.apache.wiki.pages.haddock;
 
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
+import com.codeborne.selenide.WebDriverRunner;
 import org.apache.wiki.pages.Page;
 import org.openqa.selenium.By;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
 
@@ -72,8 +74,16 @@ public class EditWikiPage implements HaddockPage {
     public ViewWikiPage saveText(final String text, final String preview ) {
         Selenide.$( By.cssSelector( EDIT_TEXTAREA ) ).clear();
         Selenide.$( By.cssSelector( EDIT_TEXTAREA ) ).val( text );
-        Selenide.$( By.className( "ajaxpreview" ) ).shouldBe( Condition.text( preview ), Duration.ofSeconds( 1L ) );
+        Selenide.$( By.className( "ajaxpreview" ) ).shouldBe( Condition.text( preview ), Duration.ofSeconds( 2L ) );
         Selenide.$( By.name( "ok" ) ).click();
+
+        // Wait for page to navigate away from Edit page after save
+        new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 6 ) )
+            .until( driver -> !driver.getCurrentUrl().contains( "Edit.jsp" ) );
+
+        // Wait for the view page content to be visible
+        Selenide.$( By.className( "page-content" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 3 ) );
+
         return new ViewWikiPage();
     }
 

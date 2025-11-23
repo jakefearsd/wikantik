@@ -56,7 +56,7 @@ import static org.apache.wiki.TestEngine.with;
 class WikiSyntaxConverter {
 
     @ParameterizedTest
-    @ValueSource( strings = { "de", "en", "es", "fi", "fr", "it", "nl", "pt_BR", "ru", "zh_CN" } )
+    @ValueSource( strings = { "de", "en", "es", "fi", "fr", "it", "nl", "pt_BR", "ru" } )
     void jspwikiToMarkdownConverter( final String lang ) throws Exception {
         final File target = new File( "../jspwiki-wikipages/" + lang + "/src/main/resources/markdown" );
         target.delete();

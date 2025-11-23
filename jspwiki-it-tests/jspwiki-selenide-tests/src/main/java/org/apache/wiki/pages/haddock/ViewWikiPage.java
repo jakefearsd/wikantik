@@ -96,7 +96,12 @@ public class ViewWikiPage implements HaddockPage {
      * @return {@link ViewWikiPage} instance, to allow chaining of actions.
      */
     public ViewWikiPage hoverMoreArea() {
-        Selenide.$( By.id( "more" ) ).hover();
+        // Wait for the more menu to be ready
+        $( By.id( "more" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 3 ) );
+        // Use JavaScript to add hover class for reliable dropdown display
+        Selenide.executeJavaScript( "document.getElementById('more').classList.add('open')" );
+        // Wait for the dropdown menu to become visible
+        $( "#more .dropdown-menu" ).shouldBe( Condition.visible, Duration.ofSeconds( 4 ) );
         return this;
     }
 

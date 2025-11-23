@@ -154,6 +154,12 @@
        <servlet-class>org.apache.wiki.attachment.AttachmentServlet</servlet-class>
    </servlet>
 
+   <!-- Sitemap servlet for search engine indexing -->
+   <servlet>
+       <servlet-name>SitemapServlet</servlet-name>
+       <servlet-class>org.apache.wiki.ui.SitemapServlet</servlet-class>
+   </servlet>
+
    <!-- PLACEHOLDER FOR PRE-COMPILED JSP SERVLETS -->
 
    <!--
@@ -183,6 +189,11 @@
    <servlet-mapping>
        <servlet-name>AttachmentServlet</servlet-name>
        <url-pattern>/attach/*</url-pattern>
+   </servlet-mapping>
+
+   <servlet-mapping>
+       <servlet-name>SitemapServlet</servlet-name>
+       <url-pattern>/sitemap.xml</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

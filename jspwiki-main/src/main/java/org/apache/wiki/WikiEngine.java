@@ -503,12 +503,6 @@ public class WikiEngine implements Engine {
 
     /** {@inheritDoc} */
     @Override
-    public String getGlobalRSSURL() {
-        return null;
-    }
-
-    /** {@inheritDoc} */
-    @Override
     public String getInterWikiURL( final String wikiName ) {
         return TextUtil.getStringProperty( m_properties,PROP_INTERWIKIREF + wikiName,null );
     }

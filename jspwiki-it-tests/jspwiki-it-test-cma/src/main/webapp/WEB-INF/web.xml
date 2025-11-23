@@ -67,9 +67,6 @@
     <filter-mapping>
         <filter-name>WikiServletFilter</filter-name>
         <url-pattern>/attach/*</url-pattern>
-        <url-pattern>/atom/*</url-pattern>
-        <url-pattern>/RPCU/</url-pattern>
-        <url-pattern>/RPC2/</url-pattern>
         <url-pattern>/wiki/*</url-pattern>
     </filter-mapping>
     <filter-mapping>

@@ -54,13 +54,6 @@ public class WikiAjaxServletTest {
         Assertions.assertNotNull(servlet);
         Assertions.assertTrue(servlet instanceof SampleAjaxPlugin);
 
-        /** Note sure about this
-        WikiAjaxDispatcherServlet.registerServlet(new RPCServlet());
-        WikiAjaxServlet servlet2 = wikiAjaxDispatcherServlet.findServletByName("RPCServlet");
-        Assertions.assertNotNull(servlet2);
-        Assertions.assertTrue(servlet2 instanceof RPCServlet);
-        */
-
         final WikiAjaxServlet servlet3 = wikiAjaxDispatcherServlet.findServletByName("TestWikiNonAjaxServlet");
         Assertions.assertNull(servlet3);
     }

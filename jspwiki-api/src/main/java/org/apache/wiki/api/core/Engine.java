@@ -199,14 +199,6 @@ public interface Engine {
     String getBaseURL();
 
     /**
-     *  Returns the URL of the global RSS file.  May be null, if the RSS file generation is not operational.
-     *
-     *  @since 1.7.10
-     *  @return The global RSS url
-     */
-    String getGlobalRSSURL();
-
-    /**
      *  Returns an URL to some other Wiki that we know.
      *
      *  @param  wikiName The name of the other wiki.

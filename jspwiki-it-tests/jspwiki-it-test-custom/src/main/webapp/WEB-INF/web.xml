@@ -67,9 +67,6 @@
     <filter-mapping>
         <filter-name>WikiServletFilter</filter-name>
         <url-pattern>/attach/*</url-pattern>
-        <url-pattern>/atom/*</url-pattern>
-        <url-pattern>/RPCU/</url-pattern>
-        <url-pattern>/RPC2/</url-pattern>
         <url-pattern>/wiki/*</url-pattern>
     </filter-mapping>
     <filter-mapping>
@@ -177,17 +174,14 @@
 
    <servlet-mapping>
        <servlet-name>XMLRPC</servlet-name>
-       <url-pattern>/RPC2/</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>
        <servlet-name>XMLRPC-UTF8</servlet-name>
-       <url-pattern>/RPCU/</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>
        <servlet-name>ATOM</servlet-name>
-       <url-pattern>/atom/*</url-pattern>
    </servlet-mapping>
 
    AND REMOVE ME TOO -->

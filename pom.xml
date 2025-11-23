@@ -49,8 +49,8 @@
     <aws-java-sdk-kendra.version>1.12.565</aws-java-sdk-kendra.version>
     <commons-collections.version>4.5.0</commons-collections.version>
     <commons-fileupload.version>2.0.0-M4</commons-fileupload.version>
-    <commons-io.version>2.20.0</commons-io.version>
-    <commons-lang.version>3.19.0</commons-lang.version>
+    <commons-io.version>2.21.0</commons-io.version>
+    <commons-lang.version>3.20.0</commons-lang.version>
     <commons-net.version>3.12.0</commons-net.version>
     <commons-text.version>1.14.0</commons-text.version>
     <ehcache.version>2.10.9.2</ehcache.version>
@@ -81,7 +81,7 @@
     <oro.version>2.0.8</oro.version>
     <rome.version>2.1.0</rome.version>
     <sandler.version>0.5</sandler.version>
-    <selenide.version>7.10.1</selenide.version>
+    <selenide.version>7.12.0</selenide.version>
     <slf4j.version>2.0.17</slf4j.version>
     <tika.version>3.2.3</tika.version>
     <tomcat.version>11.0.14</tomcat.version>

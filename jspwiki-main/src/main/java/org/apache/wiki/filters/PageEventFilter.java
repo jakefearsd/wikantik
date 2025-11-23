@@ -38,7 +38,7 @@ import java.util.Properties;
   * </p>
   * <pre>
   *    PageEventFilter filter = new PageEventFilter();
-  *    engine.getFilterManager().addPageFilter(filter,5000);
+  *    engine.getManager( FilterManager.class ).addPageFilter(filter,5000);
   *    // attach listener to filter
   *    WikiEventManager.addWikiEventListener(filter,listener);
   * </pre>

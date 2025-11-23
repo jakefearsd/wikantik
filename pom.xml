@@ -141,8 +141,6 @@
     <module>jspwiki-wysiwyg</module>
     <module>jspwiki-main</module>
     <module>jspwiki-markdown</module>
-    <module>jspwiki-tika-searchprovider</module>
-    <module>jspwiki-kendra-searchprovider</module>
     <module>jspwiki-war</module>
     <module>jspwiki-portable</module>
     <module>jspwiki-it-tests</module><!-- IT tests are launched only if -Pintegration-tests is given -->
@@ -830,7 +828,6 @@
               <exclude>**/src/test/resources/test-repo/*.txt</exclude>          <!-- web tests input data -->
               <exclude>**/src/main/webapp/templates/default/images/SilkIconSet-readme.txt</exclude> <!-- license, required by Silk Icon set cfr. NOTICE, LICENSE, etc. -->
               <exclude>**/PkgInfo</exclude>  <!-- PkgInfo files, per http://docs.oracle.com/cd/E19683-01/816-0219/6m6njqbat/index.html doesn't seem to accept comments -->
-              <exclude>jspwiki-kendra-searchprovider/src/main/resources/org/apache/wiki/search/kendra/content_types.json</exclude> <!-- Json File -->
               <exclude>**/.eslintrc</exclude> <!-- Json File -->
               <exclude>**src/main/styles/haddock/bootstrap/**</exclude>
               <exclude>**src/main/styles/haddock/default/*.crunch</exclude>

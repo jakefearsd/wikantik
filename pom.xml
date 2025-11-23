@@ -835,7 +835,6 @@
               <exclude>**src/main/styles/haddock/bootstrap/**</exclude>
               <exclude>**src/main/styles/haddock/default/*.crunch</exclude>
               <exclude>**/src/main/webapp/templates/default/fonts/*.svg</exclude>
-              <exclude>**/src/main/webapp/templates/210/images/SilkIconSet-readme.txt</exclude>
               <exclude>**/src/main/webapp/favicons/*.svg</exclude>
               <exclude>**/src/overlay/launchers/tomcat/woas.app/Contents/*.plist</exclude>
               <exclude>**/src/overlay/launchers/tomcat/woas.app/Contents/Resources/*.none</exclude>

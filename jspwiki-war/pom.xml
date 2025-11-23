@@ -128,27 +128,6 @@
                 <groupId>ro.isdc.wro4j</groupId>
                 <artifactId>wro4j-maven-plugin</artifactId>
                 <executions>
-                    <execution>
-                        <id>buildDefaultJsAndCss</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>run</goal>
-                            <!--<goal>jshint</goal>-->
-                        </goals>
-                        <configuration>
-                            <!--
-                            <targetGroups>all</targetGroups>
-                            <minimize>true</minimize>
-                            <cssDestinationFolder>d:/static/css/</cssDestinationFolder>
-                            <jsDestinationFolder>d:/static/js/</jsDestinationFolder>
-                            <ignoreMissingResources>false</ignoreMissingResources>
-                            -->
-                            <cssDestinationFolder>${project.build.directory}/generated-sources/wro/templates/210/
-                            </cssDestinationFolder>
-                            <wroFile>src/main/config/wro/wro.xml</wroFile>
-                        </configuration>
-                    </execution>
-
                     <!-- HADDOCK template -->
                     <execution>
                         <id>buildHaddockJsAndCss</id>

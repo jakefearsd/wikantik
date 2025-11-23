@@ -62,7 +62,7 @@ public class MarkdownRendererTest {
     	newPage( "MarkupExtensionSelfViewLink" );
         final String src = "This should be a [MarkupExtensionSelfViewLink]()";
 
-        Assertions.assertEquals( "<p>This should be a <a href=\"/test/Wiki.jsp?page=MarkupExtensionSelfViewLink\" class=\"wikipage\">MarkupExtensionSelfViewLink</a></p>\n",
+        Assertions.assertEquals( "<p>This should be a <a href=\"/test/wiki/MarkupExtensionSelfViewLink\" class=\"wikipage\">MarkupExtensionSelfViewLink</a></p>\n",
                                  translate( src ) );
     }
 
@@ -326,7 +326,7 @@ public class MarkdownRendererTest {
 
         newPage( "SandBox" );
 
-        Assertions.assertEquals( "<p>Link <a href=\"/test/Wiki.jsp?page=SandBox\" class=\"wikipage\"><img class=\"inline\" src=\"http://foobar.jpg\" alt=\"SandBox\" /></a></p>\n",
+        Assertions.assertEquals( "<p>Link <a href=\"/test/wiki/SandBox\" class=\"wikipage\"><img class=\"inline\" src=\"http://foobar.jpg\" alt=\"SandBox\" /></a></p>\n",
                                  translate( src ) );
     }
 

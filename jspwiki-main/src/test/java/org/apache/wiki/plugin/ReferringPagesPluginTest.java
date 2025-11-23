@@ -71,7 +71,7 @@ class ReferringPagesPluginTest  {
     }
 
     private String mkFullLink( final String page, final String link ) {
-        return "<a class=\"wikipage\" href=\"/test/Wiki.jsp?page="+link+"\">"+page+"</a>";
+        return "<a class=\"wikipage\" href=\"/test/wiki/"+link+"\">"+page+"</a>";
     }
 
     @Test
@@ -181,7 +181,7 @@ class ReferringPagesPluginTest  {
         Assertions.assertTrue( columnsWithLists.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\"><ol><li>" ) );
 
         final String columnsWithoutLists = manager.execute( context, "{ReferringPagesPlugin columns=2}" );
-        Assertions.assertTrue( columnsWithoutLists.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\"><a class=\"wikipage\" href=\"/test/Wiki.jsp?page=Foobar\">Foobar</a><br /><a" ) );
+        Assertions.assertTrue( columnsWithoutLists.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\"><a class=\"wikipage\" href=\"/test/wiki/Foobar\">Foobar</a><br /><a" ) );
     }
 
 }

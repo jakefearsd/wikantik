@@ -62,7 +62,7 @@ class ReferringUndefinedPagesPluginTest {
     @Test
 	void testSimple() throws Exception {
 		final String res = manager.execute( context, "{INSERT ReferringUndefinedPagesPlugin}" );
-		Assertions.assertTrue( res.contains( "href=\"/test/Wiki.jsp?page=TestPage01\"" ) );
+		Assertions.assertTrue( res.contains( "href=\"/test/wiki/TestPage01\"" ) );
 	}
 
 	/**
@@ -73,9 +73,9 @@ class ReferringUndefinedPagesPluginTest {
     @Test
 	void testParamInclude() throws Exception {
 		final String res = manager.execute( context, "{INSERT ReferringUndefinedPagesPlugin} include='TestPage02*'}" );
-		Assertions.assertFalse( res.contains("href=\"/test/Wiki.jsp?page=TestPage01\"" ) );
-		Assertions.assertTrue( res.contains("href=\"/test/Wiki.jsp?page=TestPage02\"" ) );
-        Assertions.assertFalse( res.contains("href=\"/test/Wiki.jsp?page=TestPage03\"" ) );
+		Assertions.assertFalse( res.contains("href=\"/test/wiki/TestPage01\"" ) );
+		Assertions.assertTrue( res.contains("href=\"/test/wiki/TestPage02\"" ) );
+        Assertions.assertFalse( res.contains("href=\"/test/wiki/TestPage03\"" ) );
 	}
 
     /**
@@ -87,9 +87,9 @@ class ReferringUndefinedPagesPluginTest {
     void testParamExclude() throws Exception {
         final String res = manager.execute( context,"{ReferringUndefinedPagesPlugin} exclude='TestPage02*'}" );
 
-        Assertions.assertTrue( res.contains( "href=\"/test/Wiki.jsp?page=TestPage01\"" ) );
-        Assertions.assertFalse( res.contains( "href=\"/test/Wiki.jsp?page=TestPage02\"" ) );
-        Assertions.assertTrue( res.contains( "href=\"/test/Wiki.jsp?page=TestPage03\"" ) );
+        Assertions.assertTrue( res.contains( "href=\"/test/wiki/TestPage01\"" ) );
+        Assertions.assertFalse( res.contains( "href=\"/test/wiki/TestPage02\"" ) );
+        Assertions.assertTrue( res.contains( "href=\"/test/wiki/TestPage03\"" ) );
     }
 
     /**
@@ -101,9 +101,9 @@ class ReferringUndefinedPagesPluginTest {
     void testParamMax() throws Exception {
         final String res = manager.execute( context,"{INSERT ReferringUndefinedPagesPlugin} max='2'}" );
 
-        Assertions.assertTrue( res.contains( "href=\"/test/Wiki.jsp?page=TestPage01\"" ) );
-        Assertions.assertTrue( res.contains( "href=\"/test/Wiki.jsp?page=TestPage02\"" ) );
-        Assertions.assertFalse( res.contains( "href=\"/test/Wiki.jsp?page=TestPage03\"" ) );
+        Assertions.assertTrue( res.contains( "href=\"/test/wiki/TestPage01\"" ) );
+        Assertions.assertTrue( res.contains( "href=\"/test/wiki/TestPage02\"" ) );
+        Assertions.assertFalse( res.contains( "href=\"/test/wiki/TestPage03\"" ) );
         Assertions.assertTrue( res.contains( "...and 1 more" ) );
     }
 

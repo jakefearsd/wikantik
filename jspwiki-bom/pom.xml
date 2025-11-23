@@ -194,12 +194,6 @@
         <artifactId>jspwiki-wikipages-ru</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
-
-      <dependency>
-        <groupId>org.apache.jspwiki.wikipages</groupId>
-        <artifactId>jspwiki-wikipages-zh_CN</artifactId>
-        <version>${jspwiki.version}</version>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 </project>

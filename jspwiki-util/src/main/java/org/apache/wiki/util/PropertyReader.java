@@ -303,7 +303,16 @@ public final class PropertyReader {
                 final int end = propertyValue.indexOf( "}", start );
                 if( start >= 0 && end >= 0 && end > start ) {
                     final String substring = propertyValue.substring( start, end ).replace( "${", "" ).replace( "}", "" );
-                    final String expansion = Objects.toString( System.getProperty( substring ), System.getenv( substring ) );
+                    // Handle Log4j2 lookup prefixes like ${sys:property.name} or ${env:VAR_NAME}
+                    final String lookupKey;
+                    if( substring.startsWith( "sys:" ) ) {
+                        lookupKey = substring.substring( 4 );
+                    } else if( substring.startsWith( "env:" ) ) {
+                        lookupKey = substring.substring( 4 );
+                    } else {
+                        lookupKey = substring;
+                    }
+                    final String expansion = Objects.toString( System.getProperty( lookupKey ), System.getenv( lookupKey ) );
                     if( expansion != null ) {
                         propertyValue =  propertyValue.replace( "${" + substring + "}", expansion );
                         properties.setProperty( propertyName, propertyValue );

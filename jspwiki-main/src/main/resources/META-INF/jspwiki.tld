@@ -272,12 +272,6 @@
   </tag>
 
   <tag>
-    <name>FeedDiscovery</name>
-    <tag-class>org.apache.wiki.tags.FeedDiscoveryTag</tag-class>
-    <body-content>empty</body-content>
-  </tag>
-
-  <tag>
     <name>HasAttachments</name>
     <tag-class>org.apache.wiki.tags.HasAttachmentsTag</tag-class>
     <body-content>JSP</body-content>
@@ -626,20 +620,6 @@
     </attribute>
     <attribute>
        <name>resource</name>
-       <rtexprvalue>true</rtexprvalue>
-    </attribute>
-  </tag>
-
-  <tag>
-    <name>RSSImageLink</name>
-    <tag-class>org.apache.wiki.tags.RSSImageLinkTag</tag-class>
-    <body-content>empty</body-content>
-    <attribute>
-       <name>title</name>
-       <rtexprvalue>true</rtexprvalue>
-    </attribute>
-    <attribute>
-       <name>mode</name>
        <rtexprvalue>true</rtexprvalue>
     </attribute>
   </tag>

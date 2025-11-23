@@ -680,7 +680,6 @@ form#searchform2 + div .gb-bar {
   background-color:var(--background-lighter);
 }
 
-/* --- WeblogPlugin.less --- */
 /* --- RecentChangesPlugin.less --- */
 
 .recentchanges .date {

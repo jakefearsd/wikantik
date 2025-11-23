@@ -39,18 +39,6 @@
     <dependencies>
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-210-adapters</artifactId>
-        <version>${jspwiki.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-210-test-adaptees</artifactId>
-        <version>${jspwiki.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.jspwiki</groupId>
         <artifactId>jspwiki-api</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>

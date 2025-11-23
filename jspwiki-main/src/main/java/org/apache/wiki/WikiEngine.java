@@ -46,7 +46,6 @@ import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.plugin.PluginManager;
 import org.apache.wiki.references.ReferenceManager;
 import org.apache.wiki.render.RenderingManager;
-import org.apache.wiki.rss.RSSGenerator;
 import org.apache.wiki.search.SearchManager;
 import org.apache.wiki.tasks.TasksManager;
 import org.apache.wiki.ui.CommandResolver;
@@ -328,15 +327,6 @@ public class WikiEngine implements Engine {
             throw new WikiException( "Failed to start. Caused by: " + e.getMessage() + "; please check log files for better information.", e );
         }
 
-        //  Initialize the good-to-have-but-not-fatal modules.
-        try {
-            if( TextUtil.getBooleanProperty( props, RSSGenerator.PROP_GENERATE_RSS,false ) ) {
-                initComponent( RSSGenerator.class, this, props );
-            }
-        } catch( final Exception e ) {
-            LOG.error( "Unable to start RSS generator - JSPWiki will still work, but there will be no RSS feed.", e );
-        }
-
         final Map< String, String > extraComponents = ClassUtil.getExtraClassMappings();
         initExtraComponents( extraComponents );
 
@@ -514,11 +504,6 @@ public class WikiEngine implements Engine {
     /** {@inheritDoc} */
     @Override
     public String getGlobalRSSURL() {
-        final RSSGenerator rssGenerator = getManager( RSSGenerator.class );
-        if( rssGenerator != null && rssGenerator.isEnabled() ) {
-            return getBaseURL() + "/" + rssGenerator.getRssFile();
-        }
-
         return null;
     }
 
@@ -819,19 +804,6 @@ public class WikiEngine implements Engine {
     @Deprecated
     public URLConstructor getURLConstructor() {
         return getManager( URLConstructor.class );
-    }
-
-    /**
-     * Returns the RSSGenerator. If the property <code>jspwiki.rss.generate</code> has not been set to <code>true</code>, this method
-     * will return <code>null</code>, <em>and callers should check for this value.</em>
-     *
-     * @since 2.1.165
-     * @return the RSS generator
-     * @deprecated use {@code getManager( RSSGenerator.class )} instead.
-     */
-    @Deprecated
-    public RSSGenerator getRSSGenerator() {
-        return getManager( RSSGenerator.class );
     }
 
     /**

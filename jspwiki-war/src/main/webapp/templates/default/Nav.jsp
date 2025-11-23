@@ -150,7 +150,6 @@
 		<wiki:Author format="plain"/>
       </li>
       <li class="dropdown-header">
-        <wiki:RSSImageLink mode="wiki" title="<fmt:message key='info.feed'/>"/>
       </li>
       <li class="divider"></li>
       <li class="dropdown-header">

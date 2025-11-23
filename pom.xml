@@ -85,7 +85,6 @@
     <slf4j.version>2.0.17</slf4j.version>
     <tika.version>3.2.3</tika.version>
     <tomcat.version>11.0.14</tomcat.version>
-    <xmlrpc.version>2.0.1</xmlrpc.version>
     <xstream.version>1.4.21</xstream.version>
 
     <plugin.antrun.version>3.1.0</plugin.antrun.version>
@@ -144,8 +143,6 @@
     <module>jspwiki-markdown</module>
     <module>jspwiki-tika-searchprovider</module>
     <module>jspwiki-kendra-searchprovider</module>
-    <module>jspwiki-210-test-adaptees</module>
-    <module>jspwiki-210-adapters</module>
     <module>jspwiki-war</module>
     <module>jspwiki-portable</module>
     <module>jspwiki-it-tests</module><!-- IT tests are launched only if -Pintegration-tests is given -->
@@ -435,12 +432,6 @@
         <groupId>oro</groupId>
         <artifactId>oro</artifactId>
         <version>${oro.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>xmlrpc</groupId>
-        <artifactId>xmlrpc</artifactId>
-        <version>${xmlrpc.version}</version>
       </dependency>
 
       <!-- test dependencies -->

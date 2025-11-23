@@ -44,7 +44,6 @@
   </div>
 
   <div class="rssfeed">
-    <wiki:RSSImageLink title="Aggregate the RSS feed" />
   </div>
 
 </div>

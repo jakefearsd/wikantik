@@ -27,12 +27,6 @@
 
 <div class="sidebar">
 
-  <c:set var="isweblog"><%= ( String )Context.findContext( pageContext ).getPage().getAttribute( /*ATTR_ISWEBLOG*/ "weblogplugin.isweblog" ) %></c:set>
-  <c:if test="${isweblog}">
-  <wiki:Calendar pageformat="'${param.page}_blogentry_'ddMMyy'_'" addindex="true"
-                 urlformat="'Wiki.jsp?page=${param.page}&weblog.startDate='ddMMyy'&weblog.days=1'"/>
-  </c:if>
-
   <wiki:Permission permission="view">
 
   <div class="leftmenu">
@@ -58,9 +52,5 @@
   </div>
 
   </wiki:Permission>
-
-  <%--
-  <div class="wikiversion text-center"><%=Release.APPNAME%> v<wiki:Variable var="jspwikiversion" /> <wiki:RSSImageLink title='<%=LocaleSupport.getLocalizedMessage(pageContext,"fav.aggregatewiki.title")%>' /></div>
-  --%>
 
 </div>

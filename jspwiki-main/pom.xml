@@ -88,11 +88,6 @@
         </dependency>
         
         <dependency>
-            <groupId>com.rometools</groupId>
-            <artifactId>rome</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>jaxen</groupId>
             <artifactId>jaxen</artifactId>
         </dependency>
@@ -165,11 +160,6 @@
         <dependency>
             <groupId>oro</groupId>
             <artifactId>oro</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>xmlrpc</groupId>
-            <artifactId>xmlrpc</artifactId>
         </dependency>
 
         <dependency>

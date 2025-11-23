@@ -147,7 +147,6 @@ String.I18N.PREFIX = "javascript.";
   </wiki:Permission>
 </wiki:CheckRequestContext>
 
-<wiki:FeedDiscovery />
 
 <%-- SKINS : extra stylesheets, extra javascript --%>
 <c:if test='${(!empty prefs.SkinName) && (prefs.SkinName!="PlainVanilla") }'>

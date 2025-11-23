@@ -95,7 +95,6 @@
     </fmt:param>
     <fmt:param><wiki:Author /></fmt:param>
   </fmt:message>
-  <wiki:RSSImageLink mode="wiki" title="<fmt:message key='info.feed'/>" />
   </p>
 
   <wiki:CheckVersion mode="notfirst">

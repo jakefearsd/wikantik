@@ -63,18 +63,6 @@ public class WikiPage implements Page {
     }
 
     /**
-     * Create a new WikiPage using a given engine and name.
-     *
-     * @param engine The Engine that owns this page.
-     * @param name   The name of the page.
-     * @deprecated kept for compatibility with page/attachment providers not using public API. Use {@code WikiPage(Engine, String)} instead.
-     */
-    @Deprecated
-    public WikiPage( final WikiEngine engine, final String name ) {
-        this( ( Engine )engine, name );
-    }
-
-    /**
      * Returns the name of the page.
      *
      * @return The page name.

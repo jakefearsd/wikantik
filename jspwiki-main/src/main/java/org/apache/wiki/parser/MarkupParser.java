@@ -20,10 +20,6 @@ package org.apache.wiki.parser;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.oro.text.GlobCompiler;
-import org.apache.oro.text.regex.MalformedPatternException;
-import org.apache.oro.text.regex.Pattern;
-import org.apache.oro.text.regex.PatternCompiler;
 import org.apache.wiki.StringTransmutator;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
@@ -38,6 +34,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  *   Provides an abstract class for the parser instances.
@@ -249,8 +247,6 @@ public abstract class MarkupParser {
     }
 
     protected final void initInlineImagePatterns() {
-		final PatternCompiler compiler = new GlobCompiler();
-
         //  We cache compiled patterns in the engine, since their creation is really expensive
         List< Pattern > compiledpatterns = m_engine.getAttribute( INLINE_IMAGE_PATTERNS );
 
@@ -261,8 +257,8 @@ public abstract class MarkupParser {
             //  Make them into Regexp Patterns.  Unknown patterns are ignored.
             for( final String pattern : ptrns ) {
                 try {
-                    compiledpatterns.add( compiler.compile( pattern, GlobCompiler.DEFAULT_MASK | GlobCompiler.READ_ONLY_MASK ) );
-                } catch( final MalformedPatternException e ) {
+                    compiledpatterns.add( compileGlobPattern( pattern ) );
+                } catch( final PatternSyntaxException e ) {
                     LOG.error( "Malformed pattern [" + pattern + "] in properties: ", e );
                 }
             }
@@ -272,6 +268,45 @@ public abstract class MarkupParser {
 
         m_inlineImagePatterns = Collections.unmodifiableList( compiledpatterns );
 	}
+
+    /**
+     * Compiles a glob pattern (like *.jpg) into a Java regex Pattern.
+     *
+     * @param glob The glob pattern to compile
+     * @return A compiled Pattern
+     * @throws PatternSyntaxException If the pattern cannot be compiled
+     */
+    public static Pattern compileGlobPattern( final String glob ) throws PatternSyntaxException {
+        final StringBuilder regex = new StringBuilder();
+        for( int i = 0; i < glob.length(); i++ ) {
+            final char c = glob.charAt( i );
+            switch( c ) {
+                case '*':
+                    regex.append( ".*" );
+                    break;
+                case '?':
+                    regex.append( '.' );
+                    break;
+                case '.':
+                case '(':
+                case ')':
+                case '[':
+                case ']':
+                case '{':
+                case '}':
+                case '^':
+                case '$':
+                case '|':
+                case '\\':
+                case '+':
+                    regex.append( '\\' ).append( c );
+                    break;
+                default:
+                    regex.append( c );
+            }
+        }
+        return Pattern.compile( regex.toString(), Pattern.CASE_INSENSITIVE );
+    }
 
     public List< Pattern > getInlineImagePatterns() {
     	if( m_inlineImagePatterns == null ) {

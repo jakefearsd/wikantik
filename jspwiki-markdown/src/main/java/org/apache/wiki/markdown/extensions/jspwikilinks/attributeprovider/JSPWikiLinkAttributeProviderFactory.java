@@ -22,10 +22,10 @@ import com.vladsch.flexmark.html.AttributeProvider;
 import com.vladsch.flexmark.html.AttributeProviderFactory;
 import com.vladsch.flexmark.html.IndependentAttributeProviderFactory;
 import com.vladsch.flexmark.html.renderer.LinkResolverContext;
-import org.apache.oro.text.regex.Pattern;
 import org.apache.wiki.api.core.Context;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 
 /**

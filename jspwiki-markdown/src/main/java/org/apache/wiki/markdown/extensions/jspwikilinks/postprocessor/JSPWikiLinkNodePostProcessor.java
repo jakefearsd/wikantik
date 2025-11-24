@@ -25,7 +25,6 @@ import com.vladsch.flexmark.util.ast.Document;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.NodeTracker;
 import org.apache.commons.lang3.Strings;
-import org.apache.oro.text.regex.Pattern;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.markdown.nodes.JSPWikiLink;
 import org.apache.wiki.parser.LinkParsingOperations;
@@ -33,6 +32,7 @@ import org.apache.wiki.parser.MarkupParser;
 import org.apache.wiki.util.TextUtil;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 
 /**

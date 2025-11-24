@@ -22,13 +22,6 @@ package org.apache.wiki.parser;
     import org.apache.commons.text.StringEscapeUtils;
     import org.apache.logging.log4j.LogManager;
     import org.apache.logging.log4j.Logger;
-    import org.apache.oro.text.regex.MalformedPatternException;
-    import org.apache.oro.text.regex.MatchResult;
-    import org.apache.oro.text.regex.Pattern;
-    import org.apache.oro.text.regex.PatternCompiler;
-    import org.apache.oro.text.regex.PatternMatcher;
-    import org.apache.oro.text.regex.Perl5Compiler;
-    import org.apache.oro.text.regex.Perl5Matcher;
     import org.apache.wiki.InternalWikiException;
     import org.apache.wiki.StringTransmutator;
     import org.apache.wiki.api.core.Acl;
@@ -72,6 +65,8 @@ package org.apache.wiki.parser;
     import java.util.NoSuchElementException;
     import java.util.Properties;
     import java.util.ResourceBundle;
+    import java.util.regex.Matcher;
+    import java.util.regex.Pattern;
 
 /**
  * Parses JSPWiki-style markup into a WikiDocument DOM tree.  This class is the heart and soul of JSPWiki : make
@@ -144,11 +139,9 @@ public class JSPWikiMarkupParser extends MarkupParser {
 
     private boolean m_useRelNofollow;
 
-    private final PatternCompiler m_compiler = new Perl5Compiler();
+    // Java regex version of WIKIWORD_REGEX - POSIX classes converted to Java Unicode properties
+    static final String WIKIWORD_REGEX = "(^|[^\\p{Alnum}]+)(\\p{Upper}+\\p{Lower}+\\p{Upper}+\\p{Alnum}*|(http://|https://|mailto:)([A-Za-z0-9_/\\.\\+\\?\\#\\-\\@=&;~%]+))";
 
-    static final String WIKIWORD_REGEX = "(^|[[:^alnum:]]+)([[:upper:]]+[[:lower:]]+[[:upper:]]+[[:alnum:]]*|(http://|https://|mailto:)([A-Za-z0-9_/\\.\\+\\?\\#\\-\\@=&;~%]+))";
-
-    private final PatternMatcher m_camelCaseMatcher = new Perl5Matcher();
     private Pattern m_camelCasePattern;
 
     private int m_rowNum = 1;
@@ -174,12 +167,7 @@ public class JSPWikiMarkupParser extends MarkupParser {
 
         m_camelCasePattern = m_engine.getAttribute( CAMELCASE_PATTERN );
         if( m_camelCasePattern == null ) {
-            try {
-                m_camelCasePattern = m_compiler.compile( WIKIWORD_REGEX,Perl5Compiler.DEFAULT_MASK|Perl5Compiler.READ_ONLY_MASK );
-            } catch( final MalformedPatternException e ) {
-                LOG.fatal("Internal error: Someone put in a faulty pattern.",e);
-                throw new InternalWikiException("Faulty camelcasepattern in TranslatorReader", e);
-            }
+            m_camelCasePattern = Pattern.compile( WIKIWORD_REGEX, Pattern.UNICODE_CHARACTER_CLASS );
             m_engine.setAttribute( CAMELCASE_PATTERN, m_camelCasePattern );
         }
 
@@ -434,18 +422,19 @@ public class JSPWikiMarkupParser extends MarkupParser {
                 // This is the heaviest part of parsing, and therefore we can do some optimization here.
                 // 1) Only when the length of the buffer is big enough, we try to do the match
                 if( m_camelCaseLinks && !m_isEscaping && buf.length() > 3 ) {
-                    while( m_camelCaseMatcher.contains( buf, m_camelCasePattern ) ) {
-                        final MatchResult result = m_camelCaseMatcher.getMatch();
-                        final String firstPart = buf.substring( 0, result.beginOffset( 0 ) );
-                        String prefix = result.group( 1 );
+                    Matcher matcher = m_camelCasePattern.matcher( buf );
+                    while( matcher.find() ) {
+                        final String firstPart = buf.substring( 0, matcher.start() );
+                        String prefix = matcher.group( 1 );
                         if( prefix == null ) {
                             prefix = "";
                         }
 
-                        final String camelCase = result.group(2);
-                        final String protocol  = result.group(3);
-                        String uri       = protocol+result.group(4);
-                        buf              = buf.substring(result.endOffset(0));
+                        final String camelCase = matcher.group(2);
+                        final String protocol  = matcher.group(3);
+                        String uri       = protocol+matcher.group(4);
+                        buf              = buf.substring(matcher.end());
+                        matcher = m_camelCasePattern.matcher( buf );
 
                         m_currentElement.addContent( firstPart );
                         //  Check if the user does not wish to do URL or WikiWord expansion

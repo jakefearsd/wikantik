@@ -29,7 +29,6 @@ import com.vladsch.flexmark.parser.ParserEmulationProfile;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.data.MutableDataSet;
 import com.vladsch.flexmark.util.misc.Extension;
-import org.apache.oro.text.regex.Pattern;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Page;
 import org.apache.wiki.markdown.MarkdownForJSPWikiExtension;
@@ -38,6 +37,7 @@ import org.apache.wiki.parser.WikiDocument;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 
 
 /**

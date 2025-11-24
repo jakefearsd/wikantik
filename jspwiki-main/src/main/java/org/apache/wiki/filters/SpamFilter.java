@@ -22,13 +22,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.oro.text.regex.MalformedPatternException;
-import org.apache.oro.text.regex.MatchResult;
-import org.apache.oro.text.regex.Pattern;
-import org.apache.oro.text.regex.PatternCompiler;
-import org.apache.oro.text.regex.PatternMatcher;
-import org.apache.oro.text.regex.Perl5Compiler;
-import org.apache.oro.text.regex.Perl5Matcher;
 import org.apache.wiki.InternalWikiException;
 import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.core.Context;
@@ -76,6 +69,9 @@ import java.util.Random;
 import java.util.StringTokenizer;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import net.thauvin.erik.akismet.Akismet;
 import net.thauvin.erik.akismet.AkismetComment;
 
@@ -189,9 +185,6 @@ public class SpamFilter extends BasePageFilter {
     private String          m_errorPage          = "RejectedMessage";
     private String          m_blacklist          = "SpamFilterWordList/blacklist.txt";
 
-    private final PatternMatcher  m_matcher = new Perl5Matcher();
-    private final PatternCompiler m_compiler = new Perl5Compiler();
-
     private Collection<Pattern> m_spamPatterns;
     private Collection<Pattern> m_IPPatterns;
 
@@ -262,12 +255,7 @@ public class SpamFilter extends BasePageFilter {
         m_ignoreAuthenticated = TextUtil.getBooleanProperty( properties, PROP_IGNORE_AUTHENTICATED, m_ignoreAuthenticated );
         m_allowedGroups = StringUtils.split( StringUtils.defaultString( properties.getProperty( PROP_ALLOWED_GROUPS, m_blacklist ) ), ',' );
 
-        try {
-            m_urlPattern = m_compiler.compile( URL_REGEXP );
-        } catch( final MalformedPatternException e ) {
-            LOG.fatal( "Internal error: Someone put in a faulty pattern.", e );
-            throw new InternalWikiException( "Faulty pattern." , e);
-        }
+        m_urlPattern = Pattern.compile( URL_REGEXP );
 
         m_akismetAPIKey = TextUtil.getStringProperty( properties, PROP_AKISMET_API_KEY, m_akismetAPIKey );
         m_stopAtFirstMatch = TextUtil.getStringProperty( properties, PROP_FILTERSTRATEGY, STRATEGY_EAGER ).equals( STRATEGY_EAGER );
@@ -378,8 +366,8 @@ public class SpamFilter extends BasePageFilter {
                 final String pattern = tok.nextToken();
 
                 try {
-                    compiledpatterns.add( m_compiler.compile( pattern ) );
-                } catch( final MalformedPatternException e ) {
+                    compiledpatterns.add( Pattern.compile( pattern ) );
+                } catch( final PatternSyntaxException e ) {
                     LOG.debug( "Malformed spam filter pattern " + pattern );
                     source.setAttribute("error", "Malformed spam filter pattern " + pattern);
                 }
@@ -412,8 +400,8 @@ public class SpamFilter extends BasePageFilter {
                     if( ws != -1 ) line = line.substring( 0, ws );
 
                     try {
-                        compiledpatterns.add( m_compiler.compile( line ) );
-                    } catch( final MalformedPatternException e ) {
+                        compiledpatterns.add( Pattern.compile( line ) );
+                    } catch( final PatternSyntaxException e ) {
                         LOG.debug( "Malformed spam filter pattern " + line );
                     }
                 }
@@ -486,11 +474,10 @@ public class SpamFilter extends BasePageFilter {
             }
 
             //  Calculate the number of links in the addition.
-            String tstChange  = change.toString();
+            final String tstChange  = change.toString();
             int urlCounter = 0;
-            while( m_matcher.contains( tstChange,m_urlPattern ) ) {
-                final MatchResult m = m_matcher.getMatch();
-                tstChange = tstChange.substring( m.endOffset(0) );
+            final Matcher urlMatcher = m_urlPattern.matcher( tstChange );
+            while( urlMatcher.find() ) {
                 urlCounter++;
             }
 
@@ -742,14 +729,14 @@ public class SpamFilter extends BasePageFilter {
         }
 
         for( final Pattern p : m_spamPatterns ) {
-            // LOG.debug("Attempting to match page contents with "+p.getPattern());
+            // LOG.debug("Attempting to match page contents with "+p.pattern());
 
-            if( m_matcher.contains( ch, p ) ) {
+            if( p.matcher( ch ).find() ) {
                 //  Spam filter has a match.
-                final String uid = log( context, REJECT, REASON_REGEXP + "(" + p.getPattern() + ")", ch );
+                final String uid = log( context, REJECT, REASON_REGEXP + "(" + p.pattern() + ")", ch );
 
-                LOG.info( "SPAM:Regexp (" + uid + "). Content matches the spam filter '" + p.getPattern() + "'" );
-                checkStrategy( context, "Herb says '" + p.getPattern() + "' is a bad spam word and I trust Herb! (Incident code " + uid + ")" );
+                LOG.info( "SPAM:Regexp (" + uid + "). Content matches the spam filter '" + p.pattern() + "'" );
+                checkStrategy( context, "Herb says '" + p.pattern() + "' is a bad spam word and I trust Herb! (Incident code " + uid + ")" );
             }
         }
     }
@@ -771,16 +758,16 @@ public class SpamFilter extends BasePageFilter {
         LOG.info("Attempting to match remoteIP " + remoteIP + " against " + m_IPPatterns.size() + " patterns");
 
         for( final Pattern p : m_IPPatterns ) {
-             LOG.debug("Attempting to match remoteIP with " + p.getPattern());
+             LOG.debug("Attempting to match remoteIP with " + p.pattern());
 
-            if( m_matcher.contains( remoteIP, p ) ) {
+            if( p.matcher( remoteIP ).find() ) {
 
                 //  IP filter has a match.
                 //
-                final String uid = log( context, REJECT, REASON_IP_BANNED_PERMANENTLY + "(" + p.getPattern() + ")", remoteIP );
+                final String uid = log( context, REJECT, REASON_IP_BANNED_PERMANENTLY + "(" + p.pattern() + ")", remoteIP );
 
-                LOG.info( "SPAM:IPBanList (" + uid + "). remoteIP matches the IP filter '" + p.getPattern() + "'" );
-                checkStrategy( context, "Herb says '" + p.getPattern() + "' is a banned IP and I trust Herb! (Incident code " + uid + ")" );
+                LOG.info( "SPAM:IPBanList (" + uid + "). remoteIP matches the IP filter '" + p.pattern() + "'" );
+                checkStrategy( context, "Herb says '" + p.pattern() + "' is a banned IP and I trust Herb! (Incident code " + uid + ")" );
             }
         }
     }

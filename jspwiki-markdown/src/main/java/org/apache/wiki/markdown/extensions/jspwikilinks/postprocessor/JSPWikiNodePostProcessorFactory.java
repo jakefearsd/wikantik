@@ -23,10 +23,10 @@ import com.vladsch.flexmark.parser.block.NodePostProcessor;
 import com.vladsch.flexmark.parser.block.NodePostProcessorFactory;
 import com.vladsch.flexmark.util.ast.Document;
 import com.vladsch.flexmark.util.data.DataHolder;
-import org.apache.oro.text.regex.Pattern;
 import org.apache.wiki.api.core.Context;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 
 /**

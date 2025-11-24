@@ -21,13 +21,13 @@ package org.apache.wiki.markdown;
 import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.data.MutableDataHolder;
-import org.apache.oro.text.regex.Pattern;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.markdown.extensions.jspwikilinks.attributeprovider.JSPWikiLinkAttributeProviderFactory;
 import org.apache.wiki.markdown.extensions.jspwikilinks.postprocessor.JSPWikiNodePostProcessorFactory;
 import org.apache.wiki.markdown.renderer.JSPWikiNodeRendererFactory;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 
 /**

@@ -21,12 +21,6 @@ package org.apache.wiki.plugin;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.oro.text.GlobCompiler;
-import org.apache.oro.text.regex.MalformedPatternException;
-import org.apache.oro.text.regex.Pattern;
-import org.apache.oro.text.regex.PatternCompiler;
-import org.apache.oro.text.regex.PatternMatcher;
-import org.apache.oro.text.regex.Perl5Matcher;
 import org.apache.wiki.StringTransmutator;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
@@ -58,6 +52,8 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 /**
@@ -185,13 +181,12 @@ public abstract class AbstractReferralPlugin implements Plugin {
         s = params.get( PARAM_EXCLUDE );
         if ( s != null ) {
             try {
-                final PatternCompiler pc = new GlobCompiler();
                 final String[] ptrns = StringUtils.split( s, "," );
                 m_exclude = new Pattern[ ptrns.length ];
                 for ( int i = 0; i < ptrns.length; i++ ) {
-                    m_exclude[ i ] = pc.compile( ptrns[ i ] );
+                    m_exclude[ i ] = Pattern.compile( globToRegex( ptrns[ i ] ) );
                 }
-            } catch ( final MalformedPatternException e ) {
+            } catch ( final PatternSyntaxException e ) {
                 throw new PluginException( "Exclude-parameter has a malformed pattern: " + e.getMessage() );
             }
         }
@@ -200,13 +195,12 @@ public abstract class AbstractReferralPlugin implements Plugin {
         s = params.get( PARAM_INCLUDE );
         if ( s != null ) {
             try {
-                final PatternCompiler pc = new GlobCompiler();
                 final String[] ptrns = StringUtils.split( s, "," );
                 m_include = new Pattern[ ptrns.length ];
                 for ( int i = 0; i < ptrns.length; i++ ) {
-                    m_include[ i ] = pc.compile( ptrns[ i ] );
+                    m_include[ i ] = Pattern.compile( globToRegex( ptrns[ i ] ) );
                 }
-            } catch ( final MalformedPatternException e ) {
+            } catch ( final PatternSyntaxException e ) {
                 throw new PluginException( "Include-parameter has a malformed pattern: " + e.getMessage() );
             }
         }
@@ -250,7 +244,6 @@ public abstract class AbstractReferralPlugin implements Plugin {
      */
     protected List< String > filterCollection( final Collection< String > c ) {
         final ArrayList< String > result = new ArrayList<>();
-        final PatternMatcher pm = new Perl5Matcher();
         for( final String pageName : c ) {
             //
             //  If include parameter exists, then by default we include only those
@@ -261,12 +254,12 @@ public abstract class AbstractReferralPlugin implements Plugin {
             boolean includeThis = m_include == null;
 
             if( m_include != null ) {
-                includeThis = Arrays.stream(m_include).anyMatch(pattern -> pm.matches(pageName, pattern)) ? true : m_include == null;
+                includeThis = Arrays.stream(m_include).anyMatch(pattern -> pattern.matcher(pageName).matches()) ? true : m_include == null;
             }
 
             if( m_exclude != null ) {
                 // The inner loop, continue on the next item
-                if (Arrays.stream(m_exclude).anyMatch(pattern -> pm.matches(pageName, pattern))) {
+                if (Arrays.stream(m_exclude).anyMatch(pattern -> pattern.matcher(pageName).matches())) {
                     includeThis = false;
                 }
             }
@@ -289,6 +282,36 @@ public abstract class AbstractReferralPlugin implements Plugin {
         }
 
         return result;
+    }
+
+    /**
+     * Converts a glob pattern to a regex pattern.
+     * @param glob The glob pattern
+     * @return The equivalent regex pattern
+     */
+    protected static String globToRegex( final String glob ) {
+        final StringBuilder regex = new StringBuilder();
+        for( int i = 0; i < glob.length(); i++ ) {
+            final char c = glob.charAt( i );
+            switch( c ) {
+                case '*': regex.append( ".*" ); break;
+                case '?': regex.append( "." ); break;
+                case '.': regex.append( "\\." ); break;
+                case '\\': regex.append( "\\\\" ); break;
+                case '(': regex.append( "\\(" ); break;
+                case ')': regex.append( "\\)" ); break;
+                case '[': regex.append( "\\[" ); break;
+                case ']': regex.append( "\\]" ); break;
+                case '{': regex.append( "\\{" ); break;
+                case '}': regex.append( "\\}" ); break;
+                case '^': regex.append( "\\^" ); break;
+                case '$': regex.append( "\\$" ); break;
+                case '+': regex.append( "\\+" ); break;
+                case '|': regex.append( "\\|" ); break;
+                default: regex.append( c );
+            }
+        }
+        return regex.toString();
     }
 
     /**

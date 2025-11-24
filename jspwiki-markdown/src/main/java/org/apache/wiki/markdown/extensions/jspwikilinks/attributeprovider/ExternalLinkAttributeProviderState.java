@@ -20,13 +20,13 @@ package org.apache.wiki.markdown.extensions.jspwikilinks.attributeprovider;
 
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.html.MutableAttributes;
-import org.apache.oro.text.regex.Pattern;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.markdown.nodes.JSPWikiLink;
 import org.apache.wiki.parser.LinkParsingOperations;
 import org.apache.wiki.parser.MarkupParser;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 
 /**

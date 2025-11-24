@@ -21,7 +21,6 @@ package org.apache.wiki.markdown.extensions.jspwikilinks.postprocessor;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.NodeTracker;
 import com.vladsch.flexmark.util.sequence.CharSubSequence;
-import org.apache.oro.text.regex.Pattern;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.ContextEnum;
 import org.apache.wiki.attachment.AttachmentManager;
@@ -30,6 +29,7 @@ import org.apache.wiki.parser.LinkParsingOperations;
 import org.apache.wiki.parser.MarkupParser;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 
 /**

@@ -20,14 +20,13 @@ package org.apache.wiki.parser;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.oro.text.regex.Pattern;
-import org.apache.oro.text.regex.Perl5Matcher;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.exceptions.ProviderException;
 
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.regex.Pattern;
 
 
 /**
@@ -151,7 +150,7 @@ public class LinkParsingOperations {
         if( isImageInlining ) {
             link = link.toLowerCase();
             for( final Pattern p : inlineImagePatterns ) {
-                if( new Perl5Matcher().matches( link, p ) ) {
+                if( p.matcher( link ).matches() ) {
                     return true;
                 }
             }

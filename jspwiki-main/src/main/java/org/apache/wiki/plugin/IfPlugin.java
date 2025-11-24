@@ -20,12 +20,6 @@
 package org.apache.wiki.plugin;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.oro.text.regex.MalformedPatternException;
-import org.apache.oro.text.regex.Pattern;
-import org.apache.oro.text.regex.PatternCompiler;
-import org.apache.oro.text.regex.PatternMatcher;
-import org.apache.oro.text.regex.Perl5Compiler;
-import org.apache.oro.text.regex.Perl5Matcher;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.exceptions.PluginException;
 import org.apache.wiki.api.plugin.Plugin;
@@ -39,6 +33,8 @@ import org.apache.wiki.variables.VariableManager;
 
 import java.security.Principal;
 import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  *  The IfPlugin allows parts of a WikiPage to be executed conditionally, and is intended as a flexible way
@@ -281,16 +277,12 @@ public class IfPlugin implements Plugin {
     }
 
     private static boolean doMatch( final String content, final String pattern ) throws PluginException {
-        final PatternCompiler compiler = new Perl5Compiler();
-        final PatternMatcher  matcher  = new Perl5Matcher();
-
         try {
-            final Pattern matchp = compiler.compile( pattern, Perl5Compiler.SINGLELINE_MASK );
-            return matcher.matches( content, matchp );
-        } catch( final MalformedPatternException e ) {
+            final Pattern matchp = Pattern.compile( pattern, Pattern.DOTALL );
+            return matchp.matcher( content ).matches();
+        } catch( final PatternSyntaxException e ) {
             throw new PluginException( "Faulty pattern " + pattern );
         }
-
     }
 
     private static boolean checkContains( final String pagecontent, final String matchPattern ) throws PluginException {

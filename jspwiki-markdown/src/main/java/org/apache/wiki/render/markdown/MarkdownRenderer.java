@@ -20,7 +20,6 @@ package org.apache.wiki.render.markdown;
 
 import com.vladsch.flexmark.html.HtmlRenderer;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.oro.text.regex.Pattern;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.parser.MarkupParser;
 import org.apache.wiki.parser.WikiDocument;
@@ -30,6 +29,7 @@ import org.apache.wiki.render.WikiRenderer;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.regex.Pattern;
 
 
 /**

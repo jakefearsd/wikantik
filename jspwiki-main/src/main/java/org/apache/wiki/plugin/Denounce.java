@@ -22,12 +22,6 @@ package org.apache.wiki.plugin;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.oro.text.GlobCompiler;
-import org.apache.oro.text.regex.MalformedPatternException;
-import org.apache.oro.text.regex.Pattern;
-import org.apache.oro.text.regex.PatternCompiler;
-import org.apache.oro.text.regex.PatternMatcher;
-import org.apache.oro.text.regex.Perl5Matcher;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.exceptions.PluginException;
 import org.apache.wiki.api.plugin.Plugin;
@@ -42,6 +36,8 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  *  Denounces a link by removing it from any search engine.
@@ -83,7 +79,6 @@ public class Denounce implements Plugin {
      */
     static {
         try {
-            final PatternCompiler compiler = new GlobCompiler();
             final ClassLoader loader = Denounce.class.getClassLoader();
             final InputStream in = loader.getResourceAsStream( PROPERTYFILE );
             if( in == null ) {
@@ -99,14 +94,16 @@ public class Denounce implements Plugin {
                 final String name = (String) e.nextElement();
 
                 try {
+                    final String globPattern = props.getProperty(name);
+                    final String regexPattern = globToRegex( globPattern );
                     if( name.startsWith( PROP_REFERERPATTERN ) ) {
-                        c_refererPatterns.add( compiler.compile( props.getProperty(name) ) );
+                        c_refererPatterns.add( Pattern.compile( regexPattern ) );
                     } else if( name.startsWith( PROP_AGENTPATTERN ) ) {
-                        c_agentPatterns.add( compiler.compile( props.getProperty(name) ) );
+                        c_agentPatterns.add( Pattern.compile( regexPattern ) );
                     } else if( name.startsWith( PROP_HOSTPATTERN ) ) {
-                        c_hostPatterns.add( compiler.compile( props.getProperty(name) ) );
+                        c_hostPatterns.add( Pattern.compile( regexPattern ) );
                     }
-                } catch( final MalformedPatternException ex ) {
+                } catch( final PatternSyntaxException ex ) {
                     LOG.error( "Malformed URL pattern in "+PROPERTYFILE+": "+props.getProperty(name), ex );
                 }
             }
@@ -117,6 +114,36 @@ public class Denounce implements Plugin {
         } catch( final Exception e ) {
             LOG.error( "Unable to initialize Denounce plugin", e );
         }
+    }
+
+    /**
+     * Converts a glob pattern to a regex pattern.
+     * @param glob The glob pattern
+     * @return The equivalent regex pattern
+     */
+    private static String globToRegex( final String glob ) {
+        final StringBuilder regex = new StringBuilder();
+        for( int i = 0; i < glob.length(); i++ ) {
+            final char c = glob.charAt( i );
+            switch( c ) {
+                case '*': regex.append( ".*" ); break;
+                case '?': regex.append( "." ); break;
+                case '.': regex.append( "\\." ); break;
+                case '\\': regex.append( "\\\\" ); break;
+                case '(': regex.append( "\\(" ); break;
+                case ')': regex.append( "\\)" ); break;
+                case '[': regex.append( "\\[" ); break;
+                case ']': regex.append( "\\]" ); break;
+                case '{': regex.append( "\\{" ); break;
+                case '}': regex.append( "\\}" ); break;
+                case '^': regex.append( "\\^" ); break;
+                case '$': regex.append( "\\$" ); break;
+                case '+': regex.append( "\\+" ); break;
+                case '|': regex.append( "\\|" ); break;
+                default: regex.append( c );
+            }
+        }
+        return regex.toString();
     }
 
     /**
@@ -166,8 +193,7 @@ public class Denounce implements Plugin {
      *  Returns true, if the path is found among the referers.
      */
     private boolean matchPattern( final List< Pattern > list, final String path ) {
-        final PatternMatcher matcher = new Perl5Matcher();
-        return list.stream().anyMatch(pattern -> matcher.matches(path, pattern));
+        return list.stream().anyMatch(pattern -> pattern.matcher(path).matches());
     }
 
     private boolean matchHeaders( final HttpServletRequest request ) {

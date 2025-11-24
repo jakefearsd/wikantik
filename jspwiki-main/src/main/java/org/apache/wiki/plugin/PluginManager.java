@@ -18,7 +18,6 @@
  */
 package org.apache.wiki.plugin;
 
-import org.apache.oro.text.regex.Pattern;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.exceptions.PluginException;
 import org.apache.wiki.api.plugin.Plugin;
@@ -27,6 +26,7 @@ import org.apache.wiki.modules.ModuleManager;
 import java.io.IOException;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.regex.Pattern;
 
 
 public interface PluginManager extends ModuleManager {

@@ -60,17 +60,18 @@ package org.apache.wiki.parser;
     import java.io.Reader;
     import java.io.StringReader;
     import java.text.MessageFormat;
+    import java.util.ArrayDeque;
     import java.util.ArrayList;
     import java.util.Arrays;
     import java.util.Collection;
-    import java.util.EmptyStackException;
+    import java.util.Deque;
     import java.util.HashMap;
     import java.util.Iterator;
     import java.util.List;
     import java.util.Map;
+    import java.util.NoSuchElementException;
     import java.util.Properties;
     import java.util.ResourceBundle;
-    import java.util.Stack;
 
 /**
  * Parses JSPWiki-style markup into a WikiDocument DOM tree.  This class is the heart and soul of JSPWiki : make
@@ -103,7 +104,7 @@ public class JSPWikiMarkupParser extends MarkupParser {
     private boolean        m_isPreBlock;
 
     /** Contains style information, in multiple forms. */
-    private final Stack< Boolean > m_styleStack = new Stack<>();
+    private final Deque< Boolean > m_styleStack = new ArrayDeque<>();
 
      // general list handling
     private int m_genlistlevel;
@@ -1486,7 +1487,7 @@ public class JSPWikiMarkupParser extends MarkupParser {
                     } else {
                         el = popElement( "div" );
                     }
-                } catch( final EmptyStackException e ) {
+                } catch( final NoSuchElementException e ) {
                     LOG.debug( "Page '" + m_context.getName() + "' closes a %%-block that has not been opened." );
                     return m_currentElement;
                 }

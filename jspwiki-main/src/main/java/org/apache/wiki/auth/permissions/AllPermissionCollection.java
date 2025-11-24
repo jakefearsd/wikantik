@@ -20,8 +20,10 @@ package org.apache.wiki.auth.permissions;
 
 import java.security.Permission;
 import java.security.PermissionCollection;
+import java.util.Collections;
 import java.util.Enumeration;
-import java.util.Hashtable;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A collection of AllPermission objects.
@@ -35,7 +37,7 @@ public class AllPermissionCollection extends PermissionCollection
 
     private boolean           m_readOnly;
 
-    protected final Hashtable<Permission, Permission> m_permissions    = new Hashtable<>();
+    protected final Map<Permission, Permission> m_permissions    = new ConcurrentHashMap<>();
 
     /**
      * Adds an AllPermission object to this AllPermissionCollection. If this
@@ -77,7 +79,7 @@ public class AllPermissionCollection extends PermissionCollection
     @Override
     public Enumeration<Permission> elements()
     {
-        return m_permissions.elements();
+        return Collections.enumeration( m_permissions.values() );
     }
 
     /**
@@ -112,10 +114,8 @@ public class AllPermissionCollection extends PermissionCollection
         }
 
         // Step through each AllPermission
-        final Enumeration<Permission> permEnum = m_permissions.elements();
-        while( permEnum.hasMoreElements() )
+        for( final Permission storedPermission : m_permissions.values() )
         {
-            final Permission storedPermission = permEnum.nextElement();
             if ( storedPermission.implies( permission ) )
             {
                 return true;

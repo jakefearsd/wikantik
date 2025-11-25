@@ -74,11 +74,6 @@
 
         <dependency>
             <groupId>org.apache.commons</groupId>
-            <artifactId>commons-fileupload2-javax</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.commons</groupId>
             <artifactId>commons-fileupload2-jakarta-servlet6</artifactId>
         </dependency>
 

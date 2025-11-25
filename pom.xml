@@ -46,7 +46,6 @@
 
     <akismet-java.version>1.0.0</akismet-java.version>
     <awaitility.version>4.3.0</awaitility.version>
-    <aws-java-sdk-kendra.version>1.12.565</aws-java-sdk-kendra.version>
     <commons-collections.version>4.5.0</commons-collections.version>
     <commons-fileupload.version>2.0.0-M4</commons-fileupload.version>
     <commons-io.version>2.21.0</commons-io.version>
@@ -70,7 +69,6 @@
     <jamm.version>0.4.0</jamm.version>
     <jaxen.version>2.0.0</jaxen.version>
     <javax-mail.version>1.6.2</javax-mail.version>
-    <javax-jsp-api.version>2.3.3</javax-jsp-api.version>
     <jdom2.version>2.0.6</jdom2.version>
     <jrcs-diff.version>0.4.2</jrcs-diff.version>
     <junit.version>6.0.0</junit.version>
@@ -79,7 +77,6 @@
     <mockito.version>5.20.0</mockito.version>
     <nekohtml.version>2.1.3</nekohtml.version>
     <rome.version>2.1.0</rome.version>
-    <sandler.version>0.5</sandler.version>
     <selenide.version>7.12.0</selenide.version>
     <slf4j.version>2.0.17</slf4j.version>
     <tika.version>3.2.3</tika.version>
@@ -150,12 +147,6 @@
     <dependencies>
       <!-- ordered alphabetically by scope:groupId:artifactId -->
       <!-- compile dependencies -->
-      <dependency>
-        <groupId>com.amazonaws</groupId>
-        <artifactId>aws-java-sdk-kendra</artifactId>
-        <version>${aws-java-sdk-kendra.version}</version>
-      </dependency>
-      
       <dependency>
         <groupId>com.codeborne</groupId>
         <artifactId>selenide</artifactId>
@@ -282,12 +273,6 @@
       </dependency>
 
       <dependency>
-        <groupId>net.sourceforge</groupId>
-        <artifactId>sandler</artifactId>
-        <version>${sandler.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>net.sf.ehcache</groupId>
         <artifactId>ehcache</artifactId>
         <version>${ehcache.version}</version>
@@ -297,12 +282,6 @@
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-collections4</artifactId>
         <version>${commons-collections.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-fileupload2-javax</artifactId>
-        <version>${commons-fileupload.version}</version>
       </dependency>
 
       <dependency>
@@ -416,12 +395,6 @@
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
-        <version>${slf4j.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-log4j12</artifactId>
         <version>${slf4j.version}</version>
       </dependency>
 

@@ -210,8 +210,6 @@ LIBRARY                                     LICENSE FILE
 activation-1.1.jar                          ./jspwiki-war/src/main/config/doc/LICENSE.cddl
 akismet-java-1.02.jar                       ./jspwiki-war/src/main/config/doc/LICENSE.akismet
 annotations-15.0.jar                        LICENSE
-aws-java-sdk-core-1.12.565.jar              LICENSE
-aws-java-sdk-kendra-1.12.565.jar            LICENSE
 commons-codec-1.3.jar                       LICENSE
 commons-collections-4.5.0.jar               LICENSE
 commons-fileupload-2.0.0-M4.jar             LICENSE
@@ -269,8 +267,6 @@ lucene-sandbox-9.12.2.jar                   LICENSE
 javax.mail-1.6.2.jar                        ./jspwiki-war/src/main/config/doc/LICENSE.cddl
 nekohtml-2.0.2.jar (codelibs fork)          LICENSE
 org.suigeneris.jrcs.diff-0.4.2              LICENSE
-oro-2.0.8.jar                               LICENSE
-sandler-0.5.jar                             ./jspwiki-war/src/main/config/doc/LICENSE.sandler
 slf4-api-2.0.17.jar                         ./jspwiki-war/src/main/config/doc/LICENSE.mit
 xercesImpl-2.10.0.jar                       LICENSE
 tika-core-3.2.3.jar                         LICENSE

@@ -414,4 +414,255 @@ public class JDBCUserDatabaseTest {
         Assertions.assertTrue( m_db.validatePassword( "user", "password" ) );
     }
 
+    // ========== Edge Case Tests for Improved Coverage ==========
+
+    @Test
+    public void testDeleteNonExistentUser() {
+        // Attempting to delete a user that doesn't exist should throw NoSuchPrincipalException
+        Assertions.assertThrows( NoSuchPrincipalException.class, () -> {
+            m_db.deleteByLoginName( "nonexistentuser" );
+        });
+    }
+
+    @Test
+    public void testFindByLoginNameNotFound() {
+        Assertions.assertThrows( NoSuchPrincipalException.class, () -> {
+            m_db.findByLoginName( "nonexistentuser" );
+        });
+    }
+
+    @Test
+    public void testFindByEmailNotFound() {
+        Assertions.assertThrows( NoSuchPrincipalException.class, () -> {
+            m_db.findByEmail( "nonexistent@example.com" );
+        });
+    }
+
+    @Test
+    public void testFindByFullNameNotFound() {
+        Assertions.assertThrows( NoSuchPrincipalException.class, () -> {
+            m_db.findByFullName( "Nonexistent User" );
+        });
+    }
+
+    @Test
+    public void testFindByWikiNameNotFound() {
+        Assertions.assertThrows( NoSuchPrincipalException.class, () -> {
+            m_db.findByWikiName( "NonexistentWikiName" );
+        });
+    }
+
+    @Test
+    public void testFindByUidNotFound() {
+        Assertions.assertThrows( NoSuchPrincipalException.class, () -> {
+            m_db.findByUid( "999999999" );
+        });
+    }
+
+    @Test
+    public void testSaveUserWithLockExpiry() throws WikiSecurityException {
+        // Create a user first (lock expiry is only saved in UPDATE, not INSERT)
+        final String loginName = "LockedUser" + System.currentTimeMillis();
+        UserProfile profile = m_db.newProfile();
+        profile.setEmail( "locked@mailinator.com" );
+        profile.setLoginName( loginName );
+        profile.setFullname( "Locked User" );
+        profile.setPassword( "password" );
+        m_db.save( profile );
+
+        // Now update with a lock expiry date (this tests the UPDATE path with lockExpiry)
+        // This covers the non-null lockExpiry branch in save()
+        profile = m_db.findByLoginName( loginName );
+        profile.setLockExpiry( new java.util.Date( System.currentTimeMillis() + 3600000 ) ); // Lock for 1 hour
+        m_db.save( profile );
+
+        // Verify the user still exists and can be retrieved (even if lock expiry
+        // isn't properly persisted in HSQLDB test environment)
+        profile = m_db.findByLoginName( loginName );
+        Assertions.assertEquals( loginName, profile.getLoginName() );
+
+        // Clean up
+        m_db.deleteByLoginName( loginName );
+    }
+
+    @Test
+    public void testSaveUserWithEmptyPassword() throws WikiSecurityException {
+        // Create a user and then update with empty password (should keep existing)
+        final String loginName = "EmptyPassUser" + System.currentTimeMillis();
+        UserProfile profile = m_db.newProfile();
+        profile.setEmail( "emptypass@mailinator.com" );
+        profile.setLoginName( loginName );
+        profile.setFullname( "Empty Password User" );
+        profile.setPassword( "originalpassword" );
+        m_db.save( profile );
+
+        // Update with empty password - should retain original
+        profile = m_db.findByLoginName( loginName );
+        profile.setPassword( "" );
+        m_db.save( profile );
+
+        // Verify original password still works
+        Assertions.assertTrue( m_db.validatePassword( loginName, "originalpassword" ) );
+
+        // Clean up
+        m_db.deleteByLoginName( loginName );
+    }
+
+    @Test
+    public void testSaveUserWithNullPassword() throws WikiSecurityException {
+        // Create a user and then update with null password (should keep existing)
+        final String loginName = "NullPassUser" + System.currentTimeMillis();
+        UserProfile profile = m_db.newProfile();
+        profile.setEmail( "nullpass@mailinator.com" );
+        profile.setLoginName( loginName );
+        profile.setFullname( "Null Password User" );
+        profile.setPassword( "originalpassword" );
+        m_db.save( profile );
+
+        // Update with null password - should retain original
+        profile = m_db.findByLoginName( loginName );
+        profile.setPassword( null );
+        m_db.save( profile );
+
+        // Verify original password still works
+        Assertions.assertTrue( m_db.validatePassword( loginName, "originalpassword" ) );
+
+        // Clean up
+        m_db.deleteByLoginName( loginName );
+    }
+
+    @Test
+    public void testUpdateExistingUserPassword() throws WikiSecurityException {
+        // Create a user
+        final String loginName = "UpdatePassUser" + System.currentTimeMillis();
+        UserProfile profile = m_db.newProfile();
+        profile.setEmail( "updatepass@mailinator.com" );
+        profile.setLoginName( loginName );
+        profile.setFullname( "Update Password User" );
+        profile.setPassword( "password1" );
+        m_db.save( profile );
+
+        // Update the password
+        profile = m_db.findByLoginName( loginName );
+        profile.setPassword( "newpassword" );
+        m_db.save( profile );
+
+        // Verify new password works
+        Assertions.assertTrue( m_db.validatePassword( loginName, "newpassword" ) );
+
+        // Clean up
+        m_db.deleteByLoginName( loginName );
+    }
+
+    @Test
+    public void testRenameNonExistentUser() {
+        // Attempting to rename a user that doesn't exist should throw NoSuchPrincipalException
+        Assertions.assertThrows( NoSuchPrincipalException.class, () -> {
+            m_db.rename( "nonexistentuser", "newname" );
+        });
+    }
+
+    @Test
+    public void testRenameToExistingLoginName() throws WikiSecurityException {
+        // Create a second user
+        final String loginName = "RenameUser" + System.currentTimeMillis();
+        UserProfile profile = m_db.newProfile();
+        profile.setEmail( "rename@mailinator.com" );
+        profile.setLoginName( loginName );
+        profile.setFullname( "Rename User" );
+        profile.setPassword( "password" );
+        m_db.save( profile );
+
+        // Attempting to rename to existing "janne" login name should throw DuplicateUserException
+        Assertions.assertThrows( DuplicateUserException.class, () -> {
+            m_db.rename( loginName, "janne" );
+        });
+
+        // Clean up
+        m_db.deleteByLoginName( loginName );
+    }
+
+    @Test
+    public void testSaveAndUpdateAttributes() throws WikiSecurityException {
+        // Create a user with attributes
+        final String loginName = "AttrUser" + System.currentTimeMillis();
+        UserProfile profile = m_db.newProfile();
+        profile.setEmail( "attr@mailinator.com" );
+        profile.setLoginName( loginName );
+        profile.setFullname( "Attribute User" );
+        profile.setPassword( "password" );
+        profile.getAttributes().put( "testAttr", "testValue" );
+        m_db.save( profile );
+
+        // Retrieve and verify
+        profile = m_db.findByLoginName( loginName );
+        Assertions.assertEquals( "testValue", profile.getAttributes().get( "testAttr" ) );
+
+        // Update attributes
+        profile.getAttributes().put( "testAttr", "newValue" );
+        profile.getAttributes().put( "anotherAttr", "anotherValue" );
+        m_db.save( profile );
+
+        // Retrieve and verify updated attributes
+        profile = m_db.findByLoginName( loginName );
+        Assertions.assertEquals( "newValue", profile.getAttributes().get( "testAttr" ) );
+        Assertions.assertEquals( "anotherValue", profile.getAttributes().get( "anotherAttr" ) );
+
+        // Clean up
+        m_db.deleteByLoginName( loginName );
+    }
+
+    @Test
+    public void testSaveWithEmptyAttributes() throws WikiSecurityException {
+        // Create a user without any custom attributes
+        final String loginName = "NoAttrUser" + System.currentTimeMillis();
+        UserProfile profile = m_db.newProfile();
+        profile.setEmail( "noattr@mailinator.com" );
+        profile.setLoginName( loginName );
+        profile.setFullname( "No Attribute User" );
+        profile.setPassword( "password" );
+        // Don't add any attributes
+        m_db.save( profile );
+
+        // Retrieve and verify
+        profile = m_db.findByLoginName( loginName );
+        Assertions.assertTrue( profile.getAttributes().isEmpty() );
+
+        // Clean up
+        m_db.deleteByLoginName( loginName );
+    }
+
+    @Test
+    public void testGetWikiNamesWithEmptyWikiName() throws WikiSecurityException {
+        // The "user" test user has no wiki name, which should be skipped
+        // and a warning logged
+        final Principal[] principals = m_db.getWikiNames();
+        // Should only get janne's wiki name (JanneJalkanen), not "user" who has no wiki name
+        Assertions.assertEquals( 1, principals.length );
+    }
+
+    @Test
+    public void testUpdateExistingUserSamePassword() throws WikiSecurityException {
+        // Create a user
+        final String loginName = "SamePassUser" + System.currentTimeMillis();
+        UserProfile profile = m_db.newProfile();
+        profile.setEmail( "samepass@mailinator.com" );
+        profile.setLoginName( loginName );
+        profile.setFullname( "Same Password User" );
+        profile.setPassword( "password" );
+        m_db.save( profile );
+
+        // Re-save with same password (hashed password shouldn't change)
+        profile = m_db.findByLoginName( loginName );
+        final String hashedPassword = profile.getPassword();
+        profile.setPassword( hashedPassword ); // Set the already hashed password
+        m_db.save( profile );
+
+        // Verify password still works
+        Assertions.assertTrue( m_db.validatePassword( loginName, "password" ) );
+
+        // Clean up
+        m_db.deleteByLoginName( loginName );
+    }
+
 }

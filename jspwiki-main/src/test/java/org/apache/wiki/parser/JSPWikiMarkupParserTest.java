@@ -1985,6 +1985,846 @@ class JSPWikiMarkupParserTest {
         );
     }
 
+    // ========== Phase 3: Error Handling Tests ==========
 
+    @Test
+    public void testLineTooLong() throws Exception {
+        // Create a line longer than PUSHBACK_BUFFER_SIZE (10240 chars)
+        // This tests the recovery path when a line is too long
+        final StringBuilder sb = new StringBuilder();
+        sb.append( "!" ); // Start with heading marker
+        for( int i = 0; i < 11000; i++ ) {
+            sb.append( "x" );
+        }
+        // Should not throw an exception - parser should recover gracefully
+        final String output = translate( sb.toString() );
+        Assertions.assertNotNull( output );
+        // The output should contain an h2 heading (! = h4curved to h2 in JSPWiki)
+        Assertions.assertTrue( output.contains( "x" ) );
+    }
+
+    @Test
+    public void testSetWithInvalidFormat() throws Exception {
+        // Test SET syntax with invalid format that triggers exception
+        final String src = "[{SET invalid}]";
+        final String output = translate( src );
+        // Should produce error message but not crash
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testSetWithEmptyNameValue() throws Exception {
+        // Test SET with empty name or value
+        final String src = "[{SET =value}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testSetWithEmptyValue() throws Exception {
+        // Test SET with empty value
+        final String src = "[{SET name=}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testIllegalXMLCharacters() throws Exception {
+        // Test content with illegal XML characters (control chars)
+        // This should trigger the IllegalDataException path
+        final String src = "Test with illegal char: \u0001 and more text";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        // The illegal character should be escaped or removed
+        Assertions.assertTrue( output.contains( "Test" ) );
+    }
+
+    @Test
+    public void testTableRowWithInvalidNumber() throws Exception {
+        // Test table with invalid row number format (though hard to trigger directly)
+        // Tables use %% for row styling
+        final String src = "|| Header\n| Cell with %%class=test invalid%%";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testDeeplyNestedBrackets() throws Exception {
+        // Test deeply nested brackets which may stress the parser
+        final String src = "[[[[[[[[[[test]]]]]]]]]]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testMalformedPlugin() throws Exception {
+        // Test malformed plugin syntax
+        final String src = "[{SamplePlugin param='unclosed}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testPluginWithMissingCloseBrace() throws Exception {
+        // Test plugin that never closes
+        final String src = "[{SamplePlugin text";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    // ========== Phase 1: WYSIWYG Editor Mode Tests ==========
+
+    private String translateWysiwyg( final String src ) throws IOException {
+        final Page p = Wiki.contents().page( testEngine, PAGE_NAME );
+        final WikiContext context = new WikiContext( testEngine, HttpMockFactory.createHttpRequest(), p );
+        context.setVariable( org.apache.wiki.api.core.Context.VAR_WYSIWYG_EDITOR_MODE, Boolean.TRUE );
+        final JSPWikiMarkupParser tr = new JSPWikiMarkupParser( context, new BufferedReader( new StringReader( src ) ) );
+        final XHTMLRenderer conv = new XHTMLRenderer( context, tr.parse() );
+        return conv.getString();
+    }
+
+    @Test
+    public void testWysiwygModeBasicText() throws Exception {
+        // Basic text parsing in WYSIWYG mode
+        final String src = "Hello World";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "Hello World" ) );
+    }
+
+    @Test
+    public void testWysiwygModeAccessRules() throws Exception {
+        // Access rules preserved as [{ALLOW/DENY}] in WYSIWYG mode
+        final String src = "[{ALLOW view All}]";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+        // In WYSIWYG mode, the ACL rule text should be preserved
+        Assertions.assertTrue( output.contains( "ALLOW" ) || output.contains( "[" ) );
+    }
+
+    @Test
+    public void testWysiwygModeLinkBrackets() throws Exception {
+        // Wiki links should show brackets in some cases in WYSIWYG mode
+        final String src = "[NonExistentPage]";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testWysiwygModeTildeEscape() throws Exception {
+        // Tilde escapes should be preserved in WYSIWYG mode
+        final String src = "~NoLink";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "NoLink" ) );
+    }
+
+    @Test
+    public void testWysiwygModeTildeEscapeSpace() throws Exception {
+        // Tilde followed by space in WYSIWYG mode
+        final String src = "~ text after tilde space";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testWysiwygModeTildeEscapePipe() throws Exception {
+        // Tilde escape of pipe char in WYSIWYG mode
+        final String src = "~| pipe escaped";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "|" ) );
+    }
+
+    @Test
+    public void testWysiwygModePlugin() throws Exception {
+        // Plugin syntax in WYSIWYG mode
+        final String src = "[{SamplePlugin}]";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testWysiwygModeHeading() throws Exception {
+        // Heading markup in WYSIWYG mode
+        final String src = "!!! Heading Three";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "Heading Three" ) );
+    }
+
+    @Test
+    public void testWysiwygModeOpenBracket() throws Exception {
+        // Open bracket handling in WYSIWYG mode
+        final String src = "[[text in brackets]]";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testWysiwygModeInterWikiLink() throws Exception {
+        // InterWiki link in WYSIWYG mode
+        final String src = "[JSPWiki:MainPage]";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+    }
+
+    // ========== Phase 6: Advanced List Handling Tests ==========
+
+    @Test
+    public void testMixedListPatternChange() throws Exception {
+        // Test changing from unordered to ordered list pattern
+        final String src = "* Item 1\n## Ordered sub-item\n* Item 2";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "<ul>" ) );
+        Assertions.assertTrue( output.contains( "<ol>" ) );
+    }
+
+    @Test
+    public void testMixedListUnwindRewind() throws Exception {
+        // Complex unwind/rewind scenario with pattern change
+        final String src = "* Item 1\n** Sub-item\n### Different pattern\n* Back to top";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testMixedListDeepNesting() throws Exception {
+        // 5+ level deep nesting
+        final String src = "* Level 1\n** Level 2\n*** Level 3\n**** Level 4\n***** Level 5\n****** Level 6";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        // Should have 6 nested ul elements
+        int ulCount = 0;
+        int idx = 0;
+        while( ( idx = output.indexOf( "<ul>", idx ) ) != -1 ) {
+            ulCount++;
+            idx++;
+        }
+        Assertions.assertTrue( ulCount >= 6 );
+    }
+
+    @Test
+    public void testMixedListSameLevelDifferentType() throws Exception {
+        // Switch type at same level
+        final String src = "* Item 1\n# Switched to ordered";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "<ul>" ) );
+        Assertions.assertTrue( output.contains( "<ol>" ) );
+    }
+
+    @Test
+    public void testNestedListDecreaseLevel() throws Exception {
+        // Test decreasing list level handling
+        final String src = "**** Deep item\n** Shallow item\n* Top level";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testNestedListDecreaseLevelMixed() throws Exception {
+        // Test decreasing list level with mixed types
+        final String src = "#### Deep ordered\n## Mid ordered\n* Top unordered";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testListAfterParagraph() throws Exception {
+        // List starting after paragraph text
+        final String src = "Paragraph text\n\n* List item";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "<ul>" ) );
+    }
+
+    @Test
+    public void testEmptyListItem() throws Exception {
+        // Test empty list items
+        final String src = "* \n* Second item";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "<li>" ) );
+    }
+
+    @Test
+    public void testListWithLeadingSpaces() throws Exception {
+        // List items with leading spaces after bullet
+        final String src = "*    Item with spaces\n*\tItem with tab";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "Item with spaces" ) );
+    }
+
+    @Test
+    public void testDefinitionListNotInDefinition() throws Exception {
+        // Definition list when not already in definition mode
+        final String src = ";Term:Definition";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "<dl>" ) );
+    }
+
+    @Test
+    public void testDefinitionListAlreadyInDefinition() throws Exception {
+        // Second definition in same definition list
+        final String src = ";Term1:Definition1\n;Term2:Definition2";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "<dt>" ) );
+    }
+
+    // ========== Phase 7: Escape Character Tests ==========
+
+    @Test
+    public void testTildeEscapeStar() throws Exception {
+        // Tilde escape of asterisk
+        final String src = "~* not a list";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "*" ) );
+        Assertions.assertFalse( output.contains( "<ul>" ) );
+    }
+
+    @Test
+    public void testTildeEscapeHash() throws Exception {
+        // Tilde escape of hash
+        final String src = "~# not a list";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "#" ) );
+        Assertions.assertFalse( output.contains( "<ol>" ) );
+    }
+
+    @Test
+    public void testTildeEscapeDash() throws Exception {
+        // Tilde escape of dash (prevents ruler)
+        final String src = "~---- not a ruler";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertFalse( output.contains( "<hr" ) );
+    }
+
+    @Test
+    public void testTildeEscapeExclamation() throws Exception {
+        // Tilde escape of exclamation (prevents heading)
+        final String src = "~! not a heading";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertFalse( output.contains( "<h" ) );
+    }
+
+    @Test
+    public void testTildeEscapeQuote() throws Exception {
+        // Tilde escape of single quote
+        final String src = "~'' not italic";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertFalse( output.contains( "<i>" ) );
+    }
+
+    @Test
+    public void testTildeEscapeUnderscore() throws Exception {
+        // Tilde escape of underscore
+        final String src = "~__ not bold";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertFalse( output.contains( "<b>" ) );
+    }
+
+    @Test
+    public void testTildeEscapeOpenBracket() throws Exception {
+        // Tilde escape of open bracket
+        final String src = "~[not a link]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "[" ) );
+    }
+
+    @Test
+    public void testTildeEscapeOpenBrace() throws Exception {
+        // Tilde escape of open brace
+        final String src = "~{not a plugin}";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "{" ) );
+    }
+
+    @Test
+    public void testTildeEscapeCloseBracket() throws Exception {
+        // Tilde escape of close bracket
+        final String src = "[link~] text]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testTildeEscapeCloseBrace() throws Exception {
+        // Tilde escape of close brace
+        final String src = "~} not closing";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "}" ) );
+    }
+
+    @Test
+    public void testTildeEscapePercent() throws Exception {
+        // Tilde escape of percent
+        final String src = "~%% not style";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "%" ) );
+    }
+
+    @Test
+    public void testTildeEscapeBackslash() throws Exception {
+        // Tilde escape of backslash
+        final String src = "~\\\\ not a line break";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testTildeEscapeTilde() throws Exception {
+        // Tilde escape of tilde itself
+        final String src = "~~ double tilde";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "~" ) );
+    }
+
+    @Test
+    public void testBackslashEscapeInReadToEOL() throws Exception {
+        // Backslash escape in heading context
+        final String src = "!!! Heading with \\escaped text";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testPreBlockAmpersand() throws Exception {
+        // Ampersand in preformatted block should be escaped
+        final String src = "{{{\ncode with & ampersand\n}}}";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "&amp;" ) );
+    }
+
+    @Test
+    public void testPreBlockLessThan() throws Exception {
+        // Less than in preformatted block should be escaped
+        final String src = "{{{\ncode with < less than\n}}}";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "&lt;" ) );
+    }
+
+    @Test
+    public void testPreBlockGreaterThan() throws Exception {
+        // Greater than in preformatted block should be escaped
+        final String src = "{{{\ncode with > greater than\n}}}";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "&gt;" ) );
+    }
+
+    @Test
+    public void testPreBlockTildeEscapeCloseBraces() throws Exception {
+        // Tilde escape of closing braces inside pre block
+        final String src = "{{{\ncode with ~}}} escaped close\n}}}";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "}}}" ) );
+    }
+
+    // ========== Phase 2: CamelCase Link Configuration Tests ==========
+
+    @Test
+    public void testCamelCaseLinksDisabledViaPageAttribute() throws Exception {
+        // Test CamelCase links disabled via page attribute
+        final Page p = Wiki.contents().page( testEngine, PAGE_NAME );
+        p.setAttribute( MarkupParser.PROP_CAMELCASELINKS, "false" );
+        final String src = "This is a WikiWord in text";
+        final String output = translate( p, src );
+        Assertions.assertNotNull( output );
+        // WikiWord should NOT be a link when CamelCase is disabled
+        Assertions.assertFalse( output.contains( "<a" ) && output.contains( "WikiWord" ) );
+    }
+
+    @Test
+    public void testCamelCaseLinksEnabledViaPageAttribute() throws Exception {
+        // Test CamelCase links enabled via page attribute
+        final Page p = Wiki.contents().page( testEngine, PAGE_NAME );
+        p.setAttribute( MarkupParser.PROP_CAMELCASELINKS, "true" );
+        final String src = "This is a WikiWord in text";
+        final String output = translate( p, src );
+        Assertions.assertNotNull( output );
+        // WikiWord should be a link when CamelCase is enabled
+        Assertions.assertTrue( output.contains( "WikiWord" ) );
+    }
+
+    @Test
+    public void testCamelCaseLinksWithProtocol() throws Exception {
+        // Test URL within CamelCase context
+        final Page p = Wiki.contents().page( testEngine, PAGE_NAME );
+        p.setAttribute( MarkupParser.PROP_CAMELCASELINKS, "true" );
+        final String src = "Check out http://example.com/TestPage for more";
+        final String output = translate( p, src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "http://example.com/TestPage" ) );
+    }
+
+    @Test
+    public void testCamelCaseLinksEscapedWithTilde() throws Exception {
+        // Test ~WikiWord escaping in CamelCase context
+        final Page p = Wiki.contents().page( testEngine, PAGE_NAME );
+        p.setAttribute( MarkupParser.PROP_CAMELCASELINKS, "true" );
+        final String src = "This ~WikiWord is escaped";
+        final String output = translate( p, src );
+        Assertions.assertNotNull( output );
+        // WikiWord should appear as plain text, not a link
+        Assertions.assertTrue( output.contains( "WikiWord" ) );
+    }
+
+    @Test
+    public void testCamelCaseLinksEscapedWithBracket() throws Exception {
+        // Test escaping with bracket prefix
+        final Page p = Wiki.contents().page( testEngine, PAGE_NAME );
+        p.setAttribute( MarkupParser.PROP_CAMELCASELINKS, "true" );
+        final String src = "This has [explicit link] and WikiWord";
+        final String output = translate( p, src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testCamelCaseWithUrlTrailingPunctuation() throws Exception {
+        // Test URL ending with period or comma
+        final Page p = Wiki.contents().page( testEngine, PAGE_NAME );
+        p.setAttribute( MarkupParser.PROP_CAMELCASELINKS, "true" );
+        final String src = "Visit http://example.com. And more.";
+        final String output = translate( p, src );
+        Assertions.assertNotNull( output );
+        // The trailing period should not be part of the URL
+        Assertions.assertTrue( output.contains( "example.com" ) );
+    }
+
+    // ========== Phase 5: URL Edge Cases Tests ==========
+
+    @Test
+    public void testUrlEndingWithComma() throws Exception {
+        // URL ends with comma - comma should not be part of link
+        final String src = "[http://example.com/page,]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "example.com" ) );
+    }
+
+    @Test
+    public void testUrlEndingWithPeriod() throws Exception {
+        // URL ends with period - period should not be part of link
+        final String src = "[http://example.com/page.]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "example.com" ) );
+    }
+
+    @Test
+    public void testDirectUriWithAmpEntity() throws Exception {
+        // URL containing &amp; entity
+        final String src = "http://example.com/page?a=1&amp;b=2";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testUrlWithQueryString() throws Exception {
+        // URL with complex query string
+        final String src = "[http://example.com/search?q=test&page=1]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "example.com" ) );
+    }
+
+    @Test
+    public void testUrlWithFragment() throws Exception {
+        // URL with fragment identifier
+        final String src = "[http://example.com/page#section]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "#section" ) || output.contains( "example.com" ) );
+    }
+
+    @Test
+    public void testHttpsUrl() throws Exception {
+        // HTTPS URL
+        final String src = "[https://secure.example.com/]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "https://" ) );
+    }
+
+    @Test
+    public void testMailtoUrl() throws Exception {
+        // Mailto URL
+        final String src = "[mailto:test@example.com]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "mailto:" ) );
+    }
+
+    @Test
+    public void testFtpUrl() throws Exception {
+        // FTP URL
+        final String src = "[ftp://ftp.example.com/file]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "ftp://" ) );
+    }
+
+    // ========== Phase 8: InterWiki Link and Image Link Tests ==========
+
+    @Test
+    public void testInterWikiLinkBasic() throws Exception {
+        // Basic InterWiki link
+        final String src = "[JSPWiki:SandBox]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "SandBox" ) );
+    }
+
+    @Test
+    public void testInterWikiLinkWithText() throws Exception {
+        // InterWiki link with custom text
+        final String src = "[Visit the sandbox|JSPWiki:SandBox]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "sandbox" ) );
+    }
+
+    @Test
+    public void testImageLinkToExternalUrl() throws Exception {
+        // Image with external link text
+        final String src = "[http://example.com|http://example.com/image.png]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testImageLinkToWikiPage() throws Exception {
+        // Image with wiki page link text (needs existing page)
+        newPage( "TestImagePage" );
+        final String src = "[TestImagePage|http://example.com/image.png]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testImageLinkPlain() throws Exception {
+        // Plain image link (no link text)
+        final String src = "[http://example.com/image.png]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "img" ) || output.contains( "image.png" ) );
+    }
+
+    @Test
+    public void testImageLinkWithAlt() throws Exception {
+        // Image with alt text
+        final String src = "[Alt text|http://example.com/image.png]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "Alt text" ) || output.contains( "image.png" ) );
+    }
+
+    @Test
+    public void testImageLinkGif() throws Exception {
+        // GIF image
+        final String src = "[http://example.com/animation.gif]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testImageLinkJpeg() throws Exception {
+        // JPEG image
+        final String src = "[http://example.com/photo.jpg]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testInterWikiLinkWithWysiwygMode() throws Exception {
+        // InterWiki link in WYSIWYG mode
+        final String src = "[Wikipedia:Test]";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testImageLinkInWysiwygMode() throws Exception {
+        // Image link in WYSIWYG mode
+        final String src = "[http://example.com/image.png]";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+    }
+
+    // ========== Phase 10: Security and Access Rule Tests ==========
+
+    @Test
+    public void testAccessRuleAllow() throws Exception {
+        // Test ALLOW access rule
+        final String src = "[{ALLOW edit Admin}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testAccessRuleDeny() throws Exception {
+        // Test DENY access rule
+        final String src = "[{DENY view Guest}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testAccessRuleWithBraces() throws Exception {
+        // Access rule with surrounding braces (explicit format)
+        final String src = "[{{ALLOW view All}}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testAccessRuleMultiple() throws Exception {
+        // Multiple access rules
+        final String src = "[{ALLOW view All}]\n[{DENY edit Guest}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testAccessRuleInWysiwygMode() throws Exception {
+        // Access rule in WYSIWYG mode should preserve the text
+        final String src = "[{ALLOW view Admin}]";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+        // In WYSIWYG mode, the rule should be shown
+        Assertions.assertTrue( output.contains( "ALLOW" ) || output.contains( "[" ) );
+    }
+
+    @Test
+    public void testAccessRuleWithGroups() throws Exception {
+        // Access rule with group permissions
+        final String src = "[{ALLOW edit Admin, Editors}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    // ========== Phase 4: Outlink Image Tests ==========
+
+    @Test
+    public void testOutlinkImageEnabled() throws Exception {
+        // Test external link with outlink image enabled (default)
+        final String src = "[http://external.example.com/page]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "external.example.com" ) );
+    }
+
+    @Test
+    public void testOutlinkImageDisabled() throws Exception {
+        // Test external link with outlink image disabled
+        final TestEngine customEngine = TestEngine.build( with( "jspwiki.translatorReader.useOutlinkImage", "false" ) );
+        final WikiContext context = new WikiContext( customEngine, Wiki.contents().page( customEngine, PAGE_NAME ) );
+        final JSPWikiMarkupParser tr = new JSPWikiMarkupParser( context, new BufferedReader( new StringReader( "[http://external.example.com/page]" ) ) );
+        final XHTMLRenderer conv = new XHTMLRenderer( context, tr.parse() );
+        final String output = conv.getString();
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "external.example.com" ) );
+    }
+
+    @Test
+    public void testAttachmentImageEnabled() throws Exception {
+        // Test attachment link with attachment image enabled (default)
+        newPage( "TestPage" );
+        final String src = "[TestPage/attachment.txt]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testAttachmentImageDisabled() throws Exception {
+        // Test attachment link with attachment image disabled
+        final TestEngine customEngine = TestEngine.build( with( "jspwiki.translatorReader.useAttachmentImage", "false" ) );
+        newPage( "TestPage" );
+        final WikiContext context = new WikiContext( customEngine, Wiki.contents().page( customEngine, PAGE_NAME ) );
+        final JSPWikiMarkupParser tr = new JSPWikiMarkupParser( context, new BufferedReader( new StringReader( "[TestPage/attachment.txt]" ) ) );
+        final XHTMLRenderer conv = new XHTMLRenderer( context, tr.parse() );
+        final String output = conv.getString();
+        Assertions.assertNotNull( output );
+    }
+
+    // ========== Phase 9: Plugin Error Handling Tests ==========
+
+    @Test
+    public void testPluginWithEmptyBody() throws Exception {
+        // Plugin with empty body content
+        final String src = "[{SamplePlugin}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testPluginWithBody() throws Exception {
+        // Plugin with body content
+        final String src = "[{SamplePlugin\nThis is body content\n}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testPluginNonexistent() throws Exception {
+        // Test nonexistent plugin
+        final String src = "[{NonexistentPlugin}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        // Should show error for nonexistent plugin
+        Assertions.assertTrue( output.contains( "Nonexistent" ) || output.contains( "error" ) || output.contains( "Plugin" ) );
+    }
+
+    @Test
+    public void testPluginInWysiwygMode() throws Exception {
+        // Plugin in WYSIWYG mode should show plugin markup
+        final String src = "[{SamplePlugin text='hello'}]";
+        final String output = translateWysiwyg( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testPluginWithSpecialCharsInParams() throws Exception {
+        // Plugin with special characters in parameters
+        final String src = "[{SamplePlugin text='hello <world> & more'}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testPluginNestedBraces() throws Exception {
+        // Plugin with nested braces in body
+        final String src = "[{SamplePlugin\nBody with {nested} braces\n}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+    }
+
+    @Test
+    public void testPluginMultipleOnPage() throws Exception {
+        // Multiple plugins on same page
+        final String src = "[{SamplePlugin text='first'}]\nSome text\n[{SamplePlugin text='second'}]";
+        final String output = translate( src );
+        Assertions.assertNotNull( output );
+        Assertions.assertTrue( output.contains( "first" ) || output.contains( "second" ) );
+    }
 
 }

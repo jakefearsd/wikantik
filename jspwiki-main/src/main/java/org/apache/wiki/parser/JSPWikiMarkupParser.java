@@ -18,20 +18,13 @@
  */
 package org.apache.wiki.parser;
 
-    import org.apache.commons.lang3.Strings;
     import org.apache.commons.text.StringEscapeUtils;
     import org.apache.logging.log4j.LogManager;
     import org.apache.logging.log4j.Logger;
-    import org.apache.wiki.InternalWikiException;
     import org.apache.wiki.StringTransmutator;
     import org.apache.wiki.api.core.Acl;
     import org.apache.wiki.api.core.Context;
-    import org.apache.wiki.api.core.ContextEnum;
     import org.apache.wiki.api.core.Page;
-    import org.apache.wiki.api.exceptions.PluginException;
-    import org.apache.wiki.api.plugin.Plugin;
-    import org.apache.wiki.api.spi.Wiki;
-    import org.apache.wiki.attachment.AttachmentManager;
     import org.apache.wiki.auth.AuthorizationManager;
     import org.apache.wiki.auth.UserManager;
     import org.apache.wiki.auth.WikiSecurityException;
@@ -39,7 +32,6 @@ package org.apache.wiki.parser;
     import org.apache.wiki.i18n.InternationalizationManager;
     import org.apache.wiki.preferences.Preferences;
     import org.apache.wiki.util.TextUtil;
-    import org.apache.wiki.util.XmlUtil;
     import org.apache.wiki.variables.VariableManager;
     import org.jdom2.Attribute;
     import org.jdom2.Content;
@@ -51,17 +43,14 @@ package org.apache.wiki.parser;
     import javax.xml.transform.Result;
     import java.io.IOException;
     import java.io.Reader;
-    import java.io.StringReader;
     import java.text.MessageFormat;
     import java.util.ArrayDeque;
     import java.util.ArrayList;
     import java.util.Arrays;
     import java.util.Collection;
     import java.util.Deque;
-    import java.util.HashMap;
     import java.util.Iterator;
     import java.util.List;
-    import java.util.Map;
     import java.util.NoSuchElementException;
     import java.util.Properties;
     import java.util.ResourceBundle;
@@ -90,23 +79,8 @@ public class JSPWikiMarkupParser extends MarkupParser {
 
     private static final Logger LOG = LogManager.getLogger( JSPWikiMarkupParser.class );
 
-    private boolean        m_isbold;
-    private boolean        m_isitalic;
-    private boolean        m_istable;
-    private boolean        m_isPre;
-    private boolean        m_isEscaping;
-    private boolean        m_isdefinition;
-    private boolean        m_isPreBlock;
-
     /** Contains style information, in multiple forms. */
     private final Deque< Boolean > m_styleStack = new ArrayDeque<>();
-
-     // general list handling
-    private int m_genlistlevel;
-    private final StringBuilder m_genlistBulletBuffer = new StringBuilder( 10 );  // stores the # and * pattern
-    private final boolean m_allowPHPWikiStyleLists = true;
-
-    private boolean m_isOpenParagraph;
 
     /** Parser for extended link functionality. */
     private final LinkParser m_linkParser = new LinkParser();
@@ -116,8 +90,20 @@ public class JSPWikiMarkupParser extends MarkupParser {
 
     private Element m_currentElement;
 
-    /** Keep track of duplicate header names.  */
-    private final Map< String, Integer > m_titleSectionCounter = new HashMap<>();
+    /** The link handler that manages all link-related operations */
+    private WikiLinkHandler m_linkHandler;
+
+    /** The formatting handler that manages inline formatting */
+    private WikiFormattingHandler m_formattingHandler;
+
+    /** The list handler that manages list markup */
+    private WikiListHandler m_listHandler;
+
+    /** The table handler that manages table markup */
+    private WikiTableHandler m_tableHandler;
+
+    /** The heading handler that manages heading markup */
+    private WikiHeadingHandler m_headingHandler;
 
     /** If true, then considers CamelCase links as well. */
     private boolean m_camelCaseLinks;
@@ -143,10 +129,6 @@ public class JSPWikiMarkupParser extends MarkupParser {
     static final String WIKIWORD_REGEX = "(^|[^\\p{Alnum}]+)(\\p{Upper}+\\p{Lower}+\\p{Upper}+\\p{Alnum}*|(http://|https://|mailto:)([A-Za-z0-9_/\\.\\+\\?\\#\\-\\@=&;~%]+))";
 
     private Pattern m_camelCasePattern;
-
-    private int m_rowNum = 1;
-
-    private Heading m_lastHeading;
 
     private static final String CAMELCASE_PATTERN = "JSPWikiMarkupParser.camelCasePattern";
 
@@ -197,6 +179,85 @@ public class JSPWikiMarkupParser extends MarkupParser {
         }
 
         m_context.getPage().setHasMetadata();
+
+        // Initialize the link handler
+        m_linkHandler = new WikiLinkHandler( this, m_context, m_linkParsingOperations,
+                                             m_useOutlinkImage, m_useAttachmentImage,
+                                             m_allowHTML, m_useRelNofollow, m_wysiwygEditorMode );
+
+        // Initialize the formatting handler
+        m_formattingHandler = new WikiFormattingHandler( this, m_wysiwygEditorMode );
+
+        // Initialize the list handler
+        m_listHandler = new WikiListHandler( this, m_formattingHandler );
+
+        // Initialize the table handler
+        m_tableHandler = new WikiTableHandler( this, m_formattingHandler );
+
+        // Initialize the heading handler
+        m_headingHandler = new WikiHeadingHandler( this, m_context, m_wysiwygEditorMode, m_headingListenerChain );
+    }
+
+    /**
+     * Enables or disables raw HTML mode.
+     * Package-private for use by WikiHeadingHandler's clean translator.
+     *
+     * @param allow true to allow raw HTML
+     */
+    void enableRawHtml( final boolean allow ) {
+        m_allowHTML = allow;
+    }
+
+    // =========================================================================
+    // Accessor methods for WikiLinkHandler (package-private)
+    // =========================================================================
+
+    /**
+     * Returns the collection of link mutators.
+     * @return The link mutators collection
+     */
+    Collection< StringTransmutator > getLinkMutators() {
+        return m_linkMutators;
+    }
+
+    /**
+     * Returns the local link mutator chain.
+     * @return The local link mutator chain
+     */
+    Collection< StringTransmutator > getLocalLinkMutatorChain() {
+        return m_localLinkMutatorChain;
+    }
+
+    /**
+     * Returns the external link mutator chain.
+     * @return The external link mutator chain
+     */
+    Collection< StringTransmutator > getExternalLinkMutatorChain() {
+        return m_externalLinkMutatorChain;
+    }
+
+    /**
+     * Returns the attachment link mutator chain.
+     * @return The attachment link mutator chain
+     */
+    Collection< StringTransmutator > getAttachmentLinkMutatorChain() {
+        return m_attachmentLinkMutatorChain;
+    }
+
+    /**
+     * Returns the current element being processed.
+     * @return The current element
+     */
+    Element getCurrentElement() {
+        return m_currentElement;
+    }
+
+    /**
+     * Returns the plain text buffer.
+     * @return The plain text buffer
+     */
+    StringBuilder getPlainTextBuf() {
+        return m_plainTextBuf;
     }
 
     /**
@@ -218,158 +279,19 @@ public class JSPWikiMarkupParser extends MarkupParser {
         return text;
     }
 
-    /**
-     * Calls the heading listeners.
-     *
-     * @param param A Heading object.
-     */
-    private void callHeadingListenerChain( final Heading param ) {
-        for( final HeadingListener h : m_headingListenerChain ) {
-            h.headingAdded( m_context, param );
-        }
-    }
 
     /**
-     *  Creates a JDOM anchor element.  Can be overridden to change the URL creation, if you really know what you are doing.
+     *  Creates a link element. Delegates to WikiLinkHandler.
      *
-     *  @param type One of the types above
-     *  @param link URL to which to link to
+     *  @param type One of the link type constants (READ, EDIT, etc.)
+     *  @param link URL or page name to link to
      *  @param text Link text
      *  @param section If a particular section identifier is required.
-     *  @return An 'A' element.
-     *  @since 2.4.78
+     *  @param attributes Additional attributes for the element
+     *  @return The created element
      */
-    private Element createAnchor( final int type, final String link, String text, String section ) {
-        text = TextUtil.escapeHTMLEntities( text );
-        section = TextUtil.escapeHTMLEntities( section );
-        final Element el = new Element( "a" );
-        el.setAttribute( "class", CLASS_TYPES[ type ] );
-        el.setAttribute( "href", link + section );
-        el.addContent( text );
-        return el;
-    }
-
-    private Element makeLink( int type, final String link, String text, String section, final Iterator< Attribute > attributes ) {
-        Element el = null;
-        if( text == null ) {
-            text = link;
-        }
-        text = callMutatorChain( m_linkMutators, text );
-        section = (section != null) ? ("#"+section) : "";
-
-        // Make sure we make a link name that can be accepted  as a valid URL.
-        if( link.isEmpty() ) {
-            type = EMPTY;
-        }
-        final ResourceBundle rb = Preferences.getBundle( m_context, InternationalizationManager.CORE_BUNDLE );
-
-        switch( type ) {
-            case READ:
-                el = createAnchor( READ, m_context.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), link), text, section );
-                break;
-
-            case EDIT:
-                el = createAnchor( EDIT, m_context.getURL( ContextEnum.PAGE_EDIT.getRequestContext(),link), text, "" );
-                el.setAttribute("title", MessageFormat.format( rb.getString( "markupparser.link.create" ), link ) );
-                break;
-
-            case EMPTY:
-                el = new Element("u").addContent(text);
-                break;
-
-            // These two are for local references - footnotes and references to footnotes.
-            // We embed the page name (or whatever WikiContext gives us) to make sure the links are unique across Wiki.
-            case LOCALREF:
-                el = createAnchor( LOCALREF, "#ref-"+m_context.getName()+"-"+link, "["+text+"]", "" );
-                break;
-
-            case LOCAL:
-                el = new Element( "a" ).setAttribute( "class", CLASS_FOOTNOTE );
-                el.setAttribute( "name", "ref-" + m_context.getName() + "-" + link.substring( 1 ) );
-                if( !m_allowHTML ) {
-                    el.addContent( "[" + TextUtil.escapeHTMLEntities( text ) + "]" );
-                } else {
-                    el.addContent( "[" + text + "]" );
-                }
-                break;
-
-                //  With the image, external and interwiki types we need to make sure nobody can put in Javascript or
-                //  something else annoying into the links themselves.  We do this by preventing a haxor from stopping
-                //  the link name short with quotes in fillBuffer().
-            case IMAGE:
-                el = new Element( "img" ).setAttribute( "class", "inline" );
-                el.setAttribute( "src", link );
-                el.setAttribute( "alt", text );
-                break;
-
-            case IMAGELINK:
-                el = new Element( "img" ).setAttribute( "class", "inline" );
-                el.setAttribute( "src", link );
-                el.setAttribute( "alt", text );
-                el = createAnchor( IMAGELINK, text, "", "" ).addContent( el );
-                break;
-
-            case IMAGEWIKILINK:
-                final String pagelink = m_context.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), text );
-                el = new Element( "img" ).setAttribute( "class", "inline" );
-                el.setAttribute( "src", link );
-                el.setAttribute( "alt", text );
-                el = createAnchor( IMAGEWIKILINK, pagelink, "", "" ).addContent( el );
-                break;
-
-            case EXTERNAL:
-                el = createAnchor( EXTERNAL, link, text, section );
-                if( m_useRelNofollow ) {
-                    el.setAttribute( "rel", "nofollow" );
-                }
-                break;
-
-            case INTERWIKI:
-                el = createAnchor( INTERWIKI, link, text, section );
-                break;
-
-            case ATTACHMENT:
-                final String attlink = m_context.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), link );
-                final String infolink = m_context.getURL( ContextEnum.PAGE_INFO.getRequestContext(), link );
-                final String imglink = m_context.getURL( ContextEnum.PAGE_NONE.getRequestContext(), "images/attachment_small.png" );
-                el = createAnchor( ATTACHMENT, attlink, text, "" );
-                if(  m_engine.getManager( AttachmentManager.class ).forceDownload( attlink ) ) {
-                    el.setAttribute("download", "");
-                }
-
-                pushElement( el );
-                popElement( el.getName() );
-
-                if( m_useAttachmentImage ) {
-                    el = new Element( "img" ).setAttribute( "src", imglink );
-                    el.setAttribute( "border", "0" );
-                    el.setAttribute( "alt", "(info)" );
-
-                    el = new Element( "a" ).setAttribute( "href", infolink ).addContent( el );
-                    el.setAttribute( "class", "infolink" );
-                } else {
-                    el = null;
-                }
-                break;
-
-            default:
-                break;
-        }
-
-        if( el != null && attributes != null ) {
-            while( attributes.hasNext() ) {
-                final Attribute attr = attributes.next();
-                if( attr != null ) {
-                    el.setAttribute( attr );
-                }
-            }
-        }
-
-        if( el != null ) {
-            flushPlainText();
-            m_currentElement.addContent( el );
-        }
-        return el;
+    private Element makeLink( final int type, final String link, final String text, final String section, final Iterator< Attribute > attributes ) {
+        return m_linkHandler.makeLink( type, link, text, section, attributes );
     }
 
     /**
@@ -387,11 +309,12 @@ public class JSPWikiMarkupParser extends MarkupParser {
 
     /**
      *  This method peeks ahead in the stream until EOL and returns the result. It will keep the buffers untouched.
+     *  Package-private for use by WikiHeadingHandler.
      *
      *  @return The string from the current position to the end of line.
      */
     // FIXME: Always returns an empty line, even if the stream is full.
-    private String peekAheadLine() throws IOException {
+    String peekAheadLine() throws IOException {
         final String s = readUntilEOL().toString();
         if( s.length() > PUSHBACK_BUFFER_SIZE ) {
             LOG.warn( "Line is longer than maximum allowed size (" + PUSHBACK_BUFFER_SIZE + " characters.  Attempting to recover..." );
@@ -406,7 +329,13 @@ public class JSPWikiMarkupParser extends MarkupParser {
         return s;
     }
 
-    private int flushPlainText() {
+    /**
+     * Flushes any pending plain text to the current element.
+     * Package-private for use by WikiLinkHandler.
+     *
+     * @return The number of characters flushed
+     */
+    int flushPlainText() {
         final int numChars = m_plainTextBuf.length();
         if( numChars > 0 ) {
             String buf;
@@ -421,7 +350,7 @@ public class JSPWikiMarkupParser extends MarkupParser {
             try {
                 // This is the heaviest part of parsing, and therefore we can do some optimization here.
                 // 1) Only when the length of the buffer is big enough, we try to do the match
-                if( m_camelCaseLinks && !m_isEscaping && buf.length() > 3 ) {
+                if( m_camelCaseLinks && !m_formattingHandler.isEscaping() && buf.length() > 3 ) {
                     Matcher matcher = m_camelCasePattern.matcher( buf );
                     while( matcher.find() ) {
                         final String firstPart = buf.substring( 0, matcher.start() );
@@ -485,7 +414,14 @@ public class JSPWikiMarkupParser extends MarkupParser {
         return numChars;
     }
 
-    private Element pushElement( final Element e ) {
+    /**
+     * Pushes an element onto the element stack.
+     * Package-private for use by WikiLinkHandler.
+     *
+     * @param e The element to push
+     * @return The pushed element
+     */
+    Element pushElement( final Element e ) {
         flushPlainText();
         m_currentElement.addContent( e );
         m_currentElement = e;
@@ -493,7 +429,14 @@ public class JSPWikiMarkupParser extends MarkupParser {
         return e;
     }
 
-    private Element addElement( final Content e ) {
+    /**
+     * Adds content to the current element.
+     * Package-private for use by WikiLinkHandler.
+     *
+     * @param e The content to add
+     * @return The current element
+     */
+    Element addElement( final Content e ) {
         if( e != null ) {
             flushPlainText();
             m_currentElement.addContent( e );
@@ -511,12 +454,13 @@ public class JSPWikiMarkupParser extends MarkupParser {
 
     /**
      *  Goes through the current element stack and pops all elements until this
-     *  element is found - this essentially "closes" and element.
+     *  element is found - this essentially "closes" an element.
+     *  Package-private for use by WikiLinkHandler.
      *
      *  @param s element to be found.
      *  @return The new current element, or null, if there was no such element in the entire stack.
      */
-    private Element popElement( final String s ) {
+    Element popElement( final String s ) {
         final int flushedBytes = flushPlainText();
         Element currEl = m_currentElement;
         while( currEl.getParentElement() != null ) {
@@ -567,8 +511,9 @@ public class JSPWikiMarkupParser extends MarkupParser {
     /**
      *  Reads the stream while the characters that have been specified are
      *  in the stream, returning then the result as a String.
+     *  Package-private for use by WikiFormattingHandler.
      */
-    private String readWhile( final String endChars ) throws IOException {
+    String readWhile( final String endChars ) throws IOException {
         final StringBuilder sb = new StringBuilder( 80 );
         int ch = nextToken();
         while( ch != -1 ) {
@@ -583,172 +528,34 @@ public class JSPWikiMarkupParser extends MarkupParser {
         return sb.toString();
     }
 
-    private JSPWikiMarkupParser m_cleanTranslator;
 
     /**
-     *  Does a lazy init.  Otherwise, we would get into a situation where HTMLRenderer would try and boot a TranslatorReader before
-     *  the TranslatorReader it is contained by is up.
-     */
-    private JSPWikiMarkupParser getCleanTranslator() {
-        if( m_cleanTranslator == null ) {
-            final Context dummyContext = Wiki.context().create( m_engine, m_context.getHttpRequest(), m_context.getPage() );
-            m_cleanTranslator = new JSPWikiMarkupParser( dummyContext, null );
-            m_cleanTranslator.m_allowHTML = true;
-        }
-
-        return m_cleanTranslator;
-    }
-
-    /**
-     *  Modifies the "hd" parameter to contain proper values.  Because
-     *  an "id" tag may only contain [a-zA-Z0-9:_-], we'll replace the
-     *  % after url encoding with '_'.
-     *  <p>
-     *  Counts also duplicate headings (= headings with similar name), and
-     *  attaches a counter.
-     */
-    protected String makeHeadingAnchor( final String baseName, String title, final Heading hd ) {
-        hd.m_titleText = title;
-        title = MarkupParser.wikifyLink( title );
-        hd.m_titleSection = m_engine.encodeName(title);
-        if( m_titleSectionCounter.containsKey( hd.m_titleSection ) ) {
-            final Integer count = m_titleSectionCounter.get( hd.m_titleSection ) + 1;
-            m_titleSectionCounter.put( hd.m_titleSection, count );
-            hd.m_titleSection += "-" + count;
-        } else {
-            m_titleSectionCounter.put( hd.m_titleSection, 1 );
-        }
-
-        hd.m_titleAnchor = "section-" + m_engine.encodeName( baseName ) + "-" + hd.m_titleSection;
-        hd.m_titleAnchor = hd.m_titleAnchor.replace( '%', '_' );
-        hd.m_titleAnchor = hd.m_titleAnchor.replace( '/', '_' );
-
-        return hd.m_titleAnchor;
-    }
-
-    private String makeSectionTitle( String title ) {
-        title = title.trim();
-        try {
-            final JSPWikiMarkupParser dtr = getCleanTranslator();
-            dtr.setInputReader( new StringReader( title ) );
-            final WikiDocument doc = dtr.parse();
-            doc.setContext( m_context );
-
-            return XmlUtil.extractTextFromDocument( doc );
-        } catch( final IOException e ) {
-            LOG.fatal("Title parsing not working", e );
-            throw new InternalWikiException( "Xml text extraction not working as expected when cleaning title" + e.getMessage() , e );
-        }
-    }
-
-    /**
-     *  Returns XHTML for the heading.
-     *
-     *  @param level The level of the heading.  @see Heading
-     *  @param title the title for the heading
-     *  @param hd a List to which heading should be added
-     *  @return An Element containing the heading
-     */
-    public Element makeHeading( final int level, final String title, final Heading hd ) {
-        final Element el;
-        final String pageName = m_context.getPage().getName();
-        final String outTitle = makeSectionTitle( title );
-        hd.m_level = level;
-
-        switch( level ) {
-          case Heading.HEADING_SMALL:
-            el = new Element( "h4" ).setAttribute("id",makeHeadingAnchor( pageName, outTitle, hd ) );
-            break;
-
-          case Heading.HEADING_MEDIUM:
-            el = new Element( "h3" ).setAttribute("id",makeHeadingAnchor( pageName, outTitle, hd ) );
-            break;
-
-          case Heading.HEADING_LARGE:
-            el = new Element( "h2" ).setAttribute("id",makeHeadingAnchor( pageName, outTitle, hd ) );
-            break;
-
-          default:
-            throw new InternalWikiException( "Illegal heading type " + level );
-        }
-
-        return el;
-    }
-
-    /**
-     *  When given a link to a WikiName, we just return a proper HTML link for it.  The local link mutator
-     *  chain is also called.
+     *  When given a link to a WikiName, we just return a proper HTML link for it.
+     *  Delegates to WikiLinkHandler.
      */
     private Element makeCamelCaseLink( final String wikiname ) {
-        final String matchedLink = m_linkParsingOperations.linkIfExists( wikiname );
-        callMutatorChain( m_localLinkMutatorChain, wikiname );
-        if( matchedLink != null ) {
-            makeLink( READ, matchedLink, wikiname, null, null );
-        } else {
-            makeLink( EDIT, wikiname, wikiname, null, null );
-        }
-
-        return m_currentElement;
+        return m_linkHandler.makeCamelCaseLink( wikiname );
     }
 
-    /** Holds the image URL for the duration of this parser */
-    private String m_outlinkImageURL;
-
     /**
-     * Returns an element for the external link image (out.png).  However, this method caches the URL for the lifetime
-     * of this MarkupParser, because it's commonly used, and we'll end up with possibly hundreds our thousands of
-     * references to it...  It's a lot faster, too.
+     * Returns an element for the external link image (out.png).
+     * Delegates to WikiLinkHandler.
      *
-     * @return  An element containing the HTML for the outlink image.
+     * @return An element containing the HTML for the outlink image.
      */
     private Element outlinkImage() {
-        Element el = null;
-        if( m_useOutlinkImage ) {
-            if( m_outlinkImageURL == null ) {
-                m_outlinkImageURL = m_context.getURL( ContextEnum.PAGE_NONE.getRequestContext(), OUTLINK_IMAGE );
-            }
-
-            el = new Element( "img" ).setAttribute( "class", OUTLINK );
-            el.setAttribute( "src", m_outlinkImageURL );
-            el.setAttribute( "alt","" );
-        }
-
-        return el;
+        return m_linkHandler.outlinkImage();
     }
 
     /**
-     *  Takes a URL and turns it into a regular wiki link. Unfortunately, because of the way that flushPlainText()
-     *  works, it already encodes all the XML entities. But so does WikiContext.getURL(), so we
-     *  have to do a reverse-replace here, so that it can again be replaced in makeLink.
-     *  <p>
-     *  What a crappy problem.
+     *  Takes a URL and turns it into a regular wiki link.
+     *  Delegates to WikiLinkHandler.
      *
      * @param url provided url.
      * @return An anchor Element containing the link.
      */
-    private Element makeDirectURILink( String url ) {
-        final Element result;
-        String last = null;
-
-        if( url.endsWith( "," ) || url.endsWith( "." ) ) {
-            last = url.substring( url.length() - 1 );
-            url = url.substring( 0, url.length() - 1 );
-        }
-
-        callMutatorChain( m_externalLinkMutatorChain, url );
-
-        if( m_linkParsingOperations.isImageLink( url, isImageInlining(), getInlineImagePatterns() ) ) {
-            result = handleImageLink( Strings.CS.replace( url, "&amp;", "&" ), url, false );
-        } else {
-            result = makeLink( EXTERNAL, Strings.CS.replace( url, "&amp;", "&" ), url, null, null );
-            addElement( outlinkImage() );
-        }
-
-        if( last != null ) {
-            m_plainTextBuf.append( last );
-        }
-
-        return result;
+    private Element makeDirectURILink( final String url ) {
+        return m_linkHandler.makeDirectURILink( url );
     }
 
     /**
@@ -756,26 +563,24 @@ public class JSPWikiMarkupParser extends MarkupParser {
      *  1. If the text is a WikiName of an existing page, it gets linked.
      *  2. If the text is an external link, then it is inlined.
      *  3. Otherwise, it becomes an ALT text.
+     *  Delegates to WikiLinkHandler.
      *
      *  @param reallink The link to the image.
      *  @param link     Link text portion, may be a link to somewhere else.
      *  @param hasLinkText If true, then the defined link had a link text available.
-     *                  This means that the link text may be a link to a wiki page,
-     *                  or an external resource.
      */
     private Element handleImageLink( final String reallink, final String link, final boolean hasLinkText ) {
-        final String possiblePage = MarkupParser.cleanLink( link );
-        if( m_linkParsingOperations.isExternalLink( link ) && hasLinkText ) {
-            return makeLink( IMAGELINK, reallink, link, null, null );
-        } else if( m_linkParsingOperations.linkExists( possiblePage ) && hasLinkText ) {
-            callMutatorChain( m_localLinkMutatorChain, possiblePage );
-            return makeLink( IMAGEWIKILINK, reallink, link, null, null );
-        } else {
-            return makeLink( IMAGE, reallink, link, null, null );
-        }
+        return m_linkHandler.handleImageLink( reallink, link, hasLinkText );
     }
 
-    private Element handleAccessRule( String ruleLine ) {
+    /**
+     * Handles access rule parsing [{ALLOW ...}] or [{DENY ...}].
+     * Package-private for use by WikiLinkHandler.
+     *
+     * @param ruleLine The rule line to process
+     * @return The current element
+     */
+    Element handleAccessRule( String ruleLine ) {
         if( m_wysiwygEditorMode ) {
             m_currentElement.addContent( "[" + ruleLine + "]" );
         }
@@ -807,9 +612,13 @@ public class JSPWikiMarkupParser extends MarkupParser {
     }
 
     /**
-     *  Handles metadata setting [{SET foo=bar}]
+     *  Handles metadata setting [{SET foo=bar}].
+     *  Package-private for use by WikiLinkHandler.
+     *
+     *  @param link The metadata link text
+     *  @return The current element
      */
-    private Element handleMetadata( final String link ) {
+    Element handleMetadata( final String link ) {
         if( m_wysiwygEditorMode ) {
             m_currentElement.addContent( "[" + link + "]" );
         }
@@ -850,147 +659,10 @@ public class JSPWikiMarkupParser extends MarkupParser {
 
     /**
      *  Gobbles up all hyperlinks that are encased in square brackets.
+     *  Delegates to WikiLinkHandler.
      */
-    private Element handleHyperlinks( String linktext, final int pos ) {
-        final ResourceBundle rb = Preferences.getBundle( m_context, InternationalizationManager.CORE_BUNDLE );
-        final StringBuilder sb = new StringBuilder( linktext.length() + 80 );
-
-        if( m_linkParsingOperations.isAccessRule( linktext ) ) {
-            return handleAccessRule( linktext );
-        }
-
-        if( m_linkParsingOperations.isMetadata( linktext ) ) {
-            return handleMetadata( linktext );
-        }
-
-        if( m_linkParsingOperations.isPluginLink( linktext ) ) {
-            try {
-                final PluginContent pluginContent = PluginContent.parsePluginLine( m_context, linktext, pos );
-
-                // This might sometimes fail, especially if there is something which looks like a plugin invocation but is really not.
-                if( pluginContent != null ) {
-                    addElement( pluginContent );
-                    pluginContent.executeParse( m_context );
-                }
-            } catch( final PluginException e ) {
-                LOG.info( m_context.getRealPage().getWiki() + " : " + m_context.getRealPage().getName() + " - Failed to insert plugin: " + e.getMessage() );
-                //LOG.info( "Root cause:",e.getRootThrowable() );
-                if( !m_wysiwygEditorMode ) {
-                    final ResourceBundle rbPlugin = Preferences.getBundle( m_context, Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
-                    return addElement( makeError( MessageFormat.format( rbPlugin.getString( "plugin.error.insertionfailed" ),
-                    		                                            m_context.getRealPage().getWiki(),
-                    		                                            m_context.getRealPage().getName(),
-                    		                                            e.getMessage() ) ) );
-                }
-            }
-            return m_currentElement;
-        }
-
-        try {
-            final LinkParser.Link link = m_linkParser.parse( linktext );
-            linktext = link.getText();
-            String linkref = link.getReference();
-            //  Yes, we now have the components separated.
-            //  linktext = the text the link should have
-            //  linkref  = the url or page name.
-            //  In many cases these are the same.  [linktext|linkref].
-            if( m_linkParsingOperations.isVariableLink( linktext ) ) {
-                final Content el = new VariableContent( linktext );
-                addElement( el );
-            } else if( m_linkParsingOperations.isExternalLink( linkref ) ) {
-                // It's an external link, out of this Wiki
-                callMutatorChain( m_externalLinkMutatorChain, linkref );
-                if( m_linkParsingOperations.isImageLink( linkref, isImageInlining(), getInlineImagePatterns() ) ) {
-                    handleImageLink( linkref, linktext, link.hasReference() );
-                } else {
-                    makeLink( EXTERNAL, linkref, linktext, null, link.getAttributes() );
-                    addElement( outlinkImage() );
-                }
-            } else if( link.isInterwikiLink() ) {
-                // It's an interwiki link; InterWiki links also get added to external link chain after the links have been resolved.
-
-                // FIXME: There is an interesting issue here:  We probably should
-                //        URLEncode the wikiPage, but we can't since some of the
-                //        Wikis use slashes (/), which won't survive URLEncoding.
-                //        Besides, we don't know which character set the other Wiki
-                //        is using, so you'll have to write the entire name as it appears
-                //        in the URL.  Bugger.
-
-                final String extWiki = link.getExternalWiki();
-                final String wikiPage = link.getExternalWikiPage();
-                if( m_wysiwygEditorMode ) {
-                    makeLink( INTERWIKI, extWiki + ":" + wikiPage, linktext, null, link.getAttributes() );
-                } else {
-                    String urlReference = m_engine.getInterWikiURL( extWiki );
-                    if( urlReference != null ) {
-                        urlReference = TextUtil.replaceString( urlReference, "%s", wikiPage );
-                        urlReference = callMutatorChain( m_externalLinkMutatorChain, urlReference );
-
-                        if( m_linkParsingOperations.isImageLink( urlReference, isImageInlining(), getInlineImagePatterns() ) ) {
-                            handleImageLink( urlReference, linktext, link.hasReference() );
-                        } else {
-                            makeLink( INTERWIKI, urlReference, linktext, null, link.getAttributes() );
-                        }
-                        if( m_linkParsingOperations.isExternalLink( urlReference ) ) {
-                            addElement( outlinkImage() );
-                        }
-                    } else {
-                        final Object[] args = { TextUtil.escapeHTMLEntities( extWiki ) };
-                        addElement( makeError( MessageFormat.format( rb.getString( "markupparser.error.nointerwikiref" ), args ) ) );
-                    }
-                }
-            } else if( linkref.startsWith( "#" ) ) {
-                // It defines a local footnote
-                makeLink( LOCAL, linkref, linktext, null, link.getAttributes() );
-            } else if( TextUtil.isNumber( linkref ) ) {
-                // It defines a reference to a local footnote
-                makeLink( LOCALREF, linkref, linktext, null, link.getAttributes() );
-            } else {
-                final int hashMark;
-
-                // Internal wiki link, but is it an attachment link?
-                String attachment = m_engine.getManager( AttachmentManager.class ).getAttachmentInfoName( m_context, linkref );
-                if( attachment != null ) {
-                    callMutatorChain( m_attachmentLinkMutatorChain, attachment );
-                    if( m_linkParsingOperations.isImageLink( linkref, isImageInlining(), getInlineImagePatterns() ) ) {
-                        attachment = m_context.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), attachment );
-                        sb.append( handleImageLink( attachment, linktext, link.hasReference() ) );
-                    } else {
-                        makeLink( ATTACHMENT, attachment, linktext, null, link.getAttributes() );
-                    }
-                } else if( ( hashMark = linkref.indexOf( '#' ) ) != -1 ) {
-                    // It's an internal Wiki link, but to a named section
-                    final String namedSection = linkref.substring( hashMark + 1 );
-                    linkref = linkref.substring( 0, hashMark );
-                    linkref = MarkupParser.cleanLink( linkref );
-                    callMutatorChain( m_localLinkMutatorChain, linkref );
-                    final String matchedLink = m_linkParsingOperations.linkIfExists( linkref );
-                    if( matchedLink != null ) {
-                        String sectref = "section-" + m_engine.encodeName( matchedLink + "-" + wikifyLink( namedSection ) );
-                        sectref = sectref.replace( '%', '_' );
-                        makeLink( READ, matchedLink, linktext, sectref, link.getAttributes() );
-                    } else {
-                        makeLink( EDIT, linkref, linktext, null, link.getAttributes() );
-                    }
-                } else {
-                    // It's an internal Wiki link
-                    linkref = MarkupParser.cleanLink( linkref );
-                    callMutatorChain( m_localLinkMutatorChain, linkref );
-                    final String matchedLink = m_linkParsingOperations.linkIfExists( linkref );
-                    if( matchedLink != null ) {
-                        makeLink( READ, matchedLink, linktext, null, link.getAttributes() );
-                    } else {
-                        makeLink( EDIT, linkref, linktext, null, link.getAttributes() );
-                    }
-                }
-            }
-
-        } catch( final ParseException e ) {
-            LOG.info( "Parser failure: ", e );
-            final Object[] args = { e.getMessage() };
-            addElement( makeError( MessageFormat.format( rb.getString( "markupparser.error.parserfailure" ), args ) ) );
-        }
-        return m_currentElement;
+    private Element handleHyperlinks( final String linktext, final int pos ) {
+        return m_linkHandler.handleHyperlinks( linktext, pos );
     }
 
     /**
@@ -1005,36 +677,11 @@ public class JSPWikiMarkupParser extends MarkupParser {
     }
 
     private Element handleBackslash() throws IOException {
-        final int ch = nextToken();
-        if( ch == '\\' ) {
-            final int ch2 = nextToken();
-            if( ch2 == '\\' ) {
-                pushElement( new Element( "br" ).setAttribute( "clear", "all" ) );
-                return popElement( "br" );
-            }
-            pushBack( ch2 );
-            pushElement( new Element( "br" ) );
-            return popElement( "br" );
-        }
-        pushBack( ch );
-        return null;
+        return m_formattingHandler.handleBackslash();
     }
 
     private Element handleUnderscore() throws IOException {
-        final int ch = nextToken();
-        Element el = null;
-        if( ch == '_' ) {
-            if( m_isbold ) {
-                el = popElement( "b" );
-            } else {
-                el = pushElement( new Element( "b" ) );
-            }
-            m_isbold = !m_isbold;
-        } else {
-            pushBack( ch );
-        }
-
-        return el;
+        return m_formattingHandler.handleUnderscore();
     }
 
 
@@ -1042,73 +689,18 @@ public class JSPWikiMarkupParser extends MarkupParser {
      *  For example: italics.
      */
     private Element handleApostrophe() throws IOException {
-        final int ch = nextToken();
-        Element el = null;
-
-        if( ch == '\'' ) {
-            if( m_isitalic ) {
-                el = popElement( "i" );
-            } else {
-                el = pushElement( new Element( "i" ) );
-            }
-            m_isitalic = !m_isitalic;
-        } else {
-            pushBack( ch );
-        }
-
-        return el;
+        return m_formattingHandler.handleApostrophe();
     }
 
     private Element handleOpenbrace( final boolean isBlock ) throws IOException {
-        final int ch = nextToken();
-        if( ch == '{' ) {
-            final int ch2 = nextToken();
-            if( ch2 == '{' ) {
-                m_isPre = true;
-                m_isEscaping = true;
-                m_isPreBlock = isBlock;
-                if( isBlock ) {
-                    startBlockLevel();
-                    return pushElement( new Element( "pre" ) );
-                }
-
-                return pushElement( new Element( "span" ).setAttribute( "class", "inline-code" ) );
-            }
-            pushBack( ch2 );
-            return pushElement( new Element( "tt" ) );
-        }
-        pushBack( ch );
-        return null;
+        return m_formattingHandler.handleOpenbrace( isBlock );
     }
 
     /**
      *  Handles both }} and }}}
      */
     private Element handleClosebrace() throws IOException {
-        final int ch2 = nextToken();
-        if( ch2 == '}' ) {
-            final int ch3 = nextToken();
-            if( ch3 == '}' ) {
-                if( m_isPre ) {
-                    if( m_isPreBlock ) {
-                        popElement( "pre" );
-                    } else {
-                        popElement( "span" );
-                    }
-                    m_isPre = false;
-                    m_isEscaping = false;
-                    return m_currentElement;
-                }
-                m_plainTextBuf.append( "}}}" );
-                return m_currentElement;
-            }
-            pushBack( ch3 );
-            if( !m_isEscaping ) {
-                return popElement( "tt" );
-            }
-        }
-        pushBack( ch2 );
-        return null;
+        return m_formattingHandler.handleClosebrace();
     }
 
     private Element handleDash() throws IOException {
@@ -1137,32 +729,12 @@ public class JSPWikiMarkupParser extends MarkupParser {
         return null;
     }
 
+    /**
+     * Handles heading markup (!, !!, !!!).
+     * Delegates to WikiHeadingHandler.
+     */
     private Element handleHeading() throws IOException {
-        final Element el;
-        final int ch  = nextToken();
-        final Heading hd = new Heading();
-        if( ch == '!' ) {
-            final int ch2 = nextToken();
-            if( ch2 == '!' ) {
-                final String title = peekAheadLine();
-                el = makeHeading( Heading.HEADING_LARGE, title, hd );
-            } else {
-                pushBack( ch2 );
-                final String title = peekAheadLine();
-                el = makeHeading( Heading.HEADING_MEDIUM, title, hd );
-            }
-        } else {
-            pushBack( ch );
-            final String title = peekAheadLine();
-            el = makeHeading( Heading.HEADING_SMALL, title, hd );
-        }
-
-        callHeadingListenerChain( hd );
-        m_lastHeading = hd;
-        if( el != null ) {
-            pushElement( el );
-        }
-        return el;
+        return m_headingHandler.handleHeading();
     }
 
     /**
@@ -1184,154 +756,37 @@ public class JSPWikiMarkupParser extends MarkupParser {
         return buf;
     }
 
-    /** Controls whether italic is restarted after a paragraph shift */
-
-    private boolean m_restartitalic;
-    private boolean m_restartbold;
-
     private boolean m_newLine;
 
     /**
      * Starts a block level element, therefore closing a potential open paragraph tag.
      */
     private void startBlockLevel() {
-        // These may not continue over block level limits in XHTML
-        popElement( "i" );
-        popElement( "b" );
-        popElement( "tt" );
-        if( m_isOpenParagraph ) {
-            m_isOpenParagraph = false;
-            popElement( "p" );
-            m_plainTextBuf.append( "\n" ); // Just small beautification
-        }
-        m_restartitalic = m_isitalic;
-        m_restartbold   = m_isbold;
-        m_isitalic = false;
-        m_isbold   = false;
+        m_formattingHandler.startBlockLevel();
     }
 
-    private static String getListType( final char c ) {
-        if( c == '*' ) {
-            return "ul";
-        } else if( c == '#' ) {
-            return "ol";
-        }
-        throw new InternalWikiException( "Parser got faulty list type: " + c );
-    }
     /**
-     * Like original handleOrderedList() and handleUnorderedList(),
-     * however handles both ordered ('#') and unordered ('*') mixed together.
+     * Handles both ordered ('#') and unordered ('*') lists.
+     * Delegates to WikiListHandler.
      */
-    // FIXME: Refactor this; it's a bit messy.
     private Element handleGeneralList() throws IOException {
-         startBlockLevel();
-         String strBullets = readWhile( "*#" );
-         // String strBulletsRaw = strBullets;      // to know what was original before phpwiki style substitution
-         final int numBullets = strBullets.length();
-
-         // override the beginning portion of bullet pattern to be like the previous to simulate PHPWiki style lists
-
-        if( m_allowPHPWikiStyleLists ) {
-            // only substitute if different
-            if( !( strBullets.substring( 0, Math.min( numBullets, m_genlistlevel ) ).equals( m_genlistBulletBuffer.substring( 0, Math.min( numBullets, m_genlistlevel ) ) ) ) ) {
-                if( numBullets <= m_genlistlevel ) {
-                    // Substitute all but the last character (keep the expressed bullet preference)
-                    strBullets = ( numBullets > 1 ? m_genlistBulletBuffer.substring( 0, numBullets - 1 ) : "" ) +
-                                 strBullets.charAt( numBullets - 1 );
-                } else {
-                    strBullets = m_genlistBulletBuffer + strBullets.substring( m_genlistlevel, numBullets );
-                }
-            }
-        }
-
-         //  Check if this is still of the same type
-        if( strBullets.substring( 0, Math.min( numBullets, m_genlistlevel ) ).equals( m_genlistBulletBuffer.substring( 0, Math.min( numBullets, m_genlistlevel ) ) ) ) {
-            if( numBullets > m_genlistlevel ) {
-                pushElement( new Element( getListType( strBullets.charAt( m_genlistlevel++ ) ) ) );
-                for( ; m_genlistlevel < numBullets; m_genlistlevel++ ) {
-                    // bullets are growing, get from new bullet list
-                    pushElement( new Element( "li" ) );
-                    pushElement( new Element( getListType( strBullets.charAt( m_genlistlevel ) ) ) );
-                }
-            } else if( numBullets < m_genlistlevel ) {
-                //  Close the previous list item.
-                popElement( "li" );
-                for( ; m_genlistlevel > numBullets; m_genlistlevel-- ) {
-                    // bullets are shrinking, get from old bullet list
-                    popElement( getListType( m_genlistBulletBuffer.charAt( m_genlistlevel - 1 ) ) );
-                    if( m_genlistlevel > 0 ) {
-                        popElement( "li" );
-                    }
-                }
-            } else {
-                if( m_genlistlevel > 0 ) {
-                    popElement( "li" );
-                }
-            }
-        } else {
-            //  The pattern has changed, unwind and restart
-            int numEqualBullets;
-            final int numCheckBullets;
-
-            // find out how much is the same
-            numEqualBullets = 0;
-            numCheckBullets = Math.min( numBullets, m_genlistlevel );
-
-            while( numEqualBullets < numCheckBullets ) {
-                // if the bullets are equal so far, keep going
-                if( strBullets.charAt( numEqualBullets ) == m_genlistBulletBuffer.charAt( numEqualBullets ) )
-                    numEqualBullets++;
-                    // otherwise giveup, we have found how many are equal
-                else
-                    break;
-            }
-
-            //unwind
-            for( ; m_genlistlevel > numEqualBullets; m_genlistlevel-- ) {
-                popElement( getListType( m_genlistBulletBuffer.charAt( m_genlistlevel - 1 ) ) );
-                if( m_genlistlevel > numBullets ) {
-                    popElement( "li" );
-                }
-            }
-
-            //rewind
-            pushElement( new Element( getListType( strBullets.charAt( numEqualBullets++ ) ) ) );
-            for( int i = numEqualBullets; i < numBullets; i++ ) {
-                pushElement( new Element( "li" ) );
-                pushElement( new Element( getListType( strBullets.charAt( i ) ) ) );
-            }
-            m_genlistlevel = numBullets;
-        }
-
-         // Push a new list item, and eat away any extra whitespace
-        pushElement( new Element( "li" ) );
-        readWhile( " " );
-
-        // work done, remember the new bullet list (in place of old one)
-        m_genlistBulletBuffer.setLength( 0 );
-        m_genlistBulletBuffer.append( strBullets );
-        return m_currentElement;
+        return m_listHandler.handleGeneralList();
     }
 
+    /**
+     * Unwinds (closes) all open list levels.
+     * Delegates to WikiListHandler.
+     */
     private Element unwindGeneralList() {
-        // unwind
-        for( ; m_genlistlevel > 0; m_genlistlevel-- ) {
-            popElement( "li" );
-            popElement( getListType( m_genlistBulletBuffer.charAt( m_genlistlevel - 1 ) ) );
-        }
-        m_genlistBulletBuffer.setLength( 0 );
-        return null;
+        return m_listHandler.unwindGeneralList();
     }
 
-
+    /**
+     * Handles definition list markup (;term:definition).
+     * Delegates to WikiListHandler.
+     */
     private Element handleDefinitionList() {
-        if( !m_isdefinition ) {
-            m_isdefinition = true;
-            startBlockLevel();
-            pushElement( new Element( "dl" ) );
-            return pushElement( new Element( "dt" ) );
-        }
-        return null;
+        return m_listHandler.handleDefinitionList();
     }
 
     private Element handleOpenbracket() throws IOException {
@@ -1389,10 +844,10 @@ public class JSPWikiMarkupParser extends MarkupParser {
         //  If the link is never finished, do some tricks to display the rest of the line unchanged.
         if( ch == -1 ) {
             LOG.debug( "Warning: unterminated link detected!" );
-            m_isEscaping = true;
+            m_formattingHandler.setEscaping( true );
             m_plainTextBuf.append( sb );
             flushPlainText();
-            m_isEscaping = false;
+            m_formattingHandler.setEscaping( false );
             return m_currentElement;
         }
 
@@ -1529,73 +984,19 @@ public class JSPWikiMarkupParser extends MarkupParser {
         return null;
     }
 
+    /**
+     * Handles table markup (pipe character).
+     * Delegates to WikiTableHandler.
+     */
     private Element handleBar( final boolean newLine ) throws IOException {
-        Element el;
-        if( !m_istable && !newLine ) {
-            return null;
-        }
-
-        //  If the bar is in the first column, we will either start a new table or continue the old one.
-        if( newLine ) {
-            if( !m_istable ) {
-                startBlockLevel();
-                el = pushElement( new Element("table").setAttribute("class","wikitable").setAttribute("border","1") );
-                m_istable = true;
-                m_rowNum = 0;
-            }
-
-            m_rowNum++;
-            final Element tr = ( m_rowNum % 2 != 0 )
-                       ? new Element("tr").setAttribute("class", "odd")
-                       : new Element("tr");
-            el = pushElement( tr );
-        }
-
-        //  Check out which table cell element to start; a header element (th) or a regular element (td).
-        final int ch = nextToken();
-        if( ch == '|' ) {
-            if( !newLine ) {
-                el = popElement("th");
-                if( el == null ) popElement("td");
-            }
-            el = pushElement( new Element("th") );
-        } else {
-            if( !newLine ) {
-                el = popElement( "td" );
-                if( el == null ) popElement( "th" );
-            }
-            el = pushElement( new Element("td") );
-            pushBack( ch );
-        }
-        return el;
+        return m_tableHandler.handleBar( newLine );
     }
 
     /**
      *  Generic escape of next character or entity.
      */
     private Element handleTilde() throws IOException {
-        final int ch = nextToken();
-
-        if( ch == ' ' ) {
-            if( m_wysiwygEditorMode ) {
-                m_plainTextBuf.append( "~ " );
-            }
-            return m_currentElement;
-        }
-
-        if( ch == '|' || ch == '~' || ch == '\\' || ch == '*' || ch == '#' ||
-            ch == '-' || ch == '!' || ch == '\'' || ch == '_' || ch == '[' ||
-            ch == '{' || ch == ']' || ch == '}' || ch == '%' ) {
-            if( m_wysiwygEditorMode ) {
-                m_plainTextBuf.append( '~' );
-            }
-            m_plainTextBuf.append( ( char ) ch );
-            m_plainTextBuf.append( readWhile( "" + ( char ) ch ) );
-            return m_currentElement;
-        }
-        // No escape.
-        pushBack( ch );
-        return null;
+        return m_formattingHandler.handleTilde();
     }
 
     private void fillBuffer( final Element startElement ) throws IOException {
@@ -1610,7 +1011,7 @@ public class JSPWikiMarkupParser extends MarkupParser {
             }
 
             //  Check if we're actually ending the preformatted mode. We still must do an entity transformation here.
-            if( m_isEscaping ) {
+            if( m_formattingHandler.isEscaping() ) {
                 if( ch == '}' ) {
                     if( handleClosebrace() == null ) m_plainTextBuf.append( (char) ch );
                 } else if( ch == -1 ) {
@@ -1643,13 +1044,12 @@ public class JSPWikiMarkupParser extends MarkupParser {
             }
 
             //  An empty line stops a list
-            if( m_newLine && ch != '*' && ch != '#' && ch != ' ' && m_genlistlevel > 0 ) {
+            if( m_newLine && ch != '*' && ch != '#' && ch != ' ' && m_listHandler.getListLevel() > 0 ) {
                 m_plainTextBuf.append(unwindGeneralList());
             }
 
-            if( m_newLine && ch != '|' && m_istable ) {
-                popElement( "table" );
-                m_istable = false;
+            if( m_newLine && ch != '|' && m_tableHandler.isInTable() ) {
+                m_tableHandler.endTable();
             }
 
             int skip = IGNORE;
@@ -1733,10 +1133,10 @@ public class JSPWikiMarkupParser extends MarkupParser {
             closeHeadings();
 
             popElement( "dl" ); // Close definition lists.
-            if( m_istable ) {
+            if( m_tableHandler.isInTable() ) {
                 popElement("tr");
             }
-            m_isdefinition = false;
+            m_listHandler.setDefinition( false );
             if( m_newLine ) {
                 // Paragraph change.
                 startBlockLevel();
@@ -1749,18 +1149,10 @@ public class JSPWikiMarkupParser extends MarkupParser {
                        !nextLine.startsWith( "%%" ) &&
                        "*#!;".indexOf( nextLine.charAt( 0 ) ) == -1 ) ) {
                     pushElement( new Element( "p" ) );
-                    m_isOpenParagraph = true;
+                    m_formattingHandler.setOpenParagraph( true );
 
-                    if( m_restartitalic ) {
-                        pushElement( new Element( "i" ) );
-                        m_isitalic = true;
-                        m_restartitalic = false;
-                    }
-                    if( m_restartbold ) {
-                        pushElement( new Element( "b" ) );
-                        m_isbold = true;
-                        m_restartbold = false;
-                    }
+                    m_formattingHandler.restartItalicIfNeeded();
+                    m_formattingHandler.restartBoldIfNeeded();
                 }
             } else {
                 m_plainTextBuf.append("\n");
@@ -1807,10 +1199,10 @@ public class JSPWikiMarkupParser extends MarkupParser {
             break;
 
           case ':':
-            if( m_isdefinition ) {
+            if( m_listHandler.isDefinition() ) {
                 popElement( "dt" );
                 el = pushElement( new Element( "dd" ) );
-                m_isdefinition = false;
+                m_listHandler.setDefinition( false );
             }
             break;
 
@@ -1855,17 +1247,12 @@ public class JSPWikiMarkupParser extends MarkupParser {
         return el != null ? ELEMENT : CHARACTER;
     }
 
+    /**
+     * Closes any open heading elements and adds hash anchor links.
+     * Delegates to WikiHeadingHandler.
+     */
     private void closeHeadings() {
-        if( m_lastHeading != null && !m_wysiwygEditorMode ) {
-            // Add the hash anchor element at the end of the heading
-            addElement( new Element("a").setAttribute( "class",HASHLINK )
-                                              .setAttribute( "href","#" + m_lastHeading.m_titleAnchor )
-                                              .setText( "#" ) );
-            m_lastHeading = null;
-        }
-        popElement( "h2" );
-        popElement( "h3" );
-        popElement( "h4" );
+        m_headingHandler.closeHeadings();
     }
 
     /**

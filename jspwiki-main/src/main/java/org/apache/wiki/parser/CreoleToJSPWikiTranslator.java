@@ -18,13 +18,12 @@
  */
 package org.apache.wiki.parser;
 
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.text.SimpleDateFormat;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -168,16 +167,15 @@ public class CreoleToJSPWikiTranslator
     private        ArrayList<String> m_hashList = new ArrayList<>();
 
     /**
-     *  I have no idea what this method does.  Could someone please tell me?
+     *  Translates signature markup (--~~~ and --~~~~) to wiki format with username and optional date.
      *
      * @param wikiProps A property set
-     * @param content The content to translate?
-     * @param username The username in the signature?
-     * @return Probably some translated content.
+     * @param content The content to translate
+     * @param username The username in the signature
+     * @return Content with translated signatures
      */
     public String translateSignature(final Properties wikiProps, final String content, final String username)
     {
-
         String dateFormat = wikiProps.getProperty("creole.dateFormat");
 
         if (dateFormat == null)
@@ -185,23 +183,23 @@ public class CreoleToJSPWikiTranslator
             dateFormat = DEFAULT_DATEFORMAT;
         }
 
-        SimpleDateFormat df;
+        DateTimeFormatter df;
         try
         {
-            df = new SimpleDateFormat(dateFormat);
+            df = DateTimeFormatter.ofPattern(dateFormat);
         }
         catch (final Exception e)
         {
             e.printStackTrace();
-            df = new SimpleDateFormat(DEFAULT_DATEFORMAT);
+            df = DateTimeFormatter.ofPattern(DEFAULT_DATEFORMAT);
         }
 
         String result = content;
         result = protectMarkup(result, PREFORMATTED_PROTECTED, "", "");
         result = protectMarkup(result, URL_PROTECTED, "", "");
 
-        final Calendar cal = Calendar.getInstance();
-        result = translateElement(result, SIGNATURE_AND_DATE, "-- [[" + username + "]], " + df.format(cal.getTime()));
+        final ZonedDateTime now = ZonedDateTime.now();
+        result = translateElement(result, SIGNATURE_AND_DATE, "-- [[" + username + "]], " + now.format(df));
         result = translateElement(result, SIGNATURE, "-- [[" + username + "]]");
         result = unprotectMarkup(result, false);
         return result;

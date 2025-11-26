@@ -26,23 +26,17 @@ import org.apache.wiki.auth.WikiPrincipal;
 import org.apache.wiki.auth.WikiSecurityException;
 import org.apache.wiki.util.Serializer;
 import org.apache.wiki.util.TextUtil;
+import org.apache.wiki.util.XmlDomUtil;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
-import org.xml.sax.SAXException;
 
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.security.Principal;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -54,7 +48,6 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javax.xml.XMLConstants;
 
 /**
  * <p>Manages {@link DefaultUserProfile} objects using XML files for persistence. Passwords are hashed using SHA1. User entries are simple
@@ -199,38 +192,15 @@ public class XMLUserDatabase extends AbstractUserDatabase {
     }
 
     private void buildDOM() {
-        // Read DOM
-        final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        factory.setValidating( false );
-        factory.setExpandEntityReferences( false );
-        factory.setIgnoringComments( true );
-        factory.setNamespaceAware( false );
-        factory.setAttribute( XMLConstants.ACCESS_EXTERNAL_DTD, "" );
-        factory.setAttribute( XMLConstants.ACCESS_EXTERNAL_SCHEMA, "" );
-        try {
-            c_dom = factory.newDocumentBuilder().parse( c_file );
+        final DocumentBuilderFactory factory = XmlDomUtil.createSecureDocumentBuilderFactory();
+        c_dom = XmlDomUtil.parseXmlFile( c_file, factory );
+        if( c_dom != null ) {
             LOG.debug( "Database successfully initialized" );
             c_lastModified = c_file.lastModified();
             c_lastCheck = System.currentTimeMillis();
-        } catch( final ParserConfigurationException e ) {
-            LOG.error( "Configuration error: {}", e.getMessage() );
-        } catch( final SAXException e ) {
-            LOG.error( "SAX error: {}", e.getMessage() );
-        } catch( final FileNotFoundException e ) {
-            LOG.info( "User database not found; creating from scratch..." );
-        } catch( final IOException e ) {
-            LOG.error( "IO error: {}", e.getMessage() );
-        } catch( final Exception e ) {
-            LOG.error( "Error initializing XML database from: {} {}", c_file.getAbsolutePath(), e.getMessage() );
-        }
-        if ( c_dom == null ) {
-            try {
-                //  Create the DOM from scratch
-                c_dom = factory.newDocumentBuilder().newDocument();
-                c_dom.appendChild( c_dom.createElement( "users" ) );
-            } catch( final ParserConfigurationException e ) {
-                LOG.fatal( "Could not create in-memory DOM" );
-            }
+        } else {
+            // Create the DOM from scratch
+            c_dom = XmlDomUtil.createEmptyDocument( "users", factory );
         }
     }
 
@@ -239,69 +209,51 @@ public class XMLUserDatabase extends AbstractUserDatabase {
             throw new IllegalStateException( "FATAL: database does not exist" );
         }
 
-        final File newFile = new File( c_file.getAbsolutePath() + ".new" );
-        try( final BufferedWriter io = new BufferedWriter( new OutputStreamWriter( Files.newOutputStream( newFile.toPath() ), StandardCharsets.UTF_8 ) ) ) {
+        try {
+            XmlDomUtil.saveXmlFile( c_file, io -> {
+                // Write the file header and document root
+                io.write( "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" );
+                io.write( "<users>\n" );
 
-            // Write the file header and document root
-            io.write( "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" );
-            io.write( "<users>\n" );
-
-            // Write each profile as a <user> node
-            final Element root = c_dom.getDocumentElement();
-            final NodeList nodes = root.getElementsByTagName( USER_TAG );
-            for( int i = 0; i < nodes.getLength(); i++ ) {
-                final Element user = ( Element )nodes.item( i );
-                io.write( "    <" + USER_TAG + " " );
-                io.write( UID );
-                io.write( "=\"" + user.getAttribute( UID ) + "\" " );
-                io.write( LOGIN_NAME );
-                io.write( "=\"" + user.getAttribute( LOGIN_NAME ) + "\" " );
-                io.write( WIKI_NAME );
-                io.write( "=\"" + user.getAttribute( WIKI_NAME ) + "\" " );
-                io.write( FULL_NAME );
-                io.write( "=\"" + user.getAttribute( FULL_NAME ) + "\" " );
-                io.write( EMAIL );
-                io.write( "=\"" + user.getAttribute( EMAIL ) + "\" " );
-                io.write( PASSWORD );
-                io.write( "=\"" + user.getAttribute( PASSWORD ) + "\" " );
-                io.write( CREATED );
-                io.write( "=\"" + user.getAttribute( CREATED ) + "\" " );
-                io.write( LAST_MODIFIED );
-                io.write( "=\"" + user.getAttribute( LAST_MODIFIED ) + "\" " );
-                io.write( LOCK_EXPIRY );
-                io.write( "=\"" + user.getAttribute( LOCK_EXPIRY ) + "\" " );
-                io.write( ">" );
-                final NodeList attributes = user.getElementsByTagName( ATTRIBUTES_TAG );
-                for( int j = 0; j < attributes.getLength(); j++ ) {
-                    final Element attribute = ( Element )attributes.item( j );
-                    final String value = extractText( attribute );
-                    io.write( "\n        <" + ATTRIBUTES_TAG + ">" );
-                    io.write( value );
-                    io.write( "</" + ATTRIBUTES_TAG + ">" );
+                // Write each profile as a <user> node
+                final Element root = c_dom.getDocumentElement();
+                final NodeList nodes = root.getElementsByTagName( USER_TAG );
+                for( int i = 0; i < nodes.getLength(); i++ ) {
+                    final Element user = ( Element )nodes.item( i );
+                    io.write( "    <" + USER_TAG + " " );
+                    io.write( UID );
+                    io.write( "=\"" + user.getAttribute( UID ) + "\" " );
+                    io.write( LOGIN_NAME );
+                    io.write( "=\"" + user.getAttribute( LOGIN_NAME ) + "\" " );
+                    io.write( WIKI_NAME );
+                    io.write( "=\"" + user.getAttribute( WIKI_NAME ) + "\" " );
+                    io.write( FULL_NAME );
+                    io.write( "=\"" + user.getAttribute( FULL_NAME ) + "\" " );
+                    io.write( EMAIL );
+                    io.write( "=\"" + user.getAttribute( EMAIL ) + "\" " );
+                    io.write( PASSWORD );
+                    io.write( "=\"" + user.getAttribute( PASSWORD ) + "\" " );
+                    io.write( CREATED );
+                    io.write( "=\"" + user.getAttribute( CREATED ) + "\" " );
+                    io.write( LAST_MODIFIED );
+                    io.write( "=\"" + user.getAttribute( LAST_MODIFIED ) + "\" " );
+                    io.write( LOCK_EXPIRY );
+                    io.write( "=\"" + user.getAttribute( LOCK_EXPIRY ) + "\" " );
+                    io.write( ">" );
+                    final NodeList attributes = user.getElementsByTagName( ATTRIBUTES_TAG );
+                    for( int j = 0; j < attributes.getLength(); j++ ) {
+                        final Element attribute = ( Element )attributes.item( j );
+                        final String value = extractText( attribute );
+                        io.write( "\n        <" + ATTRIBUTES_TAG + ">" );
+                        io.write( value );
+                        io.write( "</" + ATTRIBUTES_TAG + ">" );
+                    }
+                    io.write( "\n    </" + USER_TAG + ">\n" );
                 }
-                io.write( "\n    </" + USER_TAG + ">\n" );
-            }
-            io.write( "</users>" );
+                io.write( "</users>" );
+            } );
         } catch( final IOException e ) {
             throw new WikiSecurityException( e.getLocalizedMessage(), e );
-        }
-
-        // Copy new file over old version
-        final File backup = new File( c_file.getAbsolutePath() + ".old" );
-        if( backup.exists() ) {
-            if( !backup.delete() ) {
-                LOG.error( "Could not delete old user database backup: " + backup );
-            }
-        }
-        if( !c_file.renameTo( backup ) ) {
-            LOG.error( "Could not create user database backup: " + backup );
-        }
-        if( !newFile.renameTo( c_file ) ) {
-            LOG.error( "Could not save database: " + backup + " restoring backup." );
-            if( !backup.renameTo( c_file ) ) {
-                LOG.error( "Restore failed. Check the file permissions." );
-            }
-            LOG.error( "Could not save database: " + c_file + ". Check the file permissions" );
         }
     }
 

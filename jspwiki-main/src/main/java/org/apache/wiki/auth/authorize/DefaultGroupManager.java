@@ -171,12 +171,12 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
     @Override
     public boolean isUserInRole( final Session session, final Principal role ) {
         // Always return false if session/role is null, or if role isn't a GroupPrincipal
-        if ( session == null || !( role instanceof GroupPrincipal ) || !session.isAuthenticated() ) {
+        if ( session == null || !( role instanceof GroupPrincipal groupPrincipal ) || !session.isAuthenticated() ) {
             return false;
         }
 
         // Get the group we're examining
-        final Group group = m_groups.get( role );
+        final Group group = m_groups.get( groupPrincipal );
         if( group == null ) {
             return false;
         }
@@ -380,11 +380,10 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
     /** {@inheritDoc} */
     @Override
     public void actionPerformed( final WikiEvent event ) {
-        if( !( event instanceof WikiSecurityEvent ) ) {
+        if( !( event instanceof WikiSecurityEvent se ) ) {
             return;
         }
 
-        final WikiSecurityEvent se = ( WikiSecurityEvent )event;
         if( se.getType() == WikiSecurityEvent.PROFILE_NAME_CHANGED ) {
             final Session session = se.getSrc();
             final UserProfile[] profiles = ( UserProfile[] )se.getTarget();

@@ -426,8 +426,8 @@ public final class SecurityVerifier {
      */
     public Principal[] webContainerRoles() throws WikiException {
         final Authorizer authorizer = m_engine.getManager( AuthorizationManager.class ).getAuthorizer();
-        if ( authorizer instanceof WebContainerAuthorizer ) {
-            return authorizer.getRoles();
+        if ( authorizer instanceof WebContainerAuthorizer wca ) {
+            return wca.getRoles();
         }
         return new Principal[0];
     }
@@ -736,7 +736,7 @@ public final class SecurityVerifier {
             return;
         }
 
-        if ( db instanceof DummyUserDatabase ) {
+        if ( db instanceof DummyUserDatabase dummyDb ) {
             m_session.addMessage( ERROR_DB, "UserDatabase is DummyUserDatabase; JSPWiki " +
                     "may not have been able to initialize the database you supplied in " +
                     "jspwiki.properties, or you left the 'jspwiki.userdatabase' property " +

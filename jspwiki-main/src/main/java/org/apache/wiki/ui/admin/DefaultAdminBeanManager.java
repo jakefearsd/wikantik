@@ -107,7 +107,7 @@ public class DefaultAdminBeanManager implements WikiEventListener, AdminBeanMana
      */
     private void registerAdminBean( final AdminBean ab ) {
         try {
-            if( ab instanceof DynamicMBean && m_mbeanServer != null ) {
+            if( ab instanceof DynamicMBean dynamicMBean && m_mbeanServer != null ) {
                 final ObjectName name = getObjectName( ab );
                 if( !m_mbeanServer.isRegistered( name ) ) {
                     m_mbeanServer.registerMBean( ab, name );
@@ -231,8 +231,8 @@ public class DefaultAdminBeanManager implements WikiEventListener, AdminBeanMana
 	 */
     @Override
 	public void actionPerformed( final WikiEvent event ) {
-        if( event instanceof WikiEngineEvent ) {
-            if( event.getType() == WikiEngineEvent.SHUTDOWN ) {
+        if( event instanceof WikiEngineEvent engineEvent ) {
+            if( engineEvent.getType() == WikiEngineEvent.SHUTDOWN ) {
                 for( final AdminBean m_allBean : m_allBeans ) {
                     try {
                         final ObjectName on = getObjectName( m_allBean );

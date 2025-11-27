@@ -43,8 +43,8 @@ public class LinkToParentTag extends LinkToTag {
         final Page p = m_wikiContext.getPage();
 
         //  We just simply set the page to be our parent page and call the superclass.
-        if( p instanceof Attachment ) {
-            setPage( ((Attachment)p).getParentName() );
+        if( p instanceof Attachment att ) {
+            setPage( att.getParentName() );
         } else {
             final String name = p.getName();
             final int entrystart = name.indexOf( "_blogentry_" );

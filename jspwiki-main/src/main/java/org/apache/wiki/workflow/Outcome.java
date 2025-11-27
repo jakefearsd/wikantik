@@ -109,10 +109,10 @@ public final class Outcome implements Serializable {
      * @return <code>true</code> if logically equal, <code>false</code> if not
      */
     public boolean equals( final Object obj ) {
-        if( !( obj instanceof Outcome ) ) {
+        if( !( obj instanceof Outcome o ) ) {
             return false;
         }
-        return m_key.equals( ( ( Outcome )obj ).getMessageKey() );
+        return m_key.equals( o.getMessageKey() );
     }
 
     /**

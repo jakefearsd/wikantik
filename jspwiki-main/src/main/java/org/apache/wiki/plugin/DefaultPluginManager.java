@@ -489,14 +489,14 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
 
                 try {
                     final Plugin p = newPluginInstance(searchPath, externalJars);
-                    if( p instanceof InitializablePlugin ) {
-                        ( ( InitializablePlugin )p ).initialize( engine );
+                    if( p instanceof InitializablePlugin ip ) {
+                        ip.initialize( engine );
                     }
-                    if( p instanceof WikiAjaxServlet ) {
-                    	WikiAjaxDispatcherServlet.registerServlet( (WikiAjaxServlet) p );
+                    if( p instanceof WikiAjaxServlet ajaxServlet ) {
+                    	WikiAjaxDispatcherServlet.registerServlet( ajaxServlet );
                     	final String ajaxAlias = info.getAjaxAlias();
                     	if (StringUtils.isNotBlank(ajaxAlias)) {
-                    		WikiAjaxDispatcherServlet.registerServlet( info.getAjaxAlias(), (WikiAjaxServlet) p );
+                    		WikiAjaxDispatcherServlet.registerServlet( info.getAjaxAlias(), ajaxServlet );
                     	}
                     }
                 } catch( final Exception e ) {

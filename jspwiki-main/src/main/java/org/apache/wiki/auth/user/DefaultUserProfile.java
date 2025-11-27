@@ -59,8 +59,7 @@ public final class DefaultUserProfile implements UserProfile {
      */
     @Override
     public boolean equals( final Object o ) {
-        if ( o instanceof UserProfile ) {
-            final DefaultUserProfile u = ( DefaultUserProfile )o;
+        if ( o instanceof DefaultUserProfile u ) {
             return  same( fullname, u.fullname ) &&
                     same( password, u.password ) &&
                     same( loginName, u.loginName ) &&

@@ -123,7 +123,7 @@ public interface AuthorizationManager extends Initializable {
         }
 
         // Any type of user can possess a built-in role
-        if ( principal instanceof Role && Role.isBuiltInRole( (Role)principal ) ) {
+        if ( principal instanceof Role role && Role.isBuiltInRole( role ) ) {
             return session.hasPrincipal( principal );
         }
 

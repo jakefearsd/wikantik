@@ -109,8 +109,8 @@ public abstract class IteratorTag extends BodyTagSupport implements TryCatchFina
     private void buildContext() {
         final Context context = m_wikiContext.clone();
         final Object o = m_iterator.next();
-        if( o instanceof Page ) {
-            context.setPage( ( Page )o );
+        if( o instanceof Page page ) {
+            context.setPage( page );
         }
 
         pageContext.setAttribute( Context.ATTR_CONTEXT, context, PageContext.REQUEST_SCOPE );

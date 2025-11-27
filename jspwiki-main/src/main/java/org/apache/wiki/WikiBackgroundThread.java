@@ -63,8 +63,8 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
      */
     @Override
     public final void actionPerformed( final WikiEvent event ) {
-        if ( event instanceof WikiEngineEvent ) {
-            if ( event.getType() == WikiEngineEvent.SHUTDOWN ) {
+        if ( event instanceof WikiEngineEvent engineEvent ) {
+            if ( engineEvent.getType() == WikiEngineEvent.SHUTDOWN ) {
                 LOG.warn( "Detected wiki engine shutdown: killing " + getName() + "." );
                 m_killMe = true;
             }

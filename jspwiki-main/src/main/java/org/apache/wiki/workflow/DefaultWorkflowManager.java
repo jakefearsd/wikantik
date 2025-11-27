@@ -270,8 +270,7 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
     @Override
     public void actionPerformed( final WikiEvent event ) {
         if( event instanceof WorkflowEvent ) {
-            if( event.getSrc() instanceof Workflow ) {
-                final Workflow workflow = event.getSrc();
+            if( event.getSrc() instanceof Workflow workflow ) {
                 switch( event.getType() ) {
                 // Remove from manager
                 case WorkflowEvent.ABORTED   :
@@ -280,8 +279,7 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
                 case WorkflowEvent.CREATED   : add( workflow ); break;
                 default: break;
                 }
-            } else if( event.getSrc() instanceof Decision ) {
-                final Decision decision = event.getSrc();
+            } else if( event.getSrc() instanceof Decision decision ) {
                 switch( event.getType() ) {
                 // Add to DecisionQueue
                 case WorkflowEvent.DQ_ADDITION : addToDecisionQueue( decision ); break;

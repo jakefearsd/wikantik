@@ -41,8 +41,8 @@ public class PageNameTag extends WikiTagBase {
         final Page page = m_wikiContext.getPage();
 
         if( page != null ) {
-            if( page instanceof Attachment ) {
-                pageContext.getOut().print( TextUtil.replaceEntities( ((Attachment)page).getFileName() ) );
+            if( page instanceof Attachment att ) {
+                pageContext.getOut().print( TextUtil.replaceEntities( att.getFileName() ) );
             } else {
                 pageContext.getOut().print( engine.getManager( RenderingManager.class ).beautifyTitle( m_wikiContext.getName() ) );
             }

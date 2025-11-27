@@ -113,8 +113,8 @@ public class PermissionTag extends WikiTagBase {
         } else if ( VIEW_GROUP.equals( permission ) || EDIT_GROUP.equals( permission ) || DELETE_GROUP.equals( permission ) )  {
             final Command command = m_wikiContext.getCommand();
             gotPermission = false;
-            if ( command instanceof GroupCommand && command.getTarget() != null ) {
-                final GroupPrincipal group = (GroupPrincipal)command.getTarget();
+            if ( command instanceof GroupCommand groupCommand && groupCommand.getTarget() != null ) {
+                final GroupPrincipal group = (GroupPrincipal)groupCommand.getTarget();
                 final String groupName = group.getName();
                 String action = "view";
                 if( EDIT_GROUP.equals( permission ) ) {

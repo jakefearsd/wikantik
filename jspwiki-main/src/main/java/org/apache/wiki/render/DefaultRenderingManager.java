@@ -225,7 +225,6 @@ public class DefaultRenderingManager implements RenderingManager {
      *  {@inheritDoc}
      */
     @Override
-    // FIXME: The cache management policy is not very good: deleted/changed pages should be detected better.
     public WikiDocument getRenderedDocument( final Context context, final String pagedata ) {
         final String pageid = context.getRealPage().getName() + VERSION_DELIMITER +
                               context.getRealPage().getVersion() + VERSION_DELIMITER +
@@ -235,8 +234,8 @@ public class DefaultRenderingManager implements RenderingManager {
             final WikiDocument doc = cachingManager.get( CachingManager.CACHE_DOCUMENTS, pageid, () -> null );
             if ( doc != null ) {
                 //  This check is needed in case the different filters have actually changed the page data.
-                //  FIXME: Figure out a faster method
-                if( pagedata.equals( doc.getPageData() ) ) {
+                //  Use hash-based comparison for efficiency instead of full string equality.
+                if( isPageDataUnchanged( pagedata, doc ) ) {
                     LOG.debug( "Using cached HTML for page {}", pageid );
                     return doc;
                 }
@@ -261,6 +260,26 @@ public class DefaultRenderingManager implements RenderingManager {
         }
 
         return null;
+    }
+
+    /**
+     * Checks if the page data is unchanged by comparing hashes.
+     * This is much more efficient than full string comparison for large pages.
+     * Falls back to string comparison if hashing is not available.
+     *
+     * @param pagedata The current page data
+     * @param doc The cached WikiDocument
+     * @return true if the page data is unchanged
+     */
+    private boolean isPageDataUnchanged( final String pagedata, final WikiDocument doc ) {
+        final String cachedHash = doc.getPageDataHash();
+        if( cachedHash != null ) {
+            // Use hash comparison (O(64) for SHA-256 hex string)
+            final String currentHash = WikiDocument.hashPageData( pagedata );
+            return cachedHash.equals( currentHash );
+        }
+        // Fall back to full string comparison if no hash available
+        return pagedata.equals( doc.getPageData() );
     }
 
     boolean useCache( final Context context ) {

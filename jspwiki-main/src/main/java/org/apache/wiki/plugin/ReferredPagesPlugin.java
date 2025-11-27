@@ -220,10 +220,10 @@ public class ReferredPagesPlugin implements Plugin {
 
     private void handleLinks( final Context context, final Collection<String> links, final int depth, final String pagename ) {
         boolean isUL = false;
-        final HashSet< String > localLinkSet = new HashSet<>();  // needed to skip multiple links to the same page
+        final var localLinkSet = new HashSet< String >();  // needed to skip multiple links to the same page
         localLinkSet.add( pagename );
 
-        final ArrayList< String > allLinks = new ArrayList<>();
+        final var allLinks = new ArrayList< String >();
 
         if( links != null )
             allLinks.addAll( links );

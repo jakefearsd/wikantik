@@ -156,7 +156,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     private void updatePageReferences( final Page page ) throws ProviderException {
         final String content = m_engine.getManager( PageManager.class ).getPageText( page.getName(), PageProvider.LATEST_VERSION );
         final Collection< String > links = scanWikiLinks( page, content );
-        final TreeSet< String > res = new TreeSet<>( links );
+        final var res = new TreeSet<>( links );
         final List< Attachment > attachments = m_engine.getManager( AttachmentManager.class ).listAttachments( page );
         for( final Attachment att : attachments ) {
             res.add( att.getName() );
@@ -687,7 +687,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      */
     @Override
     public Collection< String > findUnreferenced() {
-        final ArrayList< String > unref = new ArrayList<>();
+        final var unref = new ArrayList< String >();
         for( final String key : m_referredBy.keySet() ) {
             final Set< ? > refs = getReferenceList( m_referredBy, key );
             if( refs == null || refs.isEmpty() ) {

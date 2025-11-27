@@ -467,7 +467,7 @@ public class DefaultPageManager implements PageManager {
     @Override
     public Set< Page > getRecentChanges() {
         try {
-            final TreeSet< Page > sortedPages = new TreeSet<>( new PageTimeComparator() );
+            final var sortedPages = new TreeSet<>( new PageTimeComparator() );
             sortedPages.addAll( getAllPages() );
             sortedPages.addAll( m_engine.getManager( AttachmentManager.class ).getAllAttachments() );
 

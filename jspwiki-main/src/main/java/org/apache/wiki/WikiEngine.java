@@ -454,7 +454,7 @@ public class WikiEngine implements Engine {
         try {
             // Build a new manager with default key lists.
             if( getManager( ReferenceManager.class ) == null ) {
-                final ArrayList< Page > pages = new ArrayList<>();
+                final var pages = new ArrayList< Page >();
                 pages.addAll( getManager( PageManager.class ).getAllPages() );
                 pages.addAll( getManager( AttachmentManager.class ).getAllAttachments() );
                 final String refMgrClassName = m_properties.getProperty( PROP_REF_MANAGER_IMPL, ClassUtil.getMappedClass( ReferenceManager.class.getName() ).getName() );
@@ -532,7 +532,7 @@ public class WikiEngine implements Engine {
     /** {@inheritDoc} */
     @Override
     public Collection< String > getAllInterWikiLinks() {
-        final ArrayList< String > list = new ArrayList<>();
+        final var list = new ArrayList< String >();
         for( final Enumeration< ? > i = m_properties.propertyNames(); i.hasMoreElements(); ) {
             final String prop = ( String )i.nextElement();
             if( prop.startsWith( PROP_INTERWIKIREF ) ) {
@@ -546,7 +546,7 @@ public class WikiEngine implements Engine {
     /** {@inheritDoc} */
     @Override
     public Collection< String > getAllInlinedImagePatterns() {
-        final ArrayList< String > ptrnlist = new ArrayList<>();
+        final var ptrnlist = new ArrayList< String >();
         for( final Enumeration< ? > e = m_properties.propertyNames(); e.hasMoreElements(); ) {
             final String name = ( String )e.nextElement();
             if( name.startsWith( PROP_INLINEIMAGEPTRN ) ) {

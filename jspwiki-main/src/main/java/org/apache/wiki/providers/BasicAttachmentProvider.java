@@ -414,7 +414,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
             }
         }
 
-        final ArrayList< Attachment > list = new ArrayList<>();
+        final var list = new ArrayList< Attachment >();
         final String[] pagesWithAttachments = attDir.list( new AttachmentFilter() );
 
         if( pagesWithAttachments != null ) {
@@ -491,7 +491,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
      */
     @Override
     public List< Attachment > getVersionHistory( final Attachment att ) {
-        final ArrayList< Attachment > list = new ArrayList<>();
+        final var list = new ArrayList< Attachment >();
         try {
             final int latest = findLatestVersion( att );
             for( int i = latest; i >= 1; i-- ) {

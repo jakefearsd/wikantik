@@ -27,7 +27,6 @@ import org.apache.wiki.pages.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -36,10 +35,6 @@ import java.io.StringWriter;
 import java.util.Properties;
 
 
-// TODO: Fix test setup to properly wire WikiEngine instance to servlet context.
-// These tests fail because Wiki.engine().find(config) doesn't return the TestEngine
-// when using separate servlet contexts. This was masked in EhCache 2 by its global singleton behavior.
-@Disabled( "Test setup needs to be fixed to properly share WikiEngine instance with servlet" )
 class SitemapServletTest {
 
     TestEngine m_engine;

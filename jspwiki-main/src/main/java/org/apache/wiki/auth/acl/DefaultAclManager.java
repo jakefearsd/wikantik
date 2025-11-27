@@ -139,8 +139,8 @@ public class DefaultAclManager implements AclManager {
 
         if( acl == null ) {
             //  If null, try the parent.
-            if( page instanceof Attachment ) {
-                final Page parent = m_engine.getManager( PageManager.class ).getPage( ( ( Attachment ) page ).getParentName() );
+            if( page instanceof Attachment att ) {
+                final Page parent = m_engine.getManager( PageManager.class ).getPage( att.getParentName() );
                 acl = getPermissions(parent);
             } else {
                 //  Or, try parsing the page

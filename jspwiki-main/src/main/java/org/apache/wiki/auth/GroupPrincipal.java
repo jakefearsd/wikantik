@@ -71,11 +71,10 @@ public final class GroupPrincipal implements Principal, Serializable
      */
     public boolean equals(final Object obj )
     {
-        if ( !( obj instanceof GroupPrincipal ) )
+        if ( !( obj instanceof GroupPrincipal p ) )
         {
             return false;
         }
-        final GroupPrincipal p = (GroupPrincipal)obj;
         return p.m_name.equals( m_name );
     }
 

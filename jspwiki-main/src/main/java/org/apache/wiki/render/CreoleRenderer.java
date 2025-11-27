@@ -129,19 +129,17 @@ public class CreoleRenderer extends WikiRenderer {
 
         //  Go through the children
         for( final Content c : ce.getContent() ) {
-            if( c instanceof PluginContent ) {
-                final PluginContent pc = ( PluginContent )c;
-
+            if( c instanceof PluginContent pc ) {
                 if( pc.getPluginName().equals( PLUGIN_IMAGE ) ) {
                     sb.append( IMG_START ).append( pc.getParameter( PARAM_SRC ) ).append( IMG_END );
                 } else {
                     m_plugins.add(pc);
                     sb.append( PLUGIN_START ).append( pc.getPluginName() ).append( ONE_SPACE ).append( m_plugins.size() ).append( PLUGIN_END );
                 }
-            } else if( c instanceof Text ) {
-                sb.append( ( ( Text )c ).getText() );
-            } else if( c instanceof Element ) {
-                renderElement( ( Element )c, sb );
+            } else if( c instanceof Text text ) {
+                sb.append( text.getText() );
+            } else if( c instanceof Element el ) {
+                renderElement( el, sb );
             }
         }
 

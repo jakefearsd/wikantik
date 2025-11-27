@@ -140,8 +140,8 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     public boolean isContainerAuthenticated() {
         try {
             final Authorizer authorizer = m_engine.getManager( AuthorizationManager.class ).getAuthorizer();
-            if ( authorizer instanceof WebContainerAuthorizer ) {
-                 return ( ( WebContainerAuthorizer )authorizer ).isContainerAuthorized();
+            if ( authorizer instanceof WebContainerAuthorizer wca ) {
+                 return wca.isContainerAuthorized();
             }
         } catch ( final WikiException e ) {
             // It's probably ok to fail silently...
@@ -411,8 +411,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                 fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session );
                 LOG.debug( "Added authorizer role {}.", role.getName() );
             // If web authorizer, test the request.isInRole() method also
-            } else if ( request != null && authorizer instanceof WebAuthorizer ) {
-                final WebAuthorizer wa = ( WebAuthorizer )authorizer;
+            } else if ( request != null && authorizer instanceof WebAuthorizer wa ) {
                 if ( wa.isUserInRole( request, role ) ) {
                     fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session );
                     LOG.debug( "Added container role {}.",role.getName() );

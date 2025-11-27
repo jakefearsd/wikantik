@@ -330,8 +330,7 @@ public class WikiPage implements Page {
      *  {@inheritDoc}
      */
     public boolean equals( final Object o ) {
-        if( o instanceof WikiPage ) {
-            final WikiPage wp = ( WikiPage )o;
+        if( o instanceof WikiPage wp ) {
             if( wp.getName().equals( getName() ) ) {
                 return wp.getVersion() == getVersion();
             }

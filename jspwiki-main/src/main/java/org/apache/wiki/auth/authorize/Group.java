@@ -123,11 +123,9 @@ public class Group {
      */
     @Override
     public boolean equals( final Object o ) {
-        if( !( o instanceof Group ) ) {
+        if( !( o instanceof Group g ) ) {
             return false;
         }
-
-        final Group g = ( Group )o; // Just a shortcut.
 
         if( g.m_members.size() != m_members.size() ) {
             return false;

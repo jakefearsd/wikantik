@@ -226,8 +226,8 @@ public class DefaultAttachmentManager implements AttachmentManager {
             return null;
         }
 
-        if( att instanceof DynamicAttachment ) {
-            return ( ( DynamicAttachment )att ).getProvider().getAttachmentData( ctx, att );
+        if( att instanceof DynamicAttachment dynamicAtt ) {
+            return dynamicAtt.getProvider().getAttachmentData( ctx, att );
         }
 
         return m_provider.getAttachmentData( att );

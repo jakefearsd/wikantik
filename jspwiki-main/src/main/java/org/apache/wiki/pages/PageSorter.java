@@ -72,10 +72,9 @@ public class PageSorter implements Comparator< String > {
 
     @Override
     public boolean equals( final Object o ) {
-        if( !( o instanceof PageSorter ) ) {
+        if( !( o instanceof PageSorter that ) ) {
             return false; // Definitely not equal
         }
-        final PageSorter that = ( PageSorter )o;
         if( this == that || m_comparator == that.m_comparator ) {
             return true; // Essentially the same object
         }

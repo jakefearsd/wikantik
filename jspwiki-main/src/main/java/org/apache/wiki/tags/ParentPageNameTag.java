@@ -43,8 +43,8 @@ public class ParentPageNameTag extends WikiTagBase {
         final Page page = m_wikiContext.getPage();
 
         if( page != null ) {
-            if( page instanceof Attachment ) {
-                pageContext.getOut().print( engine.getManager( RenderingManager.class ).beautifyTitle( ((Attachment)page).getParentName()) );
+            if( page instanceof Attachment att ) {
+                pageContext.getOut().print( engine.getManager( RenderingManager.class ).beautifyTitle( att.getParentName()) );
             } else {
                 String name = page.getName();
                 final int entrystart = name.indexOf("_blogentry_");

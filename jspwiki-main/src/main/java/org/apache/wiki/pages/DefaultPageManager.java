@@ -255,7 +255,7 @@ public class DefaultPageManager implements PageManager {
         workflow.start( context );
 
         // Let callers know if the page-save requires approval
-        if ( workflow.getCurrentStep() instanceof Decision ) {
+        if ( workflow.getCurrentStep() instanceof Decision decision ) {
             throw new DecisionRequiredException( "The page contents must be approved before they become active." );
         }
     }
@@ -566,8 +566,8 @@ public class DefaultPageManager implements PageManager {
      */
     @Override
     public void deleteVersion( final Page page ) throws ProviderException {
-        if( page instanceof Attachment ) {
-            m_engine.getManager( AttachmentManager.class ).deleteVersion( ( Attachment )page );
+        if( page instanceof Attachment att ) {
+            m_engine.getManager( AttachmentManager.class ).deleteVersion( att );
         } else {
             m_provider.deleteVersion( page.getName(), page.getVersion() );
             // FIXME: If this was the latest, reindex Lucene, update RefMgr
@@ -582,8 +582,8 @@ public class DefaultPageManager implements PageManager {
     public void deletePage( final String pageName ) throws ProviderException {
         final Page p = getPage( pageName );
         if( p != null ) {
-            if( p instanceof Attachment ) {
-                m_engine.getManager( AttachmentManager.class ).deleteAttachment( ( Attachment )p );
+            if( p instanceof Attachment att ) {
+                m_engine.getManager( AttachmentManager.class ).deleteAttachment( att );
             } else {
                 final Collection< String > refTo = m_engine.getManager( ReferenceManager.class ).findRefersTo( pageName );
                 // May return null, if the page does not exist or has not been indexed yet.
@@ -676,11 +676,10 @@ public class DefaultPageManager implements PageManager {
      */
     @Override
     public void actionPerformed( final WikiEvent event ) {
-        if( !( event instanceof WikiSecurityEvent ) ) {
+        if( !( event instanceof WikiSecurityEvent se ) ) {
             return;
         }
 
-        final WikiSecurityEvent se = ( WikiSecurityEvent ) event;
         if( se.getType() == WikiSecurityEvent.PROFILE_NAME_CHANGED ) {
             final UserProfile[] profiles = (UserProfile[]) se.getTarget();
             final Principal[] oldPrincipals = new Principal[] { new WikiPrincipal( profiles[ 0 ].getLoginName() ),

@@ -243,8 +243,8 @@ public class Workflow implements Serializable {
         }
 
         if( m_currentStep != null ) {
-            if( m_currentStep instanceof Decision ) {
-                WikiEventEmitter.fireWorkflowEvent( m_currentStep, WorkflowEvent.DQ_REMOVAL, context );
+            if( m_currentStep instanceof Decision decision ) {
+                WikiEventEmitter.fireWorkflowEvent( decision, WorkflowEvent.DQ_REMOVAL, context );
             }
             m_currentStep.setOutcome( Outcome.STEP_ABORT );
             m_history.addLast( m_currentStep );

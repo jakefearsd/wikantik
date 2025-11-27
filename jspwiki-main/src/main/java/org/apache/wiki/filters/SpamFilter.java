@@ -1052,8 +1052,8 @@ public class SpamFilter extends BasePageFilter {
 
         @Override
         public boolean equals( final Object o ) {
-            if( o instanceof Change ) {
-                return m_change.equals( ( ( Change )o ).m_change );
+            if( o instanceof Change c ) {
+                return m_change.equals( c.m_change );
             }
             return false;
         }

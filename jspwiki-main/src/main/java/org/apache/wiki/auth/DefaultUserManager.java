@@ -321,8 +321,8 @@ public class DefaultUserManager implements UserManager {
         final FilterManager fm = m_engine.getManager( FilterManager.class );
         final List< PageFilter > ls = fm.getFilterList();
         for( final PageFilter pf : ls ) {
-            if( pf instanceof SpamFilter ) {
-                if( !( ( SpamFilter )pf ).isValidUserProfile( context, profile ) ) {
+            if( pf instanceof SpamFilter spamFilter ) {
+                if( !spamFilter.isValidUserProfile( context, profile ) ) {
                     session.addMessage( SESSION_MESSAGES, "Invalid userprofile" );
                     return;
                 }

@@ -191,8 +191,8 @@ public class PluginContent extends Text implements PluginElement {
             final Map< String, String > params = getParameters();
             final Plugin plugin = pm.newWikiPlugin( getPluginName(), rb );
             try {
-                if( plugin instanceof ParserStagePlugin ) {
-                    ( ( ParserStagePlugin )plugin ).executeParser(this, context, params );
+                if( plugin instanceof ParserStagePlugin psp ) {
+                    psp.executeParser(this, context, params );
                 }
             } catch( final ClassCastException e ) {
                 throw new PluginException( MessageFormat.format( rb.getString("plugin.error.notawikiplugin"), getPluginName() ), e );

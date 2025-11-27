@@ -690,10 +690,10 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             }
             
             // Set the parameter to search by
-            if( index instanceof String ) {
-                ps.setString( 1, ( String )index );
-            } else if ( index instanceof Long ) {
-                ps.setLong( 1, ( Long )index );
+            if( index instanceof String str ) {
+                ps.setString( 1, str );
+            } else if ( index instanceof Long lng ) {
+                ps.setLong( 1, lng );
             } else {
                 throw new IllegalArgumentException( "Index type not recognized!" );
             }

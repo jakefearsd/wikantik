@@ -1288,9 +1288,8 @@ public class JSPWikiMarkupParser extends MarkupParser {
 
             for( final Iterator< Content > i = kids.iterator(); i.hasNext(); count++ ) {
                 final Content c = i.next();
-                if( c instanceof Element ) {
-                    final String name = ( ( Element )c ).getName();
-                    if( isBlockLevel( name ) ) {
+                if( c instanceof Element el ) {
+                    if( isBlockLevel( el.getName() ) ) {
                         break;
                     }
                 }

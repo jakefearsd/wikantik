@@ -251,14 +251,14 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
          */
         @Override
         public void actionPerformed( final WikiEvent event ) {
-            if( event instanceof WikiEngineEvent ) {
-                if( event.getType() == WikiEngineEvent.SHUTDOWN ) {
+            if( event instanceof WikiEngineEvent engineEvent ) {
+                if( engineEvent.getType() == WikiEngineEvent.SHUTDOWN ) {
                     LOG.info( "Detected wiki engine shutdown" );
                     handleShutdown();
                 }
-            } else if( ( event instanceof WikiPageRenameEvent ) && ( event.getType() == WikiPageRenameEvent.PAGE_RENAMED ) ) {
-                final String oldPageName = ( ( WikiPageRenameEvent )event ).getOldPageName();
-                final String newPageName = ( ( WikiPageRenameEvent )event ).getNewPageName();
+            } else if( ( event instanceof WikiPageRenameEvent renameEvent ) && ( event.getType() == WikiPageRenameEvent.PAGE_RENAMED ) ) {
+                final String oldPageName = renameEvent.getOldPageName();
+                final String newPageName = renameEvent.getNewPageName();
                 final Counter oldCounter = m_counters.get( oldPageName );
                 if( oldCounter != null ) {
                     m_storage.remove( oldPageName );
@@ -267,8 +267,8 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
                     m_counters.remove( oldPageName );
                     m_dirty = true;
                 }
-            } else if( ( event instanceof WikiPageEvent ) && ( event.getType() == WikiPageEvent.PAGE_DELETED ) ) {
-                final String pageName = ( ( WikiPageEvent )event ).getPageName();
+            } else if( ( event instanceof WikiPageEvent pageEvent ) && ( event.getType() == WikiPageEvent.PAGE_DELETED ) ) {
+                final String pageName = pageEvent.getPageName();
                 m_storage.remove( pageName );
                 m_counters.remove( pageName );
             }

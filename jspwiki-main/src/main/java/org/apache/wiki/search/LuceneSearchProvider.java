@@ -443,8 +443,8 @@ public class LuceneSearchProvider implements SearchProvider {
             final String text;
 
             // TODO: Think if this was better done in the thread itself?
-            if( page instanceof Attachment ) {
-                text = getAttachmentContent( ( Attachment ) page );
+            if( page instanceof Attachment att ) {
+                text = getAttachmentContent( att );
             } else {
                 text = m_engine.getManager( PageManager.class ).getPureText( page );
             }

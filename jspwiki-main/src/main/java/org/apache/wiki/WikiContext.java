@@ -195,8 +195,8 @@ public class WikiContext implements Context, Command {
         m_command = command;
 
         // If PageCommand, get the WikiPage
-        if( command instanceof PageCommand ) {
-            m_page = ( WikiPage )command.getTarget();
+        if( command instanceof PageCommand pageCommand ) {
+            m_page = ( WikiPage )pageCommand.getTarget();
         }
 
         // If page not supplied, default to front page to avoid NPEs

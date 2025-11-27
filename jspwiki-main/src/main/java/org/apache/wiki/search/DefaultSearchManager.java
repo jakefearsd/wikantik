@@ -192,8 +192,8 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
             if( !searchString.isEmpty() ) {
                 try {
                     final Collection< SearchResult > c;
-                    if( m_searchProvider instanceof LuceneSearchProvider ) {
-                        c = ( ( LuceneSearchProvider )m_searchProvider ).findPages( searchString, 0, wikiContext );
+                    if( m_searchProvider instanceof LuceneSearchProvider luceneProvider ) {
+                        c = luceneProvider.findPages( searchString, 0, wikiContext );
                     } else {
                         c = m_searchProvider.findPages( searchString, wikiContext );
                     }
@@ -257,8 +257,8 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
     /** {@inheritDoc} */
     @Override
     public void actionPerformed( final WikiEvent event ) {
-        if( event instanceof WikiPageEvent ) {
-            final String pageName = ( ( WikiPageEvent ) event ).getPageName();
+        if( event instanceof WikiPageEvent pageEvent ) {
+            final String pageName = pageEvent.getPageName();
             if( event.getType() == WikiPageEvent.PAGE_DELETE_REQUEST ) {
                 final Page p = m_engine.getManager( PageManager.class ).getPage( pageName );
                 if( p != null ) {

@@ -242,8 +242,7 @@ public class WikiSession implements Session {
      */
     @Override
     public void actionPerformed( final WikiEvent event ) {
-        if ( event instanceof WikiSecurityEvent ) {
-            final WikiSecurityEvent e = (WikiSecurityEvent)event;
+        if ( event instanceof WikiSecurityEvent e ) {
             if ( e.getTarget() != null ) {
                 switch( e.getType() ) {
                 case WikiSecurityEvent.GROUP_ADD:

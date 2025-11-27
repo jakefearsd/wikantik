@@ -382,9 +382,9 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
                 out.writeLong( entries.size() );
 
                 for( final Map.Entry< String, Object > e : entries ) {
-                    if( e.getValue() instanceof Serializable ) {
+                    if( e.getValue() instanceof Serializable serializableValue ) {
                         out.writeUTF( e.getKey() );
-                        out.writeObject( e.getValue() );
+                        out.writeObject( serializableValue );
                     }
                 }
 
@@ -865,8 +865,8 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      */
     @Override
 	public void actionPerformed( final WikiEvent event ) {
-        if( event instanceof WikiPageEvent && event.getType() == WikiPageEvent.PAGE_DELETED ) {
-            final String pageName = ( ( WikiPageEvent ) event ).getPageName();
+        if( event instanceof WikiPageEvent pageEvent && pageEvent.getType() == WikiPageEvent.PAGE_DELETED ) {
+            final String pageName = pageEvent.getPageName();
             if( pageName != null ) {
                 pageRemoved( pageName );
             }

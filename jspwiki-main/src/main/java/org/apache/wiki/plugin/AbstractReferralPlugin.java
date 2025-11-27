@@ -243,7 +243,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
      *  @return A filtered collection.
      */
     protected List< String > filterCollection( final Collection< String > c ) {
-        final ArrayList< String > result = new ArrayList<>();
+        final var result = new ArrayList< String >();
         for( final String pageName : c ) {
             //
             //  If include parameter exists, then by default we include only those

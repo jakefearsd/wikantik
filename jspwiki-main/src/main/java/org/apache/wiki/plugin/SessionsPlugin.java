@@ -70,7 +70,7 @@ public class SessionsPlugin implements Plugin {
         if( "distinctUsers".equals( prop ) ) {
             final Principal[] principals = SessionMonitor.getInstance( engine ).userPrincipals();
             // we do not assume that the principals are sorted, so first count them :
-            final HashMap< String, Integer > distinctPrincipals = new HashMap<>();
+            final var distinctPrincipals = new HashMap< String, Integer >();
             for( final Principal principal : principals ) {
                 final String principalName = principal.getName();
 

@@ -201,7 +201,7 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
                     int count = 0;
                     for( final Iterator< SearchResult > i = c.iterator(); i.hasNext() && count < maxLength; count++ ) {
                         final SearchResult sr = i.next();
-                        final HashMap< String, Object > hm = new HashMap<>();
+                        final var hm = new HashMap< String, Object >();
                         hm.put( "page", sr.getPage().getName() );
                         hm.put( "score", sr.getScore() );
                         list.add( hm );

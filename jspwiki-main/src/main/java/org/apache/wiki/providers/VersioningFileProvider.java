@@ -509,7 +509,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
      // FIXME: Does not get user information.
     @Override
     public List< Page > getVersionHistory( final String page ) throws ProviderException {
-        final ArrayList< Page > list = new ArrayList<>();
+        final var list = new ArrayList< Page >();
         final int latest = findLatestVersion( page );
         for( int i = latest; i > 0; i-- ) {
             final Page info = getPageInfo( page, i );

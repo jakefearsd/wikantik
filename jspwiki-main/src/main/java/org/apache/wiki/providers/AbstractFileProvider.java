@@ -325,7 +325,7 @@ public abstract class AbstractFileProvider implements PageProvider {
     @Override
     public Collection< Page > getAllPages()  throws ProviderException {
         LOG.debug("Getting all pages...");
-        final ArrayList< Page > set = new ArrayList<>();
+        final var set = new ArrayList< Page >();
         final File wikipagedir = new File( m_pageDirectory );
         final File[] wikipages = wikipagedir.listFiles( new WikiFileFilter() );
 
@@ -389,7 +389,7 @@ public abstract class AbstractFileProvider implements PageProvider {
     @Override
     public Collection< SearchResult > findPages( final QueryItem[] query ) {
         final File wikipagedir = new File( m_pageDirectory );
-        final TreeSet< SearchResult > res = new TreeSet<>( new SearchResultComparator() );
+        final var res = new TreeSet<>( new SearchResultComparator() );
         final SearchMatcher matcher = new SearchMatcher( m_engine, query );
         final File[] wikipages = wikipagedir.listFiles( new WikiFileFilter() );
 
@@ -447,7 +447,7 @@ public abstract class AbstractFileProvider implements PageProvider {
      */
     @Override
     public List< Page > getVersionHistory( final String page ) throws ProviderException {
-        final ArrayList< Page > list = new ArrayList<>();
+        final var list = new ArrayList< Page >();
         list.add( getPageInfo( page, PageProvider.LATEST_VERSION ) );
 
         return list;

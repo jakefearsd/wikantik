@@ -87,7 +87,7 @@ public class DecisionQueue implements Serializable {
      * @return the collection of Decisions, which may be empty
      */
     public Collection<Decision> getActorDecisions( final Session session ) {
-        final ArrayList< Decision > decisions = new ArrayList<>();
+        final var decisions = new ArrayList< Decision >();
         if( session.isAuthenticated() ) {
             final Principal[] principals = session.getPrincipals();
             final Principal[] rolePrincipals = session.getRoles();

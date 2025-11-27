@@ -219,8 +219,8 @@ public class DefaultTemplateManager extends BaseModuleManager implements Templat
     public Map< String, String > listTimeFormats( final PageContext pageContext ) {
         final Context context = Context.findContext( pageContext );
         final Properties props = m_engine.getWikiProperties();
-        final ArrayList< String > tfArr = new ArrayList<>(40);
-        final LinkedHashMap< String, String > resultMap = new LinkedHashMap<>();
+        final var tfArr = new ArrayList< String >(40);
+        final var resultMap = new LinkedHashMap< String, String >();
 
         /* filter timeformat properties */
         for( final Enumeration< ? > e = props.propertyNames(); e.hasMoreElements(); ) {

@@ -357,7 +357,7 @@ public class SpamFilter extends BasePageFilter {
      * @return A Collection of the Patterns that were found from the lists.
      */
     private Collection< Pattern > parseWordList( final Page source, final String list ) {
-        final ArrayList< Pattern > compiledpatterns = new ArrayList<>();
+        final var compiledpatterns = new ArrayList< Pattern >();
 
         if( list != null ) {
             final StringTokenizer tok = new StringTokenizer( list, " \t\n" );
@@ -384,7 +384,7 @@ public class SpamFilter extends BasePageFilter {
      *  @return The parsed blacklist patterns.
      */
     private Collection< Pattern > parseBlacklist( final String list ) {
-        final ArrayList< Pattern > compiledpatterns = new ArrayList<>();
+        final var compiledpatterns = new ArrayList< Pattern >();
 
         if( list != null ) {
             try {

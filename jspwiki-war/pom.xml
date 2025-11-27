@@ -80,6 +80,12 @@
                 <groupId>io.leonard.maven.plugins</groupId>
                 <artifactId>jspc-maven-plugin</artifactId>
                 <dependencies>
+                    <!-- Override to Tomcat 11 jasper to match deployment target and support Java 21 -->
+                    <dependency>
+                        <groupId>org.apache.tomcat</groupId>
+                        <artifactId>tomcat-jasper</artifactId>
+                        <version>11.0.14</version>
+                    </dependency>
                     <dependency> <!-- so jspwiki custom taglibs can be seen by the jsp compiler -->
                         <groupId>${project.groupId}</groupId>
                         <artifactId>jspwiki-main</artifactId>

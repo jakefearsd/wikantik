@@ -30,9 +30,12 @@ import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
 import java.net.MalformedURLException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Vector;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -63,6 +66,10 @@ public class HttpMockFactory {
 
     public static ServletContext createServletContext( final String contextName ) {
         final ServletContext sc = Mockito.mock( ServletContext.class );
+
+        // Add attribute storage map for proper getAttribute/setAttribute support
+        final Map< String, Object > attributes = new ConcurrentHashMap<>();
+
         Mockito.doReturn( 6 ).when( sc ).getMajorVersion();
         Mockito.doReturn( 0 ).when( sc ).getMinorVersion();
         Mockito.doReturn( "/" + contextName ).when( sc ).getContextPath();
@@ -86,6 +93,35 @@ public class HttpMockFactory {
         } catch( MalformedURLException mue ) {
             throw new RuntimeException( mue );
         }
+
+        // Stub setAttribute to store in map
+        Mockito.doAnswer( invocation -> {
+            final String name = invocation.getArgument( 0 );
+            final Object value = invocation.getArgument( 1 );
+            if( value == null ) {
+                attributes.remove( name );
+            } else {
+                attributes.put( name, value );
+            }
+            return null;
+        } ).when( sc ).setAttribute( Mockito.anyString(), Mockito.any() );
+
+        // Stub getAttribute to retrieve from map
+        Mockito.doAnswer( invocation -> {
+            final String name = invocation.getArgument( 0 );
+            return attributes.get( name );
+        } ).when( sc ).getAttribute( Mockito.anyString() );
+
+        // Stub removeAttribute
+        Mockito.doAnswer( invocation -> {
+            final String name = invocation.getArgument( 0 );
+            attributes.remove( name );
+            return null;
+        } ).when( sc ).removeAttribute( Mockito.anyString() );
+
+        // Stub getAttributeNames for completeness
+        Mockito.doAnswer( invocation -> Collections.enumeration( attributes.keySet() ) ).when( sc ).getAttributeNames();
+
         return sc;
     }
 

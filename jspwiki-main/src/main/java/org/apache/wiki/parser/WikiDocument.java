@@ -23,6 +23,8 @@ import org.apache.wiki.api.core.Page;
 import org.jdom2.Document;
 
 import java.lang.ref.WeakReference;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 /**
  *  Stores the DOM tree of a rendered WikiPage. This class extends the org.jdom.Document to provide some extra metadata
@@ -35,9 +37,10 @@ import java.lang.ref.WeakReference;
 public class WikiDocument extends Document {
 
     private static final long serialVersionUID = 1L;
-    
+
     private final Page m_page;
     private String m_wikiText;
+    private String m_pageDataHash;
     private WeakReference< Context > m_context;
     
     /**
@@ -52,22 +55,77 @@ public class WikiDocument extends Document {
     
     /**
      *  Set the WikiMarkup for this document.
-     *  
+     *  Also computes and stores a hash for efficient cache validation.
+     *
      *  @param data The WikiMarkup
      */
     public void setPageData( final String data )
     {
         m_wikiText = data;
+        m_pageDataHash = computeHash( data );
     }
-    
+
     /**
      *  Returns the wikimarkup used to render this document.
-     *  
+     *
      *  @return The WikiMarkup
      */
     public String getPageData()
     {
         return m_wikiText;
+    }
+
+    /**
+     *  Returns the hash of the wiki markup used to render this document.
+     *  This is used for efficient cache validation instead of full string comparison.
+     *
+     *  @return The hash of the WikiMarkup, or null if no data was set
+     */
+    public String getPageDataHash()
+    {
+        return m_pageDataHash;
+    }
+
+    /**
+     *  Computes a SHA-256 hash of the given data for cache validation.
+     *  SHA-256 is used instead of MD5 for better collision resistance.
+     *
+     *  @param data The data to hash
+     *  @return The hex-encoded hash string, or null if data is null
+     */
+    private static String computeHash( final String data )
+    {
+        if( data == null ) {
+            return null;
+        }
+        try {
+            final MessageDigest digest = MessageDigest.getInstance( "SHA-256" );
+            final byte[] hashBytes = digest.digest( data.getBytes( StandardCharsets.UTF_8 ) );
+            final StringBuilder hexString = new StringBuilder( hashBytes.length * 2 );
+            for( final byte b : hashBytes ) {
+                final String hex = Integer.toHexString( 0xff & b );
+                if( hex.length() == 1 ) {
+                    hexString.append( '0' );
+                }
+                hexString.append( hex );
+            }
+            return hexString.toString();
+        } catch( final Exception e ) {
+            // Fall back to null - will cause full string comparison
+            return null;
+        }
+    }
+
+    /**
+     *  Computes a hash of the given page data for comparison.
+     *  This is a static utility method for use in cache validation.
+     *
+     *  @param pagedata The page data to hash
+     *  @return The hash string
+     */
+    public static String hashPageData( final String pagedata )
+    {
+        return computeHash( pagedata );
     }
     
     /**

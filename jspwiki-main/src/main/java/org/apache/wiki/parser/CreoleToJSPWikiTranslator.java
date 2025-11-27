@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -164,7 +165,43 @@ public class CreoleToJSPWikiTranslator
 
     private static final Map<String, String> c_protectionMap = new HashMap<>();
 
+    /**
+     * Cache for compiled patterns. Pattern compilation is expensive, so we cache patterns
+     * that are used repeatedly with the same regex string.
+     */
+    private static final Map<String, Pattern> COMPILED_PATTERNS = new ConcurrentHashMap<>();
+
+    // Pre-compiled patterns for frequently used regex patterns (with MULTILINE | DOTALL flags)
+    private static final Pattern PATTERN_PREFORMATTED = Pattern.compile( PREFORMATTED_PROTECTED, Pattern.MULTILINE | Pattern.DOTALL );
+    private static final Pattern PATTERN_URL = Pattern.compile( URL_PROTECTED, Pattern.MULTILINE | Pattern.DOTALL );
+    private static final Pattern PATTERN_ESCAPE = Pattern.compile( ESCAPE_PROTECTED, Pattern.MULTILINE | Pattern.DOTALL );
+    private static final Pattern PATTERN_PLUGIN = Pattern.compile( CREOLE_PLUGIN, Pattern.MULTILINE | Pattern.DOTALL );
+    private static final Pattern PATTERN_TABLE_HEADER = Pattern.compile( TABLE_HEADER_PROTECTED, Pattern.MULTILINE | Pattern.DOTALL );
+
+    // Pre-compiled patterns for replaceImageArea (with MULTILINE | DOTALL flags)
+    private static final Pattern PATTERN_CREOLE_LINK_IMAGE_X = Pattern.compile( CREOLE_LINK_IMAG_X, Pattern.MULTILINE | Pattern.DOTALL );
+    private static final Pattern PATTERN_CREOLE_IMAGE_X = Pattern.compile( CREOLE_IMAGE_X, Pattern.MULTILINE | Pattern.DOTALL );
+
+    // Pre-compiled patterns for simple replacements in replaceImageArea
+    private static final Pattern PATTERN_HORIZONTAL_BAR = Pattern.compile( "\u2015" );
+    private static final Pattern PATTERN_DOUBLE_VERTICAL_BAR = Pattern.compile( "\u2016" );
+    private static final Pattern PATTERN_EMPTY_CAPTION = Pattern.compile( "caption=''" );
+    private static final Pattern PATTERN_WHITESPACE = Pattern.compile( "\\s+" );
+
     private        ArrayList<String> m_hashList = new ArrayList<>();
+
+    /**
+     * Returns a cached compiled Pattern or compiles and caches a new one.
+     * This avoids repeated pattern compilation for the same regex string.
+     *
+     * @param regex The regex pattern string
+     * @param flags The pattern flags (e.g., Pattern.MULTILINE | Pattern.DOTALL)
+     * @return The compiled Pattern
+     */
+    private static Pattern getOrCompilePattern(final String regex, final int flags) {
+        final String cacheKey = regex + ":" + flags;
+        return COMPILED_PATTERNS.computeIfAbsent(cacheKey, k -> Pattern.compile(regex, flags));
+    }
 
     /**
      *  Translates signature markup (--~~~ and --~~~~) to wiki format with username and optional date.
@@ -379,10 +416,10 @@ public class CreoleToJSPWikiTranslator
     {
         c_protectionMap.clear();
         m_hashList = new ArrayList<>();
-        content = protectMarkup(content, PREFORMATTED_PROTECTED, "", "");
-        content = protectMarkup(content, URL_PROTECTED, "", "");
-        content = protectMarkup(content, ESCAPE_PROTECTED, "", "");
-        content = protectMarkup(content, CREOLE_PLUGIN, "", "");
+        content = protectMarkupWithPattern(content, PATTERN_PREFORMATTED, "", "");
+        content = protectMarkupWithPattern(content, PATTERN_URL, "", "");
+        content = protectMarkupWithPattern(content, PATTERN_ESCAPE, "", "");
+        content = protectMarkupWithPattern(content, PATTERN_PLUGIN, "", "");
 
         // content = protectMarkup(content, LINE_PROTECTED);
         // content = protectMarkup(content, SIGNATURE_PROTECTED);
@@ -411,11 +448,19 @@ public class CreoleToJSPWikiTranslator
     private String replaceImageArea(final Properties wikiProps, final String content, final String markupRegex, final String replaceContent, final int groupPos,
                                     final String imagePlugin)
     {
-        final Matcher matcher = Pattern.compile(markupRegex, Pattern.MULTILINE | Pattern.DOTALL).matcher(content);
-        String contentCopy = content;
+        final Pattern pattern = getOrCompilePattern(markupRegex, Pattern.MULTILINE | Pattern.DOTALL);
+        final Matcher matcher = pattern.matcher(content);
+        final StringBuilder contentCopy = new StringBuilder(content);
 
         final ArrayList< String[] > plProperties = readPlaceholderProperties(wikiProps);
 
+        // Pre-compile patterns used in the loop
+        final Pattern pipeOrWhitespace = getOrCompilePattern("\\||\\s", 0);
+        final Pattern quoteStrip = getOrCompilePattern("^(\"|')(.*)(\"|')$", 0);
+        final Pattern checkPattern = getOrCompilePattern("(.*?)%(.*?)<check>(.*?)</check>", 0);
+
+        // Track offset adjustments as we modify the string
+        int offset = 0;
         while (matcher.find())
         {
             String protectedMarkup = matcher.group(0);
@@ -427,14 +472,15 @@ public class CreoleToJSPWikiTranslator
                 final String[] params = paramsField.split(",");
 
                 for (final String s : params) {
-                    final String param = s.replaceAll("\\||\\s", "").toUpperCase();
+                    final String param = pipeOrWhitespace.matcher(s).replaceAll("").toUpperCase();
 
                     // Replace placeholder params
                     for (final String[] pair : plProperties) {
                         final String key = pair[0];
                         final String value = pair[1];
-                        String code = param.replaceAll("(?i)([0-9]+)" + key, value + "<check>" + "$1" + "</check>");
-                        code = code.replaceAll("(.*?)%(.*?)<check>(.*?)</check>", "$1$3$2");
+                        final Pattern keyPattern = getOrCompilePattern("(?i)([0-9]+)" + key, 0);
+                        String code = keyPattern.matcher(param).replaceAll(value + "<check>" + "$1" + "</check>");
+                        code = checkPattern.matcher(code).replaceAll("$1$3$2");
                         if (!code.equals(param)) {
                             paramsString.append(code);
                         }
@@ -447,56 +493,63 @@ public class CreoleToJSPWikiTranslator
                     } catch (final Exception e) {
 
                         if (wikiProps.getProperty("creole.imagePlugin.para." + param) != null)
-                            paramsString.append(" ").append(wikiProps.getProperty("creole.imagePlugin.para." + param)
-                                    .replaceAll("^(\"|')(.*)(\"|')$", "$2"));
+                            paramsString.append(" ").append(quoteStrip.matcher(
+                                    wikiProps.getProperty("creole.imagePlugin.para." + param)).replaceAll("$2"));
                     }
                 }
             }
-            final String temp = protectedMarkup;
+            final int originalStart = matcher.start() + offset;
+            final int originalLength = protectedMarkup.length();
 
             protectedMarkup = translateElement(protectedMarkup, markupRegex, replaceContent);
-            protectedMarkup = protectedMarkup.replaceAll("\u2015", paramsString.toString());
-            protectedMarkup = protectedMarkup.replaceAll("\u2016", imagePlugin);
-            protectedMarkup = protectedMarkup.replaceAll("caption=''", "");
-            protectedMarkup = protectedMarkup.replaceAll("\\s+", " ");
+            // Use pre-compiled patterns for the chain of replacements
+            protectedMarkup = PATTERN_HORIZONTAL_BAR.matcher(protectedMarkup).replaceAll(Matcher.quoteReplacement(paramsString.toString()));
+            protectedMarkup = PATTERN_DOUBLE_VERTICAL_BAR.matcher(protectedMarkup).replaceAll(Matcher.quoteReplacement(imagePlugin));
+            protectedMarkup = PATTERN_EMPTY_CAPTION.matcher(protectedMarkup).replaceAll("");
+            protectedMarkup = PATTERN_WHITESPACE.matcher(protectedMarkup).replaceAll(" ");
 
-            final int pos = contentCopy.indexOf(temp);
-            contentCopy = contentCopy.substring(0, pos) + protectedMarkup
-                          + contentCopy.substring(pos + temp.length());
+            contentCopy.replace(originalStart, originalStart + originalLength, protectedMarkup);
+            offset += protectedMarkup.length() - originalLength;
         }
-        return contentCopy;
+        return contentCopy.toString();
     }
 
     private String replaceArea(final String content, final String markupRegex, final String replaceSource, final String replaceTarget)
     {
-        final Matcher matcher = Pattern.compile(markupRegex, Pattern.MULTILINE | Pattern.DOTALL).matcher(content);
-        String contentCopy = content;
+        final Pattern pattern = getOrCompilePattern(markupRegex, Pattern.MULTILINE | Pattern.DOTALL);
+        final Pattern replacePattern = getOrCompilePattern(replaceSource, 0);
+        final Matcher matcher = pattern.matcher(content);
+        final StringBuilder contentCopy = new StringBuilder(content);
 
+        // Track offset adjustments as we modify the string
+        int offset = 0;
         while (matcher.find())
         {
-            String protectedMarkup = matcher.group(0);
-            final String temp = protectedMarkup;
-            protectedMarkup = protectedMarkup.replaceAll(replaceSource, replaceTarget);
-            final int pos = contentCopy.indexOf(temp);
-            contentCopy = contentCopy.substring(0, pos) + protectedMarkup
-                          + contentCopy.substring(pos + temp.length() );
+            final String originalMatch = matcher.group(0);
+            final String replacement = replacePattern.matcher(originalMatch).replaceAll(replaceTarget);
+            final int pos = matcher.start() + offset;
+            contentCopy.replace(pos, pos + originalMatch.length(), replacement);
+            offset += replacement.length() - originalMatch.length();
         }
-        return contentCopy;
+        return contentCopy.toString();
     }
 
     /**
-     * Protects a specific markup
+     * Protects a specific markup using a pre-compiled pattern.
+     * This is the preferred method to avoid repeated pattern compilation.
      *
      * @see #protectMarkup(String)
      */
-    private String protectMarkup(final String content, final String markupRegex, final String replaceSource, final String replaceTarget)
+    private String protectMarkupWithPattern(final String content, final Pattern pattern, final String replaceSource, final String replaceTarget)
     {
-        final Matcher matcher = Pattern.compile(markupRegex, Pattern.MULTILINE | Pattern.DOTALL).matcher(content);
+        final Matcher matcher = pattern.matcher(content);
         final StringBuffer result = new StringBuffer();
         while (matcher.find())
         {
             String protectedMarkup = matcher.group();
-            protectedMarkup = protectedMarkup.replaceAll(replaceSource, replaceTarget);
+            if (!replaceSource.isEmpty()) {
+                protectedMarkup = protectedMarkup.replaceAll(replaceSource, replaceTarget);
+            }
             try
             {
                 final MessageDigest digest = MessageDigest.getInstance("MD5");
@@ -517,6 +570,18 @@ public class CreoleToJSPWikiTranslator
         return result.toString();
     }
 
+    /**
+     * Protects a specific markup (legacy method that compiles pattern on each call).
+     * Used for dynamic patterns that cannot be pre-compiled.
+     *
+     * @see #protectMarkup(String)
+     */
+    private String protectMarkup(final String content, final String markupRegex, final String replaceSource, final String replaceTarget)
+    {
+        final Pattern pattern = getOrCompilePattern(markupRegex, Pattern.MULTILINE | Pattern.DOTALL);
+        return protectMarkupWithPattern(content, pattern, replaceSource, replaceTarget);
+    }
+
     private String bytesToHash(final byte[] b)
     {
         final StringBuilder hash = new StringBuilder();
@@ -528,7 +593,8 @@ public class CreoleToJSPWikiTranslator
 
     private String translateElement(final String content, final String fromMarkup, final String toMarkup)
     {
-        final Matcher matcher = Pattern.compile(fromMarkup, Pattern.MULTILINE).matcher(content);
+        final Pattern pattern = getOrCompilePattern(fromMarkup, Pattern.MULTILINE);
+        final Matcher matcher = pattern.matcher(content);
         final StringBuffer result = new StringBuffer();
 
         while (matcher.find())

@@ -110,6 +110,9 @@ public class LuceneSearchProvider implements SearchProvider {
 
     private String m_analyzerClass = ClassicAnalyzer.class.getName();
 
+    /** Cached Lucene Analyzer instance - expensive to create via reflection, so we cache it. */
+    private Analyzer m_analyzer;
+
     private static final String LUCENE_DIR = "lucene";
 
     /** These attachment file suffixes will be indexed. */
@@ -147,6 +150,16 @@ public class LuceneSearchProvider implements SearchProvider {
         final int indexDelay   = TextUtil.getIntegerProperty( props, PROP_LUCENE_INDEXDELAY, LuceneUpdater.INDEX_DELAY );
 
         m_analyzerClass = TextUtil.getStringProperty( props, PROP_LUCENE_ANALYZER, m_analyzerClass );
+
+        // Initialize the cached analyzer instance
+        try {
+            m_analyzer = ClassUtil.buildInstance( m_analyzerClass );
+            LOG.info( "Lucene analyzer initialized: {}", m_analyzerClass );
+        } catch( final Exception e ) {
+            LOG.error( "Could not initialize LuceneAnalyzer class {}, using default ClassicAnalyzer", m_analyzerClass, e );
+            m_analyzer = new ClassicAnalyzer();
+        }
+
         // FIXME: Just to be simple for now, we will do full reindex only if no files are in lucene directory.
 
         final File dir = new File( m_luceneDirectory );
@@ -324,14 +337,15 @@ public class LuceneSearchProvider implements SearchProvider {
         LOG.debug( "Done updating Lucene index for page '{}'.", page.getName() );
     }
 
-    private Analyzer getLuceneAnalyzer() throws ProviderException {
-        try {
-            return ClassUtil.buildInstance( m_analyzerClass );
-        } catch( final Exception e ) {
-            final String msg = "Could not get LuceneAnalyzer class " + m_analyzerClass + ", reason: ";
-            LOG.error( msg, e );
-            throw new ProviderException( msg + e );
-        }
+    /**
+     * Returns the cached Lucene Analyzer instance.
+     * The analyzer is initialized once during {@link #initialize(Engine, Properties)} and reused
+     * for all subsequent operations, avoiding expensive reflection-based instantiation per request.
+     *
+     * @return The cached Analyzer instance
+     */
+    private Analyzer getLuceneAnalyzer() {
+        return m_analyzer;
     }
 
     /**
@@ -412,7 +426,7 @@ public class LuceneSearchProvider implements SearchProvider {
         }
     }
 
-    IndexWriter getIndexWriter( final Directory luceneDir ) throws IOException, ProviderException {
+    IndexWriter getIndexWriter( final Directory luceneDir ) throws IOException {
         final IndexWriterConfig writerConfig = new IndexWriterConfig( getLuceneAnalyzer() );
         writerConfig.setOpenMode( OpenMode.CREATE_OR_APPEND );
         return new IndexWriter( luceneDir, writerConfig );

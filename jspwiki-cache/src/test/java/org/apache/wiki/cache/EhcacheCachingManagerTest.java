@@ -18,8 +18,9 @@
  */
 package org.apache.wiki.cache;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
@@ -27,31 +28,40 @@ import java.util.Properties;
 
 public class EhcacheCachingManagerTest {
 
-    static EhcacheCachingManager ecm = new EhcacheCachingManager();
+    EhcacheCachingManager ecm;
 
-    @BeforeAll
-    static void beforeAll() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
+        ecm = new EhcacheCachingManager();
         ecm.initialize( null, new Properties() );
+    }
+
+    @AfterEach
+    void tearDown() {
+        if( ecm != null ) {
+            ecm.shutdown();
+        }
     }
 
     @Test
     void testInitAndShutdown() throws Exception {
         final Properties props = new Properties();
         props.setProperty( CachingManager.PROP_CACHE_CONF_FILE, "ehcache-jspwiki-test.xml" );
-        EhcacheCachingManager ecm = new EhcacheCachingManager();
-        ecm.initialize( null, props );
-        Assertions.assertEquals( 7, ecm.cacheMap.size() );
+        EhcacheCachingManager testEcm = new EhcacheCachingManager();
+        testEcm.initialize( null, props );
+        Assertions.assertEquals( 7, testEcm.cacheMap.size() );
 
-        ecm.registerCache( "anotherCache" );
-        Assertions.assertEquals( 8, ecm.cacheMap.size() );
+        testEcm.registerCache( "anotherCache" );
+        Assertions.assertEquals( 8, testEcm.cacheMap.size() );
 
-        ecm.shutdown();
-        ecm.shutdown(); // does nothing if already shutdown
-        Assertions.assertEquals( 0, ecm.cacheMap.size() );
+        testEcm.shutdown();
+        testEcm.shutdown(); // does nothing if already shutdown
+        Assertions.assertEquals( 0, testEcm.cacheMap.size() );
 
-        props.setProperty( CachingManager.PROP_CACHE_ENABLE, "false" ); ecm = new EhcacheCachingManager();
-        ecm.initialize( null, props );
-        Assertions.assertEquals( 0, ecm.cacheMap.size() );
+        props.setProperty( CachingManager.PROP_CACHE_ENABLE, "false" );
+        testEcm = new EhcacheCachingManager();
+        testEcm.initialize( null, props );
+        Assertions.assertEquals( 0, testEcm.cacheMap.size() );
     }
 
     @Test

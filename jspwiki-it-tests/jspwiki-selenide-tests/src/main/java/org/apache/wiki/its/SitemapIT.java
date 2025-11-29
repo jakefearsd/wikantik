@@ -34,6 +34,10 @@ import java.util.stream.Collectors;
 
 /**
  * Integration tests for the Sitemap servlet.
+ * <p>
+ * The sitemap follows the Sitemap Protocol and includes the Google Image Sitemap extension.
+ * Note: changefreq and priority are intentionally omitted as Google ignores these values.
+ * </p>
  */
 public class SitemapIT extends WithIntegrationTestSetup {
 
@@ -45,10 +49,20 @@ public class SitemapIT extends WithIntegrationTestSetup {
         // Verify XML structure
         Assertions.assertTrue( sitemap.contains( "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" ),
             "Sitemap should contain XML declaration" );
-        Assertions.assertTrue( sitemap.contains( "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">" ),
+        Assertions.assertTrue( sitemap.contains( "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"" ),
             "Sitemap should contain urlset with correct namespace" );
         Assertions.assertTrue( sitemap.contains( "</urlset>" ),
             "Sitemap should contain closing urlset tag" );
+    }
+
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    void sitemapIncludesImageNamespace() throws Exception {
+        final String sitemap = fetchSitemap();
+
+        // Verify image namespace is included for Google Image Sitemap extension
+        Assertions.assertTrue( sitemap.contains( "xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\"" ),
+            "Sitemap should contain Google Image sitemap namespace" );
     }
 
     @Test
@@ -104,10 +118,19 @@ public class SitemapIT extends WithIntegrationTestSetup {
             "Sitemap should contain loc elements" );
         Assertions.assertTrue( sitemap.contains( "<lastmod>" ),
             "Sitemap should contain lastmod elements" );
-        Assertions.assertTrue( sitemap.contains( "<changefreq>" ),
-            "Sitemap should contain changefreq elements" );
-        Assertions.assertTrue( sitemap.contains( "<priority>" ),
-            "Sitemap should contain priority elements" );
+    }
+
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    void sitemapOmitsChangefreqAndPriority() throws Exception {
+        final String sitemap = fetchSitemap();
+
+        // Verify changefreq and priority are NOT present
+        // These are intentionally omitted as Google has confirmed they ignore these values
+        Assertions.assertFalse( sitemap.contains( "<changefreq>" ),
+            "Sitemap should NOT contain changefreq (Google ignores it)" );
+        Assertions.assertFalse( sitemap.contains( "<priority>" ),
+            "Sitemap should NOT contain priority (Google ignores it)" );
     }
 
     @Test

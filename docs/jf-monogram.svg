@@ -1,0 +1,29 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sage green background -->
+  <rect width="512" height="512" fill="#9CAF88"/>
+  
+  <!-- Combined J and F monogram in navy blue -->
+  <g fill="#1B3A57">
+    <!-- F top horizontal bar -->
+    <rect x="200" y="100" width="160" height="40" rx="4"/>
+    
+    <!-- F middle horizontal bar -->
+    <rect x="200" y="200" width="120" height="35" rx="4"/>
+    
+    <!-- Vertical stem that curves into J at bottom -->
+    <path d="M200 100
+             L245 100
+             L245 340
+             Q245 400 185 400
+             L130 400
+             Q70 400 70 340
+             L70 300
+             L115 300
+             L115 335
+             Q115 360 140 360
+             L175 360
+             Q200 360 200 335
+             L200 100
+             Z"/>
+  </g>
+</svg>

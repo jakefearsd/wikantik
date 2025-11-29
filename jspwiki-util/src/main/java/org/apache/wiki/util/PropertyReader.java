@@ -386,7 +386,7 @@ public final class PropertyReader {
 
     /**
      * Locate a resource stored in the class path. Try first with "WEB-INF/classes"
-     * from the web app and fallback to "resourceName".
+     * from the web app, then the class's classloader, then the thread context classloader.
      *
      * @param context the servlet context
      * @param resourceName the name of the resource
@@ -403,21 +403,35 @@ public final class PropertyReader {
 
         // try with web app class loader searching in "WEB-INF/classes"
         currResourceLocation = createResourceLocation( "/WEB-INF/classes", resourceName );
+        LOG.info( "Looking for custom properties at: {} (via ServletContext)", currResourceLocation );
         result = context.getResourceAsStream( currResourceLocation );
         if( result != null ) {
-            LOG.debug( " Successfully located the following classpath resource : " + currResourceLocation );
+            LOG.info( "Successfully located custom properties via ServletContext: {}", currResourceLocation );
             return result;
         }
 
         // if not found - try with the current class loader and the given name
         currResourceLocation = createResourceLocation( "", resourceName );
+        LOG.info( "Looking for custom properties at: {} (via PropertyReader classloader)", currResourceLocation );
         result = PropertyReader.class.getResourceAsStream( currResourceLocation );
         if( result != null ) {
-            LOG.debug( " Successfully located the following classpath resource : " + currResourceLocation );
+            LOG.info( "Successfully located custom properties via PropertyReader classloader: {}", currResourceLocation );
             return result;
         }
 
-        LOG.debug( " Unable to resolve the following classpath resource : " + resourceName );
+        // try with thread context class loader (may find resources in parent classloaders like tomcat/lib)
+        final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+        if( contextClassLoader != null ) {
+            LOG.info( "Looking for custom properties at: {} (via Thread context classloader: {})",
+                      currResourceLocation, contextClassLoader.getClass().getName() );
+            result = contextClassLoader.getResourceAsStream( currResourceLocation.substring( 1 ) ); // remove leading slash
+            if( result != null ) {
+                LOG.info( "Successfully located custom properties via Thread context classloader: {}", currResourceLocation );
+                return result;
+            }
+        }
+
+        LOG.info( "Unable to locate custom properties file: {}. Using default properties only.", resourceName );
 
         return result;
     }

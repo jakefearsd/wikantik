@@ -21,12 +21,11 @@ package org.apache.wiki.ui;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -38,32 +37,52 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.ContextEnum;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.spi.Wiki;
+import org.apache.wiki.attachment.AttachmentManager;
 import org.apache.wiki.auth.AuthorizationManager;
 import org.apache.wiki.auth.permissions.PagePermission;
 import org.apache.wiki.pages.PageManager;
-import org.apache.wiki.references.ReferenceManager;
 import org.apache.wiki.url.URLConstructor;
 
 /**
  * Servlet that generates a sitemap.xml file for search engine indexing.
  * <p>
  * The sitemap follows the Sitemap Protocol (https://www.sitemaps.org/protocol.html)
- * and is compatible with Google Search Console requirements.
+ * and includes the Google Image Sitemap extension for image attachments.
+ * </p>
+ * <p>
+ * Note: This implementation only includes {@code <loc>} and {@code <lastmod>} fields.
+ * The {@code <changefreq>} and {@code <priority>} fields are intentionally omitted
+ * as Google has confirmed they ignore these values.
  * </p>
  * <p>
  * Menu pages (LeftMenu, LeftMenuFooter, TitleBox, etc.) are automatically excluded
  * from the sitemap as they are not primary content pages.
  * </p>
+ *
+ * @see <a href="https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap">Google Sitemap Documentation</a>
+ * @see <a href="https://developers.google.com/search/docs/crawling-indexing/sitemaps/image-sitemaps">Google Image Sitemap Documentation</a>
  */
 public class SitemapServlet extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( SitemapServlet.class );
+
+    /** Sitemap namespace */
+    private static final String SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9";
+
+    /** Google Image sitemap namespace */
+    private static final String IMAGE_NS = "http://www.google.com/schemas/sitemap-image/1.1";
+
+    /** Image file extensions that should be included in the sitemap */
+    private static final Set<String> IMAGE_EXTENSIONS = new HashSet<>( Arrays.asList(
+        "jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"
+    ) );
 
     /** Pages that should be excluded from the sitemap (menu/template pages) */
     private static final Set<String> EXCLUDED_PAGES = new HashSet<>( Arrays.asList(
@@ -127,10 +146,12 @@ public class SitemapServlet extends HttpServlet {
 
         final PrintWriter out = resp.getWriter();
         out.println( "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" );
-        out.println( "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">" );
+        out.println( "<urlset xmlns=\"" + SITEMAP_NS + "\"" );
+        out.println( "        xmlns:image=\"" + IMAGE_NS + "\">" );
 
-        final SimpleDateFormat dateFormat = new SimpleDateFormat( "yyyy-MM-dd" );
+        final SimpleDateFormat dateFormat = new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT );
         final URLConstructor urlConstructor = m_engine.getManager( URLConstructor.class );
+        final AttachmentManager attachmentManager = m_engine.getManager( AttachmentManager.class );
 
         // Build fully qualified base URL
         String baseUrl = m_engine.getBaseURL();
@@ -174,12 +195,7 @@ public class SitemapServlet extends HttpServlet {
             );
 
             // Build fully qualified URL
-            final String pageUrl;
-            if ( pagePath.startsWith( "/" ) ) {
-                pageUrl = baseUrl + pagePath;
-            } else {
-                pageUrl = baseUrl + "/" + pagePath;
-            }
+            final String pageUrl = buildFullUrl( baseUrl, pagePath );
 
             out.println( "  <url>" );
             out.println( "    <loc>" + escapeXml( pageUrl ) + "</loc>" );
@@ -188,14 +204,89 @@ public class SitemapServlet extends HttpServlet {
                 out.println( "    <lastmod>" + dateFormat.format( page.getLastModified() ) + "</lastmod>" );
             }
 
-            out.println( "    <changefreq>" + determineChangeFreq( page ) + "</changefreq>" );
-            out.println( "    <priority>" + determinePriority( page ) + "</priority>" );
+            // Add image entries for image attachments
+            // Note: changefreq and priority are intentionally omitted as Google ignores them
+            writeImageEntries( out, page, baseUrl, attachmentManager );
+
             out.println( "  </url>" );
         }
 
         out.println( "</urlset>" );
 
         LOG.debug( "Sitemap generated with {} pages", publicPages.size() );
+    }
+
+    /**
+     * Builds a fully qualified URL from base URL and path.
+     *
+     * @param baseUrl the base URL
+     * @param path the path to append
+     * @return the fully qualified URL
+     */
+    private String buildFullUrl( final String baseUrl, final String path ) {
+        if ( path.startsWith( "/" ) ) {
+            return baseUrl + path;
+        }
+        return baseUrl + "/" + path;
+    }
+
+    /**
+     * Writes image:image entries for any image attachments on the page.
+     *
+     * @param out the PrintWriter to write to
+     * @param page the page to check for attachments
+     * @param baseUrl the base URL for building attachment URLs
+     * @param attachmentManager the attachment manager
+     */
+    private void writeImageEntries( final PrintWriter out, final Page page,
+                                    final String baseUrl, final AttachmentManager attachmentManager ) {
+        if ( attachmentManager == null || !attachmentManager.attachmentsEnabled() ) {
+            return;
+        }
+
+        try {
+            final List<Attachment> attachments = attachmentManager.listAttachments( page );
+            for ( final Attachment attachment : attachments ) {
+                if ( isImageAttachment( attachment.getFileName() ) ) {
+                    final String attachmentUrl = buildAttachmentUrl( baseUrl, attachment );
+                    out.println( "    <image:image>" );
+                    out.println( "      <image:loc>" + escapeXml( attachmentUrl ) + "</image:loc>" );
+                    out.println( "    </image:image>" );
+                }
+            }
+        } catch ( final Exception e ) {
+            LOG.debug( "Error listing attachments for page {}: {}", page.getName(), e.getMessage() );
+        }
+    }
+
+    /**
+     * Checks if a filename represents an image based on its extension.
+     *
+     * @param fileName the file name to check
+     * @return true if the file appears to be an image
+     */
+    private boolean isImageAttachment( final String fileName ) {
+        if ( fileName == null || fileName.isEmpty() ) {
+            return false;
+        }
+        final int dotIndex = fileName.lastIndexOf( '.' );
+        if ( dotIndex < 0 || dotIndex == fileName.length() - 1 ) {
+            return false;
+        }
+        final String extension = fileName.substring( dotIndex + 1 ).toLowerCase( Locale.ROOT );
+        return IMAGE_EXTENSIONS.contains( extension );
+    }
+
+    /**
+     * Builds the URL for an attachment.
+     *
+     * @param baseUrl the base URL
+     * @param attachment the attachment
+     * @return the attachment URL
+     */
+    private String buildAttachmentUrl( final String baseUrl, final Attachment attachment ) {
+        // Attachment URLs follow the pattern: /attach/ParentPage/filename
+        return baseUrl + "/attach/" + attachment.getParentName() + "/" + attachment.getFileName();
     }
 
     /**
@@ -206,69 +297,6 @@ public class SitemapServlet extends HttpServlet {
      */
     private boolean isExcludedPage( final String pageName ) {
         return EXCLUDED_PAGES.contains( pageName ) || pageName.startsWith( "CSS" );
-    }
-
-    /**
-     * Determines the change frequency for a page based on its edit history.
-     *
-     * @param page the page to check
-     * @return change frequency string (daily, weekly, monthly, yearly)
-     */
-    private String determineChangeFreq( final Page page ) {
-        final PageManager pm = m_engine.getManager( PageManager.class );
-        final List<Page> history = pm.getVersionHistory( page.getName() );
-
-        if ( history == null || history.size() <= 1 ) {
-            return "monthly";
-        }
-
-        if ( page.getLastModified() == null ) {
-            return "monthly";
-        }
-
-        // Calculate days since last edit
-        final long daysSinceLastEdit = ChronoUnit.DAYS.between(
-            page.getLastModified().toInstant(),
-            Instant.now()
-        );
-
-        if ( daysSinceLastEdit < 1 ) {
-            return "daily";
-        }
-        if ( daysSinceLastEdit < 7 ) {
-            return "weekly";
-        }
-        if ( daysSinceLastEdit < 30 ) {
-            return "monthly";
-        }
-        return "yearly";
-    }
-
-    /**
-     * Determines the priority for a page based on its importance.
-     *
-     * @param page the page to check
-     * @return priority string (0.0 to 1.0)
-     */
-    private String determinePriority( final Page page ) {
-        final String pageName = page.getName();
-
-        // Main page gets highest priority
-        if ( pageName.equals( m_engine.getFrontPage() ) ) {
-            return "1.0";
-        }
-
-        // Consider number of incoming links
-        final ReferenceManager refManager = m_engine.getManager( ReferenceManager.class );
-        final Collection<String> referrers = refManager.findReferrers( pageName );
-
-        if ( referrers != null && referrers.size() > 10 ) {
-            return "0.8";
-        } else if ( referrers != null && referrers.size() > 5 ) {
-            return "0.6";
-        }
-
-        return "0.5"; // Default priority
     }
 
     /**

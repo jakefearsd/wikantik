@@ -23,6 +23,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.wiki.HttpMockFactory;
 import org.apache.wiki.TestEngine;
+import org.apache.wiki.api.core.Attachment;
+import org.apache.wiki.api.spi.Wiki;
+import org.apache.wiki.attachment.AttachmentManager;
 import org.apache.wiki.pages.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -30,6 +33,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Properties;
@@ -64,6 +69,18 @@ class SitemapServletTest {
     void tearDown() throws Exception {
         if( m_engine != null ) {
             final PageManager pm = m_engine.getManager( PageManager.class );
+            final AttachmentManager am = m_engine.getManager( AttachmentManager.class );
+
+            // Clean up attachments first
+            try {
+                final var attachments = am.listAttachments( pm.getPage( "TestPage1" ) );
+                for( final var att : attachments ) {
+                    am.deleteAttachment( att );
+                }
+            } catch( final Exception e ) {
+                // Ignore if page doesn't exist
+            }
+
             pm.deletePage( "TestPage1" );
             pm.deletePage( "TestPage2" );
             pm.deletePage( "LeftMenu" );
@@ -89,8 +106,26 @@ class SitemapServletTest {
 
         // Verify XML structure
         Assertions.assertTrue( sitemap.contains( "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" ) );
-        Assertions.assertTrue( sitemap.contains( "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">" ) );
+        Assertions.assertTrue( sitemap.contains( "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"" ) );
         Assertions.assertTrue( sitemap.contains( "</urlset>" ) );
+    }
+
+    @Test
+    void testSitemapIncludesImageNamespace() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter stringWriter = new StringWriter();
+        final PrintWriter printWriter = new PrintWriter( stringWriter );
+
+        Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+        servlet.doGet( request, response );
+
+        final String sitemap = stringWriter.toString();
+
+        // Verify image namespace is included
+        Assertions.assertTrue( sitemap.contains( "xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\"" ),
+            "Sitemap should include Google Image sitemap namespace" );
     }
 
     @Test
@@ -164,8 +199,26 @@ class SitemapServletTest {
         Assertions.assertTrue( sitemap.contains( "<url>" ) );
         Assertions.assertTrue( sitemap.contains( "<loc>" ) );
         Assertions.assertTrue( sitemap.contains( "<lastmod>" ) );
-        Assertions.assertTrue( sitemap.contains( "<changefreq>" ) );
-        Assertions.assertTrue( sitemap.contains( "<priority>" ) );
+    }
+
+    @Test
+    void testSitemapOmitsChangefreqAndPriority() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter stringWriter = new StringWriter();
+        final PrintWriter printWriter = new PrintWriter( stringWriter );
+
+        Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+        servlet.doGet( request, response );
+
+        final String sitemap = stringWriter.toString();
+
+        // Verify changefreq and priority are NOT present (Google ignores them)
+        Assertions.assertFalse( sitemap.contains( "<changefreq>" ),
+            "Sitemap should NOT contain changefreq (Google ignores it)" );
+        Assertions.assertFalse( sitemap.contains( "<priority>" ),
+            "Sitemap should NOT contain priority (Google ignores it)" );
     }
 
     @Test
@@ -181,52 +234,6 @@ class SitemapServletTest {
 
         Mockito.verify( response ).setContentType( "application/xml" );
         Mockito.verify( response ).setCharacterEncoding( "UTF-8" );
-    }
-
-    @Test
-    void testSitemapPriorityValues() throws Exception {
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
-        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
-        final StringWriter stringWriter = new StringWriter();
-        final PrintWriter printWriter = new PrintWriter( stringWriter );
-
-        Mockito.when( response.getWriter() ).thenReturn( printWriter );
-
-        servlet.doGet( request, response );
-
-        final String sitemap = stringWriter.toString();
-
-        // Verify priority values are within valid range (0.0 to 1.0)
-        Assertions.assertTrue(
-            sitemap.contains( "<priority>0.5</priority>" ) ||
-            sitemap.contains( "<priority>0.6</priority>" ) ||
-            sitemap.contains( "<priority>0.8</priority>" ) ||
-            sitemap.contains( "<priority>1.0</priority>" ),
-            "Sitemap should contain valid priority values"
-        );
-    }
-
-    @Test
-    void testSitemapChangeFreqValues() throws Exception {
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
-        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
-        final StringWriter stringWriter = new StringWriter();
-        final PrintWriter printWriter = new PrintWriter( stringWriter );
-
-        Mockito.when( response.getWriter() ).thenReturn( printWriter );
-
-        servlet.doGet( request, response );
-
-        final String sitemap = stringWriter.toString();
-
-        // Verify changefreq values are valid
-        Assertions.assertTrue(
-            sitemap.contains( "<changefreq>daily</changefreq>" ) ||
-            sitemap.contains( "<changefreq>weekly</changefreq>" ) ||
-            sitemap.contains( "<changefreq>monthly</changefreq>" ) ||
-            sitemap.contains( "<changefreq>yearly</changefreq>" ),
-            "Sitemap should contain valid changefreq values"
-        );
     }
 
     @Test
@@ -367,6 +374,165 @@ class SitemapServletTest {
             "Sitemap URLs should use https://" );
         Assertions.assertFalse( sitemap.contains( ":443" ),
             "Sitemap URLs should not include default HTTPS port 443" );
+    }
+
+    @Test
+    void testSitemapIncludesImageAttachments() throws Exception {
+        // Create an image attachment
+        final AttachmentManager am = m_engine.getManager( AttachmentManager.class );
+        final Attachment att = Wiki.contents().attachment( m_engine, "TestPage1", "test-image.png" );
+        att.setAuthor( "TestUser" );
+
+        // Create a temporary file with some content
+        final File tempFile = File.createTempFile( "test-image", ".png" );
+        tempFile.deleteOnExit();
+        try( final FileOutputStream fos = new FileOutputStream( tempFile ) ) {
+            // Write minimal PNG header bytes
+            fos.write( new byte[] { (byte)0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A } );
+        }
+        am.storeAttachment( att, tempFile );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+        Mockito.when( request.getScheme() ).thenReturn( "http" );
+        Mockito.when( request.getServerName() ).thenReturn( "localhost" );
+        Mockito.when( request.getServerPort() ).thenReturn( 8080 );
+        Mockito.when( request.getContextPath() ).thenReturn( "" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter stringWriter = new StringWriter();
+        final PrintWriter printWriter = new PrintWriter( stringWriter );
+
+        Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+        servlet.doGet( request, response );
+
+        final String sitemap = stringWriter.toString();
+
+        // Verify image extension is included for the attachment
+        Assertions.assertTrue( sitemap.contains( "<image:image>" ),
+            "Sitemap should contain image:image element for PNG attachment" );
+        Assertions.assertTrue( sitemap.contains( "<image:loc>" ),
+            "Sitemap should contain image:loc element" );
+        Assertions.assertTrue( sitemap.contains( "test-image.png" ),
+            "Sitemap should contain the image filename" );
+        Assertions.assertTrue( sitemap.contains( "/attach/TestPage1/test-image.png" ),
+            "Sitemap should contain correct attachment URL path" );
+    }
+
+    @Test
+    void testSitemapIncludesMultipleImageFormats() throws Exception {
+        // Create attachments with various image formats
+        final AttachmentManager am = m_engine.getManager( AttachmentManager.class );
+        final String[] imageExtensions = { "jpg", "jpeg", "gif", "webp" };
+
+        for( final String ext : imageExtensions ) {
+            final Attachment att = Wiki.contents().attachment( m_engine, "TestPage1", "image." + ext );
+            att.setAuthor( "TestUser" );
+
+            final File tempFile = File.createTempFile( "test-image", "." + ext );
+            tempFile.deleteOnExit();
+            try( final FileOutputStream fos = new FileOutputStream( tempFile ) ) {
+                fos.write( "fake image content".getBytes() );
+            }
+            am.storeAttachment( att, tempFile );
+        }
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+        Mockito.when( request.getScheme() ).thenReturn( "http" );
+        Mockito.when( request.getServerName() ).thenReturn( "localhost" );
+        Mockito.when( request.getServerPort() ).thenReturn( 8080 );
+        Mockito.when( request.getContextPath() ).thenReturn( "" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter stringWriter = new StringWriter();
+        final PrintWriter printWriter = new PrintWriter( stringWriter );
+
+        Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+        servlet.doGet( request, response );
+
+        final String sitemap = stringWriter.toString();
+
+        // Verify all image formats are included
+        for( final String ext : imageExtensions ) {
+            Assertions.assertTrue( sitemap.contains( "image." + ext ),
+                "Sitemap should contain image with ." + ext + " extension" );
+        }
+    }
+
+    @Test
+    void testSitemapExcludesNonImageAttachments() throws Exception {
+        // Create a non-image attachment
+        final AttachmentManager am = m_engine.getManager( AttachmentManager.class );
+        final Attachment att = Wiki.contents().attachment( m_engine, "TestPage1", "document.pdf" );
+        att.setAuthor( "TestUser" );
+
+        final File tempFile = File.createTempFile( "test-doc", ".pdf" );
+        tempFile.deleteOnExit();
+        try( final FileOutputStream fos = new FileOutputStream( tempFile ) ) {
+            fos.write( "%PDF-1.4 fake content".getBytes() );
+        }
+        am.storeAttachment( att, tempFile );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+        Mockito.when( request.getScheme() ).thenReturn( "http" );
+        Mockito.when( request.getServerName() ).thenReturn( "localhost" );
+        Mockito.when( request.getServerPort() ).thenReturn( 8080 );
+        Mockito.when( request.getContextPath() ).thenReturn( "" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter stringWriter = new StringWriter();
+        final PrintWriter printWriter = new PrintWriter( stringWriter );
+
+        Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+        servlet.doGet( request, response );
+
+        final String sitemap = stringWriter.toString();
+
+        // Verify PDF is NOT included as an image
+        Assertions.assertFalse( sitemap.contains( "document.pdf" ),
+            "Sitemap should NOT contain PDF in image:image element" );
+        // But the page itself should still be in the sitemap
+        Assertions.assertTrue( sitemap.contains( "TestPage1" ),
+            "Sitemap should still contain the page" );
+    }
+
+    @Test
+    void testSitemapImageUrlsAreProperlyEscaped() throws Exception {
+        // Create an image attachment with special characters
+        final AttachmentManager am = m_engine.getManager( AttachmentManager.class );
+        final Attachment att = Wiki.contents().attachment( m_engine, "TestPage1", "image&test.png" );
+        att.setAuthor( "TestUser" );
+
+        final File tempFile = File.createTempFile( "test-image", ".png" );
+        tempFile.deleteOnExit();
+        try( final FileOutputStream fos = new FileOutputStream( tempFile ) ) {
+            fos.write( new byte[] { (byte)0x89, 0x50, 0x4E, 0x47 } );
+        }
+        am.storeAttachment( att, tempFile );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+        Mockito.when( request.getScheme() ).thenReturn( "http" );
+        Mockito.when( request.getServerName() ).thenReturn( "localhost" );
+        Mockito.when( request.getServerPort() ).thenReturn( 8080 );
+        Mockito.when( request.getContextPath() ).thenReturn( "" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter stringWriter = new StringWriter();
+        final PrintWriter printWriter = new PrintWriter( stringWriter );
+
+        Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+        servlet.doGet( request, response );
+
+        final String sitemap = stringWriter.toString();
+
+        // Verify the ampersand is escaped as &amp;
+        Assertions.assertTrue( sitemap.contains( "image&amp;test.png" ),
+            "Sitemap should escape ampersand as &amp;" );
+        Assertions.assertFalse( sitemap.contains( "image&test.png</image:loc>" ),
+            "Sitemap should NOT contain unescaped ampersand" );
     }
 
 }

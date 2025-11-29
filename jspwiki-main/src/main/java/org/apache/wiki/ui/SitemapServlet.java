@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -48,6 +49,7 @@ import org.apache.wiki.auth.AuthorizationManager;
 import org.apache.wiki.auth.permissions.PagePermission;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.url.URLConstructor;
+import org.apache.wiki.util.TextUtil;
 
 /**
  * Servlet that generates a sitemap.xml file for search engine indexing.
@@ -64,6 +66,11 @@ import org.apache.wiki.url.URLConstructor;
  * Menu pages (LeftMenu, LeftMenuFooter, TitleBox, etc.) are automatically excluded
  * from the sitemap as they are not primary content pages.
  * </p>
+ * <p>
+ * When running behind a reverse proxy that terminates SSL (like cloudflared, nginx,
+ * or a load balancer), the sitemap URLs may incorrectly use http:// instead of https://.
+ * Use the {@link #PROP_SITEMAP_BASE_URL} property to explicitly set the base URL.
+ * </p>
  *
  * @see <a href="https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap">Google Sitemap Documentation</a>
  * @see <a href="https://developers.google.com/search/docs/crawling-indexing/sitemaps/image-sitemaps">Google Image Sitemap Documentation</a>
@@ -72,6 +79,22 @@ public class SitemapServlet extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( SitemapServlet.class );
+
+    /**
+     * Property name for explicit sitemap base URL configuration.
+     * <p>
+     * When JSPWiki runs behind a reverse proxy that terminates SSL, use this property
+     * to explicitly set the base URL for sitemap generation with the correct protocol.
+     * </p>
+     * <p>
+     * Example: {@code jspwiki.sitemap.baseURL = https://wiki.example.com/JSPWiki}
+     * </p>
+     * <p>
+     * If not set, the base URL is derived from the incoming request, which works
+     * correctly when JSPWiki handles SSL directly.
+     * </p>
+     */
+    public static final String PROP_SITEMAP_BASE_URL = "jspwiki.sitemap.baseURL";
 
     /** Sitemap namespace */
     private static final String SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9";
@@ -154,9 +177,16 @@ public class SitemapServlet extends HttpServlet {
         final AttachmentManager attachmentManager = m_engine.getManager( AttachmentManager.class );
 
         // Build fully qualified base URL
-        String baseUrl = m_engine.getBaseURL();
+        // First check for explicit sitemap baseURL configuration (for proxy/HTTPS scenarios)
+        final Properties props = m_engine.getWikiProperties();
+        String baseUrl = TextUtil.getStringProperty( props, PROP_SITEMAP_BASE_URL, null );
 
-        // If baseUrl doesn't have protocol, build from request
+        // Fall back to engine's baseURL if no sitemap-specific URL configured
+        if ( baseUrl == null || baseUrl.isBlank() ) {
+            baseUrl = m_engine.getBaseURL();
+        }
+
+        // If still no protocol, build from request (original behavior)
         if ( baseUrl == null || !baseUrl.startsWith( "http" ) ) {
             final String scheme = req.getScheme();
             final String serverName = req.getServerName();

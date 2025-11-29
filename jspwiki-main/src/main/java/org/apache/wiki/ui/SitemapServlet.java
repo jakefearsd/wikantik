@@ -119,12 +119,22 @@ public class SitemapServlet extends HttpServlet {
     ) );
 
     private Engine m_engine;
+    private String m_configuredBaseUrl;
 
     @Override
     public void init( final ServletConfig config ) throws ServletException {
         super.init( config );
         m_engine = Wiki.engine().find( config );
-        LOG.info( "SitemapServlet initialized." );
+
+        // Check for configured sitemap base URL
+        final Properties props = m_engine.getWikiProperties();
+        m_configuredBaseUrl = TextUtil.getStringProperty( props, PROP_SITEMAP_BASE_URL, null );
+
+        if ( m_configuredBaseUrl != null && !m_configuredBaseUrl.isBlank() ) {
+            LOG.info( "SitemapServlet initialized with configured baseURL: {}", m_configuredBaseUrl );
+        } else {
+            LOG.info( "SitemapServlet initialized (baseURL will be derived from request)" );
+        }
     }
 
     @Override
@@ -178,8 +188,7 @@ public class SitemapServlet extends HttpServlet {
 
         // Build fully qualified base URL
         // First check for explicit sitemap baseURL configuration (for proxy/HTTPS scenarios)
-        final Properties props = m_engine.getWikiProperties();
-        String baseUrl = TextUtil.getStringProperty( props, PROP_SITEMAP_BASE_URL, null );
+        String baseUrl = m_configuredBaseUrl;
 
         // Fall back to engine's baseURL if no sitemap-specific URL configured
         if ( baseUrl == null || baseUrl.isBlank() ) {

@@ -1,0 +1,44 @@
+# robots.txt for JSPWiki
+# Allow indexing of public wiki content while blocking administrative/action pages
+
+User-agent: *
+
+# Allow the sitemap
+Sitemap: /sitemap.xml
+
+# Block administrative and action pages (not content)
+Disallow: /Edit.jsp
+Disallow: /Delete.jsp
+Disallow: /Comment.jsp
+Disallow: /Upload.jsp
+Disallow: /Rename.jsp
+Disallow: /NewGroup.jsp
+Disallow: /Login.jsp
+Disallow: /LoginForm.jsp
+Disallow: /Logout.jsp
+Disallow: /UserPreferences.jsp
+Disallow: /Workflow.jsp
+Disallow: /admin/
+
+# Block diff and version history views (duplicate content)
+Disallow: /Diff.jsp
+Disallow: /PageInfo.jsp
+
+# Block search results pages (let Google use its own index)
+Disallow: /Search.jsp
+
+# Block attachment management (but not attachment files themselves)
+Disallow: /AttachmentInfo.jsp
+
+# Block error pages
+Disallow: /Error.jsp
+Disallow: /Message.jsp
+
+# Block raw page source
+Disallow: /Raw.jsp
+
+# Block JSON/AJAX endpoints
+Disallow: /JSON-RPC
+
+# Crawl-delay: be polite to crawlers (optional, 1 second between requests)
+Crawl-delay: 1

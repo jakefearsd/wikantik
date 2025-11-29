@@ -535,4 +535,192 @@ class SitemapServletTest {
             "Sitemap should NOT contain unescaped ampersand" );
     }
 
+    @Test
+    void testSitemapWithExplicitBaseUrlHttps() throws Exception {
+        // Create a new engine with explicit sitemap base URL configured
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( SitemapServlet.PROP_SITEMAP_BASE_URL, "https://wiki.example.com/JSPWiki" );
+        final TestEngine engineWithHttps = new TestEngine( props );
+
+        try {
+            // Create test page
+            engineWithHttps.saveText( "TestPageHttps", "Test page for HTTPS sitemap test." );
+
+            // Initialize servlet with this engine
+            final SitemapServlet httpsServlet = new SitemapServlet();
+            final ServletConfig config = Mockito.mock( ServletConfig.class );
+            Mockito.doReturn( engineWithHttps.getServletContext() ).when( config ).getServletContext();
+            httpsServlet.init( config );
+
+            // Create request - note: the request itself uses http, but sitemap should use configured https
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+            Mockito.when( request.getScheme() ).thenReturn( "http" );  // Internal request is HTTP
+            Mockito.when( request.getServerName() ).thenReturn( "localhost" );
+            Mockito.when( request.getServerPort() ).thenReturn( 8080 );
+            Mockito.when( request.getContextPath() ).thenReturn( "/JSPWiki" );
+
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter stringWriter = new StringWriter();
+            final PrintWriter printWriter = new PrintWriter( stringWriter );
+
+            Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+            httpsServlet.doGet( request, response );
+
+            final String sitemap = stringWriter.toString();
+
+            // Verify URLs use the configured HTTPS base URL, not the request's http
+            Assertions.assertTrue( sitemap.contains( "<loc>https://wiki.example.com/JSPWiki" ),
+                "Sitemap URLs should use configured HTTPS base URL" );
+            Assertions.assertFalse( sitemap.contains( "<loc>http://localhost:8080" ),
+                "Sitemap URLs should NOT use request-based HTTP URL when base URL is configured" );
+        } finally {
+            // Cleanup
+            final PageManager pm = engineWithHttps.getManager( PageManager.class );
+            pm.deletePage( "TestPageHttps" );
+            engineWithHttps.stop();
+        }
+    }
+
+    @Test
+    void testSitemapWithExplicitBaseUrlNoTrailingSlash() throws Exception {
+        // Test that trailing slashes are handled correctly
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( SitemapServlet.PROP_SITEMAP_BASE_URL, "https://wiki.example.com/JSPWiki/" );  // With trailing slash
+        final TestEngine engineWithSlash = new TestEngine( props );
+
+        try {
+            engineWithSlash.saveText( "TestPageSlash", "Test page for trailing slash test." );
+
+            final SitemapServlet slashServlet = new SitemapServlet();
+            final ServletConfig config = Mockito.mock( ServletConfig.class );
+            Mockito.doReturn( engineWithSlash.getServletContext() ).when( config ).getServletContext();
+            slashServlet.init( config );
+
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+            Mockito.when( request.getScheme() ).thenReturn( "http" );
+            Mockito.when( request.getServerName() ).thenReturn( "localhost" );
+            Mockito.when( request.getServerPort() ).thenReturn( 8080 );
+            Mockito.when( request.getContextPath() ).thenReturn( "/JSPWiki" );
+
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter stringWriter = new StringWriter();
+            final PrintWriter printWriter = new PrintWriter( stringWriter );
+
+            Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+            slashServlet.doGet( request, response );
+
+            final String sitemap = stringWriter.toString();
+
+            // Verify no double slashes in URLs (trailing slash should be stripped)
+            Assertions.assertFalse( sitemap.contains( "JSPWiki//" ),
+                "Sitemap URLs should not contain double slashes after context path" );
+            // Verify the base URL is used (with trailing slash stripped)
+            Assertions.assertTrue( sitemap.contains( "<loc>https://wiki.example.com/JSPWiki/" ),
+                "Sitemap URLs should use the configured base URL" );
+            // Verify page is in the sitemap
+            Assertions.assertTrue( sitemap.contains( "TestPageSlash" ),
+                "Sitemap should contain the test page" );
+        } finally {
+            final PageManager pm = engineWithSlash.getManager( PageManager.class );
+            pm.deletePage( "TestPageSlash" );
+            engineWithSlash.stop();
+        }
+    }
+
+    @Test
+    void testSitemapWithEmptyBaseUrlFallsBackToRequest() throws Exception {
+        // Test that empty/blank base URL falls back to request-based URL building
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( SitemapServlet.PROP_SITEMAP_BASE_URL, "   " );  // Blank string
+        final TestEngine engineWithBlank = new TestEngine( props );
+
+        try {
+            engineWithBlank.saveText( "TestPageBlank", "Test page for blank base URL test." );
+
+            final SitemapServlet blankServlet = new SitemapServlet();
+            final ServletConfig config = Mockito.mock( ServletConfig.class );
+            Mockito.doReturn( engineWithBlank.getServletContext() ).when( config ).getServletContext();
+            blankServlet.init( config );
+
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+            Mockito.when( request.getScheme() ).thenReturn( "http" );
+            Mockito.when( request.getServerName() ).thenReturn( "testserver.local" );
+            Mockito.when( request.getServerPort() ).thenReturn( 9090 );
+            Mockito.when( request.getContextPath() ).thenReturn( "/wiki" );
+
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter stringWriter = new StringWriter();
+            final PrintWriter printWriter = new PrintWriter( stringWriter );
+
+            Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+            blankServlet.doGet( request, response );
+
+            final String sitemap = stringWriter.toString();
+
+            // Should fall back to request-based URL (testserver.local:9090)
+            Assertions.assertTrue( sitemap.contains( "http://testserver.local:9090" ),
+                "Sitemap should fall back to request-based URL when base URL is blank" );
+        } finally {
+            final PageManager pm = engineWithBlank.getManager( PageManager.class );
+            pm.deletePage( "TestPageBlank" );
+            engineWithBlank.stop();
+        }
+    }
+
+    @Test
+    void testSitemapBaseUrlOverridesRequestScheme() throws Exception {
+        // Specifically test the proxy scenario: internal HTTP request, external HTTPS
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( SitemapServlet.PROP_SITEMAP_BASE_URL, "https://public.wiki.com" );
+        final TestEngine proxyEngine = new TestEngine( props );
+
+        try {
+            proxyEngine.saveText( "ProxyTestPage", "Test page for proxy scenario." );
+
+            final SitemapServlet proxyServlet = new SitemapServlet();
+            final ServletConfig config = Mockito.mock( ServletConfig.class );
+            Mockito.doReturn( proxyEngine.getServletContext() ).when( config ).getServletContext();
+            proxyServlet.init( config );
+
+            // Simulate internal request behind proxy (HTTP on port 8080)
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+            Mockito.when( request.getScheme() ).thenReturn( "http" );
+            Mockito.when( request.getServerName() ).thenReturn( "internal-server" );
+            Mockito.when( request.getServerPort() ).thenReturn( 8080 );
+            Mockito.when( request.getContextPath() ).thenReturn( "" );
+
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter stringWriter = new StringWriter();
+            final PrintWriter printWriter = new PrintWriter( stringWriter );
+
+            Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+            proxyServlet.doGet( request, response );
+
+            final String sitemap = stringWriter.toString();
+
+            // The configured base URL should completely override request-derived URL
+            Assertions.assertTrue( sitemap.contains( "<loc>https://public.wiki.com" ),
+                "Sitemap should use configured HTTPS URL" );
+            Assertions.assertFalse( sitemap.contains( "internal-server" ),
+                "Sitemap should NOT contain internal server name" );
+            Assertions.assertFalse( sitemap.contains( "http://internal" ),
+                "Sitemap should NOT use HTTP scheme from internal request" );
+        } finally {
+            final PageManager pm = proxyEngine.getManager( PageManager.class );
+            pm.deletePage( "ProxyTestPage" );
+            proxyEngine.stop();
+        }
+    }
+
+    @Test
+    void testSitemapPropertyConstantValue() {
+        // Verify the property constant has the expected value
+        Assertions.assertEquals( "jspwiki.sitemap.baseURL", SitemapServlet.PROP_SITEMAP_BASE_URL,
+            "Property constant should have correct value" );
+    }
+
 }

@@ -478,6 +478,11 @@ public class LuceneSearchProvider implements SearchProvider {
      * @throws ProviderException if there is a problem with the backend
      */
     public Collection< SearchResult > findPages( final String query, final int flags, final Context wikiContext ) throws ProviderException {
+        // Return empty results for blank queries - Lucene cannot parse empty strings
+        if( StringUtils.isBlank( query ) ) {
+            return Collections.emptyList();
+        }
+
         ArrayList< SearchResult > list = null;
         Highlighter highlighter = null;
 

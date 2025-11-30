@@ -1,26 +1,34 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <!-- Monochrome version for Safari pinned tabs - uses only black fill -->
-  <g fill="#000000">
-    <!-- F top horizontal bar -->
-    <rect x="200" y="100" width="160" height="40" rx="4"/>
+  <!-- Combined J and F monogram, centered with italic slant -->
+  <g fill="#000000" transform="translate(292, 256)">
+    <g transform="skewX(-12)">
+      <!-- F top horizontal bar - smooth rounded ends -->
+      <rect x="-55" y="-156" width="160" height="40" rx="20" ry="20"/>
 
-    <!-- F middle horizontal bar -->
-    <rect x="200" y="200" width="120" height="35" rx="4"/>
+      <!-- F middle horizontal bar - smooth rounded ends -->
+      <rect x="-55" y="-56" width="120" height="35" rx="17" ry="17"/>
 
-    <!-- Vertical stem that curves into J at bottom -->
-    <path d="M200 100
-             L245 100
-             L245 340
-             Q245 400 185 400
-             L130 400
-             Q70 400 70 340
-             L70 300
-             L115 300
-             L115 335
-             Q115 360 140 360
-             L175 360
-             Q200 360 200 335
-             L200 100
-             Z"/>
+      <!-- Vertical stem that curves into J at bottom - smooth curves -->
+      <path d="M-55 -156
+               Q-55 -176 -35 -176
+               L-15 -176
+               Q5 -176 5 -156
+               L5 84
+               Q5 160 -60 160
+               L-115 160
+               Q-185 160 -185 90
+               L-185 60
+               Q-185 40 -165 40
+               L-145 40
+               Q-125 40 -125 60
+               L-125 80
+               Q-125 115 -90 115
+               L-60 115
+               Q-40 115 -40 95
+               L-40 -136
+               Q-40 -156 -55 -156
+               Z"/>
+    </g>
   </g>
 </svg>

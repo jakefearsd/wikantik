@@ -5,24 +5,38 @@
 1. [Executive Summary](#executive-summary)
 2. [Part A: Google Cloud Console Setup](#part-a-google-cloud-console-setup)
 3. [Part B: Architecture Overview](#part-b-architecture-overview)
+   - [B.0 Authentication Options Overview](#b0-authentication-options-overview) *(Traditional + OAuth coexistence)*
+   - [B.1 High-Level OAuth Flow](#b1-high-level-oauth-flow)
+   - [B.2 Component Architecture](#b2-component-architecture)
+   - [B.3 Integration Points](#b3-integration-points)
 4. [Part C: Implementation Plan](#part-c-implementation-plan)
 5. [Part D: Configuration Guide](#part-d-configuration-guide)
 6. [Part E: Testing Strategy](#part-e-testing-strategy)
+   - [E.3.2 Traditional Authentication Still Works (CRITICAL)](#e32-traditional-authentication-still-works-critical)
+   - [E.3.3 OAuth Happy Path Testing](#e33-oauth-happy-path-testing)
+   - [E.3.4 OAuth Disabled Mode](#e34-oauth-disabled-mode)
 7. [Part F: Security Considerations](#part-f-security-considerations)
+   - [F.0 Traditional Authentication Security (Unchanged)](#f0-traditional-authentication-security-unchanged)
 8. [Part G: Troubleshooting](#part-g-troubleshooting)
 9. [Part H: Cloudflare Tunnel & SquareSpace DNS Setup](#part-h-cloudflare-tunnel--squarespace-dns-setup)
+10. [Appendix: File Summary](#appendix-file-summary) *(New, Modified, and Unchanged files)*
 
 ---
 
 ## Executive Summary
 
-This document provides a complete implementation plan for adding OAuth 2.0 / OpenID Connect authentication to JSPWiki, enabling users to log in with their Google accounts. The implementation leverages JSPWiki's existing JAAS-based authentication architecture.
+This document provides a complete implementation plan for adding OAuth 2.0 / OpenID Connect authentication to JSPWiki as an **additional authentication option**. Users can choose to log in with their Google accounts OR continue using traditional JSPWiki username/password accounts. The implementation leverages JSPWiki's existing JAAS-based authentication architecture without replacing or removing any existing functionality.
 
 **Key Benefits:**
-- Users can log in with existing Google accounts
-- No password storage required for OAuth users
+- **User choice**: Users can authenticate via OAuth OR traditional wiki accounts
+- **Existing accounts preserved**: All current username/password accounts continue to work unchanged
+- **New user flexibility**: New users can register traditionally or sign in with Google
+- **No forced migration**: Existing users are not required to link OAuth accounts
+- No password storage required for OAuth users (but traditional accounts still use secure password hashing)
 - Seamless integration with existing permission system
 - Optional: Extend to support GitHub, Microsoft, etc.
+
+**Important Design Principle:** OAuth/SSO is purely additive. The traditional JSPWiki authentication system (username/password registration, login, and account management) remains fully functional and is the primary authentication method. OAuth provides a convenient alternative for users who prefer it.
 
 **Estimated Effort:** 8-10 developer days
 
@@ -206,6 +220,68 @@ For external apps, you must complete verification:
 
 ## Part B: Architecture Overview
 
+### B.0 Authentication Options Overview
+
+JSPWiki supports multiple authentication methods that coexist seamlessly:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Authentication Options for Users                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              ┌─────────────────────┐
+                              │    Login Page       │
+                              │                     │
+                              │  ┌───────────────┐  │
+                              │  │ Username: ___ │  │  ← Traditional Login
+                              │  │ Password: ___ │  │    (existing functionality)
+                              │  │   [Log In]    │  │
+                              │  └───────────────┘  │
+                              │                     │
+                              │    ── OR ──         │
+                              │                     │
+                              │  ┌───────────────┐  │
+                              │  │ Continue with │  │  ← OAuth Login
+                              │  │    Google     │  │    (new functionality)
+                              │  └───────────────┘  │
+                              │                     │
+                              │  [Register new      │  ← Traditional Registration
+                              │   account]          │    (existing functionality)
+                              └─────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Traditional Account Flow (UNCHANGED)                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 1. User clicks "Register new account"                                       │
+│ 2. User fills in: username, password, email, full name                      │
+│ 3. Account created in UserDatabase (XML or JDBC)                            │
+│ 4. User logs in with username/password                                      │
+│ 5. JAAS UserDatabaseLoginModule authenticates                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ OAuth Account Flow (NEW - ADDITIONAL OPTION)                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 1. User clicks "Continue with Google"                                        │
+│ 2. User authenticates with Google                                            │
+│ 3. If email not in UserDatabase → auto-create account (if enabled)          │
+│ 4. If email exists → link to existing account                                │
+│ 5. JAAS OAuthLoginModule authenticates                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Both flows result in the same authenticated WikiSession with identical
+permissions and capabilities. The authentication method is transparent
+to the rest of the wiki system.
+```
+
+**Key Points:**
+- The existing login form, registration page, and password management remain unchanged
+- OAuth buttons are added below/beside the existing login form
+- Users with traditional accounts can continue using username/password forever
+- Users can have both: a traditional password AND OAuth linked (same email)
+- All existing JAAS LoginModules continue to work
+- New OAuthLoginModule is added to the JAAS chain, not replacing anything
+
 ### B.1 High-Level OAuth Flow
 
 ```
@@ -296,14 +372,22 @@ org.apache.wiki.auth.oauth/
 
 ### B.3 Integration Points
 
-| Component | Integration Method | Description |
-|-----------|-------------------|-------------|
-| WikiSession | Event firing | LOGIN_AUTHENTICATED event triggers session update |
-| UserDatabase | Direct API | findByEmail(), save() for user management |
-| AuthenticationManager | JAAS | OAuthLoginModule plugs into existing framework |
-| web.xml | Servlet registration | New servlets for OAuth endpoints |
-| jspwiki.properties | Configuration | OAuth credentials and settings |
-| LoginContent.jsp | UI buttons | "Login with Google" button |
+| Component | Integration Method | Description | Impact on Existing |
+|-----------|-------------------|-------------|-------------------|
+| WikiSession | Event firing | LOGIN_AUTHENTICATED event triggers session update | None - same event used by traditional login |
+| UserDatabase | Direct API | findByEmail(), save() for user management | None - uses existing API |
+| AuthenticationManager | JAAS | OAuthLoginModule plugs into existing framework | **Additive** - existing LoginModules unchanged |
+| web.xml | Servlet registration | New servlets for OAuth endpoints | **Additive** - new mappings only |
+| jspwiki.properties | Configuration | OAuth credentials and settings | **Additive** - new properties only |
+| LoginContent.jsp | UI addition | "Login with Google" button added | **Additive** - existing form preserved |
+| NewGroup.jsp | No changes | Traditional registration unchanged | **No changes** |
+| UserPreferences.jsp | No changes | Password management unchanged | **No changes** |
+
+**Backward Compatibility Guarantee:**
+- All existing authentication flows continue to work identically
+- Existing user accounts require no migration or changes
+- If OAuth is disabled, the wiki functions exactly as before
+- Traditional registration remains available even when OAuth is enabled
 
 ---
 
@@ -1429,10 +1513,22 @@ Add the following servlet definitions:
 
 **Location:** `jspwiki-war/src/main/webapp/templates/default/LoginContent.jsp`
 
+**Important:** The existing login form (username/password fields, submit button, and "Register" link) remains completely unchanged. We are adding OAuth buttons as an **additional option** below the existing form.
+
 Add OAuth login buttons after the regular login form (around line 98, after the `<hr />`):
 
 ```jsp
-<%-- OAuth Login Options --%>
+<%--
+  OAuth Login Options - ADDITIONAL to existing login form
+
+  The traditional username/password form above this section remains unchanged.
+  Users can choose either method:
+    1. Enter username/password in the form above, OR
+    2. Click an OAuth button below
+
+  The "Register new account" link also remains available for users who
+  prefer to create a traditional wiki account with username/password.
+--%>
 <c:if test="${oauthEnabled}">
 <div class="oauth-login-options">
   <p class="text-center"><fmt:message key="login.oauth.or"/></p>
@@ -1453,6 +1549,7 @@ Add OAuth login buttons after the regular login form (around line 98, after the 
 
 </div>
 </c:if>
+<%-- End OAuth section. Traditional "Register" link follows unchanged. --%>
 ```
 
 Add CSS styles to the template's CSS file or inline:
@@ -1528,13 +1625,28 @@ Add these properties to your `jspwiki-custom.properties` file:
 ```properties
 #############################################################################
 # OAuth 2.0 / OpenID Connect Configuration
+#
+# IMPORTANT: OAuth is an OPTIONAL, ADDITIONAL authentication method.
+# When enabled, users can choose to:
+#   1. Log in with username/password (traditional - always available)
+#   2. Register a new account with username/password (traditional - always available)
+#   3. Log in with an OAuth provider like Google (if enabled below)
+#
+# Setting jspwiki.oauth.enabled = false completely hides OAuth options
+# and the wiki functions exactly as it did before OAuth was added.
 #############################################################################
 
 # Master switch for OAuth authentication
+# Set to 'true' to show OAuth login options alongside traditional login
+# Set to 'false' to hide OAuth entirely (traditional login only)
 jspwiki.oauth.enabled = true
 
 # Automatically create user accounts for new OAuth users
-# Set to false to require admin to pre-create accounts
+# - true: First-time OAuth users get an account created automatically
+# - false: OAuth users must have a pre-existing account (matched by email)
+#
+# Note: This only affects OAuth. Traditional registration (username/password)
+# is controlled separately by existing JSPWiki settings.
 jspwiki.oauth.autoCreateUsers = true
 
 #---------------------------------------------------------------------------
@@ -1891,7 +2003,37 @@ class OAuthFlowIntegrationTest {
 - [ ] HTTPS configured (or localhost for development)
 - [ ] Test user added to Google OAuth consent screen (if external app)
 
-#### E.3.2 Happy Path Testing
+#### E.3.2 Traditional Authentication Still Works (CRITICAL)
+
+**These tests verify that existing functionality is not broken by OAuth additions.**
+
+1. **Traditional Login (Existing Users)**
+   - [ ] Navigate to login page
+   - [ ] Verify username/password form is present and unchanged
+   - [ ] Log in with existing username/password
+   - [ ] Verify successful authentication
+   - [ ] Verify all permissions work as expected
+
+2. **Traditional Registration (New Users)**
+   - [ ] Navigate to registration page
+   - [ ] Verify registration form is present and unchanged
+   - [ ] Create new account with username/password/email
+   - [ ] Verify account created successfully
+   - [ ] Log in with new credentials
+   - [ ] Verify new user has expected default permissions
+
+3. **Password Management**
+   - [ ] Verify "Forgot Password" flow still works
+   - [ ] Verify password change in user preferences works
+   - [ ] Verify password requirements enforced as before
+
+4. **Login Page Layout**
+   - [ ] Traditional login form appears first/prominently
+   - [ ] OAuth buttons appear as secondary option (below or beside)
+   - [ ] "Register" link still visible and functional
+   - [ ] Clear visual separation between traditional and OAuth options
+
+#### E.3.3 OAuth Happy Path Testing
 
 1. **Initial Login Flow**
    - [ ] Open login page
@@ -1938,7 +2080,28 @@ class OAuthFlowIntegrationTest {
    - [ ] Attempt OAuth login
    - [ ] Verify login rejected with appropriate message
 
-#### E.3.4 Security Testing
+#### E.3.4 OAuth Disabled Mode
+
+**When `jspwiki.oauth.enabled = false`, verify complete backward compatibility:**
+
+1. **UI Verification**
+   - [ ] No OAuth buttons visible on login page
+   - [ ] No "Or sign in with" text visible
+   - [ ] Login page looks exactly like pre-OAuth version
+   - [ ] No JavaScript errors in browser console
+
+2. **Functional Verification**
+   - [ ] Traditional login works normally
+   - [ ] Traditional registration works normally
+   - [ ] Direct access to `/oauth/google` returns 404 or "not enabled" error
+   - [ ] No OAuth-related errors in server logs
+
+3. **Existing User Accounts**
+   - [ ] All existing users can log in as before
+   - [ ] No prompts to "link" OAuth accounts
+   - [ ] User profiles unchanged
+
+#### E.3.5 Security Testing
 
 1. **CSRF Protection**
    - [ ] Verify state parameter is validated
@@ -1959,6 +2122,18 @@ class OAuthFlowIntegrationTest {
 ---
 
 ## Part F: Security Considerations
+
+### F.0 Traditional Authentication Security (Unchanged)
+
+**OAuth additions do not affect the security of traditional accounts:**
+
+- Password hashing: Existing password storage and verification unchanged
+- Session management: Same session handling for all authentication methods
+- JAAS integration: Traditional LoginModules continue to function identically
+- Account lockout: Existing brute-force protections still apply to traditional login
+- Password policies: Existing password strength requirements unchanged
+
+**Users choosing traditional accounts get the same security they always had.**
 
 ### F.1 HTTPS Requirement
 
@@ -2090,6 +2265,8 @@ Enable debug logging for OAuth:
 
 ## Appendix: File Summary
 
+### New Files (OAuth-Specific)
+
 | File | Location | Purpose |
 |------|----------|---------|
 | `OAuthConfiguration.java` | `jspwiki-main/.../auth/oauth/` | Configuration holder |
@@ -2101,10 +2278,30 @@ Enable debug logging for OAuth:
 | `OAuthLoginModule.java` | `jspwiki-main/.../auth/login/` | JAAS login module |
 | `OAuthStartServlet.java` | `jspwiki-main/.../auth/oauth/servlet/` | Starts OAuth flow |
 | `OAuthCallbackServlet.java` | `jspwiki-main/.../auth/oauth/servlet/` | Handles callback |
-| `web.xml` | `jspwiki-war/.../WEB-INF/` | Servlet registration |
-| `LoginContent.jsp` | `jspwiki-war/.../templates/default/` | UI buttons |
-| `pom.xml` | `jspwiki-main/` | Dependencies |
-| `jspwiki-custom.properties` | Deployment | Configuration |
+
+### Modified Files (Additive Changes Only)
+
+| File | Location | Change Type |
+|------|----------|-------------|
+| `web.xml` | `jspwiki-war/.../WEB-INF/` | Add servlet mappings (existing mappings unchanged) |
+| `LoginContent.jsp` | `jspwiki-war/.../templates/default/` | Add OAuth buttons below existing form |
+| `pom.xml` | `jspwiki-main/` | Add OAuth dependencies |
+| `jspwiki-custom.properties` | Deployment | Add OAuth configuration properties |
+
+### Unchanged Files (Traditional Auth)
+
+These files are NOT modified and continue to function exactly as before:
+
+| File | Purpose |
+|------|---------|
+| `UserDatabaseLoginModule.java` | Traditional username/password authentication |
+| `CookieAssertionLoginModule.java` | Remember-me cookie authentication |
+| `AnonymousLoginModule.java` | Anonymous user handling |
+| `NewProfile.jsp` / `ProfileTab.jsp` | Traditional user registration |
+| `UserPreferences.jsp` | Password management, user settings |
+| `XMLUserDatabase.java` | User storage (XML-based) |
+| `JDBCUserDatabase.java` | User storage (database-based) |
+| All existing JAAS configuration | Existing login module chain |
 
 ---
 
@@ -2578,7 +2775,8 @@ curl -s https://wiki.yourdomain.com/JSPWiki/Wiki.jsp | grep -o 'href="[^"]*"' | 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2024 | Claude | Initial comprehensive plan |
+| 1.1 | 2025-11-30 | Claude | Clarified OAuth as optional/additive authentication. Added: B.0 (Auth Options Overview), E.3.2 (Traditional Auth Testing), E.3.4 (OAuth Disabled Mode), F.0 (Traditional Auth Security), expanded Appendix with unchanged files list. Emphasized backward compatibility throughout. |
 
 ---
 
-*This document was generated to provide a complete implementation guide for OAuth SSO in JSPWiki.*
+*This document provides a complete implementation guide for adding OAuth SSO to JSPWiki as an optional, additional authentication method alongside traditional username/password accounts.*

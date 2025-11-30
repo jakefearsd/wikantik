@@ -100,7 +100,7 @@ INSERT INTO users (
   'admin@localhost',
   'Administrator',
   'admin',
-  '{SSHA}6YNKYMwXICUf5pMvYUZumgbFCxZMT2njtUQtJw==',
+  '{SHA-256}o2tqerJSAYZA6mtgiVYt8DhgA9QnlLFQcIs8RBO785XuY4w4twYOUA==',
   'Administrator'
 );
 

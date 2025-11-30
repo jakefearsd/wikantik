@@ -4,7 +4,7 @@
 User-agent: *
 
 # Allow the sitemap
-Sitemap: /sitemap.xml
+Sitemap: https://wiki.jakefear.com/sitemap.xml
 
 # Block administrative and action pages (not content)
 Disallow: /Edit.jsp

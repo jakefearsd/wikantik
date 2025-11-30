@@ -12,96 +12,130 @@
  * limitations under the License.
  */
 
-drop table users;
-drop table roles;
-drop table groups;
-drop table group_members;
-drop user jspwiki;
+-- PostgreSQL 15+ compatible DDL for JSPWiki User and Group Database
+-- Tested with PostgreSQL 18
+--
+-- IMPORTANT: This script must be run as a PostgreSQL superuser (e.g., 'postgres')
+-- because it creates a database user and grants permissions.
+--
+-- Usage:
+--   sudo -u postgres psql -d jspwiki -f postgresql.ddl
+--
+-- Prerequisites:
+--   1. Create the database first: CREATE DATABASE jspwiki;
+--   2. Run this script as superuser to create tables and the application user
 
-create table users (
-  uid varchar(100),
-  email varchar_ignorecase(100),
-  full_name varchar(100),
-  login_name varchar(100) not null primary key,
-  password varchar(100),
-  wiki_name varchar(100),
-  created timestamp,
-  modified timestamp,
-  lock_expiry timestamp,
-  attributes longvarchar,
+-- Drop existing objects if they exist (safe for fresh installs)
+DROP TABLE IF EXISTS group_members;
+DROP TABLE IF EXISTS groups;
+DROP TABLE IF EXISTS roles;
+DROP TABLE IF EXISTS users;
+
+-- Revoke privileges before dropping user (required if user exists with grants)
+REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM jspwiki;
+REVOKE ALL PRIVILEGES ON SCHEMA public FROM jspwiki;
+REVOKE ALL PRIVILEGES ON DATABASE jspwiki FROM jspwiki;
+
+-- Drop and recreate application user (requires superuser privileges)
+DROP USER IF EXISTS jspwiki;
+
+-- Users table: stores user profiles
+CREATE TABLE users (
+  uid VARCHAR(100),
+  email VARCHAR(100),
+  full_name VARCHAR(100),
+  login_name VARCHAR(100) NOT NULL PRIMARY KEY,
+  password VARCHAR(100),
+  wiki_name VARCHAR(100),
+  created TIMESTAMP,
+  modified TIMESTAMP,
+  lock_expiry TIMESTAMP,
+  attributes TEXT
 );
 
-create table roles (
-  login_name varchar(100) not null,
-  role varchar(100) not null
+-- Roles table: stores user roles for container-managed authentication
+CREATE TABLE roles (
+  login_name VARCHAR(100) NOT NULL,
+  role VARCHAR(100) NOT NULL
 );
 
-create table groups (
-  name varchar(100) not null primary key,
-  creator varchar(100),
-  created timestamp,
-  modifier varchar(100),
-  modified timestamp
+-- Groups table: stores wiki group definitions
+CREATE TABLE groups (
+  name VARCHAR(100) NOT NULL PRIMARY KEY,
+  creator VARCHAR(100),
+  created TIMESTAMP,
+  modifier VARCHAR(100),
+  modified TIMESTAMP
 );
 
-create table group_members (
-  name varchar(100) not null,
-  member varchar(100) not null,
-  constraint group_members_pk
-    primary key (name,member)
+-- Group members table: stores group membership
+CREATE TABLE group_members (
+  name VARCHAR(100) NOT NULL,
+  member VARCHAR(100) NOT NULL,
+  CONSTRAINT group_members_pk
+    PRIMARY KEY (name, member)
 );
 
-create user jspwiki with encrypted password 'password' nocreatedb nocreateuser;
+-- Create application user
+-- NOTE: Change 'password' to a secure password before running in production!
+CREATE USER jspwiki WITH ENCRYPTED PASSWORD 'password' NOCREATEDB NOCREATEROLE;
 
-grant select, insert, update, delete on users to jspwiki;
-grant select, insert, update, delete on roles to jspwiki;
-grant select, insert, update, delete on groups to jspwiki;
-grant select, insert, update, delete on group_members to jspwiki;
+-- Grant table permissions to the application user
+GRANT SELECT, INSERT, UPDATE, DELETE ON users TO jspwiki;
+GRANT SELECT, INSERT, UPDATE, DELETE ON roles TO jspwiki;
+GRANT SELECT, INSERT, UPDATE, DELETE ON groups TO jspwiki;
+GRANT SELECT, INSERT, UPDATE, DELETE ON group_members TO jspwiki;
 
-insert into users (
+-- Insert default admin user
+-- Password is 'admin' hashed with {SSHA} - change immediately after first login!
+INSERT INTO users (
   uid,
   email,
   full_name,
   login_name,
   password,
   wiki_name
-) values (
+) VALUES (
   '-6852820166199419346',
-  'admin@locahost',
+  'admin@localhost',
   'Administrator',
   'admin',
   '{SSHA}6YNKYMwXICUf5pMvYUZumgbFCxZMT2njtUQtJw==',
   'Administrator'
 );
 
-insert into roles (
+-- Assign Admin role to the admin user
+INSERT INTO roles (
   login_name,
   role
-) values (  
+) VALUES (
   'admin',
   'Admin'
 );
 
-insert into groups (
+-- Create default Admin group
+INSERT INTO groups (
   name,
   created,
   modified
-) values (
+) VALUES (
   'Admin',
   '2006-06-20 14:50:54.00000000',
   '2006-06-20 14:50:54.00000000'
 );
 
-insert into group_members (
+-- Add Administrator to Admin group
+INSERT INTO group_members (
   name,
   member
-) values (  
+) VALUES (
   'Admin',
   'Administrator'
 );
 
-#drop table users;
-#drop table roles;
-#drop table groups;
-#drop table group_members;
-#drop user jspwiki;
+-- Cleanup commands (uncomment to use)
+-- DROP TABLE IF EXISTS group_members;
+-- DROP TABLE IF EXISTS groups;
+-- DROP TABLE IF EXISTS roles;
+-- DROP TABLE IF EXISTS users;
+-- DROP USER IF EXISTS jspwiki;

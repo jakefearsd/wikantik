@@ -82,8 +82,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -107,6 +109,16 @@ public class LuceneSearchProvider implements SearchProvider {
     public static final String PROP_LUCENE_ANALYZER      = "jspwiki.lucene.analyzer";
     private static final String PROP_LUCENE_INDEXDELAY   = "jspwiki.lucene.indexdelay";
     private static final String PROP_LUCENE_INITIALDELAY = "jspwiki.lucene.initialdelay";
+
+    /**
+     * How often (in seconds) to check for pages that exist on disk but are not in the Lucene index.
+     * Default is 300 seconds (5 minutes). Set to 0 to disable periodic checks.
+     */
+    private static final String PROP_LUCENE_MISSINGPAGECHECK_INTERVAL = "jspwiki.lucene.missingPageCheckInterval";
+    private static final int DEFAULT_MISSING_PAGE_CHECK_INTERVAL = 300;
+
+    /** How often (in seconds) to check for missing pages. Loaded from properties. */
+    private int m_missingPageCheckInterval = DEFAULT_MISSING_PAGE_CHECK_INTERVAL;
 
     private String m_analyzerClass = ClassicAnalyzer.class.getName();
 
@@ -148,6 +160,7 @@ public class LuceneSearchProvider implements SearchProvider {
 
         final int initialDelay = TextUtil.getIntegerProperty( props, PROP_LUCENE_INITIALDELAY, LuceneUpdater.INITIAL_DELAY );
         final int indexDelay   = TextUtil.getIntegerProperty( props, PROP_LUCENE_INDEXDELAY, LuceneUpdater.INDEX_DELAY );
+        m_missingPageCheckInterval = TextUtil.getIntegerProperty( props, PROP_LUCENE_MISSINGPAGECHECK_INTERVAL, DEFAULT_MISSING_PAGE_CHECK_INTERVAL );
 
         m_analyzerClass = TextUtil.getStringProperty( props, PROP_LUCENE_ANALYZER, m_analyzerClass );
 
@@ -184,7 +197,7 @@ public class LuceneSearchProvider implements SearchProvider {
 
         // Start the Lucene update thread, which waits first for a little while before starting to go through
         // the Lucene "pages that need updating".
-        final LuceneUpdater updater = new LuceneUpdater( m_engine, this, initialDelay, indexDelay );
+        final LuceneUpdater updater = new LuceneUpdater( m_engine, this, initialDelay, indexDelay, m_missingPageCheckInterval );
         updater.start();
     }
 
@@ -250,7 +263,9 @@ public class LuceneSearchProvider implements SearchProvider {
                 final Date end = new Date();
                 LOG.info( "Full Lucene index finished in {} milliseconds.", end.getTime() - start.getTime() );
             } else {
-                LOG.info( "Files found in Lucene directory, not reindexing." );
+                // Index exists - check for pages added outside the wiki UI (e.g., directly to filesystem)
+                LOG.info( "Lucene index exists, checking for missing pages..." );
+                indexMissingPages();
             }
         } catch( final IOException e ) {
             LOG.error( "Problem while creating Lucene index - not using Lucene.", e );
@@ -433,6 +448,121 @@ public class LuceneSearchProvider implements SearchProvider {
     }
 
     /**
+     * Returns a Set of all page names currently in the Lucene index.
+     * This is used to efficiently identify pages that exist on disk but are not indexed.
+     *
+     * @return Set of page names in the index, or empty set if index cannot be read
+     */
+    protected Set< String > getIndexedPageNames() {
+        final Set< String > indexedPages = new HashSet<>();
+        final File dir = new File( m_luceneDirectory );
+
+        if( !dir.exists() || dir.list() == null || dir.list().length == 0 ) {
+            return indexedPages;
+        }
+
+        try( final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
+             final IndexReader reader = DirectoryReader.open( luceneDir ) ) {
+            final StoredFields storedFields = reader.storedFields();
+            for( int i = 0; i < reader.maxDoc(); i++ ) {
+                final Document doc = storedFields.document( i );
+                final String pageName = doc.get( LUCENE_ID );
+                if( pageName != null ) {
+                    indexedPages.add( pageName );
+                }
+            }
+            LOG.debug( "Found {} pages in Lucene index", indexedPages.size() );
+        } catch( final IOException e ) {
+            LOG.warn( "Could not read Lucene index to get indexed page names", e );
+        }
+
+        return indexedPages;
+    }
+
+    /**
+     * Indexes pages that exist on disk but are missing from the Lucene index.
+     * This method is optimized for large wikis - it retrieves page names from the page provider
+     * and compares against indexed names without loading full page content until necessary.
+     *
+     * @return the number of pages that were indexed
+     */
+    protected int indexMissingPages() {
+        final File dir = new File( m_luceneDirectory );
+        if( !dir.exists() || dir.list() == null || dir.list().length == 0 ) {
+            // No index exists yet - full reindex will happen
+            LOG.debug( "No Lucene index exists, skipping missing page check" );
+            return 0;
+        }
+
+        int pagesIndexed = 0;
+        try {
+            // Get set of indexed page names (efficient - only reads LUCENE_ID field)
+            final Set< String > indexedPages = getIndexedPageNames();
+
+            // Get all pages from disk
+            final Collection< Page > allPages = m_engine.getManager( PageManager.class ).getAllPages();
+
+            // Find pages that exist on disk but not in index
+            final List< Page > missingPages = allPages.stream()
+                    .filter( page -> !indexedPages.contains( page.getName() ) )
+                    .collect( Collectors.toList() );
+
+            if( !missingPages.isEmpty() ) {
+                LOG.info( "Found {} pages missing from Lucene index, indexing...", missingPages.size() );
+
+                try( final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
+                     final IndexWriter writer = getIndexWriter( luceneDir ) ) {
+                    for( final Page page : missingPages ) {
+                        try {
+                            final String text = m_engine.getManager( PageManager.class )
+                                    .getPageText( page.getName(), WikiProvider.LATEST_VERSION );
+                            luceneIndexPage( page, text, writer );
+                            pagesIndexed++;
+                            LOG.debug( "Indexed missing page: {}", page.getName() );
+                        } catch( final IOException e ) {
+                            LOG.warn( "Unable to index missing page {}", page.getName(), e );
+                        }
+                    }
+                }
+                LOG.info( "Indexed {} missing pages", pagesIndexed );
+            }
+
+            // Also check for missing attachments
+            final Collection< Attachment > allAttachments = m_engine.getManager( AttachmentManager.class ).getAllAttachments();
+            final List< Attachment > missingAttachments = allAttachments.stream()
+                    .filter( att -> !indexedPages.contains( att.getName() ) )
+                    .collect( Collectors.toList() );
+
+            if( !missingAttachments.isEmpty() ) {
+                LOG.info( "Found {} attachments missing from Lucene index, indexing...", missingAttachments.size() );
+
+                try( final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
+                     final IndexWriter writer = getIndexWriter( luceneDir ) ) {
+                    int attachmentsIndexed = 0;
+                    for( final Attachment att : missingAttachments ) {
+                        try {
+                            final String text = getAttachmentContent( att.getName(), WikiProvider.LATEST_VERSION );
+                            luceneIndexPage( att, text, writer );
+                            attachmentsIndexed++;
+                            LOG.debug( "Indexed missing attachment: {}", att.getName() );
+                        } catch( final IOException e ) {
+                            LOG.warn( "Unable to index missing attachment {}", att.getName(), e );
+                        }
+                    }
+                    LOG.info( "Indexed {} missing attachments", attachmentsIndexed );
+                }
+            }
+
+        } catch( final ProviderException e ) {
+            LOG.error( "Error reading pages while checking for missing Lucene entries", e );
+        } catch( final IOException e ) {
+            LOG.error( "Error writing to Lucene index while indexing missing pages", e );
+        }
+
+        return pagesIndexed;
+    }
+
+    /**
      * Adds a page-text pair to the lucene update queue.  Safe to call always
      *
      * @param page WikiPage to add to the update queue.
@@ -558,13 +688,18 @@ public class LuceneSearchProvider implements SearchProvider {
         private final LuceneSearchProvider m_provider;
 
         private final int m_initialDelay;
+        private final int m_missingPageCheckInterval;
+        private long m_lastMissingPageCheck;
 
         private WatchDog m_watchdog;
 
-        private LuceneUpdater( final Engine engine, final LuceneSearchProvider provider, final int initialDelay, final int indexDelay ) {
+        private LuceneUpdater( final Engine engine, final LuceneSearchProvider provider,
+                               final int initialDelay, final int indexDelay, final int missingPageCheckInterval ) {
             super( engine, indexDelay );
             m_provider = provider;
             m_initialDelay = initialDelay;
+            m_missingPageCheckInterval = missingPageCheckInterval;
+            m_lastMissingPageCheck = System.currentTimeMillis();
             setName( "JSPWiki Lucene Indexer" );
         }
 
@@ -580,8 +715,9 @@ public class LuceneSearchProvider implements SearchProvider {
             }
 
             m_watchdog.enterState( "Full reindex" );
-            // Reindex everything
+            // Reindex everything (or check for missing pages if index exists)
             m_provider.doFullLuceneReindex();
+            m_lastMissingPageCheck = System.currentTimeMillis();
             m_watchdog.exitState();
         }
 
@@ -599,6 +735,20 @@ public class LuceneSearchProvider implements SearchProvider {
             }
 
             m_watchdog.exitState();
+
+            // Periodically check for pages added outside the wiki UI
+            if( m_missingPageCheckInterval > 0 ) {
+                final long now = System.currentTimeMillis();
+                final long elapsedSeconds = ( now - m_lastMissingPageCheck ) / 1000L;
+
+                if( elapsedSeconds >= m_missingPageCheckInterval ) {
+                    m_watchdog.enterState( "Checking for missing pages", 120 );
+                    LOG.debug( "Running periodic check for pages missing from Lucene index" );
+                    m_provider.indexMissingPages();
+                    m_lastMissingPageCheck = now;
+                    m_watchdog.exitState();
+                }
+            }
         }
 
     }

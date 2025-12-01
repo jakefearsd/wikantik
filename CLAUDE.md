@@ -1,6 +1,8 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+The preferred development apppoach is test driven development, with putting tests in place to show
+defects before they are repaired, so that we know we have an effective test to detect the issue.
 
 ## Development Commands
 
@@ -58,7 +60,8 @@ mvn apache-rat:check
 # Generate Javadocs with UML diagrams
 mvn javadoc:javadoc
 ```
-
+High test coverage at the line level, above 90% is a goal for this development team,
+and while we recognize it is no a perfect measurement, it is one we choose to pursue.
 ### Web Resource Management
 ```bash
 # Merge and compress JavaScript/CSS files

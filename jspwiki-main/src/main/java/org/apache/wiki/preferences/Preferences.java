@@ -31,6 +31,7 @@ import org.apache.wiki.util.PropertyReader;
 import org.apache.wiki.util.TextUtil;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.jsp.PageContext;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -75,11 +76,10 @@ public class Preferences extends HashMap< String,String > {
      *  @param pageContext The JSP PageContext.
      */
     public static void setupPreferences( final PageContext pageContext ) {
-        //HttpSession session = pageContext.getSession();
-        //if( session.getAttribute( SESSIONPREFS ) == null )
-        //{
+        final HttpSession session = pageContext.getSession();
+        if( session.getAttribute( SESSIONPREFS ) == null ) {
             reloadPreferences( pageContext );
-        //}
+        }
     }
 
     /**

@@ -312,6 +312,58 @@ public class ReferenceManagerTest  {
     }
 
     /**
+     * Tests that newly added pages (added after ReferenceManager initialization)
+     * appear in findUnreferenced(). This simulates the case where pages are added
+     * to the filesystem after the reference manager has been serialized and
+     * then loaded from disk.
+     */
+    @Test
+    public void testNewPageAppearsInUnreferenced() throws Exception {
+        // First verify current unreferenced pages
+        Collection< String > unreferenced = mgr.findUnreferenced();
+        Assertions.assertTrue( unreferenced.contains( "TestPage" ), "TestPage should be unreferenced initially" );
+        final int initialCount = unreferenced.size();
+
+        // Add a new page that is not referenced by anything
+        engine.saveText( "BrandNewPage", "This page has no incoming links" );
+
+        // The new page should appear in unreferenced
+        unreferenced = mgr.findUnreferenced();
+        Assertions.assertTrue( unreferenced.contains( "BrandNewPage" ),
+                "Newly added page should appear in findUnreferenced()" );
+        Assertions.assertEquals( initialCount + 1, unreferenced.size(),
+                "Unreferenced count should increase by 1" );
+    }
+
+    /**
+     * Tests that a page added after initialization becomes referenced
+     * when another page links to it.
+     */
+    @Test
+    public void testNewPageBecomesReferenced() throws Exception {
+        // Add a new unreferenced page
+        engine.saveText( "OrphanPage", "This page starts as an orphan" );
+
+        Collection< String > unreferenced = mgr.findUnreferenced();
+        Assertions.assertTrue( unreferenced.contains( "OrphanPage" ),
+                "OrphanPage should initially be unreferenced" );
+
+        // Now create a page that references it
+        engine.saveText( "LinkingPage", "Reference to [OrphanPage]" );
+
+        // OrphanPage should no longer be unreferenced
+        unreferenced = mgr.findUnreferenced();
+        Assertions.assertFalse( unreferenced.contains( "OrphanPage" ),
+                "OrphanPage should no longer be unreferenced after being linked" );
+
+        // Verify the reference exists
+        final Collection< String > referrers = mgr.findReferrers( "OrphanPage" );
+        Assertions.assertNotNull( referrers, "OrphanPage should have referrers" );
+        Assertions.assertTrue( referrers.contains( "LinkingPage" ),
+                "LinkingPage should be a referrer of OrphanPage" );
+    }
+
+    /**
      * Test method: dumps the contents of  ReferenceManager link lists to stdout.
      * This method is NOT synchronized, and should be used in testing
      * with one user, one WikiEngine only.

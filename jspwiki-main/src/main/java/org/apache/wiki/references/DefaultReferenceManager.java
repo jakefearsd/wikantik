@@ -192,8 +192,8 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
                 unserializeAttrsFromDisk( page );
             }
 
-            //  Now we must check if any of the pages have been changed  while we were in the electronic la-la-land,
-            //  and update the references for them.
+            //  Now we must check if any of the pages have been changed while we were in the electronic la-la-land,
+            //  and update the references for them. Also add any new pages that weren't in the serialized data.
             for( final Page page : pages ) {
                 if( !( page instanceof Attachment ) ) {
                     // Refresh with the latest copy
@@ -202,6 +202,13 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
                     if( wp.getLastModified() == null ) {
                         LOG.fatal( "Provider returns null lastModified.  Please submit a bug report." );
                     } else if( wp.getLastModified().getTime() > saved ) {
+                        updatePageReferences( wp );
+                    }
+
+                    // Ensure page exists in m_referredBy even if it has no inbound references
+                    // This is needed for findUnreferenced() to work correctly for new pages
+                    if( !m_referredBy.containsKey( page.getName() ) ) {
+                        m_referredBy.put( page.getName(), new TreeSet<>() );
                         updatePageReferences( wp );
                     }
                 }

@@ -25,6 +25,7 @@
 <%@ page import="java.util.*" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <%--
@@ -48,13 +49,93 @@ BOOTSTRAP, IE compatibility / http://getbootstrap.com/getting-started/#support-i
 <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
 --%>
 
+<%-- SEO Meta Tags --%>
 <wiki:PageExists>
-  <meta name="author" content="<wiki:Author format='plain'/>">
-  <meta name="description" content="Page version <wiki:PageVersion />, last modified by <wiki:Author format='plain'/>, on <wiki:PageDate format='${prefs["DateFormat"]}'/>" />
+  <c:set var="wikiPageName"><wiki:Variable var="pagename" /></c:set>
+  <c:set var="wikiAuthor"><wiki:Author format='plain'/></c:set>
+  <c:set var="wikiPageVersion"><wiki:PageVersion /></c:set>
+  <c:set var="wikiLastModified"><wiki:PageDate format='yyyy-MM-dd'/></c:set>
+  <c:set var="wikiAppName"><wiki:Variable var="ApplicationName" /></c:set>
+  <c:set var="wikiBaseUrl"><wiki:BaseURL /></c:set>
+  <%-- Build canonical URL: baseURL ends with / (e.g., http://host/JSPWiki/), append wiki/PageName --%>
+  <c:set var="canonicalUrl">${wikiBaseUrl}wiki/${wikiPageName}</c:set>
+
+  <%-- Canonical URL to prevent duplicate content issues --%>
+  <link rel="canonical" href="${canonicalUrl}" />
+
+  <meta name="author" content="${wikiAuthor}">
+  <%-- Improved meta description with actual content --%>
+  <c:set var="pageDescription"><wiki:Variable var='description' default='' /></c:set>
+  <c:choose>
+    <c:when test="${!empty pageDescription}">
+      <meta name="description" content="${pageDescription}" />
+    </c:when>
+    <c:when test="${!empty wikiPageVersion}">
+      <meta name="description" content="${wikiPageName} - ${wikiAppName} wiki page. Last modified by ${wikiAuthor}." />
+    </c:when>
+    <c:otherwise>
+      <meta name="description" content="${wikiPageName} - ${wikiAppName} wiki page." />
+    </c:otherwise>
+  </c:choose>
+
   <c:set var="keywords"><wiki:Variable var='keywords' default='' /></c:set>
   <c:if test="${!empty keywords}">
-    <meta name="keywords" content="<wiki:Variable var='keywords' default='' />" /><%--seo keywords--%>
+    <meta name="keywords" content="${keywords}" />
   </c:if>
+
+  <%-- Open Graph meta tags for social sharing --%>
+  <meta property="og:title" content="${wikiPageName} - ${wikiAppName}" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="${canonicalUrl}" />
+  <c:choose>
+    <c:when test="${!empty pageDescription}">
+      <meta property="og:description" content="${pageDescription}" />
+    </c:when>
+    <c:otherwise>
+      <meta property="og:description" content="${wikiPageName} - A page on ${wikiAppName}." />
+    </c:otherwise>
+  </c:choose>
+  <meta property="og:site_name" content="${wikiAppName}" />
+  <c:if test="${!empty wikiLastModified}">
+    <meta property="article:modified_time" content="${wikiLastModified}" />
+  </c:if>
+  <meta property="article:author" content="${wikiAuthor}" />
+
+  <%-- Twitter Card meta tags --%>
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="${wikiPageName} - ${wikiAppName}" />
+  <c:choose>
+    <c:when test="${!empty pageDescription}">
+      <meta name="twitter:description" content="${pageDescription}" />
+    </c:when>
+    <c:otherwise>
+      <meta name="twitter:description" content="${wikiPageName} - A page on ${wikiAppName}." />
+    </c:otherwise>
+  </c:choose>
+
+  <%-- JSON-LD Structured Data for SEO --%>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "${wikiPageName}",
+    "author": {
+      "@type": "Person",
+      "name": "${wikiAuthor}"
+    },
+    <c:if test="${!empty wikiLastModified}">
+    "dateModified": "${wikiLastModified}",
+    </c:if>
+    "publisher": {
+      "@type": "Organization",
+      "name": "${wikiAppName}"
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "${canonicalUrl}"
+    }
+  }
+  </script>
 </wiki:PageExists>
 
 

@@ -156,15 +156,17 @@ class LuceneSearchProviderTest {
         m_engine.saveText( "PageTwo", "Content for page two unique1234" );
         m_engine.saveText( "PageThree", "Content for page three unique1234" );
 
-        // Wait for indexing - search for unique term to ensure all are indexed
-        final Collection<SearchResult> res = new ArrayList<>();
+        // Wait until ALL THREE pages appear in getIndexedPageNames().
+        // Previously this test waited for findPages() to return 3 results, but that
+        // uses a different IndexReader snapshot than getIndexedPageNames(), causing
+        // a race condition where the assertion could fail even though the wait succeeded.
         Awaitility.await( "waiting for pages to be indexed" )
                 .atMost( 10, TimeUnit.SECONDS )
                 .until( () -> {
-                    final HttpServletRequest request = HttpMockFactory.createHttpRequest();
-                    final Context ctx = Wiki.context().create( m_engine, request, ContextEnum.PAGE_EDIT.getRequestContext() );
-                    final Collection<SearchResult> search = m_mgr.findPages( "unique1234", ctx );
-                    return search != null && search.size() >= 3;
+                    final Set<String> indexed = m_provider.getIndexedPageNames();
+                    return indexed.contains( "PageOne" )
+                        && indexed.contains( "PageTwo" )
+                        && indexed.contains( "PageThree" );
                 } );
 
         final Set<String> indexedPages = m_provider.getIndexedPageNames();

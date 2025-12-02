@@ -49,7 +49,8 @@
     <wiki:Include page="UserBox.jsp" />
     <wiki:Include page="SearchBox.jsp" />
 
-    <div class="pagename" title="<wiki:PageName />">
+    <%-- Use H1 for page title for proper SEO heading hierarchy --%>
+    <h1 class="pagename" title="<wiki:PageName />">
       <wiki:CheckRequestContext context='viewGroup|createGroup|editGroup'><span class="icon-group"></span></wiki:CheckRequestContext>
       <wiki:PageType type="attachment"><span class="icon-paper-clip"></span></wiki:PageType>
 
@@ -63,7 +64,7 @@
           <c:otherwise><a href="#top" tabindex="-1"><wiki:PageName /></a></c:otherwise>
         </c:choose>
 
-    </div>
+    </h1>
 
   </div>
   <wiki:Include page="Nav.jsp" />

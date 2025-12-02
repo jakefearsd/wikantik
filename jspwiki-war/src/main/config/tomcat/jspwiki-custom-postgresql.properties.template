@@ -26,6 +26,7 @@
 # Application settings
 jspwiki.applicationName = JSPWiki
 jspwiki.pageProvider = FileSystemProvider
+jspwiki.frontPage = Main
 
 # Base URL - adjust if using a different port or context path
 jspwiki.baseURL = http://localhost:8080/JSPWiki/

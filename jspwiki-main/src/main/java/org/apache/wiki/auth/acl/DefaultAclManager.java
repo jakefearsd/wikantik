@@ -23,7 +23,6 @@ import org.apache.logging.log4j.Logger;
 import org.apache.wiki.api.core.Acl;
 import org.apache.wiki.api.core.AclEntry;
 import org.apache.wiki.api.core.Attachment;
-import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.exceptions.ProviderException;
@@ -34,7 +33,6 @@ import org.apache.wiki.auth.permissions.PagePermission;
 import org.apache.wiki.auth.permissions.PermissionFactory;
 import org.apache.wiki.pages.PageLock;
 import org.apache.wiki.pages.PageManager;
-import org.apache.wiki.render.RenderingManager;
 import org.apache.wiki.util.comparators.PrincipalComparator;
 
 import java.security.Permission;
@@ -143,16 +141,42 @@ public class DefaultAclManager implements AclManager {
                 final Page parent = m_engine.getManager( PageManager.class ).getPage( att.getParentName() );
                 acl = getPermissions(parent);
             } else {
-                //  Or, try parsing the page
-                final Context ctx = Wiki.context().create( m_engine, page );
-                ctx.setVariable( Context.VAR_EXECUTE_PLUGINS, Boolean.FALSE );
-                m_engine.getManager( RenderingManager.class ).getHTML(ctx, page);
-
-                if (page.getAcl() == null) {
-                    page.setAcl( Wiki.acls().acl() );
-                }
-                acl = page.getAcl();
+                //  Extract ACLs directly from page text using regex - much faster than full page render
+                acl = extractAclFromPageText( page );
+                page.setAcl( acl );
             }
+        }
+
+        return acl;
+    }
+
+    /**
+     * Extracts ACL rules directly from page text using regex pattern matching.
+     * This is a lightweight alternative to full page rendering for ACL extraction.
+     *
+     * @param page the page to extract ACLs from
+     * @return the parsed Acl, or an empty Acl if no rules found or page text unavailable
+     */
+    private Acl extractAclFromPageText( final Page page ) {
+        Acl acl = Wiki.acls().acl();
+
+        try {
+            final String pageText = m_engine.getManager( PageManager.class ).getPureText( page );
+            if( pageText == null || pageText.isEmpty() ) {
+                return acl;
+            }
+
+            final Matcher matcher = ACL_PATTERN.matcher( pageText );
+            while( matcher.find() ) {
+                final String ruleLine = matcher.group();
+                try {
+                    acl = parseAcl( page, ruleLine );
+                } catch( final WikiSecurityException e ) {
+                    LOG.warn( "Invalid ACL rule in page {}: {}", page.getName(), ruleLine );
+                }
+            }
+        } catch( final Exception e ) {
+            LOG.error( "Error extracting ACL from page {}: {}", page.getName(), e.getMessage() );
         }
 
         return acl;

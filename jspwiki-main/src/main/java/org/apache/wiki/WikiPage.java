@@ -292,6 +292,7 @@ public class WikiPage implements Page {
         p.m_version      = m_version;
         p.m_lastModified = m_lastModified != null ? (Date)m_lastModified.clone() : null;
         p.m_fileSize     = m_fileSize;
+        p.m_hasMetadata  = m_hasMetadata;
         p.m_attributes.putAll( m_attributes );
 
         if( m_accessList != null ) {

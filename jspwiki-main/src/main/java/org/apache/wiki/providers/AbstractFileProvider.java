@@ -35,6 +35,7 @@ import org.apache.wiki.search.SearchResultComparator;
 import org.apache.wiki.util.FileUtil;
 import org.apache.wiki.util.TextUtil;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
@@ -52,6 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.lang3.SystemUtils;
 
 
@@ -112,6 +114,13 @@ public abstract class AbstractFileProvider implements PageProvider {
     public static final String DEFAULT_ENCODING = StandardCharsets.ISO_8859_1.toString();
 
     private boolean m_windowsHackNeeded;
+
+    /**
+     * Cache for page file extensions to avoid redundant filesystem existence checks.
+     * Maps page name to file extension (".md" or ".txt").
+     * This significantly reduces disk I/O as findPage() is called frequently.
+     */
+    private final ConcurrentHashMap<String, String> m_fileExtensionCache = new ConcurrentHashMap<>();
 
     /**
      *  {@inheritDoc}
@@ -209,6 +218,9 @@ public abstract class AbstractFileProvider implements PageProvider {
     /**
      *  Finds a Wiki page from the page repository. Checks for both .md (Markdown) and .txt (Wiki) extensions,
      *  with .md taking precedence if both exist.
+     *  <p>
+     *  Uses an internal cache to avoid redundant filesystem existence checks, which significantly
+     *  improves performance for frequently accessed pages.
      *
      *  @param page The name of the page.
      *  @return A File to the page. Returns the file even if it doesn't exist (for creation purposes).
@@ -216,28 +228,57 @@ public abstract class AbstractFileProvider implements PageProvider {
     protected File findPage( final String page ) {
         final String mangledName = mangleName( page );
 
-        // First try .md extension (Markdown takes precedence)
+        // Check cache first to avoid filesystem calls
+        final String cachedExtension = m_fileExtensionCache.get( page );
+        if( cachedExtension != null ) {
+            return new File( m_pageDirectory, mangledName + cachedExtension );
+        }
+
+        // Cache miss - check filesystem and cache result
         final File mdFile = new File( m_pageDirectory, mangledName + MARKDOWN_EXT );
         if( mdFile.exists() ) {
+            m_fileExtensionCache.put( page, MARKDOWN_EXT );
             return mdFile;
         }
 
+        // Check if .txt file exists - only cache if it does
+        final File txtFile = new File( m_pageDirectory, mangledName + FILE_EXT );
+        if( txtFile.exists() ) {
+            m_fileExtensionCache.put( page, FILE_EXT );
+        }
+
         // Fall back to .txt extension (traditional wiki syntax)
-        return new File( m_pageDirectory, mangledName + FILE_EXT );
+        return txtFile;
     }
 
     /**
      *  Determines the file extension for a given page based on which file exists.
+     *  <p>
+     *  Uses an internal cache to avoid redundant filesystem existence checks.
      *
      *  @param page The name of the page.
      *  @return The file extension (".md" or ".txt"), or ".txt" if neither exists (default for new pages).
      */
     protected String getPageFileExtension( final String page ) {
+        // Check cache first
+        final String cachedExtension = m_fileExtensionCache.get( page );
+        if( cachedExtension != null ) {
+            return cachedExtension;
+        }
+
+        // Cache miss - check filesystem
         final String mangledName = mangleName( page );
         final File mdFile = new File( m_pageDirectory, mangledName + MARKDOWN_EXT );
 
         if( mdFile.exists() ) {
+            m_fileExtensionCache.put( page, MARKDOWN_EXT );
             return MARKDOWN_EXT;
+        }
+
+        // Check if .txt file exists - only cache if it does
+        final File txtFile = new File( m_pageDirectory, mangledName + FILE_EXT );
+        if( txtFile.exists() ) {
+            m_fileExtensionCache.put( page, FILE_EXT );
         }
 
         return FILE_EXT;
@@ -271,13 +312,14 @@ public abstract class AbstractFileProvider implements PageProvider {
 
     /**
      *  Read the text directly from the correct file.
+     *  Uses BufferedInputStream for improved I/O performance.
      */
     private String getPageText( final String page ) {
         String result  = null;
         final File pagedata = findPage( page );
         if( pagedata.exists() ) {
             if( pagedata.canRead() ) {
-                try( final InputStream in = Files.newInputStream( pagedata.toPath() ) ) {
+                try( final InputStream in = new BufferedInputStream( Files.newInputStream( pagedata.toPath() ) ) ) {
                     result = FileUtil.readContents( in, m_encoding );
                 } catch( final IOException e ) {
                     LOG.error( "Failed to read", e );
@@ -317,6 +359,10 @@ public abstract class AbstractFileProvider implements PageProvider {
         } catch( final IOException e ) {
             LOG.error( "Saving failed", e );
         }
+
+        // Update cache with the extension used for this page
+        final String actualExtension = file.getName().endsWith( MARKDOWN_EXT ) ? MARKDOWN_EXT : FILE_EXT;
+        m_fileExtensionCache.put( page.getName(), actualExtension );
     }
 
     /**
@@ -406,7 +452,7 @@ public abstract class AbstractFileProvider implements PageProvider {
                 }
 
                 final String wikiname = unmangleName( filename.substring( 0, cutpoint ) );
-                try( final InputStream input = Files.newInputStream( wikipage.toPath() ) ) {
+                try( final InputStream input = new BufferedInputStream( Files.newInputStream( wikipage.toPath() ) ) ) {
                     final String pagetext = FileUtil.readContents( input, m_encoding );
                     final SearchResult comparison = matcher.matchPageContent( wikiname, pagetext );
                     if( comparison != null ) {
@@ -470,6 +516,8 @@ public abstract class AbstractFileProvider implements PageProvider {
         if( version == WikiProvider.LATEST_VERSION ) {
             final File f = findPage( pageName );
             f.delete();
+            // Invalidate cache since the page file no longer exists
+            m_fileExtensionCache.remove( pageName );
         }
     }
 
@@ -480,6 +528,8 @@ public abstract class AbstractFileProvider implements PageProvider {
     public void deletePage( final String pageName ) throws ProviderException {
         final File f = findPage( pageName );
         f.delete();
+        // Invalidate cache since the page file no longer exists
+        m_fileExtensionCache.remove( pageName );
     }
 
     /**
@@ -569,6 +619,34 @@ public abstract class AbstractFileProvider implements PageProvider {
                 }
             }
         }
+    }
+
+    /**
+     * Invalidates the file extension cache entry for the specified page.
+     * This should be called when a page is deleted or moved.
+     *
+     * @param pageName The name of the page to invalidate from the cache.
+     */
+    protected void invalidateFileExtensionCache( final String pageName ) {
+        m_fileExtensionCache.remove( pageName );
+    }
+
+    /**
+     * Clears the entire file extension cache.
+     * This is primarily useful for testing purposes.
+     */
+    protected void clearFileExtensionCache() {
+        m_fileExtensionCache.clear();
+    }
+
+    /**
+     * Returns the current size of the file extension cache.
+     * This is primarily useful for testing and monitoring purposes.
+     *
+     * @return The number of entries in the file extension cache.
+     */
+    protected int getFileExtensionCacheSize() {
+        return m_fileExtensionCache.size();
     }
 
     /**

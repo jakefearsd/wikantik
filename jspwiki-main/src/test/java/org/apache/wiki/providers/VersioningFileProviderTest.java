@@ -496,6 +496,64 @@ public class VersioningFileProviderTest {
     }
 
     /**
+     * Tests that movePage invalidates the file extension cache for both source and target pages.
+     */
+    @Test
+    public void testMovePageCacheInvalidation() throws Exception {
+        final String sourceName = "MoveSourcePage";
+        final String targetName = "MoveTargetPage";
+
+        engine.saveText( sourceName, "Original content" );
+
+        final PageManager mgr = engine.getManager( PageManager.class );
+        final PageProvider provider = mgr.getProvider();
+
+        // Verify source page exists
+        Assertions.assertTrue( provider.pageExists( sourceName ), "Source page should exist" );
+
+        // Get cache size before move (accessing page populates cache)
+        provider.getPageInfo( sourceName, -1 );
+
+        // Move the page
+        provider.movePage( sourceName, targetName );
+
+        // Verify source page no longer exists and target does
+        Assertions.assertFalse( provider.pageExists( sourceName ), "Source page should not exist after move" );
+        Assertions.assertTrue( provider.pageExists( targetName ), "Target page should exist after move" );
+
+        // Verify content was moved (saveText adds a newline)
+        final String content = provider.getPageText( targetName, -1 );
+        Assertions.assertTrue( content.startsWith( "Original content" ), "Content should be preserved after move" );
+    }
+
+    /**
+     * Tests movePage with a markdown page to verify cache properly handles extension.
+     */
+    @Test
+    public void testMoveMarkdownPageCacheInvalidation() throws Exception {
+        final String sourceName = "MoveMarkdownSource";
+        final String targetName = "MoveMarkdownTarget";
+
+        // Create a markdown page
+        final Page p = Wiki.contents().page( engine, sourceName );
+        p.setAttribute( Page.MARKUP_SYNTAX, "markdown" );
+        final Context context = Wiki.context().create( engine, p );
+        engine.getManager( PageManager.class ).saveText( context, "# Markdown Content" );
+
+        final PageManager mgr = engine.getManager( PageManager.class );
+        final PageProvider provider = mgr.getProvider();
+
+        // Move the page
+        provider.movePage( sourceName, targetName );
+
+        // Verify target page exists and content is preserved
+        Assertions.assertTrue( provider.pageExists( targetName ), "Target page should exist after move" );
+
+        final String content = provider.getPageText( targetName, -1 );
+        Assertions.assertTrue( content.startsWith( "# Markdown Content" ), "Markdown content should be preserved" );
+    }
+
+    /**
      * Creates a file of the given name in the wiki page directory, containing the data provided.
      */
     private void injectFile( final String fileName, final String fileContent) throws IOException {
@@ -503,6 +561,208 @@ public class VersioningFileProviderTest {
         final Writer out = new FileWriter( ft );
         FileUtil.copyContents( new StringReader(fileContent), out );
         out.close();
+    }
+
+    // ============== CachedProperties Behavior Tests ==============
+    // These tests verify the CachedProperties single-entry cache behavior indirectly
+
+    /**
+     * Tests that repeated version history calls for the same page work correctly.
+     * This indirectly tests the CachedProperties cache hit scenario.
+     */
+    @Test
+    public void testRepeatedVersionHistoryCallsSamePage() throws Exception {
+        // Create page with multiple versions
+        engine.saveText( NAME1, "version1" );
+        engine.saveText( NAME1, "version2" );
+        engine.saveText( NAME1, "version3" );
+
+        final PageManager mgr = engine.getManager( PageManager.class );
+        final PageProvider provider = mgr.getProvider();
+
+        // Call getVersionHistory multiple times for same page
+        // CachedProperties should cache and return consistent results
+        final Collection<Page> history1 = provider.getVersionHistory( NAME1 );
+        final Collection<Page> history2 = provider.getVersionHistory( NAME1 );
+        final Collection<Page> history3 = provider.getVersionHistory( NAME1 );
+
+        Assertions.assertEquals( 3, history1.size(), "First call should return 3 versions" );
+        Assertions.assertEquals( 3, history2.size(), "Second call should return 3 versions" );
+        Assertions.assertEquals( 3, history3.size(), "Third call should return 3 versions" );
+    }
+
+    /**
+     * Tests that alternating version history calls between different pages work correctly.
+     * This indirectly tests the CachedProperties cache miss scenario where the
+     * single-entry cache must be replaced.
+     */
+    @Test
+    public void testAlternatingVersionHistoryCallsDifferentPages() throws Exception {
+        final String page1 = "TestPage1";
+        final String page2 = "TestPage2";
+
+        // Create two pages with different version counts
+        engine.saveText( page1, "p1v1" );
+        engine.saveText( page1, "p1v2" );
+
+        engine.saveText( page2, "p2v1" );
+        engine.saveText( page2, "p2v2" );
+        engine.saveText( page2, "p2v3" );
+
+        final PageManager mgr = engine.getManager( PageManager.class );
+        final PageProvider provider = mgr.getProvider();
+
+        // Alternate between pages - this causes cache misses
+        final Collection<Page> h1a = provider.getVersionHistory( page1 );
+        final Collection<Page> h2a = provider.getVersionHistory( page2 );
+        final Collection<Page> h1b = provider.getVersionHistory( page1 );
+        final Collection<Page> h2b = provider.getVersionHistory( page2 );
+
+        Assertions.assertEquals( 2, h1a.size(), "Page1 first call" );
+        Assertions.assertEquals( 3, h2a.size(), "Page2 first call" );
+        Assertions.assertEquals( 2, h1b.size(), "Page1 second call" );
+        Assertions.assertEquals( 3, h2b.size(), "Page2 second call" );
+    }
+
+    /**
+     * Tests that version history includes correct author information.
+     * This tests that CachedProperties correctly reads and caches author metadata.
+     */
+    @Test
+    public void testVersionHistoryAuthorMetadata() throws Exception {
+        // Create versions with different authors
+        engine.saveText( NAME1, "guest version" );
+        engine.saveTextAsJanne( NAME1, "janne version" );
+        engine.saveText( NAME1, "guest again" );
+
+        final PageManager mgr = engine.getManager( PageManager.class );
+
+        // Get version history and verify authors
+        final Page v1 = mgr.getPage( NAME1, 1 );
+        final Page v2 = mgr.getPage( NAME1, 2 );
+        final Page v3 = mgr.getPage( NAME1, 3 );
+
+        Assertions.assertEquals( "Guest", v1.getAuthor(), "Version 1 author" );
+        Assertions.assertEquals( Users.JANNE, v2.getAuthor(), "Version 2 author" );
+        Assertions.assertEquals( "Guest", v3.getAuthor(), "Version 3 author" );
+    }
+
+    /**
+     * Tests that properties are correctly updated when a new version is saved.
+     * This tests that CachedProperties is invalidated/updated on write.
+     */
+    @Test
+    public void testPropertiesUpdatedOnSave() throws Exception {
+        // Create initial version
+        engine.saveText( NAME1, "initial" );
+
+        final PageManager mgr = engine.getManager( PageManager.class );
+
+        // Get initial page info
+        final Page p1 = mgr.getPage( NAME1, 1 );
+        Assertions.assertEquals( 1, p1.getVersion() );
+        Assertions.assertEquals( "Guest", p1.getAuthor() );
+
+        // Save a new version with different author
+        engine.saveTextAsJanne( NAME1, "updated" );
+
+        // Verify the new version has correct metadata
+        final Page p2 = mgr.getPage( NAME1, 2 );
+        Assertions.assertEquals( 2, p2.getVersion() );
+        Assertions.assertEquals( Users.JANNE, p2.getAuthor() );
+
+        // Verify we can still access the old version with correct metadata
+        final Page p1again = mgr.getPage( NAME1, 1 );
+        Assertions.assertEquals( 1, p1again.getVersion() );
+        Assertions.assertEquals( "Guest", p1again.getAuthor() );
+    }
+
+    /**
+     * Tests rapid sequential updates to verify property caching handles updates correctly.
+     */
+    @Test
+    public void testRapidSequentialUpdates() throws Exception {
+        final PageManager mgr = engine.getManager( PageManager.class );
+        final PageProvider provider = mgr.getProvider();
+
+        // Rapidly create many versions
+        for( int i = 1; i <= 10; i++ ) {
+            engine.saveText( NAME1, "content " + i );
+        }
+
+        // Verify all versions are accessible
+        final Collection<Page> history = provider.getVersionHistory( NAME1 );
+        Assertions.assertEquals( 10, history.size(), "Should have 10 versions" );
+
+        // Verify content of each version
+        for( int i = 1; i <= 10; i++ ) {
+            final String text = provider.getPageText( NAME1, i );
+            Assertions.assertTrue( text.startsWith( "content " + i ),
+                    "Version " + i + " should have correct content" );
+        }
+    }
+
+    /**
+     * Tests that getPageInfo retrieves correct version-specific metadata.
+     * This tests the CachedProperties caching behavior for getPageInfo operations.
+     */
+    @Test
+    public void testGetPageInfoVersionSpecificMetadata() throws Exception {
+        final PageManager mgr = engine.getManager( PageManager.class );
+        final PageProvider provider = mgr.getProvider();
+
+        // Create versions
+        engine.saveText( NAME1, "v1" );
+        engine.saveText( NAME1, "v2" );
+
+        // Get page info for different versions in different order
+        final Page latest = provider.getPageInfo( NAME1, PageProvider.LATEST_VERSION );
+        Assertions.assertEquals( 2, latest.getVersion(), "Latest should be version 2" );
+
+        final Page v1 = provider.getPageInfo( NAME1, 1 );
+        Assertions.assertEquals( 1, v1.getVersion(), "Specific request for v1" );
+
+        // Access latest again to test cache
+        final Page latestAgain = provider.getPageInfo( NAME1, PageProvider.LATEST_VERSION );
+        Assertions.assertEquals( 2, latestAgain.getVersion(), "Latest again should be version 2" );
+    }
+
+    /**
+     * Tests that change notes are properly cached and retrieved across versions.
+     */
+    @Test
+    public void testChangeNotesAcrossVersions() throws Exception {
+        final PageManager mgr = engine.getManager( PageManager.class );
+
+        // Create versions with change notes
+        Page p = Wiki.contents().page( engine, NAME1 );
+        p.setAttribute( Page.CHANGENOTE, "First change" );
+        Context context = Wiki.context().create( engine, p );
+        mgr.saveText( context, "v1" );
+
+        p = Wiki.contents().page( engine, NAME1 );
+        p.setAttribute( Page.CHANGENOTE, "Second change" );
+        context = Wiki.context().create( engine, p );
+        mgr.saveText( context, "v2" );
+
+        p = Wiki.contents().page( engine, NAME1 );
+        p.setAttribute( Page.CHANGENOTE, "Third change" );
+        context = Wiki.context().create( engine, p );
+        mgr.saveText( context, "v3" );
+
+        // Access versions in non-sequential order to test caching
+        final Page v3 = mgr.getPage( NAME1, 3 );
+        Assertions.assertEquals( "Third change", v3.getAttribute( Page.CHANGENOTE ) );
+
+        final Page v1 = mgr.getPage( NAME1, 1 );
+        Assertions.assertEquals( "First change", v1.getAttribute( Page.CHANGENOTE ) );
+
+        final Page v2 = mgr.getPage( NAME1, 2 );
+        Assertions.assertEquals( "Second change", v2.getAttribute( Page.CHANGENOTE ) );
+
+        // Access same version multiple times
+        final Page v2again = mgr.getPage( NAME1, 2 );
+        Assertions.assertEquals( "Second change", v2again.getAttribute( Page.CHANGENOTE ) );
     }
 
 }

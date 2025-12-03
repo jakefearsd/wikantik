@@ -26,8 +26,11 @@
         EhCache 3.x Configuration for JSPWiki
 
         Each cache is configured with:
+        - expiry: Time-to-live for cache entries (default 60 seconds)
         - heap: Maximum number of entries to store on heap
-        - expiry: Time-to-live for cache entries (optional)
+
+        The TTL ensures that external file modifications (not through JSPWiki UI)
+        are detected within the expiry period. Adjust as needed for your use case.
 
         Key types: java.io.Serializable
         Value types: java.lang.Object
@@ -37,6 +40,9 @@
     <cache alias="jspwiki.renderingCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
+        <expiry>
+            <ttl unit="seconds">60</ttl>
+        </expiry>
         <heap unit="entries">1000</heap>
     </cache>
 
@@ -44,6 +50,9 @@
     <cache alias="jspwiki.pageCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
+        <expiry>
+            <ttl unit="seconds">60</ttl>
+        </expiry>
         <heap unit="entries">1000</heap>
     </cache>
 
@@ -51,6 +60,9 @@
     <cache alias="jspwiki.pageTextCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
+        <expiry>
+            <ttl unit="seconds">60</ttl>
+        </expiry>
         <heap unit="entries">1000</heap>
     </cache>
 
@@ -58,6 +70,9 @@
     <cache alias="jspwiki.pageHistoryCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
+        <expiry>
+            <ttl unit="seconds">60</ttl>
+        </expiry>
         <heap unit="entries">1000</heap>
     </cache>
 
@@ -65,6 +80,9 @@
     <cache alias="jspwiki.attachmentsCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
+        <expiry>
+            <ttl unit="seconds">60</ttl>
+        </expiry>
         <heap unit="entries">1000</heap>
     </cache>
 
@@ -72,6 +90,9 @@
     <cache alias="jspwiki.attachmentCollectionsCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
+        <expiry>
+            <ttl unit="seconds">60</ttl>
+        </expiry>
         <heap unit="entries">1000</heap>
     </cache>
 
@@ -79,6 +100,9 @@
     <cache alias="jspwiki.dynamicAttachmentCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
+        <expiry>
+            <ttl unit="seconds">60</ttl>
+        </expiry>
         <heap unit="entries">1000</heap>
     </cache>
 

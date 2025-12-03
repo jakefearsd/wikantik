@@ -33,7 +33,8 @@ public interface HaddockPage extends Page {
      */
     @Override
     default String wikiTitle() {
-        return Selenide.$( "div.pagename a" ).text();
+        // Use .pagename (not div.pagename) since Header.jsp uses h1.pagename for proper SEO heading hierarchy
+        return Selenide.$( ".pagename a" ).text();
     }
     
     /**

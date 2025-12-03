@@ -79,7 +79,13 @@ public class VersioningFileProvider extends AbstractFileProvider {
     /** Name of the property file which stores the metadata. */
     public static final String PROPERTYFILE = "page.properties";
 
-    private CachedProperties m_cachedProperties;
+    /** Property name for configuring the property cache size. Set to 0 for single-entry, -1 for no caching. */
+    public static final String PROP_CACHE_SIZE = "jspwiki.versioningFileProvider.cacheSize";
+
+    /** Default property cache size. */
+    public static final int DEFAULT_CACHE_SIZE = 100;
+
+    private PropertyCacheStrategy m_propertyCache;
 
     /**
      *  {@inheritDoc}
@@ -102,6 +108,19 @@ public class VersioningFileProvider extends AbstractFileProvider {
             }
         }
         LOG.info( "Using directory " + oldpages.getAbsolutePath() + " for storing old versions of pages" );
+
+        // Initialize property cache strategy based on configuration
+        final int cacheSize = Integer.parseInt( properties.getProperty( PROP_CACHE_SIZE, String.valueOf( DEFAULT_CACHE_SIZE ) ) );
+        if ( cacheSize < 0 ) {
+            m_propertyCache = new NoOpPropertyCache();
+            LOG.info( "Property caching disabled" );
+        } else if ( cacheSize == 0 ) {
+            m_propertyCache = new SingleEntryPropertyCache();
+            LOG.info( "Using single-entry property cache" );
+        } else {
+            m_propertyCache = new LruPropertyCache( cacheSize );
+            LOG.info( "Using LRU property cache with size {}", cacheSize );
+        }
     }
 
     /**
@@ -198,32 +217,24 @@ public class VersioningFileProvider extends AbstractFileProvider {
         final File propertyFile = new File( findOldPageDir(page), PROPERTYFILE );
         if( propertyFile.exists() ) {
             final long lastModified = propertyFile.lastModified();
-
-            //
-            //   The profiler showed that when calling the history of a page the propertyfile
-            //   was read just as much times as there were versions of that file. The loading
-            //   of a propertyfile is a cpu-intensive job. So now hold on to the last propertyfile
-            //   read because the next method will with a high probability ask for the same propertyfile.
-            //   The time it took to show a historypage with 267 versions dropped with 300%.
-            //
-
-            CachedProperties cp = m_cachedProperties;
-
-            if( cp != null && cp.m_page.equals( page ) && cp.m_lastModified == lastModified ) {
-                return cp.m_props;
-            }
-
-            try( final InputStream in = new BufferedInputStream( Files.newInputStream( propertyFile.toPath() ) ) ) {
-                final Properties props = new Properties();
-                props.load( in );
-                cp = new CachedProperties( page, props, lastModified );
-                m_cachedProperties = cp; // Atomic
-
-                return props;
-            }
+            return m_propertyCache.get( page, lastModified, () -> loadPropertiesFromFile( propertyFile ) );
         }
 
         return new Properties(); // Returns an empty object
+    }
+
+    /**
+     * Loads properties from a file. Used as a supplier for the cache strategy.
+     */
+    private Properties loadPropertiesFromFile( final File propertyFile ) {
+        try( final InputStream in = new BufferedInputStream( Files.newInputStream( propertyFile.toPath() ) ) ) {
+            final Properties props = new Properties();
+            props.load( in );
+            return props;
+        } catch( final IOException e ) {
+            LOG.error( "Failed to load properties from {}", propertyFile.getAbsolutePath(), e );
+            return new Properties();
+        }
     }
 
     /**
@@ -236,10 +247,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
             properties.store( out, " JSPWiki page properties for "+page+". DO NOT MODIFY!" );
         }
 
-        // The profiler showed the probability was very high that when  calling for the history of
-        // a page the propertyfile would be read as much times as there were versions of that file.
-        // It is statistically likely the propertyfile will be examined many times before it is updated.
-        m_cachedProperties = new CachedProperties( page, properties, propertyFile.lastModified() ); // Atomic
+        // Update cache with the new properties
+        m_propertyCache.put( page, properties, propertyFile.lastModified() );
     }
 
     /**
@@ -291,7 +300,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
         String result = null;
         if( pagedata.exists() ) {
             if( pagedata.canRead() ) {
-                try( final InputStream in = Files.newInputStream( pagedata.toPath() ) ) {
+                try( final InputStream in = new BufferedInputStream( Files.newInputStream( pagedata.toPath() ) ) ) {
                     result = FileUtil.readContents( in, m_encoding );
                 } catch( final IOException e ) {
                     LOG.error("Failed to read", e);
@@ -529,33 +538,33 @@ public class VersioningFileProvider extends AbstractFileProvider {
         final File propertyFile = new File( getPageDirectory(), mangleName( page ) + FileSystemProvider.PROP_EXT );
         if ( propertyFile.exists() ) {
             final long lastModified = propertyFile.lastModified();
-
-            CachedProperties cp = m_cachedProperties;
-            if ( cp != null && cp.m_page.equals(page) && cp.m_lastModified == lastModified ) {
-                return cp.m_props;
-            }
-
-            try( final InputStream in = new BufferedInputStream( Files.newInputStream( propertyFile.toPath() ) ) ) {
-                final Properties props = new Properties();
-                props.load( in );
-
-                final String originalAuthor = props.getProperty( Page.AUTHOR );
-                if ( !originalAuthor.isEmpty() ) {
-                    // simulate original author as if already versioned but put non-versioned property in special cache too
-                    props.setProperty( "1.author", originalAuthor );
-
-                    // The profiler showed the probability was very high that when calling for the history of a page the
-                    // propertyfile would be read as much times as there were versions of that file. It is statistically
-                    // likely the propertyfile will be examined many times before it is updated.
-                    cp = new CachedProperties( page, props, propertyFile.lastModified() );
-                    m_cachedProperties = cp; // Atomic
-                }
-
-                return props;
-            }
+            // Use a special cache key prefix to distinguish heritage properties from regular versioned properties
+            final String cacheKey = "heritage:" + page;
+            return m_propertyCache.get( cacheKey, lastModified, () -> loadHeritageProperties( propertyFile, cacheKey, lastModified ) );
         }
 
         return new Properties(); // Returns an empty object
+    }
+
+    /**
+     * Loads heritage properties from a file and transforms them for versioning compatibility.
+     */
+    private Properties loadHeritageProperties( final File propertyFile, final String cacheKey, final long lastModified ) {
+        try( final InputStream in = new BufferedInputStream( Files.newInputStream( propertyFile.toPath() ) ) ) {
+            final Properties props = new Properties();
+            props.load( in );
+
+            final String originalAuthor = props.getProperty( Page.AUTHOR );
+            if ( originalAuthor != null && !originalAuthor.isEmpty() ) {
+                // simulate original author as if already versioned
+                props.setProperty( "1.author", originalAuthor );
+            }
+
+            return props;
+        } catch( final IOException e ) {
+            LOG.error( "Failed to load heritage properties from {}", propertyFile.getAbsolutePath(), e );
+            return new Properties();
+        }
     }
 
     /**
@@ -680,39 +689,14 @@ public class VersioningFileProvider extends AbstractFileProvider {
         final File fromOldDir = findOldPageDir( from );
         final File toOldDir = findOldPageDir( to );
         fromOldDir.renameTo( toOldDir );
-    }
 
-    /*
-     * The profiler showed that when calling the history of a page, the propertyfile was read just as many
-     * times as there were versions of that file. The loading of a propertyfile is a cpu-intensive job.
-     * This Class holds onto the last propertyfile read, because the probability is high that the next call
-     * will with ask for the same propertyfile. The time it took to show a historypage with 267 versions dropped
-     * by 300%. Although each propertyfile in a history could be cached, there is likely to be little performance
-     * gain over simply keeping the last one requested.
-     */
-    private static class CachedProperties {
-        String m_page;
-        Properties m_props;
-        long m_lastModified;
+        // Invalidate file extension cache for both old and new page names
+        invalidateFileExtensionCache( from );
+        invalidateFileExtensionCache( to );
 
-        /**
-         * Because a Constructor is inherently synchronised, there is no need to synchronise the arguments.
-         *
-         * @param pageName page name
-         * @param props  Properties to use for initialization
-         * @param lastModified last modified date
-         */
-        public CachedProperties( final String pageName, final Properties props, final long lastModified ) {
-            if ( pageName == null ) {
-                throw new NullPointerException ( "pageName must not be null!" );
-            }
-            this.m_page = pageName;
-            if ( props == null ) {
-                throw new NullPointerException ( "properties must not be null!" );
-            }
-            m_props = props;
-            this.m_lastModified = lastModified;
-        }
+        // Invalidate property cache for both pages
+        m_propertyCache.invalidate( from );
+        m_propertyCache.invalidate( to );
     }
 
 }

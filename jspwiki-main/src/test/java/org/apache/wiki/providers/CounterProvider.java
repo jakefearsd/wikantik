@@ -36,6 +36,7 @@ import java.util.Vector;
 
 /**
  *  A provider who counts the hits to different parts.
+ *  Useful for testing caching behavior by measuring call counts.
  */
 public class CounterProvider implements PageProvider {
 
@@ -44,10 +45,31 @@ public class CounterProvider implements PageProvider {
     public int m_getPageTextCalls;
     public int m_getAllPagesCalls;
     public int m_initCalls;
+    public int m_putPageTextCalls;
+    public int m_deletePageCalls;
+    public int m_deleteVersionCalls;
+    public int m_movePageCalls;
+    public int m_getVersionHistoryCalls;
 
     Page[]    m_pages         = new Page[0];
-    
+
     String m_defaultText = "[Foo], [Bar], [Blat], [Blah]";
+
+    /**
+     * Resets all counters to zero. Useful between tests.
+     */
+    public void resetCounters() {
+        m_getPageCalls = 0;
+        m_pageExistsCalls = 0;
+        m_getPageTextCalls = 0;
+        m_getAllPagesCalls = 0;
+        m_initCalls = 0;
+        m_putPageTextCalls = 0;
+        m_deletePageCalls = 0;
+        m_deleteVersionCalls = 0;
+        m_movePageCalls = 0;
+        m_getVersionHistoryCalls = 0;
+    }
 
 
     @Override
@@ -75,6 +97,7 @@ public class CounterProvider implements PageProvider {
 
     @Override
     public void putPageText( final Page page, final String text ) throws ProviderException {
+        m_putPageTextCalls++;
     }
 
     @Override
@@ -136,6 +159,7 @@ public class CounterProvider implements PageProvider {
     @Override
     public List< Page > getVersionHistory( final String page )
     {
+        m_getVersionHistoryCalls++;
         return new Vector<>();
     }
 
@@ -147,14 +171,17 @@ public class CounterProvider implements PageProvider {
 
     @Override
     public void deleteVersion( final String page, final int version ) {
+        m_deleteVersionCalls++;
     }
 
     @Override
     public void deletePage( final String page ) {
+        m_deletePageCalls++;
     }
 
     @Override
     public void movePage( final String from, final String to ) throws ProviderException {
+        m_movePageCalls++;
     }
 
 }

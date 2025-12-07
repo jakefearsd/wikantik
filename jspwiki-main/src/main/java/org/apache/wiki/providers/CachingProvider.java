@@ -242,23 +242,33 @@ public class CachingProvider implements PageProvider {
     @Override
     public Collection< Page > getAllPages() throws ProviderException {
         final Collection< Page > all;
-        if ( !allRequested.get() ) {
-            all = provider.getAllPages();
-            // Make sure that all pages are in the cache.
-            synchronized( this ) {
-                for( final Page p : all ) {
-                    cachingManager.put( CachingManager.CACHE_PAGES,  p.getName(), p );
+
+        // Use synchronized block for the entire check-then-act sequence to prevent race conditions.
+        // Without this, concurrent requests during startup could see partially-filled cache results
+        // because one thread might set allRequested=true while another thread reads from incomplete cache.
+        synchronized( this ) {
+            if ( !allRequested.get() ) {
+                // Fetch all pages from the underlying provider (this may be slow for large wikis)
+                final Collection< Page > providerPages = provider.getAllPages();
+
+                // Populate the cache with all pages
+                for( final Page p : providerPages ) {
+                    cachingManager.put( CachingManager.CACHE_PAGES, p.getName(), p );
                 }
                 allRequested.set( true );
-            }
-            pages.set( all.size() );
-        } else {
-            final List< String > keys = cachingManager.keys( CachingManager.CACHE_PAGES );
-            all = new TreeSet<>();
-            for( final String key : keys ) {
-                final Page cachedPage = cachingManager.get( CachingManager.CACHE_PAGES, key, () -> null );
-                if( cachedPage != null ) {
-                    all.add( cachedPage );
+                pages.set( providerPages.size() );
+
+                // Return the freshly fetched collection
+                all = providerPages;
+            } else {
+                // Cache is fully populated, read from cache
+                final List< String > keys = cachingManager.keys( CachingManager.CACHE_PAGES );
+                all = new TreeSet<>();
+                for( final String key : keys ) {
+                    final Page cachedPage = cachingManager.get( CachingManager.CACHE_PAGES, key, () -> null );
+                    if( cachedPage != null ) {
+                        all.add( cachedPage );
+                    }
                 }
             }
         }

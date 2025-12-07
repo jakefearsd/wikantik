@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" name="JSPWiki-Production">
+    <Properties>
+        <Property name="logDir">/var/log/jspwiki</Property>
+        <Property name="pattern">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
+    </Properties>
+
+    <Appenders>
+        <!-- Console for catalina.out -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%highlight{[%-5level]} %d{HH:mm:ss.SSS} [%t] %c{1.} - %msg%n"/>
+        </Console>
+
+        <!-- Main application log with daily rotation -->
+        <RollingFile name="AppLog" fileName="${logDir}/jspwiki.log" filePattern="${logDir}/jspwiki-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="${pattern}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="50MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+
+        <!-- Security audit log -->
+        <RollingFile name="SecurityLog" fileName="${logDir}/security.log" filePattern="${logDir}/security-%d{yyyy-MM-dd}.log.gz">
+            <PatternLayout pattern="%d{ISO8601} %level %msg%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+            </Policies>
+            <DefaultRolloverStrategy max="90"/>
+        </RollingFile>
+
+        <!-- Access log for page views -->
+        <RollingFile name="AccessLog" fileName="${logDir}/access.log" filePattern="${logDir}/access-%d{yyyy-MM-dd}.log.gz">
+            <PatternLayout pattern="%d{ISO8601} %msg%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+            </Policies>
+        </RollingFile>
+    </Appenders>
+
+    <Loggers>
+        <!-- JSPWiki core -->
+        <Logger name="org.apache.wiki" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AppLog"/>
+        </Logger>
+
+        <!-- Security events (login, logout, access denied) -->
+        <Logger name="SecurityLog" level="INFO" additivity="false">
+            <AppenderRef ref="SecurityLog"/>
+        </Logger>
+
+        <!-- Page access tracking via WikiServlet -->
+        <Logger name="org.apache.wiki.WikiServlet" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AccessLog"/>
+        </Logger>
+
+        <!-- Database connection issues -->
+        <Logger name="org.apache.tomcat.dbcp" level="WARN"/>
+
+        <!-- Lucene search indexing -->
+        <Logger name="org.apache.wiki.search" level="INFO"/>
+
+        <!-- Root: catch-all -->
+        <Root level="WARN">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>

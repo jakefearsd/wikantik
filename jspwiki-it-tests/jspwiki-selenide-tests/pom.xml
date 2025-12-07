@@ -36,6 +36,21 @@
     </dependency>
 
     <dependency>
+      <groupId>com.codeborne</groupId>
+      <artifactId>selenide-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-support</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.jspwiki</groupId>
       <artifactId>jspwiki-main</artifactId>
       <version>${project.version}</version>

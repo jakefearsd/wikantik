@@ -9,9 +9,9 @@ web), et d'indiquer cet emplacement au format Unix. Par exemple, si vos fichiers
 trouvent dans C:\JSPWiki\files, vous écrirez dans votre fichier de configuration qu'ils
 sont dans /JSPWiki/files.
 
-Assurez-vous aussi de modifier la valeur du paramètre {{log4j.appender.~FileLog.File}}
+Assurez-vous aussi de modifier la valeur du paramètre {{appender.rolling.fileName}}
 dans votre {{jspwiki.properties}}, si vous voulez qu'un fichier de journalisation (log)
-soit créé. Ce paramètre-là est bien caché, vers la fin du fichier de configuration.
+soit créé. Ce paramètre-là est dans la section de configuration Log4j 2.x, vers la fin du fichier de configuration.
 Son format est le même que celui du paramètre {{jspwiki.fileSystemProvider.pageDir}},
 c'est-à-dire que les antislashs (barres obliques inverses : \) doivent être doublées.
 

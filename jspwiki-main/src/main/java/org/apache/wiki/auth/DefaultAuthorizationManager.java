@@ -86,7 +86,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
     private Engine m_engine;
 
-    private LocalPolicy m_localPolicy;
+    private volatile LocalPolicy m_localPolicy;
 
     /**
      * Constructs a new DefaultAuthorizationManager instance.
@@ -229,6 +229,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     @Override
     public void initialize( final Engine engine, final Properties properties ) throws WikiException {
         m_engine = engine;
+        LOG.info( "Initializing AuthorizationManager - anonymous access will be blocked until initialization completes" );
 
         //  JAAS authorization continues
         m_authorizer = getAuthorizerImplementation( properties );
@@ -242,9 +243,10 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             if (policyURL != null) {
                 final File policyFile = new File( policyURL.toURI().getPath() );
                 LOG.info("We found security policy URL: {} and transformed it to file {}",policyURL, policyFile.getAbsolutePath());
-                m_localPolicy = new LocalPolicy( policyFile, engine.getContentEncoding().displayName() );
-                m_localPolicy.refresh();
-                LOG.info( "Initialized default security policy: {}", policyFile.getAbsolutePath() );
+                final LocalPolicy localPolicy = new LocalPolicy( policyFile, engine.getContentEncoding().displayName() );
+                localPolicy.refresh();
+                m_localPolicy = localPolicy;  // Assign after refresh completes for thread safety
+                LOG.info( "Initialized default security policy: {} - anonymous access now permitted", policyFile.getAbsolutePath() );
             } else {
                 final String sb = "JSPWiki was unable to initialize the default security policy (WEB-INF/jspwiki.policy) file. " +
                                   "Please ensure that the jspwiki.policy file exists in the default location. " +
@@ -289,6 +291,13 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     /** {@inheritDoc} */
     @Override
     public boolean allowedByLocalPolicy( final Principal[] principals, final Permission permission ) {
+        // Check if local policy is initialized - deny access during startup window
+        final LocalPolicy localPolicy = m_localPolicy;
+        if ( localPolicy == null ) {
+            LOG.warn( "Local security policy not yet initialized - denying access for permission: {}", permission );
+            return false;
+        }
+
         for ( final Principal principal : principals ) {
             // Get ProtectionDomain for this Principal from cache, or create new one
             ProtectionDomain pd = m_cachedPds.get( principal );
@@ -300,7 +309,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             }
 
             // Consult the local policy and get the answer
-            if ( m_localPolicy.implies( pd, permission ) ) {
+            if ( localPolicy.implies( pd, permission ) ) {
                 return true;
             }
         }

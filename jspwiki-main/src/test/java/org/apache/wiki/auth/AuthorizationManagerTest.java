@@ -43,6 +43,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.security.Permission;
 import java.security.Principal;
 import java.util.Properties;
@@ -732,6 +733,38 @@ public class AuthorizationManagerTest {
         Assertions.assertFalse( m_auth.checkStaticPermission( s, WikiPermission.EDIT_PROFILE ), "Admin profile" );
         Assertions.assertFalse( m_auth.checkStaticPermission( s, WikiPermission.CREATE_PAGES ), "Admin pages" );
         Assertions.assertFalse( m_auth.checkStaticPermission( s, WikiPermission.CREATE_GROUPS ), "Admin groups" );
+    }
+
+    /**
+     * Tests that authorization gracefully handles the case where the local policy is not yet initialized
+     * (e.g., during startup race condition). Should deny access rather than throw NullPointerException.
+     */
+    @Test
+    public void testAllowedByLocalPolicyWithNullPolicy() throws Exception {
+        // Use reflection to temporarily set m_localPolicy to null to simulate startup race condition
+        final Field localPolicyField = DefaultAuthorizationManager.class.getDeclaredField( "m_localPolicy" );
+        localPolicyField.setAccessible( true );
+        final Object originalPolicy = localPolicyField.get( m_auth );
+
+        try {
+            // Set local policy to null to simulate the startup window
+            localPolicyField.set( m_auth, null );
+
+            // Create an anonymous session
+            final Session session = WikiSessionTest.anonymousSession( m_engine );
+
+            // With null policy, permission checks should return false (deny access) rather than NPE
+            final boolean result = m_auth.allowedByLocalPolicy( session.getRoles(), PagePermission.VIEW );
+            Assertions.assertFalse( result, "Should deny access when local policy is null" );
+
+            // checkStaticPermission should also handle null policy gracefully
+            final boolean staticResult = m_auth.checkStaticPermission( session, PagePermission.VIEW );
+            Assertions.assertFalse( staticResult, "checkStaticPermission should deny when policy is null" );
+
+        } finally {
+            // Restore the original policy
+            localPolicyField.set( m_auth, originalPolicy );
+        }
     }
 
 }

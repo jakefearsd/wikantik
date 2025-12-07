@@ -173,12 +173,18 @@
         <Valve className="org.apache.catalina.authenticator.SingleSignOn" />
         -->
 
-        <!-- Access log processes all example.
+        <!-- RemoteIpValve extracts real client IP from Cloudflare CF-Connecting-IP header.
+             Falls back to direct connection IP when header is absent (local testing). -->
+        <Valve className="org.apache.catalina.valves.RemoteIpValve"
+               remoteIpHeader="CF-Connecting-IP"
+               protocolHeader="X-Forwarded-Proto" />
+
+        <!-- Access log with Cloudflare geo data support.
              Documentation at: /docs/config/valve.html
-             Note: The pattern used is equivalent to using pattern="common" -->
+             Pattern fields: %h=client IP, %D=duration(ms), CF-IPCountry=country code -->
         <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
-               prefix="localhost_access_log" suffix=".txt"
-               pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+               prefix="access" suffix=".log"
+               pattern="%h %l %u %t &quot;%r&quot; %s %b %D %{CF-IPCountry}i &quot;%{User-Agent}i&quot;" />
 	   <Valve className="org.apache.catalina.valves.ErrorReportValve" 
 			showServerInfo="false" showReport="false"/>
 

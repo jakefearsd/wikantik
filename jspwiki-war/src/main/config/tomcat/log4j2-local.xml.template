@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
+
+  JSPWiki External Log4j2 Configuration - Local Development
+
+  This template is for local development. It uses portable paths
+  based on Catalina system properties.
+
+  Place in: tomcat/tomcat-11/lib/log4j2.xml
+  Enable with: jspwiki.use.external.logconfig = true in jspwiki-custom.properties
+
+  For production, use log4j2.xml with absolute paths like /var/log/jspwiki
+-->
+<Configuration status="WARN" name="JSPWiki-LocalDev" monitorInterval="30">
+    <Properties>
+        <!-- Use Tomcat's logs directory for local development -->
+        <Property name="logDir">${sys:catalina.base}/logs/jspwiki</Property>
+        <Property name="pattern">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
+    </Properties>
+
+    <Appenders>
+        <!-- Console for catalina.out - with color highlighting -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%highlight{[%-5level]} %d{HH:mm:ss.SSS} [%t] %c{1.} - %msg%n"/>
+        </Console>
+
+        <!-- Main application log with daily rotation -->
+        <RollingFile name="AppLog"
+                     fileName="${logDir}/jspwiki.log"
+                     filePattern="${logDir}/jspwiki-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="${pattern}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="50MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+
+        <!-- Security audit log -->
+        <RollingFile name="SecurityLog"
+                     fileName="${logDir}/security.log"
+                     filePattern="${logDir}/security-%d{yyyy-MM-dd}.log.gz">
+            <PatternLayout pattern="%d{ISO8601} %level %msg%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+            </Policies>
+            <DefaultRolloverStrategy max="90"/>
+        </RollingFile>
+
+        <!-- Access log for page views -->
+        <RollingFile name="AccessLog"
+                     fileName="${logDir}/access.log"
+                     filePattern="${logDir}/access-%d{yyyy-MM-dd}.log.gz">
+            <PatternLayout pattern="%d{ISO8601} %msg%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+            </Policies>
+            <DefaultRolloverStrategy max="7"/>
+        </RollingFile>
+    </Appenders>
+
+    <Loggers>
+        <!-- JSPWiki core - INFO to console and file -->
+        <Logger name="org.apache.wiki" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AppLog"/>
+        </Logger>
+
+        <!-- Security events (login, logout, access denied) -->
+        <Logger name="SecurityLog" level="INFO" additivity="false">
+            <AppenderRef ref="SecurityLog"/>
+            <AppenderRef ref="Console"/>  <!-- Also show in console for dev -->
+        </Logger>
+
+        <!-- Page access tracking via WikiServlet -->
+        <Logger name="org.apache.wiki.WikiServlet" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AccessLog"/>
+        </Logger>
+
+        <!-- Provider debugging - useful for development -->
+        <Logger name="org.apache.wiki.providers" level="DEBUG" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AppLog"/>
+        </Logger>
+
+        <!-- Search indexing -->
+        <Logger name="org.apache.wiki.search" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AppLog"/>
+        </Logger>
+
+        <!-- Authentication/Authorization debugging -->
+        <Logger name="org.apache.wiki.auth" level="DEBUG" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AppLog"/>
+        </Logger>
+
+        <!-- Database connection issues -->
+        <Logger name="org.apache.tomcat.dbcp" level="WARN"/>
+
+        <!-- Spam filter -->
+        <Logger name="SpamLog" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <!-- Root: catch-all -->
+        <Root level="WARN">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>

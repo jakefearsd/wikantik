@@ -79,6 +79,7 @@
     <nekohtml.version>2.1.3</nekohtml.version>
     <rome.version>2.1.0</rome.version>
     <selenide.version>7.12.1</selenide.version>
+    <selenium.version>4.38.0</selenium.version>
     <slf4j.version>2.0.17</slf4j.version>
     <tika.version>3.2.3</tika.version>
     <tomcat.version>11.0.14</tomcat.version>
@@ -153,6 +154,12 @@
         <artifactId>selenide</artifactId>
         <version>${selenide.version}</version>
       </dependency>
+
+      <dependency>
+        <groupId>com.codeborne</groupId>
+        <artifactId>selenide-core</artifactId>
+        <version>${selenide.version}</version>
+      </dependency>
       <dependency>
           <groupId>commons-net</groupId>
           <artifactId>commons-net</artifactId>
@@ -210,6 +217,36 @@
       <dependency>
         <groupId>com.vladsch.flexmark</groupId>
         <artifactId>flexmark-ext-toc</artifactId>
+        <version>${flexmark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.vladsch.flexmark</groupId>
+        <artifactId>flexmark-util-ast</artifactId>
+        <version>${flexmark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.vladsch.flexmark</groupId>
+        <artifactId>flexmark-util-data</artifactId>
+        <version>${flexmark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.vladsch.flexmark</groupId>
+        <artifactId>flexmark-util-html</artifactId>
+        <version>${flexmark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.vladsch.flexmark</groupId>
+        <artifactId>flexmark-util-misc</artifactId>
+        <version>${flexmark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.vladsch.flexmark</groupId>
+        <artifactId>flexmark-util-sequence</artifactId>
         <version>${flexmark.version}</version>
       </dependency>
 
@@ -312,6 +349,12 @@
 
       <dependency>
         <groupId>org.apache.commons</groupId>
+        <artifactId>commons-fileupload2-core</artifactId>
+        <version>${commons-fileupload.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
         <version>${commons-lang.version}</version>
       </dependency>
@@ -336,14 +379,14 @@
 
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-1.2-api</artifactId>
+        <artifactId>log4j-slf4j-impl</artifactId>
         <version>${log4j2.version}</version>
       </dependency>
 
       <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-slf4j-impl</artifactId>
-        <version>${log4j2.version}</version>
+        <groupId>org.apache.lucene</groupId>
+        <artifactId>lucene-core</artifactId>
+        <version>${lucene.version}</version>
       </dependency>
 
       <dependency>
@@ -410,6 +453,18 @@
         <groupId>org.jvnet.hudson</groupId>
         <artifactId>org.suigeneris.jrcs.diff</artifactId>
         <version>${jrcs-diff.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.seleniumhq.selenium</groupId>
+        <artifactId>selenium-api</artifactId>
+        <version>${selenium.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.seleniumhq.selenium</groupId>
+        <artifactId>selenium-support</artifactId>
+        <version>${selenium.version}</version>
       </dependency>
 
       <dependency>

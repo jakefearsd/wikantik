@@ -21,6 +21,8 @@ WAR_SOURCE="${SCRIPT_DIR}/jspwiki-war/target/JSPWiki.war"
 CONFIG_DIR="${SCRIPT_DIR}/jspwiki-war/src/main/config/tomcat"
 CONTEXT_DEST="${TOMCAT_DIR}/conf/Catalina/localhost/JSPWiki.xml"
 PROPS_DEST="${TOMCAT_DIR}/lib/jspwiki-custom.properties"
+LOG4J2_DEST="${TOMCAT_DIR}/lib/log4j2.xml"
+LOG_DIR="${TOMCAT_DIR}/logs/jspwiki"
 JDBC_DRIVER="${TOMCAT_DIR}/lib/postgresql-42.7.4.jar"
 JDBC_URL="https://jdbc.postgresql.org/download/postgresql-42.7.4.jar"
 
@@ -101,6 +103,23 @@ if [[ ! -f "${PROPS_DEST}" ]]; then
     echo "         You may want to review and adjust paths in this file"
 else
     print_status "Properties file already exists (not overwritten)"
+fi
+
+# Copy log4j2.xml template if destination doesn't exist
+if [[ ! -f "${LOG4J2_DEST}" ]]; then
+    cp "${CONFIG_DIR}/log4j2-local.xml.template" "${LOG4J2_DEST}"
+    print_status "Created ${LOG4J2_DEST}"
+    echo "         Uses portable path: \${sys:catalina.base}/logs/jspwiki"
+else
+    print_status "Log4j2 config already exists (not overwritten)"
+fi
+
+# Create log directory if needed
+if [[ ! -d "${LOG_DIR}" ]]; then
+    mkdir -p "${LOG_DIR}"
+    print_status "Created log directory: ${LOG_DIR}"
+else
+    print_status "Log directory already exists: ${LOG_DIR}"
 fi
 
 # Stop Tomcat if running

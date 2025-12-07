@@ -87,10 +87,10 @@ place a `jspwiki-custom.properties` file, which can contain any overrides to the
 default `ini/jspwiki.properties` file in the JSPWiki JAR.  For any values not 
 placed in `jspwiki-custom.properties` file JSPWiki will rely on the default file.
 Review the default file to look for values you may wish to override in the custom
-file.  Some common values to override in your custom file include 
-`jspwiki.xmlUserDatabaseFile`, `jspwiki.xmlGroupDatabaseFile`, 
-`jspwiki.fileSystemProvider.pageDir`, `jspwiki.basicAttachmentProvider.storageDir`, 
-and `log4j.appender.FileLog.File`.  The comments in the default file will suggest 
+file.  Some common values to override in your custom file include
+`jspwiki.xmlUserDatabaseFile`, `jspwiki.xmlGroupDatabaseFile`,
+`jspwiki.fileSystemProvider.pageDir`, `jspwiki.basicAttachmentProvider.storageDir`,
+and `appender.rolling.fileName`.  The comments in the default file will suggest
 appropriate values to override them with. 
 
 The custom file can also be placed in the `WEB-INF/` folder of the WAR, but storing

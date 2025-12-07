@@ -5,7 +5,7 @@
 !Wiki configuration
 The least painful approach to defining the location of your Wiki files is to have them located at the same drive as your Tomcat (or other web server) installation, and define the location in Unix format. For example, files in C:\JSPWiki\files are defined in the configuration file as /JSPWiki/files.
 
-Also make sure you change the setting for {{log4j.appender.~FileLog.File}} in {{jspwiki.properties}} if you want a logfile to be created. This setting is hidden quite well near the end of the config-file. The format is the same as the {{jspwiki.fileSystemProvider.pageDir}}-setting, i.e. backslashes must be duplicated.
+Also make sure you change the setting for {{appender.rolling.fileName}} in {{jspwiki.properties}} if you want a logfile to be created. This setting is in the Log4j 2.x configuration section near the end of the config-file. The format is the same as the {{jspwiki.fileSystemProvider.pageDir}}-setting, i.e. backslashes must be duplicated.
 
 !! UTF-8 Issues
 

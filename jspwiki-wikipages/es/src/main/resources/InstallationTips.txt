@@ -5,7 +5,7 @@
 !Configuración de la Wiki
 El enfoque menos doloroso para definir la localización de las páginas de la Wiki es tenerlas en la misma unidad que tu instalación de Tomcat (u otro servidor de aplicaciones), y definir su localización con formato Unix. Por ejemplo, los archivos en C:\JSPWiki\files son definidos en el fichero de configuración como /JSPWiki/files.
 
-También, comprueba que cambias el valor del parámetro para {{log4j.appender.~FileLog.File}} en {{jspwiki.properties}} si quieres que se cree un fichero de log. Este parámetro está bien escondido cerca del final del fichero de configuración. El formato es el mismo que en el parámetro {{jspwiki.fileSystemProvider.pageDir}}, es decir, las contrabarras deben ser duplicadas.
+También, comprueba que cambias el valor del parámetro para {{appender.rolling.fileName}} en {{jspwiki.properties}} si quieres que se cree un fichero de log. Este parámetro está en la sección de configuración Log4j 2.x cerca del final del fichero de configuración. El formato es el mismo que en el parámetro {{jspwiki.fileSystemProvider.pageDir}}, es decir, las contrabarras deben ser duplicadas.
 
 !! Problemas con UTF-8
 

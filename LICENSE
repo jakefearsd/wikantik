@@ -252,7 +252,6 @@ jmespath-java-1.12.565                      LICENSE
 joda-time-2.8.1                             LICENSE
 jstl-1.2.jar                                LICENSE
 logging-mailhandler-1.6.2.jar               ./jspwiki-war/src/main/config/doc/LICENSE.cddl
-log4j-1.2-api-2.25.1.jar                    LICENSE
 log4j-api-2.25.1.jar                        LICENSE
 log4j-core-2.25.1.jar                       LICENSE
 log4j-slf4j-impl-2.25.1                     LICENSE

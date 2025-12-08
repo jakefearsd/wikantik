@@ -194,12 +194,16 @@ public class TestEngine extends WikiEngine {
     /**
      * Waits for the ReferenceManager to complete its background initialization.
      * This ensures tests have predictable behavior when checking reference data.
+     * <p>
+     * The timeout is set to 10 seconds which should be more than enough for test
+     * wikis with a small number of pages. If this timeout is exceeded, it likely
+     * indicates a problem with the ReferenceManager initialization.
      */
     private void waitForReferenceManager() {
         final ReferenceManager refMgr = getManager( ReferenceManager.class );
         if ( refMgr != null ) {
             final long startTime = System.currentTimeMillis();
-            final long timeout = 30000; // 30 second timeout
+            final long timeout = 10000; // 10 second timeout (sufficient for test wikis)
             while ( !refMgr.isInitialized() && ( System.currentTimeMillis() - startTime ) < timeout ) {
                 try {
                     Thread.sleep( 50 );

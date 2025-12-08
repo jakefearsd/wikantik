@@ -101,6 +101,12 @@ public class DefaultUserManager implements UserManager {
     public void initialize( final Engine engine, final Properties props ) {
         m_engine = engine;
 
+        // Eagerly initialize the user database on the main thread to ensure
+        // JNDI context is available (required for JDBCUserDatabase).
+        // This prevents issues when getUserDatabase() is first called from
+        // a background thread that doesn't have servlet container context.
+        getUserDatabase();
+
         // Attach the PageManager as a listener
         // TODO: it would be better if we did this in PageManager directly
         addWikiEventListener( engine.getManager( PageManager.class ) );

@@ -43,11 +43,14 @@ import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.ContextEnum;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
+import org.apache.wiki.api.providers.PageProvider;
 import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.attachment.AttachmentManager;
 import org.apache.wiki.auth.AuthorizationManager;
 import org.apache.wiki.auth.permissions.PagePermission;
 import org.apache.wiki.pages.PageManager;
+import org.apache.wiki.providers.CachingProvider;
+import org.apache.wiki.providers.PageProviderDecorator;
 import org.apache.wiki.url.URLConstructor;
 import org.apache.wiki.util.TextUtil;
 
@@ -143,11 +146,16 @@ public class SitemapServlet extends HttpServlet {
 
         LOG.debug( "Generating sitemap.xml" );
 
-        // Get all pages
+        // Get all pages directly from the filesystem provider, bypassing the cache.
+        // This is intentional: sitemap generation is a low-volume, correctness-critical
+        // operation where the filesystem is the source of truth. The cache layer can
+        // return stale or empty results after TTL expiration, which would cause
+        // search engines to see an incomplete sitemap.
         final PageManager pageManager = m_engine.getManager( PageManager.class );
+        final PageProvider filesystemProvider = getFilesystemProvider( pageManager );
         final Collection<Page> allPages;
         try {
-            allPages = pageManager.getAllPages();
+            allPages = filesystemProvider.getAllPages();
         } catch ( final org.apache.wiki.api.exceptions.ProviderException e ) {
             LOG.error( "Error retrieving pages for sitemap: {}", e.getMessage() );
             resp.sendError( HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error generating sitemap" );
@@ -412,6 +420,38 @@ public class SitemapServlet extends HttpServlet {
             .replace( ">", "&gt;" )
             .replace( "\"", "&quot;" )
             .replace( "'", "&apos;" );
+    }
+
+    /**
+     * Returns the underlying filesystem provider, unwrapping any caching or decorator layers.
+     * <p>
+     * The provider chain may be structured as:
+     * {@code CachingProvider -> PageProviderDecorator(s) -> FileSystemProvider/VersioningFileProvider}
+     * </p>
+     * <p>
+     * This method traverses the chain to find the actual storage provider, ensuring
+     * that sitemap generation reads directly from the filesystem rather than potentially
+     * stale cache data.
+     * </p>
+     *
+     * @param pageManager the page manager to get the provider from
+     * @return the underlying filesystem provider
+     */
+    private PageProvider getFilesystemProvider( final PageManager pageManager ) {
+        PageProvider provider = pageManager.getProvider();
+
+        // Unwrap CachingProvider if present
+        if ( provider instanceof CachingProvider ) {
+            provider = ( ( CachingProvider ) provider ).getRealProvider();
+        }
+
+        // Unwrap any decorator chain (logging, metrics, etc.)
+        if ( provider instanceof PageProviderDecorator ) {
+            provider = ( ( PageProviderDecorator ) provider ).getRealProvider();
+        }
+
+        LOG.debug( "Using filesystem provider: {}", provider.getClass().getName() );
+        return provider;
     }
 
 }

@@ -45,6 +45,18 @@ import java.util.Set;
 public interface ReferenceManager extends PageFilter, InternalModule, WikiEventListener {
 
     /**
+     * Returns whether the ReferenceManager has completed its initialization.
+     * During startup, the ReferenceManager may be accessed before initialization
+     * completes. Callers can use this method to check if full reference data
+     * is available.
+     *
+     * @return true if initialization has completed, false otherwise
+     */
+    default boolean isInitialized() {
+        return true;
+    }
+
+    /**
      *  Initializes the entire reference manager with the initial set of pages from the collection.
      *
      *  @param pages A collection of all pages you want to be included in the reference count.

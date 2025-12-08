@@ -43,6 +43,7 @@ import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.providers.AbstractFileProvider;
 import org.apache.wiki.providers.BasicAttachmentProvider;
 import org.apache.wiki.providers.FileSystemProvider;
+import org.apache.wiki.references.ReferenceManager;
 import org.apache.wiki.render.RenderingManager;
 import org.apache.wiki.util.FileUtil;
 import org.apache.wiki.util.PropertyReader;
@@ -180,9 +181,37 @@ public class TestEngine extends WikiEngine {
             throw new WikiException( Release.APPNAME + ": Unable to load and setup properties from jspwiki.properties. " + e.getMessage(), e );
         }
 
+        // Wait for ReferenceManager to complete initialization.
+        // In production, ReferenceManager initializes asynchronously to speed up startup.
+        // For tests, we need to wait to ensure predictable behavior.
+        waitForReferenceManager();
+
         // Stash the WikiEngine in the servlet context
         final ServletContext servletContext = this.getServletContext();
         servletContext.setAttribute( "org.apache.wiki.WikiEngine", this );
+    }
+
+    /**
+     * Waits for the ReferenceManager to complete its background initialization.
+     * This ensures tests have predictable behavior when checking reference data.
+     */
+    private void waitForReferenceManager() {
+        final ReferenceManager refMgr = getManager( ReferenceManager.class );
+        if ( refMgr != null ) {
+            final long startTime = System.currentTimeMillis();
+            final long timeout = 30000; // 30 second timeout
+            while ( !refMgr.isInitialized() && ( System.currentTimeMillis() - startTime ) < timeout ) {
+                try {
+                    Thread.sleep( 50 );
+                } catch ( final InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            if ( !refMgr.isInitialized() ) {
+                LOG.warn( "ReferenceManager did not complete initialization within timeout" );
+            }
+        }
     }
 
     /** {@inheritDoc} */

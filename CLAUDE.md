@@ -14,8 +14,8 @@ mvn clean install
 # Build without tests (faster, but not recommended for final checks)
 mvn clean install -Dmaven.test.skip
 
-# Parallel build for faster execution
-mvn clean install -T 1C
+# Parallel build for faster execution (unit tests only, NOT integration tests)
+mvn clean install -T 1C -DskipITs
 
 # Build without JavaScript/CSS compression
 mvn clean install -Dmaven.test.skip -Dminimize=false
@@ -38,7 +38,7 @@ mvn test -Dtest=JSPWikiMarkupParserTest#testHeadingHyperlinks3
 # Debug a test
 mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug
 
-# Run integration tests (from jspwiki-it-tests folder)
+# Run integration tests (MUST run without parallelism - see critical note below)
 mvn clean install -Pintegration-tests
 
 # Run memory profiling test (from jspwiki-main module)
@@ -163,3 +163,26 @@ When implementing new features, consider these extension mechanisms:
 - Integration tests use Selenide for browser automation
 - Test utilities in `org.apache.wiki.TestEngine`
 - Mock implementations available for most components
+
+### Critical: Integration Test Parallelism
+
+**NEVER run integration tests with Maven parallel builds (`-T 1C` or `-T` flags).**
+
+The integration tests use Maven Cargo to start embedded Tomcat instances that share fixed
+port numbers (8080, 8205, etc.). Running multiple IT modules in parallel causes port
+conflicts and unreliable test failures like:
+
+```
+Port number 8205 (defined with the property cargo.rmi.port) is in use
+```
+
+**Correct usage:**
+```bash
+# Integration tests - MUST be sequential (no -T flag)
+mvn clean install -Pintegration-tests
+
+# Unit tests only - can use parallel builds
+mvn clean install -T 1C -DskipITs
+```
+
+Test suite reliability is critical for this project's development workflow.

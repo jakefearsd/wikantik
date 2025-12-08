@@ -270,62 +270,44 @@ public class WikiEngine implements Engine {
         //
         //  Initialize the important modules.  Any exception thrown by the managers means that we will not start up.
         //
-        //  Manager initialization is parallelized where possible to reduce startup time.
-        //  Dependencies:
-        //  - Phase 1 (independent): CommandResolver, URLConstructor, CachingManager
-        //  - Phase 2 (depends on CachingManager): PageManager, AttachmentManager
-        //  - Phase 3 (parallel groups):
-        //      Group A: PluginManager, DifferenceManager, VariableManager, SearchManager
-        //      Group B: AuthenticationManager -> AuthorizationManager -> UserManager -> GroupManager (chain)
-        //  - Phase 4 (depends on various): EditorManager, ProgressManager, AclManager, WorkflowManager, etc.
+        //  Initialization order matters due to dependencies between managers:
+        //  - Phase 1: Core infrastructure (CommandResolver, URLConstructor, CachingManager)
+        //  - Phase 2: Storage providers (PageManager, AttachmentManager) - depend on CachingManager
+        //  - Phase 3: Utility and security managers - all run on main thread because:
+        //      * Security managers (Auth*, UserManager, GroupManager) require JNDI context
+        //      * UserManager eagerly initializes UserDatabase which needs JNDI for JDBCUserDatabase
+        //      * Utility managers (Plugin, Difference, Variable, Search) are fast and don't benefit from parallelization
+        //  - Phase 4: Dependent managers (Editor, Progress, Acl, Workflow, etc.)
         //  - Phase 5: RenderingManager (depends on FilterManager)
-        //  - Phase 6: ReferenceManager (lazy initialization in background)
+        //  - Phase 6: ReferenceManager - initialized asynchronously in background thread
+        //      * This is the key optimization: ReferenceManager scans all pages which is expensive
+        //      * Running it async allows the wiki to start serving requests immediately
         //
         try {
             final String aclClassName = m_properties.getProperty( PROP_ACL_MANAGER_IMPL, ClassUtil.getMappedClass( AclManager.class.getName() ).getName() );
             final String urlConstructorClassName = TextUtil.getStringProperty( props, PROP_URLCONSTRUCTOR, "DefaultURLConstructor" );
             final Class< URLConstructor > urlclass = ClassUtil.findClass( "org.apache.wiki.url", urlConstructorClassName );
 
-            // Phase 1: Core infrastructure (must be sequential as later phases depend on these)
+            // Phase 1: Core infrastructure
             initComponent( CommandResolver.class, this, props );
             initComponent( urlclass.getName(), URLConstructor.class );
             initComponent( CachingManager.class, this, props );
 
-            // Phase 2: Storage providers (depend on CachingManager)
+            // Phase 2: Storage providers
             initComponent( PageManager.class, this, props );
             initComponent( AttachmentManager.class, this, props );
 
-            // Phase 3: Parallel initialization of independent manager groups
-            // Note: Security managers must run on the main thread because they use JNDI
-            // lookups that require the servlet container's thread context.
-            final CompletableFuture<Void> utilityManagers = CompletableFuture.runAsync( () -> {
-                try {
-                    initComponent( PluginManager.class, this, props );
-                    initComponent( DifferenceManager.class, this, props );
-                    initComponent( VariableManager.class, props );
-                } catch ( final Exception e ) {
-                    throw new RuntimeException( "Failed to initialize utility managers", e );
-                }
-            } );
-
-            final CompletableFuture<Void> searchManager = CompletableFuture.runAsync( () -> {
-                try {
-                    initComponent( SearchManager.class, this, props );
-                } catch ( final Exception e ) {
-                    throw new RuntimeException( "Failed to initialize SearchManager", e );
-                }
-            } );
-
-            // Security managers must run on the main thread for JNDI context access
+            // Phase 3: Utility managers and security managers (all on main thread)
+            initComponent( PluginManager.class, this, props );
+            initComponent( DifferenceManager.class, this, props );
+            initComponent( VariableManager.class, props );
+            initComponent( SearchManager.class, this, props );
             initComponent( AuthenticationManager.class );
             initComponent( AuthorizationManager.class );
             initComponent( UserManager.class );
             initComponent( GroupManager.class );
 
-            // Wait for parallel managers to complete
-            CompletableFuture.allOf( utilityManagers, searchManager ).join();
-
-            // Phase 4: Managers that depend on Phase 3 completion
+            // Phase 4: Managers that depend on earlier phases
             initComponent( EditorManager.class, this );
             initComponent( ProgressManager.class, this );
             initComponent( aclClassName, AclManager.class );

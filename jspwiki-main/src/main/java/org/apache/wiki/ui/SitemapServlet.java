@@ -429,7 +429,7 @@ public class SitemapServlet extends HttpServlet {
      * {@code CachingProvider -> PageProviderDecorator(s) -> FileSystemProvider/VersioningFileProvider}
      * </p>
      * <p>
-     * This method traverses the chain to find the actual storage provider, ensuring
+     * This method traverses the entire chain to find the actual storage provider, ensuring
      * that sitemap generation reads directly from the filesystem rather than potentially
      * stale cache data.
      * </p>
@@ -445,8 +445,8 @@ public class SitemapServlet extends HttpServlet {
             provider = ( ( CachingProvider ) provider ).getRealProvider();
         }
 
-        // Unwrap any decorator chain (logging, metrics, etc.)
-        if ( provider instanceof PageProviderDecorator ) {
+        // Unwrap entire decorator chain (there may be multiple: logging, metrics, etc.)
+        while ( provider instanceof PageProviderDecorator ) {
             provider = ( ( PageProviderDecorator ) provider ).getRealProvider();
         }
 

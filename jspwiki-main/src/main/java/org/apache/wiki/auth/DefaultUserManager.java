@@ -103,8 +103,17 @@ public class DefaultUserManager implements UserManager {
 
         // Eagerly initialize the user database on the main thread to ensure
         // JNDI context is available (required for JDBCUserDatabase).
-        // This prevents issues when getUserDatabase() is first called from
-        // a background thread that doesn't have servlet container context.
+        //
+        // Without this eager initialization, the following call chain can trigger
+        // getUserDatabase() from a background thread that lacks JNDI context:
+        //   ReferenceManager (background thread)
+        //     -> scanWikiLinks()
+        //       -> RenderingManager.textToHTML()
+        //         -> JSPWikiMarkupParser constructor
+        //           -> getUserDatabase()  <-- JNDI lookup fails here
+        //
+        // By initializing here on the main servlet thread, the database connection
+        // is established before any background threads attempt to use it.
         getUserDatabase();
 
         // Attach the PageManager as a listener

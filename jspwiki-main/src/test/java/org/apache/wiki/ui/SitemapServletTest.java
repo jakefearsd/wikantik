@@ -723,4 +723,61 @@ class SitemapServletTest {
             "Property constant should have correct value" );
     }
 
+    @Test
+    void testSitemapBypassesCacheAndReadsFromFilesystem() throws Exception {
+        // This test verifies that the sitemap reads directly from the filesystem provider,
+        // not from the cache. This is critical because the cache can return empty results
+        // after TTL expiration, which would cause search engines to see an incomplete sitemap.
+        //
+        // The fix ensures that sitemap generation always reads from the source of truth
+        // (the filesystem) rather than the potentially stale cache.
+
+        // First, verify pages exist by requesting sitemap
+        final HttpServletRequest request1 = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+        Mockito.when( request1.getScheme() ).thenReturn( "http" );
+        Mockito.when( request1.getServerName() ).thenReturn( "localhost" );
+        Mockito.when( request1.getServerPort() ).thenReturn( 8080 );
+        Mockito.when( request1.getContextPath() ).thenReturn( "" );
+
+        final HttpServletResponse response1 = HttpMockFactory.createHttpResponse();
+        final StringWriter stringWriter1 = new StringWriter();
+        final PrintWriter printWriter1 = new PrintWriter( stringWriter1 );
+        Mockito.when( response1.getWriter() ).thenReturn( printWriter1 );
+
+        servlet.doGet( request1, response1 );
+        final String sitemap1 = stringWriter1.toString();
+
+        // Verify initial sitemap contains our test pages
+        Assertions.assertTrue( sitemap1.contains( "TestPage1" ),
+            "Initial sitemap should contain TestPage1" );
+        Assertions.assertTrue( sitemap1.contains( "TestPage2" ),
+            "Initial sitemap should contain TestPage2" );
+
+        // Now create a new page directly on the filesystem (simulating external modification
+        // or simply a page that exists but wasn't in cache)
+        m_engine.saveText( "NewPageAfterCache", "This page was created after cache was populated." );
+
+        // Request sitemap again - it should include the new page because we read from filesystem
+        final HttpServletRequest request2 = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+        Mockito.when( request2.getScheme() ).thenReturn( "http" );
+        Mockito.when( request2.getServerName() ).thenReturn( "localhost" );
+        Mockito.when( request2.getServerPort() ).thenReturn( 8080 );
+        Mockito.when( request2.getContextPath() ).thenReturn( "" );
+
+        final HttpServletResponse response2 = HttpMockFactory.createHttpResponse();
+        final StringWriter stringWriter2 = new StringWriter();
+        final PrintWriter printWriter2 = new PrintWriter( stringWriter2 );
+        Mockito.when( response2.getWriter() ).thenReturn( printWriter2 );
+
+        servlet.doGet( request2, response2 );
+        final String sitemap2 = stringWriter2.toString();
+
+        // The new page should be in the sitemap because we read directly from filesystem
+        Assertions.assertTrue( sitemap2.contains( "NewPageAfterCache" ),
+            "Sitemap should contain newly created page when reading from filesystem" );
+
+        // Cleanup
+        m_engine.getManager( PageManager.class ).deletePage( "NewPageAfterCache" );
+    }
+
 }

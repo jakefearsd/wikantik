@@ -79,6 +79,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -269,24 +270,62 @@ public class WikiEngine implements Engine {
         //
         //  Initialize the important modules.  Any exception thrown by the managers means that we will not start up.
         //
+        //  Manager initialization is parallelized where possible to reduce startup time.
+        //  Dependencies:
+        //  - Phase 1 (independent): CommandResolver, URLConstructor, CachingManager
+        //  - Phase 2 (depends on CachingManager): PageManager, AttachmentManager
+        //  - Phase 3 (parallel groups):
+        //      Group A: PluginManager, DifferenceManager, VariableManager, SearchManager
+        //      Group B: AuthenticationManager -> AuthorizationManager -> UserManager -> GroupManager (chain)
+        //  - Phase 4 (depends on various): EditorManager, ProgressManager, AclManager, WorkflowManager, etc.
+        //  - Phase 5: RenderingManager (depends on FilterManager)
+        //  - Phase 6: ReferenceManager (lazy initialization in background)
+        //
         try {
             final String aclClassName = m_properties.getProperty( PROP_ACL_MANAGER_IMPL, ClassUtil.getMappedClass( AclManager.class.getName() ).getName() );
             final String urlConstructorClassName = TextUtil.getStringProperty( props, PROP_URLCONSTRUCTOR, "DefaultURLConstructor" );
             final Class< URLConstructor > urlclass = ClassUtil.findClass( "org.apache.wiki.url", urlConstructorClassName );
 
+            // Phase 1: Core infrastructure (must be sequential as later phases depend on these)
             initComponent( CommandResolver.class, this, props );
             initComponent( urlclass.getName(), URLConstructor.class );
             initComponent( CachingManager.class, this, props );
+
+            // Phase 2: Storage providers (depend on CachingManager)
             initComponent( PageManager.class, this, props );
-            initComponent( PluginManager.class, this, props );
-            initComponent( DifferenceManager.class, this, props );
             initComponent( AttachmentManager.class, this, props );
-            initComponent( VariableManager.class, props );
-            initComponent( SearchManager.class, this, props );
+
+            // Phase 3: Parallel initialization of independent manager groups
+            // Note: Security managers must run on the main thread because they use JNDI
+            // lookups that require the servlet container's thread context.
+            final CompletableFuture<Void> utilityManagers = CompletableFuture.runAsync( () -> {
+                try {
+                    initComponent( PluginManager.class, this, props );
+                    initComponent( DifferenceManager.class, this, props );
+                    initComponent( VariableManager.class, props );
+                } catch ( final Exception e ) {
+                    throw new RuntimeException( "Failed to initialize utility managers", e );
+                }
+            } );
+
+            final CompletableFuture<Void> searchManager = CompletableFuture.runAsync( () -> {
+                try {
+                    initComponent( SearchManager.class, this, props );
+                } catch ( final Exception e ) {
+                    throw new RuntimeException( "Failed to initialize SearchManager", e );
+                }
+            } );
+
+            // Security managers must run on the main thread for JNDI context access
             initComponent( AuthenticationManager.class );
             initComponent( AuthorizationManager.class );
             initComponent( UserManager.class );
             initComponent( GroupManager.class );
+
+            // Wait for parallel managers to complete
+            CompletableFuture.allOf( utilityManagers, searchManager ).join();
+
+            // Phase 4: Managers that depend on Phase 3 completion
             initComponent( EditorManager.class, this );
             initComponent( ProgressManager.class, this );
             initComponent( aclClassName, AclManager.class );
@@ -298,12 +337,13 @@ public class WikiEngine implements Engine {
             initComponent( AdminBeanManager.class, this );
             initComponent( PageRenamer.class, this, props );
 
-            // RenderingManager depends on FilterManager events.
+            // Phase 5: RenderingManager depends on FilterManager events.
             initComponent( RenderingManager.class );
 
-            //  ReferenceManager has the side effect of loading all pages. Therefore, after this point, all page attributes are available.
-            //  initReferenceManager is indirectly using m_filterManager, so it has to be called after it was initialized.
-            initReferenceManager();
+            // Phase 6: ReferenceManager initialization is deferred to a background thread.
+            // This significantly reduces startup time for large wikis. The ReferenceManager
+            // will initialize lazily when first accessed, or in the background if not needed immediately.
+            initReferenceManagerAsync();
 
             //  Hook the different manager routines into the system.
             getManager( FilterManager.class ).addPageFilter( getManager( ReferenceManager.class ), -1001 );
@@ -466,6 +506,43 @@ public class WikiEngine implements Engine {
 
         } catch( final ProviderException e ) {
             LOG.fatal( "PageProvider is unable to list pages: ", e );
+        } catch( final Exception e ) {
+            throw new WikiException( "Could not instantiate ReferenceManager: " + e.getMessage(), e );
+        }
+    }
+
+    /**
+     *  Initializes the reference manager asynchronously in a background thread.
+     *  This allows the wiki to start serving requests immediately while the
+     *  potentially time-consuming reference scan completes in the background.
+     *  <p>
+     *  The ReferenceManager is created immediately but its initialization
+     *  (scanning all pages for references) is deferred. The manager handles
+     *  this gracefully by returning empty/partial results until initialization
+     *  completes.
+     *
+     *  @throws WikiException If the reference manager instantiation fails.
+     */
+    void initReferenceManagerAsync() throws WikiException {
+        try {
+            if( getManager( ReferenceManager.class ) == null ) {
+                final String refMgrClassName = m_properties.getProperty( PROP_REF_MANAGER_IMPL, ClassUtil.getMappedClass( ReferenceManager.class.getName() ).getName() );
+
+                // Create the ReferenceManager instance immediately so it can be registered
+                initComponent( refMgrClassName, ReferenceManager.class, this );
+
+                // Defer the expensive initialization to a background thread
+                CompletableFuture.runAsync( () -> {
+                    try {
+                        final var pages = new ArrayList< Page >();
+                        pages.addAll( getManager( PageManager.class ).getAllPages() );
+                        pages.addAll( getManager( AttachmentManager.class ).getAllAttachments() );
+                        getManager( ReferenceManager.class ).initialize( pages );
+                    } catch( final ProviderException e ) {
+                        LOG.error( "Background ReferenceManager initialization failed: {}", e.getMessage(), e );
+                    }
+                } );
+            }
         } catch( final Exception e ) {
             throw new WikiException( "Could not instantiate ReferenceManager: " + e.getMessage(), e );
         }

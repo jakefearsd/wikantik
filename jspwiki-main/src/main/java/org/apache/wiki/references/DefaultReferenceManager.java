@@ -47,6 +47,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /*
@@ -124,6 +125,9 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     private Map< String, Set< String > > m_unmutableReferredBy;
 
     private final boolean m_matchEnglishPlurals;
+
+    /** Tracks whether the ReferenceManager has completed its initial page scan. */
+    private final AtomicBoolean m_initialized = new AtomicBoolean( false );
 
     private static final Logger LOG = LogManager.getLogger( DefaultReferenceManager.class);
     private static final String SERIALIZATION_FILE = "refmgr.ser";
@@ -230,10 +234,33 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
             serializeToDisk();
         }
 
+        m_initialized.set( true );
         sw.stop();
-        LOG.info( "Cross reference scan done in {}", sw );
+        LOG.info( "Cross reference scan done in {} - ReferenceManager is now ready", sw );
 
         WikiEventManager.addWikiEventListener( m_engine.getManager( PageManager.class ), this );
+    }
+
+    /**
+     * Returns whether the ReferenceManager has completed its initialization.
+     * During startup, the ReferenceManager may be accessed before initialization
+     * completes. Callers can use this method to check if full reference data
+     * is available.
+     *
+     * @return true if initialization has completed, false otherwise
+     */
+    public boolean isInitialized() {
+        return m_initialized.get();
+    }
+
+    /**
+     * Logs a debug message if the ReferenceManager is accessed before initialization.
+     * This is not an error - the manager will return empty/partial results gracefully.
+     */
+    private void warnIfNotInitialized() {
+        if ( !m_initialized.get() ) {
+            LOG.debug( "ReferenceManager accessed before initialization complete - returning partial results" );
+        }
     }
 
     /**
@@ -690,10 +717,11 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     /**
      *  Finds all unreferenced pages. This requires a linear scan through m_referredBy to locate keys with null or empty values.
      *
-     *  @return The Collection of Strings
+     *  @return The Collection of Strings (may be incomplete if called before initialization completes)
      */
     @Override
     public Collection< String > findUnreferenced() {
+        warnIfNotInitialized();
         final var unref = new ArrayList< String >();
         for( final String key : m_referredBy.keySet() ) {
             final Set< ? > refs = getReferenceList( m_referredBy, key );
@@ -713,10 +741,11 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      * Returns a Collection containing Strings of unreferenced page names. Each non-existant page name is shown only
      * once - we don't return information on who referred to it.
      *
-     * @return A Collection of Strings
+     * @return A Collection of Strings (may be incomplete if called before initialization completes)
      */
     @Override
     public Collection< String > findUncreated() {
+        warnIfNotInitialized();
         final TreeSet< String > uncreated;
 
         // Go through m_refersTo values and check that m_refersTo has the corresponding keys.
@@ -764,10 +793,12 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      * otherwise returns a collection containing page names (String) that refer to this one.
      * <p>
      * @param pagename The page to find referrers for.
-     * @return A Set of Strings.  May return null, if the page does not exist, or if it has no references.
+     * @return A Set of Strings.  May return null, if the page does not exist, has no references,
+     *         or if the ReferenceManager has not yet been initialized.
      */
     @Override
     public Set< String > findReferrers( final String pagename ) {
+        warnIfNotInitialized();
         final Set< String > refs = getReferenceList( m_referredBy, pagename );
         if( refs == null || refs.isEmpty() ) {
             return null;
@@ -786,11 +817,12 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      *
      * @param pageName Page name to query.
      * @return A Set of Strings containing the names of all the pages that refer to this page.  May return null, if the page does
-     *         not exist or has not been indexed yet.
+     *         not exist, has not been indexed yet, or if the ReferenceManager has not yet been initialized.
      * @since 2.2.33
      */
     @Override
     public Set< String > findReferredBy( final String pageName ) {
+        warnIfNotInitialized();
         return m_unmutableReferredBy.get( getFinalPageName(pageName) );
     }
 
@@ -805,11 +837,12 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      *
      * @param pageName Page name to query
      * @return A Collection of Strings containing the names of the pages that this page refers to. May return null, if the page
-     *         does not exist or has not been indexed yet.
+     *         does not exist, has not been indexed yet, or if the ReferenceManager has not yet been initialized.
      * @since 2.2.33
      */
     @Override
     public Collection< String > findRefersTo( final String pageName ) {
+        warnIfNotInitialized();
         return m_unmutableRefersTo.get( getFinalPageName( pageName ) );
     }
 
@@ -849,11 +882,12 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      *  PageManager.getAllPages(), but without the potential disk access overhead.  Note that this method is not guaranteed
      *  to return a Set of really all pages (especially during startup), but it is very fast.
      *
-     *  @return A Set of all defined page names that ReferenceManager knows about.
+     *  @return A Set of all defined page names that ReferenceManager knows about (may be incomplete during initialization).
      *  @since 2.3.24
      */
     @Override
     public Set< String > findCreated() {
+        warnIfNotInitialized();
         return new HashSet<>( m_refersTo.keySet() );
     }
 

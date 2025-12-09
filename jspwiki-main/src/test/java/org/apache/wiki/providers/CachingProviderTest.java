@@ -441,4 +441,108 @@ class CachingProviderTest {
         Assertions.assertEquals( 1, cp.m_getVersionHistoryCalls, "Step 5: getVersionHistory should use cache" );
     }
 
+    // ============== All-Pages Cache TTL Tests ==============
+
+    /**
+     * Helper to set up engine with CounterProvider and short TTL for testing.
+     */
+    private TestEngine buildWithCounterProviderAndShortTTL( final int ttlSeconds ) {
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( CachingManager.PROP_CACHE_ENABLE, "true" );
+        props.setProperty( "jspwiki.pageProvider", "org.apache.wiki.providers.CounterProvider" );
+        props.setProperty( CachingProvider.PROP_CACHE_ALLPAGES_TTL, String.valueOf( ttlSeconds ) );
+        return TestEngine.build( props );
+    }
+
+    /**
+     * Tests that getAllPages cache refreshes after TTL expires.
+     */
+    @Test
+    void testGetAllPagesCacheRefreshesAfterTTL() throws Exception {
+        // Use a very short TTL (1 second) for testing
+        engine = buildWithCounterProviderAndShortTTL( 1 );
+        final CounterProvider cp = getCounterProvider( engine );
+
+        // First getAllPages call happens during init
+        Assertions.assertEquals( 1, cp.m_getAllPagesCalls, "getAllPages should be called once during init" );
+
+        // Reset counters
+        cp.resetCounters();
+
+        // Immediate call should use cache
+        engine.getManager( PageManager.class ).getAllPages();
+        Assertions.assertEquals( 0, cp.m_getAllPagesCalls, "getAllPages should use cache immediately" );
+
+        // Wait for TTL to expire
+        Thread.sleep( 1500 );
+
+        // Now cache should be expired, and getAllPages should call provider
+        engine.getManager( PageManager.class ).getAllPages();
+        Assertions.assertEquals( 1, cp.m_getAllPagesCalls, "getAllPages should refresh from provider after TTL" );
+
+        // Reset counters
+        cp.resetCounters();
+
+        // Immediate call should use cache again
+        engine.getManager( PageManager.class ).getAllPages();
+        Assertions.assertEquals( 0, cp.m_getAllPagesCalls, "getAllPages should use cache after refresh" );
+    }
+
+    /**
+     * Tests that the default TTL property is used when not specified.
+     */
+    @Test
+    void testDefaultAllPagesTTL() throws Exception {
+        engine = buildWithCounterProvider();
+        final CounterProvider cp = getCounterProvider( engine );
+
+        // Reset counters after init
+        cp.resetCounters();
+
+        // Multiple calls should use cache (default TTL is 5 minutes)
+        for ( int i = 0; i < 10; i++ ) {
+            engine.getManager( PageManager.class ).getAllPages();
+        }
+        Assertions.assertEquals( 0, cp.m_getAllPagesCalls, "getAllPages should use cache with default TTL" );
+    }
+
+    /**
+     * Tests that externally added pages are detected after TTL expires.
+     * This simulates the scenario where files are added directly to the filesystem.
+     */
+    @Test
+    void testExternallyAddedPagesDetectedAfterTTL() throws Exception {
+        // Use short TTL for testing
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( CachingManager.PROP_CACHE_ENABLE, "true" );
+        props.setProperty( CachingProvider.PROP_CACHE_ALLPAGES_TTL, "1" );
+        engine = TestEngine.build( props );
+
+        // Get initial page count
+        final int initialCount = engine.getManager( PageManager.class ).getAllPages().size();
+
+        // Add a page directly to the filesystem (bypassing the wiki API)
+        final String dir = engine.getWikiProperties().getProperty( FileSystemProvider.PROP_PAGEDIR );
+        final File f = new File( dir, "ExternalPage.txt" );
+        try ( final PrintWriter out = new PrintWriter( new FileWriter( f ) ) ) {
+            out.println( "This page was added externally" );
+        }
+
+        // Immediate getAllPages should return old count (cache not expired)
+        Assertions.assertEquals( initialCount, engine.getManager( PageManager.class ).getAllPages().size(),
+                "getAllPages should return cached count before TTL expires" );
+
+        // Wait for TTL to expire
+        Thread.sleep( 1500 );
+
+        // Now getAllPages should detect the new page
+        final Collection<Page> pagesAfterTTL = engine.getManager( PageManager.class ).getAllPages();
+        Assertions.assertEquals( initialCount + 1, pagesAfterTTL.size(),
+                "getAllPages should detect externally added page after TTL expires" );
+
+        // Verify the new page is in the list
+        final boolean found = pagesAfterTTL.stream().anyMatch( p -> "ExternalPage".equals( p.getName() ) );
+        Assertions.assertTrue( found, "ExternalPage should be in the page list" );
+    }
+
 }

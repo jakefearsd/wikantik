@@ -1,0 +1,7 @@
+%%ARTICLE_START%%
+----
+[%%TITLE%%|%%NAME%%]\\
+%%small %%AUTHOR%% · %%DATE_FULL%% /%
+
+%%EXCERPT%%
+%%ARTICLE_END%%

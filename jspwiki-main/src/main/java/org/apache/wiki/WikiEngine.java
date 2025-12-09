@@ -35,6 +35,7 @@ import org.apache.wiki.auth.acl.AclManager;
 import org.apache.wiki.auth.authorize.GroupManager;
 import org.apache.wiki.cache.CachingManager;
 import org.apache.wiki.content.PageRenamer;
+import org.apache.wiki.content.RecentArticlesManager;
 import org.apache.wiki.diff.DifferenceManager;
 import org.apache.wiki.event.WikiEngineEvent;
 import org.apache.wiki.event.WikiEventListener;
@@ -322,7 +323,10 @@ public class WikiEngine implements Engine {
             // Phase 5: RenderingManager depends on FilterManager events.
             initComponent( RenderingManager.class );
 
-            // Phase 6: ReferenceManager initialization is deferred to a background thread.
+            // Phase 6: RecentArticlesManager for article listing APIs and plugins.
+            initComponent( RecentArticlesManager.class );
+
+            // Phase 7: ReferenceManager initialization is deferred to a background thread.
             // This significantly reduces startup time for large wikis. The ReferenceManager
             // will initialize lazily when first accessed, or in the background if not needed immediately.
             initReferenceManagerAsync();

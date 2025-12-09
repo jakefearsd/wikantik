@@ -192,6 +192,12 @@
        <servlet-class>org.apache.wiki.ui.SitemapServlet</servlet-class>
    </servlet>
 
+   <!-- REST API servlet for recent articles -->
+   <servlet>
+       <servlet-name>RecentArticlesServlet</servlet-name>
+       <servlet-class>org.apache.wiki.content.RecentArticlesServlet</servlet-class>
+   </servlet>
+
    <servlet-mapping>
        <servlet-name>AttachmentServlet</servlet-name>
        <url-pattern>/attach/*</url-pattern>
@@ -200,6 +206,11 @@
    <servlet-mapping>
        <servlet-name>SitemapServlet</servlet-name>
        <url-pattern>/sitemap.xml</url-pattern>
+   </servlet-mapping>
+
+   <servlet-mapping>
+       <servlet-name>RecentArticlesServlet</servlet-name>
+       <url-pattern>/api/recent-articles</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

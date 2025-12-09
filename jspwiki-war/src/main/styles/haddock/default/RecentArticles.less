@@ -1,0 +1,234 @@
+/*
+ * RecentArticlesPlugin.less
+ *
+ * Styles for the RecentArticles plugin - Medium-inspired article cards
+ */
+
+// Recent Articles Container
+.recent-articles {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px 0;
+}
+
+// Individual Article Card
+.article-card {
+  background: #fff;
+  border-bottom: 1px solid #e6e6e6;
+  padding: 24px 0;
+  transition: background-color 0.2s ease;
+
+  &:first-child {
+    padding-top: 0;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background-color: #fafafa;
+  }
+}
+
+// Article Title
+.article-title {
+  margin: 0 0 8px 0;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+
+  a {
+    color: #292929;
+    text-decoration: none;
+
+    &:hover {
+      color: #1a8917;
+      text-decoration: underline;
+    }
+  }
+}
+
+// Article Metadata (author, date)
+.article-meta {
+  margin: 0 0 10px 0;
+  font-size: 0.875rem;
+  color: #757575;
+  line-height: 1.4;
+
+  .author {
+    font-weight: 500;
+    color: #292929;
+  }
+
+  .date {
+    color: #757575;
+  }
+}
+
+// Article Excerpt
+.article-excerpt {
+  margin: 0;
+  font-size: 1rem;
+  color: #505050;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// Change Note (if present)
+.article-changenote {
+  margin: 8px 0 0 0;
+  font-size: 0.8125rem;
+  color: #757575;
+  font-style: italic;
+
+  &::before {
+    content: "\2014\00a0"; // em dash + space
+  }
+}
+
+// No Articles Message
+.no-articles {
+  text-align: center;
+  padding: 40px 20px;
+  color: #757575;
+  font-size: 1rem;
+}
+
+// Featured variant (for hero articles)
+.recent-articles-featured {
+  .article-card:first-child {
+    padding-bottom: 32px;
+    margin-bottom: 16px;
+    border-bottom: 2px solid #1a8917;
+
+    .article-title {
+      font-size: 2rem;
+
+      a {
+        color: #1a8917;
+      }
+    }
+
+    .article-excerpt {
+      font-size: 1.125rem;
+      -webkit-line-clamp: 4;
+    }
+  }
+}
+
+// Compact variant
+.recent-articles-compact {
+  .article-card {
+    padding: 16px 0;
+  }
+
+  .article-title {
+    font-size: 1.125rem;
+    margin-bottom: 4px;
+  }
+
+  .article-excerpt {
+    font-size: 0.875rem;
+    -webkit-line-clamp: 2;
+  }
+}
+
+// Grid variant (for landing pages)
+.recent-articles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  max-width: none;
+
+  .article-card {
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    border-radius: 8px;
+    padding: 20px;
+    border-bottom: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      transform: translateY(-2px);
+    }
+  }
+
+  .article-title {
+    font-size: 1.125rem;
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .recent-articles {
+    .article-card {
+      background: #1a1a1a;
+      border-color: #333;
+
+      &:hover {
+        background: #222;
+      }
+    }
+
+    .article-title a {
+      color: #e6e6e6;
+
+      &:hover {
+        color: #4caf50;
+      }
+    }
+
+    .article-meta {
+      color: #999;
+
+      .author {
+        color: #ccc;
+      }
+    }
+
+    .article-excerpt {
+      color: #aaa;
+    }
+  }
+
+  .recent-articles-grid .article-card {
+    background: #1a1a1a;
+    border-color: #333;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .recent-articles {
+    padding: 16px;
+  }
+
+  .article-card {
+    padding: 20px 0;
+  }
+
+  .article-title {
+    font-size: 1.25rem;
+  }
+
+  .article-excerpt {
+    font-size: 0.9375rem;
+    -webkit-line-clamp: 2;
+  }
+
+  .recent-articles-grid {
+    grid-template-columns: 1fr;
+  }
+}

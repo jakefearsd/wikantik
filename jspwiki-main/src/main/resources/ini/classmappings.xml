@@ -147,4 +147,8 @@
     <requestedClass>org.apache.wiki.workflow.WorkflowManager</requestedClass>
     <mappedClass>org.apache.wiki.workflow.DefaultWorkflowManager</mappedClass>
   </mapping>
+  <mapping>
+    <requestedClass>org.apache.wiki.content.RecentArticlesManager</requestedClass>
+    <mappedClass>org.apache.wiki.content.DefaultRecentArticlesManager</mappedClass>
+  </mapping>
 </classmappings>

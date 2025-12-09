@@ -44,7 +44,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 
@@ -52,7 +51,8 @@ import java.util.concurrent.atomic.AtomicLong;
  *  Provides a caching page provider.  This class rests on top of a real provider class and provides a cache to speed things up.  Only
  *  if the cache copy of the page text has expired, we fetch it from the provider.
  *  <p>
- *  This class does not detect if someone has modified the page externally, not through JSPWiki routines.
+ *  This class detects externally added pages by periodically refreshing the page list from the underlying provider.
+ *  The refresh interval is configurable via the {@link #PROP_CACHE_ALLPAGES_TTL} property.
  *  <p>
  *  Heavily based on ideas by Chris Brooking.
  *  <p>
@@ -64,11 +64,28 @@ public class CachingProvider implements PageProvider {
 
     private static final Logger LOG = LogManager.getLogger( CachingProvider.class );
 
+    /**
+     * Property name for configuring the TTL (in seconds) of the "all pages" cache.
+     * When this TTL expires, the next call to getAllPages() will refresh from the underlying provider,
+     * allowing detection of externally added or removed pages.
+     * Default is 300 seconds (5 minutes).
+     */
+    public static final String PROP_CACHE_ALLPAGES_TTL = "jspwiki.cache.allPagesTTL";
+
+    /** Default TTL for the all-pages cache: 5 minutes */
+    private static final int DEFAULT_ALLPAGES_TTL = 300;
+
     private CachingManager cachingManager;
     private PageProvider provider;
     private Engine engine;
 
-    private final AtomicBoolean allRequested = new AtomicBoolean();
+    /** TTL in milliseconds for the all-pages cache */
+    private long allPagesTTLMillis;
+
+    /** Timestamp when the all-pages cache was last populated */
+    private final AtomicLong allPagesLastRefresh = new AtomicLong( 0L );
+
+    /** Count of pages in the cache */
     private final AtomicLong pages = new AtomicLong( 0L );
 
     /**
@@ -81,7 +98,11 @@ public class CachingProvider implements PageProvider {
         // engine is used for getting the search engine
         this.engine = engine;
         cachingManager = this.engine.getManager( CachingManager.class );
-        cachingManager.registerListener( CachingManager.CACHE_PAGES, "expired", allRequested );
+
+        // Configure the TTL for the all-pages cache (in seconds, converted to milliseconds)
+        final int allPagesTTL = TextUtil.getIntegerProperty( properties, PROP_CACHE_ALLPAGES_TTL, DEFAULT_ALLPAGES_TTL );
+        allPagesTTLMillis = allPagesTTL * 1000L;
+        LOG.info( "All-pages cache TTL set to {} seconds", allPagesTTL );
 
         //  Find and initialize real provider.
         final String classname;
@@ -237,6 +258,19 @@ public class CachingProvider implements PageProvider {
     }
 
     /**
+     * Checks if the all-pages cache has expired based on the configured TTL.
+     *
+     * @return true if the cache needs to be refreshed
+     */
+    private boolean isAllPagesCacheExpired() {
+        final long lastRefresh = allPagesLastRefresh.get();
+        if ( lastRefresh == 0L ) {
+            return true; // Never populated
+        }
+        return ( System.currentTimeMillis() - lastRefresh ) > allPagesTTLMillis;
+    }
+
+    /**
      *  {@inheritDoc}
      */
     @Override
@@ -245,23 +279,34 @@ public class CachingProvider implements PageProvider {
 
         // Use synchronized block for the entire check-then-act sequence to prevent race conditions.
         // Without this, concurrent requests during startup could see partially-filled cache results
-        // because one thread might set allRequested=true while another thread reads from incomplete cache.
+        // because one thread might read from incomplete cache while another populates it.
         synchronized( this ) {
-            if ( !allRequested.get() ) {
+            if ( isAllPagesCacheExpired() ) {
                 // Fetch all pages from the underlying provider (this may be slow for large wikis)
+                LOG.debug( "All-pages cache expired or not yet populated, refreshing from provider" );
                 final Collection< Page > providerPages = provider.getAllPages();
 
-                // Populate the cache with all pages
+                // Clear existing page entries and repopulate the cache
+                // This ensures deleted pages are also detected
+                final List< String > existingKeys = cachingManager.keys( CachingManager.CACHE_PAGES );
+                for ( final String key : existingKeys ) {
+                    cachingManager.remove( CachingManager.CACHE_PAGES, key );
+                    cachingManager.remove( CachingManager.CACHE_PAGES_TEXT, key );
+                }
+
+                // Populate the cache with all pages from provider
                 for( final Page p : providerPages ) {
                     cachingManager.put( CachingManager.CACHE_PAGES, p.getName(), p );
                 }
-                allRequested.set( true );
+                allPagesLastRefresh.set( System.currentTimeMillis() );
                 pages.set( providerPages.size() );
+
+                LOG.debug( "All-pages cache refreshed with {} pages", providerPages.size() );
 
                 // Return the freshly fetched collection
                 all = providerPages;
             } else {
-                // Cache is fully populated, read from cache
+                // Cache is valid, read from cache
                 final List< String > keys = cachingManager.keys( CachingManager.CACHE_PAGES );
                 all = new TreeSet<>();
                 for( final String key : keys ) {

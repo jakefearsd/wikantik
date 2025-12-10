@@ -1,0 +1,22 @@
+!!!JDBC Plugin Integration Test Page
+
+This page tests the JDBCPlugin's ability to query the database and display results as an HTML table.
+
+!!All Products
+
+[{INSERT JDBCPlugin sql='SELECT id, name, category, price, in_stock FROM products ORDER BY id'}]
+
+!!Electronics Only (Filtered by ID)
+
+[{INSERT JDBCPlugin sql='SELECT name, price FROM products WHERE id <= 3 ORDER BY price' class='electronics-table'}]
+
+!!Product Count
+
+[{INSERT JDBCPlugin sql='SELECT COUNT(*) as total_products FROM products' header='false'}]
+
+!!Test Cases
+
+The above tables should show:
+* First table: 5 products (Laptop, Mouse, Keyboard, Office Chair, Desk Lamp)
+* Second table: 3 products with id <= 3 sorted by price (Mouse, Keyboard, Laptop)
+* Third table: A single cell with the value "5"

@@ -189,7 +189,28 @@ insert into groups (
 insert into group_members (
   name,
   member
-) values (  
+) values (
   'Admin',
   'Administrator'
 );
+
+-- =============================================================
+-- Test data for JDBCPlugin integration tests
+-- =============================================================
+
+drop table products if exists cascade;
+
+create table products (
+  id integer not null,
+  name varchar(100) not null,
+  category varchar(50),
+  price decimal(10,2),
+  in_stock integer,
+  constraint products_pk primary key (id)
+);
+
+insert into products (id, name, category, price, in_stock) values (1, 'Laptop', 'Electronics', 999.99, 10);
+insert into products (id, name, category, price, in_stock) values (2, 'Mouse', 'Electronics', 29.99, 50);
+insert into products (id, name, category, price, in_stock) values (3, 'Keyboard', 'Electronics', 79.99, 25);
+insert into products (id, name, category, price, in_stock) values (4, 'Office Chair', 'Furniture', 299.99, 8);
+insert into products (id, name, category, price, in_stock) values (5, 'Desk Lamp', 'Furniture', 49.99, 30);

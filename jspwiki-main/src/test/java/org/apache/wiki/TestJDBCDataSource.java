@@ -22,10 +22,9 @@ import javax.sql.DataSource;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.PrintWriter;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.SQLException;
@@ -194,15 +193,16 @@ public class TestJDBCDataSource implements DataSource
         final String driverFile = properties.getProperty( PROPERTY_DRIVER_JAR );
 
         // Construct an URL for loading the file
-        final URL driverURL = new URL( "file:" + driverFile );
+        final URL driverURL = URI.create( "file:" + driverFile ).toURL();
 
-        // Load the driver using the sytem class loader
+        // Load the driver using the system class loader
         final ClassLoader parent = ClassLoader.getSystemClassLoader();
-        final URLClassLoader loader = AccessController.doPrivileged( ( PrivilegedAction< URLClassLoader > ) () -> new URLClassLoader( new URL[] { driverURL }, parent ) );
+        @SuppressWarnings( "resource" )
+        final URLClassLoader loader = new URLClassLoader( new URL[] { driverURL }, parent );
         final Class< ? > driverClass = loader.loadClass( clazz );
 
         // Cache the driver
-        m_driver = (Driver) driverClass.newInstance();
+        m_driver = (Driver) driverClass.getDeclaredConstructor().newInstance();
     }
 
     @Override

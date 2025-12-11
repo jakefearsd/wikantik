@@ -19,15 +19,11 @@
 package org.apache.wiki.auth.permissions;
 
 import java.io.Serializable;
-import java.security.AccessControlContext;
-import java.security.AccessController;
-import java.security.DomainCombiner;
 import java.security.Permission;
 import java.util.Arrays;
 import java.util.Set;
 
 import javax.security.auth.Subject;
-import javax.security.auth.SubjectDomainCombiner;
 
 import org.apache.wiki.auth.GroupPrincipal;
 
@@ -477,15 +473,13 @@ public final class GroupPermission extends Permission implements Serializable
             return false;
         }
 
-        // For the current thread, retrieve the SubjectDomainCombiner
-        // (if one was used to create current AccessControlContext )
-        final AccessControlContext acc = AccessController.getContext();
-        final DomainCombiner dc = acc.getDomainCombiner();
-        if ( dc != null && dc instanceof SubjectDomainCombiner )
+        // Get the current Subject for this thread using the modern Java 18+ API
+        // Subject.current() returns the Subject bound to the current thread via Subject.callAs()
+        final Subject subject = Subject.current();
+        if ( subject != null )
         {
             // <member> implies permission if subject possesses
             // GroupPrincipal with same name as target
-            final Subject subject = ( (SubjectDomainCombiner) dc ).getSubject();
             final Set<GroupPrincipal> principals = subject.getPrincipals( GroupPrincipal.class );
             return principals.stream().anyMatch(principal -> principal.getName().equals(gp.m_group));
         }

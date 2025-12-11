@@ -21,10 +21,10 @@ package org.apache.wiki.api.core;
 import org.apache.wiki.event.WikiEventListener;
 
 import javax.security.auth.Subject;
-import java.security.AccessControlException;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.util.Locale;
+import java.util.concurrent.Callable;
 
 
 /**
@@ -238,17 +238,25 @@ public interface Session extends WikiEventListener {
     Subject getSubject();
 
     /**
-     * Wrapper for {@link Subject#doAsPrivileged(Subject, PrivilegedAction, java.security.AccessControlContext)}
-     * that executes an action with the privileges possessed by a Session's Subject. The action executes with a <code>null</code>
-     * AccessControlContext, which has the effect of running it "cleanly" without the AccessControlContexts of the caller.
+     * Executes an action with the privileges possessed by a Session's Subject.
+     * Uses {@link Subject#callAs(Subject, Callable)} which is the modern replacement
+     * for the deprecated {@code Subject.doAsPrivileged()}.
      *
      * @param session the wiki session
      * @param action the privileged action
+     * @param <T> the return type of the action
      * @return the result of the privileged action; may be <code>null</code>
-     * @throws java.security.AccessControlException if the action is not permitted by the security policy
+     * @throws RuntimeException if the action throws an exception
      */
-    static Object doPrivileged( final Session session, final PrivilegedAction<?> action ) throws AccessControlException {
-        return Subject.doAsPrivileged( session.getSubject(), action, null );
+    static <T> T doPrivileged( final Session session, final PrivilegedAction<T> action ) {
+        try {
+            return Subject.callAs( session.getSubject(), action::run );
+        } catch ( final Exception e ) {
+            if ( e instanceof RuntimeException ) {
+                throw (RuntimeException) e;
+            }
+            throw new RuntimeException( "Error executing privileged action", e );
+        }
     }
 
 }

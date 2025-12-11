@@ -43,6 +43,12 @@
     <plugins>
       <plugin>
         <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <excludes>
+            <!-- JDBCPluginIT requires HSQLDB which is not configured in this module -->
+            <exclude>**/JDBCPluginIT.java</exclude>
+          </excludes>
+        </configuration>
       </plugin>
 
       <plugin>

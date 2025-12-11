@@ -235,7 +235,7 @@
                     </user>
                   </users>
                   <properties>
-                    <cargo.jvmargs>-Djava.awt.headless=true</cargo.jvmargs>
+                    <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading</cargo.jvmargs>
                   </properties>
                 </configuration>
                 <container>

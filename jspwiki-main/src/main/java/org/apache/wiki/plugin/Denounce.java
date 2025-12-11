@@ -30,7 +30,7 @@ import org.apache.wiki.util.TextUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -181,7 +181,7 @@ public class Denounce implements Plugin {
 
     boolean isLinkValid( final String link ) {
         try {
-            new URL( link ).toURI().parseServerAuthority();
+            URI.create( link ).toURL().toURI().parseServerAuthority();
         } catch ( final Exception e ) {
             LOG.debug( "invalid link {} - {}", link, e.getMessage() );
             return false;

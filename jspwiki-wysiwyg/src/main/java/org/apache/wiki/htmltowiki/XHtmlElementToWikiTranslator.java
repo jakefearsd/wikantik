@@ -103,10 +103,9 @@ public class XHtmlElementToWikiTranslator {
     }
 
     public void translate( final Content element ) throws JDOMException {
-        if( element instanceof Text ) {
-            translateText( ( Text ) element );
-        } else if( element instanceof Element ) {
-            final Element base = ( Element )element;
+        if( element instanceof Text text ) {
+            translateText( text );
+        } else if( element instanceof Element base ) {
             final String n = base.getName().toLowerCase();
             final String reason = Verifier.checkElementName(n);
 
@@ -236,8 +235,7 @@ public class XHtmlElementToWikiTranslator {
 
     public void translateChildren( final Element base ) throws JDOMException {
         for( final Content c : base.getContent() ) {
-            if( c instanceof Element ) {
-                final Element e = ( Element )c;
+            if( c instanceof Element e ) {
                 final String n = e.getName().toLowerCase();
                 switch( n ) {
                     case "h1": syntax.h1( e ); break;

@@ -22,9 +22,9 @@ import java.security.Permission;
 
 
 /**
- * Usual permission checks
+ * Usual permission checks. Provides utility methods to identify JSPWiki-specific permissions.
  */
-class PermissionChecks {
+public class PermissionChecks {
 
     /**
      *  Checks if the given permission is one of ours.
@@ -32,7 +32,7 @@ class PermissionChecks {
      *  @param permission Permission to check
      *  @return true, if the permission is a JSPWiki permission; false otherwise.
      */
-    static boolean isJSPWikiPermission( final Permission permission ) {
+    public static boolean isJSPWikiPermission( final Permission permission ) {
         return permission instanceof WikiPermission  ||
                permission instanceof PagePermission  ||
                permission instanceof GroupPermission ||

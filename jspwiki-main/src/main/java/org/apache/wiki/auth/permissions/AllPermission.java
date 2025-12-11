@@ -60,10 +60,9 @@ public final class AllPermission extends Permission implements Serializable {
      * @see java.lang.Object#equals(java.lang.Object)
      */
     public boolean equals( final Object obj ) {
-        if( !( obj instanceof AllPermission ) ) {
+        if( !( obj instanceof AllPermission p ) ) {
             return false;
         }
-        final AllPermission p = ( AllPermission )obj;
         return p.m_wiki != null && p.m_wiki.equals( m_wiki );
     }
 
@@ -117,16 +116,16 @@ public final class AllPermission extends Permission implements Serializable {
             return false;
         }
         String wiki = null;
-        if( permission instanceof AllPermission ) {
-            wiki = ( ( AllPermission )permission ).getWiki();
-        } else if( permission instanceof PagePermission ) {
-            wiki = ( ( PagePermission )permission ).getWiki();
+        if( permission instanceof AllPermission allPerm ) {
+            wiki = allPerm.getWiki();
+        } else if( permission instanceof PagePermission pagePerm ) {
+            wiki = pagePerm.getWiki();
         }
-        if( permission instanceof WikiPermission ) {
-            wiki = ( ( WikiPermission )permission ).getWiki();
+        if( permission instanceof WikiPermission wikiPerm ) {
+            wiki = wikiPerm.getWiki();
         }
-        if( permission instanceof GroupPermission ) {
-            wiki = ( ( GroupPermission )permission ).getWiki();
+        if( permission instanceof GroupPermission groupPerm ) {
+            wiki = groupPerm.getWiki();
         }
 
         // If the wiki is implied, it's allowed

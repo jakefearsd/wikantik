@@ -68,8 +68,8 @@ public class JSPWikiLinkNodePostProcessor extends NodePostProcessor {
      */
     @Override
     public void process( final NodeTracker state, final Node node ) {
-        if( node instanceof Link ) {
-            final JSPWikiLink link = replaceLinkWithJSPWikiLink( state, node );
+        if( node instanceof Link linkNode ) {
+            final JSPWikiLink link = replaceLinkWithJSPWikiLink( state, linkNode );
 
             final NodePostProcessorState< JSPWikiLink > linkPostProcessor;
             if( linkOperations.isAccessRule( link.getUrl().toString() ) ) {
@@ -95,13 +95,13 @@ public class JSPWikiLinkNodePostProcessor extends NodePostProcessor {
         }
     }
 
-    JSPWikiLink replaceLinkWithJSPWikiLink( final NodeTracker state, final Node node ) {
-        final JSPWikiLink link = new JSPWikiLink( ( Link )node );
-        final Node previous = node.getPrevious();
-        final Node parent = node.getParent();
+    JSPWikiLink replaceLinkWithJSPWikiLink( final NodeTracker state, final Link linkNode ) {
+        final JSPWikiLink link = new JSPWikiLink( linkNode );
+        final Node previous = linkNode.getPrevious();
+        final Node parent = linkNode.getParent();
 
-        link.takeChildren( node );
-        node.unlink();
+        link.takeChildren( linkNode );
+        linkNode.unlink();
 
         if( previous != null ) {
             previous.insertAfter( link );
@@ -109,7 +109,7 @@ public class JSPWikiLinkNodePostProcessor extends NodePostProcessor {
             parent.appendChild( link );
         }
 
-        state.nodeRemoved( node );
+        state.nodeRemoved( linkNode );
         state.nodeAddedWithChildren( link );
         return link;
     }

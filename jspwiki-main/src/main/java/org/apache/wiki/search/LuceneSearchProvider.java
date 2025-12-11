@@ -505,7 +505,7 @@ public class LuceneSearchProvider implements SearchProvider {
             // Find pages that exist on disk but not in index
             final List< Page > missingPages = allPages.stream()
                     .filter( page -> !indexedPages.contains( page.getName() ) )
-                    .collect( Collectors.toList() );
+                    .toList();
 
             if( !missingPages.isEmpty() ) {
                 LOG.info( "Found {} pages missing from Lucene index, indexing...", missingPages.size() );
@@ -531,7 +531,7 @@ public class LuceneSearchProvider implements SearchProvider {
             final Collection< Attachment > allAttachments = m_engine.getManager( AttachmentManager.class ).getAllAttachments();
             final List< Attachment > missingAttachments = allAttachments.stream()
                     .filter( att -> !indexedPages.contains( att.getName() ) )
-                    .collect( Collectors.toList() );
+                    .toList();
 
             if( !missingAttachments.isEmpty() ) {
                 LOG.info( "Found {} attachments missing from Lucene index, indexing...", missingAttachments.size() );

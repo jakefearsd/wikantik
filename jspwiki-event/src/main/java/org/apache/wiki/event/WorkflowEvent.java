@@ -115,16 +115,16 @@ public final class WorkflowEvent extends WikiEvent {
      * @return the string representation
      */
     public String eventName( final int type ) {
-        switch( type ) {
-            case CREATED:    return "CREATED";
-            case ABORTED:    return "ABORTED";
-            case COMPLETED:  return "COMPLETED";
-            case RUNNING:    return "RUNNING";
-            case STARTED:    return "STARTED";
-            case WAITING:    return "WAITING";
-            case DQ_REMOVAL: return "DQ_REMOVAL";
-            default:         return super.eventName();
-        }
+        return switch( type ) {
+            case CREATED    -> "CREATED";
+            case ABORTED    -> "ABORTED";
+            case COMPLETED  -> "COMPLETED";
+            case RUNNING    -> "RUNNING";
+            case STARTED    -> "STARTED";
+            case WAITING    -> "WAITING";
+            case DQ_REMOVAL -> "DQ_REMOVAL";
+            default         -> super.eventName();
+        };
     }
 
 }

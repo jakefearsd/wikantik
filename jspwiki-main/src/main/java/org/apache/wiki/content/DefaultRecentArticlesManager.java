@@ -32,7 +32,6 @@ import org.apache.wiki.util.TextUtil;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
@@ -68,11 +67,11 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
     private static final int DEFAULT_CACHE_TTL = 60;
 
     /** Default system pages to exclude. */
-    private static final Set<String> DEFAULT_EXCLUDED_PAGES = new HashSet<>( Arrays.asList(
+    private static final Set<String> DEFAULT_EXCLUDED_PAGES = Set.of(
         "Main", "LeftMenu", "LeftMenuFooter", "MoreMenu", "PageHeader", "PageFooter",
         "LoginHelp", "EditPageHelp", "TextFormattingRules", "FindPageHelp",
         "RecentArticlesTemplate"
-    ) );
+    );
 
     /** Regex to match H1 headings in wiki markup (both !!! and # styles). */
     private static final Pattern H1_WIKI_PATTERN = Pattern.compile( "^\\s*(?:!!!|#)\\s*(.+?)\\s*$", Pattern.MULTILINE );

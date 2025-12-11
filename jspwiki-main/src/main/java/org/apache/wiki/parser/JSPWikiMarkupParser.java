@@ -956,7 +956,7 @@ public class JSPWikiMarkupParser extends MarkupParser {
             //  Decide if we should open a div or a span?
             final String eol = peekAheadLine();
 
-            if( !eol.trim().isEmpty() ) {
+            if( !eol.isBlank() ) {
                 // There is stuff after the class
                 el = new Element("span");
                 m_styleStack.push( Boolean.TRUE );

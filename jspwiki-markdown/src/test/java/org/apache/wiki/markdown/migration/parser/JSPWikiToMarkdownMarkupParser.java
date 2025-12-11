@@ -52,8 +52,7 @@ public class JSPWikiToMarkdownMarkupParser extends JSPWikiMarkupParser {
     }
 
     void translatePluginACLAndVariableTextLinksToMarkdown( final Content element, final int childNumber ) {
-        if( element instanceof PluginContent ) {
-            final PluginContent plugin = ( PluginContent ) element;
+        if( element instanceof PluginContent plugin ) {
             final String str = plugin.getText();
             if( str.startsWith( "[{" ) && str.endsWith( "}]" ) ) {
                 final Element parent = plugin.getParent();
@@ -62,13 +61,11 @@ public class JSPWikiToMarkdownMarkupParser extends JSPWikiMarkupParser {
                     parent.addContent( childNumber, new Text( str + "()" ) );
                 }
             }
-        } else if( element instanceof Text ) {
-            final Text text = ( Text )element;
+        } else if( element instanceof Text text ) {
             if( text.getText().startsWith( "[{" ) && text.getText().endsWith( "}]" ) ) {
                 text.append( "()" );
             }
-        } else if( element instanceof Element ) {
-            final Element base = ( Element )element;
+        } else if( element instanceof Element base ) {
             base.getContent();
             final List< Content > content = base.getContent();
             for( int i = 0; i < content.size(); i++ ) {

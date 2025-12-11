@@ -22,14 +22,11 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletException;
@@ -107,12 +104,12 @@ public class SitemapServlet extends HttpServlet {
     private static final String IMAGE_NS = "http://www.google.com/schemas/sitemap-image/1.1";
 
     /** Image file extensions that should be included in the sitemap */
-    private static final Set<String> IMAGE_EXTENSIONS = new HashSet<>( Arrays.asList(
+    private static final Set<String> IMAGE_EXTENSIONS = Set.of(
         "jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"
-    ) );
+    );
 
     /** Pages that should be excluded from the sitemap (menu/template pages) */
-    private static final Set<String> EXCLUDED_PAGES = new HashSet<>( Arrays.asList(
+    private static final Set<String> EXCLUDED_PAGES = Set.of(
         "LeftMenu",
         "LeftMenuFooter",
         "TitleBox",
@@ -120,7 +117,7 @@ public class SitemapServlet extends HttpServlet {
         "CSSRibbon",
         "PageHeader",
         "PageFooter"
-    ) );
+    );
 
     private Engine m_engine;
     private String m_configuredBaseUrl;
@@ -178,7 +175,7 @@ public class SitemapServlet extends HttpServlet {
                     return false;
                 }
             } )
-            .collect( Collectors.toList() );
+            .toList();
 
         LOG.info( "Filtered {} public pages from {} total pages", publicPages.size(), allPages.size() );
 
@@ -442,13 +439,13 @@ public class SitemapServlet extends HttpServlet {
         PageProvider provider = pageManager.getProvider();
 
         // Unwrap CachingProvider if present
-        if ( provider instanceof CachingProvider ) {
-            provider = ( ( CachingProvider ) provider ).getRealProvider();
+        if ( provider instanceof CachingProvider cachingProvider ) {
+            provider = cachingProvider.getRealProvider();
         }
 
         // Unwrap entire decorator chain (there may be multiple: logging, metrics, etc.)
-        while ( provider instanceof PageProviderDecorator ) {
-            provider = ( ( PageProviderDecorator ) provider ).getRealProvider();
+        while ( provider instanceof PageProviderDecorator decorator ) {
+            provider = decorator.getRealProvider();
         }
 
         LOG.debug( "Using filesystem provider: {}", provider.getClass().getName() );

@@ -135,11 +135,11 @@ public abstract class WikiEvent extends EventObject {
      * @return the String description
      */
     public String getTypeDescription() {
-        switch( m_type ) {
-            case ERROR:     return "exception or error event";
-            case UNDEFINED: return "undefined event type";
-            default:        return "unknown event type (" + m_type + ")";
-        }
+        return switch( m_type ) {
+            case ERROR     -> "exception or error event";
+            case UNDEFINED -> "undefined event type";
+            default        -> "unknown event type (" + m_type + ")";
+        };
     }
 
     /**
@@ -161,11 +161,11 @@ public abstract class WikiEvent extends EventObject {
      * @return the String representation
      */
     public String eventName() {
-        switch( m_type ) {
-            case ERROR:     return "ERROR";
-            case UNDEFINED: return "UNDEFINED";
-            default:        return "UNKNOWN (" + m_type + ")";
-        }
+        return switch( m_type ) {
+            case ERROR     -> "ERROR";
+            case UNDEFINED -> "UNDEFINED";
+            default        -> "UNKNOWN (" + m_type + ")";
+        };
     }
 
     /**

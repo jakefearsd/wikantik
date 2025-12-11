@@ -366,8 +366,8 @@ public final class WikiEventManager {
          *  of client, the latter when used to preload a future incoming delegate.
          */
         WikiEventDelegate( final Object client ) {
-            if( client instanceof Class ) {
-                m_class = ( Class< ? > )client;
+            if( client instanceof Class< ? > clazz ) {
+                m_class = clazz;
             }
         }
 

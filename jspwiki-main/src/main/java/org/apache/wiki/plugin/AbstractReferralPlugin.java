@@ -230,10 +230,10 @@ public abstract class AbstractReferralPlugin implements Plugin {
     protected List< Page > filterWikiPageCollection( final Collection< Page > pages ) {
         final List< String > pageNames = filterCollection( pages.stream()
                                                                 .map( Page::getName )
-                                                                .collect( Collectors.toList() ) );
+                                                                .toList() );
         return pages.stream()
                     .filter( wikiPage -> pageNames.contains( wikiPage.getName() ) )
-                    .collect( Collectors.toList() );
+                    .toList();
     }
 
     /**

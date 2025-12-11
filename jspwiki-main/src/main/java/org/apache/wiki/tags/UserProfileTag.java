@@ -174,7 +174,7 @@ public class UserProfileTag extends WikiTagBase {
         final List< String > tempRoles;
         final ResourceBundle rb = Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE );
 
-        tempRoles = Arrays.stream(roles).filter(role -> role instanceof GroupPrincipal).map(Principal::getName).collect(Collectors.toList());
+        tempRoles = Arrays.stream(roles).filter(role -> role instanceof GroupPrincipal).map(Principal::getName).toList();
         if(tempRoles.isEmpty()) {
             return rb.getString( "userprofile.nogroups" );
         }
@@ -205,7 +205,7 @@ public class UserProfileTag extends WikiTagBase {
         final List< String > tempRoles;
         final ResourceBundle rb = Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE );
 
-        tempRoles = Arrays.stream(roles).filter(role -> role instanceof Role).map(Principal::getName).collect(Collectors.toList());
+        tempRoles = Arrays.stream(roles).filter(role -> role instanceof Role).map(Principal::getName).toList();
         if(tempRoles.isEmpty()) {
             return rb.getString( "userprofile.noroles" );
         }

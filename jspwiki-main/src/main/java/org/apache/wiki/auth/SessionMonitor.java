@@ -222,7 +222,7 @@ public class SessionMonitor implements HttpSessionListener {
     public final Principal[] userPrincipals() {
         final Collection<Principal> principals;
         synchronized ( m_sessions ) {
-            principals = m_sessions.values().stream().map(Session::getUserPrincipal).collect(Collectors.toList());
+            principals = m_sessions.values().stream().map(Session::getUserPrincipal).toList();
         }
         final Principal[] p = principals.toArray( new Principal[0] );
         Arrays.sort( p, m_comparator );

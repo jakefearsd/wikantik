@@ -83,8 +83,8 @@ public abstract class PageProviderDecorator implements PageProvider {
      * @return the real (non-decorator) provider at the bottom of the chain
      */
     public PageProvider getRealProvider() {
-        if ( delegate instanceof PageProviderDecorator ) {
-            return ((PageProviderDecorator) delegate).getRealProvider();
+        if ( delegate instanceof PageProviderDecorator decorator ) {
+            return decorator.getRealProvider();
         }
         return delegate;
     }

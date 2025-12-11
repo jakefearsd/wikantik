@@ -211,23 +211,23 @@ public final class WikiSecurityEvent extends WikiEvent {
      * @return the string representation
      */
     public String eventName( final int type ) {
-        switch( type ) {
-            case LOGIN_AUTHENTICATED:       return "LOGIN_AUTHENTICATED";
-            case LOGIN_ACCOUNT_EXPIRED:     return "LOGIN_ACCOUNT_EXPIRED";
-            case LOGIN_CREDENTIAL_EXPIRED:  return "LOGIN_ACCOUNT_EXPIRED";
-            case LOGIN_FAILED:              return "LOGIN_FAILED";
-            case LOGOUT:                    return "LOGOUT";
-            case PRINCIPAL_ADD:             return "PRINCIPAL_ADD";
-            case SESSION_EXPIRED:           return "SESSION_EXPIRED";
-            case GROUP_ADD:                 return "GROUP_ADD";
-            case GROUP_REMOVE:              return "GROUP_REMOVE";
-            case GROUP_CLEAR_GROUPS:        return "GROUP_CLEAR_GROUPS";
-            case ACCESS_ALLOWED:            return "ACCESS_ALLOWED";
-            case ACCESS_DENIED:             return "ACCESS_DENIED";
-            case PROFILE_NAME_CHANGED:      return "PROFILE_NAME_CHANGED";
-            case PROFILE_SAVE:              return "PROFILE_SAVE";
-            default:                        return super.eventName();
-        }
+        return switch( type ) {
+            case LOGIN_AUTHENTICATED       -> "LOGIN_AUTHENTICATED";
+            case LOGIN_ACCOUNT_EXPIRED     -> "LOGIN_ACCOUNT_EXPIRED";
+            case LOGIN_CREDENTIAL_EXPIRED  -> "LOGIN_ACCOUNT_EXPIRED";
+            case LOGIN_FAILED              -> "LOGIN_FAILED";
+            case LOGOUT                    -> "LOGOUT";
+            case PRINCIPAL_ADD             -> "PRINCIPAL_ADD";
+            case SESSION_EXPIRED           -> "SESSION_EXPIRED";
+            case GROUP_ADD                 -> "GROUP_ADD";
+            case GROUP_REMOVE              -> "GROUP_REMOVE";
+            case GROUP_CLEAR_GROUPS        -> "GROUP_CLEAR_GROUPS";
+            case ACCESS_ALLOWED            -> "ACCESS_ALLOWED";
+            case ACCESS_DENIED             -> "ACCESS_DENIED";
+            case PROFILE_NAME_CHANGED      -> "PROFILE_NAME_CHANGED";
+            case PROFILE_SAVE              -> "PROFILE_SAVE";
+            default                        -> super.eventName();
+        };
     }
 
     /**
@@ -237,23 +237,23 @@ public final class WikiSecurityEvent extends WikiEvent {
      */
     @Override
     public String getTypeDescription() {
-        switch ( getType() ) {
-            case LOGIN_AUTHENTICATED:       return "login authenticated";
-            case LOGIN_ACCOUNT_EXPIRED:     return "login failed: expired account";
-            case LOGIN_CREDENTIAL_EXPIRED:  return "login failed: credential expired";
-            case LOGIN_FAILED:              return "login failed";
-            case LOGOUT:                    return "user logged out";
-            case PRINCIPAL_ADD:             return "new principal added";
-            case SESSION_EXPIRED:           return "session expired";
-            case GROUP_ADD:                 return "new group added";
-            case GROUP_REMOVE:              return "group removed";
-            case GROUP_CLEAR_GROUPS:        return "all groups cleared";
-            case ACCESS_ALLOWED:            return "access allowed";
-            case ACCESS_DENIED:             return "access denied";
-            case PROFILE_NAME_CHANGED:      return "user profile name changed";
-            case PROFILE_SAVE:              return "user profile saved";
-            default:                        return super.getTypeDescription();
-        }
+        return switch ( getType() ) {
+            case LOGIN_AUTHENTICATED       -> "login authenticated";
+            case LOGIN_ACCOUNT_EXPIRED     -> "login failed: expired account";
+            case LOGIN_CREDENTIAL_EXPIRED  -> "login failed: credential expired";
+            case LOGIN_FAILED              -> "login failed";
+            case LOGOUT                    -> "user logged out";
+            case PRINCIPAL_ADD             -> "new principal added";
+            case SESSION_EXPIRED           -> "session expired";
+            case GROUP_ADD                 -> "new group added";
+            case GROUP_REMOVE              -> "group removed";
+            case GROUP_CLEAR_GROUPS        -> "all groups cleared";
+            case ACCESS_ALLOWED            -> "access allowed";
+            case ACCESS_DENIED             -> "access denied";
+            case PROFILE_NAME_CHANGED      -> "user profile name changed";
+            case PROFILE_SAVE              -> "user profile saved";
+            default                        -> super.getTypeDescription();
+        };
     }
 
 }

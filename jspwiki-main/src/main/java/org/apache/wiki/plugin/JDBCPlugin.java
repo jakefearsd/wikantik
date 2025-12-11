@@ -331,9 +331,9 @@ public class JDBCPlugin implements Plugin {
             try {
                 final InitialContext ctx = new InitialContext();
                 final Object lookup = ctx.lookup( jndiName );
-                if ( lookup instanceof DataSource ) {
+                if ( lookup instanceof DataSource dataSource ) {
                     LOG.debug( "Found JNDI DataSource at: {}", jndiName );
-                    return ( DataSource ) lookup;
+                    return dataSource;
                 }
             } catch ( final NamingException e ) {
                 LOG.trace( "JNDI lookup failed for {}: {}", jndiName, e.getMessage() );

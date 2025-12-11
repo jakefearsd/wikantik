@@ -35,6 +35,7 @@ import org.apache.wiki.auth.authorize.GroupManager;
 import org.apache.wiki.auth.authorize.Role;
 import org.apache.wiki.auth.permissions.AllPermission;
 import org.apache.wiki.auth.permissions.PagePermission;
+import org.apache.wiki.auth.permissions.PermissionChecks;
 import org.apache.wiki.auth.user.UserDatabase;
 import org.apache.wiki.auth.user.UserProfile;
 import org.apache.wiki.event.WikiEventListener;
@@ -119,13 +120,13 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         }
 
         // If this isn't a PagePermission, it's allowed
-        if( !( permission instanceof PagePermission ) ) {
+        if( !( permission instanceof PagePermission pagePerm ) ) {
             fireEvent( WikiSecurityEvent.ACCESS_ALLOWED, user, permission );
             return true;
         }
 
         // If the page or ACL is null, it's allowed.
-        final String pageName = ((PagePermission)permission).getPage();
+        final String pageName = pagePerm.getPage();
         final Page page = m_engine.getManager( PageManager.class ).getPage( pageName );
         final Acl acl = ( page == null) ? null : m_engine.getManager( AclManager.class ).getPermissions( page );
         if( page == null ||  acl == null || acl.isEmpty() ) {
@@ -144,9 +145,9 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
         for( Principal aclPrincipal : aclPrincipals ) {
             // If the ACL principal we're looking at is unresolved, try to resolve it here & correct the Acl
-            if ( aclPrincipal instanceof UnresolvedPrincipal ) {
+            if ( aclPrincipal instanceof UnresolvedPrincipal unresolvedPrincipal ) {
                 final AclEntry aclEntry = acl.getAclEntry( aclPrincipal );
-                aclPrincipal = resolvePrincipal( aclPrincipal.getName() );
+                aclPrincipal = resolvePrincipal( unresolvedPrincipal.getName() );
                 if ( aclEntry != null && !( aclPrincipal instanceof UnresolvedPrincipal ) ) {
                     aclEntry.setPrincipal( aclPrincipal );
                 }
@@ -317,6 +318,11 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     /** {@inheritDoc} */
     @Override
     public boolean checkStaticPermission( final Session session, final Permission permission ) {
+        // Non-JSPWiki permissions (like PropertyPermission used as DUMMY_PERMISSION in WikiContext)
+        // are always allowed. JSPWiki's local policy only handles wiki-specific permissions.
+        if ( !PermissionChecks.isJSPWikiPermission( permission ) ) {
+            return true;
+        }
         return Session.doPrivileged( session, ( PrivilegedAction< Boolean > )() -> {
             // Check the local policy - check each Role/Group and User Principal
             // Note: JVM-wide security policy via AccessController is deprecated and removed.

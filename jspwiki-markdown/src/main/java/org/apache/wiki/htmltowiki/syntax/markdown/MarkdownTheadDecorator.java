@@ -41,8 +41,7 @@ class MarkdownTheadDecorator extends TheadDecorator {
     public void decorate( final Element element ) throws JDOMException {
         super.decorate( element );
         final Content cNestedTr = element.getContent().get( 0 );
-        if( cNestedTr instanceof Element ) {
-            final Element nestedTr = ( Element )cNestedTr;
+        if( cNestedTr instanceof Element nestedTr ) {
             final int ths = nestedTr.getContent().size();
             if( ths > 0 ) {
                 for( int i = 0 ; i < ths; i++ ) {

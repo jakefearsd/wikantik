@@ -205,8 +205,8 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
         }
 
         // Try to resolve UnresolvedPrincipals
-        if ( approver instanceof UnresolvedPrincipal ) {
-            final String name = approver.getName();
+        if ( approver instanceof UnresolvedPrincipal unresolvedPrincipal ) {
+            final String name = unresolvedPrincipal.getName();
             approver = m_engine.getManager( AuthorizationManager.class ).resolvePrincipal( name );
 
             // If still unresolved, throw exception; otherwise, freshen our cache

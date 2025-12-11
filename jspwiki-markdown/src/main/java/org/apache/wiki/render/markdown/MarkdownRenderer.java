@@ -55,8 +55,8 @@ public class MarkdownRenderer extends WikiRenderer {
 	@Override
 	public String getString() throws IOException {
 		m_document.setContext( m_context );
-		if( m_document instanceof MarkdownDocument ) {
-			return renderer.render( ( ( MarkdownDocument )m_document ).getMarkdownNode() );
+		if( m_document instanceof MarkdownDocument markdownDoc ) {
+			return renderer.render( markdownDoc.getMarkdownNode() );
 		} else {
 			throw new IOException( "MarkdownRenderer requires to be used with MarkdownParser" );
 		}

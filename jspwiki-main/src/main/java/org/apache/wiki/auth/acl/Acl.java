@@ -65,7 +65,7 @@ public interface Acl extends org.apache.wiki.api.core.Acl {
         final List< AclEntry> entries = Collections.list( aclEntries() ) // iterates list two times - this is ok as we don't expect too many elements inside aclEntries()
                                                    .stream()
                                                    .map( entry -> ( AclEntry )entry )
-                                                   .collect( Collectors.toList() );
+                                                   .toList();
         return Collections.enumeration( entries );
     }
 

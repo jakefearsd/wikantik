@@ -354,7 +354,7 @@ public class CookieTag
         for (final String value : nvps) {
             final String nvp = decode(value);
             final String[] nv = nvp.split("=");
-            if (nv[0] != null && !nv[0].trim().isEmpty()) {
+            if (nv[0] != null && !nv[0].isBlank()) {
                 rval.put(nv[0], nv[1]);
             }
         }

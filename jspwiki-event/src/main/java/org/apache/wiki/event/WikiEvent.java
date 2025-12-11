@@ -23,10 +23,14 @@ import java.util.EventObject;
 
 /**
  * Abstract parent class for wiki events.
+ * <p>
+ * This class is sealed to restrict the event hierarchy to known subclasses,
+ * improving type safety and enabling more efficient pattern matching.
  *
  * @since 2.3.79
  */
-public abstract class WikiEvent extends EventObject {
+public abstract sealed class WikiEvent extends EventObject
+        permits WikiEngineEvent, WikiPageEvent, WikiSecurityEvent, WorkflowEvent {
 
     private static final long serialVersionUID = 1829433967558773960L;
 

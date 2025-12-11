@@ -20,11 +20,11 @@ package org.apache.wiki.event;
 
 /**
   * WikiEngineEvent indicates a change in the state of the Engine.
-  * 
+  *
   * @see     org.apache.wiki.event.WikiEvent
   * @since   2.4.20
   */
-public class WikiEngineEvent extends WikiEvent {
+public final class WikiEngineEvent extends WikiEvent {
 
     private static final long serialVersionUID = 1829433967558773970L;
 
@@ -85,13 +85,13 @@ public class WikiEngineEvent extends WikiEvent {
      */
     @Override
     public final String eventName() {
-        switch ( getType() ) {
-            case INITIALIZING: return "INITIALIZING";
-            case INITIALIZED:  return "INITIALIZED";
-            case SHUTDOWN:     return "SHUTDOWN";
-            case STOPPED:      return "STOPPED";
-            default:           return super.eventName();
-        }
+        return switch ( getType() ) {
+            case INITIALIZING -> "INITIALIZING";
+            case INITIALIZED  -> "INITIALIZED";
+            case SHUTDOWN     -> "SHUTDOWN";
+            case STOPPED      -> "STOPPED";
+            default           -> super.eventName();
+        };
     }
 
     /**
@@ -101,13 +101,13 @@ public class WikiEngineEvent extends WikiEvent {
      */
     @Override
     public final String getTypeDescription() {
-        switch ( getType() ) {
-            case INITIALIZING: return "wiki engine initializing";
-            case INITIALIZED:  return "wiki engine initialized";
-            case SHUTDOWN:     return "wiki engine shutting down";
-            case STOPPED:      return "wiki engine stopped";
-            default:           return super.getTypeDescription();
-        }
+        return switch ( getType() ) {
+            case INITIALIZING -> "wiki engine initializing";
+            case INITIALIZED  -> "wiki engine initialized";
+            case SHUTDOWN     -> "wiki engine shutting down";
+            case STOPPED      -> "wiki engine stopped";
+            default           -> super.getTypeDescription();
+        };
     }
 
 }

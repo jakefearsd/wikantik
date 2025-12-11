@@ -46,15 +46,7 @@ public class LruPropertyCache implements PropertyCacheStrategy {
     /**
      * Holds a cached property file entry.
      */
-    private static class CachedEntry {
-        final Properties props;
-        final long lastModified;
-
-        CachedEntry( final Properties props, final long lastModified ) {
-            this.props = props;
-            this.lastModified = lastModified;
-        }
-    }
+    private record CachedEntry( Properties props, long lastModified ) { }
 
     /**
      * Creates an LRU cache with the default size.
@@ -87,8 +79,8 @@ public class LruPropertyCache implements PropertyCacheStrategy {
         final CachedEntry entry = cache.get( page );
 
         // Check if cached entry is valid
-        if ( entry != null && entry.lastModified == lastModified ) {
-            return entry.props;
+        if ( entry != null && entry.lastModified() == lastModified ) {
+            return entry.props();
         }
 
         // Cache miss or stale - load from disk

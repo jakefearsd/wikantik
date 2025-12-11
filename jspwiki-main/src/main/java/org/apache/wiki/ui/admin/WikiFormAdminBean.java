@@ -18,6 +18,8 @@
  */
 package org.apache.wiki.ui.admin;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.parser.WikiDocument;
 import org.apache.wiki.render.RenderingManager;
@@ -33,6 +35,8 @@ import java.util.Map;
  */
 public abstract class WikiFormAdminBean implements AdminBean {
 
+    private static final Logger LOG = LogManager.getLogger( WikiFormAdminBean.class );
+
     public abstract String getForm( Context context );
     
     public abstract void handleResponse( Context context, Map< ?, ? > params );
@@ -47,8 +51,7 @@ public abstract class WikiFormAdminBean implements AdminBean {
             doc = mgr.getParser( context, wikiMarkup ).parse();
             result = mgr.getHTML( context, doc );
         } catch( final IOException e ) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            LOG.error( "Error parsing wiki markup in admin bean", e );
         }
         
         return result;

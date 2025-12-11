@@ -126,7 +126,7 @@ public class TraditionalDiffProvider implements DiffProvider {
         private final StringBuffer m_result;
         private final Context  m_context;
         private final ResourceBundle m_rb;
-        
+
         private RevisionPrint( final Context ctx, final StringBuffer sb ) {
             m_result = sb;
             m_context = ctx;

@@ -58,7 +58,7 @@ public class ReferredPagesPlugin implements Plugin {
     private Engine m_engine;
     private int m_depth;
     private final HashSet< String > m_exists  = new HashSet<>();
-    private final StringBuffer m_result  = new StringBuffer( 1024 );
+    private final StringBuilder m_result  = new StringBuilder( 1024 );
     private Pattern m_includePattern;
     private Pattern m_excludePattern;
     private int items;

@@ -30,9 +30,9 @@ import java.util.regex.Pattern;
 // FIXME: Needs a better description as to how it works.
 public class WhitespaceTrimWriter extends Writer {
 
-    private final StringBuffer m_result = new StringBuffer();
+    private final StringBuilder m_result = new StringBuilder();
 
-    private StringBuffer m_buffer = new StringBuffer();
+    private StringBuilder m_buffer = new StringBuilder();
 
     private boolean m_trimMode = true;
 
@@ -61,7 +61,7 @@ public class WhitespaceTrimWriter extends Writer {
                 s = s.replace( NO_TRIMMED_SPACE, " " );
             }
             m_result.append( s );
-            m_buffer = new StringBuffer();
+            m_buffer = new StringBuilder();
         }
     }
 
@@ -70,7 +70,7 @@ public class WhitespaceTrimWriter extends Writer {
         final Pattern p = Pattern.compile( "\\{\\{\\{(.*?)\\}\\}\\}|\\{\\{(.*?)\\}\\}|\\[\\{(.*?)\\}\\]", Pattern.DOTALL
                                                                                                     + Pattern.MULTILINE );
         final Matcher m = p.matcher( s );
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         while( m.find() )
         {
             final String groupEscaped = m.group().replaceAll( "\\\\|\\$", "\\\\$0" );

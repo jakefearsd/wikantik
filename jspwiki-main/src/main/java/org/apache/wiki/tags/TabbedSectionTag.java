@@ -40,7 +40,7 @@ public class TabbedSectionTag extends BodyTagSupport
     private String       m_firstTabId;
     private boolean      m_defaultTabFound;
 
-    private StringBuffer m_buffer = new StringBuffer(BUFFER_SIZE);
+    private StringBuilder m_buffer = new StringBuilder(BUFFER_SIZE);
 
     private static final int FIND_DEFAULT_TAB = 0;
     private static final int GENERATE_TABMENU = 1;
@@ -59,7 +59,7 @@ public class TabbedSectionTag extends BodyTagSupport
         super.release();
         m_defaultTabId = m_firstTabId = null;
         m_defaultTabFound = false;
-        m_buffer = new StringBuffer();
+        m_buffer = new StringBuilder();
         m_state = FIND_DEFAULT_TAB;
     }
 
@@ -193,7 +193,7 @@ public class TabbedSectionTag extends BodyTagSupport
         }
 
         //now reset some stuff for the next run -- ugh.
-        m_buffer    = new StringBuffer(BUFFER_SIZE);
+        m_buffer    = new StringBuilder(BUFFER_SIZE);
         m_state = FIND_DEFAULT_TAB;
         m_defaultTabId    = null;
         m_firstTabId      = null;

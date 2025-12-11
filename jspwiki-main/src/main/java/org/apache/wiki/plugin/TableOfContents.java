@@ -70,7 +70,7 @@ public class TableOfContents implements Plugin, HeadingListener {
 
     private static final String VAR_ALREADY_PROCESSING = "__TableOfContents.processing";
 
-    final StringBuffer m_buf = new StringBuffer();
+    final StringBuilder m_buf = new StringBuilder();
     private boolean m_usingNumberedList;
     private String m_prefix = "";
     private int m_starting;

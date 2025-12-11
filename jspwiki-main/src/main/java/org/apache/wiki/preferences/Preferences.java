@@ -211,7 +211,7 @@ public class Preferences extends HashMap< String,String > {
             }
             if( resLength > 0 ) {
                 language = res[ 0 ];
-                loc = new Locale( language, country, variant );
+                loc = Locale.of( language, country, variant );
             }
         }
 

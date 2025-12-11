@@ -27,6 +27,7 @@ import org.junit.jupiter.api.condition.OS;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
@@ -145,7 +146,7 @@ public class SitemapIT extends WithIntegrationTestSetup {
             sitemapUrl = baseUrl + "/sitemap.xml";
         }
 
-        final URL url = new URL( sitemapUrl );
+        final URL url = URI.create( sitemapUrl ).toURL();
         final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
         try {
@@ -179,7 +180,7 @@ public class SitemapIT extends WithIntegrationTestSetup {
             sitemapUrl = baseUrl + "/sitemap.xml";
         }
 
-        final URL url = new URL( sitemapUrl );
+        final URL url = URI.create( sitemapUrl ).toURL();
         final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
         try {

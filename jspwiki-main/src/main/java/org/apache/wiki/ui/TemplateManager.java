@@ -171,7 +171,7 @@ public interface TemplateManager extends ModuleManager {
                 } else {
                     name = name.substring( I18NRESOURCE_PREFIX.length(), name.lastIndexOf( I18NRESOURCE_SUFFIX ) );
                 }
-                final Locale locale = new Locale( name.substring( 0, 2 ), !name.contains( "_" ) ? "" : name.substring( 3, 5 ) );
+                final Locale locale = Locale.of( name.substring( 0, 2 ), !name.contains( "_" ) ? "" : name.substring( 3, 5 ) );
                 String defaultLanguage = "";
                 if( clientLanguage.startsWith( name ) ) {
                     defaultLanguage = LocaleSupport.getLocalizedMessage( pageContext, I18NDEFAULT_LOCALE );

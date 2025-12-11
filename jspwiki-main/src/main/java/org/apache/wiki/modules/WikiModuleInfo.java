@@ -24,6 +24,7 @@ import org.jdom2.Element;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 
 /**
@@ -232,7 +233,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
         final int length = BaseModuleManager.PLUGIN_RESOURCE_LOCATION.length();
         spec = spec.substring( 0, spec.length() - length ) + resourceLocation;
     
-        final URL url = new URL( spec );
+        final URL url = URI.create( spec ).toURL();
         try( final BufferedInputStream in = new BufferedInputStream( url.openStream() );
              final ByteArrayOutputStream out = new ByteArrayOutputStream(1024) ) {
             FileUtil.copyContents( in, out );

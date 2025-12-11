@@ -106,7 +106,11 @@ public final class FileUtil {
     public static String runSimpleCommand( final String command, final String directory ) throws IOException, InterruptedException {
         LOG.info( "Running simple command " + command + " in " + directory );
         final StringBuilder result = new StringBuilder();
-        final Process process = Runtime.getRuntime().exec( command, null, new File( directory ) );
+
+        // Use ProcessBuilder instead of deprecated Runtime.exec()
+        final ProcessBuilder pb = new ProcessBuilder( command.split( "\\s+" ) );
+        pb.directory( new File( directory ) );
+        final Process process = pb.start();
 
         try( final BufferedReader stdout = new BufferedReader( new InputStreamReader( process.getInputStream() ) );
              final BufferedReader stderr = new BufferedReader( new InputStreamReader( process.getErrorStream() ) ) ) {

@@ -93,8 +93,10 @@ public class FileUtilTest
 
         final File f = FileUtil.newTmpFile( src, StandardCharsets.ISO_8859_1 );
 
-        final String[] envp = {};
-        final Process process = Runtime.getRuntime().exec( "cat "+f.getAbsolutePath(), envp, f.getParentFile() );
+        // Use ProcessBuilder instead of deprecated Runtime.exec()
+        final ProcessBuilder pb = new ProcessBuilder( "cat", f.getAbsolutePath() );
+        pb.directory( f.getParentFile() );
+        final Process process = pb.start();
         final String result = FileUtil.readContents( process.getInputStream(), StandardCharsets.UTF_8.name() );
         f.delete();
         Assertions.assertEquals( src, result );

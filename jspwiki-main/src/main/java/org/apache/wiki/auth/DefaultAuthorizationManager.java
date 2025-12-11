@@ -50,8 +50,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.security.AccessControlException;
-import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
@@ -319,16 +317,10 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     /** {@inheritDoc} */
     @Override
     public boolean checkStaticPermission( final Session session, final Permission permission ) {
-        return ( Boolean )Session.doPrivileged( session, ( PrivilegedAction< Boolean > )() -> {
-            try {
-                // Check the JVM-wide security policy first
-                AccessController.checkPermission( permission );
-                return Boolean.TRUE;
-            } catch( final AccessControlException e ) {
-                // Global policy denied the permission
-            }
-
-            // Try the local policy - check each Role/Group and User Principal
+        return Session.doPrivileged( session, ( PrivilegedAction< Boolean > )() -> {
+            // Check the local policy - check each Role/Group and User Principal
+            // Note: JVM-wide security policy via AccessController is deprecated and removed.
+            // JSPWiki now relies solely on its local policy for authorization.
             if ( allowedByLocalPolicy( session.getRoles(), permission ) || allowedByLocalPolicy( session.getPrincipals(), permission ) ) {
                 return Boolean.TRUE;
             }

@@ -43,15 +43,14 @@ import javax.security.auth.spi.LoginModule;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
-import java.security.AccessControlException;
-import java.security.AccessController;
 import java.security.KeyStore;
 import java.security.Permission;
 import java.security.Principal;
-import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
+import java.util.concurrent.Callable;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -605,7 +604,7 @@ public final class SecurityVerifier {
                 {
                   propertyValue = "file:" + propertyValue;
                 }
-                final URL url = new URL( propertyValue );
+                final URL url = URI.create( propertyValue ).toURL();
                 final File file = new File( url.getPath() );
                 if ( file.exists() )
                 {
@@ -701,24 +700,9 @@ public final class SecurityVerifier {
      */
     boolean verifyStaticPermission( final Principal principal, final Permission permission )
     {
-        final Subject subject = new Subject();
-        subject.getPrincipals().add( principal );
-        final boolean allowedByGlobalPolicy = (Boolean)
-            Subject.doAsPrivileged( subject, ( PrivilegedAction< Object > )() -> {
-                try {
-                    AccessController.checkPermission( permission );
-                    return Boolean.TRUE;
-                } catch( final AccessControlException e ) {
-                    return Boolean.FALSE;
-                }
-            }, null );
-
-        if ( allowedByGlobalPolicy )
-        {
-            return true;
-        }
-
-        // Check local policy
+        // Note: JVM-wide security policy via AccessController is deprecated and removed.
+        // JSPWiki now relies solely on its local policy for authorization.
+        // Check local policy directly
         final Principal[] principals = new Principal[]{ principal };
         return m_engine.getManager( AuthorizationManager.class ).allowedByLocalPolicy( principals, permission );
     }

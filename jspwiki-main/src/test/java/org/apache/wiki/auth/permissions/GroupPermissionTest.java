@@ -18,7 +18,6 @@
  */
 package org.apache.wiki.auth.permissions;
 
-import java.security.AccessControlException;
 import java.security.Permission;
 import java.security.PrivilegedAction;
 
@@ -313,8 +312,8 @@ public class GroupPermissionTest
     }
 
     /**
-     * Binds a Subject to the current AccessControlContext and calls
-     * p1.implies(p2).
+     * Binds a Subject to the current thread and calls p1.implies(p2).
+     * Uses modern Subject.callAs() API instead of deprecated Subject.doAsPrivileged().
      * @param subject
      * @param p1
      * @param p2
@@ -322,14 +321,9 @@ public class GroupPermissionTest
      */
     protected final boolean subjectImplies( final Subject subject, final GroupPermission p1, final Permission p2 ) {
         try {
-            final Boolean result = Subject.doAsPrivileged( subject, new PrivilegedAction< Boolean >() {
-                @Override
-                public Boolean run() {
-                    return p1.impliesMember( p2 );
-                }
-            }, null );
+            final Boolean result = Subject.callAs( subject, () -> p1.impliesMember( p2 ) );
             return result.booleanValue();
-        } catch( final AccessControlException e ) {
+        } catch( final Exception e ) {
             return false;
         }
     }

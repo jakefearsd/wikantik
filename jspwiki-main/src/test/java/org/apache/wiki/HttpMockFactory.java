@@ -160,8 +160,8 @@ public class HttpMockFactory {
         final HttpSession session = createHttpSession();
         final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
         Mockito.doReturn( createServletContext( contextName ) ).when( request ).getServletContext();
-        Mockito.doReturn( new Locale( "", "" ) ).when( request ).getLocale();
-        Mockito.doReturn( new Vector<>( List.of( new Locale( "", "" ) ) ).elements() ).when( request ).getLocales();
+        Mockito.doReturn( Locale.ROOT ).when( request ).getLocale();
+        Mockito.doReturn( new Vector<>( List.of( Locale.ROOT ) ).elements() ).when( request ).getLocales();
         Mockito.doReturn( session ).when( request ).getSession();
         Mockito.doReturn( session ).when( request ).getSession( Mockito.anyBoolean() );
         Mockito.doReturn( "/JSPWiki" ).when( request ).getContextPath();

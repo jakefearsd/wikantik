@@ -74,7 +74,7 @@ package org.apache.wiki.event;
  * @see     org.apache.wiki.event.WikiEvent
  * @since   2.4.20
  */
-public class WikiPageEvent extends WikiEvent {
+public non-sealed class WikiPageEvent extends WikiEvent {
 
     private static final long serialVersionUID = 1L;
 
@@ -202,34 +202,34 @@ public class WikiPageEvent extends WikiEvent {
      */
     @Override
     public String eventName() {
-        switch ( getType() ) {
-            case PAGE_LOCK:            return "PAGE_LOCK";
-            case PAGE_UNLOCK:          return "PAGE_UNLOCK";
+        return switch ( getType() ) {
+            case PAGE_LOCK            -> "PAGE_LOCK";
+            case PAGE_UNLOCK          -> "PAGE_UNLOCK";
 
-            case PRE_TRANSLATE_BEGIN:  return "PRE_TRANSLATE_BEGIN";
-            case PRE_TRANSLATE:        return "PRE_TRANSLATE";
-            case PRE_TRANSLATE_END:    return "PRE_TRANSLATE_END";
+            case PRE_TRANSLATE_BEGIN  -> "PRE_TRANSLATE_BEGIN";
+            case PRE_TRANSLATE        -> "PRE_TRANSLATE";
+            case PRE_TRANSLATE_END    -> "PRE_TRANSLATE_END";
 
-            case POST_TRANSLATE_BEGIN: return "POST_TRANSLATE_BEGIN";
-            case POST_TRANSLATE:       return "POST_TRANSLATE";
-            case POST_TRANSLATE_END:   return "POST_TRANSLATE_END";
+            case POST_TRANSLATE_BEGIN -> "POST_TRANSLATE_BEGIN";
+            case POST_TRANSLATE       -> "POST_TRANSLATE";
+            case POST_TRANSLATE_END   -> "POST_TRANSLATE_END";
 
-            case PRE_SAVE_BEGIN:       return "PRE_SAVE_BEGIN";
-            case PRE_SAVE:             return "PRE_SAVE";
-            case PRE_SAVE_END:         return "PRE_SAVE_END";
+            case PRE_SAVE_BEGIN       -> "PRE_SAVE_BEGIN";
+            case PRE_SAVE             -> "PRE_SAVE";
+            case PRE_SAVE_END         -> "PRE_SAVE_END";
 
-            case POST_SAVE_BEGIN:      return "POST_SAVE_BEGIN";
-            case POST_SAVE:            return "POST_SAVE";
-            case POST_SAVE_END:        return "POST_SAVE_END";
+            case POST_SAVE_BEGIN      -> "POST_SAVE_BEGIN";
+            case POST_SAVE            -> "POST_SAVE";
+            case POST_SAVE_END        -> "POST_SAVE_END";
 
-            case PAGE_REQUESTED:       return "PAGE_REQUESTED";
-            case PAGE_DELIVERED:       return "PAGE_DELIVERED";
+            case PAGE_REQUESTED       -> "PAGE_REQUESTED";
+            case PAGE_DELIVERED       -> "PAGE_DELIVERED";
 
-            case PAGE_DELETE_REQUEST:  return "PAGE_DELETE_REQUEST";
-            case PAGE_DELETED:         return "PAGE_DELETED";
+            case PAGE_DELETE_REQUEST  -> "PAGE_DELETE_REQUEST";
+            case PAGE_DELETED         -> "PAGE_DELETED";
 
-            default:                   return super.eventName();
-        }
+            default                   -> super.eventName();
+        };
     }
 
     /**
@@ -239,34 +239,34 @@ public class WikiPageEvent extends WikiEvent {
      */
     @Override
     public String getTypeDescription() {
-        switch ( getType() ) {
-            case PAGE_LOCK:            return "page lock event";
-            case PAGE_UNLOCK:          return "page unlock event";
+        return switch ( getType() ) {
+            case PAGE_LOCK            -> "page lock event";
+            case PAGE_UNLOCK          -> "page unlock event";
 
-            case PRE_TRANSLATE_BEGIN:  return "begin page pre-translate events";
-            case PRE_TRANSLATE:        return "page pre-translate event";
-            case PRE_TRANSLATE_END:    return "end of page pre-translate events";
+            case PRE_TRANSLATE_BEGIN  -> "begin page pre-translate events";
+            case PRE_TRANSLATE        -> "page pre-translate event";
+            case PRE_TRANSLATE_END    -> "end of page pre-translate events";
 
-            case POST_TRANSLATE_BEGIN: return "begin page post-translate events";
-            case POST_TRANSLATE:       return "page post-translate event";
-            case POST_TRANSLATE_END:   return "end of page post-translate events";
+            case POST_TRANSLATE_BEGIN -> "begin page post-translate events";
+            case POST_TRANSLATE       -> "page post-translate event";
+            case POST_TRANSLATE_END   -> "end of page post-translate events";
 
-            case PRE_SAVE_BEGIN:       return "begin page pre-save events";
-            case PRE_SAVE:             return "page pre-save event";
-            case PRE_SAVE_END:         return "end of page pre-save events";
+            case PRE_SAVE_BEGIN       -> "begin page pre-save events";
+            case PRE_SAVE             -> "page pre-save event";
+            case PRE_SAVE_END         -> "end of page pre-save events";
 
-            case POST_SAVE_BEGIN:      return "begin page post-save events";
-            case POST_SAVE:            return "page post-save event";
-            case POST_SAVE_END:        return "end of page post-save events";
+            case POST_SAVE_BEGIN      -> "begin page post-save events";
+            case POST_SAVE            -> "page post-save event";
+            case POST_SAVE_END        -> "end of page post-save events";
 
-            case PAGE_REQUESTED:       return "page requested event";
-            case PAGE_DELIVERED:       return "page delivered event";
+            case PAGE_REQUESTED       -> "page requested event";
+            case PAGE_DELIVERED       -> "page delivered event";
 
-            case PAGE_DELETE_REQUEST:  return "page delete request event";
-            case PAGE_DELETED:         return "page deleted event";
+            case PAGE_DELETE_REQUEST  -> "page delete request event";
+            case PAGE_DELETED         -> "page deleted event";
 
-            default:                   return super.getTypeDescription();
-        }
+            default                   -> super.getTypeDescription();
+        };
     }
 
 }

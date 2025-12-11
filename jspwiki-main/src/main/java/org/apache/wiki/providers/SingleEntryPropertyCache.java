@@ -40,21 +40,14 @@ public class SingleEntryPropertyCache implements PropertyCacheStrategy {
     /**
      * Holds a cached property file entry.
      */
-    private static class CachedEntry {
-        final String page;
-        final Properties props;
-        final long lastModified;
-
-        CachedEntry( final String page, final Properties props, final long lastModified ) {
+    private record CachedEntry( String page, Properties props, long lastModified ) {
+        CachedEntry {
             if ( page == null ) {
                 throw new NullPointerException( "page must not be null!" );
             }
             if ( props == null ) {
                 throw new NullPointerException( "properties must not be null!" );
             }
-            this.page = page;
-            this.props = props;
-            this.lastModified = lastModified;
         }
     }
 
@@ -63,8 +56,8 @@ public class SingleEntryPropertyCache implements PropertyCacheStrategy {
         final CachedEntry entry = cachedEntry;
 
         // Check if cached entry matches
-        if ( entry != null && entry.page.equals( page ) && entry.lastModified == lastModified ) {
-            return entry.props;
+        if ( entry != null && entry.page().equals( page ) && entry.lastModified() == lastModified ) {
+            return entry.props();
         }
 
         // Cache miss - load from disk
@@ -78,7 +71,7 @@ public class SingleEntryPropertyCache implements PropertyCacheStrategy {
     @Override
     public void invalidate( final String page ) {
         final CachedEntry entry = cachedEntry;
-        if ( entry != null && entry.page.equals( page ) ) {
+        if ( entry != null && entry.page().equals( page ) ) {
             cachedEntry = null;
         }
     }

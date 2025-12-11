@@ -179,7 +179,10 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
      */
     @Override
     public Principal findRole( final String role ) {
-        return Arrays.stream(m_containerRoles).filter(containerRole -> containerRole.getName().equals(role)).findFirst().map(containerRole -> containerRole).orElse(null);
+        return Arrays.stream( m_containerRoles )
+                     .filter( containerRole -> containerRole.getName().equals( role ) )
+                     .findFirst()
+                     .orElse( null );
     }
 
     /**

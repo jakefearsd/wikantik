@@ -27,10 +27,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.text.DateFormat;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Date;
+import java.util.Locale;
 import org.apache.commons.net.util.SubnetUtils;
 
 
@@ -154,7 +156,8 @@ public final class HttpUtil {
             }
             
             //  Next, try if-modified-since
-            final DateFormat rfcDateFormat = new SimpleDateFormat( "EEE, dd MMM yyyy HH:mm:ss z" );
+            // Use thread-safe DateTimeFormatter instead of SimpleDateFormat
+            final DateTimeFormatter rfcDateFormat = DateTimeFormatter.ofPattern( "EEE, dd MMM yyyy HH:mm:ss z", Locale.US );
 
             try {
                 final long ifModifiedSince = req.getDateHeader( "If-Modified-Since" );
@@ -168,12 +171,13 @@ public final class HttpUtil {
                     try {
                         final String s = req.getHeader("If-Modified-Since");
                         if( s != null ) {
-                            final Date ifModifiedSinceDate = rfcDateFormat.parse( s );
+                            final ZonedDateTime ifModifiedSinceDateTime = ZonedDateTime.parse( s, rfcDateFormat );
+                            final Date ifModifiedSinceDate = Date.from( ifModifiedSinceDateTime.toInstant() );
                             if( lastModified.before( ifModifiedSinceDate ) ) {
                                 return true;
                             }
                         }
-                    } catch( final ParseException e ) {
+                    } catch( final DateTimeParseException e ) {
                         LOG.warn( e.getLocalizedMessage(), e );
                     }
                 }

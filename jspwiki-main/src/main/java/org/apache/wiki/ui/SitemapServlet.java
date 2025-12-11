@@ -20,7 +20,8 @@ package org.apache.wiki.ui;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.text.SimpleDateFormat;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -190,7 +191,7 @@ public class SitemapServlet extends HttpServlet {
         out.println( "<urlset xmlns=\"" + SITEMAP_NS + "\"" );
         out.println( "        xmlns:image=\"" + IMAGE_NS + "\">" );
 
-        final SimpleDateFormat dateFormat = new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT );
+        final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern( "yyyy-MM-dd", Locale.ROOT );
         final URLConstructor urlConstructor = m_engine.getManager( URLConstructor.class );
         final AttachmentManager attachmentManager = m_engine.getManager( AttachmentManager.class );
 
@@ -249,7 +250,7 @@ public class SitemapServlet extends HttpServlet {
             out.println( "    <loc>" + escapeXml( finalUrl ) + "</loc>" );
 
             if ( page.getLastModified() != null ) {
-                out.println( "    <lastmod>" + dateFormat.format( page.getLastModified() ) + "</lastmod>" );
+                out.println( "    <lastmod>" + dateFormat.format( page.getLastModified().toInstant().atZone( ZoneId.systemDefault() ).toLocalDate() ) + "</lastmod>" );
             }
 
             // Add image entries for image attachments

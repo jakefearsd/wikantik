@@ -49,12 +49,7 @@ public final class WorkflowBuilder {
      * @return the workflow builder
      */
     public static WorkflowBuilder getBuilder( final Engine engine ) {
-        WorkflowBuilder builder = BUILDERS.get( engine );
-        if ( builder == null ) {
-            builder = new WorkflowBuilder( engine );
-            BUILDERS.put( engine, builder );
-        }
-        return builder;
+        return BUILDERS.computeIfAbsent( engine, WorkflowBuilder::new );
     }
 
     /**
@@ -140,20 +135,10 @@ public final class WorkflowBuilder {
             decision.addSuccessor( Outcome.DECISION_APPROVE, completionTask );
 
             // Set the first step
-            if( prepTask == null ) {
-                workflow.setFirstStep( decision );
-            } else {
-                workflow.setFirstStep( prepTask );
-                prepTask.addSuccessor( Outcome.STEP_COMPLETE, decision );
-            }
-        } else { // If Decision not required, just run the prep + approved tasks in succession
-            // Set the first step
-            if ( prepTask == null ) {
-                workflow.setFirstStep( completionTask );
-            } else {
-                workflow.setFirstStep( prepTask );
-                prepTask.addSuccessor( Outcome.STEP_COMPLETE, completionTask );
-            }
+            setFirstStep( workflow, prepTask, decision );
+        } else {
+            // If Decision not required, just run the prep + approved tasks in succession
+            setFirstStep( workflow, prepTask, completionTask );
         }
 
         // Make sure our tasks have this workflow as the parent, then return
@@ -162,6 +147,19 @@ public final class WorkflowBuilder {
         }
         completionTask.setWorkflow( workflow.getId(), workflow.getAttributes() );
         return workflow;
+    }
+
+    /**
+     * Sets the first step of the workflow. If prepTask is null, nextStep becomes the first step.
+     * Otherwise, prepTask is set as the first step and nextStep is added as its successor.
+     */
+    private void setFirstStep( final Workflow workflow, final Step prepTask, final Step nextStep ) {
+        if ( prepTask == null ) {
+            workflow.setFirstStep( nextStep );
+        } else {
+            workflow.setFirstStep( prepTask );
+            prepTask.addSuccessor( Outcome.STEP_COMPLETE, nextStep );
+        }
     }
 
 }

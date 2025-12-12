@@ -356,23 +356,18 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         }
 
         // Ok, no luck---this must be a user principal
-        final Principal[] principals;
-        final UserProfile profile;
         final UserDatabase db = m_engine.getManager( UserManager.class ).getUserDatabase();
         try {
-            profile = db.find( name );
-            principals = db.getPrincipals( profile.getLoginName() );
-            for( final Principal value : principals ) {
-                principal = value;
-                if( principal.getName().equals( name ) ) {
-                    return principal;
-                }
-            }
+            final UserProfile profile = db.find( name );
+            final Principal[] principals = db.getPrincipals( profile.getLoginName() );
+            return Arrays.stream( principals )
+                    .filter( p -> p.getName().equals( name ) )
+                    .findFirst()
+                    .orElseGet( () -> new UnresolvedPrincipal( name ) );
         } catch( final NoSuchPrincipalException e ) {
-            // We couldn't find the user...
+            // We couldn't find the user - mark as unresolved
+            return new UnresolvedPrincipal( name );
         }
-        // Ok, no luck---mark this as unresolved and move on
-        return new UnresolvedPrincipal( name );
     }
 
 

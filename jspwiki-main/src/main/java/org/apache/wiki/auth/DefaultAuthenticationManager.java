@@ -47,9 +47,7 @@ import javax.security.auth.spi.LoginModule;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.security.Principal;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -72,7 +70,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     private static final Logger LOG = LogManager.getLogger( DefaultAuthenticationManager.class );
 
     /** Empty Map passed to JAAS {@link #doJAASLogin(Class, CallbackHandler, Map)} method. */
-    protected static final Map< String, String > EMPTY_MAP = Collections.unmodifiableMap( new HashMap<>() );
+    protected static final Map< String, String > EMPTY_MAP = Map.of();
 
     /** Class (of type LoginModule) to use for custom authentication. */
     protected Class< ? extends LoginModule > m_loginModuleClass = UserDatabaseLoginModule.class;
@@ -85,7 +83,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     private static final String DEFAULT_LOGIN_MODULE = "org.apache.wiki.auth.login.UserDatabaseLoginModule";
 
     /** Empty principal set. */
-    private static final Set<Principal> NO_PRINCIPALS = new HashSet<>();
+    private static final Set<Principal> NO_PRINCIPALS = Set.of();
 
     /** Static Boolean for lazily-initializing the "allows assertions" flag */
     private boolean m_allowsCookieAssertions = true;

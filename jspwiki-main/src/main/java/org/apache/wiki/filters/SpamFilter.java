@@ -275,16 +275,12 @@ public class SpamFilter extends BasePageFilter {
         final String uid = getUniqueID();
         final String page   = ctx.getPage().getName();
         final String addr   = ctx.getHttpRequest() != null ? HttpUtil.getRemoteAddress( ctx.getHttpRequest() ) : "-";
-        final String reason;
-        switch( type ) {
-            case REJECT: reason = "REJECTED";
-                break;
-            case ACCEPT: reason = "ACCEPTED";
-                break;
-            case NOTE: reason = "NOTE";
-                break;
-            default: throw new InternalWikiException( "Illegal type " + type );
-        }
+        final String reason = switch( type ) {
+            case REJECT -> "REJECTED";
+            case ACCEPT -> "ACCEPTED";
+            case NOTE   -> "NOTE";
+            default     -> throw new InternalWikiException( "Illegal type " + type );
+        };
         C_SPAMLOG.info( reason + " " + source + " " + uid + " " + addr + " \"" + page + "\" " + message );
 
         return uid;
@@ -437,26 +433,26 @@ public class SpamFilter extends BasePageFilter {
                 final Host host = i.next();
 
                 //  Check if this item is invalid
-                if( host.getAddedTime() < time ) {
-                    LOG.debug( "Removed host " + host.getAddress() + " from modification queue (expired)" );
+                if( host.addedTime() < time ) {
+                    LOG.debug( "Removed host " + host.address() + " from modification queue (expired)" );
                     i.remove();
                     continue;
                 }
 
                 // Check if this IP address has been seen before
-                if( host.getAddress().equals( addr ) ) {
+                if( host.address().equals( addr ) ) {
                     hostCounter++;
                 }
 
                 //  Check, if this change has been seen before
-                if( host.getChange() != null && host.getChange().equals( change ) ) {
+                if( host.change() != null && host.change().equals( change ) ) {
                     changeCounter++;
                 }
             }
 
             //  Now, let's check against the limits.
             if( hostCounter >= m_limitSinglePageChanges ) {
-                final Host host = new Host( addr, null );
+                final Host host = new Host( addr, null, m_banTime );
                 m_temporaryBanList.add( host );
 
                 final String uid = log( context, REJECT, REASON_TOO_MANY_MODIFICATIONS, change.m_change );
@@ -465,7 +461,7 @@ public class SpamFilter extends BasePageFilter {
             }
 
             if( changeCounter >= m_limitSimilarChanges ) {
-                final Host host = new Host( addr, null );
+                final Host host = new Host( addr, null, m_banTime );
                 m_temporaryBanList.add( host );
 
                 final String uid = log( context, REJECT, REASON_SIMILAR_MODIFICATIONS, change.m_change );
@@ -482,7 +478,7 @@ public class SpamFilter extends BasePageFilter {
             }
 
             if( urlCounter > m_maxUrls ) {
-                final Host host = new Host( addr, null );
+                final Host host = new Host( addr, null, m_banTime );
                 m_temporaryBanList.add( host );
 
                 final String uid = log( context, REJECT, REASON_TOO_MANY_URLS, change.toString() );
@@ -499,7 +495,7 @@ public class SpamFilter extends BasePageFilter {
             //  Do Akismet check.  This is good to be the last, because this is the most expensive operation.
             checkAkismet( context, change );
 
-            m_lastModifications.add( new Host( addr, change ) );
+            m_lastModifications.add( new Host( addr, change, m_banTime ) );
         }
     }
 
@@ -621,8 +617,8 @@ public class SpamFilter extends BasePageFilter {
         for( final Iterator< Host > i = m_temporaryBanList.iterator(); i.hasNext(); ) {
             final Host host = i.next();
 
-            if( host.getReleaseTime() < now ) {
-                LOG.debug( "Removed host " + host.getAddress() + " from temporary ban list (expired)" );
+            if( host.releaseTime() < now ) {
+                LOG.debug( "Removed host " + host.address() + " from temporary ban list (expired)" );
                 i.remove();
             }
         }
@@ -642,8 +638,8 @@ public class SpamFilter extends BasePageFilter {
             final long now = System.currentTimeMillis();
 
             for( final Host host : m_temporaryBanList ) {
-                if( host.getAddress().equals( remote ) ) {
-                    final long timeleft = ( host.getReleaseTime() - now ) / 1000L;
+                if( host.address().equals( remote ) ) {
+                    final long timeleft = ( host.releaseTime() - now ) / 1000L;
 
                     log( context, REJECT, REASON_IP_BANNED_TEMPORARILY, change.m_change );
                     checkStrategy( context,
@@ -806,14 +802,9 @@ public class SpamFilter extends BasePageFilter {
             for( int i = 0; i < rev.size(); i++ ) {
                 final Delta d = rev.getDelta( i );
 
-                if( d instanceof AddDelta ) {
+                if( d instanceof AddDelta || d instanceof ChangeDelta ) {
                     d.getRevised().toString( change, "", "\r\n" );
                     ch.m_adds++;
-                    
-                } else if( d instanceof ChangeDelta ) {
-                    d.getRevised().toString( change, "", "\r\n" );
-                    ch.m_adds++;
-                    
                 } else if( d instanceof DeleteDelta ) {
                     ch.m_removals++;
                 }
@@ -1008,35 +999,12 @@ public class SpamFilter extends BasePageFilter {
     /**
      *  A local class for storing host information.
      */
-    private class Host {
+    private record Host( String address, Change change, long addedTime, long releaseTime ) {
 
-        private final long m_addedTime = System.currentTimeMillis();
-        private final long m_releaseTime;
-        private final String m_address;
-        private final Change m_change;
-
-        public String getAddress() {
-            return m_address;
+        Host( final String address, final Change change, final int banTimeMinutes ) {
+            this( address, change, System.currentTimeMillis(),
+                  System.currentTimeMillis() + banTimeMinutes * 60 * 1000L );
         }
-
-        public long getReleaseTime() {
-            return m_releaseTime;
-        }
-
-        public long getAddedTime() {
-            return m_addedTime;
-        }
-
-        public Change getChange() {
-            return m_change;
-        }
-
-        public Host( final String ipaddress, final Change change ) {
-            m_address = ipaddress;
-            m_change = change;
-            m_releaseTime = System.currentTimeMillis() + m_banTime * 60 * 1000L;
-        }
-        
     }
     
     private static class Change {

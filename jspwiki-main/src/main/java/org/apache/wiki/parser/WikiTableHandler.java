@@ -34,8 +34,8 @@ public class WikiTableHandler {
     private final WikiFormattingHandler formattingHandler;
 
     // Table state
-    private boolean m_istable;
-    private int m_rowNum = 1;
+    private boolean istable;
+    private int rowNum = 1;
 
     /**
      * Constructs a WikiTableHandler.
@@ -56,7 +56,7 @@ public class WikiTableHandler {
      * @return true if currently inside a table
      */
     public boolean isInTable() {
-        return m_istable;
+        return istable;
     }
 
     /**
@@ -64,9 +64,9 @@ public class WikiTableHandler {
      * Called when a line doesn't start with a pipe character.
      */
     public void endTable() {
-        if( m_istable ) {
+        if( istable ) {
             parser.popElement( "table" );
-            m_istable = false;
+            istable = false;
         }
     }
 
@@ -88,21 +88,21 @@ public class WikiTableHandler {
      */
     public Element handleBar( final boolean newLine ) throws IOException {
         Element el;
-        if( !m_istable && !newLine ) {
+        if( !istable && !newLine ) {
             return null;
         }
 
         // If the bar is in the first column, we will either start a new table or continue the old one.
         if( newLine ) {
-            if( !m_istable ) {
+            if( !istable ) {
                 formattingHandler.startBlockLevel();
                 el = parser.pushElement( new Element( "table" ).setAttribute( "class", "wikitable" ).setAttribute( "border", "1" ) );
-                m_istable = true;
-                m_rowNum = 0;
+                istable = true;
+                rowNum = 0;
             }
 
-            m_rowNum++;
-            final Element tr = ( m_rowNum % 2 != 0 )
+            rowNum++;
+            final Element tr = ( rowNum % 2 != 0 )
                        ? new Element( "tr" ).setAttribute( "class", "odd" )
                        : new Element( "tr" );
             el = parser.pushElement( tr );

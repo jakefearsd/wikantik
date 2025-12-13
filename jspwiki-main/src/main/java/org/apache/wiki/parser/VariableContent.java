@@ -37,7 +37,7 @@ public class VariableContent extends Text {
 
     private static final long serialVersionUID = 1L;
 
-    private final String m_varName;
+    private final String varName;
     
     /**
      *  Create a VariableContent for the given variable.
@@ -45,7 +45,7 @@ public class VariableContent extends Text {
      *  @param varName The name of the variable.
      */
     public VariableContent( final String varName ) {
-        m_varName = varName;
+        this.varName = varName;
     }
     
     /**
@@ -60,7 +60,7 @@ public class VariableContent extends Text {
 
         if( root == null ) {
             // See similar note in PluginContent
-            return m_varName;
+            return varName;
         }
         
         final Context context = root.getContext();
@@ -70,10 +70,10 @@ public class VariableContent extends Text {
     
         final Boolean wysiwygEditorMode = context.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE );
         if( wysiwygEditorMode != null && wysiwygEditorMode ) {
-            result = "[" + m_varName + "]";
+            result = "[" + varName + "]";
         } else {
             try {
-                result = context.getEngine().getManager( VariableManager.class ).parseAndGetValue( context, m_varName );
+                result = context.getEngine().getManager( VariableManager.class ).parseAndGetValue( context, varName );
             } catch( final NoSuchVariableException e ) {
                 result = MarkupParser.makeError( "No such variable: " + e.getMessage() ).getText(); 
             }
@@ -99,7 +99,7 @@ public class VariableContent extends Text {
      */
     @Override
     public String toString() {
-        return "VariableElement[\"" + m_varName + "\"]";
+        return "VariableElement[\"" + varName + "\"]";
     }
 
 }

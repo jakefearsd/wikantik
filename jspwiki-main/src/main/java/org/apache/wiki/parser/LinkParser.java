@@ -177,7 +177,7 @@ public class LinkParser
     private static final String TARGET = "target";
     private static final String DELIMS = " \t\n\r\f=";
 
-    private static final List< Attribute > m_EMPTY = new ArrayList< >();
+    private static final List< Attribute > EMPTY = new ArrayList< >();
 
     // ............
 
@@ -369,10 +369,10 @@ public class LinkParser
      */
     public static class Link
     {
-        private String            m_text;
-        private String            m_ref;
-        private int               m_interwikiPoint = -1;
-        private List<Attribute>   m_attribs;
+        private String            text;
+        private String            ref;
+        private int               interwikiPoint = -1;
+        private List<Attribute>   attribs;
 
         /**
          *  Create a new Link with text but no reference.
@@ -409,7 +409,7 @@ public class LinkParser
             {
                 throw new ParseException("null link text");
             }
-            m_text = text;
+            this.text = text;
         }
 
         /**
@@ -419,7 +419,7 @@ public class LinkParser
          */
         public String getText()
         {
-            return m_text;
+            return text;
         }
 
         /**
@@ -435,7 +435,7 @@ public class LinkParser
             {
                 throw new ParseException("null link reference value");
             }
-            m_ref = ref;
+            this.ref = ref;
         }
 
         /**
@@ -445,7 +445,7 @@ public class LinkParser
          */
         public boolean hasReference()
         {
-            return m_ref != null;
+            return ref != null;
         }
 
         /**
@@ -455,9 +455,9 @@ public class LinkParser
          */
         public String getReference()
         {
-            return m_ref != null
-                    ? m_ref
-                    : m_text ;
+            return ref != null
+                    ? ref
+                    : text ;
         }
 
         /**
@@ -468,9 +468,9 @@ public class LinkParser
         public boolean isInterwikiLink()
         {
             final LinkParsingOperations lpo = new LinkParsingOperations( null );
-            if( !hasReference() ) m_ref = m_text;
-            m_interwikiPoint = lpo.interWikiLinkAt( m_ref );
-            return lpo.isInterWikiLink( m_ref );
+            if( !hasReference() ) ref = text;
+            interwikiPoint = lpo.interWikiLinkAt( ref );
+            return lpo.isInterWikiLink( ref );
         }
 
         /**
@@ -486,7 +486,7 @@ public class LinkParser
         {
             if( isInterwikiLink() )
             {
-                return m_ref.substring( 0, m_interwikiPoint );
+                return ref.substring( 0, interwikiPoint );
             }
 
             return null;
@@ -505,7 +505,7 @@ public class LinkParser
         {
             if( isInterwikiLink() )
             {
-                return m_ref.substring( m_interwikiPoint+1 );
+                return ref.substring( interwikiPoint+1 );
             }
 
             return null;
@@ -518,8 +518,8 @@ public class LinkParser
          */
         public int attributeCount()
         {
-            return m_attribs != null
-                    ? m_attribs.size()
+            return attribs != null
+                    ? attribs.size()
                     : 0 ;
         }
 
@@ -530,11 +530,11 @@ public class LinkParser
          */
         public void addAttribute(final Attribute attr )
         {
-            if( m_attribs == null )
+            if( attribs == null )
             {
-                m_attribs = new ArrayList<>();
+                attribs = new ArrayList<>();
             }
-            m_attribs.add(attr);
+            attribs.add(attr);
         }
 
         /**
@@ -544,9 +544,9 @@ public class LinkParser
          */
         public Iterator< Attribute > getAttributes()
         {
-            return m_attribs != null
-                    ? m_attribs.iterator()
-                    : m_EMPTY.iterator() ;
+            return attribs != null
+                    ? attribs.iterator()
+                    : EMPTY.iterator() ;
         }
 
         /**
@@ -558,17 +558,17 @@ public class LinkParser
         {
             final StringBuilder sb = new StringBuilder();
             sb.append( '[' );
-            sb.append( m_text );
+            sb.append( text );
 
-            if( m_ref != null )
+            if( ref != null )
             {
                 sb.append( ' ' );
                 sb.append( '|' );
                 sb.append( ' ' );
-                sb.append( m_ref );
+                sb.append( ref );
             }
 
-            if( m_attribs != null )
+            if( attribs != null )
             {
                 sb.append( ' ' );
                 sb.append( '|' );

@@ -65,8 +65,8 @@ public class PluginContent extends Text implements PluginElement {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger(PluginContent.class);
 
-    private final String m_pluginName;
-    private final Map< String, String > m_params;
+    private final String pluginName;
+    private final Map< String, String > params;
 
     /**
      * Creates a new DOM element with the given plugin name and a map of parameters.
@@ -75,26 +75,26 @@ public class PluginContent extends Text implements PluginElement {
      * @param parameters A Map of parameters.
      */
     public PluginContent( final String pluginName, final Map< String, String > parameters) {
-        m_pluginName = pluginName;
-        m_params = parameters;
+        this.pluginName = pluginName;
+        params = parameters;
     }
 
     /**{@inheritDoc}*/
     @Override
     public String getPluginName() {
-        return m_pluginName;
+        return pluginName;
     }
 
     /**{@inheritDoc}*/
     @Override
     public String getParameter( final String name) {
-        return m_params.get( name );
+        return params.get( name );
     }
 
     /**{@inheritDoc}*/
     @Override
     public Map< String, String > getParameters() {
-        return m_params;
+        return params;
     }
 
     /**{@inheritDoc}*/
@@ -142,11 +142,11 @@ public class PluginContent extends Text implements PluginElement {
             //  since they can be edited visually.
             //
             // FIXME: The plugin name matching should not be done here, but in a per-editor resource
-            if( wysiwygEditorMode && !m_pluginName.matches( EMITTABLE_PLUGINS ) ) {
-                result = PLUGIN_START + m_pluginName + SPACE;
+            if( wysiwygEditorMode && !pluginName.matches( EMITTABLE_PLUGINS ) ) {
+                result = PLUGIN_START + pluginName + SPACE;
 
                 // convert newlines to <br> in case the plugin has a body.
-                final String cmdLine = m_params.get( CMDLINE ).replaceAll( LINEBREAK, ELEMENT_BR );
+                final String cmdLine = params.get( CMDLINE ).replaceAll( LINEBREAK, ELEMENT_BR );
                 result = result + cmdLine + PLUGIN_END;
             } else {
                 final Boolean b = context.getVariable( Context.VAR_EXECUTE_PLUGINS );
@@ -158,13 +158,13 @@ public class PluginContent extends Text implements PluginElement {
                 final Map< String, String > parsedParams = new HashMap<>();
 
                 //  Parse any variable instances from the string
-                for( final Map.Entry< String, String > e : m_params.entrySet() ) {
+                for( final Map.Entry< String, String > e : params.entrySet() ) {
                     String val = e.getValue();
                     val = engine.getManager( VariableManager.class).expandVariables( context, val );
                     parsedParams.put( e.getKey(), val );
                 }
                 final PluginManager pm = engine.getManager( PluginManager.class );
-                result = pm.execute( context, m_pluginName, parsedParams );
+                result = pm.execute( context, pluginName, parsedParams );
             }
         } catch( final Exception e ) {
             if( wysiwygEditorMode ) {

@@ -46,24 +46,24 @@ public abstract class MarkupParser {
 
     /** Allow this many characters to be pushed back in the stream.  In effect, this limits the size of a single line.  */
     protected static final int PUSHBACK_BUFFER_SIZE = 10*1024;
-    protected PushbackReader m_in;
-    private int m_pos = -1; // current position in reader stream
+    protected PushbackReader in;
+    private int pos = -1; // current position in reader stream
 
-    protected final Engine m_engine;
-    protected final Context m_context;
+    protected final Engine engine;
+    protected final Context context;
 
     /** Optionally stores internal wikilinks */
-    protected final ArrayList< StringTransmutator > m_localLinkMutatorChain = new ArrayList<>();
-    protected final ArrayList< StringTransmutator > m_externalLinkMutatorChain = new ArrayList<>();
-    protected final ArrayList< StringTransmutator > m_attachmentLinkMutatorChain = new ArrayList<>();
-    protected final ArrayList< StringTransmutator > m_linkMutators = new ArrayList<>();
-    protected final ArrayList< HeadingListener > m_headingListenerChain = new ArrayList<>();
+    protected final ArrayList< StringTransmutator > localLinkMutatorChain = new ArrayList<>();
+    protected final ArrayList< StringTransmutator > externalLinkMutatorChain = new ArrayList<>();
+    protected final ArrayList< StringTransmutator > attachmentLinkMutatorChain = new ArrayList<>();
+    protected final ArrayList< StringTransmutator > linkMutators = new ArrayList<>();
+    protected final ArrayList< HeadingListener > headingListenerChain = new ArrayList<>();
 
-    protected boolean m_inlineImages = true;
-    protected boolean m_parseAccessRules = true;
+    protected boolean inlineImages = true;
+    protected boolean parseAccessRules = true;
     /** Keeps image regexp Patterns */
-    protected List< Pattern > m_inlineImagePatterns;
-    protected final LinkParsingOperations m_linkParsingOperations;
+    protected List< Pattern > inlineImagePatterns;
+    protected final LinkParsingOperations linkParsingOperations;
 
     private static final Logger LOG = LogManager.getLogger( MarkupParser.class );
 
@@ -141,9 +141,9 @@ public abstract class MarkupParser {
      *  @param in The reader from which we are reading the bytes from.
      */
     protected MarkupParser( final Context context, final Reader in ) {
-        m_engine = context.getEngine();
-        m_context = context;
-        m_linkParsingOperations = new LinkParsingOperations( m_context );
+        engine = context.getEngine();
+        this.context = context;
+        linkParsingOperations = new LinkParsingOperations( this.context );
         setInputReader( in );
     }
 
@@ -154,9 +154,9 @@ public abstract class MarkupParser {
      *  @return the old stream
      */
     public Reader setInputReader( final Reader in ) {
-        final Reader old = m_in;
+        final Reader old = this.in;
         if( in != null ) {
-            m_in = new PushbackReader( new BufferedReader( in ), PUSHBACK_BUFFER_SIZE );
+            this.in = new PushbackReader( new BufferedReader( in ), PUSHBACK_BUFFER_SIZE );
         }
 
         return old;
@@ -169,7 +169,7 @@ public abstract class MarkupParser {
      *  @param mutator The hook to call.  Null is safe.
      */
     public void addLinkTransmutator( final StringTransmutator mutator ) {
-        addLinkHook( m_linkMutators, mutator );
+        addLinkHook( linkMutators, mutator );
     }
 
     /**
@@ -178,7 +178,7 @@ public abstract class MarkupParser {
      *  @param mutator The hook to call.  Null is safe.
      */
     public void addLocalLinkHook( final StringTransmutator mutator ) {
-        addLinkHook( m_localLinkMutatorChain, mutator );
+        addLinkHook( localLinkMutatorChain, mutator );
     }
 
     /**
@@ -187,7 +187,7 @@ public abstract class MarkupParser {
      *  @param mutator The hook to call.  Null is safe.
      */
     public void addExternalLinkHook( final StringTransmutator mutator ) {
-        addLinkHook( m_externalLinkMutatorChain, mutator );
+        addLinkHook( externalLinkMutatorChain, mutator );
     }
 
     /**
@@ -196,7 +196,7 @@ public abstract class MarkupParser {
      *  @param mutator The hook to call.  Null is safe.
      */
     public void addAttachmentLinkHook( final StringTransmutator mutator ) {
-        addLinkHook( m_attachmentLinkMutatorChain, mutator );
+        addLinkHook( attachmentLinkMutatorChain, mutator );
     }
 
     void addLinkHook( final List< StringTransmutator > mutatorChain, final StringTransmutator mutator ) {
@@ -212,7 +212,7 @@ public abstract class MarkupParser {
      */
     public void addHeadingListener( final HeadingListener listener ) {
         if( listener != null ) {
-            m_headingListenerChain.add( listener );
+            headingListenerChain.add( listener );
         }
     }
 
@@ -221,12 +221,12 @@ public abstract class MarkupParser {
      */
     public void disableAccessRules()
     {
-        m_parseAccessRules = false;
+        parseAccessRules = false;
     }
 
     public boolean isParseAccessRules()
     {
-        return m_parseAccessRules;
+        return parseAccessRules;
     }
 
     /**
@@ -239,20 +239,20 @@ public abstract class MarkupParser {
      */
     public void enableImageInlining( final boolean toggle )
     {
-        m_inlineImages = toggle;
+        inlineImages = toggle;
     }
 
     public boolean isImageInlining() {
-        return m_inlineImages;
+        return inlineImages;
     }
 
     protected final void initInlineImagePatterns() {
         //  We cache compiled patterns in the engine, since their creation is really expensive
-        List< Pattern > compiledpatterns = m_engine.getAttribute( INLINE_IMAGE_PATTERNS );
+        List< Pattern > compiledpatterns = engine.getAttribute( INLINE_IMAGE_PATTERNS );
 
         if( compiledpatterns == null ) {
             compiledpatterns = new ArrayList< >( 20 );
-            final Collection< String > ptrns = m_engine.getAllInlinedImagePatterns();
+            final Collection< String > ptrns = engine.getAllInlinedImagePatterns();
 
             //  Make them into Regexp Patterns.  Unknown patterns are ignored.
             for( final String pattern : ptrns ) {
@@ -263,10 +263,10 @@ public abstract class MarkupParser {
                 }
             }
 
-            m_engine.setAttribute( INLINE_IMAGE_PATTERNS, compiledpatterns );
+            engine.setAttribute( INLINE_IMAGE_PATTERNS, compiledpatterns );
         }
 
-        m_inlineImagePatterns = Collections.unmodifiableList( compiledpatterns );
+        inlineImagePatterns = Collections.unmodifiableList( compiledpatterns );
 	}
 
     /**
@@ -309,10 +309,10 @@ public abstract class MarkupParser {
     }
 
     public List< Pattern > getInlineImagePatterns() {
-    	if( m_inlineImagePatterns == null ) {
+    	if( inlineImagePatterns == null ) {
     		initInlineImagePatterns();
     	}
-    	return m_inlineImagePatterns;
+    	return inlineImagePatterns;
     }
 
     /**
@@ -330,7 +330,7 @@ public abstract class MarkupParser {
      */
     public int getPosition()
     {
-        return m_pos;
+        return pos;
     }
 
     /**
@@ -341,9 +341,9 @@ public abstract class MarkupParser {
      * @throws NullPointerException If you have not yet created an input document.
      */
     protected final int nextToken() throws IOException, NullPointerException {
-        // if( m_in == null ) return -1;
-        m_pos++;
-        return m_in.read();
+        // if( in == null ) return -1;
+        pos++;
+        return in.read();
     }
 
     /**
@@ -353,9 +353,9 @@ public abstract class MarkupParser {
      *  @throws IOException In case the character cannot be pushed back.
      */
     protected void pushBack( final int c ) throws IOException {
-        if( c != -1 && m_in != null ) {
-            m_pos--;
-            m_in.unread( c );
+        if( c != -1 && in != null ) {
+            pos--;
+            in.unread( c );
         }
     }
 

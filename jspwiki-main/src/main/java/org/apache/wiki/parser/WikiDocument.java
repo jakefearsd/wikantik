@@ -38,10 +38,10 @@ public class WikiDocument extends Document {
 
     private static final long serialVersionUID = 1L;
 
-    private final Page m_page;
-    private String m_wikiText;
-    private String m_pageDataHash;
-    private WeakReference< Context > m_context;
+    private final Page page;
+    private String wikiText;
+    private String pageDataHash;
+    private WeakReference< Context > context;
     
     /**
      *  Creates a new WikiDocument for a specific page.
@@ -50,7 +50,7 @@ public class WikiDocument extends Document {
      */
     public WikiDocument( final Page page )
     {
-        m_page = page;
+        this.page = page;
     }
     
     /**
@@ -61,8 +61,8 @@ public class WikiDocument extends Document {
      */
     public void setPageData( final String data )
     {
-        m_wikiText = data;
-        m_pageDataHash = computeHash( data );
+        wikiText = data;
+        pageDataHash = computeHash( data );
     }
 
     /**
@@ -72,7 +72,7 @@ public class WikiDocument extends Document {
      */
     public String getPageData()
     {
-        return m_wikiText;
+        return wikiText;
     }
 
     /**
@@ -83,7 +83,7 @@ public class WikiDocument extends Document {
      */
     public String getPageDataHash()
     {
-        return m_pageDataHash;
+        return pageDataHash;
     }
 
     /**
@@ -135,7 +135,7 @@ public class WikiDocument extends Document {
      */
     public Page getPage()
     {
-        return m_page;
+        return page;
     }
 
     /**
@@ -147,7 +147,7 @@ public class WikiDocument extends Document {
      */
     public void setContext( final Context ctx )
     {
-        m_context = new WeakReference<>( ctx );
+        context = new WeakReference<>( ctx );
     }
     
     /**
@@ -158,7 +158,7 @@ public class WikiDocument extends Document {
      */
     public Context getContext()
     {
-        return m_context.get();
+        return context.get();
     }
 
 }

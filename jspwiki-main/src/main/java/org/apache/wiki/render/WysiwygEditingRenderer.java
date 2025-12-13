@@ -71,7 +71,7 @@ public class WysiwygEditingRenderer extends WikiRenderer {
                 if( classAttr != null ) {
                     final String classValue = classAttr.getValue();
                     final Attribute hrefAttr = element.getAttribute( HREF_ATTRIBUTE );
-                    final XHtmlToWikiConfig wikiConfig = new XHtmlToWikiConfig( m_context );
+                    final XHtmlToWikiConfig wikiConfig = new XHtmlToWikiConfig( context );
 
                     // Get the url for wiki page link - it's typically "Wiki.jsp?page=MyPage"
                     // or when using the ShortURLConstructor option, it's "wiki/MyPage" .
@@ -89,7 +89,7 @@ public class WysiwygEditingRenderer extends WikiRenderer {
                         String newHref = hrefAttr.getValue().substring( wikiPageLinkUrl.length() );
 
                         // Convert "This%20Pagename%20Has%20Spaces" to "This Pagename Has Spaces"
-                        newHref = m_context.getEngine().decodeName( newHref );
+                        newHref = context.getEngine().decodeName( newHref );
 
                         // Handle links with section anchors.
                         // For example, we need to translate the html string "TargetPage#section-TargetPage-Heading2"
@@ -106,7 +106,7 @@ public class WysiwygEditingRenderer extends WikiRenderer {
                         }
 
                         String newHref = hrefAttr.getValue().substring( editPageLinkUrl.length() );
-                        newHref = m_context.getEngine().decodeName( newHref );
+                        newHref = context.getEngine().decodeName( newHref );
 
                         hrefAttr.setValue( newHref );
                     } else if( classValue.equals( MarkupParser.HASHLINK ) ) {
@@ -134,10 +134,10 @@ public class WysiwygEditingRenderer extends WikiRenderer {
      */
     @Override
     public String getString() throws IOException {
-        final Element rootElement = m_document.getRootElement();
+        final Element rootElement = document.getRootElement();
         processChildren( rootElement );
 
-        m_document.setContext( m_context );
+        document.setContext( context );
 
         final CustomXMLOutputProcessor processor = new CustomXMLOutputProcessor();
         final XMLOutputter output = new XMLOutputter(processor);
@@ -147,7 +147,7 @@ public class WysiwygEditingRenderer extends WikiRenderer {
         fmt.setLineSeparator( LINEBREAK );
 
         output.setFormat( fmt );
-        output.outputElementContent( m_document.getRootElement(), out );
+        output.outputElementContent( document.getRootElement(), out );
 
         return out.toString();
     }

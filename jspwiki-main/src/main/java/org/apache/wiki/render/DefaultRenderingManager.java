@@ -84,17 +84,17 @@ public class DefaultRenderingManager implements RenderingManager {
     /** markdown parser property. */
     String PROP_MARKDOWN_PARSER = "jspwiki.renderingManager.markdownParser";
 
-    private Engine m_engine;
+    private Engine engine;
     private CachingManager cachingManager;
 
     /** If true, all titles will be cleaned. */
-    private boolean m_beautifyTitle;
+    private boolean beautifyTitle;
 
-    private Constructor< ? > m_rendererConstructor;
-    private Constructor< ? > m_rendererWysiwygConstructor;
-    private Constructor< ? > m_markdownRendererConstructor;
-    private String m_markupParserClass = DEFAULT_PARSER;
-    private String m_markdownParserClass = DEFAULT_MARKDOWN_PARSER;
+    private Constructor< ? > rendererConstructor;
+    private Constructor< ? > rendererWysiwygConstructor;
+    private Constructor< ? > markdownRendererConstructor;
+    private String markupParserClass = DEFAULT_PARSER;
+    private String markdownParserClass = DEFAULT_MARKDOWN_PARSER;
 
     /**
      *  {@inheritDoc}
@@ -104,42 +104,42 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public void initialize( final Engine engine, final Properties properties ) throws WikiException {
-        m_engine = engine;
-        cachingManager = m_engine.getManager( CachingManager.class );
-        m_markupParserClass = properties.getProperty( PROP_PARSER, DEFAULT_PARSER );
-        if( !ClassUtil.assignable( m_markupParserClass, MarkupParser.class.getName() ) ) {
-        	LOG.warn( "{} does not subclass {} reverting to default markup parser.", m_markupParserClass, MarkupParser.class.getName() );
-        	m_markupParserClass = DEFAULT_PARSER;
+        this.engine = engine;
+        cachingManager = this.engine.getManager( CachingManager.class );
+        markupParserClass = properties.getProperty( PROP_PARSER, DEFAULT_PARSER );
+        if( !ClassUtil.assignable( markupParserClass, MarkupParser.class.getName() ) ) {
+        	LOG.warn( "{} does not subclass {} reverting to default markup parser.", markupParserClass, MarkupParser.class.getName() );
+        	markupParserClass = DEFAULT_PARSER;
         }
-        LOG.info( "Using {} as markup parser.", m_markupParserClass );
+        LOG.info( "Using {} as markup parser.", markupParserClass );
 
-        m_markdownParserClass = properties.getProperty( PROP_MARKDOWN_PARSER, DEFAULT_MARKDOWN_PARSER );
-        if( !ClassUtil.assignable( m_markdownParserClass, MarkupParser.class.getName() ) ) {
-        	LOG.warn( "{} does not subclass {} reverting to default markdown parser.", m_markdownParserClass, MarkupParser.class.getName() );
-        	m_markdownParserClass = DEFAULT_MARKDOWN_PARSER;
+        markdownParserClass = properties.getProperty( PROP_MARKDOWN_PARSER, DEFAULT_MARKDOWN_PARSER );
+        if( !ClassUtil.assignable( markdownParserClass, MarkupParser.class.getName() ) ) {
+        	LOG.warn( "{} does not subclass {} reverting to default markdown parser.", markdownParserClass, MarkupParser.class.getName() );
+        	markdownParserClass = DEFAULT_MARKDOWN_PARSER;
         }
-        LOG.info( "Using {} as markdown parser.", m_markdownParserClass );
+        LOG.info( "Using {} as markdown parser.", markdownParserClass );
 
-        m_beautifyTitle  = TextUtil.getBooleanProperty( properties, PROP_BEAUTIFYTITLE, m_beautifyTitle );
+        beautifyTitle  = TextUtil.getBooleanProperty( properties, PROP_BEAUTIFYTITLE, beautifyTitle );
         final String renderImplName = properties.getProperty( PROP_RENDERER, DEFAULT_RENDERER );
         final String renderWysiwygImplName = properties.getProperty( PROP_WYSIWYG_RENDERER, DEFAULT_WYSIWYG_RENDERER );
 
         final Class< ? >[] rendererParams = { Context.class, WikiDocument.class };
-        m_rendererConstructor = initRenderer( renderImplName, rendererParams );
-        m_rendererWysiwygConstructor = initRenderer( renderWysiwygImplName, rendererParams );
+        rendererConstructor = initRenderer( renderImplName, rendererParams );
+        rendererWysiwygConstructor = initRenderer( renderWysiwygImplName, rendererParams );
 
         // Initialize Markdown renderer if available
         try {
-            m_markdownRendererConstructor = initRenderer( DEFAULT_MARKDOWN_RENDERER, rendererParams );
+            markdownRendererConstructor = initRenderer( DEFAULT_MARKDOWN_RENDERER, rendererParams );
             LOG.info( "Using {} as markdown renderer.", DEFAULT_MARKDOWN_RENDERER );
         } catch( final WikiException e ) {
             LOG.warn( "Markdown renderer not available: {}", e.getMessage() );
-            m_markdownRendererConstructor = null;
+            markdownRendererConstructor = null;
         }
 
         LOG.info( "Rendering content with {}.", renderImplName );
 
-        WikiEventManager.addWikiEventListener( m_engine.getManager( FilterManager.class ),this );
+        WikiEventManager.addWikiEventListener( this.engine.getManager( FilterManager.class ),this );
     }
 
     private Constructor< ? > initRenderer( final String renderImplName, final Class< ? >[] rendererParams ) throws WikiException {
@@ -165,9 +165,9 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public String beautifyTitle( final String title ) {
-        if( m_beautifyTitle ) {
+        if( beautifyTitle ) {
             try {
-                final Attachment att = m_engine.getManager( AttachmentManager.class ).getAttachmentInfo( title );
+                final Attachment att = engine.getManager( AttachmentManager.class ).getAttachmentInfo( title );
                 if( att == null ) {
                     return TextUtil.beautifyString( title );
                 }
@@ -187,7 +187,7 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public String beautifyTitleNoBreak( final String title ) {
-        if( m_beautifyTitle ) {
+        if( beautifyTitle ) {
             return TextUtil.beautifyString( title, "&nbsp;" );
         }
 
@@ -199,14 +199,14 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public MarkupParser getParser( final Context context, final String pagedata ) {
-        String parserClass = m_markupParserClass; // default to JSPWiki parser
+        String parserClass = markupParserClass; // default to JSPWiki parser
 
         // Check if the page has a markup syntax attribute
         final Page page = context.getRealPage();
         if( page != null ) {
             final String syntax = page.getAttribute( Page.MARKUP_SYNTAX );
             if( "markdown".equals( syntax ) ) {
-                parserClass = m_markdownParserClass;
+                parserClass = markdownParserClass;
             }
         }
 
@@ -310,7 +310,7 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public String getHTML( final Context context, final Page page ) {
-        final String pagedata = m_engine.getManager( PageManager.class ).getPureText( page.getName(), page.getVersion() );
+        final String pagedata = engine.getManager( PageManager.class ).getPureText( page.getName(), page.getVersion() );
         return textToHTML( context, pagedata );
     }
 
@@ -324,8 +324,8 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public String getHTML( final String pagename, final int version ) {
-        final Page page = m_engine.getManager( PageManager.class ).getPage( pagename, version );
-        final Context context = Wiki.context().create( m_engine, page );
+        final Page page = engine.getManager( PageManager.class ).getPage( pagename, version );
+        final Context context = Wiki.context().create( engine, page );
         context.setRequestContext( ContextEnum.PAGE_NONE.getRequestContext() );
         return getHTML( context, page );
     }
@@ -337,19 +337,19 @@ public class DefaultRenderingManager implements RenderingManager {
     public String textToHTML( final Context context, String pagedata ) {
         String result = "";
 
-        final boolean runFilters = "true".equals( m_engine.getManager( VariableManager.class ).getValue( context,VariableManager.VAR_RUNFILTERS,"true" ) );
+        final boolean runFilters = "true".equals( engine.getManager( VariableManager.class ).getValue( context,VariableManager.VAR_RUNFILTERS,"true" ) );
 
         final StopWatch sw = new StopWatch();
         sw.start();
         try {
             if( runFilters ) {
-                pagedata = m_engine.getManager( FilterManager.class ).doPreTranslateFiltering( context, pagedata );
+                pagedata = engine.getManager( FilterManager.class ).doPreTranslateFiltering( context, pagedata );
             }
 
             result = getHTML( context, pagedata );
 
             if( runFilters ) {
-                result = m_engine.getManager( FilterManager.class ).doPostTranslateFiltering( context, result );
+                result = engine.getManager( FilterManager.class ).doPostTranslateFiltering( context, result );
             }
         } catch( final FilterException e ) {
             LOG.error( "page filter threw exception: ", e );
@@ -379,14 +379,14 @@ public class DefaultRenderingManager implements RenderingManager {
             return null;
         }
 
-        final boolean runFilters = "true".equals( m_engine.getManager( VariableManager.class ).getValue( context, VariableManager.VAR_RUNFILTERS,"true" ) );
+        final boolean runFilters = "true".equals( engine.getManager( VariableManager.class ).getValue( context, VariableManager.VAR_RUNFILTERS,"true" ) );
 
         try {
             final StopWatch sw = new StopWatch();
             sw.start();
 
-            if( runFilters && m_engine.getManager( FilterManager.class ) != null ) {
-                pagedata = m_engine.getManager( FilterManager.class ).doPreTranslateFiltering( context, pagedata );
+            if( runFilters && engine.getManager( FilterManager.class ) != null ) {
+                pagedata = engine.getManager( FilterManager.class ).doPreTranslateFiltering( context, pagedata );
             }
 
             final MarkupParser mp = getParser( context, pagedata );
@@ -402,8 +402,8 @@ public class DefaultRenderingManager implements RenderingManager {
             //  In some cases it's better just to parse, not to render
             if( !justParse ) {
                 result = getHTML( context, doc );
-                if( runFilters && m_engine.getManager( FilterManager.class ) != null ) {
-                    result = m_engine.getManager( FilterManager.class ).doPostTranslateFiltering( context, result );
+                if( runFilters && engine.getManager( FilterManager.class ) != null ) {
+                    result = engine.getManager( FilterManager.class ).doPostTranslateFiltering( context, result );
                 }
             }
 
@@ -428,12 +428,12 @@ public class DefaultRenderingManager implements RenderingManager {
         final Object[] params = { context, doc };
 
         // Use MarkdownRenderer for MarkdownDocument if available
-        if( m_markdownRendererConstructor != null &&
+        if( markdownRendererConstructor != null &&
             doc.getClass().getName().equals( "org.apache.wiki.parser.markdown.MarkdownDocument" ) ) {
-            return getRenderer( params, m_markdownRendererConstructor );
+            return getRenderer( params, markdownRendererConstructor );
         }
 
-        return getRenderer( params, m_rendererConstructor );
+        return getRenderer( params, rendererConstructor );
     }
 
     /**
@@ -442,7 +442,7 @@ public class DefaultRenderingManager implements RenderingManager {
     @Override
     public WikiRenderer getWysiwygRenderer( final Context context, final WikiDocument doc ) {
         final Object[] params = { context, doc };
-        return getRenderer( params, m_rendererWysiwygConstructor );
+        return getRenderer( params, rendererWysiwygConstructor );
     }
 
     @SuppressWarnings("unchecked")
@@ -468,7 +468,7 @@ public class DefaultRenderingManager implements RenderingManager {
         if( isBeginningAWikiPagePostSaveEventAndDocumentCacheIsEnabled( event ) ) {
             final String pageName = ( ( WikiPageEvent ) event ).getPageName();
             cachingManager.remove( CachingManager.CACHE_DOCUMENTS, pageName );
-            final Collection< String > referringPages = m_engine.getManager( ReferenceManager.class ).findReferrers( pageName );
+            final Collection< String > referringPages = engine.getManager( ReferenceManager.class ).findReferrers( pageName );
 
             // Flush also those pages that refer to this page (if a nonexistent page
             // appears, we need to flush the HTML that refers to the now-existent page)

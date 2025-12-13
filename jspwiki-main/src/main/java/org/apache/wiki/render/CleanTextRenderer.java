@@ -45,7 +45,7 @@ public class CleanTextRenderer extends WikiRenderer {
      */
     @Override
     public String getString() {
-    	return m_document != null ? XmlUtil.extractTextFromDocument( m_document.getDocument() ) : "";
+    	return document != null ? XmlUtil.extractTextFromDocument( document.getDocument() ) : "";
     }
 
 }

@@ -66,14 +66,14 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
 
     private static final Logger LOG = LogManager.getLogger( DefaultGroupManager.class );
 
-    protected Engine m_engine;
+    protected Engine engine;
 
-    protected WikiEventListener m_groupListener;
+    protected WikiEventListener groupListener;
 
-    private GroupDatabase m_groupDatabase;
+    private GroupDatabase groupDatabase;
 
     /** Map with GroupPrincipals as keys, and Groups as values */
-    private final Map< Principal, Group > m_groups = new HashMap<>();
+    private final Map< Principal, Group > groups = new HashMap<>();
 
     /** {@inheritDoc} */
     @Override
@@ -89,7 +89,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
     /** {@inheritDoc} */
     @Override
     public Group getGroup( final String name ) throws NoSuchPrincipalException {
-        final Group group = m_groups.get( new GroupPrincipal( name ) );
+        final Group group = groups.get( new GroupPrincipal( name ) );
         if( group != null ) {
             return group;
         }
@@ -99,22 +99,22 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
     /** {@inheritDoc} */
     @Override
     public GroupDatabase getGroupDatabase() throws WikiSecurityException {
-        if( m_groupDatabase != null ) {
-            return m_groupDatabase;
+        if( groupDatabase != null ) {
+            return groupDatabase;
         }
 
         String dbClassName = "<unknown>";
         String dbInstantiationError = null;
         Throwable cause = null;
         try {
-            final Properties props = m_engine.getWikiProperties();
+            final Properties props = engine.getWikiProperties();
             dbClassName = props.getProperty( PROP_GROUPDATABASE );
             if( dbClassName == null ) {
                 dbClassName = XMLGroupDatabase.class.getName();
             }
             LOG.info( "Attempting to load group database class {}", dbClassName );
-            m_groupDatabase = ClassUtil.buildInstance( "org.apache.wiki.auth.authorize", dbClassName );
-            m_groupDatabase.initialize( m_engine, m_engine.getWikiProperties() );
+            groupDatabase = ClassUtil.buildInstance( "org.apache.wiki.auth.authorize", dbClassName );
+            groupDatabase.initialize( engine, engine.getWikiProperties() );
             LOG.info( "Group database initialized." );
         } catch( final ReflectiveOperationException e ) {
             LOG.error( "UserDatabase {} cannot be instantiated", dbClassName, e );
@@ -130,32 +130,32 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
             throw new WikiSecurityException( dbInstantiationError + " Cause: " + cause.getMessage(), cause );
         }
 
-        return m_groupDatabase;
+        return groupDatabase;
     }
 
     /** {@inheritDoc} */
     @Override
     public Principal[] getRoles() {
-        return m_groups.keySet().toArray( new Principal[0] );
+        return groups.keySet().toArray( new Principal[0] );
     }
 
     /** {@inheritDoc} */
     @Override
     public void initialize( final Engine engine, final Properties props ) throws WikiSecurityException {
-        m_engine = engine;
+        this.engine = engine;
 
         try {
-            m_groupDatabase = getGroupDatabase();
+            groupDatabase = getGroupDatabase();
         } catch( final WikiException e ) {
             throw new WikiSecurityException( e.getMessage(), e );
         }
 
         // Load all groups from the database into the cache
-        final Group[] groups = m_groupDatabase.groups();
-        synchronized( m_groups ) {
+        final Group[] groups = groupDatabase.groups();
+        synchronized( groups ) {
             for( final Group group : groups ) {
                 // Add new group to cache; fire GROUP_ADD event
-                m_groups.put( group.getPrincipal(), group );
+                this.groups.put( group.getPrincipal(), group );
                 fireEvent( WikiSecurityEvent.GROUP_ADD, group );
             }
         }
@@ -176,7 +176,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         }
 
         // Get the group we're examining
-        final Group group = m_groups.get( groupPrincipal );
+        final Group group = groups.get( groupPrincipal );
         if( group == null ) {
             return false;
         }
@@ -208,7 +208,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         memberLine = memberLine.trim();
 
         // Create or retrieve the group (may have been previously cached)
-        final Group group = new Group( name, m_engine.getApplicationName() );
+        final Group group = new Group( name, engine.getApplicationName() );
         try {
             final Group existingGroup = getGroup( name );
 
@@ -246,17 +246,17 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
             throw new IllegalArgumentException( "Group cannot be null." );
         }
 
-        final Group group = m_groups.get( new GroupPrincipal( index ) );
+        final Group group = groups.get( new GroupPrincipal( index ) );
         if( group == null ) {
             throw new NoSuchPrincipalException( "Group " + index + " not found" );
         }
 
         // Delete the group
         // TODO: need rollback procedure
-        synchronized( m_groups ) {
-            m_groups.remove( group.getPrincipal() );
+        synchronized( groups ) {
+            groups.remove( group.getPrincipal() );
         }
-        m_groupDatabase.delete( group );
+        groupDatabase.delete( group );
         fireEvent( WikiSecurityEvent.GROUP_REMOVE, group );
     }
 
@@ -266,11 +266,11 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         // TODO: check for appropriate permissions
 
         // If group already exists, delete it; fire GROUP_REMOVE event
-        final Group oldGroup = m_groups.get( group.getPrincipal() );
+        final Group oldGroup = groups.get( group.getPrincipal() );
         if( oldGroup != null ) {
             fireEvent( WikiSecurityEvent.GROUP_REMOVE, oldGroup );
-            synchronized( m_groups ) {
-                m_groups.remove( oldGroup.getPrincipal() );
+            synchronized( groups ) {
+                groups.remove( oldGroup.getPrincipal() );
             }
         }
 
@@ -283,15 +283,15 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         }
 
         // Add new group to cache; announce GROUP_ADD event
-        synchronized( m_groups ) {
-            m_groups.put( group.getPrincipal(), group );
+        synchronized( groups ) {
+            groups.put( group.getPrincipal(), group );
         }
         fireEvent( WikiSecurityEvent.GROUP_ADD, group );
 
         // Save the group to back-end database; if it fails, roll back to previous state. Note that the back-end
         // MUST timestammp the create/modify fields in the Group.
         try {
-            m_groupDatabase.save( group, session.getUserPrincipal() );
+            groupDatabase.save( group, session.getUserPrincipal() );
         }
 
         // We got an exception! Roll back...
@@ -300,8 +300,8 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
                 // Restore previous version, re-throw...
                 fireEvent( WikiSecurityEvent.GROUP_REMOVE, group );
                 fireEvent( WikiSecurityEvent.GROUP_ADD, oldGroup );
-                synchronized( m_groups ) {
-                    m_groups.put( oldGroup.getPrincipal(), oldGroup );
+                synchronized( groups ) {
+                    groups.put( oldGroup.getPrincipal(), oldGroup );
                 }
                 throw new WikiSecurityException( e.getMessage() + " (rolled back to previous version).", e );
             }
@@ -394,7 +394,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
             // Examine each group
             int groupsChanged = 0;
             try {
-                for( final Group group : m_groupDatabase.groups() ) {
+                for( final Group group : groupDatabase.groups() ) {
                     boolean groupChanged = false;
                     for( final Principal oldPrincipal : oldPrincipals ) {
                         if( group.isMember( oldPrincipal ) ) {

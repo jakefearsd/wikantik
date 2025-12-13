@@ -62,21 +62,21 @@ public class Group {
 
     static final String[]  RESTRICTED_GROUPNAMES = new String[] { "Anonymous", "All", "Asserted", "Authenticated" };
 
-    private final List<Principal>    m_members = new ArrayList<>();
+    private final List<Principal>    members = new ArrayList<>();
 
-    private String          m_creator;
+    private String          creator;
 
-    private Date            m_created;
+    private Date            created;
 
-    private String          m_modifier;
+    private String          modifier;
 
-    private Date            m_modified;
+    private Date            modified;
 
-    private final String    m_name;
+    private final String    name;
 
-    private final Principal m_principal;
+    private final Principal principal;
 
-    private final String    m_wiki;
+    private final String    wiki;
 
     /**
      * Protected constructor to prevent direct instantiation except by other
@@ -88,9 +88,9 @@ public class Group {
      * @param wiki the wiki the group belongs to
      */
     protected Group( final String name, final String wiki ) {
-        m_name = name;
-        m_wiki = wiki;
-        m_principal = new GroupPrincipal( name );
+        this.name = name;
+        this.wiki = wiki;
+        principal = new GroupPrincipal( name );
     }
 
     /**
@@ -104,7 +104,7 @@ public class Group {
             return false;
         }
 
-        m_members.add( user );
+        members.add( user );
         return true;
     }
 
@@ -112,7 +112,7 @@ public class Group {
      * Clears all Principals from the group list. 
      */
     public synchronized void clear() {
-        m_members.clear();
+        members.clear();
     }
 
     /**
@@ -127,7 +127,7 @@ public class Group {
             return false;
         }
 
-        if( g.m_members.size() != m_members.size() ) {
+        if( g.members.size() != members.size() ) {
             return false;
         }
 
@@ -137,7 +137,7 @@ public class Group {
             return false;
         }
 
-        return m_members.stream().allMatch(g::isMember);
+        return members.stream().allMatch(g::isMember);
     }
 
     /**
@@ -147,7 +147,7 @@ public class Group {
      */
     @Override
     public int hashCode() {
-        return m_members.stream().mapToInt(Principal::hashCode).reduce(0, (a, b) -> a ^ b);
+        return members.stream().mapToInt(Principal::hashCode).reduce(0, (a, b) -> a ^ b);
     }
     
     /**
@@ -156,7 +156,7 @@ public class Group {
      * @return the creation date
      */
     public synchronized Date getCreated() {
-        return m_created;
+        return created;
     }
 
     /**
@@ -165,7 +165,7 @@ public class Group {
      * @return the creator
      */
     public final synchronized String getCreator() {
-        return m_creator;
+        return creator;
     }
 
     /**
@@ -174,7 +174,7 @@ public class Group {
      * @return the date and time of last modification
      */
     public synchronized Date getLastModified() {
-        return m_modified;
+        return modified;
     }
 
     /**
@@ -183,7 +183,7 @@ public class Group {
      * @return the modifier
      */
     public final synchronized String getModifier() {
-        return m_modifier;
+        return modifier;
     }
 
     /**
@@ -192,7 +192,7 @@ public class Group {
      * @return the name of the Group
      */
     public String getName() {
-        return m_name;
+        return name;
     }
 
     /**
@@ -201,7 +201,7 @@ public class Group {
      * @return the group principal
      */
     public Principal getPrincipal() {
-        return m_principal;
+        return principal;
     }
 
     /**
@@ -210,7 +210,7 @@ public class Group {
      * @return the wiki name
      */
     public String getWiki() {
-        return m_wiki;
+        return wiki;
     }
 
     /**
@@ -230,7 +230,7 @@ public class Group {
      * @return the members
      */
     public Principal[] members() {
-        return m_members.toArray( new Principal[0] );
+        return members.toArray( new Principal[0] );
     }
 
     /**
@@ -244,7 +244,7 @@ public class Group {
         if( user == null )
             return false;
 
-        m_members.remove( user );
+        members.remove( user );
 
         return true;
     }
@@ -255,7 +255,7 @@ public class Group {
      * @param date the creation date
      */
     public synchronized void setCreated( final Date date ) {
-        m_created = date;
+        created = date;
     }
 
     /**
@@ -263,7 +263,7 @@ public class Group {
      * @param creator the creator
      */
     public final synchronized void setCreator( final String creator ) {
-        this.m_creator = creator;
+        this.creator = creator;
     }
 
     /**
@@ -272,7 +272,7 @@ public class Group {
      * @param date the last-modified date
      */
     public synchronized void setLastModified( final Date date ) {
-        m_modified = date;
+        modified = date;
     }
 
     /**
@@ -281,7 +281,7 @@ public class Group {
      * @param modifier the modifier
      */
     public final synchronized void setModifier( final String modifier ) {
-        this.m_modifier = modifier;
+        this.modifier = modifier;
     }
 
     /**
@@ -296,7 +296,7 @@ public class Group {
     }
 
     private Principal findMember( final String name ) {
-        return m_members.stream().filter(member -> member.getName().equals(name)).findFirst().orElse(null);
+        return members.stream().filter(member -> member.getName().equals(name)).findFirst().orElse(null);
 
     }
 

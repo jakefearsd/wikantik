@@ -60,7 +60,7 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
 
     private static final Logger LOG = LogManager.getLogger( WebContainerAuthorizer.class );
 
-    protected Engine m_engine;
+    protected Engine engine;
 
     /**
      * A lazily-initialized array of Roles that the container knows about. These
@@ -70,12 +70,12 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
      * that we have no direct way of querying the web container about which
      * roles it manages.
      */
-    protected Role[] m_containerRoles = new Role[0];
+    protected Role[] containerRoles = new Role[0];
 
     /** Lazily-initialized boolean flag indicating whether the web container protects JSPWiki resources. */
-    protected boolean m_containerAuthorized;
+    protected boolean containerAuthorized;
 
-    private Document m_webxml;
+    private Document webxml;
 
     /**
      * Constructs a new instance of the WebContainerAuthorizer class.
@@ -92,20 +92,20 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
      */
     @Override
     public void initialize( final Engine engine, final Properties props ) {
-        m_engine = engine;
-        m_containerAuthorized = false;
+        this.engine = engine;
+        containerAuthorized = false;
 
         // FIXME: Error handling here is not very verbose
         try {
-            m_webxml = getWebXml();
-            if( m_webxml != null ) {
+            webxml = getWebXml();
+            if( webxml != null ) {
                 // Add the JEE schema namespace
-                m_webxml.getRootElement().setNamespace( Namespace.getNamespace( J2EE_SCHEMA_25_NAMESPACE ) );
+                webxml.getRootElement().setNamespace( Namespace.getNamespace( J2EE_SCHEMA_25_NAMESPACE ) );
 
-                m_containerAuthorized = isConstrained( "/Delete.jsp", Role.ALL ) && isConstrained( "/Login.jsp", Role.ALL );
+                containerAuthorized = isConstrained( "/Delete.jsp", Role.ALL ) && isConstrained( "/Login.jsp", Role.ALL );
             }
-            if( m_containerAuthorized ) {
-                m_containerRoles = getRoles( m_webxml );
+            if( containerAuthorized ) {
+                containerRoles = getRoles( webxml );
                 LOG.info( "JSPWiki is using container-managed authentication." );
             } else {
                 LOG.info( "JSPWiki is using custom authentication." );
@@ -118,8 +118,8 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
             throw new InternalWikiException( e.getClass().getName() + ": " + e.getMessage(), e );
         }
 
-        if( m_containerRoles.length > 0 ) {
-            final String roles = Arrays.stream(m_containerRoles).map(containerRole -> containerRole + " ").collect(Collectors.joining());
+        if( containerRoles.length > 0 ) {
+            final String roles = Arrays.stream(containerRoles).map(containerRole -> containerRole + " ").collect(Collectors.joining());
             LOG.info( " JSPWiki determined the web container manages these roles: " + roles );
         }
         LOG.info( "Authorizer WebContainerAuthorizer initialized successfully." );
@@ -179,7 +179,7 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
      */
     @Override
     public Principal findRole( final String role ) {
-        return Arrays.stream( m_containerRoles )
+        return Arrays.stream( containerRoles )
                      .filter( containerRole -> containerRole.getName().equals( role ) )
                      .findFirst()
                      .orElse( null );
@@ -207,7 +207,7 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
      *         <code>false</code> otherwise
      */
     public boolean isConstrained( final String url, final Role role ) {
-        final Element root = m_webxml.getRootElement();
+        final Element root = webxml.getRootElement();
         final Namespace jeeNs = Namespace.getNamespace( "j", J2EE_SCHEMA_25_NAMESPACE );
 
         // Get all constraints that have our URL pattern
@@ -259,7 +259,7 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
      */
     public boolean isContainerAuthorized()
     {
-        return m_containerAuthorized;
+        return containerAuthorized;
     }
 
     /**
@@ -274,7 +274,7 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
     @Override
     public Principal[] getRoles()
     {
-        return m_containerRoles.clone();
+        return containerRoles.clone();
     }
 
     /**
@@ -328,14 +328,14 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
         builder.setXMLReaderFactory( XMLReaders.NONVALIDATING );
         builder.setEntityResolver( new LocalEntityResolver() );
         final Document doc;
-        if ( m_engine.getServletContext() == null ) {
+        if ( engine.getServletContext() == null ) {
             final ClassLoader cl = WebContainerAuthorizer.class.getClassLoader();
             url = cl.getResource( "WEB-INF/web.xml" );
             if( url != null ) {
                 LOG.info( "Examining {}", url.toExternalForm() );
             }
         } else {
-            url = m_engine.getServletContext().getResource( "/WEB-INF/web.xml" );
+            url = engine.getServletContext().getResource( "/WEB-INF/web.xml" );
             if( url != null )
                 LOG.info( "Examining " + url.toExternalForm() );
         }
@@ -374,11 +374,11 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
         public InputSource resolveEntity( final String publicId, final String systemId ) throws SAXException, IOException {
             final String file = systemId.substring( systemId.lastIndexOf( '/' ) + 1 );
             final URL url;
-            if( m_engine.getServletContext() == null ) {
+            if( engine.getServletContext() == null ) {
                 final ClassLoader cl = WebContainerAuthorizer.class.getClassLoader();
                 url = cl.getResource( "WEB-INF/dtd/" + file );
             } else {
-                url = m_engine.getServletContext().getResource( "/WEB-INF/dtd/" + file );
+                url = engine.getServletContext().getResource( "/WEB-INF/dtd/" + file );
             }
 
             if( url != null ) {

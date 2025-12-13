@@ -57,8 +57,8 @@ public class DefaultAclManager implements AclManager {
 
     private static final Logger LOG = LogManager.getLogger(DefaultAclManager.class);
 
-    private AuthorizationManager m_auth;
-    private Engine m_engine;
+    private AuthorizationManager auth;
+    private Engine engine;
     private static final String PERM_REGEX = "("
                                               + PagePermission.COMMENT_ACTION + "|"
                                               + PagePermission.DELETE_ACTION  + "|"
@@ -80,8 +80,8 @@ public class DefaultAclManager implements AclManager {
     /** {@inheritDoc} */
     @Override
     public void initialize( final Engine engine, final Properties props ) {
-        m_auth = engine.getManager( AuthorizationManager.class );
-        m_engine = engine;
+        auth = engine.getManager( AuthorizationManager.class );
+        this.engine = engine;
     }
 
     /** {@inheritDoc} */
@@ -99,7 +99,7 @@ public class DefaultAclManager implements AclManager {
 
             while( fieldToks.hasMoreTokens() ) {
                 final String principalName = fieldToks.nextToken(",").trim();
-                final Principal principal = m_auth.resolvePrincipal(principalName);
+                final Principal principal = auth.resolvePrincipal(principalName);
                 final AclEntry oldEntry = acl.getAclEntry(principal);
 
                 if( oldEntry != null ) {
@@ -138,7 +138,7 @@ public class DefaultAclManager implements AclManager {
         if( acl == null ) {
             //  If null, try the parent.
             if( page instanceof Attachment att ) {
-                final Page parent = m_engine.getManager( PageManager.class ).getPage( att.getParentName() );
+                final Page parent = engine.getManager( PageManager.class ).getPage( att.getParentName() );
                 acl = getPermissions(parent);
             } else {
                 //  Extract ACLs directly from page text using regex - much faster than full page render
@@ -161,7 +161,7 @@ public class DefaultAclManager implements AclManager {
         Acl acl = Wiki.acls().acl();
 
         try {
-            final String pageText = m_engine.getManager( PageManager.class ).getPureText( page );
+            final String pageText = engine.getManager( PageManager.class ).getPureText( page );
             if( pageText == null || pageText.isEmpty() ) {
                 return acl;
             }
@@ -185,7 +185,7 @@ public class DefaultAclManager implements AclManager {
     /** {@inheritDoc} */
     @Override
     public void setPermissions( final Page page, final Acl acl ) throws WikiSecurityException {
-        final PageManager pageManager = m_engine.getManager( PageManager.class );
+        final PageManager pageManager = engine.getManager( PageManager.class );
 
         // Forcibly expire any page locks
         final PageLock lock = pageManager.getCurrentLock( page );
@@ -194,7 +194,7 @@ public class DefaultAclManager implements AclManager {
         }
 
         // Remove all of the existing ACLs.
-        final String pageText = m_engine.getManager( PageManager.class ).getPureText( page );
+        final String pageText = engine.getManager( PageManager.class ).getPureText( page );
         final Matcher matcher = DefaultAclManager.ACL_PATTERN.matcher( pageText );
         final String cleansedText = matcher.replaceAll("" );
         final String newText = DefaultAclManager.printAcl( page.getAcl() ) + cleansedText;

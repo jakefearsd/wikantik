@@ -51,7 +51,7 @@ public class ContextualDiffProviderTest {
         diff.ELIDED_HEAD_INDICATOR_HTML = "...";
         diff.ELIDED_TAIL_INDICATOR_HTML = "...";
 
-        diff.m_emitChangeNextPreviousHyperlinks = false;
+        diff.emitChangeNextPreviousHyperlinks = false;
 
         diff.INSERTION_END_HTML = "^";
         diff.INSERTION_START_HTML = "^";

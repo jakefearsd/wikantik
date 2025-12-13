@@ -63,7 +63,7 @@ public class ContextualDiffProvider implements DiffProvider {
     //TODO all of these publics can become jspwiki.properties entries...
     //TODO span title= can be used to get hover info...
 
-    public boolean m_emitChangeNextPreviousHyperlinks = true;
+    public boolean emitChangeNextPreviousHyperlinks = true;
 
     //Don't use spans here the deletion and insertions are nested in this...
     public static String CHANGE_START_HTML = ""; //This could be a image '>' for a start marker
@@ -90,7 +90,7 @@ public class ContextualDiffProvider implements DiffProvider {
 
     // This one, I will make property file based...
     private static final int LIMIT_MAX_VALUE = (Integer.MAX_VALUE /2) - 1;
-    private int m_unchangedContextLimit = LIMIT_MAX_VALUE;
+    private int unchangedContextLimit = LIMIT_MAX_VALUE;
 
 
     /**
@@ -124,7 +124,7 @@ public class ContextualDiffProvider implements DiffProvider {
         } catch( final NumberFormatException e ) {
             LOG.warn("Failed to parseInt " + PROP_UNCHANGED_CONTEXT_LIMIT + "=" + configuredLimit + " Will use a huge number as limit.", e );
         }
-        m_unchangedContextLimit = limit;
+        unchangedContextLimit = limit;
     }
 
 
@@ -208,68 +208,68 @@ public class ContextualDiffProvider implements DiffProvider {
      * all necessary variables.
      */
     private final class ChangeMerger implements RevisionVisitor {
-        private final StringBuffer m_sb;
+        private final StringBuffer sb;
 
         /** Keeping score of the original lines to process */
-        private final int m_max;
+        private final int max;
 
-        private int m_index;
+        private int index;
 
         /** Index of the next element to be copied into the output. */
-        private int m_firstElem;
+        private int firstElem;
 
         /** Link Anchor counter */
-        private int m_count = 1;
+        private int count = 1;
 
         /** State Machine Mode */
-        private int m_mode = -1; /* -1: Unset, 0: Add, 1: Del, 2: Change mode */
+        private int mode = -1; /* -1: Unset, 0: Add, 1: Del, 2: Change mode */
 
         /** Buffer to coalesce the changes together */
-        private StringBuffer m_origBuf;
+        private StringBuffer origBuf;
 
-        private StringBuffer m_newBuf;
+        private StringBuffer newBuf;
 
         /** Reference to the source string array */
-        private final String[] m_origStrings;
+        private final String[] origStrings;
 
-        private ChangeMerger( final StringBuffer sb, final String[] origStrings, final int max ) {
-            m_sb = sb;
-            m_origStrings = origStrings != null ? origStrings.clone() : null;
-            m_max = max;
+        private ChangeMerger( final StringBuffer newSb, final String[] sourceStrings, final int maxVal ) {
+            this.sb = newSb;
+            this.origStrings = sourceStrings != null ? sourceStrings.clone() : null;
+            this.max = maxVal;
 
-            m_origBuf = new StringBuffer();
-            m_newBuf = new StringBuffer();
+            origBuf = new StringBuffer();
+            newBuf = new StringBuffer();
         }
 
         private void updateState( final Delta delta ) {
-            m_index++;
+            index++;
             final Chunk orig = delta.getOriginal();
-            if( orig.first() > m_firstElem ) {
+            if( orig.first() > firstElem ) {
                 // We "skip" some lines in the output.
                 // So flush out the last Change, if one exists.
                 flushChanges();
 
                 // Allow us to "skip" large swaths of unchanged text, show a "limited" amound of
                 // unchanged context so the changes are shown in
-                if( ( orig.first() - m_firstElem ) > 2 * m_unchangedContextLimit ) {
-                    if (m_firstElem > 0) {
-                        final int endIndex = Math.min( m_firstElem + m_unchangedContextLimit, m_origStrings.length -1 );
+                if( ( orig.first() - firstElem ) > 2 * unchangedContextLimit ) {
+                    if (firstElem > 0) {
+                        final int endIndex = Math.min( firstElem + unchangedContextLimit, origStrings.length -1 );
 
-                        m_sb.append(Arrays.stream(m_origStrings, m_firstElem, endIndex).collect(Collectors.joining("", "", ELIDED_TAIL_INDICATOR_HTML)));
+                        sb.append(Arrays.stream(origStrings, firstElem, endIndex).collect(Collectors.joining("", "", ELIDED_TAIL_INDICATOR_HTML)));
 
                     }
 
-                    m_sb.append( ELIDED_HEAD_INDICATOR_HTML );
+                    sb.append( ELIDED_HEAD_INDICATOR_HTML );
 
-                    final int startIndex = Math.max(orig.first() - m_unchangedContextLimit, 0);
-                    m_sb.append(Arrays.stream(m_origStrings, startIndex, orig.first()).collect(Collectors.joining()));
+                    final int startIndex = Math.max(orig.first() - unchangedContextLimit, 0);
+                    sb.append(Arrays.stream(origStrings, startIndex, orig.first()).collect(Collectors.joining()));
 
                 } else {
                     // No need to skip anything, just output the whole range...
-                    m_sb.append(Arrays.stream(m_origStrings, m_firstElem, orig.first()).collect(Collectors.joining()));
+                    sb.append(Arrays.stream(origStrings, firstElem, orig.first()).collect(Collectors.joining()));
                 }
             }
-            m_firstElem = orig.last() + 1;
+            firstElem = orig.last() + 1;
         }
 
         @Override
@@ -282,19 +282,19 @@ public class ContextualDiffProvider implements DiffProvider {
             updateState( delta );
 
             // We have run Deletes up to now. Flush them out.
-            if( m_mode == 1 ) {
+            if( mode == 1 ) {
                 flushChanges();
-                m_mode = -1;
+                mode = -1;
             }
             // We are in "neutral mode". Start a new Change
-            if( m_mode == -1 ) {
-                m_mode = 0;
+            if( mode == -1 ) {
+                mode = 0;
             }
 
             // We are in "add mode".
-            if( m_mode == 0 || m_mode == 2 ) {
+            if( mode == 0 || mode == 2 ) {
                 addNew( delta.getRevised() );
-                m_mode = 1;
+                mode = 1;
             }
         }
 
@@ -303,8 +303,8 @@ public class ContextualDiffProvider implements DiffProvider {
             updateState( delta );
 
             // We are in "neutral mode". A Change might be merged with an add or delete.
-            if( m_mode == -1 ) {
-                m_mode = 2;
+            if( mode == -1 ) {
+                mode = 2;
             }
 
             // Add the Changes to the buffers.
@@ -317,100 +317,100 @@ public class ContextualDiffProvider implements DiffProvider {
             updateState( delta );
 
             // We have run Adds up to now. Flush them out.
-            if( m_mode == 0 ) {
+            if( mode == 0 ) {
                 flushChanges();
-                m_mode = -1;
+                mode = -1;
             }
             // We are in "neutral mode". Start a new Change
-            if( m_mode == -1 ) {
-                m_mode = 1;
+            if( mode == -1 ) {
+                mode = 1;
             }
 
             // We are in "delete mode".
-            if( m_mode == 1 || m_mode == 2 ) {
+            if( mode == 1 || mode == 2 ) {
                 addOrig( delta.getOriginal() );
-                m_mode = 1;
+                mode = 1;
             }
         }
 
         public void shutdown() {
-            m_index = m_max + 1; // Make sure that no hyperlink gets created
+            index = max + 1; // Make sure that no hyperlink gets created
             flushChanges();
 
-            if( m_firstElem < m_origStrings.length ) {
+            if( firstElem < origStrings.length ) {
                 // If there's more than the limit of the orginal left just emit limit and elided...
-                if( ( m_origStrings.length - m_firstElem ) > m_unchangedContextLimit ) {
-                    final int endIndex = Math.min( m_firstElem + m_unchangedContextLimit, m_origStrings.length -1 );
-                    m_sb.append(Arrays.stream(m_origStrings, m_firstElem, endIndex).collect(Collectors.joining("", "", ELIDED_TAIL_INDICATOR_HTML)));
+                if( ( origStrings.length - firstElem ) > unchangedContextLimit ) {
+                    final int endIndex = Math.min( firstElem + unchangedContextLimit, origStrings.length -1 );
+                    sb.append(Arrays.stream(origStrings, firstElem, endIndex).collect(Collectors.joining("", "", ELIDED_TAIL_INDICATOR_HTML)));
 
                 } else {
                 // emit entire tail of original...
-                    m_sb.append(Arrays.stream(m_origStrings, m_firstElem, m_origStrings.length).collect(Collectors.joining()));
+                    sb.append(Arrays.stream(origStrings, firstElem, origStrings.length).collect(Collectors.joining()));
                 }
             }
         }
 
         private void addOrig( final Chunk chunk ) {
             if( chunk != null ) {
-                chunk.toString( m_origBuf );
+                chunk.toString( origBuf );
             }
         }
 
         private void addNew( final Chunk chunk ) {
             if( chunk != null ) {
-                chunk.toString( m_newBuf );
+                chunk.toString( newBuf );
             }
         }
 
         private void flushChanges() {
-            if( m_newBuf.length() + m_origBuf.length() > 0 ) {
+            if( newBuf.length() + origBuf.length() > 0 ) {
                 // This is the span element which encapsulates anchor and the change itself
-                m_sb.append( CHANGE_START_HTML );
+                sb.append( CHANGE_START_HTML );
 
                 // Do we want to have a "back link"?
-                if( m_emitChangeNextPreviousHyperlinks && m_count > 1 ) {
-                    m_sb.append( BACK_PRE_INDEX );
-                    m_sb.append( m_count - 1 );
-                    m_sb.append( BACK_POST_INDEX );
+                if( emitChangeNextPreviousHyperlinks && count > 1 ) {
+                    sb.append( BACK_PRE_INDEX );
+                    sb.append( count - 1 );
+                    sb.append( BACK_POST_INDEX );
                 }
 
                 // An anchor for the change.
-                if (m_emitChangeNextPreviousHyperlinks) {
-                    m_sb.append( ANCHOR_PRE_INDEX );
-                    m_sb.append( m_count++ );
-                    m_sb.append( ANCHOR_POST_INDEX );
+                if (emitChangeNextPreviousHyperlinks) {
+                    sb.append( ANCHOR_PRE_INDEX );
+                    sb.append( count++ );
+                    sb.append( ANCHOR_POST_INDEX );
                 }
 
                 // ... has been added
-                if( m_newBuf.length() > 0 ) {
-                    m_sb.append( INSERTION_START_HTML );
-                    m_sb.append( m_newBuf );
-                    m_sb.append( INSERTION_END_HTML );
+                if( newBuf.length() > 0 ) {
+                    sb.append( INSERTION_START_HTML );
+                    sb.append( newBuf );
+                    sb.append( INSERTION_END_HTML );
                 }
 
                 // .. has been removed
-                if( m_origBuf.length() > 0 ) {
-                    m_sb.append( DELETION_START_HTML );
-                    m_sb.append( m_origBuf );
-                    m_sb.append( DELETION_END_HTML );
+                if( origBuf.length() > 0 ) {
+                    sb.append( DELETION_START_HTML );
+                    sb.append( origBuf );
+                    sb.append( DELETION_END_HTML );
                 }
 
                 // Do we want a "forward" link?
-                if( m_emitChangeNextPreviousHyperlinks && (m_index < m_max) ) {
-                    m_sb.append( FORWARD_PRE_INDEX );
-                    m_sb.append( m_count ); // Has already been incremented.
-                    m_sb.append( FORWARD_POST_INDEX );
+                if( emitChangeNextPreviousHyperlinks && (index < max) ) {
+                    sb.append( FORWARD_PRE_INDEX );
+                    sb.append( count ); // Has already been incremented.
+                    sb.append( FORWARD_POST_INDEX );
                 }
 
-                m_sb.append( CHANGE_END_HTML );
+                sb.append( CHANGE_END_HTML );
 
                 // Nuke the buffers.
-                m_origBuf = new StringBuffer();
-                m_newBuf = new StringBuffer();
+                origBuf = new StringBuffer();
+                newBuf = new StringBuffer();
             }
 
             // After a flush, everything is reset.
-            m_mode = -1;
+            mode = -1;
         }
     }
 

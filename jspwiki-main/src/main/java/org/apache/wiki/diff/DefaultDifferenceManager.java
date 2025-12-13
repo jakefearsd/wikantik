@@ -39,7 +39,7 @@ public class DefaultDifferenceManager implements DifferenceManager {
 
     private static final Logger LOG = LogManager.getLogger( DefaultDifferenceManager.class );
 
-    private DiffProvider m_provider;
+    private DiffProvider provider;
 
     /**
      * Creates a new DifferenceManager for the given engine.
@@ -51,29 +51,29 @@ public class DefaultDifferenceManager implements DifferenceManager {
         loadProvider( props );
         initializeProvider( engine, props );
 
-        LOG.info( "Using difference provider: " + m_provider.getProviderInfo() );
+        LOG.info( "Using difference provider: " + provider.getProviderInfo() );
     }
 
     private void loadProvider( final Properties props ) {
         final String providerClassName = props.getProperty( PROP_DIFF_PROVIDER, TraditionalDiffProvider.class.getName() );
         try {
-            m_provider = ClassUtil.buildInstance( "org.apache.wiki.diff", providerClassName );
+            provider = ClassUtil.buildInstance( "org.apache.wiki.diff", providerClassName );
         } catch( final ReflectiveOperationException e ) {
             LOG.warn( "Failed loading DiffProvider, will use NullDiffProvider.", e );
         }
 
-        if( m_provider == null ) {
-            m_provider = new DiffProvider.NullDiffProvider();
+        if( provider == null ) {
+            provider = new DiffProvider.NullDiffProvider();
         }
     }
 
 
     private void initializeProvider( final Engine engine, final Properties props ) {
         try {
-            m_provider.initialize( engine, props );
+            provider.initialize( engine, props );
         } catch( final NoRequiredPropertyException | IOException e ) {
             LOG.warn( "Failed initializing DiffProvider, will use NullDiffProvider.", e );
-            m_provider = new DiffProvider.NullDiffProvider(); //doesn't need init'd
+            provider = new DiffProvider.NullDiffProvider(); //doesn't need init'd
         }
     }
 
@@ -89,7 +89,7 @@ public class DefaultDifferenceManager implements DifferenceManager {
     public String makeDiff( final Context context, final String firstWikiText, final String secondWikiText ) {
         String diff;
         try {
-            diff = m_provider.makeDiffHtml( context, firstWikiText, secondWikiText );
+            diff = provider.makeDiffHtml( context, firstWikiText, secondWikiText );
 
             if( diff == null ) {
                 diff = "";

@@ -123,14 +123,14 @@ public class TraditionalDiffProvider implements DiffProvider {
 
     private static final class RevisionPrint implements RevisionVisitor {
 
-        private final StringBuffer m_result;
-        private final Context  m_context;
-        private final ResourceBundle m_rb;
+        private final StringBuffer result;
+        private final Context  context;
+        private final ResourceBundle rb;
 
         private RevisionPrint( final Context ctx, final StringBuffer sb ) {
-            m_result = sb;
-            m_context = ctx;
-            m_rb = Preferences.getBundle( ctx, InternationalizationManager.CORE_BUNDLE );
+            result = sb;
+            context = ctx;
+            rb = Preferences.getBundle( ctx, InternationalizationManager.CORE_BUNDLE );
         }
 
         @Override
@@ -141,36 +141,36 @@ public class TraditionalDiffProvider implements DiffProvider {
         @Override
         public void visit( final AddDelta delta ) {
             final Chunk changed = delta.getRevised();
-            print( changed, m_rb.getString( "diff.traditional.added" ) );
-            changed.toString( m_result, CSS_DIFF_ADDED, CSS_DIFF_CLOSE );
+            print( changed, rb.getString( "diff.traditional.added" ) );
+            changed.toString( result, CSS_DIFF_ADDED, CSS_DIFF_CLOSE );
         }
 
         @Override
         public void visit( final ChangeDelta delta ) {
             final Chunk changed = delta.getOriginal();
-            print(changed, m_rb.getString( "diff.traditional.changed" ) );
-            changed.toString( m_result, CSS_DIFF_REMOVED, CSS_DIFF_CLOSE );
-            delta.getRevised().toString( m_result, CSS_DIFF_ADDED, CSS_DIFF_CLOSE );
+            print(changed, rb.getString( "diff.traditional.changed" ) );
+            changed.toString( result, CSS_DIFF_REMOVED, CSS_DIFF_CLOSE );
+            delta.getRevised().toString( result, CSS_DIFF_ADDED, CSS_DIFF_CLOSE );
         }
 
         @Override
         public void visit( final DeleteDelta delta ) {
             final Chunk changed = delta.getOriginal();
-            print( changed, m_rb.getString( "diff.traditional.removed" ) );
-            changed.toString( m_result, CSS_DIFF_REMOVED, CSS_DIFF_CLOSE );
+            print( changed, rb.getString( "diff.traditional.removed" ) );
+            changed.toString( result, CSS_DIFF_REMOVED, CSS_DIFF_CLOSE );
         }
 
         private void print( final Chunk changed, final String type ) {
-            m_result.append( CSS_DIFF_UNCHANGED );
+            result.append( CSS_DIFF_UNCHANGED );
 
             final String[] choiceString = {
-               m_rb.getString("diff.traditional.oneline"),
-               m_rb.getString("diff.traditional.lines")
+               rb.getString("diff.traditional.oneline"),
+               rb.getString("diff.traditional.lines")
             };
             final double[] choiceLimits = { 1, 2 };
 
             final MessageFormat fmt = new MessageFormat("");
-            fmt.setLocale( Preferences.getLocale(m_context) );
+            fmt.setLocale( Preferences.getLocale(context) );
             final ChoiceFormat cfmt = new ChoiceFormat( choiceLimits, choiceString );
             fmt.applyPattern( type );
             final Format[] formats = { NumberFormat.getInstance(), cfmt, NumberFormat.getInstance() };
@@ -179,8 +179,8 @@ public class TraditionalDiffProvider implements DiffProvider {
             final Object[] params = { changed.first() + 1,
                                       changed.size(),
                                       changed.size() };
-            m_result.append( fmt.format(params) );
-            m_result.append( CSS_DIFF_CLOSE );
+            result.append( fmt.format(params) );
+            result.append( CSS_DIFF_CLOSE );
         }
     }
 

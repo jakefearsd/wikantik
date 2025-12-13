@@ -124,10 +124,10 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     private Map< String, Set< String > > m_referredBy;
     private Map< String, Set< String > > m_unmutableReferredBy;
 
-    private final boolean m_matchEnglishPlurals;
+    private final boolean matchEnglishPlurals;
 
     /** Tracks whether the ReferenceManager has completed its initial page scan. */
-    private final AtomicBoolean m_initialized = new AtomicBoolean( false );
+    private final AtomicBoolean initialized = new AtomicBoolean( false );
 
     private static final Logger LOG = LogManager.getLogger( DefaultReferenceManager.class);
     private static final String SERIALIZATION_FILE = "refmgr.ser";
@@ -145,7 +145,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         m_refersTo = new ConcurrentHashMap<>();
         m_referredBy = new ConcurrentHashMap<>();
         this.engine = newEngine;
-        m_matchEnglishPlurals = TextUtil.getBooleanProperty( newEngine.getWikiProperties(), Engine.PROP_MATCHPLURALS, false );
+        matchEnglishPlurals = TextUtil.getBooleanProperty( newEngine.getWikiProperties(), Engine.PROP_MATCHPLURALS, false );
 
         //
         //  Create two maps that contain unmutable versions of the two basic maps.
@@ -234,7 +234,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
             serializeToDisk();
         }
 
-        m_initialized.set( true );
+        initialized.set( true );
         sw.stop();
         LOG.info( "Cross reference scan done in {} - ReferenceManager is now ready", sw );
 
@@ -250,7 +250,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      * @return true if initialization has completed, false otherwise
      */
     public boolean isInitialized() {
-        return m_initialized.get();
+        return initialized.get();
     }
 
     /**
@@ -258,7 +258,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      * This is not an error - the manager will return empty/partial results gracefully.
      */
     private void warnIfNotInitialized() {
-        if ( !m_initialized.get() ) {
+        if ( !initialized.get() ) {
             LOG.debug( "ReferenceManager accessed before initialization complete - returning partial results" );
         }
     }
@@ -676,7 +676,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         }
         */
         // Neither are we interested if plural forms refer to each other.
-        if( m_matchEnglishPlurals ) {
+        if( matchEnglishPlurals ) {
             final String p2 = page.endsWith( "s" ) ? page.substring( 0, page.length() - 1 ) : page + "s";
             if( referrer.equals( p2 ) ) {
                 return;
@@ -767,7 +767,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     private < T > Set< T > getReferenceList( final Map< String, Set< T > > coll, final String pagename ) {
         Set< T > refs = coll.get( pagename );
 
-        if( m_matchEnglishPlurals ) {
+        if( matchEnglishPlurals ) {
             //  We'll add also matches from the "other" page.
             final Set< T > refs2;
 

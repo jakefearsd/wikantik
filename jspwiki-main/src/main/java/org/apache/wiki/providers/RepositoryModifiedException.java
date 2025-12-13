@@ -36,7 +36,7 @@ public class RepositoryModifiedException
 {
     private static final long serialVersionUID = 0L;
 
-    protected final String m_page;
+    protected final String page;
 
     /**
      * Constructs the exception.
@@ -48,7 +48,7 @@ public class RepositoryModifiedException
     {
         super( msg );
 
-        m_page = pageName;
+        page = pageName;
     }
 
     /**
@@ -58,6 +58,6 @@ public class RepositoryModifiedException
      */
     public String getPageName()
     {
-        return m_page;
+        return page;
     }
 }

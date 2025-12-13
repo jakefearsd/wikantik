@@ -70,10 +70,10 @@ import org.apache.commons.lang3.SystemUtils;
 public abstract class AbstractFileProvider implements PageProvider {
 
     private static final Logger LOG = LogManager.getLogger(AbstractFileProvider.class);
-    private String m_pageDirectory = "/tmp/";
-    protected String m_encoding;
+    private String pageDirectory = "/tmp/";
+    protected String encoding;
 
-    protected Engine m_engine;
+    protected Engine engine;
 
     public static final String PROP_CUSTOMPROP_MAXLIMIT = "custom.pageproperty.max.allowed";
     public static final String PROP_CUSTOMPROP_MAXKEYLENGTH = "custom.pageproperty.key.length";
@@ -113,14 +113,14 @@ public abstract class AbstractFileProvider implements PageProvider {
     /** The default encoding. */
     public static final String DEFAULT_ENCODING = StandardCharsets.ISO_8859_1.toString();
 
-    private boolean m_windowsHackNeeded;
+    private boolean windowsHackNeeded;
 
     /**
      * Cache for page file extensions to avoid redundant filesystem existence checks.
      * Maps page name to file extension (".md" or ".txt").
      * This significantly reduces disk I/O as findPage() is called frequently.
      */
-    private final ConcurrentHashMap<String, String> m_fileExtensionCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> fileExtensionCache = new ConcurrentHashMap<>();
 
     /**
      *  {@inheritDoc}
@@ -130,10 +130,10 @@ public abstract class AbstractFileProvider implements PageProvider {
     @Override
     public void initialize( final Engine engine, final Properties properties ) throws NoRequiredPropertyException, IOException, FileNotFoundException {
         LOG.debug( "Initing FileSystemProvider" );
-        m_pageDirectory = TextUtil.getCanonicalFilePathProperty( properties, PROP_PAGEDIR,
+        pageDirectory = TextUtil.getCanonicalFilePathProperty( properties, PROP_PAGEDIR,
                                                           System.getProperty( "user.home" ) + File.separator + "jspwiki-files" );
 
-        final File f = new File( m_pageDirectory );
+        final File f = new File( pageDirectory );
 
         if( !f.exists() ) {
             if( !f.mkdirs() ) {
@@ -148,21 +148,21 @@ public abstract class AbstractFileProvider implements PageProvider {
             }
         }
 
-        m_engine = engine;
-        m_encoding = properties.getProperty( Engine.PROP_ENCODING, DEFAULT_ENCODING );
-        m_windowsHackNeeded = SystemUtils.IS_OS_WINDOWS;
+        this.engine = engine;
+        encoding = properties.getProperty( Engine.PROP_ENCODING, DEFAULT_ENCODING );
+        windowsHackNeeded = SystemUtils.IS_OS_WINDOWS;
 
         MAX_PROPLIMIT = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXLIMIT, DEFAULT_MAX_PROPLIMIT );
         MAX_PROPKEYLENGTH = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXKEYLENGTH, DEFAULT_MAX_PROPKEYLENGTH );
         MAX_PROPVALUELENGTH = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXVALUELENGTH, DEFAULT_MAX_PROPVALUELENGTH );
 
-        LOG.info( "Wikipages are read from '" + m_pageDirectory + "'" );
+        LOG.info( "Wikipages are read from '" + pageDirectory + "'" );
     }
 
 
     String getPageDirectory()
     {
-        return m_pageDirectory;
+        return pageDirectory;
     }
 
     private static final String[] WINDOWS_DEVICE_NAMES = {
@@ -178,7 +178,7 @@ public abstract class AbstractFileProvider implements PageProvider {
      *  @return The mangled name.
      */
     protected String mangleName( String pagename ) {
-        pagename = TextUtil.urlEncode( pagename, m_encoding );
+        pagename = TextUtil.urlEncode( pagename, encoding );
         pagename = TextUtil.replaceString( pagename, "/", "%2F" );
 
         //  Names which start with a dot must be escaped to prevent problems. Since we use URL encoding, this is invisible in our unescaping.
@@ -186,7 +186,7 @@ public abstract class AbstractFileProvider implements PageProvider {
             pagename = "%2E" + pagename.substring( 1 );
         }
 
-        if( m_windowsHackNeeded ) {
+        if( windowsHackNeeded ) {
             final String pn = pagename.toLowerCase();
             final StringBuilder pagenameBuilder = new StringBuilder(pagename);
             for( final String windowsDeviceName : WINDOWS_DEVICE_NAMES ) {
@@ -208,11 +208,11 @@ public abstract class AbstractFileProvider implements PageProvider {
      */
     protected String unmangleName( String filename ) {
         // The exception should never happen.
-        if( m_windowsHackNeeded && filename.startsWith( "$$$" ) && filename.length() > 3 ) {
+        if( windowsHackNeeded && filename.startsWith( "$$$" ) && filename.length() > 3 ) {
             filename = filename.substring( 3 );
         }
 
-        return TextUtil.urlDecode( filename, m_encoding );
+        return TextUtil.urlDecode( filename, encoding );
     }
 
     /**
@@ -229,22 +229,22 @@ public abstract class AbstractFileProvider implements PageProvider {
         final String mangledName = mangleName( page );
 
         // Check cache first to avoid filesystem calls
-        final String cachedExtension = m_fileExtensionCache.get( page );
+        final String cachedExtension = fileExtensionCache.get( page );
         if( cachedExtension != null ) {
-            return new File( m_pageDirectory, mangledName + cachedExtension );
+            return new File( pageDirectory, mangledName + cachedExtension );
         }
 
         // Cache miss - check filesystem and cache result
-        final File mdFile = new File( m_pageDirectory, mangledName + MARKDOWN_EXT );
+        final File mdFile = new File( pageDirectory, mangledName + MARKDOWN_EXT );
         if( mdFile.exists() ) {
-            m_fileExtensionCache.put( page, MARKDOWN_EXT );
+            fileExtensionCache.put( page, MARKDOWN_EXT );
             return mdFile;
         }
 
         // Check if .txt file exists - only cache if it does
-        final File txtFile = new File( m_pageDirectory, mangledName + FILE_EXT );
+        final File txtFile = new File( pageDirectory, mangledName + FILE_EXT );
         if( txtFile.exists() ) {
-            m_fileExtensionCache.put( page, FILE_EXT );
+            fileExtensionCache.put( page, FILE_EXT );
         }
 
         // Fall back to .txt extension (traditional wiki syntax)
@@ -261,24 +261,24 @@ public abstract class AbstractFileProvider implements PageProvider {
      */
     protected String getPageFileExtension( final String page ) {
         // Check cache first
-        final String cachedExtension = m_fileExtensionCache.get( page );
+        final String cachedExtension = fileExtensionCache.get( page );
         if( cachedExtension != null ) {
             return cachedExtension;
         }
 
         // Cache miss - check filesystem
         final String mangledName = mangleName( page );
-        final File mdFile = new File( m_pageDirectory, mangledName + MARKDOWN_EXT );
+        final File mdFile = new File( pageDirectory, mangledName + MARKDOWN_EXT );
 
         if( mdFile.exists() ) {
-            m_fileExtensionCache.put( page, MARKDOWN_EXT );
+            fileExtensionCache.put( page, MARKDOWN_EXT );
             return MARKDOWN_EXT;
         }
 
         // Check if .txt file exists - only cache if it does
-        final File txtFile = new File( m_pageDirectory, mangledName + FILE_EXT );
+        final File txtFile = new File( pageDirectory, mangledName + FILE_EXT );
         if( txtFile.exists() ) {
-            m_fileExtensionCache.put( page, FILE_EXT );
+            fileExtensionCache.put( page, FILE_EXT );
         }
 
         return FILE_EXT;
@@ -320,7 +320,7 @@ public abstract class AbstractFileProvider implements PageProvider {
         if( pagedata.exists() ) {
             if( pagedata.canRead() ) {
                 try( final InputStream in = new BufferedInputStream( Files.newInputStream( pagedata.toPath() ) ) ) {
-                    result = FileUtil.readContents( in, m_encoding );
+                    result = FileUtil.readContents( in, encoding );
                 } catch( final IOException e ) {
                     LOG.error( "Failed to read", e );
                 }
@@ -351,10 +351,10 @@ public abstract class AbstractFileProvider implements PageProvider {
         // Otherwise, create a new file with the appropriate extension
         File file = findPage( page.getName() );
         if( !file.exists() ) {
-            file = new File( m_pageDirectory, mangleName( page.getName() ) + extension );
+            file = new File( pageDirectory, mangleName( page.getName() ) + extension );
         }
 
-        try( final PrintWriter out = new PrintWriter( new OutputStreamWriter( Files.newOutputStream( file.toPath() ), m_encoding ) ) ) {
+        try( final PrintWriter out = new PrintWriter( new OutputStreamWriter( Files.newOutputStream( file.toPath() ), encoding ) ) ) {
             out.print( text );
         } catch( final IOException e ) {
             LOG.error( "Saving failed", e );
@@ -362,7 +362,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 
         // Update cache with the extension used for this page
         final String actualExtension = file.getName().endsWith( MARKDOWN_EXT ) ? MARKDOWN_EXT : FILE_EXT;
-        m_fileExtensionCache.put( page.getName(), actualExtension );
+        fileExtensionCache.put( page.getName(), actualExtension );
     }
 
     /**
@@ -372,11 +372,11 @@ public abstract class AbstractFileProvider implements PageProvider {
     public Collection< Page > getAllPages()  throws ProviderException {
         LOG.debug("Getting all pages...");
         final var set = new ArrayList< Page >();
-        final File wikipagedir = new File( m_pageDirectory );
+        final File wikipagedir = new File( pageDirectory );
         final File[] wikipages = wikipagedir.listFiles( new WikiFileFilter() );
 
         if( wikipages == null ) {
-            LOG.error("Wikipages directory '" + m_pageDirectory + "' does not exist! Please check " + PROP_PAGEDIR + " in jspwiki.properties.");
+            LOG.error("Wikipages directory '" + pageDirectory + "' does not exist! Please check " + PROP_PAGEDIR + " in jspwiki.properties.");
             throw new ProviderException( "Page directory does not exist" );
         }
 
@@ -422,7 +422,7 @@ public abstract class AbstractFileProvider implements PageProvider {
      */
     @Override
     public int getPageCount() {
-        final File wikipagedir = new File( m_pageDirectory );
+        final File wikipagedir = new File( pageDirectory );
         final File[] wikipages = wikipagedir.listFiles( new WikiFileFilter() );
         return wikipages != null ? wikipages.length : 0;
     }
@@ -434,9 +434,9 @@ public abstract class AbstractFileProvider implements PageProvider {
      */
     @Override
     public Collection< SearchResult > findPages( final QueryItem[] query ) {
-        final File wikipagedir = new File( m_pageDirectory );
+        final File wikipagedir = new File( pageDirectory );
         final var res = new TreeSet<>( new SearchResultComparator() );
-        final SearchMatcher matcher = new SearchMatcher( m_engine, query );
+        final SearchMatcher matcher = new SearchMatcher( engine, query );
         final File[] wikipages = wikipagedir.listFiles( new WikiFileFilter() );
 
         if( wikipages != null ) {
@@ -453,7 +453,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 
                 final String wikiname = unmangleName( filename.substring( 0, cutpoint ) );
                 try( final InputStream input = new BufferedInputStream( Files.newInputStream( wikipage.toPath() ) ) ) {
-                    final String pagetext = FileUtil.readContents( input, m_encoding );
+                    final String pagetext = FileUtil.readContents( input, encoding );
                     final SearchResult comparison = matcher.matchPageContent( wikiname, pagetext );
                     if( comparison != null ) {
                         res.add( comparison );
@@ -480,7 +480,7 @@ public abstract class AbstractFileProvider implements PageProvider {
             return null;
         }
 
-        final Page p = Wiki.contents().page( m_engine, page );
+        final Page p = Wiki.contents().page( engine, page );
         p.setLastModified( new Date( file.lastModified() ) );
 
         return p;
@@ -517,7 +517,7 @@ public abstract class AbstractFileProvider implements PageProvider {
             final File f = findPage( pageName );
             f.delete();
             // Invalidate cache since the page file no longer exists
-            m_fileExtensionCache.remove( pageName );
+            fileExtensionCache.remove( pageName );
         }
     }
 
@@ -529,7 +529,7 @@ public abstract class AbstractFileProvider implements PageProvider {
         final File f = findPage( pageName );
         f.delete();
         // Invalidate cache since the page file no longer exists
-        m_fileExtensionCache.remove( pageName );
+        fileExtensionCache.remove( pageName );
     }
 
     /**
@@ -628,7 +628,7 @@ public abstract class AbstractFileProvider implements PageProvider {
      * @param pageName The name of the page to invalidate from the cache.
      */
     protected void invalidateFileExtensionCache( final String pageName ) {
-        m_fileExtensionCache.remove( pageName );
+        fileExtensionCache.remove( pageName );
     }
 
     /**
@@ -636,7 +636,7 @@ public abstract class AbstractFileProvider implements PageProvider {
      * This is primarily useful for testing purposes.
      */
     protected void clearFileExtensionCache() {
-        m_fileExtensionCache.clear();
+        fileExtensionCache.clear();
     }
 
     /**
@@ -646,7 +646,7 @@ public abstract class AbstractFileProvider implements PageProvider {
      * @return The number of entries in the file extension cache.
      */
     protected int getFileExtensionCacheSize() {
-        return m_fileExtensionCache.size();
+        return fileExtensionCache.size();
     }
 
     /**

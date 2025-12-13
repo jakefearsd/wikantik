@@ -34,7 +34,7 @@ public final class AllPermission extends Permission implements Serializable {
 
     private static final String WILDCARD = "*";
 
-    private final String m_wiki;
+    private final String wiki;
 
     /** For serialization purposes. */
     AllPermission() {
@@ -49,7 +49,7 @@ public final class AllPermission extends Permission implements Serializable {
      */
     public AllPermission( final String wiki ) {
         super( wiki );
-        m_wiki = ( wiki == null ) ? WILDCARD : wiki;
+        this.wiki = ( wiki == null ) ? WILDCARD : wiki;
     }
 
     /**
@@ -63,7 +63,7 @@ public final class AllPermission extends Permission implements Serializable {
         if( !( obj instanceof AllPermission p ) ) {
             return false;
         }
-        return p.m_wiki != null && p.m_wiki.equals( m_wiki );
+        return p.wiki != null && p.wiki.equals( wiki );
     }
 
     /**
@@ -84,7 +84,7 @@ public final class AllPermission extends Permission implements Serializable {
      * @return The wiki
      */
     public String getWiki() {
-        return m_wiki;
+        return wiki;
     }
 
     /**
@@ -94,7 +94,7 @@ public final class AllPermission extends Permission implements Serializable {
      * @see java.lang.Object#hashCode()
      */
     public int hashCode() {
-        return m_wiki.hashCode();
+        return wiki.hashCode();
     }
 
     /**
@@ -115,21 +115,21 @@ public final class AllPermission extends Permission implements Serializable {
         if( !PermissionChecks.isJSPWikiPermission( permission ) ) {
             return false;
         }
-        String wiki = null;
+        String otherWiki = null;
         if( permission instanceof AllPermission allPerm ) {
-            wiki = allPerm.getWiki();
+            otherWiki = allPerm.getWiki();
         } else if( permission instanceof PagePermission pagePerm ) {
-            wiki = pagePerm.getWiki();
+            otherWiki = pagePerm.getWiki();
         }
         if( permission instanceof WikiPermission wikiPerm ) {
-            wiki = wikiPerm.getWiki();
+            otherWiki = wikiPerm.getWiki();
         }
         if( permission instanceof GroupPermission groupPerm ) {
-            wiki = groupPerm.getWiki();
+            otherWiki = groupPerm.getWiki();
         }
 
         // If the wiki is implied, it's allowed
-        return PagePermission.isSubset( m_wiki, wiki );
+        return PagePermission.isSubset( wiki, otherWiki );
     }
 
     /**
@@ -150,7 +150,7 @@ public final class AllPermission extends Permission implements Serializable {
      * @see java.lang.Object#toString()
      */
     public String toString() {
-        return "(\"" + this.getClass().getName() + "\",\"" + m_wiki + "\")";
+        return "(\"" + this.getClass().getName() + "\",\"" + wiki + "\")";
     }
 
 }

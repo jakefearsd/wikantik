@@ -53,7 +53,7 @@ public class DefaultPageRenamer implements PageRenamer {
 
     private static final Logger LOG = LogManager.getLogger( DefaultPageRenamer.class );
     
-    private boolean m_camelCase;
+    private boolean camelCase;
     
     /**
      *  Renames a page.
@@ -181,8 +181,8 @@ public class DefaultPageRenamer implements PageRenamer {
             final String sourceText = engine.getManager( PageManager.class ).getPureText( p );
             String newText = replaceReferrerString(sourceText, fromPage.getName(), toPage.getName() );
 
-            m_camelCase = TextUtil.getBooleanProperty( engine.getWikiProperties(), MarkupParser.PROP_CAMELCASELINKS, m_camelCase );
-            if( m_camelCase ) {
+            camelCase = TextUtil.getBooleanProperty( engine.getWikiProperties(), MarkupParser.PROP_CAMELCASELINKS, camelCase );
+            if( camelCase ) {
                 newText = replaceCCReferrerString(newText, fromPage.getName(), toPage.getName() );
             }
             

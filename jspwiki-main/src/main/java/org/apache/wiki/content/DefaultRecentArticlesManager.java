@@ -94,37 +94,37 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
     /** Regex pattern for numeric HTML entities (&#123; or &#x1F4A1;). */
     private static final Pattern NUMERIC_ENTITY_PATTERN = Pattern.compile( "&#(x?)([0-9a-fA-F]+);" );
 
-    private Engine m_engine;
-    private int m_cacheTTL;
-    private int m_defaultCount;
-    private int m_defaultExcerptLength;
-    private Set<String> m_excludedPages;
-    private List<Pattern> m_excludePatterns;
+    private Engine engine;
+    private int cacheTTL;
+    private int defaultCount;
+    private int defaultExcerptLength;
+    private Set<String> excludedPages;
+    private List<Pattern> excludePatterns;
 
     // Simple cache: query hash -> (timestamp, results)
-    private final ConcurrentHashMap<Integer, CacheEntry> m_cache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, CacheEntry> cache = new ConcurrentHashMap<>();
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void initialize( final Engine engine, final Properties props ) {
-        m_engine = engine;
+    public void initialize( final Engine newEngine, final Properties props ) {
+        this.engine = newEngine;
 
-        m_cacheTTL = TextUtil.getIntegerProperty( props, PROP_CACHE_TTL, DEFAULT_CACHE_TTL );
-        m_defaultCount = TextUtil.getIntegerProperty( props, PROP_DEFAULT_COUNT, RecentArticlesQuery.DEFAULT_COUNT );
-        m_defaultExcerptLength = TextUtil.getIntegerProperty( props, PROP_DEFAULT_EXCERPT_LENGTH, RecentArticlesQuery.DEFAULT_EXCERPT_LENGTH );
+        cacheTTL = TextUtil.getIntegerProperty( props, PROP_CACHE_TTL, DEFAULT_CACHE_TTL );
+        defaultCount = TextUtil.getIntegerProperty( props, PROP_DEFAULT_COUNT, RecentArticlesQuery.DEFAULT_COUNT );
+        defaultExcerptLength = TextUtil.getIntegerProperty( props, PROP_DEFAULT_EXCERPT_LENGTH, RecentArticlesQuery.DEFAULT_EXCERPT_LENGTH );
 
         // Initialize excluded pages set
-        m_excludedPages = new HashSet<>( DEFAULT_EXCLUDED_PAGES );
+        excludedPages = new HashSet<>( DEFAULT_EXCLUDED_PAGES );
 
         // Parse additional exclude patterns from properties
-        m_excludePatterns = new ArrayList<>();
+        excludePatterns = new ArrayList<>();
         final String excludePatternsStr = props.getProperty( PROP_EXCLUDE_PATTERNS );
         if ( excludePatternsStr != null && !excludePatternsStr.isEmpty() ) {
             for ( final String pattern : excludePatternsStr.split( "," ) ) {
                 try {
-                    m_excludePatterns.add( Pattern.compile( pattern.trim() ) );
+                    excludePatterns.add( Pattern.compile( pattern.trim() ) );
                 } catch ( final PatternSyntaxException e ) {
                     LOG.warn( "Invalid exclude pattern '{}': {}", pattern, e.getMessage() );
                 }
@@ -132,7 +132,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         }
 
         LOG.info( "RecentArticlesManager initialized: cacheTTL={}s, defaultCount={}, defaultExcerptLength={}",
-                  m_cacheTTL, m_defaultCount, m_defaultExcerptLength );
+                  cacheTTL, defaultCount, defaultExcerptLength );
     }
 
     /**
@@ -146,8 +146,8 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
 
         // Check cache first
         final int cacheKey = query.hashCode();
-        final CacheEntry cached = m_cache.get( cacheKey );
-        if ( cached != null && !cached.isExpired( m_cacheTTL ) ) {
+        final CacheEntry cached = cache.get( cacheKey );
+        if ( cached != null && !cached.isExpired( cacheTTL ) ) {
             LOG.debug( "Cache hit for query: {}", query );
             return cached.getResults();
         }
@@ -157,7 +157,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         final List<ArticleSummary> results = buildRecentArticles( context, query );
 
         // Update cache
-        m_cache.put( cacheKey, new CacheEntry( results ) );
+        cache.put( cacheKey, new CacheEntry( results ) );
 
         return results;
     }
@@ -167,7 +167,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
      */
     @Override
     public void clearCache() {
-        m_cache.clear();
+        cache.clear();
         LOG.debug( "RecentArticles cache cleared" );
     }
 
@@ -176,7 +176,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
      */
     @Override
     public boolean hasTemplatePage() {
-        final PageManager pageManager = m_engine.getManager( PageManager.class );
+        final PageManager pageManager = engine.getManager( PageManager.class );
         return pageManager != null && pageManager.wikiPageExists( TEMPLATE_PAGE_NAME );
     }
 
@@ -206,7 +206,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
      * The template page can use special placeholders that get replaced with article data.
      */
     private String renderWithWikiTemplate( final Context context, final List<ArticleSummary> articles ) {
-        final PageManager pageManager = m_engine.getManager( PageManager.class );
+        final PageManager pageManager = engine.getManager( PageManager.class );
         final String templateText = pageManager.getPureText( TEMPLATE_PAGE_NAME, -1 );
 
         if ( templateText == null || templateText.isEmpty() ) {
@@ -248,7 +248,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         result.append( renderTemplatePart( footer, null, 0, articles.size() ) );
 
         // Render the wiki markup to HTML
-        final RenderingManager renderingManager = m_engine.getManager( RenderingManager.class );
+        final RenderingManager renderingManager = engine.getManager( RenderingManager.class );
         if ( renderingManager != null ) {
             try {
                 return renderingManager.textToHTML( context, result.toString() );
@@ -275,7 +275,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         result = result.replace( "%%ARTICLE_LIST%%", articleList.toString() );
 
         // Render to HTML
-        final RenderingManager renderingManager = m_engine.getManager( RenderingManager.class );
+        final RenderingManager renderingManager = engine.getManager( RenderingManager.class );
         if ( renderingManager != null ) {
             try {
                 return renderingManager.textToHTML( context, result );
@@ -325,8 +325,8 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
      */
     private List<ArticleSummary> buildRecentArticles( final Context context, final RecentArticlesQuery query ) {
         final List<ArticleSummary> results = new ArrayList<>();
-        final PageManager pageManager = m_engine.getManager( PageManager.class );
-        final RenderingManager renderingManager = m_engine.getManager( RenderingManager.class );
+        final PageManager pageManager = engine.getManager( PageManager.class );
+        final RenderingManager renderingManager = engine.getManager( RenderingManager.class );
 
         if ( pageManager == null ) {
             LOG.warn( "PageManager not available" );
@@ -596,12 +596,12 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
      */
     private boolean isExcluded( final String pageName, final Pattern includePattern, final Pattern excludePattern ) {
         // Check if page is in the static exclusion list
-        if ( m_excludedPages.contains( pageName ) ) {
+        if ( excludedPages.contains( pageName ) ) {
             return true;
         }
 
         // Check configured exclude patterns
-        for ( final Pattern pattern : m_excludePatterns ) {
+        for ( final Pattern pattern : excludePatterns ) {
             if ( pattern.matcher( pageName ).matches() ) {
                 return true;
             }

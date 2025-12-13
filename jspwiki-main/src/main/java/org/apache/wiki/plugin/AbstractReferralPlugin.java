@@ -122,23 +122,23 @@ public abstract class AbstractReferralPlugin implements Plugin {
     protected static final String PARAM_SORTORDER_JAVA   = "java";
     protected static final String PARAM_SORTORDER_LOCALE = "locale";
 
-    protected int m_maxwidth = Integer.MAX_VALUE;
-    protected String m_before = ""; // null not blank
-    protected String m_separator = ""; // null not blank
-    protected String m_after = "\\\\";
+    protected int maxwidth = Integer.MAX_VALUE;
+    protected String before = ""; // null not blank
+    protected String separator = ""; // null not blank
+    protected String after = "\\\\";
     protected int items;
 
-    protected Pattern[]  m_exclude;
-    protected Pattern[]  m_include;
-    protected PageSorter m_sorter;
+    protected Pattern[]  exclude;
+    protected Pattern[]  include;
+    protected PageSorter sorter;
 
-    protected String m_show = "pages";
-    protected boolean m_lastModified;
+    protected String show = "pages";
+    protected boolean lastModified;
     // the last modified date of the page that has been last modified:
-    protected Date m_dateLastModified = new Date(0);
-    protected SimpleDateFormat m_dateFormat;
+    protected Date dateLastModified = new Date(0);
+    protected SimpleDateFormat dateFormat;
 
-    protected Engine m_engine;
+    protected Engine engine;
 
     /**
      * @param context the wiki context
@@ -147,30 +147,30 @@ public abstract class AbstractReferralPlugin implements Plugin {
      */
     // FIXME: The compiled pattern strings should really be cached somehow.
     public void initialize( final Context context, final Map< String, String > params ) throws PluginException {
-        m_dateFormat = Preferences.getDateFormat( context, TimeFormat.DATETIME );
-        m_engine = context.getEngine();
-        m_maxwidth = TextUtil.parseIntParameter( params.get( PARAM_MAXWIDTH ), Integer.MAX_VALUE );
-        if( m_maxwidth < 0 ) {
-            m_maxwidth = 0;
+        dateFormat = Preferences.getDateFormat( context, TimeFormat.DATETIME );
+        engine = context.getEngine();
+        maxwidth = TextUtil.parseIntParameter( params.get( PARAM_MAXWIDTH ), Integer.MAX_VALUE );
+        if( maxwidth < 0 ) {
+            maxwidth = 0;
         }
 
         String s = params.get( PARAM_SEPARATOR );
         if( s != null ) {
-            m_separator = TextUtil.replaceEntities( s );
+            separator = TextUtil.replaceEntities( s );
             // pre-2.1.145 there was a separator at the end of the list
             // if they set the parameters, we use the new format of
             // before Item1 after separator before Item2 after separator before Item3 after
-            m_after = "";
+            after = "";
         }
 
         s = params.get( PARAM_BEFORE );
         if( s != null ) {
-            m_before = s;
+            before = s;
         }
 
         s = params.get( PARAM_AFTER );
         if( s != null ) {
-            m_after = s;
+            after = s;
         }
 
         s = params.get( PARAM_COLUMNS );
@@ -182,9 +182,9 @@ public abstract class AbstractReferralPlugin implements Plugin {
         if ( s != null ) {
             try {
                 final String[] ptrns = StringUtils.split( s, "," );
-                m_exclude = new Pattern[ ptrns.length ];
+                exclude = new Pattern[ ptrns.length ];
                 for ( int i = 0; i < ptrns.length; i++ ) {
-                    m_exclude[ i ] = Pattern.compile( globToRegex( ptrns[ i ] ) );
+                    exclude[ i ] = Pattern.compile( globToRegex( ptrns[ i ] ) );
                 }
             } catch ( final PatternSyntaxException e ) {
                 throw new PluginException( "Exclude-parameter has a malformed pattern: " + e.getMessage() );
@@ -196,28 +196,28 @@ public abstract class AbstractReferralPlugin implements Plugin {
         if ( s != null ) {
             try {
                 final String[] ptrns = StringUtils.split( s, "," );
-                m_include = new Pattern[ ptrns.length ];
+                include = new Pattern[ ptrns.length ];
                 for ( int i = 0; i < ptrns.length; i++ ) {
-                    m_include[ i ] = Pattern.compile( globToRegex( ptrns[ i ] ) );
+                    include[ i ] = Pattern.compile( globToRegex( ptrns[ i ] ) );
                 }
             } catch ( final PatternSyntaxException e ) {
                 throw new PluginException( "Include-parameter has a malformed pattern: " + e.getMessage() );
             }
         }
 
-        // LOG.debug( "Requested maximum width is "+m_maxwidth );
+        // LOG.debug( "Requested maximum width is "+maxwidth );
         s = params.get(PARAM_SHOW);
         if ( s != null ) {
             if ( s.equalsIgnoreCase( "count" ) ) {
-                m_show = "count";
+                show = "count";
             }
         }
 
         s = params.get( PARAM_LASTMODIFIED );
         if ( s != null ) {
             if ( s.equalsIgnoreCase( "true" ) ) {
-                if ( m_show.equals( "count" ) ) {
-                    m_lastModified = true;
+                if ( show.equals( "count" ) ) {
+                    lastModified = true;
                 } else {
                     throw new PluginException( "showLastModified=true is only valid if show=count is also specified" );
                 }
@@ -251,15 +251,15 @@ public abstract class AbstractReferralPlugin implements Plugin {
             //
             //  include='*' means the same as no include.
             //
-            boolean includeThis = m_include == null;
+            boolean includeThis = include == null;
 
-            if( m_include != null ) {
-                includeThis = Arrays.stream(m_include).anyMatch(pattern -> pattern.matcher(pageName).matches()) ? true : m_include == null;
+            if( include != null ) {
+                includeThis = Arrays.stream(include).anyMatch(pattern -> pattern.matcher(pageName).matches()) ? true : include == null;
             }
 
-            if( m_exclude != null ) {
+            if( exclude != null ) {
                 // The inner loop, continue on the next item
-                if (Arrays.stream(m_exclude).anyMatch(pattern -> pattern.matcher(pageName).matches())) {
+                if (Arrays.stream(exclude).anyMatch(pattern -> pattern.matcher(pageName).matches())) {
                     includeThis = false;
                 }
             }
@@ -268,13 +268,13 @@ public abstract class AbstractReferralPlugin implements Plugin {
                 result.add( pageName );
                 //  if we want to show the last modified date of the most recently change page, we keep a "high watermark" here:
                 final Page page;
-                if( m_lastModified ) {
-                    page = m_engine.getManager( PageManager.class ).getPage( pageName );
+                if( lastModified ) {
+                    page = engine.getManager( PageManager.class ).getPage( pageName );
                     if( page != null ) {
                         final Date lastModPage = page.getLastModified();
-                        LOG.debug( "lastModified Date of page {} : {}", pageName, m_dateLastModified );
-                        if( lastModPage.after( m_dateLastModified ) ) {
-                            m_dateLastModified = lastModPage;
+                        LOG.debug( "lastModified Date of page {} : {}", pageName, dateLastModified );
+                        if( lastModPage.after( dateLastModified ) ) {
+                            dateLastModified = lastModPage;
                         }
                     }
                 }
@@ -322,7 +322,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
      */
     protected List< String > filterAndSortCollection( final Collection< String > c ) {
         final List< String > result = filterCollection( c );
-        result.sort( m_sorter );
+        result.sort( sorter );
         return result;
     }
 
@@ -348,15 +348,15 @@ public abstract class AbstractReferralPlugin implements Plugin {
         while( it.hasNext() && ( (count < numItems) || ( numItems == ALL_ITEMS ) ) ) {
             final String value = it.next();
             if( count > 0 ) {
-                output.append( m_after );
+                output.append( after );
                 output.append( separator );
             }
 
-            output.append( m_before );
+            output.append( before );
 
             // Make a Wiki markup link. See TranslatorReader.
             output.append( "[" )
-                  .append( m_engine.getManager( RenderingManager.class ).beautifyTitle( value ) )
+                  .append( engine.getManager( RenderingManager.class ).beautifyTitle( value ) )
                   .append( "|" )
                   .append( value )
                   .append( "]" );
@@ -365,7 +365,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
 
         //  Output final item - if there have been none, no "after" is printed
         if( count > 0 ) {
-            output.append( m_after );
+            output.append( after );
         }
 
         return output.toString();
@@ -382,11 +382,11 @@ public abstract class AbstractReferralPlugin implements Plugin {
     protected String makeHTML( final Context context, final String wikitext ) {
         String result = "";
 
-        final RenderingManager mgr = m_engine.getManager( RenderingManager.class );
+        final RenderingManager mgr = engine.getManager( RenderingManager.class );
 
         try {
             final MarkupParser parser = mgr.getParser( context, wikitext );
-            parser.addLinkTransmutator( new CutMutator( m_maxwidth ) );
+            parser.addLinkTransmutator( new CutMutator( maxwidth ) );
             parser.enableImageInlining( false );
 
             final WikiDocument doc = parser.parse();
@@ -414,16 +414,16 @@ public abstract class AbstractReferralPlugin implements Plugin {
      */
     private static class CutMutator implements StringTransmutator {
 
-        private final int m_length;
+        private final int length;
 
         public CutMutator( final int length ) {
-            m_length = length;
+            this.length = length;
         }
 
         @Override
         public String mutate( final Context context, final String text ) {
-            if( text.length() > m_length ) {
-                return text.substring( 0, m_length ) + "...";
+            if( text.length() > length ) {
+                return text.substring( 0, length ) + "...";
             }
 
             return text;
@@ -437,24 +437,24 @@ public abstract class AbstractReferralPlugin implements Plugin {
         final String order = params.get( PARAM_SORTORDER );
         if( order == null || order.isEmpty() ) {
             // Use the configured comparator
-            m_sorter = context.getEngine().getManager( PageManager.class ).getPageSorter();
+            sorter = context.getEngine().getManager( PageManager.class ).getPageSorter();
         } else if( order.equalsIgnoreCase( PARAM_SORTORDER_JAVA ) ) {
             // use Java "natural" ordering
-            m_sorter = new PageSorter( JavaNaturalComparator.DEFAULT_JAVA_COMPARATOR );
+            sorter = new PageSorter( JavaNaturalComparator.DEFAULT_JAVA_COMPARATOR );
         } else if( order.equalsIgnoreCase( PARAM_SORTORDER_LOCALE ) ) {
             // use this locale's ordering
-            m_sorter = new PageSorter( LocaleComparator.DEFAULT_LOCALE_COMPARATOR );
+            sorter = new PageSorter( LocaleComparator.DEFAULT_LOCALE_COMPARATOR );
         } else if( order.equalsIgnoreCase( PARAM_SORTORDER_HUMAN ) ) {
             // use human ordering
-            m_sorter = new PageSorter( HumanComparator.DEFAULT_HUMAN_COMPARATOR );
+            sorter = new PageSorter( HumanComparator.DEFAULT_HUMAN_COMPARATOR );
         } else {
             try {
                 final Collator collator = new RuleBasedCollator( order );
                 collator.setStrength( Collator.PRIMARY );
-                m_sorter = new PageSorter( new CollatorComparator( collator ) );
+                sorter = new PageSorter( new CollatorComparator( collator ) );
             } catch( final ParseException pe ) {
                 LOG.info( "Failed to parse requested collator - using default ordering", pe );
-                m_sorter = context.getEngine().getManager( PageManager.class ).getPageSorter();
+                sorter = context.getEngine().getManager( PageManager.class ).getPageSorter();
             }
         }
     }

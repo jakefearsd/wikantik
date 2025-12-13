@@ -71,7 +71,7 @@ public class ReferringUndefinedPagesPlugin extends AbstractReferralPlugin {
 
         result = super.filterAndSortCollection( result );
 
-        final String wikitext = wikitizeCollection( result, m_separator, items );
+        final String wikitext = wikitizeCollection( result, separator, items );
         final StringBuilder resultHTML = new StringBuilder();
         resultHTML.append( applyColumnsStyle( makeHTML( context, wikitext ) ) );
 

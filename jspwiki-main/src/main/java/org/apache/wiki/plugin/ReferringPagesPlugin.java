@@ -97,7 +97,7 @@ public class ReferringPagesPlugin extends AbstractReferralPlugin {
 
             if( links != null && !links.isEmpty()) {
                 links = filterAndSortCollection( links );
-                wikitext = wikitizeCollection( links, m_separator, items );
+                wikitext = wikitizeCollection( links, separator, items );
 
                 result.append( applyColumnsStyle( makeHTML( context, wikitext ) ) );
 
@@ -119,11 +119,11 @@ public class ReferringPagesPlugin extends AbstractReferralPlugin {
             if( links == null || links.isEmpty()) {
                 wikitext = rb.getString( "referringpagesplugin.nobody" );
                 result.append( makeHTML( context, wikitext ) );
-            } else  if( m_show.equals( PARAM_SHOW_VALUE_COUNT ) ) {
+            } else  if( show.equals( PARAM_SHOW_VALUE_COUNT ) ) {
                 result = new StringBuilder();
                 result.append( links.size() );
-                if( m_lastModified ) {
-                    result.append( " (" ).append( m_dateFormat.format( m_dateLastModified ) ).append( ")" );
+                if( lastModified ) {
+                    result.append( " (" ).append( dateFormat.format( dateLastModified ) ).append( ")" );
                 }
             }
 

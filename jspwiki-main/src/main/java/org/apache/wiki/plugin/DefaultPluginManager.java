@@ -158,13 +158,13 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
     private static final Logger LOG = LogManager.getLogger( DefaultPluginManager.class );
     private static final String DEFAULT_FORMS_PACKAGE = "org.apache.wiki.forms";
 
-    private final ArrayList< String > m_searchPath = new ArrayList<>();
-    private final ArrayList< String > m_externalJars = new ArrayList<>();
-    private final Pattern m_pluginPattern;
-    private boolean m_pluginsEnabled = true;
+    private final ArrayList< String > searchPath = new ArrayList<>();
+    private final ArrayList< String > externalJars = new ArrayList<>();
+    private final Pattern pluginPattern;
+    private boolean pluginsEnabled = true;
 
     /** Keeps a list of all known plugin classes. */
-    private final Map< String, WikiPluginInfo > m_pluginClassMap = new HashMap<>();
+    private final Map< String, WikiPluginInfo > pluginClassMap = new HashMap<>();
 
     /**
      *  Create a new PluginManager.
@@ -178,43 +178,43 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
         if ( packageNames != null ) {
             final StringTokenizer tok = new StringTokenizer( packageNames, "," );
             while( tok.hasMoreTokens() ) {
-                m_searchPath.add( tok.nextToken().trim() );
+                searchPath.add( tok.nextToken().trim() );
             }
         }
 
-        final String externalJars = props.getProperty( PROP_EXTERNALJARS );
-        if( externalJars != null ) {
-            final StringTokenizer tok = new StringTokenizer( externalJars, "," );
+        final String externalJarsStr = props.getProperty( PROP_EXTERNALJARS );
+        if( externalJarsStr != null ) {
+            final StringTokenizer tok = new StringTokenizer( externalJarsStr, "," );
             while( tok.hasMoreTokens() ) {
-                m_externalJars.add( tok.nextToken().trim() );
+                externalJars.add( tok.nextToken().trim() );
             }
         }
 
         registerPlugins();
 
         //  The default packages are always added.
-        m_searchPath.add( DEFAULT_PACKAGE );
-        m_searchPath.add( DEFAULT_FORMS_PACKAGE );
+        searchPath.add( DEFAULT_PACKAGE );
+        searchPath.add( DEFAULT_FORMS_PACKAGE );
 
-        m_pluginPattern = Pattern.compile( PLUGIN_INSERT_PATTERN );
+        pluginPattern = Pattern.compile( PLUGIN_INSERT_PATTERN );
     }
 
     /** {@inheritDoc} */
     @Override
     public void enablePlugins( final boolean enabled ) {
-        m_pluginsEnabled = enabled;
+        pluginsEnabled = enabled;
     }
 
     /** {@inheritDoc} */
     @Override
     public boolean pluginsEnabled() {
-        return m_pluginsEnabled;
+        return pluginsEnabled;
     }
 
     /** {@inheritDoc} */
     @Override
     public Pattern getPluginPattern() {
-		return m_pluginPattern;
+		return pluginPattern;
 	}
 
 	/**
@@ -225,7 +225,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
      *  @throws ClassNotFoundException if no such class exists.
      */
     private Class< ? > findPluginClass( final String classname ) throws ClassNotFoundException {
-        return ClassUtil.findClass( m_searchPath, m_externalJars, classname );
+        return ClassUtil.findClass( searchPath, externalJars, classname );
     }
 
     /** Outputs an HTML-formatted version of a stack trace. */
@@ -250,7 +250,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
     /** {@inheritDoc} */
     @Override
     public String execute( final Context context, final String classname, final Map< String, String > params ) throws PluginException {
-        if( !m_pluginsEnabled ) {
+        if( !pluginsEnabled ) {
             return "";
         }
 
@@ -368,12 +368,12 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
     /** {@inheritDoc} */
     @Override
     public String execute( final Context context, final String commandline ) throws PluginException {
-        if( !m_pluginsEnabled ) {
+        if( !pluginsEnabled ) {
             return "";
         }
 
         final ResourceBundle rb = Preferences.getBundle( context, Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
-        final Matcher matcher = m_pluginPattern.matcher( commandline );
+        final Matcher matcher = pluginPattern.matcher( commandline );
 
         try {
             if( matcher.find() ) {
@@ -406,24 +406,24 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
         name = pluginClass.getName();
         if( name != null ) {
             LOG.debug( "Registering plugin [name]: " + name );
-            m_pluginClassMap.put( name, pluginClass );
+            pluginClassMap.put( name, pluginClass );
         }
 
         // Register the plugin with a short convenient name.
         name = pluginClass.getAlias();
         if( name != null ) {
             LOG.debug( "Registering plugin [shortName]: " + name );
-            m_pluginClassMap.put( name, pluginClass );
+            pluginClassMap.put( name, pluginClass );
         }
 
         // Register the plugin with the className with the package-part
         name = pluginClass.getClassName();
         if( name != null ) {
             LOG.debug( "Registering plugin [className]: " + name );
-            m_pluginClassMap.put( name, pluginClass );
+            pluginClassMap.put( name, pluginClass );
         }
 
-        pluginClass.initializePlugin( pluginClass, engine, m_searchPath, m_externalJars );
+        pluginClass.initializePlugin( pluginClass, engine, searchPath, externalJars );
     }
 
     private void registerPlugins() {
@@ -434,7 +434,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
         // Get all resources of all plugins.
         for( final Element pluginEl : plugins ) {
             final String className = pluginEl.getAttributeValue( "class" );
-            final WikiPluginInfo pluginInfo = WikiPluginInfo.newInstance( className, pluginEl ,m_searchPath, m_externalJars );
+            final WikiPluginInfo pluginInfo = WikiPluginInfo.newInstance( className, pluginEl ,searchPath, externalJars );
             if( pluginInfo != null ) {
                 registerPlugin( pluginInfo );
             }
@@ -448,12 +448,12 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
     //  should have some sort of a superclass system.
     public static final class WikiPluginInfo extends WikiModuleInfo {
 
-        private String    m_className;
-        private String    m_alias;
-        private String    m_ajaxAlias;
-        private Class< Plugin >  m_clazz;
+        private String    className;
+        private String    alias;
+        private String    ajaxAlias;
+        private Class< Plugin >  clazz;
 
-        private boolean m_initialized;
+        private boolean initialized;
 
         /**
          *  Creates a new plugin info object which can be used to access a plugin.
@@ -483,9 +483,9 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
          *  @param externalJars the list of external jars to search
          */
         void initializePlugin( final WikiPluginInfo info, final Engine engine , final List<String> searchPath, final List<String> externalJars) {
-            if( !m_initialized ) {
+            if( !initialized ) {
                 // This makes sure we only try once per class, even if init fails.
-                m_initialized = true;
+                initialized = true;
 
                 try {
                     final Plugin p = newPluginInstance(searchPath, externalJars);
@@ -500,7 +500,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
                     	}
                     }
                 } catch( final Exception e ) {
-                    LOG.info( "Cannot initialize plugin " + m_className, e );
+                    LOG.info( "Cannot initialize plugin " + className, e );
                 }
             }
         }
@@ -511,8 +511,8 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
         @Override
         protected void initializeFromXML( final Element el ) {
             super.initializeFromXML( el );
-            m_alias = el.getChildText( "alias" );
-            m_ajaxAlias = el.getChildText( "ajaxAlias" );
+            alias = el.getChildText( "alias" );
+            ajaxAlias = el.getChildText( "ajaxAlias" );
         }
 
         /**
@@ -532,7 +532,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
 
         private void setClassName( final String fullClassName ) {
             name = ClassUtils.getShortClassName( fullClassName );
-            m_className = fullClassName;
+            className = fullClassName;
         }
 
         /**
@@ -540,7 +540,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
          *  @return The full class name of the object.
          */
         public String getClassName() {
-            return m_className;
+            return className;
         }
 
         /**
@@ -548,7 +548,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
          *  @return An alias name for the plugin.
          */
         public String getAlias() {
-            return m_alias;
+            return alias;
         }
 
         /**
@@ -556,7 +556,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
          *  @return An ajax alias name for the plugin.
          */
         public String getAjaxAlias() {
-            return m_ajaxAlias;
+            return ajaxAlias;
         }
 
         /**
@@ -571,11 +571,11 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
          */
 
         public Plugin newPluginInstance( final List< String > searchPath, final List< String > externalJars) throws ReflectiveOperationException {
-            if( m_clazz == null ) {
-                m_clazz = ClassUtil.findClass( searchPath, externalJars ,m_className );
+            if( clazz == null ) {
+                clazz = ClassUtil.findClass( searchPath, externalJars ,className );
             }
 
-            return ClassUtil.buildInstance( m_clazz );
+            return ClassUtil.buildInstance( clazz );
         }
 
         /**
@@ -646,7 +646,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
          */
         @Override
         public String toString() {
-            return "Plugin :[name=" + name + "][className=" + m_className + "]";
+            return "Plugin :[name=" + name + "][className=" + className + "]";
         }
 
     } // WikiPluginClass
@@ -656,7 +656,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
      */
     @Override
     public Collection< WikiModuleInfo > modules() {
-        return modules( m_pluginClassMap.values().iterator() );
+        return modules( pluginClassMap.values().iterator() );
     }
 
     /**
@@ -664,7 +664,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
      */
     @Override
     public WikiPluginInfo getModuleInfo( final String moduleName) {
-        return m_pluginClassMap.get(moduleName);
+        return pluginClassMap.get(moduleName);
     }
 
     /**
@@ -678,7 +678,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
     @Override
     public Plugin newWikiPlugin( final String pluginName, final ResourceBundle rb ) throws PluginException {
         Plugin plugin = null;
-        WikiPluginInfo pluginInfo = m_pluginClassMap.get( pluginName );
+        WikiPluginInfo pluginInfo = pluginClassMap.get( pluginName );
         try {
             if( pluginInfo == null ) {
                 pluginInfo = WikiPluginInfo.newInstance( findPluginClass( pluginName ) );
@@ -689,7 +689,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
                 final String msg = "Plugin '" + pluginInfo.getName() + "' not compatible with this version of JSPWiki";
                 LOG.info( msg );
             } else {
-                plugin = pluginInfo.newPluginInstance(m_searchPath, m_externalJars);
+                plugin = pluginInfo.newPluginInstance(searchPath, externalJars);
             }
         } catch( final ClassNotFoundException e ) {
             throw new PluginException( MessageFormat.format( rb.getString( "plugin.error.couldnotfind" ), pluginName ), e );

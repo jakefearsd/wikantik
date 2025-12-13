@@ -275,21 +275,21 @@ public class DefaultVariableManager implements VariableManager {
     @SuppressWarnings( "unused" )
     private static class SystemVariables {
 
-        private final Context m_context;
+        private final Context context;
 
-        public SystemVariables( final Context context )
+        public SystemVariables( final Context ctx )
         {
-            m_context=context;
+            this.context = ctx;
         }
 
         public String getPagename()
         {
-            return m_context.getPage().getName();
+            return context.getPage().getName();
         }
 
         public String getApplicationname()
         {
-            return m_context.getEngine().getApplicationName();
+            return context.getEngine().getApplicationName();
         }
 
         public String getJspwikiversion()
@@ -298,55 +298,55 @@ public class DefaultVariableManager implements VariableManager {
         }
 
         public String getEncoding() {
-            return m_context.getEngine().getContentEncoding().displayName();
+            return context.getEngine().getContentEncoding().displayName();
         }
 
         public String getTotalpages() {
-            return Integer.toString( m_context.getEngine().getManager( PageManager.class ).getTotalPageCount() );
+            return Integer.toString( context.getEngine().getManager( PageManager.class ).getTotalPageCount() );
         }
 
         public String getPageprovider() {
-            return m_context.getEngine().getManager( PageManager.class ).getCurrentProvider();
+            return context.getEngine().getManager( PageManager.class ).getCurrentProvider();
         }
 
         public String getPageproviderdescription() {
-            return m_context.getEngine().getManager( PageManager.class ).getProviderDescription();
+            return context.getEngine().getManager( PageManager.class ).getProviderDescription();
         }
 
         public String getAttachmentprovider() {
-            final WikiProvider p = m_context.getEngine().getManager( AttachmentManager.class ).getCurrentProvider();
+            final WikiProvider p = context.getEngine().getManager( AttachmentManager.class ).getCurrentProvider();
             return (p != null) ? p.getClass().getName() : "-";
         }
 
         public String getAttachmentproviderdescription() {
-            final WikiProvider p = m_context.getEngine().getManager( AttachmentManager.class ).getCurrentProvider();
+            final WikiProvider p = context.getEngine().getManager( AttachmentManager.class ).getCurrentProvider();
             return (p != null) ? p.getProviderInfo() : "-";
         }
 
         public String getInterwikilinks() {
 
-            return m_context.getEngine().getAllInterWikiLinks().stream().map(link -> link + " --> " + m_context.getEngine().getInterWikiURL(link)).collect(Collectors.joining(", "));
+            return context.getEngine().getAllInterWikiLinks().stream().map(link -> link + " --> " + context.getEngine().getInterWikiURL(link)).collect(Collectors.joining(", "));
         }
 
         public String getInlinedimages() {
 
-            return m_context.getEngine().getAllInlinedImagePatterns().stream().collect(Collectors.joining(", "));
+            return context.getEngine().getAllInlinedImagePatterns().stream().collect(Collectors.joining(", "));
         }
 
         public String getPluginpath() {
-            final String s = m_context.getEngine().getPluginSearchPath();
+            final String s = context.getEngine().getPluginSearchPath();
 
             return ( s == null ) ? "-" : s;
         }
 
         public String getBaseurl()
         {
-            return m_context.getEngine().getBaseURL();
+            return context.getEngine().getBaseURL();
         }
 
         public String getUptime() {
             final Date now = new Date();
-            long secondsRunning = ( now.getTime() - m_context.getEngine().getStartTime().getTime() ) / 1_000L;
+            long secondsRunning = ( now.getTime() - context.getEngine().getStartTime().getTime() ) / 1_000L;
 
             final long seconds = secondsRunning % 60;
             final long minutes = (secondsRunning /= 60) % 60;
@@ -357,23 +357,23 @@ public class DefaultVariableManager implements VariableManager {
         }
 
         public String getLoginstatus() {
-            final Session session = m_context.getWikiSession();
-            return Preferences.getBundle( m_context, InternationalizationManager.CORE_BUNDLE ).getString( "varmgr." + session.getStatus() );
+            final Session session = context.getWikiSession();
+            return Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE ).getString( "varmgr." + session.getStatus() );
         }
 
         public String getUsername() {
-            final Principal wup = m_context.getCurrentUser();
-            final ResourceBundle rb = Preferences.getBundle( m_context, InternationalizationManager.CORE_BUNDLE );
+            final Principal wup = context.getCurrentUser();
+            final ResourceBundle rb = Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE );
             return wup != null ? wup.getName() : rb.getString( "varmgr.not.logged.in" );
         }
 
         public String getRequestcontext()
         {
-            return m_context.getRequestContext();
+            return context.getRequestContext();
         }
 
         public String getPagefilters() {
-            final FilterManager fm = m_context.getEngine().getManager( FilterManager.class );
+            final FilterManager fm = context.getEngine().getManager( FilterManager.class );
             final List< PageFilter > filters = fm.getFilterList();
             final StringBuilder sb = new StringBuilder();
             for( final PageFilter pf : filters ) {

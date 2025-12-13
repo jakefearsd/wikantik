@@ -41,7 +41,7 @@ public abstract class WikiTagBase extends TagSupport implements TryCatchFinally 
     private static final long serialVersionUID = -1409836349293777141L;
     private static final Logger LOG = LogManager.getLogger( WikiTagBase.class );
 
-    protected Context m_wikiContext;
+    protected Context wikiContext;
 
     /**
      * This method calls the parent setPageContext() but it also provides a way for a tag to initialize itself before
@@ -59,13 +59,13 @@ public abstract class WikiTagBase extends TagSupport implements TryCatchFinally 
      *  @since 2.3.92
      */
     public void initTag() {
-        m_wikiContext = null;
+        wikiContext = null;
     }
     
     public int doStartTag() throws JspException {
         try {
-            m_wikiContext = ( Context )pageContext.getAttribute( Context.ATTR_CONTEXT, PageContext.REQUEST_SCOPE );
-            if( m_wikiContext == null ) {
+            wikiContext = ( Context )pageContext.getAttribute( Context.ATTR_CONTEXT, PageContext.REQUEST_SCOPE );
+            if( wikiContext == null ) {
                 throw new JspException("WikiContext may not be NULL - serious internal problem!");
             }
 
@@ -93,7 +93,7 @@ public abstract class WikiTagBase extends TagSupport implements TryCatchFinally 
 
     public void doFinally()
     {
-        m_wikiContext = null;
+        wikiContext = null;
     }
 
     public void setId( final String id)

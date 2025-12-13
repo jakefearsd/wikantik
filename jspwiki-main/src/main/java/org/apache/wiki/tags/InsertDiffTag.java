@@ -51,12 +51,12 @@ public class InsertDiffTag extends WikiTagBase {
     /** Attribute which is used to store the new page content to the Page Context */
     public static final String ATTR_NEWVERSION = "newdiff";
 
-    protected String m_pageName;
+    protected String pageName;
 
     /** {@inheritDoc} */
     @Override public void initTag() {
         super.initTag();
-        m_pageName = null;
+        pageName = null;
     }
 
     /**
@@ -65,7 +65,7 @@ public class InsertDiffTag extends WikiTagBase {
      */
     public void setPage( final String page )
     {
-        m_pageName = page;
+        pageName = page;
     }
 
     /**
@@ -74,20 +74,20 @@ public class InsertDiffTag extends WikiTagBase {
      */
     public String getPage()
     {
-        return m_pageName;
+        return pageName;
     }
 
     /** {@inheritDoc} */
     @Override
     public final int doWikiStartTag() throws IOException {
-        final Engine engine = m_wikiContext.getEngine();
+        final Engine engine = wikiContext.getEngine();
         final Context ctx;
         
-        if( m_pageName == null ) {
-            ctx = m_wikiContext;
+        if( pageName == null ) {
+            ctx = wikiContext;
         } else {
-            ctx = m_wikiContext.clone();
-            ctx.setPage( engine.getManager( PageManager.class ).getPage(m_pageName) );
+            ctx = wikiContext.clone();
+            ctx.setPage( engine.getManager( PageManager.class ).getPage(pageName) );
         }
 
         final Integer vernew = ( Integer )pageContext.getAttribute( ATTR_NEWVERSION, PageContext.REQUEST_SCOPE );

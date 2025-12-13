@@ -38,11 +38,11 @@ import java.io.IOException;
 public class AuthorTag extends WikiTagBase {
     private static final long serialVersionUID = 0L;
 
-    public String m_format = "";
+    public String format = "";
 
     public void setFormat( final String format )
     {
-        m_format = format;  //empty or "plain"
+        this.format = format;  //empty or "plain"
     }
 
     /**
@@ -50,24 +50,24 @@ public class AuthorTag extends WikiTagBase {
      */
     @Override
     public final int doWikiStartTag() throws IOException {
-        final Engine engine = m_wikiContext.getEngine();
-        final Page page = m_wikiContext.getPage();
+        final Engine engine = wikiContext.getEngine();
+        final Page page = wikiContext.getPage();
         String author = page.getAuthor();
 
         if( author != null && !author.isEmpty() ) {
             author = TextUtil.replaceEntities(author);
 
-            if( engine.getManager( PageManager.class ).wikiPageExists(author) && !( "plain".equalsIgnoreCase( m_format ) ) ) {
+            if( engine.getManager( PageManager.class ).wikiPageExists(author) && !( "plain".equalsIgnoreCase( format ) ) ) {
                 // FIXME: It's very boring to have to do this.  Slow, too.
                 final RenderingManager mgr = engine.getManager( RenderingManager.class );
-                final MarkupParser p = mgr.getParser( m_wikiContext, "["+author+"|"+author+"]" );
+                final MarkupParser p = mgr.getParser( wikiContext, "["+author+"|"+author+"]" );
                 final WikiDocument d = p.parse();
-                author = mgr.getHTML( m_wikiContext, d );
+                author = mgr.getHTML( wikiContext, d );
             }
 
             pageContext.getOut().print( author );
         } else {
-            pageContext.getOut().print( Preferences.getBundle( m_wikiContext, InternationalizationManager.CORE_BUNDLE )
+            pageContext.getOut().print( Preferences.getBundle( wikiContext, InternationalizationManager.CORE_BUNDLE )
                                                    .getString( "common.unknownauthor" ) );
         }
 

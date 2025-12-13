@@ -39,8 +39,8 @@ public class PageSizeTag extends WikiTagBase {
     
     @Override
     public final int doWikiStartTag() throws IOException {
-        final Engine engine = m_wikiContext.getEngine();
-        final Page page = m_wikiContext.getPage();
+        final Engine engine = wikiContext.getEngine();
+        final Page page = wikiContext.getPage();
 
         try {
             if( page != null ) {

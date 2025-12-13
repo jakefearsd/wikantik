@@ -53,8 +53,8 @@ public class BreadcrumbsTag extends WikiTagBase
     private static final Logger LOG = LogManager.getLogger(BreadcrumbsTag.class);
     /** The name of the session attribute representing the breadcrumbtrail */
     public static final String BREADCRUMBTRAIL_KEY = "breadCrumbTrail";
-    private int m_maxQueueSize = 11;
-    private String m_separator = ", ";
+    private int maxQueueSize = 11;
+    private String separator = ", ";
 
     /**
      *  {@inheritDoc}
@@ -63,8 +63,8 @@ public class BreadcrumbsTag extends WikiTagBase
     public void initTag()
     {
         super.initTag();
-        m_maxQueueSize = 11;
-        m_separator = ", ";
+        maxQueueSize = 11;
+        separator = ", ";
     }
 
     /**
@@ -74,7 +74,7 @@ public class BreadcrumbsTag extends WikiTagBase
      */
     public int getMaxpages()
     {
-        return m_maxQueueSize;
+        return maxQueueSize;
     }
 
     /**
@@ -84,7 +84,7 @@ public class BreadcrumbsTag extends WikiTagBase
      */
     public void setMaxpages( final int maxpages)
     {
-        m_maxQueueSize = maxpages + 1;
+        maxQueueSize = maxpages + 1;
     }
 
     /**
@@ -94,7 +94,7 @@ public class BreadcrumbsTag extends WikiTagBase
      */
     public String getSeparator()
     {
-        return m_separator;
+        return separator;
     }
 
     /**
@@ -104,7 +104,7 @@ public class BreadcrumbsTag extends WikiTagBase
      */
     public void setSeparator( final String separator)
     {
-        m_separator = TextUtil.replaceEntities( separator );
+        this.separator = TextUtil.replaceEntities( separator );
     }
 
     /**
@@ -114,21 +114,21 @@ public class BreadcrumbsTag extends WikiTagBase
     public int doWikiStartTag() throws IOException {
         final HttpSession session = pageContext.getSession();
         FixedQueue trail = (FixedQueue) session.getAttribute(BREADCRUMBTRAIL_KEY);
-        final String page = m_wikiContext.getPage().getName();
+        final String page = wikiContext.getPage().getName();
 
         if( trail == null ) {
-            trail = new FixedQueue(m_maxQueueSize);
+            trail = new FixedQueue(maxQueueSize);
         } else {
             //  check if page still exists (could be deleted/renamed by another user)
             for (int i = 0;i<trail.size();i++) {
-                if( !m_wikiContext.getEngine().getManager( PageManager.class ).wikiPageExists( trail.get( i ) ) ) {
+                if( !wikiContext.getEngine().getManager( PageManager.class ).wikiPageExists( trail.get( i ) ) ) {
                     trail.remove(i);
                 }
             }
         }
 
-        if( m_wikiContext.getRequestContext().equals( ContextEnum.PAGE_VIEW.getRequestContext() ) ) {
-            if( m_wikiContext.getEngine().getManager( PageManager.class ).wikiPageExists( page ) ) {
+        if( wikiContext.getRequestContext().equals( ContextEnum.PAGE_VIEW.getRequestContext() ) ) {
+            if( wikiContext.getEngine().getManager( PageManager.class ).wikiPageExists( page ) ) {
                 if( trail.isEmpty() ) {
                     trail.pushItem( page );
                 } else {
@@ -161,12 +161,12 @@ public class BreadcrumbsTag extends WikiTagBase
 
             //FIXME: I can't figure out how to detect the appropriate jsp page to put here, so I hard coded Wiki.jsp
             //This breaks when you view an attachment metadata page
-            out.print( "<a class=\"" + linkclass + "\" href=\"" + m_wikiContext.getViewURL(curPage) + "\">" +
+            out.print( "<a class=\"" + linkclass + "\" href=\"" + wikiContext.getViewURL(curPage) + "\">" +
                        TextUtil.replaceEntities( curPage ) +
                        "</a>" );
 
             if( i < queueSize - 2 ) {
-                out.print(m_separator);
+                out.print(separator);
             }
         }
 
@@ -177,16 +177,16 @@ public class BreadcrumbsTag extends WikiTagBase
      * Extends the LinkedList class to provide a fixed-size queue implementation
      */
     public static class FixedQueue extends LinkedList< String > implements Serializable {
-        private final int m_size;
+        private final int size;
         private static final long serialVersionUID = 0L;
 
         FixedQueue( final int size ) {
-            m_size = size;
+            this.size = size;
         }
 
         String pushItem( final String o ) {
             add( o );
-            if( size() > m_size ) {
+            if( size() > size ) {
                 return removeFirst();
             }
 

@@ -75,7 +75,7 @@ public class PermissionTag extends WikiTagBase {
     
     private static final long serialVersionUID = 3761412993048982325L;
     
-    private String[] m_permissionList;
+    private String[] permissionList;
 
     /**
      * Initializes the tag.
@@ -83,7 +83,7 @@ public class PermissionTag extends WikiTagBase {
     @Override
     public void initTag() {
         super.initTag();
-        m_permissionList = null;
+        permissionList = null;
     }
 
     /**
@@ -93,7 +93,7 @@ public class PermissionTag extends WikiTagBase {
      */
     public void setPermission( final String permission )
     {
-        m_permissionList = StringUtils.split(permission,'|');
+        permissionList = StringUtils.split(permission,'|');
     }
 
     /**
@@ -103,15 +103,15 @@ public class PermissionTag extends WikiTagBase {
      *  @return true if granted, false if not
      */
     private boolean checkPermission( final String permission ) {
-        final Session session          = m_wikiContext.getWikiSession();
-        final Page page                = m_wikiContext.getPage();
-        final AuthorizationManager mgr = m_wikiContext.getEngine().getManager( AuthorizationManager.class );
+        final Session session          = wikiContext.getWikiSession();
+        final Page page                = wikiContext.getPage();
+        final AuthorizationManager mgr = wikiContext.getEngine().getManager( AuthorizationManager.class );
         boolean gotPermission          = false;
         
         if ( CREATE_GROUPS.equals( permission ) || CREATE_PAGES.equals( permission ) || EDIT_PREFERENCES.equals( permission ) || EDIT_PROFILE.equals( permission ) || LOGIN.equals( permission ) ) {
             gotPermission = mgr.checkPermission( session, new WikiPermission( page.getWiki(), permission ) );
         } else if ( VIEW_GROUP.equals( permission ) || EDIT_GROUP.equals( permission ) || DELETE_GROUP.equals( permission ) )  {
-            final Command command = m_wikiContext.getCommand();
+            final Command command = wikiContext.getCommand();
             gotPermission = false;
             if ( command instanceof GroupCommand groupCommand && groupCommand.getTarget() != null ) {
                 final GroupPrincipal group = (GroupPrincipal)groupCommand.getTarget();
@@ -125,13 +125,13 @@ public class PermissionTag extends WikiTagBase {
                 gotPermission = mgr.checkPermission( session, new GroupPermission( groupName, action ) );
             }
         } else if ( ALL_PERMISSION.equals( permission ) ) {
-            gotPermission = mgr.checkPermission( session, new AllPermission( m_wikiContext.getEngine().getApplicationName() ) );
+            gotPermission = mgr.checkPermission( session, new AllPermission( wikiContext.getEngine().getApplicationName() ) );
         } else if ( page != null ) {
             //
             //  Edit tag also checks that we're not trying to edit an old version: they cannot be edited.
             //
             if( EDIT.equals(permission) ) {
-                final Page latest = m_wikiContext.getEngine().getManager( PageManager.class ).getPage( page.getName() );
+                final Page latest = wikiContext.getEngine().getManager( PageManager.class ).getPage( page.getName() );
                 if( page.getVersion() != WikiProvider.LATEST_VERSION && latest.getVersion() != page.getVersion() ) {
                     return false;
                 }
@@ -150,7 +150,7 @@ public class PermissionTag extends WikiTagBase {
      */
     @Override
     public final int doWikiStartTag() {
-        for( final String perm : m_permissionList ) {
+        for( final String perm : permissionList ) {
             final boolean hasPermission;
             if( perm.charAt( 0 ) == '!' ) {
                 hasPermission = !checkPermission( perm.substring( 1 ) );

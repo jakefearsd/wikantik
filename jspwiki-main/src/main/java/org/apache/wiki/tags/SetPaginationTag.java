@@ -61,61 +61,61 @@ public class SetPaginationTag
     private static final long serialVersionUID = 0L;
     private static final int ALLITEMS = -1;
 
-    private int m_start;
-    private int m_total;
-    private int m_pagesize;
-    private int m_maxlinks;
-    private String m_fmtkey;
-    private String m_href;
-    private String m_onclick;
+    private int start;
+    private int total;
+    private int pagesize;
+    private int maxlinks;
+    private String fmtkey;
+    private String href;
+    private String onclick;
 
     @Override
     public void initTag()
     {
         super.initTag();
-        m_start = 0;
-        m_total = 0;
-        m_pagesize = 20;
-        m_maxlinks = 9;
-        m_fmtkey = null;
-        m_href = null;
-        m_onclick = null;
+        start = 0;
+        total = 0;
+        pagesize = 20;
+        maxlinks = 9;
+        fmtkey = null;
+        href = null;
+        onclick = null;
     }
 
     public void setStart(final int arg)
     {
-        m_start = arg;
+        start = arg;
     }
 
     public void setTotal(final int arg)
     {
-        m_total = arg;
+        total = arg;
     }
 
     public void setPagesize(final int arg)
     {
-        m_pagesize = arg;
+        pagesize = arg;
     }
 
     public void setMaxlinks(final int arg)
     {
-        m_maxlinks = arg;
-        if( m_maxlinks % 2 == 0 ) m_maxlinks--; /* must be odd */
+        maxlinks = arg;
+        if( maxlinks % 2 == 0 ) maxlinks--; /* must be odd */
     }
 
     public void setFmtkey(final String arg)
     {
-        m_fmtkey = arg;
+        fmtkey = arg;
     }
 
     public void setHref(final String arg)
     {
-        m_href = arg;
+        href = arg;
     }
 
     public void setOnclick(final String arg)
     {
-        m_onclick = arg;
+        onclick = arg;
     }
 
 
@@ -127,85 +127,85 @@ public class SetPaginationTag
     public int doWikiStartTag()
         throws IOException
     {
-        if( m_total <= m_pagesize ) return SKIP_BODY;
+        if( total <= pagesize ) return SKIP_BODY;
 
         final StringBuilder pagination = new StringBuilder();
 
-        if( m_start > m_total ) m_start = m_total;
-        if( m_start < ALLITEMS ) m_start = 0;
+        if( start > total ) start = total;
+        if( start < ALLITEMS ) start = 0;
 
-        final int maxs = m_pagesize * m_maxlinks;
-        final int mids = m_pagesize * ( m_maxlinks / 2 );
+        final int maxs = pagesize * maxlinks;
+        final int mids = pagesize * ( maxlinks / 2 );
 
         pagination.append( "<div class='pagination'>");
 
-        pagination.append( LocaleSupport.getLocalizedMessage( pageContext, m_fmtkey ) ).append( " " );
+        pagination.append( LocaleSupport.getLocalizedMessage( pageContext, fmtkey ) ).append( " " );
 
         int cursor = 0;
-        int cursormax = m_total;
+        int cursormax = total;
 
-        if( m_total > maxs )   //need to calculate real window ends
+        if( total > maxs )   //need to calculate real window ends
         {
-          if( m_start > mids ) cursor = m_start - mids;
-          if( (cursor + maxs) > m_total )
-            cursor = ( ( 1 + m_total/m_pagesize ) * m_pagesize ) - maxs ;
+          if( start > mids ) cursor = start - mids;
+          if( (cursor + maxs) > total )
+            cursor = ( ( 1 + total/pagesize ) * pagesize ) - maxs ;
 
           cursormax = cursor + maxs;
         }
 
 
-        if( ( m_start == ALLITEMS ) || (cursor > 0) )
+        if( ( start == ALLITEMS ) || (cursor > 0) )
         {
-            appendLink ( pagination, 0, m_fmtkey + ".first" );
+            appendLink ( pagination, 0, fmtkey + ".first" );
         }
 
 
-        if( (m_start != ALLITEMS ) && (m_start-m_pagesize >= 0) )
+        if( (start != ALLITEMS ) && (start-pagesize >= 0) )
         {
-            appendLink( pagination, m_start-m_pagesize, m_fmtkey + ".previous" );
+            appendLink( pagination, start-pagesize, fmtkey + ".previous" );
         }
 
-        if( m_start != ALLITEMS )
+        if( start != ALLITEMS )
         {
           while( cursor < cursormax )
           {
-            if( cursor == m_start )
+            if( cursor == start )
             {
               pagination.append( "<span class='cursor'>" );
-              pagination.append( 1 + cursor/m_pagesize );
+              pagination.append( 1 + cursor/pagesize );
               pagination.append( "</span>" );
             }
             else
             {
-              appendLink( pagination, cursor, 1+cursor/m_pagesize );
+              appendLink( pagination, cursor, 1+cursor/pagesize );
             }
-            cursor += m_pagesize;
+            cursor += pagesize;
           }
         }
 
 
-        if( (m_start != ALLITEMS ) && (m_start + m_pagesize < m_total) )
+        if( (start != ALLITEMS ) && (start + pagesize < total) )
         {
-            appendLink( pagination, m_start+m_pagesize, m_fmtkey + ".next" );
+            appendLink( pagination, start+pagesize, fmtkey + ".next" );
 
-        if( (m_start == ALLITEMS ) || (cursormax < m_total) )
-          appendLink ( pagination, ( (m_total/m_pagesize) * m_pagesize ), m_fmtkey + ".last" );
+        if( (start == ALLITEMS ) || (cursormax < total) )
+          appendLink ( pagination, ( (total/pagesize) * pagesize ), fmtkey + ".last" );
         }
 
-        if( m_start == ALLITEMS )
+        if( start == ALLITEMS )
         {
           pagination.append( "<span class='cursor'>" );
-          pagination.append( LocaleSupport.getLocalizedMessage(pageContext, m_fmtkey + ".all" ) );
+          pagination.append( LocaleSupport.getLocalizedMessage(pageContext, fmtkey + ".all" ) );
           pagination.append( "</span>&nbsp;&nbsp;" );
         }
         else
         {
-          appendLink ( pagination, ALLITEMS, m_fmtkey + ".all" );
+          appendLink ( pagination, ALLITEMS, fmtkey + ".all" );
         }
 
-        //(Total items: " + m_total + ")" );
-        pagination.append( LocaleSupport.getLocalizedMessage(pageContext, m_fmtkey + ".total",
-                           new Object[]{ m_total } ) );
+        //(Total items: " + total + ")" );
+        pagination.append( LocaleSupport.getLocalizedMessage(pageContext, fmtkey + ".total",
+                           new Object[]{ total } ) );
 
         pagination.append( "</div>" );
 
@@ -225,7 +225,7 @@ public class SetPaginationTag
     /**
      * Generate pagination links <a href='' title='' onclick=''>text</a>
      * for pagination blocks starting a page.
-     * Uses m_href and m_onclick as attribute patterns
+     * Uses href and onclick as attribute patterns
      * '%s' in the patterns are replaced with page offset
      *
      * @param sb  : stringbuilder to write output to
@@ -245,26 +245,26 @@ public class SetPaginationTag
         sb.append( "<a title=\"" );
         if( page == ALLITEMS )
         {
-            sb.append( LocaleSupport.getLocalizedMessage( pageContext, m_fmtkey + ".showall.title" ) );
+            sb.append( LocaleSupport.getLocalizedMessage( pageContext, fmtkey + ".showall.title" ) );
         }
         else
         {
-            sb.append( LocaleSupport.getLocalizedMessage( pageContext, m_fmtkey + ".show.title",
-                       new Object[]{ page + 1, page + m_pagesize } ) );
+            sb.append( LocaleSupport.getLocalizedMessage( pageContext, fmtkey + ".show.title",
+                       new Object[]{ page + 1, page + pagesize } ) );
         }
         sb.append( "\" " );
 
-        if( m_href != null )
+        if( href != null )
         {
             sb.append( "href=\"" );
-            sb.append( TextUtil.replaceString( m_href, "%s", Integer.toString( page ) ) );
+            sb.append( TextUtil.replaceString( href, "%s", Integer.toString( page ) ) );
             sb.append( "\" " );
         }
 
-        if( m_onclick != null )
+        if( onclick != null )
         {
             sb.append( "onclick=\"" );
-            sb.append( TextUtil.replaceString( m_onclick, "%s", Integer.toString( page ) ) );
+            sb.append( TextUtil.replaceString( onclick, "%s", Integer.toString( page ) ) );
             sb.append( "\" " );
         }
 

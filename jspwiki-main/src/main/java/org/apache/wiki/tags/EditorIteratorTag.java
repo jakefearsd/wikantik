@@ -40,11 +40,11 @@ public class EditorIteratorTag extends IteratorTag  {
     /** {@inheritDoc} */
     @Override
     public final int doStartTag() {
-        m_wikiContext = Context.findContext(pageContext);
-        final Engine engine = m_wikiContext.getEngine();
+        wikiContext = Context.findContext(pageContext);
+        final Engine engine = wikiContext.getEngine();
         final EditorManager mgr = engine.getManager( EditorManager.class );
         final String[] editorList = mgr.getEditorList();
-        final Collection< Editor > editors = Arrays.stream(editorList).map(editor -> new Editor(m_wikiContext, editor)).toList();
+        final Collection< Editor > editors = Arrays.stream(editorList).map(editor -> new Editor(wikiContext, editor)).toList();
 
         setList( editors );
 

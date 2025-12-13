@@ -60,7 +60,7 @@ public class UserCheckTag extends WikiTagBase {
     private static final String KNOWN = "known";
     private static final String NOT_AUTHENTICATED = "notauthenticated";
 
-    private String m_status;
+    private String status;
 
     /**
      *  {@inheritDoc}
@@ -68,7 +68,7 @@ public class UserCheckTag extends WikiTagBase {
     @Override
     public void initTag() {
         super.initTag();
-        m_status = null;
+        status = null;
     }
 
     /**
@@ -78,7 +78,7 @@ public class UserCheckTag extends WikiTagBase {
      */
     public String getStatus()
     {
-        return m_status;
+        return status;
     }
 
     /**
@@ -88,7 +88,7 @@ public class UserCheckTag extends WikiTagBase {
      */
     public void setStatus( final String status )
     {
-        m_status = status.toLowerCase();
+        this.status = status.toLowerCase();
     }
 
     /**
@@ -97,26 +97,26 @@ public class UserCheckTag extends WikiTagBase {
      */
     @Override
     public final int doWikiStartTag() {
-        final Session session = m_wikiContext.getWikiSession();
-        final String status = session.getStatus();
-        final AuthenticationManager mgr = m_wikiContext.getEngine().getManager( AuthenticationManager.class );
+        final Session session = wikiContext.getWikiSession();
+        final String sessionStatus = session.getStatus();
+        final AuthenticationManager mgr = wikiContext.getEngine().getManager( AuthenticationManager.class );
         final boolean containerAuth = mgr.isContainerAuthenticated();
         final boolean cookieAssertions = mgr.allowsCookieAssertions();
 
-        if( m_status != null ) {
-            switch( m_status ) {
+        if( status != null ) {
+            switch( status ) {
             case ANONYMOUS:
-                if( status.equals( Session.ANONYMOUS ) ) {
+                if( sessionStatus.equals( Session.ANONYMOUS ) ) {
                     return EVAL_BODY_INCLUDE;
                 }
                 break;
             case AUTHENTICATED:
-                if( status.equals( Session.AUTHENTICATED ) ) {
+                if( sessionStatus.equals( Session.AUTHENTICATED ) ) {
                     return EVAL_BODY_INCLUDE;
                 }
                 break;
             case ASSERTED:
-                if( status.equals( Session.ASSERTED ) ) {
+                if( sessionStatus.equals( Session.ASSERTED ) ) {
                     return EVAL_BODY_INCLUDE;
                 }
                 break;
@@ -146,7 +146,7 @@ public class UserCheckTag extends WikiTagBase {
                 }
                 return SKIP_BODY;
             case NOT_AUTHENTICATED:
-                if( !status.equals( Session.AUTHENTICATED ) ) {
+                if( !sessionStatus.equals( Session.AUTHENTICATED ) ) {
                     return EVAL_BODY_INCLUDE;
                 }
                 break;

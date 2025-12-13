@@ -47,38 +47,38 @@ public class VariableTag extends WikiTagBase {
 
     private static final long serialVersionUID = 0L;
 
-    private String m_var;
-    private String m_default;
+    private String var;
+    private String defaultField;
 
     @Override public void initTag() {
         super.initTag();
-        m_var = m_default = null;
+        var = defaultField = null;
     }
 
     public String getVar()
     {
-        return m_var;
+        return var;
     }
 
     public void setVar( final String arg )
     {
-        m_var = arg;
+        var = arg;
     }
 
     public void setDefault( final String arg )
     {
-        m_default = arg;
+        defaultField = arg;
     }
 
     @Override
     public final int doWikiStartTag() throws JspException, IOException {
-        final Engine engine = m_wikiContext.getEngine();
+        final Engine engine = wikiContext.getEngine();
         final JspWriter out = pageContext.getOut();
         String msg = null;
         String value = null;
 
         try {
-            value = engine.getManager( VariableManager.class ).getValue( m_wikiContext, getVar() );
+            value = engine.getManager( VariableManager.class ).getValue( wikiContext, getVar() );
         } catch( final NoSuchVariableException e ) {
             msg = "No such variable: " + e.getMessage();
         } catch( final IllegalArgumentException e ) {
@@ -86,7 +86,7 @@ public class VariableTag extends WikiTagBase {
         }
 
         if( value == null ) {
-            value = m_default;
+            value = defaultField;
         }
 
         if( value == null ) {

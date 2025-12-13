@@ -39,8 +39,8 @@ public class HasAttachmentsTag extends WikiTagBase {
     
     @Override
     public final int doWikiStartTag() {
-        final Engine engine = m_wikiContext.getEngine();
-        final Page page = m_wikiContext.getPage();
+        final Engine engine = wikiContext.getEngine();
+        final Page page = wikiContext.getPage();
         final AttachmentManager mgr = engine.getManager( AttachmentManager.class );
 
         try {

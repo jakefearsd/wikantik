@@ -46,9 +46,9 @@ import java.util.Iterator;
 public abstract class IteratorTag extends BodyTagSupport implements TryCatchFinally {
 
 	private static final long serialVersionUID = 8945334759300595321L;
-	protected String m_pageName;
-    protected Iterator< ? > m_iterator;
-    protected Context m_wikiContext;
+	protected String pageName;
+    protected Iterator< ? > iterator;
+    protected Context wikiContext;
 
     private static final Logger LOG = LogManager.getLogger( IteratorTag.class );
 
@@ -59,7 +59,7 @@ public abstract class IteratorTag extends BodyTagSupport implements TryCatchFina
      */
     public void setList( final Collection< ? > arg ) {
         if( arg != null ) {
-            m_iterator = arg.iterator();
+            iterator = arg.iterator();
         }
     }
 
@@ -70,7 +70,7 @@ public abstract class IteratorTag extends BodyTagSupport implements TryCatchFina
      */
     public void setList( final Object[] arg ) {
         if( arg != null ) {
-            m_iterator = Arrays.asList(arg).iterator();
+            iterator = Arrays.asList(arg).iterator();
         }
     }
 
@@ -78,7 +78,7 @@ public abstract class IteratorTag extends BodyTagSupport implements TryCatchFina
      *  Clears the iterator away.  After calling this method doStartTag() will always return SKIP_BODY
      */
     public void clearList() {
-        m_iterator = null;
+        iterator = null;
     }
     
     /**
@@ -91,12 +91,12 @@ public abstract class IteratorTag extends BodyTagSupport implements TryCatchFina
     /** {@inheritDoc} */
     @Override
     public int doStartTag() {
-        m_wikiContext = Context.findContext(pageContext);
+        wikiContext = Context.findContext(pageContext);
         resetIterator();
-        if( m_iterator == null ) {
+        if( iterator == null ) {
             return SKIP_BODY;
         }
-        if( m_iterator.hasNext() ) {
+        if( iterator.hasNext() ) {
             buildContext();
         }
 
@@ -107,8 +107,8 @@ public abstract class IteratorTag extends BodyTagSupport implements TryCatchFina
      *  Arg, I hate globals.
      */
     private void buildContext() {
-        final Context context = m_wikiContext.clone();
-        final Object o = m_iterator.next();
+        final Context context = wikiContext.clone();
+        final Object o = iterator.next();
         if( o instanceof Page page ) {
             context.setPage( page );
         }
@@ -121,7 +121,7 @@ public abstract class IteratorTag extends BodyTagSupport implements TryCatchFina
     @Override
     public int doEndTag() {
         // Return back to the original.
-        pageContext.setAttribute( Context.ATTR_CONTEXT, m_wikiContext, PageContext.REQUEST_SCOPE );
+        pageContext.setAttribute( Context.ATTR_CONTEXT, wikiContext, PageContext.REQUEST_SCOPE );
 
         return EVAL_PAGE;
     }
@@ -140,7 +140,7 @@ public abstract class IteratorTag extends BodyTagSupport implements TryCatchFina
             }
         }
 
-        if( m_iterator != null && m_iterator.hasNext() ) {
+        if( iterator != null && iterator.hasNext() ) {
             buildContext();
             return EVAL_BODY_BUFFERED;
         }
@@ -167,9 +167,9 @@ public abstract class IteratorTag extends BodyTagSupport implements TryCatchFina
     @Override
     public void doFinally() {
         resetIterator();
-        m_iterator = null;
-        m_pageName = null;
-        m_wikiContext = null;        
+        iterator = null;
+        pageName = null;
+        wikiContext = null;        
     }
 
 }

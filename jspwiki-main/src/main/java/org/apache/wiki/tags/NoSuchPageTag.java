@@ -34,33 +34,33 @@ public class NoSuchPageTag extends WikiTagBase {
 
     private static final long serialVersionUID = 0L;
     
-    private String m_pageName;
+    private String pageName;
 
     @Override
     public void initTag() {
         super.initTag();
-        m_pageName = null;
+        pageName = null;
     }
 
     public void setPage( final String name )
     {
-        m_pageName = name;
+        pageName = name;
     }
 
     public String getPage()
     {
-        return m_pageName;
+        return pageName;
     }
 
     @Override
     public int doWikiStartTag() throws IOException, ProviderException {
-        final Engine engine = m_wikiContext.getEngine();
+        final Engine engine = wikiContext.getEngine();
         final Page page;
 
-        if( m_pageName == null ) {
-            page = m_wikiContext.getPage();
+        if( pageName == null ) {
+            page = wikiContext.getPage();
         } else {
-            page = engine.getManager( PageManager.class ).getPage( m_pageName );
+            page = engine.getManager( PageManager.class ).getPage( pageName );
         }
 
         if( page != null && engine.getManager( PageManager.class ).wikiPageExists( page.getName(), page.getVersion() ) ) {

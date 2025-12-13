@@ -47,7 +47,7 @@ public class CheckLockTag extends WikiTagBase {
         LOCKED, NOTLOCKED, OWNED
     }
 
-    private LockState m_mode;
+    private LockState mode;
 
     /**
      *  {@inheritDoc}
@@ -55,7 +55,7 @@ public class CheckLockTag extends WikiTagBase {
     @Override
     public void initTag() {
         super.initTag();
-        m_mode = LockState.NOTLOCKED;
+        mode = LockState.NOTLOCKED;
     }
 
     /**
@@ -65,11 +65,11 @@ public class CheckLockTag extends WikiTagBase {
      */
     public void setMode( final String arg ) {
         if( "locked".equals( arg ) ) {
-            m_mode = LockState.LOCKED;
+            mode = LockState.LOCKED;
         } else if( "owned".equals( arg ) ) {
-            m_mode = LockState.OWNED;
+            mode = LockState.OWNED;
         } else {
-            m_mode = LockState.NOTLOCKED;
+            mode = LockState.NOTLOCKED;
         }
     }
 
@@ -78,17 +78,17 @@ public class CheckLockTag extends WikiTagBase {
      */
     @Override
     public final int doWikiStartTag() throws IOException, ProviderException {
-        final Engine engine = m_wikiContext.getEngine();
-        final Page page = m_wikiContext.getPage();
+        final Engine engine = wikiContext.getEngine();
+        final Page page = wikiContext.getPage();
 
         if( page != null ) {
             final PageManager mgr = engine.getManager( PageManager.class );
             final PageLock lock = mgr.getCurrentLock( page );
             final HttpSession session = pageContext.getSession();
             final PageLock userLock = ( PageLock )session.getAttribute( "lock-" + page.getName() );
-            if( ( lock != null && m_mode == LockState.LOCKED && lock != userLock ) ||
-                ( lock != null && m_mode == LockState.OWNED && lock == userLock )  ||
-                ( lock == null && m_mode == LockState.NOTLOCKED ) ) {
+            if( ( lock != null && mode == LockState.LOCKED && lock != userLock ) ||
+                ( lock != null && mode == LockState.OWNED && lock == userLock )  ||
+                ( lock == null && mode == LockState.NOTLOCKED ) ) {
 
                 final String tid = getId();
                 if( tid != null && lock != null ) {

@@ -34,7 +34,7 @@ public class AdminBeanIteratorTag extends IteratorTag {
 	
     private static final long serialVersionUID = 1L;
 
-    private int m_type;
+    private int type;
 
     /**
      *  Set the type of the bean.
@@ -42,10 +42,10 @@ public class AdminBeanIteratorTag extends IteratorTag {
      *  @param type Type to set
      */
     public void setType( final String type ) {
-    	if (m_wikiContext == null) {
-    		m_wikiContext = Context.findContext(pageContext);
+    	if (wikiContext == null) {
+    		wikiContext = Context.findContext(pageContext);
     	}
-        m_type = m_wikiContext.getEngine().getManager( AdminBeanManager.class ).getTypeFromString( type );
+        this.type = wikiContext.getEngine().getManager( AdminBeanManager.class ).getTypeFromString( type );
     }
 
     /**
@@ -53,9 +53,9 @@ public class AdminBeanIteratorTag extends IteratorTag {
      */
     @Override
     public void resetIterator() {
-        final AdminBeanManager mgr = m_wikiContext.getEngine().getManager( AdminBeanManager.class );
+        final AdminBeanManager mgr = wikiContext.getEngine().getManager( AdminBeanManager.class );
         final Collection< AdminBean > beans = mgr.getAllBeans();
-        final ArrayList< AdminBean > typedBeans = beans.stream().filter(ab -> ab.getType() == m_type).collect(Collectors.toCollection(ArrayList::new));
+        final ArrayList< AdminBean > typedBeans = beans.stream().filter(ab -> ab.getType() == type).collect(Collectors.toCollection(ArrayList::new));
 
         setList( typedBeans );
     }

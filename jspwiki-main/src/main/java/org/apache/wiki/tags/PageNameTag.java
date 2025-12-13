@@ -37,14 +37,14 @@ public class PageNameTag extends WikiTagBase {
 
     @Override
     public final int doWikiStartTag() throws IOException {
-        final Engine engine = m_wikiContext.getEngine();
-        final Page page = m_wikiContext.getPage();
+        final Engine engine = wikiContext.getEngine();
+        final Page page = wikiContext.getPage();
 
         if( page != null ) {
             if( page instanceof Attachment att ) {
                 pageContext.getOut().print( TextUtil.replaceEntities( att.getFileName() ) );
             } else {
-                pageContext.getOut().print( engine.getManager( RenderingManager.class ).beautifyTitle( m_wikiContext.getName() ) );
+                pageContext.getOut().print( engine.getManager( RenderingManager.class ).beautifyTitle( wikiContext.getName() ) );
             }
         }
 

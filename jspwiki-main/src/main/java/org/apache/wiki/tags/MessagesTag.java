@@ -41,57 +41,57 @@ public class MessagesTag extends WikiTagBase {
 
     private static final long   serialVersionUID = 0L;
 
-    private String              m_action;
-    private String              m_prefix         = "";
-    private String              m_topic;
-    private String              m_div            = "information";
+    private String              action;
+    private String              prefix         = "";
+    private String              topic;
+    private String              div            = "information";
 
     private static final String CLEAR            = "clear";
 
     @Override
     public void initTag() {
         super.initTag();
-        m_action = m_topic = null;
-        m_prefix = "";
-        m_div = "information";
+        action = topic = null;
+        prefix = "";
+        div = "information";
     }
 
     public void setTopic( final String topic ) {
-        m_topic = topic;
+        this.topic = topic;
     }
 
     public void setPrefix( final String prefix ) {
-        m_prefix = prefix;
+        this.prefix = prefix;
     }
 
     public void setDiv( final String div ) {
-        m_div = div;
+        this.div = div;
     }
 
     public void setAction( final String action ) {
-        m_action = action.toLowerCase();
+        this.action = action.toLowerCase();
     }
 
     @Override
     public final int doWikiStartTag() throws IOException {
-        final Session session = m_wikiContext.getWikiSession();
-        if( CLEAR.equals( m_action ) ) {
-            if( m_topic == null ) {
+        final Session session = wikiContext.getWikiSession();
+        if( CLEAR.equals( action ) ) {
+            if( topic == null ) {
                 session.clearMessages();
             } else {
-                session.clearMessages( m_topic );
+                session.clearMessages( topic );
             }
         } else {
-            final String[] messages = ( m_topic == null ) ? session.getMessages() : session.getMessages( m_topic );
+            final String[] messages = ( topic == null ) ? session.getMessages() : session.getMessages( topic );
             if( messages.length > 0 ) {
                 final StringBuilder sb = new StringBuilder();
                 if( messages.length == 1 ) {
-                    sb.append( "<div class=\"" ).append( m_div ).append( "\">" )
-                      .append( m_prefix )
+                    sb.append( "<div class=\"" ).append( div ).append( "\">" )
+                      .append( prefix )
                       .append( TextUtil.replaceEntities( messages[ 0 ] ) )
                       .append( "</div>" );
                 } else {
-                    sb.append( "<div class=\"" ).append( m_div ).append( "\">" ).append( m_prefix );
+                    sb.append( "<div class=\"" ).append( div ).append( "\">" ).append( prefix );
                     sb.append( "<ul>" );
                     for( final String message : messages ) {
                         sb.append( "<li>" ).append( TextUtil.replaceEntities( message ) ).append( "</li>" );

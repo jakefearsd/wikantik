@@ -42,49 +42,49 @@ public abstract class WikiLinkTag extends WikiTagBase {
 	public static final int   ANCHOR = 0;
     public static final int   URL    = 1;
 
-    protected String m_pageName;
-    protected int    m_format = ANCHOR;
-    protected String m_template;
+    protected String pageName;
+    protected int    format = ANCHOR;
+    protected String template;
 
     
     @Override
     public void initTag()
     {
         super.initTag();
-        m_pageName = m_template = null;
-        m_format = ANCHOR;
+        pageName = template = null;
+        format = ANCHOR;
     }
     
     public void setPage(final String page )
     {
-        m_pageName = page;
+        pageName = page;
     }
 
     public String getPage()
     {
-        return m_pageName;
+        return pageName;
     }
 
 
     public String getTemplate()
     {
-        return m_template;
+        return template;
     }
 
     public void setTemplate(final String arg )
     {
-        m_template = arg;
+        template = arg;
     }
 
     public void setFormat(final String mode )
     {
         if( "url".equalsIgnoreCase(mode) )
         {
-            m_format = URL;
+            format = URL;
         }
         else
         {
-            m_format = ANCHOR;
+            format = ANCHOR;
         }
     }
 
@@ -93,7 +93,7 @@ public abstract class WikiLinkTag extends WikiTagBase {
     {
         try
         {
-            if( m_format == ANCHOR )
+            if( format == ANCHOR )
             {
                 pageContext.getOut().print("</a>");
             }

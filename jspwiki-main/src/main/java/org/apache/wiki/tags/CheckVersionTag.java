@@ -44,7 +44,7 @@ public class CheckVersionTag extends WikiTagBase {
         LATEST, NOTLATEST, FIRST, NOTFIRST
     }
 
-    private VersionMode m_mode;
+    private VersionMode mode;
 
     /**
      * {@inheritDoc}
@@ -52,7 +52,7 @@ public class CheckVersionTag extends WikiTagBase {
     @Override
     public void initTag() {
         super.initTag();
-        m_mode = VersionMode.LATEST;
+        mode = VersionMode.LATEST;
     }
 
     /**
@@ -62,13 +62,13 @@ public class CheckVersionTag extends WikiTagBase {
      */
     public void setMode( final String arg ) {
         if( "latest".equals(arg) ) {
-            m_mode = VersionMode.LATEST;
+            mode = VersionMode.LATEST;
         } else if( "notfirst".equals(arg) ) {
-            m_mode = VersionMode.NOTFIRST;
+            mode = VersionMode.NOTFIRST;
         } else if( "first".equals(arg) ) {
-            m_mode = VersionMode.FIRST;
+            mode = VersionMode.FIRST;
         } else {
-            m_mode = VersionMode.NOTLATEST;
+            mode = VersionMode.NOTLATEST;
         }
     }
 
@@ -77,15 +77,15 @@ public class CheckVersionTag extends WikiTagBase {
      */
     @Override
     public final int doWikiStartTag() {
-        final Engine engine = m_wikiContext.getEngine();
-        final Page page = m_wikiContext.getPage();
+        final Engine engine = wikiContext.getEngine();
+        final Page page = wikiContext.getPage();
 
         if( page != null && engine.getManager( PageManager.class ).wikiPageExists( page.getName() ) ) {
             final int version = page.getVersion();
             final boolean include;
             final Page latest = engine.getManager( PageManager.class ).getPage( page.getName() );
 
-            switch( m_mode ) {
+            switch( mode ) {
                 case LATEST    : include = ( version < 0 ) || ( latest.getVersion() == version ); break;
                 case NOTLATEST : include = ( version > 0 ) && ( latest.getVersion() != version ); break;
                 case FIRST     : include = ( version == 1 ) || ( version < 0 && latest.getVersion() == 1 ); break;

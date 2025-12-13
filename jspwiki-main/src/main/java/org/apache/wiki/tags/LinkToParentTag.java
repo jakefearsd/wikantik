@@ -40,7 +40,7 @@ public class LinkToParentTag extends LinkToTag {
     
     @Override
     public int doWikiStartTag() throws IOException {
-        final Page p = m_wikiContext.getPage();
+        final Page p = wikiContext.getPage();
 
         //  We just simply set the page to be our parent page and call the superclass.
         if( p instanceof Attachment att ) {

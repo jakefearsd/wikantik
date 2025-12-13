@@ -45,42 +45,42 @@ public class LinkToTag extends WikiLinkTag {
 
     private static final long serialVersionUID = 0L;
 
-    private String m_version;
-    public String m_title = "";
-    public String m_accesskey = "";
+    private String version;
+    public String title = "";
+    public String accesskey = "";
 
     @Override
     public void initTag() {
         super.initTag();
-        m_version = null;
+        version = null;
     }
 
     public String getVersion() {
-        return m_version;
+        return version;
     }
 
     public void setVersion( final String arg ) {
-        m_version = arg;
+        version = arg;
     }
 
     public void setTitle( final String title ) {
-        m_title = title;
+        this.title = title;
     }
 
     public void setAccesskey( final String access ) {
-        m_accesskey = access;
+        accesskey = access;
     }
 
     @Override
     public int doWikiStartTag() throws IOException {
-        String pageName = m_pageName;
+        String localPageName = pageName;
         boolean isattachment = false;
 
-        if( m_pageName == null ) {
-            final Page p = m_wikiContext.getPage();
+        if( localPageName == null ) {
+            final Page p = wikiContext.getPage();
 
             if( p != null ) {
-                pageName = p.getName();
+                localPageName = p.getName();
 
                 isattachment = p instanceof Attachment;
             } else {
@@ -94,10 +94,10 @@ public class LinkToTag extends WikiLinkTag {
         String forceDownload = "";
 
         if( isattachment ) {
-            url = m_wikiContext.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), pageName, ( getVersion() != null ) ? "version=" + getVersion() : null );
+            url = wikiContext.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), localPageName, ( getVersion() != null ) ? "version=" + getVersion() : null );
             linkclass = "attachment";
 
-            if( m_wikiContext.getEngine().getManager( AttachmentManager.class ).forceDownload( pageName ) ) {
+            if( wikiContext.getEngine().getManager( AttachmentManager.class ).forceDownload( localPageName ) ) {
                 forceDownload = "download ";
             }
 
@@ -110,16 +110,16 @@ public class LinkToTag extends WikiLinkTag {
                 params.append( params.length() > 0 ? "&amp;" : "" ).append( "skin=" ).append( getTemplate() );
             }
 
-            url = m_wikiContext.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), pageName, params.toString() );
+            url = wikiContext.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), localPageName, params.toString() );
             linkclass = "wikipage";
         }
 
-        switch( m_format ) {
+        switch( format ) {
         case ANCHOR:
             out.print( "<a class=\"" + linkclass +
                        "\" href=\"" + url +
-                       "\" accesskey=\"" + m_accesskey +
-                       "\" title=\"" + m_title + "\" " + forceDownload + ">" );
+                       "\" accesskey=\"" + accesskey +
+                       "\" title=\"" + title + "\" " + forceDownload + ">" );
             break;
         case URL:
             out.print( url );

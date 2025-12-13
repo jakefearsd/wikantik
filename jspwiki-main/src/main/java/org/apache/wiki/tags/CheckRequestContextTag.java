@@ -34,8 +34,8 @@ public class CheckRequestContextTag extends WikiTagBase {
 
     private static final long serialVersionUID = 0L;
     
-    private String m_context;
-    private String[] m_contextList = {};
+    private String context;
+    private String[] contextList = {};
 
     /**
      *  {@inheritDoc}
@@ -43,8 +43,8 @@ public class CheckRequestContextTag extends WikiTagBase {
     @Override
     public void initTag() {
         super.initTag();
-        m_context = null;
-        m_contextList = new String[0];
+        context = null;
+        contextList = new String[0];
     }
     
     /**
@@ -54,7 +54,7 @@ public class CheckRequestContextTag extends WikiTagBase {
      */
     public String getContext()
     {
-        return m_context;
+        return context;
     }
 
     /**
@@ -63,8 +63,8 @@ public class CheckRequestContextTag extends WikiTagBase {
      *  @param arg One of the RequestsContexts.
      */
     public void setContext( final String arg ) {
-        m_context = arg;
-        m_contextList = StringUtils.split( arg,'|' );
+        context = arg;
+        contextList = StringUtils.split( arg,'|' );
     }
 
     /**
@@ -72,8 +72,8 @@ public class CheckRequestContextTag extends WikiTagBase {
      */
     @Override
     public final int doWikiStartTag() throws IOException, ProviderException {
-        for ( final String checkedCtx : m_contextList ) {
-            final String ctx = m_wikiContext.getRequestContext();
+        for ( final String checkedCtx : contextList ) {
+            final String ctx = wikiContext.getRequestContext();
             if ( !checkedCtx.isEmpty() ) {
                 if ( checkedCtx.charAt( 0 ) == '!' ) {
                     if ( !ctx.equalsIgnoreCase( checkedCtx.substring( 1 ) ) ) {

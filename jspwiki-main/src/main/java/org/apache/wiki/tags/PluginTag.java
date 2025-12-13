@@ -46,10 +46,10 @@ public class PluginTag
     private static final long serialVersionUID = 0L;
     private static final Logger LOG = LogManager.getLogger( PluginTag.class );
     
-    private String m_plugin;
-    private String m_args;
+    private String plugin;
+    private String args;
 
-    private boolean m_evaluated;
+    private boolean evaluated;
 
     /**
      *  {@inheritDoc}
@@ -58,8 +58,8 @@ public class PluginTag
     public void release()
     {
         super.release();
-        m_plugin = m_args = null;
-        m_evaluated = false;
+        plugin = args = null;
+        evaluated = false;
     }
     
     /**
@@ -69,7 +69,7 @@ public class PluginTag
      */
     public void setPlugin( final String p )
     {
-        m_plugin = p;
+        plugin = p;
     }
 
     /**
@@ -79,7 +79,7 @@ public class PluginTag
      */
     public void setArgs( final String a )
     {
-        m_args = a;
+        args = a;
     }
     
     /**
@@ -88,15 +88,15 @@ public class PluginTag
     @Override
     public int doWikiStartTag() throws JspException, IOException
     {
-        m_evaluated = false;
+        evaluated = false;
         return EVAL_BODY_BUFFERED;
     }
 
     private String executePlugin( final String plugin, final String args, final String body ) throws PluginException, IOException {
-        final Engine engine = m_wikiContext.getEngine();
+        final Engine engine = wikiContext.getEngine();
         final PluginManager pm  = engine.getManager( PluginManager.class );
 
-        m_evaluated = true;
+        evaluated = true;
 
         final Map<String, String> argmap = pm.parseArgs( args );
         
@@ -105,7 +105,7 @@ public class PluginTag
             argmap.put( "_body", body );
         }
 
-        return pm.execute( m_wikiContext, plugin, argmap );
+        return pm.execute( wikiContext, plugin, argmap );
     }
     
     /**
@@ -115,11 +115,11 @@ public class PluginTag
     public int doEndTag()
         throws JspException
     {
-        if( !m_evaluated )
+        if( !evaluated )
         {
             try
             {
-                pageContext.getOut().write( executePlugin( m_plugin, m_args, null ) );
+                pageContext.getOut().write( executePlugin( plugin, args, null ) );
             }
             catch( final Exception e )
             {
@@ -141,7 +141,7 @@ public class PluginTag
         {
             final BodyContent bc = getBodyContent();
             
-            getPreviousOut().write( executePlugin( m_plugin, m_args, (bc != null) ? bc.getString() : null) );
+            getPreviousOut().write( executePlugin( plugin, args, (bc != null) ? bc.getString() : null) );
         }
         catch( final Exception e )
         {

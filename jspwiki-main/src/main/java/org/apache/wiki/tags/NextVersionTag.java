@@ -35,7 +35,7 @@ public class NextVersionTag extends WikiTagBase {
 
     @Override
     public final int doWikiStartTag() throws IOException {
-        final Page page = m_wikiContext.getPage();
+        final Page page = wikiContext.getPage();
         int version = page.getVersion();
         if( version != WikiProvider.LATEST_VERSION ) {
             version++;

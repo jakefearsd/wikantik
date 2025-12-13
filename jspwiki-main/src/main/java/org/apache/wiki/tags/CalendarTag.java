@@ -58,10 +58,10 @@ public class CalendarTag extends WikiTagBase {
     private static final Logger LOG = LogManager.getLogger( CalendarTag.class );
     private static final int NUM_PAGES_TO_CHECK = 3;
 
-    private DateTimeFormatter m_pageFormat;
-    private DateTimeFormatter m_urlFormat;
-    private DateTimeFormatter m_monthUrlFormat;
-    private boolean m_addIndex;
+    private DateTimeFormatter pageFormat;
+    private DateTimeFormatter urlFormat;
+    private DateTimeFormatter monthUrlFormat;
+    private boolean addIndex;
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern( "ddMMyy" );
 
     /**
@@ -70,7 +70,7 @@ public class CalendarTag extends WikiTagBase {
     @Override
     public void initTag() {
         super.initTag();
-        m_pageFormat = m_urlFormat = m_monthUrlFormat = null;
+        pageFormat = urlFormat = monthUrlFormat = null;
     }
 
     /**
@@ -85,7 +85,7 @@ public class CalendarTag extends WikiTagBase {
      *  @see org.apache.wiki.plugin.WeblogPlugin
      */
     public void setPageformat( final String format ) {
-        m_pageFormat = DateTimeFormatter.ofPattern( format );
+        pageFormat = DateTimeFormatter.ofPattern( format );
     }
 
     /**
@@ -97,7 +97,7 @@ public class CalendarTag extends WikiTagBase {
      *  @see DateTimeFormatter
      */
     public void setUrlformat( final String format ) {
-        m_urlFormat = DateTimeFormatter.ofPattern( format );
+        urlFormat = DateTimeFormatter.ofPattern( format );
     }
 
     /**
@@ -108,7 +108,7 @@ public class CalendarTag extends WikiTagBase {
      *  @see DateTimeFormatter
      */
     public void setMonthurlformat( final String format ) {
-        m_monthUrlFormat = DateTimeFormatter.ofPattern( format );
+        monthUrlFormat = DateTimeFormatter.ofPattern( format );
     }
 
     /**
@@ -120,11 +120,11 @@ public class CalendarTag extends WikiTagBase {
      *  @see org.apache.wiki.plugin.WeblogPlugin
      */
     public void setAddindex( final boolean addIndex ) {
-        m_addIndex = addIndex;
+        this.addIndex = addIndex;
     }
 
     private String format( final String txt ) {
-        final Page p = m_wikiContext.getPage();
+        final Page p = wikiContext.getPage();
         if( p != null ) {
             return TextUtil.replaceString( txt, "%p", p.getName() );
         }
@@ -135,14 +135,14 @@ public class CalendarTag extends WikiTagBase {
      *  Returns a link to the given day.
      */
     private String getDayLink( final LocalDate day ) {
-        final Engine engine = m_wikiContext.getEngine();
+        final Engine engine = wikiContext.getEngine();
         final String result;
 
-        if( m_pageFormat != null ) {
-            final String pagename = day.format( m_pageFormat );
+        if( pageFormat != null ) {
+            final String pagename = day.format( pageFormat );
 
             var somePageExistsOnThisDay = false;
-            if( m_addIndex ) {
+            if( addIndex ) {
                 // Look at up to 3 pages for whether the page exists. This avoids an issue
                 // with the WeblogPlugin when the first blog post(s) of a day gets deleted.
                 for( int pageIdx = 1; pageIdx <= NUM_PAGES_TO_CHECK; pageIdx++ ) {
@@ -156,18 +156,18 @@ public class CalendarTag extends WikiTagBase {
             }
 
             if( somePageExistsOnThisDay ) {
-                if( m_urlFormat != null ) {
-                    final String url = day.format( m_urlFormat );
+                if( urlFormat != null ) {
+                    final String url = day.format( urlFormat );
                     result = "<td class=\"link\"><a href=\"" + url + "\">" + day.getDayOfMonth() + "</a></td>";
                 } else {
-                    result = "<td class=\"link\"><a href=\"" + m_wikiContext.getViewURL( pagename ) + "\">" +
+                    result = "<td class=\"link\"><a href=\"" + wikiContext.getViewURL( pagename ) + "\">" +
                              day.getDayOfMonth() + "</a></td>";
                 }
             } else {
                 result = "<td class=\"days\">" + day.getDayOfMonth() + "</td>";
             }
-        } else if( m_urlFormat != null ) {
-            final String url = day.format( m_urlFormat );
+        } else if( urlFormat != null ) {
+            final String url = day.format( urlFormat );
             result = "<td><a href=\"" + url + "\">" + day.getDayOfMonth() + "</a></td>";
         } else {
             result = "<td class=\"days\">" + day.getDayOfMonth() + "</td>";
@@ -180,14 +180,14 @@ public class CalendarTag extends WikiTagBase {
         final DateTimeFormatter monthfmt = DateTimeFormatter.ofPattern( "MMMM yyyy" );
         final String result;
 
-        if( m_monthUrlFormat == null ) {
+        if( monthUrlFormat == null ) {
             result = yearMonth.format( monthfmt );
         } else {
             final int firstDay = 1;
             final int lastDay = yearMonth.lengthOfMonth();
             final LocalDate lastDayOfMonth = yearMonth.atDay( lastDay );
 
-            String url = lastDayOfMonth.format( m_monthUrlFormat );
+            String url = lastDayOfMonth.format( monthUrlFormat );
             url = TextUtil.replaceString( url, "%d", Integer.toString( lastDay - firstDay + 1 ) );
 
             result = "<a href=\"" + url + "\">" + yearMonth.format( monthfmt ) + "</a>";
@@ -204,11 +204,11 @@ public class CalendarTag extends WikiTagBase {
         final YearMonth nextMonth = YearMonth.now().plusMonths( 1 );
 
         if( targetMonth.isBefore( nextMonth ) ) {
-            final Page thePage = m_wikiContext.getPage();
+            final Page thePage = wikiContext.getPage();
             final String pageName = thePage.getName();
 
             final String calendarDate = targetMonth.atDay( 1 ).format( DATE_FORMAT );
-            String url = m_wikiContext.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), pageName, "calendar.date=" + calendarDate );
+            String url = wikiContext.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), pageName, "calendar.date=" + calendarDate );
             final int queryStringLength = queryString.length();
             if( queryStringLength > 0 ) {
                 //
@@ -247,7 +247,7 @@ public class CalendarTag extends WikiTagBase {
      */
     @Override
     public final int doWikiStartTag() throws IOException {
-        final Engine engine = m_wikiContext.getEngine();
+        final Engine engine = wikiContext.getEngine();
         final JspWriter out = pageContext.getOut();
 
         LocalDate currentDate = LocalDate.now();
@@ -274,7 +274,7 @@ public class CalendarTag extends WikiTagBase {
 
         out.write( "<table class=\"calendar\">\n" );
 
-        final HttpServletRequest httpServletRequest = m_wikiContext.getHttpRequest();
+        final HttpServletRequest httpServletRequest = wikiContext.getHttpRequest();
         final String queryString = HttpUtil.safeGetQueryString( httpServletRequest, engine.getContentEncoding() );
         out.write( "<tr>" +
                    getMonthNaviLink( prevMonth, "&lt;&lt;", queryString ) +

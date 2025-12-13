@@ -36,11 +36,11 @@ import jakarta.servlet.jsp.tagext.*;
 public class TabbedSectionTag extends BodyTagSupport
 {
     private static final long serialVersionUID = 1702437933960026481L;
-    private String       m_defaultTabId;
-    private String       m_firstTabId;
-    private boolean      m_defaultTabFound;
+    private String       defaultTabId;
+    private String       firstTabId;
+    private boolean      defaultTabFound;
 
-    private StringBuilder m_buffer = new StringBuilder(BUFFER_SIZE);
+    private StringBuilder buffer = new StringBuilder(BUFFER_SIZE);
 
     private static final int FIND_DEFAULT_TAB = 0;
     private static final int GENERATE_TABMENU = 1;
@@ -48,7 +48,7 @@ public class TabbedSectionTag extends BodyTagSupport
 
     private static final int BUFFER_SIZE      = 1024;
 
-    private              int m_state            = FIND_DEFAULT_TAB;
+    private              int state            = FIND_DEFAULT_TAB;
 
     /**
      *  {@inheritDoc}
@@ -57,10 +57,10 @@ public class TabbedSectionTag extends BodyTagSupport
     public void release()
     {
         super.release();
-        m_defaultTabId = m_firstTabId = null;
-        m_defaultTabFound = false;
-        m_buffer = new StringBuilder();
-        m_state = FIND_DEFAULT_TAB;
+        defaultTabId = firstTabId = null;
+        defaultTabFound = false;
+        buffer = new StringBuilder();
+        state = FIND_DEFAULT_TAB;
     }
 
     /**
@@ -71,17 +71,17 @@ public class TabbedSectionTag extends BodyTagSupport
      */
     public void setDefaultTab(final String anDefaultTabId)
     {
-        m_defaultTabId = anDefaultTabId;
+        defaultTabId = anDefaultTabId;
     }
 
     // FIXME: I don't really understand what this does - so Dirk, please
     //        add some documentation.
     public boolean validateDefaultTab(final String aTabId )
     {
-        if( m_firstTabId == null ) m_firstTabId = aTabId;
-        if( aTabId.equals( m_defaultTabId ) ) m_defaultTabFound = true;
+        if( firstTabId == null ) firstTabId = aTabId;
+        if( aTabId.equals( defaultTabId ) ) defaultTabFound = true;
 
-        return aTabId.equals( m_defaultTabId );
+        return aTabId.equals( defaultTabId );
     }
 
     /**
@@ -101,7 +101,7 @@ public class TabbedSectionTag extends BodyTagSupport
      */
     public boolean isStateFindDefaultTab()
     {
-        return m_state == FIND_DEFAULT_TAB;
+        return state == FIND_DEFAULT_TAB;
     }
 
     /**
@@ -112,7 +112,7 @@ public class TabbedSectionTag extends BodyTagSupport
      */
     public boolean isStateGenerateTabMenu()
     {
-        return m_state == GENERATE_TABMENU;
+        return state == GENERATE_TABMENU;
     }
 
     /**
@@ -123,7 +123,7 @@ public class TabbedSectionTag extends BodyTagSupport
      */
     public boolean isStateGenerateTabBody()
     {
-        return m_state == GENERATE_TABBODY;
+        return state == GENERATE_TABBODY;
     }
 
 
@@ -141,33 +141,33 @@ public class TabbedSectionTag extends BodyTagSupport
     {
         if( isStateFindDefaultTab() )
         {
-            if( !m_defaultTabFound )
+            if( !defaultTabFound )
             {
-                m_defaultTabId = m_firstTabId;
+                defaultTabId = firstTabId;
             }
-            m_state = GENERATE_TABMENU;
+            state = GENERATE_TABMENU;
             return EVAL_BODY_BUFFERED;
         }
         else if( isStateGenerateTabMenu() )
         {
             if( bodyContent != null )
             {
-                m_buffer.append( "<div class=\"tabmenu\">" );
-                m_buffer.append( bodyContent.getString() );
+                buffer.append( "<div class=\"tabmenu\">" );
+                buffer.append( bodyContent.getString() );
                 bodyContent.clearBody();
-                m_buffer.append( "</div>\n" );
+                buffer.append( "</div>\n" );
             }
-            m_state = GENERATE_TABBODY;
+            state = GENERATE_TABBODY;
             return EVAL_BODY_BUFFERED;
         }
         else if( isStateGenerateTabBody() )
         {
             if( bodyContent != null )
             {
-                m_buffer.append( "<div class=\"tabs\">" );
-                m_buffer.append( bodyContent.getString() );
+                buffer.append( "<div class=\"tabs\">" );
+                buffer.append( bodyContent.getString() );
                 bodyContent.clearBody();
-                m_buffer.append( "<div style=\"clear:both;\" ></div>\n</div>\n" );
+                buffer.append( "<div style=\"clear:both;\" ></div>\n</div>\n" );
             }
             return SKIP_BODY;
         }
@@ -182,9 +182,9 @@ public class TabbedSectionTag extends BodyTagSupport
     {
         try
         {
-            if( m_buffer.length() > 0 )
+            if( buffer.length() > 0 )
             {
-                getPreviousOut().write( m_buffer.toString() );
+                getPreviousOut().write( buffer.toString() );
             }
         }
         catch(final java.io.IOException e)
@@ -193,11 +193,11 @@ public class TabbedSectionTag extends BodyTagSupport
         }
 
         //now reset some stuff for the next run -- ugh.
-        m_buffer    = new StringBuilder(BUFFER_SIZE);
-        m_state = FIND_DEFAULT_TAB;
-        m_defaultTabId    = null;
-        m_firstTabId      = null;
-        m_defaultTabFound = false;
+        buffer    = new StringBuilder(BUFFER_SIZE);
+        state = FIND_DEFAULT_TAB;
+        defaultTabId    = null;
+        firstTabId      = null;
+        defaultTabFound = false;
         return EVAL_PAGE;
     }
 

@@ -55,12 +55,12 @@ public class AttachmentsIteratorTag extends IteratorTag {
      */
     @Override
     public final int doStartTag()  {
-        m_wikiContext = (Context) pageContext.getAttribute( Context.ATTR_CONTEXT, PageContext.REQUEST_SCOPE );
-        final Engine engine = m_wikiContext.getEngine();
+        wikiContext = (Context) pageContext.getAttribute( Context.ATTR_CONTEXT, PageContext.REQUEST_SCOPE );
+        final Engine engine = wikiContext.getEngine();
         final AttachmentManager mgr = engine.getManager( AttachmentManager.class );
         final Page page;
 
-        page = m_wikiContext.getPage();
+        page = wikiContext.getPage();
 
         if( !mgr.attachmentsEnabled() )
         {
@@ -77,11 +77,11 @@ public class AttachmentsIteratorTag extends IteratorTag {
                     return SKIP_BODY;
                 }
 
-                m_iterator = atts.iterator();
+                iterator = atts.iterator();
 
-                if( m_iterator.hasNext() ) {
-                    final Attachment  att = (Attachment) m_iterator.next();
-                    final Context context = m_wikiContext.clone();
+                if( iterator.hasNext() ) {
+                    final Attachment  att = (Attachment) iterator.next();
+                    final Context context = wikiContext.clone();
                     context.setPage( att );
                     pageContext.setAttribute( Context.ATTR_CONTEXT, context, PageContext.REQUEST_SCOPE );
                     pageContext.setAttribute( getId(), att );
@@ -117,9 +117,9 @@ public class AttachmentsIteratorTag extends IteratorTag {
             }
         }
 
-        if( m_iterator != null && m_iterator.hasNext() ) {
-            final Attachment att = ( Attachment )m_iterator.next();
-            final Context context = m_wikiContext.clone();
+        if( iterator != null && iterator.hasNext() ) {
+            final Attachment att = ( Attachment )iterator.next();
+            final Context context = wikiContext.clone();
             context.setPage( att );
             pageContext.setAttribute( Context.ATTR_CONTEXT,  context, PageContext.REQUEST_SCOPE );
             pageContext.setAttribute( getId(), att );

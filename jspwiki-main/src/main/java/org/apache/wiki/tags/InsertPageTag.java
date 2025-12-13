@@ -58,37 +58,37 @@ public class InsertPageTag extends WikiTagBase {
     public static final int HTML  = 0;
     public static final int PLAIN = 1;
 
-    protected String m_pageName;
-    private   int    m_mode = HTML;
+    protected String pageName;
+    private   int    mode = HTML;
 
     @Override
     public void initTag() {
         super.initTag();
-        m_pageName = null;
-        m_mode = HTML;
+        pageName = null;
+        mode = HTML;
     }
 
     public void setPage( final String page )
     {
-        m_pageName = page;
+        pageName = page;
     }
 
     public String getPage()
     {
-        return m_pageName;
+        return pageName;
     }
 
     public void setMode( final String arg ) {
         if( "plain".equals( arg ) ) {
-            m_mode = PLAIN;
+            mode = PLAIN;
         } else {
-            m_mode = HTML;
+            mode = HTML;
         }
     }
 
     @Override
     public final int doWikiStartTag() throws IOException, ProviderException {
-        final Engine engine = m_wikiContext.getEngine();
+        final Engine engine = wikiContext.getEngine();
         final Page insertedPage;
 
         //
@@ -97,11 +97,11 @@ public class InsertPageTag extends WikiTagBase {
         //      AND we got the page from the wikiContext.
         //
 
-        if( m_pageName == null ) {
-            insertedPage = m_wikiContext.getPage();
+        if( pageName == null ) {
+            insertedPage = wikiContext.getPage();
             if( !engine.getManager( PageManager.class ).wikiPageExists(insertedPage) ) return SKIP_BODY;
         } else {
-            insertedPage = engine.getManager( PageManager.class ).getPage( m_pageName );
+            insertedPage = engine.getManager( PageManager.class ).getPage( pageName );
         }
 
         if( insertedPage != null ) {
@@ -111,14 +111,14 @@ public class InsertPageTag extends WikiTagBase {
             LOG.debug("Inserting page "+insertedPage);
 
             final JspWriter out = pageContext.getOut();
-            final Page oldPage = m_wikiContext.setRealPage( insertedPage );
+            final Page oldPage = wikiContext.setRealPage( insertedPage );
             
-            switch( m_mode ) {
-              case HTML: out.print( engine.getManager( RenderingManager.class ).getHTML( m_wikiContext, insertedPage ) ); break;
+            switch( mode ) {
+              case HTML: out.print( engine.getManager( RenderingManager.class ).getHTML( wikiContext, insertedPage ) ); break;
               case PLAIN: out.print( engine.getManager( PageManager.class ).getText( insertedPage ) ); break;
             }
             
-            m_wikiContext.setRealPage( oldPage );
+            wikiContext.setRealPage( oldPage );
         }
 
         return SKIP_BODY;

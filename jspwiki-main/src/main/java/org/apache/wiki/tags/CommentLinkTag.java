@@ -47,33 +47,33 @@ public class CommentLinkTag
     @Override
     public final int doWikiStartTag() throws IOException {
         final Page page;
-        final String pageName;
-        
+        final String pageNameToUse;
+
         //  Determine the page and the link.
-        if( m_pageName == null ) {
-            page = m_wikiContext.getPage();
+        if( pageName == null ) {
+            page = wikiContext.getPage();
             if( page == null ) {
                 // You can't call this on the page itself anyways.
                 return SKIP_BODY;
             }
-            pageName = page.getName();
+            pageNameToUse = page.getName();
         } else {
-            pageName = m_pageName;
+            pageNameToUse = pageName;
         }
 
         //  Finally, print out the correct link, according to what user commanded.
         final JspWriter out = pageContext.getOut();
-        switch( m_format ) {
-        case ANCHOR: out.print( "<a href=\"" + getCommentURL( pageName ) + "\">" ); break;
-        case URL: out.print( getCommentURL( pageName ) ); break;
-        default: throw new InternalWikiException( "Impossible format " + m_format );
+        switch( format ) {
+        case ANCHOR: out.print( "<a href=\"" + getCommentURL( pageNameToUse ) + "\">" ); break;
+        case URL: out.print( getCommentURL( pageNameToUse ) ); break;
+        default: throw new InternalWikiException( "Impossible format " + format );
         }
 
         return EVAL_BODY_INCLUDE;
     }
 
-    private String getCommentURL( final String pageName ) {
-        return m_wikiContext.getURL( ContextEnum.PAGE_COMMENT.getRequestContext(), pageName );
+    private String getCommentURL( final String pageNameParam ) {
+        return wikiContext.getURL( ContextEnum.PAGE_COMMENT.getRequestContext(), pageNameParam );
     }
 
 }

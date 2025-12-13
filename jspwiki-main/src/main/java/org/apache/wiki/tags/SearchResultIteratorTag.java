@@ -48,9 +48,9 @@ public class SearchResultIteratorTag extends IteratorTag {
 
     private static final long serialVersionUID = 0L;
     
-    private   int         m_maxItems;
-    private   int         m_count;
-    private   int         m_start;
+    private   int         maxItems;
+    private   int         count;
+    private   int         start;
     
     private static final Logger LOG = LogManager.getLogger(SearchResultIteratorTag.class);
 
@@ -58,49 +58,49 @@ public class SearchResultIteratorTag extends IteratorTag {
     @Override
     public void release() {
         super.release();
-        m_maxItems = m_count = 0;
+        maxItems = count = 0;
     }
 
     public void setMaxItems( final int arg )
     {
-        m_maxItems = arg;
+        maxItems = arg;
     }
 
     public void setStart( final int arg )
     {
-        m_start = arg;
+        start = arg;
     }
 
     /** {@inheritDoc} */
     @Override
     public final int doStartTag() {
         //  Do lazy eval if the search results have not been set.
-        if( m_iterator == null ) {
+        if( iterator == null ) {
             final Collection< ? > searchresults = (Collection< ? >)pageContext.getAttribute( "searchresults", PageContext.REQUEST_SCOPE );
             setList( searchresults );
             
             int skip = 0;
             
             //  Skip the first few ones...
-            m_iterator = searchresults.iterator();
-            while( m_iterator.hasNext() && (skip++ < m_start) ) {
-                m_iterator.next();
+            iterator = searchresults.iterator();
+            while( iterator.hasNext() && (skip++ < start) ) {
+                iterator.next();
             }
         }
 
-        m_count = 0;
-        m_wikiContext = ( Context )pageContext.getAttribute( Context.ATTR_CONTEXT, PageContext.REQUEST_SCOPE );
+        count = 0;
+        wikiContext = ( Context )pageContext.getAttribute( Context.ATTR_CONTEXT, PageContext.REQUEST_SCOPE );
 
         return nextResult();
     }
 
     private int nextResult() {
-        if( m_iterator != null && m_iterator.hasNext() && m_count++ < m_maxItems ) {
-            final SearchResult r = ( SearchResult )m_iterator.next();
+        if( iterator != null && iterator.hasNext() && count++ < maxItems ) {
+            final SearchResult r = ( SearchResult )iterator.next();
 
             // Create a wiki context for the result
-            final Engine engine = m_wikiContext.getEngine();
-            final HttpServletRequest request = m_wikiContext.getHttpRequest();
+            final Engine engine = wikiContext.getEngine();
+            final HttpServletRequest request = wikiContext.getHttpRequest();
             final Command command = PageCommand.VIEW.targetedCommand( r.getPage() );
             final Context context = Wiki.context().create( engine, request, command );
 
@@ -134,7 +134,7 @@ public class SearchResultIteratorTag extends IteratorTag {
     /** {@inheritDoc} */
     @Override
     public int doEndTag() {
-        m_iterator = null;
+        iterator = null;
         return super.doEndTag();
     }
 

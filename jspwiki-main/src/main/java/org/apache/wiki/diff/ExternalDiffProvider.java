@@ -48,8 +48,8 @@ public class ExternalDiffProvider implements DiffProvider {
      */
     public static final String PROP_DIFFCOMMAND    = "jspwiki.diffCommand";
 
-    private String m_diffCommand;
-    private Charset m_encoding;
+    private String diffCommand;
+    private Charset encoding;
 
     private static final char DIFF_ADDED_SYMBOL    = '+';
     private static final char DIFF_REMOVED_SYMBOL  = '-';
@@ -63,7 +63,7 @@ public class ExternalDiffProvider implements DiffProvider {
     //the external program generates a format suitible for the colorization code of the
     //TraditionalDiffProvider, currently set to true for legacy compatibility.
     //I don't think this 'feature' ever worked right, did it?...
-    private final boolean m_traditionalColorization = true;
+    private final boolean traditionalColorization = true;
 
     /**
      *  Creates a new ExternalDiffProvider.
@@ -87,12 +87,12 @@ public class ExternalDiffProvider implements DiffProvider {
      */
     @Override
     public void initialize( final Engine engine, final Properties properties ) throws NoRequiredPropertyException, IOException {
-        m_diffCommand = properties.getProperty( PROP_DIFFCOMMAND );
-        if( m_diffCommand == null || m_diffCommand.trim().equals( "" ) ) {
+        diffCommand = properties.getProperty( PROP_DIFFCOMMAND );
+        if( diffCommand == null || diffCommand.trim().equals( "" ) ) {
             throw new NoRequiredPropertyException( "ExternalDiffProvider missing required property", PROP_DIFFCOMMAND );
         }
 
-        m_encoding = engine.getContentEncoding();
+        encoding = engine.getContentEncoding();
     }
 
 
@@ -107,19 +107,19 @@ public class ExternalDiffProvider implements DiffProvider {
         String diff = null;
 
         try {
-            f1 = FileUtil.newTmpFile(p1, m_encoding);
-            f2 = FileUtil.newTmpFile(p2, m_encoding);
+            f1 = FileUtil.newTmpFile(p1, encoding);
+            f2 = FileUtil.newTmpFile(p2, encoding);
 
-            String cmd = TextUtil.replaceString(m_diffCommand, "%s1", f1.getPath());
+            String cmd = TextUtil.replaceString(diffCommand, "%s1", f1.getPath());
             cmd = TextUtil.replaceString(cmd, "%s2", f2.getPath());
 
             final String output = FileUtil.runSimpleCommand(cmd, f1.getParent());
 
             // FIXME: Should this rely on the system default encoding?
-            final String rawWikiDiff = new String( output.getBytes( StandardCharsets.ISO_8859_1 ), m_encoding );
+            final String rawWikiDiff = new String( output.getBytes( StandardCharsets.ISO_8859_1 ), encoding );
             final String htmlWikiDiff = TextUtil.replaceEntities( rawWikiDiff );
 
-            if (m_traditionalColorization) { //FIXME, see comment near declaration...
+            if (traditionalColorization) { //FIXME, see comment near declaration...
                 diff = colorizeDiff( htmlWikiDiff );
             } else {
                 diff = htmlWikiDiff;

@@ -80,14 +80,14 @@ import java.util.regex.Pattern;
  */
 public class BasicAttachmentProvider implements AttachmentProvider {
 
-    private Engine m_engine;
-    private String m_storageDir;
+    private Engine engine;
+    private String storageDir;
     
     /*
      * Disable client cache for files with patterns
      * since 2.5.96
      */
-    private Pattern m_disableCache;
+    private Pattern disableCache;
     
     /** The property name for specifying which attachments are not cached.  Value is <tt>{@value}</tt>. */
     public static final String PROP_DISABLECACHE = "jspwiki.basicAttachmentProvider.disableCache";
@@ -108,32 +108,32 @@ public class BasicAttachmentProvider implements AttachmentProvider {
      */
     @Override
     public void initialize( final Engine engine, final Properties properties ) throws NoRequiredPropertyException, IOException {
-        m_engine = engine;
-        m_storageDir = TextUtil.getCanonicalFilePathProperty( properties, PROP_STORAGEDIR,
+        this.engine = engine;
+        storageDir = TextUtil.getCanonicalFilePathProperty( properties, PROP_STORAGEDIR,
                                                        System.getProperty("user.home") + File.separator + "jspwiki-files");
 
         final String patternString = engine.getWikiProperties().getProperty( PROP_DISABLECACHE );
         if ( patternString != null ) {
-            m_disableCache = Pattern.compile(patternString);
+            disableCache = Pattern.compile(patternString);
         }
 
         //  Check if the directory exists - if it doesn't, create it.
-        final File f = new File( m_storageDir );
+        final File f = new File( storageDir );
         if( !f.exists() ) {
             f.mkdirs();
         }
 
         // Some sanity checks
         if( !f.exists() ) {
-            throw new IOException( "Could not find or create attachment storage directory '" + m_storageDir + "'" );
+            throw new IOException( "Could not find or create attachment storage directory '" + storageDir + "'" );
         }
 
         if( !f.canWrite() ) {
-            throw new IOException( "Cannot write to the attachment storage directory '" + m_storageDir + "'" );
+            throw new IOException( "Cannot write to the attachment storage directory '" + storageDir + "'" );
         }
 
         if( !f.isDirectory() ) {
-            throw new IOException( "Your attachment storage points to a file, not a directory: '" + m_storageDir + "'" );
+            throw new IOException( "Your attachment storage points to a file, not a directory: '" + storageDir + "'" );
         }
     }
 
@@ -145,7 +145,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
     private File findPageDir( String wikipage ) throws ProviderException {
         wikipage = mangleName( wikipage );
 
-        final File f = new File( m_storageDir, wikipage + DIR_EXTENSION );
+        final File f = new File( storageDir, wikipage + DIR_EXTENSION );
         if( f.exists() && !f.isDirectory() ) {
             throw new ProviderException( "Storage dir '" + f.getAbsolutePath() + "' is not a directory!" );
         }
@@ -407,10 +407,10 @@ public class BasicAttachmentProvider implements AttachmentProvider {
     // FIXME: Very unoptimized.
     @Override
     public List< Attachment > listAllChanged( final Date timestamp ) throws ProviderException {
-        final File attDir = new File( m_storageDir );
+        final File attDir = new File( storageDir );
         if( !attDir.exists() ) {
             if (!attDir.mkdirs()) {
-                throw new ProviderException( "Specified attachment directory " + m_storageDir + " does not exist!" );
+                throw new ProviderException( "Specified attachment directory " + storageDir + " does not exist!" );
             }
         }
 
@@ -422,7 +422,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
                 String pageId = unmangleName( pagesWithAttachment );
                 pageId = pageId.substring( 0, pageId.length() - DIR_EXTENSION.length() );
 
-                final Collection< Attachment > c = listAttachments( Wiki.contents().page( m_engine, pageId ) );
+                final Collection< Attachment > c = listAttachments( Wiki.contents().page( engine, pageId ) );
                 for( final Attachment att : c ) {
                     if( att.getLastModified().after( timestamp ) ) {
                         list.add( att );
@@ -441,7 +441,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
      */
     @Override
     public Attachment getAttachmentInfo( final Page page, final String name, int version ) throws ProviderException {
-        final Attachment att = new org.apache.wiki.attachment.Attachment( m_engine, page.getName(), name );
+        final Attachment att = new org.apache.wiki.attachment.Attachment( engine, page.getName(), name );
         final File dir = findAttachmentDir( att );
         if( !dir.exists() ) {
             // LOG.debug("Attachment dir not found - thus no attachment can exist.");
@@ -455,8 +455,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         att.setVersion( version );
         
         // Should attachment be cachable by the client (browser)?
-        if( m_disableCache != null ) {
-            final Matcher matcher = m_disableCache.matcher( name );
+        if( disableCache != null ) {
+            final Matcher matcher = disableCache.matcher( name );
             if( matcher.matches() ) {
                 att.setCacheable( false );
             }
@@ -495,7 +495,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         try {
             final int latest = findLatestVersion( att );
             for( int i = latest; i >= 1; i-- ) {
-                final Attachment a = getAttachmentInfo( Wiki.contents().page( m_engine, att.getParentName() ), att.getFileName(), i );
+                final Attachment a = getAttachmentInfo( Wiki.contents().page( engine, att.getParentName() ), att.getFileName(), i );
                 if( a != null ) {
                     list.add( a );
                 }

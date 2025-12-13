@@ -85,7 +85,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
     /** Default property cache size. */
     public static final int DEFAULT_CACHE_SIZE = 100;
 
-    private PropertyCacheStrategy m_propertyCache;
+    private PropertyCacheStrategy propertyCache;
 
     /**
      *  {@inheritDoc}
@@ -112,13 +112,13 @@ public class VersioningFileProvider extends AbstractFileProvider {
         // Initialize property cache strategy based on configuration
         final int cacheSize = Integer.parseInt( properties.getProperty( PROP_CACHE_SIZE, String.valueOf( DEFAULT_CACHE_SIZE ) ) );
         if ( cacheSize < 0 ) {
-            m_propertyCache = new NoOpPropertyCache();
+            propertyCache = new NoOpPropertyCache();
             LOG.info( "Property caching disabled" );
         } else if ( cacheSize == 0 ) {
-            m_propertyCache = new SingleEntryPropertyCache();
+            propertyCache = new SingleEntryPropertyCache();
             LOG.info( "Using single-entry property cache" );
         } else {
-            m_propertyCache = new LruPropertyCache( cacheSize );
+            propertyCache = new LruPropertyCache( cacheSize );
             LOG.info( "Using LRU property cache with size {}", cacheSize );
         }
     }
@@ -217,7 +217,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
         final File propertyFile = new File( findOldPageDir(page), PROPERTYFILE );
         if( propertyFile.exists() ) {
             final long lastModified = propertyFile.lastModified();
-            return m_propertyCache.get( page, lastModified, () -> loadPropertiesFromFile( propertyFile ) );
+            return propertyCache.get( page, lastModified, () -> loadPropertiesFromFile( propertyFile ) );
         }
 
         return new Properties(); // Returns an empty object
@@ -248,7 +248,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
         }
 
         // Update cache with the new properties
-        m_propertyCache.put( page, properties, propertyFile.lastModified() );
+        propertyCache.put( page, properties, propertyFile.lastModified() );
     }
 
     /**
@@ -301,7 +301,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
         if( pagedata.exists() ) {
             if( pagedata.canRead() ) {
                 try( final InputStream in = new BufferedInputStream( Files.newInputStream( pagedata.toPath() ) ) ) {
-                    result = FileUtil.readContents( in, m_encoding );
+                    result = FileUtil.readContents( in, encoding );
                 } catch( final IOException e ) {
                     LOG.error("Failed to read", e);
                     throw new ProviderException("I/O error: "+e.getMessage());
@@ -446,7 +446,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 
             final File file = new File( dir, version + FILE_EXT );
             if( file.exists() ) {
-                p = Wiki.contents().page( m_engine, page );
+                p = Wiki.contents().page( engine, page );
 
                 p.setLastModified( new Date( file.lastModified() ) );
                 p.setVersion( version );
@@ -540,7 +540,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
             final long lastModified = propertyFile.lastModified();
             // Use a special cache key prefix to distinguish heritage properties from regular versioned properties
             final String cacheKey = "heritage:" + page;
-            return m_propertyCache.get( cacheKey, lastModified, () -> loadHeritageProperties( propertyFile, cacheKey, lastModified ) );
+            return propertyCache.get( cacheKey, lastModified, () -> loadHeritageProperties( propertyFile, cacheKey, lastModified ) );
         }
 
         return new Properties(); // Returns an empty object
@@ -695,8 +695,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
         invalidateFileExtensionCache( to );
 
         // Invalidate property cache for both pages
-        m_propertyCache.invalidate( from );
-        m_propertyCache.invalidate( to );
+        propertyCache.invalidate( from );
+        propertyCache.invalidate( to );
     }
 
 }

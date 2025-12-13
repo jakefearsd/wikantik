@@ -39,8 +39,8 @@ import java.io.StringReader;
  */
 public class SearchMatcher {
 	
-    private final QueryItem[] m_queries;
-    private final Engine m_engine;
+    private final QueryItem[] queries;
+    private final Engine engine;
 
     /**
      *  Creates a new SearchMatcher.
@@ -49,8 +49,8 @@ public class SearchMatcher {
      *  @param queries A list of queries
      */
     public SearchMatcher( final Engine engine, final QueryItem[] queries ) {
-        m_engine = engine;
-        m_queries = queries != null ? queries.clone() : null;
+        this.engine = engine;
+        this.queries = queries != null ? queries.clone() : null;
     }
 
     /**
@@ -79,22 +79,22 @@ public class SearchMatcher {
      */
     @SuppressWarnings( "deprecation" )
     public org.apache.wiki.search.SearchResult matchPageContent( final String wikiname, final String pageText ) throws IOException {
-        if( m_queries == null ) {
+        if( queries == null ) {
             return null;
         }
 
-        final int[] scores = new int[ m_queries.length ];
+        final int[] scores = new int[ queries.length ];
         final BufferedReader in = new BufferedReader( new StringReader( pageText ) );
         String line;
 
         while( (line = in.readLine() ) != null ) {
             line = line.toLowerCase();
 
-            for( int j = 0; j < m_queries.length; j++ ) {
+            for( int j = 0; j < queries.length; j++ ) {
                 int index = -1;
 
-                while( (index = line.indexOf( m_queries[j].word, index + 1 ) ) != -1 ) {
-                    if( m_queries[j].type != QueryItem.FORBIDDEN ) {
+                while( (index = line.indexOf( queries[j].word, index + 1 ) ) != -1 ) {
+                    if( queries[j].type != QueryItem.FORBIDDEN ) {
                         scores[j]++; // Mark, found this word n times
                     } else {
                         // Found something that was forbidden.
@@ -109,12 +109,12 @@ public class SearchMatcher {
 
         for( int j = 0; j < scores.length; j++ ) {
             // Give five points for each occurrence of the word in the wiki name.
-            if( wikiname.toLowerCase().contains( m_queries[ j ].word ) && m_queries[j].type != QueryItem.FORBIDDEN ) {
+            if( wikiname.toLowerCase().contains( queries[ j ].word ) && queries[j].type != QueryItem.FORBIDDEN ) {
                 scores[j] += 5;
             }
 
             //  Filter out pages if the search word is marked 'required' but they have no score.
-            if( m_queries[j].type == QueryItem.REQUIRED && scores[j] == 0 ) {
+            if( queries[j].type == QueryItem.REQUIRED && scores[j] == 0 ) {
                 return null;
             }
 
@@ -134,19 +134,19 @@ public class SearchMatcher {
      */
     @SuppressWarnings( "deprecation" )
     public class SearchResultImpl implements org.apache.wiki.search.SearchResult {
-    	
-        final int  m_score;
-        final Page m_page;
+
+        final int  score;
+        final Page page;
 
         /**
          *  Create a new SearchResult with a given name and a score.
-         *  
+         *
          *  @param name Page Name
          *  @param score A score from 0+
          */
         public SearchResultImpl( final String name, final int score ) {
-            m_page  = Wiki.contents().page( m_engine, name );
-            m_score = score;
+            this.page  = Wiki.contents().page( engine, name );
+            this.score = score;
         }
 
         /**
@@ -155,17 +155,17 @@ public class SearchMatcher {
          */
         @Override
         public WikiPage getPage() {
-            return ( WikiPage )m_page;
+            return ( WikiPage )page;
         }
 
         /**
          *  Returns a score for this match.
-         *  
+         *
          *  @return Score from 0+
          */
         @Override
         public int getScore() {
-            return m_score;
+            return score;
         }
 
         /**

@@ -50,14 +50,14 @@ import java.util.TreeSet;
 public class BasicSearchProvider implements SearchProvider {
 
     private static final Logger LOG = LogManager.getLogger( BasicSearchProvider.class );
-    private Engine m_engine;
+    private Engine engine;
 
     /**
      *  {@inheritDoc}
      */
     @Override
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, IOException {
-        m_engine = engine;
+        this.engine = engine;
     }
 
     /**
@@ -118,10 +118,10 @@ public class BasicSearchProvider implements SearchProvider {
     }
 
     private String attachmentNames( final Page page ) {
-        if( m_engine.getManager( AttachmentManager.class ).hasAttachments( page ) ) {
+        if( engine.getManager( AttachmentManager.class ).hasAttachments( page ) ) {
             final List< Attachment > attachments;
             try {
-                attachments = m_engine.getManager( AttachmentManager.class ).listAttachments( page );
+                attachments = engine.getManager( AttachmentManager.class ).listAttachments( page );
             } catch( final ProviderException e ) {
                 LOG.error( "Unable to get attachments for page", e );
                 return "";
@@ -143,16 +143,16 @@ public class BasicSearchProvider implements SearchProvider {
 
     private Collection< SearchResult > findPages( final QueryItem[] query, final Context wikiContext ) {
         final TreeSet< SearchResult > res = new TreeSet<>( new SearchResultComparator() );
-        final SearchMatcher matcher = new SearchMatcher( m_engine, query );
+        final SearchMatcher matcher = new SearchMatcher( engine, query );
         final Collection< Page > allPages;
         try {
-            allPages = m_engine.getManager( PageManager.class ).getAllPages();
+            allPages = engine.getManager( PageManager.class ).getAllPages();
         } catch( final ProviderException pe ) {
             LOG.error( "Unable to retrieve page list", pe );
             return null;
         }
 
-        final AuthorizationManager mgr = m_engine.getManager( AuthorizationManager.class );
+        final AuthorizationManager mgr = engine.getManager( AuthorizationManager.class );
 
         for( final Page page : allPages ) {
             try {
@@ -161,7 +161,7 @@ public class BasicSearchProvider implements SearchProvider {
                     if( wikiContext == null || mgr.checkPermission( wikiContext.getWikiSession(), pp ) ) {
                         final String pageName = page.getName();
                         final String pageContent =
-                                m_engine.getManager( PageManager.class ).getPageText( pageName, PageProvider.LATEST_VERSION ) + attachmentNames( page );
+                                engine.getManager( PageManager.class ).getPageText( pageName, PageProvider.LATEST_VERSION ) + attachmentNames( page );
                         final SearchResult comparison = matcher.matchPageContent( pageName, pageContent );
                         if( comparison != null ) {
                             res.add( comparison );

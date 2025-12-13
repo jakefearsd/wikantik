@@ -44,20 +44,20 @@ public class Heading
     /**
      *  Denotes the level of the heading. Either HEADING_SMALL, HEADING_MEDIUM, or HEADING_LARGE.
      */
-    public int    m_level;
+    public int    level;
     
     /**
      *  Contains the text of the heading.
      */
-    public String m_titleText;
+    public String titleText;
     
     /**
      *  Contains the anchor to the heading
      */
-    public String m_titleAnchor;
+    public String titleAnchor;
     
     /**
      *  Contains a section link.
      */
-    public String m_titleSection;
+    public String titleSection;
 }

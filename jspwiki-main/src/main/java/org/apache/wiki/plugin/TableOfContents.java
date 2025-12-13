@@ -84,9 +84,9 @@ public class TableOfContents implements Plugin, HeadingListener {
      */
     @Override
     public void headingAdded( final Context context, final Heading hd ) {
-        LOG.debug( "HD: {}, {}, {}", hd.m_level, hd.m_titleText, hd.m_titleAnchor );
+        LOG.debug( "HD: {}, {}, {}", hd.level, hd.titleText, hd.titleAnchor );
 
-        switch( hd.m_level ) {
+        switch( hd.level ) {
           case Heading.HEADING_SMALL:
             buf.append("<li class=\"toclevel-3\">");
             level3Index++;
@@ -107,16 +107,16 @@ public class TableOfContents implements Plugin, HeadingListener {
             // in case we never had a large heading ...
             level1Index++;
         }
-        if( ( lastLevel == Heading.HEADING_SMALL ) && ( hd.m_level != Heading.HEADING_SMALL ) ) {
+        if( ( lastLevel == Heading.HEADING_SMALL ) && ( hd.level != Heading.HEADING_SMALL ) ) {
             level3Index = 0;
         }
-        if( ( ( lastLevel == Heading.HEADING_SMALL ) || ( lastLevel == Heading.HEADING_MEDIUM ) ) && ( hd.m_level
+        if( ( ( lastLevel == Heading.HEADING_SMALL ) || ( lastLevel == Heading.HEADING_MEDIUM ) ) && ( hd.level
                 == Heading.HEADING_LARGE ) ) {
             level3Index = 0;
             level2Index = 0;
         }
 
-        final String titleSection = hd.m_titleSection.replace( '%', '_' );
+        final String titleSection = hd.titleSection.replace( '%', '_' );
         final String pageName = context.getEngine().encodeName(context.getPage().getName()).replace( '%', '_' );
 
         final String sectref = "#section-"+pageName+"-"+titleSection;
@@ -124,7 +124,7 @@ public class TableOfContents implements Plugin, HeadingListener {
         buf.append( "<a class=\"wikipage\" href=\"" ).append( sectref ).append( "\">" );
         if (usingNumberedList)
         {
-            switch( hd.m_level )
+            switch( hd.level )
             {
             case Heading.HEADING_SMALL:
                 buf.append( prefix ).append( level1Index ).append( "." ).append( level2Index ).append( "." ).append( level3Index ).append( " " );
@@ -139,9 +139,9 @@ public class TableOfContents implements Plugin, HeadingListener {
                 throw new InternalWikiException("Unknown depth in toc! (Please submit a bug report.)");
             }
         }
-        buf.append( TextUtil.replaceEntities( hd.m_titleText ) ).append( "</a></li>\n" );
+        buf.append( TextUtil.replaceEntities( hd.titleText ) ).append( "</a></li>\n" );
 
-        lastLevel = hd.m_level;
+        lastLevel = hd.level;
     }
 
     /**

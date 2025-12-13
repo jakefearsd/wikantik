@@ -50,13 +50,13 @@ public class WikiHeadingHandler {
     private final ArrayList<HeadingListener> headingListenerChain;
 
     /** Keep track of duplicate header names. */
-    private final Map<String, Integer> m_titleSectionCounter = new HashMap<>();
+    private final Map<String, Integer> titleSectionCounter = new HashMap<>();
 
     /** The last heading that was processed */
-    private Heading m_lastHeading;
+    private Heading lastHeading;
 
     /** Used for cleaning section titles */
-    private JSPWikiMarkupParser m_cleanTranslator;
+    private JSPWikiMarkupParser cleanTranslator;
 
     /**
      * Constructs a WikiHeadingHandler.
@@ -98,12 +98,12 @@ public class WikiHeadingHandler {
      * a TranslatorReader before the TranslatorReader it is contained by is up.
      */
     private JSPWikiMarkupParser getCleanTranslator() {
-        if( m_cleanTranslator == null ) {
+        if( cleanTranslator == null ) {
             final Context dummyContext = Wiki.context().create( engine, context.getHttpRequest(), context.getPage() );
-            m_cleanTranslator = new JSPWikiMarkupParser( dummyContext, null );
-            m_cleanTranslator.enableRawHtml( true );
+            cleanTranslator = new JSPWikiMarkupParser( dummyContext, null );
+            cleanTranslator.enableRawHtml( true );
         }
-        return m_cleanTranslator;
+        return cleanTranslator;
     }
 
     /**
@@ -120,22 +120,22 @@ public class WikiHeadingHandler {
      * @return The generated anchor string
      */
     protected String makeHeadingAnchor( final String baseName, String title, final Heading hd ) {
-        hd.m_titleText = title;
+        hd.titleText = title;
         title = MarkupParser.wikifyLink( title );
-        hd.m_titleSection = engine.encodeName( title );
-        if( m_titleSectionCounter.containsKey( hd.m_titleSection ) ) {
-            final Integer count = m_titleSectionCounter.get( hd.m_titleSection ) + 1;
-            m_titleSectionCounter.put( hd.m_titleSection, count );
-            hd.m_titleSection += "-" + count;
+        hd.titleSection = engine.encodeName( title );
+        if( titleSectionCounter.containsKey( hd.titleSection ) ) {
+            final Integer count = titleSectionCounter.get( hd.titleSection ) + 1;
+            titleSectionCounter.put( hd.titleSection, count );
+            hd.titleSection += "-" + count;
         } else {
-            m_titleSectionCounter.put( hd.m_titleSection, 1 );
+            titleSectionCounter.put( hd.titleSection, 1 );
         }
 
-        hd.m_titleAnchor = "section-" + engine.encodeName( baseName ) + "-" + hd.m_titleSection;
-        hd.m_titleAnchor = hd.m_titleAnchor.replace( '%', '_' );
-        hd.m_titleAnchor = hd.m_titleAnchor.replace( '/', '_' );
+        hd.titleAnchor = "section-" + engine.encodeName( baseName ) + "-" + hd.titleSection;
+        hd.titleAnchor = hd.titleAnchor.replace( '%', '_' );
+        hd.titleAnchor = hd.titleAnchor.replace( '/', '_' );
 
-        return hd.m_titleAnchor;
+        return hd.titleAnchor;
     }
 
     /**
@@ -171,7 +171,7 @@ public class WikiHeadingHandler {
         final Element el;
         final String pageName = context.getPage().getName();
         final String outTitle = makeSectionTitle( title );
-        hd.m_level = level;
+        hd.level = level;
 
         switch( level ) {
             case Heading.HEADING_SMALL:
@@ -220,7 +220,7 @@ public class WikiHeadingHandler {
         }
 
         callHeadingListenerChain( hd );
-        m_lastHeading = hd;
+        lastHeading = hd;
         if( el != null ) {
             parser.pushElement( el );
         }
@@ -231,12 +231,12 @@ public class WikiHeadingHandler {
      * Closes any open heading elements and adds the hash anchor link.
      */
     public void closeHeadings() {
-        if( m_lastHeading != null && !wysiwygEditorMode ) {
+        if( lastHeading != null && !wysiwygEditorMode ) {
             // Add the hash anchor element at the end of the heading
             parser.addElement( new Element( "a" ).setAttribute( "class", MarkupParser.HASHLINK )
-                                                 .setAttribute( "href", "#" + m_lastHeading.m_titleAnchor )
+                                                 .setAttribute( "href", "#" + lastHeading.titleAnchor )
                                                  .setText( "#" ) );
-            m_lastHeading = null;
+            lastHeading = null;
         }
         parser.popElement( "h2" );
         parser.popElement( "h3" );

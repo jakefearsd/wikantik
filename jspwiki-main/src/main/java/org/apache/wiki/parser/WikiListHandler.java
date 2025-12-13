@@ -34,12 +34,12 @@ public class WikiListHandler {
     private final WikiFormattingHandler formattingHandler;
 
     // List state
-    private int m_genlistlevel;
-    private final StringBuilder m_genlistBulletBuffer = new StringBuilder( 10 );
-    private final boolean m_allowPHPWikiStyleLists = true;
+    private int genlistlevel;
+    private final StringBuilder genlistBulletBuffer = new StringBuilder( 10 );
+    private final boolean allowPHPWikiStyleLists = true;
 
     // Definition list state
-    private boolean m_isdefinition;
+    private boolean isdefinition;
 
     /**
      * Constructs a WikiListHandler.
@@ -60,14 +60,14 @@ public class WikiListHandler {
      * @return The current list nesting level
      */
     public int getListLevel() {
-        return m_genlistlevel;
+        return genlistlevel;
     }
 
     /**
      * @return true if currently in a definition list
      */
     public boolean isDefinition() {
-        return m_isdefinition;
+        return isdefinition;
     }
 
     /**
@@ -75,7 +75,7 @@ public class WikiListHandler {
      * @param isDefinition true if in a definition list
      */
     public void setDefinition( final boolean isDefinition ) {
-        m_isdefinition = isDefinition;
+        isdefinition = isDefinition;
     }
 
     // =========================================================================
@@ -112,42 +112,42 @@ public class WikiListHandler {
 
         // Override the beginning portion of bullet pattern to be like the previous
         // to simulate PHPWiki style lists
-        if( m_allowPHPWikiStyleLists ) {
+        if( allowPHPWikiStyleLists ) {
             // only substitute if different
-            if( !( strBullets.substring( 0, Math.min( numBullets, m_genlistlevel ) )
-                    .equals( m_genlistBulletBuffer.substring( 0, Math.min( numBullets, m_genlistlevel ) ) ) ) ) {
-                if( numBullets <= m_genlistlevel ) {
+            if( !( strBullets.substring( 0, Math.min( numBullets, genlistlevel ) )
+                    .equals( genlistBulletBuffer.substring( 0, Math.min( numBullets, genlistlevel ) ) ) ) ) {
+                if( numBullets <= genlistlevel ) {
                     // Substitute all but the last character (keep the expressed bullet preference)
-                    strBullets = ( numBullets > 1 ? m_genlistBulletBuffer.substring( 0, numBullets - 1 ) : "" ) +
+                    strBullets = ( numBullets > 1 ? genlistBulletBuffer.substring( 0, numBullets - 1 ) : "" ) +
                                  strBullets.charAt( numBullets - 1 );
                 } else {
-                    strBullets = m_genlistBulletBuffer + strBullets.substring( m_genlistlevel, numBullets );
+                    strBullets = genlistBulletBuffer + strBullets.substring( genlistlevel, numBullets );
                 }
             }
         }
 
         // Check if this is still of the same type
-        if( strBullets.substring( 0, Math.min( numBullets, m_genlistlevel ) )
-                .equals( m_genlistBulletBuffer.substring( 0, Math.min( numBullets, m_genlistlevel ) ) ) ) {
-            if( numBullets > m_genlistlevel ) {
-                parser.pushElement( new Element( getListType( strBullets.charAt( m_genlistlevel++ ) ) ) );
-                for( ; m_genlistlevel < numBullets; m_genlistlevel++ ) {
+        if( strBullets.substring( 0, Math.min( numBullets, genlistlevel ) )
+                .equals( genlistBulletBuffer.substring( 0, Math.min( numBullets, genlistlevel ) ) ) ) {
+            if( numBullets > genlistlevel ) {
+                parser.pushElement( new Element( getListType( strBullets.charAt( genlistlevel++ ) ) ) );
+                for( ; genlistlevel < numBullets; genlistlevel++ ) {
                     // bullets are growing, get from new bullet list
                     parser.pushElement( new Element( "li" ) );
-                    parser.pushElement( new Element( getListType( strBullets.charAt( m_genlistlevel ) ) ) );
+                    parser.pushElement( new Element( getListType( strBullets.charAt( genlistlevel ) ) ) );
                 }
-            } else if( numBullets < m_genlistlevel ) {
+            } else if( numBullets < genlistlevel ) {
                 // Close the previous list item.
                 parser.popElement( "li" );
-                for( ; m_genlistlevel > numBullets; m_genlistlevel-- ) {
+                for( ; genlistlevel > numBullets; genlistlevel-- ) {
                     // bullets are shrinking, get from old bullet list
-                    parser.popElement( getListType( m_genlistBulletBuffer.charAt( m_genlistlevel - 1 ) ) );
-                    if( m_genlistlevel > 0 ) {
+                    parser.popElement( getListType( genlistBulletBuffer.charAt( genlistlevel - 1 ) ) );
+                    if( genlistlevel > 0 ) {
                         parser.popElement( "li" );
                     }
                 }
             } else {
-                if( m_genlistlevel > 0 ) {
+                if( genlistlevel > 0 ) {
                     parser.popElement( "li" );
                 }
             }
@@ -158,11 +158,11 @@ public class WikiListHandler {
 
             // find out how much is the same
             numEqualBullets = 0;
-            numCheckBullets = Math.min( numBullets, m_genlistlevel );
+            numCheckBullets = Math.min( numBullets, genlistlevel );
 
             while( numEqualBullets < numCheckBullets ) {
                 // if the bullets are equal so far, keep going
-                if( strBullets.charAt( numEqualBullets ) == m_genlistBulletBuffer.charAt( numEqualBullets ) )
+                if( strBullets.charAt( numEqualBullets ) == genlistBulletBuffer.charAt( numEqualBullets ) )
                     numEqualBullets++;
                 // otherwise give up, we have found how many are equal
                 else
@@ -170,9 +170,9 @@ public class WikiListHandler {
             }
 
             // unwind
-            for( ; m_genlistlevel > numEqualBullets; m_genlistlevel-- ) {
-                parser.popElement( getListType( m_genlistBulletBuffer.charAt( m_genlistlevel - 1 ) ) );
-                if( m_genlistlevel > numBullets ) {
+            for( ; genlistlevel > numEqualBullets; genlistlevel-- ) {
+                parser.popElement( getListType( genlistBulletBuffer.charAt( genlistlevel - 1 ) ) );
+                if( genlistlevel > numBullets ) {
                     parser.popElement( "li" );
                 }
             }
@@ -183,7 +183,7 @@ public class WikiListHandler {
                 parser.pushElement( new Element( "li" ) );
                 parser.pushElement( new Element( getListType( strBullets.charAt( i ) ) ) );
             }
-            m_genlistlevel = numBullets;
+            genlistlevel = numBullets;
         }
 
         // Push a new list item, and eat away any extra whitespace
@@ -191,8 +191,8 @@ public class WikiListHandler {
         parser.readWhile( " " );
 
         // work done, remember the new bullet list (in place of old one)
-        m_genlistBulletBuffer.setLength( 0 );
-        m_genlistBulletBuffer.append( strBullets );
+        genlistBulletBuffer.setLength( 0 );
+        genlistBulletBuffer.append( strBullets );
         return parser.getCurrentElement();
     }
 
@@ -204,11 +204,11 @@ public class WikiListHandler {
      */
     public Element unwindGeneralList() {
         // unwind
-        for( ; m_genlistlevel > 0; m_genlistlevel-- ) {
+        for( ; genlistlevel > 0; genlistlevel-- ) {
             parser.popElement( "li" );
-            parser.popElement( getListType( m_genlistBulletBuffer.charAt( m_genlistlevel - 1 ) ) );
+            parser.popElement( getListType( genlistBulletBuffer.charAt( genlistlevel - 1 ) ) );
         }
-        m_genlistBulletBuffer.setLength( 0 );
+        genlistBulletBuffer.setLength( 0 );
         return null;
     }
 
@@ -218,8 +218,8 @@ public class WikiListHandler {
      * @return The created element, or null if already in a definition
      */
     public Element handleDefinitionList() {
-        if( !m_isdefinition ) {
-            m_isdefinition = true;
+        if( !isdefinition ) {
+            isdefinition = true;
             formattingHandler.startBlockLevel();
             parser.pushElement( new Element( "dl" ) );
             return parser.pushElement( new Element( "dt" ) );

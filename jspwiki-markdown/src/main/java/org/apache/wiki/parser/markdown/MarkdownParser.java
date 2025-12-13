@@ -51,9 +51,9 @@ public class MarkdownParser extends MarkupParser {
      */
     @Override
     public WikiDocument parse() throws IOException {
-        final Node document = parser.parseReader( m_in );
-        final MarkdownDocument md = new MarkdownDocument( m_context.getPage(), document );
-        md.setContext( m_context );
+        final Node document = parser.parseReader( in );
+        final MarkdownDocument md = new MarkdownDocument( context.getPage(), document );
+        md.setContext( context );
 
         return md;
     }

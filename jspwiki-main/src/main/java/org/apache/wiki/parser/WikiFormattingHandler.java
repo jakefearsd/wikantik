@@ -34,16 +34,16 @@ public class WikiFormattingHandler {
     private final boolean wysiwygEditorMode;
 
     // Formatting state
-    private boolean m_isbold;
-    private boolean m_isitalic;
-    private boolean m_isPre;
-    private boolean m_isEscaping;
-    private boolean m_isPreBlock;
+    private boolean isbold;
+    private boolean isitalic;
+    private boolean isPre;
+    private boolean isEscaping;
+    private boolean isPreBlock;
 
     // Paragraph/block state
-    private boolean m_restartitalic;
-    private boolean m_restartbold;
-    private boolean m_isOpenParagraph;
+    private boolean restartitalic;
+    private boolean restartbold;
+    private boolean isOpenParagraph;
 
     /**
      * Constructs a WikiFormattingHandler.
@@ -64,28 +64,28 @@ public class WikiFormattingHandler {
      * @return true if currently in bold mode
      */
     public boolean isBold() {
-        return m_isbold;
+        return isbold;
     }
 
     /**
      * @return true if currently in italic mode
      */
     public boolean isItalic() {
-        return m_isitalic;
+        return isitalic;
     }
 
     /**
      * @return true if currently in preformatted mode
      */
     public boolean isPre() {
-        return m_isPre;
+        return isPre;
     }
 
     /**
      * @return true if currently escaping content
      */
     public boolean isEscaping() {
-        return m_isEscaping;
+        return isEscaping;
     }
 
     /**
@@ -93,21 +93,21 @@ public class WikiFormattingHandler {
      * @param isEscaping true if escaping
      */
     public void setEscaping( final boolean isEscaping ) {
-        m_isEscaping = isEscaping;
+        this.isEscaping = isEscaping;
     }
 
     /**
      * @return true if preformatted block is block-level (vs inline)
      */
     public boolean isPreBlock() {
-        return m_isPreBlock;
+        return isPreBlock;
     }
 
     /**
      * @return true if a paragraph is currently open
      */
     public boolean isOpenParagraph() {
-        return m_isOpenParagraph;
+        return isOpenParagraph;
     }
 
     /**
@@ -115,14 +115,14 @@ public class WikiFormattingHandler {
      * @param isOpen true if paragraph is open
      */
     public void setOpenParagraph( final boolean isOpen ) {
-        m_isOpenParagraph = isOpen;
+        isOpenParagraph = isOpen;
     }
 
     /**
      * @return true if italic should be restarted after paragraph
      */
     public boolean shouldRestartItalic() {
-        return m_restartitalic;
+        return restartitalic;
     }
 
     /**
@@ -130,14 +130,14 @@ public class WikiFormattingHandler {
      * @param restart true to restart italic
      */
     public void setRestartItalic( final boolean restart ) {
-        m_restartitalic = restart;
+        restartitalic = restart;
     }
 
     /**
      * @return true if bold should be restarted after paragraph
      */
     public boolean shouldRestartBold() {
-        return m_restartbold;
+        return restartbold;
     }
 
     /**
@@ -145,7 +145,7 @@ public class WikiFormattingHandler {
      * @param restart true to restart bold
      */
     public void setRestartBold( final boolean restart ) {
-        m_restartbold = restart;
+        restartbold = restart;
     }
 
     // =========================================================================
@@ -186,12 +186,12 @@ public class WikiFormattingHandler {
         final int ch = parser.nextToken();
         Element el = null;
         if( ch == '_' ) {
-            if( m_isbold ) {
+            if( isbold ) {
                 el = parser.popElement( "b" );
             } else {
                 el = parser.pushElement( new Element( "b" ) );
             }
-            m_isbold = !m_isbold;
+            isbold = !isbold;
         } else {
             parser.pushBack( ch );
         }
@@ -211,12 +211,12 @@ public class WikiFormattingHandler {
         Element el = null;
 
         if( ch == '\'' ) {
-            if( m_isitalic ) {
+            if( isitalic ) {
                 el = parser.popElement( "i" );
             } else {
                 el = parser.pushElement( new Element( "i" ) );
             }
-            m_isitalic = !m_isitalic;
+            isitalic = !isitalic;
         } else {
             parser.pushBack( ch );
         }
@@ -237,9 +237,9 @@ public class WikiFormattingHandler {
         if( ch == '{' ) {
             final int ch2 = parser.nextToken();
             if( ch2 == '{' ) {
-                m_isPre = true;
-                m_isEscaping = true;
-                m_isPreBlock = isBlock;
+                isPre = true;
+                isEscaping = true;
+                isPreBlock = isBlock;
                 if( isBlock ) {
                     startBlockLevel();
                     return parser.pushElement( new Element( "pre" ) );
@@ -266,21 +266,21 @@ public class WikiFormattingHandler {
         if( ch2 == '}' ) {
             final int ch3 = parser.nextToken();
             if( ch3 == '}' ) {
-                if( m_isPre ) {
-                    if( m_isPreBlock ) {
+                if( isPre ) {
+                    if( isPreBlock ) {
                         parser.popElement( "pre" );
                     } else {
                         parser.popElement( "span" );
                     }
-                    m_isPre = false;
-                    m_isEscaping = false;
+                    isPre = false;
+                    isEscaping = false;
                     return parser.getCurrentElement();
                 }
                 parser.getPlainTextBuf().append( "}}}" );
                 return parser.getCurrentElement();
             }
             parser.pushBack( ch3 );
-            if( !m_isEscaping ) {
+            if( !isEscaping ) {
                 return parser.popElement( "tt" );
             }
         }
@@ -329,25 +329,25 @@ public class WikiFormattingHandler {
         parser.popElement( "i" );
         parser.popElement( "b" );
         parser.popElement( "tt" );
-        if( m_isOpenParagraph ) {
-            m_isOpenParagraph = false;
+        if( isOpenParagraph ) {
+            isOpenParagraph = false;
             parser.popElement( "p" );
             parser.getPlainTextBuf().append( "\n" ); // Just small beautification
         }
-        m_restartitalic = m_isitalic;
-        m_restartbold = m_isbold;
-        m_isitalic = false;
-        m_isbold = false;
+        restartitalic = isitalic;
+        restartbold = isbold;
+        isitalic = false;
+        isbold = false;
     }
 
     /**
      * Restarts italic formatting after a paragraph break if needed.
      */
     public void restartItalicIfNeeded() {
-        if( m_restartitalic ) {
+        if( restartitalic ) {
             parser.pushElement( new Element( "i" ) );
-            m_isitalic = true;
-            m_restartitalic = false;
+            isitalic = true;
+            restartitalic = false;
         }
     }
 
@@ -355,10 +355,10 @@ public class WikiFormattingHandler {
      * Restarts bold formatting after a paragraph break if needed.
      */
     public void restartBoldIfNeeded() {
-        if( m_restartbold ) {
+        if( restartbold ) {
             parser.pushElement( new Element( "b" ) );
-            m_isbold = true;
-            m_restartbold = false;
+            isbold = true;
+            restartbold = false;
         }
     }
 

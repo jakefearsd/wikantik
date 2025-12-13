@@ -33,24 +33,24 @@ public class PageLock implements Serializable {
 
     private static final long serialVersionUID = 0L;
 
-    private final String m_page;
-    private final String m_locker;
-    private final Date m_lockAcquired;
-    private final Date m_lockExpiry;
+    private final String page;
+    private final String locker;
+    private final Date lockAcquired;
+    private final Date lockExpiry;
 
     /**
      * Creates a new PageLock.  The lock is not attached to any objects at this point.
      *
-     * @param page     WikiPage which is locked.
+     * @param newPage     WikiPage which is locked.
      * @param locker   The username who locked this page (for display purposes).
      * @param acquired The timestamp when the lock is acquired
      * @param expiry   The timestamp when the lock expires.
      */
-    public PageLock( final Page page, final String locker, final Date acquired, final Date expiry ) {
-        m_page = page.getName();
-        m_locker = locker;
-        m_lockAcquired = ( Date )acquired.clone();
-        m_lockExpiry = ( Date )expiry.clone();
+    public PageLock( final Page newPage, final String lockerName, final Date acquired, final Date expiry ) {
+        this.page = newPage.getName();
+        this.locker = lockerName;
+        this.lockAcquired = ( Date )acquired.clone();
+        this.lockExpiry = ( Date )expiry.clone();
     }
 
     /**
@@ -59,7 +59,7 @@ public class PageLock implements Serializable {
      * @return The name of the page.
      */
     public String getPage() {
-        return m_page;
+        return page;
     }
 
     /**
@@ -68,7 +68,7 @@ public class PageLock implements Serializable {
      * @return The name of the locker.
      */
     public String getLocker() {
-        return m_locker;
+        return locker;
     }
 
     /**
@@ -77,7 +77,7 @@ public class PageLock implements Serializable {
      * @return The acquisition time.
      */
     public Date getAcquisitionTime() {
-        return m_lockAcquired;
+        return lockAcquired;
     }
 
     /**
@@ -86,7 +86,7 @@ public class PageLock implements Serializable {
      * @return The expiry date.
      */
     public Date getExpiryTime() {
-        return m_lockExpiry;
+        return lockExpiry;
     }
 
     /**
@@ -95,7 +95,7 @@ public class PageLock implements Serializable {
      * @return Time left in minutes.
      */
     public long getTimeLeft() {
-        final long time = m_lockExpiry.getTime() - new Date().getTime();
+        final long time = lockExpiry.getTime() - new Date().getTime();
         return ( time / ( 1000L * 60 ) ) + 1;
     }
 

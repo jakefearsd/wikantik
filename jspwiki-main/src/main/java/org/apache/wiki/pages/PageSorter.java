@@ -41,20 +41,20 @@ public class PageSorter implements Comparator< String > {
     // The name of the property that specifies the desired page name comparator
     protected static final String PROP_PAGE_NAME_COMPARATOR = "jspwiki.pageNameComparator.class";
 
-    private Comparator< String > m_comparator;
+    private Comparator< String > comparator;
 
     /** Default constructor uses Java "natural" ordering. */
     public PageSorter() {
-        m_comparator = JavaNaturalComparator.DEFAULT_JAVA_COMPARATOR;
+        comparator = JavaNaturalComparator.DEFAULT_JAVA_COMPARATOR;
     }
 
     /**
      * Construct with a particular comparator.
      * 
-     * @param comparator the Comparator to use
+     * @param newComparator the Comparator to use
      */
-    public PageSorter( final Comparator<String> comparator ) {
-        m_comparator = comparator;
+    public PageSorter( final Comparator<String> newComparator ) {
+        this.comparator = newComparator;
     }
 
     /**
@@ -67,7 +67,7 @@ public class PageSorter implements Comparator< String > {
      */
     @Override
     public int compare( final String pageName1, final String pageName2 ) {
-        return m_comparator.compare( pageName1, pageName2 );
+        return comparator.compare( pageName1, pageName2 );
     }
 
     @Override
@@ -75,10 +75,10 @@ public class PageSorter implements Comparator< String > {
         if( !( o instanceof PageSorter that ) ) {
             return false; // Definitely not equal
         }
-        if( this == that || m_comparator == that.m_comparator ) {
+        if( this == that || comparator == that.comparator ) {
             return true; // Essentially the same object
         }
-        return m_comparator.equals( that.m_comparator );
+        return comparator.equals( that.comparator );
     }
 
     /**
@@ -89,12 +89,12 @@ public class PageSorter implements Comparator< String > {
      */
     public void initialize( final Properties props ) {
         // Default is Java natural order
-        m_comparator = JavaNaturalComparator.DEFAULT_JAVA_COMPARATOR;
+        comparator = JavaNaturalComparator.DEFAULT_JAVA_COMPARATOR;
         final String className = props.getProperty( PROP_PAGE_NAME_COMPARATOR );
         if( className != null && !className.isEmpty() ) {
             try {
                 final Class< Comparator< String > > cl = ClassUtil.findClass( "org.apache.wiki.util.comparators", className );
-                m_comparator = ClassUtil.buildInstance( cl );
+                comparator = ClassUtil.buildInstance( cl );
             } catch( final Exception e ) {
                 LOG.error( "Falling back to default \"natural\" comparator", e );
             }
@@ -107,7 +107,7 @@ public class PageSorter implements Comparator< String > {
      * @param nameList the page names to be sorted
      */
     public void sort( final List< String > nameList ) {
-        nameList.sort( m_comparator );
+        nameList.sort( comparator );
     }
 
     /**
@@ -116,7 +116,7 @@ public class PageSorter implements Comparator< String > {
      * @param nameArray the page names to be sorted
      */
     public void sort( final String[] nameArray ) {
-        Arrays.sort( nameArray, m_comparator );
+        Arrays.sort( nameArray, comparator );
     }
 
 }

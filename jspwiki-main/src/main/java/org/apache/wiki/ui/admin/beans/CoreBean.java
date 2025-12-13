@@ -35,7 +35,7 @@ public class CoreBean extends SimpleAdminBean {
     private static final String[] METHODS = { };
 
     public CoreBean( final Engine engine ) throws NotCompliantMBeanException {
-        m_engine = engine;
+        this.engine = engine;
     }
 
     /**
@@ -44,7 +44,7 @@ public class CoreBean extends SimpleAdminBean {
      *  @return the page content
      */
     public int getPages() {
-        return m_engine.getManager( PageManager.class ).getTotalPageCount();
+        return engine.getManager( PageManager.class ).getTotalPageCount();
     }
 
     public String getPagesDescription() {

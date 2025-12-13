@@ -44,7 +44,7 @@ public class SearchManagerBean extends SimpleAdminBean {
 
     // private static Logger log = LogManager.getLogger( SearchManagerBean.class );
 
-    private WikiBackgroundThread m_updater;
+    private WikiBackgroundThread updater;
 
     public SearchManagerBean( final Engine engine ) throws NotCompliantMBeanException {
         super();
@@ -75,11 +75,11 @@ public class SearchManagerBean extends SimpleAdminBean {
      *  This method prevents itself from being called twice.
      */
     public synchronized void reload() {
-        if( m_updater == null ) {
-            m_updater = new WikiBackgroundThread( m_engine, 0 ) {
+        if( updater == null ) {
+            updater = new WikiBackgroundThread( engine, 0 ) {
 
-                int m_count;
-                int m_max;
+                int count;
+                int max;
 
                 @Override
                 public void startupTask() throws Exception {
@@ -90,33 +90,33 @@ public class SearchManagerBean extends SimpleAdminBean {
 
                 @Override
                 public void backgroundTask() throws Exception {
-                    final Collection< Page > allPages = m_engine.getManager( PageManager.class ).getAllPages();
+                    final Collection< Page > allPages = engine.getManager( PageManager.class ).getAllPages();
 
-                    final SearchManager mgr = m_engine.getManager( SearchManager.class );
-                    m_max = allPages.size();
+                    final SearchManager mgr = engine.getManager( SearchManager.class );
+                    max = allPages.size();
 
                     final ProgressItem pi = new ProgressItem() {
 
                         @Override
                         public int getProgress() {
-                            return 100 * m_count / m_max;
+                            return 100 * count / max;
                         }
                     };
-                    m_engine.getManager( ProgressManager.class ).startProgress( pi, PROGRESS_ID );
+                    engine.getManager( ProgressManager.class ).startProgress( pi, PROGRESS_ID );
 
                     for( final Page page : allPages ) {
                         mgr.reindexPage( page );
-                        m_count++;
+                        count++;
                     }
 
-                    m_engine.getManager( ProgressManager.class ).stopProgress( PROGRESS_ID );
+                    engine.getManager( ProgressManager.class ).stopProgress( PROGRESS_ID );
                     shutdown();
-                    m_updater = null;
+                    updater = null;
                 }
 
             };
 
-            m_updater.start();
+            updater.start();
         }
     }
 
@@ -127,7 +127,7 @@ public class SearchManagerBean extends SimpleAdminBean {
 
     @Override
     public String doGet( final Context context ) {
-        if( m_updater != null ) {
+        if( updater != null ) {
             return "Update already in progress ("+ context.getEngine().getManager( ProgressManager.class ).getProgress(PROGRESS_ID)+ "%)";
         }
 

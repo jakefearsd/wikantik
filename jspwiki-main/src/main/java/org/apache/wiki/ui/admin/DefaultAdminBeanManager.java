@@ -56,26 +56,26 @@ import java.util.List;
  */
 public class DefaultAdminBeanManager implements WikiEventListener, AdminBeanManager {
 
-    private final Engine m_engine;
+    private final Engine engine;
     private final String applicationName;
-    private ArrayList< AdminBean > m_allBeans;
-    private final MBeanServer m_mbeanServer;
+    private ArrayList< AdminBean > allBeans;
+    private final MBeanServer mbeanServer;
 
     private static final Logger LOG = LogManager.getLogger( DefaultAdminBeanManager.class );
 
     public DefaultAdminBeanManager( final Engine engine ) {
         LOG.info("Using JDK 1.5 Platform MBeanServer");
-        m_mbeanServer = MBeanServerFactory15.getServer();
+        mbeanServer = MBeanServerFactory15.getServer();
 
-        m_engine = engine;
-        applicationName = m_engine.getWikiProperties().getProperty("jspwiki.applicationName").trim();
+        this.engine = engine;
+        applicationName = this.engine.getWikiProperties().getProperty("jspwiki.applicationName").trim();
 
-        if( m_mbeanServer != null ) {
-            LOG.info( m_mbeanServer.getClass().getName() );
-            LOG.info( m_mbeanServer.getDefaultDomain() );
+        if( mbeanServer != null ) {
+            LOG.info( mbeanServer.getClass().getName() );
+            LOG.info( mbeanServer.getDefaultDomain() );
         }
 
-        m_engine.addWikiEventListener( this );
+        this.engine.addWikiEventListener( this );
         initialize();
     }
 
@@ -107,14 +107,14 @@ public class DefaultAdminBeanManager implements WikiEventListener, AdminBeanMana
      */
     private void registerAdminBean( final AdminBean ab ) {
         try {
-            if( ab instanceof DynamicMBean dynamicMBean && m_mbeanServer != null ) {
+            if( ab instanceof DynamicMBean dynamicMBean && mbeanServer != null ) {
                 final ObjectName name = getObjectName( ab );
-                if( !m_mbeanServer.isRegistered( name ) ) {
-                    m_mbeanServer.registerMBean( ab, name );
+                if( !mbeanServer.isRegistered( name ) ) {
+                    mbeanServer.registerMBean( ab, name );
                 }
             }
 
-            m_allBeans.add( ab );
+            allBeans.add( ab );
 
             LOG.info( "Registered new admin bean " + ab.getTitle() );
         } catch( final InstanceAlreadyExistsException e ) {
@@ -159,18 +159,18 @@ public class DefaultAdminBeanManager implements WikiEventListener, AdminBeanMana
 
     // FIXME: Should unload the beans first.
     private void reload() {
-        m_allBeans = new ArrayList<>();
+        allBeans = new ArrayList<>();
 
         try {
-            registerAdminBean( new CoreBean( m_engine ) );
-            registerAdminBean( new UserBean( m_engine ) );
-            registerAdminBean( new SearchManagerBean( m_engine ) );
-            registerAdminBean( new PluginBean( m_engine ) );
-            registerAdminBean( new FilterBean( m_engine ) );
+            registerAdminBean( new CoreBean( engine ) );
+            registerAdminBean( new UserBean( engine ) );
+            registerAdminBean( new SearchManagerBean( engine ) );
+            registerAdminBean( new PluginBean( engine ) );
+            registerAdminBean( new FilterBean( engine ) );
         } catch( final NotCompliantMBeanException e ) {
             LOG.error( e.getMessage(), e );
         }
-        for( final ModuleManager moduleManager : m_engine.getManagers( ModuleManager.class ) ) {
+        for( final ModuleManager moduleManager : engine.getManagers( ModuleManager.class ) ) {
             registerBeans( moduleManager.modules() );
         }
     }
@@ -180,11 +180,11 @@ public class DefaultAdminBeanManager implements WikiEventListener, AdminBeanMana
 	 */
     @Override
 	public List< AdminBean > getAllBeans() {
-        if( m_allBeans == null ) {
+        if( allBeans == null ) {
         	reload();
         }
 
-        return m_allBeans;
+        return allBeans;
     }
 
     /* (non-Javadoc)
@@ -192,7 +192,7 @@ public class DefaultAdminBeanManager implements WikiEventListener, AdminBeanMana
 	 */
     @Override
 	public AdminBean findBean( final String id ) {
-        return m_allBeans.stream().filter(ab -> ab.getId().equals(id)).findFirst().orElse(null);
+        return allBeans.stream().filter(ab -> ab.getId().equals(id)).findFirst().orElse(null);
 
     }
 
@@ -233,11 +233,11 @@ public class DefaultAdminBeanManager implements WikiEventListener, AdminBeanMana
 	public void actionPerformed( final WikiEvent event ) {
         if( event instanceof WikiEngineEvent engineEvent ) {
             if( engineEvent.getType() == WikiEngineEvent.SHUTDOWN ) {
-                for( final AdminBean m_allBean : m_allBeans ) {
+                for( final AdminBean m_allBean : allBeans ) {
                     try {
                         final ObjectName on = getObjectName( m_allBean );
-                        if( m_mbeanServer.isRegistered( on ) ) {
-                            m_mbeanServer.unregisterMBean( on );
+                        if( mbeanServer.isRegistered( on ) ) {
+                            mbeanServer.unregisterMBean( on );
                             LOG.info( "Unregistered AdminBean " + m_allBean.getTitle() );
                         }
                     } catch( final MalformedObjectNameException e ) {

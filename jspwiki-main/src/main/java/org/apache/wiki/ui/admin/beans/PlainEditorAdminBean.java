@@ -40,7 +40,7 @@ public class PlainEditorAdminBean extends SimpleMBean implements AdminBean {
                                            "%messages" +
                                            "</div>";
     
-    private boolean m_checked;
+    private boolean checked;
     
     private static final String[] ATTRIBUTES = {"title","checked"};
     private static final String[] METHODS    = {};
@@ -92,7 +92,7 @@ public class PlainEditorAdminBean extends SimpleMBean implements AdminBean {
     }
 
     public boolean getChecked() {
-        return m_checked;
+        return checked;
     }
 
     @Override

@@ -38,7 +38,7 @@ import javax.management.NotCompliantMBeanException;
 public abstract class SimpleAdminBean extends SimpleMBean implements AdminBean {
 
     /** Provides access to a Engine instance to which this AdminBean belongs to. */
-    protected Engine m_engine;
+    protected Engine engine;
     
     /**
      *  Constructor reserved for subclasses only.
@@ -55,7 +55,7 @@ public abstract class SimpleAdminBean extends SimpleMBean implements AdminBean {
     @Override
     public void initialize( final Engine engine )
     {
-        m_engine = engine;
+        this.engine = engine;
     }
     
     /**

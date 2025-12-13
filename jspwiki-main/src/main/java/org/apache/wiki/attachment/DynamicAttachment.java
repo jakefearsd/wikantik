@@ -63,7 +63,7 @@ import org.apache.wiki.api.core.Engine;
  */
 public class DynamicAttachment extends Attachment {
 
-    private final DynamicAttachmentProvider m_provider;
+    private final DynamicAttachmentProvider provider;
 
     /**
      *  Creates a DynamicAttachment.
@@ -78,7 +78,7 @@ public class DynamicAttachment extends Attachment {
                               final String fileName,
                               final DynamicAttachmentProvider provider ) {
         super( engine, parentPage, fileName );
-        m_provider = provider;
+        this.provider = provider;
     }
 
     /**
@@ -87,7 +87,7 @@ public class DynamicAttachment extends Attachment {
      *  @return A Provider component for this attachment.
      */
     public DynamicAttachmentProvider getProvider() {
-        return m_provider;
+        return provider;
     }
 
 }

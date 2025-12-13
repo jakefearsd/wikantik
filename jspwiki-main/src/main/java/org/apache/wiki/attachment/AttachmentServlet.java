@@ -83,16 +83,16 @@ public class AttachmentServlet extends HttpServlet {
     private static final long serialVersionUID = 3257282552187531320L;
     private static final int BUFFER_SIZE = 8192;
 
-    private Engine m_engine;
+    private Engine engine;
     private static final Logger LOG = LogManager.getLogger( AttachmentServlet.class );
     private static final String HDR_VERSION = "version";
 
     /** The maximum size that an attachment can be. */
-    private int m_maxSize = Integer.MAX_VALUE;
+    private int maxSize = Integer.MAX_VALUE;
 
     /** List of attachment types which are allowed */
-    private String[] m_allowedPatterns;
-    private String[] m_forbiddenPatterns;
+    private String[] allowedPatterns;
+    private String[] forbiddenPatterns;
 
     //
     // Not static as DateFormat objects are not thread safe.
@@ -105,23 +105,23 @@ public class AttachmentServlet extends HttpServlet {
      */
     @Override
     public void init( final ServletConfig config ) throws ServletException {
-        m_engine = Wiki.engine().find( config );
-        final Properties props = m_engine.getWikiProperties();
-        final String tmpDir = m_engine.getWorkDir() + File.separator + "attach-tmp";
+        engine = Wiki.engine().find( config );
+        final Properties props = engine.getWikiProperties();
+        final String tmpDir = engine.getWorkDir() + File.separator + "attach-tmp";
         final String allowed = TextUtil.getStringProperty( props, AttachmentManager.PROP_ALLOWEDEXTENSIONS, null );
-        m_maxSize = TextUtil.getIntegerProperty( props, AttachmentManager.PROP_MAXSIZE, Integer.MAX_VALUE );
+        maxSize = TextUtil.getIntegerProperty( props, AttachmentManager.PROP_MAXSIZE, Integer.MAX_VALUE );
 
         if( allowed != null && !allowed.isEmpty() ) {
-            m_allowedPatterns = allowed.toLowerCase().split( "\\s" );
+            allowedPatterns = allowed.toLowerCase().split( "\\s" );
         } else {
-            m_allowedPatterns = new String[ 0 ];
+            allowedPatterns = new String[ 0 ];
         }
 
         final String forbidden = TextUtil.getStringProperty( props, AttachmentManager.PROP_FORBIDDENEXTENSIONS,null );
         if( forbidden != null && !forbidden.isEmpty() ) {
-            m_forbiddenPatterns = forbidden.toLowerCase().split("\\s");
+            forbiddenPatterns = forbidden.toLowerCase().split("\\s");
         } else {
-            m_forbiddenPatterns = new String[0];
+            forbiddenPatterns = new String[0];
         }
 
         final File f = new File( tmpDir );
@@ -140,17 +140,17 @@ public class AttachmentServlet extends HttpServlet {
 
         name = name.toLowerCase();
 
-        for( final String m_forbiddenPattern : m_forbiddenPatterns ) {
+        for( final String m_forbiddenPattern : forbiddenPatterns ) {
             if( name.endsWith( m_forbiddenPattern ) && !m_forbiddenPattern.isEmpty() )
                 return false;
         }
 
-        for( final String m_allowedPattern : m_allowedPatterns ) {
+        for( final String m_allowedPattern : allowedPatterns ) {
             if( name.endsWith( m_allowedPattern ) && !m_allowedPattern.isEmpty() )
                 return true;
         }
 
-        return m_allowedPatterns.length == 0;
+        return allowedPatterns.length == 0;
     }
 
     /**
@@ -174,9 +174,9 @@ public class AttachmentServlet extends HttpServlet {
     // FIXME: Messages would need to be localized somehow.
     @Override
     public void doGet( final HttpServletRequest  req, final HttpServletResponse res ) throws IOException {
-        final Context context = Wiki.context().create( m_engine, req, ContextEnum.PAGE_ATTACH.getRequestContext() );
-        final AttachmentManager mgr = m_engine.getManager( AttachmentManager.class );
-        final AuthorizationManager authmgr = m_engine.getManager( AuthorizationManager.class );
+        final Context context = Wiki.context().create( engine, req, ContextEnum.PAGE_ATTACH.getRequestContext() );
+        final AttachmentManager mgr = engine.getManager( AttachmentManager.class );
+        final AuthorizationManager authmgr = engine.getManager( AuthorizationManager.class );
         final String version = req.getParameter( HDR_VERSION );
         final String nextPage = req.getParameter( "nextpage" );
         final String page = context.getPage().getName();
@@ -247,7 +247,7 @@ public class AttachmentServlet extends HttpServlet {
                     res.sendRedirect(
                         validateNextPage(
                             TextUtil.urlEncodeUTF8(nextPage),
-                            m_engine.getURL( ContextEnum.WIKI_ERROR.getRequestContext(), "", null )
+                            engine.getURL( ContextEnum.WIKI_ERROR.getRequestContext(), "", null )
                         )
                     );
                 }
@@ -288,7 +288,7 @@ public class AttachmentServlet extends HttpServlet {
         // We use 'inline' instead of 'attachment' so that user agents can try to automatically open the file,
         // except those cases in which we want to enforce the file download.
         String contentDisposition = "inline; filename=\"";
-        if( m_engine.getManager( AttachmentManager.class ).forceDownload( att.getFileName() ) ) {
+        if( engine.getManager( AttachmentManager.class ).forceDownload( att.getFileName() ) ) {
             contentDisposition = "attachment; filename=\"";
         }
         contentDisposition += att.getFileName() + "\";";
@@ -347,7 +347,7 @@ public class AttachmentServlet extends HttpServlet {
             req.getSession().removeAttribute("msg");
             res.sendRedirect( nextPage );
         } catch( final RedirectException e ) {
-            final Session session = Wiki.session().find( m_engine, req );
+            final Session session = Wiki.session().find( engine, req );
             session.addMessage( e.getMessage() );
 
             req.getSession().setAttribute("msg", e.getMessage());
@@ -362,7 +362,7 @@ public class AttachmentServlet extends HttpServlet {
     private String validateNextPage( String nextPage, final String errorPage ) {
         if( nextPage.contains( "://" ) ) {
             // It's an absolute link, so unless it starts with our address, we'll log an error.
-            if( !nextPage.startsWith( m_engine.getBaseURL() ) ) {
+            if( !nextPage.startsWith( engine.getBaseURL() ) ) {
                 LOG.warn("Detected phishing attempt by redirecting to an unsecure location: "+nextPage);
                 nextPage = errorPage;
             }
@@ -382,7 +382,7 @@ public class AttachmentServlet extends HttpServlet {
     protected String upload( final HttpServletRequest req ) throws RedirectException, IOException {
         final String msg;
         final String attName = "(unknown)";
-        final String errorPage = m_engine.getURL( ContextEnum.WIKI_ERROR.getRequestContext(), "", null ); // If something bad happened, Upload should be able to take care of most stuff
+        final String errorPage = engine.getURL( ContextEnum.WIKI_ERROR.getRequestContext(), "", null ); // If something bad happened, Upload should be able to take care of most stuff
         String nextPage = errorPage;
         final String progressId = req.getParameter( "progressid" );
 
@@ -395,15 +395,15 @@ public class AttachmentServlet extends HttpServlet {
             final FileItemFactory factory = DiskFileItemFactory.builder().get();
 
             // Create the context _before_ Multipart operations, otherwise strict servlet containers may fail when setting encoding.
-            final Context context = Wiki.context().create( m_engine, req, ContextEnum.PAGE_ATTACH.getRequestContext() );
+            final Context context = Wiki.context().create( engine, req, ContextEnum.PAGE_ATTACH.getRequestContext() );
             final UploadListener pl = new UploadListener();
 
-            m_engine.getManager( ProgressManager.class ).startProgress( pl, progressId );
+            engine.getManager( ProgressManager.class ).startProgress( pl, progressId );
 
             final JakartaServletFileUpload upload = new JakartaServletFileUpload( factory );
             upload.setHeaderCharset(StandardCharsets.UTF_8);
             if( !context.hasAdminPermissions() ) {
-                upload.setFileSizeMax( m_maxSize );
+                upload.setFileSizeMax( maxSize );
             }
             upload.setProgressListener( pl );
             final List<FileItem> items = upload.parseRequest( req );
@@ -470,7 +470,7 @@ public class AttachmentServlet extends HttpServlet {
 
             throw e;
         } finally {
-            m_engine.getManager( ProgressManager.class ).stopProgress( progressId );
+            engine.getManager( ProgressManager.class ).stopProgress( progressId );
             // FIXME: In case of exceptions should absolutely remove the uploaded file.
         }
 
@@ -515,9 +515,9 @@ public class AttachmentServlet extends HttpServlet {
         //
 
         if( !context.hasAdminPermissions() ) {
-            if( contentLength > m_maxSize ) {
+            if( contentLength > maxSize ) {
                 // FIXME: Does not delete the received files.
-                throw new RedirectException( "File exceeds maximum size ("+m_maxSize+" bytes)", errorPage );
+                throw new RedirectException( "File exceeds maximum size ("+maxSize+" bytes)", errorPage );
             }
 
             if( !isTypeAllowed(filename) ) {
@@ -526,7 +526,7 @@ public class AttachmentServlet extends HttpServlet {
         }
 
         final Principal user    = context.getCurrentUser();
-        final AttachmentManager mgr = m_engine.getManager( AttachmentManager.class );
+        final AttachmentManager mgr = engine.getManager( AttachmentManager.class );
 
         LOG.debug("file="+filename);
 
@@ -541,14 +541,14 @@ public class AttachmentServlet extends HttpServlet {
         //  same name than some other previous attachment, then that attachment gains a new version.
         Attachment att = mgr.getAttachmentInfo( context.getPage().getName() );
         if( att == null ) {
-            att = new org.apache.wiki.attachment.Attachment( m_engine, parentPage, filename );
+            att = new org.apache.wiki.attachment.Attachment( engine, parentPage, filename );
             created = true;
         }
         att.setSize( contentLength );
 
         //  Check if we're allowed to do this?
         final Permission permission = PermissionFactory.getPagePermission( att, "upload" );
-        if( m_engine.getManager( AuthorizationManager.class ).checkPermission( context.getWikiSession(), permission ) ) {
+        if( engine.getManager( AuthorizationManager.class ).checkPermission( context.getWikiSession(), permission ) ) {
             if( user != null ) {
                 att.setAuthor( user.getName() );
             }
@@ -558,7 +558,7 @@ public class AttachmentServlet extends HttpServlet {
             }
 
             try {
-                m_engine.getManager( AttachmentManager.class ).storeAttachment( att, data );
+                engine.getManager( AttachmentManager.class ).storeAttachment( att, data );
             } catch( final ProviderException pe ) {
                 // this is a kludge, the exception that is caught here contains the i18n key
                 // here we have the context available, so we can internationalize it properly :
@@ -578,18 +578,18 @@ public class AttachmentServlet extends HttpServlet {
      *
      */
     private static class UploadListener extends ProgressItem implements ProgressListener {
-        public long m_currentBytes;
-        public long m_totalBytes;
+        public long currentBytes;
+        public long totalBytes;
 
         @Override
         public void update( final long recvdBytes, final long totalBytes, final int item) {
-            m_currentBytes = recvdBytes;
-            m_totalBytes   = totalBytes;
+            currentBytes = recvdBytes;
+            this.totalBytes   = totalBytes;
         }
 
         @Override
         public int getProgress() {
-            return ( int )( ( ( float )m_currentBytes / m_totalBytes ) * 100 + 0.5 );
+            return ( int )( ( ( float )currentBytes / totalBytes ) * 100 + 0.5 );
         }
     }
 

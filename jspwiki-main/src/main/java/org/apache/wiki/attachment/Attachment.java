@@ -27,9 +27,9 @@ import org.apache.wiki.api.core.Engine;
  */
 public class Attachment extends WikiPage implements org.apache.wiki.api.core.Attachment {
 
-    private String m_fileName;
-    private final String m_parentName;
-    private boolean m_cacheable = true;
+    private String fileName;
+    private final String parentName;
+    private boolean cacheable = true;
 
     /**
      * Creates a new attachment.  The final name of the attachment will be a synthesis of the parent page name and the file name.
@@ -40,8 +40,8 @@ public class Attachment extends WikiPage implements org.apache.wiki.api.core.Att
      */
     public Attachment( final Engine engine, final String parentPage, final String fileName ) {
         super( engine, parentPage + "/" + fileName );
-        m_parentName = parentPage;
-        m_fileName = fileName;
+        parentName = parentPage;
+        this.fileName = fileName;
     }
 
     /**
@@ -61,7 +61,7 @@ public class Attachment extends WikiPage implements org.apache.wiki.api.core.Att
      */
     @Override
     public String getFileName() {
-        return m_fileName;
+        return fileName;
     }
 
     /**
@@ -71,7 +71,7 @@ public class Attachment extends WikiPage implements org.apache.wiki.api.core.Att
      */
     @Override
     public void setFileName(final String name ) {
-        m_fileName = name;
+        fileName = name;
     }
 
     /**
@@ -81,7 +81,7 @@ public class Attachment extends WikiPage implements org.apache.wiki.api.core.Att
      */
     @Override
     public String getParentName() {
-        return m_parentName;
+        return parentName;
     }
 
     /**
@@ -92,7 +92,7 @@ public class Attachment extends WikiPage implements org.apache.wiki.api.core.Att
      */
     @Override
     public boolean isCacheable() {
-        return m_cacheable;
+        return cacheable;
     }
 
     /**
@@ -104,7 +104,7 @@ public class Attachment extends WikiPage implements org.apache.wiki.api.core.Att
      */
     @Override
     public void setCacheable(final boolean value ) {
-        m_cacheable = value;
+        cacheable = value;
     }
 
 }

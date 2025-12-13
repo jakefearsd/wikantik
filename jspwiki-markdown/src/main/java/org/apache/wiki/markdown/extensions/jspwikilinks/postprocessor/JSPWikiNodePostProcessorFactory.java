@@ -34,17 +34,17 @@ import java.util.regex.Pattern;
  */
 public class JSPWikiNodePostProcessorFactory extends NodePostProcessorFactory {
 
-    private final Context m_context;
+    private final Context context;
     private final boolean isImageInlining;
     private final List< Pattern > inlineImagePatterns;
 
-    public JSPWikiNodePostProcessorFactory( final Context m_context,
+    public JSPWikiNodePostProcessorFactory( final Context context,
                                             final DataHolder options,
                                             final boolean isImageInlining,
                                             final List< Pattern > inlineImagePatterns ) {
         super( true );
         addNodes( Link.class ); // needs to be called before create( Document )
-        this.m_context = m_context;
+        this.context = context;
         this.isImageInlining = isImageInlining;
         this.inlineImagePatterns = inlineImagePatterns;
     }
@@ -54,7 +54,7 @@ public class JSPWikiNodePostProcessorFactory extends NodePostProcessorFactory {
      */
     @Override
     public NodePostProcessor apply( final Document document ) {
-        return new JSPWikiLinkNodePostProcessor( m_context, document, isImageInlining, inlineImagePatterns );
+        return new JSPWikiLinkNodePostProcessor( context, document, isImageInlining, inlineImagePatterns );
     }
 
 }

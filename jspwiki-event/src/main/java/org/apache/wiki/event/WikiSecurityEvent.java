@@ -114,9 +114,9 @@ public final class WikiSecurityEvent extends WikiEvent {
     /** The security logging service. */
     private static final Logger LOG = LogManager.getLogger( "SecurityLog" );
     
-    private final Principal m_principal;
+    private final Principal principal;
     
-    private final Object      m_target;
+    private final Object      target;
 
     private static final int[] ERROR_EVENTS = { LOGIN_FAILED };
     
@@ -138,8 +138,8 @@ public final class WikiSecurityEvent extends WikiEvent {
         if( src == null ) {
             throw new IllegalArgumentException( "Argument(s) cannot be null." );
         }
-        this.m_principal = principal;
-        this.m_target = target;
+        this.principal = principal;
+        this.target = target;
         if( LOG.isEnabled( Level.ERROR ) && ArrayUtils.contains( ERROR_EVENTS, type ) ) {
             LOG.error( this );
         } else if( LOG.isEnabled( Level.WARN ) && ArrayUtils.contains( WARN_EVENTS, type ) ) {
@@ -170,7 +170,7 @@ public final class WikiSecurityEvent extends WikiEvent {
      * @return the changed object
      */
     public Object getPrincipal() {
-        return m_principal;
+        return principal;
     }
     
     /**
@@ -180,7 +180,7 @@ public final class WikiSecurityEvent extends WikiEvent {
      * @return the changed object
      */
     public Object getTarget() {
-        return m_target;
+        return target;
     }
 
     /**
@@ -195,11 +195,11 @@ public final class WikiSecurityEvent extends WikiEvent {
         msg.append(  eventName( getType() ) );
         final Object obj = getSrc(); // cfr. https://forums.oracle.com/forums/thread.jspa?threadID=1184115
         msg.append( " [source=" ).append( obj.toString() );
-        if( m_principal != null ) {
-            msg.append( ", principal=" ).append( m_principal.getClass().getName() );
-            msg.append( " " ).append( m_principal.getName() );
+        if( principal != null ) {
+            msg.append( ", principal=" ).append( principal.getClass().getName() );
+            msg.append( " " ).append( principal.getName() );
         }
-        msg.append( ", target=" ).append( m_target );
+        msg.append( ", target=" ).append( target );
         msg.append( "]" );
         return msg.toString();
     }

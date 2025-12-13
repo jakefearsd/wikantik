@@ -49,8 +49,8 @@ public class InterWikiLinkNodePostProcessorState implements NodePostProcessorSta
     private final boolean isImageInlining;
     private final List< Pattern > inlineImagePatterns;
     private final Document document;
-    private final boolean m_wysiwygEditorMode;
-    private boolean m_useOutlinkImage = true;
+    private final boolean wysiwygEditorMode;
+    private boolean useOutlinkImage = true;
 
     public InterWikiLinkNodePostProcessorState( final Context wikiContext,
                                                 final Document document,
@@ -61,9 +61,9 @@ public class InterWikiLinkNodePostProcessorState implements NodePostProcessorSta
         this.isImageInlining = isImageInlining;
         this.inlineImagePatterns = inlineImagePatterns;
         this.document = document;
-        this.m_useOutlinkImage = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USEOUTLINKIMAGE, m_useOutlinkImage );
+        this.useOutlinkImage = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USEOUTLINKIMAGE, useOutlinkImage );
         final Boolean wysiwygVariable = wikiContext.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE );
-        m_wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
+        wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
     }
 
     /**
@@ -74,7 +74,7 @@ public class InterWikiLinkNodePostProcessorState implements NodePostProcessorSta
     @Override
     public void process( final NodeTracker state, final JSPWikiLink link ) {
         final String[] refAndPage = link.getUrl().toString().split( ":" );
-        if( !m_wysiwygEditorMode ) {
+        if( !wysiwygEditorMode ) {
             String urlReference = wikiContext.getEngine().getInterWikiURL( refAndPage[ 0 ] );
             if( urlReference != null ) {
                 urlReference = TextUtil.replaceString( urlReference, "%s", refAndPage[ 1 ] );
@@ -84,7 +84,7 @@ public class InterWikiLinkNodePostProcessorState implements NodePostProcessorSta
                     link.setUrl( CharSubSequence.of( urlReference ) );
                 }
                 if( linkOperations.isExternalLink( urlReference ) ) {
-                    NodePostProcessorStateCommonOperations.addOutlinkImage( state, link, wikiContext, m_useOutlinkImage );
+                    NodePostProcessorStateCommonOperations.addOutlinkImage( state, link, wikiContext, useOutlinkImage );
                 }
             } else {
                 LOG.debug( refAndPage[0] + " not recognized as InterWiki link [document node: " + document + "]" );

@@ -38,12 +38,12 @@ public class AccessRuleLinkNodePostProcessorState implements NodePostProcessorSt
 
     private static final Logger LOG = LogManager.getLogger( AccessRuleLinkNodePostProcessorState.class );
     private final Context wikiContext;
-    private final boolean m_wysiwygEditorMode;
+    private final boolean wysiwygEditorMode;
 
     public AccessRuleLinkNodePostProcessorState( final Context wikiContext ) {
         this.wikiContext = wikiContext;
         final Boolean wysiwygVariable = wikiContext.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE );
-        m_wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
+        wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
     }
 
     /**
@@ -53,7 +53,7 @@ public class AccessRuleLinkNodePostProcessorState implements NodePostProcessorSt
      */
     @Override
     public void process( final NodeTracker state, final JSPWikiLink link ) {
-        String ruleLine = NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, m_wysiwygEditorMode );
+        String ruleLine = NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, wysiwygEditorMode );
         if( wikiContext.getEngine().getManager( RenderingManager.class ).getParser( wikiContext, link.getUrl().toString() ).isParseAccessRules() ) {
             final Page page = wikiContext.getRealPage();
             if( ruleLine.startsWith( "{" ) ) {

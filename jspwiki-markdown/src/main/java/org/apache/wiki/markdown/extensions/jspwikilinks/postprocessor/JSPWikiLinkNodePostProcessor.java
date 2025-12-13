@@ -42,23 +42,23 @@ import java.util.regex.Pattern;
  */
 public class JSPWikiLinkNodePostProcessor extends NodePostProcessor {
 
-    protected final Context m_context;
+    protected final Context context;
     protected final LinkParsingOperations linkOperations;
     private final boolean isImageInlining;
     private final List< Pattern > inlineImagePatterns;
-    protected boolean m_useOutlinkImage = true;
+    protected boolean useOutlinkImage = true;
     protected final Document document;
 
-    public JSPWikiLinkNodePostProcessor( final Context m_context,
+    public JSPWikiLinkNodePostProcessor( final Context context,
                                          final Document document,
                                          final boolean isImageInlining,
                                          final List< Pattern > inlineImagePatterns ) {
-        this.m_context = m_context;
+        this.context = context;
         this.document = document;
-        linkOperations = new LinkParsingOperations( m_context );
+        linkOperations = new LinkParsingOperations( context );
         this.isImageInlining = isImageInlining;
         this.inlineImagePatterns = inlineImagePatterns;
-        m_useOutlinkImage = m_context.getBooleanWikiProperty( MarkupParser.PROP_USEOUTLINKIMAGE, m_useOutlinkImage );
+        useOutlinkImage = context.getBooleanWikiProperty( MarkupParser.PROP_USEOUTLINKIMAGE, useOutlinkImage );
     }
 
     /**
@@ -73,23 +73,23 @@ public class JSPWikiLinkNodePostProcessor extends NodePostProcessor {
 
             final NodePostProcessorState< JSPWikiLink > linkPostProcessor;
             if( linkOperations.isAccessRule( link.getUrl().toString() ) ) {
-                linkPostProcessor = new AccessRuleLinkNodePostProcessorState( m_context );
+                linkPostProcessor = new AccessRuleLinkNodePostProcessorState( context );
             } else if( linkOperations.isMetadata( link.getUrl().toString() ) ) {
-                linkPostProcessor = new MetadataLinkNodePostProcessorState( m_context );
+                linkPostProcessor = new MetadataLinkNodePostProcessorState( context );
             } else if( linkOperations.isPluginLink( link.getUrl().toString() ) ) {
-                linkPostProcessor = new PluginLinkNodePostProcessorState( m_context );
+                linkPostProcessor = new PluginLinkNodePostProcessorState( context );
             } else if( linkOperations.isVariableLink( link.getUrl().toString() ) ) {
-                linkPostProcessor = new VariableLinkNodePostProcessorState( m_context );
+                linkPostProcessor = new VariableLinkNodePostProcessorState( context );
             } else if( linkOperations.isExternalLink( link.getUrl().toString() ) ) {
-                linkPostProcessor = new ExternalLinkNodePostProcessorState( m_context, isImageInlining, inlineImagePatterns );
+                linkPostProcessor = new ExternalLinkNodePostProcessorState( context, isImageInlining, inlineImagePatterns );
             } else if( linkOperations.isInterWikiLink( link.getUrl().toString() ) ) {
-                linkPostProcessor = new InterWikiLinkNodePostProcessorState( m_context, document, isImageInlining, inlineImagePatterns );
+                linkPostProcessor = new InterWikiLinkNodePostProcessorState( context, document, isImageInlining, inlineImagePatterns );
             } else if( Strings.CS.startsWith( link.getUrl().toString(), "#" ) ) {
-                linkPostProcessor = new LocalFootnoteLinkNodePostProcessorState( m_context );
+                linkPostProcessor = new LocalFootnoteLinkNodePostProcessorState( context );
             } else if( TextUtil.isNumber( link.getUrl().toString() ) ) {
-                linkPostProcessor = new LocalFootnoteRefLinkNodePostProcessorState( m_context );
+                linkPostProcessor = new LocalFootnoteRefLinkNodePostProcessorState( context );
             } else {
-                linkPostProcessor = new LocalLinkNodePostProcessorState( m_context, isImageInlining, inlineImagePatterns );
+                linkPostProcessor = new LocalLinkNodePostProcessorState( context, isImageInlining, inlineImagePatterns );
             }
             linkPostProcessor.process( state, link );
         }

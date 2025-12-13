@@ -163,7 +163,7 @@ public non-sealed class WikiPageEvent extends WikiEvent {
     /** Indicates a wiki page reindex event (a page was changed when requested to a provided) */
     public static final int PAGE_REINDEX         = 28;
 
-    private final String m_pagename;
+    private final String pagename;
 
     // ............
 
@@ -172,11 +172,11 @@ public non-sealed class WikiPageEvent extends WikiEvent {
      *
       * @param src  the Object that is the source of the event.
       * @param type the type of the event (see the enumerated int values defined in {@link org.apache.wiki.event.WikiEvent}).
-      * @param pagename the WikiPage being acted upon.
+      * @param newPagename the WikiPage being acted upon.
       */
-    public WikiPageEvent( final Object src, final int type, final String pagename ) {
+    public WikiPageEvent( final Object src, final int type, final String newPagename ) {
         super( src, type );
-        m_pagename = pagename;
+        this.pagename = newPagename;
     }
 
     /**
@@ -185,7 +185,7 @@ public non-sealed class WikiPageEvent extends WikiEvent {
      * @return the Wiki page name associated with this WikiEvent, or null.
      */
     public String getPageName() {
-        return m_pagename;
+        return pagename;
     }
 
     /**

@@ -30,16 +30,16 @@ import java.util.regex.Pattern;
 // FIXME: Needs a better description as to how it works.
 public class WhitespaceTrimWriter extends Writer {
 
-    private final StringBuilder m_result = new StringBuilder();
+    private final StringBuilder result = new StringBuilder();
 
-    private StringBuilder m_buffer = new StringBuilder();
+    private StringBuilder buffer = new StringBuilder();
 
-    private boolean m_trimMode = true;
+    private boolean trimMode = true;
 
     public static final String NO_TRIMMED_SPACE = "&nbsp;";
     private static final Pattern ONLINE_PATTERN = Pattern.compile( ".*?\\n\\s*?", Pattern.MULTILINE );
 
-    private boolean m_currentlyOnLineBegin = true;
+    private boolean currentlyOnLineBegin = true;
 
     /**
      *  {@inheritDoc}
@@ -47,11 +47,11 @@ public class WhitespaceTrimWriter extends Writer {
     @Override
     public void flush()
     {
-        if( m_buffer.length() > 0 )
+        if( buffer.length() > 0 )
         {
-            String s = m_buffer.toString();
+            String s = buffer.toString();
             s = s.replaceAll( "\r\n", "\n" );
-            if( m_trimMode )
+            if( trimMode )
             {
                 s = s.replaceAll( "(\\w+) \\[\\?\\|Edit\\.jsp\\?page=\\1\\]", "[$1]" );
                 s = s.replaceAll( "\n{2,}", "\n\n" );
@@ -60,8 +60,8 @@ public class WhitespaceTrimWriter extends Writer {
                 s = replacePluginNewlineBackslashes( s );
                 s = s.replace( NO_TRIMMED_SPACE, " " );
             }
-            m_result.append( s );
-            m_buffer = new StringBuilder();
+            result.append( s );
+            buffer = new StringBuilder();
         }
     }
 
@@ -95,20 +95,20 @@ public class WhitespaceTrimWriter extends Writer {
      */
     public boolean isWhitespaceTrimMode()
     {
-        return m_trimMode;
+        return trimMode;
     }
 
     /**
      *  Set the trimming mode on/off.
      *  
-     *  @param trimMode True, if you want trimming to be turned on.  False otherwise.
+     *  @param newTrimMode True, if you want trimming to be turned on.  False otherwise.
      */
-    public void setWhitespaceTrimMode(final boolean trimMode )
+    public void setWhitespaceTrimMode(final boolean newTrimMode )
     {
-        if( m_trimMode != trimMode )
+        if ( this.trimMode != newTrimMode )
         {
             flush();
-            m_trimMode = trimMode;
+            this.trimMode = newTrimMode;
         }
     }
 
@@ -118,8 +118,8 @@ public class WhitespaceTrimWriter extends Writer {
     @Override
     public void write(final char[] arg0, final int arg1, final int arg2 ) throws IOException
     {
-        m_buffer.append( arg0, arg1, arg2 );
-        m_currentlyOnLineBegin = ONLINE_PATTERN.matcher( m_buffer ).matches();
+        buffer.append( arg0, arg1, arg2 );
+        currentlyOnLineBegin = ONLINE_PATTERN.matcher( buffer ).matches();
     }
 
     /**
@@ -136,7 +136,7 @@ public class WhitespaceTrimWriter extends Writer {
     public String toString()
     {
         flush();
-        return m_result.toString();
+        return result.toString();
     }
 
     /**
@@ -146,6 +146,6 @@ public class WhitespaceTrimWriter extends Writer {
      */
     public boolean isCurrentlyOnLineBegin()
     {
-        return m_currentlyOnLineBegin;
+        return currentlyOnLineBegin;
     }
 }

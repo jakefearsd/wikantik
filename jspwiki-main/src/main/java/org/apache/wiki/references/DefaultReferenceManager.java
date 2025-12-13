@@ -139,13 +139,13 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     /**
      *  Builds a new ReferenceManager.
      *
-     *  @param engine The Engine to which this is managing references to.
+     *  @param newEngine The Engine to which this is managing references to.
      */
-    public DefaultReferenceManager( final Engine engine ) {
+    public DefaultReferenceManager( final Engine newEngine ) {
         m_refersTo = new ConcurrentHashMap<>();
         m_referredBy = new ConcurrentHashMap<>();
-        m_engine = engine;
-        m_matchEnglishPlurals = TextUtil.getBooleanProperty( engine.getWikiProperties(), Engine.PROP_MATCHPLURALS, false );
+        this.engine = newEngine;
+        m_matchEnglishPlurals = TextUtil.getBooleanProperty( newEngine.getWikiProperties(), Engine.PROP_MATCHPLURALS, false );
 
         //
         //  Create two maps that contain unmutable versions of the two basic maps.
@@ -158,10 +158,10 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      *  Does a full reference update.  Does not sync; assumes that you do it afterwards.
      */
     private void updatePageReferences( final Page page ) throws ProviderException {
-        final String content = m_engine.getManager( PageManager.class ).getPageText( page.getName(), PageProvider.LATEST_VERSION );
+        final String content = engine.getManager( PageManager.class ).getPageText( page.getName(), PageProvider.LATEST_VERSION );
         final Collection< String > links = scanWikiLinks( page, content );
         final var res = new TreeSet<>( links );
-        final List< Attachment > attachments = m_engine.getManager( AttachmentManager.class ).listAttachments( page );
+        final List< Attachment > attachments = engine.getManager( AttachmentManager.class ).listAttachments( page );
         for( final Attachment att : attachments ) {
             res.add( att.getName() );
         }
@@ -201,7 +201,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
             for( final Page page : pages ) {
                 if( !( page instanceof Attachment ) ) {
                     // Refresh with the latest copy
-                    final Page wp = m_engine.getManager( PageManager.class ).getPage( page.getName() );
+                    final Page wp = engine.getManager( PageManager.class ).getPage( page.getName() );
 
                     if( wp.getLastModified() == null ) {
                         LOG.fatal( "Provider returns null lastModified.  Please submit a bug report." );
@@ -238,7 +238,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         sw.stop();
         LOG.info( "Cross reference scan done in {} - ReferenceManager is now ready", sw );
 
-        WikiEventManager.addWikiEventListener( m_engine.getManager( PageManager.class ), this );
+        WikiEventManager.addWikiEventListener( engine.getManager( PageManager.class ), this );
     }
 
     /**
@@ -270,7 +270,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     private synchronized long unserializeFromDisk() throws IOException, ClassNotFoundException {
         final long saved;
 
-        final File f = new File( m_engine.getWorkDir(), SERIALIZATION_FILE );
+        final File f = new File( engine.getWorkDir(), SERIALIZATION_FILE );
         try( final ObjectInputStream in = new ObjectInputStream( new BufferedInputStream( Files.newInputStream( f.toPath() ) ) ) ) {
             final StopWatch sw = new StopWatch();
             sw.start();
@@ -299,7 +299,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      *  Serializes hashmaps to disk.  The format is private, don't touch it.
      */
     private synchronized void serializeToDisk() {
-        final File f = new File( m_engine.getWorkDir(), SERIALIZATION_FILE );
+        final File f = new File( engine.getWorkDir(), SERIALIZATION_FILE );
         try( final ObjectOutputStream out = new ObjectOutputStream( new BufferedOutputStream( Files.newOutputStream( f.toPath() ) ) ) ) {
             final StopWatch sw = new StopWatch();
             sw.start();
@@ -341,7 +341,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         //  Find attribute cache, and check if it exists
         final String hashName = getHashFileName( p.getName() );
         if( hashName != null ) {
-        	File f = new File( m_engine.getWorkDir(), SERIALIZATION_DIR );
+        	File f = new File( engine.getWorkDir(), SERIALIZATION_DIR );
             f = new File( f, hashName );
             if( !f.exists() ) {
                 return 0L;
@@ -391,7 +391,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
         final String hashName = getHashFileName( p.getName() );
         if( hashName != null ) {
-        	File f = new File( m_engine.getWorkDir(), SERIALIZATION_DIR );
+        	File f = new File( engine.getWorkDir(), SERIALIZATION_DIR );
             if( !f.exists() ) {
                 f.mkdirs();
             }
@@ -455,7 +455,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     @Override
     public Collection< String > scanWikiLinks( final Page page, final String pagedata ) {
         final LinkCollector localCollector = new LinkCollector();
-        m_engine.getManager( RenderingManager.class ).textToHTML( Wiki.context().create( m_engine, page ),
+        engine.getManager( RenderingManager.class ).textToHTML( Wiki.context().create( engine, page ),
                                                                   pagedata,
                                                                   localCollector,
                                                                   null,
@@ -495,7 +495,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
                 // We won't put it back again if it becomes empty and does not exist.  It will be added
                 // later on anyway, if it becomes referenced again.
-                if( !( refBy.isEmpty() && !m_engine.getManager( PageManager.class ).wikiPageExists( referredPageName ) ) ) {
+                if( !( refBy.isEmpty() && !engine.getManager( PageManager.class ).wikiPageExists( referredPageName ) ) ) {
                     m_referredBy.put( referredPageName, refBy );
                 }
             }
@@ -514,7 +514,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
         final String hashName = getHashFileName( pageName );
         if( hashName != null ) {
-        	File f = new File( m_engine.getWorkDir(), SERIALIZATION_DIR );
+        	File f = new File( engine.getWorkDir(), SERIALIZATION_DIR );
             f = new File( f, getHashFileName( pageName ) );
             if( f.exists() ) {
                 f.delete();
@@ -529,7 +529,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      */
     @Override
     public void updateReferences( final Page page ) {
-        final String pageData = m_engine.getManager( PageManager.class ).getPureText( page.getName(), WikiProvider.LATEST_VERSION );
+        final String pageData = engine.getManager( PageManager.class ).getPureText( page.getName(), WikiProvider.LATEST_VERSION );
         updateReferences( page.getName(), scanWikiLinks( page, pageData ) );
     }
 
@@ -628,7 +628,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
             // If the page is referred to by no one AND it doesn't even exist, we might just as well forget about this
             // entry. It will be added again elsewhere if new references appear.
-            if( ( oldRefBy == null || oldRefBy.isEmpty() ) && !m_engine.getManager( PageManager.class ).wikiPageExists( referredPage ) ) {
+            if( ( oldRefBy == null || oldRefBy.isEmpty() ) && !engine.getManager( PageManager.class ).wikiPageExists( referredPage ) ) {
                 m_referredBy.remove( referredPage );
             }
         }
@@ -751,7 +751,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         // Go through m_refersTo values and check that m_refersTo has the corresponding keys.
         // We want to reread the code to make sure our HashMaps are in sync...
         final Collection< Collection< String > > allReferences = m_refersTo.values();
-        uncreated = allReferences.stream().filter(Objects::nonNull).flatMap(Collection::stream).filter(aReference -> !m_engine.getManager(PageManager.class).wikiPageExists(aReference)).collect(Collectors.toCollection(TreeSet::new));
+        uncreated = allReferences.stream().filter(Objects::nonNull).flatMap(Collection::stream).filter(aReference -> !engine.getManager(PageManager.class).wikiPageExists(aReference)).collect(Collectors.toCollection(TreeSet::new));
 
         return uncreated;
     }
@@ -893,7 +893,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
     private String getFinalPageName( final String orig ) {
         try {
-            final String s = m_engine.getFinalPageName( orig );
+            final String s = engine.getFinalPageName( orig );
             return s != null ? s : orig;
         } catch( final ProviderException e ) {
             LOG.error( "Error while trying to fetch a page name; trying to cope with the situation.", e );

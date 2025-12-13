@@ -39,7 +39,7 @@ public class ExternalLinkNodePostProcessorState implements NodePostProcessorStat
     private final LinkParsingOperations linkOperations;
     private final boolean isImageInlining;
     private final List< Pattern > inlineImagePatterns;
-    private boolean m_useOutlinkImage = true;
+    private boolean useOutlinkImage = true;
 
     public ExternalLinkNodePostProcessorState( final Context wikiContext,
                                                final boolean isImageInlining,
@@ -48,7 +48,7 @@ public class ExternalLinkNodePostProcessorState implements NodePostProcessorStat
         this.linkOperations = new LinkParsingOperations( wikiContext );
         this.isImageInlining = isImageInlining;
         this.inlineImagePatterns = inlineImagePatterns;
-        this.m_useOutlinkImage = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USEOUTLINKIMAGE, m_useOutlinkImage );
+        this.useOutlinkImage = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USEOUTLINKIMAGE, useOutlinkImage );
     }
 
     /**
@@ -62,7 +62,7 @@ public class ExternalLinkNodePostProcessorState implements NodePostProcessorStat
             new ImageLinkNodePostProcessorState( wikiContext, link.getUrl().toString(), link.hasRef() ).process( state, link );
         } else {
             link.setUrl( CharSubSequence.of( link.getUrl().toString() ) );
-            NodePostProcessorStateCommonOperations.addOutlinkImage( state, link, wikiContext, m_useOutlinkImage );
+            NodePostProcessorStateCommonOperations.addOutlinkImage( state, link, wikiContext, useOutlinkImage );
         }
     }
 

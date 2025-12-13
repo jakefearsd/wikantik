@@ -42,12 +42,12 @@ public class PluginLinkNodePostProcessorState implements NodePostProcessorState<
 
     private static final Logger LOG = LogManager.getLogger( PluginLinkNodePostProcessorState.class );
     private final Context wikiContext;
-    private final boolean m_wysiwygEditorMode;
+    private final boolean wysiwygEditorMode;
 
     public PluginLinkNodePostProcessorState( final Context wikiContext ) {
         this.wikiContext = wikiContext;
         final Boolean wysiwygVariable = wikiContext.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE );
-        m_wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
+        wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
     }
 
     /**
@@ -76,7 +76,7 @@ public class PluginLinkNodePostProcessorState implements NodePostProcessorState<
             }
         } catch( final PluginException e ) {
             LOG.info( wikiContext.getRealPage().getWiki() + " : " + wikiContext.getRealPage().getName() + " - Failed to insert plugin: " + e.getMessage() );
-            if( !m_wysiwygEditorMode ) {
+            if( !wysiwygEditorMode ) {
                 final ResourceBundle rbPlugin = Preferences.getBundle( wikiContext, Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
                 NodePostProcessorStateCommonOperations.makeError( state, link, MessageFormat.format( rbPlugin.getString( "plugin.error.insertionfailed" ),
                                                                                                                          wikiContext.getRealPage().getWiki(),
@@ -107,7 +107,7 @@ public class PluginLinkNodePostProcessorState implements NodePostProcessorState<
     }
 
     void handleTableOfContentsPlugin(final NodeTracker state, final JSPWikiLink link) {
-        if( !m_wysiwygEditorMode ) {
+        if( !wysiwygEditorMode ) {
             final ResourceBundle rb = Preferences.getBundle( wikiContext, Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
             final WikiHtmlInline divToc = WikiHtmlInline.of( "<div class=\"toc\">\n" );
             final WikiHtmlInline divCollapseBox = WikiHtmlInline.of( "<div class=\"collapsebox\">\n" );
@@ -124,7 +124,7 @@ public class PluginLinkNodePostProcessorState implements NodePostProcessorState<
             toc.insertAfter( divsClosing );
 
         } else {
-            NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, m_wysiwygEditorMode );
+            NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, wysiwygEditorMode );
         }
         removeLink( state, link );
     }

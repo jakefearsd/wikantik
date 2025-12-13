@@ -65,7 +65,7 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
 
     private static final Logger LOG = LogManager.getLogger( DefaultSearchManager.class );
 
-    private SearchProvider m_searchProvider;
+    private SearchProvider searchProvider;
 
     /**
      *  Creates a new SearchManager.
@@ -192,10 +192,10 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
             if( !searchString.isEmpty() ) {
                 try {
                     final Collection< SearchResult > c;
-                    if( m_searchProvider instanceof LuceneSearchProvider luceneProvider ) {
+                    if( searchProvider instanceof LuceneSearchProvider luceneProvider ) {
                         c = luceneProvider.findPages( searchString, 0, wikiContext );
                     } else {
-                        c = m_searchProvider.findPages( searchString, wikiContext );
+                        c = searchProvider.findPages( searchString, wikiContext );
                     }
 
                     int count = 0;
@@ -225,7 +225,7 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
         loadSearchProvider(properties);
 
         try {
-            m_searchProvider.initialize( newEngine, properties );
+            searchProvider.initialize( newEngine, properties );
         } catch( final NoRequiredPropertyException | IOException e ) {
             LOG.error( e.getMessage(), e );
         }
@@ -236,22 +236,22 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
         final String providerClassName = TextUtil.getStringProperty( properties, PROP_SEARCHPROVIDER, DEFAULT_SEARCHPROVIDER );
 
         try {
-            m_searchProvider = ClassUtil.buildInstance( "org.apache.wiki.search", providerClassName );
+            searchProvider = ClassUtil.buildInstance( "org.apache.wiki.search", providerClassName );
         } catch( final ReflectiveOperationException e ) {
             LOG.warn( "Failed loading SearchProvider, will use BasicSearchProvider.", e );
         }
 
-        if( null == m_searchProvider ) {
-            m_searchProvider = new BasicSearchProvider();
+        if( null == searchProvider ) {
+            searchProvider = new BasicSearchProvider();
         }
-        LOG.debug( "Loaded search provider {}", m_searchProvider );
+        LOG.debug( "Loaded search provider {}", searchProvider );
     }
 
     /** {@inheritDoc} */
     @Override
     public SearchProvider getSearchEngine()
     {
-        return m_searchProvider;
+        return searchProvider;
     }
 
     /** {@inheritDoc} */

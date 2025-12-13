@@ -100,7 +100,7 @@ public class LuceneSearchProvider implements SearchProvider {
 
     protected static final Logger LOG = LogManager.getLogger( LuceneSearchProvider.class );
 
-    private Engine m_engine;
+    private Engine engine;
     private Executor searchExecutor;
 
     // Lucene properties.
@@ -118,12 +118,12 @@ public class LuceneSearchProvider implements SearchProvider {
     private static final int DEFAULT_MISSING_PAGE_CHECK_INTERVAL = 300;
 
     /** How often (in seconds) to check for missing pages. Loaded from properties. */
-    private int m_missingPageCheckInterval = DEFAULT_MISSING_PAGE_CHECK_INTERVAL;
+    private int missingPageCheckInterval = DEFAULT_MISSING_PAGE_CHECK_INTERVAL;
 
-    private String m_analyzerClass = ClassicAnalyzer.class.getName();
+    private String analyzerClass = ClassicAnalyzer.class.getName();
 
     /** Cached Lucene Analyzer instance - expensive to create via reflection, so we cache it. */
-    private Analyzer m_analyzer;
+    private Analyzer analyzer;
 
     private static final String LUCENE_DIR = "lucene";
 
@@ -139,8 +139,8 @@ public class LuceneSearchProvider implements SearchProvider {
     protected static final String LUCENE_PAGE_NAME     = "name";
     protected static final String LUCENE_PAGE_KEYWORDS = "keywords";
 
-    private String m_luceneDirectory;
-    protected final List< Object[] > m_updates = Collections.synchronizedList( new ArrayList<>() );
+    private String luceneDirectory;
+    protected final List< Object[] > updates = Collections.synchronizedList( new ArrayList<>() );
 
     /** Maximum number of fragments from search matches. */
     private static final int MAX_FRAGMENTS = 3;
@@ -153,29 +153,29 @@ public class LuceneSearchProvider implements SearchProvider {
     /** {@inheritDoc} */
     @Override
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, IOException {
-        m_engine = engine;
+        this.engine = engine;
         searchExecutor = Executors.newCachedThreadPool();
 
-        m_luceneDirectory = engine.getWorkDir() + File.separator + LUCENE_DIR;
+        luceneDirectory = engine.getWorkDir() + File.separator + LUCENE_DIR;
 
         final int initialDelay = TextUtil.getIntegerProperty( props, PROP_LUCENE_INITIALDELAY, LuceneUpdater.INITIAL_DELAY );
         final int indexDelay   = TextUtil.getIntegerProperty( props, PROP_LUCENE_INDEXDELAY, LuceneUpdater.INDEX_DELAY );
-        m_missingPageCheckInterval = TextUtil.getIntegerProperty( props, PROP_LUCENE_MISSINGPAGECHECK_INTERVAL, DEFAULT_MISSING_PAGE_CHECK_INTERVAL );
+        missingPageCheckInterval = TextUtil.getIntegerProperty( props, PROP_LUCENE_MISSINGPAGECHECK_INTERVAL, DEFAULT_MISSING_PAGE_CHECK_INTERVAL );
 
-        m_analyzerClass = TextUtil.getStringProperty( props, PROP_LUCENE_ANALYZER, m_analyzerClass );
+        analyzerClass = TextUtil.getStringProperty( props, PROP_LUCENE_ANALYZER, analyzerClass );
 
         // Initialize the cached analyzer instance
         try {
-            m_analyzer = ClassUtil.buildInstance( m_analyzerClass );
-            LOG.info( "Lucene analyzer initialized: {}", m_analyzerClass );
+            analyzer = ClassUtil.buildInstance( analyzerClass );
+            LOG.info( "Lucene analyzer initialized: {}", analyzerClass );
         } catch( final Exception e ) {
-            LOG.error( "Could not initialize LuceneAnalyzer class {}, using default ClassicAnalyzer", m_analyzerClass, e );
-            m_analyzer = new ClassicAnalyzer();
+            LOG.error( "Could not initialize LuceneAnalyzer class {}, using default ClassicAnalyzer", analyzerClass, e );
+            analyzer = new ClassicAnalyzer();
         }
 
         // FIXME: Just to be simple for now, we will do full reindex only if no files are in lucene directory.
 
-        final File dir = new File( m_luceneDirectory );
+        final File dir = new File( luceneDirectory );
         LOG.info( "Lucene enabled, cache will be in: {}", dir.getAbsolutePath() );
         try {
             if( !dir.exists() ) {
@@ -197,7 +197,7 @@ public class LuceneSearchProvider implements SearchProvider {
 
         // Start the Lucene update thread, which waits first for a little while before starting to go through
         // the Lucene "pages that need updating".
-        final LuceneUpdater updater = new LuceneUpdater( m_engine, this, initialDelay, indexDelay, m_missingPageCheckInterval );
+        final LuceneUpdater updater = new LuceneUpdater( this.engine, this, initialDelay, indexDelay, missingPageCheckInterval );
         updater.start();
     }
 
@@ -207,7 +207,7 @@ public class LuceneSearchProvider implements SearchProvider {
      * @return Current Engine
      */
     protected Engine getEngine() {
-        return m_engine;
+        return engine;
     }
 
     /**
@@ -216,7 +216,7 @@ public class LuceneSearchProvider implements SearchProvider {
      * @throws IOException If there's a problem during indexing
      */
     protected void doFullLuceneReindex() throws IOException {
-        final File dir = new File( m_luceneDirectory );
+        final File dir = new File( luceneDirectory );
         final String[] filelist = dir.list();
         if( filelist == null ) {
             throw new IOException( "Invalid Lucene directory: cannot produce listing: " + dir.getAbsolutePath() );
@@ -234,10 +234,10 @@ public class LuceneSearchProvider implements SearchProvider {
                 final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
                 try( final IndexWriter writer = getIndexWriter( luceneDir ) ) {
                     long pagesIndexed = 0L;
-                    final Collection< Page > allPages = m_engine.getManager( PageManager.class ).getAllPages();
+                    final Collection< Page > allPages = engine.getManager( PageManager.class ).getAllPages();
                     for( final Page page : allPages ) {
                         try {
-                            final String text = m_engine.getManager( PageManager.class ).getPageText( page.getName(), WikiProvider.LATEST_VERSION );
+                            final String text = engine.getManager( PageManager.class ).getPageText( page.getName(), WikiProvider.LATEST_VERSION );
                             luceneIndexPage( page, text, writer );
                             pagesIndexed++;
                         } catch( final IOException e ) {
@@ -247,7 +247,7 @@ public class LuceneSearchProvider implements SearchProvider {
                     LOG.info( "Indexed {} pages", pagesIndexed );
 
                     long attachmentsIndexed = 0L;
-                    final Collection< Attachment > allAttachments = m_engine.getManager( AttachmentManager.class ).getAllAttachments();
+                    final Collection< Attachment > allAttachments = engine.getManager( AttachmentManager.class ).getAllAttachments();
                     for( final Attachment att : allAttachments ) {
                         try {
                             final String text = getAttachmentContent( att.getName(), WikiProvider.LATEST_VERSION );
@@ -287,7 +287,7 @@ public class LuceneSearchProvider implements SearchProvider {
      * @return the content of the Attachment as a String.
      */
     protected String getAttachmentContent( final String attachmentName, final int version ) {
-        final AttachmentManager mgr = m_engine.getManager( AttachmentManager.class );
+        final AttachmentManager mgr = engine.getManager( AttachmentManager.class );
         try {
             final Attachment att = mgr.getAttachmentInfo( attachmentName, version );
             //FIXME: Find out why sometimes att is null
@@ -307,7 +307,7 @@ public class LuceneSearchProvider implements SearchProvider {
      * This should be replaced /moved to Attachment search providers or some other 'pluggable' way to search attachments
      */
     protected String getAttachmentContent( final Attachment att ) {
-        final AttachmentManager mgr = m_engine.getManager( AttachmentManager.class );
+        final AttachmentManager mgr = engine.getManager( AttachmentManager.class );
         //FIXME: Add attachment plugin structure
 
         final String filename = att.getFileName();
@@ -338,7 +338,7 @@ public class LuceneSearchProvider implements SearchProvider {
         pageRemoved( page );
 
         // Now add back the new version.
-        try( final Directory luceneDir = new NIOFSDirectory( new File( m_luceneDirectory ).toPath() );
+        try( final Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
              final IndexWriter writer = getIndexWriter( luceneDir ) ) {
             luceneIndexPage( page, text, writer );
         } catch( final IOException e ) {
@@ -360,7 +360,7 @@ public class LuceneSearchProvider implements SearchProvider {
      * @return The cached Analyzer instance
      */
     private Analyzer getLuceneAnalyzer() {
-        return m_analyzer;
+        return analyzer;
     }
 
     /**
@@ -404,7 +404,7 @@ public class LuceneSearchProvider implements SearchProvider {
 
         // Now add the names of the attachments of this page
         try {
-            final List< Attachment > attachments = m_engine.getManager( AttachmentManager.class ).listAttachments( page );
+            final List< Attachment > attachments = engine.getManager( AttachmentManager.class ).listAttachments( page );
             final String attachmentNames = attachments.stream().map(att -> att.getName() + ";").collect(Collectors.joining());
 
             field = new Field( LUCENE_ATTACHMENTS, attachmentNames, TextField.TYPE_STORED );
@@ -432,7 +432,7 @@ public class LuceneSearchProvider implements SearchProvider {
      */
     @Override
     public synchronized void pageRemoved( final Page page ) {
-        try( final Directory luceneDir = new NIOFSDirectory( new File( m_luceneDirectory ).toPath() );
+        try( final Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
              final IndexWriter writer = getIndexWriter( luceneDir ) ) {
             final Query query = new TermQuery( new Term( LUCENE_ID, page.getName() ) );
             writer.deleteDocuments( query );
@@ -455,7 +455,7 @@ public class LuceneSearchProvider implements SearchProvider {
      */
     protected Set< String > getIndexedPageNames() {
         final Set< String > indexedPages = new HashSet<>();
-        final File dir = new File( m_luceneDirectory );
+        final File dir = new File( luceneDirectory );
 
         if( !dir.exists() || dir.list() == null || dir.list().length == 0 ) {
             return indexedPages;
@@ -487,7 +487,7 @@ public class LuceneSearchProvider implements SearchProvider {
      * @return the number of pages that were indexed
      */
     protected int indexMissingPages() {
-        final File dir = new File( m_luceneDirectory );
+        final File dir = new File( luceneDirectory );
         if( !dir.exists() || dir.list() == null || dir.list().length == 0 ) {
             // No index exists yet - full reindex will happen
             LOG.debug( "No Lucene index exists, skipping missing page check" );
@@ -500,7 +500,7 @@ public class LuceneSearchProvider implements SearchProvider {
             final Set< String > indexedPages = getIndexedPageNames();
 
             // Get all pages from disk
-            final Collection< Page > allPages = m_engine.getManager( PageManager.class ).getAllPages();
+            final Collection< Page > allPages = engine.getManager( PageManager.class ).getAllPages();
 
             // Find pages that exist on disk but not in index
             final List< Page > missingPages = allPages.stream()
@@ -514,7 +514,7 @@ public class LuceneSearchProvider implements SearchProvider {
                      final IndexWriter writer = getIndexWriter( luceneDir ) ) {
                     for( final Page page : missingPages ) {
                         try {
-                            final String text = m_engine.getManager( PageManager.class )
+                            final String text = engine.getManager( PageManager.class )
                                     .getPageText( page.getName(), WikiProvider.LATEST_VERSION );
                             luceneIndexPage( page, text, writer );
                             pagesIndexed++;
@@ -528,7 +528,7 @@ public class LuceneSearchProvider implements SearchProvider {
             }
 
             // Also check for missing attachments
-            final Collection< Attachment > allAttachments = m_engine.getManager( AttachmentManager.class ).getAllAttachments();
+            final Collection< Attachment > allAttachments = engine.getManager( AttachmentManager.class ).getAllAttachments();
             final List< Attachment > missingAttachments = allAttachments.stream()
                     .filter( att -> !indexedPages.contains( att.getName() ) )
                     .toList();
@@ -576,15 +576,15 @@ public class LuceneSearchProvider implements SearchProvider {
             if( page instanceof Attachment att ) {
                 text = getAttachmentContent( att );
             } else {
-                text = m_engine.getManager( PageManager.class ).getPureText( page );
+                text = engine.getManager( PageManager.class ).getPureText( page );
             }
 
             if( text != null ) {
-                // Add work item to m_updates queue.
+                // Add work item to updates queue.
                 final Object[] pair = new Object[ 2 ];
                 pair[ 0 ] = page;
                 pair[ 1 ] = text;
-                m_updates.add( pair );
+                updates.add( pair );
                 LOG.debug( "Scheduling page {} for index update", page.getName() );
             }
         }
@@ -616,7 +616,7 @@ public class LuceneSearchProvider implements SearchProvider {
         ArrayList< SearchResult > list = null;
         Highlighter highlighter = null;
 
-        try( final Directory luceneDir = new NIOFSDirectory( new File( m_luceneDirectory ).toPath() );
+        try( final Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
              final IndexReader reader = DirectoryReader.open( luceneDir ) ) {
             final String[] queryfields = { LUCENE_PAGE_CONTENTS, LUCENE_PAGE_NAME, LUCENE_AUTHOR, LUCENE_ATTACHMENTS, LUCENE_PAGE_KEYWORDS };
             final QueryParser qp = new MultiFieldQueryParser( queryfields, getLuceneAnalyzer() );
@@ -629,7 +629,7 @@ public class LuceneSearchProvider implements SearchProvider {
                                                new QueryScorer( luceneQuery ) );
             }
 
-            final AuthorizationManager mgr = m_engine.getManager( AuthorizationManager.class );
+            final AuthorizationManager mgr = engine.getManager( AuthorizationManager.class );
             final TopDocs hits = searcher.search( luceneQuery, MAX_SEARCH_HITS );
             final StoredFields storedFields = reader.storedFields();
 
@@ -637,7 +637,7 @@ public class LuceneSearchProvider implements SearchProvider {
             for( final ScoreDoc hit : hits.scoreDocs ) {
                 final Document doc = storedFields.document( hit.doc );
                 final String pageName = doc.get( LUCENE_ID );
-                final Page page = m_engine.getManager( PageManager.class ).getPage( pageName, PageProvider.LATEST_VERSION );
+                final Page page = engine.getManager( PageManager.class ).getPage( pageName, PageProvider.LATEST_VERSION );
 
                 if( page != null ) {
                     final PagePermission pp = new PagePermission( page, PagePermission.VIEW_ACTION );
@@ -658,7 +658,7 @@ public class LuceneSearchProvider implements SearchProvider {
                     }
                 } else {
                     LOG.error( "Lucene found a result page '{}' that could not be loaded, removing from Lucene cache",  pageName );
-                    pageRemoved( Wiki.contents().page( m_engine, pageName ) );
+                    pageRemoved( Wiki.contents().page( engine, pageName ) );
                 }
             }
         } catch( final IOException e ) {
@@ -685,68 +685,68 @@ public class LuceneSearchProvider implements SearchProvider {
     private static final class LuceneUpdater extends WikiBackgroundThread {
         static final int INDEX_DELAY    = 5;
         static final int INITIAL_DELAY = 60;
-        private final LuceneSearchProvider m_provider;
+        private final LuceneSearchProvider provider;
 
-        private final int m_initialDelay;
-        private final int m_missingPageCheckInterval;
-        private long m_lastMissingPageCheck;
+        private final int initialDelay;
+        private final int missingPageCheckInterval;
+        private long lastMissingPageCheck;
 
-        private WatchDog m_watchdog;
+        private WatchDog watchdog;
 
         private LuceneUpdater( final Engine engine, final LuceneSearchProvider provider,
                                final int initialDelay, final int indexDelay, final int missingPageCheckInterval ) {
             super( engine, indexDelay );
-            m_provider = provider;
-            m_initialDelay = initialDelay;
-            m_missingPageCheckInterval = missingPageCheckInterval;
-            m_lastMissingPageCheck = System.currentTimeMillis();
+            this.provider = provider;
+            this.initialDelay = initialDelay;
+            this.missingPageCheckInterval = missingPageCheckInterval;
+            lastMissingPageCheck = System.currentTimeMillis();
             setName( "JSPWiki Lucene Indexer" );
         }
 
         @Override
         public void startupTask() throws Exception {
-            m_watchdog = WatchDog.getCurrentWatchDog( getEngine() );
+            watchdog = WatchDog.getCurrentWatchDog( getEngine() );
 
             // Sleep initially...
             try {
-                Thread.sleep( m_initialDelay * 1000L );
+                Thread.sleep( initialDelay * 1000L );
             } catch( final InterruptedException e ) {
                 throw new InternalWikiException( "Interrupted while waiting to start.", e );
             }
 
-            m_watchdog.enterState( "Full reindex" );
+            watchdog.enterState( "Full reindex" );
             // Reindex everything (or check for missing pages if index exists)
-            m_provider.doFullLuceneReindex();
-            m_lastMissingPageCheck = System.currentTimeMillis();
-            m_watchdog.exitState();
+            provider.doFullLuceneReindex();
+            lastMissingPageCheck = System.currentTimeMillis();
+            watchdog.exitState();
         }
 
         @Override
         public void backgroundTask() {
-            m_watchdog.enterState( "Emptying index queue", 60 );
+            watchdog.enterState( "Emptying index queue", 60 );
 
-            synchronized( m_provider.m_updates ) {
-                while(!m_provider.m_updates.isEmpty()) {
-                    final Object[] pair = m_provider.m_updates.remove( 0 );
+            synchronized( provider.updates ) {
+                while(!provider.updates.isEmpty()) {
+                    final Object[] pair = provider.updates.remove( 0 );
                     final Page page = ( Page )pair[ 0 ];
                     final String text = ( String )pair[ 1 ];
-                    m_provider.updateLuceneIndex( page, text );
+                    provider.updateLuceneIndex( page, text );
                 }
             }
 
-            m_watchdog.exitState();
+            watchdog.exitState();
 
             // Periodically check for pages added outside the wiki UI
-            if( m_missingPageCheckInterval > 0 ) {
+            if( missingPageCheckInterval > 0 ) {
                 final long now = System.currentTimeMillis();
-                final long elapsedSeconds = ( now - m_lastMissingPageCheck ) / 1000L;
+                final long elapsedSeconds = ( now - lastMissingPageCheck ) / 1000L;
 
-                if( elapsedSeconds >= m_missingPageCheckInterval ) {
-                    m_watchdog.enterState( "Checking for missing pages", 120 );
+                if( elapsedSeconds >= missingPageCheckInterval ) {
+                    watchdog.enterState( "Checking for missing pages", 120 );
                     LOG.debug( "Running periodic check for pages missing from Lucene index" );
-                    m_provider.indexMissingPages();
-                    m_lastMissingPageCheck = now;
-                    m_watchdog.exitState();
+                    provider.indexMissingPages();
+                    lastMissingPageCheck = now;
+                    watchdog.exitState();
                 }
             }
         }
@@ -756,19 +756,19 @@ public class LuceneSearchProvider implements SearchProvider {
     // FIXME: This class is dumb; needs to have a better implementation
     private static class SearchResultImpl implements SearchResult {
 
-        private final Page m_page;
-        private final int m_score;
-        private final String[] m_contexts;
+        private final Page page;
+        private final int score;
+        private final String[] contexts;
 
         public SearchResultImpl( final Page page, final int score, final String[] contexts ) {
-            m_page = page;
-            m_score = score;
-            m_contexts = contexts != null ? contexts.clone() : null;
+            this.page = page;
+            this.score = score;
+            this.contexts = contexts != null ? contexts.clone() : null;
         }
 
         @Override
         public Page getPage() {
-            return m_page;
+            return this.page;
         }
 
         /* (non-Javadoc)
@@ -776,13 +776,13 @@ public class LuceneSearchProvider implements SearchProvider {
          */
         @Override
         public int getScore() {
-            return m_score;
+            return score;
         }
 
 
         @Override
         public String[] getContexts() {
-            return m_contexts;
+            return contexts;
         }
     }
 

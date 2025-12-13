@@ -36,7 +36,7 @@ import java.security.Principal;
 public final class UnresolvedPrincipal implements Principal, Serializable
 {
     private static final long serialVersionUID = 1L;
-    private final String m_name;
+    private final String name;
 
     /**
      * Constructs a new UnresolvedPrincipal instance.
@@ -44,7 +44,7 @@ public final class UnresolvedPrincipal implements Principal, Serializable
      */
     public UnresolvedPrincipal(final String name )
     {
-        m_name = name;
+        this.name = name;
     }
 
     /**
@@ -55,7 +55,7 @@ public final class UnresolvedPrincipal implements Principal, Serializable
     @Override
     public String getName()
     {
-        return m_name;
+        return name;
     }
     
     /**
@@ -64,7 +64,7 @@ public final class UnresolvedPrincipal implements Principal, Serializable
      */
     public String toString()
     {
-        return "[UnresolvedPrincipal: " + m_name + "]";
+        return "[UnresolvedPrincipal: " + name + "]";
     }
 
     /**
@@ -78,7 +78,7 @@ public final class UnresolvedPrincipal implements Principal, Serializable
     {
         if ( obj instanceof UnresolvedPrincipal other )
         {
-            return m_name.equals( other.m_name );
+            return name.equals( other.name );
         }
         return false;
     }
@@ -89,6 +89,6 @@ public final class UnresolvedPrincipal implements Principal, Serializable
      */
     public int hashCode()
     {
-        return m_name.hashCode();
+        return name.hashCode();
     }
 }

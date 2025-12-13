@@ -37,7 +37,7 @@ import java.util.List;
 public class AclImpl implements org.apache.wiki.api.core.Acl, Serializable {
 
     private static final long serialVersionUID = 1L;
-    private final List< AclEntry > m_entries = new ArrayList<>();
+    private final List< AclEntry > entries = new ArrayList<>();
 
     /**
      * Constructs a new AclImpl instance.
@@ -68,7 +68,7 @@ public class AclImpl implements org.apache.wiki.api.core.Acl, Serializable {
             return false;
         }
 
-        for( final AclEntry e : m_entries ) {
+        for( final AclEntry e : entries ) {
             final Principal ep = e.getPrincipal();
             final Principal entryp = entry.getPrincipal();
 
@@ -95,7 +95,7 @@ public class AclImpl implements org.apache.wiki.api.core.Acl, Serializable {
             return false;
         }
 
-        m_entries.add( entry );
+        entries.add( entry );
 
         return true;
     }
@@ -103,33 +103,33 @@ public class AclImpl implements org.apache.wiki.api.core.Acl, Serializable {
     /** {@inheritDoc} */
     @Override
     public synchronized boolean removeEntry( final AclEntry entry ) {
-        return m_entries.remove( entry );
+        return entries.remove( entry );
     }
 
     /** {@inheritDoc} */
     @Override
     public Enumeration< AclEntry > aclEntries() {
-        return Collections.enumeration( m_entries );
+        return Collections.enumeration( entries );
     }
 
     /** {@inheritDoc} */
     @Override
     public AclEntry getAclEntry( final Principal principal ) {
-        return m_entries.stream().filter(entry -> entry.getPrincipal().getName().equals(principal.getName())).findFirst().orElse(null);
+        return entries.stream().filter(entry -> entry.getPrincipal().getName().equals(principal.getName())).findFirst().orElse(null);
 
     }
 
     /** {@inheritDoc} */
     @Override
     public boolean isEmpty() {
-        return m_entries.isEmpty();
+        return entries.isEmpty();
     }
 
     /** {@inheritDoc} */
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder();
-        for( final AclEntry entry : m_entries ) {
+        for( final AclEntry entry : entries ) {
             final Principal pal = entry.getPrincipal();
             if( pal != null ) {
                 sb.append( "  user = " ).append( pal.getName() ).append( ": " );

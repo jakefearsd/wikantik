@@ -38,8 +38,8 @@ import java.util.stream.Collectors;
 public class AclEntryImpl implements org.apache.wiki.api.core.AclEntry, Serializable {
 
     private static final long serialVersionUID = 1L;
-    private final List< Permission > m_permissions = new ArrayList<>();
-    private Principal m_principal;
+    private final List< Permission > permissions = new ArrayList<>();
+    private Principal principal;
 
     /**
      * Constructs a new AclEntryImpl instance.
@@ -58,7 +58,7 @@ public class AclEntryImpl implements org.apache.wiki.api.core.AclEntry, Serializ
     @Override
     public synchronized boolean addPermission(final Permission permission ) {
         if( permission instanceof PagePermission && findPermission( permission ) == null ) {
-            m_permissions.add( permission );
+            permissions.add( permission );
             return true;
         }
 
@@ -84,7 +84,7 @@ public class AclEntryImpl implements org.apache.wiki.api.core.AclEntry, Serializ
      */
     @Override
     public synchronized Principal getPrincipal() {
-        return m_principal;
+        return principal;
     }
 
     /**
@@ -94,7 +94,7 @@ public class AclEntryImpl implements org.apache.wiki.api.core.AclEntry, Serializ
      */
     @Override
     public Enumeration< Permission > permissions() {
-        return Collections.enumeration( m_permissions );
+        return Collections.enumeration( permissions );
     }
 
     /**
@@ -107,7 +107,7 @@ public class AclEntryImpl implements org.apache.wiki.api.core.AclEntry, Serializ
     public synchronized boolean removePermission(final Permission permission ) {
         final Permission p = findPermission( permission );
         if( p != null ) {
-            m_permissions.remove( p );
+            permissions.remove( p );
             return true;
         }
 
@@ -124,10 +124,10 @@ public class AclEntryImpl implements org.apache.wiki.api.core.AclEntry, Serializ
      */
     @Override
     public synchronized boolean setPrincipal(final Principal user ) {
-        if( m_principal != null || user == null ) {
+        if( principal != null || user == null ) {
             return false;
         }
-        m_principal = user;
+        principal = user;
         return true;
     }
 
@@ -139,7 +139,7 @@ public class AclEntryImpl implements org.apache.wiki.api.core.AclEntry, Serializ
     public String toString() {
         final Principal p = getPrincipal();
 
-        return m_permissions.stream().map(pp -> pp.toString() + ",").collect(Collectors.joining("", "[AclEntry ALLOW " + (p != null ? p.getName() : "null") + " ", "]"));
+        return permissions.stream().map(pp -> pp.toString() + ",").collect(Collectors.joining("", "[AclEntry ALLOW " + (p != null ? p.getName() : "null") + " ", "]"));
     }
 
     /**
@@ -147,7 +147,7 @@ public class AclEntryImpl implements org.apache.wiki.api.core.AclEntry, Serializ
      * permission.
      */
     private Permission findPermission( final Permission p ) {
-        return m_permissions.stream().filter(pp -> pp.implies(p)).findFirst().orElse(null);
+        return permissions.stream().filter(pp -> pp.implies(p)).findFirst().orElse(null);
     }
 
 }

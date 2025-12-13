@@ -92,8 +92,8 @@ public class RecentArticlesServlet extends HttpServlet {
     private static final int DEFAULT_SINCE_DAYS = 30;
     private static final int DEFAULT_EXCERPT_LENGTH = 200;
 
-    private Engine m_engine;
-    private Gson m_gson;
+    private Engine engine;
+    private Gson gson;
 
     /**
      * {@inheritDoc}
@@ -101,10 +101,10 @@ public class RecentArticlesServlet extends HttpServlet {
     @Override
     public void init( final ServletConfig config ) throws ServletException {
         super.init( config );
-        m_engine = Wiki.engine().find( config );
+        engine = Wiki.engine().find( config );
 
         // Configure Gson with ISO 8601 date format
-        m_gson = new GsonBuilder()
+        gson = new GsonBuilder()
             .setDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" )
             .setPrettyPrinting()
             .create();
@@ -134,7 +134,7 @@ public class RecentArticlesServlet extends HttpServlet {
             final RecentArticlesQuery query = parseQuery( request );
             final Context context = createContext( request );
 
-            final RecentArticlesManager manager = m_engine.getManager( RecentArticlesManager.class );
+            final RecentArticlesManager manager = engine.getManager( RecentArticlesManager.class );
             if ( manager == null ) {
                 sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                            "RecentArticlesManager not available" );
@@ -150,7 +150,7 @@ public class RecentArticlesServlet extends HttpServlet {
             result.put( "query", buildQueryInfo( query ) );
 
             final PrintWriter out = response.getWriter();
-            out.print( m_gson.toJson( result ) );
+            out.print( gson.toJson( result ) );
             out.flush();
 
         } catch ( final IllegalArgumentException e ) {
@@ -251,7 +251,7 @@ public class RecentArticlesServlet extends HttpServlet {
      * Creates a WikiContext for the request.
      */
     private Context createContext( final HttpServletRequest request ) {
-        return Wiki.context().create( m_engine, request, WikiContext.VIEW );
+        return Wiki.context().create( engine, request, WikiContext.VIEW );
     }
 
     /**
@@ -284,7 +284,7 @@ public class RecentArticlesServlet extends HttpServlet {
         error.put( "message", message );
 
         final PrintWriter out = response.getWriter();
-        out.print( m_gson.toJson( error ) );
+        out.print( gson.toJson( error ) );
         out.flush();
     }
 }

@@ -80,7 +80,7 @@ public class WebContainerLoginModule extends AbstractLoginModule {
         {
             // First, try to extract a Principal object out of the request
             // directly. If we find one, we're done.
-            m_handler.handle( callbacks );
+            handler.handle( callbacks );
             final HttpServletRequest request = rcb.getRequest();
             if ( request == null ) {
                 throw new LoginException( "No Http request supplied." );
@@ -99,7 +99,7 @@ public class WebContainerLoginModule extends AbstractLoginModule {
                 principal = new WikiPrincipal( userId, WikiPrincipal.LOGIN_NAME );
             }
             LOG.debug("Logged in container principal {}.", principal.getName() );
-            m_principals.add( principal );
+            principals.add( principal );
 
             return true;
         } catch( final IOException e ) {

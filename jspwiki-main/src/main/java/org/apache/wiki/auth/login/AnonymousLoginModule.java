@@ -78,14 +78,14 @@ public class AnonymousLoginModule extends AbstractLoginModule
         final HttpRequestCallback hcb = new HttpRequestCallback();
         final Callback[] callbacks = new Callback[]{ hcb };
         try {
-            m_handler.handle( callbacks );
+            handler.handle( callbacks );
             final HttpServletRequest request = hcb.getRequest();
             final WikiPrincipal ipAddr = new WikiPrincipal( HttpUtil.getRemoteAddress(request) );
             final HttpSession session = request.getSession( false );
             final String sid = (session == null) ? NULL : session.getId();
             LOG.debug("Logged in session ID={}; IP={}", sid, ipAddr);
             // If login succeeds, commit these principals/roles
-            m_principals.add( ipAddr );
+            principals.add( ipAddr );
             return true;
         } catch( final IOException e ) {
             LOG.error("IOException: " + e.getMessage());

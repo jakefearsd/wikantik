@@ -53,11 +53,11 @@ public class SessionMonitor implements HttpSessionListener {
     private static final ConcurrentHashMap< Engine, SessionMonitor > c_monitors = new ConcurrentHashMap<>();
 
     /** Weak hashmap with HttpSessions as keys, and WikiSessions as values. */
-    private final Map< String, Session > m_sessions = new WeakHashMap<>();
+    private final Map< String, Session > sessions = new WeakHashMap<>();
 
-    private Engine m_engine;
+    private Engine engine;
 
-    private final PrincipalComparator m_comparator = new PrincipalComparator();
+    private final PrincipalComparator comparator = new PrincipalComparator();
 
     /**
      * Returns the instance of the SessionMonitor for this wiki. Only one SessionMonitor exists per Engine.
@@ -83,7 +83,7 @@ public class SessionMonitor implements HttpSessionListener {
     }
 
     private SessionMonitor( final Engine engine ) {
-        m_engine = engine;
+        this.engine = engine;
     }
 
     /**
@@ -110,7 +110,7 @@ public class SessionMonitor implements HttpSessionListener {
     private Session findSession( final String sessionId ) {
         Session wikiSession = null;
         final String sid = ( sessionId == null ) ? "(null)" : sessionId;
-        final Session storedSession = m_sessions.get( sid );
+        final Session storedSession = sessions.get( sid );
 
         // If the weak reference returns a wiki session, return it
         if( storedSession != null ) {
@@ -168,9 +168,9 @@ public class SessionMonitor implements HttpSessionListener {
      */
     private Session createGuestSessionFor( final String sessionId ) {
         LOG.debug( "Session for session ID={}... not found. Creating guestSession()", sessionId );
-        final Session wikiSession = Wiki.session().guest( m_engine );
-        synchronized( m_sessions ) {
-            m_sessions.put( sessionId, wikiSession );
+        final Session wikiSession = Wiki.session().guest( engine );
+        synchronized( sessions ) {
+            sessions.put( sessionId, wikiSession );
         }
         return wikiSession;
     }
@@ -196,8 +196,8 @@ public class SessionMonitor implements HttpSessionListener {
         if( session == null ) {
             throw new IllegalArgumentException( "Session cannot be null." );
         }
-        synchronized( m_sessions ) {
-            m_sessions.remove( session.getId() );
+        synchronized( sessions ) {
+            sessions.remove( session.getId() );
         }
     }
 
@@ -221,11 +221,11 @@ public class SessionMonitor implements HttpSessionListener {
      */
     public final Principal[] userPrincipals() {
         final Collection<Principal> principals;
-        synchronized ( m_sessions ) {
-            principals = m_sessions.values().stream().map(Session::getUserPrincipal).toList();
+        synchronized ( sessions ) {
+            principals = sessions.values().stream().map(Session::getUserPrincipal).toList();
         }
         final Principal[] p = principals.toArray( new Principal[0] );
-        Arrays.sort( p, m_comparator );
+        Arrays.sort( p, comparator );
         return p;
     }
 

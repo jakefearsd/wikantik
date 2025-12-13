@@ -112,7 +112,7 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
         final Callback[] callbacks = new Callback[] { hcb, wcb };
 
         try {
-            m_handler.handle( callbacks );
+            handler.handle( callbacks );
             final HttpServletRequest request = hcb.getRequest();
             final String uid = getLoginCookie( request );
 
@@ -125,7 +125,7 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
                         LOG.debug( "Logged in cookie authenticated name={}", username );
 
                         // If login succeeds, commit these principals/roles
-                        m_principals.add( new WikiPrincipal( username, WikiPrincipal.LOGIN_NAME ) );
+                        principals.add( new WikiPrincipal( username, WikiPrincipal.LOGIN_NAME ) );
 
                         // Tag the file so that we know that it has been accessed recently.
                         return cookieFile.setLastModified( System.currentTimeMillis() );

@@ -35,8 +35,8 @@ import java.io.IOException;
  */
 public final class WebContainerCallbackHandler implements CallbackHandler {
 
-    private final HttpServletRequest m_request;
-    private final Engine m_engine;
+    private final HttpServletRequest request;
+    private final Engine engine;
 
     /**
      * Create a new handler.
@@ -45,8 +45,8 @@ public final class WebContainerCallbackHandler implements CallbackHandler {
      * @param request The request to look into
      */
     public WebContainerCallbackHandler( final Engine engine, final HttpServletRequest request ) {
-        m_engine = engine;
-        m_request = request;
+        this.engine = engine;
+        this.request = request;
     }
 
     /**
@@ -58,9 +58,9 @@ public final class WebContainerCallbackHandler implements CallbackHandler {
     public void handle( final Callback[] callbacks ) throws IOException, UnsupportedCallbackException {
         for( final Callback callback : callbacks ) {
             if( callback instanceof HttpRequestCallback httpRequestCallback ) {
-                httpRequestCallback.setRequest( m_request );
+                httpRequestCallback.setRequest( request );
             } else if( callback instanceof WikiEngineCallback wikiEngineCallback ) {
-                wikiEngineCallback.setEngine( m_engine );
+                wikiEngineCallback.setEngine( engine );
             } else {
                 throw new UnsupportedCallbackException( callback );
             }

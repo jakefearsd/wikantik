@@ -38,10 +38,10 @@ import java.util.Properties;
  */
 public class DefaultURLConstructor implements URLConstructor {
 
-    protected Engine m_engine;
+    protected Engine engine;
 
     /** Contains the absolute path of the JSPWiki Web application without the actual servlet (which is the m_urlPrefix). */
-    protected String m_pathPrefix = "";
+    protected String pathPrefix = "";
 
     /**
      *
@@ -49,8 +49,8 @@ public class DefaultURLConstructor implements URLConstructor {
      */
     @Override
     public void initialize( final Engine engine, final Properties properties ) {
-        m_engine = engine;
-        m_pathPrefix = engine.getBaseURL() + "/";
+        this.engine = engine;
+        pathPrefix = engine.getBaseURL() + "/";
     }
 
     /**
@@ -68,12 +68,12 @@ public class DefaultURLConstructor implements URLConstructor {
      * @return A replacement.
      */
     protected final String doReplacement( String baseptrn, final String name ) {
-        final String baseurl = m_pathPrefix;
+        final String baseurl = pathPrefix;
 
         baseptrn = TextUtil.replaceString( baseptrn, "%u", baseurl );
-        baseptrn = TextUtil.replaceString( baseptrn, "%U", m_engine.getBaseURL() );
+        baseptrn = TextUtil.replaceString( baseptrn, "%U", engine.getBaseURL() );
         baseptrn = TextUtil.replaceString( baseptrn, "%n", encodeURI(name) );
-        baseptrn = TextUtil.replaceString( baseptrn, "%p", m_pathPrefix );
+        baseptrn = TextUtil.replaceString( baseptrn, "%p", pathPrefix );
 
         return baseptrn;
     }
@@ -85,7 +85,7 @@ public class DefaultURLConstructor implements URLConstructor {
      *  We also convert any %2F's back to slashes to make nicer-looking URLs.
      */
     private String encodeURI( String uri ) {
-        uri = m_engine.encodeName(uri);
+        uri = engine.encodeName(uri);
         uri = Strings.CS.replace( uri, "+", "%20" );
         uri = Strings.CS.replace( uri, "%2F", "/" );
 

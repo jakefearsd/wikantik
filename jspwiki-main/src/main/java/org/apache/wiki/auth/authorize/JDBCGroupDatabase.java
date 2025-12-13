@@ -192,39 +192,39 @@ public class JDBCGroupDatabase implements GroupDatabase {
 
     protected static final Logger LOG = LogManager.getLogger( JDBCGroupDatabase.class );
 
-    private DataSource m_ds;
+    private DataSource ds;
 
-    private String m_created;
+    private String created;
 
-    private String m_creator;
+    private String creator;
 
-    private String m_name;
+    private String name;
 
-    private String m_member;
+    private String member;
 
-    private String m_modified;
+    private String modified;
 
-    private String m_modifier;
+    private String modifier;
 
-    private String m_findAll;
+    private String findAll;
 
-    private String m_findGroup;
+    private String findGroup;
 
-    private String m_findMembers;
+    private String findMembers;
 
-    private String m_insertGroup;
+    private String insertGroup;
 
-    private String m_insertGroupMembers;
+    private String insertGroupMembers;
 
-    private String m_updateGroup;
+    private String updateGroup;
 
-    private String m_deleteGroup;
+    private String deleteGroup;
 
-    private String m_deleteGroupMembers;
+    private String deleteGroupMembers;
 
-    private boolean m_supportsCommits;
+    private boolean supportsCommits;
 
-    private Engine m_engine;
+    private Engine engine;
 
     /**
      * Looks up and deletes a {@link Group} from the group database. If the
@@ -250,23 +250,23 @@ public class JDBCGroupDatabase implements GroupDatabase {
         try
         {
             // Open the database connection
-            conn = m_ds.getConnection();
-            if( m_supportsCommits )
+            conn = ds.getConnection();
+            if( supportsCommits )
             {
                 conn.setAutoCommit( false );
             }
 
-            ps = conn.prepareStatement( m_deleteGroup );
+            ps = conn.prepareStatement( deleteGroup );
             ps.setString( 1, groupName );
             ps.execute();
             ps.close();
 
-            ps = conn.prepareStatement( m_deleteGroupMembers );
+            ps = conn.prepareStatement( deleteGroupMembers );
             ps.setString( 1, groupName );
             ps.execute();
 
             // Commit and close connection
-            if( m_supportsCommits )
+            if( supportsCommits )
             {
                 conn.commit();
             }
@@ -302,24 +302,24 @@ public class JDBCGroupDatabase implements GroupDatabase {
         try
         {
             // Open the database connection
-            conn = m_ds.getConnection();
+            conn = ds.getConnection();
 
-            ps = conn.prepareStatement( m_findAll );
+            ps = conn.prepareStatement( findAll );
             rs = ps.executeQuery();
             while ( rs.next() )
             {
-                final String groupName = rs.getString( m_name );
+                final String groupName = rs.getString( name );
                 if( groupName == null )
                 {
                     LOG.warn( "Detected null group name in JDBCGroupDataBase. Check your group database." );
                 }
                 else
                 {
-                    final Group group = new Group( groupName, m_engine.getApplicationName() );
-                    group.setCreated( rs.getTimestamp( m_created ) );
-                    group.setCreator( rs.getString( m_creator ) );
-                    group.setLastModified( rs.getTimestamp( m_modified ) );
-                    group.setModifier( rs.getString( m_modifier ) );
+                    final Group group = new Group( groupName, engine.getApplicationName() );
+                    group.setCreated( rs.getTimestamp( created ) );
+                    group.setCreator( rs.getString( creator ) );
+                    group.setLastModified( rs.getTimestamp( modified ) );
+                    group.setModifier( rs.getString( modifier ) );
                     populateGroup( group );
                     groups.add( group );
                 }
@@ -363,8 +363,8 @@ public class JDBCGroupDatabase implements GroupDatabase {
         try
         {
             // Open the database connection
-            conn = m_ds.getConnection();
-            if( m_supportsCommits )
+            conn = ds.getConnection();
+            if( supportsCommits )
             {
                 conn.setAutoCommit( false );
             }
@@ -374,7 +374,7 @@ public class JDBCGroupDatabase implements GroupDatabase {
             if( !exists )
             {
                 // Group is new: insert new group record
-                ps = conn.prepareStatement( m_insertGroup );
+                ps = conn.prepareStatement( insertGroup );
                 ps.setString( 1, group.getName() );
                 ps.setTimestamp( 2, ts );
                 ps.setString( 3, modifier.getName() );
@@ -390,7 +390,7 @@ public class JDBCGroupDatabase implements GroupDatabase {
             else
             {
                 // Modify existing group record
-                ps = conn.prepareStatement( m_updateGroup );
+                ps = conn.prepareStatement( updateGroup );
                 ps.setTimestamp( 1, ts );
                 ps.setString( 2, modifier.getName() );
                 ps.setString( 3, group.getName() );
@@ -404,13 +404,13 @@ public class JDBCGroupDatabase implements GroupDatabase {
             // Now, update the group member list
 
             // First, delete all existing member records
-            ps = conn.prepareStatement( m_deleteGroupMembers );
+            ps = conn.prepareStatement( deleteGroupMembers );
             ps.setString( 1, group.getName() );
             ps.execute();
             ps.close();
 
             // Insert group member records
-            ps = conn.prepareStatement( m_insertGroupMembers );
+            ps = conn.prepareStatement( insertGroupMembers );
             final Principal[] members = group.members();
             for (final Principal member : members) {
                 ps.setString(1, group.getName());
@@ -419,7 +419,7 @@ public class JDBCGroupDatabase implements GroupDatabase {
             }
 
             // Commit and close connection
-            if( m_supportsCommits )
+            if( supportsCommits )
             {
                 conn.commit();
             }
@@ -449,40 +449,40 @@ public class JDBCGroupDatabase implements GroupDatabase {
         final String table;
         final String memberTable;
 
-        m_engine = engine;
+        this.engine = engine;
 
         final String jndiName = props.getProperty( PROP_GROUPDB_DATASOURCE, DEFAULT_GROUPDB_DATASOURCE );
         try
         {
             final Context initCtx = new InitialContext();
             final Context ctx = (Context) initCtx.lookup( "java:comp/env" );
-            m_ds = (DataSource) ctx.lookup( jndiName );
+            ds = (DataSource) ctx.lookup( jndiName );
 
             // Prepare the SQL selectors
             table = props.getProperty( PROP_GROUPDB_TABLE, DEFAULT_GROUPDB_TABLE );
             memberTable = props.getProperty( PROP_GROUPDB_MEMBER_TABLE, DEFAULT_GROUPDB_MEMBER_TABLE );
-            m_name = props.getProperty( PROP_GROUPDB_NAME, DEFAULT_GROUPDB_NAME );
-            m_created = props.getProperty( PROP_GROUPDB_CREATED, DEFAULT_GROUPDB_CREATED );
-            m_creator = props.getProperty( PROP_GROUPDB_CREATOR, DEFAULT_GROUPDB_CREATOR );
-            m_modifier = props.getProperty( PROP_GROUPDB_MODIFIER, DEFAULT_GROUPDB_MODIFIER );
-            m_modified = props.getProperty( PROP_GROUPDB_MODIFIED, DEFAULT_GROUPDB_MODIFIED );
-            m_member = props.getProperty( PROP_GROUPDB_MEMBER, DEFAULT_GROUPDB_MEMBER );
+            name = props.getProperty( PROP_GROUPDB_NAME, DEFAULT_GROUPDB_NAME );
+            created = props.getProperty( PROP_GROUPDB_CREATED, DEFAULT_GROUPDB_CREATED );
+            creator = props.getProperty( PROP_GROUPDB_CREATOR, DEFAULT_GROUPDB_CREATOR );
+            modifier = props.getProperty( PROP_GROUPDB_MODIFIER, DEFAULT_GROUPDB_MODIFIER );
+            modified = props.getProperty( PROP_GROUPDB_MODIFIED, DEFAULT_GROUPDB_MODIFIED );
+            member = props.getProperty( PROP_GROUPDB_MEMBER, DEFAULT_GROUPDB_MEMBER );
 
-            m_findAll = "SELECT DISTINCT * FROM " + table;
-            m_findGroup = "SELECT DISTINCT * FROM " + table + " WHERE " + m_name + "=?";
-            m_findMembers = "SELECT * FROM " + memberTable + " WHERE " + m_name + "=?";
+            findAll = "SELECT DISTINCT * FROM " + table;
+            findGroup = "SELECT DISTINCT * FROM " + table + " WHERE " + name + "=?";
+            findMembers = "SELECT * FROM " + memberTable + " WHERE " + name + "=?";
 
             // Prepare the group insert/update SQL
-            m_insertGroup = "INSERT INTO " + table + " (" + m_name + "," + m_modified + "," + m_modifier + "," + m_created + ","
-                            + m_creator + ") VALUES (?,?,?,?,?)";
-            m_updateGroup = "UPDATE " + table + " SET " + m_modified + "=?," + m_modifier + "=? WHERE " + m_name + "=?";
+            insertGroup = "INSERT INTO " + table + " (" + name + "," + modified + "," + modifier + "," + created + ","
+                            + creator + ") VALUES (?,?,?,?,?)";
+            updateGroup = "UPDATE " + table + " SET " + modified + "=?," + modifier + "=? WHERE " + name + "=?";
 
             // Prepare the group member insert SQL
-            m_insertGroupMembers = "INSERT INTO " + memberTable + " (" + m_name + "," + m_member + ") VALUES (?,?)";
+            insertGroupMembers = "INSERT INTO " + memberTable + " (" + name + "," + member + ") VALUES (?,?)";
 
             // Prepare the group delete SQL
-            m_deleteGroup = "DELETE FROM " + table + " WHERE " + m_name + "=?";
-            m_deleteGroupMembers = "DELETE FROM " + memberTable + " WHERE " + m_name + "=?";
+            deleteGroup = "DELETE FROM " + table + " WHERE " + name + "=?";
+            deleteGroupMembers = "DELETE FROM " + memberTable + " WHERE " + name + "=?";
         }
         catch( final NamingException e )
         {
@@ -495,8 +495,8 @@ public class JDBCGroupDatabase implements GroupDatabase {
         PreparedStatement ps = null;
         try
         {
-            conn = m_ds.getConnection();
-            ps = conn.prepareStatement( m_findAll );
+            conn = ds.getConnection();
+            ps = conn.prepareStatement( findAll );
             ps.executeQuery();
             ps.close();
         }
@@ -515,11 +515,11 @@ public class JDBCGroupDatabase implements GroupDatabase {
         // Determine if the datasource supports commits
         try
         {
-            conn = m_ds.getConnection();
+            conn = ds.getConnection();
             final DatabaseMetaData dmd = conn.getMetaData();
             if( dmd.supportsTransactions() )
             {
-                m_supportsCommits = true;
+                supportsCommits = true;
                 conn.setAutoCommit( false );
                 LOG.info( "JDBCGroupDatabase supports transactions. Good; we will use them." );
             }
@@ -575,9 +575,9 @@ public class JDBCGroupDatabase implements GroupDatabase {
         try
         {
             // Open the database connection
-            conn = m_ds.getConnection();
+            conn = ds.getConnection();
 
-            ps = conn.prepareStatement( m_findGroup );
+            ps = conn.prepareStatement( findGroup );
             ps.setString( 1, index );
             rs = ps.executeQuery();
             while ( rs.next() )
@@ -587,11 +587,11 @@ public class JDBCGroupDatabase implements GroupDatabase {
                     unique = false;
                     break;
                 }
-                group = new Group( index, m_engine.getApplicationName() );
-                group.setCreated( rs.getTimestamp( m_created ) );
-                group.setCreator( rs.getString( m_creator ) );
-                group.setLastModified( rs.getTimestamp( m_modified ) );
-                group.setModifier( rs.getString( m_modifier ) );
+                group = new Group( index, engine.getApplicationName() );
+                group.setCreated( rs.getTimestamp( created ) );
+                group.setCreator( rs.getString( creator ) );
+                group.setLastModified( rs.getTimestamp( modified ) );
+                group.setModifier( rs.getString( modifier ) );
                 populateGroup( group );
                 found = true;
             }
@@ -631,14 +631,14 @@ public class JDBCGroupDatabase implements GroupDatabase {
         try
         {
             // Open the database connection
-            conn = m_ds.getConnection();
+            conn = ds.getConnection();
 
-            ps = conn.prepareStatement( m_findMembers );
+            ps = conn.prepareStatement( findMembers );
             ps.setString( 1, group.getName() );
             rs = ps.executeQuery();
             while ( rs.next() )
             {
-                final String memberName = rs.getString( m_member );
+                final String memberName = rs.getString( member );
                 if( memberName != null )
                 {
                     final WikiPrincipal principal = new WikiPrincipal( memberName, WikiPrincipal.UNSPECIFIED );

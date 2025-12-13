@@ -96,15 +96,15 @@ public class XMLGroupDatabase implements GroupDatabase {
 
     private static final String  DATE_FORMAT       = "yyyy.MM.dd 'at' HH:mm:ss:SSS z";
 
-    private Document              m_dom;
+    private Document              dom;
 
-    private final DateFormat            m_defaultFormat  = DateFormat.getDateTimeInstance();
+    private final DateFormat            defaultFormat  = DateFormat.getDateTimeInstance();
 
-    private File                  m_file;
+    private File                  file;
 
-    private Engine                m_engine;
+    private Engine                engine;
 
-    private final Map<String, Group>    m_groups         = new ConcurrentHashMap<>();
+    private final Map<String, Group>    groups         = new ConcurrentHashMap<>();
 
     /**
       * Looks up and deletes a {@link Group} from the group database. If the
@@ -119,14 +119,14 @@ public class XMLGroupDatabase implements GroupDatabase {
     @Override
     public void delete( final Group group ) throws WikiSecurityException {
         final String index = group.getName();
-        final boolean exists = m_groups.containsKey( index );
+        final boolean exists = groups.containsKey( index );
 
         if ( !exists )
         {
             throw new NoSuchPrincipalException( "Not in database: " + group.getName() );
         }
 
-        m_groups.remove( index );
+        groups.remove( index );
 
         // Commit to disk
         saveDOM();
@@ -144,8 +144,8 @@ public class XMLGroupDatabase implements GroupDatabase {
     @Override
     public Group[] groups() throws WikiSecurityException {
         buildDOM();
-        final Collection<Group> groups = m_groups.values();
-        return groups.toArray( new Group[0] );
+        final Collection<Group> allGroups = groups.values();
+        return allGroups.toArray( new Group[0] );
     }
 
     /**
@@ -160,7 +160,7 @@ public class XMLGroupDatabase implements GroupDatabase {
     @Override
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, WikiSecurityException
     {
-        m_engine = engine;
+        this.engine = engine;
 
         final File defaultFile;
         if ( engine.getRootPath() == null ) {
@@ -171,15 +171,15 @@ public class XMLGroupDatabase implements GroupDatabase {
         }
 
         // Get database file location
-        final String file = TextUtil.getStringProperty(props, PROP_DATABASE , defaultFile.getAbsolutePath());
-        if ( file == null ) {
+        final String filePath = TextUtil.getStringProperty(props, PROP_DATABASE , defaultFile.getAbsolutePath());
+        if ( filePath == null ) {
             LOG.warn( "XML group database property " + PROP_DATABASE + " not found; trying " + defaultFile );
-            m_file = defaultFile;
+            file = defaultFile;
         } else {
-            m_file = new File( file );
+            file = new File( filePath );
         }
 
-        LOG.info( "XML group database at " + m_file.getAbsolutePath() );
+        LOG.info( "XML group database at " + file.getAbsolutePath() );
 
         // Read DOM
         buildDOM();
@@ -205,7 +205,7 @@ public class XMLGroupDatabase implements GroupDatabase {
         checkForRefresh();
 
         final String index = group.getName();
-        final boolean isNew = !( m_groups.containsKey( index ) );
+        final boolean isNew = !( groups.containsKey( index ) );
         final Date modDate = new Date( System.currentTimeMillis() );
         if( isNew ) {
             // If new, set created info
@@ -216,7 +216,7 @@ public class XMLGroupDatabase implements GroupDatabase {
         group.setLastModified( modDate );
 
         // Add the group to the 'saved' list
-        m_groups.put( index, group );
+        groups.put( index, group );
 
         // Commit to disk
         saveDOM();
@@ -224,19 +224,19 @@ public class XMLGroupDatabase implements GroupDatabase {
 
     private void buildDOM() {
         final DocumentBuilderFactory factory = XmlDomUtil.createSecureDocumentBuilderFactory();
-        m_dom = XmlDomUtil.parseXmlFile( m_file, factory );
-        if( m_dom != null ) {
+        dom = XmlDomUtil.parseXmlFile( file, factory );
+        if( dom != null ) {
             LOG.debug( "Database successfully initialized" );
-            m_lastModified = m_file.lastModified();
-            m_lastCheck    = System.currentTimeMillis();
+            lastModified = file.lastModified();
+            lastCheck    = System.currentTimeMillis();
         } else {
             // Create the DOM from scratch
-            m_dom = XmlDomUtil.createEmptyDocument( "groups", factory );
+            dom = XmlDomUtil.createEmptyDocument( "groups", factory );
         }
 
         // Ok, now go and read this sucker in
-        if( m_dom != null ) {
-            final NodeList groupNodes = m_dom.getElementsByTagName( GROUP_TAG );
+        if( dom != null ) {
+            final NodeList groupNodes = dom.getElementsByTagName( GROUP_TAG );
             for( int i = 0; i < groupNodes.getLength(); i++ ) {
                 final Element groupNode = (Element) groupNodes.item( i );
                 final String groupName = groupNode.getAttribute( GROUP_NAME );
@@ -244,20 +244,20 @@ public class XMLGroupDatabase implements GroupDatabase {
                     LOG.warn( "Detected null or empty group name in XMLGroupDataBase. Check your group database." );
                 } else {
                     final Group group = buildGroup( groupNode, groupName );
-                    m_groups.put( groupName, group );
+                    groups.put( groupName, group );
                 }
             }
         }
     }
 
-    private long m_lastCheck;
-    private long m_lastModified;
+    private long lastCheck;
+    private long lastModified;
 
     private void checkForRefresh() {
         final long time = System.currentTimeMillis();
-        if( time - m_lastCheck > 60*1000L ) {
-            final long lastModified = m_file.lastModified();
-            if( lastModified > m_lastModified ) {
+        if( time - lastCheck > 60*1000L ) {
+            final long lastModified = file.lastModified();
+            if( lastModified > lastModified ) {
                 buildDOM();
             }
         }
@@ -274,7 +274,7 @@ public class XMLGroupDatabase implements GroupDatabase {
         }
 
         // Construct a new group
-        final Group group = new Group( name, m_engine.getApplicationName() );
+        final Group group = new Group( name, engine.getApplicationName() );
 
         // Get the users for this group, and add them
         final NodeList members = groupNode.getElementsByTagName( MEMBER_TAG );
@@ -296,8 +296,8 @@ public class XMLGroupDatabase implements GroupDatabase {
         } catch ( final ParseException e ) {
             // If parsing failed, use the platform default
             try {
-                group.setCreated( m_defaultFormat.parse( created ) );
-                group.setLastModified( m_defaultFormat.parse( modified ) );
+                group.setCreated( defaultFormat.parse( created ) );
+                group.setLastModified( defaultFormat.parse( modified ) );
             } catch ( final ParseException e2 ) {
                 LOG.warn( "Could not parse 'created' or 'lastModified' " + "attribute for " + " group'"
                           + group.getName() + "'." + " It may have been tampered with." );
@@ -309,18 +309,18 @@ public class XMLGroupDatabase implements GroupDatabase {
     }
 
     private void saveDOM() throws WikiSecurityException {
-        if ( m_dom == null ) {
+        if ( dom == null ) {
             LOG.fatal( "Group database doesn't exist in memory." );
         }
 
         try {
-            XmlDomUtil.saveXmlFile( m_file, io -> {
+            XmlDomUtil.saveXmlFile( file, io -> {
                 // Write the file header and document root
                 io.write( "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" );
                 io.write( "<groups>\n" );
 
                 // Write each profile as a <group> node
-                for( final Group group : m_groups.values() ) {
+                for( final Group group : groups.values() ) {
                     io.write( "  <" + GROUP_TAG + " " );
                     io.write( GROUP_NAME );
                     io.write( "=\"" + StringEscapeUtils.escapeXml11( group.getName() )+ "\" " );

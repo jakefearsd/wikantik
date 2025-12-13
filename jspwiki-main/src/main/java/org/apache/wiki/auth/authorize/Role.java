@@ -44,7 +44,7 @@ public final class Role implements Principal, Serializable
     /** If the user has authenticated with the Container or UserDatabase */
     public static final Role AUTHENTICATED = new Role( "Authenticated" );
 
-    private final String   m_name;
+    private final String   name;
 
     /**
      *  Create an empty Role.
@@ -60,7 +60,7 @@ public final class Role implements Principal, Serializable
      */
     public Role(final String name )
     {
-        m_name = name;
+        this.name = name;
     }
 
     /**
@@ -88,9 +88,9 @@ public final class Role implements Principal, Serializable
      */
     public static boolean isReservedName(final String name)
     {
-        return  name.equals( ALL.m_name ) ||
-                name.equals( ANONYMOUS.m_name ) || name.equals( ASSERTED.m_name ) ||
-                name.equals( AUTHENTICATED.m_name );
+        return  name.equals( ALL.name ) ||
+                name.equals( ANONYMOUS.name ) || name.equals( ASSERTED.name ) ||
+                name.equals( AUTHENTICATED.name );
     }
 
     /**
@@ -99,7 +99,7 @@ public final class Role implements Principal, Serializable
      */
     public int hashCode()
     {
-        return m_name.hashCode();
+        return name.hashCode();
     }
 
     /**
@@ -111,7 +111,7 @@ public final class Role implements Principal, Serializable
     public boolean equals(final Object obj )
     {
         if ( obj == null || !( obj instanceof Role ) ) return false;
-        return m_name.equals( ( (Role) obj ).getName() );
+        return name.equals( ( (Role) obj ).getName() );
     }
 
     /**
@@ -121,7 +121,7 @@ public final class Role implements Principal, Serializable
     @Override
     public String getName()
     {
-        return m_name;
+        return name;
     }
 
     /**
@@ -131,7 +131,7 @@ public final class Role implements Principal, Serializable
      */
     public String toString()
     {
-        return "[" + this.getClass().getName() + ": " + m_name + "]";
+        return "[" + this.getClass().getName() + ": " + name + "]";
     }
 
 }

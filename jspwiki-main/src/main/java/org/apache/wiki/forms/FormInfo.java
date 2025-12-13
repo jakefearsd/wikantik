@@ -44,20 +44,20 @@ public class FormInfo implements Serializable {
      */
     public static final int ERROR = -1;
 
-    private int m_status;
-    private boolean m_hide;
-    private String m_action;
-    private String m_name;
-    private String m_handler;
-    private String m_result;
-    private String m_error;
-    private Map<String, String> m_submission;
+    private int status;
+    private boolean hide;
+    private String action;
+    private String name;
+    private String handler;
+    private String result;
+    private String error;
+    private Map<String, String> submission;
 
     /**
      * Creates a new FormInfo with status == OK.
      */
     public FormInfo() {
-        m_status = OK;
+        status = OK;
     }
 
     /**
@@ -66,7 +66,7 @@ public class FormInfo implements Serializable {
      * @param val EXECUTED, OK or ERROR.
      */
     public void setStatus( final int val) {
-        m_status = val;
+        status = val;
     }
 
     /**
@@ -75,7 +75,7 @@ public class FormInfo implements Serializable {
      * @return The status.
      */
     public int getStatus() {
-        return m_status;
+        return status;
     }
 
     /**
@@ -84,7 +84,7 @@ public class FormInfo implements Serializable {
      * @param val True or false.
      */
     public void setHide( final boolean val) {
-        m_hide = val;
+        hide = val;
     }
 
     /**
@@ -93,7 +93,7 @@ public class FormInfo implements Serializable {
      * @return True or false.
      */
     public boolean hide() {
-        return m_hide;
+        return hide;
     }
 
     /**
@@ -102,7 +102,7 @@ public class FormInfo implements Serializable {
      * @param val A value parameter.
      */
     public void setAction( final String val) {
-        m_action = val;
+        action = val;
     }
 
     /**
@@ -111,7 +111,7 @@ public class FormInfo implements Serializable {
      * @return An Action.
      */
     public String getAction() {
-        return m_action;
+        return action;
     }
 
     /**
@@ -120,7 +120,7 @@ public class FormInfo implements Serializable {
      * @param val The name of the form.
      */
     public void setName( final String val) {
-        m_name = val;
+        name = val;
     }
 
     /**
@@ -129,7 +129,7 @@ public class FormInfo implements Serializable {
      * @return The name of the form.
      */
     public String getName() {
-        return m_name;
+        return name;
     }
 
     /**
@@ -138,7 +138,7 @@ public class FormInfo implements Serializable {
      * @param val The name of the class.
      */
     public void setHandler( final String val) {
-        m_handler = val;
+        handler = val;
     }
 
     /**
@@ -147,7 +147,7 @@ public class FormInfo implements Serializable {
      * @return The name of the class.
      */
     public String getHandler() {
-        return m_handler;
+        return handler;
     }
 
     /**
@@ -156,7 +156,7 @@ public class FormInfo implements Serializable {
      * @param val The result.
      */
     public void setResult( final String val) {
-        m_result = val;
+        result = val;
     }
 
     /**
@@ -165,7 +165,7 @@ public class FormInfo implements Serializable {
      * @return The result.
      */
     public String getResult() {
-        return m_result;
+        return result;
     }
 
     /**
@@ -174,7 +174,7 @@ public class FormInfo implements Serializable {
      * @param val An error string.
      */
     public void setError( final String val) {
-        m_error = val;
+        error = val;
     }
 
     /**
@@ -183,7 +183,7 @@ public class FormInfo implements Serializable {
      * @return The error.
      */
     public String getError() {
-        return m_error;
+        return error;
     }
 
     /**
@@ -192,8 +192,8 @@ public class FormInfo implements Serializable {
      * @param val parameter name-value pairs for a Form handler WikiPlugin
      */
     public void setSubmission( final Map<String, String> val) {
-        m_submission = new HashMap<>();
-        m_submission.putAll(val);
+        submission = new HashMap<>();
+        submission.putAll(val);
     }
 
     /**
@@ -202,10 +202,10 @@ public class FormInfo implements Serializable {
      * @param val parameter name-value pairs for a Form handler WikiPlugin
      */
     public void addSubmission( final Map<String, String> val) {
-        if (m_submission == null) {
-            m_submission = new HashMap<>();
+        if (submission == null) {
+            submission = new HashMap<>();
         }
-        m_submission.putAll(val);
+        submission.putAll(val);
     }
 
     /**
@@ -217,6 +217,6 @@ public class FormInfo implements Serializable {
      * @return Handler parameter name-value pairs.
      */
     public Map<String, String> getSubmission() {
-        return m_submission;
+        return submission;
     }
 }

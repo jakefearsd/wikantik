@@ -110,13 +110,13 @@ public final class GroupPermission extends Permission implements Serializable
 
     private static final String         WIKI_SEPARATOR   = ":";
 
-    private final String                m_actionString;
+    private final String                actionString;
 
-    private final int                   m_mask;
+    private final int                   mask;
 
-    private final String                m_group;
+    private final String                group;
 
-    private final String                m_wiki;
+    private final String                wiki;
 
     /** For serialization purposes */
     GroupPermission()
@@ -152,20 +152,20 @@ public final class GroupPermission extends Permission implements Serializable
         final String groupName;
         if ( pathParams.length >= 2 )
         {
-            m_wiki = !pathParams[0].isEmpty() ? pathParams[0] : null;
+            wiki = !pathParams[0].isEmpty() ? pathParams[0] : null;
             groupName = pathParams[1];
         }
         else
         {
-            m_wiki = WILDCARD;
+            wiki = WILDCARD;
             groupName = pathParams[0];
         }
-        m_group = groupName;
+        this.group = groupName;
 
         // Parse actions
         final String[] groupActions = actions.toLowerCase().split( ACTION_SEPARATOR );
         Arrays.sort( groupActions, String.CASE_INSENSITIVE_ORDER );
-        m_mask = createMask( actions );
+        mask = createMask( actions );
         final StringBuilder buffer = new StringBuilder();
         final int groupActionsLength = groupActions.length;
         for( int i = 0; i < groupActionsLength; i++ )
@@ -176,7 +176,7 @@ public final class GroupPermission extends Permission implements Serializable
                 buffer.append( ACTION_SEPARATOR );
             }
         }
-        m_actionString = buffer.toString();
+        actionString = buffer.toString();
     }
 
     /**
@@ -193,7 +193,7 @@ public final class GroupPermission extends Permission implements Serializable
             return false;
         }
         final GroupPermission p = (GroupPermission) obj;
-        return  p.m_mask == m_mask && p.m_group.equals( m_group ) && p.m_wiki != null && p.m_wiki.equals( m_wiki );
+        return  p.mask == mask && p.group.equals( group ) && p.wiki != null && p.wiki.equals( wiki );
     }
 
     /**
@@ -206,7 +206,7 @@ public final class GroupPermission extends Permission implements Serializable
     @Override
     public String getActions()
     {
-        return m_actionString;
+        return actionString;
     }
 
     /**
@@ -215,7 +215,7 @@ public final class GroupPermission extends Permission implements Serializable
      */
     public String getGroup()
     {
-        return m_group;
+        return group;
     }
 
     /**
@@ -225,7 +225,7 @@ public final class GroupPermission extends Permission implements Serializable
      */
     public String getWiki()
     {
-        return m_wiki;
+        return wiki;
     }
 
     /**
@@ -238,8 +238,8 @@ public final class GroupPermission extends Permission implements Serializable
         // If the wiki has not been set, uses a dummy value for the hashcode
         // calculation. This may occur if the page given does not refer
         // to any particular wiki
-        final String wiki =  m_wiki != null ? m_wiki : "dummy_value";
-        return m_mask + ( ( 13 * m_actionString.hashCode() ) * 23 * wiki.hashCode() );
+        final String wikiHash =  wiki != null ? wiki : "dummy_value";
+        return mask + ( ( 13 * actionString.hashCode() ) * 23 * wikiHash.hashCode() );
     }
 
     /**
@@ -276,27 +276,27 @@ public final class GroupPermission extends Permission implements Serializable
 
         // Build up an "implied mask"
         final GroupPermission p = (GroupPermission) permission;
-        final int impliedMask = impliedMask( m_mask );
+        final int impliedMask = impliedMask( mask );
 
         // If actions aren't a proper subset, return false
-        if ( ( impliedMask & p.m_mask ) != p.m_mask )
+        if ( ( impliedMask & p.mask ) != p.mask )
         {
             return false;
         }
 
         // See if the tested permission's wiki is implied
-        final boolean impliedWiki = PagePermission.isSubset( m_wiki, p.m_wiki );
+        final boolean impliedWiki = PagePermission.isSubset( wiki, p.wiki );
 
         // If this page is "*", the tested permission's
         // group is implied, unless implied permission has <groupmember> token
         final boolean impliedGroup;
-        if ( MEMBER_TOKEN.equals( p.m_group ) )
+        if ( MEMBER_TOKEN.equals( p.group ) )
         {
-            impliedGroup = MEMBER_TOKEN.equals( m_group );
+            impliedGroup = MEMBER_TOKEN.equals( group );
         }
         else
         {
-            impliedGroup = PagePermission.isSubset( m_group, p.m_group );
+            impliedGroup = PagePermission.isSubset( group, p.group );
         }
 
         // See if this permission is <groupmember> and Subject possesses
@@ -313,8 +313,8 @@ public final class GroupPermission extends Permission implements Serializable
      */
     public String toString()
     {
-        final String wiki = ( m_wiki == null ) ? "" : m_wiki;
-        return "(\"" + this.getClass().getName() + "\",\"" + wiki + WIKI_SEPARATOR + m_group + "\",\"" + getActions()
+        final String wikiStr = ( wiki == null ) ? "" : wiki;
+        return "(\"" + this.getClass().getName() + "\",\"" + wikiStr + WIKI_SEPARATOR + group + "\",\"" + getActions()
                 + "\")";
     }
 
@@ -468,7 +468,7 @@ public final class GroupPermission extends Permission implements Serializable
             return false;
         }
         final GroupPermission gp = (GroupPermission) permission;
-        if ( !MEMBER_TOKEN.equals( m_group ) )
+        if ( !MEMBER_TOKEN.equals( group ) )
         {
             return false;
         }
@@ -481,7 +481,7 @@ public final class GroupPermission extends Permission implements Serializable
             // <member> implies permission if subject possesses
             // GroupPrincipal with same name as target
             final Set<GroupPrincipal> principals = subject.getPrincipals( GroupPrincipal.class );
-            return principals.stream().anyMatch(principal -> principal.getName().equals(gp.m_group));
+            return principals.stream().anyMatch(principal -> principal.getName().equals(gp.group));
         }
         return false;
     }

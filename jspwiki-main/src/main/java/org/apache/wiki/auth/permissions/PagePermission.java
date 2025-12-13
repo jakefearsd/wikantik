@@ -130,13 +130,13 @@ public final class PagePermission extends Permission implements Serializable
 
     private static final String        ATTACHMENT_SEPARATOR = "/";
 
-    private final String               m_actionString;
+    private final String               actionString;
 
-    private final int                  m_mask;
+    private final int                  mask;
 
-    private final String               m_page;
+    private final String               page;
 
-    private final String               m_wiki;
+    private final String               wiki;
 
     /** For serialization purposes. */
     PagePermission()
@@ -175,21 +175,21 @@ public final class PagePermission extends Permission implements Serializable
         final String pageName;
         if ( pathParams.length >= 2 )
         {
-            m_wiki = !pathParams[0].isEmpty() ? pathParams[0] : null;
+            wiki = !pathParams[0].isEmpty() ? pathParams[0] : null;
             pageName = pathParams[1];
         }
         else
         {
-            m_wiki = null;
+            wiki = null;
             pageName = pathParams[0];
         }
         final int pos = pageName.indexOf( ATTACHMENT_SEPARATOR );
-        m_page = ( pos == -1 ) ? pageName : pageName.substring( 0, pos );
+        this.page = ( pos == -1 ) ? pageName : pageName.substring( 0, pos );
 
         // Parse actions
         final String[] pageActions = StringUtils.split( actions.toLowerCase(), ACTION_SEPARATOR );
         Arrays.sort( pageActions, String.CASE_INSENSITIVE_ORDER );
-        m_mask = createMask( actions );
+        mask = createMask( actions );
         final  int pageActionsLength = pageActions.length;
         final StringBuilder buffer = new StringBuilder();
         for( int i = 0; i < pageActionsLength; i++ )
@@ -200,7 +200,7 @@ public final class PagePermission extends Permission implements Serializable
                 buffer.append( ACTION_SEPARATOR );
             }
         }
-        m_actionString = buffer.toString();
+        actionString = buffer.toString();
     }
 
     /**
@@ -224,8 +224,8 @@ public final class PagePermission extends Permission implements Serializable
             return false;
         }
         final PagePermission p = ( PagePermission )obj;
-        return  p.m_mask == m_mask && p.m_page.equals( m_page )
-             && p.m_wiki != null && p.m_wiki.equals( m_wiki );
+        return  p.mask == mask && p.page.equals( page )
+             && p.wiki != null && p.wiki.equals( wiki );
     }
 
     /**
@@ -238,7 +238,7 @@ public final class PagePermission extends Permission implements Serializable
     @Override
     public String getActions()
     {
-        return m_actionString;
+        return actionString;
     }
 
     /**
@@ -247,7 +247,7 @@ public final class PagePermission extends Permission implements Serializable
      */
     public String getPage()
     {
-        return m_page;
+        return page;
     }
 
     /**
@@ -257,7 +257,7 @@ public final class PagePermission extends Permission implements Serializable
      */
     public String getWiki()
     {
-        return m_wiki;
+        return wiki;
     }
 
     /**
@@ -268,8 +268,8 @@ public final class PagePermission extends Permission implements Serializable
         //  If the wiki has not been set, uses a dummy value for the hashcode
         //  calculation.  This may occur if the page given does not refer
         //  to any particular wiki
-        final String wiki = m_wiki != null ? m_wiki : "dummy_value";
-        return m_mask + ( ( 13 * m_actionString.hashCode() ) * 23 * wiki.hashCode() );
+        final String wikiHash = wiki != null ? wiki : "dummy_value";
+        return mask + ( ( 13 * actionString.hashCode() ) * 23 * wikiHash.hashCode() );
     }
 
     /**
@@ -306,20 +306,20 @@ public final class PagePermission extends Permission implements Serializable
 
         // Build up an "implied mask"
         final PagePermission p = (PagePermission) permission;
-        final int impliedMask = impliedMask( m_mask );
+        final int impliedMask = impliedMask( mask );
 
         // If actions aren't a proper subset, return false
-        if ( ( impliedMask & p.m_mask ) != p.m_mask )
+        if ( ( impliedMask & p.mask ) != p.mask )
         {
             return false;
         }
 
         // See if the tested permission's wiki is implied
-        final boolean impliedWiki = isSubset( m_wiki, p.m_wiki );
+        final boolean impliedWiki = isSubset( wiki, p.wiki );
 
         // If this page is "*", the tested permission's
         // page is implied
-        final boolean impliedPage = isSubset( m_page, p.m_page );
+        final boolean impliedPage = isSubset( page, p.page );
 
         return  impliedWiki && impliedPage;
     }
@@ -343,8 +343,8 @@ public final class PagePermission extends Permission implements Serializable
      */
     public String toString()
     {
-        final String wiki = ( m_wiki == null ) ? "" : m_wiki;
-        return "(\"" + this.getClass().getName() + "\",\"" + wiki + WIKI_SEPARATOR + m_page + "\",\"" + getActions() + "\")";
+        final String wikiStr = ( wiki == null ) ? "" : wiki;
+        return "(\"" + this.getClass().getName() + "\",\"" + wikiStr + WIKI_SEPARATOR + page + "\",\"" + getActions() + "\")";
     }
 
     /**

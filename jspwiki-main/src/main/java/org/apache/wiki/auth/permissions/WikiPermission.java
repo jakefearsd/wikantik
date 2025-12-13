@@ -82,11 +82,11 @@ public final class WikiPermission extends Permission implements Serializable
     /** A static instance of the editProfile permission. */
     public static final WikiPermission EDIT_PROFILE            = new WikiPermission( WILDCARD, EDIT_PROFILE_ACTION );
 
-    private final String               m_actionString;
+    private final String               actionString;
 
-    private final String               m_wiki;
+    private final String               wiki;
 
-    private final int                  m_mask;
+    private final int                  mask;
 
     /**
      * Creates a new WikiPermission for a specified set of actions.
@@ -98,7 +98,7 @@ public final class WikiPermission extends Permission implements Serializable
         super( wiki );
         final String[] pageActions = actions.toLowerCase().split( "," );
         Arrays.sort( pageActions, String.CASE_INSENSITIVE_ORDER );
-        m_mask = createMask( actions );
+        mask = createMask( actions );
         final StringBuilder buffer = new StringBuilder();
         for( int i = 0; i < pageActions.length; i++ )
         {
@@ -108,8 +108,8 @@ public final class WikiPermission extends Permission implements Serializable
                 buffer.append( "," );
             }
         }
-        m_actionString = buffer.toString();
-        m_wiki = ( wiki == null ) ? WILDCARD : wiki;
+        actionString = buffer.toString();
+        this.wiki = ( wiki == null ) ? WILDCARD : wiki;
     }
 
     /**
@@ -126,7 +126,7 @@ public final class WikiPermission extends Permission implements Serializable
             return false;
         }
         final WikiPermission p = (WikiPermission) obj;
-        return  p.m_mask == m_mask && p.m_wiki != null && p.m_wiki.equals( m_wiki );
+        return  p.mask == mask && p.wiki != null && p.wiki.equals( wiki );
     }
 
     /**
@@ -140,7 +140,7 @@ public final class WikiPermission extends Permission implements Serializable
     @Override
     public String getActions()
     {
-        return m_actionString;
+        return actionString;
     }
 
     /**
@@ -150,7 +150,7 @@ public final class WikiPermission extends Permission implements Serializable
      */
     public String getWiki()
     {
-        return m_wiki;
+        return wiki;
     }
 
     /**
@@ -159,7 +159,7 @@ public final class WikiPermission extends Permission implements Serializable
      */
     public int hashCode()
     {
-        return m_mask + ( ( 13 * m_actionString.hashCode() ) * 23 * m_wiki.hashCode() );
+        return mask + ( ( 13 * actionString.hashCode() ) * 23 * wiki.hashCode() );
     }
 
     /**
@@ -184,13 +184,13 @@ public final class WikiPermission extends Permission implements Serializable
         final WikiPermission p = (WikiPermission) permission;
 
         // See if the wiki is implied
-        final boolean impliedWiki = PagePermission.isSubset( m_wiki, p.m_wiki );
+        final boolean impliedWiki = PagePermission.isSubset( wiki, p.wiki );
 
         // Build up an "implied mask" for actions
-        final int impliedMask = impliedMask( m_mask );
+        final int impliedMask = impliedMask( mask );
 
         // If actions aren't a proper subset, return false
-        return impliedWiki && ( impliedMask & p.m_mask ) == p.m_mask;
+        return impliedWiki && ( impliedMask & p.mask ) == p.mask;
     }
 
     /**
@@ -209,7 +209,7 @@ public final class WikiPermission extends Permission implements Serializable
      */
     public String toString()
     {
-        return "(\"" + this.getClass().getName() + "\",\"" + m_wiki + "\",\"" + getActions() + "\")";
+        return "(\"" + this.getClass().getName() + "\",\"" + wiki + "\",\"" + getActions() + "\")";
     }
 
     /**

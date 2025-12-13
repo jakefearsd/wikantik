@@ -33,11 +33,11 @@ public class AllPermissionCollection extends PermissionCollection
 
     private static final long serialVersionUID = 1L;
 
-    private boolean           m_notEmpty;
+    private boolean           notEmpty;
 
-    private boolean           m_readOnly;
+    private boolean           readOnly;
 
-    protected final Map<Permission, Permission> m_permissions    = new ConcurrentHashMap<>();
+    protected final Map<Permission, Permission> permissions    = new ConcurrentHashMap<>();
 
     /**
      * Adds an AllPermission object to this AllPermissionCollection. If this
@@ -57,16 +57,16 @@ public class AllPermissionCollection extends PermissionCollection
                     "Permission must be of type org.apache.wiki.permissions.*Permission." );
         }
 
-        if ( m_readOnly )
+        if ( readOnly )
         {
             throw new SecurityException( "attempt to add a Permission to a readonly PermissionCollection" );
         }
 
-        m_notEmpty = true;
+        notEmpty = true;
 
         // This is a filthy hack, but it keeps us from having to write our own
         // Enumeration implementation
-        m_permissions.put( permission, permission );
+        permissions.put( permission, permission );
     }
 
     /**
@@ -79,7 +79,7 @@ public class AllPermissionCollection extends PermissionCollection
     @Override
     public Enumeration<Permission> elements()
     {
-        return Collections.enumeration( m_permissions.values() );
+        return Collections.enumeration( permissions.values() );
     }
 
     /**
@@ -102,7 +102,7 @@ public class AllPermissionCollection extends PermissionCollection
     public boolean implies(final Permission permission )
     {
         // If nothing in the collection yet, fail fast
-        if ( !m_notEmpty )
+        if ( !notEmpty )
         {
             return false;
         }
@@ -114,7 +114,7 @@ public class AllPermissionCollection extends PermissionCollection
         }
 
         // Step through each AllPermission
-        for( final Permission storedPermission : m_permissions.values() )
+        for( final Permission storedPermission : permissions.values() )
         {
             if ( storedPermission.implies( permission ) )
             {
@@ -130,7 +130,7 @@ public class AllPermissionCollection extends PermissionCollection
     @Override
     public boolean isReadOnly()
     {
-        return m_readOnly;
+        return readOnly;
     }
 
     /**
@@ -139,6 +139,6 @@ public class AllPermissionCollection extends PermissionCollection
     @Override
     public void setReadOnly()
     {
-        m_readOnly = true;
+        readOnly = true;
     }
 }

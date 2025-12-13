@@ -54,7 +54,7 @@ public class WikiAjaxDispatcherServlet extends HttpServlet {
     private static final Map< String, AjaxServletContainer > ajaxServlets = new ConcurrentHashMap<>();
     private static final Logger LOG = LogManager.getLogger( WikiAjaxDispatcherServlet.class.getName() );
     private String PATH_AJAX = "/ajax/";
-    private Engine m_engine;
+    private Engine engine;
 
     /**
      * {@inheritDoc}
@@ -65,8 +65,8 @@ public class WikiAjaxDispatcherServlet extends HttpServlet {
     @Override
     public void init( final ServletConfig config ) throws ServletException {
         super.init( config );
-        m_engine = Wiki.engine().find( config );
-        PATH_AJAX = "/" + TextUtil.getStringProperty( m_engine.getWikiProperties(), "jspwiki.ajax.url.prefix", "ajax" ) + "/";
+        engine = Wiki.engine().find( config );
+        PATH_AJAX = "/" + TextUtil.getStringProperty( engine.getWikiProperties(), "jspwiki.ajax.url.prefix", "ajax" ) + "/";
         LOG.info( "WikiAjaxDispatcherServlet initialized." );
     }
 
@@ -130,8 +130,8 @@ public class WikiAjaxDispatcherServlet extends HttpServlet {
             if( container != null ) {
                 final WikiAjaxServlet servlet = container.servlet;
                 if ( validatePermission( req, container ) ) {
-                    req.setCharacterEncoding( m_engine.getContentEncoding().displayName() );
-                    res.setCharacterEncoding( m_engine.getContentEncoding().displayName() );
+                    req.setCharacterEncoding( engine.getContentEncoding().displayName() );
+                    res.setCharacterEncoding( engine.getContentEncoding().displayName() );
                     final String actionName = AjaxUtil.getNextPathPart( req.getRequestURI(), servlet.getServletMapping() );
                     LOG.debug( "actionName=" + actionName );
                     final String params = req.getParameter( "params" );

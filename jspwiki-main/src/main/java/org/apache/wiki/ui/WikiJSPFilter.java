@@ -73,30 +73,30 @@ import java.io.UnsupportedEncodingException;
 public class WikiJSPFilter extends WikiServletFilter {
 
     private static final Logger LOG = LogManager.getLogger( WikiJSPFilter.class );
-    private String m_wiki_encoding;
+    private String wiki_encoding;
     private boolean useEncoding;
 
     /** {@inheritDoc} */
     @Override
     public void init( final FilterConfig config ) throws ServletException {
         super.init( config );
-        m_wiki_encoding = m_engine.getWikiProperties().getProperty( Engine.PROP_ENCODING );
+        wiki_encoding = engine.getWikiProperties().getProperty( Engine.PROP_ENCODING );
 
-        useEncoding = !Boolean.parseBoolean( m_engine.getWikiProperties().getProperty( Engine.PROP_NO_FILTER_ENCODING, "false" ).trim() );
+        useEncoding = !Boolean.parseBoolean( engine.getWikiProperties().getProperty( Engine.PROP_NO_FILTER_ENCODING, "false" ).trim() );
     }
 
     @Override
     public void doFilter( final ServletRequest  request, final ServletResponse response, final FilterChain chain ) throws ServletException, IOException {
-        final WatchDog w = WatchDog.getCurrentWatchDog( m_engine );
+        final WatchDog w = WatchDog.getCurrentWatchDog( engine );
         try {
-            ThreadContext.push( m_engine.getApplicationName() + ":" + ( ( HttpServletRequest )request ).getRequestURI() );
+            ThreadContext.push( engine.getApplicationName() + ":" + ( ( HttpServletRequest )request ).getRequestURI() );
             w.enterState("Filtering for URL "+((HttpServletRequest)request).getRequestURI(), 90 );
-            final HttpServletResponseWrapper responseWrapper = new JSPWikiServletResponseWrapper( ( HttpServletResponse )response, m_wiki_encoding, useEncoding );
-            request.setCharacterEncoding( m_engine.getContentEncoding().displayName() );
+            final HttpServletResponseWrapper responseWrapper = new JSPWikiServletResponseWrapper( ( HttpServletResponse )response, wiki_encoding, useEncoding );
+            request.setCharacterEncoding( engine.getContentEncoding().displayName() );
 
             // fire PAGE_REQUESTED event
-            final String pagename = URLConstructor.parsePageFromURL( ( HttpServletRequest )request, m_engine.getContentEncoding() );
-            fireEvent( WikiPageEvent.PAGE_REQUESTED, pagename != null ? pagename : m_engine.getFrontPage() );
+            final String pagename = URLConstructor.parsePageFromURL( ( HttpServletRequest )request, engine.getContentEncoding() );
+            fireEvent( WikiPageEvent.PAGE_REQUESTED, pagename != null ? pagename : engine.getFrontPage() );
             super.doFilter( request, responseWrapper, chain );
 
             // The response is now complete. Let's replace the markers now.
@@ -131,7 +131,7 @@ public class WikiJSPFilter extends WikiServletFilter {
         } finally {
             w.exitState();
             ThreadContext.pop();
-            ThreadContext.remove( m_engine.getApplicationName() + ":" + ( ( HttpServletRequest )request ).getRequestURI() );
+            ThreadContext.remove( engine.getApplicationName() + ":" + ( ( HttpServletRequest )request ).getRequestURI() );
         }
     }
 
@@ -208,10 +208,10 @@ public class WikiJSPFilter extends WikiServletFilter {
      */
     private static class JSPWikiServletResponseWrapper extends HttpServletResponseWrapper {
 
-        final ByteArrayOutputStream m_output;
-        private final ByteArrayServletOutputStream m_servletOut;
-        private final PrintWriter m_writer;
-        private final HttpServletResponse m_response;
+        final ByteArrayOutputStream output;
+        private final ByteArrayServletOutputStream servletOut;
+        private final PrintWriter writer;
+        private final HttpServletResponse response;
         private final boolean useEncoding;
 
         /** How large the initial buffer should be.  This should be tuned to achieve a balance in speed and memory consumption. */
@@ -219,45 +219,45 @@ public class WikiJSPFilter extends WikiServletFilter {
 
         public JSPWikiServletResponseWrapper( final HttpServletResponse r, final String wikiEncoding, final boolean useEncoding ) throws UnsupportedEncodingException {
             super( r );
-            m_output = new ByteArrayOutputStream( INIT_BUFFER_SIZE );
-            m_servletOut = new ByteArrayServletOutputStream( m_output );
-            m_writer = new PrintWriter( new OutputStreamWriter( m_servletOut, wikiEncoding ), true );
+            output = new ByteArrayOutputStream( INIT_BUFFER_SIZE );
+            servletOut = new ByteArrayServletOutputStream( output );
+            writer = new PrintWriter( new OutputStreamWriter( servletOut, wikiEncoding ), true );
             this.useEncoding = useEncoding;
 
-            m_response = r;
+            response = r;
         }
 
         /** Returns a writer for output; this wraps the internal buffer into a PrintWriter. */
         @Override
         public PrintWriter getWriter() {
-            return m_writer;
+            return writer;
         }
 
         @Override
         public ServletOutputStream getOutputStream() {
-            return m_servletOut;
+            return servletOut;
         }
 
         @Override
         public void flushBuffer() throws IOException {
-            m_writer.flush();
+            writer.flush();
             super.flushBuffer();
         }
 
         class ByteArrayServletOutputStream extends ServletOutputStream {
 
-            final ByteArrayOutputStream m_buffer;
+            final ByteArrayOutputStream buffer;
 
             public ByteArrayServletOutputStream( final ByteArrayOutputStream byteArrayOutputStream ) {
                 super();
-                m_buffer = byteArrayOutputStream;
+                buffer = byteArrayOutputStream;
             }
 
             //
             /**{@inheritDoc} */
             @Override
             public void write( final int aInt ) {
-                m_buffer.write( aInt );
+                buffer.write( aInt );
             }
 
             /**{@inheritDoc} */
@@ -285,10 +285,10 @@ public class WikiJSPFilter extends WikiServletFilter {
 
             try {
 				if( useEncoding ) {
-					return m_output.toString( m_response.getCharacterEncoding() );
+					return output.toString( response.getCharacterEncoding() );
 				}
 
-				return m_output.toString();
+				return output.toString();
 			} catch( final UnsupportedEncodingException e ) {
                 LOG.error( e );
                 return StringUtils.EMPTY;
@@ -308,8 +308,8 @@ public class WikiJSPFilter extends WikiServletFilter {
      * @param pagename   the wiki page name as a String
      */
     protected final void fireEvent( final int type, final String pagename ) {
-        if( WikiEventManager.isListening( m_engine ) ) {
-            WikiEventManager.fireEvent( m_engine, new WikiPageEvent( m_engine, type, pagename ) );
+        if( WikiEventManager.isListening( engine ) ) {
+            WikiEventManager.fireEvent( engine, new WikiPageEvent( engine, type, pagename ) );
         }
     }
 

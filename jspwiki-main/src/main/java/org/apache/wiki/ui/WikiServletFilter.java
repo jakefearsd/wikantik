@@ -53,7 +53,7 @@ import java.io.PrintWriter;
 public class WikiServletFilter implements Filter {
 
     private static final Logger LOG = LogManager.getLogger( WikiServletFilter.class );
-    protected Engine m_engine;
+    protected Engine engine;
 
     /**
      * Initializes the WikiServletFilter.
@@ -64,7 +64,7 @@ public class WikiServletFilter implements Filter {
     @Override
     public void init( final FilterConfig config ) throws ServletException {
         final ServletContext context = config.getServletContext();
-        m_engine = Wiki.engine().find( context, null );
+        engine = Wiki.engine().find( context, null );
     }
 
     /**
@@ -92,7 +92,7 @@ public class WikiServletFilter implements Filter {
             throw new ServletException("FilterChain is null, even if it should not be.  Please report this to the jspwiki development team.");
         }
         
-        if( m_engine == null ) {
+        if( engine == null ) {
             final PrintWriter out = response.getWriter();
             out.print("<!DOCTYPE html><html lang=\"en\"><head><title>Fatal problem with JSPWiki</title></head>");
             out.print("<body>");
@@ -112,14 +112,14 @@ public class WikiServletFilter implements Filter {
         HttpServletRequest httpRequest = ( HttpServletRequest )request;
         
         // Set the character encoding
-        httpRequest.setCharacterEncoding( m_engine.getContentEncoding().displayName() );
+        httpRequest.setCharacterEncoding( engine.getContentEncoding().displayName() );
         
         if ( !isWrapped( request ) ) {
             // Prepare the Session
             try {
-                m_engine.getManager( AuthenticationManager.class ).login( httpRequest );
-                final Session wikiSession = SessionMonitor.getInstance( m_engine ).find( httpRequest.getSession() );
-                httpRequest = new WikiRequestWrapper( m_engine, httpRequest );
+                engine.getManager( AuthenticationManager.class ).login( httpRequest );
+                final Session wikiSession = SessionMonitor.getInstance( engine ).find( httpRequest.getSession() );
+                httpRequest = new WikiRequestWrapper( engine, httpRequest );
                 LOG.debug( "Executed security filters for user={}, path={}",wikiSession.getLoginPrincipal().getName(), httpRequest.getRequestURI() );
             } catch( final WikiSecurityException e ) {
                 throw new ServletException( e );
@@ -127,11 +127,11 @@ public class WikiServletFilter implements Filter {
         }
 
         try {
-            ThreadContext.push( m_engine.getApplicationName() + ":" + httpRequest.getRequestURL() );
+            ThreadContext.push( engine.getApplicationName() + ":" + httpRequest.getRequestURL() );
             chain.doFilter( httpRequest, response );
         } finally {
             ThreadContext.pop();
-            ThreadContext.remove( m_engine.getApplicationName() + ":" + httpRequest.getRequestURL() );
+            ThreadContext.remove( engine.getApplicationName() + ":" + httpRequest.getRequestURL() );
         }
     }
 

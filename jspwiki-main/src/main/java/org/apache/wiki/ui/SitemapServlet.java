@@ -119,20 +119,20 @@ public class SitemapServlet extends HttpServlet {
         "PageFooter"
     );
 
-    private Engine m_engine;
-    private String m_configuredBaseUrl;
+    private Engine engine;
+    private String configuredBaseUrl;
 
     @Override
     public void init( final ServletConfig config ) throws ServletException {
         super.init( config );
-        m_engine = Wiki.engine().find( config );
+        engine = Wiki.engine().find( config );
 
         // Check for configured sitemap base URL
-        final Properties props = m_engine.getWikiProperties();
-        m_configuredBaseUrl = TextUtil.getStringProperty( props, PROP_SITEMAP_BASE_URL, null );
+        final Properties props = engine.getWikiProperties();
+        configuredBaseUrl = TextUtil.getStringProperty( props, PROP_SITEMAP_BASE_URL, null );
 
-        if ( m_configuredBaseUrl != null && !m_configuredBaseUrl.isBlank() ) {
-            LOG.info( "SitemapServlet initialized with configured baseURL: {}", m_configuredBaseUrl );
+        if ( configuredBaseUrl != null && !configuredBaseUrl.isBlank() ) {
+            LOG.info( "SitemapServlet initialized with configured baseURL: {}", configuredBaseUrl );
         } else {
             LOG.info( "SitemapServlet initialized (baseURL will be derived from request)" );
         }
@@ -149,7 +149,7 @@ public class SitemapServlet extends HttpServlet {
         // operation where the filesystem is the source of truth. The cache layer can
         // return stale or empty results after TTL expiration, which would cause
         // search engines to see an incomplete sitemap.
-        final PageManager pageManager = m_engine.getManager( PageManager.class );
+        final PageManager pageManager = engine.getManager( PageManager.class );
         final PageProvider filesystemProvider = getFilesystemProvider( pageManager );
         final Collection<Page> allPages;
         try {
@@ -161,8 +161,8 @@ public class SitemapServlet extends HttpServlet {
         }
 
         // Filter pages: exclude menu pages and check permissions
-        final AuthorizationManager authManager = m_engine.getManager( AuthorizationManager.class );
-        final Context context = Wiki.context().create( m_engine, req, ContextEnum.PAGE_VIEW.getRequestContext() );
+        final AuthorizationManager authManager = engine.getManager( AuthorizationManager.class );
+        final Context context = Wiki.context().create( engine, req, ContextEnum.PAGE_VIEW.getRequestContext() );
 
         final List<Page> publicPages = allPages.stream()
             .filter( page -> !isExcludedPage( page.getName() ) )
@@ -189,16 +189,16 @@ public class SitemapServlet extends HttpServlet {
         out.println( "        xmlns:image=\"" + IMAGE_NS + "\">" );
 
         final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern( "yyyy-MM-dd", Locale.ROOT );
-        final URLConstructor urlConstructor = m_engine.getManager( URLConstructor.class );
-        final AttachmentManager attachmentManager = m_engine.getManager( AttachmentManager.class );
+        final URLConstructor urlConstructor = engine.getManager( URLConstructor.class );
+        final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );
 
         // Build fully qualified base URL
         // First check for explicit sitemap baseURL configuration (for proxy/HTTPS scenarios)
-        String baseUrl = m_configuredBaseUrl;
+        String baseUrl = configuredBaseUrl;
 
         // Fall back to engine's baseURL if no sitemap-specific URL configured
         if ( baseUrl == null || baseUrl.isBlank() ) {
-            baseUrl = m_engine.getBaseURL();
+            baseUrl = engine.getBaseURL();
         }
 
         // If still no protocol, build from request (original behavior)

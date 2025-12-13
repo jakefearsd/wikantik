@@ -45,9 +45,9 @@ public final class WikiCommand extends AbstractCommand {
     public static final Command PREFS = new WikiCommand( ContextEnum.WIKI_PREFS, null, WikiPermission.EDIT_PROFILE_ACTION );
     public static final Command WORKFLOW = new WikiCommand( ContextEnum.WIKI_WORKFLOW, null, null );
 
-    private final String m_action;
+    private final String action;
     
-    private final Permission m_permission;
+    private final Permission permission;
 
     /**
      * Constructs a new Command with a specified wiki context, URL pattern, type, and content template. The WikiPage for this action is
@@ -88,11 +88,11 @@ public final class WikiCommand extends AbstractCommand {
                          final String target,
                          final String action ) {
         super( requestContext, urlPattern, contentTemplate, target );
-        m_action = action;
-        if ( target == null || m_action == null ) {
-            m_permission = null;
+        this.action = action;
+        if ( target == null || this.action == null ) {
+            permission = null;
         } else {
-            m_permission = new WikiPermission( target, action );
+            permission = new WikiPermission( target, action );
         }
     }
 
@@ -107,8 +107,8 @@ public final class WikiCommand extends AbstractCommand {
      */
     private WikiCommand( final String requestContext, final String urlPattern, final String contentTemplate, final String target ) {
         super( requestContext, urlPattern, contentTemplate, target );
-        m_action = null;
-        m_permission = new AllPermission( target );
+        action = null;
+        permission = new AllPermission( target );
     }
 
     /**
@@ -124,7 +124,7 @@ public final class WikiCommand extends AbstractCommand {
         if ( !( target instanceof String ) ) {
             throw new IllegalArgumentException( "Target must non-null and of type String." );
         }
-        return new WikiCommand( getRequestContext(), getURLPattern(), getContentTemplate(), (String)target, m_action );
+        return new WikiCommand( getRequestContext(), getURLPattern(), getContentTemplate(), (String)target, action );
     }
     
     /**
@@ -142,7 +142,7 @@ public final class WikiCommand extends AbstractCommand {
      */
     @Override
     public Permission requiredPermission() {
-        return m_permission;
+        return permission;
     }
 
 }

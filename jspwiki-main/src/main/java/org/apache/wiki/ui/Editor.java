@@ -28,18 +28,18 @@ import org.apache.wiki.api.core.Context;
  */
 public class Editor {
 
-    private final String m_editorName;
-    private final Context m_wikiContext;
-    private final EditorManager m_editorManager;
+    private final String editorName;
+    private final Context wikiContext;
+    private final EditorManager editorManager;
 
     public Editor( final Context wikiContext, final String editorName ) {
-        m_wikiContext = wikiContext;
-        m_editorName = editorName;
-        m_editorManager = wikiContext.getEngine().getManager( EditorManager.class );
+        this.wikiContext = wikiContext;
+        this.editorName = editorName;
+        editorManager = wikiContext.getEngine().getManager( EditorManager.class );
     }
 
     public String getName() {
-        return m_editorName;
+        return editorName;
     }
 
     /**
@@ -57,7 +57,7 @@ public class Editor {
     }
 
     public String isSelected( final String ifSelected, final String ifNotSelected ) {
-        if( m_editorName.equals( m_editorManager.getEditorName( m_wikiContext ) ) ) {
+        if( editorName.equals( editorManager.getEditorName( wikiContext ) ) ) {
             return ifSelected;
         }
         return ifNotSelected;
@@ -66,7 +66,7 @@ public class Editor {
     /** {@inheritDoc} */
     @Override
     public String toString() {
-        return m_editorName;
+        return editorName;
     }
 
 }

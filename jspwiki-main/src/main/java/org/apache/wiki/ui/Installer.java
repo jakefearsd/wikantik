@@ -67,26 +67,26 @@ public class Installer {
     public static final String ADMIN_GROUP = "Admin";
     public static final String PROPFILENAME = "jspwiki-custom.properties" ;
     public static String TMP_DIR;
-    private final Session m_session;
-    private final File m_propertyFile;
-    private final Properties m_props;
-    private final Engine m_engine;
-    private final HttpServletRequest m_request;
-    private boolean m_validated;
+    private final Session session;
+    private final File propertyFile;
+    private final Properties props;
+    private final Engine engine;
+    private final HttpServletRequest request;
+    private boolean validated;
     
     public Installer( final HttpServletRequest request, final ServletConfig config ) {
         // Get wiki session for this user
-        m_engine = Wiki.engine().find( config );
-        m_session = Wiki.session().find( m_engine, request );
+        engine = Wiki.engine().find( config );
+        session = Wiki.session().find( engine, request );
         
         // Get the file for properties
-        m_propertyFile = new File(TMP_DIR, PROPFILENAME);
-        m_props = new Properties();
+        propertyFile = new File(TMP_DIR, PROPFILENAME);
+        props = new Properties();
         
         // Stash the request
-        m_request = request;
-        m_validated = false;
-        TMP_DIR = m_engine.getWikiProperties().getProperty( "jspwiki.workDir" );
+        this.request = request;
+        validated = false;
+        TMP_DIR = engine.getWikiProperties().getProperty( "jspwiki.workDir" );
     }
     
     /**
@@ -96,7 +96,7 @@ public class Installer {
      */
     public boolean adminExists() {
         // See if the admin user exists already
-        final UserManager userMgr = m_engine.getManager( UserManager.class );
+        final UserManager userMgr = engine.getManager( UserManager.class );
         final UserDatabase userDb = userMgr.getUserDatabase();
         try {
             userDb.findByLoginName( ADMIN_ID );
@@ -112,7 +112,7 @@ public class Installer {
      * @return the password
      */
     public String createAdministrator() throws WikiSecurityException {
-        if ( !m_validated ) {
+        if ( !validated ) {
             throw new WikiSecurityException( "Cannot create administrator because one or more of the installation settings are invalid." );
         }
         
@@ -121,7 +121,7 @@ public class Installer {
         }
         
         // See if the admin user exists already
-        final UserManager userMgr = m_engine.getManager( UserManager.class );
+        final UserManager userMgr = engine.getManager( UserManager.class );
         final UserDatabase userDb = userMgr.getUserDatabase();
         String password = null;
         
@@ -138,7 +138,7 @@ public class Installer {
         }
         
         // Create a new admin group
-        final GroupManager groupMgr = m_engine.getManager( GroupManager.class );
+        final GroupManager groupMgr = engine.getManager( GroupManager.class );
         Group group;
         try {
             group = groupMgr.getGroup( ADMIN_GROUP );
@@ -146,7 +146,7 @@ public class Installer {
         } catch( final NoSuchPrincipalException e ) {
             group = groupMgr.parseGroup( ADMIN_GROUP, ADMIN_NAME, true );
         }
-        groupMgr.setGroup( m_session, group );
+        groupMgr.setGroup( session, group );
         
         return password;
     }
@@ -156,12 +156,12 @@ public class Installer {
      * @return the string
      */
     public String getPropertiesList() {
-        final Set< String > keys = m_props.stringPropertyNames();
-        return keys.stream().map( key -> key + " = " + m_props.getProperty( key ) + "\n" ).collect( Collectors.joining() );
+        final Set< String > keys = props.stringPropertyNames();
+        return keys.stream().map( key -> key + " = " + props.getProperty( key ) + "\n" ).collect( Collectors.joining() );
     }
 
     public String getPropertiesPath() {
-        return m_propertyFile.getAbsolutePath();
+        return propertyFile.getAbsolutePath();
     }
 
     /**
@@ -170,47 +170,47 @@ public class Installer {
      * @return the property value
      */
     public String getProperty( final String key ) {
-        return m_props.getProperty( key );
+        return props.getProperty( key );
     }
     
     public void parseProperties () {
-        final ResourceBundle rb = ResourceBundle.getBundle( InternationalizationManager.CORE_BUNDLE, m_session.getLocale() );
-        m_validated = false;
+        final ResourceBundle rb = ResourceBundle.getBundle( InternationalizationManager.CORE_BUNDLE, session.getLocale() );
+        validated = false;
 
         // Get application name
-        String nullValue = m_props.getProperty( APP_NAME, rb.getString( "install.installer.default.appname" ) );
+        String nullValue = props.getProperty( APP_NAME, rb.getString( "install.installer.default.appname" ) );
         parseProperty( APP_NAME, nullValue );
 
         // Get work directory
-        nullValue = m_props.getProperty( WORK_DIR, TMP_DIR );
+        nullValue = props.getProperty( WORK_DIR, TMP_DIR );
         parseProperty( WORK_DIR, nullValue );
 
         // Get page directory
-        nullValue = m_props.getProperty( PAGE_DIR, m_props.getProperty( WORK_DIR, TMP_DIR ) + File.separatorChar + "data" );
+        nullValue = props.getProperty( PAGE_DIR, props.getProperty( WORK_DIR, TMP_DIR ) + File.separatorChar + "data" );
         parseProperty( PAGE_DIR, nullValue );
 
         // Set a few more default properties, for easy setup
-        m_props.setProperty( STORAGE_DIR, m_props.getProperty( PAGE_DIR ) );
-        m_props.setProperty( PageManager.PROP_PAGEPROVIDER, "VersioningFileProvider" );
+        props.setProperty( STORAGE_DIR, props.getProperty( PAGE_DIR ) );
+        props.setProperty( PageManager.PROP_PAGEPROVIDER, "VersioningFileProvider" );
     }
     
     public void saveProperties() {
-        final ResourceBundle rb = ResourceBundle.getBundle( InternationalizationManager.CORE_BUNDLE, m_session.getLocale() );
+        final ResourceBundle rb = ResourceBundle.getBundle( InternationalizationManager.CORE_BUNDLE, session.getLocale() );
         // Write the file back to disk
         try {
-            try( final OutputStream out = Files.newOutputStream( m_propertyFile.toPath() ) ) {
-                m_props.store( out, null );
+            try( final OutputStream out = Files.newOutputStream( propertyFile.toPath() ) ) {
+                props.store( out, null );
             }
-            m_session.addMessage( INSTALL_INFO, MessageFormat.format(rb.getString("install.installer.props.saved"), m_propertyFile) );
+            session.addMessage( INSTALL_INFO, MessageFormat.format(rb.getString("install.installer.props.saved"), propertyFile) );
         } catch( final IOException e ) {
-            final Object[] args = { e.getMessage(), m_props.toString() };
-            m_session.addMessage( INSTALL_ERROR, MessageFormat.format( rb.getString( "install.installer.props.notsaved" ), args ) );
+            final Object[] args = { e.getMessage(), props.toString() };
+            session.addMessage( INSTALL_ERROR, MessageFormat.format( rb.getString( "install.installer.props.notsaved" ), args ) );
         }
     }
     
     public boolean validateProperties() {
-        final ResourceBundle rb = ResourceBundle.getBundle( InternationalizationManager.CORE_BUNDLE, m_session.getLocale() );
-        m_session.clearMessages( INSTALL_ERROR );
+        final ResourceBundle rb = ResourceBundle.getBundle( InternationalizationManager.CORE_BUNDLE, session.getLocale() );
+        session.clearMessages( INSTALL_ERROR );
         parseProperties();
         // sanitize pages, attachments and work directories
         sanitizePath( PAGE_DIR );
@@ -220,10 +220,10 @@ public class Installer {
         validateNotNull( APP_NAME, rb.getString( "install.installer.validate.appname" ) );
         validateNotNull( WORK_DIR, rb.getString( "install.installer.validate.workdir" ) );
 
-        if( m_session.getMessages( INSTALL_ERROR ).length == 0 ) {
-            m_validated = true;
+        if( session.getMessages( INSTALL_ERROR ).length == 0 ) {
+            validated = true;
         }
-        return m_validated;
+        return validated;
     }
         
     /**
@@ -233,11 +233,11 @@ public class Installer {
      * @param defaultValue the default to use if the parameter was not passed in the request
      */
     private void parseProperty( final String param, final String defaultValue ) {
-        String value = m_request.getParameter( param );
+        String value = request.getParameter( param );
         if( value == null ) {
             value = defaultValue;
         }
-        m_props.put( param, value );
+        props.put( param, value );
     }
     
     /**
@@ -246,10 +246,10 @@ public class Installer {
      * @param key the key of the property to sanitize
      */
     private void sanitizePath( final String key ) {
-        String s = m_props.getProperty( key );
+        String s = props.getProperty( key );
         s = TextUtil.replaceString(s, "\\", "\\\\" );
         s = s.trim();
-        m_props.put( key, s );
+        props.put( key, s );
     }
 
     public void restoreUserValues() {
@@ -264,16 +264,16 @@ public class Installer {
      * @param key the key of the property to sanitize
      */
     private void desanitizePath( final String key ) {
-        String s = m_props.getProperty( key );
+        String s = props.getProperty( key );
         s = TextUtil.replaceString(s, "\\\\", "\\" );
         s = s.trim();
-        m_props.put( key, s );
+        props.put( key, s );
     }
     
     private void validateNotNull( final String key, final String message ) {
-        final String value = m_props.getProperty( key );
+        final String value = props.getProperty( key );
         if ( value == null || value.isEmpty() ) {
-            m_session.addMessage( INSTALL_ERROR, message );
+            session.addMessage( INSTALL_ERROR, message );
         }
     }
     

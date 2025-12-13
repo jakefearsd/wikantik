@@ -70,14 +70,14 @@ public class TableOfContents implements Plugin, HeadingListener {
 
     private static final String VAR_ALREADY_PROCESSING = "__TableOfContents.processing";
 
-    final StringBuilder m_buf = new StringBuilder();
-    private boolean m_usingNumberedList;
-    private String m_prefix = "";
-    private int m_starting;
-    private int m_level1Index;
-    private int m_level2Index;
-    private int m_level3Index;
-    private int m_lastLevel;
+    final StringBuilder buf = new StringBuilder();
+    private boolean usingNumberedList;
+    private String prefix = "";
+    private int starting;
+    private int level1Index;
+    private int level2Index;
+    private int level3Index;
+    private int lastLevel;
 
     /**
      *  {@inheritDoc}
@@ -88,32 +88,32 @@ public class TableOfContents implements Plugin, HeadingListener {
 
         switch( hd.m_level ) {
           case Heading.HEADING_SMALL:
-            m_buf.append("<li class=\"toclevel-3\">");
-            m_level3Index++;
+            buf.append("<li class=\"toclevel-3\">");
+            level3Index++;
             break;
           case Heading.HEADING_MEDIUM:
-            m_buf.append("<li class=\"toclevel-2\">");
-            m_level2Index++;
+            buf.append("<li class=\"toclevel-2\">");
+            level2Index++;
             break;
           case Heading.HEADING_LARGE:
-            m_buf.append("<li class=\"toclevel-1\">");
-            m_level1Index++;
+            buf.append("<li class=\"toclevel-1\">");
+            level1Index++;
             break;
           default:
             throw new InternalWikiException("Unknown depth in toc! (Please submit a bug report.)");
         }
 
-        if( m_level1Index < m_starting ) {
+        if( level1Index < starting ) {
             // in case we never had a large heading ...
-            m_level1Index++;
+            level1Index++;
         }
-        if( ( m_lastLevel == Heading.HEADING_SMALL ) && ( hd.m_level != Heading.HEADING_SMALL ) ) {
-            m_level3Index = 0;
+        if( ( lastLevel == Heading.HEADING_SMALL ) && ( hd.m_level != Heading.HEADING_SMALL ) ) {
+            level3Index = 0;
         }
-        if( ( ( m_lastLevel == Heading.HEADING_SMALL ) || ( m_lastLevel == Heading.HEADING_MEDIUM ) ) && ( hd.m_level
+        if( ( ( lastLevel == Heading.HEADING_SMALL ) || ( lastLevel == Heading.HEADING_MEDIUM ) ) && ( hd.m_level
                 == Heading.HEADING_LARGE ) ) {
-            m_level3Index = 0;
-            m_level2Index = 0;
+            level3Index = 0;
+            level2Index = 0;
         }
 
         final String titleSection = hd.m_titleSection.replace( '%', '_' );
@@ -121,27 +121,27 @@ public class TableOfContents implements Plugin, HeadingListener {
 
         final String sectref = "#section-"+pageName+"-"+titleSection;
 
-        m_buf.append( "<a class=\"wikipage\" href=\"" ).append( sectref ).append( "\">" );
-        if (m_usingNumberedList)
+        buf.append( "<a class=\"wikipage\" href=\"" ).append( sectref ).append( "\">" );
+        if (usingNumberedList)
         {
             switch( hd.m_level )
             {
             case Heading.HEADING_SMALL:
-                m_buf.append( m_prefix ).append( m_level1Index ).append( "." ).append( m_level2Index ).append( "." ).append( m_level3Index ).append( " " );
+                buf.append( prefix ).append( level1Index ).append( "." ).append( level2Index ).append( "." ).append( level3Index ).append( " " );
                 break;
             case Heading.HEADING_MEDIUM:
-                m_buf.append( m_prefix ).append( m_level1Index ).append( "." ).append( m_level2Index ).append( " " );
+                buf.append( prefix ).append( level1Index ).append( "." ).append( level2Index ).append( " " );
                 break;
             case Heading.HEADING_LARGE:
-                m_buf.append( m_prefix ).append( m_level1Index ).append( " " );
+                buf.append( prefix ).append( level1Index ).append( " " );
                 break;
             default:
                 throw new InternalWikiException("Unknown depth in toc! (Please submit a bug report.)");
             }
         }
-        m_buf.append( TextUtil.replaceEntities( hd.m_titleText ) ).append( "</a></li>\n" );
+        buf.append( TextUtil.replaceEntities( hd.m_titleText ) ).append( "</a></li>\n" );
 
-        m_lastLevel = hd.m_level;
+        lastLevel = hd.m_level;
     }
 
     /**
@@ -173,18 +173,18 @@ public class TableOfContents implements Plugin, HeadingListener {
         sb.append( "</h4>\n" );
 
         // should we use an ordered list?
-        m_usingNumberedList = false;
+        usingNumberedList = false;
         if( params.containsKey( PARAM_NUMBERED ) ) {
             final String numbered = params.get( PARAM_NUMBERED );
             if( numbered.equalsIgnoreCase( "true" ) ) {
-                m_usingNumberedList = true;
+                usingNumberedList = true;
             } else if( numbered.equalsIgnoreCase( "yes" ) ) {
-                m_usingNumberedList = true;
+                usingNumberedList = true;
             }
         }
 
         // if we are using a numbered list, get the rest of the parameters (if any) ...
-        if (m_usingNumberedList) {
+        if (usingNumberedList) {
             int start = 0;
             final String startStr = params.get(PARAM_START);
             if( ( startStr != null ) && ( startStr.matches( "^\\d+$" ) ) ) {
@@ -192,14 +192,14 @@ public class TableOfContents implements Plugin, HeadingListener {
             }
             if (start < 0) start = 0;
 
-            m_starting = start;
-            m_level1Index = start - 1;
-            if (m_level1Index < 0) m_level1Index = 0;
-            m_level2Index = 0;
-            m_level3Index = 0;
-            m_prefix = TextUtil.replaceEntities( params.get(PARAM_PREFIX) );
-            if (m_prefix == null) m_prefix = "";
-            m_lastLevel = Heading.HEADING_LARGE;
+            starting = start;
+            level1Index = start - 1;
+            if (level1Index < 0) level1Index = 0;
+            level2Index = 0;
+            level3Index = 0;
+            prefix = TextUtil.replaceEntities( params.get(PARAM_PREFIX) );
+            if (prefix == null) prefix = "";
+            lastLevel = Heading.HEADING_LARGE;
         }
 
         try {
@@ -223,7 +223,7 @@ public class TableOfContents implements Plugin, HeadingListener {
             parser.addHeadingListener( this );
             parser.parse();
 
-            sb.append( "<ul>\n" ).append( m_buf ).append( "</ul>\n" );
+            sb.append( "<ul>\n" ).append( buf ).append( "</ul>\n" );
         } catch( final IOException e ) {
             LOG.error("Could not construct table of contents", e);
             throw new PluginException("Unable to construct table of contents (see logs)");

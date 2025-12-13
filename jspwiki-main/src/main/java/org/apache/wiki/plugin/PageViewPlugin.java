@@ -169,22 +169,22 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
      */
     public final class PageViewManager implements WikiEventListener {
         /** Are we initialized? */
-        private boolean m_initialized;
+        private boolean initialized;
 
         /** The page counters. */
-        private Map<String, Counter> m_counters;
+        private Map<String, Counter> counters;
 
         /** The page counters in storage format. */
-        private Properties m_storage;
+        private Properties storage;
 
         /** Are all changes stored? */
-        private boolean m_dirty;
+        private boolean dirty;
 
         /** The page count storage background thread. */
-        private Thread m_pageCountSaveThread;
+        private Thread pageCountSaveThread;
 
         /** The work directory. */
-        private String m_workDir;
+        private String workDir;
 
         /** Comparator for descending sort on page count. */
         private final Comparator< Object > m_compareCountDescending = ( o1, o2 ) -> {
@@ -200,23 +200,23 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
          */
         public synchronized void initialize( final Engine engine ) {
             LOG.info( "initializing PageView Manager" );
-            m_workDir = engine.getWorkDir();
+            workDir = engine.getWorkDir();
             engine.addWikiEventListener( this );
-            if( m_counters == null ) {
+            if( counters == null ) {
                 // Load the counters into a collection
-                m_storage = new Properties();
-                m_counters = new TreeMap<>();
+                storage = new Properties();
+                counters = new TreeMap<>();
 
                 loadCounters();
             }
 
             // backup counters every 5 minutes
-            if( m_pageCountSaveThread == null ) {
-                m_pageCountSaveThread = new CounterSaveThread( engine, 5 * STORAGE_INTERVAL, this );
-                m_pageCountSaveThread.start();
+            if( pageCountSaveThread == null ) {
+                pageCountSaveThread = new CounterSaveThread( engine, 5 * STORAGE_INTERVAL, this );
+                pageCountSaveThread.start();
             }
 
-            m_initialized = true;
+            initialized = true;
         }
 
         /**
@@ -227,21 +227,21 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
 
             cleanup();
 
-            if( m_counters != null ) {
+            if( counters != null ) {
 
-                m_dirty = true;
+                dirty = true;
                 storeCounters();
 
-                m_counters.clear();
-                m_counters = null;
+                counters.clear();
+                counters = null;
 
-                m_storage.clear();
-                m_storage = null;
+                storage.clear();
+                storage = null;
             }
 
-            m_initialized = false;
+            initialized = false;
 
-            m_pageCountSaveThread = null;
+            pageCountSaveThread = null;
         }
 
         /**
@@ -259,18 +259,18 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
             } else if( ( event instanceof WikiPageRenameEvent renameEvent ) && ( event.getType() == WikiPageRenameEvent.PAGE_RENAMED ) ) {
                 final String oldPageName = renameEvent.getOldPageName();
                 final String newPageName = renameEvent.getNewPageName();
-                final Counter oldCounter = m_counters.get( oldPageName );
+                final Counter oldCounter = counters.get( oldPageName );
                 if( oldCounter != null ) {
-                    m_storage.remove( oldPageName );
-                    m_counters.put( newPageName, oldCounter );
-                    m_storage.setProperty( newPageName, oldCounter.toString() );
-                    m_counters.remove( oldPageName );
-                    m_dirty = true;
+                    storage.remove( oldPageName );
+                    counters.put( newPageName, oldCounter );
+                    storage.setProperty( newPageName, oldCounter.toString() );
+                    counters.remove( oldPageName );
+                    dirty = true;
                 }
             } else if( ( event instanceof WikiPageEvent pageEvent ) && ( event.getType() == WikiPageEvent.PAGE_DELETED ) ) {
                 final String pageName = pageEvent.getPageName();
-                m_storage.remove( pageName );
-                m_counters.remove( pageName );
+                storage.remove( pageName );
+                counters.remove( pageName );
             }
         }
 
@@ -338,17 +338,17 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
                 }
 
                 synchronized( this ) {
-                    Counter counter = m_counters.get( pagename );
+                    Counter counter = counters.get( pagename );
 
                     // only count in view mode, keep storage values in sync
                     if( increment && ContextEnum.PAGE_VIEW.getRequestContext().equalsIgnoreCase( context.getRequestContext() ) ) {
                         if( counter == null ) {
                             counter = new Counter();
-                            m_counters.put( pagename, counter );
+                            counters.put( pagename, counter );
                         }
                         counter.increment();
-                        m_storage.setProperty( pagename, counter.toString() );
-                        m_dirty = true;
+                        storage.setProperty( pagename, counter.toString() );
+                        dirty = true;
                     }
 
                     if( show == null || STR_NONE.equals( show ) ) {
@@ -358,9 +358,9 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
                         // show page count
                         if( counter == null ) {
                             counter = new Counter();
-                            m_counters.put( pagename, counter );
-                            m_storage.setProperty( pagename, counter.toString() );
-                            m_dirty = true;
+                            counters.put( pagename, counter );
+                            storage.setProperty( pagename, counter.toString() );
+                            dirty = true;
                         }
                         result = counter.toString();
 
@@ -386,10 +386,10 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
                         }
 
                         // sort on name or count?
-                        Map< String, Counter > sorted = m_counters;
+                        Map< String, Counter > sorted = counters;
                         if( PARAM_COUNT.equals( sort ) ) {
                             sorted = new TreeMap<>( m_compareCountDescending );
-                            sorted.putAll( m_counters );
+                            sorted.putAll( counters );
                         }
 
                         // build a messagebuffer with the list in wiki markup
@@ -524,28 +524,28 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
          */
         int getCount( final Object key )
         {
-            return m_counters.get( key ).getValue();
+            return counters.get( key ).getValue();
         }
 
         /**
          * Load the page view counters from file.
          */
         private void loadCounters() {
-            if( m_counters != null && m_storage != null ) {
+            if( counters != null && storage != null ) {
                 LOG.info( "Loading counters." );
                 synchronized( this ) {
-                    try( final InputStream fis = Files.newInputStream( new File( m_workDir, COUNTER_PAGE ).toPath() ) ) {
-                        m_storage.load( fis );
+                    try( final InputStream fis = Files.newInputStream( new File( workDir, COUNTER_PAGE ).toPath() ) ) {
+                        storage.load( fis );
                     } catch( final IOException ioe ) {
                         LOG.error( "Can't load page counter store: " + ioe.getMessage() + " , will create a new one!" );
                     }
 
                     // Copy the collection into a sorted map
-                    for( final Entry< ?, ? > entry : m_storage.entrySet() ) {
-                        m_counters.put( ( String )entry.getKey(), new Counter( ( String )entry.getValue() ) );
+                    for( final Entry< ?, ? > entry : storage.entrySet() ) {
+                        counters.put( ( String )entry.getKey(), new Counter( ( String )entry.getValue() ) );
                     }
                     
-                    LOG.info( "Loaded " + m_counters.size() + " counter values." );
+                    LOG.info( "Loaded " + counters.size() + " counter values." );
                 }
             }
         }
@@ -554,15 +554,15 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
          * Save the page view counters to file.
          */
         void storeCounters() {
-            if( m_counters != null && m_storage != null && m_dirty ) {
-                LOG.info( "Storing " + m_counters.size() + " counter values." );
+            if( counters != null && storage != null && dirty ) {
+                LOG.info( "Storing " + counters.size() + " counter values." );
                 synchronized( this ) {
                     // Write out the collection of counters
-                    try( final OutputStream fos = Files.newOutputStream( new File( m_workDir, COUNTER_PAGE ).toPath() ) ) {
-                        m_storage.store( fos, "\n# The number of times each page has been viewed.\n# Do not modify.\n" );
+                    try( final OutputStream fos = Files.newOutputStream( new File( workDir, COUNTER_PAGE ).toPath() ) ) {
+                        storage.store( fos, "\n# The number of times each page has been viewed.\n# Do not modify.\n" );
                         fos.flush();
 
-                        m_dirty = false;
+                        dirty = false;
                     } catch( final IOException ioe ) {
                         LOG.error( "Couldn't store counters values: " + ioe.getMessage() );
                     }
@@ -578,7 +578,7 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
          */
         private synchronized boolean isRunning( final Thread thrd )
         {
-            return m_initialized && thrd == m_pageCountSaveThread;
+            return initialized && thrd == pageCountSaveThread;
         }
 
     }
@@ -587,7 +587,7 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
     private static final class Counter {
 
         /** The count value. */
-        private int m_count;
+        private int count;
 
         /**
          * Create a new counter.
@@ -610,7 +610,7 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
          */
         public void increment()
         {
-            m_count++;
+            count++;
         }
 
         /**
@@ -620,7 +620,7 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
          */
         public int getValue()
         {
-            return m_count;
+            return count;
         }
 
         /**
@@ -630,7 +630,7 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
          */
         public void setValue( final String value )
         {
-            m_count = NumberUtils.toInt( value );
+            count = NumberUtils.toInt( value );
         }
 
         /**
@@ -639,7 +639,7 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
         @Override
         public String toString()
         {
-            return String.valueOf( m_count );
+            return String.valueOf( count );
         }
 
     }
@@ -650,7 +650,7 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
     static final class CounterSaveThread extends WikiBackgroundThread {
 
         /** The page view manager. */
-        private final PageViewManager m_manager;
+        private final PageViewManager manager;
 
         /**
          * Create a wiki background thread to store the page counters.
@@ -665,7 +665,7 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
                 throw new IllegalArgumentException( "Manager cannot be null" );
             }
 
-            m_manager = pageViewManager;
+            manager = pageViewManager;
         }
 
         /**
@@ -673,8 +673,8 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
          */
         @Override
         public void backgroundTask() {
-            if( m_manager.isRunning( this ) ) {
-                m_manager.storeCounters();
+            if( manager.isRunning( this ) ) {
+                manager.storeCounters();
             }
         }
     }

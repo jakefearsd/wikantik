@@ -48,16 +48,16 @@ public class UndefinedPagesPlugin extends AbstractReferralPlugin {
         Collection< String > links = refmgr.findUncreated();
         links = filterAndSortCollection( links );
 
-        if( m_lastModified ) {
+        if( lastModified ) {
             throw new PluginException( "parameter " + PARAM_LASTMODIFIED + " is not valid for the UndefinedPagesPlugin" );
         }
 
         final String wikitext;
-        if( m_show.equals( PARAM_SHOW_VALUE_COUNT ) ) {
+        if( show.equals( PARAM_SHOW_VALUE_COUNT ) ) {
             wikitext = "" + links.size();
             return makeHTML( context, wikitext );
         } else {
-            wikitext = wikitizeCollection( links, m_separator, ALL_ITEMS );
+            wikitext = wikitizeCollection( links, separator, ALL_ITEMS );
             return applyColumnsStyle( makeHTML( context, wikitext ) );
         }
     }

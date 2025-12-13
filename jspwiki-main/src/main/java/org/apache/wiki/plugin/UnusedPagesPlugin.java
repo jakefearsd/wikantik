@@ -60,14 +60,14 @@ public class UnusedPagesPlugin extends AbstractReferralPlugin {
         links = filterAndSortCollection( links );
 
         String wikitext;
-        if( m_show.equals( PARAM_SHOW_VALUE_COUNT ) ) {
+        if( show.equals( PARAM_SHOW_VALUE_COUNT ) ) {
             wikitext = "" + links.size();
-            if( m_lastModified && !links.isEmpty()) {
-                wikitext = links.size() + " (" + m_dateFormat.format( m_dateLastModified ) + ")";
+            if( lastModified && !links.isEmpty()) {
+                wikitext = links.size() + " (" + dateFormat.format( dateLastModified ) + ")";
             }
             return makeHTML( context, wikitext );
         } else {
-            wikitext = wikitizeCollection( links, m_separator, ALL_ITEMS );
+            wikitext = wikitizeCollection( links, separator, ALL_ITEMS );
             return applyColumnsStyle( makeHTML( context, wikitext ) );
         }
     }

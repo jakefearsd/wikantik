@@ -247,57 +247,57 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
 
     public static final String PROP_DB_WIKI_NAME = "jspwiki.userdatabase.wikiName";
 
-    private DataSource m_ds;
+    private DataSource ds;
 
-    private String m_deleteUserByLoginName;
+    private String deleteUserByLoginName;
 
-    private String m_deleteRoleByLoginName;
+    private String deleteRoleByLoginName;
 
-    private String m_findByEmail;
+    private String findByEmail;
 
-    private String m_findByFullName;
+    private String findByFullName;
 
-    private String m_findByLoginName;
+    private String findByLoginName;
 
-    private String m_findByUid;
+    private String findByUid;
 
-    private String m_findByWikiName;
+    private String findByWikiName;
 
-    private String m_renameProfile;
+    private String renameProfile;
 
-    private String m_renameRoles;
+    private String renameRoles;
 
-    private String m_updateProfile;
+    private String updateProfile;
 
-    private String m_findAll;
+    private String findAll;
 
-    private String m_findRoles;
+    private String findRoles;
 
-    private String m_insertProfile;
+    private String insertProfile;
 
-    private String m_insertRole;
+    private String insertRole;
 
-    private String m_attributes;
+    private String attributes;
 
-    private String m_email;
+    private String email;
 
-    private String m_fullName;
+    private String fullName;
 
-    private String m_lockExpiry;
+    private String lockExpiry;
 
-    private String m_loginName;
+    private String loginName;
 
-    private String m_password;
+    private String password;
 
-    private String m_uid;
+    private String uid;
     
-    private String m_wikiName;
+    private String wikiName;
 
-    private String m_created;
+    private String created;
 
-    private String m_modified;
+    private String modified;
 
-    private boolean m_supportsCommits;
+    private boolean supportsCommits;
 
     /**
      * Looks up and deletes the first {@link UserProfile} in the user database
@@ -308,32 +308,32 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      * roll back its state appropriately. Implementing classes that persist to
      * the file system may wish to make this method <code>synchronized</code>.
      * 
-     * @param loginName the login name of the user profile that shall be deleted
+     * @param newLoginName the login name of the user profile that shall be deleted
      */
     @Override
-    public void deleteByLoginName( final String loginName ) throws WikiSecurityException {
+    public void deleteByLoginName( final String loginNameToDelete ) throws WikiSecurityException {
         // Get the existing user; if not found, throws NoSuchPrincipalException
-        findByLoginName( loginName );
+        findByLoginName( loginNameToDelete );
 
-        try( final Connection conn = m_ds.getConnection() ;
-             final PreparedStatement ps1 = conn.prepareStatement( m_deleteUserByLoginName );
-             final PreparedStatement ps2 = conn.prepareStatement( m_deleteRoleByLoginName ) )
+        try( final Connection conn = ds.getConnection() ;
+             final PreparedStatement ps1 = conn.prepareStatement( deleteUserByLoginName );
+             final PreparedStatement ps2 = conn.prepareStatement( deleteRoleByLoginName ) )
         {
             // Open the database connection
-            if( m_supportsCommits ) {
+            if( supportsCommits ) {
                 conn.setAutoCommit( false );
             }
 
             // Delete user record
-            ps1.setString( 1, loginName );
+            ps1.setString( 1, loginNameToDelete );
             ps1.execute();
 
             // Delete role record
-            ps2.setString( 1, loginName );
+            ps2.setString( 1, loginNameToDelete );
             ps2.execute();
 
             // Commit and close connection
-            if( m_supportsCommits ) {
+            if( supportsCommits ) {
                 conn.commit();
             }
         } catch( final SQLException e ) {
@@ -346,7 +346,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public UserProfile findByEmail( final String index ) throws NoSuchPrincipalException {
-        return findByPreparedStatement( m_findByEmail, index );
+        return findByPreparedStatement( findByEmail, index );
     }
 
     /**
@@ -354,7 +354,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public UserProfile findByFullName( final String index ) throws NoSuchPrincipalException {
-        return findByPreparedStatement( m_findByFullName, index );
+        return findByPreparedStatement( findByFullName, index );
     }
 
     /**
@@ -362,15 +362,15 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public UserProfile findByLoginName( final String index ) throws NoSuchPrincipalException {
-        return findByPreparedStatement( m_findByLoginName, index );
+        return findByPreparedStatement( findByLoginName, index );
     }
 
     /**
      * @see org.apache.wiki.auth.user.UserDatabase#findByWikiName(String)
      */
     @Override
-    public UserProfile findByUid( final String uid ) throws NoSuchPrincipalException {
-        return findByPreparedStatement( m_findByUid, uid );
+    public UserProfile findByUid( final String uidToFind ) throws NoSuchPrincipalException {
+        return findByPreparedStatement( findByUid, uidToFind );
     }
 
     /**
@@ -378,7 +378,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public UserProfile findByWikiName( final String index ) throws NoSuchPrincipalException {
-        return findByPreparedStatement( m_findByWikiName, index );
+        return findByPreparedStatement( findByWikiName, index );
     }
 
     /**
@@ -391,15 +391,15 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     @Override
     public Principal[] getWikiNames() throws WikiSecurityException {
         final Set<Principal> principals = new HashSet<>();
-        try( final Connection conn = m_ds.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( m_findAll );
+        try( final Connection conn = ds.getConnection();
+             final PreparedStatement ps = conn.prepareStatement( findAll );
              final ResultSet rs = ps.executeQuery() ) {
             while( rs.next() ) {
-                final String wikiName = rs.getString( m_wikiName );
-                if( StringUtils.isEmpty( wikiName ) ) {
-                    LOG.warn( "Detected null or empty wiki name for {} in JDBCUserDataBase. Check your user database.", rs.getString( m_loginName ) );
+                final String wikiNameValue = rs.getString( wikiName );
+                if( StringUtils.isEmpty( wikiNameValue ) ) {
+                    LOG.warn( "Detected null or empty wiki name for {} in JDBCUserDataBase. Check your user database.", rs.getString( loginName ) );
                 } else {
-                    final Principal principal = new WikiPrincipal( wikiName, WikiPrincipal.WIKI_NAME );
+                    final Principal principal = new WikiPrincipal( wikiNameValue, WikiPrincipal.WIKI_NAME );
                     principals.add( principal );
                 }
             }
@@ -419,77 +419,77 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         try {
             final Context initCtx = new InitialContext();
             final Context ctx = (Context) initCtx.lookup( "java:comp/env" );
-            m_ds = (DataSource) ctx.lookup( jndiName );
+            ds = (DataSource) ctx.lookup( jndiName );
 
             // Prepare the SQL selectors
             final String userTable = props.getProperty( PROP_DB_TABLE, DEFAULT_DB_TABLE );
-            m_email = props.getProperty( PROP_DB_EMAIL, DEFAULT_DB_EMAIL );
-            m_fullName = props.getProperty( PROP_DB_FULL_NAME, DEFAULT_DB_FULL_NAME );
-            m_lockExpiry = props.getProperty( PROP_DB_LOCK_EXPIRY, DEFAULT_DB_LOCK_EXPIRY );
-            m_loginName = props.getProperty( PROP_DB_LOGIN_NAME, DEFAULT_DB_LOGIN_NAME );
-            m_password = props.getProperty( PROP_DB_PASSWORD, DEFAULT_DB_PASSWORD );
-            m_uid = props.getProperty( PROP_DB_UID, DEFAULT_DB_UID );
-            m_wikiName = props.getProperty( PROP_DB_WIKI_NAME, DEFAULT_DB_WIKI_NAME );
-            m_created = props.getProperty( PROP_DB_CREATED, DEFAULT_DB_CREATED );
-            m_modified = props.getProperty( PROP_DB_MODIFIED, DEFAULT_DB_MODIFIED );
-            m_attributes = props.getProperty( PROP_DB_ATTRIBUTES, DEFAULT_DB_ATTRIBUTES );
+            email = props.getProperty( PROP_DB_EMAIL, DEFAULT_DB_EMAIL );
+            fullName = props.getProperty( PROP_DB_FULL_NAME, DEFAULT_DB_FULL_NAME );
+            lockExpiry = props.getProperty( PROP_DB_LOCK_EXPIRY, DEFAULT_DB_LOCK_EXPIRY );
+            loginName = props.getProperty( PROP_DB_LOGIN_NAME, DEFAULT_DB_LOGIN_NAME );
+            password = props.getProperty( PROP_DB_PASSWORD, DEFAULT_DB_PASSWORD );
+            uid = props.getProperty( PROP_DB_UID, DEFAULT_DB_UID );
+            wikiName = props.getProperty( PROP_DB_WIKI_NAME, DEFAULT_DB_WIKI_NAME );
+            created = props.getProperty( PROP_DB_CREATED, DEFAULT_DB_CREATED );
+            modified = props.getProperty( PROP_DB_MODIFIED, DEFAULT_DB_MODIFIED );
+            attributes = props.getProperty( PROP_DB_ATTRIBUTES, DEFAULT_DB_ATTRIBUTES );
 
-            m_findAll = "SELECT * FROM " + userTable;
-            m_findByEmail = "SELECT * FROM " + userTable + " WHERE " + m_email + "=?";
-            m_findByFullName = "SELECT * FROM " + userTable + " WHERE " + m_fullName + "=?";
-            m_findByLoginName = "SELECT * FROM " + userTable + " WHERE " + m_loginName + "=?";
-            m_findByUid = "SELECT * FROM " + userTable + " WHERE " + m_uid + "=?";
-            m_findByWikiName = "SELECT * FROM " + userTable + " WHERE " + m_wikiName + "=?";
+            findAll = "SELECT * FROM " + userTable;
+            findByEmail = "SELECT * FROM " + userTable + " WHERE " + email + "=?";
+            findByFullName = "SELECT * FROM " + userTable + " WHERE " + fullName + "=?";
+            findByLoginName = "SELECT * FROM " + userTable + " WHERE " + loginName + "=?";
+            findByUid = "SELECT * FROM " + userTable + " WHERE " + uid + "=?";
+            findByWikiName = "SELECT * FROM " + userTable + " WHERE " + wikiName + "=?";
 
             // The user insert SQL prepared statement
-            m_insertProfile = "INSERT INTO " + userTable + " ("
-                              + m_uid + ","
-                              + m_email + ","
-                              + m_fullName + ","
-                              + m_password + ","
-                              + m_wikiName + ","
-                              + m_modified + ","
-                              + m_loginName + ","
-                              + m_attributes + ","
-                              + m_created
+            insertProfile = "INSERT INTO " + userTable + " ("
+                              + uid + ","
+                              + email + ","
+                              + fullName + ","
+                              + password + ","
+                              + wikiName + ","
+                              + modified + ","
+                              + loginName + ","
+                              + attributes + ","
+                              + created
                               + ") VALUES (?,?,?,?,?,?,?,?,?)";
             
             // The user update SQL prepared statement
-            m_updateProfile = "UPDATE " + userTable + " SET "
-                              + m_uid + "=?,"
-                              + m_email + "=?,"
-                              + m_fullName + "=?,"
-                              + m_password + "=?,"
-                              + m_wikiName + "=?,"
-                              + m_modified + "=?,"
-                              + m_loginName + "=?,"
-                              + m_attributes + "=?,"
-                              + m_lockExpiry + "=? "
-                              + "WHERE " + m_loginName + "=?";
+            updateProfile = "UPDATE " + userTable + " SET "
+                              + uid + "=?,"
+                              + email + "=?,"
+                              + fullName + "=?,"
+                              + password + "=?,"
+                              + wikiName + "=?,"
+                              + modified + "=?,"
+                              + loginName + "=?,"
+                              + attributes + "=?,"
+                              + lockExpiry + "=? "
+                              + "WHERE " + loginName + "=?";
 
             // Prepare the role insert SQL
             final String roleTable = props.getProperty( PROP_DB_ROLE_TABLE, DEFAULT_DB_ROLE_TABLE );
             final String role = props.getProperty( PROP_DB_ROLE, DEFAULT_DB_ROLE );
-            m_insertRole = "INSERT INTO " + roleTable + " (" + m_loginName + "," + role + ") VALUES (?,?)";
-            m_findRoles = "SELECT * FROM " + roleTable + " WHERE " + m_loginName + "=?";
+            insertRole = "INSERT INTO " + roleTable + " (" + loginName + "," + role + ") VALUES (?,?)";
+            findRoles = "SELECT * FROM " + roleTable + " WHERE " + loginName + "=?";
 
             // Prepare the user delete SQL
-            m_deleteUserByLoginName = "DELETE FROM " + userTable + " WHERE " + m_loginName + "=?";
+            deleteUserByLoginName = "DELETE FROM " + userTable + " WHERE " + loginName + "=?";
 
             // Prepare the role delete SQL
-            m_deleteRoleByLoginName = "DELETE FROM " + roleTable + " WHERE " + m_loginName + "=?";
+            deleteRoleByLoginName = "DELETE FROM " + roleTable + " WHERE " + loginName + "=?";
 
             // Prepare the rename user/roles SQL
-            m_renameProfile = "UPDATE " + userTable + " SET " + m_loginName + "=?," + m_modified + "=? WHERE " + m_loginName
+            renameProfile = "UPDATE " + userTable + " SET " + loginName + "=?," + modified + "=? WHERE " + loginName
                               + "=?";
-            m_renameRoles = "UPDATE " + roleTable + " SET " + m_loginName + "=? WHERE " + m_loginName + "=?";
+            renameRoles = "UPDATE " + roleTable + " SET " + loginName + "=? WHERE " + loginName + "=?";
         } catch( final NamingException e ) {
             LOG.error( "JDBCUserDatabase initialization error: " + e.getMessage() );
             throw new NoRequiredPropertyException( PROP_DB_DATASOURCE, "JDBCUserDatabase initialization error: " + e.getMessage() );
         }
 
         // Test connection by doing a quickie select
-        try( final Connection conn = m_ds.getConnection(); final PreparedStatement ps = conn.prepareStatement( m_findAll ) ) {
+        try( final Connection conn = ds.getConnection(); final PreparedStatement ps = conn.prepareStatement( findAll ) ) {
         } catch( final SQLException e ) {
             LOG.error( "DB connectivity error: " + e.getMessage() );
             throw new WikiSecurityException("DB connectivity error: " + e.getMessage(), e );
@@ -497,10 +497,10 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         LOG.info( "JDBCUserDatabase initialized from JNDI DataSource: {}", jndiName );
 
         // Determine if the datasource supports commits
-        try( final Connection conn = m_ds.getConnection() ) {
+        try( final Connection conn = ds.getConnection() ) {
             final DatabaseMetaData dmd = conn.getMetaData();
             if( dmd.supportsTransactions() ) {
-                m_supportsCommits = true;
+                supportsCommits = true;
                 conn.setAutoCommit( false );
                 LOG.info( "JDBCUserDatabase supports transactions. Good; we will use them." );
             }
@@ -513,9 +513,9 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      * @see org.apache.wiki.auth.user.UserDatabase#rename(String, String)
      */
     @Override
-    public void rename( final String loginName, final String newName ) throws DuplicateUserException, WikiSecurityException {
+    public void rename( final String oldLoginName, final String newName ) throws DuplicateUserException, WikiSecurityException {
         // Get the existing user; if not found, throws NoSuchPrincipalException
-        final UserProfile profile = findByLoginName( loginName );
+        final UserProfile profile = findByLoginName( oldLoginName );
 
         // Get user with the proposed name; if found, it's a collision
         try {
@@ -527,10 +527,10 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             // Good! That means it's safe to save using the new name
         }
 
-        try( final Connection conn = m_ds.getConnection();
-             final PreparedStatement ps1 = conn.prepareStatement( m_renameProfile );
-             final PreparedStatement ps2 = conn.prepareStatement( m_renameRoles ) ) {
-            if( m_supportsCommits ) {
+        try( final Connection conn = ds.getConnection();
+             final PreparedStatement ps1 = conn.prepareStatement( renameProfile );
+             final PreparedStatement ps2 = conn.prepareStatement( renameRoles ) ) {
+            if( supportsCommits ) {
                 conn.setAutoCommit( false );
             }
 
@@ -540,12 +540,12 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             // Change the login ID for the user record
             ps1.setString( 1, newName );
             ps1.setTimestamp( 2, ts );
-            ps1.setString( 3, loginName );
+            ps1.setString( 3, oldLoginName );
             ps1.execute();
 
             // Change the login ID for the role records
             ps2.setString( 1, newName );
-            ps2.setString( 2, loginName );
+            ps2.setString( 2, oldLoginName );
             ps2.execute();
 
             // Set the profile name and mod time
@@ -553,7 +553,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             profile.setLastModified( modDate );
 
             // Commit and close connection
-            if( m_supportsCommits ) {
+            if( supportsCommits ) {
                 conn.commit();
             }
         } catch( final SQLException e ) {
@@ -594,12 +594,12 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             password = getHash( password );
         }
 
-        try( final Connection conn = m_ds.getConnection();
-             final PreparedStatement ps1 = conn.prepareStatement( m_insertProfile );
-             final PreparedStatement ps2 = conn.prepareStatement( m_findRoles );
-             final PreparedStatement ps3 = conn.prepareStatement( m_insertRole );
-             final PreparedStatement ps4 = conn.prepareStatement( m_updateProfile ) ) {
-            if( m_supportsCommits ) {
+        try( final Connection conn = ds.getConnection();
+             final PreparedStatement ps1 = conn.prepareStatement( insertProfile );
+             final PreparedStatement ps2 = conn.prepareStatement( findRoles );
+             final PreparedStatement ps3 = conn.prepareStatement( insertRole );
+             final PreparedStatement ps4 = conn.prepareStatement( updateProfile ) ) {
+            if( supportsCommits ) {
                 conn.setAutoCommit( false );
             }
 
@@ -662,7 +662,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             profile.setLastModified( modDate );
 
             // Commit and close connection
-            if( m_supportsCommits ) {
+            if( supportsCommits ) {
                 conn.commit();
             }
         } catch( final SQLException e ) {
@@ -684,8 +684,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         UserProfile profile = null;
         boolean found = false;
         boolean unique = true;
-        try( final Connection conn = m_ds.getConnection(); final PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            if( m_supportsCommits ) {
+        try( final Connection conn = ds.getConnection(); final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            if( supportsCommits ) {
                 conn.setAutoCommit( false );
             }
             
@@ -708,25 +708,25 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                     profile = newProfile();
                     
                     // Fetch the basic user attributes
-                    profile.setUid( rs.getString( m_uid ) );
+                    profile.setUid( rs.getString( uid ) );
                     if ( profile.getUid() == null ) {
                         profile.setUid( generateUid( this ) );
                     }
-                    profile.setCreated( rs.getTimestamp( m_created ) );
-                    profile.setEmail( rs.getString( m_email ) );
-                    profile.setFullname( rs.getString( m_fullName ) );
-                    profile.setLastModified( rs.getTimestamp( m_modified ) );
-                    final Date lockExpiry = rs.getDate( m_lockExpiry );
-                    profile.setLockExpiry( rs.wasNull() ? null : lockExpiry );
-                    profile.setLoginName( rs.getString( m_loginName ) );
-                    profile.setPassword( rs.getString( m_password ) );
+                    profile.setCreated( rs.getTimestamp( created ) );
+                    profile.setEmail( rs.getString( email ) );
+                    profile.setFullname( rs.getString( fullName ) );
+                    profile.setLastModified( rs.getTimestamp( modified ) );
+                    final Date lockExpiryDate = rs.getDate( lockExpiry );
+                    profile.setLockExpiry( rs.wasNull() ? null : lockExpiryDate );
+                    profile.setLoginName( rs.getString( loginName ) );
+                    profile.setPassword( rs.getString( password ) );
                     
                     // Fetch the user attributes
-                    final String rawAttributes = rs.getString( m_attributes );
+                    final String rawAttributes = rs.getString( attributes );
                     if ( rawAttributes != null ) {
                         try {
-                            final Map<String,? extends Serializable> attributes = Serializer.deserializeFromBase64( rawAttributes );
-                            profile.getAttributes().putAll( attributes );
+                            final Map<String,? extends Serializable> userAttributes = Serializer.deserializeFromBase64( rawAttributes );
+                            profile.getAttributes().putAll( userAttributes );
                         } catch ( final IOException e ) {
                             LOG.error( "Could not parse user profile attributes!", e );
                         }

@@ -43,7 +43,7 @@ import java.lang.reflect.Method;
 public abstract class SimpleMBean implements DynamicMBean {
 
 	private static final Logger LOG = LogManager.getLogger( SimpleMBean.class );
-    protected MBeanInfo m_beanInfo;
+    protected MBeanInfo beanInfo;
 
     private static Method findGetterSetter(final Class<?> clazz, final String name, final Class<?> parm )
     {
@@ -160,7 +160,7 @@ public abstract class SimpleMBean implements DynamicMBean {
         final MBeanConstructorInfo[] constructors = null;
         final MBeanNotificationInfo[] notifications = null;
 
-        m_beanInfo = new MBeanInfo( getClass().getName(),
+        beanInfo = new MBeanInfo( getClass().getName(),
                                     getDescription(),
                                     attributes,
                                     constructors,
@@ -235,7 +235,7 @@ public abstract class SimpleMBean implements DynamicMBean {
     @Override
     public MBeanInfo getMBeanInfo()
     {
-        return m_beanInfo;
+        return beanInfo;
     }
 
     /**

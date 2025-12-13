@@ -71,7 +71,7 @@ public class DefaultTemplateManager extends BaseModuleManager implements Templat
     @Override
     // FIXME: Does not work yet
     public boolean templateExists( final String templateName ) {
-        final ServletContext context = m_engine.getServletContext();
+        final ServletContext context = engine.getServletContext();
         try( final InputStream in = context.getResourceAsStream( getPath( templateName ) + "ViewTemplate.jsp" ) ) {
             if( in != null ) {
                 return true;
@@ -176,8 +176,8 @@ public class DefaultTemplateManager extends BaseModuleManager implements Templat
     /** {@inheritDoc} */
     @Override
     public String findResource( final Context ctx, final String template, final String name ) {
-        if( m_engine.getServletContext() != null ) {
-            return findResource( m_engine.getServletContext(), template, name );
+        if( engine.getServletContext() != null ) {
+            return findResource( engine.getServletContext(), template, name );
         }
 
         return getPath( template ) + "/" + name;
@@ -218,7 +218,7 @@ public class DefaultTemplateManager extends BaseModuleManager implements Templat
     @Override
     public Map< String, String > listTimeFormats( final PageContext pageContext ) {
         final Context context = Context.findContext( pageContext );
-        final Properties props = m_engine.getWikiProperties();
+        final Properties props = engine.getWikiProperties();
         final var tfArr = new ArrayList< String >(40);
         final var resultMap = new LinkedHashMap< String, String >();
 

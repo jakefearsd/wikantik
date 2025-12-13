@@ -41,7 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class DefaultProgressManager implements ProgressManager {
 
-    private final Map< String,ProgressItem > m_progressingTasks = new ConcurrentHashMap<>();
+    private final Map< String,ProgressItem > progressingTasks = new ConcurrentHashMap<>();
 
     private static final Logger LOG = LogManager.getLogger( DefaultProgressManager.class );
 
@@ -72,7 +72,7 @@ public class DefaultProgressManager implements ProgressManager {
     @Override
     public void startProgress( final ProgressItem pi, final String id ) {
         LOG.debug( "Adding " + id + " to progress queue" );
-        m_progressingTasks.put( id, pi );
+        progressingTasks.put( id, pi );
         pi.setState( ProgressItem.STARTED );
     }
 
@@ -85,7 +85,7 @@ public class DefaultProgressManager implements ProgressManager {
     @Override
     public void stopProgress( final String id ) {
         LOG.debug( "Removed " + id + " from progress queue" );
-        final ProgressItem pi = m_progressingTasks.remove( id );
+        final ProgressItem pi = progressingTasks.remove( id );
         if( pi != null ) {
             pi.setState( ProgressItem.STOPPED );
         }
@@ -100,7 +100,7 @@ public class DefaultProgressManager implements ProgressManager {
      */
     @Override
     public int getProgress( final String id ) throws IllegalArgumentException {
-        final ProgressItem pi = m_progressingTasks.get( id );
+        final ProgressItem pi = progressingTasks.get( id );
         if( pi != null ) {
             return pi.getProgress();
         }

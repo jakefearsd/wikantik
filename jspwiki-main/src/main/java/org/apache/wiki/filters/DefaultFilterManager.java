@@ -88,9 +88,9 @@ import java.util.Properties;
  */
 public class DefaultFilterManager extends BaseModuleManager implements FilterManager {
 
-    private final PriorityList< PageFilter > m_pageFilters = new PriorityList<>();
+    private final PriorityList< PageFilter > pageFilters = new PriorityList<>();
 
-    private final Map< String, PageFilterInfo > m_filterClassMap = new HashMap<>();
+    private final Map< String, PageFilterInfo > filterClassMap = new HashMap<>();
 
     private static final Logger LOG = LogManager.getLogger(DefaultFilterManager.class);
 
@@ -123,12 +123,12 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
             throw new IllegalArgumentException("Attempt to provide a null filter - this should never happen.  Please check your configuration (or if you're a developer, check your own code.)");
         }
 
-        m_pageFilters.add( f, priority );
+        pageFilters.add( f, priority );
     }
 
     private void initPageFilter( final String className, final Properties props ) {
         try {
-            final PageFilterInfo info = m_filterClassMap.get( className );
+            final PageFilterInfo info = filterClassMap.get( className );
             if( info != null && !checkCompatibility( info ) ) {
                 LOG.warn( "Filter '{}' not compatible with this version of JSPWiki", info.getName() );
                 return;
@@ -136,7 +136,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
 
             final int priority = 0;
             final PageFilter filter = ClassUtil.buildInstance( "org.apache.wiki.filters", className );
-            filter.initialize( m_engine, props );
+            filter.initialize( engine, props );
 
             addPageFilter( filter, priority );
             LOG.info( "Added page filter {} with priority {}", filter.getClass().getName(), priority );
@@ -161,9 +161,9 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
         try {
             registerFilters();
 
-            if( m_engine.getServletContext() != null ) {
+            if( engine.getServletContext() != null ) {
                 LOG.debug( "Attempting to locate " + DEFAULT_XMLFILE + " from servlet context." );
-                xmlStream = m_engine.getServletContext().getResourceAsStream(Objects.requireNonNullElse(xmlFile, DEFAULT_XMLFILE));
+                xmlStream = engine.getServletContext().getResourceAsStream(Objects.requireNonNullElse(xmlFile, DEFAULT_XMLFILE));
             }
 
             if( xmlStream == null ) {
@@ -230,7 +230,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
     @Override
     public String doPreTranslateFiltering( final Context context, String pageData ) throws FilterException {
         fireEvent( WikiPageEvent.PRE_TRANSLATE_BEGIN, context );
-        for( final PageFilter f : m_pageFilters ) {
+        for( final PageFilter f : pageFilters ) {
             pageData = f.preTranslate( context, pageData );
         }
 
@@ -251,7 +251,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
     @Override
     public String doPostTranslateFiltering( final Context context, String htmlData ) throws FilterException {
         fireEvent( WikiPageEvent.POST_TRANSLATE_BEGIN, context );
-        for( final PageFilter f : m_pageFilters ) {
+        for( final PageFilter f : pageFilters ) {
             htmlData = f.postTranslate( context, htmlData );
         }
 
@@ -272,7 +272,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
     @Override
     public String doPreSaveFiltering( final Context context, String pageData ) throws FilterException {
         fireEvent( WikiPageEvent.PRE_SAVE_BEGIN, context );
-        for( final PageFilter f : m_pageFilters ) {
+        for( final PageFilter f : pageFilters ) {
             pageData = f.preSave( context, pageData );
         }
 
@@ -293,7 +293,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
     @Override
     public void doPostSaveFiltering( final Context context, final String pageData ) throws FilterException {
         fireEvent( WikiPageEvent.POST_SAVE_BEGIN, context );
-        for( final PageFilter f : m_pageFilters ) {
+        for( final PageFilter f : pageFilters ) {
             // LOG.info("POSTSAVE: "+f.toString() );
             f.postSave( context, pageData );
         }
@@ -310,7 +310,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
     @Override
     public List< PageFilter > getFilterList()
     {
-        return m_pageFilters;
+        return pageFilters;
     }
 
     /**
@@ -320,8 +320,8 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
      */
     @Override
     public void destroy() {
-        for( final PageFilter f : m_pageFilters ) {
-            f.destroy( m_engine );
+        for( final PageFilter f : pageFilters ) {
+            f.destroy( engine );
         }
     }
 
@@ -336,7 +336,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
      */
     public void fireEvent( final int type, final Context context ) {
         if( WikiEventManager.isListening(this ) && WikiPageEvent.isValidType( type ) )  {
-            WikiEventManager.fireEvent(this, new WikiPageEvent( m_engine, type, context.getPage().getName() ) );
+            WikiEventManager.fireEvent(this, new WikiPageEvent( engine, type, context.getPage().getName() ) );
         }
     }
 
@@ -345,7 +345,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
      */
     @Override
     public Collection< WikiModuleInfo > modules() {
-        return modules( m_filterClassMap.values().iterator() );
+        return modules( filterClassMap.values().iterator() );
     }
 
     /**
@@ -353,7 +353,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
      */
     @Override
     public PageFilterInfo getModuleInfo( final String moduleName ) {
-        return m_filterClassMap.get(moduleName);
+        return filterClassMap.get(moduleName);
     }
 
     private void registerFilters() {
@@ -375,7 +375,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
     }
 
     private void registerFilter( final PageFilterInfo pluginInfo ) {
-        m_filterClassMap.put( pluginInfo.getName(), pluginInfo );
+        filterClassMap.put( pluginInfo.getName(), pluginInfo );
     }
 
     /**

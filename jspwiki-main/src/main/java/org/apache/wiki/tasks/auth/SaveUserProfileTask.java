@@ -45,14 +45,14 @@ public class SaveUserProfileTask extends Task {
 
     private static final long serialVersionUID = 6994297086560480285L;
     private static final Logger LOG = LogManager.getLogger( SaveUserProfileTask.class );
-    private final Locale m_loc;
+    private final Locale loc;
 
     /**
      * Constructs a new Task for saving a user profile.
      */
-    public SaveUserProfileTask( final Locale loc ) {
+    public SaveUserProfileTask( final Locale newLoc ) {
         super( TasksManager.USER_PROFILE_SAVE_TASK_MESSAGE_KEY );
-        m_loc = loc;
+        this.loc = newLoc;
     }
 
     /**
@@ -75,14 +75,14 @@ public class SaveUserProfileTask extends Task {
                 final InternationalizationManager i18n = context.getEngine().getManager( InternationalizationManager.class );
                 final String app = context.getEngine().getApplicationName();
                 final String to = profile.getEmail();
-                final String subject = i18n.get( InternationalizationManager.DEF_TEMPLATE, m_loc,
+                final String subject = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
                                                  "notification.createUserProfile.accept.subject", app );
 
                 final String loginUrl = context.getEngine().getURL( ContextEnum.WIKI_LOGIN.getRequestContext(), null, null );
 
                 final String absoluteLoginUrl = HttpUtil.getAbsoluteUrl(context.getHttpRequest(), loginUrl);
 
-                final String content = i18n.get( InternationalizationManager.DEF_TEMPLATE, m_loc,
+                final String content = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
                                                  "notification.createUserProfile.accept.content", app,
                                                  profile.getLoginName(),
                                                  profile.getFullname(),

@@ -36,16 +36,16 @@ import org.apache.wiki.workflow.WorkflowManager;
 public class PreSaveWikiPageTask extends Task {
 
     private static final long serialVersionUID = 6304715570092804615L;
-    private final String m_proposedText;
+    private final String proposedText;
 
     /**
      * Creates the task.
      *
-     * @param proposedText The text that was just saved.
+     * @param newProposedText The text that was just saved.
      */
-    public PreSaveWikiPageTask( final String proposedText ) {
+    public PreSaveWikiPageTask( final String newProposedText ) {
         super( TasksManager.WIKIPAGE_PRESAVE_TASK_MESSAGE_KEY );
-        m_proposedText = proposedText;
+        this.proposedText = newProposedText;
     }
 
     /**
@@ -61,7 +61,7 @@ public class PreSaveWikiPageTask extends Task {
         }
 
         // Run the pre-save filters. If any exceptions, add error to list, abort, and redirect
-        final String saveText = context.getEngine().getManager( FilterManager.class ).doPreSaveFiltering( context, m_proposedText );
+        final String saveText = context.getEngine().getManager( FilterManager.class ).doPreSaveFiltering( context, proposedText );
 
         // Stash the wiki context, old and new text as workflow attributes
         getWorkflowContext().put( WorkflowManager.WF_WP_SAVE_FACT_PROPOSED_TEXT, saveText );

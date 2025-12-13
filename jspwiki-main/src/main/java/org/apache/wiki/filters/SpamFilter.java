@@ -179,50 +179,50 @@ public class SpamFilter extends BasePageFilter {
 
     private static final String URL_REGEXP = "(http://|https://|mailto:)([A-Za-z0-9_/\\.\\+\\?\\#\\-\\@=&;]+)";
 
-    private String          m_forbiddenWordsPage = "SpamFilterWordList";
-    private String          m_forbiddenIPsPage   = "SpamFilterIPList";
-    private String          m_pageNameMaxLength  = "100";
-    private String          m_errorPage          = "RejectedMessage";
-    private String          m_blacklist          = "SpamFilterWordList/blacklist.txt";
+    private String          forbiddenWordsPage = "SpamFilterWordList";
+    private String          forbiddenIPsPage   = "SpamFilterIPList";
+    private String          pageNameMaxLength  = "100";
+    private String          errorPage          = "RejectedMessage";
+    private String          blacklist          = "SpamFilterWordList/blacklist.txt";
 
-    private Collection<Pattern> m_spamPatterns;
-    private Collection<Pattern> m_IPPatterns;
+    private Collection<Pattern> spamPatterns;
+    private Collection<Pattern> IPPatterns;
 
-    private Date m_lastRebuild = new Date( 0L );
+    private Date lastRebuild = new Date( 0L );
 
     private static final Logger C_SPAMLOG = LogManager.getLogger( "SpamLog" );
     private static final Logger LOG = LogManager.getLogger( SpamFilter.class );
 
-    private final CopyOnWriteArrayList<Host>    m_temporaryBanList = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<Host>    temporaryBanList = new CopyOnWriteArrayList<>();
 
-    private int             m_banTime = 60; // minutes
+    private int             banTime = 60; // minutes
 
-    private final CopyOnWriteArrayList<Host>    m_lastModifications = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<Host>    lastModifications = new CopyOnWriteArrayList<>();
 
     /** How many times a single IP address can change a page per minute? */
-    private int             m_limitSinglePageChanges = 5;
+    private int             limitSinglePageChanges = 5;
 
     /** How many times can you add the exact same string to a page? */
-    private int             m_limitSimilarChanges = 2;
+    private int             limitSimilarChanges = 2;
 
     /** How many URLs can be added at maximum. */
-    private int             m_maxUrls = 10;
+    private int             maxUrls = 10;
 
-    private Pattern         m_urlPattern;
-    private Akismet         m_akismet;
+    private Pattern         urlPattern;
+    private Akismet         akismet;
 
-    private String          m_akismetAPIKey;
+    private String          akismetAPIKey;
 
     /** The limit at which we consider something to be spam. */
-    private final int             m_scoreLimit = 1;
+    private final int             scoreLimit = 1;
 
     /** If set to true, will ignore anyone who is in Authenticated role. */
-    private boolean         m_ignoreAuthenticated;
+    private boolean         ignoreAuthenticated;
 
     /** Groups allowed to bypass the filter */
-    private String[]         m_allowedGroups;
+    private String[]         allowedGroups;
 
-    private boolean         m_stopAtFirstMatch = true;
+    private boolean         stopAtFirstMatch = true;
 
     private static String   c_hashName;
     private static long     c_lastUpdate;
@@ -240,28 +240,28 @@ public class SpamFilter extends BasePageFilter {
      */
     @Override
     public void initialize( final Engine engine, final Properties properties ) {
-        m_forbiddenWordsPage = properties.getProperty( PROP_WORDLIST, m_forbiddenWordsPage );
-        m_forbiddenIPsPage = properties.getProperty( PROP_IPLIST, m_forbiddenIPsPage);
-        m_pageNameMaxLength = properties.getProperty( PROP_MAX_PAGENAME_LENGTH, m_pageNameMaxLength);
-        m_errorPage = properties.getProperty( PROP_ERRORPAGE, m_errorPage );
-        m_limitSinglePageChanges = TextUtil.getIntegerProperty( properties, PROP_PAGECHANGES, m_limitSinglePageChanges );
+        forbiddenWordsPage = properties.getProperty( PROP_WORDLIST, forbiddenWordsPage );
+        forbiddenIPsPage = properties.getProperty( PROP_IPLIST, forbiddenIPsPage);
+        pageNameMaxLength = properties.getProperty( PROP_MAX_PAGENAME_LENGTH, pageNameMaxLength);
+        errorPage = properties.getProperty( PROP_ERRORPAGE, errorPage );
+        limitSinglePageChanges = TextUtil.getIntegerProperty( properties, PROP_PAGECHANGES, limitSinglePageChanges );
         
-        m_limitSimilarChanges = TextUtil.getIntegerProperty( properties, PROP_SIMILARCHANGES, m_limitSimilarChanges );
+        limitSimilarChanges = TextUtil.getIntegerProperty( properties, PROP_SIMILARCHANGES, limitSimilarChanges );
 
-        m_maxUrls = TextUtil.getIntegerProperty( properties, PROP_MAXURLS, m_maxUrls );
-        m_banTime = TextUtil.getIntegerProperty( properties, PROP_BANTIME, m_banTime );
-        m_blacklist = properties.getProperty( PROP_BLACKLIST, m_blacklist );
+        maxUrls = TextUtil.getIntegerProperty( properties, PROP_MAXURLS, maxUrls );
+        banTime = TextUtil.getIntegerProperty( properties, PROP_BANTIME, banTime );
+        blacklist = properties.getProperty( PROP_BLACKLIST, blacklist );
 
-        m_ignoreAuthenticated = TextUtil.getBooleanProperty( properties, PROP_IGNORE_AUTHENTICATED, m_ignoreAuthenticated );
-        m_allowedGroups = StringUtils.split( StringUtils.defaultString( properties.getProperty( PROP_ALLOWED_GROUPS, m_blacklist ) ), ',' );
+        ignoreAuthenticated = TextUtil.getBooleanProperty( properties, PROP_IGNORE_AUTHENTICATED, ignoreAuthenticated );
+        allowedGroups = StringUtils.split( StringUtils.defaultString( properties.getProperty( PROP_ALLOWED_GROUPS, blacklist ) ), ',' );
 
-        m_urlPattern = Pattern.compile( URL_REGEXP );
+        urlPattern = Pattern.compile( URL_REGEXP );
 
-        m_akismetAPIKey = TextUtil.getStringProperty( properties, PROP_AKISMET_API_KEY, m_akismetAPIKey );
-        m_stopAtFirstMatch = TextUtil.getStringProperty( properties, PROP_FILTERSTRATEGY, STRATEGY_EAGER ).equals( STRATEGY_EAGER );
+        akismetAPIKey = TextUtil.getStringProperty( properties, PROP_AKISMET_API_KEY, akismetAPIKey );
+        stopAtFirstMatch = TextUtil.getStringProperty( properties, PROP_FILTERSTRATEGY, STRATEGY_EAGER ).equals( STRATEGY_EAGER );
 
-        LOG.info( "# Spam filter initialized.  Temporary ban time " + m_banTime +
-                  " mins, max page changes/minute: " + m_limitSinglePageChanges );
+        LOG.info( "# Spam filter initialized.  Temporary ban time " + banTime +
+                  " mins, max page changes/minute: " + limitSinglePageChanges );
     }
 
     private static final int REJECT = 0;
@@ -301,10 +301,10 @@ public class SpamFilter extends BasePageFilter {
             checkPageName( context);
         }
 
-        if( !m_stopAtFirstMatch ) {
+        if( !stopAtFirstMatch ) {
             final Integer score = context.getVariable( ATTR_SPAMFILTER_SCORE );
 
-            if( score != null && score >= m_scoreLimit ) {
+            if( score != null && score >= scoreLimit ) {
                 throw new RedirectException( "Herb says you got too many points", getRedirectPage( context ) );
             }
         }
@@ -316,22 +316,22 @@ public class SpamFilter extends BasePageFilter {
     private void checkPageName(final Context context ) throws RedirectException {
         final Page page = context.getPage();
         final String pageName = page.getName();
-        final int maxlength = Integer.parseInt(m_pageNameMaxLength);
+        final int maxlength = Integer.parseInt(pageNameMaxLength);
         if ( pageName.length() > maxlength) {
             //
             //  Spam filter has a match.
             //
 
-            final String uid = log( context, REJECT, REASON_PAGENAME_TOO_LONG + "(" + m_pageNameMaxLength + ")" , pageName);
+            final String uid = log( context, REJECT, REASON_PAGENAME_TOO_LONG + "(" + pageNameMaxLength + ")" , pageName);
 
-            LOG.info("SPAM:PageNameTooLong (" + uid + "). The length of the page name is too large (" + pageName.length() + " , limit is " + m_pageNameMaxLength + ")");
+            LOG.info("SPAM:PageNameTooLong (" + uid + "). The length of the page name is too large (" + pageName.length() + " , limit is " + pageNameMaxLength + ")");
             checkStrategy( context, "Herb says '" + pageName + "' is a bad pageName and I trust Herb! (Incident code " + uid + ")" );
 
         }
     }
 
     private void checkStrategy(final Context context, final String message ) throws RedirectException {
-        if( m_stopAtFirstMatch ) {
+        if( stopAtFirstMatch ) {
             throw new RedirectException( message, getRedirectPage( context ) );
         }
 
@@ -413,7 +413,7 @@ public class SpamFilter extends BasePageFilter {
      * Takes a single page change and performs a load of tests on the content change. An admin can modify anything.
      *
      * @param context page Context
-     * @param change page change
+     * @param newChange page change
      * @throws RedirectException spam filter rejects the page change.
      */
     private synchronized void checkSinglePageChange(final Context context, final Change change )
@@ -425,11 +425,11 @@ public class SpamFilter extends BasePageFilter {
             int hostCounter = 0;
             int changeCounter = 0;
 
-            LOG.debug( "Change is " + change.m_change );
+            LOG.debug( "Change is " + change.change );
 
             final long time = System.currentTimeMillis() - 60*1000L; // 1 minute
 
-            for( final Iterator< Host > i = m_lastModifications.iterator(); i.hasNext(); ) {
+            for( final Iterator< Host > i = lastModifications.iterator(); i.hasNext(); ) {
                 final Host host = i.next();
 
                 //  Check if this item is invalid
@@ -451,20 +451,20 @@ public class SpamFilter extends BasePageFilter {
             }
 
             //  Now, let's check against the limits.
-            if( hostCounter >= m_limitSinglePageChanges ) {
-                final Host host = new Host( addr, null, m_banTime );
-                m_temporaryBanList.add( host );
+            if( hostCounter >= limitSinglePageChanges ) {
+                final Host host = new Host( addr, null, banTime );
+                temporaryBanList.add( host );
 
-                final String uid = log( context, REJECT, REASON_TOO_MANY_MODIFICATIONS, change.m_change );
+                final String uid = log( context, REJECT, REASON_TOO_MANY_MODIFICATIONS, change.change );
                 LOG.info( "SPAM:TooManyModifications (" + uid + "). Added host " + addr + " to temporary ban list for doing too many modifications/minute" );
                 checkStrategy( context, "Herb says you look like a spammer, and I trust Herb! (Incident code " + uid + ")" );
             }
 
-            if( changeCounter >= m_limitSimilarChanges ) {
-                final Host host = new Host( addr, null, m_banTime );
-                m_temporaryBanList.add( host );
+            if( changeCounter >= limitSimilarChanges ) {
+                final Host host = new Host( addr, null, banTime );
+                temporaryBanList.add( host );
 
-                final String uid = log( context, REJECT, REASON_SIMILAR_MODIFICATIONS, change.m_change );
+                final String uid = log( context, REJECT, REASON_SIMILAR_MODIFICATIONS, change.change );
                 LOG.info( "SPAM:SimilarModifications (" + uid + "). Added host " + addr + " to temporary ban list for doing too many similar modifications" );
                 checkStrategy( context, "Herb says you look like a spammer, and I trust Herb! (Incident code "+uid+")");
             }
@@ -472,14 +472,14 @@ public class SpamFilter extends BasePageFilter {
             //  Calculate the number of links in the addition.
             final String tstChange  = change.toString();
             int urlCounter = 0;
-            final Matcher urlMatcher = m_urlPattern.matcher( tstChange );
+            final Matcher urlMatcher = urlPattern.matcher( tstChange );
             while( urlMatcher.find() ) {
                 urlCounter++;
             }
 
-            if( urlCounter > m_maxUrls ) {
-                final Host host = new Host( addr, null, m_banTime );
-                m_temporaryBanList.add( host );
+            if( urlCounter > maxUrls ) {
+                final Host host = new Host( addr, null, banTime );
+                temporaryBanList.add( host );
 
                 final String uid = log( context, REJECT, REASON_TOO_MANY_URLS, change.toString() );
                 LOG.info( "SPAM:TooManyUrls (" + uid + "). Added host " + addr + " to temporary ban list for adding too many URLs" );
@@ -495,7 +495,7 @@ public class SpamFilter extends BasePageFilter {
             //  Do Akismet check.  This is good to be the last, because this is the most expensive operation.
             checkAkismet( context, change );
 
-            m_lastModifications.add( new Host( addr, change, m_banTime ) );
+            lastModifications.add( new Host( addr, change, banTime ) );
         }
     }
 
@@ -507,29 +507,29 @@ public class SpamFilter extends BasePageFilter {
      * @throws RedirectException spam filter rejects the page change.
      */
     private void checkAkismet( final Context context, final Change change ) throws RedirectException {
-        if( m_akismetAPIKey != null ) {
-            if( m_akismet == null ) {
+        if( akismetAPIKey != null ) {
+            if( akismet == null ) {
                 LOG.info( "Initializing Akismet spam protection." );
                 String fullPageUrl = context.getHttpRequest().getRequestURL().toString();
                 String fragment = context.getEngine().getBaseURL();
                 fullPageUrl = fullPageUrl.substring(0, fullPageUrl.indexOf(fragment) + fragment.length());
-                m_akismet = new Akismet( m_akismetAPIKey, fullPageUrl );
+                akismet = new Akismet( akismetAPIKey, fullPageUrl );
 
-                if( !m_akismet.verifyKey() ) {
+                if( !akismet.verifyKey() ) {
                     LOG.error( "Akismet API key cannot be verified.  Please check your config." );
-                    m_akismetAPIKey = null;
-                    m_akismet = null;
+                    akismetAPIKey = null;
+                    akismet = null;
                 }
             }
 
             final HttpServletRequest req = context.getHttpRequest();
 
             //  Akismet will mark all empty statements as spam, so we'll just ignore them.
-            if( change.m_adds == 0 && change.m_removals > 0 ) {
+            if( change.adds == 0 && change.removals > 0 ) {
                 return;
             }
             
-            if( req != null && m_akismet != null ) {
+            if( req != null && akismet != null ) {
                 LOG.debug( "Calling Akismet to check for spam..." );
 
                 final StopWatch sw = new StopWatch();
@@ -552,14 +552,14 @@ public class SpamFilter extends BasePageFilter {
                 comment.setReferrer(referrer);
                 comment.setType(commentType);
                 
-                final boolean isSpam = m_akismet.checkComment(comment);
+                final boolean isSpam = akismet.checkComment(comment);
 
                 sw.stop();
                 LOG.debug( "Akismet request done in: " + sw );
 
                 if( isSpam ) {
                     // Host host = new Host( ipAddress, null );
-                    // m_temporaryBanList.add( host );
+                    // temporaryBanList.add( host );
 
                     final String uid = log( context, REJECT, REASON_AKISMET, change.toString() );
                     LOG.info( "SPAM:Akismet (" + uid + "). Akismet thinks this change is spam; added host to temporary ban list." );
@@ -582,7 +582,7 @@ public class SpamFilter extends BasePageFilter {
      * This checks whether an invisible field is available in the request, and whether it's contents are suspected spam.
      *
      * @param context page Context
-     * @param change page change
+     * @param newChange page change
      * @throws RedirectException spam filter rejects the page change.
      */
     private void checkBotTrap( final Context context, final Change change ) throws RedirectException {
@@ -614,7 +614,7 @@ public class SpamFilter extends BasePageFilter {
     /** Goes through the ban list and cleans away any host which has expired from it. */
     private synchronized void cleanBanList() {
         final long now = System.currentTimeMillis();
-        for( final Iterator< Host > i = m_temporaryBanList.iterator(); i.hasNext(); ) {
+        for( final Iterator< Host > i = temporaryBanList.iterator(); i.hasNext(); ) {
             final Host host = i.next();
 
             if( host.releaseTime() < now ) {
@@ -637,11 +637,11 @@ public class SpamFilter extends BasePageFilter {
             final String remote = HttpUtil.getRemoteAddress(req);
             final long now = System.currentTimeMillis();
 
-            for( final Host host : m_temporaryBanList ) {
+            for( final Host host : temporaryBanList ) {
                 if( host.address().equals( remote ) ) {
                     final long timeleft = ( host.releaseTime() - now ) / 1000L;
 
-                    log( context, REJECT, REASON_IP_BANNED_TEMPORARILY, change.m_change );
+                    log( context, REJECT, REASON_IP_BANNED_TEMPORARILY, change.change );
                     checkStrategy( context,
                             "You have been temporarily banned from modifying this wiki. (" + timeleft + " seconds of ban left)" );
                 }
@@ -659,44 +659,44 @@ public class SpamFilter extends BasePageFilter {
             boolean rebuild = false;
 
             //  Rebuild, if the spam words page, the attachment or the IP ban page has changed since.
-            final Page sourceSpam = context.getEngine().getManager( PageManager.class ).getPage( m_forbiddenWordsPage );
+            final Page sourceSpam = context.getEngine().getManager( PageManager.class ).getPage( forbiddenWordsPage );
             if( sourceSpam != null ) {
-                if( m_spamPatterns == null || m_spamPatterns.isEmpty() || sourceSpam.getLastModified().after( m_lastRebuild ) ) {
+                if( spamPatterns == null || spamPatterns.isEmpty() || sourceSpam.getLastModified().after( lastRebuild ) ) {
                     rebuild = true;
                 }
             }
 
-            final Attachment att = context.getEngine().getManager( AttachmentManager.class ).getAttachmentInfo( context, m_blacklist );
+            final Attachment att = context.getEngine().getManager( AttachmentManager.class ).getAttachmentInfo( context, blacklist );
             if( att != null ) {
-                if( m_spamPatterns == null || m_spamPatterns.isEmpty() || att.getLastModified().after( m_lastRebuild ) ) {
+                if( spamPatterns == null || spamPatterns.isEmpty() || att.getLastModified().after( lastRebuild ) ) {
                     rebuild = true;
                 }
             }
 
-            final Page sourceIPs = context.getEngine().getManager( PageManager.class ).getPage( m_forbiddenIPsPage );
+            final Page sourceIPs = context.getEngine().getManager( PageManager.class ).getPage( forbiddenIPsPage );
             if( sourceIPs != null ) {
-                if( m_IPPatterns == null || m_IPPatterns.isEmpty() || sourceIPs.getLastModified().after( m_lastRebuild ) ) {
+                if( IPPatterns == null || IPPatterns.isEmpty() || sourceIPs.getLastModified().after( lastRebuild ) ) {
                     rebuild = true;
                 }
             }
 
             //  Do the actual rebuilding.  For simplicity's sake, we always rebuild the complete filter list regardless of what changed.
             if( rebuild ) {
-                m_lastRebuild = new Date();
-                m_spamPatterns = parseWordList( sourceSpam, ( sourceSpam != null ) ? sourceSpam.getAttribute( LISTVAR ) : null );
+                lastRebuild = new Date();
+                spamPatterns = parseWordList( sourceSpam, ( sourceSpam != null ) ? sourceSpam.getAttribute( LISTVAR ) : null );
 
-                LOG.info( "Spam filter reloaded - recognizing " + m_spamPatterns.size() + " patterns from page " + m_forbiddenWordsPage );
+                LOG.info( "Spam filter reloaded - recognizing " + spamPatterns.size() + " patterns from page " + forbiddenWordsPage );
 
-                m_IPPatterns = parseWordList( sourceIPs,  ( sourceIPs != null ) ? sourceIPs.getAttribute( LISTIPVAR ) : null );
-                LOG.info( "IP filter reloaded - recognizing " + m_IPPatterns.size() + " patterns from page " + m_forbiddenIPsPage );
+                IPPatterns = parseWordList( sourceIPs,  ( sourceIPs != null ) ? sourceIPs.getAttribute( LISTIPVAR ) : null );
+                LOG.info( "IP filter reloaded - recognizing " + IPPatterns.size() + " patterns from page " + forbiddenIPsPage );
 
                 if( att != null ) {
                     final InputStream in = context.getEngine().getManager( AttachmentManager.class ).getAttachmentStream(att);
                     final StringWriter out = new StringWriter();
                     FileUtil.copyContents( new InputStreamReader( in, StandardCharsets.UTF_8 ), out );
                     final Collection< Pattern > blackList = parseBlacklist( out.toString() );
-                    LOG.info( "...recognizing additional " + blackList.size() + " patterns from blacklist " + m_blacklist );
-                    m_spamPatterns.addAll( blackList );
+                    LOG.info( "...recognizing additional " + blackList.size() + " patterns from blacklist " + blacklist );
+                    spamPatterns.addAll( blackList );
                 }
             }
         } catch( final IOException ex ) {
@@ -710,12 +710,12 @@ public class SpamFilter extends BasePageFilter {
      * Does a check against a known pattern list.
      *
      * @param context page Context
-     * @param change page change
+     * @param newChange page change
      * @throws RedirectException spam filter rejects the page change.
      */
     private void checkPatternList( final Context context, final Change change ) throws RedirectException {
         // If we have no spam patterns defined, or we're trying to save the page containing the patterns, just return.
-        if( m_spamPatterns == null || context.getPage().getName().equals( m_forbiddenWordsPage ) ) {
+        if( spamPatterns == null || context.getPage().getName().equals( forbiddenWordsPage ) ) {
             return;
         }
 
@@ -724,7 +724,7 @@ public class SpamFilter extends BasePageFilter {
             ch += HttpUtil.getRemoteAddress( context.getHttpRequest() );
         }
 
-        for( final Pattern p : m_spamPatterns ) {
+        for( final Pattern p : spamPatterns ) {
             // LOG.debug("Attempting to match page contents with "+p.pattern());
 
             if( p.matcher( ch ).find() ) {
@@ -746,14 +746,14 @@ public class SpamFilter extends BasePageFilter {
      */
     private void checkIPList( final Context context ) throws RedirectException {
         //  If we have no IP patterns defined, or we're trying to save the page containing the IP patterns, just return.
-        if( m_IPPatterns == null || context.getPage().getName().equals( m_forbiddenIPsPage ) ) {
+        if( IPPatterns == null || context.getPage().getName().equals( forbiddenIPsPage ) ) {
             return;
         }
 
         final String remoteIP = HttpUtil.getRemoteAddress( context.getHttpRequest() );
-        LOG.info("Attempting to match remoteIP " + remoteIP + " against " + m_IPPatterns.size() + " patterns");
+        LOG.info("Attempting to match remoteIP " + remoteIP + " against " + IPPatterns.size() + " patterns");
 
-        for( final Pattern p : m_IPPatterns ) {
+        for( final Pattern p : IPPatterns ) {
              LOG.debug("Attempting to match remoteIP with " + p.pattern());
 
             if( p.matcher( remoteIP ).find() ) {
@@ -770,7 +770,7 @@ public class SpamFilter extends BasePageFilter {
 
     private void checkPatternList( final Context context, final String change ) throws RedirectException {
         final Change c = new Change();
-        c.m_change = change;
+        c.change = change;
         checkPatternList( context, c );
     }
  
@@ -804,9 +804,9 @@ public class SpamFilter extends BasePageFilter {
 
                 if( d instanceof AddDelta || d instanceof ChangeDelta ) {
                     d.getRevised().toString( change, "", "\r\n" );
-                    ch.m_adds++;
+                    ch.adds++;
                 } else if( d instanceof DeleteDelta ) {
-                    ch.m_removals++;
+                    ch.removals++;
                 }
             }
         } catch( final DifferentiationFailedException e ) {
@@ -825,7 +825,7 @@ public class SpamFilter extends BasePageFilter {
             change.append( "\r\n" ).append( page.getAuthor() );
         }
 
-        ch.m_change = change.toString();
+        ch.change = change.toString();
         return ch;
     }
 
@@ -840,12 +840,12 @@ public class SpamFilter extends BasePageFilter {
             return true;
         }
 
-        final List< String > groups = Arrays.asList( m_allowedGroups );
+        final List< String > groups = Arrays.asList( allowedGroups );
         if( Arrays.stream( context.getWikiSession().getRoles() ).anyMatch( role -> groups.contains( role.getName() ) ) ) {
             return true;
         }
 
-        if( m_ignoreAuthenticated && context.getWikiSession().isAuthenticated() ) {
+        if( ignoreAuthenticated && context.getWikiSession().isAuthenticated() ) {
             return true;
         }
 
@@ -875,7 +875,7 @@ public class SpamFilter extends BasePageFilter {
      */
     private String getRedirectPage( final Context ctx ) {
 
-        return ctx.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), m_errorPage );
+        return ctx.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), errorPage );
     }
 
     /**
@@ -967,7 +967,7 @@ public class SpamFilter extends BasePageFilter {
         if( pageContext.getRequest().getParameter(hashName) == null ) {
             if( pageContext.getAttribute( hashName ) == null ) {
                 final Change change = getChange( context, EditorManager.getEditedText( pageContext ) );
-                log( context, REJECT, "MissingHash", change.m_change );
+                log( context, REJECT, "MissingHash", change.change );
 
                 final String redirect = context.getURL( ContextEnum.PAGE_VIEW.getRequestContext(),"SessionExpired" );
                 ( ( HttpServletResponse )pageContext.getResponse() ).sendRedirect( redirect );
@@ -1009,26 +1009,26 @@ public class SpamFilter extends BasePageFilter {
     
     private static class Change {
     	
-        public String m_change;
-        public int    m_adds;
-        public int    m_removals;
+        public String change;
+        public int    adds;
+        public int    removals;
 
         @Override
         public String toString() {
-            return m_change;
+            return change;
         }
 
         @Override
         public boolean equals( final Object o ) {
             if( o instanceof Change c ) {
-                return m_change.equals( c.m_change );
+                return change.equals( c.change );
             }
             return false;
         }
 
         @Override
         public int hashCode() {
-            return m_change.hashCode() + 17;
+            return change.hashCode() + 17;
         }
         
     }

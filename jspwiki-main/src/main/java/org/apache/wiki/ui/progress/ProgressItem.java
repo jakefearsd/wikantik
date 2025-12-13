@@ -37,7 +37,7 @@ public abstract class ProgressItem {
     /** Status: The PI is finished. */
     public static final int FINISHED = 3;
 
-    protected int m_state = CREATED;
+    protected int state = CREATED;
 
     /**
      *  Get the state of the ProgressItem.
@@ -45,16 +45,16 @@ public abstract class ProgressItem {
      *  @return CREATED, STARTED, STOPPED or FINISHED.
      */
     public int getState() {
-        return m_state;
+        return state;
     }
 
     /**
      *  Sets the state of the ProgressItem.
      *  
-     *  @param state One of the CREATED, STARTED, STOPPED or FINISHED.
+     *  @param newState One of the CREATED, STARTED, STOPPED or FINISHED.
      */
-    public void setState( final int state ) {
-        m_state = state;
+    public void setState( final int newState ) {
+        this.state = newState;
     }
 
     /**

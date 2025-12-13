@@ -33,29 +33,29 @@ import java.net.URL;
  *  @since 2.4
  */
 public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
-    protected String m_name;
-    protected String m_description;
-    protected String m_moduleUrl;
-    protected String m_moduleVersion;
-    protected String m_htmlTemplate;
-    protected String m_scriptLocation;
-    protected String m_scriptText;
-    protected String m_stylesheetLocation;
-    protected String m_stylesheetText;
-    protected String m_author;
-    protected String m_authorUrl;
-    protected URL    m_resource;
-    protected String m_minVersion;
-    protected String m_maxVersion;
-    protected String m_adminBeanClass;
+    protected String name;
+    protected String description;
+    protected String moduleUrl;
+    protected String moduleVersion;
+    protected String htmlTemplate;
+    protected String scriptLocation;
+    protected String scriptText;
+    protected String stylesheetLocation;
+    protected String stylesheetText;
+    protected String author;
+    protected String authorUrl;
+    protected URL    resource;
+    protected String minVersion;
+    protected String maxVersion;
+    protected String adminBeanClass;
     
     /**
      *  Create a new info container.
      *  
-     *  @param name The name of the module.
+     *  @param newName The name of the module.
      */
-    public WikiModuleInfo( final String name ) {
-        m_name = name;
+    public WikiModuleInfo( final String newName ) {
+        this.name = newName;
     }
     
     /**
@@ -67,7 +67,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
     @Override
     public boolean equals( final Object obj) {
         if( obj instanceof WikiModuleInfo info ) {
-            return info.m_name.equals( m_name );
+            return info.name.equals( name );
         }
 
         return false;
@@ -78,7 +78,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      */
     @Override
     public int hashCode() {
-        return m_name.hashCode();
+        return name.hashCode();
     }
 
     /**
@@ -87,17 +87,17 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      *  @param el The element to parse.
      */
     protected void initializeFromXML( final Element el ) {
-        m_adminBeanClass = el.getChildText( "adminBean" );
-        m_author = el.getChildText( "author" );
-        m_authorUrl = el.getChildText( "authorUrl" );
-        m_description = el.getChildText( "description" );
-        m_maxVersion = el.getChildText( "maxVersion" );
-        m_minVersion = el.getChildText( "minVersion" );
-        m_scriptLocation = el.getChildText( "script" );
-        m_stylesheetLocation = el.getChildText( "stylesheet" );
-        m_htmlTemplate = el.getChildText( "template" );
-        m_moduleUrl = el.getChildText( "url" );
-        m_moduleVersion = el.getChildText( "version" );
+        adminBeanClass = el.getChildText( "adminBean" );
+        author = el.getChildText( "author" );
+        authorUrl = el.getChildText( "authorUrl" );
+        description = el.getChildText( "description" );
+        maxVersion = el.getChildText( "maxVersion" );
+        minVersion = el.getChildText( "minVersion" );
+        scriptLocation = el.getChildText( "script" );
+        stylesheetLocation = el.getChildText( "stylesheet" );
+        htmlTemplate = el.getChildText( "template" );
+        moduleUrl = el.getChildText( "url" );
+        moduleVersion = el.getChildText( "version" );
     }
 
     /**
@@ -106,7 +106,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      *  @return A class name.
      */
     public String getAdminBeanClass() {
-        return m_adminBeanClass;
+        return adminBeanClass;
     }
     
     /**
@@ -118,7 +118,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      *  @return A module name.
      */
     public String getName() {
-        return m_name;
+        return name;
     }
     
     /**
@@ -127,7 +127,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      *  @return A module description.
      */
     public String getDescription() {
-        return m_description;
+        return description;
     }
     
     /**
@@ -136,7 +136,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      *  @return A module URL.
      */
     public String getModuleUrl() {
-        return m_moduleUrl;
+        return moduleUrl;
     }
     
     /**
@@ -145,7 +145,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      *  @return A module version.
      */
     public String getModuleVersion() {
-        return m_moduleVersion;
+        return moduleVersion;
     }
     
     /**
@@ -154,7 +154,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      *  @return The path to the location.
      */
     public String getHtmlTemplate() {
-        return m_htmlTemplate;
+        return htmlTemplate;
     }
 
     /**
@@ -163,7 +163,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      *  @return The path to the location.
      */
     public String getStylesheetLocation() {
-        return m_stylesheetLocation;
+        return stylesheetLocation;
     }
 
     /**
@@ -172,7 +172,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      *  @return The path to the location.
      */
     public String getScriptLocation() {
-        return m_scriptLocation;
+        return scriptLocation;
     }
 
     /**
@@ -180,14 +180,14 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      * @return Author name, or null.
      */
     public String getAuthor() {
-        return m_author;
+        return author;
     }
 
     /**
      *  Returns the url of the author of this plugin (if defined).
      */
     public String getAuthorUrl() {
-        return m_authorUrl;
+        return authorUrl;
     }
     
     /**
@@ -196,7 +196,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      *  @return The minimum version.
      */
     public String getMinVersion() {
-        return m_minVersion;
+        return minVersion;
     }
     
     /**
@@ -205,7 +205,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      *  @return The maximum version.
      */
     public String getMaxVersion() {
-        return m_maxVersion;
+        return maxVersion;
     }
 
     /**
@@ -217,7 +217,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      *  @throws IOException if the JAR file or the resource cannot be read
      */
     protected String getTextResource( final String resourceLocation ) throws IOException {
-        if( m_resource == null ) {
+        if( resource == null ) {
             return "";
         }
     
@@ -227,7 +227,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
         //   (2 plugins could have their stylesheet-files in 'ini/jspwiki.css')
     
         // So try to construct a resource that loads this resource from the same jar-file.
-        String spec = m_resource.toString();
+        String spec = resource.toString();
     
         // Replace the 'PLUGIN_RESOURCE_LOCATION' with the requested resourceLocation.
         final int length = BaseModuleManager.PLUGIN_RESOURCE_LOCATION.length();
@@ -246,7 +246,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      */
     @Override
     public int compareTo( final WikiModuleInfo mod ) {
-        return m_name.compareTo( mod.getName() );
+        return name.compareTo( mod.getName() );
     }
 
 }

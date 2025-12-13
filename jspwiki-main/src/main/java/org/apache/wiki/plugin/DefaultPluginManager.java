@@ -423,7 +423,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
             m_pluginClassMap.put( name, pluginClass );
         }
 
-        pluginClass.initializePlugin( pluginClass, m_engine, m_searchPath, m_externalJars );
+        pluginClass.initializePlugin( pluginClass, engine, m_searchPath, m_externalJars );
     }
 
     private void registerPlugins() {
@@ -531,7 +531,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
         }
 
         private void setClassName( final String fullClassName ) {
-            m_name = ClassUtils.getShortClassName( fullClassName );
+            name = ClassUtils.getShortClassName( fullClassName );
             m_className = fullClassName;
         }
 
@@ -600,43 +600,43 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
         }
 
         private String getScriptText() throws IOException {
-            if( m_scriptText != null ) {
-                return m_scriptText;
+            if( scriptText != null ) {
+                return scriptText;
             }
 
-            if( m_scriptLocation == null ) {
+            if( scriptLocation == null ) {
                 return "";
             }
 
             try {
-                m_scriptText = getTextResource(m_scriptLocation);
+                scriptText = getTextResource(scriptLocation);
             } catch( final IOException ex ) {
                 // Only throw this exception once!
-                m_scriptText = "";
+                scriptText = "";
                 throw ex;
             }
 
-            return m_scriptText;
+            return scriptText;
         }
 
         private String getStylesheetText() throws IOException {
-            if( m_stylesheetText != null ) {
-                return m_stylesheetText;
+            if( stylesheetText != null ) {
+                return stylesheetText;
             }
 
-            if( m_stylesheetLocation == null ) {
+            if( stylesheetLocation == null ) {
                 return "";
             }
 
             try {
-                m_stylesheetText = getTextResource(m_stylesheetLocation);
+                stylesheetText = getTextResource(stylesheetLocation);
             } catch( final IOException ex ) {
                 // Only throw this exception once!
-                m_stylesheetText = "";
+                stylesheetText = "";
                 throw ex;
             }
 
-            return m_stylesheetText;
+            return stylesheetText;
         }
 
         /**
@@ -646,7 +646,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
          */
         @Override
         public String toString() {
-            return "Plugin :[name=" + m_name + "][className=" + m_className + "]";
+            return "Plugin :[name=" + name + "][className=" + m_className + "]";
         }
 
     } // WikiPluginClass

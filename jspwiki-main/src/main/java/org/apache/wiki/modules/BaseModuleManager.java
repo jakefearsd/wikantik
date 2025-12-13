@@ -32,15 +32,15 @@ import java.util.TreeSet;
  */
 public abstract class BaseModuleManager implements ModuleManager {
 
-    protected final Engine m_engine;
+    protected final Engine engine;
 
     /**
      *  Constructs the ModuleManager.
      *
-     *  @param engine The Engine which owns this manager.
+     *  @param newEngine The Engine which owns this manager.
      */
-    public BaseModuleManager( final Engine engine ) {
-        m_engine = engine;
+    public BaseModuleManager( final Engine newEngine ) {
+        this.engine = newEngine;
     }
 
     /**

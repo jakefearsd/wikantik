@@ -741,8 +741,8 @@ public class AuthorizationManagerTest {
      */
     @Test
     public void testAllowedByLocalPolicyWithNullPolicy() throws Exception {
-        // Use reflection to temporarily set m_localPolicy to null to simulate startup race condition
-        final Field localPolicyField = DefaultAuthorizationManager.class.getDeclaredField( "m_localPolicy" );
+        // Use reflection to temporarily set localPolicy to null to simulate startup race condition
+        final Field localPolicyField = DefaultAuthorizationManager.class.getDeclaredField( "localPolicy" );
         localPolicyField.setAccessible( true );
         final Object originalPolicy = localPolicyField.get( m_auth );
 

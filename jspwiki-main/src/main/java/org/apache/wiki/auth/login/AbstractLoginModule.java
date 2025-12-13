@@ -42,8 +42,8 @@ public abstract class AbstractLoginModule implements LoginModule {
 
     private static final Logger LOG = LogManager.getLogger( AbstractLoginModule.class );
 
-    protected CallbackHandler m_handler;
-    protected Map< String, ? > m_options;
+    protected CallbackHandler handler;
+    protected Map< String, ? > options;
 
     /**
      * Implementing classes should add Principals to this collection; these
@@ -51,11 +51,11 @@ public abstract class AbstractLoginModule implements LoginModule {
      * These Principals will be added to the Subject
      * during the {@link #commit()} phase of login.
      */
-    protected Collection< Principal > m_principals;
+    protected Collection< Principal > principals;
 
-    protected Map< String, ? > m_state;
+    protected Map< String, ? > state;
 
-    protected Subject m_subject;
+    protected Subject subject;
 
     protected static final String NULL = "(null)";
 
@@ -65,7 +65,7 @@ public abstract class AbstractLoginModule implements LoginModule {
      * LoginModules did not succeed). Specifically, it removes
      * Principals from the Subject that are associated with the
      * individual LoginModule; these will be those contained in
-     * {@link #m_principals}.
+     * {@link #principals}.
      * It always returns <code>true</code>.
      * @see javax.security.auth.spi.LoginModule#abort()
      * @return True, always.
@@ -73,10 +73,10 @@ public abstract class AbstractLoginModule implements LoginModule {
     @Override
     public final boolean abort()
     {
-        removePrincipals( m_principals );
+        removePrincipals( principals );
 
         // Clear the principals/principalsToRemove sets
-        m_principals.clear();
+        principals.clear();
 
         return true;
     }
@@ -85,12 +85,12 @@ public abstract class AbstractLoginModule implements LoginModule {
      * Commits the login. If the overall login method succeeded, adds
      * principals to the Subject's set; generally, these will be the user's
      * actual Principal, plus one or more Role principals. The state of the
-     * <code>m_principals</code> member variable is consulted to determine
+     * <code>principals</code> member variable is consulted to determine
      * whether to add the principals. If its size is 0 (because the login
      * failed), the login is considered to have failed; in this case,
-     * all principals in {@link #m_principals} are removed
+     * all principals in {@link #principals} are removed
      * from the Subject's set. Otherwise, the principals added to
-     * <code>m_principals</code> in the {@link #login()} method are added to
+     * <code>principals</code> in the {@link #login()} method are added to
      * the Subject's set.
      * @return <code>true</code> if the commit succeeded, or
      *         <code>false</code> if the previous call to {@link #login()}
@@ -100,18 +100,18 @@ public abstract class AbstractLoginModule implements LoginModule {
     @Override
     public final boolean commit() {
         if ( succeeded() ) {
-            for ( final Principal principal : m_principals ) {
-                m_subject.getPrincipals().add( principal );
+            for ( final Principal principal : principals ) {
+                subject.getPrincipals().add( principal );
                 LOG.debug("Committed Principal {}", principal.getName() );
             }
             return true;
         }
 
         // If login did not succeed, clean up after ourselves
-        removePrincipals( m_principals );
+        removePrincipals( principals );
 
         // Clear the principals/principalsToRemove sets
-        m_principals.clear();
+        principals.clear();
 
         return false;
     }
@@ -119,7 +119,7 @@ public abstract class AbstractLoginModule implements LoginModule {
     /**
      * Initializes the LoginModule with a given <code>Subject</code>,
      * callback handler, options and shared state. In particular, the member
-     * variable <code>m_principals</code> is initialized as a blank Set.
+     * variable <code>principals</code> is initialized as a blank Set.
      * @see javax.security.auth.spi.LoginModule#initialize(javax.security.auth.Subject,
      *      javax.security.auth.callback.CallbackHandler, java.util.Map, java.util.Map)
      *      
@@ -130,11 +130,11 @@ public abstract class AbstractLoginModule implements LoginModule {
      */
     @Override
     public final void initialize(final Subject subject, final CallbackHandler callbackHandler, final Map<String,?> sharedState, final Map<String,?> options ) {
-        m_principals = new HashSet<>();
-        m_subject = subject;
-        m_handler = callbackHandler;
-        m_state = sharedState;
-        m_options = options;
+        principals = new HashSet<>();
+        this.subject = subject;
+        handler = callbackHandler;
+        state = sharedState;
+        this.options = options;
         if ( subject == null ) {
             throw new IllegalStateException( "Subject cannot be null" );
         }
@@ -156,7 +156,7 @@ public abstract class AbstractLoginModule implements LoginModule {
     public abstract boolean login() throws LoginException;
 
     /**
-     * Logs the user out. Removes all principals in {@link #m_principals}
+     * Logs the user out. Removes all principals in {@link #principals}
      * from the Subject's principal set.
      * @return <code>true</code> if the commit succeeded, or
      *         <code>false</code> if this LoginModule should be ignored
@@ -164,23 +164,23 @@ public abstract class AbstractLoginModule implements LoginModule {
      */
     @Override
     public final boolean logout() {
-        removePrincipals( m_principals );
+        removePrincipals( principals );
 
         // Clear the principals/principalsToRemove sets
-        m_principals.clear();
+        principals.clear();
 
         return true;
     }
 
     /**
      * Returns <code>true</code> if the number of principals
-     * contained in {@link #m_principals} is non-zero;
+     * contained in {@link #principals} is non-zero;
      * <code>false</code> otherwise.
      * @return True, if a login has succeeded.
      */
     private boolean succeeded()
     {
-        return !m_principals.isEmpty();
+        return !principals.isEmpty();
     }
 
     /**
@@ -190,8 +190,8 @@ public abstract class AbstractLoginModule implements LoginModule {
      */
     private void removePrincipals( final Collection<Principal> principals ) {
         for( final Principal principal : principals ) {
-            if ( m_subject.getPrincipals().contains( principal ) ) {
-                m_subject.getPrincipals().remove( principal );
+            if ( subject.getPrincipals().contains( principal ) ) {
+                subject.getPrincipals().remove( principal );
                 LOG.debug("Removed Principal {}", principal.getName() );
             }
         }

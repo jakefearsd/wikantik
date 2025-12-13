@@ -86,20 +86,20 @@ public class DefaultUserManager implements UserManager {
     private static final String PARAM_LOGINNAME = "loginname";
     private static final String UNKNOWN_CLASS = "<unknown>";
 
-    private Engine m_engine;
+    private Engine engine;
 
     private static final Logger LOG = LogManager.getLogger( DefaultUserManager.class);
 
     /** Associates wiki sessions with profiles */
-    private final Map< Session, UserProfile > m_profiles = new WeakHashMap<>();
+    private final Map< Session, UserProfile > profiles = new WeakHashMap<>();
 
     /** The user database loads, manages and persists user identities */
-    private UserDatabase m_database;
+    private UserDatabase database;
 
     /** {@inheritDoc} */
     @Override
     public void initialize( final Engine engine, final Properties props ) {
-        m_engine = engine;
+        this.engine = engine;
 
         // Eagerly initialize the user database on the main thread to ensure
         // JNDI context is available (required for JDBCUserDatabase).
@@ -127,18 +127,18 @@ public class DefaultUserManager implements UserManager {
     /** {@inheritDoc} */
     @Override
     public UserDatabase getUserDatabase() {
-        if( m_database != null ) {
-            return m_database;
+        if( database != null ) {
+            return database;
         }
 
         String dbClassName = UNKNOWN_CLASS;
 
         try {
-            dbClassName = TextUtil.getRequiredProperty( m_engine.getWikiProperties(), PROP_DATABASE );
+            dbClassName = TextUtil.getRequiredProperty( engine.getWikiProperties(), PROP_DATABASE );
 
             LOG.info( "Attempting to load user database class {}", dbClassName );
-            m_database = ClassUtil.buildInstance( USERDATABASE_PACKAGE, dbClassName );
-            m_database.initialize( m_engine, m_engine.getWikiProperties() );
+            database = ClassUtil.buildInstance( USERDATABASE_PACKAGE, dbClassName );
+            database.initialize( engine, engine.getWikiProperties() );
             LOG.info( "UserDatabase initialized." );
         } catch( final NoSuchElementException | NoRequiredPropertyException e ) {
             LOG.error( "You have not set the '{}'. You need to do this if you want to enable user management by JSPWiki.", PROP_DATABASE, e );
@@ -147,20 +147,20 @@ public class DefaultUserManager implements UserManager {
         } catch( final WikiSecurityException e ) {
             LOG.error( "Exception initializing user database: {}", e.getMessage(), e );
         } finally {
-            if( m_database == null ) {
+            if( database == null ) {
                 LOG.info( "I could not create a database object you specified (or didn't specify), so I am falling back to a default." );
-                m_database = new DummyUserDatabase();
+                database = new DummyUserDatabase();
             }
         }
 
-        return m_database;
+        return database;
     }
 
     /** {@inheritDoc} */
     @Override
     public UserProfile getUserProfile( final Session session ) {
         // Look up cached user profile
-        UserProfile profile = m_profiles.get( session );
+        UserProfile profile = profiles.get( session );
         boolean newProfile = profile == null;
         Principal user = null;
 
@@ -184,7 +184,7 @@ public class DefaultUserManager implements UserManager {
         }
 
         // Stash the profile for next time
-        m_profiles.put( session, profile );
+        profiles.put( session, profile );
         return profile;
     }
 
@@ -193,8 +193,8 @@ public class DefaultUserManager implements UserManager {
     public void setUserProfile( final Context context, final UserProfile profile ) throws DuplicateUserException, WikiException {
         final Session session = context.getWikiSession();
         // Verify user is allowed to save profile!
-        final Permission p = new WikiPermission( m_engine.getApplicationName(), WikiPermission.EDIT_PROFILE_ACTION );
-        if ( !m_engine.getManager( AuthorizationManager.class ).checkPermission( session, p ) ) {
+        final Permission p = new WikiPermission( engine.getApplicationName(), WikiPermission.EDIT_PROFILE_ACTION );
+        if ( !engine.getManager( AuthorizationManager.class ).checkPermission( session, p ) ) {
             throw new WikiSecurityException( "You are not allowed to save wiki profiles." );
         }
 
@@ -229,7 +229,7 @@ public class DefaultUserManager implements UserManager {
             // If the profile doesn't need approval, then just log the user in
 
             try {
-                final AuthenticationManager mgr = m_engine.getManager( AuthenticationManager.class );
+                final AuthenticationManager mgr = engine.getManager( AuthenticationManager.class );
                 if( !mgr.isContainerAuthenticated() ) {
                     mgr.login( session, null, profile.getLoginName(), profile.getPassword() );
                 }
@@ -263,9 +263,9 @@ public class DefaultUserManager implements UserManager {
     /** {@inheritDoc} */
     @Override
     public void startUserProfileCreationWorkflow( final Context context, final UserProfile profile ) throws WikiException {
-        final WorkflowBuilder builder = WorkflowBuilder.getBuilder( m_engine );
+        final WorkflowBuilder builder = WorkflowBuilder.getBuilder( engine );
         final Principal submitter = context.getWikiSession().getUserPrincipal();
-        final Step completionTask = m_engine.getManager( TasksManager.class ).buildSaveUserProfileTask( context.getWikiSession().getLocale() );
+        final Step completionTask = engine.getManager( TasksManager.class ).buildSaveUserProfileTask( context.getWikiSession().getLocale() );
 
         // Add user profile attribute as Facts for the approver (if required)
         final boolean hasEmail = profile.getEmail() != null;
@@ -313,7 +313,7 @@ public class DefaultUserManager implements UserManager {
         email = StringUtils.trim( email );
 
         // A special case if we have container authentication: if authenticated, login name is always taken from container
-        if ( m_engine.getManager( AuthenticationManager.class ).isContainerAuthenticated() && context.getWikiSession().isAuthenticated() ) {
+        if ( engine.getManager( AuthenticationManager.class ).isContainerAuthenticated() && context.getWikiSession().isAuthenticated() ) {
             loginName = context.getWikiSession().getLoginPrincipal().getName();
         }
 
@@ -333,7 +333,7 @@ public class DefaultUserManager implements UserManager {
         final ResourceBundle rb = Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE );
 
         //  Query the SpamFilter first
-        final FilterManager fm = m_engine.getManager( FilterManager.class );
+        final FilterManager fm = engine.getManager( FilterManager.class );
         final boolean spamFilterRejects = fm.getFilterList().stream()
                 .filter( SpamFilter.class::isInstance )
                 .map( SpamFilter.class::cast )
@@ -346,7 +346,7 @@ public class DefaultUserManager implements UserManager {
         }
 
         // If container-managed auth and user not logged in, throw an error
-        if ( m_engine.getManager( AuthenticationManager.class ).isContainerAuthenticated()
+        if ( engine.getManager( AuthenticationManager.class ).isContainerAuthenticated()
              && !context.getWikiSession().isAuthenticated() ) {
             session.addMessage( SESSION_MESSAGES, rb.getString("security.error.createprofilebeforelogin") );
         }
@@ -355,7 +355,7 @@ public class DefaultUserManager implements UserManager {
         validator.validateNotNull( profile.getFullname(), rb.getString("security.user.fullname") );
         validator.validate( profile.getEmail(), rb.getString("security.user.email"), InputValidator.EMAIL );
 
-        if( !m_engine.getManager( AuthenticationManager.class ).isContainerAuthenticated() ) {
+        if( !engine.getManager( AuthenticationManager.class ).isContainerAuthenticated() ) {
             // passwords must match and can't be null
             final String password = profile.getPassword();
             if( password == null ) {
@@ -442,7 +442,7 @@ public class DefaultUserManager implements UserManager {
      */
     public static final class JSONUserModule implements WikiAjaxServlet {
 
-		private final DefaultUserManager m_manager;
+		private final DefaultUserManager manager;
 
         /**
          *  Create a new JSONUserModule.
@@ -450,7 +450,7 @@ public class DefaultUserManager implements UserManager {
          */
         public JSONUserModule( final DefaultUserManager mgr )
         {
-            m_manager = mgr;
+            manager = mgr;
         }
 
         @Override
@@ -483,8 +483,8 @@ public class DefaultUserManager implements UserManager {
          *  @throws NoSuchPrincipalException If such a name does not exist.
          */
         public UserProfile getUserInfo( final String uid ) throws NoSuchPrincipalException {
-            if( m_manager != null ) {
-                return m_manager.getUserDatabase().find( uid );
+            if( manager != null ) {
+                return manager.getUserDatabase().find( uid );
             }
 
             throw new IllegalStateException( "The manager is offline." );

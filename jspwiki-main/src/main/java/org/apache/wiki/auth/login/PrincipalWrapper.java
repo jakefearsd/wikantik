@@ -27,7 +27,7 @@ import java.security.Principal;
  */
 public final class PrincipalWrapper implements Principal
 {
-    private final Principal m_principal;
+    private final Principal principal;
     
     /**
      * Constructs a new instance of this class by wrapping (decorating)
@@ -36,7 +36,7 @@ public final class PrincipalWrapper implements Principal
      */
     public PrincipalWrapper(final Principal principal )
     {
-        m_principal = principal;
+        this.principal = principal;
     }
 
     /**
@@ -45,7 +45,7 @@ public final class PrincipalWrapper implements Principal
      */
     public Principal getPrincipal()
     {
-        return m_principal;
+        return principal;
     }
     
     /**
@@ -56,7 +56,7 @@ public final class PrincipalWrapper implements Principal
     @Override
     public String getName()
     {
-        return m_principal.getName();
+        return principal.getName();
     }
 
     /**
@@ -73,7 +73,7 @@ public final class PrincipalWrapper implements Principal
         {
             return false;
         }
-        return m_principal.equals( ( (PrincipalWrapper)obj ).getPrincipal() );
+        return principal.equals( ( (PrincipalWrapper)obj ).getPrincipal() );
     }
 
     /**
@@ -84,7 +84,7 @@ public final class PrincipalWrapper implements Principal
     @Override
     public int hashCode()
     {
-        return m_principal.hashCode() * 13;
+        return principal.hashCode() * 13;
     }
 
 }

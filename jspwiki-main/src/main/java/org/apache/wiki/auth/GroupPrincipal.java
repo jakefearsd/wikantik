@@ -36,7 +36,7 @@ import java.security.Principal;
 public final class GroupPrincipal implements Principal, Serializable
 {
     private static final long serialVersionUID = 123123123123L;
-    private final String m_name;
+    private final String name;
 
     /**
      * Constructs a new GroupPrincipal object with a supplied name.
@@ -49,7 +49,7 @@ public final class GroupPrincipal implements Principal, Serializable
         {
             throw new IllegalArgumentException( "Group parameter cannot be null." );
         }
-        m_name = group;
+        name = group;
     }
     
     /**
@@ -60,7 +60,7 @@ public final class GroupPrincipal implements Principal, Serializable
     @Override
     public String getName()
     {
-        return m_name;
+        return name;
     }
 
     /**
@@ -75,7 +75,7 @@ public final class GroupPrincipal implements Principal, Serializable
         {
             return false;
         }
-        return p.m_name.equals( m_name );
+        return p.name.equals( name );
     }
 
     /**
@@ -85,7 +85,7 @@ public final class GroupPrincipal implements Principal, Serializable
      */
     public int hashCode()
     {
-        return m_name.hashCode();
+        return name.hashCode();
     }
 
     /**
@@ -95,7 +95,7 @@ public final class GroupPrincipal implements Principal, Serializable
      */
     public String toString()
     {
-        return "[GroupPrincipal " + m_name + "]";
+        return "[GroupPrincipal " + name + "]";
     }
 
 }

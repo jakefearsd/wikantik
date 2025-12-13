@@ -81,7 +81,7 @@ public class CookieAssertionLoginModule extends AbstractLoginModule {
         final HttpRequestCallback hcb = new HttpRequestCallback();
         final Callback[] callbacks = new Callback[] { hcb };
         try {
-            m_handler.handle( callbacks );
+            handler.handle( callbacks );
             final HttpServletRequest request = hcb.getRequest();
             final HttpSession session = ( request == null ) ? null : request.getSession( false );
             final String sid = ( session == null ) ? NULL : session.getId();
@@ -93,7 +93,7 @@ public class CookieAssertionLoginModule extends AbstractLoginModule {
 
             LOG.debug( "Logged in session ID={}; asserted={}", sid, name );
             // If login succeeds, commit these principals/roles
-            m_principals.add( new WikiPrincipal( name, WikiPrincipal.FULL_NAME ) );
+            principals.add( new WikiPrincipal( name, WikiPrincipal.FULL_NAME ) );
             return true;
         } catch( final IOException e ) {
             LOG.error( "IOException: " + e.getMessage() );

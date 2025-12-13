@@ -78,14 +78,14 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
     private static final Logger LOG = LogManager.getLogger( DefaultAuthorizationManager.class );
 
-    private Authorizer m_authorizer;
+    private Authorizer authorizer;
 
     /** Cache for storing ProtectionDomains used to evaluate the local policy. */
-    private final Map< Principal, ProtectionDomain > m_cachedPds = new WeakHashMap<>();
+    private final Map< Principal, ProtectionDomain > cachedPds = new WeakHashMap<>();
 
-    private Engine m_engine;
+    private Engine engine;
 
-    private volatile LocalPolicy m_localPolicy;
+    private volatile LocalPolicy localPolicy;
 
     /**
      * Constructs a new DefaultAuthorizationManager instance.
@@ -105,7 +105,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         final Principal user = session.getLoginPrincipal();
 
         // Always allow the action if user has AllPermission
-        final Permission allPermission = new AllPermission( m_engine.getApplicationName() );
+        final Permission allPermission = new AllPermission( engine.getApplicationName() );
         final boolean hasAllPermission = checkStaticPermission( session, allPermission );
         if( hasAllPermission ) {
             fireEvent( WikiSecurityEvent.ACCESS_ALLOWED, user, permission );
@@ -127,8 +127,8 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
         // If the page or ACL is null, it's allowed.
         final String pageName = pagePerm.getPage();
-        final Page page = m_engine.getManager( PageManager.class ).getPage( pageName );
-        final Acl acl = ( page == null) ? null : m_engine.getManager( AclManager.class ).getPermissions( page );
+        final Page page = engine.getManager( PageManager.class ).getPage( pageName );
+        final Acl acl = ( page == null) ? null : engine.getManager( AclManager.class ).getPermissions( page );
         if( page == null ||  acl == null || acl.isEmpty() ) {
             fireEvent( WikiSecurityEvent.ACCESS_ALLOWED, user, permission );
             return true;
@@ -165,8 +165,8 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     /** {@inheritDoc} */
     @Override
     public Authorizer getAuthorizer() throws WikiSecurityException {
-        if ( m_authorizer != null ) {
-            return m_authorizer;
+        if ( authorizer != null ) {
+            return authorizer;
         }
         throw new WikiSecurityException( "Authorizer did not initialize properly. Check the logs." );
     }
@@ -215,7 +215,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
                 LOG.info( "User {} has no access - redirecting (permission={})", currentUser.getName(), context.requiredPermission() );
                 context.getWikiSession().addMessage( MessageFormat.format( rb.getString( "security.error.noaccess" ), context.getName() ) );
             }
-            response.sendRedirect( m_engine.getURL( ContextEnum.WIKI_LOGIN.getRequestContext(), pageurl, null ) );
+            response.sendRedirect( engine.getURL( ContextEnum.WIKI_LOGIN.getRequestContext(), pageurl, null ) );
         }
         return allowed;
     }
@@ -227,12 +227,12 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
      */
     @Override
     public void initialize( final Engine engine, final Properties properties ) throws WikiException {
-        m_engine = engine;
+        this.engine = engine;
         LOG.info( "Initializing AuthorizationManager - anonymous access will be blocked until initialization completes" );
 
         //  JAAS authorization continues
-        m_authorizer = getAuthorizerImplementation( properties );
-        m_authorizer.initialize( engine, properties );
+        authorizer = getAuthorizerImplementation( properties );
+        authorizer.initialize( engine, properties );
 
         // Initialize local security policy
         try {
@@ -242,9 +242,9 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             if (policyURL != null) {
                 final File policyFile = new File( policyURL.toURI().getPath() );
                 LOG.info("We found security policy URL: {} and transformed it to file {}",policyURL, policyFile.getAbsolutePath());
-                final LocalPolicy localPolicy = new LocalPolicy( policyFile, engine.getContentEncoding().displayName() );
-                localPolicy.refresh();
-                m_localPolicy = localPolicy;  // Assign after refresh completes for thread safety
+                final LocalPolicy newLocalPolicy = new LocalPolicy( policyFile, engine.getContentEncoding().displayName() );
+                newLocalPolicy.refresh();
+                localPolicy = newLocalPolicy;  // Assign after refresh completes for thread safety
                 LOG.info( "Initialized default security policy: {} - anonymous access now permitted", policyFile.getAbsolutePath() );
             } else {
                 final String sb = "JSPWiki was unable to initialize the default security policy (WEB-INF/jspwiki.policy) file. " +
@@ -291,24 +291,24 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     @Override
     public boolean allowedByLocalPolicy( final Principal[] principals, final Permission permission ) {
         // Check if local policy is initialized - deny access during startup window
-        final LocalPolicy localPolicy = m_localPolicy;
-        if ( localPolicy == null ) {
+        final LocalPolicy currentPolicy = localPolicy;
+        if ( currentPolicy == null ) {
             LOG.warn( "Local security policy not yet initialized - denying access for permission: {}", permission );
             return false;
         }
 
         for ( final Principal principal : principals ) {
             // Get ProtectionDomain for this Principal from cache, or create new one
-            ProtectionDomain pd = m_cachedPds.get( principal );
+            ProtectionDomain pd = cachedPds.get( principal );
             if ( pd == null ) {
                 final ClassLoader cl = this.getClass().getClassLoader();
                 final CodeSource cs = new CodeSource( null, (Certificate[])null );
                 pd = new ProtectionDomain( cs, null, cl, new Principal[]{ principal } );
-                m_cachedPds.put( principal, pd );
+                cachedPds.put( principal, pd );
             }
 
             // Consult the local policy and get the answer
-            if ( localPolicy.implies( pd, permission ) ) {
+            if ( currentPolicy.implies( pd, permission ) ) {
                 return true;
             }
         }
@@ -344,19 +344,19 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         }
 
         // Check Authorizer Roles
-        Principal principal = m_authorizer.findRole( name );
+        Principal principal = authorizer.findRole( name );
         if ( principal != null ) {
             return principal;
         }
 
         // Check Groups
-        principal = m_engine.getManager( GroupManager.class ).findRole( name );
+        principal = engine.getManager( GroupManager.class ).findRole( name );
         if ( principal != null ) {
             return principal;
         }
 
         // Ok, no luck---this must be a user principal
-        final UserDatabase db = m_engine.getManager( UserManager.class ).getUserDatabase();
+        final UserDatabase db = engine.getManager( UserManager.class ).getUserDatabase();
         try {
             final UserProfile profile = db.find( name );
             final Principal[] principals = db.getPrincipals( profile.getLoginName() );

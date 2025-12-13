@@ -73,11 +73,11 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     protected static final Map< String, String > EMPTY_MAP = Map.of();
 
     /** Class (of type LoginModule) to use for custom authentication. */
-    protected Class< ? extends LoginModule > m_loginModuleClass = UserDatabaseLoginModule.class;
+    protected Class< ? extends LoginModule > loginModuleClass = UserDatabaseLoginModule.class;
 
     /** Options passed to {@link LoginModule#initialize(Subject, CallbackHandler, Map, Map)};
      * initialized by {@link #initialize(Engine, Properties)}. */
-    protected final Map< String, String > m_loginModuleOptions = new HashMap<>();
+    protected final Map< String, String > loginModuleOptions = new HashMap<>();
 
     /** The default {@link LoginModule} class name to use for custom authentication. */
     private static final String DEFAULT_LOGIN_MODULE = "org.apache.wiki.auth.login.UserDatabaseLoginModule";
@@ -86,42 +86,42 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     private static final Set<Principal> NO_PRINCIPALS = Set.of();
 
     /** Static Boolean for lazily-initializing the "allows assertions" flag */
-    private boolean m_allowsCookieAssertions = true;
+    private boolean allowsCookieAssertions = true;
 
-    private boolean m_throttleLogins = true;
+    private boolean throttleLogins = true;
 
     /** Static Boolean for lazily-initializing the "allows cookie authentication" flag */
-    private boolean m_allowsCookieAuthentication;
+    private boolean allowsCookieAuthentication;
 
-    private Engine m_engine;
+    private Engine engine;
 
     /** If true, logs the IP address of the editor */
-    private boolean m_storeIPAddress = true;
+    private boolean storeIPAddress = true;
 
     /** Keeps a list of the usernames who have attempted a login recently. */
-    private final TimedCounterList< String > m_lastLoginAttempts = new TimedCounterList<>();
+    private final TimedCounterList< String > lastLoginAttempts = new TimedCounterList<>();
 
     /**
      * {@inheritDoc}
      */
     @Override
     public void initialize( final Engine engine, final Properties props ) throws WikiException {
-        m_engine = engine;
-        m_storeIPAddress = TextUtil.getBooleanProperty( props, PROP_STOREIPADDRESS, m_storeIPAddress );
+        this.engine = engine;
+        storeIPAddress = TextUtil.getBooleanProperty( props, PROP_STOREIPADDRESS, storeIPAddress );
 
         // Should we allow cookies for assertions? (default: yes)
-        m_allowsCookieAssertions = TextUtil.getBooleanProperty( props, PROP_ALLOW_COOKIE_ASSERTIONS,true );
+        allowsCookieAssertions = TextUtil.getBooleanProperty( props, PROP_ALLOW_COOKIE_ASSERTIONS,true );
 
         // Should we allow cookies for authentication? (default: no)
-        m_allowsCookieAuthentication = TextUtil.getBooleanProperty( props, PROP_ALLOW_COOKIE_AUTH, false );
+        allowsCookieAuthentication = TextUtil.getBooleanProperty( props, PROP_ALLOW_COOKIE_AUTH, false );
 
         // Should we throttle logins? (default: yes)
-        m_throttleLogins = TextUtil.getBooleanProperty( props, PROP_LOGIN_THROTTLING, true );
+        throttleLogins = TextUtil.getBooleanProperty( props, PROP_LOGIN_THROTTLING, true );
 
         // Look up the LoginModule class
         final String loginModuleClassName = TextUtil.getStringProperty( props, PROP_LOGIN_MODULE, DEFAULT_LOGIN_MODULE );
         try {
-            m_loginModuleClass = ClassUtil.findClass( "", loginModuleClassName );
+            loginModuleClass = ClassUtil.findClass( "", loginModuleClassName );
         } catch( final ClassNotFoundException e ) {
             LOG.error( e.getMessage(), e );
             throw new WikiException( "Could not instantiate LoginModule class.", e );
@@ -137,7 +137,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     @Override
     public boolean isContainerAuthenticated() {
         try {
-            final Authorizer authorizer = m_engine.getManager( AuthorizationManager.class ).getAuthorizer();
+            final Authorizer authorizer = engine.getManager( AuthorizationManager.class ).getAuthorizer();
             if ( authorizer instanceof WebContainerAuthorizer wca ) {
                  return wca.isContainerAuthorized();
             }
@@ -153,16 +153,16 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     @Override
     public boolean login( final HttpServletRequest request ) throws WikiSecurityException {
         final HttpSession httpSession = request.getSession();
-        final Session session = SessionMonitor.getInstance( m_engine ).find( httpSession );
-        final AuthenticationManager authenticationMgr = m_engine.getManager( AuthenticationManager.class );
-        final AuthorizationManager authorizationMgr = m_engine.getManager( AuthorizationManager.class );
+        final Session session = SessionMonitor.getInstance( engine ).find( httpSession );
+        final AuthenticationManager authenticationMgr = engine.getManager( AuthenticationManager.class );
+        final AuthorizationManager authorizationMgr = engine.getManager( AuthorizationManager.class );
         CallbackHandler handler = null;
         final Map< String, String > options = EMPTY_MAP;
 
         // If user not authenticated, check if container logged them in, or if there's an authentication cookie
         if ( !session.isAuthenticated() ) {
             // Create a callback handler
-            handler = new WebContainerCallbackHandler( m_engine, request );
+            handler = new WebContainerCallbackHandler( engine, request );
 
             // Execute the container login module, then (if that fails) the cookie auth module
             Set< Principal > principals = authenticationMgr.doJAASLogin( WebContainerLoginModule.class, handler, options );
@@ -215,14 +215,14 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         }
 
         // Protect against brute-force password guessing if configured to do so
-        if ( m_throttleLogins ) {
+        if ( throttleLogins ) {
             delayLogin( username );
         }
 
-        final CallbackHandler handler = new WikiCallbackHandler( m_engine, null, username, password );
+        final CallbackHandler handler = new WikiCallbackHandler( engine, null, username, password );
 
         // Execute the user's specified login module
-        final Set< Principal > principals = doJAASLogin( m_loginModuleClass, handler, m_loginModuleOptions );
+        final Set< Principal > principals = doJAASLogin( loginModuleClass, handler, loginModuleOptions );
         if(!principals.isEmpty()) {
             fireEvent(WikiSecurityEvent.LOGIN_AUTHENTICATED, getLoginPrincipal( principals ), session );
             for ( final Principal principal : principals ) {
@@ -230,7 +230,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             }
 
             // Add all appropriate Authorizer roles
-            injectAuthorizerRoles( session, m_engine.getManager( AuthorizationManager.class ).getAuthorizer(), null );
+            injectAuthorizerRoles( session, engine.getManager( AuthorizationManager.class ).getAuthorizer(), null );
 
             return true;
         }
@@ -247,14 +247,14 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
      */
     private void delayLogin( final String username ) {
         try {
-            m_lastLoginAttempts.cleanup( LASTLOGINS_CLEANUP_TIME );
-            final int count = m_lastLoginAttempts.count( username );
+            lastLoginAttempts.cleanup( LASTLOGINS_CLEANUP_TIME );
+            final int count = lastLoginAttempts.count( username );
 
             final long delay = Math.min( 1L << count, MAX_LOGIN_DELAY );
             LOG.debug( "Sleeping for " + delay + " ms to allow login." );
             Thread.sleep( delay );
 
-            m_lastLoginAttempts.add( username );
+            lastLoginAttempts.add( username );
         } catch( final InterruptedException e ) {
             // FALLTHROUGH is fine
         }
@@ -274,12 +274,12 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         final String sid = ( session == null ) ? "(null)" : session.getId();
         LOG.debug( "Invalidating Session for session ID= {}", sid );
         // Retrieve the associated Session and clear the Principal set
-        final Session wikiSession = Wiki.session().find( m_engine, request );
+        final Session wikiSession = Wiki.session().find( engine, request );
         final Principal originalPrincipal = wikiSession.getLoginPrincipal();
         wikiSession.invalidate();
 
         // Remove the wikiSession from the WikiSession cache
-        Wiki.session().remove( m_engine, request );
+        Wiki.session().remove( engine, request );
 
         // We need to flush the HTTP session too
         if( session != null ) {
@@ -295,7 +295,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
      */
     @Override
     public boolean allowsCookieAssertions() {
-        return m_allowsCookieAssertions;
+        return allowsCookieAssertions;
     }
 
     /**
@@ -303,7 +303,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
      */
     @Override
     public boolean allowsCookieAuthentication() {
-        return m_allowsCookieAuthentication;
+        return allowsCookieAuthentication;
     }
 
     /**
@@ -380,10 +380,10 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                     final String optionValue = props.getProperty( propName );
 
                     // Make sure the key is unique before stashing the key/value pair
-                    if ( m_loginModuleOptions.containsKey( optionKey ) ) {
+                    if ( loginModuleOptions.containsKey( optionKey ) ) {
                         throw new IllegalArgumentException( "JAAS LoginModule key " + propName + " cannot be specified twice!" );
                     }
-                    m_loginModuleOptions.put( optionKey, optionValue );
+                    loginModuleOptions.put( optionKey, optionValue );
                 }
             }
         }

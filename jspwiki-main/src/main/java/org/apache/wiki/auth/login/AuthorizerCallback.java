@@ -31,7 +31,7 @@ import org.apache.wiki.auth.Authorizer;
 public class AuthorizerCallback implements Callback
 {
 
-    private Authorizer m_authorizer;
+    private Authorizer authorizer;
 
     /**
      * Sets the authorizer object. CallbackHandler objects call this method.
@@ -39,7 +39,7 @@ public class AuthorizerCallback implements Callback
      */
     public void setAuthorizer(final Authorizer authorizer )
     {
-        m_authorizer = authorizer;
+        this.authorizer = authorizer;
     }
 
     /**
@@ -49,7 +49,7 @@ public class AuthorizerCallback implements Callback
      */
     public Authorizer getAuthorizer()
     {
-        return m_authorizer;
+        return authorizer;
     }
 
 }

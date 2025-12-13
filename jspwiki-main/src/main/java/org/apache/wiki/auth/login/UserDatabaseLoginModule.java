@@ -72,7 +72,7 @@ public class UserDatabaseLoginModule extends AbstractLoginModule {
         { ucb, ncb, pcb };
         try
         {
-            m_handler.handle( callbacks );
+            handler.handle( callbacks );
             final UserDatabase db = ucb.getUserDatabase();
             final String username = ncb.getName();
             final String password = new String( pcb.getPassword() );
@@ -87,7 +87,7 @@ public class UserDatabaseLoginModule extends AbstractLoginModule {
                 LOG.debug( "Logged in user database user {}", username );
 
                 // If login succeeds, commit these principals/roles
-                m_principals.add( new WikiPrincipal( username,  WikiPrincipal.LOGIN_NAME ) );
+                principals.add( new WikiPrincipal( username,  WikiPrincipal.LOGIN_NAME ) );
 
                 return true;
             }

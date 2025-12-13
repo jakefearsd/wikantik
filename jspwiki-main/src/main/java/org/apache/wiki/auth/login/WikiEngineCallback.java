@@ -31,7 +31,7 @@ import javax.security.auth.callback.Callback;
  */
 public class WikiEngineCallback implements Callback {
 
-    private Engine m_engine;
+    private Engine engine;
 
     /**
      * Sets the engine object. CallbackHandler objects call this method.
@@ -39,7 +39,7 @@ public class WikiEngineCallback implements Callback {
      * @param engine the engine
      */
     public void setEngine( final Engine engine ) {
-        m_engine = engine;
+        this.engine = engine;
     }
 
     /**
@@ -48,7 +48,7 @@ public class WikiEngineCallback implements Callback {
      * @return the engine
      */
     public Engine getEngine() {
-        return m_engine;
+        return engine;
     }
 
 }

@@ -31,7 +31,7 @@ import org.apache.wiki.auth.user.UserDatabase;
 public class UserDatabaseCallback implements Callback
 {
 
-    private UserDatabase m_database;
+    private UserDatabase database;
 
     /**
      * Returns the user database object. LoginModules call this method after a
@@ -40,7 +40,7 @@ public class UserDatabaseCallback implements Callback
      */
     public UserDatabase getUserDatabase()
     {
-        return m_database;
+        return database;
     }
 
     /**
@@ -49,7 +49,7 @@ public class UserDatabaseCallback implements Callback
      */
     public void setUserDatabase(final UserDatabase database )
     {
-        this.m_database = database;
+        this.database = database;
     }
 
 }

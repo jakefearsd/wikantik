@@ -32,7 +32,7 @@ import jakarta.servlet.http.HttpServletRequest;
 public class HttpRequestCallback implements Callback
 {
 
-    private HttpServletRequest m_request;
+    private HttpServletRequest request;
 
     /**
      * Sets the request object. CallbackHandler objects call this method..
@@ -40,7 +40,7 @@ public class HttpRequestCallback implements Callback
      */
     public void setRequest(final HttpServletRequest request )
     {
-        m_request = request;
+        this.request = request;
     }
 
     /**
@@ -50,7 +50,7 @@ public class HttpRequestCallback implements Callback
      */
     public HttpServletRequest getRequest()
     {
-        return m_request;
+        return request;
     }
 
 }

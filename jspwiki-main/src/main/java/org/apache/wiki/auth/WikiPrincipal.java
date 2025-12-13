@@ -66,8 +66,8 @@ public final class WikiPrincipal implements Principal, Comparable< Principal >, 
         Arrays.sort( VALID_TYPES );
     }
 
-    private final String m_name;
-    private final String m_type;
+    private final String name;
+    private final String type;
 
     /** For serialization purposes */
     WikiPrincipal()
@@ -81,8 +81,8 @@ public final class WikiPrincipal implements Principal, Comparable< Principal >, 
      * @param name the name of the Principal
      */
     public WikiPrincipal( final String name ) {
-        m_name = name;
-        m_type = UNSPECIFIED;
+        this.name = name;
+        type = UNSPECIFIED;
     }
     
     /**
@@ -94,11 +94,11 @@ public final class WikiPrincipal implements Principal, Comparable< Principal >, 
      * @param type the type for this principal, which may be {@link #LOGIN_NAME}, {@link #FULL_NAME}, {@link #WIKI_NAME} or {@link #WIKI_NAME}.
      */
     public WikiPrincipal( final String name, final String type ) {
-        m_name = name;
+        this.name = name;
         if( Arrays.binarySearch( VALID_TYPES, type ) < 0 ) {
             throw new IllegalArgumentException( "Principal type '" + type + "' is invalid." );
         }
-        m_type = type;
+        this.type = type;
     }
 
     /**
@@ -108,7 +108,7 @@ public final class WikiPrincipal implements Principal, Comparable< Principal >, 
      */
     @Override
     public String getName() {
-        return m_name;
+        return name;
     }
 
     /**
@@ -122,7 +122,7 @@ public final class WikiPrincipal implements Principal, Comparable< Principal >, 
         if( !( obj instanceof WikiPrincipal p ) ) {
             return false;
         }
-        return m_name.equals( p.getName() );
+        return name.equals( p.getName() );
     }
 
     /**
@@ -132,7 +132,7 @@ public final class WikiPrincipal implements Principal, Comparable< Principal >, 
      */
     @Override
     public int hashCode() {
-        return m_name.hashCode();
+        return name.hashCode();
     }
     
     /**
@@ -142,7 +142,7 @@ public final class WikiPrincipal implements Principal, Comparable< Principal >, 
      */
     public String getType()
     {
-        return m_type;
+        return type;
     }
     
     /**
@@ -152,7 +152,7 @@ public final class WikiPrincipal implements Principal, Comparable< Principal >, 
      */
     @Override
     public String toString() {
-        return "[WikiPrincipal (" + m_type + "): " + getName() + "]";
+        return "[WikiPrincipal (" + type + "): " + getName() + "]";
     }
 
     /**

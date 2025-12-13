@@ -140,7 +140,7 @@ public class AuthenticationManagerTest {
         // login module
         final WikiEngine engine = new TestEngine( props );
         final DefaultAuthenticationManager authMgr = ( DefaultAuthenticationManager )engine.getManager( AuthenticationManager.class );
-        Assertions.assertEquals( CookieAssertionLoginModule.class, authMgr.m_loginModuleClass );
+        Assertions.assertEquals( CookieAssertionLoginModule.class, authMgr.loginModuleClass );
     }
 
     @Test
@@ -156,7 +156,7 @@ public class AuthenticationManagerTest {
         // options
         final WikiEngine engine = new TestEngine( props );
         final DefaultAuthenticationManager authMgr = ( DefaultAuthenticationManager )engine.getManager( AuthenticationManager.class );
-        final Map<String, String> options = authMgr.m_loginModuleOptions;
+        final Map<String, String> options = authMgr.loginModuleOptions;
         Assertions.assertEquals( 3, options.size() );
         Assertions.assertTrue( options.containsKey( "key1" ) );
         Assertions.assertTrue( options.containsKey( "key2" ) );

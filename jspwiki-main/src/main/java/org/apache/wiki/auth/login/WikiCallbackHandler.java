@@ -40,10 +40,10 @@ import java.io.IOException;
  */
 public class WikiCallbackHandler implements CallbackHandler {
 
-    private final HttpServletRequest m_request;
-    private final Engine m_engine;
-    private final String m_password;
-    private final String m_username;
+    private final HttpServletRequest request;
+    private final Engine engine;
+    private final String password;
+    private final String username;
 
     /**
      *  Create a new callback handler.
@@ -54,10 +54,10 @@ public class WikiCallbackHandler implements CallbackHandler {
      * @param password the password
      */
     public WikiCallbackHandler( final Engine engine, final HttpServletRequest request, final String username, final String password ) {
-        m_request = request;
-        m_engine = engine;
-        m_username = username;
-        m_password = password;
+        this.request = request;
+        this.engine = engine;
+        this.username = username;
+        this.password = password;
     }
 
     /**
@@ -68,15 +68,15 @@ public class WikiCallbackHandler implements CallbackHandler {
     @Override public void handle( final Callback[] callbacks ) throws IOException, UnsupportedCallbackException {
         for( final Callback callback : callbacks ) {
             if( callback instanceof HttpRequestCallback httpRequestCallback ) {
-                httpRequestCallback.setRequest( m_request );
+                httpRequestCallback.setRequest( request );
             } else if( callback instanceof WikiEngineCallback wikiEngineCallback ) {
-                wikiEngineCallback.setEngine( m_engine );
+                wikiEngineCallback.setEngine( engine );
             } else if( callback instanceof UserDatabaseCallback userDatabaseCallback ) {
-                userDatabaseCallback.setUserDatabase( m_engine.getManager( UserManager.class ).getUserDatabase() );
+                userDatabaseCallback.setUserDatabase( engine.getManager( UserManager.class ).getUserDatabase() );
             } else if( callback instanceof NameCallback nameCallback ) {
-                nameCallback.setName( m_username );
+                nameCallback.setName( username );
             } else if( callback instanceof PasswordCallback passwordCallback ) {
-                passwordCallback.setPassword( m_password.toCharArray() );
+                passwordCallback.setPassword( password.toCharArray() );
             } else {
                 throw new UnsupportedCallbackException( callback );
             }

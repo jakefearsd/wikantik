@@ -36,7 +36,7 @@ public abstract class ModuleBean extends SimpleAdminBean {
     private static final String VER_WARNING = "<span class='warning'>This module is not compatible with this version of JSPWiki.</span>";
 
     public ModuleBean( final Engine engine ) throws NotCompliantMBeanException {
-        m_engine = engine;
+        this.engine = engine;
     }
 
     /**

@@ -56,7 +56,7 @@ public class FilterBean extends ModuleBean {
      */
     @Override
     protected Collection< WikiModuleInfo > modules() {
-        return m_engine.getManager( FilterManager.class ).modules();
+        return engine.getManager( FilterManager.class ).modules();
     }
 
     /**

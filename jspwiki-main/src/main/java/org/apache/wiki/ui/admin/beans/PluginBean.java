@@ -57,7 +57,7 @@ public class PluginBean extends ModuleBean {
      */
     @Override
     protected Collection< WikiModuleInfo > modules() {
-        return m_engine.getManager( PluginManager.class ).modules();
+        return engine.getManager( PluginManager.class ).modules();
     }
 
     /**

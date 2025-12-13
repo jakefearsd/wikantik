@@ -57,11 +57,11 @@ import java.util.Properties;
 public class DefaultAttachmentManager implements AttachmentManager {
 
     /** List of attachment types which are forced to be downloaded */
-    private String[] m_forceDownloadPatterns;
+    private String[] forceDownloadPatterns;
 
     private static final Logger LOG = LogManager.getLogger( DefaultAttachmentManager.class );
-    private AttachmentProvider m_provider;
-    private final Engine m_engine;
+    private AttachmentProvider provider;
+    private final Engine engine;
     private final CachingManager cachingManager;
 
     /**
@@ -73,8 +73,8 @@ public class DefaultAttachmentManager implements AttachmentManager {
      *  @param props A list of properties from which the AttachmentManager will seek its configuration. Typically, this is the "jspwiki.properties".
      */
     public DefaultAttachmentManager( final Engine engine, final Properties props ) {
-        m_engine = engine;
-        cachingManager = m_engine.getManager( CachingManager.class );
+        this.engine = engine;
+        cachingManager = this.engine.getManager( CachingManager.class );
         final String classname;
         if( cachingManager.enabled( CachingManager.CACHE_ATTACHMENTS_DYNAMIC ) ) {
             classname = "org.apache.wiki.providers.CachingAttachmentProvider";
@@ -90,30 +90,30 @@ public class DefaultAttachmentManager implements AttachmentManager {
 
         //  Create and initialize the provider.
         try {
-            m_provider = ClassUtil.buildInstance( "org.apache.wiki.providers", classname );
-            m_provider.initialize( m_engine, props );
+            provider = ClassUtil.buildInstance( "org.apache.wiki.providers", classname );
+            provider.initialize( this.engine, props );
         } catch( final ReflectiveOperationException e ) {
             LOG.error( "Attachment provider class could not be instantiated", e );
         } catch( final NoRequiredPropertyException e ) {
             LOG.error( "Attachment provider did not find a property that it needed: {}", e.getMessage(), e );
-            m_provider = null; // No, it did not work.
+            provider = null; // No, it did not work.
         } catch( final IOException e ) {
             LOG.error( "Attachment provider reports IO error", e );
-            m_provider = null;
+            provider = null;
         }
 
         final String forceDownload = TextUtil.getStringProperty( props, PROP_FORCEDOWNLOAD, null );
         if( StringUtils.isNotEmpty( forceDownload ) ) {
-            m_forceDownloadPatterns = forceDownload.toLowerCase().split( "\\s" );
+            forceDownloadPatterns = forceDownload.toLowerCase().split( "\\s" );
         } else {
-            m_forceDownloadPatterns = new String[ 0 ];
+            forceDownloadPatterns = new String[ 0 ];
         }
     }
 
     /** {@inheritDoc} */
     @Override
     public boolean attachmentsEnabled() {
-        return m_provider != null;
+        return provider != null;
     }
 
     /** {@inheritDoc} */
@@ -139,7 +139,7 @@ public class DefaultAttachmentManager implements AttachmentManager {
     /** {@inheritDoc} */
     @Override
     public Attachment getAttachmentInfo( final Context context, String attachmentname, final int version ) throws ProviderException {
-        if( m_provider == null ) {
+        if( provider == null ) {
             return null;
         }
 
@@ -161,13 +161,13 @@ public class DefaultAttachmentManager implements AttachmentManager {
                 return null;
             }
 
-            currentPage = m_engine.getManager( PageManager.class ).getPage( parentPage );
+            currentPage = engine.getManager( PageManager.class ).getPage( parentPage );
 
             // Go check for legacy name
             // FIXME: This should be resolved using CommandResolver, not this adhoc way.  This also assumes that the
             //        legacy charset is a subset of the full allowed set.
             if( currentPage == null ) {
-                currentPage = m_engine.getManager( PageManager.class ).getPage( MarkupParser.wikifyLink( parentPage ) );
+                currentPage = engine.getManager( PageManager.class ).getPage( MarkupParser.wikifyLink( parentPage ) );
             }
         }
 
@@ -179,7 +179,7 @@ public class DefaultAttachmentManager implements AttachmentManager {
         //  Finally, figure out whether this is a real attachment or a generated attachment.
         Attachment att = getDynamicAttachment( currentPage.getName() + "/" + attachmentname );
         if( att == null ) {
-            att = m_provider.getAttachmentInfo( currentPage, attachmentname, version );
+            att = provider.getAttachmentInfo( currentPage, attachmentname, version );
         }
 
         return att;
@@ -188,12 +188,12 @@ public class DefaultAttachmentManager implements AttachmentManager {
     /** {@inheritDoc} */
     @Override
     public List< Attachment > listAttachments( final Page wikipage ) throws ProviderException {
-        if( m_provider == null ) {
+        if( provider == null ) {
             return new ArrayList<>();
         }
 
-        final List< Attachment > atts = new ArrayList<>( m_provider.listAttachments( wikipage ) );
-        atts.sort( Comparator.comparing( Attachment::getName, m_engine.getManager( PageManager.class ).getPageSorter() ) );
+        final List< Attachment > atts = new ArrayList<>( provider.listAttachments( wikipage ) );
+        atts.sort( Comparator.comparing( Attachment::getName, engine.getManager( PageManager.class ).getPageSorter() ) );
 
         return atts;
     }
@@ -210,7 +210,7 @@ public class DefaultAttachmentManager implements AttachmentManager {
             return true;  // force download on attachments without extension or type indication
         }
 
-        for( final String forceDownloadPattern : m_forceDownloadPatterns ) {
+        for( final String forceDownloadPattern : forceDownloadPatterns ) {
             if( ( name.endsWith( forceDownloadPattern ) && !forceDownloadPattern.isEmpty() ) || "*".equals( forceDownloadPattern ) ) {
                 return true;
             }
@@ -222,7 +222,7 @@ public class DefaultAttachmentManager implements AttachmentManager {
     /** {@inheritDoc} */
     @Override
     public InputStream getAttachmentStream( final Context ctx, final Attachment att ) throws ProviderException, IOException {
-        if( m_provider == null ) {
+        if( provider == null ) {
             return null;
         }
 
@@ -230,7 +230,7 @@ public class DefaultAttachmentManager implements AttachmentManager {
             return dynamicAtt.getProvider().getAttachmentData( ctx, att );
         }
 
-        return m_provider.getAttachmentData( att );
+        return provider.getAttachmentData( att );
     }
 
     /** {@inheritDoc} */
@@ -248,34 +248,34 @@ public class DefaultAttachmentManager implements AttachmentManager {
     /** {@inheritDoc} */
     @Override
     public void storeAttachment( final Attachment att, final InputStream in ) throws IOException, ProviderException {
-        if( m_provider == null ) {
+        if( provider == null ) {
             return;
         }
 
         // Checks if the actual, real page exists without any modifications or aliases. We cannot store an attachment to a non-existent page.
-        if( !m_engine.getManager( PageManager.class ).pageExists( att.getParentName() ) ) {
+        if( !engine.getManager( PageManager.class ).pageExists( att.getParentName() ) ) {
             // the caller should catch the exception and use the exception text as an i18n key
             throw new ProviderException( "attach.parent.not.exist" );
         }
 
-        m_provider.putAttachmentData( att, in );
-        m_engine.getManager( ReferenceManager.class ).updateReferences( att.getName(), new ArrayList<>() );
+        provider.putAttachmentData( att, in );
+        engine.getManager( ReferenceManager.class ).updateReferences( att.getName(), new ArrayList<>() );
 
-        final Page parent = Wiki.contents().page( m_engine, att.getParentName() );
-        m_engine.getManager( ReferenceManager.class ).updateReferences( parent );
-        m_engine.getManager( SearchManager.class ).reindexPage( att );
+        final Page parent = Wiki.contents().page( engine, att.getParentName() );
+        engine.getManager( ReferenceManager.class ).updateReferences( parent );
+        engine.getManager( SearchManager.class ).reindexPage( att );
     }
 
     /** {@inheritDoc} */
     @Override
     public List< Attachment > getVersionHistory( final String attachmentName ) throws ProviderException {
-        if( m_provider == null ) {
+        if( provider == null ) {
             return null;
         }
 
         final Attachment att = getAttachmentInfo( null, attachmentName );
         if( att != null ) {
-            return m_provider.getVersionHistory( att );
+            return provider.getVersionHistory( att );
         }
 
         return null;
@@ -285,7 +285,7 @@ public class DefaultAttachmentManager implements AttachmentManager {
     @Override
     public Collection< Attachment > getAllAttachments() throws ProviderException {
         if( attachmentsEnabled() ) {
-            return m_provider.listAllChanged( new Date( 0L ) );
+            return provider.listAllChanged( new Date( 0L ) );
         }
 
         return new ArrayList<>();
@@ -294,30 +294,30 @@ public class DefaultAttachmentManager implements AttachmentManager {
     /** {@inheritDoc} */
     @Override
     public AttachmentProvider getCurrentProvider() {
-        return m_provider;
+        return provider;
     }
 
     /** {@inheritDoc} */
     @Override
     public void deleteVersion( final Attachment att ) throws ProviderException {
-        if( m_provider == null ) {
+        if( provider == null ) {
             return;
         }
 
-        m_provider.deleteVersion( att );
+        provider.deleteVersion( att );
     }
 
     /** {@inheritDoc} */
     @Override
     // FIXME: Should also use events!
     public void deleteAttachment( final Attachment att ) throws ProviderException {
-        if( m_provider == null ) {
+        if( provider == null ) {
             return;
         }
 
-        m_provider.deleteAttachment( att );
-        m_engine.getManager( SearchManager.class ).pageRemoved( att );
-        m_engine.getManager( ReferenceManager.class ).clearPageEntries( att.getName() );
+        provider.deleteAttachment( att );
+        engine.getManager( SearchManager.class ).pageRemoved( att );
+        engine.getManager( ReferenceManager.class ).clearPageEntries( att.getName() );
     }
 
 }

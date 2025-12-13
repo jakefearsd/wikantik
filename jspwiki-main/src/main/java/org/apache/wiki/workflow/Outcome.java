@@ -56,9 +56,9 @@ public final class Outcome implements Serializable {
     private static final Outcome[] OUTCOMES = new Outcome[] { STEP_COMPLETE, STEP_ABORT, STEP_CONTINUE, DECISION_ACKNOWLEDGE,
                                                               DECISION_APPROVE, DECISION_DENY, DECISION_HOLD, DECISION_REASSIGN };
 
-    private final String m_key;
+    private final String key;
 
-    private final boolean m_completion;
+    private final boolean completion;
 
     /**
      * Private constructor to prevent direct instantiation.
@@ -70,8 +70,8 @@ public final class Outcome implements Serializable {
         if ( key == null ) {
             throw new IllegalArgumentException( "Key cannot be null." );
         }
-        m_key = key;
-        m_completion = completion;
+        this.key = key;
+        this.completion = completion;
     }
 
     /**
@@ -80,7 +80,7 @@ public final class Outcome implements Serializable {
      * @return the result
      */
     public boolean isCompletion() {
-        return m_completion;
+        return completion;
     }
 
     /**
@@ -90,7 +90,7 @@ public final class Outcome implements Serializable {
      * @return the i18n key for this outcome
      */
     public String getMessageKey() {
-        return m_key;
+        return key;
     }
 
     /**
@@ -99,7 +99,7 @@ public final class Outcome implements Serializable {
      * @return the hash code
      */
     public int hashCode() {
-        return m_key.hashCode() * ( m_completion ? 1 : 2 );
+        return key.hashCode() * ( completion ? 1 : 2 );
     }
 
     /**
@@ -112,7 +112,7 @@ public final class Outcome implements Serializable {
         if( !( obj instanceof Outcome o ) ) {
             return false;
         }
-        return m_key.equals( o.getMessageKey() );
+        return key.equals( o.getMessageKey() );
     }
 
     /**
@@ -125,7 +125,7 @@ public final class Outcome implements Serializable {
     public static Outcome forName( final String key ) throws NoSuchOutcomeException {
         if( key != null ) {
             for( final Outcome outcome : OUTCOMES ) {
-                if( outcome.m_key.equals( key ) ) {
+                if( outcome.key.equals( key ) ) {
                     return outcome;
                 }
             }
@@ -137,7 +137,7 @@ public final class Outcome implements Serializable {
      * {@inheritDoc}
      */
     public String toString() {
-        return "[Outcome:" + m_key + "]";
+        return "[Outcome:" + key + "]";
     }
 
 }

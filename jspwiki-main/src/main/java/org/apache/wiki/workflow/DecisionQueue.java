@@ -41,7 +41,7 @@ public class DecisionQueue implements Serializable {
 
     private static final long serialVersionUID = -7172912793410302533L;
 
-    private final LinkedList< Decision > m_queue = new LinkedList<>();
+    private final LinkedList< Decision > queue = new LinkedList<>();
 
     private final AtomicInteger next = new AtomicInteger( 1_000 );
 
@@ -55,7 +55,7 @@ public class DecisionQueue implements Serializable {
      * @param decision the Decision to add
      */
     protected synchronized void add( final Decision decision ) {
-        m_queue.addLast( decision );
+        queue.addLast( decision );
         decision.setId( next.getAndIncrement() );
     }
 
@@ -66,7 +66,7 @@ public class DecisionQueue implements Serializable {
      * @return the pending decisions 
      */
     protected Decision[] decisions() {
-        return m_queue.toArray( new Decision[0] );
+        return queue.toArray( new Decision[0] );
     }
 
     /**
@@ -75,7 +75,7 @@ public class DecisionQueue implements Serializable {
      * @param decision the decision to remove
      */
     protected synchronized void remove( final Decision decision ) {
-        m_queue.remove( decision );
+        queue.remove( decision );
     }
 
     /**
@@ -91,7 +91,7 @@ public class DecisionQueue implements Serializable {
         if( session.isAuthenticated() ) {
             final Principal[] principals = session.getPrincipals();
             final Principal[] rolePrincipals = session.getRoles();
-            for( final Decision decision : m_queue ) {
+            for( final Decision decision : queue ) {
                 // Iterate through the Principal set
                 for( final Principal principal : principals ) {
                     if( principal.equals( decision.getActor() ) ) {

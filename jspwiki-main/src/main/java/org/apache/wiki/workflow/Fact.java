@@ -33,9 +33,9 @@ public final class Fact implements Serializable
 {
     private static final long serialVersionUID = -7459432935402796978L;
 
-    private final String m_key;
+    private final String key;
 
-    private final Serializable m_obj;
+    private final Serializable obj;
 
     /**
      * Constructs a new Fact with a supplied message key and value.
@@ -51,8 +51,8 @@ public final class Fact implements Serializable
         {
             throw new IllegalArgumentException( "Fact message key or value parameters must not be null." );
         }
-        m_key = messageKey;
-        m_obj = value;
+        key = messageKey;
+        obj = value;
     }
 
     /**
@@ -61,7 +61,7 @@ public final class Fact implements Serializable
      */
     public String getMessageKey()
     {
-        return m_key;
+        return key;
     }
 
     /**
@@ -70,7 +70,7 @@ public final class Fact implements Serializable
      */
     public Serializable getValue()
     {
-        return m_obj;
+        return obj;
     }
     
     /**
@@ -86,7 +86,7 @@ public final class Fact implements Serializable
         }
         
         final Fact f = (Fact)obj;
-        return m_key.equals( f.m_key) && m_obj.equals( f.m_obj );
+        return key.equals( f.key) && this.obj.equals( f.obj );
     }
     
     /**
@@ -94,7 +94,7 @@ public final class Fact implements Serializable
      */
     public int hashCode()
     {
-        return m_key.hashCode() + 41 * m_obj.hashCode();
+        return key.hashCode() + 41 * obj.hashCode();
     }
 
     /**
@@ -103,6 +103,6 @@ public final class Fact implements Serializable
      */
     public String toString()
     {
-        return "[Fact:" + m_obj + "]";
+        return "[Fact:" + obj + "]";
     }
 }

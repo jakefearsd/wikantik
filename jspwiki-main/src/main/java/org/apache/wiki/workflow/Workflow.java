@@ -183,27 +183,27 @@ public class Workflow implements Serializable {
     public static final int CREATED = -2;
 
     /** attribute map. */
-    private Map< String, Serializable > m_attributes;
+    private Map< String, Serializable > attributes;
 
     /** The initial Step for this Workflow. */
-    private Step m_firstStep;
+    private Step firstStep;
 
     /** Flag indicating whether the Workflow has started yet. */
-    private boolean m_started;
+    private boolean started;
 
-    private final LinkedList< Step > m_history;
+    private final LinkedList< Step > history;
 
-    private int m_id;
+    private int id;
 
-    private final String m_key;
+    private final String key;
 
-    private final Principal m_owner;
+    private final Principal owner;
 
-    private final List<Serializable> m_messageArgs;
+    private final List<Serializable> messageArgs;
 
-    private int m_state;
+    private int state;
 
-    private Step m_currentStep;
+    private Step currentStep;
 
     /**
      * Constructs a new Workflow object with a supplied message key, owner Principal, and undefined unique identifier {@link #ID_NOT_SET}.
@@ -214,15 +214,15 @@ public class Workflow implements Serializable {
      * @param owner the Principal who owns the Workflow. Typically, this is the user who created and submitted it
      */
     public Workflow( final String messageKey, final Principal owner ) {
-        m_attributes = new ConcurrentHashMap<>();
-        m_currentStep = null;
-        m_history = new LinkedList<>();
-        m_id = idsCounter.getAndIncrement();
-        m_key = messageKey;
-        m_messageArgs = new ArrayList<>();
-        m_owner = owner;
-        m_started = false;
-        m_state = CREATED;
+        attributes = new ConcurrentHashMap<>();
+        currentStep = null;
+        history = new LinkedList<>();
+        id = idsCounter.getAndIncrement();
+        key = messageKey;
+        messageArgs = new ArrayList<>();
+        this.owner = owner;
+        started = false;
+        state = CREATED;
         WikiEventEmitter.fireWorkflowEvent( this, WorkflowEvent.CREATED );
     }
 
@@ -235,21 +235,21 @@ public class Workflow implements Serializable {
      */
     public final synchronized void abort( final Context context ) {
         // Check corner cases: previous abort or completion
-        if( m_state == ABORTED ) {
+        if( state == ABORTED ) {
             throw new IllegalStateException( "The workflow has already been aborted." );
         }
-        if( m_state == COMPLETED ) {
+        if( state == COMPLETED ) {
             throw new IllegalStateException( "The workflow has already completed." );
         }
 
-        if( m_currentStep != null ) {
-            if( m_currentStep instanceof Decision decision ) {
+        if( currentStep != null ) {
+            if( currentStep instanceof Decision decision ) {
                 WikiEventEmitter.fireWorkflowEvent( decision, WorkflowEvent.DQ_REMOVAL, context );
             }
-            m_currentStep.setOutcome( Outcome.STEP_ABORT );
-            m_history.addLast( m_currentStep );
+            currentStep.setOutcome( Outcome.STEP_ABORT );
+            history.addLast( currentStep );
         }
-        m_state = ABORTED;
+        state = ABORTED;
         WikiEventEmitter.fireWorkflowEvent( this, WorkflowEvent.ABORTED );
         cleanup();
     }
@@ -263,7 +263,7 @@ public class Workflow implements Serializable {
      */
     public final void addMessageArgument( final Serializable obj ) {
         if( obj instanceof String || obj instanceof Date || obj instanceof Number ) {
-            m_messageArgs.add( obj );
+            messageArgs.add( obj );
             return;
         }
         throw new IllegalArgumentException( "Message arguments must be of type String, Date or Number." );
@@ -276,10 +276,10 @@ public class Workflow implements Serializable {
      * @return the current actor
      */
     public final synchronized Principal getCurrentActor() {
-        if( m_currentStep == null ) {
+        if( currentStep == null ) {
             return null;
         }
-        return m_currentStep.getActor();
+        return currentStep.getActor();
     }
 
     /**
@@ -289,7 +289,7 @@ public class Workflow implements Serializable {
      */
     public final int getCurrentState()
     {
-        return m_state;
+        return state;
     }
 
     /**
@@ -299,7 +299,7 @@ public class Workflow implements Serializable {
      */
     public final Step getCurrentStep()
     {
-        return m_currentStep;
+        return currentStep;
     }
 
     /**
@@ -310,7 +310,7 @@ public class Workflow implements Serializable {
      * @return the value
      */
     public final Object getAttribute( final String attr ) {
-        return m_attributes.get( attr );
+        return attributes.get( attr );
     }
 
     /**
@@ -319,7 +319,7 @@ public class Workflow implements Serializable {
      * @return workflow's attributes.
      */
     public final Map< String, Serializable > getAttributes() {
-        return m_attributes;
+        return attributes;
     }
 
     /**
@@ -330,7 +330,7 @@ public class Workflow implements Serializable {
      */
     public final Date getEndTime() {
         if( isCompleted() ) {
-            final Step last = m_history.getLast();
+            final Step last = history.getLast();
             if( last != null ) {
                 return last.getEndTime();
             }
@@ -345,7 +345,7 @@ public class Workflow implements Serializable {
      */
     public final synchronized int getId()
     {
-        return m_id;
+        return id;
     }
 
     /**
@@ -367,10 +367,10 @@ public class Workflow implements Serializable {
      */
     public final Serializable[] getMessageArguments() {
         final List< Serializable > args = new ArrayList<>();
-        args.add( m_owner.getName() );
+        args.add( owner.getName() );
         final Principal actor = getCurrentActor();
         args.add( actor == null ? "-" : actor.getName() );
-        args.addAll( m_messageArgs );
+        args.addAll( messageArgs );
         return args.toArray( new Serializable[0] );
     }
 
@@ -382,7 +382,7 @@ public class Workflow implements Serializable {
      */
     public final String getMessageKey()
     {
-        return m_key;
+        return key;
     }
 
     /**
@@ -392,7 +392,7 @@ public class Workflow implements Serializable {
      */
     public final Principal getOwner()
     {
-        return m_owner;
+        return owner;
     }
 
     /**
@@ -404,7 +404,7 @@ public class Workflow implements Serializable {
      */
     public final Date getStartTime()
     {
-        return isStarted() ? m_firstStep.getStartTime() : Step.TIME_NOT_SET;
+        return isStarted() ? firstStep.getStartTime() : Step.TIME_NOT_SET;
     }
 
     /**
@@ -415,7 +415,7 @@ public class Workflow implements Serializable {
      */
     public final List< Step > getHistory()
     {
-        return Collections.unmodifiableList( m_history );
+        return Collections.unmodifiableList( history );
     }
 
     /**
@@ -425,7 +425,7 @@ public class Workflow implements Serializable {
      */
     public final boolean isAborted()
     {
-        return m_state == ABORTED;
+        return state == ABORTED;
     }
 
     /**
@@ -436,7 +436,7 @@ public class Workflow implements Serializable {
      */
     public final synchronized boolean isCompleted() {
         // If current step is null, then we're done
-        return m_started && m_state == COMPLETED;
+        return started && state == COMPLETED;
     }
 
     /**
@@ -446,7 +446,7 @@ public class Workflow implements Serializable {
      */
     public final boolean isStarted()
     {
-        return m_started;
+        return started;
     }
 
     /**
@@ -457,7 +457,7 @@ public class Workflow implements Serializable {
      */
     public final Step getPreviousStep()
     {
-        return previousStep( m_currentStep );
+        return previousStep( currentStep );
     }
 
     /**
@@ -469,11 +469,11 @@ public class Workflow implements Serializable {
      * @throws WikiException if the current task's {@link Task#execute( Context )} method throws an exception
      */
     public final synchronized void restart( final Context context ) throws WikiException {
-        if( m_state != WAITING ) {
+        if( state != WAITING ) {
             throw new IllegalStateException( "Workflow is not paused; cannot restart." );
         }
         WikiEventEmitter.fireWorkflowEvent( this, WorkflowEvent.STARTED );
-        m_state = RUNNING;
+        state = RUNNING;
         WikiEventEmitter.fireWorkflowEvent( this, WorkflowEvent.RUNNING );
 
         // Process current step
@@ -494,7 +494,7 @@ public class Workflow implements Serializable {
      * @param obj  the value
      */
     public final void setAttribute( final String attr, final Serializable obj ) {
-        m_attributes.put( attr, obj );
+        attributes.put( attr, obj );
     }
 
     /**
@@ -507,7 +507,7 @@ public class Workflow implements Serializable {
      */
     public final synchronized void setFirstStep( final Step step )
     {
-        m_firstStep = step;
+        firstStep = step;
     }
 
     /**
@@ -517,7 +517,7 @@ public class Workflow implements Serializable {
      */
     public final synchronized void setId( final int id )
     {
-        this.m_id = id;
+        this.id = id;
     }
 
     /**
@@ -529,20 +529,20 @@ public class Workflow implements Serializable {
      * @throws WikiException if the current Step's {@link Step#start()} method throws an exception of any kind
      */
     public final synchronized void start( final Context context ) throws WikiException {
-        if( m_state == ABORTED ) {
+        if( state == ABORTED ) {
             throw new IllegalStateException( "Workflow cannot be started; it has already been aborted." );
         }
-        if( m_started ) {
+        if( started ) {
             throw new IllegalStateException( "Workflow has already started." );
         }
         WikiEventEmitter.fireWorkflowEvent( this, WorkflowEvent.STARTED );
-        m_started = true;
-        m_state = RUNNING;
+        started = true;
+        state = RUNNING;
 
         WikiEventEmitter.fireWorkflowEvent( this, WorkflowEvent.RUNNING );
         // Mark the first step as the current one & add to history
-        m_currentStep = m_firstStep;
-        m_history.add( m_currentStep );
+        currentStep = firstStep;
+        history.add( currentStep );
 
         // Process current step
         try {
@@ -558,10 +558,10 @@ public class Workflow implements Serializable {
      * IllegalStateException. Once paused, the Workflow can be un-paused by executing the {@link #restart(Context)} method.
      */
     public final synchronized void waitstate() {
-        if ( m_state != RUNNING ) {
+        if ( state != RUNNING ) {
             throw new IllegalStateException( "Workflow is not running; cannot pause." );
         }
-        m_state = WAITING;
+        state = WAITING;
         WikiEventEmitter.fireWorkflowEvent( this, WorkflowEvent.WAITING );
     }
 
@@ -569,8 +569,8 @@ public class Workflow implements Serializable {
      * Clears the attribute map and sets the current step field to <code>null</code>.
      */
     protected void cleanup() {
-        m_currentStep = null;
-        m_attributes = null;
+        currentStep = null;
+        attributes = null;
     }
 
     /**
@@ -579,7 +579,7 @@ public class Workflow implements Serializable {
      */
     protected final synchronized void complete() {
         if( !isCompleted() ) {
-            m_state = COMPLETED;
+            state = COMPLETED;
             WikiEventEmitter.fireWorkflowEvent( this, WorkflowEvent.COMPLETED );
             cleanup();
         }
@@ -592,8 +592,8 @@ public class Workflow implements Serializable {
      * @return its predecessor, or <code>null</code> if the first Step was supplied.
      */
     protected final Step previousStep( final Step step ) {
-        final int index = m_history.indexOf( step );
-        return index < 1 ? null : m_history.get( index - 1 );
+        final int index = history.indexOf( step );
+        return index < 1 ? null : history.get( index - 1 );
     }
 
     /**
@@ -603,38 +603,38 @@ public class Workflow implements Serializable {
      * @throws WikiException if the current Step's {@link Step#start()} method throws an exception of any kind
      */
     protected final void processCurrentStep( final Context context ) throws WikiException {
-        while ( m_currentStep != null ) {
+        while ( currentStep != null ) {
             // Start and execute the current step
-            if( !m_currentStep.isStarted() ) {
-                m_currentStep.start();
+            if( !currentStep.isStarted() ) {
+                currentStep.start();
             }
-            final Outcome result = m_currentStep.execute( context );
+            final Outcome result = currentStep.execute( context );
             if( Outcome.STEP_ABORT.equals( result ) ) {
                 abort( context );
                 break;
             }
 
-            if( !m_currentStep.isCompleted() ) {
-                m_currentStep.setOutcome( result );
+            if( !currentStep.isCompleted() ) {
+                currentStep.setOutcome( result );
             }
 
             // Get the execution Outcome; if not complete, pause workflow and exit
-            final Outcome outcome = m_currentStep.getOutcome();
+            final Outcome outcome = currentStep.getOutcome();
             if ( !outcome.isCompletion() ) {
                 waitstate();
                 break;
             }
 
             // Get the next Step; if null, we're done
-            final Step nextStep = m_currentStep.getSuccessor( outcome );
+            final Step nextStep = currentStep.getSuccessor( outcome );
             if ( nextStep == null ) {
                 complete();
                 break;
             }
 
             // Add the next step to Workflow history, and mark as current
-            m_history.add( nextStep );
-            m_currentStep = nextStep;
+            history.add( nextStep );
+            currentStep = nextStep;
         }
 
     }

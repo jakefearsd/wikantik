@@ -52,7 +52,7 @@ public class XHTMLRenderer extends WikiRenderer {
      */
     @Override
     public String getString() throws IOException {
-        m_document.setContext( m_context );
+        document.setContext( context );
 
         final CustomXMLOutputProcessor processor = new CustomXMLOutputProcessor();
         final XMLOutputter output = new XMLOutputter(processor);
@@ -62,7 +62,7 @@ public class XHTMLRenderer extends WikiRenderer {
         fmt.setLineSeparator( LINEBREAK );
 
         output.setFormat( fmt );
-        output.outputElementContent( m_document.getRootElement(), out );
+        output.outputElementContent( document.getRootElement(), out );
 
         return out.toString();
     }

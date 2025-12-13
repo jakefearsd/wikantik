@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class WorkflowBuilder {
 
     private static final Map< Engine, WorkflowBuilder > BUILDERS = new ConcurrentHashMap<>();
-    private final Engine m_engine;
+    private final Engine engine;
 
     /**
      * Private constructor that creates a new WorkflowBuilder for the supplied Engine.
@@ -39,7 +39,7 @@ public final class WorkflowBuilder {
      */
     private WorkflowBuilder( final Engine engine )
     {
-        m_engine = engine;
+        this.engine = engine;
     }
 
     /**
@@ -102,7 +102,7 @@ public final class WorkflowBuilder {
                                            final Fact[] facts,
                                            final Step completionTask,
                                            final String rejectedMessageKey ) throws WikiException {
-        final WorkflowManager mgr = m_engine.getManager( WorkflowManager.class );
+        final WorkflowManager mgr = engine.getManager( WorkflowManager.class );
         final Workflow workflow = new Workflow( workflowApproverKey, submitter );
 
         // Is a Decision required to run the approve task?

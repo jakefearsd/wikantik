@@ -55,20 +55,20 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
     /** We use this also a generic serialization id */
     private static final long serialVersionUID = 6L;
 
-    DecisionQueue m_queue;
-    Set< Workflow > m_workflows;
-    final Map< String, Principal > m_approvers;
-    Queue< Workflow > m_completed;
-    private Engine m_engine;
+    DecisionQueue queue;
+    Set< Workflow > workflows;
+    final Map< String, Principal > approvers;
+    Queue< Workflow > completed;
+    private Engine engine;
     private int retainCompleted;
 
     /**
      * Constructs a new WorkflowManager, with an empty workflow cache.
      */
     public DefaultWorkflowManager() {
-        m_workflows = ConcurrentHashMap.newKeySet();
-        m_approvers = new ConcurrentHashMap<>();
-        m_queue = new DecisionQueue();
+        workflows = ConcurrentHashMap.newKeySet();
+        approvers = new ConcurrentHashMap<>();
+        queue = new DecisionQueue();
         WikiEventEmitter.attach( this );
     }
 
@@ -77,9 +77,9 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
      */
     @Override
     public Set< Workflow > getWorkflows() {
-        final Set< Workflow > workflows = ConcurrentHashMap.newKeySet();
-        workflows.addAll( m_workflows );
-        return workflows;
+        final Set< Workflow > result = ConcurrentHashMap.newKeySet();
+        result.addAll( workflows );
+        return result;
     }
 
     /**
@@ -87,9 +87,9 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
      */
     @Override
     public Map< Integer, Workflow > getWorkflowsAsMap() {
-        final Map< Integer, Workflow > workflows = new ConcurrentHashMap<>();
-        m_workflows.forEach( w -> workflows.put( w.getId(), w ) );
-        return workflows;
+        final Map< Integer, Workflow > result = new ConcurrentHashMap<>();
+        workflows.forEach( w -> result.put( w.getId(), w ) );
+        return result;
     }
 
     /**
@@ -97,7 +97,7 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
      */
     @Override
     public List< Workflow > getCompletedWorkflows() {
-        return new CopyOnWriteArrayList< >( m_completed );
+        return new CopyOnWriteArrayList< >( completed );
     }
 
     /**
@@ -111,9 +111,9 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
      */
     @Override
     public void initialize( final Engine engine, final Properties props ) {
-        m_engine = engine;
+        this.engine = engine;
         retainCompleted = TextUtil.getIntegerProperty( engine.getWikiProperties(), "jspwiki.workflow.completed.retain", 2048 );
-        m_completed = new CircularFifoQueue<>( retainCompleted );
+        completed = new CircularFifoQueue<>( retainCompleted );
 
         // Identify the workflows requiring approvals
         for( final Object o : props.keySet() ) {
@@ -125,13 +125,13 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
                     // Only use non-null/non-blank approvers
                     final String approver = props.getProperty( prop );
                     if( approver != null && !approver.isEmpty() ) {
-                        m_approvers.put( key, new UnresolvedPrincipal( approver ) );
+                        approvers.put( key, new UnresolvedPrincipal( approver ) );
                     }
                 }
             }
         }
 
-        unserializeFromDisk( new File( m_engine.getWorkDir(), SERIALIZATION_FILE ) );
+        unserializeFromDisk( new File( this.engine.getWorkDir(), SERIALIZATION_FILE ) );
     }
 
     /**
@@ -150,10 +150,10 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
                 LOG.warn( "File format has changed; Unable to recover workflows and decision queue from disk." );
             } else {
                 saved        = in.readLong();
-                m_workflows  = ( Set< Workflow > )in.readObject();
-                m_queue      = ( DecisionQueue )in.readObject();
-                m_completed = new CircularFifoQueue<>( retainCompleted );
-                m_completed.addAll( ( Collection< Workflow > )in.readObject() );
+                workflows  = ( Set< Workflow > )in.readObject();
+                queue      = ( DecisionQueue )in.readObject();
+                completed = new CircularFifoQueue<>( retainCompleted );
+                completed.addAll( ( Collection< Workflow > )in.readObject() );
                 LOG.debug( "Read serialized data successfully in " + sw );
             }
         } catch( final IOException | ClassNotFoundException e ) {
@@ -174,9 +174,9 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
 
             out.writeLong( serialVersionUID );
             out.writeLong( System.currentTimeMillis() ); // Timestamp
-            out.writeObject( m_workflows );
-            out.writeObject( m_queue );
-            out.writeObject( m_completed );
+            out.writeObject( workflows );
+            out.writeObject( queue );
+            out.writeObject( completed );
 
             sw.stop();
 
@@ -191,7 +191,7 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
      */
     @Override
     public boolean requiresApproval( final String messageKey ) {
-        return  m_approvers.containsKey( messageKey );
+        return  approvers.containsKey( messageKey );
     }
 
     /**
@@ -199,7 +199,7 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
      */
     @Override
     public Principal getApprover( final String messageKey ) throws WikiException {
-        Principal approver = m_approvers.get( messageKey );
+        Principal approver = approvers.get( messageKey );
         if ( approver == null ) {
             throw new WikiException( "Workflow '" + messageKey + "' does not require approval." );
         }
@@ -207,14 +207,14 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
         // Try to resolve UnresolvedPrincipals
         if ( approver instanceof UnresolvedPrincipal unresolvedPrincipal ) {
             final String name = unresolvedPrincipal.getName();
-            approver = m_engine.getManager( AuthorizationManager.class ).resolvePrincipal( name );
+            approver = engine.getManager( AuthorizationManager.class ).resolvePrincipal( name );
 
             // If still unresolved, throw exception; otherwise, freshen our cache
             if ( approver instanceof UnresolvedPrincipal ) {
                 throw new WikiException( "Workflow approver '" + name + "' cannot not be resolved." );
             }
 
-            m_approvers.put( messageKey, approver );
+            approvers.put( messageKey, approver );
         }
         return approver;
     }
@@ -225,10 +225,10 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
      * @return the wiki engine
      */
     protected Engine getEngine() {
-        if ( m_engine == null ) {
+        if ( engine == null ) {
             throw new IllegalStateException( "Engine cannot be null; please initialize WorkflowManager first." );
         }
-        return m_engine;
+        return engine;
     }
 
     /**
@@ -238,7 +238,7 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
      */
     @Override
     public DecisionQueue getDecisionQueue() {
-        return m_queue;
+        return queue;
     }
 
     /**
@@ -249,7 +249,7 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
         final List< Workflow > workflows = new ArrayList<>();
         if ( session.isAuthenticated() ) {
             final Principal[] sessionPrincipals = session.getPrincipals();
-            for( final Workflow w : m_workflows ) {
+            for( final Workflow w : workflows ) {
                 final Principal owner = w.getOwner();
                 if (Arrays.stream(sessionPrincipals).anyMatch(sessionPrincipal -> sessionPrincipal.equals(owner))) {
                     workflows.add(w);
@@ -288,7 +288,7 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
                 default: break;
                 }
             }
-            serializeToDisk( new File( m_engine.getWorkDir(), SERIALIZATION_FILE ) );
+            serializeToDisk( new File( engine.getWorkDir(), SERIALIZATION_FILE ) );
         }
     }
 
@@ -299,7 +299,7 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
      * @param workflow the workflow to add
      */
     protected void add( final Workflow workflow ) {
-        m_workflows.add( workflow );
+        workflows.add( workflow );
     }
 
     /**
@@ -309,16 +309,16 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
      * @param workflow the workflow to remove
      */
     protected void remove( final Workflow workflow ) {
-        if( m_workflows.contains( workflow ) ) {
-            m_workflows.remove( workflow );
-            m_completed.add( workflow );
+        if( workflows.contains( workflow ) ) {
+            workflows.remove( workflow );
+            completed.add( workflow );
         }
     }
 
     protected void removeFromDecisionQueue( final Decision decision, final Context context ) {
         // If current workflow is waiting for input, restart it and remove Decision from DecisionQueue
         final int workflowId = decision.getWorkflowId();
-        final Optional< Workflow > optw = m_workflows.stream().filter( w -> w.getId() == workflowId ).findAny();
+        final Optional< Workflow > optw = workflows.stream().filter( w -> w.getId() == workflowId ).findAny();
         if( optw.isPresent() ) {
             final Workflow w = optw.get();
             if( w.getCurrentState() == Workflow.WAITING && decision.equals( w.getCurrentStep() ) ) {

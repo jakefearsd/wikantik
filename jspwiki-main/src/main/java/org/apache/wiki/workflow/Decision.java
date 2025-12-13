@@ -54,13 +54,13 @@ public abstract class Decision extends AbstractStep {
 
     private static final long serialVersionUID = -6835601038263238062L;
 
-    private Principal m_actor;
+    private Principal actor;
 
-    private int m_id;
+    private int id;
 
-    private final Outcome m_defaultOutcome;
+    private final Outcome defaultOutcome;
 
-    private final List<Fact> m_facts;
+    private final List<Fact> facts;
 
     /**
      * Constructs a new Decision for a required "actor" Principal, having a default Outcome.
@@ -73,9 +73,9 @@ public abstract class Decision extends AbstractStep {
      */
     public Decision( final int workflowId, final Map< String, Serializable > workflowContext, final String messageKey, final Principal actor, final Outcome defaultOutcome ) {
         super( workflowId, workflowContext, messageKey );
-        m_actor = actor;
-        m_defaultOutcome = defaultOutcome;
-        m_facts = new ArrayList<>();
+        this.actor = actor;
+        this.defaultOutcome = defaultOutcome;
+        facts = new ArrayList<>();
         addSuccessor( defaultOutcome, null );
     }
 
@@ -86,7 +86,7 @@ public abstract class Decision extends AbstractStep {
      */
     public final void addFact( final Fact fact )
     {
-        m_facts.add( fact );
+        facts.add( fact );
     }
 
     /**
@@ -139,7 +139,7 @@ public abstract class Decision extends AbstractStep {
      */
     @Override
     public final Principal getActor() {
-        return m_actor;
+        return actor;
     }
 
     /**
@@ -149,7 +149,7 @@ public abstract class Decision extends AbstractStep {
      * @return the default outcome.
      */
     public Outcome getDefaultOutcome() {
-        return m_defaultOutcome;
+        return defaultOutcome;
     }
 
     /**
@@ -158,7 +158,7 @@ public abstract class Decision extends AbstractStep {
      * @return the list of Facts
      */
     public final List< Fact > getFacts() {
-        return Collections.unmodifiableList( m_facts );
+        return Collections.unmodifiableList( facts );
     }
 
     /**
@@ -168,7 +168,7 @@ public abstract class Decision extends AbstractStep {
      * @return the identifier
      */
     public final int getId() {
-        return m_id;
+        return id;
     }
 
     /**
@@ -188,7 +188,7 @@ public abstract class Decision extends AbstractStep {
      */
     public final synchronized void reassign( final Principal actor ) {
         if( isReassignable() ) {
-            m_actor = actor;
+            this.actor = actor;
         } else {
             throw new IllegalArgumentException( "Decision cannot be reassigned." );
         }
@@ -200,7 +200,7 @@ public abstract class Decision extends AbstractStep {
      * @param id the identifier
      */
     public final void setId( final int id ) {
-        m_id = id;
+        this.id = id;
     }
 
 }

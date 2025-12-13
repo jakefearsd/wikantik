@@ -36,27 +36,27 @@ public abstract class AbstractStep implements Step {
     private static final long serialVersionUID = 8635678679349653768L;
 
     /** Timestamp of when the step started. */
-    private Date m_start;
+    private Date start;
 
     /** Timestamp of when the step ended. */
-    private Date m_end;
+    private Date end;
 
-    private final String m_key;
+    private final String key;
 
-    private boolean m_completed;
+    private boolean completed;
 
-    private final Map< Outcome, Step > m_successors;
+    private final Map< Outcome, Step > successors;
 
     private int workflowId;
 
     /** attribute map. */
     private Map< String, Serializable > workflowContext;
 
-    private Outcome m_outcome;
+    private Outcome outcome;
 
-    private final List<String> m_errors;
+    private final List<String> errors;
 
-    private boolean m_started;
+    private boolean started;
 
     /**
      * Protected constructor that creates a new Step with a specified message key. After construction, the method
@@ -66,14 +66,14 @@ public abstract class AbstractStep implements Step {
      *                   be a lower-case version of the Step's type, plus a period (<em>e.g.</em>, {@code task.} and {@code decision.}).
      */
     protected AbstractStep( final String messageKey ) {
-        m_started = false;
-        m_start = Step.TIME_NOT_SET;
-        m_completed = false;
-        m_end = Step.TIME_NOT_SET;
-        m_errors = new ArrayList<>();
-        m_outcome = Outcome.STEP_CONTINUE;
-        m_key = messageKey;
-        m_successors = new LinkedHashMap<>();
+        started = false;
+        start = Step.TIME_NOT_SET;
+        completed = false;
+        end = Step.TIME_NOT_SET;
+        errors = new ArrayList<>();
+        outcome = Outcome.STEP_CONTINUE;
+        key = messageKey;
+        successors = new LinkedHashMap<>();
     }
 
     /**
@@ -94,7 +94,7 @@ public abstract class AbstractStep implements Step {
      */
     @Override
     public final void addSuccessor(final Outcome outcome, final Step step ) {
-        m_successors.put( outcome, step );
+        successors.put( outcome, step );
     }
 
     /**
@@ -102,7 +102,7 @@ public abstract class AbstractStep implements Step {
      */
     @Override
     public final Collection< Outcome > getAvailableOutcomes() {
-        final Set< Outcome > outcomes = m_successors.keySet();
+        final Set< Outcome > outcomes = successors.keySet();
         return Collections.unmodifiableCollection( outcomes );
     }
 
@@ -111,7 +111,7 @@ public abstract class AbstractStep implements Step {
      */
     @Override
     public final List< String > getErrors() {
-        return Collections.unmodifiableList( m_errors );
+        return Collections.unmodifiableList( errors );
     }
 
     /**
@@ -131,7 +131,7 @@ public abstract class AbstractStep implements Step {
      */
     @Override
     public final Date getEndTime() {
-        return m_end;
+        return end;
     }
 
     /**
@@ -139,7 +139,7 @@ public abstract class AbstractStep implements Step {
      */
     @Override
     public final String getMessageKey() {
-        return m_key;
+        return key;
     }
 
     /**
@@ -147,7 +147,7 @@ public abstract class AbstractStep implements Step {
      */
     @Override
     public final synchronized Outcome getOutcome() {
-        return m_outcome;
+        return outcome;
     }
 
     /**
@@ -155,7 +155,7 @@ public abstract class AbstractStep implements Step {
      */
     @Override
     public final Date getStartTime() {
-        return m_start;
+        return start;
     }
 
     /**
@@ -163,7 +163,7 @@ public abstract class AbstractStep implements Step {
      */
     @Override
     public final boolean isCompleted() {
-        return m_completed;
+        return completed;
     }
 
     /**
@@ -171,7 +171,7 @@ public abstract class AbstractStep implements Step {
      */
     @Override
     public final boolean isStarted() {
-        return m_started;
+        return started;
     }
 
     /**
@@ -180,7 +180,7 @@ public abstract class AbstractStep implements Step {
     @Override
     public final synchronized void setOutcome(final Outcome outcome ) {
         // Is this an allowed Outcome?
-        if( !m_successors.containsKey( outcome ) ) {
+        if( !successors.containsKey( outcome ) ) {
             if( !Outcome.STEP_CONTINUE.equals( outcome ) && !Outcome.STEP_ABORT.equals( outcome ) ) {
                 throw new IllegalArgumentException( "Outcome " + outcome.getMessageKey() + " is not supported for this Step." );
             }
@@ -188,13 +188,13 @@ public abstract class AbstractStep implements Step {
 
         // Is this a "completion" outcome?
         if( outcome.isCompletion() ) {
-            if( m_completed ) {
+            if( completed ) {
                 throw new IllegalStateException( "Step has already been marked complete; cannot set again." );
             }
-            m_completed = true;
-            m_end = new Date( System.currentTimeMillis() );
+            completed = true;
+            end = new Date( System.currentTimeMillis() );
         }
-        m_outcome = outcome;
+        this.outcome = outcome;
     }
 
     /**
@@ -202,11 +202,11 @@ public abstract class AbstractStep implements Step {
      */
     @Override
     public final synchronized void start() throws WikiException {
-        if( m_started ) {
+        if( started ) {
             throw new IllegalStateException( "Step already started." );
         }
-        m_started = true;
-        m_start = new Date( System.currentTimeMillis() );
+        started = true;
+        start = new Date( System.currentTimeMillis() );
     }
 
     /**
@@ -214,7 +214,7 @@ public abstract class AbstractStep implements Step {
      */
     @Override
     public final Step getSuccessor(final Outcome outcome ) {
-        return m_successors.get( outcome );
+        return successors.get( outcome );
     }
 
     // --------------------------Helper methods--------------------------
@@ -245,7 +245,7 @@ public abstract class AbstractStep implements Step {
      * @param message the error message
      */
     protected final synchronized void addError( final String message ) {
-        m_errors.add( message );
+        errors.add( message );
     }
 
 }

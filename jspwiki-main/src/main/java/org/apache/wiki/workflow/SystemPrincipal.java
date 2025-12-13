@@ -29,7 +29,7 @@ public final class SystemPrincipal implements Principal {
     /** The JSPWiki system user */
     public static final Principal SYSTEM_USER = new SystemPrincipal( "System User" );
 
-    private final String m_name;
+    private final String name;
 
     /**
      * Private constructor to prevent direct instantiation.
@@ -37,7 +37,7 @@ public final class SystemPrincipal implements Principal {
      * @param name the name of the Principal
      */
     private SystemPrincipal( final String name ) {
-        m_name = name;
+        this.name = name;
     }
 
     /**
@@ -45,7 +45,7 @@ public final class SystemPrincipal implements Principal {
      */
     @Override
     public String getName() {
-        return m_name;
+        return name;
     }
 
 }

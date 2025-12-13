@@ -46,9 +46,9 @@ import java.io.IOException;
 public class TabTag extends WikiTagBase {
 
     private static final long serialVersionUID = -8534125226484616489L;
-    private String m_accesskey;
-    private String m_tabTitle;
-    private String m_url;
+    private String accesskey;
+    private String tabTitle;
+    private String url;
 
     /**
      * {@inheritDoc}
@@ -57,9 +57,9 @@ public class TabTag extends WikiTagBase {
     public void doFinally() {
         super.doFinally();
 
-        m_accesskey = null;
-        m_tabTitle  = null;
-        m_url       = null;
+        accesskey = null;
+        tabTitle  = null;
+        url       = null;
     }
 
     /**
@@ -67,7 +67,7 @@ public class TabTag extends WikiTagBase {
      * @param aTabTitle the tab title
      */
     public void setTitle( final String aTabTitle ) {
-        m_tabTitle = TextUtil.replaceEntities( aTabTitle );
+        tabTitle = TextUtil.replaceEntities( aTabTitle );
     }
 
     /**
@@ -76,7 +76,7 @@ public class TabTag extends WikiTagBase {
      * @param anAccesskey the access key
      */
     public void setAccesskey( final String anAccesskey ) {
-        m_accesskey = TextUtil.replaceEntities( anAccesskey ); //take only the first char
+        accesskey = TextUtil.replaceEntities( anAccesskey ); //take only the first char
     }
 
     /**
@@ -85,17 +85,17 @@ public class TabTag extends WikiTagBase {
      * @param url the URL
      */
     public void setUrl( final String url ) {
-        m_url = TextUtil.replaceEntities( url );
+        this.url = TextUtil.replaceEntities( url );
     }
 
     // insert <u> ..accesskey.. </u> in title
     private boolean handleAccesskey() {
-        if( ( m_tabTitle == null ) || ( m_accesskey == null ) ) return false;
+        if( ( tabTitle == null ) || ( accesskey == null ) ) return false;
 
-        final int pos = m_tabTitle.toLowerCase().indexOf( m_accesskey.toLowerCase() );
+        final int pos = tabTitle.toLowerCase().indexOf( accesskey.toLowerCase() );
         if( pos > -1 ) {
-            m_tabTitle = m_tabTitle.substring( 0, pos ) + "<span class='accesskey'>"
-                    + m_tabTitle.charAt( pos ) + "</span>" + m_tabTitle.substring( pos + 1 );
+            tabTitle = tabTitle.substring( 0, pos ) + "<span class='accesskey'>"
+                    + tabTitle.charAt( pos ) + "</span>" + tabTitle.substring( pos + 1 );
         }
         return true;
     }
@@ -111,7 +111,7 @@ public class TabTag extends WikiTagBase {
         if( getId() == null ) {
             throw new JspTagException( "Tab Tag without \"id\" attribute" );
         }
-        if( m_tabTitle == null ) {
+        if( tabTitle == null ) {
             throw new JspTagException( "Tab Tag without \"tabTitle\" attribute" );
         }
         if( parent == null ) {
@@ -157,16 +157,16 @@ public class TabTag extends WikiTagBase {
 
             sb.append( " id=\"menu-" ).append( getId() ).append( "\"" );
 
-            if( m_url != null ) {
-                sb.append( " href='" ).append( m_url ).append( "'" );
+            if( url != null ) {
+                sb.append( " href='" ).append( url ).append( "'" );
             }
 
             if( handleAccesskey() ) {
-                sb.append( " accesskey=\"" ).append( m_accesskey ).append( "\"" );
+                sb.append( " accesskey=\"" ).append( accesskey ).append( "\"" );
             }
 
             sb.append( " >" );
-            sb.append( m_tabTitle );
+            sb.append( tabTitle );
             sb.append( "</a>" );
         }
 

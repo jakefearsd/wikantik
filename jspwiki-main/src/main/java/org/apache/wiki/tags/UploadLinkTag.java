@@ -41,18 +41,18 @@ public class UploadLinkTag extends WikiLinkTag {
 
     @Override
     public final int doWikiStartTag() throws IOException {
-        String pageName = m_pageName;
-        if( m_pageName == null ) {
-            if( m_wikiContext.getPage() != null ) {
-                pageName = m_wikiContext.getPage().getName();
+        String localPageName = pageName;
+        if( localPageName == null ) {
+            if( wikiContext.getPage() != null ) {
+                localPageName = wikiContext.getPage().getName();
             } else {
                 return SKIP_BODY;
             }
         }
 
         final JspWriter out = pageContext.getOut();
-        final String url = m_wikiContext.getURL( ContextEnum.PAGE_UPLOAD.getRequestContext(), pageName );
-        switch( m_format ) {
+        final String url = wikiContext.getURL( ContextEnum.PAGE_UPLOAD.getRequestContext(), localPageName );
+        switch( format ) {
         case ANCHOR:
             out.print( "<a target=\"_new\" class=\"uploadlink\" href=\"" + url + "\">" );
             break;

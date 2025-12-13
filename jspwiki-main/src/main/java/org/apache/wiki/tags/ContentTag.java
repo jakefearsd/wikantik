@@ -42,7 +42,7 @@ public class ContentTag extends WikiTagBase {
     private static final long serialVersionUID = 0L;
     private static final Logger LOG = LogManager.getLogger( ContentTag.class );
     
-    private final Map<String, String> m_mappings = new HashMap<>();
+    private final Map<String, String> mappings = new HashMap<>();
 
     /**
      *  Set the template for the VIEW context.
@@ -51,7 +51,7 @@ public class ContentTag extends WikiTagBase {
      */
     public void setView( final String s )
     {
-        m_mappings.put( ContextEnum.PAGE_VIEW.getRequestContext(), s );
+        mappings.put( ContextEnum.PAGE_VIEW.getRequestContext(), s );
     }
 
     /**
@@ -61,7 +61,7 @@ public class ContentTag extends WikiTagBase {
      */
     public void setDiff( final String s )
     {
-        m_mappings.put( ContextEnum.PAGE_DIFF.getRequestContext(), s );
+        mappings.put( ContextEnum.PAGE_DIFF.getRequestContext(), s );
     }
 
     /**
@@ -71,7 +71,7 @@ public class ContentTag extends WikiTagBase {
      */
     public void setInfo( final String s )
     {
-        m_mappings.put( ContextEnum.PAGE_INFO.getRequestContext(), s );
+        mappings.put( ContextEnum.PAGE_INFO.getRequestContext(), s );
     }
 
     /**
@@ -81,7 +81,7 @@ public class ContentTag extends WikiTagBase {
      */
     public void setPreview( final String s )
     {
-        m_mappings.put( ContextEnum.PAGE_PREVIEW.getRequestContext(), s );
+        mappings.put( ContextEnum.PAGE_PREVIEW.getRequestContext(), s );
     }
 
     /**
@@ -91,7 +91,7 @@ public class ContentTag extends WikiTagBase {
      */
     public void setConflict( final String s )
     {
-        m_mappings.put( ContextEnum.PAGE_CONFLICT.getRequestContext(), s );
+        mappings.put( ContextEnum.PAGE_CONFLICT.getRequestContext(), s );
     }
 
     /**
@@ -101,7 +101,7 @@ public class ContentTag extends WikiTagBase {
      */
     public void setFind( final String s )
     {
-        m_mappings.put( ContextEnum.WIKI_FIND.getRequestContext(), s );
+        mappings.put( ContextEnum.WIKI_FIND.getRequestContext(), s );
     }
 
     /**
@@ -111,7 +111,7 @@ public class ContentTag extends WikiTagBase {
      */
     public void setPrefs( final String s )
     {
-        m_mappings.put( ContextEnum.WIKI_PREFS.getRequestContext(), s );
+        mappings.put( ContextEnum.WIKI_PREFS.getRequestContext(), s );
     }
 
     /**
@@ -121,7 +121,7 @@ public class ContentTag extends WikiTagBase {
      */
     public void setError( final String s )
     {
-        m_mappings.put( ContextEnum.WIKI_ERROR.getRequestContext(), s );
+        mappings.put( ContextEnum.WIKI_ERROR.getRequestContext(), s );
     }
 
     /**
@@ -131,7 +131,7 @@ public class ContentTag extends WikiTagBase {
      */
     public void setEdit( final String s )
     {
-        m_mappings.put( ContextEnum.PAGE_EDIT.getRequestContext(), s );
+        mappings.put( ContextEnum.PAGE_EDIT.getRequestContext(), s );
     }
 
     /**
@@ -141,7 +141,7 @@ public class ContentTag extends WikiTagBase {
      */
     public void setComment( final String s )
     {
-        m_mappings.put( ContextEnum.PAGE_COMMENT.getRequestContext(), s );
+        mappings.put( ContextEnum.PAGE_COMMENT.getRequestContext(), s );
     }
 
     /**
@@ -163,12 +163,12 @@ public class ContentTag extends WikiTagBase {
         try
         {
             // Check the overridden templates first
-            final String requestContext = m_wikiContext.getRequestContext();
-            String contentTemplate = m_mappings.get( requestContext );
+            final String requestContext = wikiContext.getRequestContext();
+            String contentTemplate = mappings.get( requestContext );
 
             // If not found, use the defaults
             if( contentTemplate == null ) {
-                contentTemplate = m_wikiContext.getContentTemplate();
+                contentTemplate = wikiContext.getContentTemplate();
             }
 
             // If still no, something fishy is going on
@@ -176,8 +176,8 @@ public class ContentTag extends WikiTagBase {
                 throw new JspException( "This template uses <wiki:Content/> in an unsupported context: " + requestContext );
             }
 
-            final String page = m_wikiContext.getEngine().getManager( TemplateManager.class ).findJSP( pageContext,
-                                                                                                 m_wikiContext.getTemplate(),
+            final String page = wikiContext.getEngine().getManager( TemplateManager.class ).findJSP( pageContext,
+                                                                                                 wikiContext.getTemplate(),
                                                                                                  contentTemplate );
             pageContext.include( page );
         }

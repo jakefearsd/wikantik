@@ -32,24 +32,24 @@ public class IncludeResourcesTag extends WikiTagBase
 {
     private static final long serialVersionUID = 0L;
         
-    private String m_type;
+    private String type;
 
     @Override
     public void initTag()
     {
         super.initTag();
-        m_type = null;
+        type = null;
     }
     
     public void setType(final String type )
     {
-        m_type = type;
+        this.type = type;
     }
     
     @Override
     public int doWikiStartTag() throws Exception
     {
-        final String marker = TemplateManager.getMarker(m_wikiContext, m_type);
+        final String marker = TemplateManager.getMarker(wikiContext, type);
 
         pageContext.getOut().println( marker );
         

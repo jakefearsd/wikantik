@@ -48,7 +48,7 @@ public class UserNameTag extends WikiTagBase {
 
     @Override
     public final int doWikiStartTag() throws IOException {
-        final Engine engine = m_wikiContext.getEngine();
+        final Engine engine = wikiContext.getEngine();
         final Session wikiSession = Wiki.session().find( engine, ( HttpServletRequest )pageContext.getRequest() );
         final Principal user = wikiSession.getUserPrincipal();
 
@@ -56,7 +56,7 @@ public class UserNameTag extends WikiTagBase {
             if( VALID_USER_NAME_PATTERN.matcher( user.getName() ).matches() ) {
                 pageContext.getOut().print( TextUtil.replaceEntities( user.getName() ) );
             } else {
-                pageContext.getOut().print( Preferences.getBundle( m_wikiContext, InternationalizationManager.CORE_BUNDLE )
+                pageContext.getOut().print( Preferences.getBundle( wikiContext, InternationalizationManager.CORE_BUNDLE )
                                                        .getString( "security.user.fullname.invalid" ) );
             }
         }

@@ -39,8 +39,8 @@ public class ParentPageNameTag extends WikiTagBase {
      */
     @Override
     public final int doWikiStartTag() throws IOException {
-        final Engine engine = m_wikiContext.getEngine();
-        final Page page = m_wikiContext.getPage();
+        final Engine engine = wikiContext.getEngine();
+        final Page page = wikiContext.getPage();
 
         if( page != null ) {
             if( page instanceof Attachment att ) {

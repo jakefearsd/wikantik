@@ -38,7 +38,7 @@ public class CsrfProtectionTag extends WikiTagBase {
      */
     @Override
     public int doWikiStartTag() throws Exception {
-        final Session session = m_wikiContext.getWikiSession();
+        final Session session = wikiContext.getWikiSession();
         final String csrfProtectionHidden;
         if( meta ) {
             csrfProtectionHidden = "<meta name=\"wikiCsrfProtection\" content='" + session.antiCsrfToken() + "'/>";

@@ -37,30 +37,30 @@ public class PageTypeTag extends WikiTagBase {
 
     private static final long serialVersionUID = 0L;
     
-    private String m_type;
+    private String type;
 
     @Override
     public void initTag() {
         super.initTag();
-        m_type = null;
+        type = null;
     }
 
     public void setType( final String arg )
     {
-        m_type = arg.toLowerCase();
+        type = arg.toLowerCase();
     }
 
     @Override
     public final int doWikiStartTag() throws IOException {
-        final Page page = m_wikiContext.getPage();
+        final Page page = wikiContext.getPage();
         if( page != null ) {
-            if( m_type.equals( "attachment" ) && page instanceof Attachment ) {
+            if( type.equals( "attachment" ) && page instanceof Attachment ) {
                 return EVAL_BODY_INCLUDE;
             }
-            if( m_type.equals( "page" ) && !( page instanceof Attachment ) ) {
+            if( type.equals( "page" ) && !( page instanceof Attachment ) ) {
                 return EVAL_BODY_INCLUDE;
             }
-            if( m_type.equals( "weblogentry" ) && !( page instanceof Attachment ) && page.getName().contains( "_blogentry_" ) ) {
+            if( type.equals( "weblogentry" ) && !( page instanceof Attachment ) && page.getName().contains( "_blogentry_" ) ) {
                 return EVAL_BODY_INCLUDE;
             }
         }

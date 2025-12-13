@@ -50,9 +50,9 @@ public class HistoryIteratorTag extends IteratorTag  {
     /** {@inheritDoc} */
     @Override
     public final int doStartTag() {
-        m_wikiContext = (Context) pageContext.getAttribute( Context.ATTR_CONTEXT, PageContext.REQUEST_SCOPE );
-        final Engine engine = m_wikiContext.getEngine();
-        final Page page = m_wikiContext.getPage();
+        wikiContext = (Context) pageContext.getAttribute( Context.ATTR_CONTEXT, PageContext.REQUEST_SCOPE );
+        final Engine engine = wikiContext.getEngine();
+        final Page page = wikiContext.getPage();
 
         try {
             if( page != null && engine.getManager( PageManager.class ).wikiPageExists( page ) ) {
@@ -63,11 +63,11 @@ public class HistoryIteratorTag extends IteratorTag  {
                     return SKIP_BODY;
                 }
 
-                m_iterator = versions.iterator();
+                iterator = versions.iterator();
 
-                if( m_iterator.hasNext() ) {
-                    final Context context = m_wikiContext.clone();
-                    context.setPage( ( Page )m_iterator.next() );
+                if( iterator.hasNext() ) {
+                    final Context context = wikiContext.clone();
+                    context.setPage( ( Page )iterator.next() );
                     pageContext.setAttribute( Context.ATTR_CONTEXT, context, PageContext.REQUEST_SCOPE );
                     pageContext.setAttribute( getId(), context.getPage() );
                 } else {
@@ -98,9 +98,9 @@ public class HistoryIteratorTag extends IteratorTag  {
             }
         }
 
-        if( m_iterator != null && m_iterator.hasNext() ) {
-            final Context context = m_wikiContext.clone();
-            context.setPage( ( Page )m_iterator.next() );
+        if( iterator != null && iterator.hasNext() ) {
+            final Context context = wikiContext.clone();
+            context.setPage( ( Page )iterator.next() );
             pageContext.setAttribute( Context.ATTR_CONTEXT, context, PageContext.REQUEST_SCOPE );
             pageContext.setAttribute( getId(), context.getPage() );
             return EVAL_BODY_BUFFERED;

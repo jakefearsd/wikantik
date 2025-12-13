@@ -37,14 +37,14 @@ import java.io.IOException;
 public abstract class WikiBodyTag extends BodyTagSupport implements TryCatchFinally {
 
 	private static final long serialVersionUID = -6732266865112847897L;
-	protected WikiContext m_wikiContext;
+	protected WikiContext wikiContext;
     private static final Logger LOG = LogManager.getLogger( WikiBodyTag.class );
 
     @Override
     public int doStartTag() throws JspException {
         try {
-            m_wikiContext = (WikiContext) pageContext.getAttribute( Context.ATTR_CONTEXT, PageContext.REQUEST_SCOPE );
-            if( m_wikiContext == null ) {
+            wikiContext = (WikiContext) pageContext.getAttribute( Context.ATTR_CONTEXT, PageContext.REQUEST_SCOPE );
+            if( wikiContext == null ) {
                 throw new JspException("WikiContext may not be NULL - serious internal problem!");
             }
 
@@ -71,7 +71,7 @@ public abstract class WikiBodyTag extends BodyTagSupport implements TryCatchFina
     @Override
     public void doFinally()
     {
-        m_wikiContext = null;
+        wikiContext = null;
     }  
     
 }

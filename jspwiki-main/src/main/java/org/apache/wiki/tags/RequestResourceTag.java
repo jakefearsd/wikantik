@@ -30,8 +30,8 @@ public class RequestResourceTag extends WikiTagBase
 {
     private static final long serialVersionUID = 0L;
     
-    private String m_type;
-    private String m_resource;
+    private String type;
+    private String resource;
 
     /**
      *  {@inheritDoc}
@@ -40,7 +40,7 @@ public class RequestResourceTag extends WikiTagBase
     public void initTag()
     {
         super.initTag();
-        m_type = m_resource = null;
+        type = resource = null;
     }
     
     /**
@@ -49,9 +49,9 @@ public class RequestResourceTag extends WikiTagBase
     @Override
     public int doWikiStartTag() throws Exception
     {   
-        if( m_type != null && m_resource != null )
+        if( type != null && resource != null )
         {
-            TemplateManager.addResourceRequest( m_wikiContext, m_type, m_resource );
+            TemplateManager.addResourceRequest( wikiContext, type, resource );
         }
 
         return SKIP_BODY;
@@ -64,7 +64,7 @@ public class RequestResourceTag extends WikiTagBase
      */
     public String getResource()
     {
-        return m_resource;
+        return resource;
     }
 
     /**
@@ -74,7 +74,7 @@ public class RequestResourceTag extends WikiTagBase
      */
     public void setResource(final String r)
     {
-        m_resource = r;
+        resource = r;
     }
 
     /**
@@ -84,7 +84,7 @@ public class RequestResourceTag extends WikiTagBase
      */
     public String getType()
     {
-        return m_type;
+        return type;
     }
     
     /**
@@ -99,7 +99,7 @@ public class RequestResourceTag extends WikiTagBase
 
     public void setType(final String type)
     {
-        m_type = type;
+        this.type = type;
     }
 
 }

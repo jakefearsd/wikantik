@@ -102,17 +102,17 @@ public class CookieTag
     private static final Logger LOG = LogManager.getLogger( CookieTag.class );
 
     /** Name of the cookie value. Required. */
-    private String m_name;
+    private String name;
     /** Name of the cookie nvp item. Optional. */
-    private String m_item;
+    private String item;
     /** A value to echo or set. Optional. */
-    private String m_value;
+    private String value;
     /** Name of a context variable to set result in. Optional, defaults to out.*/
-    private String m_var;
-    /** Scope of m_var: request, session, page. */
-    private String m_scope;
+    private String var;
+    /** Scope of var: request, session, page. */
+    private String scope;
     /** Name of a cookie or a cookie nvp to clear. */
-    private String m_clear;
+    private String clear;
 
     /**
      *  Set the "name" parameter.
@@ -121,7 +121,7 @@ public class CookieTag
      */
     public void setName(final String s )
     {
-        m_name = s;
+        name = s;
     }
 
     /**
@@ -131,7 +131,7 @@ public class CookieTag
      */
     public void setItem(final String s )
     {
-        m_item = s;
+        item = s;
     }
 
     /**
@@ -141,7 +141,7 @@ public class CookieTag
      */
     public void setValue(final String s )
     {
-        m_value = s;
+        value = s;
     }
 
     /**
@@ -151,7 +151,7 @@ public class CookieTag
      */
     public void setVar(final String s )
     {
-        m_scope = s;
+        scope = s;
     }
 
     /**
@@ -161,7 +161,7 @@ public class CookieTag
      */
     public void setClear(final String s )
     {
-        m_clear = s;
+        clear = s;
     }
 
     /**
@@ -171,7 +171,7 @@ public class CookieTag
      */
     public void setScope(final String s )
     {
-        m_scope = s;
+        scope = s;
     }
 
     /**
@@ -180,7 +180,7 @@ public class CookieTag
     @Override
     public void release()
     {
-        m_name = m_item = m_var = m_value = m_clear = m_scope = null;
+        name = item = var = value = clear = scope = null;
         super.release();
     }
 
@@ -196,15 +196,15 @@ public class CookieTag
         {
             return PageContext.REQUEST_SCOPE;
         }
-        if( "page".equals( m_scope ) )
+        if( "page".equals( scope ) )
         {
             return PageContext.PAGE_SCOPE;
         }
-        if( "session".equals( m_scope ) )
+        if( "session".equals( scope ) )
         {
             return PageContext.SESSION_SCOPE;
         }
-        if( "application".equals( m_scope ) )
+        if( "application".equals( scope ) )
         {
             return PageContext.APPLICATION_SCOPE;
         }
@@ -219,26 +219,26 @@ public class CookieTag
     public int doEndTag()
     {
         String out = null;
-        final Cookie cookie = findCookie( m_name );
+        final Cookie cookie = findCookie( name );
         boolean changed = false;
 
-        if( m_value != null )
+        if( value != null )
         {
-            if( m_item != null )
+            if( item != null )
             {
-                setItemValue( cookie, m_item, m_value );
+                setItemValue( cookie, item, value );
             }
             else
             {
-                cookie.setValue( m_value );
+                cookie.setValue( value );
             }
             changed = true;
         }
         else
         {
-            if( m_item != null )
+            if( item != null )
             {
-                out = getItemValue( cookie, m_item );
+                out = getItemValue( cookie, item );
             }
             else
             {
@@ -248,10 +248,10 @@ public class CookieTag
 
         if( out != null )
         {
-            if( m_var != null )
+            if( var != null )
             {
-                final int scope = getScope( m_scope );
-                pageContext.setAttribute( m_var, out,  scope );
+                final int scopeValue = getScope( scope );
+                pageContext.setAttribute( var, out,  scopeValue );
             }
             else
             {
@@ -267,12 +267,12 @@ public class CookieTag
         }
 
         Cookie cleared = null;
-        if( m_clear != null )
+        if( clear != null )
         {
-            cleared = findCookie( m_clear );
-            if( m_item != null )
+            cleared = findCookie( clear );
+            if( item != null )
             {
-                setItemValue( cookie, m_item, null );
+                setItemValue( cookie, item, null );
             }
             else
             {

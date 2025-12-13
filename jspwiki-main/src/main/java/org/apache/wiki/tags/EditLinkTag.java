@@ -45,66 +45,66 @@ public class EditLinkTag extends WikiLinkTag {
 
     private static final long serialVersionUID = 0L;
     
-    public String m_version;
-    public String m_title = "";
-    public String m_accesskey = "";
+    public String version;
+    public String title = "";
+    public String accesskey = "";
     
     @Override
     public void initTag() {
         super.initTag();
-        m_version = null;
+        version = null;
     }
 
     public void setVersion( final String vers )
     {
-        m_version = vers;
+        version = vers;
     }
     
     public void setTitle( final String title )
     {
-        m_title = title;
+        this.title = title;
     }
 
     public void setAccesskey( final String access )
     {
-        m_accesskey = access;
+        accesskey = access;
     }
 
     @Override
     public final int doWikiStartTag() throws IOException {
-        final Engine engine   = m_wikiContext.getEngine();
+        final Engine engine   = wikiContext.getEngine();
         Page page = null;
         String versionString = "";
-        final String pageName;
-        
+        final String pageNameToUse;
+
         //  Determine the page and the link.
-        if( m_pageName == null ) {
-            page = m_wikiContext.getPage();
+        if( pageName == null ) {
+            page = wikiContext.getPage();
             if( page == null ) {
                 // You can't call this on the page itself anyways.
                 return SKIP_BODY;
             }
 
-            pageName = page.getName();
+            pageNameToUse = page.getName();
         } else {
-            pageName = m_pageName;
+            pageNameToUse = pageName;
         }
 
         //
         //  Determine the latest version, if the version attribute is "this".
         //
-        if( m_version != null ) {
-            if( "this".equalsIgnoreCase( m_version ) ) {
+        if( version != null ) {
+            if( "this".equalsIgnoreCase( version ) ) {
                 if( page == null ) {
                     // No page, so go fetch according to page name.
-                    page = engine.getManager( PageManager.class ).getPage( m_pageName );
+                    page = engine.getManager( PageManager.class ).getPage( pageNameToUse );
                 }
 
                 if( page != null ) {
                     versionString = "version=" + page.getVersion();
                 }
             } else {
-                versionString = "version=" + m_version;
+                versionString = "version=" + version;
             }
         }
 
@@ -112,13 +112,13 @@ public class EditLinkTag extends WikiLinkTag {
         //  Finally, print out the correct link, according to what user commanded.
         //
         final JspWriter out = pageContext.getOut();
-        switch( m_format ) {
+        switch( format ) {
           case ANCHOR:
-            out.print( "<a href=\"" + m_wikiContext.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), pageName, versionString ) +
-                       "\" accesskey=\"" + m_accesskey + "\" title=\"" + m_title + "\">" );
+            out.print( "<a href=\"" + wikiContext.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), pageNameToUse, versionString ) +
+                       "\" accesskey=\"" + accesskey + "\" title=\"" + title + "\">" );
             break;
           case URL:
-            out.print( m_wikiContext.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), pageName, versionString ) );
+            out.print( wikiContext.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), pageNameToUse, versionString ) );
             break;
         }
 

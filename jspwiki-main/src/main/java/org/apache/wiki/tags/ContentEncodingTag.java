@@ -35,7 +35,7 @@ public class ContentEncodingTag extends WikiTagBase {
      *  {@inheritDoc}
      */
     @Override public final int doWikiStartTag() throws IOException {
-        final Engine engine = m_wikiContext.getEngine();
+        final Engine engine = wikiContext.getEngine();
         pageContext.getOut().print( engine.getContentEncoding() );
         return SKIP_BODY;
     }

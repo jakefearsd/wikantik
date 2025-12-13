@@ -39,22 +39,22 @@ public class IncludeTag extends WikiTagBase {
     private static final long serialVersionUID = 0L;
     private static final Logger LOG = LogManager.getLogger( IncludeTag.class );
     
-    protected String m_page;
+    protected String page;
 
     @Override
     public void initTag() {
         super.initTag();
-        m_page = null;
+        page = null;
     }
 
     public void setPage( final String page )
     {
-        m_page = page;
+        this.page = page;
     }
 
     public String getPage()
     {
-        return m_page;
+        return page;
     }
 
     @Override
@@ -65,14 +65,14 @@ public class IncludeTag extends WikiTagBase {
     @Override
     public final int doEndTag() throws JspException {
         try {
-            final String page = m_wikiContext.getEngine().getManager( TemplateManager.class ).findJSP( pageContext,
-                                                                                                 m_wikiContext.getTemplate(),
-                                                                                                 m_page );
+            final String jspPage = wikiContext.getEngine().getManager( TemplateManager.class ).findJSP( pageContext,
+                                                                                                 wikiContext.getTemplate(),
+                                                                                                 page );
 
-            if( page == null ) {
-                pageContext.getOut().println( "No template file called '" + TextUtil.replaceEntities( m_page ) + "'" );
+            if( jspPage == null ) {
+                pageContext.getOut().println( "No template file called '" + TextUtil.replaceEntities( page ) + "'" );
             } else {
-                pageContext.include( page );
+                pageContext.include( jspPage );
             }
         } catch( final ServletException e ) {
             LOG.warn( "Including failed, got a servlet exception from sub-page. Rethrowing the exception to the JSP engine.", e );

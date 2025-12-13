@@ -42,38 +42,38 @@ import java.io.IOException;
 public class PageInfoLinkTag extends WikiLinkTag {
 
     private static final long serialVersionUID = 0L;
-    public String m_title = "";
-    public String m_accesskey = "";
+    public String title = "";
+    public String accesskey = "";
     
     public void setTitle( final String title )
     {
-        m_title = title;
+        this.title = title;
     }
 
     public void setAccesskey( final String access )
     {
-        m_accesskey = access;
+        accesskey = access;
     }
     
     @Override public final int doWikiStartTag() throws IOException {
-        final Engine engine = m_wikiContext.getEngine();
-        String     pageName = m_pageName;
+        final Engine engine = wikiContext.getEngine();
+        String localPageName = pageName;
 
-        if( m_pageName == null ) {
-            final Page p = m_wikiContext.getPage();
+        if( localPageName == null ) {
+            final Page p = wikiContext.getPage();
             if( p != null ) {
-                pageName = p.getName();
+                localPageName = p.getName();
             } else {
                 return SKIP_BODY;
             }
         }
 
-        if( engine.getManager( PageManager.class ).wikiPageExists(pageName) ) {
+        if( engine.getManager( PageManager.class ).wikiPageExists(localPageName) ) {
             final JspWriter out = pageContext.getOut();
-            final String url = m_wikiContext.getURL( ContextEnum.PAGE_INFO.getRequestContext(), pageName );
+            final String url = wikiContext.getURL( ContextEnum.PAGE_INFO.getRequestContext(), localPageName );
 
-            switch( m_format ) {
-              case ANCHOR: out.print("<a class=\"pageinfo\" href=\""+url+"\" accesskey=\"" + m_accesskey + "\" title=\"" + m_title + "\">"); break;
+            switch( format ) {
+              case ANCHOR: out.print("<a class=\"pageinfo\" href=\""+url+"\" accesskey=\"" + accesskey + "\" title=\"" + title + "\">"); break;
               case URL: out.print( url ); break;
             }
             return EVAL_BODY_INCLUDE;

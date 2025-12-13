@@ -46,34 +46,34 @@ public class PageDateTag extends WikiTagBase {
 
     public static final String DEFAULT_FORMAT = "dd-MMM-yyyy HH:mm:ss zzz";
 
-    private String m_format;
+    private String format;
 
     @Override
     public void initTag() {
         super.initTag();
-        m_format = null;
+        format = null;
     }
 
     public String getFormat() {
-        return m_format;
+        return format;
     }
 
     public void setFormat( final String arg ) {
-        m_format = arg;
+        format = arg;
     }
 
     @Override
     public final int doWikiStartTag() throws IOException {
-        final Page page = m_wikiContext.getPage();
+        final Page page = wikiContext.getPage();
         if( page != null ) {
             final Date d = page.getLastModified();
             //  Date may be null if the page does not exist.
             if( d != null ) {
                 final SimpleDateFormat fmt;
-                if( m_format == null ) {
-                    fmt = Preferences.getDateFormat( m_wikiContext, TimeFormat.DATETIME );
+                if( format == null ) {
+                    fmt = Preferences.getDateFormat( wikiContext, TimeFormat.DATETIME );
                 } else {
-                    fmt = new SimpleDateFormat( m_format );
+                    fmt = new SimpleDateFormat( format );
                 }
 
                 pageContext.getOut().write( fmt.format( d ) );

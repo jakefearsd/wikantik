@@ -52,100 +52,100 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
     private static final long serialVersionUID = 0L;
     private static final Logger LOG = LogManager.getLogger( LinkTag.class );
 
-    private String m_version;
-    private String m_cssClass;
-    private String m_style;
-    private String m_title;
-    private String m_target;
-    private String m_compareToVersion;
-    private String m_rel;
-    private String m_jsp;
-    private String m_ref;
-    private String m_context = ContextEnum.PAGE_VIEW.getRequestContext();
-    private String m_accesskey;
-    private String m_tabindex;
-    private String m_templatefile;
+    private String version;
+    private String cssClass;
+    private String style;
+    private String title;
+    private String target;
+    private String compareToVersion;
+    private String rel;
+    private String jsp;
+    private String ref;
+    private String context = ContextEnum.PAGE_VIEW.getRequestContext();
+    private String accesskey;
+    private String tabindex;
+    private String templatefile;
 
-    private Map<String, String> m_containedParams;
+    private Map<String, String> containedParams;
 
-    private BodyContent m_bodyContent;
+    private BodyContent bodyContent;
 
     @Override
     public void initTag() {
         super.initTag();
-        m_version = m_cssClass = m_style = m_title = m_target = m_compareToVersion = m_rel = m_jsp = m_ref = m_accesskey = m_templatefile = null;
-        m_context = ContextEnum.PAGE_VIEW.getRequestContext();
-        m_containedParams = new HashMap<>();
+        version = cssClass = style = title = target = compareToVersion = rel = jsp = ref = accesskey = templatefile = null;
+        context = ContextEnum.PAGE_VIEW.getRequestContext();
+        containedParams = new HashMap<>();
     }
 
     public void setTemplatefile( final String key )
     {
-        m_templatefile = key;
+        templatefile = key;
     }
 
     public void setAccessKey( final String key )
     {
-        m_accesskey = key;
+        accesskey = key;
     }
 
     public String getVersion()
     {
-        return m_version;
+        return version;
     }
 
     public void setVersion( final String arg )
     {
-        m_version = arg;
+        version = arg;
     }
 
     public void setCssClass( final String arg )
     {
-        m_cssClass = arg;
+        cssClass = arg;
     }
 
     public void setStyle( final String style )
     {
-        m_style = style;
+        this.style = style;
     }
 
     public void setTitle( final String title )
     {
-        m_title = title;
+        this.title = title;
     }
 
     public void setTarget( final String target )
     {
-        m_target = target;
+        this.target = target;
     }
 
     public void setTabindex( final String tabindex )
     {
-        m_tabindex = tabindex;
+        this.tabindex = tabindex;
     }
 
     public void setCompareToVersion( final String ver )
     {
-        m_compareToVersion = ver;
+        compareToVersion = ver;
     }
 
     public void setRel( final String rel )
     {
-        m_rel = rel;
+        this.rel = rel;
     }
 
     public void setRef( final String ref )
     {
-        m_ref = ref;
+        this.ref = ref;
     }
 
     public void setJsp( final String jsp )
     {
-        m_jsp = jsp;
+        this.jsp = jsp;
     }
 
     public void setContext( final String context )
     {
-        m_context = context;
+        this.context = context;
     }
 
     /**
@@ -154,10 +154,10 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
     @Override
     public void setContainedParameter( final String name, final String value ) {
         if( name != null ) {
-            if( m_containedParams == null ) {
-                m_containedParams = new HashMap<>();
+            if( containedParams == null ) {
+                containedParams = new HashMap<>();
             }
-            m_containedParams.put( name, value );
+            containedParams.put( name, value );
         }
     }
 
@@ -170,53 +170,53 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
      */
     private String figureOutURL() throws ProviderException {
         String url = null;
-        final Engine engine = m_wikiContext.getEngine();
+        final Engine engine = wikiContext.getEngine();
 
-        if( m_pageName == null ) {
-            final Page page = m_wikiContext.getPage();
+        if( pageName == null ) {
+            final Page page = wikiContext.getPage();
             if( page != null ) {
-                m_pageName = page.getName();
+                pageName = page.getName();
             }
         }
 
-        if( m_templatefile != null ) {
-            final String params = addParamsForRecipient( null, m_containedParams );
+        if( templatefile != null ) {
+            final String params = addParamsForRecipient( null, containedParams );
             final String template = engine.getTemplateDir();
-            url = engine.getURL( ContextEnum.PAGE_NONE.getRequestContext(), "templates/"+template+"/"+m_templatefile, params );
-        } else if( m_jsp != null ) {
-            final String params = addParamsForRecipient( null, m_containedParams );
-            //url = m_wikiContext.getURL( ContextEnum.PAGE_NONE.getRequestContext(), m_jsp, params );
-            url = engine.getURL( ContextEnum.PAGE_NONE.getRequestContext(), m_jsp, params );
-        } else if( m_ref != null ) {
+            url = engine.getURL( ContextEnum.PAGE_NONE.getRequestContext(), "templates/"+template+"/"+templatefile, params );
+        } else if( jsp != null ) {
+            final String params = addParamsForRecipient( null, containedParams );
+            //url = wikiContext.getURL( ContextEnum.PAGE_NONE.getRequestContext(), jsp, params );
+            url = engine.getURL( ContextEnum.PAGE_NONE.getRequestContext(), jsp, params );
+        } else if( ref != null ) {
             final int interwikipoint;
-            if( new LinkParsingOperations( m_wikiContext ).isExternalLink(m_ref) ) {
-                url = m_ref;
-            } else if( ( interwikipoint = m_ref.indexOf( ":" ) ) != -1 ) {
-                final String extWiki = m_ref.substring( 0, interwikipoint );
-                final String wikiPage = m_ref.substring( interwikipoint+1 );
+            if( new LinkParsingOperations( wikiContext ).isExternalLink(ref) ) {
+                url = ref;
+            } else if( ( interwikipoint = ref.indexOf( ":" ) ) != -1 ) {
+                final String extWiki = ref.substring( 0, interwikipoint );
+                final String wikiPage = ref.substring( interwikipoint+1 );
 
                 url = engine.getInterWikiURL( extWiki );
                 if( url != null ) {
                     url = TextUtil.replaceString( url, "%s", wikiPage );
                 }
-            } else if( m_ref.startsWith("#") ) {
+            } else if( ref.startsWith("#") ) {
                 // Local link
-            } else if( TextUtil.isNumber(m_ref) ) {
+            } else if( TextUtil.isNumber(ref) ) {
                 // Reference
             } else {
                 final int hashMark;
 
-                final String parms = (m_version != null) ? "version="+getVersion() : null;
+                final String parms = (version != null) ? "version="+getVersion() : null;
 
                 //  Internal wiki link, but is it an attachment link?
-                final Page p = engine.getManager( PageManager.class ).getPage( m_pageName );
+                final Page p = engine.getManager( PageManager.class ).getPage( pageName );
                 if( p instanceof Attachment ) {
-                    url = m_wikiContext.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), m_pageName );
-                } else if( (hashMark = m_ref.indexOf('#')) != -1 ) {
+                    url = wikiContext.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), pageName );
+                } else if( (hashMark = ref.indexOf('#')) != -1 ) {
                     // It's an internal Wiki link, but to a named section
 
-                    final String namedSection = m_ref.substring( hashMark+1 );
-                    String reallink     = m_ref.substring( 0, hashMark );
+                    final String namedSection = ref.substring( hashMark+1 );
+                    String reallink     = ref.substring( 0, hashMark );
                     reallink = MarkupParser.cleanLink( reallink );
 
                     String matchedLink;
@@ -228,34 +228,34 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
                         matchedLink = reallink;
                     }
 
-                    url = makeBasicURL( m_context, matchedLink, parms ) + sectref;
+                    url = makeBasicURL( context, matchedLink, parms ) + sectref;
                 } else {
-                    final String reallink = MarkupParser.cleanLink( m_ref );
-                    url = makeBasicURL( m_context, reallink, parms );
+                    final String reallink = MarkupParser.cleanLink( ref );
+                    url = makeBasicURL( context, reallink, parms );
                 }
             }
-        } else if( m_pageName != null && !m_pageName.isEmpty() ) {
-            final Page p = engine.getManager( PageManager.class ).getPage( m_pageName );
+        } else if( pageName != null && !pageName.isEmpty() ) {
+            final Page p = engine.getManager( PageManager.class ).getPage( pageName );
 
-            String parms = (m_version != null) ? "version="+getVersion() : null;
+            String parms = (version != null) ? "version="+getVersion() : null;
 
-            parms = addParamsForRecipient( parms, m_containedParams );
+            parms = addParamsForRecipient( parms, containedParams );
 
             if( p instanceof Attachment ) {
-                String ctx = m_context;
+                String ctx = context;
                 // Switch context appropriately when attempting to view an
                 // attachment, but don't override the context setting otherwise
-                if( m_context == null || m_context.equals( ContextEnum.PAGE_VIEW.getRequestContext() ) ) {
+                if( context == null || context.equals( ContextEnum.PAGE_VIEW.getRequestContext() ) ) {
                     ctx = ContextEnum.PAGE_ATTACH.getRequestContext();
                 }
-                url = engine.getURL( ctx, m_pageName, parms );
-                //url = m_wikiContext.getURL( ctx, m_pageName, parms );
+                url = engine.getURL( ctx, pageName, parms );
+                //url = wikiContext.getURL( ctx, pageName, parms );
             } else {
-                url = makeBasicURL( m_context, m_pageName, parms );
+                url = makeBasicURL( context, pageName, parms );
             }
         } else {
             final String page = engine.getFrontPage();
-            url = makeBasicURL( m_context, page, null );
+            url = makeBasicURL( context, page, null );
         }
 
         return url;
@@ -288,7 +288,7 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
     }
 
     private String makeBasicURL( final String context, final String page, String parms ) {
-        final Engine engine = m_wikiContext.getEngine();
+        final Engine engine = wikiContext.getEngine();
 
         if( context.equals( ContextEnum.PAGE_DIFF.getRequestContext() ) ) {
             int r1;
@@ -299,31 +299,31 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
 
                 r1 = latest.getVersion();
             } else if( DiffLinkTag.VER_PREVIOUS.equals(getVersion()) ) {
-                r1 = m_wikiContext.getPage().getVersion() - 1;
+                r1 = wikiContext.getPage().getVersion() - 1;
                 r1 = Math.max( r1, 1 );
             } else if( DiffLinkTag.VER_CURRENT.equals(getVersion()) ) {
-                r1 = m_wikiContext.getPage().getVersion();
+                r1 = wikiContext.getPage().getVersion();
             } else {
                 r1 = Integer.parseInt( getVersion() );
             }
 
-            if( DiffLinkTag.VER_LATEST.equals(m_compareToVersion) ) {
+            if( DiffLinkTag.VER_LATEST.equals(compareToVersion) ) {
                 final Page latest = engine.getManager( PageManager.class ).getPage( page, WikiProvider.LATEST_VERSION );
 
                 r2 = latest.getVersion();
-            } else if( DiffLinkTag.VER_PREVIOUS.equals(m_compareToVersion) ) {
-                r2 = m_wikiContext.getPage().getVersion() - 1;
+            } else if( DiffLinkTag.VER_PREVIOUS.equals(compareToVersion) ) {
+                r2 = wikiContext.getPage().getVersion() - 1;
                 r2 = Math.max( r2, 1 );
-            } else if( DiffLinkTag.VER_CURRENT.equals(m_compareToVersion) ) {
-                r2 = m_wikiContext.getPage().getVersion();
+            } else if( DiffLinkTag.VER_CURRENT.equals(compareToVersion) ) {
+                r2 = wikiContext.getPage().getVersion();
             } else {
-                r2 = Integer.parseInt( m_compareToVersion );
+                r2 = Integer.parseInt( compareToVersion );
             }
 
             parms = "r1="+r1+"&amp;r2="+r2;
         }
 
-        return engine.getURL( m_context, m_pageName, parms );
+        return engine.getURL( this.context, pageName, parms );
     }
 
     @Override
@@ -334,25 +334,25 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
     @Override
     public int doEndTag() {
         try {
-            final Engine engine = m_wikiContext.getEngine();
+            final Engine engine = wikiContext.getEngine();
             final JspWriter out = pageContext.getOut();
             final String url = figureOutURL();
 
             final StringBuilder sb = new StringBuilder( 20 );
 
-            sb.append( (m_cssClass != null)   ? "class=\""+m_cssClass+"\" " : "" );
-            sb.append( (m_style != null)   ? "style=\""+m_style+"\" " : "" );
-            sb.append( (m_target != null ) ? "target=\""+m_target+"\" " : "" );
-            sb.append( (m_title != null )  ? "title=\""+m_title+"\" " : "" );
-            sb.append( (m_rel != null )    ? "rel=\""+m_rel+"\" " : "" );
-            sb.append( (m_accesskey != null) ? "accesskey=\""+m_accesskey+"\" " : "" );
-            sb.append( (m_tabindex != null) ? "tabindex=\""+m_tabindex+"\" " : "" );
+            sb.append( (cssClass != null)   ? "class=\""+cssClass+"\" " : "" );
+            sb.append( (style != null)   ? "style=\""+style+"\" " : "" );
+            sb.append( (target != null ) ? "target=\""+target+"\" " : "" );
+            sb.append( (title != null )  ? "title=\""+title+"\" " : "" );
+            sb.append( (rel != null )    ? "rel=\""+rel+"\" " : "" );
+            sb.append( (accesskey != null) ? "accesskey=\""+accesskey+"\" " : "" );
+            sb.append( (tabindex != null) ? "tabindex=\""+tabindex+"\" " : "" );
 
-            if( engine.getManager( PageManager.class ).getPage( m_pageName ) instanceof Attachment ) {
-                sb.append( engine.getManager( AttachmentManager.class ).forceDownload( m_pageName ) ? "download " : "" );
+            if( engine.getManager( PageManager.class ).getPage( pageName ) instanceof Attachment ) {
+                sb.append( engine.getManager( AttachmentManager.class ).forceDownload( pageName ) ? "download " : "" );
             }
 
-            switch( m_format ) {
+            switch( format ) {
               case URL:
                 out.print( url );
                 break;
@@ -363,13 +363,13 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
             }
 
             // Add any explicit body content. This is not the intended use of LinkTag, but happens to be the way it has worked previously.
-            if( m_bodyContent != null ) {
-                final String linktext = m_bodyContent.getString().trim();
+            if( bodyContent != null ) {
+                final String linktext = bodyContent.getString().trim();
                 out.write( linktext );
             }
 
             //  Finish off by closing opened anchor
-            if( m_format == ANCHOR ) out.print("</a>");
+            if( format == ANCHOR ) out.print("</a>");
         } catch( final Exception e ) {
             // Yes, we want to catch all exceptions here, including RuntimeExceptions
             LOG.error( "Tag failed", e );
@@ -381,7 +381,7 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
     @Override
     public void setBodyContent( final BodyContent bc )
     {
-        m_bodyContent = bc;
+        bodyContent = bc;
     }
 
     @Override

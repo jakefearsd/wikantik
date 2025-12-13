@@ -92,46 +92,46 @@ public class UserProfileTag extends WikiTagBase {
     private static final String CHANGE_PASSWORD       = "canchangepassword";
     private static final String NOT_CHANGE_PASSWORD   = "!canchangepassword";
 
-    private String             m_prop;
+    private String             prop;
 
     @Override
     public void initTag() {
         super.initTag();
-        m_prop = null;
+        prop = null;
     }
 
     @Override
     public final int doWikiStartTag() throws IOException {
-        final UserManager manager = m_wikiContext.getEngine().getManager( UserManager.class );
-        final UserProfile profile = manager.getUserProfile( m_wikiContext.getWikiSession() );
+        final UserManager manager = wikiContext.getEngine().getManager( UserManager.class );
+        final UserProfile profile = manager.getUserProfile( wikiContext.getWikiSession() );
         String result = null;
 
-        if( EXISTS.equals( m_prop ) || NOT_NEW.equals( m_prop ) ) {
+        if( EXISTS.equals( prop ) || NOT_NEW.equals( prop ) ) {
             return profile.isNew() ? SKIP_BODY : EVAL_BODY_INCLUDE;
-        } else if( NEW.equals( m_prop ) || NOT_EXISTS.equals( m_prop ) ) {
+        } else if( NEW.equals( prop ) || NOT_EXISTS.equals( prop ) ) {
             return profile.isNew() ? EVAL_BODY_INCLUDE : SKIP_BODY;
-        } else if( CREATED.equals( m_prop ) && profile.getCreated() != null ) {
+        } else if( CREATED.equals( prop ) && profile.getCreated() != null ) {
             result = profile.getCreated().toString();
-        } else if( EMAIL.equals( m_prop ) ) {
+        } else if( EMAIL.equals( prop ) ) {
             result = profile.getEmail();
-        } else if( FULLNAME.equals( m_prop ) ) {
+        } else if( FULLNAME.equals( prop ) ) {
             result = profile.getFullname();
-        } else if( GROUPS.equals( m_prop ) ) {
-            result = printGroups( m_wikiContext );
-        } else if( LOGINNAME.equals( m_prop ) ) {
+        } else if( GROUPS.equals( prop ) ) {
+            result = printGroups( wikiContext );
+        } else if( LOGINNAME.equals( prop ) ) {
             result = profile.getLoginName();
-        } else if( MODIFIED.equals( m_prop ) && profile.getLastModified() != null ) {
+        } else if( MODIFIED.equals( prop ) && profile.getLastModified() != null ) {
             result = profile.getLastModified().toString();
-        } else if( ROLES.equals( m_prop ) ) {
-            result = printRoles( m_wikiContext );
-        } else if( WIKINAME.equals( m_prop ) ) {
+        } else if( ROLES.equals( prop ) ) {
+            result = printRoles( wikiContext );
+        } else if( WIKINAME.equals( prop ) ) {
             result = profile.getWikiName();
 
             if( result == null ) {
                 //
                 //  Default back to the declared user name
                 //
-                final Engine engine = this.m_wikiContext.getEngine();
+                final Engine engine = this.wikiContext.getEngine();
                 final Session wikiSession = Wiki.session().find( engine, ( HttpServletRequest )pageContext.getRequest() );
                 final Principal user = wikiSession.getUserPrincipal();
 
@@ -139,13 +139,13 @@ public class UserProfileTag extends WikiTagBase {
                     result = user.getName();
                 }
             }
-        } else if( CHANGE_PASSWORD.equals( m_prop ) || CHANGE_LOGIN_NAME.equals( m_prop ) ) {
-            final AuthenticationManager authMgr = m_wikiContext.getEngine().getManager( AuthenticationManager.class );
+        } else if( CHANGE_PASSWORD.equals( prop ) || CHANGE_LOGIN_NAME.equals( prop ) ) {
+            final AuthenticationManager authMgr = wikiContext.getEngine().getManager( AuthenticationManager.class );
             if( !authMgr.isContainerAuthenticated() ) {
                 return EVAL_BODY_INCLUDE;
             }
-        } else if( NOT_CHANGE_PASSWORD.equals( m_prop ) || NOT_CHANGE_LOGIN_NAME.equals( m_prop ) ) {
-            final AuthenticationManager authMgr = m_wikiContext.getEngine().getManager( AuthenticationManager.class );
+        } else if( NOT_CHANGE_PASSWORD.equals( prop ) || NOT_CHANGE_LOGIN_NAME.equals( prop ) ) {
+            final AuthenticationManager authMgr = wikiContext.getEngine().getManager( AuthenticationManager.class );
             if( authMgr.isContainerAuthenticated() ) {
                 return EVAL_BODY_INCLUDE;
             }
@@ -159,7 +159,7 @@ public class UserProfileTag extends WikiTagBase {
 
     public void setProperty( final String property )
     {
-        m_prop = property.toLowerCase().trim();
+        prop = property.toLowerCase().trim();
     }
 
     /**

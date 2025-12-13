@@ -50,12 +50,12 @@ public class EditorTag extends WikiBodyTag {
        
     @Override
     public int doEndTag() throws JspException {
-        final Engine engine = m_wikiContext.getEngine();
+        final Engine engine = wikiContext.getEngine();
         final EditorManager mgr = engine.getManager( EditorManager.class );
-        final String editorPath = mgr.getEditorPath( m_wikiContext );
+        final String editorPath = mgr.getEditorPath( wikiContext );
 
         try {
-            final String page = engine.getManager( TemplateManager.class ).findJSP( pageContext, m_wikiContext.getTemplate(), editorPath );
+            final String page = engine.getManager( TemplateManager.class ).findJSP( pageContext, wikiContext.getTemplate(), editorPath );
 
             if( page == null ) {
                 //FIXME: should be I18N ...

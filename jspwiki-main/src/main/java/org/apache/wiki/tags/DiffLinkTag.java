@@ -51,43 +51,43 @@ public class DiffLinkTag extends WikiLinkTag {
     public static final String VER_PREVIOUS = "previous";
     public static final String VER_CURRENT  = "current";
 
-    private String m_version    = VER_LATEST;
-    private String m_newVersion = VER_LATEST;
+    private String version    = VER_LATEST;
+    private String newVersion = VER_LATEST;
 
     @Override
     public void initTag() {
         super.initTag();
-        m_version = m_newVersion = VER_LATEST;
+        version = newVersion = VER_LATEST;
     }
 
     public final String getVersion()
     {
-        return m_version;
+        return version;
     }
 
     public void setVersion( final String arg )
     {
-        m_version = arg;
+        version = arg;
     }
 
     public final String getNewVersion()
     {
-        return m_newVersion;
+        return newVersion;
     }
 
     public void setNewVersion( final String arg )
     {
-        m_newVersion = arg;
+        newVersion = arg;
     }
 
     @Override
     public final int doWikiStartTag() throws IOException {
-        final Engine engine = m_wikiContext.getEngine();
-        String pageName = m_pageName;
+        final Engine engine = wikiContext.getEngine();
+        String localPageName = pageName;
 
-        if( m_pageName == null ) {
-            if( m_wikiContext.getPage() != null ) {
-                pageName = m_wikiContext.getPage().getName();
+        if( localPageName == null ) {
+            if( wikiContext.getPage() != null ) {
+                localPageName = wikiContext.getPage().getName();
             } else {
                 return SKIP_BODY;
             }
@@ -99,40 +99,40 @@ public class DiffLinkTag extends WikiLinkTag {
         int r2;
 
         //  In case the page does not exist, we fail silently.
-        if( !engine.getManager( PageManager.class ).wikiPageExists( pageName ) ) {
+        if( !engine.getManager( PageManager.class ).wikiPageExists( localPageName ) ) {
             return SKIP_BODY;
         }
 
         if( VER_LATEST.equals( getVersion() ) ) {
-            final Page latest = engine.getManager( PageManager.class ).getPage( pageName, WikiProvider.LATEST_VERSION );
+            final Page latest = engine.getManager( PageManager.class ).getPage( localPageName, WikiProvider.LATEST_VERSION );
             if( latest == null ) {
                 // This may occur if matchEnglishPlurals is on, and we access the wrong page name
                 return SKIP_BODY;
             }
             r1 = latest.getVersion();
         } else if( VER_PREVIOUS.equals( getVersion() ) ) {
-            r1 = m_wikiContext.getPage().getVersion() - 1;
+            r1 = wikiContext.getPage().getVersion() - 1;
             r1 = Math.max( r1, 1 );
         } else if( VER_CURRENT.equals( getVersion() ) ) {
-            r1 = m_wikiContext.getPage().getVersion();
+            r1 = wikiContext.getPage().getVersion();
         } else {
             r1 = Integer.parseInt( getVersion() );
         }
 
         if( VER_LATEST.equals( getNewVersion() ) ) {
-            final Page latest = engine.getManager( PageManager.class ).getPage( pageName, WikiProvider.LATEST_VERSION );
+            final Page latest = engine.getManager( PageManager.class ).getPage( localPageName, WikiProvider.LATEST_VERSION );
             r2 = latest.getVersion();
         } else if( VER_PREVIOUS.equals( getNewVersion() ) ) {
-            r2 = m_wikiContext.getPage().getVersion() - 1;
+            r2 = wikiContext.getPage().getVersion() - 1;
             r2 = Math.max( r2, 1 );
         } else if( VER_CURRENT.equals( getNewVersion() ) ) {
-            r2 = m_wikiContext.getPage().getVersion();
+            r2 = wikiContext.getPage().getVersion();
         } else {
             r2 = Integer.parseInt( getNewVersion() );
         }
 
-        final String url = m_wikiContext.getURL( ContextEnum.PAGE_DIFF.getRequestContext(), pageName, "r1="+r1+"&amp;r2="+r2 );
-        switch( m_format ) {
+        final String url = wikiContext.getURL( ContextEnum.PAGE_DIFF.getRequestContext(), localPageName, "r1="+r1+"&amp;r2="+r2 );
+        switch( format ) {
           case ANCHOR:
             out.print("<a href=\""+url+"\">");
             break;

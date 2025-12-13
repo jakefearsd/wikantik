@@ -38,8 +38,8 @@ public class ParamTag
 {
 
     private static final long serialVersionUID = -4671059568218551633L;
-    private String m_name;
-    private String m_value;
+    private String name;
+    private String value;
     
     /**
      *  {@inheritDoc}
@@ -47,7 +47,7 @@ public class ParamTag
     @Override
     public void release() 
     {
-        m_name = m_value = null;
+        name = value = null;
     }
     
     /**
@@ -57,7 +57,7 @@ public class ParamTag
      */
     public void setName(final String s )
     {
-        m_name = s;
+        name = s;
     }
     
     /**
@@ -67,7 +67,7 @@ public class ParamTag
      */
     public void setValue(final String s )
     {
-        m_value = s;
+        value = s;
     }
     
     /**
@@ -92,7 +92,7 @@ public class ParamTag
 
         if( t != null )
         {
-            String val = m_value;
+            String val = value;
             if( val == null )
             {
                 final BodyContent bc = getBodyContent();
@@ -103,7 +103,7 @@ public class ParamTag
             }
             if( val != null )
             {
-                ((ParamHandler)t).setContainedParameter( m_name, val );
+                ((ParamHandler)t).setContainedParameter( name, val );
             }
         }
         return EVAL_PAGE;

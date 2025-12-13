@@ -39,7 +39,7 @@ public class ShortViewURLConstructor extends ShortURLConstructor {
     }
     
     private String makeURL( final String context, final String name ) {
-        final String viewurl = "%p" + m_urlPrefix + "%n";
+        final String viewurl = "%p" + urlPrefix + "%n";
         if( context.equals( ContextEnum.PAGE_VIEW.getRequestContext() ) ) {
             if( name == null ) {
                 return doReplacement("%u","" );

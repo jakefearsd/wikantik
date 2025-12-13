@@ -41,7 +41,7 @@ public class ShortURLConstructor extends DefaultURLConstructor {
     private static final Logger LOG = LogManager.getLogger( ShortURLConstructor.class );
     
     /** Contains the path part after the JSPWiki base URL */
-    protected String m_urlPrefix = "";
+    protected String urlPrefix = "";
     
     /**
      *  This corresponds to your WikiServlet path.  By default, it is assumed to be "wiki/", but you can set it to whatever you
@@ -54,20 +54,20 @@ public class ShortURLConstructor extends DefaultURLConstructor {
     public void initialize( final Engine engine, final Properties properties ) {
         super.initialize( engine, properties );
         
-        m_urlPrefix = TextUtil.getStringProperty( properties, PROP_PREFIX, null );
+        urlPrefix = TextUtil.getStringProperty( properties, PROP_PREFIX, null );
         
-        if( m_urlPrefix == null ) {
-            m_urlPrefix = DEFAULT_PREFIX;
+        if( urlPrefix == null ) {
+            urlPrefix = DEFAULT_PREFIX;
         }
 
-        LOG.info("Short URL prefix path="+m_urlPrefix+" (You can use "+PROP_PREFIX+" to override this)");
+        LOG.info("Short URL prefix path="+urlPrefix+" (You can use "+PROP_PREFIX+" to override this)");
     }
 
     /**
      *  Constructs the actual URL based on the context.
      */
     private String makeURL( final String context, final String name ) {
-        final String viewurl = "%p" + m_urlPrefix + "%n";
+        final String viewurl = "%p" + urlPrefix + "%n";
 
         if( context.equals( ContextEnum.PAGE_VIEW.getRequestContext() ) ) {
             if( name == null ) {

@@ -28,7 +28,7 @@ public class RedirectException extends FilterException {
 	
     private static final long serialVersionUID = 6626993875873941172L;
     
-    private final String m_where;
+    private final String where;
 
     /**
      *  Constructs a new RedirectException.
@@ -38,7 +38,7 @@ public class RedirectException extends FilterException {
      */
     public RedirectException( final String msg, final String redirect ) {
         super( msg );
-        m_where = redirect;
+        where = redirect;
     }
 
     /**
@@ -47,7 +47,7 @@ public class RedirectException extends FilterException {
      *  @return The URI given in the constructor.
      */
     public String getRedirect() {
-        return m_where;
+        return where;
     }
     
 }

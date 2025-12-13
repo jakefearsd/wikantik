@@ -34,7 +34,7 @@ import static org.apache.wiki.api.filters.FilterSupportOperations.methodOfNonPub
  */
 public class BasePageFilter implements PageFilter {
 
-    protected Engine m_engine;
+    protected Engine engine;
 
     /**
      * If you override this, you should call super.initialize() first.
@@ -42,8 +42,8 @@ public class BasePageFilter implements PageFilter {
      * {@inheritDoc}
      */
     @Override
-    public void initialize( final Engine engine, final Properties properties ) throws FilterException {
-        m_engine = engine;
+    public void initialize( final Engine newEngine, final Properties properties ) throws FilterException {
+        this.engine = newEngine;
         final Method m = methodOfNonPublicAPI( this, "initialize", "org.apache.wiki.WikiEngine", "java.util.Properties" );
         executePageFilterPhase( () -> null, m, this, engine, properties );
     }

@@ -33,7 +33,7 @@ public class LocaleComparator extends CollatorComparator
      */
     public LocaleComparator()
     {
-        m_collator = Collator.getInstance();
+        collator = Collator.getInstance();
     }
 
     /**
@@ -41,7 +41,7 @@ public class LocaleComparator extends CollatorComparator
      */
     public LocaleComparator(final Locale locale )
     {
-        m_collator = Collator.getInstance( locale );
+        collator = Collator.getInstance( locale );
     }
 
     /**
@@ -51,6 +51,6 @@ public class LocaleComparator extends CollatorComparator
      */
     public void setLocale(final Locale locale)
     {
-        m_collator = Collator.getInstance(locale);
+        collator = Collator.getInstance(locale);
     }
 }

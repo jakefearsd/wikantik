@@ -39,12 +39,12 @@ public class MetadataLinkNodePostProcessorState implements NodePostProcessorStat
 
     private static final Logger LOG = LogManager.getLogger( MetadataLinkNodePostProcessorState.class );
     private final Context wikiContext;
-    private final boolean m_wysiwygEditorMode;
+    private final boolean wysiwygEditorMode;
 
     public MetadataLinkNodePostProcessorState( final Context wikiContext ) {
         this.wikiContext = wikiContext;
         final Boolean wysiwygVariable = wikiContext.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE );
-        m_wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
+        wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
     }
 
     /**
@@ -54,7 +54,7 @@ public class MetadataLinkNodePostProcessorState implements NodePostProcessorStat
      */
     @Override
     public void process( final NodeTracker state, final JSPWikiLink link ) {
-        final String metadataLine = NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, m_wysiwygEditorMode );
+        final String metadataLine = NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, wysiwygEditorMode );
         try {
             final String args = metadataLine.substring( metadataLine.indexOf(' '), metadataLine.length() - 1 );
             String name = args.substring( 0, args.indexOf( '=' ) );

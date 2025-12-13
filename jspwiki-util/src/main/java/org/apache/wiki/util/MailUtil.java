@@ -440,19 +440,19 @@ public final class MailUtil {
     protected static class SmtpAuthenticator extends Authenticator {
 
         private static final String BLANK = "";
-        private final String m_pass;
-        private final String m_login;
+        private final String pass;
+        private final String login;
 
         /**
          * Constructs a new SmtpAuthenticator with a supplied username and password.
          *
-         * @param login the username
-         * @param pass the password
+         * @param newLogin the username
+         * @param newPass the password
          */
-        public SmtpAuthenticator( final String login, final String pass ) {
+        public SmtpAuthenticator( final String newLogin, final String newPass ) {
             super();
-            m_login =   login == null ? BLANK : login;
-            m_pass =     pass == null ? BLANK : pass;
+            this.login = newLogin == null ? BLANK : newLogin;
+            this.pass = newPass == null ? BLANK : newPass;
         }
 
         /**
@@ -462,10 +462,10 @@ public final class MailUtil {
          */
         @Override
         public PasswordAuthentication getPasswordAuthentication() {
-            if( BLANK.equals( m_pass ) ) {
+            if( BLANK.equals( pass ) ) {
                 return null;
             }
-            return new PasswordAuthentication( m_login, m_pass );
+            return new PasswordAuthentication( login, pass );
         }
 
     }

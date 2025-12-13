@@ -32,12 +32,12 @@ import org.apache.wiki.variables.VariableManager;
 public class VariableLinkNodePostProcessorState implements NodePostProcessorState< JSPWikiLink > {
 
     private final Context wikiContext;
-    private final boolean m_wysiwygEditorMode;
+    private final boolean wysiwygEditorMode;
 
     public VariableLinkNodePostProcessorState( final Context wikiContext ) {
         this.wikiContext = wikiContext;
         final Boolean wysiwygVariable = wikiContext.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE );
-        m_wysiwygEditorMode = wysiwygVariable != null && wysiwygVariable;
+        wysiwygEditorMode = wysiwygVariable != null && wysiwygVariable;
     }
 
     /**
@@ -47,8 +47,8 @@ public class VariableLinkNodePostProcessorState implements NodePostProcessorStat
      */
     @Override
     public void process( final NodeTracker state, final JSPWikiLink link ) {
-        final String variable = NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, m_wysiwygEditorMode );
-        if( !m_wysiwygEditorMode ) {
+        final String variable = NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, wysiwygEditorMode );
+        if( !wysiwygEditorMode ) {
             try {
                 final String parsedVariable = wikiContext.getEngine().getManager( VariableManager.class ).parseAndGetValue( wikiContext, variable );
                 final WikiHtmlInline content = WikiHtmlInline.of( parsedVariable, wikiContext );

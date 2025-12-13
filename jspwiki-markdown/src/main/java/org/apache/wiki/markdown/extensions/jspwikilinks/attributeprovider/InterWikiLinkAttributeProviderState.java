@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
 public class InterWikiLinkAttributeProviderState implements NodeAttributeProviderState< JSPWikiLink > {
 
     private final boolean hasRef;
-    private final boolean m_wysiwygEditorMode;
+    private final boolean wysiwygEditorMode;
     private final Context wikiContext;
     private final LinkParsingOperations linkOperations;
     private final boolean isImageInlining;
@@ -53,7 +53,7 @@ public class InterWikiLinkAttributeProviderState implements NodeAttributeProvide
         this.isImageInlining = isImageInlining;
         this.inlineImagePatterns = inlineImagePatterns;
         final Boolean wysiwygVariable = wikiContext.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE );
-        m_wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
+        wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
     }
 
     /**
@@ -64,7 +64,7 @@ public class InterWikiLinkAttributeProviderState implements NodeAttributeProvide
     @Override
     public void setAttributes( final MutableAttributes attributes, final JSPWikiLink link ) {
         final String[] refAndPage = link.getWikiLink().split( ":" );
-        if( !m_wysiwygEditorMode ) {
+        if( !wysiwygEditorMode ) {
             String urlReference = wikiContext.getEngine().getInterWikiURL( refAndPage[ 0 ] );
             if( urlReference != null ) {
                 urlReference = TextUtil.replaceString( urlReference, "%s", refAndPage[ 1 ] );

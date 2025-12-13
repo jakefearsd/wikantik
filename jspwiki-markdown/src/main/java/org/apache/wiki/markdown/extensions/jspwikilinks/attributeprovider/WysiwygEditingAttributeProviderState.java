@@ -33,12 +33,12 @@ import org.apache.wiki.render.WikiRenderer;
 public class WysiwygEditingAttributeProviderState implements NodeAttributeProviderState< JSPWikiLink > {
 
     private final Context wikiContext;
-    private final boolean m_wysiwygEditorMode;
+    private final boolean wysiwygEditorMode;
 
     public WysiwygEditingAttributeProviderState( final Context wikiContext ) {
         this.wikiContext = wikiContext;
         final Boolean wysiwygVariable = wikiContext.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE );
-        m_wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
+        wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
     }
 
     /**
@@ -48,7 +48,7 @@ public class WysiwygEditingAttributeProviderState implements NodeAttributeProvid
      */
     @Override
     public void setAttributes( final MutableAttributes attributes, final JSPWikiLink link ) {
-        if( m_wysiwygEditorMode ) {
+        if( wysiwygEditorMode ) {
             if( attributes.getValue( "class" ) != null ) {
                 final String href = attributes.getValue( "href" );
                 final XHtmlToWikiConfig wikiConfig = new XHtmlToWikiConfig( wikiContext );

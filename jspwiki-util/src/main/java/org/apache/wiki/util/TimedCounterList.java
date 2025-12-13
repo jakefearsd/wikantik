@@ -36,8 +36,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class TimedCounterList<T> extends AbstractList<T>
 {
-    private final ArrayList<CounterItem<T>> m_list = new ArrayList<>();
-    private final ReadWriteLock             m_lock = new ReentrantReadWriteLock();
+    private final ArrayList<CounterItem<T>> list = new ArrayList<>();
+    private final ReadWriteLock             lock = new ReentrantReadWriteLock();
     
     /**
      *  {@inheritDoc}
@@ -45,17 +45,17 @@ public class TimedCounterList<T> extends AbstractList<T>
     @Override
     public T set(final int index, final T element )
     {
-        m_lock.writeLock().lock();
+        lock.writeLock().lock();
         
         T t;
         
         try
         {
-            t = m_list.set(index, new CounterItem<>(element)).m_obj;
+            t = list.set(index, new CounterItem<>(element)).obj;
         }
         finally
         {
-            m_lock.writeLock().unlock();
+            lock.writeLock().unlock();
         }
         
         return t;
@@ -67,17 +67,17 @@ public class TimedCounterList<T> extends AbstractList<T>
     @Override
     public T get(final int index )
     {
-        m_lock.readLock().lock();
+        lock.readLock().lock();
         
         T t;
         
         try
         {
-            t = m_list.get(index).m_obj;
+            t = list.get(index).obj;
         }
         finally
         {
-            m_lock.readLock().unlock();
+            lock.readLock().unlock();
         }
         
         return t;
@@ -89,16 +89,16 @@ public class TimedCounterList<T> extends AbstractList<T>
     @Override
     public int size()
     {
-        m_lock.readLock().lock();
+        lock.readLock().lock();
         int size;
 
         try
         {
-            size = m_list.size();
+            size = list.size();
         }
         finally
         {
-            m_lock.readLock().unlock();
+            lock.readLock().unlock();
         }
         
         return size;
@@ -110,15 +110,15 @@ public class TimedCounterList<T> extends AbstractList<T>
     @Override
     public void add(final int index, final T element )
     {
-        m_lock.writeLock().lock();
+        lock.writeLock().lock();
         
         try
         {
-            m_list.add(index, new CounterItem<>(element));
+            list.add(index, new CounterItem<>(element));
         }
         finally
         {
-            m_lock.writeLock().unlock();
+            lock.writeLock().unlock();
         }
     }
     
@@ -128,16 +128,16 @@ public class TimedCounterList<T> extends AbstractList<T>
     @Override
     public T remove(final int index )
     {
-        m_lock.writeLock().lock();
+        lock.writeLock().lock();
         T t;
 
         try
         {
-            t = m_list.remove( index ).m_obj;
+            t = list.remove( index ).obj;
         }
         finally
         {
-            m_lock.writeLock().unlock();
+            lock.writeLock().unlock();
         }
         
         return t;
@@ -147,21 +147,21 @@ public class TimedCounterList<T> extends AbstractList<T>
      *  Returns the count how many times this object is available in
      *  this list, using equals().
      *  
-     *  @param obj The object to count.
+     *  @param newObj The object to count.
      *  @return The count of the objects.
      */
-    public int count(final T obj )
+    public int count(final T newObj )
     {
         int c;
-        m_lock.readLock().lock();
+        lock.readLock().lock();
         
         try
         {
-            c = (int) m_list.stream().filter(i -> i.m_obj.equals(obj)).count();
+            c = (int) list.stream().filter(i -> i.obj.equals(newObj)).count();
         }
         finally
         {
-            m_lock.readLock().unlock();
+            lock.readLock().unlock();
         }
         
         return c;
@@ -174,17 +174,17 @@ public class TimedCounterList<T> extends AbstractList<T>
      */
     public void cleanup(final long maxage )
     {
-        m_lock.writeLock().lock();
+        lock.writeLock().lock();
         
         try
         {
             final long now = System.currentTimeMillis();
         
-            for(final Iterator<CounterItem<T>> i = m_list.iterator(); i.hasNext(); )
+            for(final Iterator<CounterItem<T>> i = list.iterator(); i.hasNext(); )
             {
                 final CounterItem<T> ci = i.next();
             
-                final long age = now - ci.m_addTime;
+                final long age = now - ci.addTime;
             
                 if( age > maxage )
                 {
@@ -194,7 +194,7 @@ public class TimedCounterList<T> extends AbstractList<T>
         }
         finally
         {
-            m_lock.writeLock().unlock();
+            lock.writeLock().unlock();
         }
     }
     
@@ -206,16 +206,16 @@ public class TimedCounterList<T> extends AbstractList<T>
      */
     public long getAddTime(final int index )
     {
-        m_lock.readLock().lock();
+        lock.readLock().lock();
         long res;
         
         try
         {
-            res = m_list.get( index ).m_addTime;
+            res = list.get( index ).addTime;
         }
         finally
         {
-            m_lock.readLock().unlock();
+            lock.readLock().unlock();
         }
         
         return res;
@@ -223,13 +223,13 @@ public class TimedCounterList<T> extends AbstractList<T>
     
     private static class CounterItem<E>
     {
-        private final E      m_obj;
-        private final long   m_addTime;
+        private final E      obj;
+        private final long   addTime;
         
         public CounterItem(final E o)
         {
-            m_addTime = System.currentTimeMillis();
-            m_obj = o;
+            addTime = System.currentTimeMillis();
+            obj = o;
         }
     }
 

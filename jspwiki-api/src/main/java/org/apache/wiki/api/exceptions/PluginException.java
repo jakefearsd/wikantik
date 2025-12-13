@@ -26,7 +26,7 @@ public class PluginException  extends WikiException {
 
     private static final long serialVersionUID = -289900047240960332L;
 
-    private final Throwable m_throwable;
+    private final Throwable throwable;
 
     /**
      *  Create a PluginException.
@@ -35,7 +35,7 @@ public class PluginException  extends WikiException {
      */
     public PluginException( final String message ) {
         super( message );
-        m_throwable = null;
+        throwable = null;
     }
 
     /**
@@ -46,7 +46,7 @@ public class PluginException  extends WikiException {
      */
     public PluginException( final String message, final Throwable original ) {
         super( message, original );
-        m_throwable = original;
+        throwable = original;
     }
 
     /**
@@ -55,7 +55,7 @@ public class PluginException  extends WikiException {
      *  @return The original exception.
      */
     public Throwable getRootThrowable() {
-        return m_throwable;
+        return throwable;
     }
 
 }

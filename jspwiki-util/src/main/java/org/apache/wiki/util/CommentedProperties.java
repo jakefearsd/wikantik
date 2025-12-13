@@ -38,7 +38,7 @@ public class CommentedProperties extends Properties
 {
     private static final long serialVersionUID = 8057284636436329669L;
 
-    private String m_propertyString;
+    private String propertyString;
 
     /**
      * @see java.util.Properties#Properties()
@@ -66,10 +66,10 @@ public class CommentedProperties extends Properties
     public synchronized void load(final InputStream inStream ) throws IOException
     {
         // Load the file itself into a string
-        m_propertyString = FileUtil.readContents( inStream, StandardCharsets.ISO_8859_1.name() );
+        propertyString = FileUtil.readContents( inStream, StandardCharsets.ISO_8859_1.name() );
 
         // Now load it into the properties object as normal
-        super.load( new ByteArrayInputStream( m_propertyString.getBytes(StandardCharsets.ISO_8859_1) ) );
+        super.load( new ByteArrayInputStream( propertyString.getBytes(StandardCharsets.ISO_8859_1) ) );
     }
 
     /**
@@ -81,10 +81,10 @@ public class CommentedProperties extends Properties
     @Override
     public synchronized void load(final Reader in ) throws IOException
     {
-        m_propertyString = FileUtil.readContents( in );
+        propertyString = FileUtil.readContents( in );
 
         // Now load it into the properties object as normal
-        super.load( new ByteArrayInputStream( m_propertyString.getBytes(StandardCharsets.ISO_8859_1) ) );
+        super.load( new ByteArrayInputStream( propertyString.getBytes(StandardCharsets.ISO_8859_1) ) );
     }
 
     /**
@@ -102,7 +102,7 @@ public class CommentedProperties extends Properties
     @Override
     public synchronized void store(final OutputStream out, final String comments ) throws IOException
     {
-        final byte[] bytes = m_propertyString.getBytes( StandardCharsets.ISO_8859_1 );
+        final byte[] bytes = propertyString.getBytes( StandardCharsets.ISO_8859_1 );
         FileUtil.copyContents( new ByteArrayInputStream( bytes ), out );
         out.flush();
     }
@@ -155,7 +155,7 @@ public class CommentedProperties extends Properties
     @Override
     public synchronized String toString()
     {
-        return m_propertyString;
+        return propertyString;
     }
 
     private void deleteProperty(final Object arg0 )
@@ -169,13 +169,13 @@ public class CommentedProperties extends Properties
 
         // Iterate through each line and replace anything matching our key
         int idx = 0;
-        while( ( idx < m_propertyString.length() ) && ( ( idx = m_propertyString.indexOf( key, idx ) ) != -1 ) )
+        while( ( idx < propertyString.length() ) && ( ( idx = propertyString.indexOf( key, idx ) ) != -1 ) )
         {
-            final int prevret = m_propertyString.lastIndexOf( "\n", idx );
+            final int prevret = propertyString.lastIndexOf( "\n", idx );
             if ( prevret != -1 )
             {
                 // Commented lines are skipped
-                if ( m_propertyString.charAt( prevret + 1 ) == '#' )
+                if ( propertyString.charAt( prevret + 1 ) == '#' )
                 {
                     idx += key.length();
                     continue;
@@ -183,11 +183,11 @@ public class CommentedProperties extends Properties
             }
 
             // If "=" present, delete the entire line
-            final int eqsign = m_propertyString.indexOf( "=", idx );
+            final int eqsign = propertyString.indexOf( "=", idx );
             if ( eqsign != -1 )
             {
-                final int ret = m_propertyString.indexOf( "\n", eqsign );
-                m_propertyString = TextUtil.replaceString( m_propertyString, prevret, ret, "" );
+                final int ret = propertyString.indexOf( "\n", eqsign );
+                propertyString = TextUtil.replaceString( propertyString, prevret, ret, "" );
                 return;
             }
         }
@@ -209,13 +209,13 @@ public class CommentedProperties extends Properties
 
         // Iterate through each line and replace anything matching our key
         int idx = 0;
-        while( ( idx < m_propertyString.length() ) && ( ( idx = m_propertyString.indexOf( key, idx ) ) != -1 ) )
+        while( ( idx < propertyString.length() ) && ( ( idx = propertyString.indexOf( key, idx ) ) != -1 ) )
         {
-            final int prevret = m_propertyString.lastIndexOf( "\n", idx );
+            final int prevret = propertyString.lastIndexOf( "\n", idx );
             if ( prevret != -1 )
             {
                 // Commented lines are skipped
-                if ( m_propertyString.charAt( prevret + 1 ) == '#' )
+                if ( propertyString.charAt( prevret + 1 ) == '#' )
                 {
                     idx += key.length();
                     continue;
@@ -223,21 +223,21 @@ public class CommentedProperties extends Properties
             }
 
             // If "=" present, replace everything in line after it
-            final int eqsign = m_propertyString.indexOf( "=", idx );
+            final int eqsign = propertyString.indexOf( "=", idx );
             if ( eqsign != -1 )
             {
-                int ret = m_propertyString.indexOf( "\n", eqsign );
+                int ret = propertyString.indexOf( "\n", eqsign );
                 if ( ret == -1 )
                 {
-                    ret = m_propertyString.length();
+                    ret = propertyString.length();
                 }
-                m_propertyString = TextUtil.replaceString( m_propertyString, eqsign + 1, ret, value );
+                propertyString = TextUtil.replaceString( propertyString, eqsign + 1, ret, value );
                 return;
             }
         }
 
         // If it was not found, we'll add it to the end.
-        m_propertyString += "\n" + key + " = " + value + "\n";
+        propertyString += "\n" + key + " = " + value + "\n";
     }
 
 }

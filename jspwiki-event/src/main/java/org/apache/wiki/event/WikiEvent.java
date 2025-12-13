@@ -40,9 +40,9 @@ public abstract sealed class WikiEvent extends EventObject
     /** Indicates an undefined state. */
     public static final int UNDEFINED      = -98;
 
-    private int m_type = UNDEFINED;
+    private int type = UNDEFINED;
 
-    private final long m_when;
+    private final long when;
 
     /** objects associated to src which only make sense in the context of a given WikiEvent */
     private Object[] args;
@@ -53,11 +53,11 @@ public abstract sealed class WikiEvent extends EventObject
      * Constructs an instance of this event.
      *
      * @param src the Object that is the source of the event.
-     * @param type the event type.
+     * @param newType the event type.
      */
     public WikiEvent( final Object src, final int type ) {
         super( src );
-        m_when = System.currentTimeMillis();
+        when = System.currentTimeMillis();
         args = new Object[]{};
         setType( type );
     }
@@ -66,7 +66,7 @@ public abstract sealed class WikiEvent extends EventObject
      * Constructs an instance of this event.
      *
      * @param src the Object that is the source of the event. Typically, this is the Wiki {@link Engine}
-     * @param type the event type. Typically this is a constant reference to {@link WikiPageEvent}
+     * @param newType the event type. Typically this is a constant reference to {@link WikiPageEvent}
      * @param args typically the first arg is the page name that triggered the event.
      */
     public WikiEvent( final Object src, final int type, final Object... args ) {
@@ -91,16 +91,16 @@ public abstract sealed class WikiEvent extends EventObject
     * @since 2.4.74
     */
    public long getWhen() {
-       return m_when;
+       return when;
    }
 
     /**
      * Sets the type of this event. Validation of acceptable type values is the responsibility of each subclass.
      *
-     * @param type the type of this WikiEvent.
+     * @param newType the type of this WikiEvent.
      */
-    protected void setType( final int type ) {
-        m_type = type;
+    protected void setType( final int newType ) {
+        this.type = newType;
     }
 
     /**
@@ -109,7 +109,7 @@ public abstract sealed class WikiEvent extends EventObject
      * @return the type of this WikiEvent. See the enumerated values defined in {@link org.apache.wiki.event.WikiEvent}).
      */
     public int getType() {
-        return m_type;
+        return type;
     }
 
     /**
@@ -139,10 +139,10 @@ public abstract sealed class WikiEvent extends EventObject
      * @return the String description
      */
     public String getTypeDescription() {
-        return switch( m_type ) {
+        return switch( type ) {
             case ERROR     -> "exception or error event";
             case UNDEFINED -> "undefined event type";
-            default        -> "unknown event type (" + m_type + ")";
+            default        -> "unknown event type (" + type + ")";
         };
     }
 
@@ -151,11 +151,11 @@ public abstract sealed class WikiEvent extends EventObject
      * this method returns true if the event type is anything except {@link #ERROR} or {@link #UNDEFINED}. This method is meant to
      * be subclassed as appropriate.
      * 
-     * @param type The value to test.
+     * @param newType The value to test.
      * @return true, if the value is a valid WikiEvent type.
      */
-    public static boolean isValidType( final int type ) {
-        return type != ERROR && type != UNDEFINED;
+    public static boolean isValidType( final int newType ) {
+        return newType != ERROR && newType != UNDEFINED;
     }
 
 
@@ -165,10 +165,10 @@ public abstract sealed class WikiEvent extends EventObject
      * @return the String representation
      */
     public String eventName() {
-        return switch( m_type ) {
+        return switch( type ) {
             case ERROR     -> "ERROR";
             case UNDEFINED -> "UNDEFINED";
-            default        -> "UNKNOWN (" + m_type + ")";
+            default        -> "UNKNOWN (" + type + ")";
         };
     }
 

@@ -32,12 +32,12 @@ import java.nio.charset.StandardCharsets;
  */
 public class XHtmlToWikiConfig {
 
-    private String m_outlink = "outlink";
-    private String m_pageInfoJsp = "PageInfo.jsp";
-    private String m_wikiJspPage = "Wiki.jsp?page=";
-    private String m_editJspPage = "Edit.jsp?page=";
-    private String m_attachPage = "attach?page=";
-    private String m_pageName;
+    private String outlink = "outlink";
+    private String pageInfoJsp = "PageInfo.jsp";
+    private String wikiJspPage = "Wiki.jsp?page=";
+    private String editJspPage = "Edit.jsp?page=";
+    private String attachPage = "attach?page=";
+    private String pageName;
 
     /**
      *  Creates a new, empty config object.
@@ -55,10 +55,10 @@ public class XHtmlToWikiConfig {
 
         //  Figure out the actual URLs.
         //  NB: The logic here will fail if you add something else after the Wiki page name in VIEW or ATTACH
-        m_wikiJspPage = wikiContext.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), "" );
-        m_editJspPage = wikiContext.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), "" );
-        m_attachPage = wikiContext.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), "" );
-        m_pageInfoJsp = wikiContext.getURL( ContextEnum.PAGE_INFO.getRequestContext(), "" );
+        wikiJspPage = wikiContext.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), "" );
+        editJspPage = wikiContext.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), "" );
+        attachPage = wikiContext.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), "" );
+        pageInfoJsp = wikiContext.getURL( ContextEnum.PAGE_INFO.getRequestContext(), "" );
     }
 
     private void setWikiContext( final Context wikiContext ) {
@@ -73,16 +73,16 @@ public class XHtmlToWikiConfig {
      * @return URL for attachments.
      */
     public String getAttachPage() {
-        return m_attachPage;
+        return attachPage;
     }
 
     /**
      * Set the URL for attachments.
      *
-     * @param attachPage The attachment URL.
+     * @param newAttachPage The attachment URL.
      */
-    public void setAttachPage( final String attachPage ) {
-        m_attachPage = attachPage;
+    public void setAttachPage( final String newAttachPage ) {
+        this.attachPage = newAttachPage;
     }
 
     /**
@@ -91,16 +91,16 @@ public class XHtmlToWikiConfig {
      * @return The URL of the outlink image.
      */
     public String getOutlink() {
-        return m_outlink;
+        return outlink;
     }
 
     /**
      * Set the outlink URL.
      *
-     * @param outlink The outlink URL.
+     * @param newOutlink The outlink URL.
      */
-    public void setOutlink( final String outlink ) {
-        m_outlink = outlink;
+    public void setOutlink( final String newOutlink ) {
+        this.outlink = newOutlink;
     }
 
     /**
@@ -109,16 +109,16 @@ public class XHtmlToWikiConfig {
      * @return The URI for the page info display.
      */
     public String getPageInfoJsp() {
-        return m_pageInfoJsp;
+        return pageInfoJsp;
     }
 
     /**
      * Set the URI for the page info display.
      *
-     * @param pageInfoJsp URI for the page info.
+     * @param newPageInfoJsp URI for the page info.
      */
-    public void setPageInfoJsp( final String pageInfoJsp ) {
-        m_pageInfoJsp = pageInfoJsp;
+    public void setPageInfoJsp( final String newPageInfoJsp ) {
+        this.pageInfoJsp = newPageInfoJsp;
     }
 
     /**
@@ -127,16 +127,16 @@ public class XHtmlToWikiConfig {
      * @return The Page Name.
      */
     public String getPageName() {
-        return m_pageName;
+        return pageName;
     }
 
     /**
      * Set the page name.
      *
-     * @param pageName The name of the page.
+     * @param newPageName The name of the page.
      */
-    public void setPageName( final String pageName ) {
-        m_pageName = pageName;
+    public void setPageName( final String newPageName ) {
+        this.pageName = newPageName;
     }
 
     /**
@@ -145,16 +145,16 @@ public class XHtmlToWikiConfig {
      * @return The URI to the Wiki.jsp.
      */
     public String getWikiJspPage() {
-        return m_wikiJspPage;
+        return wikiJspPage;
     }
 
     /**
      * Set the URI to the Wiki.jsp.
      *
-     * @param wikiJspPage The URI to the Wiki.jsp.
+     * @param newWikiJspPage The URI to the Wiki.jsp.
      */
-    public void setWikiJspPage( final String wikiJspPage ) {
-        m_wikiJspPage = wikiJspPage;
+    public void setWikiJspPage( final String newWikiJspPage ) {
+        this.wikiJspPage = newWikiJspPage;
     }
 
     /**
@@ -163,16 +163,16 @@ public class XHtmlToWikiConfig {
      * @return The URI to the Edit.jsp page.
      */
     public String getEditJspPage() {
-        return m_editJspPage;
+        return editJspPage;
     }
 
     /**
      * Set the URI to the Edit.jsp page.
      *
-     * @param editJspPage The Edit.jsp URI.
+     * @param newEditJspPage The Edit.jsp URI.
      */
-    public void setEditJspPage( final String editJspPage ) {
-        m_editJspPage = editJspPage;
+    public void setEditJspPage( final String newEditJspPage ) {
+        this.editJspPage = newEditJspPage;
     }
 
     public boolean isNotIgnorableWikiMarkupLink( final Element a ) {

@@ -33,7 +33,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class PriorityList<E>
     extends AbstractList<E>
 {
-    private final CopyOnWriteArrayList<Item<E>> m_elements = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<Item<E>> elements = new CopyOnWriteArrayList<>();
 
     /**
      *  This is the default priority, which is used if no priority
@@ -52,21 +52,21 @@ public class PriorityList<E>
     {
         int i = 0;
 
-        for( ; i < m_elements.size(); i++ )
+        for( ; i < elements.size(); i++ )
         {
-            final Item< E > item = m_elements.get(i);
+            final Item< E > item = elements.get(i);
 
-            if( item.m_priority < priority )
+            if( item.priority < priority )
             {
                 break;
             }
         }
 
         final Item<E> newItem = new Item<>();
-        newItem.m_priority = priority;
-        newItem.m_object   = o;
+        newItem.priority = priority;
+        newItem.object   = o;
 
-        m_elements.add( i, newItem );
+        elements.add( i, newItem );
     }
 
     /**
@@ -92,7 +92,7 @@ public class PriorityList<E>
     @Override
     public E get(final int index )
     {
-        return m_elements.get( index ).m_object;
+        return elements.get( index ).object;
     }
 
     /**
@@ -103,7 +103,7 @@ public class PriorityList<E>
     @Override
     public int size()
     {
-        return m_elements.size();
+        return elements.size();
     }
 
     /**
@@ -111,7 +111,7 @@ public class PriorityList<E>
      */
     private static class Item<E>
     {
-        public int     m_priority;
-        public E       m_object;
+        public int     priority;
+        public E       object;
     }
 }

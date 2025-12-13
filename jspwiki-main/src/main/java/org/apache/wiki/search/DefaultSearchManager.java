@@ -76,7 +76,7 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
      */
     public DefaultSearchManager( final Engine engine, final Properties properties ) throws FilterException {
         initialize( engine, properties );
-        WikiEventManager.addWikiEventListener( m_engine.getManager( PageManager.class ), this );
+        WikiEventManager.addWikiEventListener( engine.getManager( PageManager.class ), this );
 
         // TODO: Replace with custom annotations. See JSPWIKI-566
         WikiAjaxDispatcherServlet.registerServlet( JSON_SEARCH, new JSONSearch() );
@@ -126,7 +126,7 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
                     result = AjaxUtil.toJson( callResults );
                 } else if( actionName.equals( AJAX_ACTION_PAGES ) ) {
                     LOG.debug("Calling findPages() START");
-                    final Context wikiContext = Wiki.context().create( m_engine, req, ContextEnum.PAGE_VIEW.getRequestContext() );
+                    final Context wikiContext = Wiki.context().create( engine, req, ContextEnum.PAGE_VIEW.getRequestContext() );
                     final List< Map< String, Object > > callResults = findPages( itemId, maxResults, wikiContext );
                     LOG.debug( "Calling findPages() DONE. " + callResults.size() );
                     result = AjaxUtil.toJson( callResults );
@@ -159,7 +159,7 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
 
                 final String cleanWikiName = MarkupParser.cleanLink(wikiName).toLowerCase() + filename;
                 final String oldStyleName = MarkupParser.wikifyLink(wikiName).toLowerCase() + filename;
-                final Set< String > allPages = m_engine.getManager( ReferenceManager.class ).findCreated();
+                final Set< String > allPages = engine.getManager( ReferenceManager.class ).findCreated();
 
                 int counter = 0;
                 for( final Iterator< String > i = allPages.iterator(); i.hasNext() && counter < maxLength; ) {
@@ -220,12 +220,12 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
 
     /** {@inheritDoc} */
     @Override
-    public void initialize( final Engine engine, final Properties properties ) throws FilterException {
-        m_engine = engine;
+    public void initialize( final Engine newEngine, final Properties properties ) throws FilterException {
+        this.engine = newEngine;
         loadSearchProvider(properties);
 
         try {
-            m_searchProvider.initialize( engine, properties );
+            m_searchProvider.initialize( newEngine, properties );
         } catch( final NoRequiredPropertyException | IOException e ) {
             LOG.error( e.getMessage(), e );
         }
@@ -260,13 +260,13 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
         if( event instanceof WikiPageEvent pageEvent ) {
             final String pageName = pageEvent.getPageName();
             if( event.getType() == WikiPageEvent.PAGE_DELETE_REQUEST ) {
-                final Page p = m_engine.getManager( PageManager.class ).getPage( pageName );
+                final Page p = engine.getManager( PageManager.class ).getPage( pageName );
                 if( p != null ) {
                     pageRemoved( p );
                 }
             }
             if( event.getType() == WikiPageEvent.PAGE_REINDEX ) {
-                final Page p = m_engine.getManager( PageManager.class ).getPage( pageName );
+                final Page p = engine.getManager( PageManager.class ).getPage( pageName );
                 if( p != null ) {
                     reindexPage( p );
                 }

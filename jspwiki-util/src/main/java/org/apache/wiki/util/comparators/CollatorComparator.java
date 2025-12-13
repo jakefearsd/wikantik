@@ -36,24 +36,24 @@ public class CollatorComparator implements Comparator<String>
     // A special singleton instance for quick access
     public static final Comparator<String> DEFAULT_LOCALE_COMPARATOR = new CollatorComparator();
 
-    protected Collator m_collator;
+    protected Collator collator;
 
     /**
      * Default constructor uses the current locale's collator.
      */
     public CollatorComparator()
     {
-        m_collator = Collator.getInstance();
+        collator = Collator.getInstance();
     }
 
     /**
      * Construct with a specific collator.
      * 
-     * @param collator the collator to be used for comparisons
+     * @param newCollator the collator to be used for comparisons
      */
-    public CollatorComparator(final Collator collator )
+    public CollatorComparator(final Collator newCollator )
     {
-        m_collator = collator;
+        this.collator = newCollator;
     }
 
     /*
@@ -72,16 +72,16 @@ public class CollatorComparator implements Comparator<String>
         if( str2 == null ) {
         	return 1; // str2 is null and str1 isn't so str1 is bigger
         }
-        return m_collator.compare( str1, str2 );
+        return collator.compare( str1, str2 );
     }
 
     /**
      * Specify a new collator.
      * 
-     * @param collator the collator to be used from now on
+     * @param newCollator the collator to be used from now on
      */
-    public void setCollator(final Collator collator )
+    public void setCollator(final Collator newCollator )
     {
-        m_collator = collator;
+        this.collator = newCollator;
     }
 }

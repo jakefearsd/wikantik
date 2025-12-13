@@ -133,10 +133,10 @@ public final class WikiEventManager {
     private static WikiEventListener c_monitor;
 
     /* The Map of client object to WikiEventDelegate. */
-    private final Map< Object, WikiEventDelegate > m_delegates = new HashMap<>();
+    private final Map< Object, WikiEventDelegate > delegates = new HashMap<>();
 
     /* The list containing any preloaded WikiEventDelegates. */
-    private final CopyOnWriteArrayList< WikiEventDelegate > m_preloadCache = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList< WikiEventDelegate > preloadCache = new CopyOnWriteArrayList<>();
 
     /* Singleton instance of the WikiEventManager. */
     private static WikiEventManager c_instance;
@@ -258,11 +258,11 @@ public final class WikiEventManager {
     }
 
     private void removeDelegates() {
-        synchronized( m_delegates ) {
-            m_delegates.clear();
+        synchronized( delegates ) {
+            delegates.clear();
         }
-        synchronized( m_preloadCache ) {
-            m_preloadCache.clear();
+        synchronized( preloadCache ) {
+            preloadCache.clear();
         }
     }
 
@@ -301,7 +301,7 @@ public final class WikiEventManager {
      *  Return the client-to-delegate Map.
      */
     private Map< Object, WikiEventDelegate > getDelegates() {
-        return m_delegates;
+        return delegates;
     }
 
     /**
@@ -315,31 +315,31 @@ public final class WikiEventManager {
      * @return the WikiEventDelegate.
      */
     private WikiEventDelegate getDelegateFor( final Object client ) {
-        synchronized( m_delegates ) {
+        synchronized( delegates ) {
             if( client == null || client instanceof Class ) { // then preload the cache
                 final WikiEventDelegate delegate = new WikiEventDelegate( client );
-                m_preloadCache.add( delegate );
-                m_delegates.put( client, delegate );
+                preloadCache.add( delegate );
+                delegates.put( client, delegate );
                 return delegate;
-            } else if( !m_preloadCache.isEmpty() ) {
+            } else if( !preloadCache.isEmpty() ) {
                 // then see if any of the cached delegates match the class of the incoming client
-                for( int i = m_preloadCache.size()-1 ; i >= 0 ; i-- ) { // start with most-recently added
-                    final WikiEventDelegate delegate = m_preloadCache.get( i );
+                for( int i = preloadCache.size()-1 ; i >= 0 ; i-- ) { // start with most-recently added
+                    final WikiEventDelegate delegate = preloadCache.get( i );
                     if( delegate.getClientClass() == null || delegate.getClientClass().equals( client.getClass() ) ) {
                         // we have a hit, so use it, but only on a client we haven't seen before
-                        if( !m_delegates.containsKey( client ) ) {
-                            m_preloadCache.remove( delegate );
-                            m_delegates.put( client, delegate );
+                        if( !delegates.containsKey( client ) ) {
+                            preloadCache.remove( delegate );
+                            delegates.put( client, delegate );
                             return delegate;
                         }
                     }
                 }
             }
             // otherwise treat normally...
-            WikiEventDelegate delegate = m_delegates.get( client );
+            WikiEventDelegate delegate = delegates.get( client );
             if( delegate == null ) {
                 delegate = new WikiEventDelegate( client );
-                m_delegates.put( client, delegate );
+                delegates.put( client, delegate );
             }
             return delegate;
         }
@@ -359,7 +359,7 @@ public final class WikiEventManager {
 
         /* A list of event listeners for this instance. */
         private final ArrayList< WeakReference< WikiEventListener > > m_listenerList = new ArrayList<>();
-        private Class< ? >  m_class;
+        private Class< ? >  classField;
 
         /**
          *  Constructor for an WikiEventDelegateImpl, provided with the client Object it will service, or the Class
@@ -367,7 +367,7 @@ public final class WikiEventManager {
          */
         WikiEventDelegate( final Object client ) {
             if( client instanceof Class< ? > clazz ) {
-                m_class = clazz;
+                classField = clazz;
             }
         }
 
@@ -375,7 +375,7 @@ public final class WikiEventManager {
          *  Returns the class of the client-less delegate, null if this delegate is attached to a client Object.
          */
         Class< ? > getClientClass() {
-            return m_class;
+            return classField;
         }
 
         /**

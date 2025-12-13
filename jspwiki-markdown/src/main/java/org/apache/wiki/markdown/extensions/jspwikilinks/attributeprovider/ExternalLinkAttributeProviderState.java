@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
 public class ExternalLinkAttributeProviderState implements NodeAttributeProviderState< JSPWikiLink > {
 
     private final boolean hasRef;
-    private final boolean m_useRelNofollow;
+    private final boolean useRelNofollow;
     private final Context wikiContext;
     private final LinkParsingOperations linkOperations;
     private final boolean isImageInlining;
@@ -50,7 +50,7 @@ public class ExternalLinkAttributeProviderState implements NodeAttributeProvider
         this.linkOperations = new LinkParsingOperations( wikiContext );
         this.isImageInlining = isImageInlining;
         this.inlineImagePatterns = inlineImagePatterns;
-        this.m_useRelNofollow = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USERELNOFOLLOW, false );
+        this.useRelNofollow = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USERELNOFOLLOW, false );
     }
 
     /**
@@ -66,7 +66,7 @@ public class ExternalLinkAttributeProviderState implements NodeAttributeProvider
             attributes.replaceValue( "class", MarkupParser.CLASS_EXTERNAL );
             attributes.replaceValue( "href", link.getUrl().toString() );
         }
-        if( m_useRelNofollow ) {
+        if( useRelNofollow ) {
             attributes.replaceValue( "rel", "nofollow" );
         }
     }

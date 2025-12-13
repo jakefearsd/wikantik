@@ -59,7 +59,7 @@ import java.util.Set;
  */
 public class DefaultEditorManager extends BaseModuleManager implements EditorManager {
 
-    private Map< String, WikiEditorInfo > m_editors;
+    private Map< String, WikiEditorInfo > editors;
 
     private static final Logger LOG = LogManager.getLogger( DefaultEditorManager.class );
 
@@ -80,7 +80,7 @@ public class DefaultEditorManager extends BaseModuleManager implements EditorMan
     /** This method goes through the jspwiki_module.xml files and hunts for editors. Any editors found are put in the registry. */
     private void registerEditors() {
         LOG.info( "Registering editor modules" );
-        m_editors = new HashMap<>();
+        editors = new HashMap<>();
 
         // Register all editors which have created a resource containing its properties. Get all resources of all modules
         final List< Element > editors = XmlUtil.parse( PLUGIN_RESOURCE_LOCATION, "/modules/editor" );
@@ -89,7 +89,7 @@ public class DefaultEditorManager extends BaseModuleManager implements EditorMan
             final WikiEditorInfo info = WikiEditorInfo.newInstance( name, pluginEl );
 
             if( checkCompatibility( info ) ) {
-                m_editors.put( name, info );
+                this.editors.put( name, info );
                 LOG.debug( "Registered editor " + name );
             } else {
                 LOG.info( "Editor '" + name + "' not compatible with this version of JSPWiki." );
@@ -131,17 +131,17 @@ public class DefaultEditorManager extends BaseModuleManager implements EditorMan
     /** {@inheritDoc} */
     @Override
     public String[] getEditorList() {
-        final String[] editors = new String[ m_editors.size() ];
-        final Set< String > keys = m_editors.keySet();
+        final String[] result = new String[ editors.size() ];
+        final Set< String > keys = editors.keySet();
 
-        return keys.toArray( editors );
+        return keys.toArray( result );
     }
 
     /** {@inheritDoc} */
     @Override
     public String getEditorPath( final Context context ) {
         final String editor = getEditorName( context );
-        final WikiEditorInfo ed = m_editors.get( editor );
+        final WikiEditorInfo ed = editors.get( editor );
         final String path;
         if( ed != null ) {
             path = ed.getPath();
@@ -154,7 +154,7 @@ public class DefaultEditorManager extends BaseModuleManager implements EditorMan
 
     /**  Contains info about an editor. */
     private static final class WikiEditorInfo extends WikiModuleInfo {
-        private String m_path;
+        private String path;
 
         static WikiEditorInfo newInstance( final String name, final Element el ) {
             if( name == null || name.isEmpty() ) {
@@ -169,7 +169,7 @@ public class DefaultEditorManager extends BaseModuleManager implements EditorMan
         @Override
         protected void initializeFromXML( final Element el ) {
             super.initializeFromXML( el );
-            m_path = el.getChildText("path");
+            path = el.getChildText("path");
         }
 
         private WikiEditorInfo( final String name ) {
@@ -177,20 +177,20 @@ public class DefaultEditorManager extends BaseModuleManager implements EditorMan
         }
 
         public String getPath() {
-            return m_path;
+            return path;
         }
     }
 
     /** {@inheritDoc} */
     @Override
     public Collection< WikiModuleInfo > modules() {
-        return modules( m_editors.values().iterator() );
+        return modules( editors.values().iterator() );
     }
 
     /** {@inheritDoc} */
     @Override
     public WikiEditorInfo getModuleInfo( final String moduleName ) {
-        return m_editors.get( moduleName );
+        return editors.get( moduleName );
     }
 
 }

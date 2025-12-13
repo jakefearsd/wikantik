@@ -32,12 +32,12 @@ public abstract class AbstractCommand implements Command {
     private static final String HTTPS = "HTTPS://";
     private static final String HTTP = "HTTP://";
 
-    private final String m_jsp;
-    private final String m_jspFriendlyName;
-    private final String m_urlPattern;
-    private final String m_requestContext;
-    private final String m_contentTemplate;
-    private final Object m_target;
+    private final String jsp;
+    private final String jspFriendlyName;
+    private final String urlPattern;
+    private final String requestContext;
+    private final String contentTemplate;
+    private final Object target;
 
     /**
      * Constructs a new Command with a specified wiki context, URL pattern, content template and target. The URL pattern is used to derive
@@ -56,30 +56,31 @@ public abstract class AbstractCommand implements Command {
             throw new IllegalArgumentException( "Request context, URL pattern and type must not be null." );
         }
 
-        m_requestContext = requestContext;
+        this.requestContext = requestContext;
         if ( urlPattern.toUpperCase().startsWith( HTTP ) || urlPattern.toUpperCase().startsWith( HTTPS ) ) {
             // For an HTTP/HTTPS url, pass it through without modification
-            m_jsp = urlPattern;
-            m_jspFriendlyName = "Special Page";
+            jsp = urlPattern;
+            jspFriendlyName = "Special Page";
         } else {
             // For local JSPs, take everything to the left of ?, then delete all variable substitutions
-            String jsp = urlPattern;
+            String localJsp = urlPattern;
             final int qPosition = urlPattern.indexOf( '?' );
             if ( qPosition != -1 ) {
-                jsp = jsp.substring( 0, qPosition );
+                localJsp = localJsp.substring( 0, qPosition );
             }
-            m_jsp = removeSubstitutions(jsp);
+            localJsp = removeSubstitutions(localJsp);
+            this.jsp = localJsp;
 
             // Calculate the "friendly name" for the JSP
-            if ( m_jsp.toUpperCase().endsWith( ".JSP" ) ) {
-                m_jspFriendlyName = TextUtil.beautifyString( m_jsp.substring( 0, m_jsp.length() - 4 ) );
+            if ( localJsp.toUpperCase().endsWith( ".JSP" ) ) {
+                jspFriendlyName = TextUtil.beautifyString( localJsp.substring( 0, localJsp.length() - 4 ) );
             } else {
-                m_jspFriendlyName = m_jsp;
+                jspFriendlyName = localJsp;
             }
         }
-        m_urlPattern = urlPattern;
-        m_contentTemplate = contentTemplate;
-        m_target = target;
+        this.urlPattern = urlPattern;
+        this.contentTemplate = contentTemplate;
+        this.target = target;
     }
 
     //
@@ -110,7 +111,7 @@ public abstract class AbstractCommand implements Command {
      */
     @Override
     public final String getContentTemplate() {
-        return m_contentTemplate;
+        return contentTemplate;
     }
 
     /**
@@ -118,7 +119,7 @@ public abstract class AbstractCommand implements Command {
      */
     @Override
     public final String getJSP() {
-        return m_jsp;
+        return jsp;
     }
 
     /**
@@ -132,7 +133,7 @@ public abstract class AbstractCommand implements Command {
      */
     @Override
     public final String getRequestContext() {
-        return m_requestContext;
+        return requestContext;
     }
 
     /**
@@ -140,7 +141,7 @@ public abstract class AbstractCommand implements Command {
      */
     @Override
     public final Object getTarget() {
-        return m_target;
+        return target;
     }
 
     /**
@@ -148,7 +149,7 @@ public abstract class AbstractCommand implements Command {
      */
     @Override
     public final String getURLPattern() {
-        return m_urlPattern;
+        return urlPattern;
     }
 
     /**
@@ -157,7 +158,7 @@ public abstract class AbstractCommand implements Command {
      * @return the friendly name
      */
     protected final String getJSPFriendlyName() {
-        return m_jspFriendlyName;
+        return jspFriendlyName;
     }
 
     /**
@@ -167,10 +168,10 @@ public abstract class AbstractCommand implements Command {
      */
     public final String toString() {
         return "Command" +
-               "[context=" + m_requestContext + "," +
-               "urlPattern=" + m_urlPattern + "," +
-               "jsp=" +  m_jsp +
-               ( m_target == null ? "" : ",target=" + m_target + m_target ) +
+               "[context=" + requestContext + "," +
+               "urlPattern=" + urlPattern + "," +
+               "jsp=" +  jsp +
+               ( target == null ? "" : ",target=" + target + target ) +
                "]";
     }
 

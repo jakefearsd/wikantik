@@ -42,9 +42,9 @@ public final class GroupCommand extends AbstractCommand {
        /** GroupCommand for viewing a group. */
     public static final Command VIEW_GROUP = new GroupCommand( ContextEnum.GROUP_VIEW, null, GroupPermission.VIEW_ACTION );
 
-    private final String m_action;
+    private final String action;
     
-    private final Permission m_permission;
+    private final Permission permission;
 
     /**
      * Constructs a new Command with a specified wiki context, URL pattern, type, and content template. The WikiPage for this command is
@@ -76,11 +76,11 @@ public final class GroupCommand extends AbstractCommand {
                           final GroupPrincipal target,
                           final String action ) {
         super( requestContext, urlPattern, contentTemplate, target );
-        m_action = action;
-        if ( target == null || m_action == null ) {
-            m_permission = null;
+        this.action = action;
+        if ( target == null || this.action == null ) {
+            permission = null;
         } else {
-            m_permission = new GroupPermission( target.getName(), action );
+            permission = new GroupPermission( target.getName(), action );
         }
     }
 
@@ -97,7 +97,7 @@ public final class GroupCommand extends AbstractCommand {
         if( !( target instanceof GroupPrincipal ) ) {
             throw new IllegalArgumentException( "Target must non-null and of type GroupPrincipal." );
         }
-        return new GroupCommand( getRequestContext(), getURLPattern(), getContentTemplate(), ( GroupPrincipal )target, m_action );
+        return new GroupCommand( getRequestContext(), getURLPattern(), getContentTemplate(), ( GroupPrincipal )target, action );
     }
     
     /**
@@ -123,7 +123,7 @@ public final class GroupCommand extends AbstractCommand {
      */
     @Override
     public Permission requiredPermission() {
-        return m_permission;
+        return permission;
     }
 
 }

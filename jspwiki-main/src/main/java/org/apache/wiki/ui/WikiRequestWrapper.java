@@ -36,7 +36,7 @@ import java.util.Arrays;
  */
 public class WikiRequestWrapper extends HttpServletRequestWrapper {
 
-    private final Session m_session;
+    private final Session session;
 
     /**
      * Constructs a new wrapped request.
@@ -48,7 +48,7 @@ public class WikiRequestWrapper extends HttpServletRequestWrapper {
         super( request );
 
         // Get and stash a reference to the current Session
-        m_session = SessionMonitor.getInstance( engine ).find( request.getSession() );
+        session = SessionMonitor.getInstance( engine ).find( request.getSession() );
     }
 
     /**
@@ -63,8 +63,8 @@ public class WikiRequestWrapper extends HttpServletRequestWrapper {
             return super.getRemoteUser();
         }
 
-        if( m_session.isAuthenticated() ) {
-            return m_session.getLoginPrincipal().getName();
+        if( session.isAuthenticated() ) {
+            return session.getLoginPrincipal().getName();
         }
         return null;
     }
@@ -81,8 +81,8 @@ public class WikiRequestWrapper extends HttpServletRequestWrapper {
             return super.getUserPrincipal();
         }
 
-        if( m_session.isAuthenticated() ) {
-            return m_session.getLoginPrincipal();
+        if( session.isAuthenticated() ) {
+            return session.getLoginPrincipal();
         }
         return null;
     }
@@ -101,7 +101,7 @@ public class WikiRequestWrapper extends HttpServletRequestWrapper {
         }
 
         // Iterate through all of the built-in roles and look for a match
-        final Principal[] principals = m_session.getRoles();
+        final Principal[] principals = session.getRoles();
 
         // None of the built-in roles match, so no luck
         return Arrays.stream(principals).filter(value -> value instanceof Role).map(value -> (Role) value).anyMatch(principal -> Role.isBuiltInRole(principal) && principal.getName().equals(role));

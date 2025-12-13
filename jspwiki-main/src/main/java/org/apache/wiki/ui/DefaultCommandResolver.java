@@ -66,13 +66,13 @@ public class DefaultCommandResolver implements CommandResolver {
 
     private static final Logger LOG = LogManager.getLogger( DefaultCommandResolver.class );
 
-    private final Engine m_engine;
+    private final Engine engine;
 
     /** If true, we'll also consider english plurals (+s) a match. */
-    private final boolean m_matchEnglishPlurals;
+    private final boolean matchEnglishPlurals;
 
     /** Stores special page names as keys, and Commands as values. */
-    private final Map<String, Command> m_specialPages;
+    private final Map<String, Command> specialPages;
 
     /**
      * Constructs a CommandResolver for a given Engine. This constructor will extract the special page references for this wiki and
@@ -82,8 +82,8 @@ public class DefaultCommandResolver implements CommandResolver {
      * @param properties the properties used to initialize the wiki
      */
     public DefaultCommandResolver( final Engine engine, final Properties properties ) {
-        m_engine = engine;
-        m_specialPages = new HashMap<>();
+        this.engine = engine;
+        specialPages = new HashMap<>();
 
         // Skim through the properties and look for anything with the "special page" prefix. Create maps that allow us look up
         // the correct Command based on special page name. If a matching command isn't found, create a RedirectCommand.
@@ -99,13 +99,13 @@ public class DefaultCommandResolver implements CommandResolver {
                         final Command redirect = RedirectCommand.REDIRECT;
                         command = redirect.targetedCommand( jsp );
                     }
-                    m_specialPages.put( specialPage, command );
+                    specialPages.put( specialPage, command );
                 }
             }
         }
 
         // Do we match plurals?
-        m_matchEnglishPlurals = TextUtil.getBooleanProperty( properties, Engine.PROP_MATCHPLURALS, true );
+        matchEnglishPlurals = TextUtil.getBooleanProperty( properties, Engine.PROP_MATCHPLURALS, true );
     }
 
     /**
@@ -125,7 +125,7 @@ public class DefaultCommandResolver implements CommandResolver {
 
         // Can we find a special-page command matching the extracted page?
         if ( pageName != null ) {
-            command = m_specialPages.get( pageName );
+            command = specialPages.get( pageName );
         }
 
         // If we haven't found a matching command yet, extract the JSP path and compare to our list of special pages
@@ -143,7 +143,7 @@ public class DefaultCommandResolver implements CommandResolver {
 
         // For PageCommand.VIEW, default to front page if a page wasn't supplied
         if( PageCommand.VIEW.equals( command ) && pageName == null ) {
-            pageName = m_engine.getFrontPage();
+            pageName = engine.getFrontPage();
         }
 
         // These next blocks handle targeting requirements
@@ -156,7 +156,7 @@ public class DefaultCommandResolver implements CommandResolver {
         }
 
         // If "create group" command, target this wiki
-        final String wiki = m_engine.getApplicationName();
+        final String wiki = engine.getApplicationName();
         if ( WikiCommand.CREATE_GROUP.equals( command ) ) {
             return WikiCommand.CREATE_GROUP.targetedCommand( wiki );
         }
@@ -183,7 +183,7 @@ public class DefaultCommandResolver implements CommandResolver {
         boolean isThere = simplePageExists( page );
         String  finalName = page;
 
-        if ( !isThere && m_matchEnglishPlurals ) {
+        if ( !isThere && matchEnglishPlurals ) {
             if ( page.endsWith( "s" ) ) {
                 finalName = page.substring( 0, page.length() - 1 );
             } else {
@@ -197,7 +197,7 @@ public class DefaultCommandResolver implements CommandResolver {
             finalName = MarkupParser.wikifyLink( page );
             isThere = simplePageExists(finalName);
 
-            if( !isThere && m_matchEnglishPlurals ) {
+            if( !isThere && matchEnglishPlurals ) {
                 if( finalName.endsWith( "s" ) ) {
                     finalName = finalName.substring( 0, finalName.length() - 1 );
                 } else {
@@ -216,9 +216,9 @@ public class DefaultCommandResolver implements CommandResolver {
      */
     @Override
     public String getSpecialPageReference( final String page ) {
-        final Command command = m_specialPages.get( page );
+        final Command command = specialPages.get( page );
         if ( command != null ) {
-            return m_engine.getManager( URLConstructor.class ).makeURL( command.getRequestContext(), command.getURLPattern(), null );
+            return engine.getManager( URLConstructor.class ).makeURL( command.getRequestContext(), command.getURLPattern(), null );
         }
 
         return null;
@@ -248,7 +248,7 @@ public class DefaultCommandResolver implements CommandResolver {
         }
 
         // Find special page reference?
-        for( final Map.Entry< String, Command > entry : m_specialPages.entrySet() ) {
+        for( final Map.Entry< String, Command > entry : specialPages.entrySet() ) {
             final Command specialCommand = entry.getValue();
             if( specialCommand.getJSP().equals( jsp ) ) {
                 return specialCommand;
@@ -270,7 +270,7 @@ public class DefaultCommandResolver implements CommandResolver {
     public String extractPageFromParameter( final String requestContext, final HttpServletRequest request ) {
         // Extract the page name from the URL directly
         try {
-            String page = m_engine.getManager( URLConstructor.class ).parsePage( requestContext, request, m_engine.getContentEncoding() );
+            String page = engine.getManager( URLConstructor.class ).parsePage( requestContext, request, engine.getContentEncoding() );
             if ( page != null ) {
                 try {
                     // Look for singular/plural variants; if one not found, take the one the user supplied
@@ -309,10 +309,10 @@ public class DefaultCommandResolver implements CommandResolver {
             }
         }
 
-        Page wikipage = m_engine.getManager( PageManager.class ).getPage( page, version );
+        Page wikipage = engine.getManager( PageManager.class ).getPage( page, version );
         if ( wikipage == null ) {
             page = MarkupParser.cleanLink( page );
-            wikipage = Wiki.contents().page( m_engine, page );
+            wikipage = Wiki.contents().page( engine, page );
         }
         return wikipage;
     }
@@ -326,10 +326,10 @@ public class DefaultCommandResolver implements CommandResolver {
      * throws an exception
      */
     protected boolean simplePageExists( final String page ) throws ProviderException {
-        if ( m_specialPages.containsKey( page ) ) {
+        if ( specialPages.containsKey( page ) ) {
             return true;
         }
-        return m_engine.getManager( PageManager.class ).pageExists( page );
+        return engine.getManager( PageManager.class ).pageExists( page );
     }
 
 }

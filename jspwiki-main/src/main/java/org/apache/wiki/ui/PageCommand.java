@@ -49,9 +49,9 @@ public final class PageCommand extends AbstractCommand {
     public static final Command NONE = new PageCommand( ContextEnum.PAGE_NONE, null, null );
     public static final Command OTHER = NONE;
 
-    private final String m_action;
+    private final String action;
     
-    private final Permission m_permission;
+    private final Permission permission;
 
     /**
      * Constructs a new Command with a specified wiki context, URL pattern, type, and content template. The target for this command is
@@ -83,11 +83,11 @@ public final class PageCommand extends AbstractCommand {
                          final Page target,
                          final String action ) {
         super( requestContext, urlPattern, contentTemplate, target );
-        m_action = action;
-        if( target == null || m_action == null ) {
-            m_permission = null;
+        this.action = action;
+        if( target == null || this.action == null ) {
+            permission = null;
         } else {
-            m_permission = PermissionFactory.getPagePermission( target, action );
+            permission = PermissionFactory.getPagePermission( target, action );
         }
     }
 
@@ -104,7 +104,7 @@ public final class PageCommand extends AbstractCommand {
         if( !( target instanceof Page ) ) {
             throw new IllegalArgumentException( "Target must non-null and of type Page." );
         }
-        return new PageCommand( getRequestContext(), getURLPattern(), getContentTemplate(), ( Page )target, m_action );
+        return new PageCommand( getRequestContext(), getURLPattern(), getContentTemplate(), ( Page )target, action );
     }
 
     /**
@@ -124,7 +124,7 @@ public final class PageCommand extends AbstractCommand {
      */
     @Override
     public Permission requiredPermission() {
-        return m_permission;
+        return permission;
     }
 
 }

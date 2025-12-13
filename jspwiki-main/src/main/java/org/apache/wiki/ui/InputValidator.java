@@ -52,9 +52,9 @@ public final class InputValidator {
     static final Pattern EMAIL_PATTERN  = Pattern.compile( "^[0-9a-zA-Z-_.+]+@([0-9a-zA-Z-_]+\\.)+[a-zA-Z]+$" );
     static final Pattern UNSAFE_PATTERN = Pattern.compile( "[\\x00\\r\\n\\x0f\"':<>\\[\\];#&@\\xff{}$%\\\\]" );
 
-    private final String m_form;
-    private final Session m_session;
-    private final Context m_context;
+    private final String form;
+    private final Session session;
+    private final Context context;
 
     /**
      * Constructs a new input validator for a specific form and wiki session. When validation errors are detected, they will be added to
@@ -64,9 +64,9 @@ public final class InputValidator {
      * @param context the wiki context
      */
     public InputValidator( final String form, final Context context ) {
-        m_form = form;
-        m_context = context;
-        m_session = context.getWikiSession();
+        this.form = form;
+        this.context = context;
+        session = context.getWikiSession();
     }
 
     /**
@@ -91,8 +91,8 @@ public final class InputValidator {
      */
     public boolean validateNotNull( final String input, final String label, final int type ) {
         if ( isBlank( input ) ) {
-            final ResourceBundle rb = Preferences.getBundle( m_context, InternationalizationManager.CORE_BUNDLE );
-            m_session.addMessage( m_form, MessageFormat.format( rb.getString("validate.cantbenull"), label ) );
+            final ResourceBundle rb = Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE );
+            session.addMessage( form, MessageFormat.format( rb.getString("validate.cantbenull"), label ) );
             return false;
         }
         return validate( input, label, type ) && !isBlank( input );
@@ -113,7 +113,7 @@ public final class InputValidator {
             return true;
         }
 
-        final ResourceBundle rb = Preferences.getBundle( m_context, InternationalizationManager.CORE_BUNDLE );
+        final ResourceBundle rb = Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE );
 
         // Otherwise, see if it matches the pattern for the target type
         final Matcher matcher;
@@ -126,7 +126,7 @@ public final class InputValidator {
                 // MessageTag already invokes replaceEntities()
                 // Object[] args = { label, "&quot;&#39;&lt;&gt;;&amp;[]#\\@{}%$" };
                 final Object[] args = { label, "'\"<>;&[]#\\@{}%$" };
-                m_session.addMessage( m_form, MessageFormat.format( rb.getString( "validate.unsafechars" ), args ) );
+                session.addMessage( form, MessageFormat.format( rb.getString( "validate.unsafechars" ), args ) );
             }
             return valid;
         case EMAIL:
@@ -134,7 +134,7 @@ public final class InputValidator {
             valid = matcher.matches();
             if ( !valid ) {
                 final Object[] args = { label };
-                m_session.addMessage( m_form, MessageFormat.format( rb.getString( "validate.invalidemail" ), args ) );
+                session.addMessage( form, MessageFormat.format( rb.getString( "validate.invalidemail" ), args ) );
             }
             return valid;
         case ID:
@@ -144,7 +144,7 @@ public final class InputValidator {
                 // MessageTag already invokes replaceEntities()
                 // Object[] args = { label, "&quot;&#39;&lt;&gt;;&amp;{}" };
                 final Object[] args = { label, "'\"<>;&{}" };
-                m_session.addMessage( m_form, MessageFormat.format( rb.getString( "validate.unsafechars" ), args ) );
+                session.addMessage( form, MessageFormat.format( rb.getString( "validate.unsafechars" ), args ) );
             }
             return valid;
          default:

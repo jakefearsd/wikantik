@@ -66,21 +66,21 @@ public class WikiSession implements Session {
 
     private static final ThreadLocal< Session > c_guestSession = new ThreadLocal<>();
 
-    private final Subject m_subject = new Subject();
+    private final Subject subject = new Subject();
 
-    private final Map< String, Set< String > > m_messages  = new ConcurrentHashMap<>();
+    private final Map< String, Set< String > > messages  = new ConcurrentHashMap<>();
 
     /** The Engine that created this session. */
-    private Engine m_engine;
+    private Engine engine;
 
     private String antiCsrfToken;
-    private String m_status            = ANONYMOUS;
+    private String status            = ANONYMOUS;
 
-    private Principal m_userPrincipal  = WikiPrincipal.GUEST;
+    private Principal userPrincipal  = WikiPrincipal.GUEST;
 
-    private Principal m_loginPrincipal = WikiPrincipal.GUEST;
+    private Principal loginPrincipal = WikiPrincipal.GUEST;
 
-    private Locale m_cachedLocale      = Locale.getDefault();
+    private Locale cachedLocale      = Locale.getDefault();
 
     /**
      * Returns <code>true</code> if one of this WikiSession's user Principals can be shown to belong to a particular wiki group. If
@@ -102,20 +102,20 @@ public class WikiSession implements Session {
     /** {@inheritDoc} */
     @Override
     public boolean isAsserted() {
-        return m_subject.getPrincipals().contains( Role.ASSERTED );
+        return subject.getPrincipals().contains( Role.ASSERTED );
     }
 
     /** {@inheritDoc} */
     @Override
     public boolean isAuthenticated() {
         // If Role.AUTHENTICATED is in principals set, always return true.
-        if ( m_subject.getPrincipals().contains( Role.AUTHENTICATED ) ) {
+        if ( subject.getPrincipals().contains( Role.AUTHENTICATED ) ) {
             return true;
         }
 
         // With non-JSPWiki LoginModules, the role may not be there, so we need to add it if the user really is authenticated.
         if ( !isAnonymous() && !isAsserted() ) {
-            m_subject.getPrincipals().add( Role.AUTHENTICATED );
+            subject.getPrincipals().add( Role.AUTHENTICATED );
             return true;
         }
 
@@ -125,7 +125,7 @@ public class WikiSession implements Session {
     /** {@inheritDoc} */
     @Override
     public boolean isAnonymous() {
-        final Set< Principal > principals = m_subject.getPrincipals();
+        final Set< Principal > principals = subject.getPrincipals();
         return principals.contains( Role.ANONYMOUS ) ||
                principals.contains( WikiPrincipal.GUEST ) ||
                HttpUtil.isIPV4Address( getUserPrincipal().getName() );
@@ -134,13 +134,13 @@ public class WikiSession implements Session {
     /** {@inheritDoc} */
     @Override
     public Principal getLoginPrincipal() {
-        return m_loginPrincipal;
+        return loginPrincipal;
     }
 
     /** {@inheritDoc} */
     @Override
     public Principal getUserPrincipal() {
-        return m_userPrincipal;
+        return userPrincipal;
     }
 
     /** {@inheritDoc} */
@@ -152,7 +152,7 @@ public class WikiSession implements Session {
     /** {@inheritDoc} */
     @Override
     public Locale getLocale() {
-        return m_cachedLocale;
+        return cachedLocale;
     }
 
     /** {@inheritDoc} */
@@ -167,22 +167,22 @@ public class WikiSession implements Session {
         if ( topic == null ) {
             throw new IllegalArgumentException( "addMessage: topic cannot be null." );
         }
-        final Set< String > messages = m_messages.computeIfAbsent( topic, k -> new LinkedHashSet<>() );
-        messages.add( StringUtils.defaultString( message ) );
+        final Set< String > topicMessages = messages.computeIfAbsent( topic, k -> new LinkedHashSet<>() );
+        topicMessages.add( StringUtils.defaultString( message ) );
     }
 
     /** {@inheritDoc} */
     @Override
     public void clearMessages() {
-        m_messages.clear();
+        messages.clear();
     }
 
     /** {@inheritDoc} */
     @Override
     public void clearMessages( final String topic ) {
-        final Set< String > messages = m_messages.get( topic );
-        if ( messages != null ) {
-            m_messages.clear();
+        final Set< String > topicMessages = messages.get( topic );
+        if ( topicMessages != null ) {
+            topicMessages.clear();
         }
     }
 
@@ -195,11 +195,11 @@ public class WikiSession implements Session {
     /** {@inheritDoc} */
     @Override
     public String[] getMessages( final String topic ) {
-        final Set< String > messages = m_messages.get( topic );
-        if( messages == null || messages.isEmpty()) {
+        final Set< String > topicMessages = messages.get( topic );
+        if( topicMessages == null || topicMessages.isEmpty()) {
             return new String[ 0 ];
         }
-        return messages.toArray( new String[0] );
+        return topicMessages.toArray( new String[0] );
     }
 
     /** {@inheritDoc} */
@@ -208,7 +208,7 @@ public class WikiSession implements Session {
 
         // Take the first non Role as the main Principal
 
-        return m_subject.getPrincipals().stream().filter(AuthenticationManager::isUserPrincipal).toArray(Principal[]::new);
+        return subject.getPrincipals().stream().filter(AuthenticationManager::isUserPrincipal).toArray(Principal[]::new);
     }
 
     /** {@inheritDoc} */
@@ -217,10 +217,10 @@ public class WikiSession implements Session {
         final Set< Principal > roles = new HashSet<>();
 
         // Add all the Roles possessed by the Subject directly
-        roles.addAll( m_subject.getPrincipals( Role.class ) );
+        roles.addAll( subject.getPrincipals( Role.class ) );
 
         // Add all the GroupPrincipals possessed by the Subject directly
-        roles.addAll( m_subject.getPrincipals( GroupPrincipal.class ) );
+        roles.addAll( subject.getPrincipals( GroupPrincipal.class ) );
 
         // Return a defensive copy
         final Principal[] roleArray = roles.toArray( new Principal[0] );
@@ -231,7 +231,7 @@ public class WikiSession implements Session {
     /** {@inheritDoc} */
     @Override
     public boolean hasPrincipal( final Principal principal ) {
-        return m_subject.getPrincipals().contains( principal );
+        return subject.getPrincipals().contains( principal );
     }
 
     /**
@@ -248,39 +248,39 @@ public class WikiSession implements Session {
                 case WikiSecurityEvent.GROUP_ADD:
                     final Group groupAdd = ( Group )e.getTarget();
                     if( isInGroup( groupAdd ) ) {
-                        m_subject.getPrincipals().add( groupAdd.getPrincipal() );
+                        subject.getPrincipals().add( groupAdd.getPrincipal() );
                     }
                     break;
                 case WikiSecurityEvent.GROUP_REMOVE:
                     final Group group = ( Group )e.getTarget();
-                    m_subject.getPrincipals().remove( group.getPrincipal() );
+                    subject.getPrincipals().remove( group.getPrincipal() );
                     break;
                 case WikiSecurityEvent.GROUP_CLEAR_GROUPS:
-                    m_subject.getPrincipals().removeAll( m_subject.getPrincipals( GroupPrincipal.class ) );
+                    subject.getPrincipals().removeAll( subject.getPrincipals( GroupPrincipal.class ) );
                     break;
                 case WikiSecurityEvent.LOGIN_INITIATED:
                     // Do nothing
                     break;
                 case WikiSecurityEvent.PRINCIPAL_ADD:
                     final WikiSession targetPA = ( WikiSession )e.getTarget();
-                    if( this.equals( targetPA ) && m_status.equals( AUTHENTICATED ) ) {
-                        final Set< Principal > principals = m_subject.getPrincipals();
+                    if( this.equals( targetPA ) && status.equals( AUTHENTICATED ) ) {
+                        final Set< Principal > principals = subject.getPrincipals();
                         principals.add( ( Principal )e.getPrincipal() );
                     }
                     break;
                 case WikiSecurityEvent.LOGIN_ANONYMOUS:
                     final WikiSession targetLAN = ( WikiSession )e.getTarget();
                     if( this.equals( targetLAN ) ) {
-                        m_status = ANONYMOUS;
+                        status = ANONYMOUS;
 
                         // Set the login/user principals and login status
-                        final Set< Principal > principals = m_subject.getPrincipals();
-                        m_loginPrincipal = ( Principal )e.getPrincipal();
-                        m_userPrincipal = m_loginPrincipal;
+                        final Set< Principal > principals = subject.getPrincipals();
+                        loginPrincipal = ( Principal )e.getPrincipal();
+                        userPrincipal = loginPrincipal;
 
                         // Add the login principal to the Subject, and set the built-in roles
                         principals.clear();
-                        principals.add( m_loginPrincipal );
+                        principals.add( loginPrincipal );
                         principals.add( Role.ALL );
                         principals.add( Role.ANONYMOUS );
                     }
@@ -288,16 +288,16 @@ public class WikiSession implements Session {
                 case WikiSecurityEvent.LOGIN_ASSERTED:
                     final WikiSession targetLAS = ( WikiSession )e.getTarget();
                     if( this.equals( targetLAS ) ) {
-                        m_status = ASSERTED;
+                        status = ASSERTED;
 
                         // Set the login/user principals and login status
-                        final Set< Principal > principals = m_subject.getPrincipals();
-                        m_loginPrincipal = ( Principal )e.getPrincipal();
-                        m_userPrincipal = m_loginPrincipal;
+                        final Set< Principal > principals = subject.getPrincipals();
+                        loginPrincipal = ( Principal )e.getPrincipal();
+                        userPrincipal = loginPrincipal;
 
                         // Add the login principal to the Subject, and set the built-in roles
                         principals.clear();
-                        principals.add( m_loginPrincipal );
+                        principals.add( loginPrincipal );
                         principals.add( Role.ALL );
                         principals.add( Role.ASSERTED );
                     }
@@ -305,16 +305,16 @@ public class WikiSession implements Session {
                 case WikiSecurityEvent.LOGIN_AUTHENTICATED:
                     final WikiSession targetLAU = ( WikiSession )e.getTarget();
                     if( this.equals( targetLAU ) ) {
-                        m_status = AUTHENTICATED;
+                        status = AUTHENTICATED;
 
                         // Set the login/user principals and login status
-                        final Set< Principal > principals = m_subject.getPrincipals();
-                        m_loginPrincipal = ( Principal )e.getPrincipal();
-                        m_userPrincipal = m_loginPrincipal;
+                        final Set< Principal > principals = subject.getPrincipals();
+                        loginPrincipal = ( Principal )e.getPrincipal();
+                        userPrincipal = loginPrincipal;
 
                         // Add the login principal to the Subject, and set the built-in roles
                         principals.clear();
-                        principals.add( m_loginPrincipal );
+                        principals.add( loginPrincipal );
                         principals.add( Role.ALL );
                         principals.add( Role.AUTHENTICATED );
 
@@ -333,7 +333,7 @@ public class WikiSession implements Session {
                 case WikiSecurityEvent.PROFILE_NAME_CHANGED:
                     // Refresh user principals based on new user profile
                     final WikiSession sourcePNC = e.getSrc();
-                    if( this.equals( sourcePNC ) && m_status.equals( AUTHENTICATED ) ) {
+                    if( this.equals( sourcePNC ) && status.equals( AUTHENTICATED ) ) {
                         // To prepare for refresh, set the new full name as the primary principal
                         final UserProfile[] profiles = ( UserProfile[] )e.getTarget();
                         final UserProfile newProfile = profiles[ 1 ];
@@ -341,12 +341,12 @@ public class WikiSession implements Session {
                             throw new IllegalStateException( "User profile FullName cannot be null." );
                         }
 
-                        final Set< Principal > principals = m_subject.getPrincipals();
-                        m_loginPrincipal = new WikiPrincipal( newProfile.getLoginName() );
+                        final Set< Principal > principals = subject.getPrincipals();
+                        loginPrincipal = new WikiPrincipal( newProfile.getLoginName() );
 
                         // Add the login principal to the Subject, and set the built-in roles
                         principals.clear();
-                        principals.add( m_loginPrincipal );
+                        principals.add( loginPrincipal );
                         principals.add( Role.ALL );
                         principals.add( Role.AUTHENTICATED );
 
@@ -367,12 +367,12 @@ public class WikiSession implements Session {
     /** {@inheritDoc} */
     @Override
     public void invalidate() {
-        m_subject.getPrincipals().clear();
-        m_subject.getPrincipals().add( WikiPrincipal.GUEST );
-        m_subject.getPrincipals().add( Role.ANONYMOUS );
-        m_subject.getPrincipals().add( Role.ALL );
-        m_userPrincipal = WikiPrincipal.GUEST;
-        m_loginPrincipal = WikiPrincipal.GUEST;
+        subject.getPrincipals().clear();
+        subject.getPrincipals().add( WikiPrincipal.GUEST );
+        subject.getPrincipals().add( Role.ANONYMOUS );
+        subject.getPrincipals().add( Role.ALL );
+        userPrincipal = WikiPrincipal.GUEST;
+        loginPrincipal = WikiPrincipal.GUEST;
     }
 
     /**
@@ -385,13 +385,13 @@ public class WikiSession implements Session {
      */
     protected void injectGroupPrincipals() {
         // Flush the existing GroupPrincipals
-        m_subject.getPrincipals().removeAll( m_subject.getPrincipals(GroupPrincipal.class) );
+        subject.getPrincipals().removeAll( subject.getPrincipals(GroupPrincipal.class) );
 
         // Get the GroupManager and test for each Group
-        final GroupManager manager = m_engine.getManager( GroupManager.class );
+        final GroupManager manager = engine.getManager( GroupManager.class );
         for( final Principal group : manager.getRoles() ) {
             if ( manager.isUserInRole( this, group ) ) {
-                m_subject.getPrincipals().add( group );
+                subject.getPrincipals().add( group );
             }
         }
     }
@@ -403,7 +403,7 @@ public class WikiSession implements Session {
      */
     protected void injectUserProfilePrincipals() {
         // Search for the user profile
-        final String searchId = m_loginPrincipal.getName();
+        final String searchId = loginPrincipal.getName();
         if ( searchId == null ) {
             // Oh dear, this wasn't an authenticated user after all
             LOG.info("Refresh principals failed because WikiSession had no user Principal; maybe not logged in?");
@@ -411,7 +411,7 @@ public class WikiSession implements Session {
         }
 
         // Look up the user and go get the new Principals
-        final UserDatabase database = m_engine.getManager( UserManager.class ).getUserDatabase();
+        final UserDatabase database = engine.getManager( UserManager.class ).getUserDatabase();
         if( database == null ) {
             throw new IllegalStateException( "User database cannot be null." );
         }
@@ -420,15 +420,15 @@ public class WikiSession implements Session {
             final Principal[] principals = database.getPrincipals( profile.getLoginName() );
             for( final Principal principal : principals ) {
                 // Add the Principal to the Subject
-                m_subject.getPrincipals().add( principal );
+                subject.getPrincipals().add( principal );
 
                 // Set the user principal if needed; we prefer FullName, but the WikiName will also work
                 final boolean isFullNamePrincipal = ( principal instanceof WikiPrincipal &&
                                                       ( ( WikiPrincipal )principal ).getType().equals( WikiPrincipal.FULL_NAME ) );
                 if ( isFullNamePrincipal ) {
-                   m_userPrincipal = principal;
-                } else if ( !( m_userPrincipal instanceof WikiPrincipal ) ) {
-                    m_userPrincipal = principal;
+                   userPrincipal = principal;
+                } else if ( !( userPrincipal instanceof WikiPrincipal ) ) {
+                    userPrincipal = principal;
                 }
             }
         } catch ( final NoSuchPrincipalException e ) {
@@ -441,13 +441,13 @@ public class WikiSession implements Session {
     /** {@inheritDoc} */
     @Override
     public String getStatus() {
-        return m_status;
+        return status;
     }
 
     /** {@inheritDoc} */
     @Override
     public Subject getSubject() {
-        return m_subject;
+        return subject;
     }
 
     /**
@@ -491,8 +491,8 @@ public class WikiSession implements Session {
         final WikiSession wikiSession = ( WikiSession )monitor.find( session );
 
         // Attach reference to wiki engine
-        wikiSession.m_engine = engine;
-        wikiSession.m_cachedLocale = request.getLocale();
+        wikiSession.engine = engine;
+        wikiSession.cachedLocale = request.getLocale();
         return wikiSession;
     }
 
@@ -506,7 +506,7 @@ public class WikiSession implements Session {
      */
     public static Session guestSession( final Engine engine ) {
         final WikiSession session = new WikiSession();
-        session.m_engine = engine;
+        session.engine = engine;
         session.invalidate();
         session.antiCsrfToken = UUID.randomUUID().toString();
 

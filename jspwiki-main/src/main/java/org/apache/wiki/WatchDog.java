@@ -47,10 +47,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class WatchDog {
 
-    private final Watchable m_watchable;
-    private final Stack< State > m_stateStack = new Stack<>();
-    private boolean m_enabled = true;
-    private final Engine m_engine;
+    private final Watchable watchable;
+    private final Stack< State > stateStack = new Stack<>();
+    private boolean enabled = true;
+    private final Engine engine;
 
     private static final Logger LOG = LogManager.getLogger( WatchDog.class );
 
@@ -89,8 +89,8 @@ public final class WatchDog {
      *  @param watch A Watchable object.
      */
     public WatchDog( final Engine engine, final Watchable watch ) {
-        m_engine    = engine;
-        m_watchable = watch;
+        this.engine = engine;
+        this.watchable = watch;
 
         synchronized( WatchDog.class ) {
             if( c_watcherThread == null ) {
@@ -137,9 +137,9 @@ public final class WatchDog {
      */
     public void enable() {
         synchronized( WatchDog.class ) {
-            if( !m_enabled ) {
-                m_enabled = true;
-                c_watcherThread = new WatchDogThread( m_engine );
+            if( !enabled ) {
+                enabled = true;
+                c_watcherThread = new WatchDogThread( engine );
                 c_watcherThread.start();
             }
         }
@@ -150,8 +150,8 @@ public final class WatchDog {
      */
     public void disable() {
         synchronized( WatchDog.class ) {
-            if( m_enabled ) {
-                m_enabled = false;
+            if( enabled ) {
+                enabled = false;
                 c_watcherThread.shutdown();
                 c_watcherThread = null;
             }
@@ -173,7 +173,7 @@ public final class WatchDog {
      *  WatchDog.  For example:
      *
      *  <code>
-     *     WatchDog w = m_engine.getCurrentWatchDog();
+     *     WatchDog w = engine.getCurrentWatchDog();
      *     w.enterState("Processing Foobar", 60);
      *     foobar();
      *     w.exitState();
@@ -185,10 +185,10 @@ public final class WatchDog {
      *  @param expectedCompletionTime The timeout in seconds.
      */
     public void enterState( final String state, final int expectedCompletionTime ) {
-        LOG.debug(  "{}: Entering state {}, expected completion in {} s", m_watchable.getName(), state, expectedCompletionTime );
-        synchronized( m_stateStack ) {
+        LOG.debug(  "{}: Entering state {}, expected completion in {} s", watchable.getName(), state, expectedCompletionTime );
+        synchronized( stateStack ) {
             final State st = new State( state, expectedCompletionTime );
-            m_stateStack.push( st );
+            stateStack.push( st );
         }
     }
 
@@ -207,20 +207,20 @@ public final class WatchDog {
      *  @param state The state you wish to exit.
      */
     public void exitState( final String state ) {
-        if( !m_stateStack.empty() ) {
-            synchronized( m_stateStack ) {
-                final State st = m_stateStack.peek();
+        if( !stateStack.empty() ) {
+            synchronized( stateStack ) {
+                final State st = stateStack.peek();
                 if( state == null || st.getState().equals( state ) ) {
-                    m_stateStack.pop();
+                    stateStack.pop();
 
-                    LOG.debug( "{}: Exiting state {}", m_watchable.getName(), st.getState() );
+                    LOG.debug( "{}: Exiting state {}", watchable.getName(), st.getState() );
                 } else {
                     // FIXME: should actually go and fix things for that
                     LOG.error( "exitState() called before enterState()" );
                 }
             }
         } else {
-            LOG.warn( "Stack for " + m_watchable.getName() + " is empty!" );
+            LOG.warn( "Stack for " + watchable.getName() + " is empty!" );
         }
     }
 
@@ -230,7 +230,7 @@ public final class WatchDog {
      * @return {@code true} if not empty, {@code false} otherwise.
      */
     public boolean isStateStackNotEmpty() {
-        return !m_stateStack.isEmpty();
+        return !stateStack.isEmpty();
     }
 
     /**
@@ -239,27 +239,27 @@ public final class WatchDog {
      * @return {@code true} if it's alive, {@code false} otherwise.
      */
     public boolean isWatchableAlive() {
-        return m_watchable != null && m_watchable.isAlive();
+        return watchable != null && watchable.isAlive();
     }
 
     private void check() {
-        LOG.debug( "Checking watchdog '{}'", m_watchable.getName() );
+        LOG.debug( "Checking watchdog '{}'", watchable.getName() );
 
-        synchronized( m_stateStack ) {
-            if( !m_stateStack.empty() ) {
-                final State st = m_stateStack.peek();
+        synchronized( stateStack ) {
+            if( !stateStack.empty() ) {
+                final State st = stateStack.peek();
                 final long now = System.currentTimeMillis();
 
                 if( now > st.getExpiryTime() ) {
-                    LOG.info( "Watchable '" + m_watchable.getName() + "' exceeded timeout in state '" + st.getState() +
+                    LOG.info( "Watchable '" + watchable.getName() + "' exceeded timeout in state '" + st.getState() +
                               "' by " + (now - st.getExpiryTime()) / 1000 + " seconds" +
                              ( LOG.isDebugEnabled() ? "" : "Enable DEBUG-level logging to see stack traces." ) );
                     dumpStackTraceForWatchable();
 
-                    m_watchable.timeoutExceeded( st.getState() );
+                    watchable.timeoutExceeded( st.getState() );
                 }
             } else {
-                LOG.warn( "Stack for " + m_watchable.getName() + " is empty!" );
+                LOG.warn( "Stack for " + watchable.getName() + " is empty!" );
             }
         }
     }
@@ -279,8 +279,8 @@ public final class WatchDog {
 
         while ( threadIterator.hasNext() ) {
             final Thread t = threadIterator.next();
-            if( t.getName().equals( m_watchable.getName() ) ) {
-                if( t.getName().equals( m_watchable.getName() ) ) {
+            if( t.getName().equals( watchable.getName() ) ) {
+                if( t.getName().equals( watchable.getName() ) ) {
                     stacktrace.append( "dumping stacktrace for too long running thread : " ).append( t );
                 } else {
                     stacktrace.append( "dumping stacktrace for other running thread : " ).append( t );
@@ -302,11 +302,11 @@ public final class WatchDog {
      */
     @Override
     public String toString() {
-        synchronized( m_stateStack ) {
+        synchronized( stateStack ) {
             String state = "Idle";
 
-            if( !m_stateStack.empty() ) {
-                final State st = m_stateStack.peek();
+            if( !stateStack.empty() ) {
+                final State st = stateStack.peek();
                 state = st.getState();
             }
             return "WatchDog state=" + state;
@@ -368,22 +368,22 @@ public final class WatchDog {
      */
     private static class State {
 
-        protected final String m_state;
-        protected final long   m_enterTime;
-        protected final long   m_expiryTime;
+        protected final String state;
+        protected final long   enterTime;
+        protected final long   expiryTime;
 
         protected State( final String state, final int expiry ) {
-            m_state      = state;
-            m_enterTime  = System.currentTimeMillis();
-            m_expiryTime = m_enterTime + ( expiry * 1_000L );
+            this.state = state;
+            this.enterTime = System.currentTimeMillis();
+            this.expiryTime = this.enterTime + ( expiry * 1_000L );
         }
 
         protected String getState() {
-            return m_state;
+            return state;
         }
 
         protected long getExpiryTime() {
-            return m_expiryTime;
+            return expiryTime;
         }
 
     }
@@ -392,10 +392,10 @@ public final class WatchDog {
      *  This class wraps a Thread so that it can become Watchable.
      */
     private static class ThreadWrapper implements Watchable {
-        private final Thread m_thread;
+        private final Thread thread;
 
         public ThreadWrapper( final Thread thread ) {
-            m_thread = thread;
+            this.thread = thread;
         }
 
         @Override
@@ -405,12 +405,12 @@ public final class WatchDog {
 
         @Override
         public String getName() {
-            return m_thread.getName();
+            return thread.getName();
         }
 
         @Override
         public boolean isAlive() {
-            return m_thread.isAlive();
+            return thread.isAlive();
         }
     }
 

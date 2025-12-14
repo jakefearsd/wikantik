@@ -187,7 +187,7 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
         private String workDir;
 
         /** Comparator for descending sort on page count. */
-        private final Comparator< Object > m_compareCountDescending = ( o1, o2 ) -> {
+        private final Comparator< Object > compareCountDescending = ( o1, o2 ) -> {
             final int v1 = getCount( o1 );
             final int v2 = getCount( o2 );
             return ( v1 == v2 ) ? ( ( String )o1 ).compareTo( ( String )o2 ) : ( v1 < v2 ) ? 1 : -1;
@@ -388,7 +388,7 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
                         // sort on name or count?
                         Map< String, Counter > sorted = counters;
                         if( PARAM_COUNT.equals( sort ) ) {
-                            sorted = new TreeMap<>( m_compareCountDescending );
+                            sorted = new TreeMap<>( compareCountDescending );
                             sorted.putAll( counters );
                         }
 

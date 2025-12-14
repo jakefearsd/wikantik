@@ -18,6 +18,7 @@
  */
 package org.apache.wiki.workflow;
 
+import java.io.ObjectStreamException;
 import java.io.Serializable;
 
 /**
@@ -138,6 +139,26 @@ public final class Outcome implements Serializable {
      */
     public String toString() {
         return "[Outcome:" + key + "]";
+    }
+
+    /**
+     * Resolves a deserialized Outcome to one of the singleton instances.
+     * This is required because Java deserialization bypasses the constructor,
+     * and the static singleton instances must be used for proper comparison.
+     *
+     * @return the singleton Outcome instance matching this key
+     * @throws ObjectStreamException if no matching Outcome is found
+     */
+    private Object readResolve() throws ObjectStreamException {
+        if ( key == null ) {
+            throw new java.io.InvalidObjectException( "Outcome key cannot be null" );
+        }
+        for ( final Outcome outcome : OUTCOMES ) {
+            if ( outcome.key.equals( key ) ) {
+                return outcome;
+            }
+        }
+        throw new java.io.InvalidObjectException( "Unknown Outcome: " + key );
     }
 
 }

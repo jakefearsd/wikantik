@@ -24,6 +24,10 @@ import org.apache.wiki.i18n.InternationalizationManager;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Locale;
 
 public class OutcomeTest {
@@ -107,6 +111,35 @@ public class OutcomeTest {
         }
         // We should never get here
         Assertions.fail( "Could not look up an Outcome..." );
+    }
+
+    @Test
+    public void testSerializationResolvesSingleton() throws Exception {
+        // Serialize and deserialize each Outcome
+        final Outcome[] outcomes = {
+            Outcome.STEP_COMPLETE, Outcome.STEP_ABORT, Outcome.STEP_CONTINUE,
+            Outcome.DECISION_ACKNOWLEDGE, Outcome.DECISION_APPROVE,
+            Outcome.DECISION_DENY, Outcome.DECISION_HOLD, Outcome.DECISION_REASSIGN
+        };
+
+        for ( final Outcome original : outcomes ) {
+            // Serialize
+            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try ( final ObjectOutputStream oos = new ObjectOutputStream( baos ) ) {
+                oos.writeObject( original );
+            }
+
+            // Deserialize
+            final ByteArrayInputStream bais = new ByteArrayInputStream( baos.toByteArray() );
+            final Outcome deserialized;
+            try ( final ObjectInputStream ois = new ObjectInputStream( bais ) ) {
+                deserialized = (Outcome) ois.readObject();
+            }
+
+            // Should be the exact same singleton instance (not just equal)
+            Assertions.assertSame( original, deserialized,
+                "Deserialized " + original.getMessageKey() + " should be same instance as original singleton" );
+        }
     }
 
 }

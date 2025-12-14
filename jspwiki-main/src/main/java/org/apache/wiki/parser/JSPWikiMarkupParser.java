@@ -111,10 +111,6 @@ public class JSPWikiMarkupParser extends MarkupParser {
     /** If true, then generate special output for wysiwyg editing in certain cases */
     private boolean wysiwygEditorMode;
 
-    /** If true, consider URIs that have no brackets as well. */
-    // FIXME: Currently reserved, but not used.
-    private boolean plainUris;
-
     /** If true, all outward links use a small link image. */
     private boolean useOutlinkImage = true;
 
@@ -168,7 +164,6 @@ public class JSPWikiMarkupParser extends MarkupParser {
             wysiwygEditorMode = wysiwygVariable;
         }
 
-        plainUris          = context.getBooleanWikiProperty( PROP_PLAINURIS, plainUris );
         useOutlinkImage    = context.getBooleanWikiProperty( PROP_USEOUTLINKIMAGE, useOutlinkImage );
         useAttachmentImage = context.getBooleanWikiProperty( PROP_USEATTACHMENTIMAGE, useAttachmentImage );
         allowHTML          = context.getBooleanWikiProperty( PROP_ALLOWHTML, allowHTML );

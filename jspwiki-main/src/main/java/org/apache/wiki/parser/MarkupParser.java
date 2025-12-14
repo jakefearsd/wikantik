@@ -83,10 +83,6 @@ public abstract class MarkupParser {
     /** If true, consider CamelCase hyperlinks as well. */
     public static final String PROP_CAMELCASELINKS = "jspwiki.translatorReader.camelCaseLinks";
 
-    /** If true, all hyperlinks are translated as well, regardless whether they
-     are surrounded by brackets. */
-    public static final String PROP_PLAINURIS = "jspwiki.translatorReader.plainUris";
-
     /** If true, all outward attachment info links have a small link image appended. */
     public static final String PROP_USEATTACHMENTIMAGE = "jspwiki.translatorReader.useAttachmentImage";
 

@@ -50,7 +50,7 @@ public class SessionMonitor implements HttpSessionListener {
     private static final Logger LOG = LogManager.getLogger( SessionMonitor.class );
 
     /** Map with Engines as keys, and SessionMonitors as values. */
-    private static final ConcurrentHashMap< Engine, SessionMonitor > c_monitors = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap< Engine, SessionMonitor > monitors = new ConcurrentHashMap<>();
 
     /** Weak hashmap with HttpSessions as keys, and WikiSessions as values. */
     private final Map< String, Session > sessions = new WeakHashMap<>();
@@ -69,10 +69,10 @@ public class SessionMonitor implements HttpSessionListener {
         if( engine == null ) {
             throw new IllegalArgumentException( "Engine cannot be null." );
         }
-        SessionMonitor monitor = c_monitors.get( engine );
+        SessionMonitor monitor = monitors.get( engine );
         if( monitor == null ) {
             monitor = new SessionMonitor( engine );
-            c_monitors.put( engine, monitor );
+            monitors.put( engine, monitor );
         }
 
         return monitor;
@@ -282,7 +282,7 @@ public class SessionMonitor implements HttpSessionListener {
     @Override
     public void sessionDestroyed( final HttpSessionEvent se ) {
         final HttpSession session = se.getSession();
-        for( final SessionMonitor monitor : c_monitors.values() ) {
+        for( final SessionMonitor monitor : monitors.values() ) {
             final Session storedSession = monitor.findSession( session );
             monitor.remove( session );
             LOG.debug( "Removed session " + session.getId() + "." );

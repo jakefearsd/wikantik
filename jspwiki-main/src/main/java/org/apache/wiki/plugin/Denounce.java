@@ -67,11 +67,11 @@ public class Denounce implements Plugin {
 
     private static final String PROP_DENOUNCETEXT   = "denounce.denouncetext";
 
-    private static final ArrayList< Pattern > c_refererPatterns = new ArrayList<>();
-    private static final ArrayList< Pattern > c_agentPatterns   = new ArrayList<>();
-    private static final ArrayList< Pattern > c_hostPatterns    = new ArrayList<>();
+    private static final ArrayList< Pattern > refererPatterns = new ArrayList<>();
+    private static final ArrayList< Pattern > agentPatterns   = new ArrayList<>();
+    private static final ArrayList< Pattern > hostPatterns    = new ArrayList<>();
 
-    private static String c_denounceText = "";
+    private static String denounceText = "";
 
     /*
      *  Prepares the different patterns for later use.  Compiling is
@@ -88,7 +88,7 @@ public class Denounce implements Plugin {
             final Properties props = new Properties();
             props.load( in );
 
-            c_denounceText = props.getProperty( PROP_DENOUNCETEXT, c_denounceText );
+            denounceText = props.getProperty( PROP_DENOUNCETEXT, denounceText );
 
             for( final Enumeration< ? > e = props.propertyNames(); e.hasMoreElements(); ) {
                 final String name = (String) e.nextElement();
@@ -97,18 +97,18 @@ public class Denounce implements Plugin {
                     final String globPattern = props.getProperty(name);
                     final String regexPattern = globToRegex( globPattern );
                     if( name.startsWith( PROP_REFERERPATTERN ) ) {
-                        c_refererPatterns.add( Pattern.compile( regexPattern ) );
+                        refererPatterns.add( Pattern.compile( regexPattern ) );
                     } else if( name.startsWith( PROP_AGENTPATTERN ) ) {
-                        c_agentPatterns.add( Pattern.compile( regexPattern ) );
+                        agentPatterns.add( Pattern.compile( regexPattern ) );
                     } else if( name.startsWith( PROP_HOSTPATTERN ) ) {
-                        c_hostPatterns.add( Pattern.compile( regexPattern ) );
+                        hostPatterns.add( Pattern.compile( regexPattern ) );
                     }
                 } catch( final PatternSyntaxException ex ) {
                     LOG.error( "Malformed URL pattern in "+PROPERTYFILE+": "+props.getProperty(name), ex );
                 }
             }
 
-            LOG.debug( "Added " + c_refererPatterns.size() + c_agentPatterns.size() + c_hostPatterns.size() + " crawlers to denounce list." );
+            LOG.debug( "Added " + refererPatterns.size() + agentPatterns.size() + hostPatterns.size() + " crawlers to denounce list." );
         } catch( final IOException e ) {
             LOG.error( "Unable to load URL patterns from " + PROPERTYFILE, e );
         } catch( final Exception e ) {
@@ -176,7 +176,7 @@ public class Denounce implements Plugin {
             return "<a href=\"" + link + "\">" + TextUtil.replaceEntities( text ) + "</a>";
         }
 
-        return c_denounceText;
+        return denounceText;
     }
 
     boolean isLinkValid( final String link ) {
@@ -199,21 +199,21 @@ public class Denounce implements Plugin {
     private boolean matchHeaders( final HttpServletRequest request ) {
         //  User Agent
         final String userAgent = request.getHeader( "User-Agent" );
-        if( userAgent != null && matchPattern( c_agentPatterns, userAgent ) ) {
+        if( userAgent != null && matchPattern( agentPatterns, userAgent ) ) {
             LOG.debug( "Matched user agent " + userAgent + " for denounce." );
             return true;
         }
 
         //  Referrer header
         final String refererPath = request.getHeader( "Referer" );
-        if( refererPath != null && matchPattern( c_refererPatterns, refererPath ) ) {
+        if( refererPath != null && matchPattern( refererPatterns, refererPath ) ) {
             LOG.debug( "Matched referer " + refererPath + " for denounce." );
             return true;
         }
 
         //  Host
         final String host = request.getRemoteHost();
-        if( host != null && matchPattern( c_hostPatterns, host ) ) {
+        if( host != null && matchPattern( hostPatterns, host ) ) {
             LOG.debug( "Matched host " + host + " for denounce." );
             return true;
         }

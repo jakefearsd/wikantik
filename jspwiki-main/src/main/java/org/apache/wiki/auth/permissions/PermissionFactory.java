@@ -41,7 +41,7 @@ public final class PermissionFactory
      *  This is a WeakHashMap<Integer,PagePermission>, which stores the
      *  cached page permissions.
      */
-    private static final WeakHashMap<Integer, PagePermission> c_cache = new WeakHashMap<>();
+    private static final WeakHashMap<Integer, PagePermission> cache = new WeakHashMap<>();
     
     /**
      *  Get a permission object for a WikiPage and a set of actions.
@@ -93,9 +93,9 @@ public final class PermissionFactory
         //  It's fine if two threads update the cache, since the objects mean the same
         //  thing anyway.  And this avoids nasty blocking effects.
         //
-        synchronized( c_cache )
+        synchronized( cache )
         {
-            perm = c_cache.get( key );
+            perm = cache.get( key );
         }
         
         if( perm == null )
@@ -103,9 +103,9 @@ public final class PermissionFactory
             if( !wiki.isEmpty() ) page = wiki+":"+page;
             perm = new PagePermission( page, actions );
             
-            synchronized( c_cache )
+            synchronized( cache )
             {
-                c_cache.put( key, perm );
+                cache.put( key, perm );
             }
         }
         

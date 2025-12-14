@@ -78,7 +78,7 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
     private static final Logger LOG = LogManager.getLogger( PageViewPlugin.class );
 
     /** The page view manager. */
-    private static PageViewManager c_singleton;
+    private static PageViewManager singleton;
 
     /** Constant for the 'count' parameter / value. */
     private static final String PARAM_COUNT = "count";
@@ -134,10 +134,10 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
     public void initialize( final Engine engine ) {
         LOG.info( "initializing PageViewPlugin" );
         synchronized( this ) {
-            if( c_singleton == null ) {
-                c_singleton = new PageViewManager();
+            if( singleton == null ) {
+                singleton = new PageViewManager();
             }
-            c_singleton.initialize( engine );
+            singleton.initialize( engine );
         }
     }
 
@@ -146,7 +146,7 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
      */
     private void cleanup() {
         LOG.info( "cleaning up PageView Manager" );
-        c_singleton = null;
+        singleton = null;
     }
 
     /**
@@ -154,7 +154,7 @@ public class PageViewPlugin extends AbstractReferralPlugin implements Plugin, In
      */
     @Override
     public String execute( final Context context, final Map< String, String > params ) throws PluginException {
-        final PageViewManager manager = c_singleton;
+        final PageViewManager manager = singleton;
         String result = STR_EMPTY;
 
         if( manager != null ) {

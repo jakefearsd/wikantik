@@ -41,7 +41,7 @@ public class ProfanityFilter extends BasePageFilter {
     private static final Logger LOG = LogManager.getLogger( ProfanityFilter.class );
     
     private static final String PROPERTYFILE = "org/apache/wiki/filters/profanity.properties";
-    private static String[] c_profanities = new String[0];
+    private static String[] profanities = new String[0];
     
     static {
         final ClassLoader loader = ProfanityFilter.class.getClassLoader();
@@ -52,7 +52,7 @@ public class ProfanityFilter extends BasePageFilter {
             try( final BufferedReader br =  new BufferedReader( new InputStreamReader( in ) ) ) {
 
                 // allow comments on profanities file
-                c_profanities = br.lines().filter(str -> !str.isEmpty() && !str.startsWith("#")).toArray(String[]::new);
+                profanities = br.lines().filter(str -> !str.isEmpty() && !str.startsWith("#")).toArray(String[]::new);
             }
         } catch( final IOException e ) {
             LOG.error( "Unable to load profanities from " + PROPERTYFILE, e );
@@ -66,7 +66,7 @@ public class ProfanityFilter extends BasePageFilter {
      */
     @Override
     public String preTranslate( final Context context, String content ) {
-        for( final String word : c_profanities ) {
+        for( final String word : profanities ) {
             final String replacement = word.charAt( 0 ) + "*" + word.charAt( word.length() - 1 );
             content = TextUtil.replaceStringCaseUnsensitive( content, word, replacement );
         }

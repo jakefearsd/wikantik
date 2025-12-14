@@ -224,8 +224,8 @@ public class SpamFilter extends BasePageFilter {
 
     private boolean         stopAtFirstMatch = true;
 
-    private static String   c_hashName;
-    private static long     c_lastUpdate;
+    private static String   hashName;
+    private static long     lastUpdate;
 
     /** The HASH_DELAY value is a maximum amount of time that an user can keep
      *  a session open, because after the value has expired, we will invent a new
@@ -934,17 +934,17 @@ public class SpamFilter extends BasePageFilter {
             hash = ( String )request.getSession().getAttribute( "_hash" );
 
             if( hash == null ) {
-                hash = c_hashName;
+                hash = hashName;
                 request.getSession().setAttribute( "_hash", hash );
             }
         }
 
-        if( c_hashName == null || c_lastUpdate < ( System.currentTimeMillis() - HASH_DELAY * 60 * 60 * 1000 ) ) {
-            c_hashName = getUniqueID().toLowerCase();
-            c_lastUpdate = System.currentTimeMillis();
+        if( hashName == null || lastUpdate < ( System.currentTimeMillis() - HASH_DELAY * 60 * 60 * 1000 ) ) {
+            hashName = getUniqueID().toLowerCase();
+            lastUpdate = System.currentTimeMillis();
         }
 
-        return hash != null ? hash : c_hashName;
+        return hash != null ? hash : hashName;
     }
 
 

@@ -54,8 +54,8 @@ public final class WatchDog {
 
     private static final Logger LOG = LogManager.getLogger( WatchDog.class );
 
-    private static final Map< Integer, WeakReference< WatchDog > > c_kennel = new ConcurrentHashMap<>();
-    private static WikiBackgroundThread c_watcherThread;
+    private static final Map< Integer, WeakReference< WatchDog > > kennel = new ConcurrentHashMap<>();
+    private static WikiBackgroundThread watcherThread;
 
     /**
      *  Returns the current watchdog for the current thread. This is the preferred method of getting you a Watchdog, since it
@@ -67,7 +67,7 @@ public final class WatchDog {
     public static WatchDog getCurrentWatchDog( final Engine engine ) {
         final Thread t = Thread.currentThread();
 
-        WeakReference< WatchDog > w = c_kennel.get( t.hashCode() );
+        WeakReference< WatchDog > w = kennel.get( t.hashCode() );
         WatchDog wd = null;
         if( w != null ) {
             wd = w.get();
@@ -76,7 +76,7 @@ public final class WatchDog {
         if( w == null || wd == null ) {
             wd = new WatchDog( engine, t );
             w = new WeakReference<>( wd );
-            c_kennel.put( t.hashCode(), w );
+            kennel.put( t.hashCode(), w );
         }
 
         return wd;
@@ -93,9 +93,9 @@ public final class WatchDog {
         this.watchable = watch;
 
         synchronized( WatchDog.class ) {
-            if( c_watcherThread == null ) {
-                c_watcherThread = new WatchDogThread( engine );
-                c_watcherThread.start();
+            if( watcherThread == null ) {
+                watcherThread = new WatchDogThread( engine );
+                watcherThread.start();
             }
         }
     }
@@ -116,16 +116,16 @@ public final class WatchDog {
     private static void scrub() {
         //  During finalization, the object may already be cleared (depending on the finalization order). Therefore, it's
         //  possible that this method is called from another thread after the WatchDog itself has been cleared.
-        if( c_kennel.isEmpty() ) {
+        if( kennel.isEmpty() ) {
             return;
         }
 
-        for( final Map.Entry< Integer, WeakReference< WatchDog > > e : c_kennel.entrySet() ) {
+        for( final Map.Entry< Integer, WeakReference< WatchDog > > e : kennel.entrySet() ) {
             final WeakReference< WatchDog > w = e.getValue();
 
             //  Remove expired as well
             if( w.get() == null ) {
-                c_kennel.remove( e.getKey() );
+                kennel.remove( e.getKey() );
                 scrub();
                 break;
             }
@@ -139,8 +139,8 @@ public final class WatchDog {
         synchronized( WatchDog.class ) {
             if( !enabled ) {
                 enabled = true;
-                c_watcherThread = new WatchDogThread( engine );
-                c_watcherThread.start();
+                watcherThread = new WatchDogThread( engine );
+                watcherThread.start();
             }
         }
     }
@@ -152,8 +152,8 @@ public final class WatchDog {
         synchronized( WatchDog.class ) {
             if( enabled ) {
                 enabled = false;
-                c_watcherThread.shutdown();
-                c_watcherThread = null;
+                watcherThread.shutdown();
+                watcherThread = null;
             }
         }
     }
@@ -341,18 +341,18 @@ public final class WatchDog {
          */
         @Override
         public void backgroundTask() {
-            if( c_kennel.isEmpty() ) {
+            if( kennel.isEmpty() ) {
                 return;
             }
 
-            for( final Map.Entry< Integer, WeakReference< WatchDog > > entry : c_kennel.entrySet() ) {
+            for( final Map.Entry< Integer, WeakReference< WatchDog > > entry : kennel.entrySet() ) {
                 final WeakReference< WatchDog > wr = entry.getValue();
                 final WatchDog w = wr.get();
                 if( w != null ) {
                     if( w.isWatchableAlive() && w.isStateStackNotEmpty() ) {
                         w.check();
                     } else {
-                        c_kennel.remove( entry.getKey() );
+                        kennel.remove( entry.getKey() );
                         break;
                     }
                 }

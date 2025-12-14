@@ -92,7 +92,7 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
      */
     private static final int DEFAULT_EXPIRY_DAYS = 14;
 
-    private static long c_lastScrubTime;
+    private static long lastScrubTime;
 
     /**
      * Describes how often we scrub the cookieDir directory.
@@ -170,9 +170,9 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
 
         //  Scrub away old files
         final long now = System.currentTimeMillis();
-        if( now > ( c_lastScrubTime + SCRUB_PERIOD ) ) {
+        if( now > ( lastScrubTime + SCRUB_PERIOD ) ) {
             scrub( TextUtil.getIntegerProperty( engine.getWikiProperties(), PROP_LOGIN_EXPIRY_DAYS, DEFAULT_EXPIRY_DAYS ), cookieDir );
-            c_lastScrubTime = now;
+            lastScrubTime = now;
         }
 
         //  Find the cookie file

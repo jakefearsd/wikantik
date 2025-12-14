@@ -82,21 +82,21 @@ public class XMLUserDatabase extends AbstractUserDatabase {
     private static final String USER_TAG          = "user";
     private static final String WIKI_NAME         = "wikiName";
     private static final String DATE_FORMAT       = "yyyy.MM.dd 'at' HH:mm:ss:SSS z";
-    private Document            c_dom;
-    private File                c_file;
+    private Document            dom;
+    private File                userFile;
 
     /** {@inheritDoc} */
     @Override
     public synchronized void deleteByLoginName( final String loginName ) throws WikiSecurityException {
-        if( c_dom == null ) {
+        if( dom == null ) {
             throw new WikiSecurityException( "FATAL: database does not exist" );
         }
 
-        final NodeList users = c_dom.getDocumentElement().getElementsByTagName( USER_TAG );
+        final NodeList users = dom.getDocumentElement().getElementsByTagName( USER_TAG );
         for( int i = 0; i < users.getLength(); i++ ) {
             final Element user = ( Element )users.item( i );
             if( user.getAttribute( LOGIN_NAME ).equals( loginName ) ) {
-                c_dom.getDocumentElement().removeChild( user );
+                dom.getDocumentElement().removeChild( user );
 
                 // Commit to disk
                 saveDOM();
@@ -147,11 +147,11 @@ public class XMLUserDatabase extends AbstractUserDatabase {
     /** {@inheritDoc} */
     @Override
     public Principal[] getWikiNames() throws WikiSecurityException {
-        if ( c_dom == null ) {
+        if ( dom == null ) {
             throw new IllegalStateException( "FATAL: database does not exist" );
         }
         final SortedSet< WikiPrincipal > principals = new TreeSet<>();
-        final NodeList users = c_dom.getElementsByTagName( USER_TAG );
+        final NodeList users = dom.getElementsByTagName( USER_TAG );
         for( int i = 0; i < users.getLength(); i++ ) {
             final Element user = ( Element )users.item( i );
             final String wikiName = user.getAttribute( WIKI_NAME );
@@ -180,12 +180,12 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         final String file = TextUtil.getStringProperty( props, PROP_USERDATABASE, defaultFile.getAbsolutePath() );
         if( file == null ) {
             LOG.warn( "XML user database property " + PROP_USERDATABASE + " not found; trying " + defaultFile );
-            c_file = defaultFile;
+            userFile = defaultFile;
         } else {
-            c_file = new File( file );
+            userFile = new File( file );
         }
 
-        LOG.info( "XML user database at " + c_file.getAbsolutePath() );
+        LOG.info( "XML user database at " + userFile.getAbsolutePath() );
 
         buildDOM();
         sanitizeDOM();
@@ -193,30 +193,30 @@ public class XMLUserDatabase extends AbstractUserDatabase {
 
     private void buildDOM() {
         final DocumentBuilderFactory factory = XmlDomUtil.createSecureDocumentBuilderFactory();
-        c_dom = XmlDomUtil.parseXmlFile( c_file, factory );
-        if( c_dom != null ) {
+        dom = XmlDomUtil.parseXmlFile( userFile, factory );
+        if( dom != null ) {
             LOG.debug( "Database successfully initialized" );
-            c_lastModified = c_file.lastModified();
-            c_lastCheck = System.currentTimeMillis();
+            lastModifiedTime = userFile.lastModified();
+            lastCheck = System.currentTimeMillis();
         } else {
             // Create the DOM from scratch
-            c_dom = XmlDomUtil.createEmptyDocument( "users", factory );
+            dom = XmlDomUtil.createEmptyDocument( "users", factory );
         }
     }
 
     private void saveDOM() throws WikiSecurityException {
-        if( c_dom == null ) {
+        if( dom == null ) {
             throw new IllegalStateException( "FATAL: database does not exist" );
         }
 
         try {
-            XmlDomUtil.saveXmlFile( c_file, io -> {
+            XmlDomUtil.saveXmlFile( userFile, io -> {
                 // Write the file header and document root
                 io.write( "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" );
                 io.write( "<users>\n" );
 
                 // Write each profile as a <user> node
-                final Element root = c_dom.getDocumentElement();
+                final Element root = dom.getDocumentElement();
                 final NodeList nodes = root.getElementsByTagName( USER_TAG );
                 for( int i = 0; i < nodes.getLength(); i++ ) {
                     final Element user = ( Element )nodes.item( i );
@@ -257,15 +257,15 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         }
     }
 
-    private long c_lastCheck;
-    private long c_lastModified;
+    private long lastCheck;
+    private long lastModifiedTime;
 
     private void checkForRefresh() {
         final long time = System.currentTimeMillis();
-        if( time - c_lastCheck > 60 * 1000L ) {
-            final long lastModified = c_file.lastModified();
+        if( time - lastCheck > 60 * 1000L ) {
+            final long lastModified = userFile.lastModified();
 
-            if( lastModified > c_lastModified ) {
+            if( lastModified > lastModifiedTime ) {
                 buildDOM();
             }
         }
@@ -278,7 +278,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public synchronized void rename( final String loginName, final String newName) throws DuplicateUserException, WikiSecurityException {
-        if( c_dom == null ) {
+        if( dom == null ) {
             LOG.fatal( "Could not rename profile '" + loginName + "'; database does not exist" );
             throw new IllegalStateException( "FATAL: database does not exist" );
         }
@@ -298,14 +298,14 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         }
 
         // Find the user with the old login id attribute, and change it
-        final NodeList users = c_dom.getElementsByTagName( USER_TAG );
+        final NodeList users = dom.getElementsByTagName( USER_TAG );
         for( int i = 0; i < users.getLength(); i++ ) {
             final Element user = ( Element )users.item( i );
             if( user.getAttribute( LOGIN_NAME ).equals( loginName ) ) {
-                final DateFormat c_format = new SimpleDateFormat( DATE_FORMAT );
+                final DateFormat dateFormat = new SimpleDateFormat( DATE_FORMAT );
                 final Date modDate = new Date( System.currentTimeMillis() );
                 setAttribute( user, LOGIN_NAME, newName );
-                setAttribute( user, LAST_MODIFIED, c_format.format( modDate ) );
+                setAttribute( user, LAST_MODIFIED, dateFormat.format( modDate ) );
                 profile.setLoginName( newName );
                 profile.setLastModified( modDate );
                 break;
@@ -319,16 +319,16 @@ public class XMLUserDatabase extends AbstractUserDatabase {
     /** {@inheritDoc} */
     @Override
     public synchronized void save( final UserProfile profile ) throws WikiSecurityException {
-        if ( c_dom == null ) {
+        if ( dom == null ) {
             LOG.fatal( "Could not save profile " + profile + " database does not exist" );
             throw new IllegalStateException( "FATAL: database does not exist" );
         }
 
         checkForRefresh();
 
-        final DateFormat c_format = new SimpleDateFormat( DATE_FORMAT );
+        final DateFormat dateFormat = new SimpleDateFormat( DATE_FORMAT );
         final String index = profile.getLoginName();
-        final NodeList users = c_dom.getElementsByTagName( USER_TAG );
+        final NodeList users = dom.getElementsByTagName( USER_TAG );
         Element user = IntStream.range(0, users.getLength()).mapToObj(i -> (Element) users.item(i)).filter(currentUser -> currentUser.getAttribute(LOGIN_NAME).equals(index)).findFirst().orElse(null);
 
         boolean isNew = false;
@@ -338,9 +338,9 @@ public class XMLUserDatabase extends AbstractUserDatabase {
             // Create new user node
             profile.setCreated( modDate );
             LOG.info( "Creating new user " + index );
-            user = c_dom.createElement( USER_TAG );
-            c_dom.getDocumentElement().appendChild( user );
-            setAttribute( user, CREATED, c_format.format( profile.getCreated() ) );
+            user = dom.createElement( USER_TAG );
+            dom.getDocumentElement().appendChild( user );
+            setAttribute( user, CREATED, dateFormat.format( profile.getCreated() ) );
             isNew = true;
         } else {
             // To update existing user node, delete old attributes first...
@@ -351,13 +351,13 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         }
 
         setAttribute( user, UID, profile.getUid() );
-        setAttribute( user, LAST_MODIFIED, c_format.format( modDate ) );
+        setAttribute( user, LAST_MODIFIED, dateFormat.format( modDate ) );
         setAttribute( user, LOGIN_NAME, profile.getLoginName() );
         setAttribute( user, FULL_NAME, profile.getFullname() );
         setAttribute( user, WIKI_NAME, profile.getWikiName() );
         setAttribute( user, EMAIL, profile.getEmail() );
         final Date lockExpiry = profile.getLockExpiry();
-        setAttribute( user, LOCK_EXPIRY, lockExpiry == null ? "" : c_format.format( lockExpiry ) );
+        setAttribute( user, LOCK_EXPIRY, lockExpiry == null ? "" : dateFormat.format( lockExpiry ) );
 
         // Hash and save the new password if it's different from old one
         final String newPassword = profile.getPassword();
@@ -372,9 +372,9 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         if(!profile.getAttributes().isEmpty()) {
             try {
                 final String encodedAttributes = Serializer.serializeToBase64( profile.getAttributes() );
-                final Element attributes = c_dom.createElement( ATTRIBUTES_TAG );
+                final Element attributes = dom.createElement( ATTRIBUTES_TAG );
                 user.appendChild( attributes );
-                final Text value = c_dom.createTextNode( encodedAttributes );
+                final Text value = dom.createTextNode( encodedAttributes );
                 attributes.appendChild( value );
             } catch( final IOException e ) {
                 throw new WikiSecurityException( "Could not save user profile attribute. Reason: " + e.getMessage(), e );
@@ -400,12 +400,12 @@ public class XMLUserDatabase extends AbstractUserDatabase {
      * @return the profile, or <code>null</code> if not found
      */
     private UserProfile findByAttribute( final String matchAttribute, String index ) {
-        if ( c_dom == null ) {
+        if ( dom == null ) {
             throw new IllegalStateException( "FATAL: database does not exist" );
         }
 
         checkForRefresh();
-        final NodeList users = c_dom.getElementsByTagName( USER_TAG );
+        final NodeList users = dom.getElementsByTagName( USER_TAG );
         if( users == null ) {
             return null;
         }
@@ -490,8 +490,8 @@ public class XMLUserDatabase extends AbstractUserDatabase {
      */
     private Date parseDate( final UserProfile profile, final String date ) {
         try {
-            final DateFormat c_format = new SimpleDateFormat( DATE_FORMAT );
-            return c_format.parse( date );
+            final DateFormat dateFormat = new SimpleDateFormat( DATE_FORMAT );
+            return dateFormat.parse( date );
         } catch( final ParseException e ) {
             try {
                 return DateFormat.getDateTimeInstance().parse( date );
@@ -508,11 +508,11 @@ public class XMLUserDatabase extends AbstractUserDatabase {
      * hacky, but it should work.
      */
     private void sanitizeDOM() {
-        if( c_dom == null ) {
+        if( dom == null ) {
             throw new IllegalStateException( "FATAL: database does not exist" );
         }
 
-        final NodeList users = c_dom.getElementsByTagName( USER_TAG );
+        final NodeList users = dom.getElementsByTagName( USER_TAG );
         for( int i = 0; i < users.getLength(); i++ ) {
             final Element user = ( Element )users.item( i );
 
@@ -527,16 +527,16 @@ public class XMLUserDatabase extends AbstractUserDatabase {
             final String loginName = user.getAttribute( LOGIN_NAME );
             String created = user.getAttribute( CREATED );
             String modified = user.getAttribute( LAST_MODIFIED );
-            final DateFormat c_format = new SimpleDateFormat( DATE_FORMAT );
+            final DateFormat dateFormat = new SimpleDateFormat( DATE_FORMAT );
             try {
-                created = c_format.format( c_format.parse( created ) );
-                modified = c_format.format( c_format.parse( modified ) );
+                created = dateFormat.format( dateFormat.parse( created ) );
+                modified = dateFormat.format( dateFormat.parse( modified ) );
                 user.setAttribute( CREATED, created );
                 user.setAttribute( LAST_MODIFIED, modified );
             } catch( final ParseException e ) {
                 try {
-                    created = c_format.format( DateFormat.getDateTimeInstance().parse( created ) );
-                    modified = c_format.format( DateFormat.getDateTimeInstance().parse( modified ) );
+                    created = dateFormat.format( DateFormat.getDateTimeInstance().parse( created ) );
+                    modified = dateFormat.format( DateFormat.getDateTimeInstance().parse( modified ) );
                     user.setAttribute( CREATED, created );
                     user.setAttribute( LAST_MODIFIED, modified );
                 } catch( final ParseException e2 ) {

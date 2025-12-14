@@ -64,7 +64,7 @@ public class WikiSession implements Session {
 
     private static final String ALL = "*";
 
-    private static final ThreadLocal< Session > c_guestSession = new ThreadLocal<>();
+    private static final ThreadLocal< Session > guestSession = new ThreadLocal<>();
 
     private final Subject subject = new Subject();
 
@@ -463,7 +463,7 @@ public class WikiSession implements Session {
         }
         final SessionMonitor monitor = SessionMonitor.getInstance( engine );
         monitor.remove( request.getSession() );
-        c_guestSession.remove();
+        guestSession.remove();
     }
 
     /**
@@ -530,10 +530,10 @@ public class WikiSession implements Session {
      */
     // FIXME: Should really use WeakReferences to clean away unused sessions.
     private static Session staticGuestSession( final Engine engine ) {
-        Session session = c_guestSession.get();
+        Session session = guestSession.get();
         if( session == null ) {
             session = guestSession( engine );
-            c_guestSession.set( session );
+            guestSession.set( session );
         }
 
         return session;

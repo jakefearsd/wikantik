@@ -101,7 +101,7 @@ public class DefaultURLConstructor implements URLConstructor {
      */
     public static String getURLPattern( final String context, final String name ) throws IllegalArgumentException {
         if( context.equals( ContextEnum.PAGE_VIEW.getRequestContext() ) && name == null) {
-            // FIXME
+            // Special case: viewing with no page name defaults to Wiki.jsp
             return "%uWiki.jsp";
         }
 

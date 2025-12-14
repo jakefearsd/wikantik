@@ -43,7 +43,7 @@ import java.io.IOException;
 public class WikiServlet extends HttpServlet {
 
     private static final long serialVersionUID = 3258410651167633973L;
-    private Engine m_engine;
+    private Engine engine;
     private static final Logger LOG = LogManager.getLogger( WikiServlet.class.getName() );
 
     /**
@@ -52,7 +52,7 @@ public class WikiServlet extends HttpServlet {
     @Override
     public void init( final ServletConfig config ) throws ServletException {
         super.init( config );
-        m_engine = Wiki.engine().find( config );
+        engine = Wiki.engine().find( config );
         LOG.info( "WikiServlet initialized." );
     }
 
@@ -66,7 +66,7 @@ public class WikiServlet extends HttpServlet {
     @Override
     public void destroy() {
         LOG.info( "WikiServlet shutdown." );
-        m_engine.stop();
+        engine.stop();
         super.destroy();
     }
 
@@ -83,16 +83,16 @@ public class WikiServlet extends HttpServlet {
      */
     @Override
     public void doGet( final HttpServletRequest req, final HttpServletResponse res ) throws IOException, ServletException {
-        String pageName = URLConstructor.parsePageFromURL( req, m_engine.getContentEncoding() );
+        String pageName = URLConstructor.parsePageFromURL( req, engine.getContentEncoding() );
 
         LOG.info( "Request for page: {}", pageName );
         if( pageName == null ) {
-            pageName = m_engine.getFrontPage(); // FIXME: Add special pages as well
+            pageName = engine.getFrontPage(); // FIXME: Add special pages as well
         }
 
-        final String jspPage = m_engine.getManager( URLConstructor.class ).getForwardPage( req );
+        final String jspPage = engine.getManager( URLConstructor.class ).getForwardPage( req );
         final RequestDispatcher dispatcher = req.getRequestDispatcher( "/" + jspPage + "?page=" +
-                                                                       m_engine.encodeName( pageName ) + "&" + req.getQueryString() );
+                                                                       engine.encodeName( pageName ) + "&" + req.getQueryString() );
 
         dispatcher.forward( req, res );
     }

@@ -29,14 +29,14 @@ import java.util.List;
  */
 public class LinkCollector implements StringTransmutator {
 	
-    private final List< String > m_items = new ArrayList<>();
+    private final List< String > items = new ArrayList<>();
 
     /**
      * Returns a List of Strings representing links.
      * @return the link collection
      */
     public List< String > getLinks() {
-        return m_items;
+        return items;
     }
 
     /**
@@ -44,7 +44,7 @@ public class LinkCollector implements StringTransmutator {
      */
     @Override
     public String mutate(final Context context, final String in ) {
-        m_items.add( in );
+        items.add( in );
         return in;
     }
 

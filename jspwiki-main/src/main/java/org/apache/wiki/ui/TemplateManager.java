@@ -99,11 +99,6 @@ public interface TemplateManager extends ModuleManager {
     String RESOURCE_HTTPHEADER = "httpheader";
 
     /**
-     *  Check the existence of a template.
-     */
-    boolean templateExists( String templateName );
-
-    /**
      *  A utility method for finding a JSP page.  It searches only under either current context or by the absolute name.
      *
      *  @param pageContext the JSP PageContext

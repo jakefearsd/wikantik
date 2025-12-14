@@ -39,16 +39,16 @@ import java.util.Map;
 //        need to figure out the metadata lifecycle.
 public class WikiPage implements Page {
 
-    private final String     m_name;
-    private final Engine     m_engine;
-    private       String     m_wiki;
-    private Date             m_lastModified;
-    private long             m_fileSize = -1;
-    private int              m_version = PageProvider.LATEST_VERSION;
-    private String           m_author;
-    private final Map< String, Object > m_attributes = new HashMap<>();
+    private final String     name;
+    private final Engine     engine;
+    private       String     wiki;
+    private Date             lastModified;
+    private long             fileSize = -1;
+    private int              version = PageProvider.LATEST_VERSION;
+    private String           author;
+    private final Map< String, Object > attributes = new HashMap<>();
 
-    private Acl m_accessList;
+    private Acl accessList;
 
     /**
      * Create a new WikiPage using a given engine and name.
@@ -57,9 +57,9 @@ public class WikiPage implements Page {
      * @param name   The name of the page.
      */
     public WikiPage( final Engine engine, final String name ) {
-        m_engine = engine;
-        m_name = name;
-        m_wiki = engine.getApplicationName();
+        this.engine = engine;
+        this.name = name;
+        this.wiki = engine.getApplicationName();
     }
 
     /**
@@ -69,7 +69,7 @@ public class WikiPage implements Page {
      */
     @Override
     public String getName() {
-        return m_name;
+        return name;
     }
 
     /**
@@ -83,7 +83,7 @@ public class WikiPage implements Page {
     @Override
     @SuppressWarnings( "unchecked" )
     public < T > T getAttribute( final String key ) {
-        return ( T )m_attributes.get( key );
+        return ( T )attributes.get( key );
     }
 
     /**
@@ -95,7 +95,7 @@ public class WikiPage implements Page {
      */
     @Override
     public void setAttribute( final String key, final Object attribute ) {
-        m_attributes.put( key, attribute );
+        attributes.put( key, attribute );
     }
 
     /**
@@ -106,7 +106,7 @@ public class WikiPage implements Page {
      */
     @Override
     public Map< String, Object > getAttributes() {
-        return m_attributes;
+        return attributes;
     }
 
     /**
@@ -119,7 +119,7 @@ public class WikiPage implements Page {
     @Override
     @SuppressWarnings( "unchecked" )
     public < T > T removeAttribute( final String key ) {
-        return ( T )m_attributes.remove( key );
+        return ( T )attributes.remove( key );
     }
 
     /**
@@ -129,7 +129,7 @@ public class WikiPage implements Page {
      */
     @Override
     public Date getLastModified() {
-        return m_lastModified;
+        return lastModified;
     }
 
     /**
@@ -139,7 +139,7 @@ public class WikiPage implements Page {
      */
     @Override
     public void setLastModified( final Date date ) {
-        m_lastModified = date;
+        lastModified = date;
     }
 
     /**
@@ -149,7 +149,7 @@ public class WikiPage implements Page {
      */
     @Override
     public void setVersion( final int version ) {
-        m_version = version;
+        this.version = version;
     }
 
     /**
@@ -159,7 +159,7 @@ public class WikiPage implements Page {
      */
     @Override
     public int getVersion() {
-        return m_version;
+        return version;
     }
 
     /**
@@ -170,7 +170,7 @@ public class WikiPage implements Page {
      */
     @Override
     public long getSize() {
-        return m_fileSize;
+        return fileSize;
     }
 
     /**
@@ -181,7 +181,7 @@ public class WikiPage implements Page {
      */
     @Override
     public void setSize( final long size ) {
-        m_fileSize = size;
+        fileSize = size;
     }
 
     /**
@@ -192,7 +192,7 @@ public class WikiPage implements Page {
      */
     @Override
     public Acl getAcl() {
-        return m_accessList;
+        return accessList;
     }
 
     /**
@@ -204,7 +204,7 @@ public class WikiPage implements Page {
      */
     @Override
     public void setAcl( final Acl acl ) {
-        m_accessList = acl;
+        accessList = acl;
     }
 
     /**
@@ -214,7 +214,7 @@ public class WikiPage implements Page {
      */
     @Override
     public void setAuthor( final String author ) {
-        m_author = author;
+        this.author = author;
     }
 
     /**
@@ -224,7 +224,7 @@ public class WikiPage implements Page {
      */
     @Override
     public String getAuthor() {
-        return m_author;
+        return author;
     }
 
     /**
@@ -234,7 +234,7 @@ public class WikiPage implements Page {
      */
     @Override
     public String getWiki() {
-        return m_wiki;
+        return wiki;
     }
 
     /**
@@ -242,12 +242,12 @@ public class WikiPage implements Page {
      */
     @Override
     public void invalidateMetadata() {
-        m_hasMetadata = false;
+        hasMetadata = false;
         setAcl( null );
-        m_attributes.clear();
+        attributes.clear();
     }
 
-    private boolean m_hasMetadata;
+    private boolean hasMetadata;
 
     /**
      * Returns <code>true</code> if the page has valid metadata; that is, it has been parsed. Note that this method is a kludge to
@@ -257,7 +257,7 @@ public class WikiPage implements Page {
      */
     @Override
     public boolean hasMetadata() {
-        return m_hasMetadata;
+        return hasMetadata;
     }
 
     /**
@@ -265,7 +265,7 @@ public class WikiPage implements Page {
      */
     @Override
     public void setHasMetadata() {
-        m_hasMetadata = true;
+        hasMetadata = true;
     }
 
     /**
@@ -275,7 +275,7 @@ public class WikiPage implements Page {
      */
     @Override
     public String toString() {
-        return "WikiPage [" + m_wiki + ":" + m_name + ",ver=" + m_version + ",mod=" + m_lastModified + "]";
+        return "WikiPage [" + wiki + ":" + name + ",ver=" + version + ",mod=" + lastModified + "]";
     }
 
     /**
@@ -286,20 +286,20 @@ public class WikiPage implements Page {
      */
     @Override
     public WikiPage clone() {
-        final WikiPage p = new WikiPage( m_engine, m_name );
-        p.m_wiki         = m_wiki;
-        p.m_author       = m_author;
-        p.m_version      = m_version;
-        p.m_lastModified = m_lastModified != null ? (Date)m_lastModified.clone() : null;
-        p.m_fileSize     = m_fileSize;
-        p.m_hasMetadata  = m_hasMetadata;
-        p.m_attributes.putAll( m_attributes );
+        final WikiPage p = new WikiPage( engine, name );
+        p.wiki         = wiki;
+        p.author       = author;
+        p.version      = version;
+        p.lastModified = lastModified != null ? (Date)lastModified.clone() : null;
+        p.fileSize     = fileSize;
+        p.hasMetadata  = hasMetadata;
+        p.attributes.putAll( attributes );
 
-        if( m_accessList != null ) {
-            p.m_accessList = new AclImpl();
-            for( final Enumeration< AclEntry > entries = m_accessList.aclEntries(); entries.hasMoreElements(); ) {
+        if( accessList != null ) {
+            p.accessList = new AclImpl();
+            for( final Enumeration< AclEntry > entries = accessList.aclEntries(); entries.hasMoreElements(); ) {
                 final AclEntry e = entries.nextElement();
-                p.m_accessList.addEntry( e );
+                p.accessList.addEntry( e );
             }
         }
             
@@ -318,7 +318,7 @@ public class WikiPage implements Page {
             return 0; // the same object
         }
 
-        int res = m_engine.getManager( PageManager.class ).getPageSorter().compare( this.getName(), page.getName() );
+        int res = engine.getManager( PageManager.class ).getPageSorter().compare( this.getName(), page.getName() );
         if( res == 0 ) {
             res = this.getVersion() - page.getVersion();
         }
@@ -345,7 +345,7 @@ public class WikiPage implements Page {
      */
     @Override
     public int hashCode() {
-        return m_name.hashCode() * m_version;
+        return name.hashCode() * version;
     }
 
 }

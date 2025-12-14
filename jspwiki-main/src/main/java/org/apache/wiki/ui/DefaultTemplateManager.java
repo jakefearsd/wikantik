@@ -67,21 +67,6 @@ public class DefaultTemplateManager extends BaseModuleManager implements Templat
         super( engine );
     }
 
-    /** {@inheritDoc} */
-    @Override
-    // FIXME: Does not work yet
-    public boolean templateExists( final String templateName ) {
-        final ServletContext context = engine.getServletContext();
-        try( final InputStream in = context.getResourceAsStream( getPath( templateName ) + "ViewTemplate.jsp" ) ) {
-            if( in != null ) {
-                return true;
-            }
-        } catch( final IOException e ) {
-            LOG.error( e.getMessage(), e );
-        }
-        return false;
-    }
-
     /**
      *  Tries to locate a given resource from the template directory. If the given resource is not found under the current name, returns the
      *  path to the corresponding one in the default template.

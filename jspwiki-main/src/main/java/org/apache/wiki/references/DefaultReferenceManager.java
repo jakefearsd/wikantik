@@ -90,7 +90,7 @@ import java.util.stream.Collectors;
  *
  *  This is a quick'n'dirty approach without any finesse in storage and searching algorithms; we trust java.util.*.
  *  <P>
- *  This class contains two HashMaps, m_refersTo and m_referredBy. The first is indexed by WikiPage names and contains a Collection of all
+ *  This class contains two HashMaps, refersTo and referredBy. The first is indexed by WikiPage names and contains a Collection of all
  *  WikiPages the page refers to. (Multiple references are not counted, naturally.) The second is indexed by WikiPage names and contains
  *  a Set of all pages that refer to the indexing page. (Notice - the keys of both Maps should be kept in sync.)
  *  <P>
@@ -114,15 +114,15 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      *  Maps page wikiname to a Collection of pages it refers to. The Collection must contain Strings. The Collection may contain
      *  names of non-existing pages.
      */
-    private Map< String, Collection< String > > m_refersTo;
-    private Map< String, Collection< String > > m_unmutableRefersTo;
+    private Map< String, Collection< String > > refersTo;
+    private Map< String, Collection< String > > unmutableRefersTo;
 
     /**
      *  Maps page wikiname to a Set of referring pages. The Set must contain Strings. Non-existing pages (a reference exists, but
-     *  not a file for the page contents) may have an empty Set in m_referredBy.
+     *  not a file for the page contents) may have an empty Set in referredBy.
      */
-    private Map< String, Set< String > > m_referredBy;
-    private Map< String, Set< String > > m_unmutableReferredBy;
+    private Map< String, Set< String > > referredBy;
+    private Map< String, Set< String > > unmutableReferredBy;
 
     private final boolean matchEnglishPlurals;
 
@@ -142,16 +142,16 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      *  @param newEngine The Engine to which this is managing references to.
      */
     public DefaultReferenceManager( final Engine newEngine ) {
-        m_refersTo = new ConcurrentHashMap<>();
-        m_referredBy = new ConcurrentHashMap<>();
+        refersTo = new ConcurrentHashMap<>();
+        referredBy = new ConcurrentHashMap<>();
         this.engine = newEngine;
         matchEnglishPlurals = TextUtil.getBooleanProperty( newEngine.getWikiProperties(), Engine.PROP_MATCHPLURALS, false );
 
         //
         //  Create two maps that contain unmutable versions of the two basic maps.
         //
-        m_unmutableReferredBy = Collections.unmodifiableMap( m_referredBy );
-        m_unmutableRefersTo   = Collections.unmodifiableMap( m_refersTo );
+        unmutableReferredBy = Collections.unmodifiableMap( referredBy );
+        unmutableRefersTo   = Collections.unmodifiableMap( refersTo );
     }
 
     /**
@@ -209,10 +209,10 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
                         updatePageReferences( wp );
                     }
 
-                    // Ensure page exists in m_referredBy even if it has no inbound references
+                    // Ensure page exists in referredBy even if it has no inbound references
                     // This is needed for findUnreferenced() to work correctly for new pages
-                    if( !m_referredBy.containsKey( page.getName() ) ) {
-                        m_referredBy.put( page.getName(), new TreeSet<>() );
+                    if( !referredBy.containsKey( page.getName() ) ) {
+                        referredBy.put( page.getName(), new TreeSet<>() );
                         updatePageReferences( wp );
                     }
                 }
@@ -282,11 +282,11 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
             }
 
             saved        = in.readLong();
-            m_refersTo   = ( Map< String, Collection< String > > ) in.readObject();
-            m_referredBy = ( Map< String, Set< String > > ) in.readObject();
+            refersTo   = ( Map< String, Collection< String > > ) in.readObject();
+            referredBy = ( Map< String, Set< String > > ) in.readObject();
 
-            m_unmutableReferredBy = Collections.unmodifiableMap( m_referredBy );
-            m_unmutableRefersTo   = Collections.unmodifiableMap( m_refersTo );
+            unmutableReferredBy = Collections.unmodifiableMap( referredBy );
+            unmutableRefersTo   = Collections.unmodifiableMap( refersTo );
 
             sw.stop();
             LOG.debug( "Read serialized data successfully in {}", sw );
@@ -306,8 +306,8 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
             out.writeLong( serialVersionUID );
             out.writeLong( System.currentTimeMillis() ); // Timestamp
-            out.writeObject( m_refersTo );
-            out.writeObject( m_referredBy );
+            out.writeObject( refersTo );
+            out.writeObject( referredBy );
 
             sw.stop();
 
@@ -467,10 +467,10 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     }
 
     /**
-     * Updates the m_referedTo and m_referredBy hashmaps when a page has been deleted.
+     * Updates the refersTo and referredBy hashmaps when a page has been deleted.
      * <P>
-     * Within the m_refersTo map the pagename is a key. The whole key-value-set has to be removed to keep the map clean.
-     * Within the m_referredBy map the name is stored as a value. Since a key can have more than one value we have to
+     * Within the refersTo map the pagename is a key. The whole key-value-set has to be removed to keep the map clean.
+     * Within the referredBy map the name is stored as a value. Since a key can have more than one value we have to
      * delete just the key-value-pair referring page:deleted page.
      *
      *  @param page Name of the page to remove from the maps.
@@ -481,32 +481,32 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     }
 
     private void pageRemoved( final String pageName ) {
-        final Collection< String > refTo = m_refersTo.get( pageName );
+        final Collection< String > refTo = refersTo.get( pageName );
         if( refTo != null ) {
             for( final String referredPageName : refTo ) {
-                final Set< String > refBy = m_referredBy.get( referredPageName );
+                final Set< String > refBy = referredBy.get( referredPageName );
                 if( refBy == null ) {
                     throw new InternalWikiException( "Refmgr out of sync: page " + pageName +
                                                      " refers to " + referredPageName + ", which has null referrers." );
                 }
 
                 refBy.remove( pageName );
-                m_referredBy.remove( referredPageName );
+                referredBy.remove( referredPageName );
 
                 // We won't put it back again if it becomes empty and does not exist.  It will be added
                 // later on anyway, if it becomes referenced again.
                 if( !( refBy.isEmpty() && !engine.getManager( PageManager.class ).wikiPageExists( referredPageName ) ) ) {
-                    m_referredBy.put( referredPageName, refBy );
+                    referredBy.put( referredPageName, refBy );
                 }
             }
 
-            LOG.debug( "Removing from m_refersTo HashMap key:value {}:{}", pageName, m_refersTo.get( pageName ) );
-            m_refersTo.remove( pageName );
+            LOG.debug( "Removing from refersTo HashMap key:value {}:{}", pageName, refersTo.get( pageName ) );
+            refersTo.remove( pageName );
         }
 
-        final Set< String > refBy = m_referredBy.get( pageName );
+        final Set< String > refBy = referredBy.get( pageName );
         if( refBy == null || refBy.isEmpty() ) {
-            m_referredBy.remove( pageName );
+            referredBy.remove( pageName );
         }
 
         //  Remove any traces from the disk, too
@@ -561,18 +561,18 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     private void internalUpdateReferences( String page, final Collection< String > references) {
         page = getFinalPageName( page );
 
-        // Create a new entry in m_refersTo.
-        final Collection< String > oldRefTo = m_refersTo.get( page );
-        m_refersTo.remove( page );
+        // Create a new entry in refersTo.
+        final Collection< String > oldRefTo = refersTo.get( page );
+        refersTo.remove( page );
 
         final TreeSet< String > cleanedRefs = references.stream().map(this::getFinalPageName).collect(Collectors.toCollection(TreeSet::new));
 
-        m_refersTo.put( page, cleanedRefs );
+        refersTo.put( page, cleanedRefs );
 
         //  We know the page exists, since it's making references somewhere. If an entry for it didn't exist previously
-        //  in m_referredBy, make sure one is added now.
-        if( !m_referredBy.containsKey( page ) ) {
-            m_referredBy.put( page, new TreeSet<>() );
+        //  in referredBy, make sure one is added now.
+        if( !referredBy.containsKey( page ) ) {
+            referredBy.put( page, new TreeSet<>() );
         }
 
         //  Get all pages that used to be referred to by 'page' and remove that reference. (We don't want to try to figure out
@@ -591,7 +591,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      * @return The refers-to list.
      */
     protected Map< String, Collection< String > > getRefersTo() {
-        return m_refersTo;
+        return refersTo;
     }
 
     /**
@@ -600,7 +600,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      * @return Referred-by lists.
      */
     protected Map< String, Set< String > > getReferredBy() {
-        return m_referredBy;
+        return referredBy;
     }
 
     /**
@@ -621,7 +621,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         }
 
         for( final String referredPage : oldReferred ) {
-            final Set< String > oldRefBy = m_referredBy.get( referredPage );
+            final Set< String > oldRefBy = referredBy.get( referredPage );
             if( oldRefBy != null ) {
                 oldRefBy.remove( referrer );
             }
@@ -629,7 +629,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
             // If the page is referred to by no one AND it doesn't even exist, we might just as well forget about this
             // entry. It will be added again elsewhere if new references appear.
             if( ( oldRefBy == null || oldRefBy.isEmpty() ) && !engine.getManager( PageManager.class ).wikiPageExists( referredPage ) ) {
-                m_referredBy.remove( referredPage );
+                referredBy.remove( referredPage );
             }
         }
     }
@@ -644,8 +644,8 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      * @param pages a Collection containing WikiPage objects.
      */
     private void buildKeyLists( final Collection< Page > pages ) {
-        m_refersTo.clear();
-        m_referredBy.clear();
+        refersTo.clear();
+        referredBy.clear();
         if( pages == null ) {
             return;
         }
@@ -653,9 +653,9 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         try {
             for( final Page page : pages ) {
                 // We add a non-null entry to referredBy to indicate the referred page exists
-                m_referredBy.put( page.getName(), new TreeSet<>() );
+                referredBy.put( page.getName(), new TreeSet<>() );
                 // Just add a key to refersTo; the keys need to be in sync with referredBy.
-                m_refersTo.put( page.getName(), new TreeSet<>() );
+                refersTo.put( page.getName(), new TreeSet<>() );
             }
         } catch( final ClassCastException e ) {
             LOG.fatal( "Invalid collection entry in ReferenceManager.buildKeyLists().", e );
@@ -683,9 +683,9 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
             }
         }
 
-        // Even if 'page' has not been created yet, it can still be referenced. This requires we don't use m_referredBy
+        // Even if 'page' has not been created yet, it can still be referenced. This requires we don't use referredBy
         // keys when looking up missing pages, of course.
-        final Set< String > referrers = m_referredBy.computeIfAbsent( page, k -> new TreeSet<>() );
+        final Set< String > referrers = referredBy.computeIfAbsent( page, k -> new TreeSet<>() );
         referrers.add( referrer );
     }
 
@@ -700,22 +700,22 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         pagename = getFinalPageName( pagename );
 
         //  Remove this item from the referredBy list of any page which this item refers to.
-        final Collection< String > c = m_refersTo.get( pagename );
+        final Collection< String > c = refersTo.get( pagename );
         if( c != null ) {
             for( final String key : c ) {
-                final Collection< ? > dref = m_referredBy.get( key );
+                final Collection< ? > dref = referredBy.get( key );
                 dref.remove( pagename );
             }
         }
 
         //  Finally, remove direct references.
-        m_referredBy.remove( pagename );
-        m_refersTo.remove( pagename );
+        referredBy.remove( pagename );
+        refersTo.remove( pagename );
     }
 
 
     /**
-     *  Finds all unreferenced pages. This requires a linear scan through m_referredBy to locate keys with null or empty values.
+     *  Finds all unreferenced pages. This requires a linear scan through referredBy to locate keys with null or empty values.
      *
      *  @return The Collection of Strings (may be incomplete if called before initialization completes)
      */
@@ -723,8 +723,8 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     public Collection< String > findUnreferenced() {
         warnIfNotInitialized();
         final var unref = new ArrayList< String >();
-        for( final String key : m_referredBy.keySet() ) {
-            final Set< ? > refs = getReferenceList( m_referredBy, key );
+        for( final String key : referredBy.keySet() ) {
+            final Set< ? > refs = getReferenceList( referredBy, key );
             if( refs == null || refs.isEmpty() ) {
                 unref.add( key );
             }
@@ -735,7 +735,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
 
     /**
-     * Finds all references to non-existant pages. This requires a linear scan through m_refersTo values; each value
+     * Finds all references to non-existant pages. This requires a linear scan through refersTo values; each value
      * must have a corresponding key entry in the reference Maps, otherwise such a page has never been created.
      * <P>
      * Returns a Collection containing Strings of unreferenced page names. Each non-existant page name is shown only
@@ -748,9 +748,9 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         warnIfNotInitialized();
         final TreeSet< String > uncreated;
 
-        // Go through m_refersTo values and check that m_refersTo has the corresponding keys.
+        // Go through refersTo values and check that refersTo has the corresponding keys.
         // We want to reread the code to make sure our HashMaps are in sync...
-        final Collection< Collection< String > > allReferences = m_refersTo.values();
+        final Collection< Collection< String > > allReferences = refersTo.values();
         uncreated = allReferences.stream().filter(Objects::nonNull).flatMap(Collection::stream).filter(aReference -> !engine.getManager(PageManager.class).wikiPageExists(aReference)).collect(Collectors.toCollection(TreeSet::new));
 
         return uncreated;
@@ -799,7 +799,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     @Override
     public Set< String > findReferrers( final String pagename ) {
         warnIfNotInitialized();
-        final Set< String > refs = getReferenceList( m_referredBy, pagename );
+        final Set< String > refs = getReferenceList( referredBy, pagename );
         if( refs == null || refs.isEmpty() ) {
             return null;
         }
@@ -823,7 +823,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     @Override
     public Set< String > findReferredBy( final String pageName ) {
         warnIfNotInitialized();
-        return m_unmutableReferredBy.get( getFinalPageName(pageName) );
+        return unmutableReferredBy.get( getFinalPageName(pageName) );
     }
 
     /**
@@ -843,7 +843,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     @Override
     public Collection< String > findRefersTo( final String pageName ) {
         warnIfNotInitialized();
-        return m_unmutableRefersTo.get( getFinalPageName( pageName ) );
+        return unmutableRefersTo.get( getFinalPageName( pageName ) );
     }
 
     /**
@@ -866,8 +866,8 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         while( failed ) {
             signature = 0;
             try {
-                signature ^= m_referredBy.hashCode();
-                signature ^= m_refersTo.hashCode();
+                signature ^= referredBy.hashCode();
+                signature ^= refersTo.hashCode();
                 failed = false;
             } catch ( final ConcurrentModificationException e) {
                 Thread.yield();
@@ -888,7 +888,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     @Override
     public Set< String > findCreated() {
         warnIfNotInitialized();
-        return new HashSet<>( m_refersTo.keySet() );
+        return new HashSet<>( refersTo.keySet() );
     }
 
     private String getFinalPageName( final String orig ) {

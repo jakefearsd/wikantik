@@ -101,40 +101,40 @@ public class WikiEngine implements Engine {
     private static final Logger LOG = LogManager.getLogger( WikiEngine.class );
 
     /** Stores properties. */
-    private Properties m_properties;
+    private Properties properties;
 
     /** Should the user info be saved with the page data as well? */
-    private boolean m_saveUserInfo = true;
+    private boolean saveUserInfo = true;
 
     /** If true, uses UTF8 encoding for all data */
-    private boolean m_useUTF8 = true;
+    private boolean useUTF8 = true;
 
     /** Store the file path to the basic URL.  When we're not running as a servlet, it defaults to the user's current directory. */
-    private String m_rootPath = System.getProperty( "user.dir" );
+    private String rootPath = System.getProperty( "user.dir" );
 
     /** Store the ServletContext that we're in.  This may be null if WikiEngine is not running inside a servlet container (i.e. when testing). */
-    private ServletContext   m_servletContext;
+    private ServletContext   servletContext;
 
     /** Stores the template path.  This is relative to "templates". */
-    private String           m_templateDir;
+    private String           templateDir;
 
     /** The default front page name.  Defaults to "Main". */
-    private String           m_frontPage;
+    private String           frontPage;
 
     /** The time when this engine was started. */
-    private Date             m_startTime;
+    private Date             startTime;
 
     /** The location where the work directory is. */
-    private String           m_workDir;
+    private String           workDir;
 
     /** Each engine has their own application id. */
-    private String           m_appid = "";
+    private String           appid = "";
 
     /** engine is up and running or not */
-    private boolean          m_isConfigured;
+    private boolean          isConfigured;
 
     /** Stores wikiengine attributes. */
-    private final Map< String, Object > m_attributes = new ConcurrentHashMap<>();
+    private final Map< String, Object > attributes = new ConcurrentHashMap<>();
 
     /** Stores WikiEngine's associated managers. */
     protected final Map< Class< ? >, Object > managers = new ConcurrentHashMap<>();
@@ -223,13 +223,13 @@ public class WikiEngine implements Engine {
      *  @throws WikiException If the WikiEngine construction fails.
      */
     protected WikiEngine( final ServletContext context, final String appid ) throws WikiException {
-        m_servletContext = context;
-        m_appid          = appid;
+        this.servletContext = context;
+        this.appid          = appid;
 
         // Stash the WikiEngine in the servlet context
         if ( context != null ) {
             context.setAttribute( ATTR_WIKIENGINE,  this );
-            m_rootPath = context.getRealPath( "/" );
+            rootPath = context.getRealPath( "/" );
         }
     }
 
@@ -238,8 +238,8 @@ public class WikiEngine implements Engine {
      */
     @Override
     public void initialize( final Properties props ) throws WikiException {
-        m_startTime  = new Date();
-        m_properties = props;
+        startTime  = new Date();
+        properties = props;
 
         LOG.info( "*******************************************" );
         LOG.info( "{} {} starting. Whee!", Release.APPNAME, Release.getVersionString() );
@@ -249,9 +249,9 @@ public class WikiEngine implements Engine {
         LOG.debug( "Default server locale: {}", Locale.getDefault() );
         LOG.debug( "Default server timezone: {}", TimeZone.getDefault().getDisplayName( true, TimeZone.LONG ) );
 
-        if( m_servletContext != null ) {
-            LOG.info( "Servlet container: {}", m_servletContext.getServerInfo() );
-            if( m_servletContext.getMajorVersion() < 3 || ( m_servletContext.getMajorVersion() == 3 && m_servletContext.getMinorVersion() < 1 ) ) {
+        if( servletContext != null ) {
+            LOG.info( "Servlet container: {}", servletContext.getServerInfo() );
+            if( servletContext.getMajorVersion() < 3 || ( servletContext.getMajorVersion() == 3 && servletContext.getMinorVersion() < 1 ) ) {
                 throw new InternalWikiException( "JSPWiki requires a container which supports at least version 3.1 of Servlet specification" );
             }
         }
@@ -262,10 +262,10 @@ public class WikiEngine implements Engine {
 
         createAndFindWorkingDirectory( props );
 
-        m_useUTF8        = StandardCharsets.UTF_8.name().equals( TextUtil.getStringProperty( props, PROP_ENCODING, StandardCharsets.ISO_8859_1.name() ) );
-        m_saveUserInfo   = TextUtil.getBooleanProperty( props, PROP_STOREUSERNAME, m_saveUserInfo );
-        m_frontPage      = TextUtil.getStringProperty( props, PROP_FRONTPAGE, "Main" );
-        m_templateDir    = TextUtil.getStringProperty( props, PROP_TEMPLATEDIR, "default" );
+        useUTF8        = StandardCharsets.UTF_8.name().equals( TextUtil.getStringProperty( props, PROP_ENCODING, StandardCharsets.ISO_8859_1.name() ) );
+        saveUserInfo   = TextUtil.getBooleanProperty( props, PROP_STOREUSERNAME, saveUserInfo );
+        frontPage      = TextUtil.getStringProperty( props, PROP_FRONTPAGE, "Main" );
+        templateDir    = TextUtil.getStringProperty( props, PROP_TEMPLATEDIR, "default" );
         enforceValidTemplateDirectory();
 
         //
@@ -285,7 +285,7 @@ public class WikiEngine implements Engine {
         //      * Running it async allows the wiki to start serving requests immediately
         //
         try {
-            final String aclClassName = m_properties.getProperty( PROP_ACL_MANAGER_IMPL, ClassUtil.getMappedClass( AclManager.class.getName() ).getName() );
+            final String aclClassName = properties.getProperty( PROP_ACL_MANAGER_IMPL, ClassUtil.getMappedClass( AclManager.class.getName() ).getName() );
             final String urlConstructorClassName = TextUtil.getStringProperty( props, PROP_URLCONSTRUCTOR, "DefaultURLConstructor" );
             final Class< URLConstructor > urlclass = ClassUtil.findClass( "org.apache.wiki.url", urlConstructorClassName );
 
@@ -359,27 +359,27 @@ public class WikiEngine implements Engine {
         fireEvent( WikiEngineEvent.INITIALIZED ); // initialization complete
 
         LOG.info( "WikiEngine configured." );
-        m_isConfigured = true;
+        isConfigured = true;
     }
 
     void createAndFindWorkingDirectory( final Properties props ) throws WikiException {
-        m_workDir = TextUtil.getStringProperty( props, PROP_WORKDIR, null );
+        workDir = TextUtil.getStringProperty( props, PROP_WORKDIR, null );
 
-        final File f = new File( m_workDir );
+        final File f = new File( workDir );
         try {
             f.mkdirs();
         } catch( final SecurityException e ) {
-            LOG.fatal( "Unable to find or create the working directory: {}", m_workDir, e );
-            throw new WikiException( "Unable to find or create the working dir: " + m_workDir, e );
+            LOG.fatal( "Unable to find or create the working directory: {}", workDir, e );
+            throw new WikiException( "Unable to find or create the working dir: " + workDir, e );
         }
 
         //  A bunch of sanity checks
-        checkWorkingDirectory( !f.exists(), "Work directory does not exist: " + m_workDir );
-        checkWorkingDirectory( !f.canRead(), "No permission to read work directory: " + m_workDir );
-        checkWorkingDirectory( !f.canWrite(), "No permission to write to work directory: " + m_workDir );
-        checkWorkingDirectory( !f.isDirectory(), "jspwiki.workDir does not point to a directory: " + m_workDir );
+        checkWorkingDirectory( !f.exists(), "Work directory does not exist: " + workDir );
+        checkWorkingDirectory( !f.canRead(), "No permission to read work directory: " + workDir );
+        checkWorkingDirectory( !f.canWrite(), "No permission to write to work directory: " + workDir );
+        checkWorkingDirectory( !f.isDirectory(), "jspwiki.workDir does not point to a directory: " + workDir );
 
-        LOG.info( "JSPWiki working directory is '{}'", m_workDir );
+        LOG.info( "JSPWiki working directory is '{}'", workDir );
     }
 
     void checkWorkingDirectory( final boolean condition, final String errMsg ) throws WikiException {
@@ -412,7 +412,7 @@ public class WikiEngine implements Engine {
         }
         managers.put( componentClass, component );
         if( Initializable.class.isAssignableFrom( component.getClass() ) ) {
-            ( ( Initializable )component ).initialize( this, m_properties );
+            ( ( Initializable )component ).initialize( this, properties );
         }
     }
 
@@ -439,25 +439,25 @@ public class WikiEngine implements Engine {
     /** {@inheritDoc} */
     @Override
     public boolean isConfigured() {
-        return m_isConfigured;
+        return isConfigured;
     }
 
     /**
-     * Checks if the template directory specified in the wiki's properties actually exists. If it doesn't, then {@code m_templateDir} is
+     * Checks if the template directory specified in the wiki's properties actually exists. If it doesn't, then {@code templateDir} is
      * set to {@link #DEFAULT_TEMPLATE_NAME}.
      * <p>
-     * This checks the existence of the <tt>ViewTemplate.jsp</tt> file, which exists in every template using {@code m_servletContext.getRealPath("/")}.
+     * This checks the existence of the <tt>ViewTemplate.jsp</tt> file, which exists in every template using {@code servletContext.getRealPath("/")}.
      * <p>
-     * {@code m_servletContext.getRealPath("/")} can return {@code null} on certain servers/conditions (f.ex, packed wars), an extra check
-     * against {@code m_servletContext.getResource} is made.
+     * {@code servletContext.getRealPath("/")} can return {@code null} on certain servers/conditions (f.ex, packed wars), an extra check
+     * against {@code servletContext.getResource} is made.
      */
     void enforceValidTemplateDirectory() {
-        if( m_servletContext != null ) {
+        if( servletContext != null ) {
             final String viewTemplate = "templates" + File.separator + getTemplateDir() + File.separator + "ViewTemplate.jsp";
-            boolean exists = new File( m_servletContext.getRealPath( "/" ) + viewTemplate ).exists();
+            boolean exists = new File( servletContext.getRealPath( "/" ) + viewTemplate ).exists();
             if( !exists ) {
                 try {
-                    final URL url = m_servletContext.getResource( viewTemplate );
+                    final URL url = servletContext.getResource( viewTemplate );
                     exists = url != null && StringUtils.isNotEmpty( url.getFile() );
                 } catch( final MalformedURLException e ) {
                     LOG.warn( "template not found with viewTemplate {}", viewTemplate );
@@ -465,7 +465,7 @@ public class WikiEngine implements Engine {
             }
             if( !exists ) {
                 LOG.warn( "{} template not found, updating WikiEngine's default template to {}", getTemplateDir(), DEFAULT_TEMPLATE_NAME );
-                m_templateDir = DEFAULT_TEMPLATE_NAME;
+                templateDir = DEFAULT_TEMPLATE_NAME;
             }
         }
     }
@@ -483,7 +483,7 @@ public class WikiEngine implements Engine {
                 final var pages = new ArrayList< Page >();
                 pages.addAll( getManager( PageManager.class ).getAllPages() );
                 pages.addAll( getManager( AttachmentManager.class ).getAllAttachments() );
-                final String refMgrClassName = m_properties.getProperty( PROP_REF_MANAGER_IMPL, ClassUtil.getMappedClass( ReferenceManager.class.getName() ).getName() );
+                final String refMgrClassName = properties.getProperty( PROP_REF_MANAGER_IMPL, ClassUtil.getMappedClass( ReferenceManager.class.getName() ).getName() );
 
                 initComponent( refMgrClassName, ReferenceManager.class, this );
 
@@ -512,7 +512,7 @@ public class WikiEngine implements Engine {
     void initReferenceManagerAsync() throws WikiException {
         try {
             if( getManager( ReferenceManager.class ) == null ) {
-                final String refMgrClassName = m_properties.getProperty( PROP_REF_MANAGER_IMPL, ClassUtil.getMappedClass( ReferenceManager.class.getName() ).getName() );
+                final String refMgrClassName = properties.getProperty( PROP_REF_MANAGER_IMPL, ClassUtil.getMappedClass( ReferenceManager.class.getName() ).getName() );
 
                 // Create the ReferenceManager instance immediately so it can be registered
                 initComponent( refMgrClassName, ReferenceManager.class, this );
@@ -537,37 +537,37 @@ public class WikiEngine implements Engine {
     /** {@inheritDoc} */
     @Override
     public Properties getWikiProperties() {
-        return m_properties;
+        return properties;
     }
 
     /** {@inheritDoc} */
     @Override
     public String getWorkDir() {
-        return m_workDir;
+        return workDir;
     }
 
     /** {@inheritDoc} */
     @Override
     public String getTemplateDir() {
-        return m_templateDir;
+        return templateDir;
     }
 
     /** {@inheritDoc} */
     @Override
     public Date getStartTime() {
-        return ( Date )m_startTime.clone();
+        return ( Date )startTime.clone();
     }
 
     /** {@inheritDoc} */
     @Override
     public String getBaseURL() {
-        return m_servletContext.getContextPath();
+        return servletContext.getContextPath();
     }
 
     /** {@inheritDoc} */
     @Override
     public String getInterWikiURL( final String wikiName ) {
-        return TextUtil.getStringProperty( m_properties,PROP_INTERWIKIREF + wikiName,null );
+        return TextUtil.getStringProperty( properties,PROP_INTERWIKIREF + wikiName,null );
     }
 
     /** {@inheritDoc} */
@@ -583,20 +583,20 @@ public class WikiEngine implements Engine {
     /** {@inheritDoc} */
     @Override
     public String getFrontPage() {
-        return m_frontPage;
+        return frontPage;
     }
 
     /** {@inheritDoc} */
     @Override
     public ServletContext getServletContext() {
-        return m_servletContext;
+        return servletContext;
     }
 
     /** {@inheritDoc} */
     @Override
     public Collection< String > getAllInterWikiLinks() {
         final var list = new ArrayList< String >();
-        for( final Enumeration< ? > i = m_properties.propertyNames(); i.hasMoreElements(); ) {
+        for( final Enumeration< ? > i = properties.propertyNames(); i.hasMoreElements(); ) {
             final String prop = ( String )i.nextElement();
             if( prop.startsWith( PROP_INTERWIKIREF ) ) {
                 list.add( prop.substring( prop.lastIndexOf( "." ) + 1 ) );
@@ -610,10 +610,10 @@ public class WikiEngine implements Engine {
     @Override
     public Collection< String > getAllInlinedImagePatterns() {
         final var ptrnlist = new ArrayList< String >();
-        for( final Enumeration< ? > e = m_properties.propertyNames(); e.hasMoreElements(); ) {
+        for( final Enumeration< ? > e = properties.propertyNames(); e.hasMoreElements(); ) {
             final String name = ( String )e.nextElement();
             if( name.startsWith( PROP_INLINEIMAGEPTRN ) ) {
-                ptrnlist.add( TextUtil.getStringProperty( m_properties, name, null ) );
+                ptrnlist.add( TextUtil.getStringProperty( properties, name, null ) );
             }
         }
 
@@ -633,7 +633,7 @@ public class WikiEngine implements Engine {
     /** {@inheritDoc} */
     @Override
     public String getApplicationName() {
-        final String appName = TextUtil.getStringProperty( m_properties, PROP_APPNAME, Release.APPNAME );
+        final String appName = TextUtil.getStringProperty( properties, PROP_APPNAME, Release.APPNAME );
         return TextUtil.cleanString( appName, TextUtil.PUNCTUATION_CHARS_ALLOWED );
     }
 
@@ -647,7 +647,7 @@ public class WikiEngine implements Engine {
     @Override
     public String encodeName( final String pagename ) {
         try {
-            return URLEncoder.encode( pagename, m_useUTF8 ? StandardCharsets.UTF_8.name() : StandardCharsets.ISO_8859_1.name() );
+            return URLEncoder.encode( pagename, useUTF8 ? StandardCharsets.UTF_8.name() : StandardCharsets.ISO_8859_1.name() );
         } catch( final UnsupportedEncodingException e ) {
             throw new InternalWikiException( "ISO-8859-1 not a supported encoding!?!  Your platform is borked." , e);
         }
@@ -657,7 +657,7 @@ public class WikiEngine implements Engine {
     @Override
     public String decodeName( final String pagerequest ) {
         try {
-            return URLDecoder.decode( pagerequest, m_useUTF8 ? StandardCharsets.UTF_8.name() : StandardCharsets.ISO_8859_1.name() );
+            return URLDecoder.decode( pagerequest, useUTF8 ? StandardCharsets.UTF_8.name() : StandardCharsets.ISO_8859_1.name() );
         } catch( final UnsupportedEncodingException e ) {
             throw new InternalWikiException("ISO-8859-1 not a supported encoding!?!  Your platform is borked.", e);
         }
@@ -666,7 +666,7 @@ public class WikiEngine implements Engine {
     /** {@inheritDoc} */
     @Override
     public Charset getContentEncoding() {
-        if( m_useUTF8 ) {
+        if( useUTF8 ) {
             return StandardCharsets.UTF_8;
         }
         return StandardCharsets.ISO_8859_1;
@@ -688,7 +688,7 @@ public class WikiEngine implements Engine {
     /** {@inheritDoc} */
     @Override
     public String getRootPath() {
-        return m_rootPath;
+        return rootPath;
     }
 
     /** {@inheritDoc} */
@@ -728,21 +728,21 @@ public class WikiEngine implements Engine {
     /** {@inheritDoc} */
     @Override
     public void setAttribute( final String key, final Object value ) {
-        m_attributes.put( key, value );
+        attributes.put( key, value );
     }
 
     /** {@inheritDoc} */
     @Override
     @SuppressWarnings( "unchecked" )
     public < T > T getAttribute( final String key ) {
-        return ( T )m_attributes.get( key );
+        return ( T )attributes.get( key );
     }
 
     /** {@inheritDoc} */
     @Override
     @SuppressWarnings( "unchecked" )
     public < T > T removeAttribute( final String key ) {
-        return ( T )m_attributes.remove( key );
+        return ( T )attributes.remove( key );
     }
 
 }

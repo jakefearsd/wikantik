@@ -63,18 +63,18 @@ import java.util.PropertyPermission;
  */
 public class WikiContext implements Context, Command {
 
-    private Command  m_command;
-    private WikiPage m_page;
-    private WikiPage m_realPage;
-    private Engine   m_engine;
-    private String   m_template = "default";
+    private Command  command;
+    private WikiPage page;
+    private WikiPage realPage;
+    private Engine   engine;
+    private String   template = "default";
 
-    private HashMap< String, Object > m_variableMap = new HashMap<>();
+    private HashMap< String, Object > variableMap = new HashMap<>();
 
     /** Stores the HttpServletRequest.  May be null, if the request did not come from a servlet. */
-    protected HttpServletRequest m_request;
+    protected HttpServletRequest request;
 
-    private Session m_session;
+    private Session session;
 
     /** User is doing administrative things. */
     public static final String ADMIN = ContextEnum.WIKI_ADMIN.getRequestContext();
@@ -189,36 +189,36 @@ public class WikiContext implements Context, Command {
             throw new IllegalArgumentException( "Parameter engine and command must not be null." );
         }
 
-        m_engine = engine;
-        m_request = request;
-        m_session = Wiki.session().find( engine, request );
-        m_command = command;
+        this.engine = engine;
+        this.request = request;
+        this.session = Wiki.session().find( engine, request );
+        this.command = command;
 
         // If PageCommand, get the WikiPage
         if( command instanceof PageCommand pageCommand ) {
-            m_page = ( WikiPage )pageCommand.getTarget();
+            this.page = ( WikiPage )pageCommand.getTarget();
         }
 
         // If page not supplied, default to front page to avoid NPEs
-        if( m_page == null ) {
-            m_page = ( WikiPage )m_engine.getManager( PageManager.class ).getPage( m_engine.getFrontPage() );
+        if( this.page == null ) {
+            this.page = ( WikiPage )engine.getManager( PageManager.class ).getPage( engine.getFrontPage() );
 
             // Front page does not exist?
-            if( m_page == null ) {
-                m_page = ( WikiPage )Wiki.contents().page( m_engine, m_engine.getFrontPage() );
+            if( this.page == null ) {
+                this.page = ( WikiPage )Wiki.contents().page( engine, engine.getFrontPage() );
             }
         }
 
-        m_realPage = m_page;
+        this.realPage = this.page;
 
         // Special case: retarget any empty 'view' PageCommands to the front page
         if ( PageCommand.VIEW.equals( command ) && command.getTarget() == null ) {
-            m_command = command.targetedCommand( m_page );
+            this.command = command.targetedCommand( this.page );
         }
 
         // Debugging...
-        final HttpSession session = ( request == null ) ? null : request.getSession( false );
-        final String sid = session == null ? "(null)" : session.getId();
+        final HttpSession httpSession = ( request == null ) ? null : request.getSession( false );
+        final String sid = httpSession == null ? "(null)" : httpSession.getId();
         LOG.debug( "Creating WikiContext for session ID={}; target={}", sid, getName() );
 
         // Figure out what template to use
@@ -262,7 +262,7 @@ public class WikiContext implements Context, Command {
     @Override
     public String getContentTemplate()
     {
-        return m_command.getContentTemplate();
+        return command.getContentTemplate();
     }
 
     /**
@@ -272,7 +272,7 @@ public class WikiContext implements Context, Command {
     @Override
     public String getJSP()
     {
-        return m_command.getContentTemplate();
+        return command.getContentTemplate();
     }
 
     /**
@@ -292,9 +292,9 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public WikiPage setRealPage( final Page page ) {
-        final WikiPage old = m_realPage;
-        m_realPage = ( WikiPage )page;
-        updateCommand( m_command.getRequestContext() );
+        final WikiPage old = realPage;
+        realPage = ( WikiPage )page;
+        updateCommand( command.getRequestContext() );
         return old;
     }
 
@@ -314,7 +314,7 @@ public class WikiContext implements Context, Command {
     @Override
     public WikiPage getRealPage()
     {
-        return m_realPage;
+        return realPage;
     }
 
     /**
@@ -325,14 +325,14 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public String getRedirectURL() {
-        final String pagename = m_page.getName();
-        String redirURL = m_engine.getManager( CommandResolver.class ).getSpecialPageReference( pagename );
+        final String pagename = page.getName();
+        String redirURL = engine.getManager( CommandResolver.class ).getSpecialPageReference( pagename );
         if( redirURL == null ) {
-            final String alias = m_page.getAttribute( WikiPage.ALIAS );
+            final String alias = page.getAttribute( WikiPage.ALIAS );
             if( alias != null ) {
                 redirURL = getViewURL( alias );
             } else {
-                redirURL = m_page.getAttribute( WikiPage.REDIRECT );
+                redirURL = page.getAttribute( WikiPage.REDIRECT );
             }
         }
 
@@ -346,7 +346,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public WikiEngine getEngine() {
-        return ( WikiEngine )m_engine;
+        return ( WikiEngine )engine;
     }
 
     /**
@@ -357,7 +357,7 @@ public class WikiContext implements Context, Command {
     @Override
     public WikiPage getPage()
     {
-        return m_page;
+        return page;
     }
 
     /**
@@ -368,8 +368,8 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public void setPage( final Page page ) {
-        m_page = (WikiPage)page;
-        updateCommand( m_command.getRequestContext() );
+        this.page = (WikiPage)page;
+        updateCommand( command.getRequestContext() );
     }
 
     /**
@@ -380,7 +380,7 @@ public class WikiContext implements Context, Command {
     @Override
     public String getRequestContext()
     {
-        return m_command.getRequestContext();
+        return command.getRequestContext();
     }
 
     /**
@@ -401,7 +401,7 @@ public class WikiContext implements Context, Command {
     @Override
     public Object getTarget()
     {
-        return m_command.getTarget();
+        return command.getTarget();
     }
 
     /**
@@ -411,7 +411,7 @@ public class WikiContext implements Context, Command {
     @Override
     public String getURLPattern()
     {
-        return m_command.getURLPattern();
+        return command.getURLPattern();
     }
 
     /**
@@ -423,7 +423,7 @@ public class WikiContext implements Context, Command {
     @Override
     @SuppressWarnings( "unchecked" )
     public < T > T getVariable( final String key ) {
-        return ( T )m_variableMap.get( key );
+        return ( T )variableMap.get( key );
     }
 
     /**
@@ -435,8 +435,8 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public void setVariable( final String key, final Object data ) {
-        m_variableMap.put( key, data );
-        updateCommand( m_command.getRequestContext() );
+        variableMap.put( key, data );
+        updateCommand( command.getRequestContext() );
     }
 
     /**
@@ -469,8 +469,8 @@ public class WikiContext implements Context, Command {
     @Override
     public String getHttpParameter( final String paramName ) {
         String result = null;
-        if( m_request != null ) {
-            result = m_request.getParameter( paramName );
+        if( request != null ) {
+            result = request.getParameter( paramName );
         }
 
         return result;
@@ -486,7 +486,7 @@ public class WikiContext implements Context, Command {
     @Override
     public HttpServletRequest getHttpRequest()
     {
-        return m_request;
+        return request;
     }
 
     /**
@@ -498,7 +498,7 @@ public class WikiContext implements Context, Command {
     @Override
     public void setTemplate( final String dir )
     {
-        m_template = dir;
+        template = dir;
     }
 
     /**
@@ -514,10 +514,10 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public String getName() {
-        if ( m_command instanceof PageCommand ) {
-            return m_page != null ? m_page.getName() : "<no page>";
+        if ( command instanceof PageCommand ) {
+            return page != null ? page.getName() : "<no page>";
         }
-        return m_command.getName();
+        return command.getName();
     }
 
     /**
@@ -529,7 +529,7 @@ public class WikiContext implements Context, Command {
     @Override
     public String getTemplate()
     {
-        return m_template;
+        return template;
     }
 
     /**
@@ -541,11 +541,11 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public Principal getCurrentUser() {
-        if (m_session == null) {
+        if (session == null) {
             // This shouldn't happen, really...
             return WikiPrincipal.GUEST;
         }
-        return m_session.getUserPrincipal();
+        return session.getUserPrincipal();
     }
 
     /**
@@ -584,7 +584,7 @@ public class WikiContext implements Context, Command {
     @Override
     public String getURL( final String context, final String page, final String params ) {
         // FIXME: is rather slow
-        return m_engine.getURL( context, page, params );
+        return engine.getURL( context, page, params );
     }
 
     /**
@@ -594,7 +594,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public Command getCommand() {
-        return m_command;
+        return command;
     }
 
     /**
@@ -610,15 +610,15 @@ public class WikiContext implements Context, Command {
             // get the right type
             final WikiContext copy = (WikiContext)super.clone();
 
-            copy.m_engine = m_engine;
-            copy.m_command = m_command;
+            copy.engine = engine;
+            copy.command = command;
 
-            copy.m_template    = m_template;
-            copy.m_variableMap = m_variableMap;
-            copy.m_request     = m_request;
-            copy.m_session     = m_session;
-            copy.m_page        = m_page;
-            copy.m_realPage    = m_realPage;
+            copy.template    = template;
+            copy.variableMap = variableMap;
+            copy.request     = request;
+            copy.session     = session;
+            copy.page        = page;
+            copy.realPage    = realPage;
             return copy;
         } catch( final CloneNotSupportedException e ){} // Never happens
 
@@ -641,15 +641,15 @@ public class WikiContext implements Context, Command {
             final WikiContext copy = (WikiContext)super.clone();
 
             //  No need to deep clone these
-            copy.m_engine  = m_engine;
-            copy.m_command = m_command; // Static structure
+            copy.engine  = engine;
+            copy.command = command; // Static structure
 
-            copy.m_template    = m_template;
-            copy.m_variableMap = (HashMap<String,Object>)m_variableMap.clone();
-            copy.m_request     = m_request;
-            copy.m_session     = m_session;
-            copy.m_page        = m_page.clone();
-            copy.m_realPage    = m_realPage.clone();
+            copy.template    = template;
+            copy.variableMap = (HashMap<String,Object>)variableMap.clone();
+            copy.request     = request;
+            copy.session     = session;
+            copy.page        = page.clone();
+            copy.realPage    = realPage.clone();
             return copy;
         }
         catch( final CloneNotSupportedException e ){} // Never happens
@@ -666,7 +666,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public WikiSession getWikiSession() {
-        return ( WikiSession )m_session;
+        return ( WikiSession )session;
     }
 
     /**
@@ -697,25 +697,25 @@ public class WikiContext implements Context, Command {
     @Override
     public Permission requiredPermission() {
         // This is a filthy rotten hack -- absolutely putrid
-        if ( WikiCommand.INSTALL.equals( m_command ) ) {
+        if ( WikiCommand.INSTALL.equals( command ) ) {
             // See if admin users exists
             try {
-                final UserManager userMgr = m_engine.getManager( UserManager.class );
+                final UserManager userMgr = engine.getManager( UserManager.class );
                 final UserDatabase userDb = userMgr.getUserDatabase();
                 userDb.findByLoginName( Installer.ADMIN_ID );
             } catch ( final NoSuchPrincipalException e ) {
                 return DUMMY_PERMISSION;
             }
-            return new AllPermission( m_engine.getApplicationName() );
+            return new AllPermission( engine.getApplicationName() );
         }
 
         // TODO: we should really break the contract so that this
         // method returns null, but until then we will use this hack
-        if( m_command.requiredPermission() == null ) {
+        if( command.requiredPermission() == null ) {
             return DUMMY_PERMISSION;
         }
 
-        return m_command.requiredPermission();
+        return command.requiredPermission();
     }
 
     /**
@@ -728,10 +728,10 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public Command targetedCommand( final Object target ) {
-        if ( m_command.getTarget() == null ) {
-            return m_command.targetedCommand( target );
+        if ( command.getTarget() == null ) {
+            return command.targetedCommand( target );
         }
-        return m_command;
+        return command;
     }
 
     /**
@@ -742,7 +742,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public boolean hasAdminPermissions() {
-        return m_engine.getManager( AuthorizationManager.class ).checkPermission( getWikiSession(), new AllPermission( m_engine.getApplicationName() ) );
+        return engine.getManager( AuthorizationManager.class ).checkPermission( getWikiSession(), new AllPermission( engine.getApplicationName() ) );
     }
 
     /**
@@ -750,7 +750,7 @@ public class WikiContext implements Context, Command {
      * @param request the HTTP request
      */
     protected void setDefaultTemplate( final HttpServletRequest request ) {
-        final String defaultTemplate = m_engine.getTemplateDir();
+        final String defaultTemplate = engine.getTemplateDir();
 
         //  Figure out which template we should be using for this page.
         String template = null;
@@ -808,14 +808,14 @@ public class WikiContext implements Context, Command {
      */
     protected void updateCommand( final String requestContext ) {
         if ( requestContext == null ) {
-            m_command = PageCommand.NONE;
+            command = PageCommand.NONE;
         } else {
-            final CommandResolver resolver = m_engine.getManager( CommandResolver.class );
-            m_command = resolver.findCommand( m_request, requestContext );
+            final CommandResolver resolver = engine.getManager( CommandResolver.class );
+            command = resolver.findCommand( request, requestContext );
         }
 
-        if ( m_command instanceof PageCommand && m_page != null ) {
-            m_command = m_command.targetedCommand( m_page );
+        if ( command instanceof PageCommand && page != null ) {
+            command = command.targetedCommand( page );
         }
     }
 

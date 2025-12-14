@@ -28,8 +28,10 @@ import org.apache.wiki.api.exceptions.NoSuchVariableException;
  */
 public interface VariableManager {
 
-    // FIXME: These are probably obsolete.
+    /** Variable name for error messages stored in session. */
     String VAR_ERROR = "error";
+
+    /** Variable name for informational messages stored in session. */
     String VAR_MSG   = "msg";
 
     /** If this variable is set to false, all filters are disabled when translating. */

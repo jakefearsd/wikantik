@@ -69,6 +69,27 @@ public interface WorkflowManager extends WikiEventListener, Initializable {
     /** Fact name for storing the preferences' email. Value is {@value}. */
     String WF_UP_CREATE_SAVE_FACT_PREFS_EMAIL = "prefs.email";
 
+    // ---- Group workflow constants ----
+
+    /** The workflow attribute which stores the group being saved. */
+    String WF_GRP_SAVE_ATTR_SAVED_GROUP = "group";
+    /** The name of the key from jspwiki.properties which defines who shall approve the workflow of saving a wiki group.  Value is <tt>{@value}</tt> */
+    String WF_GRP_SAVE_APPROVER = "workflow.saveWikiGroup";
+    /** The message key for storing the Decision text for saving a group.  Value is {@value}. */
+    String WF_GRP_SAVE_DECISION_MESSAGE_KEY = "decision.saveWikiGroup";
+    /** The message key for rejecting the decision to save the group.  Value is {@value}. */
+    String WF_GRP_SAVE_REJECT_MESSAGE_KEY = "notification.saveWikiGroup.reject";
+    /** Fact name for storing the group name.  Value is {@value}. */
+    String WF_GRP_SAVE_FACT_GROUP_NAME = "fact.groupName";
+    /** Fact name for storing the proposed member list. Value is {@value}. */
+    String WF_GRP_SAVE_FACT_PROPOSED_MEMBERS = "fact.proposedMembers";
+    /** Fact name for storing the current member list. Value is {@value}. */
+    String WF_GRP_SAVE_FACT_CURRENT_MEMBERS = "fact.currentMembers";
+    /** Fact name for storing the submitter name. Value is {@value}. */
+    String WF_GRP_SAVE_FACT_SUBMITTER = "fact.submitter";
+    /** Fact name for storing whether this is a new group. Value is {@value}. */
+    String WF_GRP_SAVE_FACT_IS_NEW = "fact.isNew";
+
     /** The prefix to use for looking up <code>jspwiki.properties</code> approval roles. */
     String PROPERTY_APPROVER_PREFIX = "jspwiki.approver.";
 

@@ -22,6 +22,7 @@ import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Session;
 import org.apache.wiki.api.providers.AttachmentProvider;
 import org.apache.wiki.api.spi.Wiki;
+import org.apache.wiki.api.exceptions.WikiException;
 import org.apache.wiki.auth.NoSuchPrincipalException;
 import org.apache.wiki.auth.UserManager;
 import org.apache.wiki.auth.WikiPrincipal;
@@ -111,7 +112,7 @@ public class Installer {
      *
      * @return the password
      */
-    public String createAdministrator() throws WikiSecurityException {
+    public String createAdministrator() throws WikiException {
         if ( !validated ) {
             throw new WikiSecurityException( "Cannot create administrator because one or more of the installation settings are invalid." );
         }

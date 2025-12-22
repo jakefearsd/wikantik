@@ -19,6 +19,7 @@
 package org.apache.wiki.tasks;
 
 import org.apache.wiki.tasks.auth.SaveUserProfileTask;
+import org.apache.wiki.tasks.auth.SaveWikiGroupTask;
 import org.apache.wiki.tasks.pages.PreSaveWikiPageTask;
 import org.apache.wiki.tasks.pages.SaveWikiPageTask;
 import org.apache.wiki.workflow.Step;
@@ -54,5 +55,13 @@ public class DefaultTasksManager implements TasksManager {
     public Step buildSaveUserProfileTask( final Locale loc ) {
         return new SaveUserProfileTask( loc );
     }
-    
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Step buildSaveWikiGroupTask() {
+        return new SaveWikiGroupTask();
+    }
+
 }

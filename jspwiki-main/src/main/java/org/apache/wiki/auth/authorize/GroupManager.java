@@ -21,6 +21,7 @@ package org.apache.wiki.auth.authorize;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Session;
 import org.apache.wiki.api.engine.Initializable;
+import org.apache.wiki.api.exceptions.WikiException;
 import org.apache.wiki.auth.Authorizer;
 import org.apache.wiki.auth.NoSuchPrincipalException;
 import org.apache.wiki.auth.WikiSecurityException;
@@ -172,9 +173,22 @@ public interface GroupManager extends Initializable, Authorizer, WikiEventListen
      *
      * @param session the wiki session, which may not be <code>null</code>
      * @param group the Group, which may not be <code>null</code>
+     * @throws WikiException if the Group cannot be saved by the back-end or requires approval
+     */
+    void setGroup( final Session session, final Group group ) throws WikiException;
+
+    /**
+     * <p>
+     * Internal method to save a group directly without workflow. This method is called by the workflow
+     * system after approval has been obtained, or by {@link #setGroup(Session, Group)} when no workflow
+     * approval is required.
+     * </p>
+     *
+     * @param session the wiki session, which may not be <code>null</code>
+     * @param group the Group, which may not be <code>null</code>
      * @throws WikiSecurityException if the Group cannot be saved by the back-end
      */
-    void setGroup( final Session session, final Group group ) throws WikiSecurityException;
+    void setGroupInternal( final Session session, final Group group ) throws WikiSecurityException;
 
     /**
      * Validates a Group, and appends any errors to the session errors list. Any validation errors are added to the wiki session's messages

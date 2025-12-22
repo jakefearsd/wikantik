@@ -38,7 +38,9 @@ public interface TasksManager {
     String WIKIPAGE_SAVE_TASK_MESSAGE_KEY = "task.saveWikiPage";
     /** The message key of the text to finally approve a user profile save.  Value is <tt>{@value}</tt>. */
     String USER_PROFILE_SAVE_TASK_MESSAGE_KEY = "task.createUserProfile";
-    
+    /** The message key of the text to finally approve a group save.  Value is <tt>{@value}</tt>. */
+    String GROUP_SAVE_TASK_MESSAGE_KEY = "task.saveWikiGroup";
+
     /**
      * Builds a pre-save WikiPage task.
      * 
@@ -56,10 +58,17 @@ public interface TasksManager {
     
     /**
      * Builds a save user profile task.
-     * 
+     *
      * @param loc text proposed to be saved on the wiki page.
      * @return a save user profile task.
      */
     Step buildSaveUserProfileTask( Locale loc );
-    
+
+    /**
+     * Builds a save wiki group task.
+     *
+     * @return a save wiki group task.
+     */
+    Step buildSaveWikiGroupTask();
+
 }

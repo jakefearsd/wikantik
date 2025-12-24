@@ -18,7 +18,10 @@
  */
 package org.apache.wiki.workflow;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
+import java.io.ObjectStreamField;
 import java.io.Serializable;
 
 /**
@@ -29,6 +32,15 @@ import java.io.Serializable;
 public final class Outcome implements Serializable {
 
     private static final long serialVersionUID = -338361947886288073L;
+
+    /**
+     * Defines the serializable fields for this class.
+     * This ensures we always serialize using 'key' (not the old 'm_key' name).
+     */
+    private static final ObjectStreamField[] serialPersistentFields = {
+        new ObjectStreamField( "key", String.class ),
+        new ObjectStreamField( "completion", boolean.class )
+    };
 
     /** Complete workflow step (without errors) */
     public static final Outcome STEP_COMPLETE = new Outcome( "outcome.step.complete", true );
@@ -57,9 +69,10 @@ public final class Outcome implements Serializable {
     private static final Outcome[] OUTCOMES = new Outcome[] { STEP_COMPLETE, STEP_ABORT, STEP_CONTINUE, DECISION_ACKNOWLEDGE,
                                                               DECISION_APPROVE, DECISION_DENY, DECISION_HOLD, DECISION_REASSIGN };
 
-    private final String key;
+    // Non-final to allow custom deserialization from old 'm_key' field format
+    private String key;
 
-    private final boolean completion;
+    private boolean completion;
 
     /**
      * Private constructor to prevent direct instantiation.
@@ -139,6 +152,56 @@ public final class Outcome implements Serializable {
      */
     public String toString() {
         return "[Outcome:" + key + "]";
+    }
+
+    /**
+     * Custom deserialization that handles both the current 'key' field name
+     * and the legacy 'm_key' field name from older serialized data.
+     * This provides backward compatibility with workflow data serialized
+     * before the Hungarian notation removal (commit 71d50ad8f).
+     *
+     * @param in the ObjectInputStream to read from
+     * @throws IOException if an I/O error occurs
+     * @throws ClassNotFoundException if the class of a serialized object cannot be found
+     */
+    private void readObject( final ObjectInputStream in ) throws IOException, ClassNotFoundException {
+        final ObjectInputStream.GetField fields = in.readFields();
+
+        // Try to read 'key' first (current field name), fall back to legacy 'm_key'
+        String keyValue = null;
+        try {
+            keyValue = ( String ) fields.get( "key", null );
+        } catch ( final IllegalArgumentException e ) {
+            // Field 'key' doesn't exist in stream, will try legacy name below
+        }
+
+        // If 'key' was not found or is null, try legacy 'm_key' field name
+        if ( keyValue == null ) {
+            try {
+                keyValue = ( String ) fields.get( "m_key", null );
+            } catch ( final IllegalArgumentException e ) {
+                // Neither field exists - will be caught by readResolve()
+            }
+        }
+        this.key = keyValue;
+
+        // Try to read 'completion' first, fall back to legacy 'm_completion'
+        boolean completionValue = false;
+        try {
+            completionValue = fields.get( "completion", false );
+        } catch ( final IllegalArgumentException e ) {
+            // Field 'completion' doesn't exist, try legacy name
+        }
+
+        // If completion is still false, check if it's actually false or if we need to try legacy field
+        if ( !completionValue ) {
+            try {
+                completionValue = fields.get( "m_completion", false );
+            } catch ( final IllegalArgumentException e ) {
+                // Field doesn't exist in the stream, use default false
+            }
+        }
+        this.completion = completionValue;
     }
 
     /**

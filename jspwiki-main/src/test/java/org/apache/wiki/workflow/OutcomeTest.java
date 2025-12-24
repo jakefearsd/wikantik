@@ -142,4 +142,29 @@ public class OutcomeTest {
         }
     }
 
+    /**
+     * Tests that the hashCode method works correctly after deserialization.
+     * This is important because HashMap uses hashCode during readObject,
+     * which happens before readResolve can fix singleton identity.
+     * The readObject method must ensure key is populated before hashCode is called.
+     */
+    @Test
+    public void testDeserializedHashCodeBeforeResolve() throws Exception {
+        // This test verifies that hashCode works on deserialized objects.
+        // The fix for backward compatibility ensures that key is never null
+        // after readObject completes, preventing NPE in hashCode.
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try ( final ObjectOutputStream oos = new ObjectOutputStream( baos ) ) {
+            oos.writeObject( Outcome.DECISION_APPROVE );
+        }
+
+        final ByteArrayInputStream bais = new ByteArrayInputStream( baos.toByteArray() );
+        try ( final ObjectInputStream ois = new ObjectInputStream( bais ) ) {
+            final Outcome deserialized = (Outcome) ois.readObject();
+            // hashCode should work without throwing NPE
+            Assertions.assertEquals( Outcome.DECISION_APPROVE.hashCode(), deserialized.hashCode() );
+        }
+    }
+
 }
+

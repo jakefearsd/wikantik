@@ -19,6 +19,8 @@
 
 <%@ page import="org.apache.wiki.api.core.*" %>
 <%@ page import="org.apache.wiki.auth.*" %>
+<%@ page import="org.apache.wiki.auth.sso.SSOConfig" %>
+<%@ page import="org.apache.wiki.auth.sso.SSOConfigHolder" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
@@ -39,6 +41,9 @@
         loginURL = ctx.getURL( ContextEnum.WIKI_LOGIN.getRequestContext(), redir );
     }
 
+    // Check if SSO is enabled
+    SSOConfig ssoConfig = SSOConfigHolder.getConfig( ctx.getEngine() );
+    boolean ssoEnabled = ssoConfig != null && ssoConfig.isEnabled();
 %>
 <c:set var="allowsCookieAuthentication" value="<%= mgr.allowsCookieAuthentication() %>" />
 <div class="page-content">
@@ -95,6 +100,14 @@
       <input class="btn btn-success btn-block"
               type="submit" tabindex="4" name="submitlogin" value="<fmt:message key='login.submit.login'/>" />
     </div>
+
+    <% if( ssoEnabled ) { %>
+    <div class="form-group">
+      <a class="btn btn-primary btn-block" href="<%= request.getContextPath() %>/sso/login" tabindex="5">
+        <fmt:message key="login.sso" />
+      </a>
+    </div>
+    <% } %>
 
     <hr />
 

@@ -50,6 +50,12 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- SSO support: pac4j OIDC (optional in jspwiki-main, required at runtime) -->
+        <dependency>
+            <groupId>org.pac4j</groupId>
+            <artifactId>pac4j-oidc</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>

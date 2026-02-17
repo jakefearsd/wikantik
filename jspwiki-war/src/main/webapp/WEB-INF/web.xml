@@ -198,6 +198,25 @@
        <servlet-class>org.apache.wiki.content.RecentArticlesServlet</servlet-class>
    </servlet>
 
+   <!-- SSO servlets for OIDC/SAML authentication -->
+   <servlet>
+       <servlet-name>SSORedirectServlet</servlet-name>
+       <servlet-class>org.apache.wiki.auth.sso.SSORedirectServlet</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>SSOCallbackServlet</servlet-name>
+       <servlet-class>org.apache.wiki.auth.sso.SSOCallbackServlet</servlet-class>
+   </servlet>
+
+   <servlet-mapping>
+       <servlet-name>SSORedirectServlet</servlet-name>
+       <url-pattern>/sso/login</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>SSOCallbackServlet</servlet-name>
+       <url-pattern>/sso/callback</url-pattern>
+   </servlet-mapping>
+
    <servlet-mapping>
        <servlet-name>AttachmentServlet</servlet-name>
        <url-pattern>/attach/*</url-pattern>

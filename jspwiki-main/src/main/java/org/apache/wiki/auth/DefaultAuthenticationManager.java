@@ -33,6 +33,9 @@ import org.apache.wiki.auth.login.UserDatabaseLoginModule;
 import org.apache.wiki.auth.login.WebContainerCallbackHandler;
 import org.apache.wiki.auth.login.WebContainerLoginModule;
 import org.apache.wiki.auth.login.WikiCallbackHandler;
+import org.apache.wiki.auth.sso.SSOConfig;
+import org.apache.wiki.auth.sso.SSOConfigHolder;
+import org.apache.wiki.auth.sso.SSOLoginModule;
 import org.apache.wiki.event.WikiEventListener;
 import org.apache.wiki.event.WikiEventManager;
 import org.apache.wiki.event.WikiSecurityEvent;
@@ -129,6 +132,9 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 
         // Initialize the LoginModule options
         initLoginModuleOptions( props );
+
+        // Initialize SSO configuration if enabled
+        initSSOConfig( engine, props );
     }
 
     /**
@@ -159,13 +165,22 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         CallbackHandler handler = null;
         final Map< String, String > options = EMPTY_MAP;
 
-        // If user not authenticated, check if container logged them in, or if there's an authentication cookie
+        // If user not authenticated, check if SSO, container, or cookie authenticated them
         if ( !session.isAuthenticated() ) {
             // Create a callback handler
             handler = new WebContainerCallbackHandler( engine, request );
 
+            // Try SSO login first if SSO is enabled
+            final SSOConfig ssoConfig = SSOConfigHolder.getConfig( engine );
+            Set< Principal > principals = NO_PRINCIPALS;
+            if( ssoConfig != null && ssoConfig.isEnabled() ) {
+                principals = authenticationMgr.doJAASLogin( SSOLoginModule.class, handler, loginModuleOptions );
+            }
+
             // Execute the container login module, then (if that fails) the cookie auth module
-            Set< Principal > principals = authenticationMgr.doJAASLogin( WebContainerLoginModule.class, handler, options );
+            if( principals.isEmpty() ) {
+                principals = authenticationMgr.doJAASLogin( WebContainerLoginModule.class, handler, options );
+            }
             if (principals.isEmpty() && authenticationMgr.allowsCookieAuthentication() ) {
                 principals = authenticationMgr.doJAASLogin( CookieAuthenticationLoginModule.class, handler, options );
             }
@@ -386,6 +401,34 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                     loginModuleOptions.put( optionKey, optionValue );
                 }
             }
+        }
+    }
+
+    /**
+     * Initializes the SSO configuration from properties, if SSO is enabled.
+     *
+     * @param engine the wiki engine
+     * @param props the properties used to initialize JSPWiki
+     */
+    private void initSSOConfig( final Engine engine, final Properties props ) {
+        final boolean ssoEnabled = TextUtil.getBooleanProperty( props, SSOConfig.PROP_SSO_ENABLED, false );
+        if( ssoEnabled ) {
+            // Read jspwiki.baseURL from properties (full URL needed for SSO callbacks).
+            // engine.getBaseURL() only returns the context path, not the full URL.
+            String baseUrl = TextUtil.getStringProperty( props, "jspwiki.baseURL", "" );
+            if( baseUrl.isEmpty() ) {
+                baseUrl = engine.getBaseURL();
+                LOG.warn( "jspwiki.baseURL not set. SSO callback URLs will be relative, which may cause OIDC redirect_uri mismatches. "
+                        + "Set jspwiki.baseURL in jspwiki-custom.properties for proper SSO operation." );
+            }
+            // Remove trailing slash to avoid double slashes in callback URL
+            if( baseUrl.endsWith( "/" ) ) {
+                baseUrl = baseUrl.substring( 0, baseUrl.length() - 1 );
+            }
+            final String callbackUrl = baseUrl + SSOConfig.CALLBACK_PATH;
+            final SSOConfig ssoConfig = new SSOConfig( props, callbackUrl );
+            SSOConfigHolder.setConfig( engine, ssoConfig );
+            LOG.info( "SSO configuration initialized with callback URL: {}", callbackUrl );
         }
     }
 

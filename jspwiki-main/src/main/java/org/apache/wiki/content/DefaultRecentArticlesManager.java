@@ -343,17 +343,12 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         final Pattern excludePattern = compilePattern( query.getExcludePattern() );
 
         // Get recent changes (already sorted by date, most recent first)
-        final Set<Page> recentChanges = pageManager.getRecentChanges();
+        final Set<Page> recentChanges = pageManager.getRecentChanges( cutoffDate );
 
         for ( final Page page : recentChanges ) {
             // Stop if we've collected enough articles
             if ( results.size() >= query.getCount() ) {
                 break;
-            }
-
-            // Skip if older than cutoff date
-            if ( page.getLastModified() != null && page.getLastModified().before( cutoffDate ) ) {
-                break; // Since pages are sorted by date, no need to continue
             }
 
             // Skip attachments

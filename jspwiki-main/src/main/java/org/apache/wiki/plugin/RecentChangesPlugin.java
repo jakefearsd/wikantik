@@ -104,8 +104,7 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
 
         LOG.debug("Calculating recent changes from "+sincedate.getTime());
 
-        // FIXME: Should really have a since date on the getRecentChanges method.
-        Collection< Page > changes = engine.getManager( PageManager.class ).getRecentChanges();
+        Collection< Page > changes = engine.getManager( PageManager.class ).getRecentChanges( sincedate.getTime() );
         super.initialize( context, params );
         changes = filterWikiPageCollection( changes );
         
@@ -121,10 +120,6 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
 
             for( final Page pageref : changes ) {
                 final Date lastmod = pageref.getLastModified();
-
-                if( lastmod.before( sincedate.getTime() ) ) {
-                    break;
-                }
 
                 if( !isSameDay( lastmod, olddate ) ) {
                     final Element row = XhtmlUtil.element( XHTML.tr );

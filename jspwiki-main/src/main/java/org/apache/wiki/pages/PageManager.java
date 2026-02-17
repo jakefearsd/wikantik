@@ -26,6 +26,7 @@ import org.apache.wiki.api.providers.PageProvider;
 import org.apache.wiki.event.WikiEventListener;
 
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
@@ -268,6 +269,15 @@ public interface PageManager extends WikiEventListener {
      *  @return Set of WikiPage objects.
      */
     Set< Page > getRecentChanges();
+
+    /**
+     *  Returns pages and attachments changed since the given date,
+     *  sorted most-recent-first. This method also includes attachments.
+     *
+     *  @param since Only include changes on or after this date.
+     *  @return Set of Page objects sorted by last modification date.
+     */
+    Set< Page > getRecentChanges( Date since );
 
     /**
      * Returns true, if the page exists (any version) on the underlying WikiPageProvider.

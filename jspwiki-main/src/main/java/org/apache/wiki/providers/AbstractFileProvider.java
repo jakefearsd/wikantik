@@ -406,15 +406,57 @@ public abstract class AbstractFileProvider implements PageProvider {
     }
 
     /**
-     *  Does not work.
+     *  Returns all pages that have been modified since the given date.
+     *  When the date is {@code null} or represents epoch (time 0), this
+     *  behaves identically to {@link #getAllPages()}.
      *
      *  @param date {@inheritDoc}
      *  @return {@inheritDoc}
      */
     @Override
-    public Collection< Page > getAllChangedSince( final Date date )
-    {
-        return new ArrayList<>(); // FIXME
+    public Collection< Page > getAllChangedSince( final Date date ) {
+        LOG.debug( "Getting all pages changed since {}", date );
+        final var set = new ArrayList< Page >();
+        final File wikipagedir = new File( pageDirectory );
+        final File[] wikipages = wikipagedir.listFiles( new WikiFileFilter() );
+
+        if( wikipages == null ) {
+            LOG.error( "Wikipages directory '" + pageDirectory + "' does not exist! Please check " + PROP_PAGEDIR + " in jspwiki.properties." );
+            return set;
+        }
+
+        final long sinceMillis = ( date == null ) ? 0L : date.getTime();
+
+        for( final File wikipage : wikipages ) {
+            // Skip files not modified since the cutoff date
+            if( sinceMillis > 0L && wikipage.lastModified() < sinceMillis ) {
+                continue;
+            }
+
+            final String wikiname = wikipage.getName();
+
+            // Determine the extension and extract the base name
+            int cutpoint;
+            if( wikiname.endsWith( MARKDOWN_EXT ) ) {
+                cutpoint = wikiname.lastIndexOf( MARKDOWN_EXT );
+            } else {
+                cutpoint = wikiname.lastIndexOf( FILE_EXT );
+            }
+
+            try {
+                final Page page = getPageInfo( unmangleName( wikiname.substring( 0, cutpoint ) ), PageProvider.LATEST_VERSION );
+                if( page == null ) {
+                    LOG.error( "Page " + wikiname + " was found in directory listing, but could not be located individually." );
+                    continue;
+                }
+
+                set.add( page );
+            } catch( final ProviderException e ) {
+                LOG.error( "Error getting page info for " + wikiname, e );
+            }
+        }
+
+        return set;
     }
 
     /**

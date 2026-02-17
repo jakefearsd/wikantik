@@ -466,14 +466,23 @@ public class DefaultPageManager implements PageManager {
      */
     @Override
     public Set< Page > getRecentChanges() {
+        return getRecentChanges( new Date( 0L ) );
+    }
+
+    /**
+     * {@inheritDoc}
+     * @see org.apache.wiki.pages.PageManager#getRecentChanges(Date)
+     */
+    @Override
+    public Set< Page > getRecentChanges( final Date since ) {
         try {
             final var sortedPages = new TreeSet<>( new PageTimeComparator() );
-            sortedPages.addAll( getAllPages() );
-            sortedPages.addAll( engine.getManager( AttachmentManager.class ).getAllAttachments() );
+            sortedPages.addAll( provider.getAllChangedSince( since ) );
+            sortedPages.addAll( engine.getManager( AttachmentManager.class ).getAllAttachmentsSince( since ) );
 
             return sortedPages;
         } catch( final ProviderException e ) {
-            LOG.error( "Unable to fetch all pages: ", e );
+            LOG.error( "Unable to fetch recent changes: ", e );
             return Collections.emptySet();
         }
     }

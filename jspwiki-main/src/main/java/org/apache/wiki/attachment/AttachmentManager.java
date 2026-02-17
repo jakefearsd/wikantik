@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 
 
@@ -252,6 +253,15 @@ public interface AttachmentManager {
      *  @throws ProviderException If something went wrong with the backend
      */
     Collection< Attachment > getAllAttachments() throws ProviderException;
+
+    /**
+     *  Returns attachments changed since the given date.
+     *
+     *  @param since Only include attachments changed on or after this date.
+     *  @return A collection of attachments.  If attachments are disabled, will return an empty collection.
+     *  @throws ProviderException If something went wrong with the backend.
+     */
+    Collection< Attachment > getAllAttachmentsSince( Date since ) throws ProviderException;
 
     /**
      *  Returns the current attachment provider.

@@ -114,12 +114,22 @@ public class VerySimpleProvider implements PageProvider {
     }
 
     /**
-     *  Returns the same as getAllPages().
+     *  Returns pages changed since the given date. With a null or epoch date,
+     *  returns all pages.
      */
     @Override
-    public Collection< Page > getAllChangedSince( final Date date )
-    {
-        return getAllPages();
+    public Collection< Page > getAllChangedSince( final Date date ) {
+        final long sinceMillis = ( date == null ) ? 0L : date.getTime();
+        if( sinceMillis <= 0L ) {
+            return getAllPages();
+        }
+        final List< Page > result = new ArrayList<>();
+        for( final Page page : getAllPages() ) {
+            if( page.getLastModified() != null && page.getLastModified().getTime() >= sinceMillis ) {
+                result.add( page );
+            }
+        }
+        return result;
     }
 
     /**

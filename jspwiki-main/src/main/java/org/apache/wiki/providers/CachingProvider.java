@@ -75,9 +75,26 @@ public class CachingProvider implements PageProvider {
     /** Default TTL for the all-pages cache: 5 minutes */
     private static final int DEFAULT_ALLPAGES_TTL = 300;
 
+    /**
+     * Property name for enabling/disabling the filesystem watcher.
+     * When enabled, the watcher monitors the page directory for external changes
+     * and triggers cache invalidation. Default is {@code true}.
+     */
+    public static final String PROP_WATCHER_ENABLED = "jspwiki.cache.watcherEnabled";
+
+    /**
+     * Property name for configuring the watcher polling interval in seconds.
+     * Default is 3 seconds.
+     */
+    public static final String PROP_WATCHER_INTERVAL = "jspwiki.cache.watcherInterval";
+
+    /** Default watcher polling interval: 3 seconds */
+    private static final int DEFAULT_WATCHER_INTERVAL = 3;
+
     private CachingManager cachingManager;
     private PageProvider provider;
     private Engine engine;
+    private PageDirectoryWatcher pageDirectoryWatcher;
 
     /** TTL in milliseconds for the all-pages cache */
     private long allPagesTTLMillis;
@@ -119,6 +136,16 @@ public class CachingProvider implements PageProvider {
         } catch( final ReflectiveOperationException e ) {
             LOG.error( "Unable to instantiate provider class {}", classname, e );
             throw new IllegalArgumentException( "illegal provider class", e );
+        }
+
+        // Start filesystem watcher if enabled and the underlying provider is file-based
+        final boolean watcherEnabled = TextUtil.getBooleanProperty( properties, PROP_WATCHER_ENABLED, true );
+        if( watcherEnabled && provider instanceof AbstractFileProvider ) {
+            final int watcherInterval = TextUtil.getIntegerProperty( properties, PROP_WATCHER_INTERVAL, DEFAULT_WATCHER_INTERVAL );
+            final AbstractFileProvider fileProvider = ( AbstractFileProvider ) provider;
+            pageDirectoryWatcher = new PageDirectoryWatcher( engine, watcherInterval, fileProvider, cachingManager );
+            pageDirectoryWatcher.start();
+            LOG.info( "Page directory watcher started with {}s interval", watcherInterval );
         }
     }
 
@@ -244,6 +271,11 @@ public class CachingProvider implements PageProvider {
     @Override
     public void putPageText( final Page page, final String text ) throws ProviderException {
         synchronized( this ) {
+            // Notify watcher to skip this page (avoid double-processing)
+            if( pageDirectoryWatcher != null ) {
+                pageDirectoryWatcher.notifyInternalSave( page.getName() );
+            }
+
             provider.putPageText( page, text );
             page.setLastModified( new Date() );
 
@@ -481,6 +513,15 @@ public class CachingProvider implements PageProvider {
      */
     public PageProvider getRealProvider() {
         return provider;
+    }
+
+    /**
+     * Returns the page directory watcher, if one is running.
+     *
+     * @return The page directory watcher, or null if not enabled or not using a file-based provider.
+     */
+    PageDirectoryWatcher getPageDirectoryWatcher() {
+        return pageDirectoryWatcher;
     }
 
 }

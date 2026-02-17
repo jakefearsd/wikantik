@@ -206,7 +206,7 @@ public abstract class AbstractFileProvider implements PageProvider {
      *  @param filename The filename to unmangle
      *  @return The unmangled name.
      */
-    protected String unmangleName( String filename ) {
+    String unmangleName( String filename ) {
         // The exception should never happen.
         if( windowsHackNeeded && filename.startsWith( "$$$" ) && filename.length() > 3 ) {
             filename = filename.substring( 3 );
@@ -623,11 +623,12 @@ public abstract class AbstractFileProvider implements PageProvider {
 
     /**
      * Invalidates the file extension cache entry for the specified page.
-     * This should be called when a page is deleted or moved.
+     * This should be called when a page is deleted, moved, or when an external
+     * change to the filesystem is detected.
      *
      * @param pageName The name of the page to invalidate from the cache.
      */
-    protected void invalidateFileExtensionCache( final String pageName ) {
+    void invalidateFileExtensionCache( final String pageName ) {
         fileExtensionCache.remove( pageName );
     }
 

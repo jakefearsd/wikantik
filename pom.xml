@@ -173,10 +173,10 @@
         <version>${jakarta-mail.version}</version>
       </dependency>
 
-      <dependency><!-- as of 1.6.2 not included by javax.mail-api, see https://javaee.github.io/javamail/docs/COMPAT.txt -->
+      <dependency><!-- aligned with Jakarta Mail 2.x; see https://jakartaee.github.io/mail-api/ -->
         <groupId>com.sun.mail</groupId>
         <artifactId>logging-mailhandler</artifactId>
-        <version>${javax-mail.version}</version>
+        <version>${jakarta-mail.version}</version>
       </dependency>
 
       <dependency>

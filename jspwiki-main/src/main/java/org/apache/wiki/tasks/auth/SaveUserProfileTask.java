@@ -96,6 +96,28 @@ public class SaveUserProfileTask extends Task {
             }
         }
 
+        // Send admin notification email if configured
+        final String adminEmail = context.getEngine().getWikiProperties()
+                .getProperty( "jspwiki.admin.notification.email" );
+        if ( adminEmail != null && !adminEmail.trim().isEmpty() ) {
+            try {
+                final InternationalizationManager i18n = context.getEngine().getManager( InternationalizationManager.class );
+                final String app = context.getEngine().getApplicationName();
+                final String adminSubject = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
+                        "notification.createUserProfile.admin.subject", app );
+                final String adminContent = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
+                        "notification.createUserProfile.admin.content", app,
+                        profile.getLoginName(),
+                        profile.getFullname(),
+                        profile.getEmail() );
+                MailUtil.sendMessage( context.getEngine().getWikiProperties(), adminEmail, adminSubject, adminContent );
+            } catch ( final AddressException e ) {
+                LOG.debug( e.getMessage(), e );
+            } catch ( final MessagingException me ) {
+                LOG.error( "Could not send admin notification e-mail. Is the e-mail server running?", me );
+            }
+        }
+
         return Outcome.STEP_COMPLETE;
     }
 

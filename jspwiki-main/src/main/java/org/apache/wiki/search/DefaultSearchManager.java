@@ -238,11 +238,8 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
         try {
             searchProvider = ClassUtil.buildInstance( "org.apache.wiki.search", providerClassName );
         } catch( final ReflectiveOperationException e ) {
-            LOG.warn( "Failed loading SearchProvider, will use BasicSearchProvider.", e );
-        }
-
-        if( null == searchProvider ) {
-            searchProvider = new BasicSearchProvider();
+            LOG.error( "Failed loading SearchProvider: {}", providerClassName, e );
+            throw new IllegalStateException( "Could not load SearchProvider: " + providerClassName, e );
         }
         LOG.debug( "Loaded search provider {}", searchProvider );
     }

@@ -21,7 +21,9 @@ package org.apache.wiki.ajax;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
 
-import org.apache.wiki.plugin.SampleAjaxPlugin;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.util.List;
 
 /**
  * @since 2.10.2-svn10
@@ -48,11 +50,15 @@ public class WikiAjaxServletTest {
             Assertions.assertEquals("MyPlugin", servletName);
         }
 
-        // The plugin SampleAjaxPlugin
-        WikiAjaxDispatcherServlet.registerServlet(new SampleAjaxPlugin());
-        final WikiAjaxServlet servlet = wikiAjaxDispatcherServlet.findServletByName("SampleAjaxPlugin");
+        // Register an inline WikiAjaxServlet implementation
+        final WikiAjaxServlet testServlet = new WikiAjaxServlet() {
+            @Override public String getServletMapping() { return "TestAjaxServlet"; }
+            @Override public void service( final HttpServletRequest request, final HttpServletResponse response,
+                                           final String actionName, final List< String > params ) { }
+        };
+        WikiAjaxDispatcherServlet.registerServlet( testServlet );
+        final WikiAjaxServlet servlet = wikiAjaxDispatcherServlet.findServletByName("TestAjaxServlet");
         Assertions.assertNotNull(servlet);
-        Assertions.assertTrue(servlet instanceof SampleAjaxPlugin);
 
         final WikiAjaxServlet servlet3 = wikiAjaxDispatcherServlet.findServletByName("TestWikiNonAjaxServlet");
         Assertions.assertNull(servlet3);

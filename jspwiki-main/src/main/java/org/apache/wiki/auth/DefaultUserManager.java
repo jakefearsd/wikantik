@@ -42,20 +42,17 @@ import org.apache.wiki.event.WikiSecurityEvent;
 import org.apache.wiki.filters.FilterManager;
 import org.apache.wiki.filters.SpamFilter;
 import org.apache.wiki.i18n.InternationalizationManager;
+import org.apache.wiki.api.core.ContextEnum;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.preferences.Preferences;
-import org.apache.wiki.tasks.TasksManager;
 import org.apache.wiki.ui.InputValidator;
 import org.apache.wiki.util.ClassUtil;
+import org.apache.wiki.util.HttpUtil;
+import org.apache.wiki.util.MailUtil;
 import org.apache.wiki.util.TextUtil;
-import org.apache.wiki.workflow.Decision;
-import org.apache.wiki.workflow.DecisionRequiredException;
-import org.apache.wiki.workflow.Fact;
-import org.apache.wiki.workflow.Step;
-import org.apache.wiki.workflow.Workflow;
-import org.apache.wiki.workflow.WorkflowBuilder;
-import org.apache.wiki.workflow.WorkflowManager;
 
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.AddressException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -64,6 +61,7 @@ import java.security.Permission;
 import java.security.Principal;
 import java.text.MessageFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
@@ -263,35 +261,56 @@ public class DefaultUserManager implements UserManager {
     /** {@inheritDoc} */
     @Override
     public void startUserProfileCreationWorkflow( final Context context, final UserProfile profile ) throws WikiException {
-        final WorkflowBuilder builder = WorkflowBuilder.getBuilder( engine );
-        final Principal submitter = context.getWikiSession().getUserPrincipal();
-        final Step completionTask = engine.getManager( TasksManager.class ).buildSaveUserProfileTask( context.getWikiSession().getLocale() );
+        // Save the profile directly (userdatabase will take care of timestamps)
+        getUserDatabase().save( profile );
 
-        // Add user profile attribute as Facts for the approver (if required)
-        final boolean hasEmail = profile.getEmail() != null;
-        final Fact[] facts = new Fact[ hasEmail ? 4 : 3 ];
-        facts[ 0 ] = new Fact( WorkflowManager.WF_UP_CREATE_SAVE_FACT_PREFS_FULL_NAME, profile.getFullname() );
-        facts[ 1 ] = new Fact( WorkflowManager.WF_UP_CREATE_SAVE_FACT_PREFS_LOGIN_NAME, profile.getLoginName() );
-        facts[ 2 ] = new Fact( WorkflowManager.WF_UP_CREATE_SAVE_FACT_SUBMITTER, submitter.getName() );
-        if ( hasEmail ) {
-            facts[ 3 ] = new Fact( WorkflowManager.WF_UP_CREATE_SAVE_FACT_PREFS_EMAIL, profile.getEmail() );
+        // Send welcome e-mail if user supplied an e-mail address
+        if ( profile.getEmail() != null ) {
+            final Locale loc = context.getWikiSession().getLocale();
+            try {
+                final InternationalizationManager i18n = engine.getManager( InternationalizationManager.class );
+                final String app = engine.getApplicationName();
+                final String to = profile.getEmail();
+                final String subject = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
+                                                 "notification.createUserProfile.accept.subject", app );
+
+                final String loginUrl = engine.getURL( ContextEnum.WIKI_LOGIN.getRequestContext(), null, null );
+                final String absoluteLoginUrl = HttpUtil.getAbsoluteUrl( context.getHttpRequest(), loginUrl );
+
+                final String content = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
+                                                 "notification.createUserProfile.accept.content", app,
+                                                 profile.getLoginName(),
+                                                 profile.getFullname(),
+                                                 profile.getEmail(),
+                                                 absoluteLoginUrl );
+                MailUtil.sendMessage( engine.getWikiProperties(), to, subject, content );
+            } catch ( final AddressException e ) {
+                LOG.debug( e.getMessage(), e );
+            } catch ( final MessagingException me ) {
+                LOG.error( "Could not send registration confirmation e-mail. Is the e-mail server running?", me );
+            }
         }
-        final Workflow workflow = builder.buildApprovalWorkflow( submitter,
-                                                                 WorkflowManager.WF_UP_CREATE_SAVE_APPROVER,
-                                                                 null,
-                                                                 WorkflowManager.WF_UP_CREATE_SAVE_DECISION_MESSAGE_KEY,
-                                                                 facts,
-                                                                 completionTask,
-                                                                 null );
 
-        workflow.setAttribute( WorkflowManager.WF_UP_CREATE_SAVE_ATTR_SAVED_PROFILE, profile );
-        workflow.start( context );
-
-        final boolean approvalRequired = workflow.getCurrentStep() instanceof Decision;
-
-        // If the profile requires approval, redirect user to message page
-        if ( approvalRequired ) {
-            throw new DecisionRequiredException( "This profile must be approved before it becomes active" );
+        // Send admin notification email if configured
+        final String adminEmail = engine.getWikiProperties().getProperty( "jspwiki.admin.notification.email" );
+        if ( adminEmail != null && !adminEmail.trim().isEmpty() ) {
+            final Locale loc = context.getWikiSession().getLocale();
+            try {
+                final InternationalizationManager i18n = engine.getManager( InternationalizationManager.class );
+                final String app = engine.getApplicationName();
+                final String adminSubject = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
+                        "notification.createUserProfile.admin.subject", app );
+                final String adminContent = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
+                        "notification.createUserProfile.admin.content", app,
+                        profile.getLoginName(),
+                        profile.getFullname(),
+                        profile.getEmail() );
+                MailUtil.sendMessage( engine.getWikiProperties(), adminEmail, adminSubject, adminContent );
+            } catch ( final AddressException e ) {
+                LOG.debug( e.getMessage(), e );
+            } catch ( final MessagingException me ) {
+                LOG.error( "Could not send admin notification e-mail. Is the e-mail server running?", me );
+            }
         }
     }
 

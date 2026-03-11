@@ -44,7 +44,7 @@ import java.util.TreeSet;
  */
 public class TranslationsCheck {
 
-    private final static String[] LANGS = { "de", "en", "es", "fi", "fr", "it", "nl", "pt_BR", "ru" };
+    private final static String[] LANGS = { "en", "es", "ru" };
     private final static String SITE_I18N_ROW =
         "<tr%s>\n" +
         "  <td title=\"Available sets of core WikiPages for %s\"><a class=\"external\" href=\"https://search.maven.org/artifact/org.apache.jspwiki.wikipages/jspwiki-wikipages-%s\">%s</a></td>\n" +

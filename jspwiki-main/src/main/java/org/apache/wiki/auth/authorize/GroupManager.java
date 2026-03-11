@@ -173,15 +173,13 @@ public interface GroupManager extends Initializable, Authorizer, WikiEventListen
      *
      * @param session the wiki session, which may not be <code>null</code>
      * @param group the Group, which may not be <code>null</code>
-     * @throws WikiException if the Group cannot be saved by the back-end or requires approval
+     * @throws WikiException if the Group cannot be saved by the back-end
      */
     void setGroup( final Session session, final Group group ) throws WikiException;
 
     /**
      * <p>
-     * Internal method to save a group directly without workflow. This method is called by the workflow
-     * system after approval has been obtained, or by {@link #setGroup(Session, Group)} when no workflow
-     * approval is required.
+     * Internal method to save a group directly to the group database.
      * </p>
      *
      * @param session the wiki session, which may not be <code>null</code>

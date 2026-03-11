@@ -38,16 +38,8 @@ import org.apache.wiki.event.WikiEvent;
 import org.apache.wiki.event.WikiEventListener;
 import org.apache.wiki.event.WikiEventManager;
 import org.apache.wiki.event.WikiSecurityEvent;
-import org.apache.wiki.tasks.TasksManager;
 import org.apache.wiki.ui.InputValidator;
 import org.apache.wiki.util.ClassUtil;
-import org.apache.wiki.workflow.Decision;
-import org.apache.wiki.workflow.DecisionRequiredException;
-import org.apache.wiki.workflow.Fact;
-import org.apache.wiki.workflow.Step;
-import org.apache.wiki.workflow.Workflow;
-import org.apache.wiki.workflow.WorkflowBuilder;
-import org.apache.wiki.workflow.WorkflowManager;
 
 import java.security.Principal;
 import java.util.Arrays;
@@ -272,90 +264,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
     @Override
     public void setGroup( final Session session, final Group group ) throws WikiException {
         // TODO: check for appropriate permissions
-
-        // Check if workflow approval is required
-        final WorkflowManager workflowManager = engine.getManager( WorkflowManager.class );
-        if ( workflowManager.requiresApproval( WorkflowManager.WF_GRP_SAVE_APPROVER ) ) {
-            // Start workflow for group save
-            startGroupSaveWorkflow( session, group );
-        } else {
-            // No approval required - save directly
-            setGroupInternal( session, group );
-        }
-    }
-
-    /**
-     * Starts a workflow for saving a group when approval is required.
-     *
-     * @param session the wiki session
-     * @param group the group to save
-     * @throws WikiException if the workflow cannot be started or approval is required
-     */
-    private void startGroupSaveWorkflow( final Session session, final Group group ) throws WikiException {
-        final Principal submitter = session.getUserPrincipal();
-        boolean isNewGroup = true;
-        String currentMembers = "";
-
-        try {
-            final Group existingGroup = getGroup( group.getName() );
-            isNewGroup = false;
-            // Get current members as a newline-separated string
-            currentMembers = Arrays.stream( existingGroup.members() )
-                                   .map( Principal::getName )
-                                   .reduce( ( a, b ) -> a + "\n" + b )
-                                   .orElse( "" );
-        } catch ( final NoSuchPrincipalException e ) {
-            // Group doesn't exist - isNewGroup stays true, currentMembers stays empty
-        }
-
-        // Get proposed members as a newline-separated string
-        final String proposedMembers = Arrays.stream( group.members() )
-                                             .map( Principal::getName )
-                                             .reduce( ( a, b ) -> a + "\n" + b )
-                                             .orElse( "" );
-
-        // Build facts for the approval decision
-        final Fact[] facts = new Fact[] {
-            new Fact( WorkflowManager.WF_GRP_SAVE_FACT_GROUP_NAME, group.getName() ),
-            new Fact( WorkflowManager.WF_GRP_SAVE_FACT_PROPOSED_MEMBERS, proposedMembers ),
-            new Fact( WorkflowManager.WF_GRP_SAVE_FACT_CURRENT_MEMBERS, currentMembers ),
-            new Fact( WorkflowManager.WF_GRP_SAVE_FACT_SUBMITTER, submitter.getName() ),
-            new Fact( WorkflowManager.WF_GRP_SAVE_FACT_IS_NEW, isNewGroup )
-        };
-
-        // Build the workflow
-        final WorkflowBuilder builder = WorkflowBuilder.getBuilder( engine );
-        final Step completionTask = engine.getManager( TasksManager.class ).buildSaveWikiGroupTask();
-
-        try {
-            final Workflow workflow = builder.buildApprovalWorkflow(
-                submitter,
-                WorkflowManager.WF_GRP_SAVE_APPROVER,
-                null,  // no prep task
-                WorkflowManager.WF_GRP_SAVE_DECISION_MESSAGE_KEY,
-                facts,
-                completionTask,
-                WorkflowManager.WF_GRP_SAVE_REJECT_MESSAGE_KEY
-            );
-
-            // Store the group information as serializable strings for later retrieval
-            // We store the name and members separately since Group is not Serializable
-            workflow.setAttribute( WorkflowManager.WF_GRP_SAVE_ATTR_SAVED_GROUP, group.getName() );
-            workflow.setAttribute( WorkflowManager.WF_GRP_SAVE_ATTR_SAVED_GROUP + ".members", proposedMembers );
-
-            // Start the workflow
-            workflow.start( null );
-
-            // Check if we're waiting on a decision - throw as WikiSecurityException subclass
-            if ( workflow.getCurrentStep() instanceof Decision ) {
-                throw new DecisionRequiredException( "This group change must be approved before it takes effect." );
-            }
-        } catch ( final DecisionRequiredException e ) {
-            // Re-throw decision required exceptions (it extends WikiSecurityException)
-            throw e;
-        } catch ( final Exception e ) {
-            throw new WikiSecurityException( "Could not start group save workflow: " + e.getMessage(), e );
-        }
+        setGroupInternal( session, group );
     }
 
     /** {@inheritDoc} */

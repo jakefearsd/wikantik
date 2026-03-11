@@ -48,7 +48,6 @@ import org.apache.wiki.plugin.PluginManager;
 import org.apache.wiki.references.ReferenceManager;
 import org.apache.wiki.render.RenderingManager;
 import org.apache.wiki.search.SearchManager;
-import org.apache.wiki.tasks.TasksManager;
 import org.apache.wiki.ui.CommandResolver;
 import org.apache.wiki.ui.EditorManager;
 import org.apache.wiki.ui.TemplateManager;
@@ -59,7 +58,6 @@ import org.apache.wiki.util.ClassUtil;
 import org.apache.wiki.util.PropertyReader;
 import org.apache.wiki.util.TextUtil;
 import org.apache.wiki.variables.VariableManager;
-import org.apache.wiki.workflow.WorkflowManager;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -312,8 +310,6 @@ public class WikiEngine implements Engine {
             initComponent( EditorManager.class, this );
             initComponent( ProgressManager.class, this );
             initComponent( aclClassName, AclManager.class );
-            initComponent( WorkflowManager.class );
-            initComponent( TasksManager.class );
             initComponent( InternationalizationManager.class, this );
             initComponent( TemplateManager.class, this, props );
             initComponent( FilterManager.class, this, props );

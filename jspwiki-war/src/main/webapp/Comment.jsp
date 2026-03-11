@@ -30,7 +30,6 @@
 <%@ page import="org.apache.wiki.auth.AuthorizationManager" %>
 <%@ page import="org.apache.wiki.auth.login.CookieAssertionLoginModule" %>
 <%@ page import="org.apache.wiki.filters.SpamFilter" %>
-<%@ page import="org.apache.wiki.htmltowiki.HtmlStringToWikiTranslator" %>
 <%@ page import="org.apache.wiki.pages.PageLock" %>
 <%@ page import="org.apache.wiki.pages.PageManager" %>
 <%@ page import="org.apache.wiki.preferences.Preferences" %>
@@ -40,7 +39,6 @@
 <%@ page import="org.apache.wiki.util.HttpUtil" %>
 <%@ page import="org.apache.wiki.util.TextUtil" %>
 <%@ page import="org.apache.wiki.variables.VariableManager" %>
-<%@ page import="org.apache.wiki.workflow.DecisionRequiredException" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ page import="jakarta.servlet.http.Cookie" %>
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
@@ -195,14 +193,6 @@
         String commentText = EditorManager.getEditedText(pageContext);
         //log.info("comment text"+commentText);
 
-        //
-        //  WYSIWYG editor sends us its greetings
-        //
-        String htmlText = findParam( pageContext, "htmlPageText" );
-        if( htmlText != null && cancel == null ) {
-        	commentText = new HtmlStringToWikiTranslator( wiki ).translate(htmlText,wikiContext);
-        }
-
         pageText.append( commentText );
 
         log.debug("Author name ="+author);
@@ -232,10 +222,6 @@
         try {
             wikiContext.setPage( modifiedPage );
             wiki.getManager( PageManager.class ).saveText( wikiContext, pageText.toString() );
-        } catch( DecisionRequiredException e ) {
-        	String redirect = wikiContext.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), "ApprovalRequiredForPageChanges" );
-            response.sendRedirect( redirect );
-            return;
         } catch( RedirectException e ) {
             session.setAttribute( VariableManager.VAR_MSG, e.getMessage() );
             response.sendRedirect( e.getRedirect() );

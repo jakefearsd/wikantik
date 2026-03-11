@@ -18,8 +18,6 @@
  */
 package org.apache.wiki.auth;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.wiki.HttpMockFactory;
 import org.apache.wiki.TestEngine;
@@ -36,21 +34,12 @@ import org.apache.wiki.auth.user.UserDatabase;
 import org.apache.wiki.auth.user.UserProfile;
 import org.apache.wiki.auth.user.XMLUserDatabase;
 import org.apache.wiki.pages.PageManager;
-import org.apache.wiki.workflow.Decision;
-import org.apache.wiki.workflow.DecisionQueue;
-import org.apache.wiki.workflow.DecisionRequiredException;
-import org.apache.wiki.workflow.Fact;
-import org.apache.wiki.workflow.Outcome;
-import org.apache.wiki.workflow.WorkflowManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.security.Principal;
-import java.util.Collection;
-import java.util.List;
 import java.util.Properties;
 
 
@@ -68,9 +57,6 @@ class UserManagerTest {
     void setUp() throws Exception {
         final Properties props = TestEngine.getTestProperties();
 
-        // Make sure user profile save workflow is OFF
-        props.remove( "jspwiki.approver" + WorkflowManager.WF_UP_CREATE_SAVE_APPROVER );
-
         // Make sure we are using the XML user database
         props.put( XMLUserDatabase.PROP_USERDATABASE, "target/test-classes/userdatabase.xml" );
         m_engine = new TestEngine( props );
@@ -85,20 +71,6 @@ class UserManagerTest {
         if( groupManager.findRole( m_groupName ) != null ) {
             groupManager.removeGroup( m_groupName );
         }
-    }
-
-    /** Call this setup program to use the save-profile workflow. */
-    protected void setUpWithWorkflow() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-
-        // Turn on user profile saves by the Admin group
-        props.put( "jspwiki.approver." + WorkflowManager.WF_UP_CREATE_SAVE_APPROVER, "Admin" );
-
-        // Make sure we are using the XML user database
-        props.put( XMLUserDatabase.PROP_USERDATABASE, "target/test-classes/userdatabase.xml" );
-        m_engine = new TestEngine( props );
-        m_mgr = m_engine.getManager( UserManager.class );
-        m_db = m_mgr.getUserDatabase();
     }
 
     //@Test
@@ -291,114 +263,6 @@ class UserManagerTest {
 
         // Now delete the profile; should be back to old count
         m_db.deleteByLoginName( loginName );
-        Assertions.assertEquals( oldUserCount, m_db.getWikiNames().length );
-    }
-
-    @Test
-    void testSetUserProfileWithApproval() throws Exception {
-        setUpWithWorkflow();
-
-        // First, count the number of users in the db now.
-        final int oldUserCount = m_db.getWikiNames().length;
-
-        // Create a new user with random name
-        final HttpSession httpSession = Mockito.mock( HttpSession.class );
-        Mockito.doReturn( "mock-session-wf" ).when( httpSession ).getId();
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
-        Mockito.doReturn( httpSession ).when( request ).getSession();
-        Mockito.doReturn( httpSession ).when( request ).getSession( Mockito.anyBoolean() );
-        final Context context = Wiki.context().create( m_engine, request, "" );
-        final String loginName = "TestUser" + System.currentTimeMillis();
-        final UserProfile profile = m_db.newProfile();
-        profile.setEmail( "jspwiki.tests@mailinator.com" );
-        profile.setLoginName( loginName );
-        profile.setFullname( "FullName" + loginName );
-        profile.setPassword( "password" );
-
-        // Because user profile saves require approvals, we will catch a Redirect
-        try {
-            m_mgr.setUserProfile( context, profile );
-            Assertions.fail( "We should have caught a DecisionRequiredException caused by approval!" );
-        } catch( final DecisionRequiredException e ) {
-        }
-
-        // The user should NOT be saved yet
-        Assertions.assertEquals( oldUserCount, m_db.getWikiNames().length );
-
-        // Now, look in Admin's queue, and verify there's a pending Decision there
-        final DecisionQueue dq = m_engine.getManager( WorkflowManager.class ).getDecisionQueue();
-        final Collection< Decision > decisions = dq.getActorDecisions( m_engine.adminSession() );
-        Assertions.assertEquals( 1, decisions.size() );
-
-        // Verify that the Decision has all the facts and attributes we need
-        final Decision d = decisions.iterator().next();
-        final List< Fact > facts = d.getFacts();
-        Assertions.assertEquals( new Fact( WorkflowManager.WF_UP_CREATE_SAVE_FACT_PREFS_FULL_NAME, profile.getFullname() ), facts.get( 0 ) );
-        Assertions.assertEquals( new Fact( WorkflowManager.WF_UP_CREATE_SAVE_FACT_PREFS_LOGIN_NAME, profile.getLoginName() ), facts.get( 1 ) );
-        Assertions.assertEquals( new Fact( WorkflowManager.WF_UP_CREATE_SAVE_FACT_SUBMITTER, context.getWikiSession().getUserPrincipal().getName() ), facts.get( 2 ) );
-        Assertions.assertEquals( new Fact( WorkflowManager.WF_UP_CREATE_SAVE_FACT_PREFS_EMAIL, profile.getEmail() ), facts.get( 3 ) );
-        Assertions.assertEquals( profile, d.getWorkflowContext().get( WorkflowManager.WF_UP_CREATE_SAVE_ATTR_SAVED_PROFILE ) );
-
-        // Approve the profile
-        d.decide( Outcome.DECISION_APPROVE, context );
-
-        // Make sure the profile saved successfully
-        Assertions.assertEquals( oldUserCount + 1, m_db.getWikiNames().length );
-
-        // Now delete the profile; should be back to old count
-        m_db.deleteByLoginName( loginName );
-        Assertions.assertEquals( oldUserCount, m_db.getWikiNames().length );
-    }
-
-    @Test
-    void testSetUserProfileWithDenial() throws Exception {
-        setUpWithWorkflow();
-
-        // First, count the number of users in the db now.
-        final int oldUserCount = m_db.getWikiNames().length;
-
-        // Create a new user with random name
-        final HttpSession httpSession = Mockito.mock( HttpSession.class );
-        Mockito.doReturn( "mock-session-wf" ).when( httpSession ).getId();
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
-        Mockito.doReturn( httpSession ).when( request ).getSession();
-        Mockito.doReturn( httpSession ).when( request ).getSession( Mockito.anyBoolean() );
-        final Context context = Wiki.context().create( m_engine, request, "" );
-        final String loginName = "TestUser" + System.currentTimeMillis();
-        final UserProfile profile = m_db.newProfile();
-        profile.setEmail( "jspwiki.tests@mailinator.com" );
-        profile.setLoginName( loginName );
-        profile.setFullname( "FullName" + loginName );
-        profile.setPassword( "password" );
-
-        // Because user profile saves require approvals, we will catch a Redirect
-        try {
-            m_mgr.setUserProfile( context, profile );
-            Assertions.fail( "We should have caught a DecisionRequiredException caused by approval!" );
-        } catch( final DecisionRequiredException e ) {
-        }
-
-        // The user should NOT be saved yet
-        Assertions.assertEquals( oldUserCount, m_db.getWikiNames().length );
-
-        // Now, look in Admin's queue, and verify there's a pending Decision there
-        final DecisionQueue dq = m_engine.getManager( WorkflowManager.class ).getDecisionQueue();
-        final Collection< Decision > decisions = dq.getActorDecisions( m_engine.adminSession() );
-        Assertions.assertEquals( 1, decisions.size() );
-
-        // Verify that the Decision has all the facts and attributes we need
-        final Decision d = decisions.iterator().next();
-        final List< Fact > facts = d.getFacts();
-        Assertions.assertEquals( new Fact( WorkflowManager.WF_UP_CREATE_SAVE_FACT_PREFS_FULL_NAME, profile.getFullname() ), facts.get( 0 ) );
-        Assertions.assertEquals( new Fact( WorkflowManager.WF_UP_CREATE_SAVE_FACT_PREFS_LOGIN_NAME, profile.getLoginName() ), facts.get( 1 ) );
-        Assertions.assertEquals( new Fact( WorkflowManager.WF_UP_CREATE_SAVE_FACT_SUBMITTER, context.getWikiSession().getUserPrincipal().getName() ), facts.get( 2 ) );
-        Assertions.assertEquals( new Fact( WorkflowManager.WF_UP_CREATE_SAVE_FACT_PREFS_EMAIL, profile.getEmail() ), facts.get( 3 ) );
-        Assertions.assertEquals( profile, d.getWorkflowContext().get( WorkflowManager.WF_UP_CREATE_SAVE_ATTR_SAVED_PROFILE ) );
-
-        // Approve the profile
-        d.decide( Outcome.DECISION_DENY, context );
-
-        // Make sure the profile did NOT save
         Assertions.assertEquals( oldUserCount, m_db.getWikiNames().length );
     }
 

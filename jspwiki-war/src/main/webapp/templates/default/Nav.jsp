@@ -328,17 +328,6 @@
       </wiki:PageExists>
       </wiki:CheckRequestContext>
 
-      <%-- WORKFLOW --%>
-      <wiki:CheckRequestContext context='!workflow'>
-      <wiki:UserCheck status="authenticated">
-        <li>
-          <wiki:Link jsp="Workflow.jsp">
-            <fmt:message key='actions.workflow' />
-          </wiki:Link>
-        </li>
-      </wiki:UserCheck>
-      </wiki:CheckRequestContext>
-
       <%-- GROUPS : moved to the UserBox.jsp
       <wiki:CheckRequestContext context='!creategroup' >
       <wiki:Permission permission="createGroups">

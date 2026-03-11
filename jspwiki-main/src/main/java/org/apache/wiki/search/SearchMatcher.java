@@ -169,7 +169,7 @@ public class SearchMatcher {
         }
 
         /**
-         *  Returns an empty array, since BasicSearchProvider does not support context matching.
+         *  Returns an empty array.
          *  
          *  @return an empty array
          */

@@ -40,24 +40,18 @@ import org.apache.wiki.auth.WikiSecurityException;
 import org.apache.wiki.auth.acl.AclManager;
 import org.apache.wiki.auth.user.UserProfile;
 import org.apache.wiki.cache.CachingManager;
-import org.apache.wiki.diff.DifferenceManager;
 import org.apache.wiki.event.WikiEvent;
 import org.apache.wiki.event.WikiEventManager;
 import org.apache.wiki.event.WikiPageEvent;
 import org.apache.wiki.event.WikiSecurityEvent;
 import org.apache.wiki.providers.RepositoryModifiedException;
 import org.apache.wiki.references.ReferenceManager;
-import org.apache.wiki.tasks.TasksManager;
+import org.apache.wiki.filters.FilterManager;
+import org.apache.wiki.render.RenderingManager;
+import org.apache.wiki.search.SearchManager;
 import org.apache.wiki.ui.CommandResolver;
 import org.apache.wiki.util.ClassUtil;
 import org.apache.wiki.util.TextUtil;
-import org.apache.wiki.workflow.Decision;
-import org.apache.wiki.workflow.DecisionRequiredException;
-import org.apache.wiki.workflow.Fact;
-import org.apache.wiki.workflow.Step;
-import org.apache.wiki.workflow.Workflow;
-import org.apache.wiki.workflow.WorkflowBuilder;
-import org.apache.wiki.workflow.WorkflowManager;
 
 import java.io.IOException;
 import java.security.Permission;
@@ -79,9 +73,6 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Manages the WikiPages. This class functions as an unified interface towards the page providers. It handles initialization
  * and management of the providers, and provides utility methods for accessing the contents.
- * <p/>
- * Saving a page is a two-stage Task; first the pre-save operations and then the actual save. See the descriptions of the tasks
- * for further information.
  *
  * @since 2.0
  */
@@ -229,35 +220,26 @@ public class DefaultPageManager implements PageManager {
             return;
         }
 
-        // Create approval workflow for page save; add the diffed, proposed and old text versions as
-        // Facts for the approver (if approval is required). If submitter is authenticated, any reject
-        // messages will appear in his/her workflow inbox.
-        final WorkflowBuilder builder = WorkflowBuilder.getBuilder( engine );
-        final Principal submitter = context.getCurrentUser();
-        final Step prepTask = engine.getManager( TasksManager.class ).buildPreSaveWikiPageTask( proposedText );
-        final Step completionTask = engine.getManager( TasksManager.class ).buildSaveWikiPageTask();
-        final String diffText = engine.getManager( DifferenceManager.class ).makeDiff( context, oldText, proposedText );
-        final boolean isAuthenticated = context.getWikiSession().isAuthenticated();
-        final Fact[] facts = new Fact[ 5 ];
-        facts[ 0 ] = new Fact( WorkflowManager.WF_WP_SAVE_FACT_PAGE_NAME, page.getName() );
-        facts[ 1 ] = new Fact( WorkflowManager.WF_WP_SAVE_FACT_DIFF_TEXT, diffText );
-        facts[ 2 ] = new Fact( WorkflowManager.WF_WP_SAVE_FACT_PROPOSED_TEXT, proposedText );
-        facts[ 3 ] = new Fact( WorkflowManager.WF_WP_SAVE_FACT_CURRENT_TEXT, oldText);
-        facts[ 4 ] = new Fact( WorkflowManager.WF_WP_SAVE_FACT_IS_AUTHENTICATED, isAuthenticated );
-        final String rejectKey = isAuthenticated ? WorkflowManager.WF_WP_SAVE_REJECT_MESSAGE_KEY : null;
-        final Workflow workflow = builder.buildApprovalWorkflow( submitter,
-                                                                 WorkflowManager.WF_WP_SAVE_APPROVER,
-                                                                 prepTask,
-                                                                 WorkflowManager.WF_WP_SAVE_DECISION_MESSAGE_KEY,
-                                                                 facts,
-                                                                 completionTask,
-                                                                 rejectKey );
-        workflow.start( context );
-
-        // Let callers know if the page-save requires approval
-        if ( workflow.getCurrentStep() instanceof Decision decision ) {
-            throw new DecisionRequiredException( "The page contents must be approved before they become active." );
+        // Set the page author
+        final Page page2 = context.getPage();
+        if ( page2.getAuthor() == null && context.getCurrentUser() != null ) {
+            page2.setAuthor( context.getCurrentUser().getName() );
         }
+
+        // Run pre-save filters
+        final String saveText = engine.getManager( FilterManager.class ).doPreSaveFiltering( context, proposedText );
+
+        // Save the page text
+        putPageText( page, saveText );
+
+        // Refresh the context for post-save filtering
+        getPage( page.getName() );
+        engine.getManager( RenderingManager.class ).textToHTML( context, saveText );
+        engine.getManager( FilterManager.class ).doPostSaveFiltering( context, saveText );
+
+        // Reindex the saved page
+        page.setVersion( org.apache.wiki.api.providers.PageProvider.LATEST_VERSION );
+        engine.getManager( SearchManager.class ).reindexPage( page );
     }
 
     /**

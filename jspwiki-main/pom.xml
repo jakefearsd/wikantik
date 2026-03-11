@@ -287,6 +287,21 @@
              -->
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <executions>
+                    <!-- Sequential execution for tests that rely on background threads and filesystem events -->
+                    <execution>
+                        <id>sequential-tests</id>
+                        <goals><goal>test</goal></goals>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
+                            </systemPropertyVariables>
+                            <includes>
+                                <include>**/PageDirectoryWatcherTest.java</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
                 <configuration>
                     <systemPropertyVariables>
                         <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
@@ -296,6 +311,8 @@
                         <exclude>**/StressTestVersioningProvider.java</exclude>
                         <exclude>**/StressTestSpeed.java</exclude>
                         <exclude>**/MassiveRepositoryTest.java</exclude>
+                        <!-- filesystem watcher tests run in the sequential-tests execution above -->
+                        <exclude>**/PageDirectoryWatcherTest.java</exclude>
                     </excludes>
                     <includes>
                         <include>**/*Test.java</include>

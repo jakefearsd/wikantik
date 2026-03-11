@@ -26,6 +26,8 @@ import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -38,7 +40,13 @@ import java.util.concurrent.TimeUnit;
 /**
  * Tests for {@link PageDirectoryWatcher}, the filesystem WatchService-based
  * background thread that detects external changes to the page directory.
+ *
+ * <p>This test class must run with methods executing sequentially (not in parallel)
+ * because it relies on filesystem WatchService events and background thread lifecycle
+ * that can be disrupted by concurrent TestEngine instances sharing the global
+ * WikiEventManager singleton.
  */
+@Execution( ExecutionMode.SAME_THREAD )
 class PageDirectoryWatcherTest {
 
     TestEngine engine;
@@ -131,7 +139,7 @@ class PageDirectoryWatcherTest {
 
         // The watcher should detect the new file and invalidate caches
         Awaitility.await( "ExternalTxtPage should be accessible" )
-                .atMost( 10, TimeUnit.SECONDS )
+                .atMost( 30, TimeUnit.SECONDS )
                 .pollInterval( 500, TimeUnit.MILLISECONDS )
                 .until( () -> {
                     final Page p = engine.getManager( PageManager.class ).getPage( "ExternalTxtPage" );
@@ -159,7 +167,7 @@ class PageDirectoryWatcherTest {
 
         // The watcher should detect the new file
         Awaitility.await( "ExternalMdPage should be accessible" )
-                .atMost( 10, TimeUnit.SECONDS )
+                .atMost( 30, TimeUnit.SECONDS )
                 .pollInterval( 500, TimeUnit.MILLISECONDS )
                 .until( () -> {
                     final Page p = engine.getManager( PageManager.class ).getPage( "ExternalMdPage" );
@@ -200,7 +208,7 @@ class PageDirectoryWatcherTest {
 
         // The watcher should detect the modification and invalidate the text cache
         Awaitility.await( "Modified content should be visible" )
-                .atMost( 10, TimeUnit.SECONDS )
+                .atMost( 30, TimeUnit.SECONDS )
                 .pollInterval( 500, TimeUnit.MILLISECONDS )
                 .until( () -> "Modified externally".equals(
                         engine.getManager( PageManager.class ).getText( "ModTestPage" ) ) );
@@ -232,7 +240,7 @@ class PageDirectoryWatcherTest {
 
         // The watcher should detect the deletion and invalidate caches
         Awaitility.await( "Deleted page should no longer be in cache" )
-                .atMost( 10, TimeUnit.SECONDS )
+                .atMost( 30, TimeUnit.SECONDS )
                 .pollInterval( 500, TimeUnit.MILLISECONDS )
                 .until( () -> {
                     // After cache invalidation, the page should no longer exist
@@ -269,7 +277,7 @@ class PageDirectoryWatcherTest {
         // The watcher should detect the new .md file and invalidate the file extension cache
         // After invalidation, .md should take precedence over .txt
         Awaitility.await( "Markdown content should take precedence" )
-                .atMost( 10, TimeUnit.SECONDS )
+                .atMost( 30, TimeUnit.SECONDS )
                 .pollInterval( 500, TimeUnit.MILLISECONDS )
                 .until( () -> {
                     final String text = engine.getManager( PageManager.class ).getText( "PrecedencePage" );
@@ -319,7 +327,10 @@ class PageDirectoryWatcherTest {
         engine = buildEngine();
         final PageDirectoryWatcher watcher = getWatcher();
         Assertions.assertNotNull( watcher, "Watcher should be created" );
-        Assertions.assertTrue( watcher.isAlive(), "Watcher thread should be running" );
+        Awaitility.await( "Watcher thread should be running" )
+                .atMost( 5, TimeUnit.SECONDS )
+                .pollInterval( 100, TimeUnit.MILLISECONDS )
+                .until( watcher::isAlive );
     }
 
     /**
@@ -382,7 +393,7 @@ class PageDirectoryWatcherTest {
 
         // The watcher should process this and the final content should be accessible
         Awaitility.await( "Final content should be visible after rapid writes" )
-                .atMost( 10, TimeUnit.SECONDS )
+                .atMost( 30, TimeUnit.SECONDS )
                 .pollInterval( 500, TimeUnit.MILLISECONDS )
                 .until( () -> {
                     final String text = engine.getManager( PageManager.class ).getText( "RapidPage" );

@@ -30,7 +30,7 @@ import java.util.EventObject;
  * @since 2.3.79
  */
 public abstract sealed class WikiEvent extends EventObject
-        permits WikiEngineEvent, WikiPageEvent, WikiSecurityEvent, WorkflowEvent {
+        permits WikiEngineEvent, WikiPageEvent, WikiSecurityEvent {
 
     private static final long serialVersionUID = 1829433967558773960L;
 

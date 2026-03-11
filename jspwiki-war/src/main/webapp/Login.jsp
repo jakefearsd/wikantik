@@ -32,7 +32,6 @@
 <%@ page import="org.apache.wiki.i18n.InternationalizationManager" %>
 <%@ page import="org.apache.wiki.pages.PageManager" %>
 <%@ page import="org.apache.wiki.preferences.Preferences" %>
-<%@ page import="org.apache.wiki.workflow.DecisionRequiredException" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
 <%!
@@ -77,10 +76,6 @@
                 		                               .get( InternationalizationManager.CORE_BUNDLE,
                 		                            		 Preferences.getLocale( wikiContext ), 
                 		                            		 due.getMessage(), due.getArgs() ) );
-            } catch( DecisionRequiredException e ) {
-                String redirect = wiki.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), "ApprovalRequiredForUserProfiles", null );
-                response.sendRedirect( redirect );
-                return;
             } catch( WikiSecurityException e ) {
                 // Something went horribly wrong! Maybe it's an I/O error...
                 wikiSession.addMessage( "profile", e.getMessage() );

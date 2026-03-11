@@ -120,10 +120,6 @@
     <mappedClass>org.apache.wiki.search.DefaultSearchManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.tasks.TasksManager</requestedClass>
-    <mappedClass>org.apache.wiki.tasks.DefaultTasksManager</mappedClass>
-  </mapping>
-  <mapping>
     <requestedClass>org.apache.wiki.ui.CommandResolver</requestedClass>
     <mappedClass>org.apache.wiki.ui.DefaultCommandResolver</mappedClass>
   </mapping>
@@ -142,10 +138,6 @@
   <mapping>
     <requestedClass>org.apache.wiki.variables.VariableManager</requestedClass>
     <mappedClass>org.apache.wiki.variables.DefaultVariableManager</mappedClass>
-  </mapping>
-  <mapping>
-    <requestedClass>org.apache.wiki.workflow.WorkflowManager</requestedClass>
-    <mappedClass>org.apache.wiki.workflow.DefaultWorkflowManager</mappedClass>
   </mapping>
   <mapping>
     <requestedClass>org.apache.wiki.content.RecentArticlesManager</requestedClass>

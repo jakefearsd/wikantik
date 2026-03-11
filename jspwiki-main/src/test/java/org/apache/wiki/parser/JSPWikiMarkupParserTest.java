@@ -671,9 +671,9 @@ class JSPWikiMarkupParserTest {
 
     @Test
     void testParagraph6() throws Exception {
-        final String src = "[{Counter}]\n\n__File type sniffing__ is a way of identifying the content type of a document.\n\n" +
+        final String src = "[{$encoding}]\n\n__File type sniffing__ is a way of identifying the content type of a document.\n\n" +
                 "In UNIX, the file(1) command can be used.";
-        Assertions.assertEquals( "<p>1\n</p><p><b>File type sniffing</b> is a way of identifying the content type of a document.\n</p>\n" +
+        Assertions.assertEquals( "<p>ISO-8859-1\n</p><p><b>File type sniffing</b> is a way of identifying the content type of a document.\n</p>\n" +
                         "<p>In UNIX, the file(1) command can be used.</p>",
                 translate( src ) );
     }

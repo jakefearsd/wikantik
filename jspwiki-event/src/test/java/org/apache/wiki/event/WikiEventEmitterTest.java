@@ -32,14 +32,14 @@ public class WikiEventEmitterTest {
     }
 
     @Test
-    public void shouldCheckFireWorkflowEvent() {
-        Assertions.assertNull( WikiEventEmitter.fireWorkflowEvent( "test", WorkflowEvent.CREATED ) );
+    public void shouldCheckFireEvent() {
+        Assertions.assertNull( WikiEventEmitter.fireEvent( new WikiPageEvent( "test", WikiPageEvent.PAGE_REQUESTED, "TestPage" ) ) );
 
         WikiEventEmitter.attach( new TestWikiEventListener() );
-        final WorkflowEvent we = WikiEventEmitter.fireWorkflowEvent( "test", WorkflowEvent.CREATED );
-        Assertions.assertNotNull( we );
-        Assertions.assertEquals( WorkflowEvent.CREATED, we.getType() );
-        Assertions.assertEquals( "test", we.getSource() );
+        final WikiPageEvent pe = WikiEventEmitter.fireEvent( new WikiPageEvent( "test", WikiPageEvent.PAGE_REQUESTED, "TestPage" ) );
+        Assertions.assertNotNull( pe );
+        Assertions.assertEquals( WikiPageEvent.PAGE_REQUESTED, pe.getType() );
+        Assertions.assertEquals( "test", pe.getSource() );
     }
 
     @Test

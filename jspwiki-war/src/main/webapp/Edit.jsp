@@ -26,14 +26,12 @@
 <%@ page import="org.apache.wiki.auth.AuthorizationManager" %>
 <%@ page import="org.apache.wiki.util.HttpUtil" %>
 <%@ page import="org.apache.wiki.filters.SpamFilter" %>
-<%@ page import="org.apache.wiki.htmltowiki.HtmlStringToWikiTranslator" %>
 <%@ page import="org.apache.wiki.pages.PageLock" %>
 <%@ page import="org.apache.wiki.pages.PageManager" %>
 <%@ page import="org.apache.wiki.preferences.Preferences" %>
 <%@ page import="org.apache.wiki.ui.EditorManager" %>
 <%@ page import="org.apache.wiki.ui.TemplateManager" %>
 <%@ page import="org.apache.wiki.util.TextUtil" %>
-<%@ page import="org.apache.wiki.workflow.DecisionRequiredException" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
 
@@ -81,14 +79,6 @@
 
     if ( !wikiSession.isAuthenticated() && wikiSession.isAnonymous() && author != null ) {
         user  = TextUtil.replaceEntities( findParam( pageContext, "author" ) );
-    }
-
-    //
-    //  WYSIWYG editor sends us its greetings
-    //
-    String htmlText = findParam( pageContext, "htmlPageText" );
-    if( htmlText != null && cancel == null ) {
-        text = new HtmlStringToWikiTranslator( wiki ).translate( htmlText, wikiContext );
     }
 
     Page wikipage = wikiContext.getPage();
@@ -187,10 +177,6 @@
             } else {
                 wiki.getManager( PageManager.class ).saveText( wikiContext, text );
             }
-        } catch( DecisionRequiredException ex ) {
-        	String redirect = wikiContext.getURL(ContextEnum.PAGE_VIEW.getRequestContext(),"ApprovalRequiredForPageChanges");
-            response.sendRedirect( redirect );
-            return;
         } catch( RedirectException ex ) {
             // FIXME: Cut-n-paste code.
             wikiContext.getWikiSession().addMessage( ex.getMessage() ); // FIXME: should work, but doesn't
@@ -198,8 +184,6 @@
             session.setAttribute(EditorManager.REQ_EDITEDTEXT, EditorManager.getEditedText(pageContext));
             session.setAttribute("author",user);
             session.setAttribute("link",link != null ? link : "" );
-            if( htmlText != null ) session.setAttribute( EditorManager.REQ_EDITEDTEXT, text );
-
             session.setAttribute("changenote", changenote != null ? changenote : "" );
             session.setAttribute(SpamFilter.getHashFieldName(request), spamhash);
             response.sendRedirect( ex.getRedirect() );
@@ -213,10 +197,6 @@
         session.setAttribute(EditorManager.REQ_EDITEDTEXT, EditorManager.getEditedText(pageContext));
         session.setAttribute("author",user);
         session.setAttribute("link",link != null ? link : "" );
-
-        if( htmlText != null ) {
-            session.setAttribute( EditorManager.REQ_EDITEDTEXT, text );
-        }
 
         session.setAttribute("changenote", changenote != null ? changenote : "" );
         response.sendRedirect( wiki.getURL( ContextEnum.PAGE_PREVIEW.getRequestContext(), pagereq, null ) );

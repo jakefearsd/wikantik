@@ -190,8 +190,6 @@ String.I18N.PREFIX = "javascript.";
 <meta name="wikiXHRSearch" content='<wiki:Link format="url" templatefile="../default/AJAXSearch.jsp" />' />
 <meta name="wikiXHRPreview" content='<wiki:Link format="url" templatefile="../default/AJAXPreview.jsp" />' />
 <meta name="wikiXHRCategories" content='<wiki:Link format="url" templatefile="../default/AJAXCategories.jsp" />' />
-<meta name="wikiXHRHtml2Markup" content='<wiki:Link format="url" jsp="XHRHtml2Markup.jsp" />' />
-<meta name="wikiXHRMarkup2Wysiwyg" content='<wiki:Link format="url" jsp="XHRMarkup2Wysiwyg.jsp" />' />
 
 <script type="text/javascript">//<![CDATA[
 <wiki:IncludeResources type="jsfunction"/>

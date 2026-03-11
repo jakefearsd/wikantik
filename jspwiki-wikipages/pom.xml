@@ -32,13 +32,8 @@
   <packaging>pom</packaging>
 
   <modules>
-    <module>de</module>
     <module>en</module>
     <module>es</module>
-    <module>fr</module>
-    <module>it</module>
-    <module>nl</module>
-    <module>pt_BR</module>
     <module>ru</module>
   </modules>
   

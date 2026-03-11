@@ -94,10 +94,8 @@ public interface UserManager extends Initializable {
      * @param profile the user profile, which may not be <code>null</code>
      * @throws DuplicateUserException if the proposed profile's login name or full name collides with another
      * @throws WikiException if the save fails for some reason. If the current user does not have
-     * permission to save the profile, this will be a {@link org.apache.wiki.auth.WikiSecurityException};
-     * if if the user profile must be approved before it can be saved, it will be a
-     * {@link org.apache.wiki.workflow.DecisionRequiredException}. All other WikiException
-     * indicate a condition that is not normal is probably due to mis-configuration
+     * permission to save the profile, this will be a {@link org.apache.wiki.auth.WikiSecurityException}.
+     * All other WikiException indicate a condition that is not normal and is probably due to mis-configuration
      */
     void setUserProfile( Context context, UserProfile profile ) throws DuplicateUserException, WikiException;
 

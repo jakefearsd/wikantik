@@ -103,13 +103,12 @@ public interface RenderingManager extends RenderApi, WikiEventListener, Internal
     WikiRenderer getRenderer( Context context, WikiDocument doc );
 
     /**
-     * Returns a WikiRenderer instance meant for WYSIWYG editing, initialized with the given
-     * context and doc. The object is an WysiwygEditingRenderer, unless overridden
-     * in jspwiki.properties with PROP_WYSIWYG_RENDERER.
+     * Returns a WikiRenderer instance for alternate rendering (e.g. editing mode), initialized with the given
+     * context and doc. Can be overridden in jspwiki.properties with PROP_WYSIWYG_RENDERER.
      *
      * @param context The WikiContext
      * @param doc The document to render
-     * @return A WikiRenderer instance meant for WYSIWYG editing, for this document, or null, if no such renderer could be instantiated.
+     * @return A WikiRenderer for this document, or null, if no such renderer could be instantiated.
      */
     WikiRenderer getWysiwygRenderer( Context context, WikiDocument doc );
 

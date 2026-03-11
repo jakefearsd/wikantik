@@ -78,8 +78,8 @@ public class DefaultRenderingManager implements RenderingManager {
     private static final String DEFAULT_RENDERER = XHTMLRenderer.class.getName();
     /** The name of the default Markdown renderer. */
     private static final String DEFAULT_MARKDOWN_RENDERER = "org.apache.wiki.render.markdown.MarkdownRenderer";
-    /** The name of the default WYSIWYG renderer. */
-    private static final String DEFAULT_WYSIWYG_RENDERER = WysiwygEditingRenderer.class.getName();
+    /** The name of the default WYSIWYG renderer (falls back to standard renderer). */
+    private static final String DEFAULT_WYSIWYG_RENDERER = XHTMLRenderer.class.getName();
 
     /** markdown parser property. */
     String PROP_MARKDOWN_PARSER = "jspwiki.renderingManager.markdownParser";

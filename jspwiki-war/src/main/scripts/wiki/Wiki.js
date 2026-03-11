@@ -653,35 +653,6 @@ var Wiki = {
         }
     },
 
-    getXHRPreview: function( getContent, previewElement ){
-
-        var wiki = this,
-            loading = "loading",
-            preview = function(p){ previewElement.removeClass(loading).set("text", p);};
-
-
-        return (function(){
-
-            previewElement.addClass(loading);
-
-            new Request({
-                url: wiki.XHRHtml2Markup,
-                data: {
-                    htmlPageText: getContent(),
-                    'X-XSRF-TOKEN': wiki.CsrfProtection
-                },
-                onSuccess: function(responseText){
-                    preview( responseText.trim() );
-                },
-                onFailure: function(e){
-                    preview( "Sorry, HTML to Wiki Markup conversion failed :=() " + e );
-                }
-            }).send();
-
-        }).debounce();
-
-    },
-
     /*
     Behavior: resizer
         Resize the target element, by dragging a .resizer handle.

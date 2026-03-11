@@ -678,7 +678,7 @@ public class WikiEngine implements Engine {
         fireEvent( WikiEngineEvent.SHUTDOWN );
         getManager( CachingManager.class ).shutdown();
         getManager( FilterManager.class ).destroy();
-        WikiEventManager.shutdown();
+        WikiEventManager.unregisterListenersFor( this );
     }
 
     /** {@inheritDoc} */

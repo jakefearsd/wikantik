@@ -217,6 +217,9 @@ public class LuceneSearchProvider implements SearchProvider {
      */
     protected void doFullLuceneReindex() throws IOException {
         final File dir = new File( luceneDirectory );
+        if( !dir.exists() ) {
+            dir.mkdirs();
+        }
         final String[] filelist = dir.list();
         if( filelist == null ) {
             throw new IOException( "Invalid Lucene directory: cannot produce listing: " + dir.getAbsolutePath() );

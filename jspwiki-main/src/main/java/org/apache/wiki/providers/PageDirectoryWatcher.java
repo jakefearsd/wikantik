@@ -117,6 +117,16 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
      */
     @Override
     public void startupTask() throws Exception {
+        // Wait for the page directory to exist (it may still be initializing in a parallel test environment)
+        final File dir = pageDirectoryPath.toFile();
+        for( int i = 0; i < 50 && !dir.isDirectory(); i++ ) {
+            Thread.sleep( 100 );
+        }
+        if( !dir.isDirectory() ) {
+            LOG.error( "Page directory does not exist after waiting, watcher will not start: {}", pageDirectoryPath );
+            return;
+        }
+
         watchService = FileSystems.getDefault().newWatchService();
         pageDirectoryPath.register( watchService,
                 StandardWatchEventKinds.ENTRY_CREATE,

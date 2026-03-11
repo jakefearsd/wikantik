@@ -271,6 +271,17 @@ public final class WikiEventManager {
     }
 
     /**
+     *  Removes all event delegates associated with the specified client, without affecting other clients' delegates.
+     *
+     * @param client the client whose delegates should be removed
+     */
+    public static void unregisterListenersFor( final Object client ) {
+        synchronized( getInstance().delegates ) {
+            getInstance().delegates.remove( client );
+        }
+    }
+
+    /**
      *  Returns true if there are one or more listeners registered with the provided client Object (undelegated event source). This locates
      *  any delegate and checks to see if it has any listeners attached.
      *

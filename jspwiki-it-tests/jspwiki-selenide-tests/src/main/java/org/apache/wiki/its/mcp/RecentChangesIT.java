@@ -45,7 +45,7 @@ public class RecentChangesIT extends WithMcpTestSetup {
 
     @Test
     public void recentChangesRespectsSinceFilter() {
-        final Instant before = Instant.now();
+        final Instant before = Instant.now().truncatedTo( java.time.temporal.ChronoUnit.SECONDS );
         final String pageName = uniquePageName( "RecentSince" );
         mcp.writePage( pageName, "Page after timestamp" );
 

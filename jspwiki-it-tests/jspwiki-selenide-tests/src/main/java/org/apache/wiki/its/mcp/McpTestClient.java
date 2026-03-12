@@ -48,9 +48,13 @@ public class McpTestClient implements AutoCloseable {
     }
 
     public static McpTestClient create() {
-        final String mcpUrl = Env.TESTS_BASE_URL + "/mcp";
+        // Use trailing slash so that the relative endpoint "mcp" resolves correctly
+        // under the context path (e.g. http://host:8080/context/ + "mcp" = http://host:8080/context/mcp).
+        // The SDK defaults endpoint to "/mcp" (absolute path) which would lose the context path.
+        final String baseUrl = Env.TESTS_BASE_URL.endsWith( "/" ) ? Env.TESTS_BASE_URL : Env.TESTS_BASE_URL + "/";
         final HttpClientStreamableHttpTransport transport =
-                HttpClientStreamableHttpTransport.builder( mcpUrl )
+                HttpClientStreamableHttpTransport.builder( baseUrl )
+                        .endpoint( "mcp" )
                         .connectTimeout( Duration.ofSeconds( 10 ) )
                         .build();
 

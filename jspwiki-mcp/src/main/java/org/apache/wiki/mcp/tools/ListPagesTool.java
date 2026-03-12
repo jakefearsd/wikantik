@@ -19,6 +19,7 @@
 package org.apache.wiki.mcp.tools;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -37,7 +38,7 @@ public class ListPagesTool {
     public static final String TOOL_NAME = "list_pages";
 
     private final PageManager pageManager;
-    private final Gson gson = new Gson();
+    private final Gson gson = new GsonBuilder().serializeNulls().create();
 
     public ListPagesTool( final PageManager pageManager ) {
         this.pageManager = pageManager;

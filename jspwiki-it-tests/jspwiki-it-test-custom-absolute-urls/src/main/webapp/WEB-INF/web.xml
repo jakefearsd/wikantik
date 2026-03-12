@@ -88,6 +88,11 @@
        <listener-class>org.apache.wiki.bootstrap.WikiBootstrapServletContextListener</listener-class>
    </listener>
 
+   <!-- MCP server bootstrap — must come after WikiBootstrapServletContextListener -->
+   <listener>
+       <listener-class>org.apache.wiki.mcp.McpServerInitializer</listener-class>
+   </listener>
+
    <!--
        Now, let's define the XML-RPC interfaces.  You probably don't have to
        touch these.

@@ -31,13 +31,17 @@ public class GetBacklinksIT extends WithMcpTestSetup {
 
     @Test
     public void backlinksForPageWithKnownLinks() {
-        // Main.txt contains [About] link
-        final Map< String, Object > result = mcp.getBacklinks( "About" );
+        final String target = uniquePageName( "BLTarget" );
+        final String source = uniquePageName( "BLSource" );
+        mcp.writePage( target, "Target page content" );
+        mcp.writePage( source, "Links to [" + target + "]" );
+
+        final Map< String, Object > result = mcp.getBacklinks( target );
         @SuppressWarnings( "unchecked" )
         final List< String > backlinks = ( List< String > ) result.get( "backlinks" );
 
-        Assertions.assertTrue( backlinks.contains( "Main" ),
-                "Main should link to About, so About should have Main as a backlink" );
+        Assertions.assertTrue( backlinks.contains( source ),
+                source + " should link to " + target + ", so " + target + " should have " + source + " as a backlink" );
     }
 
     @Test

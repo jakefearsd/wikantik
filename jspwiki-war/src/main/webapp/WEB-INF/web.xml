@@ -162,6 +162,11 @@
        <listener-class>org.apache.wiki.bootstrap.WikiBootstrapServletContextListener</listener-class>
    </listener>
 
+   <!-- MCP server bootstrap — must come after WikiBootstrapServletContextListener -->
+   <listener>
+       <listener-class>org.apache.wiki.mcp.McpServerInitializer</listener-class>
+   </listener>
+
 
     <!-- WikiAjaxDispatcherServlet -->
     <servlet>

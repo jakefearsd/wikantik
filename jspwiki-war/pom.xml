@@ -50,6 +50,12 @@
             <version>${project.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>jspwiki-mcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- SSO support: pac4j OIDC (optional in jspwiki-main, required at runtime) -->
         <dependency>
             <groupId>org.pac4j</groupId>

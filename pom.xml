@@ -85,6 +85,8 @@
     <tika.version>3.2.3</tika.version>
     <tomcat.version>11.0.14</tomcat.version>
     <xstream.version>1.4.21</xstream.version>
+    <mcp-sdk.version>1.0.0</mcp-sdk.version>
+    <snakeyaml.version>2.2</snakeyaml.version>
 
     <plugin.antrun.version>3.1.0</plugin.antrun.version>
     <plugin.assembly.version>3.7.1</plugin.assembly.version>
@@ -139,6 +141,7 @@
     <module>jspwiki-http</module>
     <module>jspwiki-main</module>
     <module>jspwiki-markdown</module>
+    <module>jspwiki-mcp</module>
     <module>jspwiki-war</module>
     <module>jspwiki-it-tests</module><!-- IT tests are launched only if -Pintegration-tests is given -->
     <module>jspwiki-bom</module>
@@ -488,6 +491,12 @@
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
         <version>${slf4j.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>${snakeyaml.version}</version>
       </dependency>
 
       <!-- test dependencies -->

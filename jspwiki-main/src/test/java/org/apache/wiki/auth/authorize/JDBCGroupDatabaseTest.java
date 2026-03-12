@@ -22,8 +22,10 @@ import org.apache.wiki.api.exceptions.WikiException;
 import org.apache.wiki.auth.NoSuchPrincipalException;
 import org.apache.wiki.auth.WikiPrincipal;
 import org.apache.wiki.auth.WikiSecurityException;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -41,7 +43,9 @@ import java.util.Properties;
  */
 public class JDBCGroupDatabaseTest
 {
-    private final HsqlDbUtils       m_hu   = new HsqlDbUtils();
+    private static final HsqlDbUtils m_hu = new HsqlDbUtils();
+    private static DataSource        m_ds;
+    private static WikiEngine        m_engine;
 
     private Connection        m_conn;
 
@@ -49,16 +53,12 @@ public class JDBCGroupDatabaseTest
 
     private String            m_wiki;
 
-    /**
-     * 
-     */
-    @BeforeEach
-    public void setUp() throws Exception
+    @BeforeAll
+    static void startDatabase() throws Exception
     {
         m_hu.setUp();
         final Properties props = TestEngine.getTestProperties();
-        final WikiEngine engine = new TestEngine( props );
-        m_wiki = engine.getApplicationName();
+        m_engine = new TestEngine( props );
 
         // Set up the mock JNDI initial context
         TestJNDIContext.initialize();
@@ -72,14 +72,22 @@ public class JDBCGroupDatabaseTest
             // ignore
         }
         final Context ctx = (Context) initCtx.lookup( "java:comp/env" );
-        final DataSource ds = new TestJDBCDataSource( new File( "target/test-classes/jspwiki-custom.properties" ), m_hu.getDriverUrl() );
-        ctx.bind( JDBCGroupDatabase.DEFAULT_GROUPDB_DATASOURCE, ds );
+        m_ds = new TestJDBCDataSource( new File( "target/test-classes/jspwiki-custom.properties" ), m_hu.getDriverUrl() );
+        ctx.bind( JDBCGroupDatabase.DEFAULT_GROUPDB_DATASOURCE, m_ds );
+    }
 
-        // Get the JDBC connection and init tables
+    @BeforeEach
+    public void setUp() throws Exception
+    {
+        m_wiki = m_engine.getApplicationName();
+
+        // Re-run DDL to reset tables (teardown drops user, setup recreates everything)
+        m_hu.exec( "src/test/config/hsql-userdb-teardown.ddl" );
+        m_hu.exec( "src/test/config/hsql-userdb-setup.ddl" );
 
         try
         {
-            m_conn = ds.getConnection();
+            m_conn = m_ds.getConnection();
         }
         catch( final SQLException e )
         {
@@ -87,9 +95,8 @@ public class JDBCGroupDatabaseTest
                   "please make sure that you have started your database, exception: " + e.getMessage());
         }
 
-        // Initialize the user database
         m_db = new JDBCGroupDatabase();
-        m_db.initialize( engine, new Properties() );
+        m_db.initialize( m_engine, new Properties() );
     }
 
     @AfterEach
@@ -99,6 +106,11 @@ public class JDBCGroupDatabaseTest
         {
             m_conn.close();
         }
+    }
+
+    @AfterAll
+    static void stopDatabase() throws Exception
+    {
         m_hu.tearDown();
     }
 

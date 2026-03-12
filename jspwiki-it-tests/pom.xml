@@ -108,7 +108,6 @@
               <artifactId>maven-failsafe-plugin</artifactId>
               <version>${plugin.surefire.version}</version>
               <configuration>
-                <testFailureIgnore>true</testFailureIgnore>
                 <dependenciesToScan>
                   <dependency>${project.groupId}:jspwiki-selenide-tests</dependency>
                 </dependenciesToScan>

@@ -54,12 +54,13 @@ public class CsrfProtectionFilter implements Filter {
     /** {@inheritDoc} */
     @Override
     public void doFilter( final ServletRequest request, final ServletResponse response, final FilterChain chain ) throws IOException, ServletException {
-        if( isPost( ( HttpServletRequest ) request ) ) {
+        final HttpServletRequest httpRequest = ( HttpServletRequest ) request;
+        if( isPost( httpRequest ) && !isMcpEndpoint( httpRequest ) ) {
             final Engine engine = Wiki.engine().find( request.getServletContext(), null );
-            final Session session = Wiki.session().find( engine, ( HttpServletRequest ) request );
+            final Session session = Wiki.session().find( engine, httpRequest );
             if( !requestContainsValidCsrfToken( request, session ) ) {
                 LOG.error( "Incorrect {} param with value '{}' received for {}",
-                           ANTICSRF_PARAM, request.getParameter( ANTICSRF_PARAM ), ( ( HttpServletRequest ) request ).getPathInfo() );
+                           ANTICSRF_PARAM, request.getParameter( ANTICSRF_PARAM ), httpRequest.getPathInfo() );
                 ( ( HttpServletResponse ) response ).sendRedirect( "/error/Forbidden.html" );
                 return;
             }
@@ -82,6 +83,11 @@ public class CsrfProtectionFilter implements Filter {
 
     static boolean isPost( final HttpServletRequest request ) {
         return "POST".equalsIgnoreCase( request.getMethod() );
+    }
+
+    static boolean isMcpEndpoint( final HttpServletRequest request ) {
+        final String servletPath = request.getServletPath();
+        return "/mcp".equals( servletPath );
     }
 
     /** {@inheritDoc} */

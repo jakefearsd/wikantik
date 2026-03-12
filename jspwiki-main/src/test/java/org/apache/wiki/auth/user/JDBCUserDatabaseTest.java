@@ -24,8 +24,9 @@ import org.apache.wiki.TestJNDIContext;
 import org.apache.wiki.auth.NoSuchPrincipalException;
 import org.apache.wiki.auth.WikiSecurityException;
 import org.apache.wiki.util.CryptoUtil;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -47,7 +48,8 @@ import java.util.Properties;
  *
  */
 public class JDBCUserDatabaseTest {
-    private final HsqlDbUtils m_hu = new HsqlDbUtils();
+    private static final HsqlDbUtils m_hu = new HsqlDbUtils();
+    private static DataSource m_ds;
 
     private JDBCUserDatabase m_db;
 
@@ -78,11 +80,8 @@ public class JDBCUserDatabaseTest {
             "'{SHA}5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8'," +
             "'" + new Timestamp( new Timestamp( System.currentTimeMillis() ).getTime() ) + "'" + ");";
 
-    /**
-     *
-     */
-    @BeforeEach
-    public void setUp() throws Exception {
+    @BeforeAll
+    static void startDatabase() throws Exception {
         m_hu.setUp();
         // Set up the mock JNDI initial context
         TestJNDIContext.initialize();
@@ -93,28 +92,22 @@ public class JDBCUserDatabaseTest {
             // ignore
         }
         final Context ctx = ( Context ) initCtx.lookup( "java:comp/env" );
-        final DataSource ds = new TestJDBCDataSource( new File( "target/test-classes/jspwiki-custom.properties" ), m_hu.getDriverUrl() );
-        ctx.bind( JDBCUserDatabase.DEFAULT_DB_JNDI_NAME, ds );
+        m_ds = new TestJDBCDataSource( new File( "target/test-classes/jspwiki-custom.properties" ), m_hu.getDriverUrl() );
+        ctx.bind( JDBCUserDatabase.DEFAULT_DB_JNDI_NAME, m_ds );
+    }
 
-        // Get the JDBC connection and init tables
+    @BeforeEach
+    public void setUp() throws Exception {
         try {
-            final Connection conn = ds.getConnection();
+            final Connection conn = m_ds.getConnection();
             final Statement stmt = conn.createStatement();
-            final String sql;
 
-            sql = "DELETE FROM " + JDBCUserDatabase.DEFAULT_DB_TABLE + ";";
-            stmt.executeUpdate( sql );
-
-            // Create a new test user 'janne'
+            stmt.executeUpdate( "DELETE FROM " + JDBCUserDatabase.DEFAULT_DB_TABLE + ";" );
             stmt.executeUpdate( INSERT_JANNE );
-
-            // Create a new test user 'user'
             stmt.executeUpdate( INSERT_USER );
             stmt.close();
-
             conn.close();
 
-            // Initialize the user database
             m_db = new JDBCUserDatabase();
             m_db.initialize( null, new Properties() );
         } catch( final SQLException e ) {
@@ -123,8 +116,8 @@ public class JDBCUserDatabaseTest {
         }
     }
 
-    @AfterEach
-    public void tearDown() throws Exception {
+    @AfterAll
+    static void stopDatabase() throws Exception {
         m_hu.tearDown();
     }
 

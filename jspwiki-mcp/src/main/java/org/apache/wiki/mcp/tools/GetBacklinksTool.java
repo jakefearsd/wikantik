@@ -55,7 +55,7 @@ public class GetBacklinksTool {
         final Set< String > referrers = referenceManager.findReferrers( pageName );
         final List< String > backlinks = referrers != null
                 ? new ArrayList<>( referrers )
-                : List.of();
+                : new ArrayList<>();
         Collections.sort( backlinks );
 
         return McpSchema.CallToolResult.builder()

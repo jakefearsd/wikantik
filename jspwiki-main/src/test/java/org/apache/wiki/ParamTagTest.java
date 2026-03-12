@@ -75,7 +75,7 @@ public class ParamTagTest {
 
         try {
             // Allow the test to run for 5 seconds. If it takes longer, consider it an infinite loop.
-            future.get(5, TimeUnit.SECONDS);
+            future.get(2, TimeUnit.SECONDS);
             fail("Expected an infinite loop, but code terminated normally.");
         } catch (final TimeoutException e) {
             // This is the expected outcome, as the code should run indefinitely.
@@ -94,7 +94,7 @@ public class ParamTagTest {
 
         paramTag.setParent(parentTag);
 
-        assertTimeout(Duration.ofSeconds(5), () -> {
+        assertTimeout(Duration.ofSeconds(2), () -> {
             paramTag.doEndTag();
         }, "Execution should not have taken more than 5 seconds");
     }

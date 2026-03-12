@@ -72,7 +72,7 @@ public class RecentChangesTool {
 
             Set< Page > recentChanges = pageManager.getRecentChanges();
             List< Map< String, Object > > changes = recentChanges.stream()
-                    .filter( p -> sinceDate == null || ( p.getLastModified() != null && p.getLastModified().after( sinceDate ) ) )
+                    .filter( p -> sinceDate == null || ( p.getLastModified() != null && !p.getLastModified().before( sinceDate ) ) )
                     .sorted( ( a, b ) -> {
                         if ( b.getLastModified() == null ) return -1;
                         if ( a.getLastModified() == null ) return 1;

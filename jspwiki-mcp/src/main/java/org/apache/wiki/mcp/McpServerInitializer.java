@@ -29,6 +29,7 @@ import jakarta.servlet.ServletRegistration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.wiki.WikiEngine;
+import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.attachment.AttachmentManager;
 import org.apache.wiki.mcp.tools.*;
 import org.apache.wiki.pages.PageManager;
@@ -51,11 +52,14 @@ public class McpServerInitializer implements ServletContextListener {
     public void contextInitialized( final ServletContextEvent sce ) {
         final ServletContext servletContext = sce.getServletContext();
 
-        // WikiEngine is stored in the ServletContext by JSPWiki's bootstrap process
-        final WikiEngine engine = ( WikiEngine ) servletContext.getAttribute( "org.apache.wiki.WikiEngine" );
-        if ( engine == null ) {
-            LOG.warn( "WikiEngine not found in ServletContext — MCP server not started. "
-                    + "Ensure McpServerInitializer runs after WikiBootstrapServletContextListener." );
+        // Eagerly create the WikiEngine if it doesn't exist yet.
+        // WikiBootstrapServletContextListener has already initialized SPIs by the time
+        // this listener runs, so getInstance() is safe to call here.
+        final WikiEngine engine;
+        try {
+            engine = ( WikiEngine ) Wiki.engine().find( servletContext, null );
+        } catch ( final Exception e ) {
+            LOG.warn( "WikiEngine could not be created — MCP server not started: {}", e.getMessage() );
             return;
         }
 
@@ -70,6 +74,7 @@ public class McpServerInitializer implements ServletContextListener {
             final ServletRegistration.Dynamic registration =
                     servletContext.addServlet( "McpTransportServlet", transportProvider );
             registration.addMapping( "/mcp" );
+            registration.setAsyncSupported( true );
             registration.setLoadOnStartup( 2 );
 
             // Build MCP server with all tools

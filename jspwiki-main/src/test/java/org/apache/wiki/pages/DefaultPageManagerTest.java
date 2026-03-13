@@ -147,7 +147,7 @@ public class DefaultPageManagerTest {
         Assertions.assertNull( engine.getManager( PageManager.class ).getPage(NAME1+"/TestAtt.txt"), "Att not removed" );
 
         final Collection< String > refs = engine.getManager( ReferenceManager.class ).findReferrers(NAME1);
-        Assertions.assertNull( refs, "referrers" );
+        Assertions.assertTrue( refs.isEmpty(), "referrers" );
     }
 
     @Test

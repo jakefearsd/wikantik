@@ -154,7 +154,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
      *  @param props The list of properties. Typically, jspwiki.properties
      *  @throws WikiException If something goes wrong.
      */
-    protected void initialize( final Properties props ) throws WikiException {
+    private void initialize( final Properties props ) throws WikiException {
         InputStream xmlStream = null;
         final String xmlFile = props.getProperty( PROP_FILTERXML ) ;
 

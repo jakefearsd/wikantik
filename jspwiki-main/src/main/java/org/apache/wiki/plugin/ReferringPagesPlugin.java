@@ -95,7 +95,7 @@ public class ReferringPagesPlugin extends AbstractReferralPlugin {
 
             LOG.debug( "Fetching referring pages for {} with a max of {}", page.getName(), items );
 
-            if( links != null && !links.isEmpty()) {
+            if( !links.isEmpty()) {
                 links = filterAndSortCollection( links );
                 wikitext = wikitizeCollection( links, separator, items );
 

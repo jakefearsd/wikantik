@@ -27,9 +27,7 @@ import org.apache.wiki.util.TextUtil;
 
 import java.text.MessageFormat;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -62,15 +60,11 @@ public class ReferringUndefinedPagesPlugin extends AbstractReferralPlugin {
 
         final Collection< String > uncreatedPages = referenceManager.findUncreated();
         super.initialize( context, params );
-        Collection< String > result = null;
 
         final TreeMap< String, String > sortedMap;
-        if( uncreatedPages != null ) {
-            sortedMap = uncreatedPages.stream().map(referenceManager::findReferrers).filter(Objects::nonNull).flatMap(Collection::stream).collect(Collectors.toMap(referringPage -> referringPage, referringPage -> "", (a, b) -> b, TreeMap::new));
-            result = sortedMap.keySet();
-        }
+        sortedMap = uncreatedPages.stream().map(referenceManager::findReferrers).flatMap(Collection::stream).collect(Collectors.toMap(referringPage -> referringPage, referringPage -> "", (a, b) -> b, TreeMap::new));
 
-        result = super.filterAndSortCollection( result != null ? result : List.of() );
+        Collection< String > result = super.filterAndSortCollection( sortedMap.keySet() );
 
         final String wikitext = wikitizeCollection( result, separator, items );
         final StringBuilder resultHTML = new StringBuilder();

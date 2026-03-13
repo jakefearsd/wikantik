@@ -168,7 +168,7 @@ class WikiEngineTest {
         Assertions.assertTrue( c!=null && c.iterator().next().equals( NAME1 ), "normal, unexisting page" );
 
         c = refMgr.findReferrers( NAME1+"/TestAtt.txt" );
-        Assertions.assertTrue( c==null || c.size()==0, "no attachment" );
+        Assertions.assertTrue( c.isEmpty(), "no attachment" );
 
         c = refMgr.findUncreated();
         Assertions.assertTrue( c!=null && c.size()==1 && c.iterator().next().equals( "TestAtt.txt" ), "unknown attachment" );
@@ -184,7 +184,7 @@ class WikiEngineTest {
         Assertions.assertTrue( c==null || c.size()==0, "attachment exists: " );
 
         c = refMgr.findReferrers( "TestAtt.txt" );
-        Assertions.assertTrue( c==null || c.size()==0, "no normal page" );
+        Assertions.assertTrue( c.isEmpty(), "no normal page" );
 
         c = refMgr.findReferrers( NAME1+"/TestAtt.txt" );
         Assertions.assertTrue( c!=null && c.iterator().next().equals( NAME1 ), "attachment exists now" );

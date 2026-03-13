@@ -493,22 +493,23 @@ public class JDBCGroupDatabase implements GroupDatabase {
         // Test connection by doing a quickie select
         Connection conn = null;
         PreparedStatement ps = null;
+        ResultSet rs = null;
         try
         {
             conn = ds.getConnection();
             ps = conn.prepareStatement( findAll );
-            ps.executeQuery();
+            rs = ps.executeQuery();
             ps.close();
         }
         catch( final SQLException e )
         {
-        	closeQuietly( conn, ps, null );
+        	closeQuietly( conn, ps, rs );
             LOG.error( "DB connectivity error: " + e.getMessage() );
             throw new WikiSecurityException("DB connectivity error: " + e.getMessage(), e );
         }
         finally
         {
-            closeQuietly( conn, ps, null );
+            closeQuietly( conn, ps, rs );
         }
         LOG.info( "JDBCGroupDatabase initialized from JNDI DataSource: " + jndiName );
 

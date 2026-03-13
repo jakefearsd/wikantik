@@ -66,27 +66,27 @@ public class ContextualDiffProvider implements DiffProvider {
     public boolean emitChangeNextPreviousHyperlinks = true;
 
     //Don't use spans here the deletion and insertions are nested in this...
-    public static String CHANGE_START_HTML = ""; //This could be a image '>' for a start marker
-    public static String CHANGE_END_HTML = ""; //and an image for an end '<' marker
-    public static String DIFF_START = "<div class=\"diff-wikitext\">";
-    public static String DIFF_END = "</div>";
+    public String CHANGE_START_HTML = ""; //This could be a image '>' for a start marker
+    public String CHANGE_END_HTML = ""; //and an image for an end '<' marker
+    public String DIFF_START = "<div class=\"diff-wikitext\">";
+    public String DIFF_END = "</div>";
 
     // Unfortunately we need to do dumb HTML here for RSS feeds.
 
-    public static String INSERTION_START_HTML = "<font color=\"#8000FF\"><span class=\"diff-insertion\">";
-    public static String INSERTION_END_HTML = "</span></font>";
-    public static String DELETION_START_HTML = "<strike><font color=\"red\"><span class=\"diff-deletion\">";
-    public static String DELETION_END_HTML = "</span></font></strike>";
+    public String INSERTION_START_HTML = "<font color=\"#8000FF\"><span class=\"diff-insertion\">";
+    public String INSERTION_END_HTML = "</span></font>";
+    public String DELETION_START_HTML = "<strike><font color=\"red\"><span class=\"diff-deletion\">";
+    public String DELETION_END_HTML = "</span></font></strike>";
     private static final String ANCHOR_PRE_INDEX = "<a name=\"change-";
     private static final String ANCHOR_POST_INDEX = "\" />";
     private static final String BACK_PRE_INDEX = "<a class=\"diff-nextprev\" title=\"Go to previous change\" href=\"#change-";
     private static final String BACK_POST_INDEX = "\">&lt;&lt;</a>";
     private static final String FORWARD_PRE_INDEX = "<a class=\"diff-nextprev\" title=\"Go to next change\" href=\"#change-";
     private static final String FORWARD_POST_INDEX = "\">&gt;&gt;</a>";
-    public static String ELIDED_HEAD_INDICATOR_HTML = "<br/><br/><b>...</b>";
-    public static String ELIDED_TAIL_INDICATOR_HTML = "<b>...</b><br/><br/>";
-    public static String LINE_BREAK_HTML = "<br />";
-    public static String ALTERNATING_SPACE_HTML = "&nbsp;";
+    public String ELIDED_HEAD_INDICATOR_HTML = "<br/><br/><b>...</b>";
+    public String ELIDED_TAIL_INDICATOR_HTML = "<b>...</b><br/><br/>";
+    public String LINE_BREAK_HTML = "<br />";
+    public String ALTERNATING_SPACE_HTML = "&nbsp;";
 
     // This one, I will make property file based...
     private static final int LIMIT_MAX_VALUE = (Integer.MAX_VALUE /2) - 1;

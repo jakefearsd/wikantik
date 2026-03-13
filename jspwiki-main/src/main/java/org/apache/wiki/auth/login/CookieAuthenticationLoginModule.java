@@ -274,6 +274,10 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
         final long obsoleteDateLimit = System.currentTimeMillis() - ( ( long )days + 1 ) * 24 * 60 * 60 * 1000L;
         int deleteCount = 0;
 
+        if( files == null ) {
+            LOG.debug( "Could not list cookie directory" );
+            return;
+        }
         for( int i = 0; i < files.length; i++ ) {
             final File f = files[ i ];
             final long lastModified = f.lastModified();

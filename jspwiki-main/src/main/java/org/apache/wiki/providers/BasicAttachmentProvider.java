@@ -523,6 +523,9 @@ public class BasicAttachmentProvider implements AttachmentProvider {
     public void deleteAttachment( final Attachment att ) throws ProviderException {
         final File dir = findAttachmentDir( att );
         final String[] files = dir.list();
+        if( files == null ) {
+            return;
+        }
         for( final String s : files ) {
             final File file = new File( dir.getAbsolutePath() + "/" + s );
             file.delete();

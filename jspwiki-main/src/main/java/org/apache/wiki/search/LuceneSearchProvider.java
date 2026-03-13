@@ -460,7 +460,8 @@ public class LuceneSearchProvider implements SearchProvider {
         final Set< String > indexedPages = new HashSet<>();
         final File dir = new File( luceneDirectory );
 
-        if( !dir.exists() || dir.list() == null || dir.list().length == 0 ) {
+        final String[] dirFiles = dir.list();
+        if( !dir.exists() || dirFiles == null || dirFiles.length == 0 ) {
             return indexedPages;
         }
 
@@ -491,7 +492,8 @@ public class LuceneSearchProvider implements SearchProvider {
      */
     protected int indexMissingPages() {
         final File dir = new File( luceneDirectory );
-        if( !dir.exists() || dir.list() == null || dir.list().length == 0 ) {
+        final String[] dirFiles = dir.list();
+        if( !dir.exists() || dirFiles == null || dirFiles.length == 0 ) {
             // No index exists yet - full reindex will happen
             LOG.debug( "No Lucene index exists, skipping missing page check" );
             return 0;

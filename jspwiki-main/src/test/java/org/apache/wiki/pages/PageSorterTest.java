@@ -84,6 +84,23 @@ public class PageSorterTest
     }
 
     @Test
+    public void testEqualsHashCodeContract()
+    {
+        // Two default PageSorters share the same singleton comparator
+        final PageSorter sorter1 = new PageSorter();
+        final PageSorter sorter2 = new PageSorter();
+        Assertions.assertEquals( sorter1, sorter2 );
+        Assertions.assertEquals( sorter1.hashCode(), sorter2.hashCode() );
+
+        // Re-initialize with no custom comparator — still uses default singleton
+        final Properties props = new Properties();
+        sorter1.initialize( props );
+        sorter2.initialize( props );
+        Assertions.assertEquals( sorter1, sorter2 );
+        Assertions.assertEquals( sorter1.hashCode(), sorter2.hashCode() );
+    }
+
+    @Test
     public void testPageSorterNoProperty()
     {
         // Initialised without the necessary property

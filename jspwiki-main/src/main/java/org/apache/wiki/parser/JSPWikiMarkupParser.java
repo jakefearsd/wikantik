@@ -1009,8 +1009,6 @@ public class JSPWikiMarkupParser extends MarkupParser {
             if( formattingHandler.isEscaping() ) {
                 if( ch == '}' ) {
                     if( handleClosebrace() == null ) plainTextBuf.append( (char) ch );
-                } else if( ch == -1 ) {
-                    quitReading = true;
                 } else if( ch == '\r' ) {
                     // DOS line feeds we ignore.
                 } else if( ch == '<' ) {

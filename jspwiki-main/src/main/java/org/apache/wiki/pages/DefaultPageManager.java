@@ -47,7 +47,6 @@ import org.apache.wiki.event.WikiSecurityEvent;
 import org.apache.wiki.providers.RepositoryModifiedException;
 import org.apache.wiki.references.ReferenceManager;
 import org.apache.wiki.filters.FilterManager;
-import org.apache.wiki.render.RenderingManager;
 import org.apache.wiki.search.SearchManager;
 import org.apache.wiki.ui.CommandResolver;
 import org.apache.wiki.util.ClassUtil;
@@ -234,7 +233,6 @@ public class DefaultPageManager implements PageManager {
 
         // Refresh the context for post-save filtering
         getPage( page.getName() );
-        engine.getManager( RenderingManager.class ).textToHTML( context, saveText );
         engine.getManager( FilterManager.class ).doPostSaveFiltering( context, saveText );
 
         // Reindex the saved page

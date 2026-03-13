@@ -46,7 +46,7 @@ public class WikiPage implements Page {
     private long             fileSize = -1;
     private int              version = PageProvider.LATEST_VERSION;
     private String           author;
-    private final Map< String, Object > attributes = new HashMap<>();
+    private Map< String, Object > attributes = new HashMap<>();
 
     private Acl accessList;
 
@@ -286,24 +286,26 @@ public class WikiPage implements Page {
      */
     @Override
     public WikiPage clone() {
-        final WikiPage p = new WikiPage( engine, name );
-        p.wiki         = wiki;
-        p.author       = author;
-        p.version      = version;
-        p.lastModified = lastModified != null ? (Date)lastModified.clone() : null;
-        p.fileSize     = fileSize;
-        p.hasMetadata  = hasMetadata;
-        p.attributes.putAll( attributes );
-
-        if( accessList != null ) {
-            p.accessList = new AclImpl();
-            for( final Enumeration< AclEntry > entries = accessList.aclEntries(); entries.hasMoreElements(); ) {
-                final AclEntry e = entries.nextElement();
-                p.accessList.addEntry( e );
+        try {
+            final WikiPage p = (WikiPage) super.clone();
+            // Deep-clone mutable fields
+            if( lastModified != null ) {
+                p.lastModified = (Date) lastModified.clone();
             }
+            // Clone the attributes map (shallow copy of values, same as before)
+            p.attributes = new HashMap<>( attributes );
+
+            if( accessList != null ) {
+                p.accessList = new AclImpl();
+                for( final Enumeration< AclEntry > entries = accessList.aclEntries(); entries.hasMoreElements(); ) {
+                    final AclEntry e = entries.nextElement();
+                    p.accessList.addEntry( e );
+                }
+            }
+            return p;
+        } catch( final CloneNotSupportedException e ) {
+            throw new AssertionError( "WikiPage implements Cloneable", e );
         }
-            
-        return p;
     }
     
     /**

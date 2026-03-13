@@ -43,10 +43,10 @@ public class SingleEntryPropertyCache implements PropertyCacheStrategy {
     private record CachedEntry( String page, Properties props, long lastModified ) {
         CachedEntry {
             if ( page == null ) {
-                throw new NullPointerException( "page must not be null!" );
+                throw new IllegalArgumentException( "page must not be null!" );
             }
             if ( props == null ) {
-                throw new NullPointerException( "properties must not be null!" );
+                throw new IllegalArgumentException( "properties must not be null!" );
             }
         }
     }

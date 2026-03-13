@@ -375,11 +375,12 @@ class CachingProviderTest {
      * Tests that cache properly handles null page name in getVersionHistory.
      */
     @Test
-    void testGetVersionHistoryNullReturnsNull() throws Exception {
+    void testGetVersionHistoryNullReturnsEmptyList() throws Exception {
         engine = buildWithCounterProvider();
 
         final List<Page> history = engine.getManager( PageManager.class ).getProvider().getVersionHistory( null );
-        Assertions.assertNull( history, "getVersionHistory with null should return null" );
+        Assertions.assertNotNull( history, "getVersionHistory with null should return empty list, not null" );
+        Assertions.assertTrue( history.isEmpty(), "getVersionHistory with null should return empty list" );
     }
 
     /**

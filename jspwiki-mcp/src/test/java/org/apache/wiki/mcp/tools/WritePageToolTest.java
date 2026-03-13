@@ -21,8 +21,9 @@ package org.apache.wiki.mcp.tools;
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.wiki.TestEngine;
-import org.apache.wiki.mcp.frontmatter.FrontmatterParser;
-import org.apache.wiki.mcp.frontmatter.ParsedPage;
+import org.apache.wiki.api.core.Page;
+import org.apache.wiki.frontmatter.FrontmatterParser;
+import org.apache.wiki.frontmatter.ParsedPage;
 import org.apache.wiki.pages.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -84,6 +85,18 @@ class WritePageToolTest {
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         assertEquals( "concept", parsed.metadata().get( "type" ) );
         assertTrue( parsed.body().contains( "Page with frontmatter." ) );
+    }
+
+    @Test
+    void testWritePageSetsMarkdownSyntax() {
+        final Map< String, Object > args = new HashMap<>();
+        args.put( "pageName", "McpWriteMd" );
+        args.put( "content", "Markdown content." );
+
+        tool.execute( args );
+
+        final Page saved = engine.getManager( PageManager.class ).getPage( "McpWriteMd" );
+        assertEquals( "markdown", saved.getAttribute( Page.MARKUP_SYNTAX ) );
     }
 
     @Test

@@ -22,8 +22,8 @@ import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.providers.PageProvider;
-import org.apache.wiki.mcp.frontmatter.FrontmatterParser;
-import org.apache.wiki.mcp.frontmatter.ParsedPage;
+import org.apache.wiki.frontmatter.FrontmatterParser;
+import org.apache.wiki.frontmatter.ParsedPage;
 import org.apache.wiki.pages.PageManager;
 
 import java.util.LinkedHashMap;

@@ -157,6 +157,11 @@
         </dependency>
 
         <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.pac4j</groupId>
             <artifactId>pac4j-jakartaee</artifactId>
         </dependency>

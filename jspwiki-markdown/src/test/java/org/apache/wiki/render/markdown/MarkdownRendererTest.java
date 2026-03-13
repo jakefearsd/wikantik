@@ -37,6 +37,7 @@ import java.io.BufferedReader;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 
 public class MarkdownRendererTest {
@@ -338,6 +339,63 @@ public class MarkdownRendererTest {
         Assertions.assertEquals( "<h3 id=\"awesome-h3\">Awesome H3</h3>\n" +
                                  "<h3 id=\"awesome-h3-1\">Awesome H3</h3>\n",
                                  translate( src ) );
+    }
+
+    @Test
+    public void testFrontmatterSuppressedFromOutput() throws Exception {
+        final String src = "---\ntype: concept\ntags: [ai, wiki]\n---\nThis is the body.";
+
+        final String result = translate( src );
+
+        Assertions.assertEquals( "<p>This is the body.</p>\n", result );
+    }
+
+    @Test
+    public void testFrontmatterMetadataSetAsPageAttributes() throws Exception {
+        final String src = "---\ntype: concept\ntags: [ai, wiki]\n---\nBody text.";
+        final Page p = Wiki.contents().page( testEngine, PAGE_NAME );
+        translate( p, src );
+
+        Assertions.assertEquals( "concept", p.getAttribute( "type" ) );
+        Assertions.assertEquals( List.of( "ai", "wiki" ), p.getAttribute( "tags" ) );
+    }
+
+    @Test
+    public void testNoFrontmatterRendersNormally() throws Exception {
+        final String src = "Just a regular paragraph.";
+
+        Assertions.assertEquals( "<p>Just a regular paragraph.</p>\n", translate( src ) );
+    }
+
+    @Test
+    public void testHorizontalRuleInBodyNotStripped() throws Exception {
+        final String src = "Some text\n\n---\n\nMore text.";
+
+        final String result = translate( src );
+
+        Assertions.assertTrue( result.contains( "<hr" ) );
+        Assertions.assertTrue( result.contains( "Some text" ) );
+        Assertions.assertTrue( result.contains( "More text." ) );
+    }
+
+    @Test
+    public void testEmptyFrontmatter() throws Exception {
+        final String src = "---\n---\nBody after empty frontmatter.";
+
+        Assertions.assertEquals( "<p>Body after empty frontmatter.</p>\n", translate( src ) );
+    }
+
+    @SuppressWarnings( "unchecked" )
+    @Test
+    public void testFrontmatterRichTypesPreserved() throws Exception {
+        final String src = "---\ntags: [java, mcp]\nauthor:\n  name: Claude\n  role: AI\n---\nContent.";
+        final Page p = Wiki.contents().page( testEngine, PAGE_NAME );
+        translate( p, src );
+
+        Assertions.assertEquals( List.of( "java", "mcp" ), p.getAttribute( "tags" ) );
+        final Map< String, Object > author = ( Map< String, Object > ) p.getAttribute( "author" );
+        Assertions.assertEquals( "Claude", author.get( "name" ) );
+        Assertions.assertEquals( "AI", author.get( "role" ) );
     }
 
     @AfterEach

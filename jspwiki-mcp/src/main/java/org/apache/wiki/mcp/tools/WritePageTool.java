@@ -26,7 +26,7 @@ import org.apache.wiki.WikiEngine;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.spi.Wiki;
-import org.apache.wiki.mcp.frontmatter.FrontmatterWriter;
+import org.apache.wiki.frontmatter.FrontmatterWriter;
 import org.apache.wiki.pages.PageManager;
 
 import java.util.LinkedHashMap;
@@ -74,6 +74,7 @@ public class WritePageTool {
         try {
             final Page page = Wiki.contents().page( engine, pageName );
             page.setAuthor( "MCP" );
+            page.setAttribute( Page.MARKUP_SYNTAX, "markdown" );
             if ( changeNote != null ) {
                 page.setAttribute( Page.CHANGENOTE, changeNote );
             }

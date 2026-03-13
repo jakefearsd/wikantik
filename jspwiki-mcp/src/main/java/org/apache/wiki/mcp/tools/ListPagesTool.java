@@ -24,6 +24,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.wiki.api.core.Page;
+import org.apache.wiki.content.SystemPageRegistry;
 import org.apache.wiki.pages.PageManager;
 
 import java.util.*;
@@ -38,21 +39,25 @@ public class ListPagesTool {
     public static final String TOOL_NAME = "list_pages";
 
     private final PageManager pageManager;
+    private final SystemPageRegistry systemPageRegistry;
     private final Gson gson = new GsonBuilder().serializeNulls().create();
 
-    public ListPagesTool( final PageManager pageManager ) {
+    public ListPagesTool( final PageManager pageManager, final SystemPageRegistry systemPageRegistry ) {
         this.pageManager = pageManager;
+        this.systemPageRegistry = systemPageRegistry;
     }
 
     public McpSchema.Tool toolDefinition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "prefix", Map.of( "type", "string", "description", "Optional prefix to filter page names" ) );
         properties.put( "limit", Map.of( "type", "integer", "description", "Maximum number of pages to return (default 100)" ) );
+        properties.put( "includeSystemPages", Map.of( "type", "boolean", "description", "Include system/template pages in results (default false)" ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "List all wiki pages with optional prefix filtering. " +
-                        "Returns {pages: [{name, lastModified, author, size}]} sorted alphabetically. Default limit is 100." )
+                        "Returns {pages: [{name, lastModified, author, size, systemPage}]} sorted alphabetically. " +
+                        "System/template pages are excluded by default; set includeSystemPages=true to include them. Default limit is 100." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of(), null, null, null ) )
                 .build();
     }
@@ -62,11 +67,13 @@ public class ListPagesTool {
         final int limit = arguments.containsKey( "limit" )
                 ? ( ( Number ) arguments.get( "limit" ) ).intValue()
                 : 100;
+        final boolean includeSystemPages = Boolean.TRUE.equals( arguments.get( "includeSystemPages" ) );
 
         try {
             Collection< Page > allPages = pageManager.getAllPages();
             List< Map< String, Object > > pages = allPages.stream()
                     .filter( p -> prefix == null || p.getName().startsWith( prefix ) )
+                    .filter( p -> includeSystemPages || systemPageRegistry == null || !systemPageRegistry.isSystemPage( p.getName() ) )
                     .sorted( Comparator.comparing( Page::getName ) )
                     .limit( limit )
                     .map( p -> {
@@ -75,6 +82,9 @@ public class ListPagesTool {
                         entry.put( "lastModified", p.getLastModified() != null ? p.getLastModified().toInstant().toString() : null );
                         entry.put( "author", p.getAuthor() );
                         entry.put( "size", p.getSize() );
+                        if ( systemPageRegistry != null ) {
+                            entry.put( "systemPage", systemPageRegistry.isSystemPage( p.getName() ) );
+                        }
                         return entry;
                     } )
                     .collect( Collectors.toList() );

@@ -49,9 +49,10 @@ class FrontmatterRoundTripTest {
     @BeforeEach
     void setUp() {
         engine = TestEngine.build();
-        writeTool = new WritePageTool( engine );
+        final var spr = engine.getManager( org.apache.wiki.content.SystemPageRegistry.class );
+        writeTool = new WritePageTool( engine, spr );
         final PageManager pm = engine.getManager( PageManager.class );
-        readTool = new ReadPageTool( pm );
+        readTool = new ReadPageTool( pm, spr );
         queryTool = new QueryMetadataTool( pm );
     }
 

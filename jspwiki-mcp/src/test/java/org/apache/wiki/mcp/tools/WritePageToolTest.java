@@ -44,7 +44,7 @@ class WritePageToolTest {
     @BeforeEach
     void setUp() {
         engine = TestEngine.build();
-        tool = new WritePageTool( engine );
+        tool = new WritePageTool( engine, engine.getManager( org.apache.wiki.content.SystemPageRegistry.class ) );
     }
 
     @AfterEach

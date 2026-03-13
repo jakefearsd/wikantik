@@ -21,6 +21,7 @@ package org.apache.wiki.mcp.tools;
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.wiki.TestEngine;
+import org.apache.wiki.content.SystemPageRegistry;
 import org.apache.wiki.pages.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,7 +40,7 @@ class ReadPageToolTest {
     @BeforeEach
     void setUp() {
         engine = TestEngine.build();
-        tool = new ReadPageTool( engine.getManager( PageManager.class ) );
+        tool = new ReadPageTool( engine.getManager( PageManager.class ), engine.getManager( SystemPageRegistry.class ) );
     }
 
     @AfterEach

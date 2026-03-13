@@ -107,6 +107,29 @@ public class RecentChangesPluginTest {
     }
 
     /**
+     * Test that system pages are excluded from recent changes
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testSystemPagesExcluded() throws Exception {
+        // "About" is a system page discovered from About.txt on the test classpath
+        testEngine.saveText( "About", "System page content" );
+        try {
+            context = Wiki.context().create( testEngine, Wiki.contents().page( testEngine, "TestPage01" ) );
+
+            final String res = manager.execute( context, "{INSERT org.apache.wiki.plugin.RecentChangesPlugin}" );
+
+            // User pages should be present
+            Assertions.assertTrue( res.contains( "<a href=\"/test/wiki/TestPage01\">Test Page 01</a>" ) );
+            // System page "About" should be excluded
+            Assertions.assertFalse( res.contains( ">About</a>" ), "System page About should be excluded from recent changes" );
+        } finally {
+            testEngine.deleteTestPage( "About" );
+        }
+    }
+
+    /**
      * Test an empty recent changes table
      *
      * @throws Exception

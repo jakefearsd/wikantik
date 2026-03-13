@@ -26,6 +26,7 @@ import org.apache.wiki.WikiEngine;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.spi.Wiki;
+import org.apache.wiki.content.SystemPageRegistry;
 import org.apache.wiki.frontmatter.FrontmatterWriter;
 import org.apache.wiki.pages.PageManager;
 
@@ -42,10 +43,12 @@ public class WritePageTool {
     public static final String TOOL_NAME = "write_page";
 
     private final WikiEngine engine;
+    private final SystemPageRegistry systemPageRegistry;
     private final Gson gson = new Gson();
 
-    public WritePageTool( final WikiEngine engine ) {
+    public WritePageTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
         this.engine = engine;
+        this.systemPageRegistry = systemPageRegistry;
     }
 
     public McpSchema.Tool toolDefinition() {
@@ -88,6 +91,10 @@ public class WritePageTool {
             result.put( "success", true );
             result.put( "pageName", pageName );
             result.put( "version", saved != null ? saved.getVersion() : 1 );
+            if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
+                result.put( "systemPage", true );
+                result.put( "warning", "This is a system/template page. Changes may be overwritten on upgrade." );
+            }
 
             return McpSchema.CallToolResult.builder()
                     .content( List.of( new McpSchema.TextContent( gson.toJson( result ) ) ) )

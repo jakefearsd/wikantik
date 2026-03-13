@@ -34,6 +34,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.wiki.WikiEngine;
 import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.attachment.AttachmentManager;
+import org.apache.wiki.content.SystemPageRegistry;
 import org.apache.wiki.mcp.tools.*;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.references.ReferenceManager;
@@ -99,13 +100,14 @@ public class McpServerInitializer implements ServletContextListener {
             final PageManager pageManager = engine.getManager( PageManager.class );
             final ReferenceManager referenceManager = engine.getManager( ReferenceManager.class );
             final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );
+            final SystemPageRegistry systemPageRegistry = engine.getManager( SystemPageRegistry.class );
 
-            final ReadPageTool readPage = new ReadPageTool( pageManager );
-            final WritePageTool writePage = new WritePageTool( engine );
+            final ReadPageTool readPage = new ReadPageTool( pageManager, systemPageRegistry );
+            final WritePageTool writePage = new WritePageTool( engine, systemPageRegistry );
             final SearchPagesTool searchPages = new SearchPagesTool( engine );
-            final ListPagesTool listPages = new ListPagesTool( pageManager );
+            final ListPagesTool listPages = new ListPagesTool( pageManager, systemPageRegistry );
             final GetBacklinksTool getBacklinks = new GetBacklinksTool( referenceManager );
-            final RecentChangesTool recentChanges = new RecentChangesTool( pageManager );
+            final RecentChangesTool recentChanges = new RecentChangesTool( pageManager, systemPageRegistry );
             final GetAttachmentsTool getAttachments = new GetAttachmentsTool( pageManager, attachmentManager );
             final QueryMetadataTool queryMetadata = new QueryMetadataTool( pageManager );
 

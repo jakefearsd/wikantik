@@ -33,7 +33,10 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class ListPagesToolTest {
+/**
+ * Tests that ListPagesTool filters system pages by default and includes them when requested.
+ */
+class ListPagesSystemPageFilterTest {
 
     private TestEngine engine;
     private ListPagesTool tool;
@@ -42,11 +45,13 @@ class ListPagesToolTest {
     @BeforeEach
     void setUp() throws Exception {
         engine = TestEngine.build();
-        tool = new ListPagesTool( engine.getManager( PageManager.class ), engine.getManager( SystemPageRegistry.class ) );
+        final PageManager pageManager = engine.getManager( PageManager.class );
+        final SystemPageRegistry systemPageRegistry = engine.getManager( SystemPageRegistry.class );
+        tool = new ListPagesTool( pageManager, systemPageRegistry );
 
-        engine.saveText( "McpListAlpha", "Alpha page" );
-        engine.saveText( "McpListBeta", "Beta page" );
-        engine.saveText( "OtherPage", "Other page" );
+        // Create a user content page and a system page (About.txt is on test classpath)
+        engine.saveText( "UserArticle", "This is a user article" );
+        engine.saveText( "About", "About page content" );
     }
 
     @AfterEach
@@ -56,41 +61,58 @@ class ListPagesToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testListAllPages() {
+    void testDefaultExcludesSystemPages() {
         final McpSchema.CallToolResult result = tool.execute( Map.of() );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         final Map< String, Object > data = gson.fromJson( json, Map.class );
 
         final List< Map< String, Object > > pages = ( List< Map< String, Object > > ) data.get( "pages" );
-        assertTrue( pages.size() >= 3 );
+        // UserArticle should be present
+        assertTrue( pages.stream().anyMatch( p -> "UserArticle".equals( p.get( "name" ) ) ),
+                "User content page should be in default results" );
+        // About is a system page (discovered from About.txt on classpath) and should be excluded
+        assertFalse( pages.stream().anyMatch( p -> "About".equals( p.get( "name" ) ) ),
+                "System page About should be excluded by default" );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testListWithPrefix() {
+    void testIncludeSystemPagesShowsAll() {
         final Map< String, Object > args = new HashMap<>();
-        args.put( "prefix", "McpList" );
+        args.put( "includeSystemPages", true );
 
         final McpSchema.CallToolResult result = tool.execute( args );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         final Map< String, Object > data = gson.fromJson( json, Map.class );
 
         final List< Map< String, Object > > pages = ( List< Map< String, Object > > ) data.get( "pages" );
-        assertEquals( 2, pages.size() );
-        assertTrue( pages.stream().allMatch( p -> ( ( String ) p.get( "name" ) ).startsWith( "McpList" ) ) );
+        // Both should be present
+        assertTrue( pages.stream().anyMatch( p -> "UserArticle".equals( p.get( "name" ) ) ),
+                "User content page should be present" );
+        assertTrue( pages.stream().anyMatch( p -> "About".equals( p.get( "name" ) ) ),
+                "System page About should be present when includeSystemPages=true" );
+
+        // System page should have systemPage flag
+        final Map< String, Object > aboutPage = pages.stream()
+                .filter( p -> "About".equals( p.get( "name" ) ) )
+                .findFirst().orElseThrow();
+        assertEquals( true, aboutPage.get( "systemPage" ), "About should be flagged as system page" );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testListWithLimit() {
+    void testSystemPageFlagOnUserPage() {
         final Map< String, Object > args = new HashMap<>();
-        args.put( "limit", 1 );
+        args.put( "includeSystemPages", true );
 
         final McpSchema.CallToolResult result = tool.execute( args );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         final Map< String, Object > data = gson.fromJson( json, Map.class );
 
         final List< Map< String, Object > > pages = ( List< Map< String, Object > > ) data.get( "pages" );
-        assertEquals( 1, pages.size() );
+        final Map< String, Object > userArticle = pages.stream()
+                .filter( p -> "UserArticle".equals( p.get( "name" ) ) )
+                .findFirst().orElseThrow();
+        assertEquals( false, userArticle.get( "systemPage" ), "UserArticle should not be flagged as system page" );
     }
 }

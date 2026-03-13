@@ -36,7 +36,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.HashSet;
+
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
@@ -66,12 +66,6 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
     /** Default cache TTL in seconds. */
     private static final int DEFAULT_CACHE_TTL = 60;
 
-    /** Default system pages to exclude. */
-    private static final Set<String> DEFAULT_EXCLUDED_PAGES = Set.of(
-        "Main", "LeftMenu", "LeftMenuFooter", "MoreMenu", "PageHeader", "PageFooter",
-        "LoginHelp", "EditPageHelp", "TextFormattingRules", "FindPageHelp",
-        "RecentArticlesTemplate"
-    );
 
     /** Regex to match H1 headings in wiki markup (both !!! and # styles). */
     private static final Pattern H1_WIKI_PATTERN = Pattern.compile( "^\\s*(?:!!!|#)\\s*(.+?)\\s*$", Pattern.MULTILINE );
@@ -95,10 +89,10 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
     private static final Pattern NUMERIC_ENTITY_PATTERN = Pattern.compile( "&#(x?)([0-9a-fA-F]+);" );
 
     private Engine engine;
+    private SystemPageRegistry systemPageRegistry;
     private int cacheTTL;
     private int defaultCount;
     private int defaultExcerptLength;
-    private Set<String> excludedPages;
     private List<Pattern> excludePatterns;
 
     // Simple cache: query hash -> (timestamp, results)
@@ -115,8 +109,8 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         defaultCount = TextUtil.getIntegerProperty( props, PROP_DEFAULT_COUNT, RecentArticlesQuery.DEFAULT_COUNT );
         defaultExcerptLength = TextUtil.getIntegerProperty( props, PROP_DEFAULT_EXCERPT_LENGTH, RecentArticlesQuery.DEFAULT_EXCERPT_LENGTH );
 
-        // Initialize excluded pages set
-        excludedPages = new HashSet<>( DEFAULT_EXCLUDED_PAGES );
+        // Use centralized SystemPageRegistry for system page exclusion
+        systemPageRegistry = newEngine.getManager( SystemPageRegistry.class );
 
         // Parse additional exclude patterns from properties
         excludePatterns = new ArrayList<>();
@@ -590,8 +584,8 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
      * Checks if a page should be excluded from results.
      */
     private boolean isExcluded( final String pageName, final Pattern includePattern, final Pattern excludePattern ) {
-        // Check if page is in the static exclusion list
-        if ( excludedPages.contains( pageName ) ) {
+        // Check centralized system page registry
+        if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
             return true;
         }
 

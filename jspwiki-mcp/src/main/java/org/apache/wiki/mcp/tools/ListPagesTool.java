@@ -63,11 +63,9 @@ public class ListPagesTool {
     }
 
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        final String prefix = ( String ) arguments.getOrDefault( "prefix", null );
-        final int limit = arguments.containsKey( "limit" )
-                ? ( ( Number ) arguments.get( "limit" ) ).intValue()
-                : 100;
-        final boolean includeSystemPages = Boolean.TRUE.equals( arguments.get( "includeSystemPages" ) );
+        final String prefix = McpToolUtils.getString( arguments, "prefix" );
+        final int limit = McpToolUtils.getInt( arguments, "limit", 100 );
+        final boolean includeSystemPages = McpToolUtils.getBoolean( arguments, "includeSystemPages" );
 
         try {
             Collection< Page > allPages = pageManager.getAllPages();
@@ -89,15 +87,10 @@ public class ListPagesTool {
                     } )
                     .collect( Collectors.toList() );
 
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "pages", pages ) ) ) ) )
-                    .build();
+            return McpToolUtils.jsonResult( gson, Map.of( "pages", pages ) );
         } catch ( final Exception e ) {
             LOG.error( "Failed to list pages: {}", e.getMessage(), e );
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "error", e.getMessage() ) ) ) ) )
-                    .isError( true )
-                    .build();
+            return McpToolUtils.errorResult( gson, e.getMessage() );
         }
     }
 }

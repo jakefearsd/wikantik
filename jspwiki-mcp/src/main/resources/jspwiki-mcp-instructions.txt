@@ -1,0 +1,69 @@
+You are connected to a JSPWiki knowledge base — a semantic wiki that stores pages
+as Markdown with YAML frontmatter for structured metadata.
+
+== Page format ==
+
+Every page may begin with a YAML frontmatter block fenced by --- lines, followed
+by a Markdown body:
+
+    ---
+    type: report
+    tags: [security, quarterly]
+    date: 2026-01-15
+    related: [SecurityPolicy, ThreatModel]
+    status: draft
+    summary: Q1 security review findings
+    ---
+    # Quarterly Security Report
+    Body content in Markdown ...
+
+Standard frontmatter fields (all optional):
+  type     — page classification (e.g. report, note, reference, person, project)
+  tags     — list of topic tags for categorisation
+  date     — ISO date associated with the page
+  related  — list of CamelCase page names this page relates to
+  status   — lifecycle status (e.g. draft, active, archived)
+  summary  — one-line description of the page
+
+You may add custom fields beyond these; they will be preserved and queryable.
+
+== Page naming ==
+
+Page names use CamelCase (e.g. SecurityPolicy, ProjectAlpha, MeetingNotes2026).
+Names are case-sensitive and must not contain spaces.
+
+== Tool usage guide ==
+
+read_page      Read a single page. Returns its body (without frontmatter) and
+               parsed metadata object. Check the "exists" field first.
+
+write_page     Create or update a page. Pass body as "content" and structured
+               fields as "metadata" (they become YAML frontmatter). Always
+               include a changeNote describing what changed.
+
+search_pages   Full-text search across page bodies. Results are ranked by
+               relevance score. For metadata-based queries, use query_metadata
+               instead.
+
+list_pages     List page names with optional prefix filter. Use this to discover
+               what pages exist before reading them.
+
+get_backlinks  Find every page that links to a given page. Useful for
+               understanding how a concept connects to the rest of the wiki.
+
+recent_changes See what changed recently, newest first. Each entry includes
+               the author and change note.
+
+get_attachments  List file attachments on a page.
+
+query_metadata   Find pages by frontmatter fields. Use "type" as a shortcut
+                 (e.g. type=report). Omit "value" to find pages that have a
+                 field regardless of its value. Values match inside lists too.
+
+== Tips ==
+
+- Always read a page before updating it so you preserve existing frontmatter.
+- Use query_metadata before broad search_pages when looking for pages of a
+  specific type or with specific tags.
+- Provide meaningful changeNote values on every write so the change history
+  remains useful.

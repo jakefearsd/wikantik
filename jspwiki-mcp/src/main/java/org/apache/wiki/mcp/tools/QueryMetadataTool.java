@@ -62,9 +62,9 @@ public class QueryMetadataTool {
     }
 
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        String field = ( String ) arguments.getOrDefault( "field", null );
-        String value = ( String ) arguments.getOrDefault( "value", null );
-        final String type = ( String ) arguments.getOrDefault( "type", null );
+        String field = McpToolUtils.getString( arguments, "field" );
+        String value = McpToolUtils.getString( arguments, "value" );
+        final String type = McpToolUtils.getString( arguments, "type" );
 
         // "type" is a shortcut for field=type, value=<type>
         if ( type != null && field == null ) {
@@ -73,11 +73,7 @@ public class QueryMetadataTool {
         }
 
         if ( field == null ) {
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent(
-                            gson.toJson( Map.of( "error", "Either 'field' or 'type' parameter is required" ) ) ) ) )
-                    .isError( true )
-                    .build();
+            return McpToolUtils.errorResult( gson, "Either 'field' or 'type' parameter is required" );
         }
 
         try {
@@ -107,15 +103,10 @@ public class QueryMetadataTool {
                 }
             }
 
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "pages", results ) ) ) ) )
-                    .build();
+            return McpToolUtils.jsonResult( gson, Map.of( "pages", results ) );
         } catch ( final Exception e ) {
             LOG.error( "Metadata query failed: {}", e.getMessage(), e );
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "error", e.getMessage() ) ) ) ) )
-                    .isError( true )
-                    .build();
+            return McpToolUtils.errorResult( gson, e.getMessage() );
         }
     }
 

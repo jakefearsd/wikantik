@@ -61,10 +61,8 @@ public class SearchPagesTool {
     }
 
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        final String query = ( String ) arguments.get( "query" );
-        final int maxResults = arguments.containsKey( "maxResults" )
-                ? ( ( Number ) arguments.get( "maxResults" ) ).intValue()
-                : 20;
+        final String query = McpToolUtils.getString( arguments, "query" );
+        final int maxResults = McpToolUtils.getInt( arguments, "maxResults", 20 );
 
         try {
             final Page dummyPage = Wiki.contents().page( engine, "Main" );
@@ -74,9 +72,7 @@ public class SearchPagesTool {
 
             final List< Map< String, Object > > results = new ArrayList<>();
             if ( searchResults == null ) {
-                return McpSchema.CallToolResult.builder()
-                        .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "results", results ) ) ) ) )
-                        .build();
+                return McpToolUtils.jsonResult( gson, Map.of( "results", results ) );
             }
             int count = 0;
             for ( final SearchResult sr : searchResults ) {
@@ -91,15 +87,10 @@ public class SearchPagesTool {
                 count++;
             }
 
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "results", results ) ) ) ) )
-                    .build();
+            return McpToolUtils.jsonResult( gson, Map.of( "results", results ) );
         } catch ( final Exception e ) {
             LOG.error( "Search failed for query '{}': {}", query, e.getMessage(), e );
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "error", e.getMessage() ) ) ) ) )
-                    .isError( true )
-                    .build();
+            return McpToolUtils.errorResult( gson, e.getMessage() );
         }
     }
 }

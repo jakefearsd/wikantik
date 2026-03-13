@@ -62,10 +62,8 @@ public class ReadPageTool {
     }
 
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        final String pageName = ( String ) arguments.get( "pageName" );
-        final int version = arguments.containsKey( "version" )
-                ? ( ( Number ) arguments.get( "version" ) ).intValue()
-                : PageProvider.LATEST_VERSION;
+        final String pageName = McpToolUtils.getString( arguments, "pageName" );
+        final int version = McpToolUtils.getInt( arguments, "version", PageProvider.LATEST_VERSION );
 
         final Page page = pageManager.getPage( pageName, version );
         final Map< String, Object > result = new LinkedHashMap<>();
@@ -73,9 +71,7 @@ public class ReadPageTool {
         if ( page == null ) {
             result.put( "exists", false );
             result.put( "pageName", pageName );
-            return McpSchema.CallToolResult.builder()
-                    .content( java.util.List.of( new McpSchema.TextContent( gson.toJson( result ) ) ) )
-                    .build();
+            return McpToolUtils.jsonResult( gson, result );
         }
 
         final String rawText = pageManager.getPureText( pageName, version );
@@ -92,8 +88,6 @@ public class ReadPageTool {
             result.put( "systemPage", systemPageRegistry.isSystemPage( page.getName() ) );
         }
 
-        return McpSchema.CallToolResult.builder()
-                .content( java.util.List.of( new McpSchema.TextContent( gson.toJson( result ) ) ) )
-                .build();
+        return McpToolUtils.jsonResult( gson, result );
     }
 }

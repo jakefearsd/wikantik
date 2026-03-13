@@ -69,10 +69,10 @@ public class WritePageTool {
 
     @SuppressWarnings( "unchecked" )
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        final String pageName = ( String ) arguments.get( "pageName" );
-        final String content = ( String ) arguments.get( "content" );
+        final String pageName = McpToolUtils.getString( arguments, "pageName" );
+        final String content = McpToolUtils.getString( arguments, "content" );
         final Map< String, Object > metadata = ( Map< String, Object > ) arguments.get( "metadata" );
-        final String changeNote = ( String ) arguments.get( "changeNote" );
+        final String changeNote = McpToolUtils.getString( arguments, "changeNote" );
 
         final String fullText = FrontmatterWriter.write( metadata, content );
 
@@ -96,16 +96,10 @@ public class WritePageTool {
                 result.put( "warning", "This is a system/template page. Changes may be overwritten on upgrade." );
             }
 
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( gson.toJson( result ) ) ) )
-                    .build();
+            return McpToolUtils.jsonResult( gson, result );
         } catch ( final Exception e ) {
             LOG.error( "Failed to write page {}: {}", pageName, e.getMessage(), e );
-            final Map< String, Object > error = Map.of( "success", false, "error", e.getMessage() );
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( gson.toJson( error ) ) ) )
-                    .isError( true )
-                    .build();
+            return McpToolUtils.errorResult( gson, e.getMessage() );
         }
     }
 }

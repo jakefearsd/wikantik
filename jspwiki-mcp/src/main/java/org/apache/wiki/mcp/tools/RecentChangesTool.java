@@ -63,11 +63,9 @@ public class RecentChangesTool {
     }
 
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        final String sinceStr = ( String ) arguments.getOrDefault( "since", null );
-        final int limit = arguments.containsKey( "limit" )
-                ? ( ( Number ) arguments.get( "limit" ) ).intValue()
-                : 50;
-        final boolean includeSystemPages = Boolean.TRUE.equals( arguments.get( "includeSystemPages" ) );
+        final String sinceStr = McpToolUtils.getString( arguments, "since" );
+        final int limit = McpToolUtils.getInt( arguments, "limit", 50 );
+        final boolean includeSystemPages = McpToolUtils.getBoolean( arguments, "includeSystemPages" );
 
         try {
             final Date sinceDate;
@@ -101,15 +99,10 @@ public class RecentChangesTool {
                     } )
                     .collect( Collectors.toList() );
 
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "changes", changes ) ) ) ) )
-                    .build();
+            return McpToolUtils.jsonResult( gson, Map.of( "changes", changes ) );
         } catch ( final Exception e ) {
             LOG.error( "Failed to get recent changes: {}", e.getMessage(), e );
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "error", e.getMessage() ) ) ) ) )
-                    .isError( true )
-                    .build();
+            return McpToolUtils.errorResult( gson, e.getMessage() );
         }
     }
 }

@@ -643,13 +643,11 @@ public abstract class AbstractFileProvider implements PageProvider {
             while( propertyNames.hasMoreElements() ) {
                 final String key = ( String )propertyNames.nextElement();
                 final String value = ( String )customProperties.get( key );
-                if( key != null ) {
-                    if( key.length() > MAX_PROPKEYLENGTH ) {
-                        throw new IOException( "Custom property key " + key + " is too long. Max allowed length is " + MAX_PROPKEYLENGTH );
-                    }
-                    if( !StringUtils.isAsciiPrintable( key ) ) {
-                        throw new IOException( "Custom property key " + key + " is not simple ASCII!" );
-                    }
+                if( key.length() > MAX_PROPKEYLENGTH ) {
+                    throw new IOException( "Custom property key " + key + " is too long. Max allowed length is " + MAX_PROPKEYLENGTH );
+                }
+                if( !StringUtils.isAsciiPrintable( key ) ) {
+                    throw new IOException( "Custom property key " + key + " is not simple ASCII!" );
                 }
                 if( value != null ) {
                     if( value.length() > MAX_PROPVALUELENGTH ) {

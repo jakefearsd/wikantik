@@ -581,6 +581,9 @@ public class VersioningFileProvider extends AbstractFileProvider {
         final File dir = findOldPageDir( page );
         if( dir.exists() && dir.isDirectory() ) {
             final File[] files = dir.listFiles( new WikiFileFilter() );
+            if( files == null ) {
+                return;
+            }
             for( final File file : files ) {
                 file.delete();
             }

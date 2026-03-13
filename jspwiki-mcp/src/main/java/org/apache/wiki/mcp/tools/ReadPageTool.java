@@ -51,7 +51,9 @@ public class ReadPageTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Read a wiki page's content and metadata" )
+                .description( "Read a wiki page's content and metadata. Returns {exists, pageName, content, metadata, version, author, lastModified}. " +
+                        "content is the Markdown body without frontmatter; metadata is the parsed YAML frontmatter as an object. " +
+                        "Check the exists field first — it is false when the page does not exist." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
                 .build();
     }

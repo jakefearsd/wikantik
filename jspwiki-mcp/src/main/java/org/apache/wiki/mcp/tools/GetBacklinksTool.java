@@ -44,7 +44,8 @@ public class GetBacklinksTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Find pages that link to a given page" )
+                .description( "Find pages that link to a given page. " +
+                        "Returns {pageName, backlinks: [names]} sorted alphabetically." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
                 .build();
     }

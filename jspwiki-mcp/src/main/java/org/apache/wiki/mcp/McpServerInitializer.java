@@ -21,7 +21,10 @@ package org.apache.wiki.mcp;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
+import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.FilterRegistration;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
@@ -34,6 +37,8 @@ import org.apache.wiki.attachment.AttachmentManager;
 import org.apache.wiki.mcp.tools.*;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.references.ReferenceManager;
+
+import java.util.EnumSet;
 
 
 /**
@@ -64,6 +69,19 @@ public class McpServerInitializer implements ServletContextListener {
         }
 
         try {
+            // Load MCP configuration
+            final McpConfig config = new McpConfig();
+            LOG.info( "MCP config: name={}, title={}, version={}, instructions={}",
+                    config.serverName(), config.serverTitle(), config.serverVersion(),
+                    config.instructions() != null ? config.instructions().length() + " chars" : "none" );
+
+            // Register access control filter
+            final McpAccessFilter accessFilter = new McpAccessFilter( config );
+            final FilterRegistration.Dynamic filterReg =
+                    servletContext.addFilter( "McpAccessFilter", accessFilter );
+            filterReg.addMappingForUrlPatterns( EnumSet.of( DispatcherType.REQUEST ), false, "/mcp" );
+            filterReg.setAsyncSupported( true );
+
             // Create transport provider (which is itself a Servlet)
             final HttpServletStreamableServerTransportProvider transportProvider =
                     HttpServletStreamableServerTransportProvider.builder()
@@ -91,11 +109,21 @@ public class McpServerInitializer implements ServletContextListener {
             final GetAttachmentsTool getAttachments = new GetAttachmentsTool( pageManager, attachmentManager );
             final QueryMetadataTool queryMetadata = new QueryMetadataTool( pageManager );
 
-            mcpServer = McpServer.sync( transportProvider )
-                    .serverInfo( "jspwiki-mcp", "1.0.0" )
+            final var serverImpl = new McpSchema.Implementation(
+                    config.serverName(), config.serverTitle(), config.serverVersion() );
+
+            final var builder = McpServer.sync( transportProvider )
+                    .serverInfo( serverImpl )
                     .capabilities( ServerCapabilities.builder()
                             .tools( true )
-                            .build() )
+                            .build() );
+
+            final String instructions = config.instructions();
+            if ( instructions != null ) {
+                builder.instructions( instructions );
+            }
+
+            mcpServer = builder
                     .toolCall( readPage.toolDefinition(), ( exchange, request ) ->
                             readPage.execute( request.arguments() ) )
                     .toolCall( writePage.toolDefinition(), ( exchange, request ) ->

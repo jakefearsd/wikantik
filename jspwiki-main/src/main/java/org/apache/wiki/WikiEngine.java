@@ -236,7 +236,7 @@ public class WikiEngine implements Engine {
      *  Does all the real initialization.
      */
     @Override
-    public void initialize( final Properties props ) throws WikiException {
+    public final void initialize( final Properties props ) throws WikiException {
         startTime  = new Date();
         properties = props;
 

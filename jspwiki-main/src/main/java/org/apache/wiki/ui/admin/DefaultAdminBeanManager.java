@@ -81,7 +81,7 @@ public class DefaultAdminBeanManager implements WikiEventListener, AdminBeanMana
 
     /** {@inheritDoc} */
     @Override
-	public void initialize() {
+	public final void initialize() {
         reload();
     }
 

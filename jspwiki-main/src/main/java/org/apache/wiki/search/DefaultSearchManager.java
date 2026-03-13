@@ -220,7 +220,7 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
 
     /** {@inheritDoc} */
     @Override
-    public void initialize( final Engine newEngine, final Properties properties ) throws FilterException {
+    public final void initialize( final Engine newEngine, final Properties properties ) throws FilterException {
         this.engine = newEngine;
         loadSearchProvider(properties);
 

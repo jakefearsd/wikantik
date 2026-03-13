@@ -58,7 +58,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * methods for managing WikiSessions for an entire wiki. These methods allow callers to find, query and remove WikiSession objects, and
  * to obtain a list of the current wiki session users.</p>
  */
-public class WikiSession implements Session {
+public final class WikiSession implements Session {
 
     private static final Logger LOG = LogManager.getLogger( WikiSession.class );
 

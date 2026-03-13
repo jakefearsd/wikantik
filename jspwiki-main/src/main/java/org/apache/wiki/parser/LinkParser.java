@@ -403,7 +403,7 @@ public class LinkParser
          *  @param text The link text.
          *  @throws ParseException If the text is illegal (e.g. null).
          */
-        protected void setText(final String text ) throws ParseException
+        protected final void setText(final String text ) throws ParseException
         {
             if( text == null )
             {
@@ -429,7 +429,7 @@ public class LinkParser
          *  @param ref The reference.
          *  @throws ParseException If the reference is illegal.
          */
-        protected void setReference(final String ref ) throws ParseException
+        protected final void setReference(final String ref ) throws ParseException
         {
             if( ref == null )
             {

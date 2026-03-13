@@ -149,7 +149,7 @@ public abstract class MarkupParser {
      *  @param in New source for input.  If null, this method does nothing.
      *  @return the old stream
      */
-    public Reader setInputReader( final Reader in ) {
+    public final Reader setInputReader( final Reader in ) {
         final Reader old = this.in;
         if( in != null ) {
             this.in = new PushbackReader( new BufferedReader( in ), PUSHBACK_BUFFER_SIZE );

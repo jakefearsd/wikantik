@@ -174,7 +174,7 @@ public abstract class SimpleMBean implements DynamicMBean {
      *
      *  @return A description for the MBean.
      */
-    protected String getDescription()
+    protected final String getDescription()
     {
         return "";
     }

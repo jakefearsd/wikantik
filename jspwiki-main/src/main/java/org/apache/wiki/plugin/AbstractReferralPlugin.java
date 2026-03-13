@@ -178,32 +178,8 @@ public abstract class AbstractReferralPlugin implements Plugin {
             items = TextUtil.parseIntParameter( s, 0 );
         }
 
-        s = params.get( PARAM_EXCLUDE );
-        if ( s != null ) {
-            try {
-                final String[] ptrns = StringUtils.split( s, "," );
-                exclude = new Pattern[ ptrns.length ];
-                for ( int i = 0; i < ptrns.length; i++ ) {
-                    exclude[ i ] = Pattern.compile( globToRegex( ptrns[ i ] ) );
-                }
-            } catch ( final PatternSyntaxException e ) {
-                throw new PluginException( "Exclude-parameter has a malformed pattern: " + e.getMessage() );
-            }
-        }
-
-        // TODO: Cut-n-paste, refactor
-        s = params.get( PARAM_INCLUDE );
-        if ( s != null ) {
-            try {
-                final String[] ptrns = StringUtils.split( s, "," );
-                include = new Pattern[ ptrns.length ];
-                for ( int i = 0; i < ptrns.length; i++ ) {
-                    include[ i ] = Pattern.compile( globToRegex( ptrns[ i ] ) );
-                }
-            } catch ( final PatternSyntaxException e ) {
-                throw new PluginException( "Include-parameter has a malformed pattern: " + e.getMessage() );
-            }
-        }
+        exclude = compileGlobPatterns( params.get( PARAM_EXCLUDE ), PARAM_EXCLUDE );
+        include = compileGlobPatterns( params.get( PARAM_INCLUDE ), PARAM_INCLUDE );
 
         // LOG.debug( "Requested maximum width is "+maxwidth );
         s = params.get(PARAM_SHOW);
@@ -254,7 +230,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
             boolean includeThis = include == null;
 
             if( include != null ) {
-                includeThis = Arrays.stream(include).anyMatch(pattern -> pattern.matcher(pageName).matches()) ? true : include == null;
+                includeThis = Arrays.stream(include).anyMatch(pattern -> pattern.matcher(pageName).matches());
             }
 
             if( exclude != null ) {
@@ -312,6 +288,30 @@ public abstract class AbstractReferralPlugin implements Plugin {
             }
         }
         return regex.toString();
+    }
+
+    /**
+     * Compiles a comma-separated list of glob patterns into an array of {@link Pattern}s.
+     *
+     * @param csv       the comma-separated glob patterns, or {@code null}
+     * @param paramName the parameter name (for error messages)
+     * @return compiled patterns, or {@code null} if {@code csv} is {@code null}
+     * @throws PluginException if any pattern has invalid syntax
+     */
+    private Pattern[] compileGlobPatterns( final String csv, final String paramName ) throws PluginException {
+        if ( csv == null ) {
+            return null;
+        }
+        try {
+            final String[] ptrns = StringUtils.split( csv, "," );
+            final Pattern[] compiled = new Pattern[ ptrns.length ];
+            for ( int i = 0; i < ptrns.length; i++ ) {
+                compiled[ i ] = Pattern.compile( globToRegex( ptrns[ i ] ) );
+            }
+            return compiled;
+        } catch ( final PatternSyntaxException e ) {
+            throw new PluginException( paramName + "-parameter has a malformed pattern: " + e.getMessage() );
+        }
     }
 
     /**

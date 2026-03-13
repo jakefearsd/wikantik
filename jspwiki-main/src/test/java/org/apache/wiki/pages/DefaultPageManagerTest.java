@@ -295,6 +295,28 @@ public class DefaultPageManagerTest {
         Assertions.assertEquals( "Foobar. &quot;\r\n", engine.getManager( PageManager.class ).getText( name ), "wrong content" );
     }
 
+    /**
+     * Verify that saving a page does NOT populate the render cache.
+     * The save path should only run pre/post-save filters, not a full render pass.
+     */
+    @Test
+    public void testSaveDoesNotPopulateRenderCache() throws Exception {
+        final String name = "RenderCacheTestPage";
+        final CachingManager cachingManager = engine.getManager( CachingManager.class );
+
+        engine.saveText( name, "Some wiki content with [a link]" );
+
+        // The render document cache should have no entries for this page
+        // because save uses PAGE_SAVE context, which skips caching
+        if ( cachingManager.enabled( CachingManager.CACHE_DOCUMENTS ) ) {
+            final var keys = cachingManager.keys( CachingManager.CACHE_DOCUMENTS );
+            for ( final var key : keys ) {
+                Assertions.assertFalse( key.toString().startsWith( name ),
+                        "Render cache should not contain entries for a saved page, but found: " + key );
+            }
+        }
+    }
+
     @Test
     public void testSaveExistingPageWithEmptyContent() throws Exception {
         final String text = "Foobar.\r\n";

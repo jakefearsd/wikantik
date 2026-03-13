@@ -92,6 +92,7 @@
    <filter>
      <filter-name>COEPFilter</filter-name>
      <filter-class>org.apache.wiki.http.filter.COEPFilter</filter-class>
+     <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
      <filter-name>COEPFilter</filter-name>
@@ -100,6 +101,7 @@
    <filter>
      <filter-name>CORPFilter</filter-name>
      <filter-class>org.apache.wiki.http.filter.CORPFilter</filter-class>
+     <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
      <filter-name>CORPFilter</filter-name>
@@ -117,6 +119,7 @@
    <filter>
      <filter-name>ContentTypeOptionsFilter</filter-name>
      <filter-class>org.apache.wiki.http.filter.ContentTypeOptionsFilter</filter-class>
+     <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
      <filter-name>ContentTypeOptionsFilter</filter-name>
@@ -125,6 +128,7 @@
    <filter>
      <filter-name>CrossDomainFilter</filter-name>
      <filter-class>org.apache.wiki.http.filter.CrossDomainFilter</filter-class>
+     <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
      <filter-name>CrossDomainFilter</filter-name>
@@ -133,6 +137,7 @@
    <filter>
      <filter-name>ReferrerPolicyFilter</filter-name>
      <filter-class>org.apache.wiki.http.filter.ReferrerPolicyFilter</filter-class>
+     <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
      <filter-name>ReferrerPolicyFilter</filter-name>
@@ -141,6 +146,7 @@
     <filter>
      <filter-name>STSFilter</filter-name>
      <filter-class>org.apache.wiki.http.filter.STSFilter</filter-class>
+     <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
      <filter-name>STSFilter</filter-name>

@@ -203,18 +203,12 @@ public class DefaultPageRenamer implements PageRenamer {
 
     private Set<String> getReferencesToChange( final Page fromPage, final Engine engine ) {
         final Set< String > referrers = new TreeSet<>();
-        final Collection< String > r = engine.getManager( ReferenceManager.class ).findReferrers( fromPage.getName() );
-        if( r != null ) {
-            referrers.addAll( r );
-        }
-        
+        referrers.addAll( engine.getManager( ReferenceManager.class ).findReferrers( fromPage.getName() ) );
+
         try {
             final List< Attachment > attachments = engine.getManager( AttachmentManager.class ).listAttachments( fromPage );
             for( final Attachment att : attachments  ) {
-                final Collection< String > c = engine.getManager( ReferenceManager.class ).findReferrers( att.getName() );
-                if( c != null ) {
-                    referrers.addAll( c );
-                }
+                referrers.addAll( engine.getManager( ReferenceManager.class ).findReferrers( att.getName() ) );
             }
         } catch( final ProviderException e ) {
             // We will continue despite this error

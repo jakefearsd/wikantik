@@ -574,15 +574,12 @@ public class DefaultPageManager implements PageManager {
             if( p instanceof Attachment att ) {
                 engine.getManager( AttachmentManager.class ).deleteAttachment( att );
             } else {
-                final Collection< String > refTo = engine.getManager( ReferenceManager.class ).findRefersTo( pageName );
-                // May return null, if the page does not exist or has not been indexed yet.
+                final Collection< String > refTo = new ArrayList<>( engine.getManager( ReferenceManager.class ).findRefersTo( pageName ) );
 
                 if( engine.getManager( AttachmentManager.class ).hasAttachments( p ) ) {
                     final List< Attachment > attachments = engine.getManager( AttachmentManager.class ).listAttachments( p );
                     for( final Attachment attachment : attachments ) {
-                        if( refTo != null ) {
-                            refTo.remove( attachment.getName() );
-                        }
+                        refTo.remove( attachment.getName() );
 
                         engine.getManager( AttachmentManager.class ).deleteAttachment( attachment );
                     }

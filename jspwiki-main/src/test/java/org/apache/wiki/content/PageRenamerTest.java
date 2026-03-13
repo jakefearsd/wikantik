@@ -86,7 +86,7 @@ public class PageRenamerTest {
         Assertions.assertEquals( "[FooTest]", data.trim(), "no rename" );
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers("TestPage");
-        Assertions.assertNull( refs, "oldpage" );
+        Assertions.assertTrue( refs.isEmpty(), "oldpage" );
         refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "FooTest" );
         Assertions.assertEquals( 1, refs.size(), "new size" );
         Assertions.assertEquals( "TestPage2", refs.iterator().next(), "wrong ref" );
@@ -106,9 +106,9 @@ public class PageRenamerTest {
         Assertions.assertEquals( "[BarTest]", data.trim(), "no rename" );
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers("TestPage");
-        Assertions.assertNull( refs, "oldpage" );
+        Assertions.assertTrue( refs.isEmpty(), "oldpage" );
         refs = m_engine.getManager( ReferenceManager.class ).findReferrers("FooPage");
-        Assertions.assertNull( refs, "oldpage" );
+        Assertions.assertTrue( refs.isEmpty(), "oldpage" );
         refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "BarTest" );
         Assertions.assertEquals( 1, refs.size(), "new size" );
         Assertions.assertEquals( "TestPage2", refs.iterator().next(), "wrong ref" );
@@ -128,9 +128,9 @@ public class PageRenamerTest {
         Assertions.assertEquals( "[Test|BarTest]", data.trim(), "no rename" );
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers("TestPage");
-        Assertions.assertNull( refs, "oldpage" );
+        Assertions.assertTrue( refs.isEmpty(), "oldpage" );
         refs = m_engine.getManager( ReferenceManager.class ).findReferrers("FooPage");
-        Assertions.assertNull( refs, "oldpage" );
+        Assertions.assertTrue( refs.isEmpty(), "oldpage" );
         refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "BarTest" );
         Assertions.assertEquals( 1, refs.size(), "new size" );
         Assertions.assertEquals( "TestPage2", refs.iterator().next(), "wrong ref" );
@@ -149,7 +149,7 @@ public class PageRenamerTest {
         Assertions.assertEquals( "FooTest", data.trim(), "no rename" );
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers("TestPage");
-        Assertions.assertNull( refs, "oldpage" );
+        Assertions.assertTrue( refs.isEmpty(), "oldpage" );
         refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "FooTest" );
         Assertions.assertEquals( 1, refs.size(), "new size" );
         Assertions.assertEquals( "TestPage2", refs.iterator().next(), "wrong ref" );
@@ -173,7 +173,7 @@ public class PageRenamerTest {
         Assertions.assertEquals( "[FooTest#heading1]", data.trim(), "no rename" );
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers("TestPage");
 
-        Assertions.assertNull( refs, "oldpage" );
+        Assertions.assertTrue( refs.isEmpty(), "oldpage" );
 
         refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "FooTest" );
         Assertions.assertEquals( 1, refs.size(), "new size" );
@@ -201,7 +201,7 @@ public class PageRenamerTest {
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers("TestPage");
 
-        Assertions.assertNull( refs, "oldpage" );
+        Assertions.assertTrue( refs.isEmpty(), "oldpage" );
 
         refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "FooTest" );
         Assertions.assertEquals( 1, refs.size(), "new size" );
@@ -259,7 +259,7 @@ public class PageRenamerTest {
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers("TestPage/bar.jpg");
 
-        Assertions.assertNull( refs, "oldpage" );
+        Assertions.assertTrue( refs.isEmpty(), "oldpage" );
 
         refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "FooTest/bar.jpg" );
         Assertions.assertEquals( 1, refs.size(), "new size" );
@@ -495,7 +495,7 @@ public class PageRenamerTest {
         Assertions.assertEquals( "[Test Page Referred|TestPageReferredNew]", data.trim(), "page not renamed" );
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "TestPageReferred" );
-        Assertions.assertNull( refs, "oldpage" );
+        Assertions.assertTrue( refs.isEmpty(), "oldpage" );
 
         refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "TestPageReferredNew" );
         Assertions.assertEquals( 1, refs.size(), "new size" );
@@ -516,7 +516,7 @@ public class PageRenamerTest {
         Assertions.assertEquals( "[link one|Link uno] [link two]", data.trim(), "page not renamed" );
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "Link one" );
-        Assertions.assertNull( refs, "oldpage" );
+        Assertions.assertTrue( refs.isEmpty(), "oldpage" );
 
         refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "Link uno" );
         Assertions.assertEquals( 1, refs.size(), "new size" );

@@ -54,9 +54,7 @@ public class GetBacklinksTool {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
 
         final Set< String > referrers = referenceManager.findReferrers( pageName );
-        final List< String > backlinks = referrers != null
-                ? new ArrayList<>( referrers )
-                : new ArrayList<>();
+        final List< String > backlinks = new ArrayList<>( referrers );
         Collections.sort( backlinks );
 
         return McpToolUtils.jsonResult( gson, Map.of( "pageName", pageName, "backlinks", backlinks ) );

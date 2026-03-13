@@ -789,19 +789,19 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     }
 
     /**
-     * Find all pages that refer to this page. Returns null if the page does not exist or is not referenced at all,
+     * Find all pages that refer to this page. Returns an empty set if the page does not exist or is not referenced at all,
      * otherwise returns a collection containing page names (String) that refer to this one.
      * <p>
      * @param pagename The page to find referrers for.
-     * @return A Set of Strings.  May return null, if the page does not exist, has no references,
-     *         or if the ReferenceManager has not yet been initialized.
+     * @return A Set of Strings.  Returns an empty set if the page does not exist, has no references,
+     *         or if the ReferenceManager has not yet been initialized. Never returns null.
      */
     @Override
     public Set< String > findReferrers( final String pagename ) {
         warnIfNotInitialized();
         final Set< String > refs = getReferenceList( referredBy, pagename );
         if( refs == null || refs.isEmpty() ) {
-            return null;
+            return Collections.emptySet();
         }
 
         return refs;
@@ -836,14 +836,16 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      *  The returned value is a Collection, because a page may refer to another page multiple times.
      *
      * @param pageName Page name to query
-     * @return A Collection of Strings containing the names of the pages that this page refers to. May return null, if the page
-     *         does not exist, has not been indexed yet, or if the ReferenceManager has not yet been initialized.
+     * @return A Collection of Strings containing the names of the pages that this page refers to. Returns an empty collection
+     *         if the page does not exist, has not been indexed yet, or if the ReferenceManager has not yet been initialized.
+     *         Never returns null.
      * @since 2.2.33
      */
     @Override
     public Collection< String > findRefersTo( final String pageName ) {
         warnIfNotInitialized();
-        return unmutableRefersTo.get( getFinalPageName( pageName ) );
+        final Collection< String > result = unmutableRefersTo.get( getFinalPageName( pageName ) );
+        return result != null ? result : Collections.emptyList();
     }
 
     /**

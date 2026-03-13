@@ -472,14 +472,12 @@ public class DefaultRenderingManager implements RenderingManager {
 
             // Flush also those pages that refer to this page (if a nonexistent page
             // appears, we need to flush the HTML that refers to the now-existent page)
-            if( referringPages != null ) {
-                for( final String page : referringPages ) {
-                    LOG.debug( "Flushing latest version of {}", page );
-                    // as there is a new version of the page expire both plugin and pluginless versions of the old page
-                    cachingManager.remove( CachingManager.CACHE_DOCUMENTS, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + Boolean.FALSE );
-                    cachingManager.remove( CachingManager.CACHE_DOCUMENTS, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + Boolean.TRUE );
-                    cachingManager.remove( CachingManager.CACHE_DOCUMENTS, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + null );
-                }
+            for( final String page : referringPages ) {
+                LOG.debug( "Flushing latest version of {}", page );
+                // as there is a new version of the page expire both plugin and pluginless versions of the old page
+                cachingManager.remove( CachingManager.CACHE_DOCUMENTS, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + Boolean.FALSE );
+                cachingManager.remove( CachingManager.CACHE_DOCUMENTS, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + Boolean.TRUE );
+                cachingManager.remove( CachingManager.CACHE_DOCUMENTS, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + null );
             }
         }
     }

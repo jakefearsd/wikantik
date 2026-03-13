@@ -225,8 +225,7 @@ public class ReferredPagesPlugin implements Plugin {
 
         final var allLinks = new ArrayList< String >();
 
-        if( links != null )
-            allLinks.addAll( links );
+        allLinks.addAll( links );
 
         if( formatSort ) context.getEngine().getManager( PageManager.class ).getPageSorter().sort( allLinks );
 

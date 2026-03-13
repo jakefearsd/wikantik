@@ -60,7 +60,8 @@ public class ReferenceManagerTest  {
     @Test
     public void testNonExistant2() {
         final Collection< String > c = mgr.findReferrers("TestBug");
-        Assertions.assertNull( c );
+        Assertions.assertNotNull( c, "findReferrers should never return null" );
+        Assertions.assertTrue( c.isEmpty(), "non-existent page should have empty referrers" );
     }
 
     @Test
@@ -71,7 +72,8 @@ public class ReferenceManagerTest  {
 
         engine.getManager( PageManager.class ).deletePage( "Foobar" );
         c = mgr.findReferrers("Foobar2");
-        Assertions.assertNull( c );
+        Assertions.assertNotNull( c, "findReferrers should never return null" );
+        Assertions.assertTrue( c.isEmpty(), "deleted page should have no referrers" );
 
         engine.saveText( "Foobar", "[Foobar2]");
         c = mgr.findReferrers("Foobar2");
@@ -112,7 +114,8 @@ public class ReferenceManagerTest  {
     @Test
     public void testReferrers() {
         Collection< String > c = mgr.findReferrers( "TestPage" );
-        Assertions.assertNull( c, "TestPage referrers" );
+        Assertions.assertNotNull( c, "findReferrers should never return null" );
+        Assertions.assertTrue( c.isEmpty(), "TestPage should have no referrers" );
 
         c = mgr.findReferrers( "Foobar" );
         Assertions.assertNotNull( c, "referrers expected" );
@@ -221,10 +224,10 @@ public class ReferenceManagerTest  {
         engine.saveText( "BugOne", "OpenBug" );
 
         Collection< String > ref = mgr.findReferrers( "NewBugs" );
-        Assertions.assertNull( ref, "newbugs" ); // No referrers must be found
+        Assertions.assertTrue( ref.isEmpty(), "newbugs" ); // No referrers must be found
 
         ref = mgr.findReferrers( "NewBug" );
-        Assertions.assertNull( ref, "newbug" ); // No referrers must be found
+        Assertions.assertTrue( ref.isEmpty(), "newbug" ); // No referrers must be found
 
         ref = mgr.findReferrers( "OpenBugs" );
         Assertions.assertNotNull( ref, "referrers expected" );
@@ -247,10 +250,10 @@ public class ReferenceManagerTest  {
         engine.saveText( "BugOne", "OpenBug" );
 
         Collection< String > ref = mgr.findReferrers( "NewBugs" );
-        Assertions.assertNull( ref, "newbugs" ); // No referrers must be found
+        Assertions.assertTrue( ref.isEmpty(), "newbugs" ); // No referrers must be found
 
         ref = mgr.findReferrers( "NewBug" );
-        Assertions.assertNull( ref, "newbug" ); // No referrers must be found
+        Assertions.assertTrue( ref.isEmpty(), "newbug" ); // No referrers must be found
 
         ref = mgr.findReferrers( "OpenBugs" );
         Assertions.assertNotNull( ref, "referrers expected" );
@@ -361,6 +364,20 @@ public class ReferenceManagerTest  {
         Assertions.assertNotNull( referrers, "OrphanPage should have referrers" );
         Assertions.assertTrue( referrers.contains( "LinkingPage" ),
                 "LinkingPage should be a referrer of OrphanPage" );
+    }
+
+    @Test
+    public void testFindReferrersNeverReturnsNull() {
+        final Collection< String > c = mgr.findReferrers( "CompletelyNonExistentPage" );
+        Assertions.assertNotNull( c, "findReferrers must never return null" );
+        Assertions.assertTrue( c.isEmpty(), "non-existent page should have empty referrers" );
+    }
+
+    @Test
+    public void testFindRefersToNeverReturnsNull() {
+        final Collection< String > c = mgr.findRefersTo( "CompletelyNonExistentPage" );
+        Assertions.assertNotNull( c, "findRefersTo must never return null" );
+        Assertions.assertTrue( c.isEmpty(), "non-existent page should have empty refers-to" );
     }
 
     /**

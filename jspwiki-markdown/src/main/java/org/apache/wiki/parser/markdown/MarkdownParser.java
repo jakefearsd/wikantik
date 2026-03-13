@@ -23,11 +23,16 @@ import com.vladsch.flexmark.util.ast.Node;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.auth.AuthorizationManager;
 import org.apache.wiki.auth.UserManager;
+import org.apache.wiki.frontmatter.FrontmatterParser;
+import org.apache.wiki.frontmatter.ParsedPage;
 import org.apache.wiki.parser.MarkupParser;
 import org.apache.wiki.parser.WikiDocument;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.StringReader;
+import java.util.Map;
 
 
 /**
@@ -51,11 +56,28 @@ public class MarkdownParser extends MarkupParser {
      */
     @Override
     public WikiDocument parse() throws IOException {
-        final Node document = parser.parseReader( in );
+        final String rawText = readFully( in );
+        final ParsedPage parsed = FrontmatterParser.parse( rawText );
+
+        for ( final Map.Entry< String, Object > entry : parsed.metadata().entrySet() ) {
+            context.getPage().setAttribute( entry.getKey(), entry.getValue() );
+        }
+
+        final Node document = parser.parseReader( new BufferedReader( new StringReader( parsed.body() ) ) );
         final MarkdownDocument md = new MarkdownDocument( context.getPage(), document );
         md.setContext( context );
 
         return md;
+    }
+
+    private static String readFully( final Reader reader ) throws IOException {
+        final StringBuilder sb = new StringBuilder();
+        final char[] buf = new char[ 4096 ];
+        int n;
+        while ( ( n = reader.read( buf ) ) != -1 ) {
+            sb.append( buf, 0, n );
+        }
+        return sb.toString();
     }
 
 }

@@ -202,8 +202,8 @@ public class DefaultRecentArticlesManagerTest {
 
     @Test
     public void testExcludedSystemPages() throws Exception {
-        // "Main" should be in the excluded list by default
-        m_engine.saveText( "Main", "Main page content" );
+        // "About" is discovered from About.txt on the test classpath and should be excluded
+        m_engine.saveText( "About", "About page content" );
         m_engine.saveText( "NonExcludedPage", "Some other content" );
 
         m_manager.clearCache();
@@ -213,10 +213,10 @@ public class DefaultRecentArticlesManagerTest {
 
         final List<ArticleSummary> articles = m_manager.getRecentArticles( context, query );
 
-        final boolean foundMain = articles.stream()
-            .anyMatch( a -> a.getName().equals( "Main" ) );
+        final boolean foundAbout = articles.stream()
+            .anyMatch( a -> a.getName().equals( "About" ) );
 
-        Assertions.assertFalse( foundMain, "Main should be excluded by default" );
+        Assertions.assertFalse( foundAbout, "About should be excluded by default" );
     }
 
     @Test

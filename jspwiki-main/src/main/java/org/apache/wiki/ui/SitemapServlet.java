@@ -46,6 +46,7 @@ import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.attachment.AttachmentManager;
 import org.apache.wiki.auth.AuthorizationManager;
 import org.apache.wiki.auth.permissions.PagePermission;
+import org.apache.wiki.content.SystemPageRegistry;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.providers.CachingProvider;
 import org.apache.wiki.providers.PageProviderDecorator;
@@ -108,24 +109,15 @@ public class SitemapServlet extends HttpServlet {
         "jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"
     );
 
-    /** Pages that should be excluded from the sitemap (menu/template pages) */
-    private static final Set<String> EXCLUDED_PAGES = Set.of(
-        "LeftMenu",
-        "LeftMenuFooter",
-        "TitleBox",
-        "MoreMenu",
-        "CSSRibbon",
-        "PageHeader",
-        "PageFooter"
-    );
-
     private Engine engine;
+    private SystemPageRegistry systemPageRegistry;
     private String configuredBaseUrl;
 
     @Override
     public void init( final ServletConfig config ) throws ServletException {
         super.init( config );
         engine = Wiki.engine().find( config );
+        systemPageRegistry = engine.getManager( SystemPageRegistry.class );
 
         // Check for configured sitemap base URL
         final Properties props = engine.getWikiProperties();
@@ -399,7 +391,7 @@ public class SitemapServlet extends HttpServlet {
      * @return true if the page should be excluded
      */
     private boolean isExcludedPage( final String pageName ) {
-        return EXCLUDED_PAGES.contains( pageName ) || pageName.startsWith( "CSS" );
+        return systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName );
     }
 
     /**

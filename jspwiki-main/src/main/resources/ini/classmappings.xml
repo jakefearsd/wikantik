@@ -143,4 +143,8 @@
     <requestedClass>org.apache.wiki.content.RecentArticlesManager</requestedClass>
     <mappedClass>org.apache.wiki.content.DefaultRecentArticlesManager</mappedClass>
   </mapping>
+  <mapping>
+    <requestedClass>org.apache.wiki.content.SystemPageRegistry</requestedClass>
+    <mappedClass>org.apache.wiki.content.DefaultSystemPageRegistry</mappedClass>
+  </mapping>
 </classmappings>

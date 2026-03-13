@@ -45,12 +45,32 @@ mvn clean install -Pintegration-tests
 mvn test -Dtest=MemoryProfiling
 ```
 
-### Development Server
+### Local Deployment (Tomcat 11)
+
+The local Tomcat instance lives at `tomcat/tomcat-11`. Use this for running and testing — do not use Cargo.
+
+The wiki is deployed as the ROOT context, serving pages from `tomcat/jspwiki-pages`.
+Configuration files:
+- `tomcat/tomcat-11/lib/jspwiki-custom.properties` — wiki settings (page provider, base URL, PostgreSQL JDBC, etc.)
+- `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml` — Tomcat context with PostgreSQL JNDI DataSources
+
 ```bash
-# Start JSPWiki on Tomcat at http://localhost:8080/JSPWiki with debugger on port 5005
-# The tomcat server is under the tomcat/tomcat-11 directory, and you must use this instances for running and testing.
-mvn org.codehaus.cargo:cargo-maven3-plugin:run   # from jspwiki-war module
+# 1. Build the WAR (skip tests for speed)
+mvn clean install -Dmaven.test.skip -T 1C
+
+# 2. Deploy as ROOT to local Tomcat
+cp jspwiki-war/target/JSPWiki.war tomcat/tomcat-11/webapps/ROOT.war
+
+# 3. Start Tomcat
+tomcat/tomcat-11/bin/startup.sh
+
+# 4. Access at http://localhost:8080/
+
+# Stop Tomcat
+tomcat/tomcat-11/bin/shutdown.sh
 ```
+
+To redeploy after code changes, stop Tomcat, remove the extracted `webapps/ROOT/` directory, rebuild the WAR, copy it as `ROOT.war`, and start again.
 
 ### Code Quality
 ```bash

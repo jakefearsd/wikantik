@@ -23,6 +23,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.wiki.api.core.Page;
+import org.apache.wiki.content.SystemPageRegistry;
 import org.apache.wiki.pages.PageManager;
 
 import java.time.Instant;
@@ -38,21 +39,25 @@ public class RecentChangesTool {
     public static final String TOOL_NAME = "recent_changes";
 
     private final PageManager pageManager;
+    private final SystemPageRegistry systemPageRegistry;
     private final Gson gson = new Gson();
 
-    public RecentChangesTool( final PageManager pageManager ) {
+    public RecentChangesTool( final PageManager pageManager, final SystemPageRegistry systemPageRegistry ) {
         this.pageManager = pageManager;
+        this.systemPageRegistry = systemPageRegistry;
     }
 
     public McpSchema.Tool toolDefinition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "since", Map.of( "type", "string", "description", "ISO date/time to filter changes after (e.g. 2026-03-01T00:00:00Z)" ) );
         properties.put( "limit", Map.of( "type", "integer", "description", "Maximum number of results (default 50)" ) );
+        properties.put( "includeSystemPages", Map.of( "type", "boolean", "description", "Include system/template pages in results (default false)" ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Get recently modified wiki pages. " +
-                        "Returns {changes: [{pageName, author, lastModified, changeNote}]} newest first. Default limit is 50." )
+                        "Returns {changes: [{pageName, author, lastModified, changeNote, systemPage}]} newest first. " +
+                        "System/template pages are excluded by default; set includeSystemPages=true to include them. Default limit is 50." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of(), null, null, null ) )
                 .build();
     }
@@ -62,6 +67,7 @@ public class RecentChangesTool {
         final int limit = arguments.containsKey( "limit" )
                 ? ( ( Number ) arguments.get( "limit" ) ).intValue()
                 : 50;
+        final boolean includeSystemPages = Boolean.TRUE.equals( arguments.get( "includeSystemPages" ) );
 
         try {
             final Date sinceDate;
@@ -74,6 +80,7 @@ public class RecentChangesTool {
             Set< Page > recentChanges = pageManager.getRecentChanges();
             List< Map< String, Object > > changes = recentChanges.stream()
                     .filter( p -> sinceDate == null || ( p.getLastModified() != null && !p.getLastModified().before( sinceDate ) ) )
+                    .filter( p -> includeSystemPages || systemPageRegistry == null || !systemPageRegistry.isSystemPage( p.getName() ) )
                     .sorted( ( a, b ) -> {
                         if ( b.getLastModified() == null ) return -1;
                         if ( a.getLastModified() == null ) return 1;
@@ -87,6 +94,9 @@ public class RecentChangesTool {
                         entry.put( "lastModified", p.getLastModified() != null ? p.getLastModified().toInstant().toString() : null );
                         final String changeNote = p.getAttribute( Page.CHANGENOTE );
                         entry.put( "changeNote", changeNote );
+                        if ( systemPageRegistry != null ) {
+                            entry.put( "systemPage", systemPageRegistry.isSystemPage( p.getName() ) );
+                        }
                         return entry;
                     } )
                     .collect( Collectors.toList() );

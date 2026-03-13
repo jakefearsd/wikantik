@@ -29,6 +29,7 @@ import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.exceptions.PluginException;
 import org.apache.wiki.api.plugin.Plugin;
 import org.apache.wiki.attachment.Attachment;
+import org.apache.wiki.content.SystemPageRegistry;
 import org.apache.wiki.i18n.InternationalizationManager;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.preferences.Preferences;
@@ -107,7 +108,14 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
         Collection< Page > changes = engine.getManager( PageManager.class ).getRecentChanges( sincedate.getTime() );
         super.initialize( context, params );
         changes = filterWikiPageCollection( changes );
-        
+
+        final SystemPageRegistry systemPageRegistry = engine.getManager( SystemPageRegistry.class );
+        if ( systemPageRegistry != null ) {
+            changes = changes.stream()
+                    .filter( p -> !systemPageRegistry.isSystemPage( p.getName() ) )
+                    .toList();
+        }
+
         if ( changes != null ) {
             Date olddate = new Date( 0 );
 

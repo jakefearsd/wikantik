@@ -87,6 +87,7 @@ class SitemapServletTest {
             pm.deletePage( "LeftMenuFooter" );
             pm.deletePage( "TitleBox" );
             pm.deletePage( "CSSStyles" );
+            pm.deletePage( "About" );
             m_engine.stop();
         }
     }
@@ -166,7 +167,10 @@ class SitemapServletTest {
     }
 
     @Test
-    void testSitemapExcludesCssPrefixedPages() throws Exception {
+    void testSitemapExcludesSystemPages() throws Exception {
+        // Create a page whose name matches a discovered system page (About.txt is on test classpath)
+        m_engine.saveText( "About", "About page content" );
+
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         final StringWriter stringWriter = new StringWriter();
@@ -178,8 +182,10 @@ class SitemapServletTest {
 
         final String sitemap = stringWriter.toString();
 
-        // Verify CSS-prefixed pages are excluded
-        Assertions.assertFalse( sitemap.contains( "CSSStyles" ), "Sitemap should not contain CSSStyles" );
+        // Verify system pages (discovered from classpath) are excluded
+        Assertions.assertFalse( sitemap.contains( ">About<" ), "Sitemap should not contain About (system page)" );
+        // Non-system pages should still be included
+        Assertions.assertTrue( sitemap.contains( "TestPage1" ), "Sitemap should contain TestPage1" );
     }
 
     @Test

@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.providers.PageProvider;
+import org.apache.wiki.content.SystemPageRegistry;
 import org.apache.wiki.frontmatter.FrontmatterParser;
 import org.apache.wiki.frontmatter.ParsedPage;
 import org.apache.wiki.pages.PageManager;
@@ -38,10 +39,12 @@ public class ReadPageTool {
     public static final String TOOL_NAME = "read_page";
 
     private final PageManager pageManager;
+    private final SystemPageRegistry systemPageRegistry;
     private final Gson gson = new Gson();
 
-    public ReadPageTool( final PageManager pageManager ) {
+    public ReadPageTool( final PageManager pageManager, final SystemPageRegistry systemPageRegistry ) {
         this.pageManager = pageManager;
+        this.systemPageRegistry = systemPageRegistry;
     }
 
     public McpSchema.Tool toolDefinition() {
@@ -85,6 +88,9 @@ public class ReadPageTool {
         result.put( "version", page.getVersion() );
         result.put( "author", page.getAuthor() );
         result.put( "lastModified", page.getLastModified() != null ? page.getLastModified().toInstant().toString() : null );
+        if ( systemPageRegistry != null ) {
+            result.put( "systemPage", systemPageRegistry.isSystemPage( page.getName() ) );
+        }
 
         return McpSchema.CallToolResult.builder()
                 .content( java.util.List.of( new McpSchema.TextContent( gson.toJson( result ) ) ) )

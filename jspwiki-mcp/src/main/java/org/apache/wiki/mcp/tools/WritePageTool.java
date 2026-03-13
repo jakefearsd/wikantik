@@ -57,7 +57,9 @@ public class WritePageTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Create or update a wiki page with optional YAML frontmatter" )
+                .description( "Create or update a wiki page with optional YAML frontmatter. " +
+                        "content is the Markdown body (without frontmatter delimiters); metadata is an object that becomes YAML frontmatter. " +
+                        "Returns {success, pageName, version}. Always provide a changeNote describing the edit." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName", "content" ), null, null, null ) )
                 .build();
     }

@@ -53,7 +53,9 @@ public class SearchPagesTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Full-text search across wiki pages" )
+                .description( "Full-text search across wiki pages. " +
+                        "Returns {results: [{pageName, score, contexts}]} ordered by relevance score. " +
+                        "For metadata-based queries (e.g. by type or tags), use query_metadata instead." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "query" ), null, null, null ) )
                 .build();
     }

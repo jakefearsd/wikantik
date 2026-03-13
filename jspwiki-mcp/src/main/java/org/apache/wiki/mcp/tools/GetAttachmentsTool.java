@@ -53,7 +53,8 @@ public class GetAttachmentsTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "List attachments for a wiki page" )
+                .description( "List attachments for a wiki page. " +
+                        "Returns {pageName, attachments: [{name, size, lastModified}]}. Errors if the page does not exist." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
                 .build();
     }

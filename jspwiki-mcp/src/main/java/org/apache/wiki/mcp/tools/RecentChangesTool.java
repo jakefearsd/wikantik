@@ -51,7 +51,8 @@ public class RecentChangesTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Get recently modified wiki pages" )
+                .description( "Get recently modified wiki pages. " +
+                        "Returns {changes: [{pageName, author, lastModified, changeNote}]} newest first. Default limit is 50." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of(), null, null, null ) )
                 .build();
     }

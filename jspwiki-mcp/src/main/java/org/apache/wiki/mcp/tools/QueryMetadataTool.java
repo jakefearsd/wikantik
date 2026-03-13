@@ -54,7 +54,9 @@ public class QueryMetadataTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Query pages by YAML frontmatter metadata fields" )
+                .description( "Query pages by YAML frontmatter metadata fields. " +
+                        "Returns {pages: [{name, metadata}]}. Use the type parameter as a shortcut for field=type. " +
+                        "value matches inside lists too. Omit value to find pages that have the field regardless of its value." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of(), null, null, null ) )
                 .build();
     }

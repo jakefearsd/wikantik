@@ -51,7 +51,8 @@ public class ListPagesTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "List all wiki pages with optional filtering" )
+                .description( "List all wiki pages with optional prefix filtering. " +
+                        "Returns {pages: [{name, lastModified, author, size}]} sorted alphabetically. Default limit is 100." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of(), null, null, null ) )
                 .build();
     }

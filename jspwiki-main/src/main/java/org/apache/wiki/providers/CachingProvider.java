@@ -427,7 +427,7 @@ public class CachingProvider implements PageProvider {
     @Override
     public List< Page > getVersionHistory( final String pageName) throws ProviderException {
         if( pageName == null ) {
-            return null;
+            return List.of();
         }
         return cachingManager.get( CachingManager.CACHE_PAGES_HISTORY, pageName, () -> provider.getVersionHistory( pageName ) );
     }

@@ -270,7 +270,7 @@ public class DefaultAttachmentManager implements AttachmentManager {
     @Override
     public List< Attachment > getVersionHistory( final String attachmentName ) throws ProviderException {
         if( provider == null ) {
-            return null;
+            return List.of();
         }
 
         final Attachment att = getAttachmentInfo( null, attachmentName );
@@ -278,7 +278,7 @@ public class DefaultAttachmentManager implements AttachmentManager {
             return provider.getVersionHistory( att );
         }
 
-        return null;
+        return List.of();
     }
 
     /** {@inheritDoc} */

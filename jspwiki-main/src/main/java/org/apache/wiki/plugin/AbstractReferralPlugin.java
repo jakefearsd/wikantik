@@ -227,13 +227,13 @@ public abstract class AbstractReferralPlugin implements Plugin {
             //
             //  include='*' means the same as no include.
             //
-            boolean includeThis = include == null;
+            boolean includeThis = include.length == 0;
 
-            if( include != null ) {
+            if( include.length > 0 ) {
                 includeThis = Arrays.stream(include).anyMatch(pattern -> pattern.matcher(pageName).matches());
             }
 
-            if( exclude != null ) {
+            if( exclude.length > 0 ) {
                 // The inner loop, continue on the next item
                 if (Arrays.stream(exclude).anyMatch(pattern -> pattern.matcher(pageName).matches())) {
                     includeThis = false;
@@ -295,12 +295,12 @@ public abstract class AbstractReferralPlugin implements Plugin {
      *
      * @param csv       the comma-separated glob patterns, or {@code null}
      * @param paramName the parameter name (for error messages)
-     * @return compiled patterns, or {@code null} if {@code csv} is {@code null}
+     * @return compiled patterns; empty array if {@code csv} is {@code null}
      * @throws PluginException if any pattern has invalid syntax
      */
     private Pattern[] compileGlobPatterns( final String csv, final String paramName ) throws PluginException {
         if ( csv == null ) {
-            return null;
+            return new Pattern[0];
         }
         try {
             final String[] ptrns = StringUtils.split( csv, "," );

@@ -577,7 +577,7 @@ public class AttachmentServlet extends HttpServlet {
      *  Provides tracking for upload progress.
      *
      */
-    private static class UploadListener extends ProgressItem implements ProgressListener {
+    private static final class UploadListener extends ProgressItem implements ProgressListener {
         public long currentBytes;
         public long totalBytes;
 

@@ -1007,7 +1007,7 @@ public class SpamFilter extends BasePageFilter {
         }
     }
     
-    private static class Change {
+    private static final class Change {
     	
         public String change;
         public int    adds;

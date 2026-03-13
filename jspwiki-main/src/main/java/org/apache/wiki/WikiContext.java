@@ -355,7 +355,7 @@ public class WikiContext implements Context, Command {
      *  @return the page which was fetched.
      */
     @Override
-    public WikiPage getPage()
+    public final WikiPage getPage()
     {
         return page;
     }
@@ -513,7 +513,7 @@ public class WikiContext implements Context, Command {
      * @see org.apache.wiki.ui.GroupCommand#getName()
      */
     @Override
-    public String getName() {
+    public final String getName() {
         if ( command instanceof PageCommand ) {
             return page != null ? page.getName() : "<no page>";
         }
@@ -749,7 +749,7 @@ public class WikiContext implements Context, Command {
      * Figures out which template a new WikiContext should be using.
      * @param request the HTTP request
      */
-    protected void setDefaultTemplate( final HttpServletRequest request ) {
+    protected final void setDefaultTemplate( final HttpServletRequest request ) {
         final String defaultTemplate = engine.getTemplateDir();
 
         //  Figure out which template we should be using for this page.

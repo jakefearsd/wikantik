@@ -53,7 +53,7 @@ public abstract class SimpleAdminBean extends SimpleMBean implements AdminBean {
      *  Initialize the AdminBean by setting up a Engine instance internally.
      */
     @Override
-    public void initialize( final Engine engine )
+    public final void initialize( final Engine engine )
     {
         this.engine = engine;
     }

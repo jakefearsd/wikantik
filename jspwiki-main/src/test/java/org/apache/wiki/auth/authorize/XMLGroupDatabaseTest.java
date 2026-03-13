@@ -27,6 +27,9 @@ import org.apache.wiki.auth.WikiSecurityException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
+import java.lang.reflect.Field;
+import java.nio.file.Files;
 import java.security.Principal;
 import java.util.Properties;
 
@@ -212,6 +215,62 @@ public class XMLGroupDatabaseTest {
 
         // Remove the group
         m_db.delete( group );
+    }
+
+    @Test
+    public void testCheckForRefreshPicksUpExternalChanges() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        final WikiEngine engine = new TestEngine( props );
+        final XMLGroupDatabase m_db = new XMLGroupDatabase();
+        m_db.initialize( engine, props );
+        final String m_wiki = engine.getApplicationName();
+
+        // Save a group so that lastModified/lastCheck are initialized
+        final String name = "RefreshTestGroup" + System.currentTimeMillis();
+        final Group group = new Group( name, m_wiki );
+        group.add( new WikiPrincipal( "Alice" ) );
+        m_db.save( group, new WikiPrincipal( "Tester" ) );
+
+        // Get the backing XML file via reflection
+        final Field fileField = XMLGroupDatabase.class.getDeclaredField( "file" );
+        fileField.setAccessible( true );
+        final File xmlFile = (File) fileField.get( m_db );
+
+        // Touch the file to simulate an external modification
+        final String content = Files.readString( xmlFile.toPath() );
+        Thread.sleep( 50 ); // ensure file timestamp changes
+        Files.writeString( xmlFile.toPath(), content );
+
+        // Reset lastCheck to 0 so the throttle allows checkForRefresh to run
+        final Field lastCheckField = XMLGroupDatabase.class.getDeclaredField( "lastCheck" );
+        lastCheckField.setAccessible( true );
+        lastCheckField.setLong( m_db, 0L );
+
+        // Save another group — this triggers checkForRefresh() which should detect the file change
+        // Before the fix, checkForRefresh compared lastModified > lastModified (always false)
+        final String name2 = "RefreshTestGroup2" + System.currentTimeMillis();
+        final Group group2 = new Group( name2, m_wiki );
+        group2.add( new WikiPrincipal( "Bob" ) );
+        m_db.save( group2, new WikiPrincipal( "Tester" ) );
+
+        // Verify both groups exist (the refresh re-read the file, preserving the first group)
+        final Group[] groups = m_db.groups();
+        boolean foundFirst = false;
+        boolean foundSecond = false;
+        for( final Group g : groups ) {
+            if( g.getName().equals( name ) ) foundFirst = true;
+            if( g.getName().equals( name2 ) ) foundSecond = true;
+        }
+        Assertions.assertTrue( foundFirst, "First group should still exist after refresh" );
+        Assertions.assertTrue( foundSecond, "Second group should exist after save" );
+
+        // Verify lastCheck was updated (not still 0)
+        final long updatedLastCheck = lastCheckField.getLong( m_db );
+        Assertions.assertTrue( updatedLastCheck > 0, "lastCheck should be updated after checkForRefresh runs" );
+
+        // Cleanup
+        m_db.delete( backendGroup( name, m_db ) );
+        m_db.delete( backendGroup( name2, m_db ) );
     }
 
     private Group backendGroup( final String name, final XMLGroupDatabase m_db ) throws WikiSecurityException {

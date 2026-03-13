@@ -256,8 +256,10 @@ public class XMLGroupDatabase implements GroupDatabase {
     private void checkForRefresh() {
         final long time = System.currentTimeMillis();
         if( time - lastCheck > 60*1000L ) {
-            final long lastModified = file.lastModified();
-            if( lastModified > lastModified ) {
+            lastCheck = time;
+            final long fileLastModified = file.lastModified();
+            if( fileLastModified > lastModified ) {
+                lastModified = fileLastModified;
                 buildDOM();
             }
         }

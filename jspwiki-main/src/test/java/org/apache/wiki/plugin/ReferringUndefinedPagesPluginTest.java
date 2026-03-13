@@ -59,6 +59,23 @@ class ReferringUndefinedPagesPluginTest {
 	 *
 	 * @throws Exception something went wrong
 	 */
+    /**
+     * Test that plugin handles no undefined pages without NPE.
+     */
+    @Test
+    void testNoUndefinedPages() throws Exception {
+        // Create a page with no dead links
+        testEngine.saveText( "TestPageNoDeadLinks", "Just plain text with no links" );
+        try {
+            final Context ctx = Wiki.context().create( testEngine, HttpMockFactory.createHttpRequest(),
+                    Wiki.contents().page( testEngine, "TestPageNoDeadLinks" ) );
+            final String res = manager.execute( ctx, "{INSERT ReferringUndefinedPagesPlugin}" );
+            Assertions.assertNotNull( res );
+        } finally {
+            testEngine.deleteTestPage( "TestPageNoDeadLinks" );
+        }
+    }
+
     @Test
 	void testSimple() throws Exception {
 		final String res = manager.execute( context, "{INSERT ReferringUndefinedPagesPlugin}" );

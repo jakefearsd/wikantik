@@ -27,6 +27,7 @@ import org.apache.wiki.util.comparators.JavaNaturalComparator;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 
 /**
@@ -79,6 +80,11 @@ public class PageSorter implements Comparator< String > {
             return true; // Essentially the same object
         }
         return comparator.equals( that.comparator );
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode( comparator );
     }
 
     /**

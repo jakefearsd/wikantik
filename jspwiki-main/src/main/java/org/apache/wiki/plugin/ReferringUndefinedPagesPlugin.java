@@ -27,6 +27,7 @@ import org.apache.wiki.util.TextUtil;
 
 import java.text.MessageFormat;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.ResourceBundle;
@@ -69,7 +70,7 @@ public class ReferringUndefinedPagesPlugin extends AbstractReferralPlugin {
             result = sortedMap.keySet();
         }
 
-        result = super.filterAndSortCollection( result );
+        result = super.filterAndSortCollection( result != null ? result : List.of() );
 
         final String wikitext = wikitizeCollection( result, separator, items );
         final StringBuilder resultHTML = new StringBuilder();

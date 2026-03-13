@@ -51,7 +51,7 @@ public class GetBacklinksTool {
     }
 
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        final String pageName = ( String ) arguments.get( "pageName" );
+        final String pageName = McpToolUtils.getString( arguments, "pageName" );
 
         final Set< String > referrers = referenceManager.findReferrers( pageName );
         final List< String > backlinks = referrers != null
@@ -59,9 +59,6 @@ public class GetBacklinksTool {
                 : new ArrayList<>();
         Collections.sort( backlinks );
 
-        return McpSchema.CallToolResult.builder()
-                .content( List.of( new McpSchema.TextContent(
-                        gson.toJson( Map.of( "pageName", pageName, "backlinks", backlinks ) ) ) ) )
-                .build();
+        return McpToolUtils.jsonResult( gson, Map.of( "pageName", pageName, "backlinks", backlinks ) );
     }
 }

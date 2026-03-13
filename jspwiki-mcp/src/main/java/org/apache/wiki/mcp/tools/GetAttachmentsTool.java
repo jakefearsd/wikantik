@@ -60,16 +60,12 @@ public class GetAttachmentsTool {
     }
 
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        final String pageName = ( String ) arguments.get( "pageName" );
+        final String pageName = McpToolUtils.getString( arguments, "pageName" );
 
         try {
             final Page page = pageManager.getPage( pageName );
             if ( page == null ) {
-                return McpSchema.CallToolResult.builder()
-                        .content( List.of( new McpSchema.TextContent(
-                                gson.toJson( Map.of( "error", "Page not found: " + pageName ) ) ) ) )
-                        .isError( true )
-                        .build();
+                return McpToolUtils.errorResult( gson, "Page not found: " + pageName );
             }
 
             final List< Attachment > attachments = attachmentManager.listAttachments( page );
@@ -83,16 +79,10 @@ public class GetAttachmentsTool {
                     } )
                     .collect( Collectors.toList() );
 
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent(
-                            gson.toJson( Map.of( "pageName", pageName, "attachments", result ) ) ) ) )
-                    .build();
+            return McpToolUtils.jsonResult( gson, Map.of( "pageName", pageName, "attachments", result ) );
         } catch ( final Exception e ) {
             LOG.error( "Failed to list attachments for {}: {}", pageName, e.getMessage(), e );
-            return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "error", e.getMessage() ) ) ) ) )
-                    .isError( true )
-                    .build();
+            return McpToolUtils.errorResult( gson, e.getMessage() );
         }
     }
 }

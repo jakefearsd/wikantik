@@ -59,6 +59,7 @@ public class ListPagesTool {
                         "Returns {pages: [{name, lastModified, author, size, systemPage}]} sorted alphabetically. " +
                         "System/template pages are excluded by default; set includeSystemPages=true to include them. Default limit is 100." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of(), null, null, null ) )
+                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }
 

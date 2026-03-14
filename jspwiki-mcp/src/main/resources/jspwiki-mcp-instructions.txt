@@ -32,38 +32,84 @@ You may add custom fields beyond these; they will be preserved and queryable.
 Page names use CamelCase (e.g. SecurityPolicy, ProjectAlpha, MeetingNotes2026).
 Names are case-sensitive and must not contain spaces.
 
+== Link format ==
+
+Use Markdown link syntax for internal links: [link text](PageName)
+The target is a CamelCase page name, not a URL. Examples:
+  [security policy](SecurityPolicy)
+  [see the threat model](ThreatModel)
+
 == Tool usage guide ==
 
-read_page      Read a single page. Returns its body (without frontmatter) and
-               parsed metadata object. Check the "exists" field first.
+read_page        Read a single page. Returns its body (without frontmatter) and
+                 parsed metadata object. Check the "exists" field first.
 
-write_page     Create or update a page. Pass body as "content" and structured
-               fields as "metadata" (they become YAML frontmatter). Always
-               include a changeNote describing what changed.
+write_page       Create or update a page. Pass body as "content" and structured
+                 fields as "metadata" (they become YAML frontmatter). Metadata is
+                 merged with existing frontmatter by default — only the fields you
+                 provide are updated. Set replaceMetadata=true to overwrite all
+                 metadata. Always include a changeNote describing what changed.
+                 Optional: set author for attribution, expectedVersion for
+                 optimistic locking.
 
-search_pages   Full-text search across page bodies. Results are ranked by
-               relevance score. For metadata-based queries, use query_metadata
-               instead.
+delete_page      Permanently delete a page and all its versions. Requires
+                 confirm=true as a safety guard. System pages cannot be deleted.
 
-list_pages     List page names with optional prefix filter. Use this to discover
-               what pages exist before reading them.
+search_pages     Full-text search across page bodies. Results are ranked by
+                 relevance score. For metadata-based queries, use query_metadata
+                 instead.
 
-get_backlinks  Find every page that links to a given page. Useful for
-               understanding how a concept connects to the rest of the wiki.
+list_pages       List page names with optional prefix filter. Use this to discover
+                 what pages exist before reading them.
 
-recent_changes See what changed recently, newest first. Each entry includes
-               the author and change note.
+get_backlinks    Find every page that links to a given page. Useful for
+                 understanding how a concept connects to the rest of the wiki.
 
-get_attachments  List file attachments on a page.
+recent_changes   See what changed recently, newest first. Each entry includes
+                 the author and change note.
+
+get_attachments  List file attachments on a page. Check the "exists" field first.
 
 query_metadata   Find pages by frontmatter fields. Use "type" as a shortcut
                  (e.g. type=report). Omit "value" to find pages that have a
                  field regardless of its value. Values match inside lists too.
+                 Use "filters" for AND queries across multiple fields:
+                 filters=[{field:"type",value:"report"},{field:"tags",value:"security"}]
+
+get_page_history Get the version history of a page. Returns version numbers,
+                 authors, dates, and change notes for each revision.
+
+diff_page        Get a diff between two versions of a page. Use get_page_history
+                 first to find version numbers.
+
+batch_write_pages Write multiple pages in a single call. Each page is written
+                 independently (best-effort). Useful for bulk operations.
+
+== Resources (read-only data access) ==
+
+Resources provide direct data access without tool invocation:
+  wiki://pages                          — list all pages
+  wiki://pages/{pageName}               — read a page
+  wiki://pages/{pageName}/version/{v}   — read a specific version
+  wiki://pages/{pageName}/attachments   — list attachments
+  wiki://pages/{pageName}/backlinks     — find backlinks
+  wiki://recent-changes                 — recent modifications
+
+== Prompts (guided workflows) ==
+
+  create-article   — guides structured article creation with metadata
+  summarize-topic  — guides cross-page research and synthesis
+  audit-links      — guides checking page link integrity
 
 == Tips ==
 
-- Always read a page before updating it so you preserve existing frontmatter.
+- Metadata is merged automatically: you only need to send the fields you want
+  to change. Existing fields are preserved.
 - Use query_metadata before broad search_pages when looking for pages of a
   specific type or with specific tags.
 - Provide meaningful changeNote values on every write so the change history
   remains useful.
+- Use expectedVersion on write_page to prevent accidental overwrites when
+  multiple agents are working concurrently.
+- Use batch_write_pages when creating or updating multiple pages to reduce
+  round trips.

@@ -540,3 +540,42 @@ This cluster links back to the existing personal finance cluster at these points
 21. **Practical over theoretical**: The cluster deliberately targets practitioners, not researchers. Articles focus on "how to actually use this" rather than mathematical foundations. The RunningLocalLlms article emphasizes the *insight-building* value of local models, not just their technical setup.
 22. **The learning acceleration angle is distinctive**: Most AI adoption guides skip the meta-skill of learning to learn about AI. The AcceleratingAiLearning article's "failure journal" and "prompt variation exercise" techniques give readers concrete practice methods.
 23. **Context window resumed cleanly**: This cluster was created across a context window boundary (session ran out of context mid-generation). The session helper script and file-based payload pattern made it easy to pick up exactly where work stopped — all 6 completed payloads survived in /tmp/.
+
+---
+
+# Cluster 5: Spousal Green Card Guide
+
+**Date**: 2026-03-14
+**Topic**: Obtaining a US green card for a spouse — marriage-based immigration
+**Skill used**: wiki-article-cluster (refined version with EXTEND workflow, convenience functions)
+
+## Pages Created (8 total)
+
+### Hub Page
+- **SpousalGreenCardGuide** (hub, 6,460 chars) — Complete process overview, two pathways, timeline, costs, decision map
+
+### Sub-Articles
+- **MarriageBasedImmigrationCategories** (5,698 chars) — IR-1 vs. CR-1 vs. K-1, immediate relative classification, LPR sponsor differences
+- **FilingTheI130Petition** (6,664 chars) — Foundation of every spousal case: evidence, fees, concurrent filing, common mistakes
+- **AdjustmentOfStatusProcess** (7,169 chars) — I-485 path for spouses in the US, concurrent filing package, combo card, medical exam
+- **ConsularProcessingPath** (7,530 chars) — NVC processing, DS-260, embassy interview, administrative processing, country-specific issues
+- **ImmigrationFinancialRequirements** (7,341 chars) — I-864 Affidavit of Support, income thresholds, assets, joint sponsors, legal obligation
+- **TheGreenCardInterview** (7,834 chars) — Preparation, common questions, Stokes fraud interview, evidence to bring, possible outcomes
+- **ConditionalResidenceAndI751** (8,300 chars) — 2-year conditional card, filing window, waivers for divorce/abuse/hardship, common scenarios
+
+## Existing Pages Updated
+- **Main** — Added Spousal Green Card Guide to Featured Research section
+
+## MCP Tools Used
+- `mcp_search_pages` — Confirmed no existing immigration content
+- `mcp_read_page` — Read Main page for update; verified all 8 published pages
+- `list_metadata_values` — Checked existing tag conventions
+- `mcp_write_page` — Published 8 new pages and updated Main
+- `mcp_get_broken_links` — Confirmed no new broken links (8 pre-existing)
+- `mcp_get_stats` — Wiki health confirmed at 1,121 total pages
+
+## Observations
+
+24. **Refined skill convenience functions worked well**: Using `mcp_search_pages`, `mcp_get_broken_links`, and `mcp_get_stats` directly was cleaner than `mcp_call` with manual JSON arguments. The helper script improvements paid off immediately.
+25. **First non-financial, non-geopolitical cluster**: Immigration law is a different domain but the 6-phase workflow applied without modification. The skill is genuinely domain-agnostic.
+26. **Process-oriented clusters need decision trees**: Immigration has clear branching logic (spouse in US vs. abroad, married < 2 years vs. 2+). The hub page's comparison tables and "How the Decisions Connect" section from the retirement cluster pattern worked well here too.

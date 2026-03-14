@@ -34,7 +34,7 @@ public final class WikiPrompts {
     }
 
     public static List< McpServerFeatures.SyncPromptSpecification > all() {
-        return List.of( createArticle(), summarizeTopic(), auditLinks() );
+        return List.of( createArticle(), summarizeTopic(), auditLinks(), renamePage(), wikiHealthCheck() );
     }
 
     private static McpServerFeatures.SyncPromptSpecification createArticle() {
@@ -184,6 +184,101 @@ public final class WikiPrompts {
 
             return new McpSchema.GetPromptResult(
                     "Guide for auditing link integrity",
+                    List.of( new McpSchema.PromptMessage(
+                            McpSchema.Role.USER,
+                            new McpSchema.TextContent( guide ) ) ) );
+        } );
+    }
+
+    private static McpServerFeatures.SyncPromptSpecification renamePage() {
+        final McpSchema.Prompt prompt = new McpSchema.Prompt(
+                "rename-page",
+                "Guide safe page rename workflow with link updates",
+                List.of(
+                        new McpSchema.PromptArgument( "oldName", "Current page name to rename", true ),
+                        new McpSchema.PromptArgument( "newName", "New page name (CamelCase)", true )
+                )
+        );
+
+        return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
+            final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
+            final String oldName = args.getOrDefault( "oldName", "OldPageName" ).toString();
+            final String newName = args.getOrDefault( "newName", "NewPageName" ).toString();
+
+            final String guide = String.format( """
+                    You are renaming the wiki page "%s" to "%s".
+
+                    Follow these steps for a safe rename:
+
+                    1. **Verify the source page exists**: Use `read_page` for "%s" to confirm it exists and review its content.
+
+                    2. **Check the target name is available**: Use `read_page` for "%s" to confirm no page exists with that name.
+
+                    3. **Review incoming links**: Use `get_backlinks` for "%s" to see which pages link to it. These will be updated automatically if updateLinks=true.
+
+                    4. **Review outbound links**: Use `get_outbound_links` for "%s" to understand what the page connects to.
+
+                    5. **Perform the rename**: Use `rename_page` with:
+                       - `oldName`: "%s"
+                       - `newName`: "%s"
+                       - `updateLinks`: true (to update all referencing pages)
+                       - `confirm`: true
+
+                    6. **Verify the result**: Use `read_page` for "%s" to confirm the page exists with correct content.
+
+                    7. **Check links updated**: Use `get_backlinks` for "%s" to verify pages now reference the new name.
+
+                    Note: System pages cannot be renamed. The rename operation moves page content, attachments, and version history.""",
+                    oldName, newName, oldName, newName, oldName, oldName, oldName, newName, newName, newName );
+
+            return new McpSchema.GetPromptResult(
+                    "Guide for safely renaming a wiki page",
+                    List.of( new McpSchema.PromptMessage(
+                            McpSchema.Role.USER,
+                            new McpSchema.TextContent( guide ) ) ) );
+        } );
+    }
+
+    private static McpServerFeatures.SyncPromptSpecification wikiHealthCheck() {
+        final McpSchema.Prompt prompt = new McpSchema.Prompt(
+                "wiki-health-check",
+                "Guide comprehensive wiki health assessment",
+                List.of()
+        );
+
+        return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
+            final String guide = """
+                    You are performing a comprehensive health check of the wiki.
+
+                    Follow these steps:
+
+                    1. **Get an overview**: Use `get_wiki_stats` to get total pages, broken link count, orphaned page count, and recent activity.
+
+                    2. **Review broken links**: Use `get_broken_links` to find all references to non-existent pages. For each broken link, note which pages reference it and consider:
+                       - Should the missing page be created?
+                       - Is the link a typo that should be corrected?
+                       - Has the target page been renamed without updating references?
+
+                    3. **Find orphaned pages**: Use `get_orphaned_pages` to find pages with no incoming links. For each orphan, consider:
+                       - Should other pages link to it?
+                       - Is it outdated and should be deleted?
+                       - Does it need better metadata for discoverability?
+
+                    4. **Check metadata quality**: Use `list_metadata_values` to review what metadata fields and values are in use. Look for:
+                       - Inconsistent tag naming (e.g. "security" vs "Security")
+                       - Missing type classifications
+                       - Pages without tags or summaries
+
+                    5. **Review recent activity**: Use `recent_changes` to check recent edits for any issues.
+
+                    6. **Report findings**: Summarize the wiki health status with:
+                       - Overall statistics
+                       - Critical issues (broken links, orphaned important pages)
+                       - Recommendations for improvement
+                       - Quick wins that can be fixed immediately""";
+
+            return new McpSchema.GetPromptResult(
+                    "Guide for comprehensive wiki health assessment",
                     List.of( new McpSchema.PromptMessage(
                             McpSchema.Role.USER,
                             new McpSchema.TextContent( guide ) ) ) );

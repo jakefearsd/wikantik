@@ -35,6 +35,10 @@ import org.apache.wiki.WikiEngine;
 import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.attachment.AttachmentManager;
 import org.apache.wiki.content.SystemPageRegistry;
+import org.apache.wiki.diff.DifferenceManager;
+import org.apache.wiki.mcp.prompts.WikiPrompts;
+import org.apache.wiki.mcp.resources.WikiEventSubscriptionBridge;
+import org.apache.wiki.mcp.resources.WikiResources;
 import org.apache.wiki.mcp.tools.*;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.references.ReferenceManager;
@@ -44,8 +48,8 @@ import java.util.EnumSet;
 
 /**
  * Bootstraps the MCP server on application startup. Retrieves the shared WikiEngine
- * from the ServletContext, creates MCP tool instances, and registers a Streamable HTTP
- * transport servlet at {@code /mcp}.
+ * from the ServletContext, creates MCP tool instances, resources, and prompts, and
+ * registers a Streamable HTTP transport servlet at {@code /mcp}.
  */
 public class McpServerInitializer implements ServletContextListener {
 
@@ -96,7 +100,7 @@ public class McpServerInitializer implements ServletContextListener {
             registration.setAsyncSupported( true );
             registration.setLoadOnStartup( 2 );
 
-            // Build MCP server with all tools
+            // Build MCP server with all tools, resources, and prompts
             final PageManager pageManager = engine.getManager( PageManager.class );
             final ReferenceManager referenceManager = engine.getManager( ReferenceManager.class );
             final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );
@@ -110,6 +114,14 @@ public class McpServerInitializer implements ServletContextListener {
             final RecentChangesTool recentChanges = new RecentChangesTool( pageManager, systemPageRegistry );
             final GetAttachmentsTool getAttachments = new GetAttachmentsTool( pageManager, attachmentManager );
             final QueryMetadataTool queryMetadata = new QueryMetadataTool( pageManager );
+            final DeletePageTool deletePage = new DeletePageTool( pageManager, systemPageRegistry );
+            final GetPageHistoryTool getPageHistory = new GetPageHistoryTool( pageManager );
+            final DiffPageTool diffPage = new DiffPageTool( engine );
+            final BatchWritePagesTool batchWrite = new BatchWritePagesTool( engine, systemPageRegistry );
+
+            // Resources
+            final WikiResources wikiResources = new WikiResources(
+                    pageManager, referenceManager, attachmentManager, systemPageRegistry );
 
             final var serverImpl = new McpSchema.Implementation(
                     config.serverName(), config.serverTitle(), config.serverVersion() );
@@ -118,6 +130,8 @@ public class McpServerInitializer implements ServletContextListener {
                     .serverInfo( serverImpl )
                     .capabilities( ServerCapabilities.builder()
                             .tools( true )
+                            .resources( true, true )
+                            .prompts( false )
                             .build() );
 
             final String instructions = config.instructions();
@@ -125,11 +139,14 @@ public class McpServerInitializer implements ServletContextListener {
                 builder.instructions( instructions );
             }
 
+            // Register tools — author is resolved from exchange.clientInfo when available
             mcpServer = builder
                     .toolCall( readPage.toolDefinition(), ( exchange, request ) ->
                             readPage.execute( request.arguments() ) )
-                    .toolCall( writePage.toolDefinition(), ( exchange, request ) ->
-                            writePage.execute( request.arguments() ) )
+                    .toolCall( writePage.toolDefinition(), ( exchange, request ) -> {
+                        resolveAuthor( exchange, writePage );
+                        return writePage.execute( request.arguments() );
+                    } )
                     .toolCall( searchPages.toolDefinition(), ( exchange, request ) ->
                             searchPages.execute( request.arguments() ) )
                     .toolCall( listPages.toolDefinition(), ( exchange, request ) ->
@@ -142,10 +159,29 @@ public class McpServerInitializer implements ServletContextListener {
                             getAttachments.execute( request.arguments() ) )
                     .toolCall( queryMetadata.toolDefinition(), ( exchange, request ) ->
                             queryMetadata.execute( request.arguments() ) )
+                    .toolCall( deletePage.toolDefinition(), ( exchange, request ) ->
+                            deletePage.execute( request.arguments() ) )
+                    .toolCall( getPageHistory.toolDefinition(), ( exchange, request ) ->
+                            getPageHistory.execute( request.arguments() ) )
+                    .toolCall( diffPage.toolDefinition(), ( exchange, request ) ->
+                            diffPage.execute( request.arguments() ) )
+                    .toolCall( batchWrite.toolDefinition(), ( exchange, request ) -> {
+                        resolveAuthor( exchange, batchWrite );
+                        return batchWrite.execute( request.arguments() );
+                    } )
+                    // Register resources
+                    .resources( wikiResources.staticResources() )
+                    .resourceTemplates( wikiResources.resourceTemplates() )
+                    // Register prompts
+                    .prompts( WikiPrompts.all() )
                     .build();
 
+            // Wire WikiEvent → MCP resource subscriptions
+            final WikiEventSubscriptionBridge subscriptionBridge = new WikiEventSubscriptionBridge( mcpServer );
+            subscriptionBridge.register( pageManager );
+
             servletContext.setAttribute( ATTR_MCP_SERVER, mcpServer );
-            LOG.info( "MCP server started successfully with 8 tools at /mcp" );
+            LOG.info( "MCP server started successfully with 12 tools, 6 resources, and 3 prompts at /mcp" );
 
         } catch ( final Exception e ) {
             LOG.error( "Failed to start MCP server: {}", e.getMessage(), e );
@@ -161,6 +197,30 @@ public class McpServerInitializer implements ServletContextListener {
             } catch ( final Exception e ) {
                 LOG.warn( "Error shutting down MCP server: {}", e.getMessage() );
             }
+        }
+    }
+
+    private static void resolveAuthor( final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
+                                        final WritePageTool tool ) {
+        try {
+            final McpSchema.Implementation clientInfo = exchange.getClientInfo();
+            if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {
+                tool.setDefaultAuthor( clientInfo.name() );
+            }
+        } catch ( final Exception e ) {
+            // Ignore — fall back to default
+        }
+    }
+
+    private static void resolveAuthor( final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
+                                        final BatchWritePagesTool tool ) {
+        try {
+            final McpSchema.Implementation clientInfo = exchange.getClientInfo();
+            if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {
+                tool.setDefaultAuthor( clientInfo.name() );
+            }
+        } catch ( final Exception e ) {
+            // Ignore — fall back to default
         }
     }
 }

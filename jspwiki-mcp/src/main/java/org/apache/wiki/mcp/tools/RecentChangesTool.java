@@ -59,6 +59,7 @@ public class RecentChangesTool {
                         "Returns {changes: [{pageName, author, lastModified, changeNote, systemPage}]} newest first. " +
                         "System/template pages are excluded by default; set includeSystemPages=true to include them. Default limit is 50." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of(), null, null, null ) )
+                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }
 

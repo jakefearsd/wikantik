@@ -54,8 +54,10 @@ public class GetAttachmentsTool {
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "List attachments for a wiki page. " +
-                        "Returns {pageName, attachments: [{name, size, lastModified}]}. Errors if the page does not exist." )
+                        "Returns {exists, pageName, attachments: [{name, size, lastModified}]}. " +
+                        "Check the exists field first — it is false when the page does not exist." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
+                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }
 
@@ -65,7 +67,10 @@ public class GetAttachmentsTool {
         try {
             final Page page = pageManager.getPage( pageName );
             if ( page == null ) {
-                return McpToolUtils.errorResult( gson, "Page not found: " + pageName );
+                return McpToolUtils.jsonResult( gson, Map.of(
+                        "exists", false,
+                        "pageName", pageName,
+                        "attachments", List.of() ) );
             }
 
             final List< Attachment > attachments = attachmentManager.listAttachments( page );
@@ -79,7 +84,11 @@ public class GetAttachmentsTool {
                     } )
                     .collect( Collectors.toList() );
 
-            return McpToolUtils.jsonResult( gson, Map.of( "pageName", pageName, "attachments", result ) );
+            final Map< String, Object > response = new LinkedHashMap<>();
+            response.put( "exists", true );
+            response.put( "pageName", pageName );
+            response.put( "attachments", result );
+            return McpToolUtils.jsonResult( gson, response );
         } catch ( final Exception e ) {
             LOG.error( "Failed to list attachments for {}: {}", pageName, e.getMessage(), e );
             return McpToolUtils.errorResult( gson, e.getMessage() );

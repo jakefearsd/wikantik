@@ -114,4 +114,29 @@ class McpToolUtilsTest {
         assertEquals( "actual", McpToolUtils.getString( args, "name", "fallback" ) );
     }
 
+    @Test
+    void testNormalizeVersionNegativeBecomesOne() {
+        assertEquals( 1, McpToolUtils.normalizeVersion( -1 ) );
+    }
+
+    @Test
+    void testNormalizeVersionZeroBecomesOne() {
+        assertEquals( 1, McpToolUtils.normalizeVersion( 0 ) );
+    }
+
+    @Test
+    void testNormalizeVersionPositiveUnchanged() {
+        assertEquals( 5, McpToolUtils.normalizeVersion( 5 ) );
+    }
+
+    @Test
+    void testErrorResultWithSuggestion() {
+        final McpSchema.CallToolResult result = McpToolUtils.errorResult( gson, "not found", "use list_pages" );
+        assertEquals( Boolean.TRUE, result.isError() );
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( json.contains( "not found" ) );
+        assertTrue( json.contains( "use list_pages" ) );
+        assertTrue( json.contains( "\"suggestion\"" ) );
+    }
+
 }

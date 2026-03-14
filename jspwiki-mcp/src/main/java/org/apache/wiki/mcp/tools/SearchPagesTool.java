@@ -57,6 +57,7 @@ public class SearchPagesTool {
                         "Returns {results: [{pageName, score, contexts}]} ordered by relevance score. " +
                         "For metadata-based queries (e.g. by type or tags), use query_metadata instead." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "query" ), null, null, null ) )
+                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }
 

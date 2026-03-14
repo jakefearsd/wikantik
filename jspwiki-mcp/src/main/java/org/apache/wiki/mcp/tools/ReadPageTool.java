@@ -58,6 +58,21 @@ public class ReadPageTool {
                         "content is the Markdown body without frontmatter; metadata is the parsed YAML frontmatter as an object. " +
                         "Check the exists field first — it is false when the page does not exist." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
+                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .outputSchema( Map.of(
+                        "type", "object",
+                        "properties", Map.of(
+                                "exists", Map.of( "type", "boolean" ),
+                                "pageName", Map.of( "type", "string" ),
+                                "content", Map.of( "type", "string" ),
+                                "metadata", Map.of( "type", "object" ),
+                                "version", Map.of( "type", "integer" ),
+                                "author", Map.of( "type", "string" ),
+                                "lastModified", Map.of( "type", "string" ),
+                                "systemPage", Map.of( "type", "boolean" )
+                        ),
+                        "required", List.of( "exists", "pageName" )
+                ) )
                 .build();
     }
 
@@ -81,7 +96,7 @@ public class ReadPageTool {
         result.put( "pageName", page.getName() );
         result.put( "content", parsed.body() );
         result.put( "metadata", parsed.metadata() );
-        result.put( "version", page.getVersion() );
+        result.put( "version", McpToolUtils.normalizeVersion( page.getVersion() ) );
         result.put( "author", page.getAuthor() );
         result.put( "lastModified", page.getLastModified() != null ? page.getLastModified().toInstant().toString() : null );
         if ( systemPageRegistry != null ) {

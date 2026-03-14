@@ -48,23 +48,31 @@ public class QueryMetadataTool {
 
     public McpSchema.Tool toolDefinition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "field", Map.of( "type", "string", "description", "Frontmatter field name to query" ) );
+        properties.put( "field", Map.of( "type", "string", "description", "Frontmatter field name to query (for single-field queries)" ) );
         properties.put( "value", Map.of( "type", "string", "description", "Value to match (optional -- if omitted, returns pages that have the field)" ) );
         properties.put( "type", Map.of( "type", "string", "description", "Shortcut for field=type, value=<type>" ) );
+        properties.put( "filters", Map.of( "type", "array", "description",
+                "Array of {field, value} objects for AND queries across multiple fields. " +
+                "Each filter must match for a page to be included. Omit value in a filter to match field existence.",
+                "items", Map.of( "type", "object" ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Query pages by YAML frontmatter metadata fields. " +
                         "Returns {pages: [{name, metadata}]}. Use the type parameter as a shortcut for field=type. " +
-                        "value matches inside lists too. Omit value to find pages that have the field regardless of its value." )
+                        "value matches inside lists too. Omit value to find pages that have the field regardless of its value. " +
+                        "Use filters for AND queries across multiple fields." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of(), null, null, null ) )
+                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }
 
+    @SuppressWarnings( "unchecked" )
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         String field = McpToolUtils.getString( arguments, "field" );
         String value = McpToolUtils.getString( arguments, "value" );
         final String type = McpToolUtils.getString( arguments, "type" );
+        final List< Map< String, Object > > filters = ( List< Map< String, Object > > ) arguments.get( "filters" );
 
         // "type" is a shortcut for field=type, value=<type>
         if ( type != null && field == null ) {
@@ -72,15 +80,30 @@ public class QueryMetadataTool {
             value = type;
         }
 
-        if ( field == null ) {
-            return McpToolUtils.errorResult( gson, "Either 'field' or 'type' parameter is required" );
+        // Build the list of filter criteria
+        final List< FilterCriterion > criteria = new ArrayList<>();
+        if ( field != null ) {
+            criteria.add( new FilterCriterion( field, value ) );
+        }
+        if ( filters != null ) {
+            for ( final Map< String, Object > f : filters ) {
+                final String fField = ( String ) f.get( "field" );
+                final String fValue = f.get( "value" ) != null ? String.valueOf( f.get( "value" ) ) : null;
+                if ( fField != null ) {
+                    criteria.add( new FilterCriterion( fField, fValue ) );
+                }
+            }
+        }
+
+        if ( criteria.isEmpty() ) {
+            return McpToolUtils.errorResult( gson,
+                    "Either 'field', 'type', or 'filters' parameter is required",
+                    "Use type='report' for a simple query, or filters=[{field:'type',value:'report'},{field:'tags',value:'ai'}] for compound queries." );
         }
 
         try {
             final Collection< Page > allPages = pageManager.getAllPages();
             final List< Map< String, Object > > results = new ArrayList<>();
-            final String matchField = field;
-            final String matchValue = value;
 
             for ( final Page page : allPages ) {
                 final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
@@ -90,12 +113,7 @@ public class QueryMetadataTool {
                     continue;
                 }
 
-                final Object fieldVal = parsed.metadata().get( matchField );
-                if ( fieldVal == null ) {
-                    continue;
-                }
-
-                if ( matchValue == null || matchesValue( fieldVal, matchValue ) ) {
+                if ( matchesAllCriteria( parsed.metadata(), criteria ) ) {
                     final Map< String, Object > entry = new LinkedHashMap<>();
                     entry.put( "name", page.getName() );
                     entry.put( "metadata", parsed.metadata() );
@@ -108,6 +126,22 @@ public class QueryMetadataTool {
             LOG.error( "Metadata query failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( gson, e.getMessage() );
         }
+    }
+
+    private boolean matchesAllCriteria( final Map< String, Object > metadata, final List< FilterCriterion > criteria ) {
+        for ( final FilterCriterion criterion : criteria ) {
+            final Object fieldVal = metadata.get( criterion.field );
+            if ( fieldVal == null ) {
+                return false;
+            }
+            if ( criterion.value != null && !matchesValue( fieldVal, criterion.value ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private record FilterCriterion( String field, String value ) {
     }
 
     private boolean matchesValue( final Object fieldVal, final String matchValue ) {

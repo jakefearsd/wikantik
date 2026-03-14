@@ -21,6 +21,7 @@ package org.apache.wiki.mcp.tools;
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +51,28 @@ public final class McpToolUtils {
                 .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "error", message ) ) ) ) )
                 .isError( true )
                 .build();
+    }
+
+    /**
+     * Builds an error {@link McpSchema.CallToolResult} with a message and actionable suggestion.
+     */
+    public static McpSchema.CallToolResult errorResult( final Gson gson, final String message, final String suggestion ) {
+        final Map< String, String > body = new LinkedHashMap<>();
+        body.put( "error", message );
+        body.put( "suggestion", suggestion );
+        return McpSchema.CallToolResult.builder()
+                .content( List.of( new McpSchema.TextContent( gson.toJson( body ) ) ) )
+                .isError( true )
+                .build();
+    }
+
+    /**
+     * Normalizes a page version number for API responses. Internal sentinel values
+     * like {@code PageProvider.LATEST_VERSION} ({@code -1}) are replaced with {@code 1}
+     * as a minimum, since clients should never see negative version numbers.
+     */
+    public static int normalizeVersion( final int version ) {
+        return Math.max( version, 1 );
     }
 
     /**

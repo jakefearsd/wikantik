@@ -611,3 +611,26 @@ This cluster links back to the existing personal finance cluster at these points
 27. **Windows-concept mapping accelerates learning**: The hub's "Windows Concepts and Their Linux Equivalents" table and each article's Windows analogies give readers anchors for new concepts. This teaching technique (connecting new knowledge to existing knowledge) is specific to transition-oriented clusters.
 28. **Technical clusters benefit from runnable examples**: Every article includes actual commands the reader can run. The shell scripting article has complete, working scripts. This is different from the decision-framework style of the retirement/immigration clusters.
 29. **Six clusters, zero skill workflow modifications needed**: The 6-phase workflow has now been used across finance, geopolitics, immigration, AI adoption, and Linux — confirming it is genuinely domain-agnostic.
+
+### Cluster 6 Extension: FundamentalsOfProgramming
+
+**Action**: Added a cross-cluster article connecting the Linux and Generative AI clusters — covering how agentic software development changes what programming fundamentals matter, and how aspiring professionals should balance coding skills, domain expertise, and AI fluency.
+
+**Pages created**: FundamentalsOfProgramming (14,318 chars)
+**Pages updated**: LinuxForWindowsUsers (added step 5 to learning path + further reading), WhyLearnLinuxDeeply (added further reading cross-reference), AiAugmentedWorkflows (added further reading cross-reference)
+
+### MCP Service Improvement Observations for Cluster Extension Workflows
+
+The EXTEND workflow (adding a single article to an existing cluster and updating related pages) exposed several areas where the MCP API could be improved:
+
+30. **No patch/append operation**: Every page update requires a full read-modify-write cycle. To add one line to a page's "Further Reading" section, I must: (a) read the entire page content, (b) parse the JSON, (c) find the insertion point via string manipulation, (d) rebuild the full content string, (e) write the entire page back with `expectedVersion`. A `patch_page` or `append_to_page` tool that accepts a section name and new content would eliminate steps (a)-(d) and dramatically reduce the chance of accidental content corruption during string manipulation.
+
+31. **No batch update with selective changes**: When extending a cluster, I typically need to update 3-5 existing pages with small, similar changes (add a link to Further Reading, add a page name to the `related:` metadata list). Each requires its own read-modify-write cycle with its own Python script. A `batch_update_pages` tool that accepts a list of `{pageName, changes: [{section, action: "append"|"replace", content}]}` would reduce 10-15 MCP calls to one.
+
+32. **No structured metadata operations**: The frontmatter metadata (`related:`, `tags:`) is embedded in the page content as a text string. To add a page name to the `related:` list, I must parse the content, find the YAML-like frontmatter, modify the list, and serialize it back. A dedicated `update_metadata` tool (e.g., `update_metadata({pageName, field: "related", action: "append", value: "NewPage"})`) would be safer and more efficient.
+
+33. **No content search-and-insert**: The most common update pattern is "find this text in the page and insert new text before/after it." The current API requires downloading the full content, doing client-side string manipulation, and uploading the full content. A `content_transform` tool accepting `{pageName, find: "## Further Reading", insertBefore: "- [New Link](NewPage) — description\n"}` would handle the most common extension case in a single call.
+
+34. **The full read-modify-write cycle is fragile at scale**: For this single-article extension, I updated 3 pages. Each required: (1) `read_page` call, (2) Python script to parse nested JSON, extract content, do string replacement, generate payload file, (3) `write_page` call. That is 6 MCP calls and 3 Python scripts for what is conceptually "add a link to 3 pages." At cluster scale (updating 8-10 pages when injecting cross-references), this becomes the dominant time cost and the most error-prone phase. The risk is that a string replacement targets the wrong text or misses because the content changed between read and write.
+
+35. **`expectedVersion` is good but insufficient for concurrent safety**: The optimistic locking prevents lost updates, but the read-modify-write gap means the content could change between the read (where I capture the version) and the write (where I submit it). For a single-user wiki this is fine, but it would be a real problem in a multi-user environment. A compare-and-swap on content hash (not just version number) would be more robust.

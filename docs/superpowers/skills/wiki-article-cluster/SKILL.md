@@ -25,7 +25,7 @@ Six phases for new clusters, plus an EXTEND workflow for adding articles to exis
 ### 3. GENERATE — Create all payloads
 - Write every page's JSON payload to a file (`/tmp/mcp_<PageName>.json`)
 - For **new pages**: use single-quoted heredocs (`<< 'ENDJSON'`) or Python `json.dump()`
-- For **page updates**: use Python to read current content, make surgical changes, and generate payloads with `expectedVersion` (see "Updating Existing Pages" below)
+- For **page updates**: use `patch_page` for surgical edits (see "Updating Existing Pages" below)
 - Hub page links to all sub-articles; each sub-article links back to hub
 - **Output:** one JSON file per page, ready for `mcp_write_page`
 
@@ -40,7 +40,7 @@ Six phases for new clusters, plus an EXTEND workflow for adding articles to exis
 - `mcp_read_page` on every published page to confirm content exists
 - `mcp_get_broken_links` to catch any missed references
 - `mcp_get_stats` for overall health check
-- `mcp_get_outbound_links` / `mcp_get_backlinks` — optional, but note these may return empty for Markdown-style links (JSPWiki's reference manager tracks WikiLink syntax, not `[text](page)` links)
+- `mcp_get_outbound_links` / `mcp_get_backlinks` to verify link graph integrity — these work correctly for both wiki-syntax and Markdown-style `[text](PageName)` links
 - **Output:** verification report
 
 ### 6. DOCUMENT — Record what was done
@@ -52,12 +52,80 @@ Six phases for new clusters, plus an EXTEND workflow for adding articles to exis
 
 This is the most common operation after initial cluster creation. The workflow:
 
-1. **Create** the new article's JSON payload
+1. **Create** the new article's JSON payload (heredoc for new page content)
 2. **Publish** the new article with `mcp_write_page`
-3. **Update the hub page** to add a link to the new article (use the Python update pattern with `expectedVersion`)
-4. **Update related articles** to inject backlinks — both within the cluster and in other existing pages
-5. **Update metadata** `related:` lists in affected pages
-6. **Verify** with `mcp_read_page` and `mcp_get_broken_links`
+3. **Update the hub page** with `patch_page` to insert a link to the new article (use `insert_after` with the nearest existing link as marker)
+4. **Update related articles** with `patch_page` to inject cross-references — both within the cluster and in other existing pages
+5. **Update metadata** `related:` lists with `update_metadata` using `append_to_list` action
+6. **Verify** with `mcp_get_outbound_links`, `mcp_get_backlinks`, and `mcp_get_broken_links`
+
+### Extending with `patch_page` (preferred)
+
+Use `patch_page` to make surgical edits without reading the full page content:
+
+```bash
+cat << 'ENDJSON' > /tmp/mcp_patch_hub.json
+{
+  "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+  "params": {
+    "name": "patch_page",
+    "arguments": {
+      "pageName": "MyHubPage",
+      "operations": [
+        {
+          "action": "insert_after",
+          "marker": "- [Existing Article](ExistingArticle)",
+          "content": "- [New Article](NewArticle) — description of new article"
+        }
+      ],
+      "expectedVersion": 1,
+      "author": "claude-code-researcher",
+      "changeNote": "Add NewArticle to cluster index"
+    }
+  }
+}
+ENDJSON
+source docs/superpowers/skills/wiki-article-cluster/references/mcp-session-helper.sh && mcp_write_page /tmp/mcp_patch_hub.json
+```
+
+Available `patch_page` actions:
+- `insert_after` — insert content after a marker string (ideal for adding links to a list)
+- `insert_before` — insert content before a marker string
+- `append_to_section` — append content at the end of a named section
+- `replace_section` — replace a section's content (keeps the heading)
+
+Use `batch_patch_pages` to patch multiple pages in a single call when updating cross-references across several related pages.
+
+### Updating metadata with `update_metadata`
+
+Use `update_metadata` for frontmatter-only changes (adding tags, updating `related` lists):
+
+```bash
+cat << 'ENDJSON' > /tmp/mcp_update_meta.json
+{
+  "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+  "params": {
+    "name": "update_metadata",
+    "arguments": {
+      "pageName": "ExistingPage",
+      "operations": [
+        {"field": "related", "action": "append_to_list", "value": "NewArticle"},
+        {"field": "tags", "action": "append_to_list", "value": "new-tag"}
+      ],
+      "author": "claude-code-researcher",
+      "changeNote": "Add cross-reference to NewArticle"
+    }
+  }
+}
+ENDJSON
+source docs/superpowers/skills/wiki-article-cluster/references/mcp-session-helper.sh && mcp_write_page /tmp/mcp_update_meta.json
+```
+
+Available `update_metadata` actions:
+- `set` — overwrite a field value
+- `append_to_list` — add to a list (idempotent — skips if already present)
+- `remove_from_list` — remove from a list
+- `delete` — remove a field entirely
 
 ## MCP Session Management
 
@@ -79,7 +147,7 @@ Sessions expire after inactivity. If a tool call returns an empty response or er
 
 ## Payload Construction Rules
 
-### New pages — heredoc or Python
+### New pages — heredoc
 
 For initial page creation, use file-based payloads with single-quoted heredocs:
 
@@ -102,18 +170,22 @@ ENDJSON
 source docs/superpowers/skills/wiki-article-cluster/references/mcp-session-helper.sh && mcp_write_page /tmp/mcp_MyPage.json
 ```
 
-### Updating existing pages — Python pattern
+### Updating existing pages — `patch_page` (preferred)
 
-For modifying existing pages (injecting links, adding sections, updating metadata), use Python. This handles JSON escaping correctly and supports surgical string replacement:
+For modifying existing pages (injecting links, adding sections), use `patch_page` instead of the old read-modify-write pattern. This is a single atomic operation — no need to read the page first, do string manipulation, and write it back.
+
+See the EXTEND section above for examples.
+
+### Full page rewrites — Python pattern (fallback)
+
+For complex changes that `patch_page` cannot express (e.g., restructuring multiple sections simultaneously), fall back to Python:
 
 ```python
 python3 << 'PYEOF'
 import json
 
-# Current content (from mcp_read_page output or known state)
-current_content = "..."  # the existing page content
+current_content = "..."  # from mcp_read_page output
 
-# Make targeted changes
 new_content = current_content.replace(
     "## See Also",
     "## New Section\n\nNew content here.\n\n## See Also"
@@ -127,8 +199,8 @@ payload = {
             "pageName": "ExistingPage",
             "content": new_content,
             "author": "claude-code-researcher",
-            "changeNote": "Add new section with cross-references",
-            "expectedVersion": 1  # optimistic locking — prevents accidental overwrites
+            "changeNote": "Restructure sections",
+            "expectedVersion": 1
         }
     }
 }
@@ -162,24 +234,60 @@ All pages in a cluster must use the same metadata schema for queryability via `q
 |---------|-----|
 | Inline JSON in bash commands | Always use `curl -d @file` with file-based payloads |
 | Double-quoted heredocs for payloads | Use single-quoted delimiters (`<< 'ENDJSON'`) to prevent expansion |
-| Using heredocs for page updates | Use Python `json.dump()` for surgical content changes |
+| Using full read-modify-write for small edits | Use `patch_page` for surgical changes (insert_after, append_to_section, etc.) |
+| Using `write_page` to change only metadata | Use `update_metadata` instead — safer, no risk of corrupting body content |
 | Forgetting to `source` helper per Bash call | Shell state resets — source at the start of every command |
 | Session expiry mid-batch | Check session liveness before batch writes; call `mcp_init` on error |
 | Skipping existing content survey | Always DISCOVER first — prevents duplication, enables linking |
 | Inconsistent metadata across cluster | Define schema in PLAN phase, apply uniformly |
 | Publishing sub-articles before hub | Publish hub first so backlinks resolve immediately |
-| Trusting `get_outbound_links` for verification | These don't work with Markdown links — use `read_page` + `get_broken_links` instead |
 | Updating pages without `expectedVersion` | Always use optimistic locking to prevent accidental overwrites |
 | Forgetting WAR redeployment after code changes | New MCP tools require `cp JSPWiki.war` + Tomcat restart |
+
+## Available MCP Tools
+
+### Content tools
+| Tool | Purpose | When to use |
+|------|---------|-------------|
+| `write_page` | Create or fully replace a page | New pages, full rewrites |
+| `patch_page` | Surgical edits (insert, append, replace sections) | Adding links, extending content |
+| `batch_write_pages` | Create multiple pages in one call | Initial cluster publishing |
+| `batch_patch_pages` | Patch multiple pages in one call | Cross-reference updates across cluster |
+| `update_metadata` | Modify frontmatter without touching body | Adding tags, updating `related` lists |
+
+### Discovery tools
+| Tool | Purpose |
+|------|---------|
+| `read_page` | Read page content and metadata |
+| `search_pages` | Full-text search |
+| `list_pages` | List page names with optional prefix filter |
+| `query_metadata` | Find pages by frontmatter fields |
+| `list_metadata_values` | Discover field names and values in use |
+
+### Link graph tools
+| Tool | Purpose |
+|------|---------|
+| `get_outbound_links` | Pages linked from a given page |
+| `get_backlinks` | Pages linking to a given page |
+| `get_broken_links` | All broken links across the wiki |
+| `get_orphaned_pages` | Pages with no incoming links |
+| `scan_markdown_links` | Classify links as local/external/anchor (richer than `get_outbound_links`) |
+
+### Verification tools
+| Tool | Purpose |
+|------|---------|
+| `get_wiki_stats` | Total pages, broken links, orphans, recent changes |
+| `get_page_history` | Version history for a page |
+| `diff_page` | Diff between two versions |
 
 ## Quick Reference
 
 | Phase    | MCP Tools                                          | Output              |
 |----------|----------------------------------------------------|----------------------|
-| DISCOVER | `mcp_search_pages`, `mcp_read_page`, `list_metadata_values`| Content map          |
+| DISCOVER | `search_pages`, `read_page`, `list_metadata_values`| Content map          |
 | PLAN     | (design work, no MCP calls)                        | Page list, link graph|
 | GENERATE | (file creation, no MCP calls)                      | JSON payload files   |
-| PUBLISH  | `mcp_write_page`                                   | Page versions        |
-| VERIFY   | `mcp_read_page`, `mcp_get_broken_links`, `mcp_get_stats` | Verification report |
+| PUBLISH  | `write_page`, `batch_write_pages`                  | Page versions        |
+| VERIFY   | `read_page`, `get_broken_links`, `get_outbound_links`, `get_backlinks` | Verification report |
 | DOCUMENT | (append to research_history.md)                    | Updated history      |
-| EXTEND   | `mcp_read_page` → Python update → `mcp_write_page` | Updated pages       |
+| EXTEND   | `patch_page` / `batch_patch_pages`, `update_metadata` | Updated pages   |

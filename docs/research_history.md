@@ -634,3 +634,43 @@ The EXTEND workflow (adding a single article to an existing cluster and updating
 34. **The full read-modify-write cycle is fragile at scale**: For this single-article extension, I updated 3 pages. Each required: (1) `read_page` call, (2) Python script to parse nested JSON, extract content, do string replacement, generate payload file, (3) `write_page` call. That is 6 MCP calls and 3 Python scripts for what is conceptually "add a link to 3 pages." At cluster scale (updating 8-10 pages when injecting cross-references), this becomes the dominant time cost and the most error-prone phase. The risk is that a string replacement targets the wrong text or misses because the content changed between read and write.
 
 35. **`expectedVersion` is good but insufficient for concurrent safety**: The optimistic locking prevents lost updates, but the read-modify-write gap means the content could change between the read (where I capture the version) and the write (where I submit it). For a single-user wiki this is fine, but it would be a real problem in a multi-user environment. A compare-and-swap on content hash (not just version number) would be more robust.
+
+---
+
+## Cluster Extension: InvestingInYourTwenties (2026-03-14)
+
+**Cluster**: IndexFundInvestingForEarlyRetirement (Cluster 2)
+**New article**: [InvestingInYourTwenties](http://localhost:8080/Wiki.jsp?page=InvestingInYourTwenties) — Why investors in their 20s should strongly consider 100% equities, and how risk tolerance changes with age
+**Tools used**: `write_page` (new article), `patch_page` (hub page + retirement guide updates), `get_outbound_links`, `get_backlinks`, `get_broken_links`
+**Pages updated**: IndexFundInvestingForEarlyRetirement (added link under "The Allocation Decision"), RetirementPlanningGuide (added cross-reference under "Background")
+
+### Observations on New MCP Tools
+
+36. **`patch_page` eliminates the read-modify-write cycle**: Observations 30, 33, and 34 from the previous session are now resolved. Adding a link to the hub page required one `patch_page` call with `insert_after` instead of the previous workflow of: read page → Python string manipulation → write page. The entire hub page update was a single JSON payload. This is a transformative improvement for the EXTEND workflow.
+
+37. **`get_outbound_links` now works for Markdown pages**: Phase 1 of the simplify-mcp work fixed Markdown link tracking in MarkdownParser. The new article (pure Markdown with `[text](PageName)` links) returned all 11 outbound links correctly via `get_outbound_links`. Observations in the SKILL.md about link tools returning empty for Markdown pages are now outdated and should be corrected.
+
+38. **`get_backlinks` confirms bidirectional linking**: After patching the two hub pages, `get_backlinks` for InvestingInYourTwenties immediately returned both IndexFundInvestingForEarlyRetirement and RetirementPlanningGuide. This validates that the reference manager now tracks Markdown links in real time.
+
+39. **`patch_page` with `expectedVersion` provides safe concurrent updates**: The patch_page tool accepts `expectedVersion` for optimistic locking, resolving concern 35 — you get atomic read+patch in a single server-side operation, eliminating the read-modify-write gap entirely.
+
+40. **Content hash available but not needed**: `patch_page` returns a `contentHash` in the response, which could be used for subsequent `expectedContentHash` locking. For this workflow it wasn't needed since each page was only patched once, but it's available for more complex scenarios.
+
+41. **SKILL.md needs updates**: The skill still documents workarounds for problems that no longer exist (Python read-modify-write for updates, link tool caveats for Markdown). Should be updated to use `patch_page` for the EXTEND workflow and remove Markdown link caveats. **Done** — SKILL.md rewritten in this session.
+
+---
+
+## Cluster Extension: SequenceOfReturnsRisk (2026-03-14)
+
+**Cluster**: RetirementPlanningGuide (Cluster 3)
+**New article**: [SequenceOfReturnsRisk](http://localhost:8080/Wiki.jsp?page=SequenceOfReturnsRisk) — Deep dive on sequence of returns risk and 5 concrete protection strategies (bond tent, cash buckets, dynamic spending, guaranteed income floor, flexible timing)
+**Tools used**: `write_page` (new article), `batch_patch_pages` (3 cross-reference updates in one call), `get_outbound_links`, `get_backlinks`, `get_broken_links`
+**Pages updated**: RetirementPlanningGuide (added to "The Foundation" section), SafeWithdrawalRates (added cross-reference after sequence risk intro), InvestingInYourTwenties (added See Also link)
+
+### Observations on Updated SKILL.md Workflow
+
+42. **`batch_patch_pages` is the ideal EXTEND tool**: Updating 3 pages with cross-references was a single MCP call instead of the previous 6-call pattern (3x read + 3x Python + 3x write). The updated SKILL.md correctly documents this as the primary EXTEND mechanism.
+
+43. **SKILL.md workflow held up well**: Following the updated DISCOVER → write_page → batch_patch_pages → verify flow was smooth. No need to fall back to the Python read-modify-write pattern at any point. The `insert_after` action with a marker string from the existing content was precise enough for all 3 updates.
+
+44. **Link verification is now reliable**: All 9 outbound Markdown links and 3 backlinks were correctly tracked. The link graph tools are now fully trustworthy for Markdown pages, confirming the Phase 1 fix works in production across multiple articles.

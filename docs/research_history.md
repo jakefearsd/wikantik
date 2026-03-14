@@ -579,3 +579,35 @@ This cluster links back to the existing personal finance cluster at these points
 24. **Refined skill convenience functions worked well**: Using `mcp_search_pages`, `mcp_get_broken_links`, and `mcp_get_stats` directly was cleaner than `mcp_call` with manual JSON arguments. The helper script improvements paid off immediately.
 25. **First non-financial, non-geopolitical cluster**: Immigration law is a different domain but the 6-phase workflow applied without modification. The skill is genuinely domain-agnostic.
 26. **Process-oriented clusters need decision trees**: Immigration has clear branching logic (spouse in US vs. abroad, married < 2 years vs. 2+). The hub page's comparison tables and "How the Decisions Connect" section from the retirement cluster pattern worked well here too.
+
+---
+
+# Cluster 6: Linux for Windows Users
+
+**Date**: 2026-03-14
+**Topic**: Transitioning from Windows to Linux — skills, tools, advantages, and the learning path
+**Skill used**: wiki-article-cluster (refined version)
+
+## Pages Created (8 total)
+
+### Hub Page
+- **LinuxForWindowsUsers** (hub, 7,402 chars) — Mindset shift, learning path, Windows-to-Linux concept mapping, low-risk starting options
+
+### Sub-Articles
+- **WhyLearnLinuxDeeply** (8,114 chars) — Career advantages, server dominance stats, technical benefits of understanding the stack
+- **ChoosingALinuxDistribution** (7,768 chars) — Distro families (Debian/Ubuntu, Red Hat/Fedora, Arch), recommendations by use case, desktop environments
+- **LinuxCommandLineEssentials** (8,045 chars) — Navigation, file ops, piping, text processing, process management, building fluency
+- **LinuxFilesystemAndPermissions** (8,099 chars) — Directory tree, everything-is-a-file, users/groups, chmod/chown, permission model
+- **LinuxPackageManagement** (7,164 chars) — apt/dnf/pacman, repos, universal formats (Flatpak/Snap/AppImage), updates, building from source
+- **LinuxShellScriptingFundamentals** (7,260 chars) — Variables, conditionals, loops, functions, practical scripts, cron, dotfiles
+- **LinuxSystemAdministration** (8,880 chars) — systemd, process management, logs, networking, SSH, user management, diagnostic checklist
+
+## Existing Pages Updated
+- **Main** — Added Linux for Windows Users to Featured Research
+- **LinuxCommands** — Added "Learning Linux In Depth" section with cluster cross-references
+
+## Observations
+
+27. **Windows-concept mapping accelerates learning**: The hub's "Windows Concepts and Their Linux Equivalents" table and each article's Windows analogies give readers anchors for new concepts. This teaching technique (connecting new knowledge to existing knowledge) is specific to transition-oriented clusters.
+28. **Technical clusters benefit from runnable examples**: Every article includes actual commands the reader can run. The shell scripting article has complete, working scripts. This is different from the decision-framework style of the retirement/immigration clusters.
+29. **Six clusters, zero skill workflow modifications needed**: The 6-phase workflow has now been used across finance, geopolitics, immigration, AI adoption, and Linux — confirming it is genuinely domain-agnostic.

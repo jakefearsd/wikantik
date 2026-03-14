@@ -130,6 +130,10 @@ public class McpServerInitializer implements ServletContextListener {
             final UploadAttachmentTool uploadAttachment = new UploadAttachmentTool( engine );
             final ReadAttachmentTool readAttachment = new ReadAttachmentTool( attachmentManager );
             final DeleteAttachmentTool deleteAttachment = new DeleteAttachmentTool( attachmentManager );
+            final PatchPageTool patchPage = new PatchPageTool( engine, systemPageRegistry );
+            final BatchPatchPagesTool batchPatchPages = new BatchPatchPagesTool( engine, systemPageRegistry );
+            final UpdateMetadataTool updateMetadata = new UpdateMetadataTool( engine, systemPageRegistry );
+            final ScanMarkdownLinksTool scanMarkdownLinks = new ScanMarkdownLinksTool( pageManager );
 
             // Resources
             final WikiResources wikiResources = new WikiResources(
@@ -209,6 +213,20 @@ public class McpServerInitializer implements ServletContextListener {
                             readAttachment.execute( request.arguments() ) )
                     .toolCall( deleteAttachment.toolDefinition(), ( exchange, request ) ->
                             deleteAttachment.execute( request.arguments() ) )
+                    .toolCall( patchPage.toolDefinition(), ( exchange, request ) -> {
+                        resolveAuthor( exchange, patchPage );
+                        return patchPage.execute( request.arguments() );
+                    } )
+                    .toolCall( batchPatchPages.toolDefinition(), ( exchange, request ) -> {
+                        resolveAuthor( exchange, batchPatchPages );
+                        return batchPatchPages.execute( request.arguments() );
+                    } )
+                    .toolCall( updateMetadata.toolDefinition(), ( exchange, request ) -> {
+                        resolveAuthor( exchange, updateMetadata );
+                        return updateMetadata.execute( request.arguments() );
+                    } )
+                    .toolCall( scanMarkdownLinks.toolDefinition(), ( exchange, request ) ->
+                            scanMarkdownLinks.execute( request.arguments() ) )
                     // Register resources
                     .resources( wikiResources.staticResources() )
                     .resourceTemplates( wikiResources.resourceTemplates() )
@@ -223,7 +241,7 @@ public class McpServerInitializer implements ServletContextListener {
             subscriptionBridge.register( pageManager );
 
             servletContext.setAttribute( ATTR_MCP_SERVER, mcpServer );
-            LOG.info( "MCP server started successfully with 23 tools, 6 resources, 5 prompts, and 3 completions at /mcp" );
+            LOG.info( "MCP server started successfully with 27 tools, 6 resources, 5 prompts, and 3 completions at /mcp" );
 
         } catch ( final Exception e ) {
             LOG.error( "Failed to start MCP server: {}", e.getMessage(), e );
@@ -243,43 +261,7 @@ public class McpServerInitializer implements ServletContextListener {
     }
 
     private static void resolveAuthor( final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
-                                        final WritePageTool tool ) {
-        try {
-            final McpSchema.Implementation clientInfo = exchange.getClientInfo();
-            if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {
-                tool.setDefaultAuthor( clientInfo.name() );
-            }
-        } catch ( final Exception e ) {
-            // Ignore — fall back to default
-        }
-    }
-
-    private static void resolveAuthor( final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
-                                        final BatchWritePagesTool tool ) {
-        try {
-            final McpSchema.Implementation clientInfo = exchange.getClientInfo();
-            if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {
-                tool.setDefaultAuthor( clientInfo.name() );
-            }
-        } catch ( final Exception e ) {
-            // Ignore — fall back to default
-        }
-    }
-
-    private static void resolveAuthor( final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
-                                        final RenamePageTool tool ) {
-        try {
-            final McpSchema.Implementation clientInfo = exchange.getClientInfo();
-            if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {
-                tool.setDefaultAuthor( clientInfo.name() );
-            }
-        } catch ( final Exception e ) {
-            // Ignore — fall back to default
-        }
-    }
-
-    private static void resolveAuthor( final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
-                                        final UploadAttachmentTool tool ) {
+                                        final AuthorConfigurable tool ) {
         try {
             final McpSchema.Implementation clientInfo = exchange.getClientInfo();
             if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {

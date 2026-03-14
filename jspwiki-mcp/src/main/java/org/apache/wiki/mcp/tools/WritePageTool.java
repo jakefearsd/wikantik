@@ -23,15 +23,11 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.wiki.WikiEngine;
-import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Page;
-import org.apache.wiki.api.providers.PageProvider;
-import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.content.SystemPageRegistry;
-import org.apache.wiki.frontmatter.FrontmatterParser;
-import org.apache.wiki.frontmatter.FrontmatterWriter;
-import org.apache.wiki.frontmatter.ParsedPage;
-import org.apache.wiki.pages.PageManager;
+import org.apache.wiki.pages.PageSaveHelper;
+import org.apache.wiki.pages.SaveOptions;
+import org.apache.wiki.pages.VersionConflictException;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,22 +37,23 @@ import java.util.Map;
  * MCP tool that creates or updates a wiki page, with optional YAML frontmatter support.
  * Supports metadata merging, custom author attribution, and optimistic locking.
  */
-public class WritePageTool {
+public class WritePageTool implements AuthorConfigurable {
 
     private static final Logger LOG = LogManager.getLogger( WritePageTool.class );
     public static final String TOOL_NAME = "write_page";
 
-    private final WikiEngine engine;
     private final SystemPageRegistry systemPageRegistry;
+    private final PageSaveHelper pageSaveHelper;
     private final Gson gson = new Gson();
 
     private String defaultAuthor = "MCP";
 
     public WritePageTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
-        this.engine = engine;
         this.systemPageRegistry = systemPageRegistry;
+        this.pageSaveHelper = new PageSaveHelper( engine );
     }
 
+    @Override
     public void setDefaultAuthor( final String defaultAuthor ) {
         this.defaultAuthor = defaultAuthor;
     }
@@ -75,6 +72,9 @@ public class WritePageTool {
         properties.put( "changeNote", Map.of( "type", "string", "description", "Optional change note for the edit" ) );
         properties.put( "expectedVersion", Map.of( "type", "integer", "description",
                 "If set, the write will fail unless the current page version matches this value (optimistic locking)" ) );
+        properties.put( "expectedContentHash", Map.of( "type", "string", "description",
+                "If set, the write will fail unless the current page's SHA-256 content hash matches this value (from read_page's contentHash field). " +
+                "Can be used alone or with expectedVersion." ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -96,44 +96,19 @@ public class WritePageTool {
         final String author = McpToolUtils.getString( arguments, "author" );
         final String changeNote = McpToolUtils.getString( arguments, "changeNote" );
         final int expectedVersion = McpToolUtils.getInt( arguments, "expectedVersion", -1 );
+        final String expectedContentHash = McpToolUtils.getString( arguments, "expectedContentHash" );
 
         try {
-            final PageManager pageManager = engine.getManager( PageManager.class );
+            final Page saved = pageSaveHelper.saveText( pageName, content,
+                    SaveOptions.builder()
+                            .author( author != null ? author : defaultAuthor )
+                            .changeNote( changeNote )
+                            .expectedVersion( expectedVersion )
+                            .expectedContentHash( expectedContentHash )
+                            .metadata( callerMetadata )
+                            .replaceMetadata( replaceMetadata )
+                            .build() );
 
-            // Optimistic locking: check current version if expectedVersion is set
-            if ( expectedVersion > 0 ) {
-                final Page currentPage = pageManager.getPage( pageName );
-                if ( currentPage != null ) {
-                    final int currentVersion = McpToolUtils.normalizeVersion( currentPage.getVersion() );
-                    if ( currentVersion != expectedVersion ) {
-                        return McpToolUtils.errorResult( gson,
-                                "Version conflict: page '" + pageName + "' is at version " + currentVersion +
-                                        " but expectedVersion was " + expectedVersion,
-                                "Read the page again with read_page to get the current version and content, then retry your write." );
-                    }
-                }
-            }
-
-            // Merge metadata: read existing frontmatter and overlay caller's fields
-            final Map< String, Object > effectiveMetadata;
-            if ( replaceMetadata || callerMetadata == null ) {
-                effectiveMetadata = callerMetadata;
-            } else {
-                effectiveMetadata = mergeMetadata( pageManager, pageName, callerMetadata );
-            }
-
-            final String fullText = FrontmatterWriter.write( effectiveMetadata, content );
-
-            final Page page = Wiki.contents().page( engine, pageName );
-            page.setAuthor( author != null ? author : defaultAuthor );
-            page.setAttribute( Page.MARKUP_SYNTAX, "markdown" );
-            if ( changeNote != null ) {
-                page.setAttribute( Page.CHANGENOTE, changeNote );
-            }
-            final Context context = Wiki.context().create( engine, page );
-            pageManager.saveText( context, fullText );
-
-            final Page saved = pageManager.getPage( pageName );
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );
             result.put( "pageName", pageName );
@@ -144,28 +119,12 @@ public class WritePageTool {
             }
 
             return McpToolUtils.jsonResult( gson, result );
+        } catch ( final VersionConflictException e ) {
+            return McpToolUtils.errorResult( gson, e.getMessage(),
+                    "Read the page again with read_page to get the current version and content, then retry." );
         } catch ( final Exception e ) {
             LOG.error( "Failed to write page {}: {}", pageName, e.getMessage(), e );
             return McpToolUtils.errorResult( gson, e.getMessage() );
         }
-    }
-
-    private Map< String, Object > mergeMetadata( final PageManager pageManager,
-                                                  final String pageName,
-                                                  final Map< String, Object > callerMetadata ) {
-        final String existingText = pageManager.getPureText( pageName, PageProvider.LATEST_VERSION );
-        if ( existingText == null || existingText.isEmpty() ) {
-            return callerMetadata;
-        }
-
-        final ParsedPage parsed = FrontmatterParser.parse( existingText );
-        if ( parsed.metadata().isEmpty() ) {
-            return callerMetadata;
-        }
-
-        // Start with existing metadata, overlay caller's fields
-        final Map< String, Object > merged = new LinkedHashMap<>( parsed.metadata() );
-        merged.putAll( callerMetadata );
-        return merged;
     }
 }

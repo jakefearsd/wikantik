@@ -87,6 +87,26 @@ class ReadPageToolTest {
     }
 
     @Test
+    void testContentHashPresent() throws Exception {
+        engine.saveText( "TestMcpHash", "Hash test content." );
+
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "TestMcpHash" ) );
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        final Map< String, Object > data = gson.fromJson( json, Map.class );
+
+        assertEquals( true, data.get( "exists" ) );
+        assertNotNull( data.get( "contentHash" ) );
+        final String hash = ( String ) data.get( "contentHash" );
+        assertEquals( 64, hash.length() ); // SHA-256 produces 64 hex chars
+
+        // Reading same page twice should produce same hash
+        final McpSchema.CallToolResult result2 = tool.execute( Map.of( "pageName", "TestMcpHash" ) );
+        final String json2 = ( ( McpSchema.TextContent ) result2.content().get( 0 ) ).text();
+        final Map< String, Object > data2 = gson.fromJson( json2, Map.class );
+        assertEquals( hash, data2.get( "contentHash" ) );
+    }
+
+    @Test
     void testToolDefinition() {
         final McpSchema.Tool def = tool.toolDefinition();
         assertEquals( "read_page", def.name() );

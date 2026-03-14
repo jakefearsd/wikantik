@@ -39,7 +39,7 @@ import java.util.Map;
  * Delegates to the JSPWiki {@link PageRenamer} which handles page moves, attachment
  * migration, and referrer updates atomically.
  */
-public class RenamePageTool {
+public class RenamePageTool implements AuthorConfigurable {
 
     private static final Logger LOG = LogManager.getLogger( RenamePageTool.class );
     public static final String TOOL_NAME = "rename_page";

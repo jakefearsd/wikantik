@@ -234,6 +234,40 @@ class WritePageToolTest {
     }
 
     @Test
+    void testContentHashCASSuccess() throws Exception {
+        engine.saveText( "McpHashCAS", "Original text." );
+
+        // Compute the hash of the stored content
+        final String stored = engine.getManager( PageManager.class ).getPureText( "McpHashCAS", -1 );
+        final String hash = McpToolUtils.computeContentHash( stored );
+
+        final Map< String, Object > args = new HashMap<>();
+        args.put( "pageName", "McpHashCAS" );
+        args.put( "content", "Updated via hash CAS." );
+        args.put( "expectedContentHash", hash );
+
+        final McpSchema.CallToolResult result = tool.execute( args );
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        final Map< String, Object > data = gson.fromJson( json, Map.class );
+        assertEquals( true, data.get( "success" ) );
+    }
+
+    @Test
+    void testContentHashCASConflict() throws Exception {
+        engine.saveText( "McpHashConflict", "Original text." );
+
+        final Map< String, Object > args = new HashMap<>();
+        args.put( "pageName", "McpHashConflict" );
+        args.put( "content", "Updated content." );
+        args.put( "expectedContentHash", "0000000000000000000000000000000000000000000000000000000000000000" );
+
+        final McpSchema.CallToolResult result = tool.execute( args );
+        assertTrue( result.isError() );
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( json.contains( "Content hash conflict" ) );
+    }
+
+    @Test
     void testOptimisticLockingConflict() throws Exception {
         engine.saveText( "McpLockConflict", "Original." );
 

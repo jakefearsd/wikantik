@@ -178,3 +178,182 @@ MCP API.
 8. **Plan the article structure first** — design the page hierarchy, inter-page links, and metadata schema before writing any content. This ensures consistent cross-references and metadata.
 9. **Metadata schema consistency**: Use the same frontmatter field names and tag conventions across all articles in a cluster for queryability via `query_metadata`.
 10. **Author attribution**: Use a descriptive author name (e.g., `claude-code-researcher`) rather than the default `MCP` for audit trail clarity.
+
+---
+
+# Research History: Personal Finance — Index Fund Investing for Early Retirement
+
+This document records every action taken to research, write, and publish
+an article cluster about using low-cost index funds and strategic account
+allocation to achieve early retirement, using the JSPWiki MCP API.
+
+## Environment
+
+- **Wiki**: JSPWiki running on local Tomcat 11 at http://localhost:8080/
+- **MCP endpoint**: http://localhost:8080/mcp (Streamable HTTP transport)
+- **MCP server version**: 23 tools, 5 prompts, 3 completions (Phase 2 deployment)
+- **Date**: 2026-03-14
+
+---
+
+## Action Log
+
+### 1. Initialize MCP session
+
+**Action**: Send MCP `initialize` request to establish session.
+**Result**: Session `30950115-6f46-47ad-9bbb-de7981047213` established. Handshake completed.
+
+### 2. Survey existing wiki content
+
+**Action**: Use `search_pages` to find existing articles on index funds, expense ratios, tax-advantaged accounts, and early retirement. Two queries issued.
+**Tool**: `search_pages` x2
+**Existing pages found**:
+- `ExpenseRatiosAndTheirEffectOnCompounding` — basic overview of expense ratio compounding
+- `LowCostIndexFundInvesting` — introductory tutorial
+- `TaxBenefitsOfRetirementAccounts` — existing tax article
+- `TypesofInvestmentAccountsTutorial` — account types overview
+- `CompoundInterestAndTaxAdvantagedAccounts` — compound interest in tax-advantaged context
+- `MaximizingRetirementAccountContributions` — contribution strategies
+- `RetirementAccountWithdrawalRules` — withdrawal rules
+- Plus ~15 other related pages
+
+**Action**: Used `read_page` on 2 key existing pages to understand depth and avoid duplication.
+**Finding**: Existing pages are introductory tutorials. Our cluster can go deeper and focus specifically on early retirement strategy, linking back to existing content.
+
+### 3. Plan article cluster structure
+
+**Action**: Design the article hierarchy before writing any content.
+**Tool**: None (planning step)
+**Structure decided**:
+- **Hub page**: `IndexFundInvestingForEarlyRetirement` — article index, key principles, links to existing content
+- **5 sub-articles**:
+  1. `ExpenseRatioDeepDive` — concrete dollar-cost analysis over 30 years, evidence against active management
+  2. `IndexFundPortfolioConstruction` — three-fund portfolio, allocation by time horizon, rebalancing
+  3. `AccountTypeStrategy` — why taxable brokerage accounts are essential, funding order, asset location
+  4. `RothConversionLadder` — step-by-step mechanics for accessing retirement funds before 59.5
+  5. `EarlyRetirementInvestmentPlan` — complete blueprint from first dollar to retirement day
+- **Total**: 6 pages (1 hub + 5 sub-articles)
+- **Linking**: Each sub-article links back to hub and to adjacent articles; hub links to all sub-articles and to related existing pages
+
+**Metadata schema decided**:
+- `type: "article"` (sub-articles) / `type: "reference"` (hub)
+- `status: "active"`
+- `tags`: always include `personal-finance`, `investing`, `FIRE`, plus topic-specific tags
+- `related`: CamelCase page names for cross-references
+- `summary`: one-line description
+- `author`: `claude-code-researcher`
+
+### 4. Create JSON payloads for all 6 articles
+
+**Action**: Write each article's MCP `write_page` payload to a temporary JSON file using single-quoted heredocs to avoid bash metacharacter issues.
+**Files created**: `/tmp/mcp_investing_hub.json`, `/tmp/mcp_expense_ratio.json`, `/tmp/mcp_index_portfolio.json`, `/tmp/mcp_account_strategy.json`, `/tmp/mcp_roth_ladder.json`, `/tmp/mcp_complete_plan.json`
+
+**Lesson**: Reused the file-based payload pattern from Cluster 1. All content was written to files before any MCP calls were made, allowing review of the full cluster structure before publishing.
+
+### 5. Publish hub page
+
+**Action**: Send hub page payload via `curl -d @/tmp/mcp_investing_hub.json`.
+**Tool**: `write_page`
+**Result**: `{success: true, pageName: "IndexFundInvestingForEarlyRetirement", version: 1}`
+
+### 6. Publish 5 sub-articles
+
+**Action**: Published all 5 sub-articles sequentially via file-based payloads.
+**Tool**: `write_page` x5
+**Results**:
+- `ExpenseRatioDeepDive` — v1 created
+- `IndexFundPortfolioConstruction` — v1 created
+- `AccountTypeStrategy` — v1 created
+- `RothConversionLadder` — v1 created
+- `EarlyRetirementInvestmentPlan` — v1 created
+
+### 7. Update Main page
+
+**Action**: Read Main page (v1), added "Index Fund Investing for Early Retirement" section to Featured Research.
+**Tool**: `read_page` → `write_page` with `expectedVersion: 1`
+**Result**: `{success: true, pageName: "Main", version: 1}`
+
+### 8. Redeploy WAR for new MCP tools
+
+**Action**: During verification, discovered the deployed WAR was from before the Phase 2 MCP commit (06:46 vs 07:58 build). The new tools (get_outbound_links, get_broken_links, etc.) returned "Unknown tool" errors.
+**Fix**: Stopped Tomcat, removed extracted webapp, copied new WAR, restarted Tomcat. Re-initialized MCP session.
+**Result**: All 23 tools now available.
+
+**Lesson learned**: After building new MCP tools, you must redeploy the WAR to Tomcat. The build alone does not update the running server. A skill should check the WAR timestamp against the build timestamp and warn or redeploy automatically.
+
+### 9. Verify article cluster
+
+**Action**: Used `read_page` to verify all 6 articles exist with correct metadata and content.
+**Tool**: `read_page` x6
+**Result**: All 6 pages exist at v1 with correct tags and metadata.
+**Action**: Used `get_outbound_links` on hub page to test new Phase 2 tool.
+**Result**: Tool works (returns empty — Markdown-style links require rendering to populate the reference manager index).
+
+---
+
+## Summary
+
+| # | Action | MCP Tool | Page | Result |
+|---|--------|----------|------|--------|
+| 1 | Initialize session | `initialize` | — | Session established |
+| 2 | Survey existing content | `search_pages` x2, `read_page` x2 | Various | 15+ related pages found |
+| 3 | Plan structure | — | — | 6 pages designed |
+| 4 | Create payloads | — | — | 6 JSON files written |
+| 5 | Publish hub page | `write_page` | IndexFundInvestingForEarlyRetirement | v1 created |
+| 6 | Publish sub-articles | `write_page` x5 | ExpenseRatioDeepDive, IndexFundPortfolioConstruction, AccountTypeStrategy, RothConversionLadder, EarlyRetirementInvestmentPlan | All v1 created |
+| 7 | Update Main page | `read_page`, `write_page` | Main | Updated with cluster link |
+| 8 | Redeploy WAR | — | — | New tools available |
+| 9 | Verify cluster | `read_page` x6, `get_outbound_links` | All 6 pages | All verified |
+
+## Additional Lessons for MCP Skill Development
+
+Building on Cluster 1 lessons, this session revealed:
+
+11. **Survey existing content before writing**: Use `search_pages` and `read_page` to understand what already exists. This prevents duplication and enables linking to existing articles, making the new cluster part of the existing knowledge graph.
+12. **Design the full cluster before publishing any page**: Write all JSON payloads first, review the cross-reference structure, then publish. This prevents orphaned links and ensures consistent metadata schemas.
+13. **WAR redeployment is a separate step from building**: New MCP tools are not available until the WAR is redeployed to Tomcat. A skill should track this or automate it.
+14. **Markdown link syntax vs. WikiLink syntax**: JSPWiki's reference manager may not track Markdown-style `[text](PageName)` links the same way as traditional WikiLinks. The `get_outbound_links` and `get_backlinks` tools may return incomplete results for Markdown-only pages. A skill should be aware of this limitation.
+15. **Article cluster workflow is highly parallelisable**: All sub-article payloads can be created simultaneously, and all `write_page` calls are independent. A skill should use `batch_write_pages` or parallel tool calls for efficiency. However, the hub page should be published first (or at least designed first) so that sub-articles can link back to it.
+16. **Reuse payload pattern without re-learning it**: This session reused the file-based payload approach immediately, without any trial-and-error. This confirms that encoding the pattern in a skill would eliminate the initial learning curve for new sessions.
+17. **Content research (existing pages) + content generation + MCP publishing are three distinct phases**: A skill should structure the workflow as: (1) discover existing content, (2) plan and generate articles, (3) publish via MCP, (4) verify. Each phase has different tool requirements and failure modes.
+
+## Proposed Skill Workflow (Both Clusters Combined)
+
+Based on both article cluster sessions, the optimal MCP article publishing skill should follow this workflow:
+
+```
+1. DISCOVER
+   - search_pages for related content
+   - read_page on top results to understand depth
+   - list_metadata_values to understand tag/type conventions
+   - Output: existing content map, metadata conventions
+
+2. PLAN
+   - Design hub + sub-article structure
+   - Define metadata schema (type, tags, related)
+   - Define inter-page links (hub↔sub, sub↔sub, sub→existing)
+   - Output: page name list, link graph, metadata template
+
+3. GENERATE
+   - Create JSON payloads for all pages
+   - Use file-based approach (write to /tmp, use curl -d @file)
+   - Single-quoted heredocs for payload creation
+   - Output: /tmp/mcp_*.json files ready to send
+
+4. PUBLISH
+   - Initialize MCP session (check WAR deployment timestamp)
+   - Publish hub page first
+   - Publish sub-articles (can be parallel)
+   - Update Main page or other entry points
+   - Output: page versions confirmed
+
+5. VERIFY
+   - read_page on all published pages
+   - get_outbound_links / get_backlinks to check link graph
+   - get_wiki_stats for overall health
+   - Output: verification report
+
+6. DOCUMENT
+   - Append to research_history.md
+   - Record actions, tools used, results, lessons learned
+```

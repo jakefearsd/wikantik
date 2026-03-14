@@ -59,20 +59,6 @@ public class ReadPageTool {
                         "Check the exists field first — it is false when the page does not exist." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
-                .outputSchema( Map.of(
-                        "type", "object",
-                        "properties", Map.of(
-                                "exists", Map.of( "type", "boolean" ),
-                                "pageName", Map.of( "type", "string" ),
-                                "content", Map.of( "type", "string" ),
-                                "metadata", Map.of( "type", "object" ),
-                                "version", Map.of( "type", "integer" ),
-                                "author", Map.of( "type", "string" ),
-                                "lastModified", Map.of( "type", "string" ),
-                                "systemPage", Map.of( "type", "boolean" )
-                        ),
-                        "required", List.of( "exists", "pageName" )
-                ) )
                 .build();
     }
 

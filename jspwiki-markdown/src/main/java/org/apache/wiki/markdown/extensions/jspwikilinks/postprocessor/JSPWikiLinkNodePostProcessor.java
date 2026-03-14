@@ -106,7 +106,12 @@ public class JSPWikiLinkNodePostProcessor extends NodePostProcessor {
         if( previous != null ) {
             previous.insertAfter( link );
         } else if( parent != null ) {
-            parent.appendChild( link );
+            final Node firstChild = parent.getFirstChild();
+            if( firstChild != null ) {
+                firstChild.insertBefore( link );
+            } else {
+                parent.appendChild( link );
+            }
         }
 
         state.nodeRemoved( linkNode );

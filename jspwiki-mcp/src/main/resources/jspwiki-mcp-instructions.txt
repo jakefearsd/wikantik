@@ -85,7 +85,24 @@ diff_page        Get a diff between two versions of a page. Use get_page_history
 batch_write_pages Write multiple pages in a single call. Each page is written
                  independently (best-effort). Useful for bulk operations.
 
+patch_page       Apply section/marker-based edits to a page without rewriting
+                 the entire body. Supports: append_to_section, insert_before,
+                 insert_after, replace_section. Metadata/frontmatter is
+                 preserved unchanged. Prefer this over write_page when making
+                 small changes to large pages.
+
+batch_patch_pages Apply patch operations to multiple pages in a single call.
+                 Best-effort: each page is patched independently.
+
+update_metadata  Update frontmatter metadata fields without modifying the page
+                 body. Supports: set (overwrite field), append_to_list (add to
+                 list, idempotent), remove_from_list, delete (remove field).
+                 Prefer this over write_page when only metadata needs to change.
+
 == Link graph tools ==
+
+These tools work for both wiki-syntax and Markdown pages. Links in Markdown
+pages (e.g. [text](PageName)) are tracked automatically.
 
 get_outbound_links  Find all pages that a given page links to. The complement
                  of get_backlinks (outbound vs inbound). Useful for
@@ -98,6 +115,12 @@ get_broken_links Find all broken links across the wiki — references to pages
 get_orphaned_pages  Find pages with no incoming links (orphans). System pages
                  are excluded. Use this to find disconnected content that
                  may need linking or cleanup.
+
+scan_markdown_links  Parse a Markdown page and classify every link as local,
+                 external, or anchor. Provides richer link-type classification
+                 than get_outbound_links (which returns page names only).
+                 Use this when you need to understand the types of links in
+                 a page, not just which pages it links to.
 
 == Page management tools ==
 

@@ -38,7 +38,7 @@ import java.util.Map;
 /**
  * MCP tool that uploads a file attachment to a wiki page via base64-encoded content.
  */
-public class UploadAttachmentTool {
+public class UploadAttachmentTool implements AuthorConfigurable {
 
     private static final Logger LOG = LogManager.getLogger( UploadAttachmentTool.class );
     public static final String TOOL_NAME = "upload_attachment";

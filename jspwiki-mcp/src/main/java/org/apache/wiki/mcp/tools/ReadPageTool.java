@@ -54,8 +54,9 @@ public class ReadPageTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Read a wiki page's content and metadata. Returns {exists, pageName, content, metadata, version, author, lastModified}. " +
+                .description( "Read a wiki page's content and metadata. Returns {exists, pageName, content, metadata, version, contentHash, author, lastModified}. " +
                         "content is the Markdown body without frontmatter; metadata is the parsed YAML frontmatter as an object. " +
+                        "contentHash is a SHA-256 hex digest of the raw page text — pass it as expectedContentHash to write_page or patch_page for optimistic locking. " +
                         "Check the exists field first — it is false when the page does not exist." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
@@ -83,6 +84,7 @@ public class ReadPageTool {
         result.put( "content", parsed.body() );
         result.put( "metadata", parsed.metadata() );
         result.put( "version", McpToolUtils.normalizeVersion( page.getVersion() ) );
+        result.put( "contentHash", McpToolUtils.computeContentHash( rawText ) );
         result.put( "author", page.getAuthor() );
         result.put( "lastModified", page.getLastModified() != null ? page.getLastModified().toInstant().toString() : null );
         if ( systemPageRegistry != null ) {

@@ -255,23 +255,10 @@ public class JSPWikiMarkupParser extends MarkupParser {
         return plainTextBuf;
     }
 
-    /**
-     *  Calls a transmutator chain.
-     *
-     *  @param list Chain to call
-     *  @param text Text that should be passed to the mutate() method of each of the mutators in the chain.
-     *  @return The result of the mutation.
-     */
+    /** {@inheritDoc} */
+    @Override
     protected String callMutatorChain( final Collection< StringTransmutator > list, String text ) {
-        if( list == null || list.isEmpty()) {
-            return text;
-        }
-
-        for( final StringTransmutator m : list ) {
-            text = m.mutate( context, text );
-        }
-
-        return text;
+        return super.callMutatorChain( list, text );
     }
 
 

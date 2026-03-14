@@ -45,6 +45,10 @@ public interface Page extends Cloneable, Comparable< Page > {
     /** A special variable name for storing the markup syntax type (e.g., "jspwiki" or "markdown"). */
     String MARKUP_SYNTAX = "markup.syntax";
 
+    /** Attribute key for storing frontmatter metadata as a Map. When set before save,
+        the save pipeline will serialize this as YAML frontmatter. */
+    String FRONTMATTER_METADATA = "frontmatter.metadata";
+
     /**
      *  Returns the name of the page.
      *

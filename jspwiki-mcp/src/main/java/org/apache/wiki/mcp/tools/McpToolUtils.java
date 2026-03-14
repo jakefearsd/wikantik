@@ -20,7 +20,13 @@ package org.apache.wiki.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
+import org.apache.wiki.api.core.Page;
+import org.apache.wiki.pages.PageManager;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,6 +111,60 @@ public final class McpToolUtils {
      */
     public static boolean getBoolean( final Map< String, Object > args, final String key ) {
         return Boolean.TRUE.equals( args.get( key ) );
+    }
+
+    /**
+     * Computes a SHA-256 hex digest of the given content string.
+     */
+    public static String computeContentHash( final String content ) {
+        try {
+            final MessageDigest digest = MessageDigest.getInstance( "SHA-256" );
+            final byte[] hash = digest.digest( content.getBytes( StandardCharsets.UTF_8 ) );
+            return HexFormat.of().formatHex( hash );
+        } catch ( final NoSuchAlgorithmException e ) {
+            throw new RuntimeException( "SHA-256 not available", e );
+        }
+    }
+
+    /**
+     * Checks optimistic locking via expectedVersion and/or expectedContentHash.
+     * Returns an error result if there is a conflict, or {@code null} if OK.
+     */
+    public static McpSchema.CallToolResult checkVersionOrHash( final PageManager pageManager,
+                                                                 final String pageName,
+                                                                 final int expectedVersion,
+                                                                 final String expectedContentHash,
+                                                                 final Gson gson ) {
+        if ( expectedVersion <= 0 && expectedContentHash == null ) {
+            return null;
+        }
+
+        final Page currentPage = pageManager.getPage( pageName );
+        if ( currentPage == null ) {
+            return null; // new page — no conflict possible
+        }
+
+        if ( expectedVersion > 0 ) {
+            final int currentVersion = normalizeVersion( currentPage.getVersion() );
+            if ( currentVersion != expectedVersion ) {
+                return errorResult( gson,
+                        "Version conflict: page '" + pageName + "' is at version " + currentVersion +
+                                " but expectedVersion was " + expectedVersion,
+                        "Read the page again with read_page to get the current version and content, then retry." );
+            }
+        }
+
+        if ( expectedContentHash != null ) {
+            final String currentText = pageManager.getPureText( pageName, -1 );
+            final String currentHash = computeContentHash( currentText != null ? currentText : "" );
+            if ( !currentHash.equals( expectedContentHash ) ) {
+                return errorResult( gson,
+                        "Content hash conflict: page '" + pageName + "' content has changed since you last read it.",
+                        "Read the page again with read_page to get the current contentHash and content, then retry." );
+            }
+        }
+
+        return null;
     }
 
 }

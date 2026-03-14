@@ -18,9 +18,13 @@
  */
 package org.apache.wiki.parser.markdown;
 
+import com.vladsch.flexmark.ast.Link;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
+import com.vladsch.flexmark.util.ast.NodeVisitor;
+import com.vladsch.flexmark.util.ast.VisitHandler;
 import org.apache.wiki.api.core.Context;
+import org.apache.wiki.attachment.AttachmentManager;
 import org.apache.wiki.auth.AuthorizationManager;
 import org.apache.wiki.auth.UserManager;
 import org.apache.wiki.frontmatter.FrontmatterParser;
@@ -42,9 +46,12 @@ public class MarkdownParser extends MarkupParser {
 
     private final Parser parser;
 
+    /** Bare Flexmark parser (no JSPWiki extensions) used solely for link collection. */
+    private static final Parser LINK_SCANNER = Parser.builder().build();
+
     public MarkdownParser( final Context context, final Reader in ) {
         super( context, in );
-        if( context.getEngine().getManager( UserManager.class ).getUserDatabase() == null || 
+        if( context.getEngine().getManager( UserManager.class ).getUserDatabase() == null ||
             context.getEngine().getManager( AuthorizationManager.class ) == null ) {
             disableAccessRules();
         }
@@ -63,11 +70,50 @@ public class MarkdownParser extends MarkupParser {
             context.getPage().setAttribute( entry.getKey(), entry.getValue() );
         }
 
+        // Collect links from a clean AST (before JSPWiki post-processors modify URLs)
+        collectLinks( parsed.body() );
+
         final Node document = parser.parseReader( new BufferedReader( new StringReader( parsed.body() ) ) );
         final MarkdownDocument md = new MarkdownDocument( context.getPage(), document );
         md.setContext( context );
 
         return md;
+    }
+
+    /**
+     * Parses the body with a bare Flexmark parser (no JSPWiki extensions) and walks
+     * the AST to find Link nodes, reporting them to the inherited mutator chains
+     * so that ReferenceManager automatically tracks links in Markdown pages.
+     */
+    private void collectLinks( final String body ) {
+        final Node root = LINK_SCANNER.parse( body );
+
+        new NodeVisitor( new VisitHandler<>( Link.class, link -> {
+            final String url = link.getUrl().toString();
+            if( url.isEmpty() ) {
+                return;
+            }
+
+            if( linkParsingOperations.isExternalLink( url ) ) {
+                callMutatorChain( externalLinkMutatorChain, url );
+            } else if( url.startsWith( "#" ) ) {
+                // Anchor/footnote — not a page reference
+            } else {
+                final String attachment = context.getEngine()
+                        .getManager( AttachmentManager.class )
+                        .getAttachmentInfoName( context, url );
+                if( attachment != null ) {
+                    callMutatorChain( attachmentLinkMutatorChain, attachment );
+                } else {
+                    // Local wiki link — strip optional #section
+                    final int hash = url.indexOf( '#' );
+                    final String pageName = hash >= 0 ? url.substring( 0, hash ) : url;
+                    if( !pageName.isEmpty() ) {
+                        callMutatorChain( localLinkMutatorChain, pageName );
+                    }
+                }
+            }
+        } ) ).visit( root );
     }
 
     private static String readFully( final Reader reader ) throws IOException {

@@ -674,3 +674,39 @@ The EXTEND workflow (adding a single article to an existing cluster and updating
 43. **SKILL.md workflow held up well**: Following the updated DISCOVER → write_page → batch_patch_pages → verify flow was smooth. No need to fall back to the Python read-modify-write pattern at any point. The `insert_after` action with a marker string from the existing content was precise enough for all 3 updates.
 
 44. **Link verification is now reliable**: All 9 outbound Markdown links and 3 backlinks were correctly tracked. The link graph tools are now fully trustworthy for Markdown pages, confirming the Phase 1 fix works in production across multiple articles.
+
+---
+
+## Metadata Backfill: Cluster Identifiers (2026-03-14)
+
+**Action**: Added explicit `cluster` field (kebab-case string) to all 48 cluster article frontmatter, enabling programmatic cluster membership queries via `query_metadata` and `list_metadata_values`.
+
+**Tool**: `update_metadata` with `action: "set"` — 48 calls total, zero failures.
+
+### Cluster IDs Assigned
+
+| Cluster ID | Hub Page | Article Count |
+|---|---|---|
+| `conflicts-equity-markets` | ConflictsAndEquityMarkets | 8 (hub + 7 sub-articles) |
+| `index-fund-investing` | IndexFundInvestingForEarlyRetirement | 7 (hub + 5 sub + 1 extension) |
+| `retirement-planning` | RetirementPlanningGuide | 9 (hub + 7 sub + 1 extension) |
+| `generative-ai` | GenerativeAiAdoptionGuide | 7 (hub + 6 sub-articles) |
+| `spousal-green-card` | SpousalGreenCardGuide | 8 (hub + 7 sub-articles) |
+| `linux-for-windows-users` | LinuxForWindowsUsers | 9 (hub + 7 sub + 1 cross-cluster extension) |
+
+**Cross-cluster note**: FundamentalsOfProgramming connects the Linux and Generative AI clusters. Assigned to `linux-for-windows-users` (where it was created as an extension). Cross-cluster relationships are handled by the existing `related` field.
+
+### Verification
+
+- `list_metadata_values` with `field: "cluster"` returns all 6 cluster IDs
+- `query_metadata` with `field: "cluster", value: "retirement-planning"` returns all 9 pages
+- `get_broken_links` shows 8 pre-existing broken links — no new breakage from metadata-only updates
+- SKILL.md updated with `cluster` field documentation (metadata table, PLAN phase, payload template, EXTEND workflow)
+
+### Observations
+
+45. **`update_metadata` with `set` action is ideal for backfills**: Adding a single field to 48 pages required no content reads, no version tracking, and no risk of body corruption. Each call was ~1 second. The tool was designed exactly for this use case.
+
+46. **Page names in research_history.md diverged from plan assumptions**: The plan used approximate page names (e.g., `WW1MarketImpact`) that differed from actual names (e.g., `WorldWarOneMarkets`). All 6 clusters had significant naming differences. Lesson: always verify page names via `list_pages` or `search_pages` before batch operations.
+
+47. **Single-cluster assignment works well**: Every page has exactly one `cluster` value. The `type: hub` vs `type: article` field distinguishes role within a cluster. Cross-cluster links use the existing `related` field. No need for multi-cluster membership.

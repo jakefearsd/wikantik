@@ -357,3 +357,186 @@ Based on both article cluster sessions, the optimal MCP article publishing skill
    - Append to research_history.md
    - Record actions, tools used, results, lessons learned
 ```
+
+---
+
+# Research History: Retirement Planning Guide — Strategic Decumulation Decisions
+
+This document records every action taken to research, write, and publish
+an article cluster about strategic retirement planning decisions — Roth conversions,
+Social Security claiming, withdrawal sequencing, safe withdrawal rates, Medicare,
+RMDs, and retirement income planning — using the JSPWiki MCP API.
+
+## Environment
+
+- **Wiki**: JSPWiki running on local Tomcat 11 at http://localhost:8080/
+- **MCP endpoint**: http://localhost:8080/mcp (Streamable HTTP transport)
+- **MCP server version**: 23 tools (Phase 2 deployment)
+- **Date**: 2026-03-14
+- **Skill used**: `wiki-article-cluster` (first use of the new skill)
+
+---
+
+## Action Log
+
+### 1. Initialize MCP session
+
+**Action**: Send MCP `initialize` request to establish session.
+**Result**: Session established. Handshake completed.
+
+### 2. Survey existing wiki content (DISCOVER phase)
+
+**Action**: Used `search_pages` with two queries ("retirement social security roth" and "withdrawal accounts tax planning") to find existing articles. Used `list_metadata_values` to check tag conventions.
+**Tool**: `search_pages` x2, `list_metadata_values` x1
+**Existing pages found**:
+- `RothConversionLadder` — detailed mechanics of the early-access ladder (5-year seasoning, step-by-step)
+- `EarlyRetirementInvestmentPlan` — complete accumulation plan with 4% rule, savings rates
+- `IndexFundInvestingForEarlyRetirement` — hub for existing personal finance cluster
+- `TaxPlanningForRetirement` — short stub page
+- `RetirementAccountWithdrawalRules` — rules reference table
+- `SettingFinancialGoalsForRetirement` — goal-setting article
+- Plus 15+ other retirement/tax/account pages
+
+**Action**: Used `read_page` on 6 key existing pages to understand depth and identify gaps.
+**Finding**: Existing content focuses on accumulation and rules. Gap identified: no strategic decision frameworks for decumulation phase. No Social Security analysis, no IRMAA/Medicare planning, no withdrawal sequencing strategy, no safe withdrawal rate deep dive.
+
+### 3. Plan article cluster structure (PLAN phase)
+
+**Action**: Design cluster focusing on strategic decisions rather than rules.
+**Structure decided**:
+- **Hub page**: `RetirementPlanningGuide` — decision map showing interconnections
+- **7 sub-articles**:
+  1. `RothConversionStrategy` — strategic framework beyond the existing ladder
+  2. `SocialSecurityClaimingStrategy` — claiming age, breakeven, spousal/survivor benefits
+  3. `SafeWithdrawalRates` — 4% rule deep dive, sequence risk, dynamic strategies
+  4. `RetirementWithdrawalSequencing` — account draw order, tax bracket management by phase
+  5. `MedicarePlanningAndHealthcare` — ACA bridge, IRMAA, enrollment windows
+  6. `RequiredMinimumDistributions` — SECURE Act 2.0 rules, pre-RMD strategies, QCDs
+  7. `RetirementIncomeBlueprint` — bucket strategy, floor-and-upside, comprehensive example
+- **Total**: 8 pages (1 hub + 7 sub-articles, ~9,665 words total)
+- **Key design decision**: Focus on decision frameworks over rule recitation; show how decisions cascade across articles
+
+### 4. Create JSON payloads (GENERATE phase)
+
+**Action**: Wrote all 8 article payloads to temporary files using single-quoted heredocs.
+**Files created**: `/tmp/mcp_retirement_hub.json`, `/tmp/mcp_roth_strategy.json`, `/tmp/mcp_social_security.json`, `/tmp/mcp_safe_withdrawal.json`, `/tmp/mcp_withdrawal_sequencing.json`, `/tmp/mcp_medicare.json`, `/tmp/mcp_rmd.json`, `/tmp/mcp_income_blueprint.json`
+**Pattern reused**: File-based payload approach with `curl -d @file`, single-quoted heredocs.
+
+### 5. Publish hub page (PUBLISH phase)
+
+**Tool**: `write_page`
+**Result**: `{success: true, pageName: "RetirementPlanningGuide", version: 1}`
+
+### 6. Publish 7 sub-articles
+
+**Tool**: `write_page` x7
+**Results**:
+- `RothConversionStrategy` — v1 created (1,098 words)
+- `SocialSecurityClaimingStrategy` — v1 created (1,375 words)
+- `SafeWithdrawalRates` — v1 created (1,386 words)
+- `RetirementWithdrawalSequencing` — v1 created (1,155 words)
+- `MedicarePlanningAndHealthcare` — v1 created (1,358 words)
+- `RequiredMinimumDistributions` — v1 created (1,308 words)
+- `RetirementIncomeBlueprint` — v1 created (1,467 words)
+
+### 7. Update Main page
+
+**Tool**: `read_page` → `write_page` with `expectedVersion: 1`
+**Change**: Added "Retirement Planning Guide (March 2026)" as first item in Featured Research.
+**Result**: `{success: true, pageName: "Main", version: 1}`
+
+### 8. Verify cluster (VERIFY phase)
+
+**Tool**: `read_page` x8, `get_broken_links`, `get_wiki_stats`
+**Results**:
+- All 8 pages exist at v1 with correct content and metadata
+- Zero broken links involving cluster pages
+- Wiki total: 1,100 pages
+
+---
+
+## Summary
+
+| # | Action | MCP Tool | Page | Result |
+|---|--------|----------|------|--------|
+| 1 | Initialize session | `initialize` | — | Session established |
+| 2 | Survey existing content | `search_pages` x2, `read_page` x6, `list_metadata_values` | Various | 20+ related pages found |
+| 3 | Plan structure | — | — | 8 pages designed |
+| 4 | Create payloads | — | — | 8 JSON files written |
+| 5 | Publish hub page | `write_page` | RetirementPlanningGuide | v1 created |
+| 6 | Publish sub-articles | `write_page` x7 | 7 articles | All v1 created |
+| 7 | Update Main page | `read_page`, `write_page` | Main | Updated with cluster link |
+| 8 | Verify cluster | `read_page` x8, `get_broken_links`, `get_wiki_stats` | All 8 pages | All verified |
+
+## Cross-Links to Existing Content
+
+This cluster links back to the existing personal finance cluster at these points:
+- Hub → `IndexFundInvestingForEarlyRetirement`, `RothConversionLadder`, `AccountTypeStrategy`, `EarlyRetirementInvestmentPlan`, `TaxBenefitsOfRetirementAccounts`, `RetirementAccountWithdrawalRules`, `HealthSavingsAccounts`
+- `RothConversionStrategy` → `RothConversionLadder`, `AccountTypeStrategy`
+- `RetirementWithdrawalSequencing` → `AccountTypeStrategy`, `RetirementAccountWithdrawalRules`, `HealthSavingsAccounts`
+- `MedicarePlanningAndHealthcare` → `HealthSavingsAccounts`
+- `SafeWithdrawalRates` → `EarlyRetirementInvestmentPlan`
+- `RetirementIncomeBlueprint` → `EarlyRetirementInvestmentPlan`, `IndexFundPortfolioConstruction`, `AccountTypeStrategy`
+
+## Observations
+
+18. **The wiki-article-cluster skill worked on first use**: The 6-phase workflow (DISCOVER → PLAN → GENERATE → PUBLISH → VERIFY → DOCUMENT) provided clear structure. No trial-and-error on MCP mechanics — the helper script and payload patterns eliminated the learning curve from clusters 1 and 2.
+19. **Decision-framework articles are more interconnected than factual articles**: The retirement planning cluster has far more cross-references between articles than the conflicts cluster, because each decision affects the others. The hub page's "How the Decisions Connect" table was essential for making these cascading effects visible.
+20. **Complementing vs. duplicating existing content**: The existing `RothConversionLadder` covers mechanics; the new `RothConversionStrategy` covers strategy. The existing `RetirementAccountWithdrawalRules` covers rules; the new `RetirementWithdrawalSequencing` covers strategy. This division worked well — articles link to each other without repeating content.
+
+---
+
+# Cluster 4: Generative AI Adoption Guide
+
+**Date**: 2026-03-14
+**Topic**: Adopting generative AI as an individual contributor or small team
+**Skill used**: wiki-article-cluster (6-phase workflow)
+
+## Pages Created (7 total)
+
+### Hub Page
+- **GenerativeAiAdoptionGuide** (hub) — Complete adoption roadmap for individual contributors and small teams
+
+### Sub-Articles
+- **UnderstandingGenerativeAi** — How LLMs work, capabilities, limitations, and the transformer architecture explained for practitioners
+- **GenerativeAiToolsForIndividuals** — Current tool landscape: ChatGPT, Claude, Gemini, GitHub Copilot, local options, and selection criteria
+- **PracticalPromptEngineering** — Structured prompting techniques: system prompts, chain-of-thought, few-shot, and iterative refinement
+- **RunningLocalLlms** — Hardware requirements, Ollama/llama.cpp setup, model selection, and why running local models builds essential intuition
+- **AiAugmentedWorkflows** — Integration patterns: writing, coding, research, data analysis, and building personal automation pipelines
+- **AcceleratingAiLearning** — Learning strategies: deliberate practice, failure journals, community engagement, and measuring progress
+
+## Existing Pages Updated
+
+- **Main** — Added Generative AI Adoption Guide to Featured Research section
+- **MachineLearning** — Added "Generative AI" section with links to cluster
+- **ArtificialIntelligence** — Added "Generative AI Adoption" section with links to cluster
+- **AIModelTraining** — Added "Running Your Own Models" section with links to cluster
+
+## MCP Tools Used
+
+- `search_pages` — Discovered existing AI-related pages (MachineLearning, ArtificialIntelligence, AIModelTraining)
+- `read_page` — Read existing content to understand conventions and avoid duplication
+- `list_metadata_values` — Checked existing tag/type conventions
+- `write_page` — Published all 7 new pages and updated 4 existing pages
+- `get_broken_links` — Verified no broken links introduced
+- `get_wiki_stats` — Confirmed wiki health (1113 total pages)
+- `get_outbound_links` / `get_backlinks` — Attempted link graph verification (note: Markdown-style links not parsed by these tools)
+
+## Cross-Linking Strategy
+
+### Within Cluster
+- Hub links to all 6 sub-articles in structured sections
+- Each sub-article links back to hub and to 3-5 related sub-articles
+- AcceleratingAiLearning references RunningLocalLlms for cost-free experimentation
+- PracticalPromptEngineering and AiAugmentedWorkflows cross-reference heavily
+
+### To Existing Pages
+- MachineLearning → UnderstandingGenerativeAi, RunningLocalLlms, AiAugmentedWorkflows
+- ArtificialIntelligence → GenerativeAiToolsForIndividuals, PracticalPromptEngineering, RunningLocalLlms, AcceleratingAiLearning
+- AIModelTraining → RunningLocalLlms, GenerativeAiAdoptionGuide
+
+## Observations
+
+21. **Practical over theoretical**: The cluster deliberately targets practitioners, not researchers. Articles focus on "how to actually use this" rather than mathematical foundations. The RunningLocalLlms article emphasizes the *insight-building* value of local models, not just their technical setup.
+22. **The learning acceleration angle is distinctive**: Most AI adoption guides skip the meta-skill of learning to learn about AI. The AcceleratingAiLearning article's "failure journal" and "prompt variation exercise" techniques give readers concrete practice methods.
+23. **Context window resumed cleanly**: This cluster was created across a context window boundary (session ran out of context mid-generation). The session helper script and file-based payload pattern made it easy to pick up exactly where work stopped — all 6 completed payloads survived in /tmp/.

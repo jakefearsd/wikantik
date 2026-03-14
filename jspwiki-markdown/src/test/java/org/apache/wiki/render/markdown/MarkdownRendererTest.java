@@ -342,6 +342,28 @@ public class MarkdownRendererTest {
     }
 
     @Test
+    public void testLinkAtStartOfParagraphPreservesOrder() throws Exception {
+        newPage( "TargetPage" );
+        final String src = "[TargetPage]() followed by text";
+
+        Assertions.assertEquals(
+                "<p><a href=\"/test/wiki/TargetPage\" class=\"wikipage\">TargetPage</a> followed by text</p>\n",
+                translate( src ) );
+    }
+
+    @Test
+    public void testLinkAtStartOfListItemPreservesSpacing() throws Exception {
+        newPage( "MyPage" );
+        final String src = "- [MyPage]() — some description";
+
+        final String result = translate( src );
+
+        // The link must appear before the description text, with a space separating them
+        Assertions.assertTrue( result.contains( ">MyPage</a> —" ),
+                "Link should precede description with a space, but got: " + result );
+    }
+
+    @Test
     public void testFrontmatterSuppressedFromOutput() throws Exception {
         final String src = "---\ntype: concept\ntags: [ai, wiki]\n---\nThis is the body.";
 

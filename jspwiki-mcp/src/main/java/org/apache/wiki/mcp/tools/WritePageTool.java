@@ -84,17 +84,6 @@ public class WritePageTool {
                         "Returns {success, pageName, version}. Always provide a changeNote describing the edit." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName", "content" ), null, null, null ) )
                 .annotations( new McpSchema.ToolAnnotations( null, false, false, true, null, null ) )
-                .outputSchema( Map.of(
-                        "type", "object",
-                        "properties", Map.of(
-                                "success", Map.of( "type", "boolean" ),
-                                "pageName", Map.of( "type", "string" ),
-                                "version", Map.of( "type", "integer" ),
-                                "systemPage", Map.of( "type", "boolean" ),
-                                "warning", Map.of( "type", "string" )
-                        ),
-                        "required", List.of( "success", "pageName" )
-                ) )
                 .build();
     }
 

@@ -20,6 +20,7 @@ Six phases for new clusters, plus an EXTEND workflow for adding articles to exis
 - Define hub page + sub-articles, CamelCase page names
 - Design inter-page links (hub-to-sub, sub-to-sub, sub-to-existing)
 - Define metadata schema: consistent `type`, `tags`, `related`, `status` across all pages
+- Assign a `cluster` identifier (kebab-case slug) for the cluster — reuse existing ID if extending
 - **Output:** page name list, link graph, metadata template
 
 ### 3. GENERATE — Create all payloads
@@ -52,7 +53,7 @@ Six phases for new clusters, plus an EXTEND workflow for adding articles to exis
 
 This is the most common operation after initial cluster creation. The workflow:
 
-1. **Create** the new article's JSON payload (heredoc for new page content)
+1. **Create** the new article's JSON payload (heredoc for new page content) — include the cluster's existing `cluster` identifier in frontmatter
 2. **Publish** the new article with `mcp_write_page`
 3. **Update the hub page** with `patch_page` to insert a link to the new article (use `insert_after` with the nearest existing link as marker)
 4. **Update related articles** with `patch_page` to inject cross-references — both within the cluster and in other existing pages
@@ -159,7 +160,7 @@ cat << 'ENDJSON' > /tmp/mcp_MyPage.json
     "name": "write_page",
     "arguments": {
       "pageName": "MyPage",
-      "content": "---\ntype: article\ntags: [topic]\nrelated: [HubPage]\nstatus: active\nsummary: One-line description\n---\n# My Page\n\nBody content here.",
+      "content": "---\ntype: article\ncluster: my-cluster\ntags: [topic]\nrelated: [HubPage]\nstatus: active\nsummary: One-line description\n---\n# My Page\n\nBody content here.",
       "author": "claude-code-researcher",
       "changeNote": "Initial creation"
     }
@@ -223,6 +224,7 @@ Standard frontmatter for cluster articles:
 | `tags`    | Topic tags (list)                | `[finance, budgeting]`         |
 | `date`    | Publication date (ISO)           | `2026-03-14`                   |
 | `related` | Linked CamelCase page names     | `[PersonalFinanceHub, Saving]` |
+| `cluster` | Cluster identifier (kebab-case)  | `retirement-planning`          |
 | `status`  | Lifecycle state                  | `draft`, `active`, `archived`  |
 | `summary` | One-line description             | `Overview of budgeting basics` |
 

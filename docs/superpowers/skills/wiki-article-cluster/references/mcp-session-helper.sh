@@ -155,8 +155,7 @@ mcp_get_stats() {
 
 # Get outbound links from a page.
 # Usage: mcp_get_outbound_links <pageName>
-# Note: May return empty for pages using Markdown-style links — JSPWiki's
-# reference manager tracks WikiLink syntax, not Markdown [text](page) links.
+# Works for both wiki-syntax and Markdown-style [text](PageName) links.
 mcp_get_outbound_links() {
     local page_name="$1"
     mcp_call "get_outbound_links" "{\"pageName\": \"$page_name\"}"
@@ -164,10 +163,24 @@ mcp_get_outbound_links() {
 
 # Get backlinks (pages linking to this page).
 # Usage: mcp_get_backlinks <pageName>
-# Note: Same Markdown limitation as mcp_get_outbound_links.
+# Works for both wiki-syntax and Markdown-style [text](PageName) links.
 mcp_get_backlinks() {
     local page_name="$1"
     mcp_call "get_backlinks" "{\"pageName\": \"$page_name\"}"
+}
+
+# Patch a page using a pre-built JSON payload file (patch_page tool).
+# Usage: mcp_patch_page <payload_file>
+# The payload file must contain a complete JSON-RPC tools/call request for patch_page.
+mcp_patch_page() {
+    mcp_write_page "$1"  # same transport — different tool name is in the payload
+}
+
+# Update metadata fields on a page using a pre-built JSON payload file.
+# Usage: mcp_update_metadata <payload_file>
+# The payload file must contain a complete JSON-RPC tools/call request for update_metadata.
+mcp_update_metadata() {
+    mcp_write_page "$1"  # same transport — different tool name is in the payload
 }
 
 # Internal: retrieve stored session ID or error.

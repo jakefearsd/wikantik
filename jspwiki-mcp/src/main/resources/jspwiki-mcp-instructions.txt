@@ -85,6 +85,65 @@ diff_page        Get a diff between two versions of a page. Use get_page_history
 batch_write_pages Write multiple pages in a single call. Each page is written
                  independently (best-effort). Useful for bulk operations.
 
+== Link graph tools ==
+
+get_outbound_links  Find all pages that a given page links to. The complement
+                 of get_backlinks (outbound vs inbound). Useful for
+                 understanding a page's dependencies.
+
+get_broken_links Find all broken links across the wiki — references to pages
+                 that do not exist. Each broken link includes which pages
+                 reference it. Use this for wiki maintenance.
+
+get_orphaned_pages  Find pages with no incoming links (orphans). System pages
+                 are excluded. Use this to find disconnected content that
+                 may need linking or cleanup.
+
+== Page management tools ==
+
+rename_page      Rename a page, moving content, attachments, and version history.
+                 Optionally updates all pages that reference the old name
+                 (updateLinks=true by default). Requires confirm=true as a safety
+                 guard. System pages cannot be renamed.
+                 Returns {success, oldName, newName, finalName, linksUpdated}.
+
+== Concurrency tools ==
+
+lock_page        Acquire an edit lock on a page. Prevents concurrent edits by
+                 other users. Returns lock info including expiry time and minutes
+                 remaining. If the page is already locked by another user, returns
+                 an error with the current lock holder's name.
+
+unlock_page      Release an edit lock on a page. Idempotent — succeeds even if
+                 no lock exists. Returns {success, pageName, wasLocked}.
+
+== Attachment management tools ==
+
+upload_attachment Upload a file attachment to a wiki page. Content must be
+                 base64-encoded. Maximum file size is 10 MB. The parent page
+                 must exist first — create it with write_page if needed.
+                 Returns {success, pageName, fileName, size}.
+
+read_attachment  Read a file attachment, returning base64-encoded content.
+                 Files larger than 1 MB return metadata only with
+                 contentTruncated=true. Use get_attachments first to discover
+                 available files.
+                 Returns {pageName, fileName, content, size, lastModified, version}.
+
+delete_attachment Delete a file attachment. Requires confirm=true as a safety
+                 guard. Returns {success, pageName, fileName}.
+
+== Wiki health & introspection ==
+
+get_wiki_stats   Quick dashboard: total pages, broken link count, orphaned
+                 page count, recent changes count. Use as a starting point
+                 before diving into get_broken_links or get_orphaned_pages.
+
+list_metadata_values  Scan all pages and return distinct metadata field names
+                 and their values. Optional: pass field="tags" to get values
+                 for one field only. Use before query_metadata to discover
+                 what fields and values are in use.
+
 == Resources (read-only data access) ==
 
 Resources provide direct data access without tool invocation:
@@ -97,9 +156,27 @@ Resources provide direct data access without tool invocation:
 
 == Prompts (guided workflows) ==
 
-  create-article   — guides structured article creation with metadata
-  summarize-topic  — guides cross-page research and synthesis
-  audit-links      — guides checking page link integrity
+  create-article    — guides structured article creation with metadata
+  summarize-topic   — guides cross-page research and synthesis
+  audit-links       — guides checking page link integrity
+  rename-page       — guides safe page rename workflow with link updates
+  wiki-health-check — guides comprehensive wiki health assessment
+
+== Completions ==
+
+The server provides autocompletion for page name arguments in prompts.
+When using rename-page or audit-links prompts, type the beginning of a
+page name and the server will suggest matching pages.
+
+== Concurrency tips ==
+
+- Use lock_page before making a series of edits to prevent conflicts with
+  other agents or users. Always unlock_page when done.
+- Locks expire automatically after a timeout. Use the minutesLeft field
+  to track remaining time.
+- For single writes, use expectedVersion on write_page instead of explicit
+  locking — it provides optimistic concurrency control without the overhead
+  of lock management.
 
 == Tips ==
 

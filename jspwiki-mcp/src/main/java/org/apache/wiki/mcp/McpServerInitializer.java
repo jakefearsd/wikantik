@@ -36,6 +36,7 @@ import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.attachment.AttachmentManager;
 import org.apache.wiki.content.SystemPageRegistry;
 import org.apache.wiki.diff.DifferenceManager;
+import org.apache.wiki.mcp.completions.WikiCompletions;
 import org.apache.wiki.mcp.prompts.WikiPrompts;
 import org.apache.wiki.mcp.resources.WikiEventSubscriptionBridge;
 import org.apache.wiki.mcp.resources.WikiResources;
@@ -118,6 +119,17 @@ public class McpServerInitializer implements ServletContextListener {
             final GetPageHistoryTool getPageHistory = new GetPageHistoryTool( pageManager );
             final DiffPageTool diffPage = new DiffPageTool( engine );
             final BatchWritePagesTool batchWrite = new BatchWritePagesTool( engine, systemPageRegistry );
+            final GetOutboundLinksTool getOutboundLinks = new GetOutboundLinksTool( referenceManager );
+            final GetBrokenLinksTool getBrokenLinks = new GetBrokenLinksTool( referenceManager );
+            final GetOrphanedPagesTool getOrphanedPages = new GetOrphanedPagesTool( referenceManager, systemPageRegistry );
+            final GetWikiStatsTool getWikiStats = new GetWikiStatsTool( pageManager, referenceManager );
+            final ListMetadataValuesTool listMetadataValues = new ListMetadataValuesTool( pageManager );
+            final RenamePageTool renamePage = new RenamePageTool( engine, systemPageRegistry );
+            final LockPageTool lockPage = new LockPageTool( pageManager );
+            final UnlockPageTool unlockPage = new UnlockPageTool( pageManager );
+            final UploadAttachmentTool uploadAttachment = new UploadAttachmentTool( engine );
+            final ReadAttachmentTool readAttachment = new ReadAttachmentTool( attachmentManager );
+            final DeleteAttachmentTool deleteAttachment = new DeleteAttachmentTool( attachmentManager );
 
             // Resources
             final WikiResources wikiResources = new WikiResources(
@@ -131,7 +143,7 @@ public class McpServerInitializer implements ServletContextListener {
                     .capabilities( ServerCapabilities.builder()
                             .tools( true )
                             .resources( true, true )
-                            .prompts( false )
+                            .prompts( true )
                             .build() );
 
             final String instructions = config.instructions();
@@ -169,11 +181,41 @@ public class McpServerInitializer implements ServletContextListener {
                         resolveAuthor( exchange, batchWrite );
                         return batchWrite.execute( request.arguments() );
                     } )
+                    .toolCall( getOutboundLinks.toolDefinition(), ( exchange, request ) ->
+                            getOutboundLinks.execute( request.arguments() ) )
+                    .toolCall( getBrokenLinks.toolDefinition(), ( exchange, request ) ->
+                            getBrokenLinks.execute( request.arguments() ) )
+                    .toolCall( getOrphanedPages.toolDefinition(), ( exchange, request ) ->
+                            getOrphanedPages.execute( request.arguments() ) )
+                    .toolCall( getWikiStats.toolDefinition(), ( exchange, request ) ->
+                            getWikiStats.execute( request.arguments() ) )
+                    .toolCall( listMetadataValues.toolDefinition(), ( exchange, request ) ->
+                            listMetadataValues.execute( request.arguments() ) )
+                    .toolCall( renamePage.toolDefinition(), ( exchange, request ) -> {
+                        resolveAuthor( exchange, renamePage );
+                        return renamePage.execute( request.arguments() );
+                    } )
+                    .toolCall( lockPage.toolDefinition(), ( exchange, request ) -> {
+                        resolveUser( exchange, lockPage );
+                        return lockPage.execute( request.arguments() );
+                    } )
+                    .toolCall( unlockPage.toolDefinition(), ( exchange, request ) ->
+                            unlockPage.execute( request.arguments() ) )
+                    .toolCall( uploadAttachment.toolDefinition(), ( exchange, request ) -> {
+                        resolveAuthor( exchange, uploadAttachment );
+                        return uploadAttachment.execute( request.arguments() );
+                    } )
+                    .toolCall( readAttachment.toolDefinition(), ( exchange, request ) ->
+                            readAttachment.execute( request.arguments() ) )
+                    .toolCall( deleteAttachment.toolDefinition(), ( exchange, request ) ->
+                            deleteAttachment.execute( request.arguments() ) )
                     // Register resources
                     .resources( wikiResources.staticResources() )
                     .resourceTemplates( wikiResources.resourceTemplates() )
                     // Register prompts
                     .prompts( WikiPrompts.all() )
+                    // Register completions
+                    .completions( WikiCompletions.all( referenceManager ) )
                     .build();
 
             // Wire WikiEvent → MCP resource subscriptions
@@ -181,7 +223,7 @@ public class McpServerInitializer implements ServletContextListener {
             subscriptionBridge.register( pageManager );
 
             servletContext.setAttribute( ATTR_MCP_SERVER, mcpServer );
-            LOG.info( "MCP server started successfully with 12 tools, 6 resources, and 3 prompts at /mcp" );
+            LOG.info( "MCP server started successfully with 23 tools, 6 resources, 5 prompts, and 3 completions at /mcp" );
 
         } catch ( final Exception e ) {
             LOG.error( "Failed to start MCP server: {}", e.getMessage(), e );
@@ -218,6 +260,42 @@ public class McpServerInitializer implements ServletContextListener {
             final McpSchema.Implementation clientInfo = exchange.getClientInfo();
             if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {
                 tool.setDefaultAuthor( clientInfo.name() );
+            }
+        } catch ( final Exception e ) {
+            // Ignore — fall back to default
+        }
+    }
+
+    private static void resolveAuthor( final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
+                                        final RenamePageTool tool ) {
+        try {
+            final McpSchema.Implementation clientInfo = exchange.getClientInfo();
+            if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {
+                tool.setDefaultAuthor( clientInfo.name() );
+            }
+        } catch ( final Exception e ) {
+            // Ignore — fall back to default
+        }
+    }
+
+    private static void resolveAuthor( final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
+                                        final UploadAttachmentTool tool ) {
+        try {
+            final McpSchema.Implementation clientInfo = exchange.getClientInfo();
+            if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {
+                tool.setDefaultAuthor( clientInfo.name() );
+            }
+        } catch ( final Exception e ) {
+            // Ignore — fall back to default
+        }
+    }
+
+    private static void resolveUser( final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
+                                      final LockPageTool tool ) {
+        try {
+            final McpSchema.Implementation clientInfo = exchange.getClientInfo();
+            if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {
+                tool.setDefaultUser( clientInfo.name() );
             }
         } catch ( final Exception e ) {
             // Ignore — fall back to default

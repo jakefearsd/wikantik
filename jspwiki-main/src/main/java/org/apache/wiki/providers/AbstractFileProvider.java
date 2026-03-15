@@ -347,11 +347,16 @@ public abstract class AbstractFileProvider implements PageProvider {
             extension = MARKDOWN_EXT;
         }
 
-        // If page already exists, use findPage to get the existing file
-        // Otherwise, create a new file with the appropriate extension
-        File file = findPage( page.getName() );
-        if( !file.exists() ) {
+        // If markup syntax is explicitly set, always use the corresponding extension.
+        // Otherwise, reuse the existing file if the page already exists.
+        File file;
+        if( markupSyntax != null ) {
             file = new File( pageDirectory, mangleName( page.getName() ) + extension );
+        } else {
+            file = findPage( page.getName() );
+            if( !file.exists() ) {
+                file = new File( pageDirectory, mangleName( page.getName() ) + extension );
+            }
         }
 
         try( final PrintWriter out = new PrintWriter( new OutputStreamWriter( Files.newOutputStream( file.toPath() ), encoding ) ) ) {

@@ -135,7 +135,7 @@ public class McpConfig {
     /**
      * @deprecated Use {@link #accessKeys()} instead. Returns the first configured key, or {@code null}.
      */
-    @Deprecated
+    @Deprecated( forRemoval = true, since = "2.0" )
     public String accessKey() {
         final List< String > keys = accessKeys();
         return keys.isEmpty() ? null : keys.get( 0 );

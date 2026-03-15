@@ -33,7 +33,7 @@ class McpConfigTest {
         final McpConfig config = new McpConfig();
         assertEquals( "jspwiki-mcp", config.serverName() );
         assertEquals( "JSPWiki Knowledge Base", config.serverTitle() );
-        assertEquals( "1.0.0", config.serverVersion() );
+        assertEquals( "2.0.0", config.serverVersion() );
     }
 
     @Test

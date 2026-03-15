@@ -260,8 +260,26 @@ class McpAccessFilterTest {
 
         verify( chain, never() ).doFilter( request, response );
         verify( response ).setStatus( 429 );
+        verify( response ).setHeader( "Retry-After", "1" );
         verify( response ).setContentType( "application/json" );
         assertEquals( "{\"error\":\"Rate limit exceeded\"}", body.toString() );
+    }
+
+    @Test
+    void testRateLimitExceededIncludesRetryAfterHeader() throws Exception {
+        final McpRateLimiter mockLimiter = mock( McpRateLimiter.class );
+        when( mockLimiter.tryAcquire( anyString() ) ).thenReturn( false );
+
+        // Unrestricted mode — no auth needed, just rate limit
+        final Properties props = new Properties();
+        final McpAccessFilter filter = new McpAccessFilter( new McpConfig( props ), mockLimiter );
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+        final StringWriter body = new StringWriter();
+        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).setHeader( "Retry-After", "1" );
     }
 
     @Test
@@ -294,6 +312,7 @@ class McpAccessFilterTest {
         filter.doFilter( request, response, chain );
 
         verify( response ).setStatus( 429 );
+        verify( response ).setHeader( "Retry-After", "1" );
         verify( chain, never() ).doFilter( request, response );
     }
 }

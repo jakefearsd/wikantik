@@ -57,6 +57,7 @@ public class McpAccessFilter implements Filter {
     private static final Logger LOG = LogManager.getLogger( McpAccessFilter.class );
     private static final Logger SECURITY = LogManager.getLogger( "SecurityLog" );
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final int SC_TOO_MANY_REQUESTS = 429;
 
     private final List< byte[] > apiKeyList;
     private final List< CidrEntry > cidrEntries;
@@ -80,14 +81,6 @@ public class McpAccessFilter implements Filter {
             LOG.info( "MCP access filter: keys={}, CIDRs={}",
                     apiKeyList.size(), cidrEntries.size() );
         }
-    }
-
-    /**
-     * @deprecated Use {@link #McpAccessFilter(McpConfig, McpRateLimiter)} instead.
-     */
-    @Deprecated
-    public McpAccessFilter( final McpConfig config ) {
-        this( config, new McpRateLimiter( 0, 0 ) );
     }
 
     @Override
@@ -124,7 +117,8 @@ public class McpAccessFilter implements Filter {
         // Rate limit check
         if ( !rateLimiter.tryAcquire( clientId ) ) {
             SECURITY.warn( "MCP rate limit exceeded: client={}, ip={}", clientId, remoteAddr );
-            httpResp.setStatus( 429 );
+            httpResp.setStatus( SC_TOO_MANY_REQUESTS );
+            httpResp.setHeader( "Retry-After", "1" );
             httpResp.setContentType( "application/json" );
             httpResp.getWriter().write( "{\"error\":\"Rate limit exceeded\"}" );
             return;

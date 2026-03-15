@@ -118,4 +118,23 @@ class McpRateLimiterTest {
         // Global limit reached
         assertFalse( limiter.tryAcquire( "client-d" ) );
     }
+
+    @Test
+    void testNullClientIdThrowsNpe() {
+        final AtomicLong clock = new AtomicLong( 0 );
+        final McpRateLimiter limiter = createWithClock( 10, 2, clock );
+
+        // ConcurrentHashMap does not allow null keys, so null clientId throws NPE
+        assertThrows( NullPointerException.class, () -> limiter.tryAcquire( null ) );
+    }
+
+    @Test
+    void testNegativeLimitsDisable() {
+        final McpRateLimiter limiter = new McpRateLimiter( -1, -5 );
+
+        // Negative limits should be treated the same as 0 (disabled)
+        for ( int i = 0; i < 100; i++ ) {
+            assertTrue( limiter.tryAcquire( "client-a" ) );
+        }
+    }
 }

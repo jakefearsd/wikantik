@@ -34,7 +34,13 @@ public class McpProtocolIT extends WithMcpTestSetup {
 
     private static final Set< String > EXPECTED_TOOLS = Set.of(
             "read_page", "write_page", "search_pages", "list_pages",
-            "get_backlinks", "recent_changes", "get_attachments", "query_metadata"
+            "get_backlinks", "recent_changes", "get_attachments", "query_metadata",
+            "delete_page", "get_page_history", "diff_page", "batch_write_pages",
+            "get_outbound_links", "get_broken_links", "get_orphaned_pages",
+            "get_wiki_stats", "list_metadata_values", "rename_page",
+            "lock_page", "unlock_page", "upload_attachment", "read_attachment",
+            "delete_attachment", "patch_page", "batch_patch_pages",
+            "update_metadata", "scan_markdown_links"
     );
 
     @Test
@@ -44,14 +50,14 @@ public class McpProtocolIT extends WithMcpTestSetup {
     }
 
     @Test
-    public void listToolsReturnsAllEightTools() {
+    public void listToolsReturnsAllTools() {
         final McpSchema.ListToolsResult result = mcp.listTools();
         final Set< String > toolNames = result.tools().stream()
                 .map( McpSchema.Tool::name )
                 .collect( Collectors.toSet() );
 
         Assertions.assertEquals( EXPECTED_TOOLS, toolNames,
-                "Server should expose exactly 8 tools" );
+                "Server should expose exactly " + EXPECTED_TOOLS.size() + " tools" );
     }
 
     @Test

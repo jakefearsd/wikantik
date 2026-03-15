@@ -40,9 +40,13 @@ public class GetAttachmentsIT extends WithMcpTestSetup {
     }
 
     @Test
-    public void getAttachmentsForNonExistentPageReturnsError() {
-        final Map< String, Object > result = mcp.getAttachmentsExpectingError(
+    public void getAttachmentsForNonExistentPageReturnsExistsFalse() {
+        final Map< String, Object > result = mcp.getAttachments(
                 "NonExistentAttachmentPage_" + System.currentTimeMillis() );
-        Assertions.assertNotNull( result.get( "error" ), "Error message should be present" );
+        Assertions.assertEquals( false, result.get( "exists" ),
+                "Non-existent page should return exists=false" );
+        @SuppressWarnings( "unchecked" )
+        final List< Map< String, Object > > attachments = ( List< Map< String, Object > > ) result.get( "attachments" );
+        Assertions.assertTrue( attachments.isEmpty(), "Attachments should be empty for non-existent page" );
     }
 }

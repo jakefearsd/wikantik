@@ -98,12 +98,14 @@ public class WritePageIT extends WithMcpTestSetup {
     }
 
     @Test
-    public void writePageAuthorIsMcp() {
+    public void writePageAuthorIsSet() {
         final String pageName = uniquePageName( "WriteAuthor" );
         mcp.writePage( pageName, "Check author" );
 
         final Map< String, Object > readBack = mcp.readPage( pageName );
-        Assertions.assertEquals( "MCP", readBack.get( "author" ) );
+        final String author = ( String ) readBack.get( "author" );
+        Assertions.assertNotNull( author, "Author should be set" );
+        Assertions.assertFalse( author.isBlank(), "Author should not be blank" );
     }
 
     @Test

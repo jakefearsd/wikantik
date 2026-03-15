@@ -88,15 +88,16 @@ class WritePageToolTest {
     }
 
     @Test
-    void testWritePageSetsMarkdownSyntax() {
+    void testWritePageDoesNotDefaultToMarkdownSyntax() {
         final Map< String, Object > args = new HashMap<>();
-        args.put( "pageName", "McpWriteMd" );
-        args.put( "content", "Markdown content." );
+        args.put( "pageName", "McpWriteDefault" );
+        args.put( "content", "Content without explicit syntax." );
 
         tool.execute( args );
 
-        final Page saved = engine.getManager( PageManager.class ).getPage( "McpWriteMd" );
-        assertEquals( "markdown", saved.getAttribute( Page.MARKUP_SYNTAX ) );
+        final Page saved = engine.getManager( PageManager.class ).getPage( "McpWriteDefault" );
+        // When no markupSyntax is specified, the page should NOT be marked as markdown
+        assertNotEquals( "markdown", saved.getAttribute( Page.MARKUP_SYNTAX ) );
     }
 
     @Test

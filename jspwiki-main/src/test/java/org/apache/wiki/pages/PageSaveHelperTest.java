@@ -201,4 +201,5 @@ class PageSaveHelperTest {
                 pageManager, "NonExistentPage", Map.of( "type", "guide" ) );
         assertEquals( "guide", merged.get( "type" ) );
     }
+
 }

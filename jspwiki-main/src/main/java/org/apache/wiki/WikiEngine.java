@@ -79,7 +79,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -326,10 +325,8 @@ public class WikiEngine implements Engine {
             // Phase 7: RecentArticlesManager for article listing APIs and plugins.
             initComponent( RecentArticlesManager.class );
 
-            // Phase 8: ReferenceManager initialization is deferred to a background thread.
-            // This significantly reduces startup time for large wikis. The ReferenceManager
-            // will initialize lazily when first accessed, or in the background if not needed immediately.
-            initReferenceManagerAsync();
+            // Phase 8: ReferenceManager scans all pages for cross-references.
+            initReferenceManager();
 
             //  Hook the different manager routines into the system.
             getManager( FilterManager.class ).addPageFilter( getManager( ReferenceManager.class ), -1001 );
@@ -497,42 +494,6 @@ public class WikiEngine implements Engine {
         }
     }
 
-    /**
-     *  Initializes the reference manager asynchronously in a background thread.
-     *  This allows the wiki to start serving requests immediately while the
-     *  potentially time-consuming reference scan completes in the background.
-     *  <p>
-     *  The ReferenceManager is created immediately but its initialization
-     *  (scanning all pages for references) is deferred. The manager handles
-     *  this gracefully by returning empty/partial results until initialization
-     *  completes.
-     *
-     *  @throws WikiException If the reference manager instantiation fails.
-     */
-    void initReferenceManagerAsync() throws WikiException {
-        try {
-            if( getManager( ReferenceManager.class ) == null ) {
-                final String refMgrClassName = properties.getProperty( PROP_REF_MANAGER_IMPL, ClassUtil.getMappedClass( ReferenceManager.class.getName() ).getName() );
-
-                // Create the ReferenceManager instance immediately so it can be registered
-                initComponent( refMgrClassName, ReferenceManager.class, this );
-
-                // Defer the expensive initialization to a background thread
-                CompletableFuture.runAsync( () -> {
-                    try {
-                        final var pages = new ArrayList< Page >();
-                        pages.addAll( getManager( PageManager.class ).getAllPages() );
-                        pages.addAll( getManager( AttachmentManager.class ).getAllAttachments() );
-                        getManager( ReferenceManager.class ).initialize( pages );
-                    } catch( final ProviderException e ) {
-                        LOG.error( "Background ReferenceManager initialization failed: {}", e.getMessage(), e );
-                    }
-                } );
-            }
-        } catch( final Exception e ) {
-            throw new WikiException( "Could not instantiate ReferenceManager: " + e.getMessage(), e );
-        }
-    }
 
     /** {@inheritDoc} */
     @Override

@@ -391,6 +391,9 @@ public class SitemapServlet extends HttpServlet {
      * @return true if the page should be excluded
      */
     private boolean isExcludedPage( final String pageName ) {
+        if ( "Main".equals( pageName ) ) {
+            return false;
+        }
         return systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName );
     }
 

@@ -71,6 +71,14 @@ table[border="1"] td { border:0; }
 	}
 }
 
+// Markdown-generated tables (Flexmark) have <thead>/<tbody> but no .wikitable class.
+// Apply table styling to them when inside wiki page content.
+.page-content table:not(.wikitable) {
+    .table();
+    width: auto;        // Size to content, not container
+    max-width: 100%;    // But never overflow the container on narrow screens
+}
+
 .table-fit .wikitable {  width:auto; }
 
 .table-striped {

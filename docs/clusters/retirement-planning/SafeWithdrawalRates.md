@@ -106,7 +106,8 @@ For a complete treatment — including the Guyton-Klinger decision rules, Kitces
 Each year, withdraw a percentage of the current portfolio based on your remaining life expectancy, similar to RMD calculations but starting earlier.
 
 | Age | VPW % | Withdrawal from $1M |
-|-----|-------|--------------------|| 55 | 3.5% | $35,000 |
+|-----|-------|---------------------|
+| 55 | 3.5% | $35,000 |
 | 60 | 3.8% | $38,000 |
 | 65 | 4.2% | $42,000 |
 | 70 | 4.8% | $48,000 |

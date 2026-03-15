@@ -172,6 +172,28 @@ public class MarkdownRendererTest {
     }
 
     @Test
+    public void testMarkupTableMissingNewlineAfterSeparator() throws Exception {
+        // Malformed: separator and first data row on same line
+        final String broken = "| Age | VPW % | Withdrawal |\n" +
+                              "|-----|-------|------------|| 55 | 3.5% | $35,000 |";
+        final String brokenResult = translate( broken );
+        // Flexmark does NOT produce a <tbody> — the data row is lost
+        Assertions.assertFalse( brokenResult.contains( "<tbody>" ),
+            "Malformed table (no newline after separator) should not produce tbody" );
+
+        // Correct version: newline separates header separator from data
+        final String fixed = "| Age | VPW % | Withdrawal |\n" +
+                             "|-----|-------|------------|\n" +
+                             "| 55  | 3.5%  | $35,000    |";
+        final String fixedResult = translate( fixed );
+        // Proper table renders with tbody containing the data row
+        Assertions.assertTrue( fixedResult.contains( "<tbody>" ),
+            "Well-formed table should produce tbody" );
+        Assertions.assertTrue( fixedResult.contains( "<td>55</td>" ),
+            "Well-formed table should contain data cells" );
+    }
+
+    @Test
     public void testMarkupExtensionACL() throws Exception {
         final String src = "[{ALLOW view PerryMason}]() This should be visible if the ACL allows you to see it";
         // text is seen because although ACL is added to the page, it is not applied while parsing / rendering

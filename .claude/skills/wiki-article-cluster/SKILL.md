@@ -86,7 +86,7 @@ cat << 'ENDJSON' > /tmp/mcp_patch_hub.json
   }
 }
 ENDJSON
-source docs/superpowers/skills/wiki-article-cluster/references/mcp-session-helper.sh && mcp_write_page /tmp/mcp_patch_hub.json
+source .claude/skills/wiki-article-cluster/references/mcp-session-helper.sh && mcp_write_page /tmp/mcp_patch_hub.json
 ```
 
 Available `patch_page` actions:
@@ -119,7 +119,7 @@ cat << 'ENDJSON' > /tmp/mcp_update_meta.json
   }
 }
 ENDJSON
-source docs/superpowers/skills/wiki-article-cluster/references/mcp-session-helper.sh && mcp_write_page /tmp/mcp_update_meta.json
+source .claude/skills/wiki-article-cluster/references/mcp-session-helper.sh && mcp_write_page /tmp/mcp_update_meta.json
 ```
 
 Available `update_metadata` actions:
@@ -133,7 +133,7 @@ Available `update_metadata` actions:
 Source the helper script, then call `mcp_init` before any tool calls:
 
 ```bash
-source docs/superpowers/skills/wiki-article-cluster/references/mcp-session-helper.sh
+source .claude/skills/wiki-article-cluster/references/mcp-session-helper.sh
 mcp_init
 ```
 
@@ -141,7 +141,7 @@ mcp_init
 
 ```bash
 # Every Bash call needs this prefix
-source docs/superpowers/skills/wiki-article-cluster/references/mcp-session-helper.sh && mcp_write_page /tmp/mcp_MyPage.json
+source .claude/skills/wiki-article-cluster/references/mcp-session-helper.sh && mcp_write_page /tmp/mcp_MyPage.json
 ```
 
 Sessions expire after inactivity. If a tool call returns an empty response or error, call `mcp_init` again to re-establish the session.
@@ -168,7 +168,7 @@ cat << 'ENDJSON' > /tmp/mcp_MyPage.json
 }
 ENDJSON
 
-source docs/superpowers/skills/wiki-article-cluster/references/mcp-session-helper.sh && mcp_write_page /tmp/mcp_MyPage.json
+source .claude/skills/wiki-article-cluster/references/mcp-session-helper.sh && mcp_write_page /tmp/mcp_MyPage.json
 ```
 
 ### Updating existing pages — `patch_page` (preferred)
@@ -229,6 +229,27 @@ Standard frontmatter for cluster articles:
 | `summary` | One-line description             | `Overview of budgeting basics` |
 
 All pages in a cluster must use the same metadata schema for queryability via `query_metadata`.
+
+### Sub-Clusters
+
+Sub-clusters are topical subdivisions within an existing cluster, implemented by **naming convention** rather than structural hierarchy. Use a `/` separator in the `cluster` field:
+
+```
+cluster: retirement-planning              # top-level cluster
+cluster: retirement-planning/eu-retirement  # sub-cluster
+```
+
+**Rules:**
+- The sub-cluster has its own hub page (`type: hub`) that links to its sub-articles and back to the parent cluster hub
+- The parent cluster hub links to the sub-cluster hub (typically under a new heading or as a bullet in the relevant section)
+- Sub-cluster articles use the full `parent/sub` identifier in their `cluster` field
+- `query_metadata` with `field=cluster, value=retirement-planning/eu-retirement` returns only sub-cluster pages; a prefix search for `retirement-planning` returns both parent and sub-cluster pages
+- The Main page links to the sub-cluster hub alongside its parent for discoverability
+
+**Example:** The `retirement-planning/eu-retirement` sub-cluster:
+- Hub: `EuRetirementSavingsGuide` (cluster: `retirement-planning/eu-retirement`, type: `hub`)
+- Articles: `GermanRetirementSystem`, `EuRetirementTaxComparison` (cluster: `retirement-planning/eu-retirement`, type: `article`)
+- Parent hub `RetirementPlanningGuide` links to `EuRetirementSavingsGuide` under an "International Perspective" heading
 
 ## Common Mistakes
 

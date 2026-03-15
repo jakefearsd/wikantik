@@ -26,6 +26,7 @@ This article cluster focuses on the **strategic decisions** of retirement — no
 - [Safe Withdrawal Rates](SafeWithdrawalRates) — How much can you spend? The 4% rule, sequence of returns risk, and modern dynamic strategies
 - [Sequence of Returns Risk](SequenceOfReturnsRisk) — Why the first 5-10 years of retirement determine everything, and concrete strategies (bond tent, cash buckets, guardrails, delayed Social Security) to protect yourself
 - [Guardrails Spending Strategy](GuardrailsSpendingStrategy) — The rules engine for adaptive spending: Guyton-Klinger decision rules, Kitces-Pfau ratcheting, setting guardrail widths, and multi-year worked examples
+- [Monte Carlo Simulation in Retirement Planning](MonteCarloRetirementPlanning) — Stress-testing spending strategies across thousands of possible futures: how MC works, what the numbers mean, and why "95% success" may be misleading
 - [History of the Four Percent Rule](HistoryOfTheFourPercentRule) — How the most famous number in retirement planning was discovered, popularised, critiqued, and reinterpreted
 
 ### Background
@@ -51,6 +52,7 @@ The most important thing to understand about retirement planning is that these d
 | When RMDs begin | Forces taxable income that may push you into higher brackets |
 | Your healthcare costs | How much income you need, which drives all the above |
 | Your guardrails spending adjustments | Which accounts absorb cuts (Roth conversions first, then discretionary) |
+| Your Monte Carlo assumptions | Whether your plan looks safe or fragile, which drives all spending decisions |
 
 The articles in this cluster cross-reference each other at these connection points so you can trace the cascading effects of each decision.
 

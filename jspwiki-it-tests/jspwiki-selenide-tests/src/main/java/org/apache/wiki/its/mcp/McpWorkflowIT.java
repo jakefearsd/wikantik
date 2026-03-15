@@ -90,7 +90,8 @@ public class McpWorkflowIT extends WithMcpTestSetup {
         final Map< String, Object > backlinks = mcp.getBacklinks( target );
         @SuppressWarnings( "unchecked" )
         final List< String > links = ( List< String > ) backlinks.get( "backlinks" );
-        Assertions.assertTrue( links.contains( source ) );
+        Assertions.assertTrue( links.contains( source ),
+                "Source page should appear as a backlink for target" );
     }
 
     @Test

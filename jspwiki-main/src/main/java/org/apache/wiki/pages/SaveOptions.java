@@ -39,7 +39,7 @@ public record SaveOptions(
     public static class Builder {
         private String author;
         private String changeNote;
-        private String markupSyntax = "markdown";
+        private String markupSyntax;
         private int expectedVersion = -1;
         private String expectedContentHash;
         private Map< String, Object > metadata;

@@ -66,7 +66,7 @@ as well as very detailed access control and security integration using JAAS.
 
 The `jspwiki-mcp` module provides a Model Context Protocol server for AI-assisted wiki operations. See the module's own documentation for setup and usage.
 
-- [wiki-article-cluster skill](docs/superpowers/skills/wiki-article-cluster/SKILL.md) — Skill for researching and publishing multi-page wiki article clusters
+- [wiki-article-cluster skill](.claude/skills/wiki-article-cluster/SKILL.md) — Skill for researching and publishing multi-page wiki article clusters
 
 ### Research
 

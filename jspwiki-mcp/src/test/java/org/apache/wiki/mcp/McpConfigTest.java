@@ -20,6 +20,7 @@ package org.apache.wiki.mcp;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -140,5 +141,77 @@ class McpConfigTest {
         final Properties props = new Properties();
         final McpConfig config = new McpConfig( props );
         assertNull( config.allowedCidrs() );
+    }
+
+    // --- Multi-key tests ---
+
+    @Test
+    void testAccessKeysMultiple() {
+        final Properties props = new Properties();
+        props.setProperty( "mcp.access.keys", "key1, key2, key3" );
+        final McpConfig config = new McpConfig( props );
+        assertEquals( List.of( "key1", "key2", "key3" ), config.accessKeys() );
+    }
+
+    @Test
+    void testAccessKeysLegacySingleKey() {
+        final Properties props = new Properties();
+        props.setProperty( "mcp.access.key", "legacy-key" );
+        final McpConfig config = new McpConfig( props );
+        assertEquals( List.of( "legacy-key" ), config.accessKeys() );
+    }
+
+    @Test
+    void testAccessKeysBothConfiguredPrefersPlural() {
+        final Properties props = new Properties();
+        props.setProperty( "mcp.access.keys", "new1, new2" );
+        props.setProperty( "mcp.access.key", "old-key" );
+        final McpConfig config = new McpConfig( props );
+        assertEquals( List.of( "new1", "new2" ), config.accessKeys() );
+    }
+
+    @Test
+    void testAccessKeysEmptyReturnsEmptyList() {
+        final Properties props = new Properties();
+        final McpConfig config = new McpConfig( props );
+        assertTrue( config.accessKeys().isEmpty() );
+    }
+
+    @Test
+    void testAccessKeysBlankReturnsEmptyList() {
+        final Properties props = new Properties();
+        props.setProperty( "mcp.access.keys", "   " );
+        final McpConfig config = new McpConfig( props );
+        assertTrue( config.accessKeys().isEmpty() );
+    }
+
+    // --- Rate limit tests ---
+
+    @Test
+    void testRateLimitDefaults() {
+        final Properties props = new Properties();
+        final McpConfig config = new McpConfig( props );
+        assertEquals( 0, config.rateLimitGlobal() );
+        assertEquals( 0, config.rateLimitPerClient() );
+    }
+
+    @Test
+    void testRateLimitConfigured() {
+        final Properties props = new Properties();
+        props.setProperty( "mcp.ratelimit.global", "3" );
+        props.setProperty( "mcp.ratelimit.perClient", "1" );
+        final McpConfig config = new McpConfig( props );
+        assertEquals( 3, config.rateLimitGlobal() );
+        assertEquals( 1, config.rateLimitPerClient() );
+    }
+
+    @Test
+    void testRateLimitInvalidFallsBackToDefault() {
+        final Properties props = new Properties();
+        props.setProperty( "mcp.ratelimit.global", "not-a-number" );
+        props.setProperty( "mcp.ratelimit.perClient", "" );
+        final McpConfig config = new McpConfig( props );
+        assertEquals( 0, config.rateLimitGlobal() );
+        assertEquals( 0, config.rateLimitPerClient() );
     }
 }

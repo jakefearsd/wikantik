@@ -24,6 +24,8 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 
 /**
@@ -43,12 +45,28 @@ public class McpConfig {
 
     /**
      * Creates a config by loading bundled defaults and overlaying any classpath override.
+     *
+     * <p>In a standard Tomcat deployment the webapp classloader finds the JAR-bundled
+     * defaults first. The parent classloader (Tomcat's "common" loader, which includes
+     * {@code tomcat/lib/}) is checked separately so that admin overrides placed in
+     * {@code tomcat/lib/jspwiki-mcp.properties} are overlaid on top of the defaults.</p>
      */
     public McpConfig() {
         props = new Properties();
-        loadFromClasspath( McpConfig.class.getClassLoader(), props );
+        final ClassLoader ownCl = McpConfig.class.getClassLoader();
+        loadFromClasspath( ownCl, props );
+
+        // Overlay from the parent classloader (e.g. Tomcat's common classloader
+        // which includes tomcat/lib/) so admin-placed overrides take effect.
+        final ClassLoader parent = ownCl != null ? ownCl.getParent() : null;
+        if ( parent != null ) {
+            loadFromClasspath( parent, props );
+        }
+
+        // Also check TCCL for non-standard deployment models where
+        // the thread context classloader differs from both of the above.
         final ClassLoader tccl = Thread.currentThread().getContextClassLoader();
-        if ( tccl != null && tccl != McpConfig.class.getClassLoader() ) {
+        if ( tccl != null && tccl != ownCl && tccl != parent ) {
             loadFromClasspath( tccl, props );
         }
     }
@@ -95,9 +113,53 @@ public class McpConfig {
         return inline != null && !inline.isBlank() ? inline : null;
     }
 
+    /**
+     * Returns the list of configured API keys for MCP access control.
+     * Reads from {@code mcp.access.keys} (comma-separated) first,
+     * falling back to the legacy {@code mcp.access.key} single-key property.
+     */
+    public List< String > accessKeys() {
+        String raw = props.getProperty( "mcp.access.keys" );
+        if ( raw == null || raw.isBlank() ) {
+            raw = props.getProperty( "mcp.access.key" );
+        }
+        if ( raw == null || raw.isBlank() ) {
+            return List.of();
+        }
+        return Arrays.stream( raw.split( "," ) )
+                .map( String::strip )
+                .filter( s -> !s.isEmpty() )
+                .toList();
+    }
+
+    /**
+     * @deprecated Use {@link #accessKeys()} instead. Returns the first configured key, or {@code null}.
+     */
+    @Deprecated
     public String accessKey() {
-        final String key = props.getProperty( "mcp.access.key" );
-        return key != null && !key.isBlank() ? key.strip() : null;
+        final List< String > keys = accessKeys();
+        return keys.isEmpty() ? null : keys.get( 0 );
+    }
+
+    public int rateLimitGlobal() {
+        return intProperty( "mcp.ratelimit.global", 0 );
+    }
+
+    public int rateLimitPerClient() {
+        return intProperty( "mcp.ratelimit.perClient", 0 );
+    }
+
+    private int intProperty( final String key, final int defaultValue ) {
+        final String val = props.getProperty( key );
+        if ( val == null || val.isBlank() ) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt( val.strip() );
+        } catch ( final NumberFormatException e ) {
+            LOG.warn( "Invalid integer for '{}': '{}'", key, val );
+            return defaultValue;
+        }
     }
 
     public String allowedCidrs() {

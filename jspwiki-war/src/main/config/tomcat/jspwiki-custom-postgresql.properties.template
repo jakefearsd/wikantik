@@ -33,7 +33,7 @@ jspwiki.baseURL = http://localhost:8080/JSPWiki/
 
 # File storage locations
 # Adjust these paths to match your local environment
-jspwiki.fileSystemProvider.pageDir = /home/jakefear/source/jspwiki/tomcat/jspwiki-pages
+jspwiki.fileSystemProvider.pageDir = /home/jakefear/source/jspwiki/docs/jspwiki-pages
 jspwiki.workDir = /home/jakefear/source/jspwiki/tomcat/jspwiki-work
 
 # Use PostgreSQL JDBC databases for user and group storage

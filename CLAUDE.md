@@ -49,7 +49,7 @@ mvn test -Dtest=MemoryProfiling
 
 The local Tomcat instance lives at `tomcat/tomcat-11`. Use this for running and testing — do not use Cargo.
 
-The wiki is deployed as the ROOT context, serving pages from `tomcat/jspwiki-pages`.
+The wiki is deployed as the ROOT context, serving pages from `docs/jspwiki-pages/` (version-controlled).
 Configuration files:
 - `tomcat/tomcat-11/lib/jspwiki-custom.properties` — wiki settings (page provider, base URL, PostgreSQL JDBC, etc.)
 - `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml` — Tomcat context with PostgreSQL JNDI DataSources

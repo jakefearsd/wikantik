@@ -142,15 +142,8 @@ echo "Deploying WAR file..."
 cp "${WAR_SOURCE}" "${TOMCAT_DIR}/webapps/"
 print_status "WAR deployed to ${TOMCAT_DIR}/webapps/"
 
-# Copy documentation markdown files to wiki pages directory
-PAGES_DIR="${SCRIPT_DIR}/tomcat/jspwiki-pages"
-DOCS_DIR="${SCRIPT_DIR}/docs"
-if [[ -d "${PAGES_DIR}" && -d "${DOCS_DIR}" ]]; then
-    echo ""
-    echo "Copying documentation to wiki pages..."
-    cp "${DOCS_DIR}"/*.md "${PAGES_DIR}/"
-    print_status "Copied $(ls -1 "${DOCS_DIR}"/*.md | wc -l) markdown files to ${PAGES_DIR}/"
-fi
+# Wiki pages now live in docs/jspwiki-pages/ (version-controlled)
+# No copy step needed — Tomcat serves directly from docs/jspwiki-pages/
 
 # Summary
 echo ""

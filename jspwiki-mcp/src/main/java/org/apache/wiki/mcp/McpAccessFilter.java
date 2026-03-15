@@ -42,70 +42,118 @@ import java.util.List;
  *
  * <p>A request is allowed if it satisfies EITHER condition:
  * <ul>
- *   <li>A valid Bearer token matching the configured API key</li>
+ *   <li>A valid Bearer token matching one of the configured API keys</li>
  *   <li>Source IP within one of the configured CIDR allowlist entries</li>
  * </ul>
  *
- * <p>If neither an API key nor CIDR allowlist is configured, all traffic is permitted
+ * <p>If neither API keys nor CIDR allowlist is configured, all traffic is permitted
  * (backwards-compatible unrestricted mode).
+ *
+ * <p>After authentication, requests are subject to rate limiting if configured.
+ * Failed access attempts and rate limit violations are logged to the {@code SecurityLog} logger.
  */
 public class McpAccessFilter implements Filter {
 
     private static final Logger LOG = LogManager.getLogger( McpAccessFilter.class );
+    private static final Logger SECURITY = LogManager.getLogger( "SecurityLog" );
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final byte[] apiKeyBytes;
+    private final List< byte[] > apiKeyList;
     private final List< CidrEntry > cidrEntries;
     private final boolean unrestricted;
+    private final McpRateLimiter rateLimiter;
 
     record CidrEntry( byte[] network, int prefixLen ) { }
 
-    public McpAccessFilter( final McpConfig config ) {
-        final String key = config.accessKey();
-        this.apiKeyBytes = key != null ? key.getBytes( StandardCharsets.UTF_8 ) : null;
+    public McpAccessFilter( final McpConfig config, final McpRateLimiter rateLimiter ) {
+        final List< String > keys = config.accessKeys();
+        this.apiKeyList = keys.stream()
+                .map( k -> k.getBytes( StandardCharsets.UTF_8 ) )
+                .toList();
         this.cidrEntries = parseCidrs( config.allowedCidrs() );
-        this.unrestricted = apiKeyBytes == null && cidrEntries.isEmpty();
+        this.unrestricted = apiKeyList.isEmpty() && cidrEntries.isEmpty();
+        this.rateLimiter = rateLimiter;
 
         if ( unrestricted ) {
             LOG.info( "MCP access filter: unrestricted (no key or CIDR configured)" );
         } else {
-            LOG.info( "MCP access filter: key={}, CIDRs={}",
-                    apiKeyBytes != null ? "configured" : "none", cidrEntries.size() );
+            LOG.info( "MCP access filter: keys={}, CIDRs={}",
+                    apiKeyList.size(), cidrEntries.size() );
         }
+    }
+
+    /**
+     * @deprecated Use {@link #McpAccessFilter(McpConfig, McpRateLimiter)} instead.
+     */
+    @Deprecated
+    public McpAccessFilter( final McpConfig config ) {
+        this( config, new McpRateLimiter( 0, 0 ) );
     }
 
     @Override
     public void doFilter( final ServletRequest request, final ServletResponse response,
                           final FilterChain chain ) throws IOException, ServletException {
-        if ( unrestricted ) {
-            chain.doFilter( request, response );
-            return;
-        }
-
         final HttpServletRequest httpReq = ( HttpServletRequest ) request;
         final HttpServletResponse httpResp = ( HttpServletResponse ) response;
+        final String remoteAddr = httpReq.getRemoteAddr();
 
-        if ( checkApiKey( httpReq ) || checkIp( httpReq ) ) {
-            chain.doFilter( request, response );
+        // Determine client identity and auth status
+        final String clientId;
+
+        if ( unrestricted ) {
+            clientId = "ip:" + remoteAddr;
+        } else {
+            // Check API key — returns matched key index or -1
+            final int keyIndex = checkApiKey( httpReq );
+            if ( keyIndex >= 0 ) {
+                clientId = "key:" + keyIndex;
+            } else if ( checkIp( httpReq ) ) {
+                clientId = "ip:" + remoteAddr;
+            } else {
+                // Auth failed
+                final boolean authHeaderPresent = httpReq.getHeader( "Authorization" ) != null;
+                SECURITY.warn( "MCP access denied: ip={}, auth={}",
+                        remoteAddr, authHeaderPresent ? "invalid-key" : "none" );
+                httpResp.setStatus( HttpServletResponse.SC_FORBIDDEN );
+                httpResp.setContentType( "application/json" );
+                httpResp.getWriter().write( "{\"error\":\"Access denied\"}" );
+                return;
+            }
+        }
+
+        // Rate limit check
+        if ( !rateLimiter.tryAcquire( clientId ) ) {
+            SECURITY.warn( "MCP rate limit exceeded: client={}, ip={}", clientId, remoteAddr );
+            httpResp.setStatus( 429 );
+            httpResp.setContentType( "application/json" );
+            httpResp.getWriter().write( "{\"error\":\"Rate limit exceeded\"}" );
             return;
         }
 
-        httpResp.setStatus( HttpServletResponse.SC_FORBIDDEN );
-        httpResp.setContentType( "application/json" );
-        httpResp.getWriter().write( "{\"error\":\"Access denied\"}" );
+        chain.doFilter( request, response );
     }
 
-    private boolean checkApiKey( final HttpServletRequest request ) {
-        if ( apiKeyBytes == null ) {
-            return false;
+    /**
+     * Checks the request's Bearer token against all configured API keys.
+     *
+     * @return the index of the matched key, or {@code -1} if no match
+     */
+    private int checkApiKey( final HttpServletRequest request ) {
+        if ( apiKeyList.isEmpty() ) {
+            return -1;
         }
         final String authHeader = request.getHeader( "Authorization" );
         if ( authHeader == null || !authHeader.startsWith( BEARER_PREFIX ) ) {
-            return false;
+            return -1;
         }
         final byte[] provided = authHeader.substring( BEARER_PREFIX.length() )
                 .getBytes( StandardCharsets.UTF_8 );
-        return MessageDigest.isEqual( apiKeyBytes, provided );
+        for ( int i = 0; i < apiKeyList.size(); i++ ) {
+            if ( MessageDigest.isEqual( apiKeyList.get( i ), provided ) ) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private boolean checkIp( final HttpServletRequest request ) {

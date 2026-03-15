@@ -81,8 +81,10 @@ public class McpServerInitializer implements ServletContextListener {
                     config.serverName(), config.serverTitle(), config.serverVersion(),
                     config.instructions() != null ? config.instructions().length() + " chars" : "none" );
 
-            // Register access control filter
-            final McpAccessFilter accessFilter = new McpAccessFilter( config );
+            // Register access control filter with rate limiter
+            final McpRateLimiter rateLimiter = new McpRateLimiter(
+                    config.rateLimitGlobal(), config.rateLimitPerClient() );
+            final McpAccessFilter accessFilter = new McpAccessFilter( config, rateLimiter );
             final FilterRegistration.Dynamic filterReg =
                     servletContext.addFilter( "McpAccessFilter", accessFilter );
             filterReg.addMappingForUrlPatterns( EnumSet.of( DispatcherType.REQUEST ), false, "/mcp" );

@@ -31,6 +31,7 @@ import org.apache.wiki.api.search.SearchResult;
 import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.cache.CacheInfo;
 import org.apache.wiki.cache.CachingManager;
+import org.apache.wiki.content.NewsPageGenerator;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.parser.MarkupParser;
 import org.apache.wiki.render.RenderingManager;
@@ -146,6 +147,11 @@ public class CachingProvider implements PageProvider {
             pageDirectoryWatcher = new PageDirectoryWatcher( engine, watcherInterval, fileProvider, cachingManager );
             pageDirectoryWatcher.start();
             LOG.info( "Page directory watcher started with {}s interval", watcherInterval );
+
+            // Start news page generator (auto-generates News.md from git history)
+            final String pageDir = fileProvider.getPageDirectory();
+            final NewsPageGenerator newsGenerator = new NewsPageGenerator( engine, pageDir );
+            newsGenerator.start();
         }
     }
 

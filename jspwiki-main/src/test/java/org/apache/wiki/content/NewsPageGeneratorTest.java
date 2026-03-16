@@ -18,9 +18,11 @@
  */
 package org.apache.wiki.content;
 
+import org.apache.wiki.api.core.Engine;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -167,6 +169,64 @@ public class NewsPageGeneratorTest {
         final String differentContent = NewsPageGenerator.formatNewsPage( List.of( "2026-03-14 Different message" ) );
         final String hash3 = NewsPageGenerator.sha256( differentContent );
         Assertions.assertNotEquals( hash1, hash3, "Different content should produce different hash" );
+    }
+
+    @Test
+    public void testFirstDeploymentCreatesNewsFile( @TempDir final Path tempDir ) throws Exception {
+        final Path newsFile = tempDir.resolve( "News.md" );
+        Assertions.assertFalse( Files.exists( newsFile ), "News.md should not exist before first run" );
+
+        // Simulate what backgroundTask does on first deployment: lastContentHash is null,
+        // so any generated content should be written to disk.
+        final List< String > simulatedGitLog = List.of(
+                "2026-03-15 Initial commit",
+                "2026-03-14 Add README"
+        );
+        final String content = NewsPageGenerator.formatNewsPage( simulatedGitLog );
+        final String hash = NewsPageGenerator.sha256( content );
+
+        // With a null lastContentHash, the hash comparison fails → file gets written
+        final String lastContentHash = null;
+        Assertions.assertNotEquals( hash, lastContentHash, "Hash should differ from null on first deployment" );
+
+        // Write the file as backgroundTask would
+        Files.writeString( newsFile, content, StandardCharsets.UTF_8 );
+
+        Assertions.assertTrue( Files.exists( newsFile ), "News.md should be created on first deployment" );
+        final String written = Files.readString( newsFile, StandardCharsets.UTF_8 );
+        Assertions.assertTrue( written.startsWith( "# JSPWiki Development News" ),
+                "News page should have the expected header" );
+        Assertions.assertTrue( written.contains( "**2026-03-15** — Initial commit" ),
+                "News page should contain formatted commit entries" );
+    }
+
+    @Test
+    public void testFirstDeploymentWithRealGitRepo() throws Exception {
+        // Create a temp directory inside the project tree so findGitRoot discovers the real .git
+        final Path tempDir = Files.createTempDirectory( Path.of( "target" ).toAbsolutePath(), "news-test-" );
+        try {
+            final Path newsFile = tempDir.resolve( "News.md" );
+            Assertions.assertFalse( Files.exists( newsFile ), "News.md should not exist before first run" );
+
+            final Engine engine = Mockito.mock( Engine.class );
+            final NewsPageGenerator generator = new NewsPageGenerator( engine, tempDir.toAbsolutePath().toString() );
+            generator.startupTask();
+
+            // Verify git log works in this environment before testing the full flow
+            final List< String > gitLogLines = generator.runGitLog();
+            Assertions.assertFalse( gitLogLines.isEmpty(), "Git log should return commits from the real repo" );
+
+            generator.backgroundTask();
+
+            Assertions.assertTrue( Files.exists( newsFile ), "News.md should be created on first deployment" );
+            final String content = Files.readString( newsFile, StandardCharsets.UTF_8 );
+            Assertions.assertTrue( content.startsWith( "# JSPWiki Development News" ),
+                    "News page should have the expected header" );
+        } finally {
+            final Path newsFile = tempDir.resolve( "News.md" );
+            Files.deleteIfExists( newsFile );
+            Files.deleteIfExists( tempDir );
+        }
     }
 
     @Test

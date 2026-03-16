@@ -156,8 +156,7 @@ public class NewsPageGenerator extends WikiBackgroundThread {
      */
     List< String > runGitLog() throws IOException {
         final ProcessBuilder pb = new ProcessBuilder(
-                "git", "log",
-                "--no-pager",
+                "git", "--no-pager", "log",
                 "--since=" + monthsOfHistory + " months ago",
                 "--format=%ad %s",
                 "--date=short"

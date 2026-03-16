@@ -101,6 +101,38 @@ class WritePageToolTest {
     }
 
     @Test
+    void testWritePageWithMarkdownSyntax() {
+        final Map< String, Object > args = new HashMap<>();
+        args.put( "pageName", "McpMarkdownPage" );
+        args.put( "content", "# Markdown content" );
+        args.put( "markupSyntax", "markdown" );
+
+        final McpSchema.CallToolResult result = tool.execute( args );
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        final Map< String, Object > data = gson.fromJson( json, Map.class );
+        assertEquals( true, data.get( "success" ) );
+
+        final Page saved = engine.getManager( PageManager.class ).getPage( "McpMarkdownPage" );
+        assertEquals( "markdown", saved.getAttribute( Page.MARKUP_SYNTAX ) );
+    }
+
+    @Test
+    void testWritePageWithJspwikiSyntax() {
+        final Map< String, Object > args = new HashMap<>();
+        args.put( "pageName", "McpJspwikiPage" );
+        args.put( "content", "!! JSPWiki content" );
+        args.put( "markupSyntax", "jspwiki" );
+
+        final McpSchema.CallToolResult result = tool.execute( args );
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        final Map< String, Object > data = gson.fromJson( json, Map.class );
+        assertEquals( true, data.get( "success" ) );
+
+        final Page saved = engine.getManager( PageManager.class ).getPage( "McpJspwikiPage" );
+        assertNotEquals( "markdown", saved.getAttribute( Page.MARKUP_SYNTAX ) );
+    }
+
+    @Test
     void testWritePageWithChangeNote() {
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "McpWriteNote" );

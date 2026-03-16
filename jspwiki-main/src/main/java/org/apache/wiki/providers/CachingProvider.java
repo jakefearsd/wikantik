@@ -84,6 +84,12 @@ public class CachingProvider implements PageProvider {
     public static final String PROP_WATCHER_ENABLED = "jspwiki.cache.watcherEnabled";
 
     /**
+     * Property name for enabling/disabling the news page generator.
+     * Default is {@code true}.
+     */
+    public static final String PROP_NEWS_GENERATOR_ENABLED = "jspwiki.newsPageGenerator.enabled";
+
+    /**
      * Property name for configuring the watcher polling interval in seconds.
      * Default is 3 seconds.
      */
@@ -149,9 +155,12 @@ public class CachingProvider implements PageProvider {
             LOG.info( "Page directory watcher started with {}s interval", watcherInterval );
 
             // Start news page generator (auto-generates News.md from git history)
-            final String pageDir = fileProvider.getPageDirectory();
-            final NewsPageGenerator newsGenerator = new NewsPageGenerator( engine, pageDir );
-            newsGenerator.start();
+            final boolean newsEnabled = TextUtil.getBooleanProperty( properties, PROP_NEWS_GENERATOR_ENABLED, true );
+            if( newsEnabled ) {
+                final String pageDir = fileProvider.getPageDirectory();
+                final NewsPageGenerator newsGenerator = new NewsPageGenerator( engine, pageDir );
+                newsGenerator.start();
+            }
         }
     }
 

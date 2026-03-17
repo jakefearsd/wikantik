@@ -23,6 +23,7 @@ A curated collection of in-depth research articles, organized into topic cluster
 - [The Future of Machine Learning](TheFutureOfMachineLearning) — Where machine learning is headed: foundation models, data efficiency, edge AI, AI safety, neurosymbolic approaches, and the engineering challenges of deploying ML at scale
 - [Foundational Algorithms for Computer Scientists](FoundationalAlgorithmsForComputerScientists) — The essential algorithms every computer scientist should know: sorting, graph algorithms, dynamic programming, greedy methods, cryptographic primitives, and compression
 - [Embedded AI on Limited Hardware](EmbeddedAiOnLimitedHardware) — Running AI models on microcontrollers, phones, and edge devices: proven use cases, quantization, TinyML, and the economics of on-device inference
+- [Mathematical Foundations of Machine Learning](MathematicalFoundationsOfMachineLearning) — The math that underpins ML: linear algebra, calculus, probability, optimization, and information theory, with concrete examples of how each concept drives real techniques
 
 ### Immigration
 

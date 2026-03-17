@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-16** — Fix NewsPageGenerator breaking unit tests and add MCP markupSyntax test coverage
+
 **2026-03-16** — Add first-deployment tests for NewsPageGenerator and fix --no-pager bug
 
 **2026-03-16** — Add NewsPageGenerator to auto-generate News.md from git history

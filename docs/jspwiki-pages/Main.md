@@ -22,6 +22,7 @@ A curated collection of in-depth research articles, organized into topic cluster
 - [LLMs Since 2020](LlmsSinceTwentyTwenty) — The evolution of large language models from GPT-3 through modern frontier models: scaling laws, RLHF, multimodal capabilities, the open-weight movement, and what it means for practitioners
 - [The Future of Machine Learning](TheFutureOfMachineLearning) — Where machine learning is headed: foundation models, data efficiency, edge AI, AI safety, neurosymbolic approaches, and the engineering challenges of deploying ML at scale
 - [Foundational Algorithms for Computer Scientists](FoundationalAlgorithmsForComputerScientists) — The essential algorithms every computer scientist should know: sorting, graph algorithms, dynamic programming, greedy methods, cryptographic primitives, and compression
+- [Embedded AI on Limited Hardware](EmbeddedAiOnLimitedHardware) — Running AI models on microcontrollers, phones, and edge devices: proven use cases, quantization, TinyML, and the economics of on-device inference
 
 ### Immigration
 

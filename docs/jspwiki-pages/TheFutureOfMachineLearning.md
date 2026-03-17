@@ -1,11 +1,24 @@
 ---
+related:
+- MachineLearning
+- ArtificialIntelligence
+- LlmsSinceTwentyTwenty
+- FoundationalAlgorithmsForComputerScientists
+- EmbeddedAiOnLimitedHardware
 type: article
 cluster: technology
-tags: [ai, machine-learning, deep-learning, research, technology, future]
-related: [MachineLearning, ArtificialIntelligence, LlmsSinceTwentyTwenty, FoundationalAlgorithmsForComputerScientists]
 status: active
-date: 2026-03-17
-summary: Where machine learning is headed — foundation models, data efficiency, edge AI, AI safety, neurosymbolic approaches, and the engineering challenges of deploying ML at scale
+summary: Where machine learning is headed — foundation models, data efficiency, edge
+  AI, AI safety, neurosymbolic approaches, and the engineering challenges of deploying
+  ML at scale
+date: 2026-03-17T00:00:00Z
+tags:
+- ai
+- machine-learning
+- deep-learning
+- research
+- technology
+- future
 ---
 # The Future of Machine Learning
 

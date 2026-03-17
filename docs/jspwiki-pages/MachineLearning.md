@@ -1,13 +1,17 @@
 ---
-cluster: generative-ai
+summary: Deep dive into machine learning covering supervised, unsupervised, and reinforcement
+  learning, key algorithms, the training process, and practical tools and frameworks
 tags:
 - ai
 - machine-learning
 - deep-learning
 - algorithms
 - training
-summary: Deep dive into machine learning covering supervised, unsupervised, and reinforcement
-  learning, key algorithms, the training process, and practical tools and frameworks
+cluster: generative-ai
+related:
+- LlmsSinceTwentyTwenty
+- TheFutureOfMachineLearning
+- FoundationalAlgorithmsForComputerScientists
 ---
 # Machine Learning
 

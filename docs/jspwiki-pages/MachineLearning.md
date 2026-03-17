@@ -12,6 +12,7 @@ related:
 - LlmsSinceTwentyTwenty
 - TheFutureOfMachineLearning
 - FoundationalAlgorithmsForComputerScientists
+- MathematicalFoundationsOfMachineLearning
 ---
 # Machine Learning
 

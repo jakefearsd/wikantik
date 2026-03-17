@@ -1,14 +1,18 @@
 ---
-cluster: generative-ai
+summary: Comprehensive overview of artificial intelligence covering history, core
+  techniques, current capabilities, major applications, ethical considerations, and
+  key research organizations
 tags:
 - ai
 - machine-learning
 - deep-learning
 - technology
 - overview
-summary: Comprehensive overview of artificial intelligence covering history, core
-  techniques, current capabilities, major applications, ethical considerations, and
-  key research organizations
+cluster: generative-ai
+related:
+- LlmsSinceTwentyTwenty
+- TheFutureOfMachineLearning
+- FoundationalAlgorithmsForComputerScientists
 ---
 # Artificial Intelligence
 

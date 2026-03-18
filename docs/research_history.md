@@ -7,8 +7,8 @@ MCP API.
 
 ## Environment
 
-- **Wiki**: JSPWiki running on local Tomcat 11 at http://localhost:8080/
-- **MCP endpoint**: http://localhost:8080/mcp (Streamable HTTP transport)
+- **Wiki**: https://wiki.jakefear.com (production)
+- **MCP endpoint**: https://wiki.jakefear.com/mcp (Streamable HTTP transport)
 - **Protocol**: MCP JSON-RPC over HTTP POST
 - **Date**: 2026-03-14
 
@@ -189,8 +189,8 @@ allocation to achieve early retirement, using the JSPWiki MCP API.
 
 ## Environment
 
-- **Wiki**: JSPWiki running on local Tomcat 11 at http://localhost:8080/
-- **MCP endpoint**: http://localhost:8080/mcp (Streamable HTTP transport)
+- **Wiki**: https://wiki.jakefear.com (production)
+- **MCP endpoint**: https://wiki.jakefear.com/mcp (Streamable HTTP transport)
 - **MCP server version**: 23 tools, 5 prompts, 3 completions (Phase 2 deployment)
 - **Date**: 2026-03-14
 
@@ -369,8 +369,8 @@ RMDs, and retirement income planning — using the JSPWiki MCP API.
 
 ## Environment
 
-- **Wiki**: JSPWiki running on local Tomcat 11 at http://localhost:8080/
-- **MCP endpoint**: http://localhost:8080/mcp (Streamable HTTP transport)
+- **Wiki**: https://wiki.jakefear.com (production)
+- **MCP endpoint**: https://wiki.jakefear.com/mcp (Streamable HTTP transport)
 - **MCP server version**: 23 tools (Phase 2 deployment)
 - **Date**: 2026-03-14
 - **Skill used**: `wiki-article-cluster` (first use of the new skill)
@@ -640,7 +640,7 @@ The EXTEND workflow (adding a single article to an existing cluster and updating
 ## Cluster Extension: InvestingInYourTwenties (2026-03-14)
 
 **Cluster**: IndexFundInvestingForEarlyRetirement (Cluster 2)
-**New article**: [InvestingInYourTwenties](http://localhost:8080/Wiki.jsp?page=InvestingInYourTwenties) — Why investors in their 20s should strongly consider 100% equities, and how risk tolerance changes with age
+**New article**: [InvestingInYourTwenties](https://wiki.jakefear.com/Wiki.jsp?page=InvestingInYourTwenties) — Why investors in their 20s should strongly consider 100% equities, and how risk tolerance changes with age
 **Tools used**: `write_page` (new article), `patch_page` (hub page + retirement guide updates), `get_outbound_links`, `get_backlinks`, `get_broken_links`
 **Pages updated**: IndexFundInvestingForEarlyRetirement (added link under "The Allocation Decision"), RetirementPlanningGuide (added cross-reference under "Background")
 
@@ -663,7 +663,7 @@ The EXTEND workflow (adding a single article to an existing cluster and updating
 ## Cluster Extension: SequenceOfReturnsRisk (2026-03-14)
 
 **Cluster**: RetirementPlanningGuide (Cluster 3)
-**New article**: [SequenceOfReturnsRisk](http://localhost:8080/Wiki.jsp?page=SequenceOfReturnsRisk) — Deep dive on sequence of returns risk and 5 concrete protection strategies (bond tent, cash buckets, dynamic spending, guaranteed income floor, flexible timing)
+**New article**: [SequenceOfReturnsRisk](https://wiki.jakefear.com/Wiki.jsp?page=SequenceOfReturnsRisk) — Deep dive on sequence of returns risk and 5 concrete protection strategies (bond tent, cash buckets, dynamic spending, guaranteed income floor, flexible timing)
 **Tools used**: `write_page` (new article), `batch_patch_pages` (3 cross-reference updates in one call), `get_outbound_links`, `get_backlinks`, `get_broken_links`
 **Pages updated**: RetirementPlanningGuide (added to "The Foundation" section), SafeWithdrawalRates (added cross-reference after sequence risk intro), InvestingInYourTwenties (added See Also link)
 
@@ -790,3 +790,54 @@ Continued broken-link cleanup. Starting count at session resume: 59 (previous se
 52. **Display text of ALL Markdown links is checked as a wiki link**: This applies to external links (`[text](https://...)`) as well as internal links. Any display text that doesn't map to an existing page (via CamelCase lookup) becomes a broken link entry. Fix strategy: create stub alias pages for common display texts (e.g., `OperationsResearch` → `OperationsResearchHub`), OR use plain text + URL format for external references.
 
 53. **JSPWiki display-text CamelCase lookup**: When checking if display text "Operations Research" is a valid page, JSPWiki concatenates words: `OperationsResearch`. Creating a page with that exact name resolves the broken link. "Machine Learning" → `MachineLearning` (already exists) → no broken link. "LLMs Since 2020" → no CamelCase mapping → broken link.
+
+---
+
+# Foundational Algorithms Cluster — 2026-03-18
+
+Expanded the existing monolithic `FoundationalAlgorithmsForComputerScientists` page into a full 9-page article cluster.
+
+## Cluster: `foundational-algorithms`
+
+**Hub:** `FoundationalAlgorithmsForComputerScientists` (converted from monolith; added frontmatter, restructured to hub format with sub-article index)
+
+**Sub-articles created (8):**
+- `ComplexityAnalysis` — Big-O/Omega/Theta, amortized analysis, P vs. NP, NP-completeness, master theorem
+- `SortingAlgorithms` — Comparison sorts (merge, quick, heap), non-comparison sorts (counting, radix, bucket), hybrid sorts (Timsort, introsort, pdqsort), stability
+- `SearchAndDataStructures` — Binary search (inc. "search on the answer"), hash tables (chaining, open addressing, Robin Hood, consistent hashing), balanced BSTs (AVL, red-black, skip lists), B+ trees, tries, bloom filters
+- `GraphAlgorithms` — BFS/DFS, Dijkstra, Bellman-Ford, A*, Floyd-Warshall, Kruskal/Prim MST, topological sort, SCC (Kosaraju, Tarjan), network flow (Ford-Fulkerson, max-flow min-cut)
+- `DynamicProgramming` — Optimal substructure, overlapping subproblems, memoization vs. tabulation, LCS, 0/1 knapsack, edit distance, LIS, matrix chain, coin change, interval DP, bitmask DP, DP on trees/graphs
+- `GreedyAlgorithms` — Greedy choice property, exchange argument proofs, activity selection, fractional knapsack, Huffman coding, job scheduling (EDF), matroid theory, approximation algorithms
+- `CryptographicAlgorithms` — AES (SPN structure, modes of operation), RSA, ECC/ECDH, ChaCha20-Poly1305, SHA-256, digital signatures (ECDSA, EdDSA), Diffie-Hellman, post-quantum (ML-KEM, ML-DSA, SLH-DSA)
+- `CompressionAlgorithms` — Shannon entropy, Kraft inequality, Huffman, arithmetic coding, LZ77/LZ78/LZW, BWT, PPM, LZMA, zstd, lossy compression (DCT/JPEG/MP3, wavelets/JPEG2000, video codecs H.264/AV1)
+
+**Other pages updated:**
+- `Main` — Updated the foundational algorithms entry description to reflect cluster structure
+
+**Cross-links added:** All sub-articles link back to hub and to related sub-articles. Hub links to `MachineLearning`, `OperationsResearchHub`, `ArtificialIntelligence`, `TheFutureOfMachineLearning`.
+
+**Verification:** 0 broken links from cluster pages. All 9 pages confirmed via `query_metadata` with `cluster=foundational-algorithms`.
+
+**Target wiki:** https://wiki.jakefear.com (production)
+
+---
+
+## Cluster: `warehouse-automation`
+
+**Date:** 2026-03-18
+
+**Hub:** `WarehouseAutomationHub` — overview of the full automation stack, technology maturity table, and links to all sub-articles
+
+**Sub-articles created (6):**
+- `WarehouseManagementSystems` — WMS software: inventory management, order orchestration, wave planning, labour management, ERP/TMS integration, major vendors
+- `WarehouseRobotics` — AMRs (goods-to-person, follower), AGVs, robotic picking arms (suction, parallel jaw, soft robotic), cobots, palletising robots, fleet management, safety standards
+- `AutomatedStorageAndRetrieval` — AS/RS system types: unit-load stacker cranes, mini-load, VLMs, vertical/horizontal carousels, shuttle systems, grid/cube storage (AutoStore model); comparison table
+- `ConveyorAndSortingTechnology` — Belt, roller (MDR/ZPA), overhead conveyors; tilt-tray, cross-belt, sliding shoe sorters, pop-up diverters; scan tunnels, induction, accumulation; throughput benchmarks
+- `WarehouseAiAndMl` — Demand forecasting (ARIMA, Prophet, LSTM, DeepAR), dynamic slotting (clustering, RL), computer vision picking (object detection, pose estimation, synthetic data), task allocation, predictive maintenance
+- `WarehouseAutomationLimitations` — Capital cost, hidden costs, inflexibility of fixed systems, demand variability, SKU constraints, robotic picking gaps, sensing limits, AI brittleness, workforce impact, regulatory constraints; summary table
+
+**Cross-links:** All sub-articles link to hub and to each other where relevant. Hub and sub-articles link to `OperationsResearchHub`, `ArtificialIntelligence`, `MachineLearning` (pre-existing broken links, not new).
+
+**Verification:** All 7 cluster-internal links resolve. Broken links to `ArtificialIntelligence`, `MachineLearning`, `OperationsResearchHub` are pre-existing (also broken in `foundational-algorithms` cluster). `WarehouseAutomationLimitations` receives backlinks from all 6 other cluster pages.
+
+**Target wiki:** https://wiki.jakefear.com (production)

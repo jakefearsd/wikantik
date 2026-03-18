@@ -17,6 +17,10 @@ A curated collection of in-depth research articles, organized into topic cluster
 
 ### Technology
 
+### Operations Research
+
+- [Operations Research](OperationsResearchHub) — History, mathematical foundations, and proven applications of OR: linear programming, integer optimization, stochastic models, supply chain, scheduling, and revenue management
+
 - [Generative AI Adoption Guide](GenerativeAiAdoptionGuide) — A practitioner's roadmap for adopting generative AI: understanding LLMs, evaluating tools, prompt engineering, running local models, integrating AI into workflows, and accelerating your learning
 - [Linux for Windows Users](LinuxForWindowsUsers) — Transitioning from Windows to Linux: choosing a distribution, command line essentials, filesystem and permissions, package management, shell scripting, and system administration
 - [LLMs Since 2020](LlmsSinceTwentyTwenty) — The evolution of large language models from GPT-3 through modern frontier models: scaling laws, RLHF, multimodal capabilities, the open-weight movement, and what it means for practitioners

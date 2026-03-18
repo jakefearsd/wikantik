@@ -710,3 +710,83 @@ The EXTEND workflow (adding a single article to an existing cluster and updating
 46. **Page names in research_history.md diverged from plan assumptions**: The plan used approximate page names (e.g., `WW1MarketImpact`) that differed from actual names (e.g., `WorldWarOneMarkets`). All 6 clusters had significant naming differences. Lesson: always verify page names via `list_pages` or `search_pages` before batch operations.
 
 47. **Single-cluster assignment works well**: Every page has exactly one `cluster` value. The `type: hub` vs `type: article` field distinguishes role within a cluster. Cross-cluster links use the existing `related` field. No need for multi-cluster membership.
+
+---
+
+# Operations Research Cluster — 2026-03-17
+
+## Cluster Summary
+
+Published a 7-page Operations Research cluster covering the history, mathematical foundations, and key applications of OR.
+
+**Cluster ID:** `operations-research`
+
+## Pages Created
+
+| Page | Type | Description |
+|------|------|-------------|
+| `OperationsResearchHub` | hub | Cluster overview with index of all sub-articles |
+| `HistoryOfOperationsResearch` | article | WWII origins, Blackett's Circus, post-war growth, modern OR |
+| `LinearProgrammingFoundations` | article | LP formulation, simplex method, duality, sensitivity analysis |
+| `IntegerAndCombinatorialOptimization` | article | IP, branch and bound, TSP, network flows, knapsack |
+| `StochasticModelsInOR` | article | Queuing theory, Markov chains, MDPs, Monte Carlo, stochastic programming |
+| `SupplyChainAndLogisticsOptimization` | article | EOQ, newsvendor, transportation problem, VRP, facility location |
+| `ProductionSchedulingAndOR` | article | CPM, PERT, machine scheduling theory, job-shop, workforce scheduling |
+| `RevenueManagementWithOR` | article | Littlewood's rule, EMSR, network RM, dynamic pricing, overbooking |
+
+## Cross-Cluster Links
+
+**OR → Technology cluster:**
+- `OperationsResearchHub` → `FoundationalAlgorithmsForComputerScientists`, `MathematicalFoundationsOfMachineLearning`
+- `LinearProgrammingFoundations` → `MathematicalFoundationsOfMachineLearning`
+
+**Technology cluster → OR:**
+- `MathematicalFoundationsOfMachineLearning` → `LinearProgrammingFoundations`, `OperationsResearchHub`
+- `FoundationalAlgorithmsForComputerScientists` → `OperationsResearchHub`
+- `MachineLearning` → `OperationsResearchHub`, `MathematicalFoundationsOfMachineLearning` (added See Also section)
+
+## Lessons Learned
+
+48. **YAML inline array format `[a, b]` causes false broken links**: JSPWiki's markdown parser treats `[a, b, c]` in YAML frontmatter as a wiki link to a page named "a, b, c". Always use multi-line YAML list format (`- item`) for tags and related fields. This required republishing all 7 OR pages.
+
+49. **Math `[...]` brackets in content produce false broken links**: Expressions like `E_ξ[Q(x,ξ)]` and formula arrays `[numerator] / [denominator]` are parsed as wiki links even in prose. Replace with parentheses `(...)` for mathematical grouping. Fixed in StochasticModelsInOR and RevenueManagementWithOR.
+
+50. **Broken links count dropped from 72 to 55 after fixes**: Confirmed all OR-related false positives resolved. The 17 remaining broken links are pre-existing issues from other clusters.
+
+---
+
+## Session: Broken Link Fixes (2026-03-17 continuation)
+
+Continued broken-link cleanup. Starting count at session resume: 59 (previous session's Reformation and Foundational fixes had inadvertently added 4 new broken links).
+
+### Fixes Applied
+
+**MathematicalFoundationsOfMachineLearning**
+- Fixed chain rule notation: `d/dx [f(g(x))]` → `d/dx (f(g(x)))` to prevent false broken link to `F(g(x))`
+
+**FoundationalAlgorithmsForComputerScientists**
+- Removed `[0, 1)` bracket interval notation (both backtick and `\[` escapes are ignored by JSPWiki's Markdown parser — links are parsed before code spans and escape sequences). Changed to prose: "between 0 (inclusive) and 1 (exclusive)"
+
+**ReformationEraInBerlin**
+- Fixed External References section: changed `[Martin Luther](https://...)` style links to `**Martin Luther** — https://...` format. JSPWiki treats display text of ALL Markdown links (including external https:// links) as wiki link targets, creating false positives for "Martin Luther", "Protestant Reformation", "Berlin Cathedral", "Evangelical Church in Prussia"
+
+**New page: OperationsResearch**
+- Created stub page `OperationsResearch` pointing to `OperationsResearchHub`. JSPWiki checks display text "Operations Research" as a wiki link → CamelCase → `OperationsResearch`. Without the stub, 4 pages had broken links from cross-references to `[Operations Research](OperationsResearchHub)`. Creating the stub resolved all 4.
+
+### Final Count: 53 broken links (down from 72 at project start, 59 at session start)
+
+### Remaining Broken Links (not fixable via MCP)
+
+- **Tutorial orphans** (10+): `BerlinasaCulturalCenterunderFrederickIITutorial` etc. link to pages with different capitalization; no filesystem access to fix
+- **System pages**: `WikiName`, `WikiEtiquette`, `PageAlias`, `OneMinuteWiki` — intentional built-in links
+- **Finance display-text false positives**: `SafeWithdrawalRates`, `RetirementIncomeBlueprint` — pre-existing
+- **Stale index entries**: `Ai,Machine-learning,...` from `MathematicalFoundationsOfMachineLearning` — not in current file content; should auto-clear on index refresh
+- **Main/ML display-text false positives**: `LLMs Since 2020`, `Generative AI Adoption Guide`, `MCP API`, `EU Retirement Savings Guide` etc. — inherent JSPWiki quirk for Markdown links
+
+## Lessons Learned (continued)
+
+51. **JSPWiki parses `[` as link start before processing code spans or escape sequences**: Neither `` `[0, 1)` `` (backtick code span) nor `\[0, 1)` (escaped bracket) prevents JSPWiki from treating `[` as a wiki link start. The only safe approach is to not use `[` in content where it would be ambiguous — use prose descriptions or parentheses instead.
+
+52. **Display text of ALL Markdown links is checked as a wiki link**: This applies to external links (`[text](https://...)`) as well as internal links. Any display text that doesn't map to an existing page (via CamelCase lookup) becomes a broken link entry. Fix strategy: create stub alias pages for common display texts (e.g., `OperationsResearch` → `OperationsResearchHub`), OR use plain text + URL format for external references.
+
+53. **JSPWiki display-text CamelCase lookup**: When checking if display text "Operations Research" is a valid page, JSPWiki concatenates words: `OperationsResearch`. Creating a page with that exact name resolves the broken link. "Machine Learning" → `MachineLearning` (already exists) → no broken link. "LLMs Since 2020" → no CamelCase mapping → broken link.

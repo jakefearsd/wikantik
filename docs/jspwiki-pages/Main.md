@@ -17,10 +17,6 @@ A curated collection of in-depth research articles, organized into topic cluster
 
 ### Technology
 
-### Operations Research
-
-- [Operations Research](OperationsResearchHub) — History, mathematical foundations, and proven applications of OR: linear programming, integer optimization, stochastic models, supply chain, scheduling, and revenue management
-
 - [Generative AI Adoption Guide](GenerativeAiAdoptionGuide) — A practitioner's roadmap for adopting generative AI: understanding LLMs, evaluating tools, prompt engineering, running local models, integrating AI into workflows, and accelerating your learning
 - [Linux for Windows Users](LinuxForWindowsUsers) — Transitioning from Windows to Linux: choosing a distribution, command line essentials, filesystem and permissions, package management, shell scripting, and system administration
 - [LLMs Since 2020](LlmsSinceTwentyTwenty) — The evolution of large language models from GPT-3 through modern frontier models: scaling laws, RLHF, multimodal capabilities, the open-weight movement, and what it means for practitioners
@@ -28,6 +24,10 @@ A curated collection of in-depth research articles, organized into topic cluster
 - [Foundational Algorithms for Computer Scientists](FoundationalAlgorithmsForComputerScientists) — The essential algorithms every computer scientist should know: sorting, graph algorithms, dynamic programming, greedy methods, cryptographic primitives, and compression
 - [Embedded AI on Limited Hardware](EmbeddedAiOnLimitedHardware) — Running AI models on microcontrollers, phones, and edge devices: proven use cases, quantization, TinyML, and the economics of on-device inference
 - [Mathematical Foundations of Machine Learning](MathematicalFoundationsOfMachineLearning) — The math that underpins ML: linear algebra, calculus, probability, optimization, and information theory, with concrete examples of how each concept drives real techniques
+
+### Operations Research
+
+- [Operations Research](OperationsResearchHub) — History, mathematical foundations, and proven applications of OR: linear programming, integer optimization, stochastic models, supply chain, scheduling, and revenue management
 
 ### Immigration
 

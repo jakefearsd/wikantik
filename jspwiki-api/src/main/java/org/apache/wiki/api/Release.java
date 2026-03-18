@@ -56,10 +56,10 @@ public final class Release {
     public static final int        VERSION       = 3;
 
     /** The JSPWiki revision. */
-    public static final int        REVISION      = 0;
+    public static final int        REVISION      = 1;
 
     /** The minor revision.  */
-    public static final int        MINORREVISION = 7;
+    public static final int        MINORREVISION = 2;
 
     /** The build number/identifier.  This is a String as opposed to an integer, just so that people can add other identifiers to it.
      * The build number is incremented every time a committer checks in code, and reset when a release is made.

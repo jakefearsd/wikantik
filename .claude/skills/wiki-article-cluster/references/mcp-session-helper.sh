@@ -15,7 +15,8 @@
 #   mcp_get_broken_links
 #   mcp_get_stats
 
-MCP_URL="http://localhost:8080/mcp"
+MCP_URL="https://wiki.jakefear.com/mcp"
+MCP_AUTH_HEADER="Authorization: Bearer YbFVLyx1immgGAvsNjDmaCvpxBctBuF3SSep0qMG8/4="
 MCP_SESSION_FILE="/tmp/mcp_session_id"
 MCP_TIMEOUT=15
 
@@ -29,6 +30,7 @@ mcp_init() {
     curl -s -D "$response_headers" \
         -H "Content-Type: application/json" \
         -H "Accept: text/event-stream, application/json" \
+        -H "$MCP_AUTH_HEADER" \
         --max-time "$MCP_TIMEOUT" \
         -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"jspwiki-skill","version":"1.0"}}}' \
         "$MCP_URL" > /dev/null
@@ -49,6 +51,7 @@ mcp_init() {
         -H "Content-Type: application/json" \
         -H "Accept: text/event-stream, application/json" \
         -H "Mcp-Session-Id: $session_id" \
+        -H "$MCP_AUTH_HEADER" \
         --max-time "$MCP_TIMEOUT" \
         -d '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
         "$MCP_URL" > /dev/null
@@ -82,6 +85,7 @@ ENDJSON
         -H "Content-Type: application/json" \
         -H "Accept: text/event-stream, application/json" \
         -H "Mcp-Session-Id: $session_id" \
+        -H "$MCP_AUTH_HEADER" \
         --max-time "$MCP_TIMEOUT" \
         -d @"$payload" \
         "$MCP_URL" | grep 'data:' | head -1 | sed 's/^data://')
@@ -115,6 +119,7 @@ mcp_write_page() {
         -H "Content-Type: application/json" \
         -H "Accept: text/event-stream, application/json" \
         -H "Mcp-Session-Id: $session_id" \
+        -H "$MCP_AUTH_HEADER" \
         --max-time "$MCP_TIMEOUT" \
         -d @"$payload_file" \
         "$MCP_URL" | grep 'data:' | head -1 | sed 's/^data://')

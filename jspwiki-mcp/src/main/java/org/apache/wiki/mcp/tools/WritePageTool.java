@@ -75,12 +75,6 @@ public class WritePageTool implements AuthorConfigurable {
         properties.put( "expectedContentHash", Map.of( "type", "string", "description",
                 "If set, the write will fail unless the current page's SHA-256 content hash matches this value (from read_page's contentHash field). " +
                 "Can be used alone or with expectedVersion." ) );
-        properties.put( "markupSyntax", Map.of( "type", "string", "description",
-                "Markup syntax for this page: 'markdown' or 'jspwiki'. " +
-                "When set to 'markdown', the page is stored as a .md file and parsed with MarkdownParser. " +
-                "When omitted, uses the system default (typically jspwiki, stored as .txt).",
-                "enum", List.of( "markdown", "jspwiki" ) ) );
-
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Create or update a wiki page with optional YAML frontmatter. " +
@@ -102,7 +96,8 @@ public class WritePageTool implements AuthorConfigurable {
         final String changeNote = McpToolUtils.getString( arguments, "changeNote" );
         final int expectedVersion = McpToolUtils.getInt( arguments, "expectedVersion", -1 );
         final String expectedContentHash = McpToolUtils.getString( arguments, "expectedContentHash" );
-        final String markupSyntax = McpToolUtils.getString( arguments, "markupSyntax" );
+        // MCP always saves pages as Markdown — callers cannot create .txt (JSPWiki syntax) files
+        final String markupSyntax = "markdown";
 
         try {
             final Page saved = pageSaveHelper.saveText( pageName, content,

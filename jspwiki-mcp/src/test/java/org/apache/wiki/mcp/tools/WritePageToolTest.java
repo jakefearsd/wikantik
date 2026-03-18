@@ -88,7 +88,7 @@ class WritePageToolTest {
     }
 
     @Test
-    void testWritePageDoesNotDefaultToMarkdownSyntax() {
+    void testWritePageDefaultsToMarkdownSyntax() {
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "McpWriteDefault" );
         args.put( "content", "Content without explicit syntax." );
@@ -96,8 +96,8 @@ class WritePageToolTest {
         tool.execute( args );
 
         final Page saved = engine.getManager( PageManager.class ).getPage( "McpWriteDefault" );
-        // When no markupSyntax is specified, the page should NOT be marked as markdown
-        assertNotEquals( "markdown", saved.getAttribute( Page.MARKUP_SYNTAX ) );
+        // When no markupSyntax is specified, the page should default to markdown
+        assertEquals( "markdown", saved.getAttribute( Page.MARKUP_SYNTAX ) );
     }
 
     @Test
@@ -117,7 +117,7 @@ class WritePageToolTest {
     }
 
     @Test
-    void testWritePageWithJspwikiSyntax() {
+    void testWritePageIgnoresJspwikiSyntaxAndDefaultsToMarkdown() {
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "McpJspwikiPage" );
         args.put( "content", "!! JSPWiki content" );
@@ -129,7 +129,8 @@ class WritePageToolTest {
         assertEquals( true, data.get( "success" ) );
 
         final Page saved = engine.getManager( PageManager.class ).getPage( "McpJspwikiPage" );
-        assertNotEquals( "markdown", saved.getAttribute( Page.MARKUP_SYNTAX ) );
+        // MCP always saves as markdown regardless of what the caller requests
+        assertEquals( "markdown", saved.getAttribute( Page.MARKUP_SYNTAX ) );
     }
 
     @Test

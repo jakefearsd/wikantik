@@ -1,13 +1,3 @@
----
-summary: The Reformation era in Berlin refers to the 16th-century religious and cultural
-  transformation that shifted the city from Catholicism to Lutheranism, marking a
-  pivotal moment in Berlin's history....
-tags:
-- berlin
-- history
-- religion
-type: article
----
 # ReformationEraInBerlin
 
 ## Prerequisite Context
@@ -60,19 +50,14 @@ The Reformation in Berlin was part of a larger movement across Europe but had un
 
 A common misconception about the Reformation in Berlin is that it was a sudden and uniform shift from Catholicism to Lutheranism. In reality, the transition was gradual and varied across different regions of Berlin. Another misconception is that the Reformation led to the immediate closure of all Catholic institutions, but in practice, the process of monastic dissolution took decades to complete. Additionally, some people believe that the Reformation had no lasting impact on Berlin's cultural identity, but in fact, the influence of Lutheran theology and art can still be seen in the city's heritage.
 
-# See Also
+## See Also
 
-- [ReformationerainBerlin]() - Hands-on guide
+- [Reformation and Urban Development in Berlin](ReformationAndUrbanDevelopmentInBerlin) — Urban transformation of Berlin during the Reformation period
+- [Berlin](Berlin) — Overview of Berlin's broader history and heritage
 
-## Internal Links
+## External References
 
-- [MartinLuther|https://en.wikipedia.org/wiki/Martin_Luther]()
-- [ProtestantReformation|https://en.wikipedia.org/wiki/Protestant_Reformation]()
-- [BerlinCathedral|https://en.wikipedia.org/wiki/Berlin_Cathedral]()
-- [EvangelicalChurch|https://en.wikipedia.org/wiki/Evangelical_Church_in_Prussia]()
-
-## Categories
-
-- History of Berlin
-- Religious Reforms
-- Lutheran Theology
+- **Martin Luther** — https://en.wikipedia.org/wiki/Martin_Luther (Wikipedia)
+- **Protestant Reformation** — https://en.wikipedia.org/wiki/Protestant_Reformation (Wikipedia)
+- **Berlin Cathedral** — https://en.wikipedia.org/wiki/Berlin_Cathedral (Wikipedia)
+- **Evangelical Church in Prussia** — https://en.wikipedia.org/wiki/Evangelical_Church_in_Prussia (Wikipedia)

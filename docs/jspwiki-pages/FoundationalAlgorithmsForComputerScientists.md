@@ -1,12 +1,3 @@
----
-type: article
-cluster: technology
-tags: [algorithms, computer-science, data-structures, technology, fundamentals]
-related: [MachineLearning, TheFutureOfMachineLearning, ArtificialIntelligence]
-status: active
-date: 2026-03-17
-summary: The essential algorithms every computer scientist should know — sorting, searching, graph algorithms, dynamic programming, greedy methods, cryptographic primitives, and compression, with complexity analysis and practical applications
----
 # Foundational Algorithms for Computer Scientists
 
 Algorithms are the intellectual core of computer science. While languages, frameworks, and platforms change every few years, the fundamental algorithms endure — the same graph traversal that powered early network routing now drives social media recommendations, and the same dynamic programming principles behind sequence alignment underpin modern [machine learning](MachineLearning) optimization.
@@ -168,7 +159,7 @@ Quantum computers threaten RSA and ECC by efficiently solving the factoring and 
 
 **Lempel-Ziv (LZ77/LZ78)** — Replaces repeated sequences with references to earlier occurrences. The basis of gzip, PNG, and ZIP. LZ algorithms exploit the redundancy in structured data — text, code, and structured formats compress dramatically.
 
-**Arithmetic Coding** — Encodes an entire message as a single number in the interval [0, 1), achieving compression closer to the theoretical entropy limit than Huffman coding. Used in modern formats like LZMA (7-Zip) and some image/video codecs.
+**Arithmetic Coding** — Encodes an entire message as a single number between 0 (inclusive) and 1 (exclusive), achieving compression closer to the theoretical entropy limit than Huffman coding. Used in modern formats like LZMA (7-Zip) and some image/video codecs.
 
 ### Lossy Compression
 
@@ -192,3 +183,4 @@ The gap between knowing an algorithm and applying it effectively is significant:
 - [Machine Learning](MachineLearning) — Many ML algorithms (gradient descent, backpropagation, EM) build on the foundations covered here
 - [The Future of Machine Learning](TheFutureOfMachineLearning) — How algorithmic advances are shaping the next generation of ML
 - [Artificial Intelligence](ArtificialIntelligence) — The broader AI field and its algorithmic foundations
+- [Operations Research](OperationsResearchHub) — The applied discipline that turned graph algorithms, dynamic programming, and combinatorial optimization into industrial practice: scheduling, logistics, revenue management

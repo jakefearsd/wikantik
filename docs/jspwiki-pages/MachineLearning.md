@@ -163,3 +163,8 @@ The ML ecosystem has matured significantly, offering powerful open-source tools:
 Current trends include the continued scaling of foundation models, growing emphasis on data efficiency (learning from less data), multi-modal learning (combining text, images, audio, and other modalities), and the development of more robust and trustworthy systems. The field is also seeing increased attention to ML operations (MLOps) — the engineering discipline of deploying, monitoring, and maintaining ML systems in production reliably.
 
 Machine learning remains one of the most rapidly advancing fields in technology, with new techniques and applications emerging at a pace that challenges even active practitioners to keep current.
+
+## See Also
+
+- [Operations Research](OperationsResearchHub) — The optimization discipline behind supply chain, scheduling, and revenue management; modern ML increasingly combines with OR through predict-then-optimize pipelines and neural combinatorial solvers
+- [Mathematical Foundations of Machine Learning](MathematicalFoundationsOfMachineLearning) — The math underpinning ML: linear algebra, calculus, probability, and the convex optimization shared with OR

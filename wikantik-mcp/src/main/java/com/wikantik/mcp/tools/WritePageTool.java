@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -37,14 +37,18 @@ import java.util.Map;
  * MCP tool that creates or updates a wiki page, with optional YAML frontmatter support.
  * Supports metadata merging, custom author attribution, and optimistic locking.
  */
-public class WritePageTool implements AuthorConfigurable {
+public class WritePageTool implements McpTool, AuthorConfigurable {
 
     private static final Logger LOG = LogManager.getLogger( WritePageTool.class );
     public static final String TOOL_NAME = "write_page";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final SystemPageRegistry systemPageRegistry;
     private final PageSaveHelper pageSaveHelper;
-    private final Gson gson = new Gson();
 
     private String defaultAuthor = "MCP";
 
@@ -58,7 +62,8 @@ public class WritePageTool implements AuthorConfigurable {
         this.defaultAuthor = defaultAuthor;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pageName", Map.of( "type", "string", "description", "Name of the wiki page to create or update" ) );
         properties.put( "content", Map.of( "type", "string", "description", "The page body content (without frontmatter)" ) );
@@ -87,6 +92,7 @@ public class WritePageTool implements AuthorConfigurable {
     }
 
     @SuppressWarnings( "unchecked" )
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
         final String content = McpToolUtils.getString( arguments, "content" );
@@ -120,13 +126,13 @@ public class WritePageTool implements AuthorConfigurable {
                 result.put( "warning", "This is a system/template page. Changes may be overwritten on upgrade." );
             }
 
-            return McpToolUtils.jsonResult( gson, result );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
         } catch ( final VersionConflictException e ) {
-            return McpToolUtils.errorResult( gson, e.getMessage(),
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage(),
                     "Read the page again with read_page to get the current version and content, then retry." );
         } catch ( final Exception e ) {
             LOG.error( "Failed to write page {}: {}", pageName, e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 }

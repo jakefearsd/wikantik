@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
 import com.wikantik.pages.PageManager;
@@ -31,18 +31,23 @@ import java.util.Map;
 /**
  * MCP tool that returns the version history of a wiki page.
  */
-public class GetPageHistoryTool {
+public class GetPageHistoryTool implements McpTool {
 
     public static final String TOOL_NAME = "get_page_history";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final PageManager pageManager;
-    private final Gson gson = new Gson();
 
     public GetPageHistoryTool( final PageManager pageManager ) {
         this.pageManager = pageManager;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pageName", Map.of( "type", "string", "description", "Name of the wiki page" ) );
 
@@ -56,12 +61,13 @@ public class GetPageHistoryTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
 
         final Page page = pageManager.getPage( pageName );
         if ( page == null ) {
-            return McpToolUtils.jsonResult( gson, Map.of(
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of(
                     "exists", false,
                     "pageName", pageName ) );
         }
@@ -87,6 +93,6 @@ public class GetPageHistoryTool {
         result.put( "exists", true );
         result.put( "pageName", pageName );
         result.put( "versions", versions );
-        return McpToolUtils.jsonResult( gson, result );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 }

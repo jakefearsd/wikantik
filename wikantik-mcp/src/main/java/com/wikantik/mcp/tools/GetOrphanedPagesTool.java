@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.references.ReferenceManager;
@@ -30,13 +30,17 @@ import java.util.stream.Collectors;
  * MCP tool that finds orphaned pages — pages that exist but have no
  * incoming links from other pages. System pages are excluded.
  */
-public class GetOrphanedPagesTool {
+public class GetOrphanedPagesTool implements McpTool {
 
     public static final String TOOL_NAME = "get_orphaned_pages";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final ReferenceManager referenceManager;
     private final SystemPageRegistry systemPageRegistry;
-    private final Gson gson = new Gson();
 
     public GetOrphanedPagesTool( final ReferenceManager referenceManager,
                                   final SystemPageRegistry systemPageRegistry ) {
@@ -44,7 +48,8 @@ public class GetOrphanedPagesTool {
         this.systemPageRegistry = systemPageRegistry;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Find orphaned pages — pages that exist but have no incoming links " +
@@ -56,6 +61,7 @@ public class GetOrphanedPagesTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final Collection< String > unreferenced = referenceManager.findUnreferenced();
         final List< String > orphans = unreferenced.stream()
@@ -66,6 +72,6 @@ public class GetOrphanedPagesTool {
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "orphanedPages", orphans );
         result.put( "count", orphans.size() );
-        return McpToolUtils.jsonResult( gson, result );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 }

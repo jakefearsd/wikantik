@@ -77,7 +77,7 @@ class GetPageHistoryToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "get_page_history", def.name() );
         assertNotNull( def.annotations() );
         assertTrue( def.annotations().readOnlyHint() );

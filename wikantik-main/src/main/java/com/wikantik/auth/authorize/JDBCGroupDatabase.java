@@ -22,6 +22,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
+import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
@@ -134,7 +135,7 @@ import java.util.Set;
  * 
  * @since 2.3
  */
-public class JDBCGroupDatabase implements GroupDatabase {
+public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupDatabase {
 	
     /** Default column name that stores the JNDI name of the DataSource. */
     public static final String DEFAULT_GROUPDB_DATASOURCE = "jdbc/GroupDatabase";
@@ -192,8 +193,6 @@ public class JDBCGroupDatabase implements GroupDatabase {
 
     protected static final Logger LOG = LogManager.getLogger( JDBCGroupDatabase.class );
 
-    private DataSource ds;
-
     private String created;
 
     private String creator;
@@ -222,8 +221,6 @@ public class JDBCGroupDatabase implements GroupDatabase {
 
     private String deleteGroupMembers;
 
-    private boolean supportsCommits;
-
     private Engine engine;
 
     /**
@@ -245,40 +242,25 @@ public class JDBCGroupDatabase implements GroupDatabase {
         }
 
         final String groupName = group.getName();
-        Connection conn = null;
-        PreparedStatement ps = null;
-        try
-        {
-            // Open the database connection
-            conn = ds.getConnection();
-            if( supportsCommits )
-            {
-                conn.setAutoCommit( false );
+        try {
+            runInTransaction( conn -> {
+                try( final PreparedStatement ps1 = conn.prepareStatement( deleteGroup ) ) {
+                    ps1.setString( 1, groupName );
+                    ps1.execute();
+                }
+
+                try( final PreparedStatement ps2 = conn.prepareStatement( deleteGroupMembers ) ) {
+                    ps2.setString( 1, groupName );
+                    ps2.execute();
+                }
+                return null;
+            } );
+        } catch( final WikiSecurityException e ) {
+            // Preserve the original error message format for delete failures
+            if( e.getCause() instanceof SQLException ) {
+                throw new WikiSecurityException( "Could not delete group " + groupName + ": " + e.getCause().getMessage(), e.getCause() );
             }
-
-            ps = conn.prepareStatement( deleteGroup );
-            ps.setString( 1, groupName );
-            ps.execute();
-            ps.close();
-
-            ps = conn.prepareStatement( deleteGroupMembers );
-            ps.setString( 1, groupName );
-            ps.execute();
-
-            // Commit and close connection
-            if( supportsCommits )
-            {
-                conn.commit();
-            }
-        }
-        catch( final SQLException e )
-        {
-        	closeQuietly( conn, ps, null );
-            throw new WikiSecurityException( "Could not delete group " + groupName + ": " + e.getMessage(), e );
-        }
-        finally
-        {
-            closeQuietly( conn, ps, null );
+            throw e;
         }
     }
 
@@ -296,16 +278,10 @@ public class JDBCGroupDatabase implements GroupDatabase {
     @Override public Group[] groups() throws WikiSecurityException
     {
         final Set<Group> groups = new HashSet<>();
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try
+        try( final Connection conn = ds.getConnection();
+             final PreparedStatement ps = conn.prepareStatement( findAll );
+             final ResultSet rs = ps.executeQuery() )
         {
-            // Open the database connection
-            conn = ds.getConnection();
-
-            ps = conn.prepareStatement( findAll );
-            rs = ps.executeQuery();
             while ( rs.next() )
             {
                 final String groupName = rs.getString( name );
@@ -327,12 +303,7 @@ public class JDBCGroupDatabase implements GroupDatabase {
         }
         catch( final SQLException e )
         {
-        	closeQuietly( conn, ps, rs );
             throw new WikiSecurityException( e.getMessage(), e );
-        }
-        finally
-        {
-            closeQuietly( conn, ps, rs );
         }
 
         return groups.toArray( new Group[0] );
@@ -358,44 +329,34 @@ public class JDBCGroupDatabase implements GroupDatabase {
         }
 
         final boolean exists = exists( group );
-        Connection conn = null;
-        PreparedStatement ps = null;
-        try
-        {
-            // Open the database connection
-            conn = ds.getConnection();
-            if( supportsCommits )
-            {
-                conn.setAutoCommit( false );
-            }
-            
+        runInTransaction( conn -> {
             final Timestamp ts = new Timestamp( System.currentTimeMillis() );
             final Date modDate = new Date( ts.getTime() );
             if( !exists )
             {
                 // Group is new: insert new group record
-                ps = conn.prepareStatement( insertGroup );
-                ps.setString( 1, group.getName() );
-                ps.setTimestamp( 2, ts );
-                ps.setString( 3, modifier.getName() );
-                ps.setTimestamp( 4, ts );
-                ps.setString( 5, modifier.getName() );
-                ps.execute();
+                try( final PreparedStatement ps = conn.prepareStatement( insertGroup ) ) {
+                    ps.setString( 1, group.getName() );
+                    ps.setTimestamp( 2, ts );
+                    ps.setString( 3, modifier.getName() );
+                    ps.setTimestamp( 4, ts );
+                    ps.setString( 5, modifier.getName() );
+                    ps.execute();
+                }
 
                 // Set the group creation time
                 group.setCreated( modDate );
                 group.setCreator( modifier.getName() );
-                ps.close();
             }
             else
             {
                 // Modify existing group record
-                ps = conn.prepareStatement( updateGroup );
-                ps.setTimestamp( 1, ts );
-                ps.setString( 2, modifier.getName() );
-                ps.setString( 3, group.getName() );
-                ps.execute();
-                ps.close();
+                try( final PreparedStatement ps = conn.prepareStatement( updateGroup ) ) {
+                    ps.setTimestamp( 1, ts );
+                    ps.setString( 2, modifier.getName() );
+                    ps.setString( 3, group.getName() );
+                    ps.execute();
+                }
             }
             // Set the group modified time
             group.setLastModified( modDate );
@@ -404,35 +365,22 @@ public class JDBCGroupDatabase implements GroupDatabase {
             // Now, update the group member list
 
             // First, delete all existing member records
-            ps = conn.prepareStatement( deleteGroupMembers );
-            ps.setString( 1, group.getName() );
-            ps.execute();
-            ps.close();
-
-            // Insert group member records
-            ps = conn.prepareStatement( insertGroupMembers );
-            final Principal[] members = group.members();
-            for (final Principal member : members) {
-                ps.setString(1, group.getName());
-                ps.setString(2, member.getName());
+            try( final PreparedStatement ps = conn.prepareStatement( deleteGroupMembers ) ) {
+                ps.setString( 1, group.getName() );
                 ps.execute();
             }
 
-            // Commit and close connection
-            if( supportsCommits )
-            {
-                conn.commit();
+            // Insert group member records
+            try( final PreparedStatement ps = conn.prepareStatement( insertGroupMembers ) ) {
+                final Principal[] members = group.members();
+                for( final Principal member : members ) {
+                    ps.setString( 1, group.getName() );
+                    ps.setString( 2, member.getName() );
+                    ps.execute();
+                }
             }
-        }
-        catch( final SQLException e )
-        {
-        	closeQuietly(conn, ps, null );
-            throw new WikiSecurityException( e.getMessage(), e );
-        }
-        finally
-        {
-            closeQuietly(conn, ps, null );
-        }
+            return null;
+        } );
     }
 
     /**
@@ -491,32 +439,20 @@ public class JDBCGroupDatabase implements GroupDatabase {
         }
 
         // Test connection by doing a quickie select
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try
+        try( final Connection conn = ds.getConnection();
+             final PreparedStatement ps = conn.prepareStatement( findAll ) )
         {
-            conn = ds.getConnection();
-            ps = conn.prepareStatement( findAll );
-            rs = ps.executeQuery();
-            ps.close();
         }
         catch( final SQLException e )
         {
-        	closeQuietly( conn, ps, rs );
             LOG.error( "DB connectivity error: " + e.getMessage() );
             throw new WikiSecurityException("DB connectivity error: " + e.getMessage(), e );
-        }
-        finally
-        {
-            closeQuietly( conn, ps, rs );
         }
         LOG.info( "JDBCGroupDatabase initialized from JNDI DataSource: " + jndiName );
 
         // Determine if the datasource supports commits
-        try
+        try( final Connection conn = ds.getConnection() )
         {
-            conn = ds.getConnection();
             final DatabaseMetaData dmd = conn.getMetaData();
             if( dmd.supportsTransactions() )
             {
@@ -527,12 +463,7 @@ public class JDBCGroupDatabase implements GroupDatabase {
         }
         catch( final SQLException e )
         {
-        	closeQuietly( conn, null, null );
             LOG.warn( "JDBCGroupDatabase warning: user database doesn't seem to support transactions. Reason: " + e);
-        }
-        finally
-        {
-            closeQuietly( conn, null, null );
         }
     }
 
@@ -570,41 +501,32 @@ public class JDBCGroupDatabase implements GroupDatabase {
         Group group = null;
         boolean found = false;
         boolean unique = true;
-        ResultSet rs = null;
-    	PreparedStatement ps = null;
-        Connection conn = null;
-        try
+        try( final Connection conn = ds.getConnection();
+             final PreparedStatement ps = conn.prepareStatement( findGroup ) )
         {
-            // Open the database connection
-            conn = ds.getConnection();
-
-            ps = conn.prepareStatement( findGroup );
             ps.setString( 1, index );
-            rs = ps.executeQuery();
-            while ( rs.next() )
+            try( final ResultSet rs = ps.executeQuery() )
             {
-                if( group != null )
+                while ( rs.next() )
                 {
-                    unique = false;
-                    break;
+                    if( group != null )
+                    {
+                        unique = false;
+                        break;
+                    }
+                    group = new Group( index, engine.getApplicationName() );
+                    group.setCreated( rs.getTimestamp( created ) );
+                    group.setCreator( rs.getString( creator ) );
+                    group.setLastModified( rs.getTimestamp( modified ) );
+                    group.setModifier( rs.getString( modifier ) );
+                    populateGroup( group );
+                    found = true;
                 }
-                group = new Group( index, engine.getApplicationName() );
-                group.setCreated( rs.getTimestamp( created ) );
-                group.setCreator( rs.getString( creator ) );
-                group.setLastModified( rs.getTimestamp( modified ) );
-                group.setModifier( rs.getString( modifier ) );
-                populateGroup( group );
-                found = true;
             }
         }
         catch( final SQLException e )
         {
-        	closeQuietly( conn, ps, rs );
             throw new NoSuchPrincipalException( e.getMessage() );
-        }
-        finally
-        {
-            closeQuietly( conn, ps, rs );
         }
 
         if( !found )
@@ -626,24 +548,20 @@ public class JDBCGroupDatabase implements GroupDatabase {
      */
     private Group populateGroup( final Group group )
     {
-    	ResultSet rs = null;
-    	PreparedStatement ps = null;
-        Connection conn = null;
-        try
+        try( final Connection conn = ds.getConnection();
+             final PreparedStatement ps = conn.prepareStatement( findMembers ) )
         {
-            // Open the database connection
-            conn = ds.getConnection();
-
-            ps = conn.prepareStatement( findMembers );
             ps.setString( 1, group.getName() );
-            rs = ps.executeQuery();
-            while ( rs.next() )
+            try( final ResultSet rs = ps.executeQuery() )
             {
-                final String memberName = rs.getString( member );
-                if( memberName != null )
+                while ( rs.next() )
                 {
-                    final WikiPrincipal principal = new WikiPrincipal( memberName, WikiPrincipal.UNSPECIFIED );
-                    group.add( principal );
+                    final String memberName = rs.getString( member );
+                    if( memberName != null )
+                    {
+                        final WikiPrincipal principal = new WikiPrincipal( memberName, WikiPrincipal.UNSPECIFIED );
+                        group.add( principal );
+                    }
                 }
             }
         }
@@ -651,32 +569,7 @@ public class JDBCGroupDatabase implements GroupDatabase {
         {
             // I guess that means there aren't any principals...
         }
-        finally
-        {
-            closeQuietly( conn, ps, rs );
-        }
         return group;
     }
-    
-    void closeQuietly( final Connection conn, final PreparedStatement ps, final ResultSet rs ) {
-    	if( conn != null ) {
-    		try {
-    		    conn.close();
-    		} catch( final Exception e ) {
-    		}
-    	}
-		if( ps != null )  {
-			try {
-			    ps.close();
-			} catch( final Exception e ) {
-			}
-		}
-		if( rs != null )  {
-			try {
-			    rs.close();
-			} catch( final Exception e ) {
-			}
-		}
-	}
 
 }

@@ -263,7 +263,7 @@ class UpdateMetadataToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "update_metadata", def.name() );
         assertNotNull( def.description() );
         assertNotNull( def.inputSchema() );

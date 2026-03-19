@@ -159,78 +159,35 @@ public class McpServerInitializer implements ServletContextListener {
                 builder.instructions( instructions );
             }
 
-            // Register tools — author is resolved from exchange.clientInfo when available
+            // Register read-only tools (no author resolution needed)
+            final McpTool[] readOnlyTools = {
+                    readPage, searchPages, listPages, getBacklinks, recentChanges,
+                    getAttachments, queryMetadata, deletePage, getPageHistory, diffPage,
+                    getOutboundLinks, getBrokenLinks, getOrphanedPages, getWikiStats,
+                    listMetadataValues, unlockPage, readAttachment, deleteAttachment,
+                    scanMarkdownLinks
+            };
+            for ( final McpTool tool : readOnlyTools ) {
+                builder.toolCall( tool.definition(), ( exchange, request ) ->
+                        tool.execute( request.arguments() ) );
+            }
+
+            // Register tools that need author resolution from the MCP exchange
+            for ( final McpTool tool : new McpTool[] { writePage, batchWrite, renamePage,
+                    uploadAttachment, patchPage, batchPatchPages, updateMetadata } ) {
+                builder.toolCall( tool.definition(), ( exchange, request ) -> {
+                    resolveAuthor( exchange, tool );
+                    return tool.execute( request.arguments() );
+                } );
+            }
+
+            // Lock tool needs user resolution (different from author)
+            builder.toolCall( lockPage.definition(), ( exchange, request ) -> {
+                resolveUser( exchange, lockPage );
+                return lockPage.execute( request.arguments() );
+            } );
+
             mcpServer = builder
-                    .toolCall( readPage.toolDefinition(), ( exchange, request ) ->
-                            readPage.execute( request.arguments() ) )
-                    .toolCall( writePage.toolDefinition(), ( exchange, request ) -> {
-                        resolveAuthor( exchange, writePage );
-                        return writePage.execute( request.arguments() );
-                    } )
-                    .toolCall( searchPages.toolDefinition(), ( exchange, request ) ->
-                            searchPages.execute( request.arguments() ) )
-                    .toolCall( listPages.toolDefinition(), ( exchange, request ) ->
-                            listPages.execute( request.arguments() ) )
-                    .toolCall( getBacklinks.toolDefinition(), ( exchange, request ) ->
-                            getBacklinks.execute( request.arguments() ) )
-                    .toolCall( recentChanges.toolDefinition(), ( exchange, request ) ->
-                            recentChanges.execute( request.arguments() ) )
-                    .toolCall( getAttachments.toolDefinition(), ( exchange, request ) ->
-                            getAttachments.execute( request.arguments() ) )
-                    .toolCall( queryMetadata.toolDefinition(), ( exchange, request ) ->
-                            queryMetadata.execute( request.arguments() ) )
-                    .toolCall( deletePage.toolDefinition(), ( exchange, request ) ->
-                            deletePage.execute( request.arguments() ) )
-                    .toolCall( getPageHistory.toolDefinition(), ( exchange, request ) ->
-                            getPageHistory.execute( request.arguments() ) )
-                    .toolCall( diffPage.toolDefinition(), ( exchange, request ) ->
-                            diffPage.execute( request.arguments() ) )
-                    .toolCall( batchWrite.toolDefinition(), ( exchange, request ) -> {
-                        resolveAuthor( exchange, batchWrite );
-                        return batchWrite.execute( request.arguments() );
-                    } )
-                    .toolCall( getOutboundLinks.toolDefinition(), ( exchange, request ) ->
-                            getOutboundLinks.execute( request.arguments() ) )
-                    .toolCall( getBrokenLinks.toolDefinition(), ( exchange, request ) ->
-                            getBrokenLinks.execute( request.arguments() ) )
-                    .toolCall( getOrphanedPages.toolDefinition(), ( exchange, request ) ->
-                            getOrphanedPages.execute( request.arguments() ) )
-                    .toolCall( getWikiStats.toolDefinition(), ( exchange, request ) ->
-                            getWikiStats.execute( request.arguments() ) )
-                    .toolCall( listMetadataValues.toolDefinition(), ( exchange, request ) ->
-                            listMetadataValues.execute( request.arguments() ) )
-                    .toolCall( renamePage.toolDefinition(), ( exchange, request ) -> {
-                        resolveAuthor( exchange, renamePage );
-                        return renamePage.execute( request.arguments() );
-                    } )
-                    .toolCall( lockPage.toolDefinition(), ( exchange, request ) -> {
-                        resolveUser( exchange, lockPage );
-                        return lockPage.execute( request.arguments() );
-                    } )
-                    .toolCall( unlockPage.toolDefinition(), ( exchange, request ) ->
-                            unlockPage.execute( request.arguments() ) )
-                    .toolCall( uploadAttachment.toolDefinition(), ( exchange, request ) -> {
-                        resolveAuthor( exchange, uploadAttachment );
-                        return uploadAttachment.execute( request.arguments() );
-                    } )
-                    .toolCall( readAttachment.toolDefinition(), ( exchange, request ) ->
-                            readAttachment.execute( request.arguments() ) )
-                    .toolCall( deleteAttachment.toolDefinition(), ( exchange, request ) ->
-                            deleteAttachment.execute( request.arguments() ) )
-                    .toolCall( patchPage.toolDefinition(), ( exchange, request ) -> {
-                        resolveAuthor( exchange, patchPage );
-                        return patchPage.execute( request.arguments() );
-                    } )
-                    .toolCall( batchPatchPages.toolDefinition(), ( exchange, request ) -> {
-                        resolveAuthor( exchange, batchPatchPages );
-                        return batchPatchPages.execute( request.arguments() );
-                    } )
-                    .toolCall( updateMetadata.toolDefinition(), ( exchange, request ) -> {
-                        resolveAuthor( exchange, updateMetadata );
-                        return updateMetadata.execute( request.arguments() );
-                    } )
-                    .toolCall( scanMarkdownLinks.toolDefinition(), ( exchange, request ) ->
-                            scanMarkdownLinks.execute( request.arguments() ) )
                     // Register resources
                     .resources( wikiResources.staticResources() )
                     .resourceTemplates( wikiResources.resourceTemplates() )
@@ -265,11 +222,11 @@ public class McpServerInitializer implements ServletContextListener {
     }
 
     private static void resolveAuthor( final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
-                                        final AuthorConfigurable tool ) {
+                                        final McpTool tool ) {
         try {
             final McpSchema.Implementation clientInfo = exchange.getClientInfo();
             if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {
-                tool.setDefaultAuthor( clientInfo.name() );
+                ( ( AuthorConfigurable ) tool ).setDefaultAuthor( clientInfo.name() );
             }
         } catch ( final Exception e ) {
             // Ignore — fall back to default

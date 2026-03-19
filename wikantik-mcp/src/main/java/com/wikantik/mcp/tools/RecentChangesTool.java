@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,21 +33,26 @@ import java.util.stream.Collectors;
 /**
  * MCP tool that returns recently modified wiki pages.
  */
-public class RecentChangesTool {
+public class RecentChangesTool implements McpTool {
 
     private static final Logger LOG = LogManager.getLogger( RecentChangesTool.class );
     public static final String TOOL_NAME = "recent_changes";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final PageManager pageManager;
     private final SystemPageRegistry systemPageRegistry;
-    private final Gson gson = new Gson();
 
     public RecentChangesTool( final PageManager pageManager, final SystemPageRegistry systemPageRegistry ) {
         this.pageManager = pageManager;
         this.systemPageRegistry = systemPageRegistry;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "since", Map.of( "type", "string", "description", "ISO date/time to filter changes after (e.g. 2026-03-01T00:00:00Z)" ) );
         properties.put( "limit", Map.of( "type", "integer", "description", "Maximum number of results (default 50)" ) );
@@ -63,6 +68,7 @@ public class RecentChangesTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String sinceStr = McpToolUtils.getString( arguments, "since" );
         final int limit = McpToolUtils.getInt( arguments, "limit", 50 );
@@ -100,10 +106,10 @@ public class RecentChangesTool {
                     } )
                     .collect( Collectors.toList() );
 
-            return McpToolUtils.jsonResult( gson, Map.of( "changes", changes ) );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of( "changes", changes ) );
         } catch ( final Exception e ) {
             LOG.error( "Failed to get recent changes: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 }

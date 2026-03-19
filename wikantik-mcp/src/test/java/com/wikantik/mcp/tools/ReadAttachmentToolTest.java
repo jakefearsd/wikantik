@@ -91,7 +91,7 @@ class ReadAttachmentToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "read_attachment", def.name() );
         assertTrue( def.annotations().readOnlyHint() );
     }

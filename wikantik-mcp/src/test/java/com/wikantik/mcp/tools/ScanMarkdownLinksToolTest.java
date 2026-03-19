@@ -137,7 +137,7 @@ class ScanMarkdownLinksToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "scan_markdown_links", def.name() );
         assertNotNull( def.description() );
         assertTrue( def.annotations().readOnlyHint() );

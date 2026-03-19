@@ -33,10 +33,15 @@ import java.util.stream.Collectors;
 /**
  * MCP tool that lists all wiki pages with optional prefix filtering.
  */
-public class ListPagesTool {
+public class ListPagesTool implements McpTool {
 
     private static final Logger LOG = LogManager.getLogger( ListPagesTool.class );
     public static final String TOOL_NAME = "list_pages";
+
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
 
     private final PageManager pageManager;
     private final SystemPageRegistry systemPageRegistry;
@@ -47,7 +52,8 @@ public class ListPagesTool {
         this.systemPageRegistry = systemPageRegistry;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "prefix", Map.of( "type", "string", "description", "Optional prefix to filter page names" ) );
         properties.put( "limit", Map.of( "type", "integer", "description", "Maximum number of pages to return (default 100)" ) );
@@ -63,6 +69,7 @@ public class ListPagesTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String prefix = McpToolUtils.getString( arguments, "prefix" );
         final int limit = McpToolUtils.getInt( arguments, "limit", 100 );

@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,19 +34,24 @@ import java.util.*;
 /**
  * MCP tool that performs full-text search across wiki pages.
  */
-public class SearchPagesTool {
+public class SearchPagesTool implements McpTool {
 
     private static final Logger LOG = LogManager.getLogger( SearchPagesTool.class );
     public static final String TOOL_NAME = "search_pages";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final WikiEngine engine;
-    private final Gson gson = new Gson();
 
     public SearchPagesTool( final WikiEngine engine ) {
         this.engine = engine;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "query", Map.of( "type", "string", "description", "Full-text search query" ) );
         properties.put( "maxResults", Map.of( "type", "integer", "description", "Maximum number of results (default 20)" ) );
@@ -61,6 +66,7 @@ public class SearchPagesTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String query = McpToolUtils.getString( arguments, "query" );
         final int maxResults = McpToolUtils.getInt( arguments, "maxResults", 20 );
@@ -73,7 +79,7 @@ public class SearchPagesTool {
 
             final List< Map< String, Object > > results = new ArrayList<>();
             if ( searchResults == null ) {
-                return McpToolUtils.jsonResult( gson, Map.of( "results", results ) );
+                return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of( "results", results ) );
             }
             int count = 0;
             for ( final SearchResult sr : searchResults ) {
@@ -88,10 +94,10 @@ public class SearchPagesTool {
                 count++;
             }
 
-            return McpToolUtils.jsonResult( gson, Map.of( "results", results ) );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of( "results", results ) );
         } catch ( final Exception e ) {
             LOG.error( "Search failed for query '{}': {}", query, e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 }

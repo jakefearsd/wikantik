@@ -37,6 +37,9 @@ import java.util.Map;
  */
 public final class McpToolUtils {
 
+    /** Shared Gson instance for tools that don't need special serialization config. */
+    public static final Gson SHARED_GSON = new Gson();
+
     private McpToolUtils() {
     }
 

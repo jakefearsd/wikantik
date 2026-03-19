@@ -68,7 +68,7 @@ class GetWikiStatsToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "get_wiki_stats", def.name() );
         assertTrue( def.annotations().readOnlyHint() );
     }

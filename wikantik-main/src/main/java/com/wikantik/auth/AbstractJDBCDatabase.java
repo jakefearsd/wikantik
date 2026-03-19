@@ -179,4 +179,47 @@ public abstract class AbstractJDBCDatabase {
         return supportsCommits;
     }
 
+    /**
+     * Functional interface for a database operation that runs within a transaction.
+     *
+     * @param <T> the return type of the operation
+     * @since 3.0.7
+     */
+    @FunctionalInterface
+    protected interface TransactionalOperation<T> {
+        T execute( Connection conn ) throws Exception;
+    }
+
+    /**
+     * Executes a database operation within a transaction. Handles obtaining the connection,
+     * setting auto-commit, committing, and closing the connection. If an exception occurs,
+     * it is wrapped in a {@link WikiSecurityException}.
+     *
+     * @param <T> the return type of the operation
+     * @param operation the database operation to execute
+     * @return the result of the operation
+     * @throws WikiSecurityException if the operation fails
+     * @since 3.0.7
+     */
+    protected <T> T runInTransaction( final TransactionalOperation<T> operation ) throws WikiSecurityException {
+        Connection conn = null;
+        try {
+            conn = ds.getConnection();
+            if( supportsCommits ) {
+                conn.setAutoCommit( false );
+            }
+            final T result = operation.execute( conn );
+            if( supportsCommits ) {
+                conn.commit();
+            }
+            return result;
+        } catch( final WikiSecurityException e ) {
+            throw e;
+        } catch( final Exception e ) {
+            throw new WikiSecurityException( "Database operation failed: " + e.getMessage(), e );
+        } finally {
+            closeQuietly( conn, null, null );
+        }
+    }
+
 }

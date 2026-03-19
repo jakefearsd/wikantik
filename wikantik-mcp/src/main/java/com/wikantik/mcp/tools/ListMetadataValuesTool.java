@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,19 +35,24 @@ import java.util.*;
  * names and their values. Useful for discovering what tags, types, and
  * other frontmatter fields are in use across the wiki.
  */
-public class ListMetadataValuesTool {
+public class ListMetadataValuesTool implements McpTool {
 
     private static final Logger LOG = LogManager.getLogger( ListMetadataValuesTool.class );
     public static final String TOOL_NAME = "list_metadata_values";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final PageManager pageManager;
-    private final Gson gson = new Gson();
 
     public ListMetadataValuesTool( final PageManager pageManager ) {
         this.pageManager = pageManager;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "field", Map.of( "type", "string", "description",
                 "If provided, return values for this field only. Otherwise return all fields." ) );
@@ -64,6 +69,7 @@ public class ListMetadataValuesTool {
     }
 
     @SuppressWarnings( "unchecked" )
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String filterField = McpToolUtils.getString( arguments, "field" );
 
@@ -108,10 +114,10 @@ public class ListMetadataValuesTool {
                 fields.put( entry.getKey(), new ArrayList<>( entry.getValue() ) );
             }
 
-            return McpToolUtils.jsonResult( gson, Map.of( "fields", fields ) );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of( "fields", fields ) );
         } catch ( final Exception e ) {
             LOG.error( "Failed to list metadata values: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 }

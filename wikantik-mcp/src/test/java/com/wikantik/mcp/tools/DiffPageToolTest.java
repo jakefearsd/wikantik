@@ -72,7 +72,7 @@ class DiffPageToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "diff_page", def.name() );
         assertNotNull( def.annotations() );
         assertTrue( def.annotations().readOnlyHint() );

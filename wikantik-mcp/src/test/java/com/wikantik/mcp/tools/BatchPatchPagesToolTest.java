@@ -113,7 +113,7 @@ class BatchPatchPagesToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "batch_patch_pages", def.name() );
         assertNotNull( def.annotations() );
     }

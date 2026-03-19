@@ -290,7 +290,7 @@ class PatchPageToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "patch_page", def.name() );
         assertNotNull( def.description() );
         assertNotNull( def.inputSchema() );

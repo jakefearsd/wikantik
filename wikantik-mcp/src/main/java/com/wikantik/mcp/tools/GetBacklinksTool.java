@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.references.ReferenceManager;
 
@@ -27,18 +27,23 @@ import java.util.*;
 /**
  * MCP tool that finds pages linking to a given page (backlinks).
  */
-public class GetBacklinksTool {
+public class GetBacklinksTool implements McpTool {
 
     public static final String TOOL_NAME = "get_backlinks";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final ReferenceManager referenceManager;
-    private final Gson gson = new Gson();
 
     public GetBacklinksTool( final ReferenceManager referenceManager ) {
         this.referenceManager = referenceManager;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pageName", Map.of( "type", "string", "description", "Name of the page to find backlinks for" ) );
 
@@ -51,6 +56,7 @@ public class GetBacklinksTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
 
@@ -58,6 +64,6 @@ public class GetBacklinksTool {
         final List< String > backlinks = new ArrayList<>( referrers );
         Collections.sort( backlinks );
 
-        return McpToolUtils.jsonResult( gson, Map.of( "pageName", pageName, "backlinks", backlinks ) );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of( "pageName", pageName, "backlinks", backlinks ) );
     }
 }

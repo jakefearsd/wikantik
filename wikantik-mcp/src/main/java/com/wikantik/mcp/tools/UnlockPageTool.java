@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
 import com.wikantik.pages.PageLock;
@@ -32,18 +32,23 @@ import java.util.Map;
  * MCP tool that releases an edit lock on a wiki page. Idempotent — succeeds even
  * if no lock exists.
  */
-public class UnlockPageTool {
+public class UnlockPageTool implements McpTool {
 
     public static final String TOOL_NAME = "unlock_page";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final PageManager pageManager;
-    private final Gson gson = new Gson();
 
     public UnlockPageTool( final PageManager pageManager ) {
         this.pageManager = pageManager;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pageName", Map.of( "type", "string", "description", "Name of the page to unlock" ) );
 
@@ -56,12 +61,13 @@ public class UnlockPageTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
 
         final Page page = pageManager.getPage( pageName );
         if ( page == null ) {
-            return McpToolUtils.errorResult( gson,
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Page not found: " + pageName,
                     "Use list_pages to find existing pages." );
         }
@@ -77,6 +83,6 @@ public class UnlockPageTool {
         result.put( "success", true );
         result.put( "pageName", pageName );
         result.put( "wasLocked", wasLocked );
-        return McpToolUtils.jsonResult( gson, result );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 }

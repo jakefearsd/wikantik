@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,19 +34,24 @@ import java.util.stream.Collectors;
 /**
  * MCP tool that queries pages by YAML frontmatter metadata fields.
  */
-public class QueryMetadataTool {
+public class QueryMetadataTool implements McpTool {
 
     private static final Logger LOG = LogManager.getLogger( QueryMetadataTool.class );
     public static final String TOOL_NAME = "query_metadata";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final PageManager pageManager;
-    private final Gson gson = new Gson();
 
     public QueryMetadataTool( final PageManager pageManager ) {
         this.pageManager = pageManager;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "field", Map.of( "type", "string", "description", "Frontmatter field name to query (for single-field queries)" ) );
         properties.put( "value", Map.of( "type", "string", "description", "Value to match (optional -- if omitted, returns pages that have the field)" ) );
@@ -68,6 +73,7 @@ public class QueryMetadataTool {
     }
 
     @SuppressWarnings( "unchecked" )
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         String field = McpToolUtils.getString( arguments, "field" );
         String value = McpToolUtils.getString( arguments, "value" );
@@ -96,7 +102,7 @@ public class QueryMetadataTool {
         }
 
         if ( criteria.isEmpty() ) {
-            return McpToolUtils.errorResult( gson,
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Either 'field', 'type', or 'filters' parameter is required",
                     "Use type='report' for a simple query, or filters=[{field:'type',value:'report'},{field:'tags',value:'ai'}] for compound queries." );
         }
@@ -121,10 +127,10 @@ public class QueryMetadataTool {
                 }
             }
 
-            return McpToolUtils.jsonResult( gson, Map.of( "pages", results ) );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of( "pages", results ) );
         } catch ( final Exception e ) {
             LOG.error( "Metadata query failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 

@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -41,15 +41,19 @@ import java.util.Map;
  * MCP tool that applies section/marker-based patch operations to a wiki page
  * without requiring a full read-modify-write cycle from the client.
  */
-public class PatchPageTool implements AuthorConfigurable {
+public class PatchPageTool implements McpTool, AuthorConfigurable {
 
     private static final Logger LOG = LogManager.getLogger( PatchPageTool.class );
     public static final String TOOL_NAME = "patch_page";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final WikiEngine engine;
     private final SystemPageRegistry systemPageRegistry;
     private final PageSaveHelper pageSaveHelper;
-    private final Gson gson = new Gson();
 
     private String defaultAuthor = "MCP";
 
@@ -64,7 +68,8 @@ public class PatchPageTool implements AuthorConfigurable {
         this.defaultAuthor = defaultAuthor;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > opSchema = new LinkedHashMap<>();
         opSchema.put( "type", "object" );
         opSchema.put( "properties", Map.of(
@@ -105,6 +110,7 @@ public class PatchPageTool implements AuthorConfigurable {
     }
 
     @SuppressWarnings( "unchecked" )
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
         final List< Map< String, Object > > operations = ( List< Map< String, Object > > ) arguments.get( "operations" );
@@ -114,7 +120,7 @@ public class PatchPageTool implements AuthorConfigurable {
         final String changeNote = McpToolUtils.getString( arguments, "changeNote" );
 
         if ( operations == null || operations.isEmpty() ) {
-            return McpToolUtils.errorResult( gson, "No operations provided",
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "No operations provided",
                     "Provide at least one operation with action and content." );
         }
 
@@ -124,7 +130,7 @@ public class PatchPageTool implements AuthorConfigurable {
             // Check page exists
             final Page currentPage = pageManager.getPage( pageName );
             if ( currentPage == null ) {
-                return McpToolUtils.errorResult( gson,
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                         "Page not found: " + pageName,
                         "Use write_page to create new pages, or list_pages to find existing pages." );
             }
@@ -155,18 +161,18 @@ public class PatchPageTool implements AuthorConfigurable {
             result.put( "version", saved != null ? McpToolUtils.normalizeVersion( saved.getVersion() ) : 1 );
             result.put( "contentHash", McpToolUtils.computeContentHash( savedText ) );
 
-            return McpToolUtils.jsonResult( gson, result );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
         } catch ( final VersionConflictException e ) {
-            return McpToolUtils.errorResult( gson, e.getMessage(),
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage(),
                     "Read the page again with read_page to get the current version and content, then retry." );
         } catch ( final PatchException e ) {
             final String msg = e.getMessage();
             return e.getSuggestion() != null
-                    ? McpToolUtils.errorResult( gson, msg, e.getSuggestion() )
-                    : McpToolUtils.errorResult( gson, msg );
+                    ? McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, msg, e.getSuggestion() )
+                    : McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, msg );
         } catch ( final Exception e ) {
             LOG.error( "Failed to patch page {}: {}", pageName, e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 }

@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,14 +38,18 @@ import java.util.Map;
 /**
  * MCP tool that uploads a file attachment to a wiki page via base64-encoded content.
  */
-public class UploadAttachmentTool implements AuthorConfigurable {
+public class UploadAttachmentTool implements McpTool, AuthorConfigurable {
 
     private static final Logger LOG = LogManager.getLogger( UploadAttachmentTool.class );
     public static final String TOOL_NAME = "upload_attachment";
+
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
     private static final int MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
     private final WikiEngine engine;
-    private final Gson gson = new Gson();
 
     private String defaultAuthor = "MCP";
 
@@ -57,7 +61,8 @@ public class UploadAttachmentTool implements AuthorConfigurable {
         this.defaultAuthor = defaultAuthor;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pageName", Map.of( "type", "string", "description", "Name of the wiki page to attach to" ) );
         properties.put( "fileName", Map.of( "type", "string", "description", "File name for the attachment (e.g. diagram.png)" ) );
@@ -77,6 +82,7 @@ public class UploadAttachmentTool implements AuthorConfigurable {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
         final String fileName = McpToolUtils.getString( arguments, "fileName" );
@@ -87,14 +93,14 @@ public class UploadAttachmentTool implements AuthorConfigurable {
             final PageManager pageManager = engine.getManager( PageManager.class );
             final Page page = pageManager.getPage( pageName );
             if ( page == null ) {
-                return McpToolUtils.errorResult( gson,
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                         "Page not found: " + pageName,
                         "Create the page first with write_page, then attach files to it." );
             }
 
             final byte[] decoded = Base64.getDecoder().decode( base64Content );
             if ( decoded.length > MAX_SIZE_BYTES ) {
-                return McpToolUtils.errorResult( gson,
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                         "File too large: " + decoded.length + " bytes (max " + MAX_SIZE_BYTES + ")",
                         "Reduce the file size to under 10 MB." );
             }
@@ -110,14 +116,14 @@ public class UploadAttachmentTool implements AuthorConfigurable {
             result.put( "pageName", pageName );
             result.put( "fileName", fileName );
             result.put( "size", decoded.length );
-            return McpToolUtils.jsonResult( gson, result );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
         } catch ( final IllegalArgumentException e ) {
-            return McpToolUtils.errorResult( gson,
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Invalid base64 content: " + e.getMessage(),
                     "Ensure the content field contains valid base64-encoded data." );
         } catch ( final Exception e ) {
             LOG.error( "Failed to upload attachment {} to {}: {}", fileName, pageName, e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 }

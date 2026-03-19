@@ -98,7 +98,7 @@ class DeleteAttachmentToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "delete_attachment", def.name() );
         assertTrue( def.annotations().destructiveHint() );
     }

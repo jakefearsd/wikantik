@@ -102,7 +102,7 @@ class LockPageToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "lock_page", def.name() );
         assertFalse( def.annotations().readOnlyHint() );
     }

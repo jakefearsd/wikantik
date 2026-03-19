@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,14 +39,18 @@ import java.util.Map;
  * Delegates to the JSPWiki {@link PageRenamer} which handles page moves, attachment
  * migration, and referrer updates atomically.
  */
-public class RenamePageTool implements AuthorConfigurable {
+public class RenamePageTool implements McpTool, AuthorConfigurable {
 
     private static final Logger LOG = LogManager.getLogger( RenamePageTool.class );
     public static final String TOOL_NAME = "rename_page";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final WikiEngine engine;
     private final SystemPageRegistry systemPageRegistry;
-    private final Gson gson = new Gson();
 
     private String defaultAuthor = "MCP";
 
@@ -59,7 +63,8 @@ public class RenamePageTool implements AuthorConfigurable {
         this.defaultAuthor = defaultAuthor;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "oldName", Map.of( "type", "string", "description", "Current name of the page to rename" ) );
         properties.put( "newName", Map.of( "type", "string", "description", "New name for the page (CamelCase)" ) );
@@ -79,6 +84,7 @@ public class RenamePageTool implements AuthorConfigurable {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String oldName = McpToolUtils.getString( arguments, "oldName" );
         final String newName = McpToolUtils.getString( arguments, "newName" );
@@ -88,19 +94,19 @@ public class RenamePageTool implements AuthorConfigurable {
         final boolean confirm = McpToolUtils.getBoolean( arguments, "confirm" );
 
         if ( !confirm ) {
-            return McpToolUtils.errorResult( gson,
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Rename not confirmed",
                     "Set confirm=true to confirm you want to rename '" + oldName + "' to '" + newName + "'." );
         }
 
         if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( oldName ) ) {
-            return McpToolUtils.errorResult( gson,
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Cannot rename system page: " + oldName,
                     "System/template pages are managed by JSPWiki and should not be renamed." );
         }
 
         if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( newName ) ) {
-            return McpToolUtils.errorResult( gson,
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Cannot rename to system page name: " + newName,
                     "The target name conflicts with a system/template page." );
         }
@@ -109,7 +115,7 @@ public class RenamePageTool implements AuthorConfigurable {
             final PageManager pageManager = engine.getManager( PageManager.class );
             final Page page = pageManager.getPage( oldName );
             if ( page == null ) {
-                return McpToolUtils.errorResult( gson,
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                         "Page not found: " + oldName,
                         "Use list_pages to find existing pages." );
             }
@@ -125,10 +131,10 @@ public class RenamePageTool implements AuthorConfigurable {
             result.put( "newName", newName );
             result.put( "finalName", finalName );
             result.put( "linksUpdated", updateLinks );
-            return McpToolUtils.jsonResult( gson, result );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
         } catch ( final Exception e ) {
             LOG.error( "Failed to rename page {} to {}: {}", oldName, newName, e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 }

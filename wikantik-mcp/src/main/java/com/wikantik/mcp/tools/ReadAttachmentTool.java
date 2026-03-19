@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,20 +34,25 @@ import java.util.Map;
 /**
  * MCP tool that reads a file attachment from a wiki page, returning its content as base64.
  */
-public class ReadAttachmentTool {
+public class ReadAttachmentTool implements McpTool {
 
     private static final Logger LOG = LogManager.getLogger( ReadAttachmentTool.class );
     public static final String TOOL_NAME = "read_attachment";
+
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
     private static final int MAX_INLINE_BYTES = 1024 * 1024; // 1 MB
 
     private final AttachmentManager attachmentManager;
-    private final Gson gson = new Gson();
 
     public ReadAttachmentTool( final AttachmentManager attachmentManager ) {
         this.attachmentManager = attachmentManager;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pageName", Map.of( "type", "string", "description", "Name of the wiki page" ) );
         properties.put( "fileName", Map.of( "type", "string", "description", "File name of the attachment" ) );
@@ -63,6 +68,7 @@ public class ReadAttachmentTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
         final String fileName = McpToolUtils.getString( arguments, "fileName" );
@@ -71,7 +77,7 @@ public class ReadAttachmentTool {
             final String fullName = pageName + "/" + fileName;
             final Attachment att = attachmentManager.getAttachmentInfo( fullName );
             if ( att == null ) {
-                return McpToolUtils.errorResult( gson,
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                         "Attachment not found: " + fullName,
                         "Use get_attachments to list available attachments for the page." );
             }
@@ -93,10 +99,10 @@ public class ReadAttachmentTool {
                 }
             }
 
-            return McpToolUtils.jsonResult( gson, result );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
         } catch ( final Exception e ) {
             LOG.error( "Failed to read attachment {}/{}: {}", pageName, fileName, e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 }

@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,19 +36,24 @@ import java.util.Map;
 /**
  * MCP tool that returns a diff between two versions of a wiki page.
  */
-public class DiffPageTool {
+public class DiffPageTool implements McpTool {
 
     private static final Logger LOG = LogManager.getLogger( DiffPageTool.class );
     public static final String TOOL_NAME = "diff_page";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final WikiEngine engine;
-    private final Gson gson = new Gson();
 
     public DiffPageTool( final WikiEngine engine ) {
         this.engine = engine;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pageName", Map.of( "type", "string", "description", "Name of the wiki page" ) );
         properties.put( "version1", Map.of( "type", "integer", "description", "First (older) version number" ) );
@@ -65,6 +70,7 @@ public class DiffPageTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
         final int version1 = McpToolUtils.getInt( arguments, "version1", 1 );
@@ -74,7 +80,7 @@ public class DiffPageTool {
             final PageManager pageManager = engine.getManager( PageManager.class );
             final Page page = pageManager.getPage( pageName );
             if ( page == null ) {
-                return McpToolUtils.errorResult( gson,
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                         "Page not found: " + pageName,
                         "Use list_pages to find existing pages." );
             }
@@ -95,10 +101,10 @@ public class DiffPageTool {
             result.put( "version1", version1 );
             result.put( "version2", version2 );
             result.put( "diff", plainDiff );
-            return McpToolUtils.jsonResult( gson, result );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
         } catch ( final Exception e ) {
             LOG.error( "Failed to diff page {}: {}", pageName, e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 

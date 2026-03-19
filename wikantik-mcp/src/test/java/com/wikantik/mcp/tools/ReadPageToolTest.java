@@ -108,7 +108,7 @@ class ReadPageToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "read_page", def.name() );
         assertNotNull( def.description() );
         assertNotNull( def.inputSchema() );

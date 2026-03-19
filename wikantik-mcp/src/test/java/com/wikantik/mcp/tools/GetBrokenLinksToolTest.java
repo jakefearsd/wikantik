@@ -83,7 +83,7 @@ class GetBrokenLinksToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "get_broken_links", def.name() );
         assertTrue( def.annotations().readOnlyHint() );
     }

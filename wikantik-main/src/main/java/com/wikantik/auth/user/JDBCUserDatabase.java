@@ -608,18 +608,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             final java.sql.Date lockExpiry = profile.getLockExpiry() == null ? null : new java.sql.Date( profile.getLockExpiry().getTime() );
             if( existingProfile == null ) {
                 // User is new: insert new user record
-                ps1.setString( 1, profile.getUid() );
-                ps1.setString( 2, profile.getEmail() );
-                ps1.setString( 3, profile.getFullname() );
-                ps1.setString( 4, password );
-                ps1.setString( 5, profile.getWikiName() );
-                ps1.setTimestamp( 6, ts );
-                ps1.setString( 7, profile.getLoginName() );
-                try {
-                    ps1.setString( 8, Serializer.serializeToBase64( profile.getAttributes() ) );
-                } catch ( final IOException e ) {
-                    throw new WikiSecurityException( "Could not save user profile attribute. Reason: " + e.getMessage(), e );
-                }
+                setProfileParameters( ps1, profile, password, ts );
                 ps1.setTimestamp( 9, ts );
                 ps1.execute();
 
@@ -631,7 +620,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                         roles++;
                     }
                 }
-                
+
                 if( roles == 0 ) {
                     ps3.setString( 1, profile.getLoginName() );
                     ps3.setString( 2, initialRole );
@@ -642,18 +631,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 profile.setCreated( modDate );
             } else {
                 // User exists: modify existing record
-                ps4.setString( 1, profile.getUid() );
-                ps4.setString( 2, profile.getEmail() );
-                ps4.setString( 3, profile.getFullname() );
-                ps4.setString( 4, password );
-                ps4.setString( 5, profile.getWikiName() );
-                ps4.setTimestamp( 6, ts );
-                ps4.setString( 7, profile.getLoginName() );
-                try {
-                    ps4.setString( 8, Serializer.serializeToBase64( profile.getAttributes() ) );
-                } catch ( final IOException e ) {
-                    throw new WikiSecurityException( "Could not save user profile attribute. Reason: " + e.getMessage(), e );
-                }
+                setProfileParameters( ps4, profile, password, ts );
                 ps4.setDate( 9, lockExpiry );
                 ps4.setString( 10, profile.getLoginName() );
                 ps4.execute();
@@ -679,6 +657,25 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      * @return the resolved UserProfile
      * @throws NoSuchPrincipalException problems accessing the database
      */
+    /**
+     * Sets the common profile parameters (1-8) on a PreparedStatement for both insert and update operations.
+     */
+    private void setProfileParameters( final PreparedStatement ps, final UserProfile profile,
+                                        final String password, final Timestamp ts ) throws WikiSecurityException, SQLException {
+        ps.setString( 1, profile.getUid() );
+        ps.setString( 2, profile.getEmail() );
+        ps.setString( 3, profile.getFullname() );
+        ps.setString( 4, password );
+        ps.setString( 5, profile.getWikiName() );
+        ps.setTimestamp( 6, ts );
+        ps.setString( 7, profile.getLoginName() );
+        try {
+            ps.setString( 8, Serializer.serializeToBase64( profile.getAttributes() ) );
+        } catch ( final IOException e ) {
+            throw new WikiSecurityException( "Could not save user profile attribute. Reason: " + e.getMessage(), e );
+        }
+    }
+
     private UserProfile findByPreparedStatement( final String sql, final Object index ) throws NoSuchPrincipalException
     {
         UserProfile profile = null;

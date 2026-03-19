@@ -51,7 +51,7 @@ class GetBrokenLinksToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testFindsBrokenLinks() throws Exception {
-        engine.saveText( "PageWithBrokenLink", "[NonExistentPage]" );
+        engine.saveText( "PageWithBrokenLink", "[NonExistentPage]()" );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of() );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();

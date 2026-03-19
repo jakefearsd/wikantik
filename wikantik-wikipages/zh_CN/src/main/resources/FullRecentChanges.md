@@ -1,0 +1,4 @@
+
+这些是对所有页面做的修改。短一些的列表可以在 [RecentChanges]() 中找到。
+
+[{com.wikantik.plugin.RecentChangesPlugin }]()

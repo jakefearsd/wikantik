@@ -143,10 +143,10 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 
 ### Rendering Pipeline
 
-1. **Parser**: `WikantikMarkupParser` converts wiki text to DOM
+1. **Parser**: `MarkdownParser` converts Markdown to Flexmark AST (default). Legacy `WikantikMarkupParser` handles `.txt` pages with `markup.syntax=jspwiki`.
 2. **Filters**: Pre/post-processing of content
-3. **Plugins**: Dynamic content insertion
-4. **Renderer**: Final output generation (XHTML, etc.)
+3. **Plugins**: Dynamic content insertion via `[{Plugin}]` syntax (auto-normalized to `[{Plugin}]()` for Flexmark)
+4. **Renderer**: `MarkdownRenderer` produces HTML via Flexmark (default). Legacy `XHTMLRenderer` for wiki-syntax documents.
 
 ### Security Model
 

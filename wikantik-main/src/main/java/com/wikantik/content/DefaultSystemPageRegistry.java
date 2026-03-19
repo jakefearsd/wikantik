@@ -46,9 +46,9 @@ import java.util.regex.PatternSyntaxException;
  * Default implementation of {@link SystemPageRegistry} that auto-discovers system pages
  * from the {@code wikantik-wikipages} JAR on the classpath at startup.
  *
- * <p>Discovery works by locating the well-known resource {@code About.txt} via the
- * thread context classloader, then enumerating all sibling {@code *.txt} entries in
- * the same JAR (or directory in dev mode). The {@code .txt} suffix is stripped to
+ * <p>Discovery works by locating the well-known resource {@code About.md} via the
+ * thread context classloader, then enumerating all sibling {@code *.md} entries in
+ * the same JAR (or directory in dev mode). The {@code .md} suffix is stripped to
  * produce page names.
  *
  * @since 3.0.7
@@ -58,7 +58,7 @@ public class DefaultSystemPageRegistry implements SystemPageRegistry {
     private static final Logger LOG = LogManager.getLogger( DefaultSystemPageRegistry.class );
 
     /** The well-known resource used as an anchor to find the wiki pages location. */
-    private static final String ANCHOR_RESOURCE = "About.txt";
+    private static final String ANCHOR_RESOURCE = "About.md";
 
     private Set<String> systemPageNames = Collections.emptySet();
     private List<Pattern> extraPatterns = Collections.emptyList();
@@ -97,8 +97,8 @@ public class DefaultSystemPageRegistry implements SystemPageRegistry {
     }
 
     /**
-     * Discovers system page names by finding {@code About.txt} on the classpath
-     * and enumerating sibling {@code *.txt} resources.
+     * Discovers system page names by finding {@code About.md} on the classpath
+     * and enumerating sibling {@code *.md} resources.
      */
     private Set<String> discoverSystemPages() {
         final Set<String> names = new HashSet<>();
@@ -129,13 +129,13 @@ public class DefaultSystemPageRegistry implements SystemPageRegistry {
     }
 
     /**
-     * Enumerates {@code *.txt} entries from a JAR file.
+     * Enumerates {@code *.md} entries from a JAR file.
      */
     private void discoverFromJar( final URL anchorUrl, final Set<String> names ) {
         try {
             final JarURLConnection jarConn = ( JarURLConnection ) anchorUrl.openConnection();
             // Determine the directory prefix within the JAR (e.g., "" for root or "some/path/")
-            final String entryName = jarConn.getEntryName(); // e.g., "About.txt" or "path/About.txt"
+            final String entryName = jarConn.getEntryName(); // e.g., "About.md" or "path/About.md"
             final String prefix;
             final int lastSlash = entryName.lastIndexOf( '/' );
             if ( lastSlash >= 0 ) {
@@ -149,9 +149,9 @@ public class DefaultSystemPageRegistry implements SystemPageRegistry {
                 while ( entries.hasMoreElements() ) {
                     final JarEntry entry = entries.nextElement();
                     final String name = entry.getName();
-                    if ( !entry.isDirectory() && name.startsWith( prefix ) && name.endsWith( ".txt" ) ) {
-                        // Strip prefix and .txt suffix
-                        final String pageName = name.substring( prefix.length(), name.length() - 4 );
+                    if ( !entry.isDirectory() && name.startsWith( prefix ) && name.endsWith( ".md" ) ) {
+                        // Strip prefix and .md suffix
+                        final String pageName = name.substring( prefix.length(), name.length() - 3 );
                         if ( !pageName.contains( "/" ) && !pageName.isEmpty() ) {
                             names.add( pageName );
                         }
@@ -164,7 +164,7 @@ public class DefaultSystemPageRegistry implements SystemPageRegistry {
     }
 
     /**
-     * Enumerates {@code *.txt} files from a filesystem directory (dev mode).
+     * Enumerates {@code *.md} files from a filesystem directory (dev mode).
      */
     private void discoverFromDirectory( final URL anchorUrl, final Set<String> names ) {
         try {
@@ -174,10 +174,10 @@ public class DefaultSystemPageRegistry implements SystemPageRegistry {
                 return;
             }
 
-            try ( DirectoryStream<Path> stream = Files.newDirectoryStream( dir, "*.txt" ) ) {
+            try ( DirectoryStream<Path> stream = Files.newDirectoryStream( dir, "*.md" ) ) {
                 for ( final Path file : stream ) {
                     final String fileName = file.getFileName().toString();
-                    final String pageName = fileName.substring( 0, fileName.length() - 4 );
+                    final String pageName = fileName.substring( 0, fileName.length() - 3 );
                     names.add( pageName );
                 }
             }

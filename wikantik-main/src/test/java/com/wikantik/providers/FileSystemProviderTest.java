@@ -72,7 +72,7 @@ public class FileSystemProviderTest {
 
         m_provider.putPageText( page, "test" );
 
-        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "%C5%E4Test.txt" );
+        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "%C5%E4Test.md" );
 
         Assertions.assertTrue( resultfile.exists(), "No such file" );
 
@@ -87,7 +87,7 @@ public class FileSystemProviderTest {
 
         m_providerUTF8.putPageText( page, "test\u00d6" );
 
-        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "%C3%85%C3%A4Test.txt" );
+        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "%C3%85%C3%A4Test.md" );
 
         Assertions.assertTrue( resultfile.exists(), "No such file" );
 
@@ -109,7 +109,7 @@ public class FileSystemProviderTest {
 
         m_providerUTF8.putPageText( page, "test" );
 
-        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "Test%2FFoobar.txt" );
+        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "Test%2FFoobar.md" );
 
         Assertions.assertTrue( resultfile.exists(), "No such file" );
 
@@ -127,7 +127,7 @@ public class FileSystemProviderTest {
 
         m_provider.putPageText( page, "test" );
 
-        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "Test%2FFoobar.txt" );
+        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "Test%2FFoobar.md" );
 
         Assertions.assertTrue( resultfile.exists(), "No such file" );
 
@@ -145,7 +145,7 @@ public class FileSystemProviderTest {
 
         m_provider.putPageText( page, "test" );
 
-        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "%2ETest.txt" );
+        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "%2ETest.md" );
 
         Assertions.assertTrue( resultfile.exists(), "No such file" );
 
@@ -171,7 +171,7 @@ public class FileSystemProviderTest {
         }
         finally
         {
-            File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ), "%C5%E4Test.txt" );
+            File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ), "%C5%E4Test.md" );
             try {
                 resultfile.delete();
             } catch( final Exception e) {}
@@ -254,7 +254,7 @@ public class FileSystemProviderTest {
 
         m_provider.putPageText( p, "v1" );
 
-        File f = new File( files, "Test"+FileSystemProvider.FILE_EXT );
+        File f = new File( files, "Test"+FileSystemProvider.MARKDOWN_EXT );
 
         Assertions.assertTrue( f.exists(), "file does not exist" );
 
@@ -264,7 +264,7 @@ public class FileSystemProviderTest {
 
         m_provider.deletePage( "Test" );
 
-        f = new File( files, "Test"+FileSystemProvider.FILE_EXT );
+        f = new File( files, "Test"+FileSystemProvider.MARKDOWN_EXT );
 
         Assertions.assertFalse( f.exists(), "file exists" );
 
@@ -277,7 +277,7 @@ public class FileSystemProviderTest {
     public void testCustomProperties() throws Exception {
         final String pageDir = props.getProperty( FileSystemProvider.PROP_PAGEDIR );
         final String pageName = "CustomPropertiesTest";
-        final String fileName = pageName+FileSystemProvider.FILE_EXT;
+        final String fileName = pageName+FileSystemProvider.MARKDOWN_EXT;
         final File file = new File (pageDir,fileName);
 
         Assertions.assertFalse( file.exists() );

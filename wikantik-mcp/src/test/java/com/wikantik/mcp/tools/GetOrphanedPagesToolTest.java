@@ -69,7 +69,7 @@ class GetOrphanedPagesToolTest {
     @SuppressWarnings( "unchecked" )
     void testLinkedPageNotOrphaned() throws Exception {
         engine.saveText( "LinkedPage", "I am linked." );
-        engine.saveText( "LinkerPage", "[LinkedPage]" );
+        engine.saveText( "LinkerPage", "[LinkedPage]()" );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of() );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();

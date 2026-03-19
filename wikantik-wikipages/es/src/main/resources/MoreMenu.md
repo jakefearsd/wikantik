@@ -1,0 +1,13 @@
+
+[Cambios Recientes](RecentChanges)   
+
+[Índice](PageIndex)   
+
+[Acerca de...](About)   
+
+[Info. del sistema](SystemInfo)   
+
+[Páginas sin usar](UnusedPages)   
+
+[Páginas sin definir](UndefinedPages)   
+

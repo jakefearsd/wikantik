@@ -1,0 +1,15 @@
+
+This Wiki is done using [JSP](http://java.sun.com/products/jsp) technology, which hopefully makes it very easy to keep up to date and looking better than most of the Wikis based on the [original one](http://c2.com/cgi/wiki). A custom bean handles the translation of text into HTML.
+
+Most of the [editing markers](TextFormattingRules) have been styled according to the [Sensei's Library](http://senseis.xmp.net), the best Go sites in the Internet. I find their markup very easy, yet clear.
+
+This wiki is available under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0). Pleasesee [http://wikantik.com]() for further information.
+
+If you are interested in the Wikantik development, the home page for Wikantik is at [http://wikantik.com](). Some quick links:
+
+* [Bug Reports](Wikantik:SubmitBugReport) - or [look at the list of open bugs](Wikantik:OpenBugs).
+* [Contribute new ideas](Wikantik:SubmitNewIdea).
+* Take a look at the most up-to-date [Wikantik FAQ](Wikantik:WikantikFAQ)
+* Look for additional [plugins](Wikantik:ContributedPlugins), [templates](Wikantik:ContributedTemplates), [filters](Wikantik:ContributedFilters), [providers](Wikantik:ContributedProviders), or [other cool stuff](Wikantik:ContributedCode).
+
+Happy hacking, and thanks for choosing Wikantik!

@@ -6,6 +6,12 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-19** — Reduce duplication in MCP tools and JDBC database classes
+
+**2026-03-19** — Update News page content
+
+**2026-03-19** — Replace Apache feather logo with wikαntik text logo
+
 **2026-03-19** — Rebrand Phase 9: documentation cleanup and final sweep
 
 **2026-03-19** — Rebrand Phase 8: Docker, deployment, and infrastructure

@@ -31,7 +31,7 @@ class MarkdownSetupEngineLifecycleExtensionTest {
         properties.put( "wikantik.syntax", "markdown" );
         final MarkdownSetupEngineLifecycleExtension sut = new MarkdownSetupEngineLifecycleExtension();
         sut.onInit( properties );
-        Assertions.assertEquals( 5, properties.size() );
+        Assertions.assertEquals( 6, properties.size() );
         Assertions.assertEquals( "com.wikantik.parser.markdown.MarkdownParser", properties.getProperty( "wikantik.renderingManager.markupParser" ) );
 
         properties.clear();

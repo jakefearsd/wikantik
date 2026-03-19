@@ -228,7 +228,7 @@ public abstract class MarkupParser {
     /**
      *  Use this to turn on or off image inlining.
      *
-     *  @param toggle If true, images are inlined (as per set in jspwiki.properties)
+     *  @param toggle If true, images are inlined (as per set in wikantik.properties)
      *                If false, then images won't be inlined; instead, they will be
      *                treated as standard hyperlinks.
      *  @since 2.2.9

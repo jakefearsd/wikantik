@@ -1,4 +1,4 @@
-# robots.txt for JSPWiki
+# robots.txt for Wikantik
 # Allow indexing of public wiki content while blocking administrative/action pages
 
 User-agent: *

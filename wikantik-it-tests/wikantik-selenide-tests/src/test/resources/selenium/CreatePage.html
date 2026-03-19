@@ -21,14 +21,14 @@
 <html lang="en">
 <head>
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
-  <title>JSPWiki Test Create Page</title>
+  <title>Wikantik Test Create Page</title>
 </head>
 <body> 
 <table cellpadding="1" cellspacing="1" border="1">
 	<tbody>
-	<tr><td rowspan="1" colspan="3">JSPWiki Test Create Page<br></td></tr>
+	<tr><td rowspan="1" colspan="3">Wikantik Test Create Page<br></td></tr>
 
-	<tr><td>store</td>	<td>/${it-jspwiki.context}</td>	<td>it_baseUrl</td></tr>
+	<tr><td>store</td>	<td>/${it-wikantik.context}</td>	<td>it_baseUrl</td></tr>
 	<tr><td>store</td>	<td>javascript{'Createpage '+new Date().getTime()}</td>	<td>page</td></tr>
 	<tr><td>store</td>	<td>janne</td>			<td>TestUsername</td></tr>
     <tr><td>store</td>	<td>myP@5sw0rd</td>		<td>TestPassword</td></tr>
@@ -47,14 +47,14 @@
 	<!-- create page -->
     <tr><td>open</td>	<td>${editurl}</td>	<td>&nbsp;</td></tr>
 
-    <tr><td>verifyTitle</td>		<td>JSPWiki: Edit: ${page}</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: Edit: ${page}</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyElementPresent</td>	<td>ok</td>	<td></td></tr>
     <tr><td>verifyElementPresent</td>	<td>id=editorarea</td>	<td></td></tr>
 
     <tr><td>type</td>			<td>id=editorarea</td>		<td>${PageContent}</td></tr>
     <tr><td>clickAndWait</td>	<td>ok</td>	<td>&nbsp;</td></tr>
 
-    <tr><td>verifyTitle</td>		<td>JSPWiki: ${page}</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: ${page}</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>	<td>${PageContent}</td>	<td>&nbsp;</td></tr>	
     
     <!-- Log out -->

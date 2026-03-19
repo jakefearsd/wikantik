@@ -1,5 +1,5 @@
 ---
-summary: Comprehensive documentation about this JSPWiki instance, its MCP integration,
+summary: Comprehensive documentation about this Wikantik instance, its MCP integration,
   architecture, and the semantic agentic web vision
 tags:
 - wiki
@@ -12,11 +12,11 @@ status: active
 ---
 # About This Wiki
 
-This wiki is a personal knowledge base powered by [Apache JSPWiki](https://jspwiki.apache.org/), an open-source wiki engine built on Java and Jakarta EE. It serves as a curated research library where in-depth articles are drafted with AI assistance, reviewed and edited by a human, and published programmatically through the Model Context Protocol (MCP).
+This wiki is a personal knowledge base powered by [Apache Wikantik](https://wikantik.com/), an open-source wiki engine built on Java and Jakarta EE. It serves as a curated research library where in-depth articles are drafted with AI assistance, reviewed and edited by a human, and published programmatically through the Model Context Protocol (MCP).
 
-## What is JSPWiki?
+## What is Wikantik?
 
-JSPWiki is a feature-rich wiki engine that has been in active development since the early 2000s as an Apache Software Foundation project. It supports fine-grained access control via JAAS, a plugin architecture for extending functionality, multiple storage backends, full-text search powered by Apache Lucene, and both traditional wiki markup and Markdown syntax.
+Wikantik is a feature-rich wiki engine that has been in active development since the early 2000s as an Apache Software Foundation project. It supports fine-grained access control via JAAS, a plugin architecture for extending functionality, multiple storage backends, full-text search powered by Apache Lucene, and both traditional wiki markup and Markdown syntax.
 
 ### Technical Stack
 
@@ -29,11 +29,11 @@ JSPWiki is a feature-rich wiki engine that has been in active development since 
 | **Authentication** | JAAS with pluggable providers (LDAP, database, container-managed, OAuth) |
 | **Storage** | File system (VersioningFileProvider) with optional database backends |
 | **Build System** | Apache Maven (multi-module) |
-| **Markup** | JSPWiki syntax and Markdown with YAML frontmatter |
+| **Markup** | Wikantik syntax and Markdown with YAML frontmatter |
 
 ### Architecture
 
-JSPWiki follows a modular architecture organized around a central `WikiEngine` that orchestrates all subsystems. Key architectural patterns include:
+Wikantik follows a modular architecture organized around a central `WikiEngine` that orchestrates all subsystems. Key architectural patterns include:
 
 - **Provider Pattern** — Storage is abstracted through provider interfaces (`PageProvider`, `AttachmentProvider`, `SearchProvider`), allowing the wiki to run on flat files, versioned file systems, or database backends without changing application code.
 - **Event-Driven Communication** — Components communicate through a `WikiEvent` system, enabling loose coupling between subsystems. Listeners react to page changes, user actions, search index updates, and more.
@@ -45,18 +45,18 @@ JSPWiki follows a modular architecture organized around a central `WikiEngine` t
 
 The codebase is organized into focused modules:
 
-- **jspwiki-api** — Core interfaces and contracts that define the wiki engine's public API
-- **jspwiki-main** — Primary implementation of all wiki functionality including page management, rendering, search, and security
-- **jspwiki-event** — Event system for decoupled inter-component communication
-- **jspwiki-util** — Shared utility classes and helpers
-- **jspwiki-cache** — Ehcache-based caching layer for page content and metadata
-- **jspwiki-markdown** — Markdown syntax support with CommonMark parsing
-- **jspwiki-mcp** — Model Context Protocol server for AI-assisted operations
-- **jspwiki-war** — WAR packaging for deployment to servlet containers
+- **wikantik-api** — Core interfaces and contracts that define the wiki engine's public API
+- **wikantik-main** — Primary implementation of all wiki functionality including page management, rendering, search, and security
+- **wikantik-event** — Event system for decoupled inter-component communication
+- **wikantik-util** — Shared utility classes and helpers
+- **wikantik-cache** — Ehcache-based caching layer for page content and metadata
+- **wikantik-markdown** — Markdown syntax support with CommonMark parsing
+- **wikantik-mcp** — Model Context Protocol server for AI-assisted operations
+- **wikantik-war** — WAR packaging for deployment to servlet containers
 
 ## The MCP Integration
 
-The `jspwiki-mcp` module exposes this wiki as an MCP server, allowing AI agents to read, write, search, and manage wiki content through a standardized protocol. This is the mechanism by which articles on this wiki are researched and published.
+The `wikantik-mcp` module exposes this wiki as an MCP server, allowing AI agents to read, write, search, and manage wiki content through a standardized protocol. This is the mechanism by which articles on this wiki are researched and published.
 
 ### What is MCP?
 
@@ -138,6 +138,6 @@ This instance runs on Apache Tomcat 11 with the VersioningFileProvider for page 
 
 ## Open Source
 
-JSPWiki is licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0). The source code is available at [https://jspwiki.apache.org/](https://jspwiki.apache.org/). This fork's enhancements — including the MCP module, Markdown support improvements, and YAML frontmatter — are developed in the open.
+Wikantik is licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0). The source code is available at [https://wikantik.com/](https://wikantik.com/). This fork's enhancements — including the MCP module, Markdown support improvements, and YAML frontmatter — are developed in the open.
 
-For more information about JSPWiki development, see the [project wiki](https://jspwiki-wiki.apache.org/).
+For more information about Wikantik development, see the [project wiki](https://wiki.wikantik.com/).

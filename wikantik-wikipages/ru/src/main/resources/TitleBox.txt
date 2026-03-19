@@ -1,3 +1,3 @@
 %%center
-[Welcome|TitleBox] к [JSPWiki|About]
+[Welcome|TitleBox] к [Wikantik|About]
 /%

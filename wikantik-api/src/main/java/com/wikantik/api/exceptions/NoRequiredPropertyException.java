@@ -21,10 +21,10 @@ package com.wikantik.api.exceptions;
 
 
 /**
- *  Marks an erroneous jspwiki.properties file.  Certain properties have been marked as "required", and if you
+ *  Marks an erroneous wikantik.properties file.  Certain properties have been marked as "required", and if you
  *  do not provide a good value for a property, you'll see this exception.
  *  <P>
- *  Check <TT>jspwiki.properties</TT> for the required properties.
+ *  Check <TT>wikantik.properties</TT> for the required properties.
  */
 public class NoRequiredPropertyException extends WikiException {
 	

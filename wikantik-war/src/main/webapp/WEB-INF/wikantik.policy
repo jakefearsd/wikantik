@@ -15,26 +15,26 @@
 //  specific language governing permissions and limitations
 //  under the License.
 
-// $Id: jspwiki.policy,v 1.23 2007-07-06 10:36:36 jalkanen Exp $
+// $Id: wikantik.policy,v 1.23 2007-07-06 10:36:36 jalkanen Exp $
 //
-// This file contains the local security policy for JSPWiki.
-// It provides the permissions rules for the JSPWiki
+// This file contains the local security policy for Wikantik.
+// It provides the permissions rules for the Wikantik
 // environment, and should be suitable for most purposes.
-// JSPWiki will load this policy when the wiki webapp starts.
+// Wikantik will load this policy when the wiki webapp starts.
 //
-// As noted, this is the 'local' policy for this instance of JSPWiki.
+// As noted, this is the 'local' policy for this instance of Wikantik.
 // You can also use the standard Java 2 security policy mechanisms
 // to create a consolidated 'global policy' (JVM-wide) that will be checked first,
 // before this local policy. This is ideal for situations in which you are
-// running multiple instances of JSPWiki in your web container.
-// To set a global security policy for all running instances of JSPWiki,
+// running multiple instances of Wikantik in your web container.
+// To set a global security policy for all running instances of Wikantik,
 // you will need to specify the location of the global policy by setting the
 // JVM system property 'java.security.policy' in the command line script
 // you use to start your web container. See the documentation
-// pages at http://doc.jspwiki.org/2.4/wiki/InstallingJSPWiki. If you
+// pages at http://doc.jspwiki.org/2.4/wiki/InstallingWikantik. If you
 // don't know what this means, don't worry about it.
 //
-// Also, if you are running JSPWiki with a security policy, you will probably
+// Also, if you are running Wikantik with a security policy, you will probably
 // want to copy the contents of the file jspwiki-container.policy into your
 // container's policy. See that file for more details.
 //
@@ -98,7 +98,7 @@ grant principal com.wikantik.auth.authorize.Role "Authenticated" {
 
 // Administrators (principals or roles possessing AllPermission)
 // are allowed to delete any page, and can edit, rename and delete
-// groups. You should match the permission target (here, 'JSPWiki')
+// groups. You should match the permission target (here, 'Wikantik')
 // with the value of the 'wikantik.applicationName' property in
 // wikantik.properties. Two administative groups are set up below:
 // the wiki group "Admin" (stored by default in wiki page GroupAdmin)

@@ -89,7 +89,7 @@ public class WikiServletFilter implements Filter {
     public void doFilter( final ServletRequest request, final ServletResponse response, final FilterChain chain ) throws IOException, ServletException {
         //  Sanity check; it might be true in some conditions, but we need to know where.
         if( chain == null ) {
-            throw new ServletException("FilterChain is null, even if it should not be.  Please report this to the jspwiki development team.");
+            throw new ServletException("FilterChain is null, even if it should not be.  Please report this to the Wikantik development team.");
         }
         
         if( engine == null ) {
@@ -97,9 +97,9 @@ public class WikiServletFilter implements Filter {
             out.print("<!DOCTYPE html><html lang=\"en\"><head><title>Fatal problem with JSPWiki</title></head>");
             out.print("<body>");
             out.print("<h1>JSPWiki has not been started</h1>");
-            out.print("<p>JSPWiki is not running.  This is probably due to a configuration error in your jspwiki.properties file, ");
+            out.print("<p>JSPWiki is not running.  This is probably due to a configuration error in your wikantik.properties file, ");
             out.print("or a problem with your servlet container.  Please double-check everything before issuing a bug report ");
-            out.print("at jspwiki.apache.org.</p>");
+            out.print("at wikantik.com.</p>");
             out.print("<p>We apologize for the inconvenience.  No, really, we do.  We're trying to ");
             out.print("JSPWiki as easy as we can, but there is only so much we have time to test ");
             out.print("platforms.</p>");

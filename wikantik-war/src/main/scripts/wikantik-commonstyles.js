@@ -35,7 +35,7 @@ Dynamic Style: Reflection  (114)
 
 Inspired by Reflection.js at http://cow.neondragon.net/stuff/reflection/
 Freely distributable under MIT-style license.
-Adapted for JSPWiki/BrushedTemplate, Sep 06
+Adapted for Wikantik/BrushedTemplate, Sep 06
 
 Use:
  	%%reflection-height-opacity  [some-image.jpg] %%

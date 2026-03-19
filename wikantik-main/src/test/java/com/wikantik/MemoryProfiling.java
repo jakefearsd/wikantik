@@ -42,7 +42,7 @@ class MemoryProfiling {
     @Test
     void memorySize() {
         final Properties props = TestEngine.getTestProperties();
-        props.put( "wikantik.fileSystemProvider.pageDir", "../jspwiki-wikipages/en/src/main/resources" );
+        props.put( "wikantik.fileSystemProvider.pageDir", "../wikantik-wikipages/en/src/main/resources" );
         final Engine engine = Wiki.engine().find( HttpMockFactory.createServletContext( "/test" ), TestEngine.getTestProperties() );
         final Engine engineWithDefaultPages = Wiki.engine().find( HttpMockFactory.createServletContext( "/test" ), props );
         final Page main = Wiki.contents().page( engine, "Main" );

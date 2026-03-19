@@ -44,7 +44,7 @@ import java.util.regex.PatternSyntaxException;
 
 /**
  * Default implementation of {@link SystemPageRegistry} that auto-discovers system pages
- * from the {@code jspwiki-wikipages} JAR on the classpath at startup.
+ * from the {@code wikantik-wikipages} JAR on the classpath at startup.
  *
  * <p>Discovery works by locating the well-known resource {@code About.txt} via the
  * thread context classloader, then enumerating all sibling {@code *.txt} entries in

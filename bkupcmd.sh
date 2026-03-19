@@ -8,5 +8,5 @@
 #
 #
 #
-docker run --rm --mount source=jspwiki-data,target=/var/jspwiki -v $(pwd):/backup busybox tar -czvf /backup/jspwiki-backup.tar.gz /var/jspwiki 
+docker run --rm --mount source=wikantik-data,target=/var/wikantik -v $(pwd):/backup busybox tar -czvf /backup/wikantik-backup.tar.gz /var/wikantik 
 

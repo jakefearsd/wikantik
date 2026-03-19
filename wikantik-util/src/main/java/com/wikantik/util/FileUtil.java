@@ -71,7 +71,7 @@ public final class FileUtil {
      *  @see java.io.File#createTempFile(String,String,File)
      */
     public static File newTmpFile( final String content, final Charset encoding ) throws IOException {
-        final File f = File.createTempFile( "jspwiki", null );
+        final File f = File.createTempFile( "wikantik", null );
         try( final Reader in = new StringReader( content );
             final Writer out = new OutputStreamWriter( Files.newOutputStream( f.toPath() ), encoding ) ) {
             copyContents( in, out );

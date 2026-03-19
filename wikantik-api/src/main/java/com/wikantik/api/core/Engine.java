@@ -84,7 +84,7 @@ public interface Engine {
      Double negative, cause for most servers you don't need the property */
     String PROP_NO_FILTER_ENCODING = "wikantik.nofilterencoding";
 
-    /** Property name for where the jspwiki work directory should be.
+    /** Property name for where the wikantik work directory should be.
      If not specified, reverts to ${java.tmpdir}. */
     String PROP_WORKDIR = "wikantik.workDir";
 
@@ -235,7 +235,7 @@ public interface Engine {
     /**
      * Looks up and obtains a configuration file inside the WEB-INF folder of a wiki webapp.
      *
-     * @param name the file to obtain, <em>e.g.</em>, <code>jspwiki.policy</code>
+     * @param name the file to obtain, <em>e.g.</em>, <code>wikantik.policy</code>
      * @return the URL to the file
      */
     default URL findConfigFile( final String name ) {
@@ -312,7 +312,7 @@ public interface Engine {
     /**
      *  <p>If the page is a special page, then returns a direct URL to that page. Otherwise returns <code>null</code>.
      *  This method delegates requests to {@link com.wikantik.ui.CommandResolver#getSpecialPageReference(String)}.</p>
-     *  <p>Special pages are defined in jspwiki.properties using the jspwiki.specialPage setting. They're typically used to give Wiki page
+     *  <p>Special pages are defined in wikantik.properties using the wikantik.specialPage setting. They're typically used to give Wiki page
      *  names to e.g. custom JSP pages.</p>
      *
      *  @param original The page to check

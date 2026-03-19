@@ -131,7 +131,7 @@ public abstract class AbstractFileProvider implements PageProvider {
     public void initialize( final Engine engine, final Properties properties ) throws NoRequiredPropertyException, IOException, FileNotFoundException {
         LOG.debug( "Initing FileSystemProvider" );
         pageDirectory = TextUtil.getCanonicalFilePathProperty( properties, PROP_PAGEDIR,
-                                                          System.getProperty( "user.home" ) + File.separator + "jspwiki-files" );
+                                                          System.getProperty( "user.home" ) + File.separator + "wikantik-files" );
 
         final File f = new File( pageDirectory );
 
@@ -381,7 +381,7 @@ public abstract class AbstractFileProvider implements PageProvider {
         final File[] wikipages = wikipagedir.listFiles( new WikiFileFilter() );
 
         if( wikipages == null ) {
-            LOG.error("Wikipages directory '" + pageDirectory + "' does not exist! Please check " + PROP_PAGEDIR + " in jspwiki.properties.");
+            LOG.error("Wikipages directory '" + pageDirectory + "' does not exist! Please check " + PROP_PAGEDIR + " in wikantik.properties.");
             throw new ProviderException( "Page directory does not exist" );
         }
 
@@ -426,7 +426,7 @@ public abstract class AbstractFileProvider implements PageProvider {
         final File[] wikipages = wikipagedir.listFiles( new WikiFileFilter() );
 
         if( wikipages == null ) {
-            LOG.error( "Wikipages directory '" + pageDirectory + "' does not exist! Please check " + PROP_PAGEDIR + " in jspwiki.properties." );
+            LOG.error( "Wikipages directory '" + pageDirectory + "' does not exist! Please check " + PROP_PAGEDIR + " in wikantik.properties." );
             return set;
         }
 
@@ -632,7 +632,7 @@ public abstract class AbstractFileProvider implements PageProvider {
     }
 
     /**
-     * Default validation, validates that key and value is ASCII <code>StringUtils.isAsciiPrintable()</code> and within lengths set up in jspwiki-custom.properties.
+     * Default validation, validates that key and value is ASCII <code>StringUtils.isAsciiPrintable()</code> and within lengths set up in wikantik-custom.properties.
      * This can be overwritten by custom FileSystemProviders to validate additional properties
      * See https://issues.apache.org/jira/browse/JSPWIKI-856
      * @since 2.10.2

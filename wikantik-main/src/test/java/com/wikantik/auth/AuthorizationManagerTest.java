@@ -77,7 +77,7 @@ public class AuthorizationManagerTest {
     public void setUp() throws Exception {
         final Properties props = TestEngine.getTestProperties();
 
-        // Make sure we are using the default security policy file jspwiki.policy
+        // Make sure we are using the default security policy file wikantik.policy
         props.put( AuthorizationManager.POLICY, AuthorizationManager.DEFAULT_POLICY );
 
         // Initialize the test engine
@@ -89,7 +89,7 @@ public class AuthorizationManagerTest {
 
     /**
      * Tests the default policy. Anonymous users can read, Authenticated can
-     * edit, etc. Uses the default tests/etc/jspwiki.policy file installed by
+     * edit, etc. Uses the default tests/etc/wikantik.policy file installed by
      * the JRE at startup.
      *
      * @throws Exception test failed
@@ -660,7 +660,7 @@ public class AuthorizationManagerTest {
     {
         final Properties props = TestEngine.getTestProperties();
 
-        // Make sure we are using the default security policy file jspwiki.policy
+        // Make sure we are using the default security policy file wikantik.policy
         props.put( AuthorizationManager.POLICY, "wikantik-testUserPolicy.policy" );
 
         // Initialize the test engine

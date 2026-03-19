@@ -21,7 +21,7 @@
 -->
 
 <!--
-     This file lists the classes you can change in a running JSPWiki
+     This file lists the classes you can change in a running Wikantik
      environment.
      
      The requestedClass can either be a Class or an Interface.  However,
@@ -36,12 +36,12 @@
      is always instantiated (if it's a concrete class).
      
      Please understand that the contents of this file are not to be changed
-     lightly.  It's very easy to break JSPWiki, and this is really meant
+     lightly.  It's very easy to break Wikantik, and this is really meant
      for people who wish to make very deep modifications but don't want
      to be patching their code all the time.
      
      Note that there is no guarantee that your modifications will stay
-     compatible between different versions of JSPWiki.  This is really,
+     compatible between different versions of Wikantik.  This is really,
      really deeply, invasive stuff we're talking here.  Really, seriously!
      We're not kidding!  We don't even know if this works ourselves!
   -->

@@ -372,7 +372,7 @@ public class PageRenamerTest {
     public void testBug85_case1() throws Exception
     {
         // renaming a non-existing page
-        // This Assertions.fails under 2.5.116, cfr. with http://bugs.jspwiki.org/show_bug.cgi?id=85
+        // This Assertions.fails under 2.5.116, cfr. with https://bugs.wikantik.com/show_bug.cgi?id=85
         // m_engine.saveText( "TestPage", "blablahblahbla" );
         try
         {

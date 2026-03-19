@@ -1,5 +1,5 @@
 /*
-    JSPWiki - a JSP-based WikiWiki clone.
+    Wikantik - a JSP-based WikiWiki clone.
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -30,7 +30,7 @@
         include it from another wiki page.
 
         Carefull with CSS-injection (https://www.owasp.org/index.php/Testing_for_CSS_Injection_%28OTG-CLIENT-005%29)
-        - injection of "</style><script>...</script><style>" not possible, as all <,> are escaped by jspwiki
+        - injection of "</style><script>...</script><style>" not possible, as all <,> are escaped by wikantik
         - take care of attribute selector attacks ??
 
 >   %%add-css ... /%
@@ -77,7 +77,7 @@ function AddCSS(element) {
             .replace(/url\(<img class="inline" .*?src="([^"]+)[^>]*>\)/gi, "url($1)")
             .replace(/<\xa5([^"]+)"/gi, "$1")  //attached font files- part2
 
-            .replace(/<p>|<\/p>/gi, "") //jspwiki inserts <p/> for empty lines, remove them
+            .replace(/<p>|<\/p>/gi, "") //wikantik inserts <p/> for empty lines, remove them
             .replace(/&amp;/g, "&")
             .replace(/&gt;/g, ">")
             .replace(/&lt;/g, "<");
@@ -86,7 +86,7 @@ function AddCSS(element) {
 
         /*
         Sequence to insert CSS is :
-            (1) jspwiki.css (<HEAD>)
+            (1) wikantik.css (<HEAD>)
             (2) sidebar/favorites
             (3) in-page additional styles
 

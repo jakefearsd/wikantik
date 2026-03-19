@@ -584,7 +584,7 @@
               <externalReferences>
                 <externalReference>
                   <type>vulnerability-assertion</type>
-                  <url>https://jspwiki.apache.org/cyclonedx/vdr.xml</url>
+                  <url>https://wikantik.com/cyclonedx/vdr.xml</url>
                 </externalReference>
               </externalReferences>
               <outputFormat>xml</outputFormat>
@@ -956,7 +956,7 @@
                 <artifactId>wikantik-war</artifactId>
                 <type>war</type>
                 <properties>
-                  <context>/JSPWiki</context>
+                  <context>/Wikantik</context>
                 </properties>
               </deployable>
             </deployables> -->
@@ -1223,24 +1223,24 @@
   <mailingLists>
     <mailingList>
       <name>Wikantik-dev List</name>
-      <subscribe>dev-subscribe@jspwiki.apache.org</subscribe>
-      <unsubscribe>dev-unsubscribe@jspwiki.apache.org</unsubscribe>
-      <post>dev@jspwiki.apache.org</post>
+      <subscribe>dev-subscribe@wikantik.com</subscribe>
+      <unsubscribe>dev-unsubscribe@wikantik.com</unsubscribe>
+      <post>dev@wikantik.com</post>
       <archive>http://mail-archives.apache.org/mod_mbox/jspwiki-dev/</archive>
     </mailingList>
 
     <mailingList>
       <name>Wikantik-user List</name>
-      <subscribe>user-subscribe@jspwiki.apache.org</subscribe>
-      <unsubscribe>user-unsubscribe@jspwiki.apache.org</unsubscribe>
-      <post>user@jspwiki.apache.org</post>
+      <subscribe>user-subscribe@wikantik.com</subscribe>
+      <unsubscribe>user-unsubscribe@wikantik.com</unsubscribe>
+      <post>user@wikantik.com</post>
       <archive>http://mail-archives.apache.org/mod_mbox/jspwiki-user/</archive>
     </mailingList>
 
     <mailingList>
       <name>Wikantik-commits List</name>
-      <subscribe>commits-subscribe@jspwiki.apache.org</subscribe>
-      <unsubscribe>commits-unsubscribe@jspwiki.apache.org</unsubscribe>
+      <subscribe>commits-subscribe@wikantik.com</subscribe>
+      <unsubscribe>commits-unsubscribe@wikantik.com</unsubscribe>
       <archive>http://mail-archives.apache.org/mod_mbox/jspwiki-commits/</archive>
     </mailingList>
   </mailingLists>
@@ -1252,6 +1252,6 @@
 
   <ciManagement>
     <system>Jenkins</system>
-    <url>https://builds.apache.org/job/JSPWiki</url>
+    <url>https://builds.apache.org/job/Wikantik</url>
   </ciManagement>
 </project>

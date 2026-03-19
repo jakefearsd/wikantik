@@ -19,10 +19,10 @@
 -- because it creates a database user and grants permissions.
 --
 -- Usage:
---   sudo -u postgres psql -d jspwiki -f postgresql.ddl
+--   sudo -u postgres psql -d wikantik -f postgresql.ddl
 --
 -- Prerequisites:
---   1. Create the database first: CREATE DATABASE jspwiki;
+--   1. Create the database first: CREATE DATABASE wikantik;
 --   2. Run this script as superuser to create tables and the application user
 
 -- Drop existing objects if they exist (safe for fresh installs)
@@ -32,12 +32,12 @@ DROP TABLE IF EXISTS roles;
 DROP TABLE IF EXISTS users;
 
 -- Revoke privileges before dropping user (required if user exists with grants)
-REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM jspwiki;
-REVOKE ALL PRIVILEGES ON SCHEMA public FROM jspwiki;
-REVOKE ALL PRIVILEGES ON DATABASE jspwiki FROM jspwiki;
+REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM wikantik;
+REVOKE ALL PRIVILEGES ON SCHEMA public FROM wikantik;
+REVOKE ALL PRIVILEGES ON DATABASE wikantik FROM wikantik;
 
 -- Drop and recreate application user (requires superuser privileges)
-DROP USER IF EXISTS jspwiki;
+DROP USER IF EXISTS wikantik;
 
 -- Users table: stores user profiles
 CREATE TABLE users (
@@ -78,13 +78,13 @@ CREATE TABLE group_members (
 
 -- Create application user
 -- NOTE: Change 'password' to a secure password before running in production!
-CREATE USER jspwiki WITH ENCRYPTED PASSWORD 'password' NOCREATEDB NOCREATEROLE;
+CREATE USER wikantik WITH ENCRYPTED PASSWORD 'password' NOCREATEDB NOCREATEROLE;
 
 -- Grant table permissions to the application user
-GRANT SELECT, INSERT, UPDATE, DELETE ON users TO jspwiki;
-GRANT SELECT, INSERT, UPDATE, DELETE ON roles TO jspwiki;
-GRANT SELECT, INSERT, UPDATE, DELETE ON groups TO jspwiki;
-GRANT SELECT, INSERT, UPDATE, DELETE ON group_members TO jspwiki;
+GRANT SELECT, INSERT, UPDATE, DELETE ON users TO wikantik;
+GRANT SELECT, INSERT, UPDATE, DELETE ON roles TO wikantik;
+GRANT SELECT, INSERT, UPDATE, DELETE ON groups TO wikantik;
+GRANT SELECT, INSERT, UPDATE, DELETE ON group_members TO wikantik;
 
 -- Insert default admin user
 -- Password is 'admin' hashed with {SSHA} - change immediately after first login!
@@ -138,4 +138,4 @@ INSERT INTO group_members (
 -- DROP TABLE IF EXISTS groups;
 -- DROP TABLE IF EXISTS roles;
 -- DROP TABLE IF EXISTS users;
--- DROP USER IF EXISTS jspwiki;
+-- DROP USER IF EXISTS wikantik;

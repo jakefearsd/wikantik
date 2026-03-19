@@ -69,7 +69,7 @@ public interface EditorManager extends ModuleManager, Initializable {
      *  <p>
      *  Determines the editor to use by the following order of conditions:
      *  1. Editor set in User Preferences
-     *  2. Default Editor set in jspwiki.properties
+     *  2. Default Editor set in wikantik.properties
      *  <p>
      *  For the PREVIEW context, this method returns the "preview" editor.
      *

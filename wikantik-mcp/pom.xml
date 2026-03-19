@@ -44,7 +44,7 @@
   </dependencyManagement>
 
   <dependencies>
-    <!-- JSPWiki modules (provided — shared at runtime via Tomcat) -->
+    <!-- Wikantik modules (provided — shared at runtime via Tomcat) -->
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>wikantik-api</artifactId>

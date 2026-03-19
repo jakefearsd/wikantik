@@ -89,7 +89,7 @@ public class SitemapServlet extends HttpServlet {
      * to explicitly set the base URL for sitemap generation with the correct protocol.
      * </p>
      * <p>
-     * Example: {@code jspwiki.sitemap.baseURL = https://wiki.example.com/JSPWiki}
+     * Example: {@code wikantik.sitemap.baseURL = https://wiki.example.com/JSPWiki}
      * </p>
      * <p>
      * If not set, the base URL is derived from the incoming request, which works

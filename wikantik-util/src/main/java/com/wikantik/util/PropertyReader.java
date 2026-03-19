@@ -44,7 +44,7 @@ import jakarta.servlet.ServletContext;
  * Property Reader for the WikiEngine. Reads the properties for the WikiEngine
  * and implements the feature of cascading properties and variable substitution,
  * which come in handy in a multi wiki installation environment: It reduces the
- * need for (shell) scripting in order to generate different jspwiki.properties
+ * need for (shell) scripting in order to generate different wikantik.properties
  * to a minimum.
  *
  * @since 2.5.x
@@ -55,7 +55,7 @@ public final class PropertyReader {
 
     /**
      * Path to the base property file, {@value}, usually overridden by values provided in
-     * a jspwiki-custom.properties file.
+     * a wikantik-custom.properties file.
      */
     public static final String DEFAULT_JSPWIKI_CONFIG = "/ini/wikantik.properties";
 
@@ -88,7 +88,7 @@ public final class PropertyReader {
      *  Loads the webapp properties based on servlet context information, or
      *  (if absent) based on the Java System Property {@value #PARAM_CUSTOMCONFIG}.
      *  Returns a Properties object containing the settings, or null if unable
-     *  to load it. (The default file is ini/jspwiki.properties, and can be
+     *  to load it. (The default file is ini/wikantik.properties, and can be
      *  customized by setting {@value #PARAM_CUSTOMCONFIG} in the server or webapp
      *  configuration.)
      *
@@ -102,9 +102,9 @@ public final class PropertyReader {
      *      <li>System properties</li>
      *  </ol>
      *  With later sources taking precedence over the previous ones. To avoid leaking system information,
-     *  only System environment and properties beginning with {@code jspwiki} (case unsensitive) are taken into account.
+     *  only System environment and properties beginning with {@code wikantik} (case unsensitive) are taken into account.
      *  Also, to ease docker integration, System env properties containing "_" are turned into ".". Thus,
-     *  {@code ENV jspwiki_fileSystemProvider_pageDir} is loaded as {@code jspwiki.fileSystemProvider.pageDir}.
+     *  {@code ENV wikantik_fileSystemProvider_pageDir} is loaded as {@code wikantik.fileSystemProvider.pageDir}.
      *
      *  <h3>Cascading Properties</h3>
      *  <p>
@@ -116,9 +116,9 @@ public final class PropertyReader {
      *  <p>
      *  You define a cascade in the context mapping of your servlet container.
      *  <pre>
-     *  jspwiki.custom.cascade.1
-     *  jspwiki.custom.cascade.2
-     *  jspwiki.custom.cascade.3
+     *  wikantik.custom.cascade.1
+     *  wikantik.custom.cascade.2
+     *  wikantik.custom.cascade.3
      *  </pre>
      *  and so on. You have to number your cascade in a descending way starting
      *  with "1". This means you cannot leave out numbers in your cascade. This
@@ -132,7 +132,7 @@ public final class PropertyReader {
         try( final InputStream propertyStream = loadCustomPropertiesFile(context, propertyFile) ) {
             final Properties props = getDefaultProperties();
 
-            // add system env properties beginning with jspwiki...
+            // add system env properties beginning with wikantik...
             final Map< String, String > env = collectPropertiesFrom( System.getenv() );
             props.putAll( env );
 
@@ -151,10 +151,10 @@ public final class PropertyReader {
             // property expansion so we can resolve things like ${TOMCAT_HOME}
             propertyExpansion( props );
 
-            // sets the JSPWiki working directory (jspwiki.workDir)
+            // sets the JSPWiki working directory (wikantik.workDir)
             setWorkDir( context, props );
 
-            // add system properties beginning with jspwiki...
+            // add system properties beginning with wikantik...
             final Map< String, String > sysprops = collectPropertiesFrom( System.getProperties().entrySet().stream()
                                                                                 .collect( Collectors.toMap( Object::toString, Object::toString ) ) );
             props.putAll( sysprops );
@@ -164,7 +164,7 @@ public final class PropertyReader {
 
             return props;
         } catch( final Exception e ) {
-            LOG.error( "JSPWiki: Unable to load and setup properties from jspwiki.properties. " + e.getMessage(), e );
+            LOG.error( "Wikantik: Unable to load and setup properties from wikantik.properties. " + e.getMessage(), e );
         }
 
         return null;
@@ -277,7 +277,7 @@ public final class PropertyReader {
                 additionalProps.load( propertyStream );
                 defaultProperties.putAll( additionalProps );
             } catch( final Exception e ) {
-                LOG.error( "JSPWiki: Unable to load and setup properties from {}. {}", propertyFile, e.getMessage() );
+                LOG.error( "Wikantik: Unable to load and setup properties from {}. {}", propertyFile, e.getMessage() );
             }
         }
     }
@@ -336,9 +336,9 @@ public final class PropertyReader {
      *  a {@code $basedir}. Note that it does not matter if you define the variable before its usage.
      *  <pre>
      *  var.basedir = /p/mywiki; # var.basedir = ${TOMCAT_HOME} would also be fine
-     *  jspwiki.fileSystemProvider.pageDir =         $basedir/www/
+     *  wikantik.fileSystemProvider.pageDir =         $basedir/www/
      *  jspwiki.basicAttachmentProvider.storageDir = $basedir/www/
-     *  jspwiki.workDir =                            $basedir/wrk/
+     *  wikantik.workDir =                            $basedir/wrk/
      *  </pre></p>
      *
      * @param properties - properties to expand;
@@ -468,7 +468,7 @@ public final class PropertyReader {
     }
 
     /**
-     * This method sets the JSPWiki working directory (jspwiki.workDir). It first checks if this property
+     * This method sets the JSPWiki working directory (wikantik.workDir). It first checks if this property
      * is already set. If it isn't, it attempts to use the servlet container's temporary directory
      * (jakarta.servlet.context.tempdir). If that is also unavailable, it defaults to the system's temporary
      * directory (java.io.tmpdir).
@@ -485,11 +485,11 @@ public final class PropertyReader {
             final File tempDir = (File) servletContext.getAttribute("jakarta.servlet.context.tempdir");
             if (tempDir != null) {
                 properties.setProperty("wikantik.workDir", tempDir.getAbsolutePath());
-                LOG.info("Setting jspwiki.workDir to ServletContext's temporary directory: {}", tempDir.getAbsolutePath());
+                LOG.info("Setting wikantik.workDir to ServletContext's temporary directory: {}", tempDir.getAbsolutePath());
             } else {
                 final String defaultTmpDir = System.getProperty("java.io.tmpdir");
                 properties.setProperty("wikantik.workDir", defaultTmpDir);
-                LOG.info("ServletContext's temporary directory not found. Setting jspwiki.workDir to system's temporary directory: {}", defaultTmpDir);
+                LOG.info("ServletContext's temporary directory not found. Setting wikantik.workDir to system's temporary directory: {}", defaultTmpDir);
             }
         } else {
             LOG.info("wikantik.workDir is already set to: {}", workDir);

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-buildRepo = 'https://github.com/apache/jspwiki'
+buildRepo = 'https://github.com/apache/wikantik'
 buildJdk17 = 'jdk_17_latest'
 buildJdk21 = 'jdk_21_latest'
 buildJdk25 = 'jdk_25_latest'
@@ -42,7 +42,7 @@ try {
     }
 
     if( env.BRANCH_NAME == 'master' ) {
-        build wait: false, job: 'JSPWiki/site', parameters: [ text( name: 'version', value: 'master' ) ]
+        build wait: false, job: 'Wikantik/site', parameters: [ text( name: 'version', value: 'master' ) ]
     }
 
     currentBuild.result = 'SUCCESS'
@@ -58,8 +58,8 @@ try {
         }
         if( env.BRANCH_NAME == 'master' ) {
             emailext body: "See ${env.BUILD_URL} $errMsg",
-                     replyTo: 'dev@jspwiki.apache.org',
-                     to: 'commits@jspwiki.apache.org',
+                     replyTo: 'dev@wikantik.apache.org',
+                     to: 'commits@wikantik.apache.org',
                      subject: "[${env.JOB_NAME}] build ${env.BUILD_DISPLAY_NAME} - ${currentBuild.result}"
         }
     }
@@ -72,8 +72,8 @@ def buildSonarAndDeployIfSnapshotWith( jdk ) {
             git url: buildRepo, poll: true
             withMaven( jdk: jdk, maven: buildMvn, publisherStrategy: 'EXPLICIT', options: [ jacocoPublisher(), junitPublisher() ] ) {
                 sh "mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent package org.jacoco:jacoco-maven-plugin:report -T 1C"
-                withCredentials( [ string( credentialsId: 'sonarcloud-jspwiki', variable: 'SONAR_TOKEN' ) ] ) {
-                    def sonarOptions = "-Dsonar.projectKey=jspwiki-builder -Dsonar.organization=apache -Dsonar.branch.name=${env.BRANCH_NAME} -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=$SONAR_TOKEN"
+                withCredentials( [ string( credentialsId: 'sonarcloud-wikantik', variable: 'SONAR_TOKEN' ) ] ) {
+                    def sonarOptions = "-Dsonar.projectKey=wikantik-builder -Dsonar.organization=apache -Dsonar.branch.name=${env.BRANCH_NAME} -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=$SONAR_TOKEN"
                     echo 'Will use SonarQube instance at https://sonarcloud.io'
                     sh "mvn sonar:sonar $sonarOptions"
                 }

@@ -26,7 +26,7 @@ public class FilterSupportOperationsTest {
 
     @Test
     public void testFilterSupportOperations() {
-        // the other branch of these methods is properly tested through the jspwiki-210-adapers module
+        // the other branch of these methods is properly tested through the wikantik-210-adapters module
         Assertions.assertNull( FilterSupportOperations.methodOfNonPublicAPI( new TestPageFilter(), "preTranslate" ) );
         Assertions.assertEquals( "duh", FilterSupportOperations.executePageFilterPhase( () -> "duh", null, new TestPageFilter() ) );
     }

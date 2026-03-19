@@ -6,7 +6,7 @@ Escribe lo siguiente en la página "[PageAliases]":  (Hay una página de ejemplo
 [{SET alias='PageAlias'}]
 }}}
 
-Cada vez que alguien solicite la página "[PageAliases]", será automáticamente redirigido a esta página.  Esto es bastante útil si, por ejemplo, quieres poder usar formas de plural irregulares. Normalmente, JSPWiki reconoce los plurales en inglés de los nombres de las páginas, pero no es lo suficientemente listo como para reconocer determinadas formas de plural, como en el caso de "aliases".
+Cada vez que alguien solicite la página "[PageAliases]", será automáticamente redirigido a esta página.  Esto es bastante útil si, por ejemplo, quieres poder usar formas de plural irregulares. Normalmente, Wikantik reconoce los plurales en inglés de los nombres de las páginas, pero no es lo suficientemente listo como para reconocer determinadas formas de plural, como en el caso de "aliases".
 
 !Editando las páginas de alias/redirección
 

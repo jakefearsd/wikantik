@@ -1,5 +1,5 @@
 /*
-    JSPWiki - a JSP-based WikiWiki clone.
+    Wikantik - a JSP-based WikiWiki clone.
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -26,7 +26,7 @@ Class: HighlightQuery
 
 Credit:
     Inspired by http://www.kryogenix.org/code/browser/searchhi/
-    Refactored for JSPWiki -- now based on regexp's.
+    Refactored for Wikantik -- now based on regexp's.
 
 Arguments
     node - (DOM-element)

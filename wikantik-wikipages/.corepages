@@ -16,7 +16,7 @@
 #  under the License.
 #
 # Custom configuration file used by most JUnit tests overriding
-# certain default values in src/main/resources/ini/jspwiki.properties
+# certain default values in src/main/resources/ini/wikantik.properties
 #
 About.txt
 ApprovalRequiredForPageChanges.txt

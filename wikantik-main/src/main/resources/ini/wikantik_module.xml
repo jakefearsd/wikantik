@@ -19,8 +19,8 @@
 -->
 
 <!--
-    This is the JSPWiki default module property file.  It contains descriptors for each
-    JSPWiki Core Module (i.e stuff that is included with JSPWiki).  If a descriptor
+    This is the Wikantik default module property file.  It contains descriptors for each
+    Wikantik Core Module (i.e stuff that is included with Wikantik).  If a descriptor
     is missing, that doesn't mean that we don't have it; we just in that case fall
     back to defaults.
 -->
@@ -42,7 +42,7 @@
    </plugin>
 
    <plugin class="com.wikantik.plugin.AliasPlugin">
-      <author>JSPWiki</author>
+      <author>Wikantik</author>
       <minVersion>1.0</minVersion>
       <alias>ALIAS</alias>
    </plugin>

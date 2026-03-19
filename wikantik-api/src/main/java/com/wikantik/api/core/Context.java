@@ -208,7 +208,7 @@ public interface Context extends Cloneable, Command {
     String getViewURL( String WikiPage );
 
     /**
-     *  Figure out to which WikiPage we are really going to.  Considers special WikiPage names from the jspwiki.properties, and possible aliases.
+     *  Figure out to which WikiPage we are really going to.  Considers special WikiPage names from the wikantik.properties, and possible aliases.
      *
      *  @return A complete URL to the new WikiPage to redirect to
      *  @since 2.2

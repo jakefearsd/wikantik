@@ -3,13 +3,13 @@
 !! Problemas con Microsoft Windows
 
 !Configuración de la Wiki
-El enfoque menos doloroso para definir la localización de las páginas de la Wiki es tenerlas en la misma unidad que tu instalación de Tomcat (u otro servidor de aplicaciones), y definir su localización con formato Unix. Por ejemplo, los archivos en C:\JSPWiki\files son definidos en el fichero de configuración como /JSPWiki/files.
+El enfoque menos doloroso para definir la localización de las páginas de la Wiki es tenerlas en la misma unidad que tu instalación de Tomcat (u otro servidor de aplicaciones), y definir su localización con formato Unix. Por ejemplo, los archivos en C:\Wikantik\files son definidos en el fichero de configuración como /Wikantik/files.
 
-También, comprueba que cambias el valor del parámetro para {{appender.rolling.fileName}} en {{jspwiki.properties}} si quieres que se cree un fichero de log. Este parámetro está en la sección de configuración Log4j 2.x cerca del final del fichero de configuración. El formato es el mismo que en el parámetro {{jspwiki.fileSystemProvider.pageDir}}, es decir, las contrabarras deben ser duplicadas.
+También, comprueba que cambias el valor del parámetro para {{appender.rolling.fileName}} en {{wikantik.properties}} si quieres que se cree un fichero de log. Este parámetro está en la sección de configuración Log4j 2.x cerca del final del fichero de configuración. El formato es el mismo que en el parámetro {{jspwiki.fileSystemProvider.pageDir}}, es decir, las contrabarras deben ser duplicadas.
 
 !! Problemas con UTF-8
 
-Si estás teniendo problemas con Tomcat 5.x (o superior) y JSPWiki con UTF-8, por favor, ¡presta atención!
+Si estás teniendo problemas con Tomcat 5.x (o superior) y Wikantik con UTF-8, por favor, ¡presta atención!
 
 Tienes que editar el fichero server.xml de Tomcat (localizado en el directorio conf del Tomcat). Por favor añade a
 
@@ -57,8 +57,8 @@ La parte inferior de la sección de la izquierda es otra página más, llamada [
 
 !Activando el feed [RSS|http://blogspace.com/rss/]
 
-En tu archivo jspwiki.properties, tienes que establecer el parámetro "wikantik.rss.generate" a "true".
+En tu archivo wikantik.properties, tienes que establecer el parámetro "wikantik.rss.generate" a "true".
 
 !No me gusta que ~LasPalabrasSeAmontonenEnLosTitulos en los títulos de las páginas. ¿Puedo hacer algo al respecto?
 
-Como dicen los finlandeses, "voe tokkiinsa", es decir "sí, por supuesto".  Simplemente establece el parámetro "wikantik.breakTitleWithSpaces" a "true" en tu fichero jspwiki.properties.
+Como dicen los finlandeses, "voe tokkiinsa", es decir "sí, por supuesto".  Simplemente establece el parámetro "wikantik.breakTitleWithSpaces" a "true" en tu fichero wikantik.properties.

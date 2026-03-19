@@ -16,7 +16,7 @@ drop table users if exists;
 drop table roles if exists;
 drop table groups if exists;
 drop table group_members if exists;
---drop user "jspwiki";
+--drop user "wikantik";
 
 create table users (
   uid varchar(100),
@@ -53,12 +53,12 @@ create table group_members (
     (name,member)
 );
 
-create user "jspwiki" password "password";
+create user "wikantik" password "password";
 
-grant select, insert, update, delete on users to "jspwiki";
-grant select, insert, update, delete on roles to "jspwiki";
-grant select, insert, update, delete on groups to "jspwiki";
-grant select, insert, update, delete on group_members to "jspwiki";
+grant select, insert, update, delete on users to "wikantik";
+grant select, insert, update, delete on roles to "wikantik";
+grant select, insert, update, delete on groups to "wikantik";
+grant select, insert, update, delete on group_members to "wikantik";
 
 insert into users (
   uid,

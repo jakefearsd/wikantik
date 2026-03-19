@@ -92,7 +92,7 @@
    either installing Wikantik for the first time or have changed configuration,
    then you might want to check your configuration files.  If you are absolutely sure
    that Wikantik was running quite okay or you can't figure out what is going
-   on, then by all means, come over to <a href="http://jspwiki.apache.org/">jspwiki.apache.org</a>
+   on, then by all means, come over to <a href="http://wikantik.com/">wikantik.com</a>
    and tell us.  There is more information in the log file (like the full stack trace,
    which you should add to any error report).
    </p>

@@ -1,10 +1,10 @@
 Вот некоторые стратегические числа и другие интересные вещи об этой конкретной Wiki.
-Вся эта информация также доступна в [WikiVariables|JSPWiki:WikiVariables],
+Вся эта информация также доступна в [WikiVariables|Wikantik:WikiVariables],
 если Вы хотите использовать их на какой-либо другой странице.
 
 | __Имя приложения__                     | [{$applicationname}]
 | __Базовый адрес__                      | [{$baseurl}]
-| __Версия Процессора JSPWiki__          | [{$jspwikiversion}] 
+| __Версия Процессора Wikantik__          | [{$jspwikiversion}] 
 | __Кодировка символов__                 | [{$encoding}]
 | __Общее Количество Страниц__           | [{$totalpages}]
 | __Количество Активных Сеансов__        | [{INSERT SessionsPlugin}]
@@ -41,4 +41,4 @@
 
 [{ListLocksPlugin}]
 
-Домашняя страница JSPWiki – [http://jspwiki.apache.org/]. Добро пожаловать!
+Домашняя страница Wikantik – [http://wikantik.com/]. Добро пожаловать!

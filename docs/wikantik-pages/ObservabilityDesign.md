@@ -1,14 +1,14 @@
 ---
-summary: JSPWiki Observability System Design
+summary: Wikantik Observability System Design
 tags:
 - uncategorized
 type: article
 ---
-1. JSPWiki Observability System Design
+1. Wikantik Observability System Design
 
   1. Overview
 
-This document describes an open-source observability stack for JSPWiki, leveraging the existing Log4j2 logging infrastructure. The design follows the three pillars of observability: **Logs**, **Metrics**, and **Traces**.
+This document describes an open-source observability stack for Wikantik, leveraging the existing Log4j2 logging infrastructure. The design follows the three pillars of observability: **Logs**, **Metrics**, and **Traces**.
 
   1. Architecture
 
@@ -18,7 +18,7 @@ This document describes an open-source observability stack for JSPWiki, leveragi
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│     JSPWiki      │     │     Tomcat       │     │   System Host    │
+│     Wikantik      │     │     Tomcat       │     │   System Host    │
 │   (Log4j2)       │     │  Access Logs     │     │   (node_exporter)│
 └────────┬─────────┘     └────────┬─────────┘     └────────┬─────────┘
          │                        │                        │
@@ -85,7 +85,7 @@ Promtail watches log files, extracts labels, and pushes to Loki.
 
     1. Step 1: Log4j2 Configuration for JSON Output
 
-Update JSPWiki's Log4j2 configuration to output JSON for machine parsing.
+Update Wikantik's Log4j2 configuration to output JSON for machine parsing.
 
   - File**: `/var/jspwiki/log4j2.properties`
 
@@ -188,7 +188,7 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  # JSPWiki application logs (JSON format)
+  # Wikantik application logs (JSON format)
   - job_name: jspwiki
     static_configs:
       - targets:
@@ -581,7 +581,7 @@ Import these community dashboards from grafana.com:
 3. **JVM Micrometer** (ID: 4701)
    - JVM metrics (if using JMX exporter)
 
-    1. Custom JSPWiki Dashboard
+    1. Custom Wikantik Dashboard
 
 Create a custom dashboard with these panels:
 
@@ -699,13 +699,13 @@ groups:
   - name: jspwiki
     rules:
       # High error rate
-      - alert: JSPWikiHighErrorRate
+      - alert: WikantikHighErrorRate
         expr: sum(rate({app="jspwiki"} |= "ERROR" [5m])) > 0.1
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "High error rate in JSPWiki logs"
+          summary: "High error rate in Wikantik logs"
           description: "Error rate is {{ $value }} errors per second"
 
       # Disk space warning
@@ -729,14 +729,14 @@ groups:
           description: "Memory usage is {{ $value }}%"
 
       # Service down
-      - alert: JSPWikiDown
+      - alert: WikantikDown
         expr: up{job="jvm"} == 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "JSPWiki service is down"
-          description: "The JSPWiki JVM exporter is not responding"
+          summary: "Wikantik service is down"
+          description: "The Wikantik JVM exporter is not responding"
 ```
 
 ---
@@ -858,7 +858,7 @@ curl http://localhost:3000/api/health
 
     1. Data Flow
 
-1. **Logs**: JSPWiki (Log4j2 JSON) → Promtail → Loki → Grafana
+1. **Logs**: Wikantik (Log4j2 JSON) → Promtail → Loki → Grafana
 2. **Access Logs**: Tomcat → Promtail → Loki → Grafana
 3. **Metrics**: node_exporter → Prometheus → Grafana
 

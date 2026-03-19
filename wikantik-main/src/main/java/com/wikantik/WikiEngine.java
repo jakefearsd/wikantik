@@ -155,7 +155,7 @@ public class WikiEngine implements Engine {
      *  should use getInstance(ServletConfig).
      *
      *  @param config The ServletConfig of the webapp servlet/JSP calling this method.
-     *  @param props  A set of properties, or null, if we are to load JSPWiki's default jspwiki.properties (this is the usual case).
+     *  @param props  A set of properties, or null, if we are to load JSPWiki's default wikantik.properties (this is the usual case).
      *
      *  @return One well-behaving WikiEngine instance.
      */
@@ -167,7 +167,7 @@ public class WikiEngine implements Engine {
      *  Gets a WikiEngine related to the servlet. Works just like getInstance( ServletConfig )
      *
      *  @param context The ServletContext of the webapp servlet/JSP calling this method.
-     *  @param props  A set of properties, or null, if we are to load JSPWiki's default jspwiki.properties (this is the usual case).
+     *  @param props  A set of properties, or null, if we are to load JSPWiki's default wikantik.properties (this is the usual case).
      *  @return One fully functional, properly behaving WikiEngine.
      *  @throws InternalWikiException If the WikiEngine instantiation fails.
      */
@@ -187,7 +187,7 @@ public class WikiEngine implements Engine {
                     engine.start( props );
                     LOG.info( "Root path for this Wiki is: '{}'", engine.getRootPath() );
                 } catch( final Exception e ) {
-                    final String msg = Release.APPNAME + ": Unable to load and setup properties from jspwiki.properties. " + e.getMessage();
+                    final String msg = Release.APPNAME + ": Unable to load and setup properties from wikantik.properties. " + e.getMessage();
                     context.log( msg );
                     LOG.error( msg, e );
                     throw new WikiException( msg, e );

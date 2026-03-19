@@ -3,13 +3,13 @@
 !! Microsoft Windows Issues
 
 !Wiki configuration
-The least painful approach to defining the location of your Wiki files is to have them located at the same drive as your Tomcat (or other web server) installation, and define the location in Unix format. For example, files in C:\JSPWiki\files are defined in the configuration file as /JSPWiki/files.
+The least painful approach to defining the location of your Wiki files is to have them located at the same drive as your Tomcat (or other web server) installation, and define the location in Unix format. For example, files in C:\Wikantik\files are defined in the configuration file as /Wikantik/files.
 
-Also make sure you change the setting for {{appender.rolling.fileName}} in {{jspwiki.properties}} if you want a logfile to be created. This setting is in the Log4j 2.x configuration section near the end of the config-file. The format is the same as the {{jspwiki.fileSystemProvider.pageDir}}-setting, i.e. backslashes must be duplicated.
+Also make sure you change the setting for {{appender.rolling.fileName}} in {{wikantik.properties}} if you want a logfile to be created. This setting is in the Log4j 2.x configuration section near the end of the config-file. The format is the same as the {{jspwiki.fileSystemProvider.pageDir}}-setting, i.e. backslashes must be duplicated.
 
 !! UTF-8 Issues
 
-If you are having problems with Tomcat 5.x (or higher) and JSPWiki with UTF-8, please note the following!
+If you are having problems with Tomcat 5.x (or higher) and Wikantik with UTF-8, please note the following!
 
 You have to edit the server.xml of Tomcat (located in the conf-directory of Tomcat). Please add to 
 
@@ -57,8 +57,8 @@ The lower part of the left hand side is similarly called [LeftMenuFooter], and i
 
 !Enabling the [RSS|http://blogspace.com/rss/] feed
 
-In your jspwiki.properties -file, you'll need to set the "wikantik.rss.generate" to "true".
+In your wikantik.properties -file, you'll need to set the "wikantik.rss.generate" to "true".
 
 !I don't like ~ThingsSquashedTogether in the page titles.  What can I do?
 
-As Finns say, "voe tokkiinsa", meaning "yes, of course".  Just set the "wikantik.breakTitleWithSpaces" property to "true" in your jspwiki.properties-file.
+As Finns say, "voe tokkiinsa", meaning "yes, of course".  Just set the "wikantik.breakTitleWithSpaces" property to "true" in your wikantik.properties-file.

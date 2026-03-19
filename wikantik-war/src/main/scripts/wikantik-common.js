@@ -18,7 +18,7 @@
  */
 
 /*
-Javascript routines to support JSPWiki
+Javascript routines to support Wikantik
 Since v.2.6.0
 
 Uses mootools v1.1, with following components:
@@ -300,7 +300,7 @@ var Wiki = {
 		var h = location.host;
 		this.BasePath = this.BaseUrl.slice(this.BaseUrl.indexOf(h)+h.length,-1);
 
-		// If JSPWiki is installed in the root, then we have to make sure that
+		// If Wikantik is installed in the root, then we have to make sure that
 		// the cookie-cutter works properly here.
 
 		if( this.BasePath == '' ) this.BasePath = '/';
@@ -310,7 +310,7 @@ var Wiki = {
                     flag = true;
                     sameSite = "strict";
                 }
-		this.prefs = new Hash.Cookie('JSPWikiUserPrefs', 
+		this.prefs = new Hash.Cookie('WikantikUserPrefs', 
                     {
                         path:Wiki.BasePath, 
                         duration:400,
@@ -603,7 +603,7 @@ Wiki.addPageRender(WikiSlimbox);
 	by Christophe Beyls (http://www.digitalia.be) - MIT-style license.
 	Inspired by the original Lightbox v2 by Lokesh Dhakar.
 
-	Updated by Dirk Frederickx to fit JSPWiki needs
+	Updated by Dirk Frederickx to fit Wikantik needs
 	- minimum size of image canvas DONE
 	- add maximum size of image w.r.t window size DONE
 	- CLOSE icon -> close x text iso icon DONE
@@ -863,7 +863,7 @@ var Lightbox = {
 
 /** Class: Tabbed Section (130)
 	Creates tabs, based on some css-class information
-	Use in jspwiki: %%tabbedSection  %%tab-FirstTab .. %% %%
+	Use in wikantik: %%tabbedSection  %%tab-FirstTab .. %% %%
 
 	Following markup:
 	<div class="tabbedSection">
@@ -1323,7 +1323,7 @@ var Collapsible =
 	render: function(page, name){
 		page = $(page); if(!page) return;
 
-		var cookie = Wiki.Context.test(/view|edit|comment/) ? "JSPWikiCollapse"+ name: "";
+		var cookie = Wiki.Context.test(/view|edit|comment/) ? "WikantikCollapse"+ name: "";
 
 		if(!this.bullet) {
 			this.bullet = new Element('div',{'class':'collapseBullet'}).setHTML('&bull;');
@@ -1521,7 +1521,7 @@ var Sortable =
 
 			var v = r.cells[colidx];
 
-			v = v.getAttribute('jspwiki:sortvalue') || $getText(v);
+			v = v.getAttribute('wikantik:sortvalue') || $getText(v);
 			v = v.clean().toLowerCase();
 
 			if(num)  num  = !isNaN(parseFloat(v));
@@ -1575,8 +1575,8 @@ var Sortable =
 			//fixme: should cache the converted sortable values
 			var v1 = row1.cells[i],
 				v2 = row2.cells[i],
-				val1 = Sortable.convert( v1.getAttribute('jspwiki:sortvalue') || $getText(v1), datatype ),
-				val2 = Sortable.convert( v2.getAttribute('jspwiki:sortvalue') || $getText(v2), datatype );
+				val1 = Sortable.convert( v1.getAttribute('wikantik:sortvalue') || $getText(v1), datatype ),
+				val2 = Sortable.convert( v2.getAttribute('wikantik:sortvalue') || $getText(v2), datatype );
 
 			return (val1<val2) ? -1 : (val1>val2) ? 1 : 0;
 
@@ -1749,7 +1749,7 @@ Wiki.addPageRender(Categories);
 
 /** 280 ZebraTable
  ** Color odd/even rows of table differently
- ** 1) odd rows get css class odd (ref. jspwiki.css )
+ ** 1) odd rows get css class odd (ref. wikantik.css )
  **   %%zebra-table ... %%
  **
  ** 2) odd rows get css style='background=<color>'
@@ -1791,7 +1791,7 @@ Wiki.addPageRender(ZebraTable);
  ** Modified 21006 to fix query string parsing and add case insensitivity
  ** Modified 20030227 by sgala@hisitech.com to skip words
  **                   with "-" and cut %2B (+) preceding pages
- ** Refactored for JSPWiki -- now based on regexp
+ ** Refactored for Wikantik -- now based on regexp
  **/
 var HighlightWord =
 {

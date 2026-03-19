@@ -1,5 +1,5 @@
 /*
-    JSPWiki - a JSP-based WikiWiki clone.
+    Wikantik - a JSP-based WikiWiki clone.
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -22,7 +22,7 @@
 Class: Color
     Class for creating and manipulating colors in JavaScript.
     This is a minimized variant of the Color class, based Mootools.More,
-    written for jspwiki.
+    written for wikantik.
     It adds supports for html color names. (ref. http://en.wikipedia.org/wiki/Web_colors)
 
 Arguments:

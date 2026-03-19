@@ -96,7 +96,7 @@ import java.util.regex.Pattern;
  *  "com.wikantik.plugin.FunnyPlugin" automatically.  It is also
  *  possible to define other packages, by setting the
  *  "wikantik.plugin.searchPath" property.  See the included
- *  jspwiki.properties file for examples.
+ *  wikantik.properties file for examples.
  *  <P>
  *  Even though the nominal way of writing the plugin is
  *  <pre>

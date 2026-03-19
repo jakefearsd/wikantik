@@ -3,19 +3,19 @@ type: article
 tags:
 - uncategorized
 summary: This document outlines the three most likely performance bottlenecks in the
-  JSPWiki codebase, based on an in-depth analysis of the project structure and key
+  Wikantik codebase, based on an in-depth analysis of the project structure and key
   components.
 ---
 1. Performance Evaluation
 
-This document outlines the three most likely performance bottlenecks in the JSPWiki codebase, based on an in-depth analysis of the project structure and key components.
+This document outlines the three most likely performance bottlenecks in the Wikantik codebase, based on an in-depth analysis of the project structure and key components.
 
   1. 1. File System I/O in Providers
 
   - Location:**
 
-- `jspwiki-main/src/main/java/org/apache/wiki/providers/FileSystemProvider.java`
-- `jspwiki-main/src/main/java/org/apache/wiki/providers/BasicAttachmentProvider.java`
+- `wikantik-main/src/main/java/org/apache/wiki/providers/FileSystemProvider.java`
+- `wikantik-main/src/main/java/org/apache/wiki/providers/BasicAttachmentProvider.java`
 
   - Description:**
 
@@ -36,12 +36,12 @@ The default providers for pages and attachments (`FileSystemProvider` and `Basic
 
   - Location:**
 
-- `jspwiki-main/src/main/java/org/apache/wiki/references/DefaultReferenceManager.java`
-- `jspwiki-main/src/main/java/org/apache/wiki/search/LuceneSearchProvider.java`
+- `wikantik-main/src/main/java/org/apache/wiki/references/DefaultReferenceManager.java`
+- `wikantik-main/src/main/java/org/apache/wiki/search/LuceneSearchProvider.java`
 
   - Description:**
 
-JSPWiki's search and reference management capabilities rely on indexing, which can be a resource-intensive process. The `DefaultReferenceManager` builds a graph of all page references, and the `LuceneSearchProvider` creates a full-text search index. These indexes need to be updated whenever content changes, which can be a significant performance hit, especially on large wikis.
+Wikantik's search and reference management capabilities rely on indexing, which can be a resource-intensive process. The `DefaultReferenceManager` builds a graph of all page references, and the `LuceneSearchProvider` creates a full-text search index. These indexes need to be updated whenever content changes, which can be a significant performance hit, especially on large wikis.
 
   - Potential Issues:**
 
@@ -59,8 +59,8 @@ JSPWiki's search and reference management capabilities rely on indexing, which c
 
   - Location:**
 
-- `jspwiki-main/src/main/java/org/apache/wiki/render/DefaultRenderingManager.java`
-- `jspwiki-main/src/main/java/org/apache/wiki/plugin/DefaultPluginManager.java`
+- `wikantik-main/src/main/java/org/apache/wiki/render/DefaultRenderingManager.java`
+- `wikantik-main/src/main/java/org/apache/wiki/plugin/DefaultPluginManager.java`
 
   - Description:**
 

@@ -19,7 +19,7 @@
 -->
 
 <!--
-    This is a part of the JSPWiki plugin test suite. 
+    This is a part of the Wikantik plugin test suite. 
 -->
 <modules>
     <plugin class="SamplePlugin2">

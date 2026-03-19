@@ -47,10 +47,10 @@ import java.util.Set;
  */
 public interface AuthenticationManager extends Initializable {
 
-    /** If this jspwiki.properties property is <code>true</code>, logs the IP address of the editor on saving. */
+    /** If this wikantik.properties property is <code>true</code>, logs the IP address of the editor on saving. */
     String PROP_STOREIPADDRESS = "wikantik.storeIPAddress";
     
-    /** If this jspwiki.properties property is <code>true</code>, allow cookies to be used for authentication. */
+    /** If this wikantik.properties property is <code>true</code>, allow cookies to be used for authentication. */
     String PROP_ALLOW_COOKIE_AUTH = "wikantik.cookieAuthentication";
     
     /** Whether logins should be throttled to limit brute-forcing attempts. Defaults to true. */
@@ -59,7 +59,7 @@ public interface AuthenticationManager extends Initializable {
     /** Prefix for LoginModule options key/value pairs. */
     String PREFIX_LOGIN_MODULE_OPTIONS = "wikantik.loginModule.options.";
 
-    /** If this jspwiki.properties property is <code>true</code>, allow cookies to be used to assert identities. */
+    /** If this wikantik.properties property is <code>true</code>, allow cookies to be used to assert identities. */
     String PROP_ALLOW_COOKIE_ASSERTIONS = "wikantik.cookieAssertions";
 
     /** The {@link LoginModule} to use for custom authentication. */

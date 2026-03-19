@@ -115,7 +115,7 @@ public class Preferences extends HashMap< String,String > {
         prefs.put("previewcolumn", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.previewcolumn", "true" ) );
 
 
-        // FIXME: editormanager reads jspwiki.editor -- which of both properties should continue
+        // FIXME: editormanager reads wikantik.editor -- which of both properties should continue
         prefs.put("editor", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.editor", "plain" ) );
         parseJSONPreferences( (HttpServletRequest) pageContext.getRequest(), prefs );
         pageContext.getSession().setAttribute( SESSIONPREFS, prefs );

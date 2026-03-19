@@ -91,7 +91,7 @@ public class WikiJSPFilter extends WikiServletFilter {
         try {
             ThreadContext.push( engine.getApplicationName() + ":" + ( ( HttpServletRequest )request ).getRequestURI() );
             w.enterState("Filtering for URL "+((HttpServletRequest)request).getRequestURI(), 90 );
-            final HttpServletResponseWrapper responseWrapper = new JSPWikiServletResponseWrapper( ( HttpServletResponse )response, wiki_encoding, useEncoding );
+            final HttpServletResponseWrapper responseWrapper = new WikantikServletResponseWrapper( ( HttpServletResponse )response, wiki_encoding, useEncoding );
             request.setCharacterEncoding( engine.getContentEncoding().displayName() );
 
             // fire PAGE_REQUESTED event
@@ -206,7 +206,7 @@ public class WikiJSPFilter extends WikiServletFilter {
      *  Simple response wrapper that just allows us to gobble through the entire
      *  response before it's output.
      */
-    private static class JSPWikiServletResponseWrapper extends HttpServletResponseWrapper {
+    private static class WikantikServletResponseWrapper extends HttpServletResponseWrapper {
 
         final ByteArrayOutputStream output;
         private final ByteArrayServletOutputStream servletOut;
@@ -217,7 +217,7 @@ public class WikiJSPFilter extends WikiServletFilter {
         /** How large the initial buffer should be.  This should be tuned to achieve a balance in speed and memory consumption. */
         private static final int INIT_BUFFER_SIZE = 0x8000;
 
-        public JSPWikiServletResponseWrapper( final HttpServletResponse r, final String wikiEncoding, final boolean useEncoding ) throws UnsupportedEncodingException {
+        public WikantikServletResponseWrapper( final HttpServletResponse r, final String wikiEncoding, final boolean useEncoding ) throws UnsupportedEncodingException {
             super( r );
             output = new ByteArrayOutputStream( INIT_BUFFER_SIZE );
             servletOut = new ByteArrayServletOutputStream( output );

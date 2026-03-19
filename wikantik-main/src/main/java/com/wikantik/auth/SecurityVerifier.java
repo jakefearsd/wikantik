@@ -533,7 +533,7 @@ public final class SecurityVerifier {
 
     /**
      * Verfies the JAAS configuration. The configuration is valid if value of the
-     * <code>jspwiki.properties<code> property
+     * <code>wikantik.properties<code> property
      * {@value com.wikantik.auth.AuthenticationManager#PROP_LOGIN_MODULE}
      * resolves to a valid class on the classpath.
      */
@@ -630,7 +630,7 @@ public final class SecurityVerifier {
 
     /**
      * Verfies the Java security policy configuration. The configuration is
-     * valid if value of the local policy (at <code>WEB-INF/jspwiki.policy</code>
+     * valid if value of the local policy (at <code>WEB-INF/wikantik.policy</code>
      * resolves to an existing file, and the policy file contained therein
      * represents a valid policy.
      */
@@ -723,7 +723,7 @@ public final class SecurityVerifier {
         if ( db instanceof DummyUserDatabase dummyDb ) {
             session.addMessage( ERROR_DB, "UserDatabase is DummyUserDatabase; JSPWiki " +
                     "may not have been able to initialize the database you supplied in " +
-                    "wikantik.properties, or you left the 'jspwiki.userdatabase' property " +
+                    "wikantik.properties, or you left the 'wikantik.userdatabase' property " +
                     "blank. Check the error logs." );
         }
 

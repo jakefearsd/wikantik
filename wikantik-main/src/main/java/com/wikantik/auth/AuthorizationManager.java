@@ -68,7 +68,7 @@ public interface AuthorizationManager extends Initializable {
     /** Name of the default security policy file, in WEB-INF. */
     String DEFAULT_POLICY = "wikantik.policy";
 
-    /** The property name in jspwiki.properties for specifying the external {@link Authorizer}. */
+    /** The property name in wikantik.properties for specifying the external {@link Authorizer}. */
     String PROP_AUTHORIZER = "wikantik.authorizer";
 
     /**

@@ -1,5 +1,5 @@
 /*
-    JSPWiki - a JSP-based WikiWiki clone.
+    Wikantik - a JSP-based WikiWiki clone.
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -69,7 +69,7 @@ Example:
     Create dialogs from Javascript
     (start code)
     var dialog = new Dialog({
-        caption:self.ApplicationName || "JSPWiki",
+        caption:self.ApplicationName || "Wikantik",
         showNow:true,
         body:"<p>This is a test dialog<br />Isn't this nice &amp; simple?</p>",
         relativeTo:$("query")

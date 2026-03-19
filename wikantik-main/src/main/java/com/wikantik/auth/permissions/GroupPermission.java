@@ -63,7 +63,7 @@ import com.wikantik.auth.GroupPrincipal;
  * functions like a wildcard. Thus, this block:
  *
  * <pre>
- *  grant signedBy &quot;jspwiki&quot;,
+ *  grant signedBy &quot;wikantik&quot;,
  *    principal com.wikantik.auth.authorize.Role &quot;Authenticated&quot; {
  *      permission com.wikantik.auth.permissions.GroupPermission &quot;*:&lt;groupmember&gt;&quot;, &quot;edit&quot;;
  * </pre>

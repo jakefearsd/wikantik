@@ -440,15 +440,15 @@ class WikantikMarkupParserTest {
 
     @Test
     void testHyperlinksInterWiki1() throws Exception {
-        final String src = "This should be a [link|JSPWiki:HyperLink]";
-        Assertions.assertEquals( "This should be a <a class=\"interwiki\" href=\"http://jspwiki-wiki.apache.org/Wiki.jsp?page=HyperLink\">link</a>",
+        final String src = "This should be a [link|Wikantik:HyperLink]";
+        Assertions.assertEquals( "This should be a <a class=\"interwiki\" href=\"http://wiki.wikantik.com/Wiki.jsp?page=HyperLink\">link</a>",
                 translate( src ) );
     }
 
     @Test
     void testHyperlinksInterWiki2() throws Exception {
-        final String src = "This should be a [JSPWiki:HyperLink]";
-        Assertions.assertEquals( "This should be a <a class=\"interwiki\" href=\"http://jspwiki-wiki.apache.org/Wiki.jsp?page=HyperLink\">JSPWiki:HyperLink</a>",
+        final String src = "This should be a [Wikantik:HyperLink]";
+        Assertions.assertEquals( "This should be a <a class=\"interwiki\" href=\"http://wiki.wikantik.com/Wiki.jsp?page=HyperLink\">Wikantik:HyperLink</a>",
                 translate( src ) );
     }
 
@@ -2164,7 +2164,7 @@ class WikantikMarkupParserTest {
     @Test
     public void testWysiwygModeInterWikiLink() throws Exception {
         // InterWiki link in WYSIWYG mode
-        final String src = "[JSPWiki:MainPage]";
+        final String src = "[Wikantik:MainPage]";
         final String output = translateWysiwyg( src );
         Assertions.assertNotNull( output );
     }
@@ -2588,7 +2588,7 @@ class WikantikMarkupParserTest {
     @Test
     public void testInterWikiLinkBasic() throws Exception {
         // Basic InterWiki link
-        final String src = "[JSPWiki:SandBox]";
+        final String src = "[Wikantik:SandBox]";
         final String output = translate( src );
         Assertions.assertNotNull( output );
         Assertions.assertTrue( output.contains( "SandBox" ) );
@@ -2597,7 +2597,7 @@ class WikantikMarkupParserTest {
     @Test
     public void testInterWikiLinkWithText() throws Exception {
         // InterWiki link with custom text
-        final String src = "[Visit the sandbox|JSPWiki:SandBox]";
+        final String src = "[Visit the sandbox|Wikantik:SandBox]";
         final String output = translate( src );
         Assertions.assertNotNull( output );
         Assertions.assertTrue( output.contains( "sandbox" ) );

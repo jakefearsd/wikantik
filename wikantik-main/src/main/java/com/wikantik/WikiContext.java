@@ -318,7 +318,7 @@ public class WikiContext implements Context, Command {
     }
 
     /**
-     *  Figure out to which page we are really going to.  Considers special page names from the jspwiki.properties, and possible aliases.
+     *  Figure out to which page we are really going to.  Considers special page names from the wikantik.properties, and possible aliases.
      *  This method forwards requests to {@link com.wikantik.ui.CommandResolver#getSpecialPageReference(String)}.
      *  @return A complete URL to the new page to redirect to
      *  @since 2.2
@@ -564,7 +564,7 @@ public class WikiContext implements Context, Command {
      *
      *  @param context e.g. WikiContext.EDIT
      *  @param page The page to which to link
-     *  @return A URL to the page, honours the absolute/relative setting in jspwiki.properties
+     *  @return A URL to the page, honours the absolute/relative setting in wikantik.properties
      */
     @Override
     public String getURL( final String context, final String page ) {

@@ -1,4 +1,4 @@
-# Personal Knowledge Base
+# Jake's Personal Knowledge Base
 
 A curated collection of in-depth research articles, organized into topic clusters. Each cluster has a hub page that introduces the topic and links to detailed sub-articles. Articles are interlinked across clusters where topics overlap.
 
@@ -35,4 +35,4 @@ A curated collection of in-depth research articles, organized into topic cluster
 
 ## About This Wiki
 
-Powered by [JSPWiki](About). Articles are written as AI-assisted research — drafted with Claude, reviewed and edited by a human, and published via the [MCP API](https://modelcontextprotocol.io/). Content is organized using YAML frontmatter metadata for programmatic discovery and cross-referencing.
+Powered by [Wikantik](About). Articles are written as AI-assisted research — drafted with Claude, reviewed and edited by a human, and published via the [MCP API](https://modelcontextprotocol.io/). Content is organized using YAML frontmatter metadata for programmatic discovery and cross-referencing.

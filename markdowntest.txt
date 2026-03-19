@@ -5,7 +5,7 @@
 
   Summary of Changes
 
-  The implementation adds support for Markdown pages alongside traditional JSPWiki markup:
+  The implementation adds support for Markdown pages alongside traditional Wikantik markup:
   - Pages with .md extension are automatically detected as Markdown
   - A markup.syntax attribute is stored on pages ("markdown" or "jspwiki")
   - The RenderingManager uses the appropriate parser based on this attribute
@@ -20,7 +20,7 @@
   cd jspwiki-war
   mvn org.codehaus.cargo:cargo-maven3-plugin:run
 
-  Access the wiki at: http://localhost:8080/JSPWiki
+  Access the wiki at: http://localhost:8080/Wikantik
 
   ---
   Test Cases
@@ -45,9 +45,9 @@
       // code block
   }
 
-  3. Access http://localhost:8080/JSPWiki/Wiki.jsp?page=TestMarkdown
-  4. Verify: Page renders with Markdown formatting (not JSPWiki syntax)
-  2. Existing JSPWiki Pages Still Work
+  3. Access http://localhost:8080/Wikantik/Wiki.jsp?page=TestMarkdown
+  4. Verify: Page renders with Markdown formatting (not Wikantik syntax)
+  2. Existing Wikantik Pages Still Work
 
   1. Access an existing wiki page (e.g., Main)
   2. Verify: Traditional wiki markup renders correctly
@@ -57,7 +57,7 @@
 
   1. Create both TestPrecedence.md and TestPrecedence.txt in the pages directory
   2. Put different content in each file
-  3. Access http://localhost:8080/JSPWiki/Wiki.jsp?page=TestPrecedence
+  3. Access http://localhost:8080/Wikantik/Wiki.jsp?page=TestPrecedence
   4. Verify: The .md file takes precedence (Markdown content shows)
 
   4. Page Listing Includes Both Types
@@ -95,7 +95,7 @@
   | Markdown headers render as <h1>, <h2>       | View page source or inspect element               |
   | Code blocks have proper syntax highlighting | Check <pre><code> tags                            |
   | Links work correctly                        | Click internal wiki links                         |
-  | No JSPWiki syntax in Markdown pages         | Ensure [{Plugin}] style syntax is NOT interpreted |
+  | No Wikantik syntax in Markdown pages         | Ensure [{Plugin}] style syntax is NOT interpreted |
   | Page metadata preserved                     | Check .properties file has markup.syntax          |
 
   ---

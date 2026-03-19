@@ -6,13 +6,13 @@
 Большинство [маркеров редактирования|TextFormattingRules] было разработано согласно [Библиотеке Sensei|http://senseis.xmp.net], лучшие Go сайты в Интернете. Я считаю их разметку очень легкой, тем не менее очевидной.
 
 Эта wiki доступна под [Лицензией Apache, Версии 2.0|http://www.apache.org/licenses/LICENSE-2.0]. Пожалуйста,
-см. [http://jspwiki.apache.org] для дополнительной информации.
+см. [http://wikantik.com] для дополнительной информации.
 
-Если Вы интересуетесь разработкой JSPWiki, домашняя страница для JSPWiki в [http://jspwiki.apache.org]. Некоторые быстрые ссылки:
+Если Вы интересуетесь разработкой Wikantik, домашняя страница для Wikantik в [http://wikantik.com]. Некоторые быстрые ссылки:
 
-* [Протокол Багов|JSPWiki:SubmitBugReport] - или [взгляните на список открытых багов|JSPWiki:OpenBugs].
-* [Внесение новых идей|JSPWiki:SubmitNewIdea].
-* Рассмотрите наиболее актуальные [JSPWiki FAQ|JSPWiki:JSPWikiFAQ]
-* Ищите дополнительные [плагины|JSPWiki:ContributedPlugins], [шаблоны|JSPWiki:ContributedTemplates], [фильтры|JSPWiki:ContributedFilters], [провайдеры|JSPWiki:ContributedProviders], или [другой современный материал|JSPWiki:ContributedCode].
+* [Протокол Багов|Wikantik:SubmitBugReport] - или [взгляните на список открытых багов|Wikantik:OpenBugs].
+* [Внесение новых идей|Wikantik:SubmitNewIdea].
+* Рассмотрите наиболее актуальные [Wikantik FAQ|Wikantik:WikantikFAQ]
+* Ищите дополнительные [плагины|Wikantik:ContributedPlugins], [шаблоны|Wikantik:ContributedTemplates], [фильтры|Wikantik:ContributedFilters], [провайдеры|Wikantik:ContributedProviders], или [другой современный материал|Wikantik:ContributedCode].
 
-Удачи в исследовании, и спасибо за выбор JSPWiki!
+Удачи в исследовании, и спасибо за выбор Wikantik!

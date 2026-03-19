@@ -1,5 +1,5 @@
 /*
-    JSPWiki - a JSP-based WikiWiki clone.
+    Wikantik - a JSP-based WikiWiki clone.
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -24,7 +24,7 @@ Class: Behavior
   by a given selector. The callback is only called once of each element.
 
   Inspired by: https://github.com/arian/elements-util/blob/master/lib/behavior.js
-  Extended for jspwiki.
+  Extended for wikantik.
 
 Example:
 

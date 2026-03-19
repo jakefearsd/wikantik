@@ -267,7 +267,7 @@ xmlns:xhtml="http://www.w3.org/1999/xhtml"
 - Admin/system pages
 - Duplicate content
 
-  - For JSPWiki specifically, exclude:**
+  - For Wikantik specifically, exclude:**
 - LeftMenu, RightMenu, TitleBox, PageHeader, PageFooter
 - CSS* pages
 - Login.jsp, UserPreferences.jsp (administrative)
@@ -350,11 +350,11 @@ Ensure consistency:
 
 ---
 
-  1. Part 5: Current JSPWiki Implementation Analysis
+  1. Part 5: Current Wikantik Implementation Analysis
 
     1. 5.1 Current State
 
-The existing `SitemapServlet.java` (jspwiki-main/src/main/java/org/apache/wiki/ui/SitemapServlet.java) generates:
+The existing `SitemapServlet.java` (wikantik-main/src/main/java/org/apache/wiki/ui/SitemapServlet.java) generates:
 
 ```xml
 <url>

@@ -26,8 +26,8 @@ import com.codeborne.selenide.Configuration;
  */
 public class Env {
     
-    /** Base url on which the functional tests are run. Default value is {@code https://jspwiki-wiki.apache.org}. */
-    public static final String TESTS_BASE_URL = System.getProperty( "it-wikantik.base.url", "https://jspwiki-wiki.apache.org" );
+    /** Base url on which the functional tests are run. Default value is {@code https://wiki.wikantik.com}. */
+    public static final String TESTS_BASE_URL = System.getProperty( "it-wikantik.base.url", "https://wiki.wikantik.com" );
 
     /** Selenide tests download's folder. Default value is {@code ./target/downloads}. */
     public static final String TESTS_CONFIG_DOWNLOADS_FOLDER = System.getProperty( "it-wikantik.config.download-folder", "./target/downloads" );

@@ -37,5 +37,5 @@ A standalone research series on the state of the conflict in its fourth year:
 
 ## About This Wiki
 
-Powered by [JSPWiki](About). Articles are written as AI-assisted research — drafted with Claude, reviewed and edited by a human, and published via the [MCP API](https://modelcontextprotocol.io/). Content is organized using YAML frontmatter metadata for programmatic discovery and cross-referencing.
+Powered by [Wikantik](About). Articles are written as AI-assisted research — drafted with Claude, reviewed and edited by a human, and published via the [MCP API](https://modelcontextprotocol.io/). Content is organized using YAML frontmatter metadata for programmatic discovery and cross-referencing.
 

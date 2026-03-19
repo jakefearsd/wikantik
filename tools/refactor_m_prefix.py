@@ -12,8 +12,8 @@ Usage:
     python refactor_m_prefix.py <directory> [--dry-run] [--verbose]
 
 Examples:
-    python refactor_m_prefix.py jspwiki-main/src/main/java/org/apache/wiki/filters --dry-run
-    python refactor_m_prefix.py jspwiki-main/src/main/java/org/apache/wiki/filters
+    python refactor_m_prefix.py wikantik-main/src/main/java/org/apache/wiki/filters --dry-run
+    python refactor_m_prefix.py wikantik-main/src/main/java/org/apache/wiki/filters
 """
 
 import argparse

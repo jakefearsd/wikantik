@@ -379,7 +379,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 
     /**
      * Initializes the options Map supplied to the configured LoginModule every time it is invoked. The properties and values extracted from
-     * <code>jspwiki.properties</code> are of the form <code>jspwiki.loginModule.options.<var>param</var> = <var>value</var>, where
+     * <code>wikantik.properties</code> are of the form <code>wikantik.loginModule.options.<var>param</var> = <var>value</var>, where
      * <var>param</var> is the key name, and <var>value</var> is the value.
      *
      * @param props the properties used to initialize JSPWiki
@@ -413,13 +413,13 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     private void initSSOConfig( final Engine engine, final Properties props ) {
         final boolean ssoEnabled = TextUtil.getBooleanProperty( props, SSOConfig.PROP_SSO_ENABLED, false );
         if( ssoEnabled ) {
-            // Read jspwiki.baseURL from properties (full URL needed for SSO callbacks).
+            // Read wikantik.baseURL from properties (full URL needed for SSO callbacks).
             // engine.getBaseURL() only returns the context path, not the full URL.
             String baseUrl = TextUtil.getStringProperty( props, "wikantik.baseURL", "" );
             if( baseUrl.isEmpty() ) {
                 baseUrl = engine.getBaseURL();
                 LOG.warn( "wikantik.baseURL not set. SSO callback URLs will be relative, which may cause OIDC redirect_uri mismatches. "
-                        + "Set jspwiki.baseURL in jspwiki-custom.properties for proper SSO operation." );
+                        + "Set wikantik.baseURL in wikantik-custom.properties for proper SSO operation." );
             }
             // Remove trailing slash to avoid double slashes in callback URL
             if( baseUrl.endsWith( "/" ) ) {

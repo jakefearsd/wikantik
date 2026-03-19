@@ -1,6 +1,6 @@
 !!!Congratulations!
 
-You have successfully installed [JSPWiki|About].
+You have successfully installed [Wikantik|About].
 
 You have some pages set up for you:
 
@@ -18,14 +18,14 @@ You have some pages set up for you:
 !Documentation
 
 * For all of the Wiki markup features, see [TextFormattingRules].
-* Entry point for full [JSPWikiDocumentation|JSPWiki:JSPWikiDocumentation]
-** [JSPWiki New Features|JSPWiki:NewIn].
+* Entry point for full [WikantikDocumentation|Wikantik:WikantikDocumentation]
+** [Wikantik New Features|Wikantik:NewIn].
 
 !Miscellaneous
 
-* There are several ways you can get in touch with JSPWiki [Community]. Check them out!
+* There are several ways you can get in touch with Wikantik [Community]. Check them out!
 * To see what this particular wiki is about, click on the Wiki name
   on the top left corner of the browser window, or [click here|SystemInfo].
 
-Good luck, and thanks for choosing JSPWiki!
+Good luck, and thanks for choosing Wikantik!
 

@@ -21,27 +21,27 @@
 <html lang="en">
 <head>
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
-  <title>JSPWiki Test Login</title>
+  <title>Wikantik Test Login</title>
 </head>
 <body> 
 <table cellpadding="1" cellspacing="1" border="1">
 	<tbody>
-	<tr><td rowspan="1" colspan="3">JSPWiki Test Login<br></td></tr>
+	<tr><td rowspan="1" colspan="3">Wikantik Test Login<br></td></tr>
 
-	<tr><td>store</td>	<td>/${it-jspwiki.context}</td>	<td>it_baseUrl</td></tr>
+	<tr><td>store</td>	<td>/${it-wikantik.context}</td>	<td>it_baseUrl</td></tr>
 	<tr><td>store</td>	<td>${it_baseUrl}/Wiki.jsp?page=Main</td>	<td>wikiurl</td></tr>
 	<tr><td>store</td>	<td>janne</td>		<td>TestLoginname</td></tr>
     <tr><td>store</td>	<td>myP@5sw0rd</td>	<td>TestPassword</td></tr>
     
     <tr><td>open</td>	<td>${wikiurl}</td>	<td>&nbsp;</td></tr>
 
-    <tr><td>verifyTitle</td>		<td>JSPWiki: Main</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: Main</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>	<td>G&#8217;day (anonymous guest)</td>	<td>&nbsp;</td></tr>
 
     <!-- login -->
     <tr><td>clickAndWait</td>	<td>link=Log in</td> 	<td>&nbsp;</td></tr>
 
-    <tr><td>verifyTitle</td>	<td>JSPWiki: Login</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>	<td>Wikantik: Login</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyValue</td>	<td>j_username</td>		<td>&nbsp;</td></tr>
     <tr><td>verifyValue</td>	<td>j_password</td>		<td>&nbsp;</td></tr>
     <tr><td>verifyElementPresent</td>	<td>submitlogin</td>	<td></td></tr>
@@ -51,7 +51,7 @@
 
     <tr><td>clickAndWait</td>	<td>submitlogin</td>	<td>&nbsp;</td></tr>
 
-    <tr><td>verifyTitle</td><td>JSPWiki: Main</td><td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td><td>Wikantik: Main</td><td>&nbsp;</td></tr>
     
     <!-- Log out -->
     <tr><td>clickAndWait</td>	<td>link=Log out</td> 	<td>&nbsp;</td></tr>

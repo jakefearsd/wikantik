@@ -38,7 +38,7 @@ class McpConfigTest {
 
     @Test
     void testInstructionsLoadedFromFile() {
-        // The default config points mcp.instructions.file at jspwiki-mcp-instructions.txt
+        // The default config points mcp.instructions.file at wikantik-mcp-instructions.txt
         // which is bundled in src/main/resources
         final McpConfig config = new McpConfig();
         final String instructions = config.instructions();

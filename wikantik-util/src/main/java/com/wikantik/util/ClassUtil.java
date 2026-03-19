@@ -149,7 +149,7 @@ public final class ClassUtil {
         
         if( i == 0 ) {
             LOG.error( "all external jars threw an exception while setting up classloaders for them, continuing with standard classloading. " + 
-                       "See https://jspwiki-wiki.apache.org/Wiki.jsp?page=InstallingPlugins for help on how to install custom plugins." );
+                       "See https://wiki.wikantik.com/Wiki.jsp?page=InstallingPlugins for help on how to install custom plugins." );
             return ClassUtil.class.getClassLoader();
         }
         

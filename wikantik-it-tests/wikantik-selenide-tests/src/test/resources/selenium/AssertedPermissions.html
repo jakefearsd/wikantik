@@ -21,14 +21,14 @@
 <html lang="en">
 <head>
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
-  <title>JSPWiki Test Asserted Permissions</title>
+  <title>Wikantik Test Asserted Permissions</title>
 </head>
 <body> 
 <table cellpadding="1" cellspacing="1" border="1">
 	<tbody>
-	<tr><td rowspan="1" colspan="3">JSPWiki Test Asserted Permissions<br></td></tr>
+	<tr><td rowspan="1" colspan="3">Wikantik Test Asserted Permissions<br></td></tr>
 
-	<tr><td>store</td>	<td>/${it-jspwiki.context}</td>	<td>it_baseUrl</td></tr>
+	<tr><td>store</td>	<td>/${it-wikantik.context}</td>	<td>it_baseUrl</td></tr>
 	<tr><td>store</td>	<td>javascript{'Test-asserted-permissions-'+new Date().getTime()}</td>	<td>group</td></tr>
 	<tr><td>store</td>	<td>Janne Jalkanen<br />FredFlintstone</td>		<td>members</td></tr>
 	<tr><td>store</td>	<td>${it_baseUrl}/Wiki.jsp</td>			<td>wikiurl</td></tr>
@@ -43,13 +43,13 @@
     <tr><td rowspan="1" colspan="3"> Create new group with 'janne' and 'FredFlintstone' as members </td></tr>
 
     <tr><td>open</td>				<td>${wikiurl}</td>	<td>&nbsp;</td></tr>
-    <tr><td>verifyTitle</td>		<td>JSPWiki: Main</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: Main</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>	<td>G&#8217;day (anonymous guest)</td>	<td>&nbsp;</td></tr>
 
     <tr><td rowspan="1" colspan="3"> login </td></tr>
 
     <tr><td>open</td>			<td>${loginurl}</td>	<td>&nbsp;</td></tr>
-    <tr><td>verifyTitle</td>	<td>JSPWiki: Login</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>	<td>Wikantik: Login</td>	<td>&nbsp;</td></tr>
     <tr><td>type</td>			<td>j_username</td>		<td>${TestUsername}</td></tr>
     <tr><td>type</td>			<td>j_password</td>		<td>${TestPassword}</td></tr>
     <tr><td>clickAndWait</td>	<td>submitlogin</td>	<td>&nbsp;</td></tr>
@@ -61,7 +61,7 @@
     <tr><td rowspan="1" colspan="3"> First, name the group </td></tr>
 
     <tr><td>open</td>					<td>${newgroupurl}</td>	<td>&nbsp;</td></tr>
-    <tr><td>verifyTitle</td>			<td>JSPWiki: New Group</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>			<td>Wikantik: New Group</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyElementPresent</td>	<td>css=form#createGroup input[name="ok"]</td>	<td></td></tr>
     <tr><td>verifyElementPresent</td>	<td>group</td>	<td></td></tr>
     <tr><td>verifyElementPresent</td>	<td>members</td>	<td></td></tr>
@@ -75,7 +75,7 @@
     <tr><td>verifyTextNotPresent</td>	<td>Could not create group</td>	<td></td></tr>
 
     <tr><td>open</td>	<td>${viewgroupurl}group=${group}</td>	<td>&nbsp;</td></tr>
-    <tr><td>verifyTitle</td>		<td>JSPWiki: ${group}</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: ${group}</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>	<td>This is the wiki group called</td>	<td></td></tr>
         
     <tr><td rowspan="1" colspan="3"> Log out </td></tr>
@@ -109,7 +109,7 @@
     <tr><td>clickAndWait</td>	<td>link=My Prefs</td> 	<td>&nbsp;</td></tr>
     <!--<tr><td>open</td>	<td>${prefsurl}</td>	<td>&nbsp;</td></tr>-->
 
-    <tr><td>verifyTitle</td>			<td>JSPWiki: User Preferences</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>			<td>Wikantik: User Preferences</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyElementPresent</td>	<td>assertedName</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyElementPresent</td>	<td>css=form#setCookie input[name="ok"]</td>	<td>&nbsp;</td></tr>
 
@@ -118,15 +118,15 @@
 
     <tr><td rowspan="1" colspan="3"> Now navigate back to the main page; see the 'G'day message' for FredFlintstone </td></tr>
 
-    <tr><td>verifyTitle</td>		<td>JSPWiki: Main</td>		<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: Main</td>		<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>	<td>G&#8217;day</td>		<td>&nbsp;</td></tr>
     <tr><td>verifyElementPresent</td>	<td>link=FredFlintstone</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>	<td>(not logged in)</td>	<td>&nbsp;</td></tr>
 
-    <tr><td>assertCookie</td>	<td>regex:JSPWikiAssertedName=FredFlintstone</td>	<td></td></tr>
+    <tr><td>assertCookie</td>	<td>regex:WikantikAssertedName=FredFlintstone</td>	<td></td></tr>
 
     <tr><td>open</td>	<td>${viewgroupurl}group=${group}</td>	<td>&nbsp;</td></tr>
-    <tr><td>verifyTitle</td>		<td>JSPWiki: ${group}</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: ${group}</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>	<td>This is the wiki group called</td>	<td></td></tr>
 
     <tr><td rowspan="1" colspan="3"> Try to edit it should not be allowed </td></tr>
@@ -137,7 +137,7 @@
     <tr><td rowspan="1" colspan="3"> Clear user cookie </td></tr>
 
     <tr><td>open</td>			<td>${prefsurl}</td>				<td>&nbsp;</td></tr>
-    <tr><td>verifyTitle</td>	<td>JSPWiki: User Preferences</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>	<td>Wikantik: User Preferences</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyValue</td>	<td>assertedName</td>				<td>FredFlintstone</td></tr>
     <tr><td>verifyElementPresent</td>	<td>css=form#clearCookie input[name="ok"]</td>	<td>&nbsp;</td></tr>
     <tr><td>clickAndWait</td>			<td>css=form#clearCookie input[name="ok"]</td>	<td>&nbsp;</td></tr>

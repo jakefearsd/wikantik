@@ -1,5 +1,5 @@
 /*!
-    JSPWiki - a JSP-based WikiWiki clone.
+    Wikantik - a JSP-based WikiWiki clone.
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -20,8 +20,8 @@
 */
 /*
 Class: Wiki.Edit
-    Wiki.Edit implements the JSPWiki plain editor, with support
-    for JSPWiki's markup, suggestion popups, ajax based page preview, etc...
+    Wiki.Edit implements the Wikantik plain editor, with support
+    for Wikantik's markup, suggestion popups, ajax based page preview, etc...
 
     It uses [Snipe] to enhance the plain textarea.
 */
@@ -86,7 +86,7 @@ wiki.add("textarea#editorarea", function( main ){
         new Snipe.Sections( snipe, {
             main: main,
             menu: getFormElem(".sections > ul"),
-            parser: jspwikiSectionParser
+            parser: wikantikSectionParser
         });
 
 
@@ -223,9 +223,9 @@ function livepreview(content, preview, previewToggle){
 }
 
 /*
-Function: jspwikiSectionParser
-    Convert a jspwiki-markup page into an array of page sections.
-    Sections are marked by jspwiki headers:  !, !!  or !!!
+Function: wikantikSectionParser
+    Convert a wikantik-markup page into an array of page sections.
+    Sections are marked by wikantik headers:  !, !!  or !!!
 
     This function is used as a callback for [Snip.Sections]
 
@@ -235,7 +235,7 @@ Returns:
     start - (number) offset within the text string where this section starts
     depth - (number) nesting level of the section 0,1...n
 */
-function jspwikiSectionParser( text ){
+function wikantikSectionParser( text ){
 
     var result = [],
         DELIM = "\u00a4",

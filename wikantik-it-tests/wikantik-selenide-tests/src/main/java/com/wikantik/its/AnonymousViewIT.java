@@ -44,7 +44,7 @@ public class AnonymousViewIT extends WithIntegrationTestSetup {
         Assertions.assertEquals( "Main", main.wikiTitle() );
         
         Assertions.assertTrue( main.wikiPageContent().contains( "You have successfully installed" ) );
-        final ViewWikiPage about = main.navigateTo( "JSPWiki" );
+        final ViewWikiPage about = main.navigateTo( "Wikantik" );
         Assertions.assertTrue( about.wikiPageContent().contains( "This Wiki is done using" ) );
     }
     

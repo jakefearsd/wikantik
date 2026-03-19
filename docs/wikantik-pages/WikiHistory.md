@@ -32,7 +32,7 @@ While early wikis were popular among programmers, the concept went mainstream wi
 
   1. Evolution of Wiki Software
 - **MediaWiki:** Built for Wikipedia, it became the standard for massive, public wikis.
-- **JSPWiki:** A feature-rich, Java-based wiki engine (like the one this project is based on), popular for its easy installation and integration with Java environments.
+- **Wikantik:** A feature-rich, Java-based wiki engine (like the one this project is based on), popular for its easy installation and integration with Java environments.
 - **Enterprise Wikis:** Tools like **Atlassian Confluence** adapted the wiki concept for corporate knowledge management, adding permissions, refined editors, and integration with business tools.
 - **Personal Wikis:** In recent years, tools like **Obsidian**, **Roam Research**, and **Notion** have popularized "personal knowledge management," applying wiki-linking logic to individual note-taking.
 

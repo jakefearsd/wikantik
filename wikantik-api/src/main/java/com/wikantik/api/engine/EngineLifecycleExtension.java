@@ -28,14 +28,14 @@ import java.util.Properties;
  *
  * <p>Examples of {@code EngineLifecycleExtension}'s use cases:
  * <ul>
- *   <li>Appending a plugin's classpath to {@code jspwiki.plugin.searchPath}, so it can be used as a drop-in, without further configuration.</li>
+ *   <li>Appending a plugin's classpath to {@code wikantik.plugin.searchPath}, so it can be used as a drop-in, without further configuration.</li>
  *   <li>Providing default parameters for a custom extension.</li>
  *   <li>Setting up that expensive singleton, or disposing resources, without having to use or register a {@link com.wikantik.event.WikiEventListener WikiEventListener}.</li>
  * </ul>
  * </p>
  *
  * <p>As a concrete example, the markdown module uses an {@code EngineLifecycleExtension} to set up all the required properties
- * if {@code jspwiki.syntax=markdown} is provided on the {@code jspwiki[-custom].properties file}.</p>
+ * if {@code wikantik.syntax=markdown} is provided on the {@code wikantik[-custom].properties file}.</p>
  *
  * <p>All methods are provided with a {@code default}, do-nothing implementation, so specific EngineLifecycleExtensions only have
  * to provide implementations for the methods they're really interested in.</p>

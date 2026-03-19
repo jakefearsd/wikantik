@@ -76,7 +76,7 @@ public class JDBCUserDatabaseTest {
             JDBCUserDatabase.DEFAULT_DB_LOGIN_NAME + "," +
             JDBCUserDatabase.DEFAULT_DB_PASSWORD + "," +
             JDBCUserDatabase.DEFAULT_DB_CREATED + ") VALUES (" +
-            "'-8629747547991531672'," + "'jspwiki.tests@mailinator.com'," + "'user'," +
+            "'-8629747547991531672'," + "'wikantik.tests@mailinator.com'," + "'user'," +
             "'{SHA}5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8'," +
             "'" + new Timestamp( new Timestamp( System.currentTimeMillis() ).getTime() ) + "'" + ");";
 

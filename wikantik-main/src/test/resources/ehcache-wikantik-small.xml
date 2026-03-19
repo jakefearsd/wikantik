@@ -23,7 +23,7 @@
     xsi:schemaLocation="http://www.ehcache.org/v3 http://www.ehcache.org/schema/ehcache-core.xsd">
 
     <!--
-        EhCache 3.x Small Configuration for JSPWiki Testing
+        EhCache 3.x Small Configuration for Wikantik Testing
         Minimal cache sizes for testing cache overflow behavior.
     -->
 

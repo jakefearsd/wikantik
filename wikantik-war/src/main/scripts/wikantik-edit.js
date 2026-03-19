@@ -18,7 +18,7 @@
  */
 
 /**
- ** Javascript routines to support JSPWiki Editing
+ ** Javascript routines to support Wikantik Editing
  ** since v.2.6.0
  ** uses mootools v1.1
  **
@@ -434,7 +434,7 @@ var EditTools =
 				'id':suggestID
 			}).injectAfter($('favorites').getFirst());
 
-		/* find a partial jspwiki-link 'searchword' */
+		/* find a partial wikantik-link 'searchword' */
 		/* look backwards for the start of a wiki-link bracket */
 		for( var i = sel.start-1; i >= 0; i-- ){
 			if( val.charAt(i) == ']' ) break;

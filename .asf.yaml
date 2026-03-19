@@ -18,21 +18,21 @@
 # Documentation on this file at https://s.apache.org/asfyaml
 
 github:
-  description: "Apache JSPWiki is a leading open source WikiWiki engine, feature-rich and built around standard JEE components (Java, servlets, JSP)"
-  homepage: https://jspwiki.apache.org/
+  description: "Apache Wikantik is a leading open source WikiWiki engine, feature-rich and built around standard JEE components (Java, servlets, JSP)"
+  homepage: https://wikantik.apache.org/
   labels:
     - apache
     - asf
     - content
     - java
-    - jspwiki
+    - wikantik
     - wiki
 
 notifications:
-  commits: commits@jspwiki.apache.org
-  discussions: dev@jspwiki.apache.org
-  issues: dev@jspwiki.apache.org
-  jobs: dev@jspwiki.apache.org
-  pullrequests: dev@jspwiki.apache.org
+  commits: commits@wikantik.apache.org
+  discussions: dev@wikantik.apache.org
+  issues: dev@wikantik.apache.org
+  jobs: dev@wikantik.apache.org
+  pullrequests: dev@wikantik.apache.org
   # Send dependabot PRs to commits@ instead
-  pullrequests_bot_dependabot: commits@jspwiki.apache.org
+  pullrequests_bot_dependabot: commits@wikantik.apache.org

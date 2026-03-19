@@ -51,7 +51,7 @@
         <head>
           <title><wiki:Variable var="applicationname" default="Wikantik" />: ADMIN UI</title>
           <base href="../"/>
-          <link rel="stylesheet" media="screen, projection" type="text/css" href="<wiki:Link format="url" templatefile="jspwiki.css"/>"/>
+          <link rel="stylesheet" media="screen, projection" type="text/css" href="<wiki:Link format="url" templatefile="wikantik.css"/>"/>
           <wiki:IncludeResources type="stylesheet"/>
         </head>
         <body class="container">
@@ -61,7 +61,7 @@
            <pre>
                jspwiki-x.adminui.enable=true
            </pre>
-           <p>in your <code>jspwiki-custom.properties</code> file.</p>
+           <p>in your <code>wikantik-custom.properties</code> file.</p>
            <p>Have a nice day.  Don't forget to eat lots of fruits and vegetables.</p>
         </body>
         </html>

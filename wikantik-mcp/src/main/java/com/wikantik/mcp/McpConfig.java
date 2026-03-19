@@ -31,9 +31,9 @@ import java.util.Properties;
 /**
  * Loads MCP server configuration from classpath properties files.
  *
- * <p>Defaults are loaded from {@code /jspwiki-mcp.properties} inside the JAR. An optional
+ * <p>Defaults are loaded from {@code /wikantik-mcp.properties} inside the JAR. An optional
  * override file with the same name on the thread-context classloader's classpath (e.g.
- * {@code tomcat/lib/jspwiki-mcp.properties}) is overlaid on top, allowing configuration
+ * {@code tomcat/lib/wikantik-mcp.properties}) is overlaid on top, allowing configuration
  * without code changes.</p>
  */
 public class McpConfig {
@@ -49,7 +49,7 @@ public class McpConfig {
      * <p>In a standard Tomcat deployment the webapp classloader finds the JAR-bundled
      * defaults first. The parent classloader (Tomcat's "common" loader, which includes
      * {@code tomcat/lib/}) is checked separately so that admin overrides placed in
-     * {@code tomcat/lib/jspwiki-mcp.properties} are overlaid on top of the defaults.</p>
+     * {@code tomcat/lib/wikantik-mcp.properties} are overlaid on top of the defaults.</p>
      */
     public McpConfig() {
         props = new Properties();

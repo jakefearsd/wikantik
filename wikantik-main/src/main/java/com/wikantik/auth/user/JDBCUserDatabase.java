@@ -52,7 +52,7 @@ import java.util.Set;
  * objects to a JDBC DataSource, as might typically be provided by a web
  * container. This implementation looks up the JDBC DataSource using JNDI. The
  * JNDI name of the datasource, backing table and mapped columns used by this 
- * class can be overridden by adding settings in <code>jspwiki.properties</code>.
+ * class can be overridden by adding settings in <code>wikantik.properties</code>.
  * </p>
  * <p>
  * Configurable properties are these:
@@ -64,67 +64,67 @@ import java.util.Set;
  * <th>Definition</th>
  * <thead> </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.datasource</code></td>
+ * <td><code>wikantik.userdatabase.datasource</code></td>
  * <td><code>jdbc/UserDatabase</code></td>
  * <td>The JNDI name of the DataSource</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.table</code></td>
+ * <td><code>wikantik.userdatabase.table</code></td>
  * <td><code>users</code></td>
  * <td>The table that stores the user profiles</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.attributes</code></td>
+ * <td><code>wikantik.userdatabase.attributes</code></td>
  * <td><code>attributes</code></td>
  * <td>The CLOB column containing the profile's custom attributes, stored as key/value strings, each separated by newline.</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.created</code></td>
+ * <td><code>wikantik.userdatabase.created</code></td>
  * <td><code>created</code></td>
  * <td>The column containing the profile's creation timestamp</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.email</code></td>
+ * <td><code>wikantik.userdatabase.email</code></td>
  * <td><code>email</code></td>
  * <td>The column containing the user's e-mail address</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.fullName</code></td>
+ * <td><code>wikantik.userdatabase.fullName</code></td>
  * <td><code>full_name</code></td>
  * <td>The column containing the user's full name</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.loginName</code></td>
+ * <td><code>wikantik.userdatabase.loginName</code></td>
  * <td><code>login_name</code></td>
  * <td>The column containing the user's login id</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.password</code></td>
+ * <td><code>wikantik.userdatabase.password</code></td>
  * <td><code>password</code></td>
  * <td>The column containing the user's password</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.modified</code></td>
+ * <td><code>wikantik.userdatabase.modified</code></td>
  * <td><code>modified</code></td>
  * <td>The column containing the profile's last-modified timestamp</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.uid</code></td>
+ * <td><code>wikantik.userdatabase.uid</code></td>
  * <td><code>uid</code></td>
  * <td>The column containing the profile's unique identifier, as a long integer</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.wikiName</code></td>
+ * <td><code>wikantik.userdatabase.wikiName</code></td>
  * <td><code>wiki_name</code></td>
  * <td>The column containing the user's wiki name</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.lockExpiry</code></td>
+ * <td><code>wikantik.userdatabase.lockExpiry</code></td>
  * <td><code>lock_expiry</code></td>
  * <td>The column containing the date/time when the profile, if locked, should be unlocked.</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.roleTable</code></td>
+ * <td><code>wikantik.userdatabase.roleTable</code></td>
  * <td><code>roles</code></td>
  * <td>The table that stores user roles. When a new user is created, a new
  * record is inserted containing user's initial role. The table will have an ID
@@ -132,7 +132,7 @@ import java.util.Set;
  * login name column. It will also contain a role column (see next row).</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.userdatabase.role</code></td>
+ * <td><code>wikantik.userdatabase.role</code></td>
  * <td><code>role</code></td>
  * <td>The column in the role table that stores user roles. When a new user is
  * created, this column will be populated with the value
@@ -166,13 +166,13 @@ import java.util.Set;
  * with a structure similar to that provided by the HSQL and PostgreSQL 
  * scripts in src/main/config/db.  If you have different table or column 
  * names you can either alias them with a database view and have JSPWiki
- * use the views, or alter the WEB-INF/jspwiki.properties file: the 
- * jspwiki.userdatabase.* and jspwiki.groupdatabase.* properties change the
+ * use the views, or alter the WEB-INF/wikantik.properties file: the 
+ * wikantik.userdatabase.* and wikantik.groupdatabase.* properties change the
  * names of the tables and columns that JSPWiki uses.
  * </p>
  * <p>
  * A JNDI datasource (named jdbc/UserDatabase by default but can be configured 
- * in the jspwiki.properties file) will need to be created in your servlet container.
+ * in the wikantik.properties file) will need to be created in your servlet container.
  * JDBC driver JARs should be added, e.g. in Tomcat's <code>lib</code>
  * directory. For more Tomcat JNDI configuration examples, see <a
  * href="http://tomcat.apache.org/tomcat-7.0-doc/jndi-resources-howto.html">

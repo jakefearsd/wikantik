@@ -21,7 +21,7 @@ package com.wikantik.tags;
 import java.io.IOException;
 
 /**
- *  Writes the jspwiki baseURL.
+ *  Writes the wikantik baseURL.
  *
  *  @since 2.2
  */

@@ -30,7 +30,7 @@ Linux uses a single unified file system tree rooted at `/`, unlike Windows with 
 | `ls -l` | Long format with permissions, sizes | `ls -l *.txt` |
 | `ls -a` | Show hidden files (starting with `.`) | `ls -a ~` |
 | `find` | Search for files by name, type, date, etc. | `find /home -name "*.pdf" -type f` |
-| `locate` | Fast file search using a pre-built index | `locate jspwiki.properties` |
+| `locate` | Fast file search using a pre-built index | `locate wikantik.properties` |
 | `tree` | Display directory tree structure | `tree -L 2 /var` |
 
 **Key differences from Windows:**

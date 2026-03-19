@@ -24,10 +24,10 @@
          version="3.1">
 
    <description>
-       JSPWiki is an open source JSP-based WikiClone.  It is licensed
+       Wikantik is an open source JSP-based WikiClone.  It is licensed
        under the Apache 2.0 license.
 
-       For more information, please come to http://jspwiki.apache.org/
+       For more information, please come to http://wikantik.com/
    </description>
    <display-name>Wikantik</display-name>
 
@@ -39,7 +39,7 @@
 
    <!--
       WikiServletFilter defines a servlet filter which filters all requests. It was
-      introduced in JSPWiki 2.4.
+      introduced in Wikantik 2.4.
 
       In 2.7/2.8, the WikiServlet filter also performs an important security function:
       it sets authentication status based on container credentials. It should generally

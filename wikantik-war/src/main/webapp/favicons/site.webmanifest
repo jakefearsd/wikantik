@@ -23,7 +23,7 @@
     "display": "standalone",
     "background_color": "#9CAF88",
     "theme_color": "#9CAF88",
-    "description": "JSPWiki is a simple (well, not any more) WikiWiki clone, written in Java and JSP. JSPWiki supports all the traditional wiki features, as well as very detailed access control and security integration using JAAS.  For more information see https://jspwiki-wiki.apache.org/",
+    "description": "Wikantik is a simple (well, not any more) WikiWiki clone, written in Java and JSP. Wikantik supports all the traditional wiki features, as well as very detailed access control and security integration using JAAS.  For more information see https://wikantik-wiki.apache.org/",
     "icons": [
         {
             "src": "favicon-32x32.png",

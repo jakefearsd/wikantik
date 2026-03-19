@@ -1,10 +1,10 @@
 # Gang of Four Design Pattern Refactoring Opportunities
 
-This document outlines practical refactoring opportunities to apply well-known Gang of Four design patterns to improve the JSPWiki codebase architecture.
+This document outlines practical refactoring opportunities to apply well-known Gang of Four design patterns to improve the Wikantik codebase architecture.
 
 ## Overview
 
-Based on comprehensive analysis of the JSPWiki codebase, six high-value refactoring opportunities have been identified. These patterns would improve code maintainability, testability, and extensibility.
+Based on comprehensive analysis of the Wikantik codebase, six high-value refactoring opportunities have been identified. These patterns would improve code maintainability, testability, and extensibility.
 
 ---
 
@@ -14,7 +14,7 @@ Based on comprehensive analysis of the JSPWiki codebase, six high-value refactor
 
 `CachingProvider` wraps `PageProvider` but this pattern isn't generalized.
 
-**Code Location:** `jspwiki-main/src/main/java/org/apache/wiki/providers/CachingProvider.java:63-102`
+**Code Location:** `wikantik-main/src/main/java/org/apache/wiki/providers/CachingProvider.java:63-102`
 
 ### Problem
 
@@ -65,7 +65,7 @@ Providers are instantiated independently via `ClassUtil.buildInstance()`:
 - `AttachmentManager` creates its `AttachmentProvider`
 - `SearchManager` creates its `SearchProvider`
 
-**Code Location:** `jspwiki-main/src/main/java/org/apache/wiki/WikiEngine.java:272-310`
+**Code Location:** `wikantik-main/src/main/java/org/apache/wiki/WikiEngine.java:272-310`
 
 ### Problem
 
@@ -133,7 +133,7 @@ initComponent( PageManager.class, this, props );
 // ... 20+ more
 ```
 
-**Code Location:** `jspwiki-main/src/main/java/org/apache/wiki/WikiEngine.java:272-310`
+**Code Location:** `wikantik-main/src/main/java/org/apache/wiki/WikiEngine.java:272-310`
 
 ### Problem
 
@@ -198,7 +198,7 @@ private static class CachedProperties {
 private CachedProperties m_cachedProperties;  // Only ONE entry!
 ```
 
-**Code Location:** `jspwiki-main/src/main/java/org/apache/wiki/providers/VersioningFileProvider.java:697-720`
+**Code Location:** `wikantik-main/src/main/java/org/apache/wiki/providers/VersioningFileProvider.java:697-720`
 
 ### Problem
 

@@ -1,5 +1,5 @@
 /*
-    JSPWiki - a JSP-based WikiWiki clone.
+    Wikantik - a JSP-based WikiWiki clone.
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -236,7 +236,7 @@ Form.File = new Class({
 
     /*
     Function: progressRpc
-        JSPWiki progress-bar implementation based on JSON-RPC
+        Wikantik progress-bar implementation based on JSON-RPC
     JSON-RPC protocol:
     {{{
     --> {"id":10000,"method":"progressTracker.getProgress","params":["2a0d2563-1ec7-4d1e-9d10-5f4ae62e8251"]}:

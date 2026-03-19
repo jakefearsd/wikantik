@@ -1,24 +1,24 @@
 
-# Gemini Development Guide for JSPWiki
+# Gemini Development Guide for Wikantik
 
-This document provides a guide for developing extensions for Apache JSPWiki using this Gemini agent.
+This document provides a guide for developing extensions for Apache Wikantik using this Gemini agent.
 
 ## Project Overview
 
-JSPWiki is a feature-rich WikiWiki engine built on Java and Java Servlets. Its modular architecture allows for extensive customization through plugins, themes, and providers.
+Wikantik is a feature-rich WikiWiki engine built on Java and Java Servlets. Its modular architecture allows for extensive customization through plugins, themes, and providers.
 
 ### Key Directories
 
-*   `jspwiki-api`: Defines the core interfaces for JSPWiki's components, including plugins, providers, and managers.
-*   `jspwiki-main`: Contains the main implementation of the JSPWiki engine, including the default managers and providers.
-*   `jspwiki-war`: The web application module, containing the JSP files and other web resources.
+*   `jspwiki-api`: Defines the core interfaces for Wikantik's components, including plugins, providers, and managers.
+*   `wikantik-main`: Contains the main implementation of the Wikantik engine, including the default managers and providers.
+*   `wikantik-war`: The web application module, containing the JSP files and other web resources.
 *   `jspwiki-plugins`: A directory for contributed plugins.
 
 ## Extension Development
 
 ### Core Concepts
 
-JSPWiki's functionality can be extended by implementing various interfaces. The most common extension points are:
+Wikantik's functionality can be extended by implementing various interfaces. The most common extension points are:
 
 *   **Plugins**: Implement the `com.wikantik.api.plugin.Plugin` interface to add new dynamic content to wiki pages.
 *   **Providers**: Implement `com.wikantik.api.providers.PageProvider` or `com.wikantik.api.providers.AttachmentProvider` to change how wiki pages and attachments are stored and retrieved.
@@ -57,23 +57,23 @@ This example demonstrates how to create a simple plugin that greets the user.
 
 3.  **Installation**:
 
-    *   Copy the generated JAR file to the `WEB-INF/lib/` directory of your JSPWiki installation.
-    *   Update the `jspwiki.plugin.searchPath` property in your `jspwiki-custom.properties` file to include the package of your new plugin (e.g., `com.example.wiki.plugins`).
-    *   Restart your JSPWiki instance.
+    *   Copy the generated JAR file to the `WEB-INF/lib/` directory of your Wikantik installation.
+    *   Update the `jspwiki.plugin.searchPath` property in your `wikantik-custom.properties` file to include the package of your new plugin (e.g., `com.example.wiki.plugins`).
+    *   Restart your Wikantik instance.
 
 4.  **Usage**:
 
     To use the plugin, add the following to a wiki page:
 
     ```
-    [{HelloWorldPlugin name='JSPWiki Developer'}]
+    [{HelloWorldPlugin name='Wikantik Developer'}]
     ```
 
-    This will render the output: "Hello JSPWiki Developer!"
+    This will render the output: "Hello Wikantik Developer!"
 
 ## Important Commands
 
 *   **Build the project**: `mvn clean install`
 *   **Run the tests**: `mvn test`
 *   **Run integration tests**: `mvn verify -Pintegration-tests`
-*   **Start JSPWiki in a container**: `mvn -P tomcat9x cargo:run -Dcargo.wait=true`
+*   **Start Wikantik in a container**: `mvn -P tomcat9x cargo:run -Dcargo.wait=true`

@@ -48,7 +48,7 @@ import java.util.Set;
  * DataSource, as might typically be provided by a web container. This
  * implementation looks up the JDBC DataSource using JNDI. The JNDI name of the
  * datasource, backing table and mapped columns used by this class can be
- * overridden by adding settings in <code>jspwiki.properties</code>.
+ * overridden by adding settings in <code>wikantik.properties</code>.
  * </p>
  * <p>
  * Configurable properties are these:
@@ -60,47 +60,47 @@ import java.util.Set;
  * <th>Definition</th>
  * <thead> </tr>
  * <tr>
- * <td><code>jspwiki.groupdatabase.datasource</code></td>
+ * <td><code>wikantik.groupdatabase.datasource</code></td>
  * <td><code>jdbc/GroupDatabase</code></td>
  * <td>The JNDI name of the DataSource</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.groupdatabase.table</code></td>
+ * <td><code>wikantik.groupdatabase.table</code></td>
  * <td><code>groups</code></td>
  * <td>The table that stores the groups</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.groupdatabase.membertable</code></td>
+ * <td><code>wikantik.groupdatabase.membertable</code></td>
  * <td><code>group_members</code></td>
  * <td>The table that stores the names of group members</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.groupdatabase.created</code></td>
+ * <td><code>wikantik.groupdatabase.created</code></td>
  * <td><code>created</code></td>
  * <td>The column containing the group's creation timestamp</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.groupdatabase.creator</code></td>
+ * <td><code>wikantik.groupdatabase.creator</code></td>
  * <td><code>creator</code></td>
  * <td>The column containing the group creator's name</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.groupdatabase.name</code></td>
+ * <td><code>wikantik.groupdatabase.name</code></td>
  * <td><code>name</code></td>
  * <td>The column containing the group's name</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.groupdatabase.member</code></td>
+ * <td><code>wikantik.groupdatabase.member</code></td>
  * <td><code>member</code></td>
  * <td>The column containing the group member's name</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.groupdatabase.modified</code></td>
+ * <td><code>wikantik.groupdatabase.modified</code></td>
  * <td><code>modified</code></td>
  * <td>The column containing the group's last-modified timestamp</td>
  * </tr>
  * <tr>
- * <td><code>jspwiki.groupdatabase.modifier</code></td>
+ * <td><code>wikantik.groupdatabase.modifier</code></td>
  * <td><code>modifier</code></td>
  * <td>The column containing the name of the user who last modified the group</td>
  * </tr>

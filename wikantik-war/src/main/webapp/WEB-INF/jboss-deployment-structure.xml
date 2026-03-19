@@ -18,7 +18,7 @@
     under the License.  
 -->
 <!--
-      make JSPWiki's log4j coexist with Wildfly's
+      make Wikantik's log4j coexist with Wildfly's
 -->
 <jboss-deployment-structure>
 	<deployment>

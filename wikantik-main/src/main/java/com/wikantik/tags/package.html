@@ -22,7 +22,7 @@
 <title>APIDocs for com.wikantik.tags</title>
 </head>
 <body>
-Provides standard JSP tags for JSPWiki.
+Provides standard JSP tags for Wikantik.
 
 <h2>Package specification</h2>
 
@@ -38,7 +38,7 @@ the tag again.</p>
 <p>The problem, however, is that when your tag is put back into the pool, it still
 retains all the internal references, i.e. none of the member fields are cleared.
 This means there can be dangling references to things which will take a lot of memory.
-In JSPWiki's case, the WikiContext is a good example: it can actually contain quite
+In Wikantik's case, the WikiContext is a good example: it can actually contain quite
 a lot of stuff accumulated during it's life time, and therefore it's important for
 memory use that all references are cleared.</p>
 
@@ -53,7 +53,7 @@ is an exception, doEndTag() is never called.</p>
 
 <p>The correct way to do reference cleaning is to implement the {@link javax.servlet.jsp.tagext.TryCatchFinally}
 interface, where the <code>doFinally()</code> method is called every time the tag
-has been finished with and prior to it being put back into the pool.  Most JSPWiki
+has been finished with and prior to it being put back into the pool.  Most Wikantik
 base tag classes {@link com.wikantik.tags.IteratorTag} and {@link com.wikantik.tags.WikiTagBase}
 implement the TryCatchFinally
 interface, which means that any class subclassed from them also allows has those methods.</p>

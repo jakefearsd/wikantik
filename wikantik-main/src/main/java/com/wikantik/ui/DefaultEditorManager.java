@@ -109,7 +109,7 @@ public class DefaultEditorManager extends BaseModuleManager implements EditorMan
 
         /* FIXME: actual default 'editor' property is read by the Preferences class */
         if( editor == null ) {
-            // or use the default editor in jspwiki.properties
+            // or use the default editor in wikantik.properties
             try {
                 editor = engine.getManager( VariableManager.class ).getValue( context, PROP_EDITORTYPE );
             } catch( final NoSuchVariableException e ) {} // This is fine

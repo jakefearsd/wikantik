@@ -27,7 +27,7 @@ import java.util.Set;
  * menu fragments (LeftMenu, MoreMenu), help pages (LoginHelp, EditPageHelp),
  * CSS theme pages, and other template-provided pages.
  *
- * <p>System pages are auto-discovered at startup from the {@code jspwiki-wikipages}
+ * <p>System pages are auto-discovered at startup from the {@code wikantik-wikipages}
  * classpath JAR. Additional patterns can be added via the
  * {@value #PROP_EXTRA_PATTERNS} property.
  *

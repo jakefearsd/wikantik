@@ -63,7 +63,7 @@ public class SSOLoginModule extends AbstractLoginModule {
 
     /**
      * LoginModule option key for the IdP claim mapped to JSPWiki login name.
-     * Set via {@code jspwiki.loginModule.options.sso.claimLoginName}.
+     * Set via {@code wikantik.loginModule.options.sso.claimLoginName}.
      */
     static final String OPTION_CLAIM_LOGIN_NAME = "sso.claimLoginName";
 

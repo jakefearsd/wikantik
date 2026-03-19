@@ -27,7 +27,7 @@ import java.util.Properties;
 
 /**
  * {@link EngineLifecycleExtension} that sets up all the relevant properties to enable markdown syntax if the
- * {@code jspwiki.syntax} property has been given, with the {@code markdown} value.
+ * {@code wikantik.syntax} property has been given, with the {@code markdown} value.
  */
 public class MarkdownSetupEngineLifecycleExtension implements EngineLifecycleExtension {
 

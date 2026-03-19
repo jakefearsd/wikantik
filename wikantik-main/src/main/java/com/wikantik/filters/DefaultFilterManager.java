@@ -151,7 +151,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
     /**
      *  Initializes the filters from an XML file.
      *
-     *  @param props The list of properties. Typically, jspwiki.properties
+     *  @param props The list of properties. Typically, wikantik.properties
      *  @throws WikiException If something goes wrong.
      */
     private void initialize( final Properties props ) throws WikiException {

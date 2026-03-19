@@ -192,7 +192,7 @@ select,
   color: var(--accent-color);
 }
 
-/* --- JSPWiki --- */
+/* --- Wikantik --- */
 
 /* --- variables.less --- */
 

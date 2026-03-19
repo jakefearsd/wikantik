@@ -18,7 +18,7 @@
  */
  
 /**
- ** Javascript routines to support JSPWiki UserPreferences
+ ** Javascript routines to support Wikantik UserPreferences
  ** since v.2.6.0
  ** uses mootools v1.1
  **/

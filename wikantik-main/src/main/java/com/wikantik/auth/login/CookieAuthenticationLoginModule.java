@@ -48,7 +48,7 @@ import java.util.UUID;
 
 /**
  * Logs in a user based on a cookie stored in the user's computer.  The cookie
- * information is stored in the <code>jspwiki.workDir</code>, under the directory
+ * information is stored in the <code>wikantik.workDir</code>, under the directory
  * {@value #COOKIE_DIR}.  For security purposes it is a very, very good idea
  * to prevent access to this directory by everyone except the web server process;
  * otherwise people having read access to this directory may be able to spoof

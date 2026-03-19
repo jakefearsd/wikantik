@@ -21,14 +21,14 @@
 <html lang="en">
 <head>
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
-  <title>JSPWiki Test Rename Page</title>
+  <title>Wikantik Test Rename Page</title>
 </head>
 <body> 
 <table cellpadding="1" cellspacing="1" border="1">
 	<tbody>
-	<tr><td rowspan="1" colspan="3">JSPWiki Test Rename Page<br></td></tr>
+	<tr><td rowspan="1" colspan="3">Wikantik Test Rename Page<br></td></tr>
 
-	<tr><td>store</td>	<td>/${it-jspwiki.context}</td>	<td>it_baseUrl</td></tr>
+	<tr><td>store</td>	<td>/${it-wikantik.context}</td>	<td>it_baseUrl</td></tr>
 	<tr><td>store</td>	<td>javascript{'Rename-page '+new Date().getTime()}</td>	<td>page</td></tr>
 	<tr><td>store</td>	<td>janne</td>			<td>TestUsername</td></tr>
     <tr><td>store</td>	<td>myP@5sw0rd</td>		<td>TestPassword</td></tr>
@@ -48,24 +48,24 @@
 	<!-- Create a new page -->
     <tr><td>open</td>	<td>${editurl}</td>	<td>&nbsp;</td></tr>
 
-    <tr><td>verifyTitle</td>		<td>JSPWiki: Edit: ${page}</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: Edit: ${page}</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyElementPresent</td>	<td>ok</td>	<td></td></tr>
     <tr><td>verifyElementPresent</td>	<td>id=editorarea</td>	<td></td></tr>
     <tr><td>type</td>					<td>id=editorarea</td>		<td>${PageContent}</td></tr>
     <tr><td>clickAndWait</td>			<td>ok</td>	<td>&nbsp;</td></tr>
 
-    <tr><td>verifyTitle</td>		<td>JSPWiki: ${page}</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: ${page}</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>	<td>${PageContent}</td>	<td>&nbsp;</td></tr>	
     
 	<!-- Rename Page -->
     <tr><td>open</td>					<td>${infourl}</td>	<td>&nbsp;</td></tr>
-    <tr><td>verifyTitle</td>			<td>JSPWiki: ${page}</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>			<td>Wikantik: ${page}</td>	<td>&nbsp;</td></tr>
     <tr><td>assertElementPresent</td>	<td>rename</td>			<td>&nbsp;</td></tr>	
     <tr><td>assertElementPresent</td>	<td>renameto</td>		<td>&nbsp;</td></tr>
     <tr><td>type</td>					<td>renameto</td>	<td>${page}-renamed</td></tr>
     <tr><td>clickAndWait</td>			<td>rename</td> 	<td>&nbsp;</td></tr>
 
-    <tr><td>verifyTitle</td>	<td>JSPWiki: ${page}-renamed</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>	<td>Wikantik: ${page}-renamed</td>	<td>&nbsp;</td></tr>
 
     <!-- Log out -->
     <tr><td>clickAndWait</td>	<td>link=Log out</td> 	<td>&nbsp;</td></tr>

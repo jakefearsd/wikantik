@@ -1,5 +1,5 @@
 /*
-    JSPWiki - a JSP-based WikiWiki clone.
+    Wikantik - a JSP-based WikiWiki clone.
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -26,7 +26,7 @@
 
 /*
 Script: wiki.js
-    Javascript routines to support JSPWiki, a JSP-based WikiWiki clone.
+    Javascript routines to support Wikantik, a JSP-based WikiWiki clone.
 
 Dependencies:
     Based on http://mootools.net/
@@ -56,7 +56,7 @@ Depends on :
 
 /*
 Class: Wiki
-    Javascript support functions for jspwiki.
+    Javascript support functions for wikantik.
 */
 var Wiki = {
 
@@ -71,7 +71,7 @@ var Wiki = {
         wiki.once = behavior.once.bind(behavior);
         wiki.update = behavior.update.bind(behavior);
 
-        //add the standard jspwiki behaviors; needed to render the haddock JSP templates
+        //add the standard wikantik behaviors; needed to render the haddock JSP templates
         wiki.add( "body", wiki.caniuse )
 
             .add( "[accesskey]", Accesskey )
@@ -189,7 +189,7 @@ var Wiki = {
 
     /*
     Function: prefs
-        Read/Write the JSPWikiUserPrefs cookie, JSON-encoded.
+        Read/Write the WikantikUserPrefs cookie, JSON-encoded.
         Uses $.cookie.json
 
     > wiki.prefs("version");                //get version
@@ -204,7 +204,7 @@ var Wiki = {
             sameSite = "strict";
         }
         return $.cookie.json({
-            name:"JSPWikiUserPrefs", 
+            name:"WikantikUserPrefs", 
             path:this.BaseUrl, 
             sameSite: sameSite,
             secure: flag,
@@ -410,7 +410,7 @@ var Wiki = {
         Read all the "meta" dom elements, prefixed with "wiki",
         and add them as properties to the wiki object.
         EG  <meta name="wikiContext">  becomes  wiki.Context
-        * wikiContext : jspwiki requestcontext variable (view, edit, info, ...)
+        * wikiContext : wikantik requestcontext variable (view, edit, info, ...)
         * wikiBaseUrl
         * wikiPageUrl: page url template with dummy pagename "%23%24%25"
         * wikiEditUrl : edit page url
@@ -431,7 +431,7 @@ var Wiki = {
             wiki[el.get("name").slice(4)] = el.content || "";
         });
 
-        // BasePath: if JSPWiki is installed in the root, then we have to make sure that
+        // BasePath: if Wikantik is installed in the root, then we have to make sure that
         // the cookie-cutter works properly here.
         url = wiki.BaseUrl;
         url = url ? url.slice(url.indexOf(host) + host.length, -1) : "";
@@ -751,10 +751,10 @@ var Wiki = {
 
     /*
     Function: jsonrpc
-        Generic json-rpc routines to talk to the backend jspwiki-engine.
+        Generic json-rpc routines to talk to the backend wikantik-engine.
     Note:
         Uses the JsonUrl which is read from the meta element "WikiJsonUrl"
-        {{{ <meta name="wikiJsonUrl" content="/JSPWiki-pipo/JSON-RPC" /> }}}
+        {{{ <meta name="wikiJsonUrl" content="/Wikantik-pipo/JSON-RPC" /> }}}
 
     Supported rpc calls:
         - {{search.findPages}} gets the list of pagenames with partial match

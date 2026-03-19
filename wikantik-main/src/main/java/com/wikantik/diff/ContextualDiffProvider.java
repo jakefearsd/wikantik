@@ -55,12 +55,12 @@ public class ContextualDiffProvider implements DiffProvider {
     private static final Logger LOG = LogManager.getLogger( ContextualDiffProvider.class );
 
     /**
-     *  A jspwiki.properties value to define how many characters are shown around the change context.
+     *  A wikantik.properties value to define how many characters are shown around the change context.
      *  The current value is <tt>{@value}</tt>.
      */
     public static final String PROP_UNCHANGED_CONTEXT_LIMIT = "wikantik.contextualDiffProvider.unchangedContextLimit";
 
-    //TODO all of these publics can become jspwiki.properties entries...
+    //TODO all of these publics can become wikantik.properties entries...
     //TODO span title= can be used to get hover info...
 
     public boolean emitChangeNextPreviousHyperlinks = true;

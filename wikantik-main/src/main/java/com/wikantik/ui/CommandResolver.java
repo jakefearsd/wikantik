@@ -47,7 +47,7 @@ import java.util.Arrays;
  */
 public interface CommandResolver {
 
-    /** Prefix in jspwiki.properties signifying special page keys. */
+    /** Prefix in wikantik.properties signifying special page keys. */
     String PROP_SPECIALPAGE = "wikantik.specialPage.";
 
     /**

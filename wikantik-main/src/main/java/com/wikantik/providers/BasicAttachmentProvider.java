@@ -110,7 +110,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
     public void initialize( final Engine engine, final Properties properties ) throws NoRequiredPropertyException, IOException {
         this.engine = engine;
         storageDir = TextUtil.getCanonicalFilePathProperty( properties, PROP_STORAGEDIR,
-                                                       System.getProperty("user.home") + File.separator + "jspwiki-files");
+                                                       System.getProperty("user.home") + File.separator + "wikantik-files");
 
         final String patternString = engine.getWikiProperties().getProperty( PROP_DISABLECACHE );
         if ( patternString != null ) {

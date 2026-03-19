@@ -48,7 +48,7 @@ class AbstractFileProviderChangedSinceTest {
     void setUp() throws Exception {
         props = TestEngine.getTestProperties();
         props.setProperty( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" );
-        props.setProperty( FileSystemProvider.PROP_PAGEDIR, "./target/jspwiki.changedSince.test.pages" );
+        props.setProperty( FileSystemProvider.PROP_PAGEDIR, "./target/wikantik.changedSince.test.pages" );
         pageDir = props.getProperty( FileSystemProvider.PROP_PAGEDIR );
 
         engine = TestEngine.build(

@@ -94,7 +94,7 @@ public interface RenderingManager extends RenderApi, WikiEventListener, Internal
 
     /**
      * Returns a WikiRenderer instance, initialized with the given context and doc. The object is an XHTMLRenderer,
-     * unless overridden in jspwiki.properties with PROP_RENDERER.
+     * unless overridden in wikantik.properties with PROP_RENDERER.
      *
      * @param context The WikiContext
      * @param doc The document to render
@@ -104,7 +104,7 @@ public interface RenderingManager extends RenderApi, WikiEventListener, Internal
 
     /**
      * Returns a WikiRenderer instance for alternate rendering (e.g. editing mode), initialized with the given
-     * context and doc. Can be overridden in jspwiki.properties with PROP_WYSIWYG_RENDERER.
+     * context and doc. Can be overridden in wikantik.properties with PROP_WYSIWYG_RENDERER.
      *
      * @param context The WikiContext
      * @param doc The document to render

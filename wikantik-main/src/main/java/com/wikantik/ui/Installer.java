@@ -66,7 +66,7 @@ public class Installer {
     public static final String PAGE_DIR = FileSystemProvider.PROP_PAGEDIR;
     public static final String WORK_DIR = Engine.PROP_WORKDIR;
     public static final String ADMIN_GROUP = "Admin";
-    public static final String PROPFILENAME = "jspwiki-custom.properties" ;
+    public static final String PROPFILENAME = "wikantik-custom.properties" ;
     public static String TMP_DIR;
     private final Session session;
     private final File propertyFile;

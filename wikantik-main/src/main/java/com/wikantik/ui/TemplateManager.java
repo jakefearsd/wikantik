@@ -180,7 +180,7 @@ public interface TemplateManager extends ModuleManager {
 
 
     /**
-     * List all available timeformats, read from the jspwiki.properties
+     * List all available timeformats, read from the wikantik.properties
      *
      * @param pageContext page context
      * @return map of TimeFormats

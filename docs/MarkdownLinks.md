@@ -1,16 +1,16 @@
-# JSPWiki Markdown Internal Link Syntax
+# Wikantik Markdown Internal Link Syntax
 
-This document describes how to create links to other pages on the same wiki when using JSPWiki's Markdown parser.
+This document describes how to create links to other pages on the same wiki when using Wikantik's Markdown parser.
 
 ## Basic Syntax
 
-In JSPWiki's Markdown parser, the **empty link** syntax is used for internal wiki page links:
+In Wikantik's Markdown parser, the **empty link** syntax is used for internal wiki page links:
 
 ```markdown
 [PageName]()
 ```
 
-The empty parentheses `()` tell JSPWiki that the link text is the wiki page name.
+The empty parentheses `()` tell Wikantik that the link text is the wiki page name.
 
 ## Examples
 
@@ -32,7 +32,7 @@ The empty parentheses `()` tell JSPWiki that the link text is the wiki page name
 ### InterWiki Links
 
 ```markdown
-[text](JSPWiki:About)
+[text](Wikantik:About)
 ```
 
 ### Attachment Links
@@ -43,7 +43,7 @@ The empty parentheses `()` tell JSPWiki that the link text is the wiki page name
 
 ## How It Works
 
-The Markdown parser uses JSPWiki's custom empty link syntax extension. When the URL portion is empty `()`, JSPWiki uses the link text as the wiki page name. When the URL has content, that content is the target.
+The Markdown parser uses Wikantik's custom empty link syntax extension. When the URL portion is empty `()`, Wikantik uses the link text as the wiki page name. When the URL has content, that content is the target.
 
 The system classifies links in this order:
 
@@ -72,6 +72,6 @@ Links are automatically styled with CSS classes:
 
 The link processing is implemented in:
 
-- `jspwiki-markdown/src/main/java/org/apache/wiki/markdown/nodes/JSPWikiLink.java`
-- `jspwiki-markdown/src/main/java/org/apache/wiki/markdown/extensions/jspwikilinks/attributeprovider/JSPWikiLinkAttributeProvider.java`
+- `jspwiki-markdown/src/main/java/org/apache/wiki/markdown/nodes/WikantikLink.java`
+- `jspwiki-markdown/src/main/java/org/apache/wiki/markdown/extensions/jspwikilinks/attributeprovider/WikantikLinkAttributeProvider.java`
 - `jspwiki-markdown/src/main/java/org/apache/wiki/markdown/extensions/jspwikilinks/attributeprovider/LocalLinkAttributeProviderState.java`

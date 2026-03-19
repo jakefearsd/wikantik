@@ -47,7 +47,7 @@ class MailUtilTest  {
     }
 
     /**
-     * Verifies that the properties loaded by tests/etc/jspwiki.properties are the ones we expect.
+     * Verifies that the properties loaded by tests/etc/wikantik.properties are the ones we expect.
      * Three of them (account, password, jndi name) are commented out, so we expect null.
      */
     @Test

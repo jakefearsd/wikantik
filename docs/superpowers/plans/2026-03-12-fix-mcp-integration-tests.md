@@ -39,7 +39,7 @@ The failsafe plugin's `verify` goal checks for test failures, but `testFailureIg
 
 | File | Action | Responsibility |
 |------|--------|---------------|
-| `jspwiki-mcp/src/main/java/org/apache/wiki/mcp/McpServerInitializer.java` | Modify | Fix WikiEngine lookup to use `Wiki.engine().find()` instead of `getAttribute()` |
+| `wikantik-mcp/src/main/java/org/apache/wiki/mcp/McpServerInitializer.java` | Modify | Fix WikiEngine lookup to use `Wiki.engine().find()` instead of `getAttribute()` |
 | `jspwiki-it-tests/pom.xml` | Modify | Remove `testFailureIgnore=true` |
 
 ---
@@ -49,7 +49,7 @@ The failsafe plugin's `verify` goal checks for test failures, but `testFailureIg
 ### Task 1: Fix McpServerInitializer engine lookup
 
 **Files:**
-- Modify: `jspwiki-mcp/src/main/java/org/apache/wiki/mcp/McpServerInitializer.java:51-60`
+- Modify: `wikantik-mcp/src/main/java/org/apache/wiki/mcp/McpServerInitializer.java:51-60`
 
 - [ ] **Step 1: Add import for Wiki SPI**
 
@@ -113,18 +113,18 @@ Also update the manager lookups — they already use interface types (`PageManag
 
 - [ ] **Step 4: Verify the MCP module compiles**
 
-Run: `mvn compile -pl jspwiki-mcp -am`
+Run: `mvn compile -pl wikantik-mcp -am`
 Expected: BUILD SUCCESS
 
 - [ ] **Step 5: Run unit tests for MCP module**
 
-Run: `mvn test -pl jspwiki-mcp`
+Run: `mvn test -pl wikantik-mcp`
 Expected: All tests pass
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add jspwiki-mcp/src/main/java/org/apache/wiki/mcp/McpServerInitializer.java
+git add wikantik-mcp/src/main/java/org/apache/wiki/mcp/McpServerInitializer.java
 git commit -m "fix: eagerly create WikiEngine in McpServerInitializer
 
 The MCP server was never starting in Cargo-deployed Tomcat because
@@ -196,7 +196,7 @@ Temporarily break a test (e.g., change an assertion), run `mvn verify -Pintegrat
 
 - [ ] **Step 4: Run the full unit test suite**
 
-Run: `mvn clean test -pl jspwiki-main -T 1C -DskipITs`
+Run: `mvn clean test -pl wikantik-main -T 1C -DskipITs`
 Expected: All 1039 unit tests still pass
 
 - [ ] **Step 5: Final commit if any adjustments were needed**

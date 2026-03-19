@@ -78,9 +78,9 @@ public class MarkdownRendererTest {
     @Test
     public void testMarkupExtensionExternalLink() throws Exception {
         testEngine.getWikiProperties().setProperty( "wikantik.translatorReader.useOutlinkImage", "true" );
-        final String src = "This should be an [external link](https://jspwiki.apache.org)";
+        final String src = "This should be an [external link](https://wikantik.com)";
 
-        Assertions.assertEquals( "<p>This should be an <a href=\"https://jspwiki.apache.org\" class=\"external\">external link</a><img class=\"outlink\" alt=\"\" src=\"/test/images/out.png\" /></p>\n",
+        Assertions.assertEquals( "<p>This should be an <a href=\"https://wikantik.com\" class=\"external\">external link</a><img class=\"outlink\" alt=\"\" src=\"/test/images/out.png\" /></p>\n",
                                  translate( src ) );
         testEngine.getWikiProperties().remove( "wikantik.translatorReader.useOutlinkImage" );
     }
@@ -88,9 +88,9 @@ public class MarkdownRendererTest {
     @Test
     public void testMarkupExtensionHtmlEscaping() throws Exception {
         testEngine.getWikiProperties().setProperty( "wikantik.translatorReader.useOutlinkImage", "true" );
-        final String src = "This should be an [external <strong>link</strong>](https://jspwiki.apache.org)";
+        final String src = "This should be an [external <strong>link</strong>](https://wikantik.com)";
 
-        Assertions.assertEquals( "<p>This should be an <a href=\"https://jspwiki.apache.org\" class=\"external\">external &lt;strong&gt;link&lt;/strong&gt;</a><img class=\"outlink\" alt=\"\" src=\"/test/images/out.png\" /></p>\n",
+        Assertions.assertEquals( "<p>This should be an <a href=\"https://wikantik.com\" class=\"external\">external &lt;strong&gt;link&lt;/strong&gt;</a><img class=\"outlink\" alt=\"\" src=\"/test/images/out.png\" /></p>\n",
                 translate( src ) );
         testEngine.getWikiProperties().remove( "wikantik.translatorReader.useOutlinkImage" );
     }
@@ -117,9 +117,9 @@ public class MarkdownRendererTest {
 
     @Test
     public void testMarkupExtensionInterWikiLink() throws Exception {
-        final String src = "This should be an [interwiki link](JSPWiki:About)";
+        final String src = "This should be an [interwiki link](Wikantik:About)";
 
-        Assertions.assertEquals( "<p>This should be an <a href=\"http://jspwiki-wiki.apache.org/Wiki.jsp?page=About\" class=\"interwiki\">interwiki link</a></p>\n",
+        Assertions.assertEquals( "<p>This should be an <a href=\"http://wiki.wikantik.com/Wiki.jsp?page=About\" class=\"interwiki\">interwiki link</a></p>\n",
                                  translate( src ) );
     }
 

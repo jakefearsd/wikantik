@@ -42,7 +42,7 @@ b { font-weight : 600 ; }
 .content:after { background:transparent; }
 .sidebar { border-radius:.5em; background:rgba(162,195,223,0.10); /*#A2C3DF = sidebar color*/ }
 
-/* hide jspwiki logo */
+/* hide wikantik logo */
 a.logo { border:none; text-indent:-99em; }
 a.logo b:before { content:""; }
 

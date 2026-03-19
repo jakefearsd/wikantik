@@ -27,10 +27,10 @@ mvn clean install -Dmaven.test.skip -Dminimize=false
 mvn clean test
 
 # Run a specific test class
-mvn test -Dtest=JSPWikiMarkupParserTest
+mvn test -Dtest=WikantikMarkupParserTest
 
 # Run a specific test method
-mvn test -Dtest=JSPWikiMarkupParserTest#testHeadingHyperlinks3
+mvn test -Dtest=WikantikMarkupParserTest#testHeadingHyperlinks3
 
 # Debug a test
 mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug
@@ -143,7 +143,7 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 
 ### Rendering Pipeline
 
-1. **Parser**: `JSPWikiMarkupParser` converts wiki text to DOM
+1. **Parser**: `WikantikMarkupParser` converts wiki text to DOM
 2. **Filters**: Pre/post-processing of content
 3. **Plugins**: Dynamic content insertion
 4. **Renderer**: Final output generation (XHTML, etc.)

@@ -1,4 +1,4 @@
-# Apache JSPWiki
+# Apache Wikantik
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -20,14 +20,14 @@
 The license file can be found in LICENSE.
 
 
-## What is JSPWiki?
+## What is Wikantik?
 
-JSPWiki is a simple (well, not anymore) WikiWiki clone, written in Java
+Wikantik is a simple (well, not anymore) WikiWiki clone, written in Java
 and JSP.  A WikiWiki is a website which allows anyone to participate
-in its development.  JSPWiki supports all the traditional wiki features,
+in its development.  Wikantik supports all the traditional wiki features,
 as well as very detailed access control and security integration using JAAS.
 
-* For more information see https://jspwiki-wiki.apache.org/
+* For more information see https://wikantik-wiki.apache.org/
 
 
 ## Documentation
@@ -64,7 +64,7 @@ as well as very detailed access control and security integration using JAAS.
 
 ### MCP Integration
 
-The `jspwiki-mcp` module provides a Model Context Protocol server for AI-assisted wiki operations. See the module's own documentation for setup and usage.
+The `wikantik-mcp` module provides a Model Context Protocol server for AI-assisted wiki operations. See the module's own documentation for setup and usage.
 
 - [wiki-article-cluster skill](.claude/skills/wiki-article-cluster/SKILL.md) — Skill for researching and publishing multi-page wiki article clusters
 
@@ -102,14 +102,14 @@ OPTIONAL:
 
 ## Really simple installation
 
-Since JSPWiki 2.1.153, JSPWiki comes with a really simple installation
+Since Wikantik 2.1.153, Wikantik comes with a really simple installation
 engine.  Just do the following:
 
 1) Install Tomcat from https://tomcat.apache.org/ (or any other servlet
    container)
 
-2) Rename the JSPWiki.war file from the download and rename it based on
-   your desired URL (if you want it different from /JSPWiki).  For example,
+2) Rename the Wikantik.war file from the download and rename it based on
+   your desired URL (if you want it different from /Wikantik).  For example,
    if you want your URL to be http://.../wiki, rename it to wiki.war.
    This name will be referred to as <appname> below.
    Place this WAR in your `$TOMCAT_HOME/webapps` folder and then start Tomcat.
@@ -127,23 +127,23 @@ That's it!
 ## Advanced Installation
 
 In the `$TOMCAT_HOME/lib` folder (or equivalent based on your servlet container),
-place a `jspwiki-custom.properties` file, which can contain any overrides to the
-default `ini/jspwiki.properties` file in the JSPWiki JAR.  For any values not
-placed in `jspwiki-custom.properties` file JSPWiki will rely on the default file.
+place a `wikantik-custom.properties` file, which can contain any overrides to the
+default `ini/wikantik.properties` file in the Wikantik JAR.  For any values not
+placed in `wikantik-custom.properties` file Wikantik will rely on the default file.
 Review the default file to look for values you may wish to override in the custom
 file.  Some common values to override in your custom file include
-`jspwiki.xmlUserDatabaseFile`, `jspwiki.xmlGroupDatabaseFile`,
-`jspwiki.fileSystemProvider.pageDir`, `jspwiki.basicAttachmentProvider.storageDir`,
+`wikantik.xmlUserDatabaseFile`, `wikantik.xmlGroupDatabaseFile`,
+`wikantik.fileSystemProvider.pageDir`, `wikantik.basicAttachmentProvider.storageDir`,
 and `appender.rolling.fileName`.  The comments in the default file will suggest
 appropriate values to override them with.
 
 The custom file can also be placed in the `WEB-INF/` folder of the WAR, but storing
-this file in `$TOMCAT_HOME/lib` allows you to upgrade the JSPWiki WAR without needing
+this file in `$TOMCAT_HOME/lib` allows you to upgrade the Wikantik WAR without needing
 to re-insert your customizations.
 
-Unzip the contents of `jspwiki-corepages.zip` into your newly created
+Unzip the contents of `wikantik-corepages.zip` into your newly created
 directory.  You can find the rest of the documentation in the
-`JSPWiki-doc.zip` file.
+`Wikantik-doc.zip` file.
 
 (Re)start tomcat.
 
@@ -151,16 +151,16 @@ Point your browser at http://&lt;where your Tomcat is installed>/MyWiki/.
 You should see the Main Wiki page.  See the next section if you want
 to edit the pages =).
 
-The `WEB-INF/jspwiki.policy` file is used to change access permissions for
+The `WEB-INF/wikantik.policy` file is used to change access permissions for
 the Wiki.
 
-Check the Apache JSPWiki website and project documentation for additional
+Check the Apache Wikantik website and project documentation for additional
 setup and configuration suggestions.
 
 ## Using Docker
 
 A `Dockerfile` and `docker-compose.yml` are included in this repository for building
-and running JSPWiki from source. See [DockerDeployment.md](docs/DockerDeployment.md)
+and running Wikantik from source. See [DockerDeployment.md](docs/DockerDeployment.md)
 for the full guide including backups and data persistence.
 
 ### Build and Run from Source
@@ -171,7 +171,7 @@ $ docker compose up -d
 Then point your browser at http://localhost:8080/.
 
 > **Note:** The upstream Docker Hub image at
-> [apache/jspwiki](https://registry.hub.docker.com/r/apache/jspwiki/) tracks the
+> [apache/wikantik](https://registry.hub.docker.com/r/apache/wikantik/) tracks the
 > official Apache release and may not reflect the current state of this repository.
 > Building from source (as shown above) is recommended.
 
@@ -182,8 +182,8 @@ distribution.
 
 ## Contact
 
-Questions can be asked to JSPWiki team members and fellow users via the jspwiki-users
-mailing list: See https://jspwiki.apache.org/community/mailing_lists.html.
+Questions can be asked to Wikantik team members and fellow users via the wikantik-users
+mailing list: See https://wikantik.apache.org/community/mailing_lists.html.
 Please use the user mailing list instead of contacting team members directly,
 and as this is a public list stored in public archives, be sure to avoid including
 any sensitive information (passwords, data, etc.) in your questions.

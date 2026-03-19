@@ -2,7 +2,7 @@
 
 This document records every action taken to research, write, and publish
 a cluster of wiki articles about the historical impact of large-scale
-international conflicts on worldwide equity markets, using the JSPWiki
+international conflicts on worldwide equity markets, using the Wikantik
 MCP API.
 
 ## Environment
@@ -21,7 +21,7 @@ MCP API.
 **Action**: Send MCP `initialize` request to confirm the server identity and capabilities.
 **Tool**: `curl` → MCP `initialize` JSON-RPC
 **Headers required**: `Content-Type: application/json`, `Accept: text/event-stream, application/json`
-**Result**: Server responded with `serverInfo.name: "JSPWiki MCP Server"`, protocol version `2025-03-26`. Capabilities confirmed: tools, resources, prompts.
+**Result**: Server responded with `serverInfo.name: "Wikantik MCP Server"`, protocol version `2025-03-26`. Capabilities confirmed: tools, resources, prompts.
 **Session ID captured**: Stored in `/tmp/mcp_session_id` for subsequent requests.
 
 **Lesson learned**: The `Accept` header must include both `text/event-stream` and `application/json` — the server rejects requests missing either. All responses use SSE format (`id:`, `event:`, `data:` lines).
@@ -185,7 +185,7 @@ MCP API.
 
 This document records every action taken to research, write, and publish
 an article cluster about using low-cost index funds and strategic account
-allocation to achieve early retirement, using the JSPWiki MCP API.
+allocation to achieve early retirement, using the Wikantik MCP API.
 
 ## Environment
 
@@ -312,7 +312,7 @@ Building on Cluster 1 lessons, this session revealed:
 11. **Survey existing content before writing**: Use `search_pages` and `read_page` to understand what already exists. This prevents duplication and enables linking to existing articles, making the new cluster part of the existing knowledge graph.
 12. **Design the full cluster before publishing any page**: Write all JSON payloads first, review the cross-reference structure, then publish. This prevents orphaned links and ensures consistent metadata schemas.
 13. **WAR redeployment is a separate step from building**: New MCP tools are not available until the WAR is redeployed to Tomcat. A skill should track this or automate it.
-14. **Markdown link syntax vs. WikiLink syntax**: JSPWiki's reference manager may not track Markdown-style `[text](PageName)` links the same way as traditional WikiLinks. The `get_outbound_links` and `get_backlinks` tools may return incomplete results for Markdown-only pages. A skill should be aware of this limitation.
+14. **Markdown link syntax vs. WikiLink syntax**: Wikantik's reference manager may not track Markdown-style `[text](PageName)` links the same way as traditional WikiLinks. The `get_outbound_links` and `get_backlinks` tools may return incomplete results for Markdown-only pages. A skill should be aware of this limitation.
 15. **Article cluster workflow is highly parallelisable**: All sub-article payloads can be created simultaneously, and all `write_page` calls are independent. A skill should use `batch_write_pages` or parallel tool calls for efficiency. However, the hub page should be published first (or at least designed first) so that sub-articles can link back to it.
 16. **Reuse payload pattern without re-learning it**: This session reused the file-based payload approach immediately, without any trial-and-error. This confirms that encoding the pattern in a skill would eliminate the initial learning curve for new sessions.
 17. **Content research (existing pages) + content generation + MCP publishing are three distinct phases**: A skill should structure the workflow as: (1) discover existing content, (2) plan and generate articles, (3) publish via MCP, (4) verify. Each phase has different tool requirements and failure modes.
@@ -365,7 +365,7 @@ Based on both article cluster sessions, the optimal MCP article publishing skill
 This document records every action taken to research, write, and publish
 an article cluster about strategic retirement planning decisions — Roth conversions,
 Social Security claiming, withdrawal sequencing, safe withdrawal rates, Medicare,
-RMDs, and retirement income planning — using the JSPWiki MCP API.
+RMDs, and retirement income planning — using the Wikantik MCP API.
 
 ## Environment
 
@@ -747,7 +747,7 @@ Published a 7-page Operations Research cluster covering the history, mathematica
 
 ## Lessons Learned
 
-48. **YAML inline array format `[a, b]` causes false broken links**: JSPWiki's markdown parser treats `[a, b, c]` in YAML frontmatter as a wiki link to a page named "a, b, c". Always use multi-line YAML list format (`- item`) for tags and related fields. This required republishing all 7 OR pages.
+48. **YAML inline array format `[a, b]` causes false broken links**: Wikantik's markdown parser treats `[a, b, c]` in YAML frontmatter as a wiki link to a page named "a, b, c". Always use multi-line YAML list format (`- item`) for tags and related fields. This required republishing all 7 OR pages.
 
 49. **Math `[...]` brackets in content produce false broken links**: Expressions like `E_ξ[Q(x,ξ)]` and formula arrays `[numerator] / [denominator]` are parsed as wiki links even in prose. Replace with parentheses `(...)` for mathematical grouping. Fixed in StochasticModelsInOR and RevenueManagementWithOR.
 
@@ -765,13 +765,13 @@ Continued broken-link cleanup. Starting count at session resume: 59 (previous se
 - Fixed chain rule notation: `d/dx [f(g(x))]` → `d/dx (f(g(x)))` to prevent false broken link to `F(g(x))`
 
 **FoundationalAlgorithmsForComputerScientists**
-- Removed `[0, 1)` bracket interval notation (both backtick and `\[` escapes are ignored by JSPWiki's Markdown parser — links are parsed before code spans and escape sequences). Changed to prose: "between 0 (inclusive) and 1 (exclusive)"
+- Removed `[0, 1)` bracket interval notation (both backtick and `\[` escapes are ignored by Wikantik's Markdown parser — links are parsed before code spans and escape sequences). Changed to prose: "between 0 (inclusive) and 1 (exclusive)"
 
 **ReformationEraInBerlin**
-- Fixed External References section: changed `[Martin Luther](https://...)` style links to `**Martin Luther** — https://...` format. JSPWiki treats display text of ALL Markdown links (including external https:// links) as wiki link targets, creating false positives for "Martin Luther", "Protestant Reformation", "Berlin Cathedral", "Evangelical Church in Prussia"
+- Fixed External References section: changed `[Martin Luther](https://...)` style links to `**Martin Luther** — https://...` format. Wikantik treats display text of ALL Markdown links (including external https:// links) as wiki link targets, creating false positives for "Martin Luther", "Protestant Reformation", "Berlin Cathedral", "Evangelical Church in Prussia"
 
 **New page: OperationsResearch**
-- Created stub page `OperationsResearch` pointing to `OperationsResearchHub`. JSPWiki checks display text "Operations Research" as a wiki link → CamelCase → `OperationsResearch`. Without the stub, 4 pages had broken links from cross-references to `[Operations Research](OperationsResearchHub)`. Creating the stub resolved all 4.
+- Created stub page `OperationsResearch` pointing to `OperationsResearchHub`. Wikantik checks display text "Operations Research" as a wiki link → CamelCase → `OperationsResearch`. Without the stub, 4 pages had broken links from cross-references to `[Operations Research](OperationsResearchHub)`. Creating the stub resolved all 4.
 
 ### Final Count: 53 broken links (down from 72 at project start, 59 at session start)
 
@@ -781,15 +781,15 @@ Continued broken-link cleanup. Starting count at session resume: 59 (previous se
 - **System pages**: `WikiName`, `WikiEtiquette`, `PageAlias`, `OneMinuteWiki` — intentional built-in links
 - **Finance display-text false positives**: `SafeWithdrawalRates`, `RetirementIncomeBlueprint` — pre-existing
 - **Stale index entries**: `Ai,Machine-learning,...` from `MathematicalFoundationsOfMachineLearning` — not in current file content; should auto-clear on index refresh
-- **Main/ML display-text false positives**: `LLMs Since 2020`, `Generative AI Adoption Guide`, `MCP API`, `EU Retirement Savings Guide` etc. — inherent JSPWiki quirk for Markdown links
+- **Main/ML display-text false positives**: `LLMs Since 2020`, `Generative AI Adoption Guide`, `MCP API`, `EU Retirement Savings Guide` etc. — inherent Wikantik quirk for Markdown links
 
 ## Lessons Learned (continued)
 
-51. **JSPWiki parses `[` as link start before processing code spans or escape sequences**: Neither `` `[0, 1)` `` (backtick code span) nor `\[0, 1)` (escaped bracket) prevents JSPWiki from treating `[` as a wiki link start. The only safe approach is to not use `[` in content where it would be ambiguous — use prose descriptions or parentheses instead.
+51. **Wikantik parses `[` as link start before processing code spans or escape sequences**: Neither `` `[0, 1)` `` (backtick code span) nor `\[0, 1)` (escaped bracket) prevents Wikantik from treating `[` as a wiki link start. The only safe approach is to not use `[` in content where it would be ambiguous — use prose descriptions or parentheses instead.
 
 52. **Display text of ALL Markdown links is checked as a wiki link**: This applies to external links (`[text](https://...)`) as well as internal links. Any display text that doesn't map to an existing page (via CamelCase lookup) becomes a broken link entry. Fix strategy: create stub alias pages for common display texts (e.g., `OperationsResearch` → `OperationsResearchHub`), OR use plain text + URL format for external references.
 
-53. **JSPWiki display-text CamelCase lookup**: When checking if display text "Operations Research" is a valid page, JSPWiki concatenates words: `OperationsResearch`. Creating a page with that exact name resolves the broken link. "Machine Learning" → `MachineLearning` (already exists) → no broken link. "LLMs Since 2020" → no CamelCase mapping → broken link.
+53. **Wikantik display-text CamelCase lookup**: When checking if display text "Operations Research" is a valid page, Wikantik concatenates words: `OperationsResearch`. Creating a page with that exact name resolves the broken link. "Machine Learning" → `MachineLearning` (already exists) → no broken link. "LLMs Since 2020" → no CamelCase mapping → broken link.
 
 ---
 

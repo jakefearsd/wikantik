@@ -67,7 +67,7 @@ import java.util.stream.IntStream;
 //        if two people add new accounts right after each other from different wikis.
 public class XMLUserDatabase extends AbstractUserDatabase {
 
-    /** The jspwiki.properties property specifying the file system location of the user database. */
+    /** The wikantik.properties property specifying the file system location of the user database. */
     public static final String  PROP_USERDATABASE = "wikantik.xmlUserDatabaseFile";
     private static final String DEFAULT_USERDATABASE = "userdatabase.xml";
     private static final String ATTRIBUTES_TAG    = "attributes";

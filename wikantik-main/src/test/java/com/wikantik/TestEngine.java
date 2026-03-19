@@ -71,7 +71,7 @@ public class TestEngine extends WikiEngine {
     private Session m_janneWikiSession;
     private Session m_guestWikiSession;
 
-    // combined properties file (jspwiki.properties + custom override, if any)
+    // combined properties file (wikantik.properties + custom override, if any)
     private static Properties combinedProperties;
 
     /**
@@ -178,7 +178,7 @@ public class TestEngine extends WikiEngine {
         try {
             start( cleanTestProps( props ) );
         } catch( final Exception e ) {
-            throw new WikiException( Release.APPNAME + ": Unable to load and setup properties from jspwiki.properties. " + e.getMessage(), e );
+            throw new WikiException( Release.APPNAME + ": Unable to load and setup properties from wikantik.properties. " + e.getMessage(), e );
         }
 
         // Wait for ReferenceManager to complete initialization.

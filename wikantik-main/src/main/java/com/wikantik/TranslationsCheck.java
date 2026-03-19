@@ -47,7 +47,7 @@ public class TranslationsCheck {
     private final static String[] LANGS = { "en", "es", "ru" };
     private final static String SITE_I18N_ROW =
         "<tr%s>\n" +
-        "  <td title=\"Available sets of core WikiPages for %s\"><a class=\"external\" href=\"https://search.maven.org/artifact/org.apache.jspwiki.wikipages/jspwiki-wikipages-%s\">%s</a></td>\n" +
+        "  <td title=\"Available sets of core WikiPages for %s\"><a class=\"external\" href=\"https://search.maven.org/artifact/com.wikantik.wikipages/wikantik-wikipages-%s\">%s</a></td>\n" +
         "  <td>%d%%</td>\n" +
         "  <td>%d</td>\n" +
         "  <td>%d</td>\n" +
@@ -64,7 +64,7 @@ public class TranslationsCheck {
         final TranslationsCheck translations = new TranslationsCheck();
         if( args.length == 0 ) {
             System.out.println( "Usage: java TranslationsCheck <language> [<path>]" );
-            System.out.println( "Example: java TranslationsCheck nl [jspwiki-main/src/main/resources]" );
+            System.out.println( "Example: java TranslationsCheck nl [wikantik-main/src/main/resources]" );
             System.out.println( "To output site i18n info use java TranslationsCheck site [<path>]" );
             return;
         }

@@ -223,7 +223,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     /**
      * {@inheritDoc}
      *
-     * Expects to find property 'jspwiki.authorizer' with a valid Authorizer implementation name to take care of role lookup operations.
+     * Expects to find property 'wikantik.authorizer' with a valid Authorizer implementation name to take care of role lookup operations.
      */
     @Override
     public void initialize( final Engine engine, final Properties properties ) throws WikiException {
@@ -247,8 +247,8 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
                 localPolicy = newLocalPolicy;  // Assign after refresh completes for thread safety
                 LOG.info( "Initialized default security policy: {} - anonymous access now permitted", policyFile.getAbsolutePath() );
             } else {
-                final String sb = "JSPWiki was unable to initialize the default security policy (WEB-INF/jspwiki.policy) file. " +
-                                  "Please ensure that the jspwiki.policy file exists in the default location. " +
+                final String sb = "JSPWiki was unable to initialize the default security policy (WEB-INF/wikantik.policy) file. " +
+                                  "Please ensure that the wikantik.policy file exists in the default location. " +
                 		          "This file should exist regardless of the existance of a global policy file. " +
                                   "The global policy file is identified by the java.security.policy variable. ";
                 final WikiSecurityException wse = new WikiSecurityException( sb );
@@ -265,7 +265,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
      * Attempts to locate and initialize an Authorizer to use with this manager. Throws a WikiException if no entry is found, or if one
      * fails to initialize.
      *
-     * @param props jspwiki.properties, containing a 'jspwiki.authorization.provider' class name.
+     * @param props wikantik.properties, containing a 'wikantik.authorization.provider' class name.
      * @return an Authorizer used to get page authorization information.
      * @throws WikiException if there are problems finding the authorizer implementation.
      */

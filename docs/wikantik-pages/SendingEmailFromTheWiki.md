@@ -3,12 +3,12 @@ type: article
 tags:
 - ai
 - technology
-summary: This guide explains how to configure JSPWiki to send transactional emails
+summary: This guide explains how to configure Wikantik to send transactional emails
   (account verification, password reset, notifications) from a self-hosted installation.
 ---
 1. Sending Email from the Wiki
 
-This guide explains how to configure JSPWiki to send transactional emails (account verification, password reset, notifications) from a self-hosted installation.
+This guide explains how to configure Wikantik to send transactional emails (account verification, password reset, notifications) from a self-hosted installation.
 
   1. Why You Need an Email Relay Service
 
@@ -105,13 +105,13 @@ In your email service dashboard:
    - Login/Username
    - Password or API Key
 
-    1. Step 5: Configure JSPWiki
+    1. Step 5: Configure Wikantik
 
-Add to your `jspwiki-custom.properties`:
+Add to your `wikantik-custom.properties`:
 
 ```properties
 1. Email configuration
-mail.from = JSPWiki <wiki@yourdomain.com>
+mail.from = Wikantik <wiki@yourdomain.com>
 mail.smtp.host = smtp-relay.brevo.com
 mail.smtp.port = 587
 mail.smtp.account = your-login@email.com
@@ -124,7 +124,7 @@ mail.smtp.connectiontimeout = 5000
     1. Step 6: Test Email
 
 1. Restart Tomcat
-2. Create a new user account in JSPWiki
+2. Create a new user account in Wikantik
 3. Check if verification email arrives
 4. Check your email service dashboard for delivery logs
 
@@ -134,7 +134,7 @@ mail.smtp.connectiontimeout = 5000
 
 To keep credentials out of properties files, configure the mail session in Tomcat's context file.
 
-Add to your `JSPWiki.xml` (in `conf/Catalina/localhost/`):
+Add to your `Wikantik.xml` (in `conf/Catalina/localhost/`):
 
 ```xml
 <Resource name="mail/Session"
@@ -149,7 +149,7 @@ Add to your `JSPWiki.xml` (in `conf/Catalina/localhost/`):
           mail.from="wiki@yourdomain.com"/>
 ```
 
-JSPWiki will automatically use the JNDI session `mail/Session` when available.
+Wikantik will automatically use the JNDI session `mail/Session` when available.
 
 ---
 
@@ -191,7 +191,7 @@ mail.smtp.starttls.enable = true
 
 ---
 
-  1. JSPWiki Mail Properties Reference
+  1. Wikantik Mail Properties Reference
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -240,4 +240,4 @@ mail.smtp.starttls.enable = true
   1. Related Documentation
 
 - [PostgreSQL Local Deployment](PostgreSQLLocalDeployment.md) - Local development setup
-- [JSPWiki Properties Reference](https://jspwiki-wiki.apache.org/Wiki.jsp?page=Documentation) - Full configuration options
+- [Wikantik Properties Reference](https://wiki.wikantik.com/Wiki.jsp?page=Documentation) - Full configuration options

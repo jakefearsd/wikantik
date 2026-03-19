@@ -1,14 +1,14 @@
-# Professional JSPWiki Deployment with Docker
+# Professional Wikantik Deployment with Docker
 
-This guide provides a comprehensive walkthrough for deploying a production-ready JSPWiki instance using Docker, with a focus on configuration, data persistence, and automated backups.
+This guide provides a comprehensive walkthrough for deploying a production-ready Wikantik instance using Docker, with a focus on configuration, data persistence, and automated backups.
 
 ## 1. Configuration
 
-JSPWiki's Docker container is highly configurable through environment variables. This allows you to customize your installation without modifying the core application files.
+Wikantik's Docker container is highly configurable through environment variables. This allows you to customize your installation without modifying the core application files.
 
 ### Environment Variables
 
-The following environment variables are available to configure your JSPWiki instance. You can set them in your `docker-compose.yml` file or directly with the `docker run` command.
+The following environment variables are available to configure your Wikantik instance. You can set them in your `docker-compose.yml` file or directly with the `docker run` command.
 
 *   `CATALINA_OPTS`: Additional options for the Tomcat server. The default value, `-Djava.security.egd=file:/dev/./urandom`, is recommended for better performance on systems with low entropy.
 *   `LANG`: Sets the language for the container. Defaults to `en_US.UTF-8`.
@@ -17,7 +17,7 @@ The following environment variables are available to configure your JSPWiki inst
 *   `jspwiki_frontPage`: The name of the wiki's front page. Defaults to `Main`.
 *   `jspwiki_pageProvider`: The page provider to use. Defaults to `VersioningFileProvider`.
 *   `jspwiki_use_external_logconfig`: Set to `true` to use an external Log4j2 configuration file. Defaults to `true`.
-*   `jspwiki_workDir`: The working directory for JSPWiki. Defaults to `/var/jspwiki/work`.
+*   `jspwiki_workDir`: The working directory for Wikantik. Defaults to `/var/jspwiki/work`.
 *   `jspwiki_xmlUserDatabaseFile`: The path to the user database file. Defaults to `/var/jspwiki/etc/userdatabase.xml`.
 *   `jspwiki_xmlGroupDatabaseFile`: The path to the group database file. Defaults to `/var/jspwiki/etc/groupdatabase.xml`.
 
@@ -27,20 +27,20 @@ To ensure that your wiki's data persists across container restarts and to facili
 
 ### Critical Data Directories
 
-The following directories contain all of JSPWiki's critical data and should be mounted as volumes:
+The following directories contain all of Wikantik's critical data and should be mounted as volumes:
 
 *   `/var/jspwiki/pages`: Contains the wiki pages and attachments.
 *   `/var/jspwiki/etc`: Contains the user and group databases.
 *   `/var/jspwiki/logs`: Contains the application logs.
-*   `/var/jspwiki/work`: The working directory for JSPWiki.
+*   `/var/jspwiki/work`: The working directory for Wikantik.
 
 ### Automated Backups
 
-Our recommended backup strategy involves a dedicated backup container that has read-only access to the JSPWiki data volume. This container runs a cron job to create compressed archives of the data at regular intervals.
+Our recommended backup strategy involves a dedicated backup container that has read-only access to the Wikantik data volume. This container runs a cron job to create compressed archives of the data at regular intervals.
 
 ## 3. Example Docker Compose Deployment
 
-This example uses `docker-compose` to define and run a multi-container JSPWiki application with an automated backup service.
+This example uses `docker-compose` to define and run a multi-container Wikantik application with an automated backup service.
 
 ### Project Structure
 
@@ -88,7 +88,7 @@ volumes:
 
 set -e
 
-# Create a compressed archive of the jspwiki data
+# Create a compressed archive of the wikantik data
 TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
 BACKUP_FILE="/backups/jspwiki-backup-${TIMESTAMP}.tar.gz"
 
@@ -122,7 +122,7 @@ find /backups -name "jspwiki-backup-*.tar.gz" -type f -mtime +7 -delete
 
 4.  **Verify the deployment**:
 
-    *   Access JSPWiki at `http://localhost:8080`.
+    *   Access Wikantik at `http://localhost:8080`.
     *   Check the logs of the backup container to ensure that the cron job is running:
 
         ```bash
@@ -131,7 +131,7 @@ find /backups -name "jspwiki-backup-*.tar.gz" -type f -mtime +7 -delete
 
 ### Restoring from a Backup
 
-To restore your JSPWiki instance from a backup:
+To restore your Wikantik instance from a backup:
 
 1.  **Stop the `jspwiki` container**:
 

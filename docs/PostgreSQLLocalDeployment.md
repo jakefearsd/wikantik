@@ -1,13 +1,13 @@
 # PostgreSQL Local Deployment Guide
 
-This guide walks you through setting up JSPWiki to use PostgreSQL for user and group storage, deployed to a local Tomcat 11 instance for manual testing.
+This guide walks you through setting up Wikantik to use PostgreSQL for user and group storage, deployed to a local Tomcat 11 instance for manual testing.
 
 ## Overview
 
 This setup involves:
 - **Tomcat 11** at `tomcat/tomcat-11/` (gitignored)
 - **PostgreSQL** running locally with the `jspwiki` user configured
-- **Template files** in `jspwiki-war/src/main/config/tomcat/` (git-tracked)
+- **Template files** in `wikantik-war/src/main/config/tomcat/` (git-tracked)
 - **Deployment script** `deploy-local.sh` automates the deployment process
 
 The strategy is to create template configuration files in the tracked codebase, which the deployment script copies to your Tomcat instance. This:
@@ -41,7 +41,7 @@ mvn clean install -Dmaven.test.skip
 tomcat/tomcat-11/bin/startup.sh
 
 # 4. Access the wiki
-# http://localhost:8080/JSPWiki/
+# http://localhost:8080/Wikantik/
 ```
 
 ---
@@ -54,7 +54,7 @@ Run the DDL script to set up tables and the default admin user:
 
 ```bash
 # Run as postgres superuser
-sudo -u postgres psql -d jspwiki -f jspwiki-war/src/main/config/db/postgresql.ddl
+sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.ddl
 ```
 
 This creates:
@@ -64,7 +64,7 @@ This creates:
 
 **Important**: Change the admin password immediately after first login!
 
-### Step 2: Build JSPWiki
+### Step 2: Build Wikantik
 
 ```bash
 # Full build with tests
@@ -93,7 +93,7 @@ The script will:
 Edit the context file to set your PostgreSQL password:
 
 ```bash
-nano tomcat/tomcat-11/conf/Catalina/localhost/JSPWiki.xml
+nano tomcat/tomcat-11/conf/Catalina/localhost/Wikantik.xml
 ```
 
 Replace `YOUR_SECURE_PASSWORD_HERE` with your actual password for the `jspwiki` database user (appears twice in the file).
@@ -109,12 +109,12 @@ tail -f tomcat/tomcat-11/logs/catalina.out
 
 ### Step 6: Test the Deployment
 
-1. Open http://localhost:8080/JSPWiki/
+1. Open http://localhost:8080/Wikantik/
 2. Login with: `admin` / `admin`
 3. Verify the database connection by checking PostgreSQL:
 
 ```bash
-sudo -u postgres psql -d jspwiki -c "SELECT login_name, email FROM users;"
+sudo -u postgres psql -d wikantik -c "SELECT login_name, email FROM users;"
 ```
 
 ---
@@ -145,12 +145,12 @@ The `deploy-local.sh` script automates these tasks:
 
 | Task | Details |
 |------|---------|
-| WAR check | Verifies `jspwiki-war/target/JSPWiki.war` exists |
+| WAR check | Verifies `wikantik-war/target/Wikantik.war` exists |
 | JDBC driver | Downloads PostgreSQL driver to `tomcat/lib/` if missing |
-| Context file | Copies template to `conf/Catalina/localhost/JSPWiki.xml` if missing |
-| Properties | Copies template to `lib/jspwiki-custom.properties` if missing |
+| Context file | Copies template to `conf/Catalina/localhost/Wikantik.xml` if missing |
+| Properties | Copies template to `lib/wikantik-custom.properties` if missing |
 | Stop Tomcat | Gracefully stops Tomcat if running |
-| Clean deploy | Removes old `webapps/JSPWiki/` directory |
+| Clean deploy | Removes old `webapps/Wikantik/` directory |
 | Deploy WAR | Copies new WAR to `webapps/` |
 | Password check | Warns if password placeholder still present |
 
@@ -160,12 +160,12 @@ The `deploy-local.sh` script automates these tasks:
 
 ### Git-Tracked Templates
 
-Located in `jspwiki-war/src/main/config/tomcat/`:
+Located in `wikantik-war/src/main/config/tomcat/`:
 
 | File | Purpose |
 |------|---------|
-| `JSPWiki-context.xml.template` | JNDI DataSource configuration for PostgreSQL |
-| `jspwiki-custom-postgresql.properties.template` | JSPWiki JDBC database settings |
+| `Wikantik-context.xml.template` | JNDI DataSource configuration for PostgreSQL |
+| `wikantik-custom-postgresql.properties.template` | Wikantik JDBC database settings |
 
 ### Local Files (Not in Git)
 
@@ -174,8 +174,8 @@ Located in `tomcat/tomcat-11/`:
 | File | Purpose |
 |------|---------|
 | `lib/postgresql-42.7.4.jar` | PostgreSQL JDBC driver |
-| `lib/jspwiki-custom.properties` | Customized properties (paths, settings) |
-| `conf/Catalina/localhost/JSPWiki.xml` | Customized context (contains password) |
+| `lib/wikantik-custom.properties` | Customized properties (paths, settings) |
+| `conf/Catalina/localhost/Wikantik.xml` | Customized context (contains password) |
 
 ---
 
@@ -186,8 +186,8 @@ Located in `tomcat/tomcat-11/`:
 | Symptom | Cause | Solution |
 |---------|-------|----------|
 | `Cannot create JDBC driver` | PostgreSQL JAR not found | Run `./deploy-local.sh` to download driver |
-| `JNDI name not found` | Context file not loaded | Check `JSPWiki.xml` is in `conf/Catalina/localhost/` |
-| `Password authentication failed` | Wrong DB password | Update password in `JSPWiki.xml` |
+| `JNDI name not found` | Context file not loaded | Check `Wikantik.xml` is in `conf/Catalina/localhost/` |
+| `Password authentication failed` | Wrong DB password | Update password in `Wikantik.xml` |
 | `Connection refused` | PostgreSQL not running | Start PostgreSQL: `sudo systemctl start postgresql` |
 | Login fails with correct password | Wrong password hash format | Regenerate password using `CryptoUtil` |
 | WAR file not found | Build not run | Run `mvn clean install` first |
@@ -211,14 +211,14 @@ To start fresh with configuration files:
 
 ```bash
 # Remove local configuration (will be recreated by deploy-local.sh)
-rm tomcat/tomcat-11/conf/Catalina/localhost/JSPWiki.xml
-rm tomcat/tomcat-11/lib/jspwiki-custom.properties
+rm tomcat/tomcat-11/conf/Catalina/localhost/Wikantik.xml
+rm tomcat/tomcat-11/lib/wikantik-custom.properties
 
 # Redeploy
 ./deploy-local.sh
 
 # Don't forget to set your password again!
-nano tomcat/tomcat-11/conf/Catalina/localhost/JSPWiki.xml
+nano tomcat/tomcat-11/conf/Catalina/localhost/Wikantik.xml
 ```
 
 ### Resetting the Database
@@ -227,7 +227,7 @@ To reset the database to a clean state:
 
 ```bash
 # Re-run the DDL (drops and recreates all tables)
-sudo -u postgres psql -d jspwiki -f jspwiki-war/src/main/config/db/postgresql.ddl
+sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.ddl
 ```
 
 ---
@@ -248,5 +248,5 @@ You can run `mvn clean test` or `mvn clean install` without any PostgreSQL-relat
 ## Related Documentation
 
 - [Developing with PostgreSQL](DevelopingWithPostgresql.md) - Detailed JDBC configuration reference
-- [PostgreSQL DDL](../jspwiki-war/src/main/config/db/postgresql.ddl) - Database schema
-- [HSQLDB DDL](../jspwiki-war/src/main/config/db/hsql.ddl) - Reference schema for comparison
+- [PostgreSQL DDL](../wikantik-war/src/main/config/db/postgresql.ddl) - Database schema
+- [HSQLDB DDL](../wikantik-war/src/main/config/db/hsql.ddl) - Reference schema for comparison

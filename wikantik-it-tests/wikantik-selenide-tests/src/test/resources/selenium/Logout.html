@@ -21,14 +21,14 @@
 <html lang="en">
 <head>
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
-  <title>JSPWiki Test Logout</title>
+  <title>Wikantik Test Logout</title>
 </head>
 <body> 
 <table cellpadding="1" cellspacing="1" border="1">
 	<tbody>
-	<tr><td rowspan="1" colspan="3">JSPWiki Test Logout<br></td></tr>
+	<tr><td rowspan="1" colspan="3">Wikantik Test Logout<br></td></tr>
 
-	<tr><td>store</td>	<td>/${it-jspwiki.context}</td>	<td>it_baseUrl</td></tr>
+	<tr><td>store</td>	<td>/${it-wikantik.context}</td>	<td>it_baseUrl</td></tr>
 	<tr><td>store</td>	<td>${it_baseUrl}/Wiki.jsp?page=Main</td>	<td>url</td></tr>
 	<tr><td>store</td>	<td>${it_baseUrl}/Login.jsp</td>			<td>loginurl</td></tr>
 	<tr><td>store</td>	<td>janne</td>			<td>TestUsername</td></tr>
@@ -46,16 +46,16 @@
     <tr><td>verifyTextPresent</td>		<td>G&#8217;day</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>		<td>(authenticated)</td><td>&nbsp;</td></tr>
 
-    <tr><td>assertCookieByName</td>	<td>JSPWikiAssertedName</td>	<td>Janne+Jalkanen</td></tr>
+    <tr><td>assertCookieByName</td>	<td>WikantikAssertedName</td>	<td>Janne+Jalkanen</td></tr>
 
     <!-- Log out; we should NOT see any asserted identities -->
     <tr><td>assertElementPresent</td>	<td>link=Log out</td>	<td></td></tr>
     <tr><td>clickAndWait</td>			<td>link=Log out</td> 	<td>&nbsp;</td></tr>
 
     <tr><td>verifyTextPresent</td>	<td>G&#8217;day (anonymous guest)</td>	<td>&nbsp;</td></tr>
-    <tr><td>verifyTitle</td>		<td>JSPWiki: Main</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: Main</td>	<td>&nbsp;</td></tr>
 
-    <tr><td>assertNotCookie</td>	<td>JSPWikiAssertedName</td>	<td></td></tr>
+    <tr><td>assertNotCookie</td>	<td>WikantikAssertedName</td>	<td></td></tr>
     
 	</tbody>
 </table>

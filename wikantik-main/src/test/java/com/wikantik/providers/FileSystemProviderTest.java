@@ -46,12 +46,12 @@ public class FileSystemProviderTest {
     Properties props = TestEngine.getTestProperties();
 
     Engine m_engine = TestEngine.build( with( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" ),
-                                        with( FileSystemProvider.PROP_PAGEDIR, "./target/jspwiki.test.pages" ) );
+                                        with( FileSystemProvider.PROP_PAGEDIR, "./target/wikantik.test.pages" ) );
 
     @BeforeEach
     public void setUp() throws Exception {
         props.setProperty( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" );
-        props.setProperty( FileSystemProvider.PROP_PAGEDIR, "./target/jspwiki.test.pages" );
+        props.setProperty( FileSystemProvider.PROP_PAGEDIR, "./target/wikantik.test.pages" );
 
         m_provider = new FileSystemProvider();
         m_provider.initialize( m_engine, props );

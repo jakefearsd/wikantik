@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Properties;
 
 /**
- * Reads SSO configuration from {@code jspwiki.properties} and builds a pac4j
+ * Reads SSO configuration from {@code wikantik.properties} and builds a pac4j
  * {@link Config} with the appropriate OIDC and/or SAML clients.
  *
  * @since 3.1

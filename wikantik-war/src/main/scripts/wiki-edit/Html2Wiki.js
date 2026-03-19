@@ -1,5 +1,5 @@
 /*
-    JSPWiki - a JSP-based WikiWiki clone.
+    Wikantik - a JSP-based WikiWiki clone.
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -26,7 +26,7 @@
 
 /*
 Html2Wiki
-    Mini html to wiki markup convertor for JSPWiki.
+    Mini html to wiki markup convertor for Wikantik.
     Used by the Wiki.Edit.js to handle html which is input via drap&drop, or copy&paste.
 
     It uses a brute-force find&replace approach,  rather then a fine-grained walk the dome tree approach.

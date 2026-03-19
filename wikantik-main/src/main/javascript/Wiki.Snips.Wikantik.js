@@ -1,5 +1,5 @@
 /*
-    JSPWiki - a JSP-based WikiWiki clone.
+    Wikantik - a JSP-based WikiWiki clone.
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -20,7 +20,7 @@
 /*global Wiki, Dialog, Request  */
 
 /*
-DirectSnippet definitions for JSPWiki, aka ''smartpairs''.
+DirectSnippet definitions for Wikantik, aka ''smartpairs''.
 These snippets are directly expanded on keypress.
 */
 Wiki.DirectSnips = {
@@ -40,7 +40,7 @@ Wiki.DirectSnips = {
 /*
 Function: snippets
 
-    Definitions for the JSPWiki editor commands.
+    Definitions for the Wikantik editor commands.
 */
 
 Wiki.Snips = {
@@ -446,7 +446,7 @@ Wiki.Snips = {
     variableDlg: {
         scope:{ '[{$':'}]'},
         suggest: "\\w+",
-        variableDlg: "applicationname|baseurl|encoding|inlinedimages|interwikilinks|jspwikiversion|loginstatus|uptime|pagename|pageprovider|pageproviderdescription|page-styles|requestcontext|totalpages|username"
+        variableDlg: "applicationname|baseurl|encoding|inlinedimages|interwikilinks|wikantikversion|loginstatus|uptime|pagename|pageprovider|pageproviderdescription|page-styles|requestcontext|totalpages|username"
     },
 
     // Page access rights

@@ -8,7 +8,7 @@ summary: OAuth SSO Implementation Plan for Google/GitHub Logins
 
   1. Executive Summary
 
-JSPWiki's JAAS-based architecture is **well-suited for OAuth integration**. The key insight is that passwords are optional in the user database, so OAuth users can be created without passwords and never use password-based login.
+Wikantik's JAAS-based architecture is **well-suited for OAuth integration**. The key insight is that passwords are optional in the user database, so OAuth users can be created without passwords and never use password-based login.
 
 ---
 
@@ -31,7 +31,7 @@ JSPWiki's JAAS-based architecture is **well-suited for OAuth integration**. The 
 - **LoginContent.jsp**: Add "Login with Google" and "Login with GitHub" buttons
 - Buttons link to `/wiki/oauth/google?redirect=...` and `/wiki/oauth/github?redirect=...`
 
-    1. 3. Configuration (jspwiki.properties)
+    1. 3. Configuration (wikantik.properties)
 
 ```properties
 1. OAuth SSO Configuration
@@ -202,7 +202,7 @@ This separation keeps OAuth protocol details out of JAAS and allows the LoginMod
 
 | File | Change |
 |------|--------|
-| `jspwiki.properties` | Add OAuth configuration properties |
+| `wikantik.properties` | Add OAuth configuration properties |
 | `LoginContent.jsp` | Add OAuth login buttons |
 | `web.xml` | Register OAuthCallbackServlet |
 | `pom.xml` | Add OAuth dependencies |
@@ -233,18 +233,18 @@ This separation keeps OAuth protocol details out of JAAS and allows the LoginMod
 - Options extraction: `DefaultAuthenticationManager.initLoginModuleOptions()` line 375
 
     1. UI
-- Login page: `/jspwiki-war/src/main/webapp/Login.jsp`
-- Login form: `/jspwiki-war/src/main/webapp/templates/default/LoginContent.jsp`
+- Login page: `/wikantik-war/src/main/webapp/Login.jsp`
+- Login form: `/wikantik-war/src/main/webapp/templates/default/LoginContent.jsp`
 
 ---
 
   1. Conclusion
 
-Implementing OAuth SSO for Google/GitHub in JSPWiki is **architecturally straightforward** due to:
+Implementing OAuth SSO for Google/GitHub in Wikantik is **architecturally straightforward** due to:
 
 1. **Pluggable JAAS LoginModules** - No changes to auth framework needed
 2. **Optional passwords** - OAuth users created without passwords work perfectly
 3. **Automatic session setup** - Fire event, session handles the rest
 4. **Flexible user database** - Custom attributes for OAuth metadata
 
-The main work is implementing the OAuth protocol (token exchange, API calls) and user provisioning logic. The JSPWiki authentication infrastructure supports this cleanly.
+The main work is implementing the OAuth protocol (token exchange, API calls) and user provisioning logic. The Wikantik authentication infrastructure supports this cleanly.

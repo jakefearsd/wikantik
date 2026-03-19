@@ -61,12 +61,12 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
     }
 
     /**
-     * Initialize the logging framework(s). By default, we try to load the log config statements from jspwiki.properties,
-     * unless the property jspwiki.use.external.logconfig=true, in that case we let the logging framework figure out the
+     * Initialize the logging framework(s). By default, we try to load the log config statements from wikantik.properties,
+     * unless the property wikantik.use.external.logconfig=true, in that case we let the logging framework figure out the
      * logging configuration.
      *
      * @param properties JSPWiki configuration properties.
-     * @return {@code true} if configuration was read from jspwiki.properties, {@code false} otherwise.
+     * @return {@code true} if configuration was read from wikantik.properties, {@code false} otherwise.
      */
     boolean initWikiLoggingFramework( final Properties properties ) {
         final String useExternalLogConfig = TextUtil.getStringProperty( properties, "wikantik.use.external.logconfig", "false" );

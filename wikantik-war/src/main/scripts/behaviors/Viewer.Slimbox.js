@@ -1,5 +1,5 @@
 /*
-    JSPWiki - a JSP-based WikiWiki clone.
+    Wikantik - a JSP-based WikiWiki clone.
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -21,7 +21,7 @@
 /*
 Plugin: Viewer.Slimbox
 
-    Slimbox clone, refactored for JSPWiki.
+    Slimbox clone, refactored for Wikantik.
     Added support for iframes, flash video.
     Todo: html5 video.
 
@@ -31,7 +31,7 @@ Credits:
     and the diabox by Mike Nelson. (see https://github.com/mnelson/diabox)
 
 DOM structure:
-    DOM structure of the JSPWiki Slimbox viewer.
+    DOM structure of the Wikantik Slimbox viewer.
     (start code)
     div#slmbx
         div.modal               //semi transparent screen overlay

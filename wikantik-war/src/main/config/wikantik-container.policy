@@ -25,26 +25,26 @@
 // is designed for inclusion in typical Tomcat security policy
 // (for example: $CATALINA_HOME/conf/catalina.policy).
 
-// If you need to include JSPWiki permissions (e.g., PagePermission) in your
+// If you need to include Wikantik permissions (e.g., PagePermission) in your
 // global policy (not shown in the block below), you MUST ALSO:
-//   1) sign the JSPWiki.jar file. We provide a sample Ant target that
+//   1) sign the Wikantik.jar file. We provide a sample Ant target that
 //      does this called 'signjar' (see the build.xml file).
 //   2) Copy the keystore used to sign the JAR to the same directory
-//      as the container security policy (e.g., from JSPWiki's etc/jspwiki.jks
+//      as the container security policy (e.g., from Wikantik's etc/wikantik.jks
 //      to $CATALINA_HOME/conf)
 //   3) Specify the name of the keystore in your container policy. That's
 //      this next line (which we have commented out):
 //
-// keystore "jspwiki.jks";
+// keystore "wikantik.jks";
 
-// If you don't want or need to specify JSPWiki permissions in your global
+// If you don't want or need to specify Wikantik permissions in your global
 // security policy, then don't worry about the preceding paragraphs, jar-signing
 // or the keystore line... and just copy the rest of this file into the policy.
 // You will also want to adjust the 'codeBase' location to reflect your actual
-// JSPWiki.jar location. But don't change the permissions themselves, because
+// Wikantik.jar location. But don't change the permissions themselves, because
 // that will totally b0rk the system.
 
-grant codeBase ""file:${catalina.home}/webapps/JSPWiki/JSPWiki.jar" {
+grant codeBase ""file:${catalina.home}/webapps/Wikantik/Wikantik.jar" {
     permission java.security.SecurityPermission   "getPolicy";
     permission java.security.SecurityPermission   "setPolicy";
     permission java.util.PropertyPermission       "java.security.auth.login.config", "write";

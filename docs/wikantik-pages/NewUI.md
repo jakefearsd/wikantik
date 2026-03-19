@@ -2,22 +2,22 @@
 type: article
 tags:
 - uncategorized
-summary: JSPWiki Reader UI - Implementation Plan
+summary: Wikantik Reader UI - Implementation Plan
 ---
-1. JSPWiki Reader UI - Implementation Plan
+1. Wikantik Reader UI - Implementation Plan
 
 A modern, Medium.com-inspired reading experience built with React.
 
   1. Overview
 
-Build a standalone React SPA that consumes JSPWiki's existing REST API, providing a modern reading experience while the traditional JSP templates handle editing/administration.
+Build a standalone React SPA that consumes Wikantik's existing REST API, providing a modern reading experience while the traditional JSP templates handle editing/administration.
 
   1. Architecture
 
     1. Core Concept
 
 - **Standalone React SPA** (recommended approach)
-- Consumes JSPWiki REST API (`/api/`)
+- Consumes Wikantik REST API (`/api/`)
 - Can be hosted at `/reader/` context or separate domain
 - Clean separation of concerns
 
@@ -215,7 +215,7 @@ jspwiki-reader/                    # New Maven module
 │                                                        │
 │            Understanding Wiki Architecture             │  ← Title (h1)
 │                                                        │
-│            A deep dive into JSPWiki internals          │  ← Subtitle (optional)
+│            A deep dive into Wikantik internals          │  ← Subtitle (optional)
 │                                                        │
 │  [Avatar](Avatar) John Smith · 8 min read · Dec 8, 2025       │  ← Metadata
 │                                                        │
@@ -406,7 +406,7 @@ export function processWikiContent(html: string): string {
 
   <artifactId>jspwiki-reader</artifactId>
   <packaging>pom</packaging>
-  <name>JSPWiki Reader UI</name>
+  <name>Wikantik Reader UI</name>
 
   <build>
     <plugins>
@@ -449,7 +449,7 @@ export function processWikiContent(html: string): string {
             <goals><goal>copy-resources</goal></goals>
             <configuration>
               <outputDirectory>
-                ${project.parent.basedir}/jspwiki-war/target/JSPWiki/reader
+                ${project.parent.basedir}/wikantik-war/target/Wikantik/reader
               </outputDirectory>
               <resources>
                 <resource>
@@ -528,7 +528,7 @@ Before starting implementation, the following decisions and information are need
 
 | Decision | Options | Choice |
 |----------|---------|--------|
-| Module Location | New `jspwiki-reader/` module vs inside `jspwiki-war/` | TBD |
+| Module Location | New `jspwiki-reader/` module vs inside `wikantik-war/` | TBD |
 | Deployment Model | Same WAR (`/reader/`) vs separate hosting | TBD |
 | Authentication | Public only vs respect ACLs | TBD |
 | v1 Feature Scope | Reading only? Search? Dark mode? | TBD |
@@ -543,7 +543,7 @@ node --version && npm --version
 find . -path "*/api/*" -name "*.java" | head -20
 
 1. Fetch a sample page via API (if server is running)
-curl -s http://localhost:8080/JSPWiki/api/pages/Main
+curl -s http://localhost:8080/Wikantik/api/pages/Main
 
 1. Show existing REST controller
 grep -r "RestController\|@Path\|@GET" --include="*.java" | head -30

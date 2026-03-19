@@ -21,13 +21,13 @@
 <html lang="en">
 <head>
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
-  <title>JSPWiki Test Rename Profile</title>
+  <title>Wikantik Test Rename Profile</title>
 </head>
 <body> 
 <table cellpadding="1" cellspacing="1" border="1">
 	<tbody>
 	<tr><td rowspan="1" colspan="3">
-	JSPWiki Test Rename Profile<br>
+	Wikantik Test Rename Profile<br>
 <!--
 0. Clear all session/assertion cookies using the browser options preferences tools.
 1. Create new user profile with login name "TestRenameProfileUser", name "TestRenameProfileUser" and password "password".
@@ -51,7 +51,7 @@ C. Try to edit page 'TestRenameProfilePage'. It should still succeed. Verify tha
 This page was created with an ACL by TestRenameProfileUser
 -->
 	</td></tr>
-	<tr><td>store</td>	<td>/${it-jspwiki.context}</td>	<td>it_baseUrl</td></tr>
+	<tr><td>store</td>	<td>/${it-wikantik.context}</td>	<td>it_baseUrl</td></tr>
 	<tr><td>store</td>	<td>javascript{'Test Rename Profile Page '+new Date().getTime()}</td>	<td>page</td></tr>
 	<tr><td>store</td>	<td>javascript{'TestRenameProfileUser'+new Date().getTime()}</td>	<td>user</td></tr>
 	<tr><td>store</td>	<td>janne</td>			<td>TestUsername</td></tr>
@@ -85,14 +85,14 @@ This page was created with an ACL by TestRenameProfileUser
 	<tr><td rowspan="1" colspan="3"> Create a page with a view ACL restricted to the new user<br/></td></tr>
 
     <tr><td>open</td>	<td>${editurl}</td>	<td>&nbsp;</td></tr>
-    <tr><td>verifyTitle</td>		<td>JSPWiki: Edit: ${page}</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: Edit: ${page}</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyElementPresent</td>	<td>ok</td>	<td></td></tr>
     <tr><td>verifyElementPresent</td>	<td>id=editorarea</td>	<td></td></tr>
 
     <tr><td>type</td>			<td>id=editorarea</td>		<td>[{ALLOW edit ${user} }]<br />${PageContent}</td></tr>
     <tr><td>clickAndWait</td>	<td>ok</td>	<td>&nbsp;</td></tr>
 <!--
-    <tr><td>verifyTitle</td>		<td>JSPWiki: ${page}</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: ${page}</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>	<td>${PageContent}</td>	<td>&nbsp;</td></tr>	
 -->    
 	<tr><td rowspan="1" colspan="3"> Anonymous editing should fail<br/></td></tr>
@@ -111,11 +111,11 @@ This page was created with an ACL by TestRenameProfileUser
     <tr><td>clickAndWait</td>	<td>submitlogin</td>	<td>&nbsp;</td></tr>
 
     <tr><td>open</td>				<td>${viewurl}</td>	<td>&nbsp;</td></tr>
-    <tr><td>verifyTitle</td>		<td>JSPWiki: ${page}</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: ${page}</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>	<td>${PageContent}</td>	<td>&nbsp;</td></tr>	
 
     <tr><td>open</td>			<td>${editurl}</td>	<td>&nbsp;</td></tr>
-    <tr><td>verifyTitle</td>	<td>JSPWiki: Edit: ${page}</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>	<td>Wikantik: Edit: ${page}</td>	<td>&nbsp;</td></tr>
 
 	<tr><td rowspan="1" colspan="3"> Verify that our ACL test is present (note the extra linebreak at the end of the text<br/></td></tr>
 
@@ -134,7 +134,7 @@ This page was created with an ACL by TestRenameProfileUser
 
 	<tr><td rowspan="1" colspan="3"> Now, the main page should show the new authenticated user name<br/></td></tr>
 
-    <tr><td>verifyTitle</td>			<td>JSPWiki: Main</td>		<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>			<td>Wikantik: Main</td>		<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>		<td>G&#8217;day</td>		<td>&nbsp;</td></tr>
     <tr><td>verifyElementPresent</td>	<td>link=Renamed${user}</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>		<td>(authenticated)</td>	<td>&nbsp;</td></tr>
@@ -142,7 +142,7 @@ This page was created with an ACL by TestRenameProfileUser
 	<tr><td rowspan="1" colspan="3"> When we navigate to the protected page, the ACL should have the NEW name in it<br/></td></tr>
 
     <tr><td>open</td>			<td>${editurl}</td>				<td>&nbsp;</td></tr>
-    <tr><td>verifyTitle</td>	<td>JSPWiki: Edit: ${page}</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>	<td>Wikantik: Edit: ${page}</td>	<td>&nbsp;</td></tr>
 <!--CHECK!! seems to double the carriage returns when renaming the profile and remove the last space from the ACL -->
     <tr><td>assertValue</td>	<td>id=editorarea</td>			<td>[{ALLOW edit Renamed${user}}]<br /><br />${PageContent}</td></tr>
     

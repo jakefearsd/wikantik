@@ -49,7 +49,7 @@ class TemplateManagerTest {
     void shouldCheckAddResourceRequest( final String type, final String res, final String expected ) {
         if( TemplateManager.RESOURCE_SCRIPT.equals( type ) || TemplateManager.RESOURCE_STYLESHEET.equals( type ) ) {
             final Properties properties = new Properties();
-            properties.setProperty( "wikantik.syntax.plain", "plain/wiki-snips-jspwiki.js" );
+            properties.setProperty( "wikantik.syntax.plain", "plain/wiki-snips-wikantik.js" );
             Mockito.doReturn( engine ).when( ctx ).getEngine();
             Mockito.doReturn( properties ).when( engine ).getWikiProperties();
         }
@@ -65,7 +65,7 @@ class TemplateManagerTest {
 
     static Stream< Arguments > provideArgumentsForAddResourceRequest() {
         return Stream.of(
-                Arguments.of( TemplateManager.RESOURCE_SCRIPT, "engine://wikantik.syntax.plain", "<script type='text/javascript' src='plain/wiki-snips-jspwiki.js'></script>" ),
+                Arguments.of( TemplateManager.RESOURCE_SCRIPT, "engine://wikantik.syntax.plain", "<script type='text/javascript' src='plain/wiki-snips-wikantik.js'></script>" ),
                 Arguments.of( TemplateManager.RESOURCE_STYLESHEET, "engine://wikantik.whatever.not.exists", "<link rel='stylesheet' type='text/css' href='engine://wikantik.whatever.not.exists' />" ),
                 Arguments.of( TemplateManager.RESOURCE_INLINECSS, "color: white", "<style type='text/css'>\ncolor: white\n</style>\n" ),
                 Arguments.of( TemplateManager.RESOURCE_JSFUNCTION, "function whatever() {}", "function whatever() {}" )

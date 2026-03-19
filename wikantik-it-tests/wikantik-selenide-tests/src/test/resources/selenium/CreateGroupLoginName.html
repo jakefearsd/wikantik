@@ -21,14 +21,14 @@
 <html lang="en">
 <head>
   <meta content="text/html; charset=ISO-8859-1" http-equiv="content-type">
-  <title>JSPWiki Test Create Group Login Name</title>
+  <title>Wikantik Test Create Group Login Name</title>
 </head>
 <body> 
 <table cellpadding="1" cellspacing="1" border="1">
 	<tbody>
-	<tr><td rowspan="1" colspan="3">JSPWiki Create Group Login Name<br></td></tr>
+	<tr><td rowspan="1" colspan="3">Wikantik Create Group Login Name<br></td></tr>
 
-	<tr><td>store</td>	<td>/${it-jspwiki.context}</td>	<td>it_baseUrl</td></tr>
+	<tr><td>store</td>	<td>/${it-wikantik.context}</td>	<td>it_baseUrl</td></tr>
 	<tr><td>store</td>	<td>javascript{'Test-group-'+new Date().getTime()}</td>	<td>group</td></tr>
 	<tr><td>store</td>	<td>janne</td>									<td>members</td></tr>
 	<tr><td>store</td>	<td>${it_baseUrl}/Wiki.jsp</td>			<td>wikiurl</td></tr>
@@ -41,13 +41,13 @@
 
     <tr><td>open</td>	<td>${wikiurl}</td>	<td>&nbsp;</td></tr>
 
-    <tr><td>verifyTitle</td>		<td>JSPWiki: Main</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: Main</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>	<td>G&#8217;day (anonymous guest)</td>	<td>&nbsp;</td></tr>
 
     <!-- login -->
     <tr><td>open</td>	<td>${loginurl}</td>	<td>&nbsp;</td></tr>
 
-    <tr><td>verifyTitle</td>	<td>JSPWiki: Login</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>	<td>Wikantik: Login</td>	<td>&nbsp;</td></tr>
     <tr><td>type</td>	<td>j_username</td>	<td>${TestUsername}</td></tr>
     <tr><td>type</td>	<td>j_password</td>	<td>${TestPassword}</td></tr>
     <tr><td>clickAndWait</td>	<td>submitlogin</td>	<td>&nbsp;</td></tr>
@@ -59,7 +59,7 @@
     <!-- First, name the group -->
     <tr><td>open</td>	<td>${newgroupurl}</td>	<td>&nbsp;</td></tr>
 
-    <tr><td>verifyTitle</td>		<td>JSPWiki: New Group</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: New Group</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyElementPresent</td>	<td>css=form#createGroup input[name="ok"]</td>	<td></td></tr>
     <tr><td>verifyElementPresent</td>	<td>group</td>	<td></td></tr>
     <tr><td>verifyElementPresent</td>	<td>members</td>	<td></td></tr>
@@ -72,7 +72,7 @@
     <tr><td>verifyTextNotPresent</td>	<td>Could not create group</td>	<td></td></tr>
 
     <tr><td>open</td>	<td>${viewgroupurl}group=${group}</td>	<td>&nbsp;</td></tr>
-    <tr><td>verifyTitle</td>		<td>JSPWiki: ${group}</td>	<td>&nbsp;</td></tr>
+    <tr><td>verifyTitle</td>		<td>Wikantik: ${group}</td>	<td>&nbsp;</td></tr>
     <tr><td>verifyTextPresent</td>	<td>This is the wiki group called</td>	<td></td></tr>
         
     <!-- Log out -->

@@ -1,8 +1,8 @@
-Here are some strategical figures and other interesting things about this particular Wiki.  All this information is available in [WikiVariables|JSPWiki:WikiVariables] as well, if you want to use them on some other page.
+Here are some strategical figures and other interesting things about this particular Wiki.  All this information is available in [WikiVariables|Wikantik:WikiVariables] as well, if you want to use them on some other page.
 
 | __Application name__               | [{$applicationname}]
 | __Base address__                   | [{$baseurl}]
-| __JSPWiki Engine Version__         | [{$jspwikiversion}] 
+| __Wikantik Engine Version__         | [{$jspwikiversion}] 
 | __Character Encoding__             | [{$encoding}]
 | __Total Number of Pages__          | [{$totalpages}]
 | __Total Active Sessions__          | [{INSERT SessionsPlugin}]
@@ -39,4 +39,4 @@ Here is what I know about you currently:
 
 [{ListLocksPlugin}]
 
-JSPWiki home page is at [http://jspwiki.apache.org/]. Welcome!
+Wikantik home page is at [http://wikantik.com/]. Welcome!

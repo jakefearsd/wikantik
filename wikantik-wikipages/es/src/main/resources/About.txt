@@ -4,13 +4,13 @@ lo que afortunadamente hace muy fácil estar al día y verse mejor que la mayor�
 La mayoría de los [marcadores de formato|TextFormattingRules] han sido modelados en consonancia con la [librería Sensei|http://senseis.xmp.net], el mejor sitio sobre Go en Internet.  Su marcado es muy fácil, además de claro.
 
 Esta wiki est� disponible bajo la [Licencia de Apache, Versión 2.0|http://www.apache.org/licenses/LICENSE-2.0]. Por favor mira
-[http://jspwiki.apache.org] para más información.
+[http://wikantik.com] para más información.
 
-Si estás interesado en el desarrollo de JSPWiki, la página principal de JSPWiki está en [http://jspwiki.apache.org].  Algunos enlaces rápidos:
+Si estás interesado en el desarrollo de Wikantik, la página principal de Wikantik está en [http://wikantik.com].  Algunos enlaces rápidos:
 
-* [Reportes de error|JSPWiki:SubmitBugReport] - o [mira la lista de bugs abiertos|JSPWiki:OpenBugs].
-* [Contribuye con nuevas ideas|JSPWiki:SubmitNewIdea].
-* Echa un vistazo a las [preguntas más frecuentes sobre JSPWiki|JSPWiki:JSPWikiFAQ]
-* Busca nuevos [plugins|JSPWiki:ContributedPlugins], [plantillas|JSPWiki:ContributedTemplates], [filtros|JSPWiki:ContributedFilters], [proveedores|JSPWiki:ContributedProviders], u [otras cosas chulas|JSPWiki:ContributedCode].
+* [Reportes de error|Wikantik:SubmitBugReport] - o [mira la lista de bugs abiertos|Wikantik:OpenBugs].
+* [Contribuye con nuevas ideas|Wikantik:SubmitNewIdea].
+* Echa un vistazo a las [preguntas más frecuentes sobre Wikantik|Wikantik:WikantikFAQ]
+* Busca nuevos [plugins|Wikantik:ContributedPlugins], [plantillas|Wikantik:ContributedTemplates], [filtros|Wikantik:ContributedFilters], [proveedores|Wikantik:ContributedProviders], u [otras cosas chulas|Wikantik:ContributedCode].
 
-Feliz hacking, y gracias por elegir JSPWiki!
+Feliz hacking, y gracias por elegir Wikantik!

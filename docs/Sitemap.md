@@ -1,4 +1,4 @@
-# Implementing a Sitemap.xml Servlet for JSPWiki
+# Implementing a Sitemap.xml Servlet for Wikantik
 
 ## Overview
 
@@ -38,7 +38,7 @@ Google Search Console expects sitemaps to follow the [Sitemap Protocol](https://
 
 #### Step 1: Create the Sitemap Servlet
 
-**Location:** `jspwiki-main/src/main/java/org/apache/wiki/ui/SitemapServlet.java`
+**Location:** `wikantik-main/src/main/java/org/apache/wiki/ui/SitemapServlet.java`
 
 ```java
 package com.wikantik.ui;
@@ -252,7 +252,7 @@ private String escapeXml( final String input ) {
 
 #### Step 4: Register the Servlet
 
-**Location:** `jspwiki-war/src/main/webapp/WEB-INF/web.xml`
+**Location:** `wikantik-war/src/main/webapp/WEB-INF/web.xml`
 
 ```xml
 <servlet>
@@ -268,7 +268,7 @@ private String escapeXml( final String input ) {
 
 #### Step 5: Write Unit Tests
 
-**Location:** `jspwiki-main/src/test/java/org/apache/wiki/ui/SitemapServletTest.java`
+**Location:** `wikantik-main/src/test/java/org/apache/wiki/ui/SitemapServletTest.java`
 
 Create tests for:
 - XML validity
@@ -283,7 +283,7 @@ Create tests for:
 
 #### Step 6: Implement Caching
 
-For performance, cache the generated sitemap using JSPWiki's CachingManager:
+For performance, cache the generated sitemap using Wikantik's CachingManager:
 
 ```java
 private static final String CACHE_SITEMAP = "jspwiki.sitemapCache";
@@ -312,7 +312,7 @@ private String generateSitemapContent( final HttpServletRequest req ) {
 
 #### Step 7: Add Configuration Properties
 
-**Location:** Add to `jspwiki-main/src/main/resources/ini/jspwiki.properties`
+**Location:** Add to `wikantik-main/src/main/resources/ini/wikantik.properties`
 
 ```properties
 # Sitemap configuration
@@ -428,7 +428,7 @@ for ( Page page : publicPages ) {
 
 #### Step 10: Add robots.txt Reference
 
-**Location:** `jspwiki-war/src/main/webapp/robots.txt`
+**Location:** `wikantik-war/src/main/webapp/robots.txt`
 
 ```
 User-agent: *
@@ -445,11 +445,11 @@ Sitemap: https://wiki.example.com/sitemap.xml
 
 | File | Action | Phase | Description |
 |------|--------|-------|-------------|
-| `jspwiki-main/.../ui/SitemapServlet.java` | Create | 1 | Main servlet implementation |
-| `jspwiki-war/.../WEB-INF/web.xml` | Modify | 1 | Register servlet mapping |
-| `jspwiki-main/.../ui/SitemapServletTest.java` | Create | 1 | Unit tests |
-| `jspwiki-main/.../ini/jspwiki.properties` | Modify | 2 | Add configuration properties |
-| `jspwiki-war/.../robots.txt` | Create/Modify | 4 | Add sitemap reference |
+| `wikantik-main/.../ui/SitemapServlet.java` | Create | 1 | Main servlet implementation |
+| `wikantik-war/.../WEB-INF/web.xml` | Modify | 1 | Register servlet mapping |
+| `wikantik-main/.../ui/SitemapServletTest.java` | Create | 1 | Unit tests |
+| `wikantik-main/.../ini/wikantik.properties` | Modify | 2 | Add configuration properties |
+| `wikantik-war/.../robots.txt` | Create/Modify | 4 | Add sitemap reference |
 
 ---
 

@@ -412,7 +412,7 @@ public final class TextUtil {
         final String val = getStringProperty( props, deprecatedKey, null );
         if( val != null ) {
             LOG.warn( "{} is being deprecated and will be removed on a future version, please consider using {} instead " +
-                      "in your jspwiki[-custom].properties file", deprecatedKey, key );
+                      "in your wikantik[-custom].properties file", deprecatedKey, key );
             return val;
         }
         return getStringProperty( props, key, defval );
@@ -451,7 +451,7 @@ public final class TextUtil {
             return getRequiredProperty( props, key );
         }
         LOG.warn( "{} is being deprecated and will be removed on a future version, please consider using {} instead " +
-                  "in your jspwiki[-custom].properties file", deprecatedKey, key );
+                  "in your wikantik[-custom].properties file", deprecatedKey, key );
         return value;
     }
 

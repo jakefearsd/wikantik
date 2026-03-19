@@ -6,6 +6,30 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-19** — Rebrand Phase 8: Docker, deployment, and infrastructure
+
+**2026-03-19** — Rebrand Phase 7: visual assets and UI text
+
+**2026-03-19** — Rebrand Phase 6: Java package rename org.apache.wiki → com.wikantik
+
+**2026-03-19** — Rebrand Phase 5: module directory renames and Maven coordinates
+
+**2026-03-19** — Rebrand Phases 1-4: identity, config prefix, resource renames, taglib URI
+
+**2026-03-19** — Remove .mcp.json — leaked API key
+
+**2026-03-18** — Add warehouse-automation cluster pages to jspwiki-pages
+
+**2026-03-18** — Merge pull request #12 from jakefearsd/dependabot/maven/org.apache.maven.plugins-maven-resources-plugin-3.5.0
+
+**2026-03-18** — Point wiki-article-cluster skill at production MCP endpoint
+
+**2026-03-18** — Merge pull request #10 from jakefearsd/dependabot/maven/org.apache.maven.plugins-maven-jar-plugin-3.5.0
+
+**2026-03-18** — Merge pull request #9 from jakefearsd/dependabot/maven/jakarta.xml.bind-jakarta.xml.bind-api-4.0.5
+
+**2026-03-18** — Merge pull request #6 from jakefearsd/dependabot/maven/mockito.version-5.21.0
+
 **2026-03-18** — Fix MCP transport type for Claude Code compatibility
 
 **2026-03-18** — Add rebrand project plan and update research history
@@ -32,6 +56,8 @@ A log of recent development activity on the JSPWiki project.
 
 **2026-03-16** — Add first-deployment tests for NewsPageGenerator and fix --no-pager bug
 
+**2026-03-16** — Bump org.apache.maven.plugins:maven-resources-plugin from 3.4.0 to 3.5.0
+
 **2026-03-16** — Add NewsPageGenerator to auto-generate News.md from git history
 
 **2026-03-15** — Add News page with development log from last 2 months
@@ -53,6 +79,8 @@ A log of recent development activity on the JSPWiki project.
 **2026-03-15** — Move skill to .claude/, update retirement docs, fix table styling and markdown test
 
 **2026-03-15** — Harden MCP endpoint security: multi-key auth, rate limiting, audit logging
+
+**2026-03-15** — Bump mockito.version from 5.20.0 to 5.21.0
 
 **2026-03-15** — Add Monte Carlo retirement planning article to cluster
 
@@ -138,6 +166,10 @@ A log of recent development activity on the JSPWiki project.
 ## February 2026
 
 **2026-02-18** — Add commented-out Google Workspace OIDC example to SSO configuration
+
+**2026-02-18** — Bump org.apache.maven.plugins:maven-jar-plugin from 3.4.2 to 3.5.0
+
+**2026-02-18** — Bump jakarta.xml.bind:jakarta.xml.bind-api from 4.0.4 to 4.0.5
 
 **2026-02-17** — Align logging-mailhandler with Jakarta Mail 2.x namespace
 

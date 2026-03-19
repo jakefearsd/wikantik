@@ -1,6 +1,6 @@
 ---
 name: wiki-article-cluster
-description: Use when creating, publishing, or updating a cluster of wiki articles on a topic via the JSPWiki MCP API — covers content research, article planning, MCP publishing, and verification
+description: Use when creating, publishing, or updating a cluster of wiki articles on a topic via the Wikantik MCP API — covers content research, article planning, MCP publishing, and verification
 ---
 
 ## Overview
@@ -265,7 +265,7 @@ cluster: retirement-planning/eu-retirement  # sub-cluster
 | Inconsistent metadata across cluster | Define schema in PLAN phase, apply uniformly |
 | Publishing sub-articles before hub | Publish hub first so backlinks resolve immediately |
 | Updating pages without `expectedVersion` | Always use optimistic locking to prevent accidental overwrites |
-| Forgetting WAR redeployment after code changes | New MCP tools require `cp JSPWiki.war` + Tomcat restart |
+| Forgetting WAR redeployment after code changes | New MCP tools require `cp Wikantik.war` + Tomcat restart |
 
 ## Available MCP Tools
 

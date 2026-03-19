@@ -21,7 +21,7 @@
 	<sys:environment>
 		<sys:moduleId>
 			<sys:groupId>default</sys:groupId>
-			<sys:artifactId>JSPWiki</sys:artifactId>
+			<sys:artifactId>Wikantik</sys:artifactId>
 			<sys:type>war</sys:type>
 		</sys:moduleId>
 		<sys:hidden-classes>

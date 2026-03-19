@@ -2,15 +2,15 @@
 type: article
 tags:
 - uncategorized
-summary: JSPWiki Logging Configuration Guide
+summary: Wikantik Logging Configuration Guide
 ---
-1. JSPWiki Logging Configuration Guide
+1. Wikantik Logging Configuration Guide
 
   1. Understanding `jspwiki.use.external.logconfig`
 
     1. The Logging Stack
 
-Your JSPWiki 3.0.2 uses this logging architecture:
+Your Wikantik 3.0.2 uses this logging architecture:
 ```
 Application Code → SLF4J API → log4j-slf4j-impl → Log4j2 Core
                               ↑
@@ -26,16 +26,16 @@ The JARs in your `/opt/tomcat/webapps/ROOT/WEB-INF/lib/`:
 
     1. How `jspwiki.use.external.logconfig` Works
 
-When JSPWiki starts, `WikiBootstrapServletContextListener.initWikiLoggingFramework()` reads this property:
+When Wikantik starts, `WikiBootstrapServletContextListener.initWikiLoggingFramework()` reads this property:
 
   - When `false` (default):**
-1. JSPWiki reads all properties from `jspwiki.properties` / `jspwiki-custom.properties`
+1. Wikantik reads all properties from `wikantik.properties` / `wikantik-custom.properties`
 2. It filters properties starting with: `appender`, `logger`, `rootLogger`, `filter`, `status`, `dest`, `name`, `properties`, `property`, or `log4j2`
 3. These are fed into Log4j2's `PropertiesConfigurationFactory`
 4. Log4j2 is reconfigured programmatically
 
   - When `true`:**
-1. JSPWiki does nothing with logging configuration
+1. Wikantik does nothing with logging configuration
 2. Log4j2 uses its standard automatic configuration mechanism
 3. It searches the classpath for: `log4j2-test.xml`, `log4j2.xml`, `log4j2.properties`
 4. Or you can specify `-Dlog4j2.configurationFile=/path/to/config.xml`
@@ -46,7 +46,7 @@ When JSPWiki starts, `WikiBootstrapServletContextListener.initWikiLoggingFramewo
 
 Use a separate `log4j2.xml` file with full Log4j2 capabilities.
 
-    1. Step 1: Set in jspwiki-custom.properties
+    1. Step 1: Set in wikantik-custom.properties
 
 ```properties
 jspwiki.use.external.logconfig = true
@@ -58,7 +58,7 @@ Also remove any existing broken logging lines (log4j.* properties are Log4j 1.x 
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="WARN" name="JSPWiki-Production">
+<Configuration status="WARN" name="Wikantik-Production">
     <Properties>
         <Property name="logDir">/var/log/jspwiki</Property>
         <Property name="pattern">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
@@ -99,7 +99,7 @@ Also remove any existing broken logging lines (log4j.* properties are Log4j 1.x 
     </Appenders>
 
     <Loggers>
-        <!-- JSPWiki core -->
+        <!-- Wikantik core -->
         <Logger name="com.wikantik" level="INFO" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AppLog"/>
@@ -257,11 +257,11 @@ sudo chown tomcat:tomcat /opt/tomcat/logs/jspwiki
 | `%X{key}` | Thread context map (MDC) value |
 | `%highlight{pattern}` | ANSI color highlighting |
 
-    1. Useful JSPWiki Logger Names
+    1. Useful Wikantik Logger Names
 
 | Logger | Purpose |
 |--------|---------|
-| `com.wikantik` | All JSPWiki classes |
+| `com.wikantik` | All Wikantik classes |
 | `com.wikantik.WikiServlet` | Page request handling |
 | `com.wikantik.auth` | Authentication/authorization |
 | `com.wikantik.search` | Lucene search indexing |
@@ -318,8 +318,8 @@ Wrap appenders for non-blocking logging:
 
   1. Sources
 
-- [JSPWiki Releases - Log4j2 configuration notes](https://github.com/apache/jspwiki/releases)
-- [JSPWiki Dockerfile - External log config setup](https://github.com/apache/jspwiki/blob/master/Dockerfile)
+- [Wikantik Releases - Log4j2 configuration notes](https://github.com/apache/jspwiki/releases)
+- [Wikantik Dockerfile - External log config setup](https://github.com/apache/jspwiki/blob/master/Dockerfile)
 - [Log4j2 Configuration Manual](https://logging.apache.org/log4j/2.x/manual/configuration.html)
 - [External Log4j2 Configuration](https://gangmax.me/blog/2024/11/15/use-external-log4j2-configuration-file/)
-- [JSPWiki jspwiki.properties defaults](https://github.com/apache/jspwiki/blob/master/jspwiki-main/src/main/resources/ini/jspwiki.properties)
+- [Wikantik wikantik.properties defaults](https://github.com/apache/jspwiki/blob/master/wikantik-main/src/main/resources/ini/wikantik.properties)

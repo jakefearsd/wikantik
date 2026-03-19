@@ -52,12 +52,12 @@ public class FileExtensionCacheTest {
 
     private Engine m_engine = TestEngine.build(
             with( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" ),
-            with( FileSystemProvider.PROP_PAGEDIR, "./target/jspwiki.cache.test.pages" ) );
+            with( FileSystemProvider.PROP_PAGEDIR, "./target/wikantik.cache.test.pages" ) );
 
     @BeforeEach
     public void setUp() throws Exception {
         props.setProperty( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" );
-        props.setProperty( FileSystemProvider.PROP_PAGEDIR, "./target/jspwiki.cache.test.pages" );
+        props.setProperty( FileSystemProvider.PROP_PAGEDIR, "./target/wikantik.cache.test.pages" );
         m_pageDir = props.getProperty( FileSystemProvider.PROP_PAGEDIR );
 
         m_provider = new FileSystemProvider();

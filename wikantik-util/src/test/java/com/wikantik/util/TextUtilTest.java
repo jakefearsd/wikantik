@@ -302,7 +302,7 @@ public class TextUtilTest {
 
     @Test
     public void testGetStringPropertyDefaultValue() {
-        final String defaultValue = System.getProperty( "user.home" ) + File.separator + "jspwiki-files";
+        final String defaultValue = System.getProperty( "user.home" ) + File.separator + "wikantik-files";
         final String[] vals = { "foo", " this is a property " };
         final Properties props = TextUtil.createProperties(vals);
         Assertions.assertEquals( defaultValue, TextUtil.getStringProperty( props, "bar", defaultValue ) );
@@ -319,11 +319,11 @@ public class TextUtilTest {
 
     @Test
     public void testGetCanonicalFilePathPropertyDefaultValue() {
-        final String defaultValue = System.getProperty( "user.home" ) + File.separator + "jspwiki-files";
+        final String defaultValue = System.getProperty( "user.home" ) + File.separator + "wikantik-files";
         final String[] values = {};
         final Properties props = TextUtil.createProperties(values);
         final String path = TextUtil.getCanonicalFilePathProperty(props, "wikantik.fileSystemProvider.pageDir", defaultValue);
-        Assertions.assertTrue(path.endsWith("jspwiki-files"));
+        Assertions.assertTrue(path.endsWith("wikantik-files"));
     }
 
     @Test

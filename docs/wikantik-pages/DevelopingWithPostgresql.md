@@ -2,11 +2,11 @@
 type: article
 tags:
 - uncategorized
-summary: Developing with PostgreSQL as the JSPWiki User Database
+summary: Developing with PostgreSQL as the Wikantik User Database
 ---
-1. Developing with PostgreSQL as the JSPWiki User Database
+1. Developing with PostgreSQL as the Wikantik User Database
 
-This document provides a complete, step-by-step guide for configuring PostgreSQL as the backing database for JSPWiki's user and group management system. It covers development setup, testing, validation, and production deployment.
+This document provides a complete, step-by-step guide for configuring PostgreSQL as the backing database for Wikantik's user and group management system. It covers development setup, testing, validation, and production deployment.
 
   1. Table of Contents
 
@@ -16,7 +16,7 @@ This document provides a complete, step-by-step guide for configuring PostgreSQL
 4. [Database Schema Creation](#4-database-schema-creation)
 5. [JDBC Driver Installation](#5-jdbc-driver-installation)
 6. [Tomcat JNDI Configuration](#6-tomcat-jndi-configuration)
-7. [JSPWiki Configuration](#7-jspwiki-configuration)
+7. [Wikantik Configuration](#7-jspwiki-configuration)
 8. [Testing the Configuration](#8-testing-the-configuration)
 9. [Validation Procedures](#9-validation-procedures)
 10. [Production Deployment](#10-production-deployment)
@@ -29,7 +29,7 @@ This document provides a complete, step-by-step guide for configuring PostgreSQL
 
     1. What This Document Covers
 
-JSPWiki can store user profiles and group memberships in either:
+Wikantik can store user profiles and group memberships in either:
 - **XML files** (default) - Simple, file-based storage suitable for small installations
 - **Relational database** - Scalable, performant storage for production environments
 
@@ -43,7 +43,7 @@ This guide focuses on using **PostgreSQL** as the relational database backend, w
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         JSPWiki                                 │
+│                         Wikantik                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │   JDBCUserDatabase              JDBCGroupDatabase               │
 │         │                              │                        │
@@ -72,7 +72,7 @@ This guide focuses on using **PostgreSQL** as the relational database backend, w
 
 From the source code (`JDBCUserDatabase.java` and `JDBCGroupDatabase.java`):
 
-- **JNDI Lookup**: JSPWiki uses JNDI to look up DataSources, not direct JDBC connections
+- **JNDI Lookup**: Wikantik uses JNDI to look up DataSources, not direct JDBC connections
 - **Password Hashing**: Passwords are stored using salted SHA-1 (`{SSHA}`) or SHA-256 (`{SHA-256}`) format
 - **Transaction Support**: Automatic detection and use of database transactions
 - **Prepared Statements**: All SQL uses prepared statements (immune to SQL injection)
@@ -95,7 +95,7 @@ From the source code (`JDBCUserDatabase.java` and `JDBCGroupDatabase.java`):
 
 - Basic PostgreSQL administration (creating databases, users, grants)
 - Tomcat configuration (context.xml, JNDI resources)
-- JSPWiki properties configuration
+- Wikantik properties configuration
 
 ---
 
@@ -125,7 +125,7 @@ brew install postgresql@15
 brew services start postgresql@15
 ```
 
-    1. 3.2 Create the JSPWiki Database
+    1. 3.2 Create the Wikantik Database
 
 Connect to PostgreSQL as the superuser:
 
@@ -150,20 +150,20 @@ CREATE DATABASE jspwiki
 
     1. 3.3 Create the Application User
 
-Create a dedicated database user for JSPWiki:
+Create a dedicated database user for Wikantik:
 
 ```sql
 -- Create the user with a strong password
-CREATE USER jspwiki WITH
+CREATE USER wikantik WITH
     ENCRYPTED PASSWORD 'your_secure_password_here'
     NOSUPERUSER
     NOCREATEDB
     NOCREATEROLE;
 
 -- Grant connection privileges
-GRANT CONNECT ON DATABASE jspwiki TO jspwiki;
+GRANT CONNECT ON DATABASE wikantik TO jspwiki;
 
--- Connect to the jspwiki database
+-- Connect to the wikantik database
 \c jspwiki
 
 -- Grant schema usage and creation privileges
@@ -178,7 +178,7 @@ GRANT CREATE ON SCHEMA public TO jspwiki;
 
     1. 3.4 Configure PostgreSQL Authentication
 
-Edit `pg_hba.conf` to allow the jspwiki user to connect:
+Edit `pg_hba.conf` to allow the wikantik user to connect:
 
 ```bash
 1. Find the pg_hba.conf location
@@ -189,8 +189,8 @@ Add the following line (adjust for your network):
 
 ```
 1. TYPE  DATABASE    USER      ADDRESS         METHOD
-host    jspwiki     jspwiki   127.0.0.1/32    scram-sha-256
-host    jspwiki     jspwiki   ::1/128         scram-sha-256
+host    wikantik     wikantik   127.0.0.1/32    scram-sha-256
+host    wikantik     wikantik   ::1/128         scram-sha-256
 ```
 
 Reload PostgreSQL configuration:
@@ -209,11 +209,11 @@ sudo systemctl reload postgresql
 - Creates/drops the `jspwiki` application user
 - Grants permissions on tables
 
-Connect to the jspwiki database as the superuser:
+Connect to the wikantik database as the superuser:
 
 ```bash
 1. Option 1: Run the DDL file directly
-sudo -u postgres psql -d jspwiki -f jspwiki-war/src/main/config/db/postgresql.ddl
+sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.ddl
 
 1. Option 2: Connect interactively as superuser
 sudo -u postgres psql -d jspwiki
@@ -223,8 +223,8 @@ Execute the following DDL:
 
 ```sql
 -- ============================================================================
--- JSPWiki PostgreSQL Schema
--- Based on: jspwiki-war/src/main/config/db/postgresql.ddl
+-- Wikantik PostgreSQL Schema
+-- Based on: wikantik-war/src/main/config/db/postgresql.ddl
 -- Compatible with: JDBCUserDatabase.java and JDBCGroupDatabase.java
 -- ============================================================================
 
@@ -239,7 +239,7 @@ Execute the following DDL:
 -- Stores user profiles for authentication and personalization
 -- ============================================================================
 CREATE TABLE users (
-    -- Unique identifier for the user (auto-generated by JSPWiki)
+    -- Unique identifier for the user (auto-generated by Wikantik)
     uid VARCHAR(100),
 
     -- User's email address (used for password recovery, notifications)
@@ -466,7 +466,7 @@ Edit `$CATALINA_HOME/conf/context.xml`:
     <WatchedResource>WEB-INF/tomcat-web.xml</WatchedResource>
     <WatchedResource>${catalina.base}/conf/web.xml</WatchedResource>
 
-    <!-- JSPWiki User Database DataSource -->
+    <!-- Wikantik User Database DataSource -->
     <Resource
         name="jdbc/UserDatabase"
         auth="Container"
@@ -498,7 +498,7 @@ Edit `$CATALINA_HOME/conf/context.xml`:
         logAbandoned="true"
     />
 
-    <!-- JSPWiki Group Database DataSource -->
+    <!-- Wikantik Group Database DataSource -->
     <Resource
         name="jdbc/GroupDatabase"
         auth="Container"
@@ -534,11 +534,11 @@ Edit `$CATALINA_HOME/conf/context.xml`:
 
   - Option B: Application-Specific Context**
 
-Create `$CATALINA_HOME/conf/Catalina/localhost/JSPWiki.xml`:
+Create `$CATALINA_HOME/conf/Catalina/localhost/Wikantik.xml`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Context docBase="/path/to/JSPWiki.war" path="/JSPWiki">
+<Context docBase="/path/to/Wikantik.war" path="/Wikantik">
     <Resource
         name="jdbc/UserDatabase"
         auth="Container"
@@ -588,15 +588,15 @@ Create `$CATALINA_HOME/conf/Catalina/localhost/JSPWiki.xml`:
 
 ---
 
-  1. 7. JSPWiki Configuration
+  1. 7. Wikantik Configuration
 
-    1. 7.1 Configure jspwiki-custom.properties
+    1. 7.1 Configure wikantik-custom.properties
 
-Create or edit `WEB-INF/jspwiki-custom.properties`:
+Create or edit `WEB-INF/wikantik-custom.properties`:
 
 ```properties
 1. ============================================================================
-1. JSPWiki JDBC User/Group Database Configuration
+1. Wikantik JDBC User/Group Database Configuration
 1. ============================================================================
 
 1. Enable JDBC User Database (instead of default XML)
@@ -672,7 +672,7 @@ If using resource-ref declarations, ensure `WEB-INF/web.xml` includes:
 
     1. 8.1 Development Build and Deploy
 
-Build JSPWiki and deploy to the development Tomcat:
+Build Wikantik and deploy to the development Tomcat:
 
 ```bash
 cd /home/jakefear/source/jspwiki
@@ -681,7 +681,7 @@ cd /home/jakefear/source/jspwiki
 mvn clean install -Dmaven.test.skip
 
 1. Copy the WAR to Tomcat
-cp jspwiki-war/target/JSPWiki.war tomcat/tomcat-11/webapps/
+cp wikantik-war/target/Wikantik.war tomcat/tomcat-11/webapps/
 
 1. Start Tomcat
 ./tomcat/tomcat-11/bin/startup.sh
@@ -708,7 +708,7 @@ JDBCGroupDatabase supports transactions. Good; we will use them.
 
     1. 8.3 Test Login
 
-1. Open http://localhost:8080/JSPWiki
+1. Open http://localhost:8080/Wikantik
 2. Click "Login"
 3. Enter credentials:
    - Username: `admin`
@@ -755,19 +755,19 @@ Create a simple test script to validate connectivity:
 1. test_postgres_connection.sh
 
 echo "Testing PostgreSQL connection..."
-psql -h localhost -U jspwiki -d jspwiki -c "SELECT 1 as connection_test;"
+psql -h localhost -U wikantik -d wikantik -c "SELECT 1 as connection_test;"
 
 echo ""
 echo "Checking table structure..."
-psql -h localhost -U jspwiki -d jspwiki -c "\dt"
+psql -h localhost -U wikantik -d wikantik -c "\dt"
 
 echo ""
 echo "Checking user count..."
-psql -h localhost -U jspwiki -d jspwiki -c "SELECT COUNT(*) as user_count FROM users;"
+psql -h localhost -U wikantik -d wikantik -c "SELECT COUNT(*) as user_count FROM users;"
 
 echo ""
 echo "Checking group count..."
-psql -h localhost -U jspwiki -d jspwiki -c "SELECT COUNT(*) as group_count FROM groups;"
+psql -h localhost -U wikantik -d wikantik -c "SELECT COUNT(*) as group_count FROM groups;"
 ```
 
     1. 9.2 Application Health Check
@@ -819,10 +819,10 @@ Run the JDBC-related unit tests:
 cd /home/jakefear/source/jspwiki
 
 1. Run JDBCUserDatabase tests
-mvn test -Dtest=JDBCUserDatabaseTest -pl jspwiki-main
+mvn test -Dtest=JDBCUserDatabaseTest -pl wikantik-main
 
 1. Run JDBCGroupDatabase tests
-mvn test -Dtest=JDBCGroupDatabaseTest -pl jspwiki-main
+mvn test -Dtest=JDBCGroupDatabaseTest -pl wikantik-main
 ```
 
 ---
@@ -835,11 +835,11 @@ mvn test -Dtest=JDBCGroupDatabaseTest -pl jspwiki-main
 
 ```sql
 -- Use a strong, unique password
-ALTER USER jspwiki WITH PASSWORD 'use_a_very_strong_password_here_min_32_chars';
+ALTER USER wikantik WITH PASSWORD 'use_a_very_strong_password_here_min_32_chars';
 
 -- Limit connection privileges
-REVOKE ALL ON DATABASE jspwiki FROM PUBLIC;
-GRANT CONNECT ON DATABASE jspwiki TO jspwiki;
+REVOKE ALL ON DATABASE wikantik FROM PUBLIC;
+GRANT CONNECT ON DATABASE wikantik TO jspwiki;
 
 -- Limit schema privileges
 REVOKE ALL ON SCHEMA public FROM PUBLIC;
@@ -858,10 +858,10 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON group_members TO jspwiki;
 ```bash
 1. pg_hba.conf - Production settings
 1. Only allow connections from application server
-host    jspwiki     jspwiki   10.0.0.5/32    scram-sha-256
+host    wikantik     wikantik   10.0.0.5/32    scram-sha-256
 
 1. Or use SSL
-hostssl jspwiki     jspwiki   10.0.0.5/32    scram-sha-256 clientcert=verify-ca
+hostssl wikantik     wikantik   10.0.0.5/32    scram-sha-256 clientcert=verify-ca
 ```
 
   - SSL/TLS Configuration:**
@@ -936,7 +936,7 @@ BACKUP_FILE="${BACKUP_DIR}/jspwiki_${DATE}.sql.gz"
 mkdir -p "${BACKUP_DIR}"
 
 1. Dump and compress
-pg_dump -h localhost -U jspwiki -d jspwiki | gzip > "${BACKUP_FILE}"
+pg_dump -h localhost -U wikantik -d wikantik | gzip > "${BACKUP_FILE}"
 
 1. Keep only last 30 days of backups
 find "${BACKUP_DIR}" -name "jspwiki_*.sql.gz" -mtime +30 -delete
@@ -947,13 +947,13 @@ echo "Backup completed: ${BACKUP_FILE}"
   - Restore Procedure:**
 
 ```bash
-1. Stop JSPWiki/Tomcat first
+1. Stop Wikantik/Tomcat first
 systemctl stop tomcat
 
 1. Restore from backup
-gunzip -c /var/backups/postgresql/jspwiki_20250101_120000.sql.gz | psql -h localhost -U jspwiki -d jspwiki
+gunzip -c /var/backups/postgresql/jspwiki_20250101_120000.sql.gz | psql -h localhost -U wikantik -d jspwiki
 
-1. Start JSPWiki/Tomcat
+1. Start Wikantik/Tomcat
 systemctl start tomcat
 ```
 
@@ -1078,7 +1078,7 @@ AND now() - pg_stat_activity.query_start > interval '5 seconds';
 
     1. A.1 Password Format
 
-JSPWiki stores passwords using RFC 2307-compliant salted hashing:
+Wikantik stores passwords using RFC 2307-compliant salted hashing:
 
 - **{SSHA}**: Salted SHA-1 (legacy, still supported)
 - **{SHA-256}**: Salted SHA-256 (recommended)
@@ -1127,8 +1127,8 @@ WHERE login_name = 'username';
 
   1. References
 
-- [JSPWiki Source: JDBCUserDatabase.java](../jspwiki-main/src/main/java/org/apache/wiki/auth/user/JDBCUserDatabase.java)
-- [JSPWiki Source: JDBCGroupDatabase.java](../jspwiki-main/src/main/java/org/apache/wiki/auth/authorize/JDBCGroupDatabase.java)
+- [Wikantik Source: JDBCUserDatabase.java](../wikantik-main/src/main/java/org/apache/wiki/auth/user/JDBCUserDatabase.java)
+- [Wikantik Source: JDBCGroupDatabase.java](../wikantik-main/src/main/java/org/apache/wiki/auth/authorize/JDBCGroupDatabase.java)
 - [PostgreSQL JDBC Driver Documentation](https://jdbc.postgresql.org/documentation/)
 - [Apache Tomcat JNDI Resources](https://tomcat.apache.org/tomcat-11.0-doc/jndi-resources-howto.html)
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/)

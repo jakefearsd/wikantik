@@ -59,7 +59,7 @@ public class McpTestClient implements AutoCloseable {
                         .build();
 
         final McpSyncClient syncClient = McpClient.sync( transport )
-                .clientInfo( new McpSchema.Implementation( "jspwiki-it-mcp-client", "1.0.0" ) )
+                .clientInfo( new McpSchema.Implementation( "wikantik-it-mcp-client", "1.0.0" ) )
                 .requestTimeout( Duration.ofSeconds( 30 ) )
                 .initializationTimeout( Duration.ofSeconds( 30 ) )
                 .build();

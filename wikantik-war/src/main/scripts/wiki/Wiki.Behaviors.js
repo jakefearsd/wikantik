@@ -1,5 +1,5 @@
 /*
-    JSPWiki - a JSP-based WikiWiki clone.
+    Wikantik - a JSP-based WikiWiki clone.
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -26,7 +26,7 @@
 
 /*
 Wiki.Behaviours
-    Contains all behaviours added by default to JSPWiki.
+    Contains all behaviours added by default to Wikantik.
 
     Uses global var "Wiki", and a number of Classes.
 
@@ -260,13 +260,13 @@ Example:
 
 DOM structure:
 
-JSPWiki support attachment links (with paperclip), inline images and external links.
+Wikantik support attachment links (with paperclip), inline images and external links.
 Notice how inline images are converted to attachement links.
 (start code)
     div.slimbox
         a.attachment[href="url.(png|bmp|tiff|jpg|jpeg|gif)"] Image link
         a.infolink[href="url]
-            img[src=attachment_small.png]   (small jspwiki paperclip)
+            img[src=attachment_small.png]   (small wikantik paperclip)
 
         img.inline[src="url2"]
 
@@ -297,15 +297,15 @@ becomes
 */
 
 //helper function, to collect the links to be converted
-function filterJSPWikiLinks(element){
+function filterWikantikLinks(element){
 
     return element.matches("a") ?
         element :
         element.getElements( element.matches(".slimbox-attachments") ?
             "a[href].attachment" :
             // otherwise,  catch several different cases in one go
-            //    img:not([href$=/attachment_small.png]):not(.outlink)  ::jspwiki small icons
-            //    img:not([src$=/attachment_small.png]):not(.outlink)  ::jspwiki small icons
+            //    img:not([href$=/attachment_small.png]):not(.outlink)  ::wikantik small icons
+            //    img:not([src$=/attachment_small.png]):not(.outlink)  ::wikantik small icons
             //    a[href].attachment,
             //    a[href].external,
             //    a[href].wikipage,
@@ -337,11 +337,11 @@ wiki.once("body", function( /*elements*/ ){
 
     .add(".slimbox-attachments,*[class~=slimbox],*[class~=lightbox]", function( element ){
 
-        var arr = filterJSPWikiLinks( element );
+        var arr = filterWikantikLinks( element );
 
         TheSlimbox.watch(arr, "button.slimbox-btn");
 
-        //jspwiki -- replace inlined images by attachment links
+        //wikantik -- replace inlined images by attachment links
         $$(arr).filter("img[src]").each( function( img ){
 
             "a.attachment".slick({
@@ -368,7 +368,7 @@ Behavior: Viewer.Carousel (embed auto-rotating media viewer into a wiki page)
 */
     .add( ".carousel", function( element ){
 
-        new Viewer.Carousel( filterJSPWikiLinks( element ), {
+        new Viewer.Carousel( filterWikantikLinks( element ), {
             container: element
         });
 
@@ -394,7 +394,7 @@ function collapseFn(elements, pagename){
 
     new Collapsible( elements, {
         cookie: {
-            name: "JSPWiki.Collapse." + (pagename || wiki.PageName),
+            name: "Wikantik.Collapse." + (pagename || wiki.PageName),
             path: wiki.BaseUrl,
             duration: 20
         }
@@ -431,7 +431,7 @@ Behavior:Columns
 
 /*
 Dynamic Style: Code-Prettifier
-    JSPWiki wrapper around http://google-code-prettify.googlecode.com/svn/trunk/README.html
+    Wikantik wrapper around http://google-code-prettify.googlecode.com/svn/trunk/README.html
 
     TODO: add option to set the choice of language:
     >    "bsh", "c", "cc", "cpp", "cs", "csh", "cyc", "cv", "htm", "html",

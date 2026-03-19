@@ -222,9 +222,9 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
         }
     
         // The text of this resource should be loaded from the same
-        //   jar-file as the jspwiki_modules.xml -file! This is because 2 plugins
+        //   jar-file as the wikantik_module.xml -file! This is because 2 plugins
         //   could have the same name of the resourceLocation!
-        //   (2 plugins could have their stylesheet-files in 'ini/jspwiki.css')
+        //   (2 plugins could have their stylesheet-files in 'ini/wikantik.css')
     
         // So try to construct a resource that loads this resource from the same jar-file.
         String spec = resource.toString();

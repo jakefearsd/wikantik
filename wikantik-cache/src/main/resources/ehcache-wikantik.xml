@@ -23,13 +23,13 @@
     xsi:schemaLocation="http://www.ehcache.org/v3 http://www.ehcache.org/schema/ehcache-core.xsd">
 
     <!--
-        EhCache 3.x Configuration for JSPWiki
+        EhCache 3.x Configuration for Wikantik
 
         Each cache is configured with:
         - expiry: Time-to-live for cache entries (default 60 seconds)
         - heap: Maximum number of entries to store on heap
 
-        The TTL ensures that external file modifications (not through JSPWiki UI)
+        The TTL ensures that external file modifications (not through Wikantik UI)
         are detected within the expiry period. Adjust as needed for your use case.
 
         Key types: java.io.Serializable

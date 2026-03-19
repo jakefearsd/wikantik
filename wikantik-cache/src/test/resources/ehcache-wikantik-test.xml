@@ -23,7 +23,7 @@
     xsi:schemaLocation="http://www.ehcache.org/v3 http://www.ehcache.org/schema/ehcache-core.xsd">
 
     <!--
-        EhCache 3.x Test Configuration for JSPWiki
+        EhCache 3.x Test Configuration for Wikantik
         Small cache sizes for testing purposes.
     -->
 
@@ -45,8 +45,8 @@
         <heap unit="entries">1</heap>
     </cache>
 
-    <!-- Additional cache not managed by JSPWiki for testing -->
-    <cache alias="notManagedByJSPWikiCache">
+    <!-- Additional cache not managed by Wikantik for testing -->
+    <cache alias="notManagedByWikantikCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
         <heap unit="entries">100</heap>

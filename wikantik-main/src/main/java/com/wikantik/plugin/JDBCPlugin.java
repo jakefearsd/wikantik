@@ -61,7 +61,7 @@ import java.util.Properties;
  *   <li><b>class</b> - CSS class for the wrapper div. Default: "jdbc-results"</li>
  * </ul>
  *
- * <h3>Configuration Properties (in jspwiki-custom.properties):</h3>
+ * <h3>Configuration Properties (in wikantik-custom.properties):</h3>
  * <p>For direct JDBC connections, configure these properties (optionally with a source suffix):</p>
  * <ul>
  *   <li><b>jdbc.driver</b> - JDBC driver class name (e.g., "org.postgresql.Driver")</li>
@@ -178,7 +178,7 @@ public class JDBCPlugin implements Plugin {
         FETCH_FIRST  // DB2, Derby: FETCH FIRST n ROWS ONLY
     }
 
-    // Property names for jspwiki-custom.properties
+    // Property names for wikantik-custom.properties
     private static final String PROP_DRIVER = "jdbc.driver";
     private static final String PROP_URL = "jdbc.url";
     private static final String PROP_USER = "jdbc.user";
@@ -290,7 +290,7 @@ public class JDBCPlugin implements Plugin {
 
         if ( StringUtils.isBlank( url ) ) {
             throw new PluginException( "No database configuration found. Configure either a JNDI DataSource " +
-                    "or set jdbc.url" + ( source != null ? "." + source : "" ) + " in jspwiki-custom.properties" );
+                    "or set jdbc.url" + ( source != null ? "." + source : "" ) + " in wikantik-custom.properties" );
         }
 
         // Load the driver if specified

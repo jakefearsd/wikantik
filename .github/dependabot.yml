@@ -22,15 +22,15 @@ updates:
     ignore:
       - dependency-name: javax.servlet:javax.servlet-api
         versions:
-# JSPWiki supported servlet-api is 3.1
+# Wikantik supported servlet-api is 3.1
           - ">= 3.2.0"
       - dependency-name: javax.servlet.jsp:javax.servlet.jsp-api
         versions:
-# JSPWiki supported jsp-api is 2.3
+# Wikantik supported jsp-api is 2.3
           - ">= 2.4.0"
       - dependency-name: org.apache.tomcat:*
         versions:
-# JSPWiki supported Tomcat is 8.5, 9.0 recommended (see https://jspwiki-wiki.apache.org/Wiki.jsp?page=Getting%20Started#section-Getting+Started-Requirements)
+# Wikantik supported Tomcat is 8.5, 9.0 recommended (see https://wiki.wikantik.com/Wiki.jsp?page=Getting%20Started#section-Getting+Started-Requirements)
           - ">= 10.0.0"
       - dependency-name: org.slf4j:*
         versions:

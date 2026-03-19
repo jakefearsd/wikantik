@@ -68,7 +68,7 @@ public class MarkdownDocument extends WikiDocument {
         final MutableDataSet options = new MutableDataSet();
         options.setFrom( ParserEmulationProfile.COMMONMARK );
         options.set( AttributesExtension.ASSIGN_TEXT_ATTRIBUTES, true );
-        // align style of Markdown's footnotes extension with jspwiki footnotes refs
+        // align style of Markdown's footnotes extension with wikantik footnotes refs
         options.set( FootnoteExtension.FOOTNOTE_LINK_REF_CLASS, MarkupParser.CLASS_FOOTNOTE_REF );
         options.set( HtmlRenderer.ESCAPE_HTML, !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) );
         options.set( Parser.EXTENSIONS, Arrays.asList( new Extension[] { new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),

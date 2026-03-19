@@ -147,11 +147,11 @@
                 <monitorKey>inmem</monitorKey>
                 <monitorPort>11157</monitorPort>
                 <daemon>${hsqldb.daemon}</daemon>
-                <database>jspwiki</database>
+                <database>wikantik</database>
                 <username>SA</username>
                 <password />
                 <sources>
-                  <!-- ensure ITs can load data when run from either it-builder, their submodules or jspwiki's parent pom -->
+                  <!-- ensure ITs can load data when run from either it-builder, their submodules or wikantik's parent pom -->
                   <script><sourceFile>./wikantik-selenide-tests/src/test/resources/hsqldb/hsql-userdb-setup.sql</sourceFile></script>
                   <script><sourceFile>../wikantik-selenide-tests/src/test/resources/hsqldb/hsql-userdb-setup.sql</sourceFile></script> 
                   <script><sourceFile>./wikantik-it-tests/wikantik-selenide-tests/src/test/resources/hsqldb/hsql-userdb-setup.sql</sourceFile></script> 
@@ -194,7 +194,7 @@
                     <datasource>
                       <jndiName>jdbc/GroupDatabase</jndiName>
                       <driverClass>org.hsqldb.jdbc.JDBCDriver</driverClass>
-                      <url>jdbc:hsqldb:hsql://localhost/jspwiki</url>
+                      <url>jdbc:hsqldb:hsql://localhost/wikantik</url>
                       <username>SA</username>
                       <password />
                       <connectionProperties>
@@ -206,7 +206,7 @@
                     <datasource>
                       <jndiName>jdbc/UserDatabase</jndiName>
                       <driverClass>org.hsqldb.jdbc.JDBCDriver</driverClass>
-                      <url>jdbc:hsqldb:hsql://localhost/jspwiki</url>
+                      <url>jdbc:hsqldb:hsql://localhost/wikantik</url>
                       <username>SA</username>
                       <password />
                       <connectionProperties>

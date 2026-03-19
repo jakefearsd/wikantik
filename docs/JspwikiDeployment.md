@@ -1,10 +1,10 @@
-# JSPWiki Deployment Recommendation
+# Wikantik Deployment Recommendation
 
-This document provides a recommendation for deploying JSPWiki, considering various approaches and their trade-offs.
+This document provides a recommendation for deploying Wikantik, considering various approaches and their trade-offs.
 
 ## Containerized Deployment (Docker)
 
-JSPWiki is well-suited for containerized deployment using Docker. The provided `Dockerfile` demonstrates a best-practice approach by using a multi-stage build to create a lean production image.
+Wikantik is well-suited for containerized deployment using Docker. The provided `Dockerfile` demonstrates a best-practice approach by using a multi-stage build to create a lean production image.
 
 ### Pros
 
@@ -21,7 +21,7 @@ JSPWiki is well-suited for containerized deployment using Docker. The provided `
 
 ## Direct Deployment on Tomcat
 
-Deploying JSPWiki directly on a Tomcat instance is a traditional and viable approach.
+Deploying Wikantik directly on a Tomcat instance is a traditional and viable approach.
 
 ### Pros
 
@@ -37,7 +37,7 @@ Deploying JSPWiki directly on a Tomcat instance is a traditional and viable appr
 
 ## Recommendation
 
-For most use cases, **containerized deployment using Docker is the recommended approach for JSPWiki**. The benefits of portability, scalability, and reproducibility outweigh the minor drawbacks of a learning curve and resource overhead.
+For most use cases, **containerized deployment using Docker is the recommended approach for Wikantik**. The benefits of portability, scalability, and reproducibility outweigh the minor drawbacks of a learning curve and resource overhead.
 
 The provided `Dockerfile` is a great starting point for a production-ready deployment. It can be further optimized by:
 

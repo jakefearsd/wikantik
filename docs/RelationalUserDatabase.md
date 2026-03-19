@@ -1,12 +1,12 @@
 # Using a Relational Database for User Management
 
-This guide provides a detailed walkthrough for configuring JSPWiki to use a relational database for storing user and group information, with a specific focus on MySQL.
+This guide provides a detailed walkthrough for configuring Wikantik to use a relational database for storing user and group information, with a specific focus on MySQL.
 
 ## 1. Overview
 
-JSPWiki can be configured to use a relational database for user and group management instead of the default XML files. This is highly recommended for production environments as it offers better performance, scalability, and security.
+Wikantik can be configured to use a relational database for user and group management instead of the default XML files. This is highly recommended for production environments as it offers better performance, scalability, and security.
 
-JSPWiki uses JNDI (Java Naming and Directory Interface) to look up the database connection, which means you'll need to configure a JNDI `DataSource` in your application server (e.g., Tomcat).
+Wikantik uses JNDI (Java Naming and Directory Interface) to look up the database connection, which means you'll need to configure a JNDI `DataSource` in your application server (e.g., Tomcat).
 
 ## 2. Prerequisites
 
@@ -71,9 +71,9 @@ To configure the JNDI `DataSource`, you'll need to add a `<Resource>` element to
 *   Replace `your_username` and `your_password` with your database credentials.
 *   The `url` parameter should point to your database server and database name.
 
-### Step 3: Configure JSPWiki
+### Step 3: Configure Wikantik
 
-Update your `jspwiki-custom.properties` file to use the `JDBCUserDatabase` and `JDBCGroupDatabase`.
+Update your `wikantik-custom.properties` file to use the `JDBCUserDatabase` and `JDBCGroupDatabase`.
 
 ```properties
 # Use the JDBC user and group databases
@@ -87,7 +87,7 @@ jspwiki.jdbc.group.jndiname = jdbc/GroupDatabase
 
 ### Step 4: Create the Database Tables
 
-JSPWiki does not automatically create the necessary tables in the database. You'll need to create them manually.
+Wikantik does not automatically create the necessary tables in the database. You'll need to create them manually.
 
 #### MySQL
 
@@ -160,4 +160,4 @@ While the configuration is similar for both databases, there are a few key diffe
 *   **JDBC URL:** The JDBC URL format is different for each database.
 *   **SQL Dialect:** The SQL syntax for creating tables is slightly different (e.g., `AUTO_INCREMENT` in MySQL vs. `SERIAL` in PostgreSQL).
 
-By following these steps, you can successfully configure JSPWiki to use a relational database for user and group management, providing a more robust and scalable solution for your wiki.
+By following these steps, you can successfully configure Wikantik to use a relational database for user and group management, providing a more robust and scalable solution for your wiki.

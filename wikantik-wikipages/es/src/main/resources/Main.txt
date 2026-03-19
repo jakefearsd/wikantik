@@ -1,6 +1,6 @@
 !!! ¡Enhorabuena!
 
-Has instalado con éxito [JSPWiki|About].
+Has instalado con éxito [Wikantik|About].
 
 Tienes algunas páginas ya configuradas de salida:
 
@@ -18,14 +18,14 @@ Tienes algunas páginas ya configuradas de salida:
 !Documentación
 
 * Para ver todas las características del marcado Wiki, [Reglas de Formato del Texto|TextFormattingRules].
-* Punto de entrada a toda [Documentación de JSPWiki|JSPWiki:JSPWikiDocumentation]
-** [Nuevas características en JSPWiki|JSPWiki:NewIn].
+* Punto de entrada a toda [Documentación de Wikantik|Wikantik:WikantikDocumentation]
+** [Nuevas características en Wikantik|Wikantik:NewIn].
 
 !Miscelánea
 
-* Hay muchas maneras de contactar con la [Comunidad|Community] de JSPWiki. ¡Compruébalas!
+* Hay muchas maneras de contactar con la [Comunidad|Community] de Wikantik. ¡Compruébalas!
 * Para ver en qué consiste esta wiki en particular, haz click en el nombre de la Wiki
   en la esquina superior izquierda, o haz [click aquí|SystemInfo].
 
-¡Buena suerte, y gracias por elegir JSPWiki!
+¡Buena suerte, y gracias por elegir Wikantik!
 

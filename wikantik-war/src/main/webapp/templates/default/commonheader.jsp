@@ -29,7 +29,7 @@
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <%--
-   This file provides a common header which includes the important JSPWiki scripts and other files.
+   This file provides a common header which includes the important Wikantik scripts and other files.
    You need to include this in your template, within <head> and </head>.  It is recommended that
    you don't change this file in your own template, as it is likely to change quite a lot between
    revisions.
@@ -57,7 +57,7 @@ BOOTSTRAP, IE compatibility / http://getbootstrap.com/getting-started/#support-i
   <c:set var="wikiLastModified"><wiki:PageDate format='yyyy-MM-dd'/></c:set>
   <c:set var="wikiAppName"><wiki:Variable var="ApplicationName" /></c:set>
   <c:set var="wikiBaseUrl"><wiki:BaseURL /></c:set>
-  <%-- Build canonical URL: baseURL ends with / (e.g., http://host/JSPWiki/), append wiki/PageName --%>
+  <%-- Build canonical URL: baseURL ends with / (e.g., http://host/Wikantik/), append wiki/PageName --%>
   <c:set var="canonicalUrl">${wikiBaseUrl}wiki/${wikiPageName}</c:set>
 
   <%-- Canonical URL to prevent duplicate content issues --%>

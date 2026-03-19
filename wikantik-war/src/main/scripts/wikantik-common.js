@@ -42,7 +42,7 @@ Core Dynamic Styles
 *	240 Table-filter (excel like column filters): dynamic style
 *	280 ZebraTable (color odd/even rows): dynmaic style
 
-Complementary Dynamic Styles (see jspwiki-commonstyles.js)
+Complementary Dynamic Styles (see wikantik-commonstyles.js)
 *	114 Reflection (adds reflection to images): dynamic style
 *	116 WikiCoverflow (based on MooFlow) : dynamic style
 *	118 Google Chart: dynamic style
@@ -447,7 +447,7 @@ var Wiki = {
 
 	/* SubmitOnce: disable all buttons to avoid double submit */
 	submitOnce: function(form){
-		window.onbeforeunload = null; /* regular exit of this page -- see jspwiki-edit.js */
+		window.onbeforeunload = null; /* regular exit of this page -- see wikantik-edit.js */
 		(function(){
 			$A(form.elements).each(function(e){
 				if( (/submit|button/i).test(e.type)) e.disabled = true;

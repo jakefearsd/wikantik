@@ -51,7 +51,7 @@ public class AnonymousViewIT extends WithIntegrationTestSetup {
     @Test
     @DisabledOnOs(OS.WINDOWS)
     void anonymousViewImage() throws Exception {
-        final File file = Page.download( Page.baseUrl() + "/images/jspwiki_logo_s.png" );
+        final File file = Page.download( Page.baseUrl() + "/images/wikantik_logo_s.png" );
         Assertions.assertTrue( file.exists() );
     }
     

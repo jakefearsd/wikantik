@@ -221,7 +221,7 @@
       <th scope="col"><fmt:message key="prefs.user.pagecookies.actions"/></th>
     </tr>
     <c:forEach var="aCookie" items="${pageContext.request.cookies}" >
-      <c:if test="${fn:startsWith(aCookie.name,'JSPWiki.') }">
+      <c:if test="${fn:startsWith(aCookie.name,'Wikantik.') }">
         <c:set var="cookiePieces" value="${fn:split(aCookie.name, '.')}" />
         <c:set var="cookieType" value="${cookiePieces[1]}" />
         <c:set var="cookiePage" value="${fn:replace(cookiePieces[2], '%20', ' ')}" />

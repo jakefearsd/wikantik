@@ -33,7 +33,7 @@
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <%--
-        This is a plain editor for JSPWiki.
+        This is a plain editor for Wikantik.
 --%>
 <%
    Context context = Context.findContext( pageContext );

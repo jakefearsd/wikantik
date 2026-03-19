@@ -22,7 +22,7 @@
  ** since v.2.6.0
  ** uses mootools v1.1
  **
- ** Needs jspwiki-common.js and mootools.js
+ ** Needs wikantik-common.js and mootools.js
  ** EditTools object (main object)
  ** - find&replace functionality : with regexp support
  ** - included popup-pagelinks routines from Janne

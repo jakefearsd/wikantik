@@ -33,7 +33,7 @@
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 
 <%!
-    Logger log = LogManager.getLogger("JSPWikiSearch");
+    Logger log = LogManager.getLogger("WikantikSearch");
 %>
 
 <%

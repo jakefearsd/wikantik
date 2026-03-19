@@ -74,7 +74,7 @@
   </head>
 
   <body>
-   <h3>JSPWiki has detected an error</h3>
+   <h3>Wikantik has detected an error</h3>
 
    <dl>
       <dt>Error Message</dt>
@@ -89,9 +89,9 @@
    <p>
    If you have changed the templates, please do check them.  This error message
    may show up because of that.  If you have not changed them, and you are
-   either installing JSPWiki for the first time or have changed configuration,
+   either installing Wikantik for the first time or have changed configuration,
    then you might want to check your configuration files.  If you are absolutely sure
-   that JSPWiki was running quite okay or you can't figure out what is going
+   that Wikantik was running quite okay or you can't figure out what is going
    on, then by all means, come over to <a href="http://jspwiki.apache.org/">jspwiki.apache.org</a>
    and tell us.  There is more information in the log file (like the full stack trace,
    which you should add to any error report).

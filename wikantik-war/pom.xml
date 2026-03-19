@@ -210,7 +210,7 @@
                 <artifactId>jslint-maven-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>checkJSPWikiFiles</id>
+                        <id>checkWikantikFiles</id>
                         <goals>
                             <goal>jslint</goal>
                         </goals>

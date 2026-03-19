@@ -16,13 +16,13 @@
   limitations under the License.
 -->
 <!--
-  JSPWiki Context Configuration for PostgreSQL
+  Wikantik Context Configuration for PostgreSQL
 
   This file is copied by deploy-local.sh to:
-    tomcat/tomcat-11/conf/Catalina/localhost/JSPWiki.xml
+    tomcat/tomcat-11/conf/Catalina/localhost/Wikantik.xml
 
   IMPORTANT: After copying, edit the file to replace YOUR_SECURE_PASSWORD_HERE
-  with your actual PostgreSQL password for the 'jspwiki' user.
+  with your actual PostgreSQL password for the 'wikantik' user.
 -->
 <Context reloadable="true">
 
@@ -32,8 +32,8 @@
               type="javax.sql.DataSource"
               factory="org.apache.tomcat.dbcp.dbcp2.BasicDataSourceFactory"
               driverClassName="org.postgresql.Driver"
-              url="jdbc:postgresql://localhost:5432/jspwiki"
-              username="jspwiki"
+              url="jdbc:postgresql://localhost:5432/wikantik"
+              username="wikantik"
               password="YOUR_SECURE_PASSWORD_HERE"
               maxTotal="20"
               maxIdle="10"
@@ -47,8 +47,8 @@
               type="javax.sql.DataSource"
               factory="org.apache.tomcat.dbcp.dbcp2.BasicDataSourceFactory"
               driverClassName="org.postgresql.Driver"
-              url="jdbc:postgresql://localhost:5432/jspwiki"
-              username="jspwiki"
+              url="jdbc:postgresql://localhost:5432/wikantik"
+              username="wikantik"
               password="YOUR_SECURE_PASSWORD_HERE"
               maxTotal="20"
               maxIdle="10"

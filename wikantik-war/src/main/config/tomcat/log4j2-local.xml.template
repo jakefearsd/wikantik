@@ -17,20 +17,20 @@
   specific language governing permissions and limitations
   under the License.
 
-  JSPWiki External Log4j2 Configuration - Local Development
+  Wikantik External Log4j2 Configuration - Local Development
 
   This template is for local development. It uses portable paths
   based on Catalina system properties.
 
   Place in: tomcat/tomcat-11/lib/log4j2.xml
-  Enable with: jspwiki.use.external.logconfig = true in jspwiki-custom.properties
+  Enable with: wikantik.use.external.logconfig = true in wikantik-custom.properties
 
-  For production, use log4j2.xml with absolute paths like /var/log/jspwiki
+  For production, use log4j2.xml with absolute paths like /var/log/wikantik
 -->
-<Configuration status="WARN" name="JSPWiki-LocalDev" monitorInterval="30">
+<Configuration status="WARN" name="Wikantik-LocalDev" monitorInterval="30">
     <Properties>
         <!-- Use Tomcat's logs directory for local development -->
-        <Property name="logDir">${sys:catalina.base}/logs/jspwiki</Property>
+        <Property name="logDir">${sys:catalina.base}/logs/wikantik</Property>
         <Property name="pattern">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
     </Properties>
 
@@ -42,8 +42,8 @@
 
         <!-- Main application log with daily rotation -->
         <RollingFile name="AppLog"
-                     fileName="${logDir}/jspwiki.log"
-                     filePattern="${logDir}/jspwiki-%d{yyyy-MM-dd}-%i.log.gz">
+                     fileName="${logDir}/wikantik.log"
+                     filePattern="${logDir}/wikantik-%d{yyyy-MM-dd}-%i.log.gz">
             <PatternLayout pattern="${pattern}"/>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1"/>
@@ -76,7 +76,7 @@
     </Appenders>
 
     <Loggers>
-        <!-- JSPWiki core - INFO to console and file -->
+        <!-- Wikantik core - INFO to console and file -->
         <Logger name="com.wikantik" level="INFO" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AppLog"/>

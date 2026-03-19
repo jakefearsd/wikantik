@@ -25,12 +25,12 @@ RUN mvn -B dependency:go-offline
 
 RUN set -x \
 # fastest, minimum build
-  && mvn -B clean package -pl jspwiki-war,jspwiki-wikipages/en -am -DskipTests
+  && mvn -B clean package -pl wikantik-war,wikantik-wikipages/en -am -DskipTests
 
 FROM tomcat:10.1-jdk17
 
-COPY --from=package /tmp/jspwiki-war/target/JSPWiki.war /tmp
-COPY --from=package /tmp/jspwiki-wikipages/en/target/jspwiki-wikipages-en-*-jspwiki.zip /tmp
+COPY --from=package /tmp/wikantik-war/target/Wikantik.war /tmp
+COPY --from=package /tmp/wikantik-wikipages/en/target/wikantik-wikipages-en-*-jspwiki.zip /tmp
 COPY docker-files/log4j2.properties /tmp
 COPY docker-files/tomcat-users.xml $CATALINA_HOME/conf/tomcat-users.xml
 COPY jspwiki-portable/src/overlay/tomcat/conf/test-use-only.p12 $CATALINA_HOME/conf/
@@ -71,13 +71,13 @@ RUN set -x \
  && mkdir pages logs etc work \
 # deploy jspwiki
  && mkdir $CATALINA_HOME/webapps/ROOT \
- && unzip -q -d $CATALINA_HOME/webapps/ROOT /tmp/JSPWiki.war \
- && rm /tmp/JSPWiki.war \
+ && unzip -q -d $CATALINA_HOME/webapps/ROOT /tmp/Wikantik.war \
+ && rm /tmp/Wikantik.war \
 # deploy wiki pages
  && cd /tmp/ \
- && unzip -q jspwiki-wikipages-en-*-jspwiki.zip \
- && mv jspwiki-wikipages-en-*/* /var/jspwiki/pages/ \
- && rm -rf jspwiki-wikipages-en-* \
+ && unzip -q wikantik-wikipages-en-*-jspwiki.zip \
+ && mv wikantik-wikipages-en-*/* /var/jspwiki/pages/ \
+ && rm -rf wikantik-wikipages-en-* \
 # move the userdatabase.xml and groupdatabase.xml to /var/jspwiki/etc
  && cd $CATALINA_HOME/webapps/ROOT/WEB-INF \
  && mv userdatabase.xml groupdatabase.xml /var/jspwiki/etc \

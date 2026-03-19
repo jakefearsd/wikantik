@@ -25,16 +25,16 @@
     <version>35</version>
   </parent>
 
-  <groupId>org.apache.jspwiki</groupId>
-  <artifactId>jspwiki-builder</artifactId>
+  <groupId>com.wikantik</groupId>
+  <artifactId>wikantik-builder</artifactId>
   <modelVersion>4.0.0</modelVersion>
   <name>Wikantik</name>
-  <version>3.1.2-SNAPSHOT</version>
+  <version>1.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <description>Wikantik is a feature-rich wiki engine built around standard JEE components
     (Java, servlets, JSP), designed for direct AI agent engagement.</description>
   <inceptionYear>2001</inceptionYear>
-  <url>https://jspwiki.apache.org/</url>
+  <url>https://wikantik.com/</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -126,26 +126,26 @@
   </properties>
 
   <scm>
-    <connection>scm:git:https://github.com/apache/jspwiki.git</connection>
-    <developerConnection>scm:git:https://github.com/apache/jspwiki.git</developerConnection>
-    <url>https://github.com/apache/jspwiki</url>
+    <connection>scm:git:https://github.com/jakefearsd/wikantik.git</connection>
+    <developerConnection>scm:git:https://github.com/jakefearsd/wikantik.git</developerConnection>
+    <url>https://github.com/jakefearsd/wikantik</url>
     <tag>2.12.1-RC1</tag>
   </scm>
 
   <modules>
-    <module>jspwiki-wikipages</module>
-    <module>jspwiki-util</module>
-    <module>jspwiki-event</module>
-    <module>jspwiki-api</module>
-    <module>jspwiki-bootstrap</module>
-    <module>jspwiki-cache</module>
-    <module>jspwiki-http</module>
-    <module>jspwiki-main</module>
-    <module>jspwiki-markdown</module>
-    <module>jspwiki-mcp</module>
-    <module>jspwiki-war</module>
-    <module>jspwiki-it-tests</module><!-- IT tests are launched only if -Pintegration-tests is given -->
-    <module>jspwiki-bom</module>
+    <module>wikantik-wikipages</module>
+    <module>wikantik-util</module>
+    <module>wikantik-event</module>
+    <module>wikantik-api</module>
+    <module>wikantik-bootstrap</module>
+    <module>wikantik-cache</module>
+    <module>wikantik-http</module>
+    <module>wikantik-main</module>
+    <module>wikantik-markdown</module>
+    <module>wikantik-mcp</module>
+    <module>wikantik-war</module>
+    <module>wikantik-it-tests</module><!-- IT tests are launched only if -Pintegration-tests is given -->
+    <module>wikantik-bom</module>
   </modules>
 
   <dependencyManagement> <!-- defines what configuration is going to be used if, and only if, the dependency is used -->
@@ -953,7 +953,7 @@
             <!-- <deployables>
               <deployable>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>jspwiki-war</artifactId>
+                <artifactId>wikantik-war</artifactId>
                 <type>war</type>
                 <properties>
                   <context>/JSPWiki</context>

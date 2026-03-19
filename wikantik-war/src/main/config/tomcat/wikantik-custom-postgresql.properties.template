@@ -1,0 +1,73 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements.  See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+#
+# JSPWiki Custom Configuration for PostgreSQL User/Group Database
+#
+# This file is copied by deploy-local.sh to:
+#   tomcat/tomcat-11/lib/jspwiki-custom.properties
+#
+# Adjust paths below to match your local environment.
+#
+
+# Application settings
+wikantik.applicationName = JSPWiki
+wikantik.pageProvider = FileSystemProvider
+wikantik.frontPage = Main
+
+# Base URL - adjust if using a different port or context path
+wikantik.baseURL = http://localhost:8080/JSPWiki/
+
+# File storage locations
+# Adjust these paths to match your local environment
+wikantik.fileSystemProvider.pageDir = /home/jakefear/source/jspwiki/docs/wikantik-pages
+wikantik.workDir = /home/jakefear/source/jspwiki/tomcat/jspwiki-work
+
+# Use PostgreSQL JDBC databases for user and group storage
+wikantik.userdatabase = org.apache.wiki.auth.user.JDBCUserDatabase
+wikantik.groupdatabase = org.apache.wiki.auth.authorize.JDBCGroupDatabase
+
+# JNDI DataSource names (must match context.xml Resource names)
+wikantik.userdatabase.datasource = jdbc/UserDatabase
+wikantik.groupdatabase.datasource = jdbc/GroupDatabase
+
+# User database table/column mappings (match postgresql.ddl)
+wikantik.userdatabase.table = users
+wikantik.userdatabase.uid = uid
+wikantik.userdatabase.email = email
+wikantik.userdatabase.fullName = full_name
+wikantik.userdatabase.loginName = login_name
+wikantik.userdatabase.password = password
+wikantik.userdatabase.wikiName = wiki_name
+wikantik.userdatabase.created = created
+wikantik.userdatabase.modified = modified
+wikantik.userdatabase.lockExpiry = lock_expiry
+wikantik.userdatabase.attributes = attributes
+wikantik.userdatabase.roleTable = roles
+wikantik.userdatabase.role = role
+
+# Group database table/column mappings (match postgresql.ddl)
+wikantik.groupdatabase.table = groups
+wikantik.groupdatabase.membertable = group_members
+wikantik.groupdatabase.name = name
+wikantik.groupdatabase.created = created
+wikantik.groupdatabase.creator = creator
+wikantik.groupdatabase.member = member
+wikantik.groupdatabase.modified = modified
+wikantik.groupdatabase.modifier = modifier
+
+# Sitemap base URL for HTTPS behind proxy (e.g., cloudflared)
+#wikantik.sitemap.baseURL = https://example.com

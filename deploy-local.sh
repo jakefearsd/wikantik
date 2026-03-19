@@ -5,7 +5,7 @@
 # Prerequisites:
 #   1. Run 'mvn clean install' (or 'mvn clean install -Dmaven.test.skip') first
 #   2. PostgreSQL running with 'jspwiki' database created
-#   3. Run the DDL: sudo -u postgres psql -d jspwiki -f jspwiki-war/src/main/config/db/postgresql.ddl
+#   3. Run the DDL: sudo -u postgres psql -d jspwiki -f wikantik-war/src/main/config/db/postgresql.ddl
 #   4. Edit tomcat/tomcat-11/conf/Catalina/localhost/JSPWiki.xml to set your password
 #
 # Usage:
@@ -17,8 +17,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOMCAT_DIR="${SCRIPT_DIR}/tomcat/tomcat-11"
-WAR_SOURCE="${SCRIPT_DIR}/jspwiki-war/target/JSPWiki.war"
-CONFIG_DIR="${SCRIPT_DIR}/jspwiki-war/src/main/config/tomcat"
+WAR_SOURCE="${SCRIPT_DIR}/wikantik-war/target/Wikantik.war"
+CONFIG_DIR="${SCRIPT_DIR}/wikantik-war/src/main/config/tomcat"
 CONTEXT_DEST="${TOMCAT_DIR}/conf/Catalina/localhost/JSPWiki.xml"
 PROPS_DEST="${TOMCAT_DIR}/lib/jspwiki-custom.properties"
 LOG4J2_DEST="${TOMCAT_DIR}/lib/log4j2.xml"
@@ -142,8 +142,8 @@ echo "Deploying WAR file..."
 cp "${WAR_SOURCE}" "${TOMCAT_DIR}/webapps/"
 print_status "WAR deployed to ${TOMCAT_DIR}/webapps/"
 
-# Wiki pages now live in docs/jspwiki-pages/ (version-controlled)
-# No copy step needed — Tomcat serves directly from docs/jspwiki-pages/
+# Wiki pages now live in docs/wikantik-pages/ (version-controlled)
+# No copy step needed — Tomcat serves directly from docs/wikantik-pages/
 
 # Summary
 echo ""

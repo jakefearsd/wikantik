@@ -19,9 +19,6 @@ mvn clean install -T 1C -DskipITs
 
 # Build without JavaScript/CSS compression
 mvn clean install -Dmaven.test.skip -Dminimize=false
-
-# Build portable distribution with native launchers
-mvn clean install -Dgenerate-native-launchers=true   # from jspwiki-portable module
 ```
 
 ### Testing Commands
@@ -42,7 +39,7 @@ mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug
 # Always use -fae (fail at end) so all 5 IT modules run even if one has failures
 mvn clean install -Pintegration-tests -fae
 
-# Run memory profiling test (from jspwiki-main module)
+# Run memory profiling test (from wikantik-main module)
 mvn test -Dtest=MemoryProfiling
 ```
 
@@ -50,9 +47,9 @@ mvn test -Dtest=MemoryProfiling
 
 The local Tomcat instance lives at `tomcat/tomcat-11`. Use this for running and testing — do not use Cargo.
 
-The wiki is deployed as the ROOT context, serving pages from `docs/jspwiki-pages/` (version-controlled).
+The wiki is deployed as the ROOT context, serving pages from `docs/wikantik-pages/` (version-controlled).
 Configuration files:
-- `tomcat/tomcat-11/lib/jspwiki-custom.properties` — wiki settings (page provider, base URL, PostgreSQL JDBC, etc.)
+- `tomcat/tomcat-11/lib/wikantik-custom.properties` — wiki settings (page provider, base URL, PostgreSQL JDBC, etc.)
 - `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml` — Tomcat context with PostgreSQL JNDI DataSources
 
 ```bash
@@ -60,7 +57,7 @@ Configuration files:
 mvn clean install -Dmaven.test.skip -T 1C
 
 # 2. Deploy as ROOT to local Tomcat
-cp jspwiki-war/target/JSPWiki.war tomcat/tomcat-11/webapps/ROOT.war
+cp wikantik-war/target/Wikantik.war tomcat/tomcat-11/webapps/ROOT.war
 
 # 3. Start Tomcat
 tomcat/tomcat-11/bin/startup.sh
@@ -94,7 +91,7 @@ mvn wro4j:run -Dminimize=false
 
 ## Architecture Overview
 
-JSPWiki is a modular Java-based wiki engine built on JEE technologies with the following key characteristics:
+Wikantik is a modular Java-based wiki engine built on JEE technologies with the following key characteristics:
 
 ### Core Components
 
@@ -114,14 +111,15 @@ JSPWiki is a modular Java-based wiki engine built on JEE technologies with the f
 
 ### Module Structure
 
-- **jspwiki-api**: Core interfaces and contracts
-- **jspwiki-main**: Main implementation of wiki functionality
-- **jspwiki-event**: Event system for decoupled communication
-- **jspwiki-util**: Utility classes and helpers
-- **jspwiki-bootstrap**: Initialization and bootstrap
-- **jspwiki-cache**: EhCache-based caching layer
-- **jspwiki-markdown**: Markdown syntax support
-- **jspwiki-war**: WAR packaging for deployment
+- **wikantik-api**: Core interfaces and contracts
+- **wikantik-main**: Main implementation of wiki functionality
+- **wikantik-event**: Event system for decoupled communication
+- **wikantik-util**: Utility classes and helpers
+- **wikantik-bootstrap**: Initialization and bootstrap
+- **wikantik-cache**: EhCache-based caching layer
+- **wikantik-markdown**: Markdown syntax support
+- **wikantik-mcp**: MCP server for AI agent integration
+- **wikantik-war**: WAR packaging for deployment
 
 ### Key Design Patterns
 
@@ -157,17 +155,11 @@ JSPWiki is a modular Java-based wiki engine built on JEE technologies with the f
 - ACL support for individual pages
 - Pluggable authentication (LDAP, database, container)
 
-### Workflow System
-
-- Sophisticated workflow engine for content approval
-- Step-based processing with human decision points
-- Used for page saves, user registration, group management
-
 ### Important Configuration
 
-- Main configuration: `ini/jspwiki.properties` (in JAR)
-- Custom overrides: `jspwiki-custom.properties` (in WEB-INF or container lib)
-- Security policy: `WEB-INF/jspwiki.policy`
+- Main configuration: `ini/wikantik.properties` (in JAR)
+- Custom overrides: `wikantik-custom.properties` (in WEB-INF or container lib)
+- Security policy: `WEB-INF/wikantik.policy`
 
 ### Extension Points
 
@@ -199,8 +191,8 @@ Port number 8205 (defined with the property cargo.rmi.port) is in use
 
 **Correct usage:**
 ```bash
-# Integration tests - MUST be sequential (no -T flag)
-mvn clean install -Pintegration-tests
+# Integration tests - MUST be sequential (no -T flag), always use -fae
+mvn clean install -Pintegration-tests -fae
 
 # Unit tests only - can use parallel builds
 mvn clean install -T 1C -DskipITs

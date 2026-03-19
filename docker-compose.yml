@@ -1,25 +1,25 @@
 version: '3.7'
 
 services:
-  jspwiki:
+  wikantik:
     build: .
-    container_name: jspwiki
+    container_name: wikantik
     restart: always
     ports:
       - "8080:8080"
     volumes:
-      - jspwiki-data:/var/jspwiki
+      - wikantik-data:/var/wikantik
 
   backup:
     image: alpine
-    container_name: jspwiki-backup
+    container_name: wikantik-backup
     restart: always
     volumes:
-      - jspwiki-data:/var/jspwiki:ro
+      - wikantik-data:/var/wikantik:ro
       - type: bind
         source: /home/jakefear/backups
         target: /backups
     command: ["crond", "-f", "-d", "8"]
 
 volumes:
-  jspwiki-data:
+  wikantik-data:

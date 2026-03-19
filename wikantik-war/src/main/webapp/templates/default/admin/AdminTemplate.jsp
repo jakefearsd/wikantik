@@ -27,7 +27,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<title>JSPWiki administration</title>
+<title>Wikantik administration</title>
   <wiki:Include page="commonheader.jsp"/>
   <link rel="stylesheet" media="screen, projection, print" type="text/css"
         href="<wiki:Link format='url' templatefile='admin/admin.css'/>"/>
@@ -35,7 +35,7 @@
 <body class="container context-view">
 <div id="wikibody">
 <div id="page" >
-<h1>JSPWiki Administration</h1>
+<h1>Wikantik Administration</h1>
 <div class="information">Not all things can be configured here.  Some things need to be configured
 in your <code>jspwiki.properties</code> file.</div>
 

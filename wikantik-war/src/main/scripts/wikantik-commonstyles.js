@@ -18,7 +18,7 @@
  */
 
 /*
- * jspwiki-commonstyles.js
+ * wikantik-commonstyles.js
  * Contains additional Dynmic Styles
  *
  *	114 Reflection (adds reflection to images): dynamic style

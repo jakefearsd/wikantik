@@ -1,17 +1,17 @@
 @font-face {
-  font-family: 'FontJspwiki';
-  src:  url('fonts/FontJspwiki.eot?vtea7l');
-  src:  url('fonts/FontJspwiki.eot?vtea7l#iefix') format('embedded-opentype'),
-    url('fonts/FontJspwiki.ttf?vtea7l') format('truetype'),
-    url('fonts/FontJspwiki.woff?vtea7l') format('woff'),
-    url('fonts/FontJspwiki.svg?vtea7l#FontJspwiki') format('svg');
+  font-family: 'FontWikantik';
+  src:  url('fonts/FontWikantik.eot?vtea7l');
+  src:  url('fonts/FontWikantik.eot?vtea7l#iefix') format('embedded-opentype'),
+    url('fonts/FontWikantik.ttf?vtea7l') format('truetype'),
+    url('fonts/FontWikantik.woff?vtea7l') format('woff'),
+    url('fonts/FontWikantik.svg?vtea7l#FontWikantik') format('svg');
   font-weight: normal;
   font-style: normal;
 }
 
 [class^="icon-"], [class*=" icon-"] {
   /* use !important to prevent issues with browser extensions that change fonts */
-  font-family: 'FontJspwiki' !important;
+  font-family: 'FontWikantik' !important;
   speak: none;
   font-style: normal;
   font-weight: normal;

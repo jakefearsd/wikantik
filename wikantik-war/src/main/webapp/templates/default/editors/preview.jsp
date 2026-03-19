@@ -28,7 +28,7 @@
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <%--
-        This is a special editor component for JSPWiki preview storage.
+        This is a special editor component for Wikantik preview storage.
 --%>
 <%
    Context context = Context.findContext( pageContext );

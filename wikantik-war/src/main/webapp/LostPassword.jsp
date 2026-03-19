@@ -37,7 +37,7 @@
 <%@ page import="com.wikantik.util.*"%>
 <%@ page errorPage="/Error.jsp"%>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
-<%!Logger log = LogManager.getLogger( "JSPWiki" );
+<%!Logger log = LogManager.getLogger( "Wikantik" );
 
     String message = null;
 
@@ -50,7 +50,7 @@
         try {
             UserProfile profile = null;
             /*
-             // This is disabled because it would otherwise be possible to DOS JSPWiki instances
+             // This is disabled because it would otherwise be possible to DOS Wikantik instances
              // by requesting new passwords for all users.  See https://issues.apache.org/jira/browse/JSPWIKI-78
              try {
                  profile = userDatabase.find(name);

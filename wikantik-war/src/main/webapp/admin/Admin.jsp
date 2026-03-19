@@ -56,7 +56,7 @@
         </head>
         <body class="container">
            <h1>Disabled</h1>
-           <p>JSPWiki admin UI has been disabled.  This is an experimental feature, and is
+           <p>Wikantik admin UI has been disabled.  This is an experimental feature, and is
            not guaranteed to work.  You may turn it on by specifying</p>
            <pre>
                jspwiki-x.adminui.enable=true

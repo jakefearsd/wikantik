@@ -32,7 +32,7 @@
   {
     wiki = Wiki.engine().find( getServletConfig() );
   }
-  Logger log = LogManager.getLogger("JSPWikiSearch");
+  Logger log = LogManager.getLogger("WikantikSearch");
   Engine wiki;
 %>
 <%

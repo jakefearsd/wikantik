@@ -39,7 +39,8 @@ mvn test -Dtest=JSPWikiMarkupParserTest#testHeadingHyperlinks3
 mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug
 
 # Run integration tests (MUST run without parallelism - see critical note below)
-mvn clean install -Pintegration-tests
+# Always use -fae (fail at end) so all 5 IT modules run even if one has failures
+mvn clean install -Pintegration-tests -fae
 
 # Run memory profiling test (from jspwiki-main module)
 mvn test -Dtest=MemoryProfiling

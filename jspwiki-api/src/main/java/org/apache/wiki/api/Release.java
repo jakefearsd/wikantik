@@ -42,7 +42,7 @@ public final class Release {
     /**
      *  This is the default application name.
      */
-    public static final String     APPNAME       = "JSPWiki";
+    public static final String     APPNAME       = "Wikantik";
 
     /**
      *  This should be empty when doing a release - otherwise keep it as "-git-" so that whenever someone checks out the code, they know
@@ -52,14 +52,14 @@ public final class Release {
      */
     private static final String    POSTFIX       = "-git-";
 
-    /** The JSPWiki major version. */
-    public static final int        VERSION       = 3;
+    /** The Wikantik major version. */
+    public static final int        VERSION       = 1;
 
-    /** The JSPWiki revision. */
-    public static final int        REVISION      = 1;
+    /** The Wikantik revision. */
+    public static final int        REVISION      = 0;
 
     /** The minor revision.  */
-    public static final int        MINORREVISION = 2;
+    public static final int        MINORREVISION = 0;
 
     /** The build number/identifier.  This is a String as opposed to an integer, just so that people can add other identifiers to it.
      * The build number is incremented every time a committer checks in code, and reset when a release is made.

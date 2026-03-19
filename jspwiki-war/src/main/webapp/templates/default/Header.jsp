@@ -17,14 +17,14 @@
     under the License.
 --%>
 
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <%@ page import="org.apache.wiki.api.core.*" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
-<c:set var="frontpage"><wiki:Variable var="jspwiki.frontPage" default="Main" /></c:set>
+<c:set var="frontpage"><wiki:Variable var="wikantik.frontPage" default="Main" /></c:set>
 
 <div class="header">
 

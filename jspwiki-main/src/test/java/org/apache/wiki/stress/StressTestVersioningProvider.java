@@ -31,7 +31,7 @@ import java.util.Properties;
 public class StressTestVersioningProvider {
     public static final String NAME1 = "Test1";
 
-    Properties props = TestEngine.getTestProperties("/jspwiki-vers-custom.properties");
+    Properties props = TestEngine.getTestProperties("/wikantik-vers-custom.properties");
     TestEngine engine = TestEngine.build( props );
 
     @AfterEach

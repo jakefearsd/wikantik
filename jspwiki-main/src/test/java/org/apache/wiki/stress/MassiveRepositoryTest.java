@@ -33,7 +33,7 @@ import java.util.Random;
 
 public class MassiveRepositoryTest {
 
-    Properties props = TestEngine.getTestProperties( "/jspwiki-vers-custom.properties" );
+    Properties props = TestEngine.getTestProperties( "/wikantik-vers-custom.properties" );
     TestEngine engine = TestEngine.build( props );
 
     @AfterEach

@@ -80,7 +80,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
     public static final String PROPERTYFILE = "page.properties";
 
     /** Property name for configuring the property cache size. Set to 0 for single-entry, -1 for no caching. */
-    public static final String PROP_CACHE_SIZE = "jspwiki.versioningFileProvider.cacheSize";
+    public static final String PROP_CACHE_SIZE = "wikantik.versioningFileProvider.cacheSize";
 
     /** Default property cache size. */
     public static final int DEFAULT_CACHE_SIZE = 100;

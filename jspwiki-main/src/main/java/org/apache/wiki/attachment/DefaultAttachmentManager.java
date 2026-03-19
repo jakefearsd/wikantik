@@ -70,7 +70,7 @@ public class DefaultAttachmentManager implements AttachmentManager {
      *  Wikiengine.getManager( AttachmentManager.class ) if you're making a module for JSPWiki.
      *
      *  @param engine The wikiengine that owns this attachment manager.
-     *  @param props A list of properties from which the AttachmentManager will seek its configuration. Typically, this is the "jspwiki.properties".
+     *  @param props A list of properties from which the AttachmentManager will seek its configuration. Typically, this is the "wikantik.properties".
      */
     public DefaultAttachmentManager( final Engine engine, final Properties props ) {
         this.engine = engine;
@@ -79,7 +79,7 @@ public class DefaultAttachmentManager implements AttachmentManager {
         if( cachingManager.enabled( CachingManager.CACHE_ATTACHMENTS_DYNAMIC ) ) {
             classname = "org.apache.wiki.providers.CachingAttachmentProvider";
         } else {
-            classname = TextUtil.getRequiredProperty( props, PROP_PROVIDER, "jspwiki.attachmentProvider" );
+            classname = TextUtil.getRequiredProperty( props, PROP_PROVIDER, "wikantik.attachmentProvider" );
         }
 
         //  If no class defined, then will just simply fail.

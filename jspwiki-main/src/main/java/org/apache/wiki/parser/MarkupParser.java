@@ -69,22 +69,22 @@ public abstract class MarkupParser {
 
     /** If set to "true", allows using raw HTML within Wiki text.  Be warned, this is a VERY dangerous option to set -
        never turn this on in a publicly allowable Wiki, unless you are absolutely certain of what you're doing. */
-    public static final String PROP_ALLOWHTML = "jspwiki.translatorReader.allowHTML";
+    public static final String PROP_ALLOWHTML = "wikantik.translatorReader.allowHTML";
 
     /** If set to "true", enables plugins during parsing */
-    public static final String PROP_RUNPLUGINS = "jspwiki.translatorReader.runPlugins";
+    public static final String PROP_RUNPLUGINS = "wikantik.translatorReader.runPlugins";
 
     /** If true, all outward links (external links) have a small link image appended. */
-    public static final String PROP_USEOUTLINKIMAGE = "jspwiki.translatorReader.useOutlinkImage";
+    public static final String PROP_USEOUTLINKIMAGE = "wikantik.translatorReader.useOutlinkImage";
 
     /** If set to "true", all external links are tagged with 'rel="nofollow"' */
-    public static final String PROP_USERELNOFOLLOW = "jspwiki.translatorReader.useRelNofollow";
+    public static final String PROP_USERELNOFOLLOW = "wikantik.translatorReader.useRelNofollow";
 
     /** If true, consider CamelCase hyperlinks as well. */
-    public static final String PROP_CAMELCASELINKS = "jspwiki.translatorReader.camelCaseLinks";
+    public static final String PROP_CAMELCASELINKS = "wikantik.translatorReader.camelCaseLinks";
 
     /** If true, all outward attachment info links have a small link image appended. */
-    public static final String PROP_USEATTACHMENTIMAGE = "jspwiki.translatorReader.useAttachmentImage";
+    public static final String PROP_USEATTACHMENTIMAGE = "wikantik.translatorReader.useAttachmentImage";
 
     public static final String HASHLINK = "hashlink";
 

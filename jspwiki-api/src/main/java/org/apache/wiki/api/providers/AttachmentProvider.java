@@ -40,7 +40,7 @@ import java.util.List;
 public interface AttachmentProvider extends WikiProvider {
 
     /** Property that supplies the directory used to store attachments. */
-    String PROP_STORAGEDIR = "jspwiki.basicAttachmentProvider.storageDir";
+    String PROP_STORAGEDIR = "wikantik.basicAttachmentProvider.storageDir";
 
     /**
      *  Put new attachment data.

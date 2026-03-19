@@ -725,7 +725,7 @@ class SitemapServletTest {
     @Test
     void testSitemapPropertyConstantValue() {
         // Verify the property constant has the expected value
-        Assertions.assertEquals( "jspwiki.sitemap.baseURL", SitemapServlet.PROP_SITEMAP_BASE_URL,
+        Assertions.assertEquals( "wikantik.sitemap.baseURL", SitemapServlet.PROP_SITEMAP_BASE_URL,
             "Property constant should have correct value" );
     }
 

@@ -27,7 +27,7 @@
   
   <artifactId>jspwiki-selenide-tests</artifactId>
   <modelVersion>4.0.0</modelVersion>
-  <description>selenide tests for jspwiki</description>
+  <description>selenide tests for Wikantik</description>
   
   <dependencies>
     <dependency>

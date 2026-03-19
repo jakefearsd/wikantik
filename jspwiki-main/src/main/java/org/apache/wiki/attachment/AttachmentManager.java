@@ -48,22 +48,22 @@ import java.util.List;
 public interface AttachmentManager {
 
     /** The property name for defining the attachment provider class name. */
-    String PROP_PROVIDER = "jspwiki.attachment.provider";
+    String PROP_PROVIDER = "wikantik.attachment.provider";
 
     /** The property name for defining the attachment provider class name. */
-    @Deprecated String PROP_PROVIDER_DEPRECATED = "jspwiki.attachmentProvider";
+    @Deprecated String PROP_PROVIDER_DEPRECATED = "wikantik.attachmentProvider";
 
     /** The maximum size of attachments that can be uploaded. */
-    String PROP_MAXSIZE  = "jspwiki.attachment.maxsize";
+    String PROP_MAXSIZE  = "wikantik.attachment.maxsize";
 
     /** A space-separated list of attachment types which can be uploaded */
-    String PROP_ALLOWEDEXTENSIONS = "jspwiki.attachment.allowed";
+    String PROP_ALLOWEDEXTENSIONS = "wikantik.attachment.allowed";
 
     /** A space-separated list of attachment types which cannot be uploaded */
-    String PROP_FORBIDDENEXTENSIONS = "jspwiki.attachment.forbidden";
+    String PROP_FORBIDDENEXTENSIONS = "wikantik.attachment.forbidden";
 
     /** A space-separated list of attachment types which will never open in the browser. */
-    String PROP_FORCEDOWNLOAD = "jspwiki.attachment.forceDownload";
+    String PROP_FORCEDOWNLOAD = "wikantik.attachment.forceDownload";
 
     /**
      *  Returns true, if attachments are enabled and running.

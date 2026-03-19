@@ -127,7 +127,7 @@ public class DefaultPluginManagerTest {
         Assertions.assertEquals( "15", res );
     }
 
-    // This should be read from tests/etc/ini/jspwiki_module.xml
+    // This should be read from tests/etc/ini/wikantik_module.xml
     @Test
     public void testAlias() throws Exception {
         final String res = manager.execute( context, "{samplealias text=15}");

@@ -58,7 +58,7 @@ public class DefaultVariableManager implements VariableManager {
      *  Contains a list of those properties that shall never be shown. Put names here in lower case.
      */
     static final String[] THE_BIG_NO_NO_LIST = {
-        "jspwiki.auth.masterpassword"
+        "wikantik.auth.masterpassword"
     };
 
     /**
@@ -232,10 +232,10 @@ public class DefaultVariableManager implements VariableManager {
 
             //
             // Next-to-final straw: attempt to fetch using property name. We don't allow fetching any other
-            // properties than those starting with "jspwiki.".  I know my own code, but I can't vouch for bugs
+            // properties than those starting with "wikantik.".  I know my own code, but I can't vouch for bugs
             // in other people's code... :-)
             //
-            if( varName.startsWith("jspwiki.") ) {
+            if( varName.startsWith("wikantik.") ) {
                 final Properties props = context.getEngine().getWikiProperties();
                 final String s = props.getProperty( varName );
                 if( s != null ) {

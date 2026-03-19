@@ -95,7 +95,7 @@ import java.util.regex.Pattern;
  *  For example, "FunnyPlugin" would be expanded to
  *  "org.apache.wiki.plugin.FunnyPlugin" automatically.  It is also
  *  possible to define other packages, by setting the
- *  "jspwiki.plugin.searchPath" property.  See the included
+ *  "wikantik.plugin.searchPath" property.  See the included
  *  jspwiki.properties file for examples.
  *  <P>
  *  Even though the nominal way of writing the plugin is
@@ -170,7 +170,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
      *  Create a new PluginManager.
      *
      *  @param engine Engine which owns this manager.
-     *  @param props Contents of a "jspwiki.properties" file.
+     *  @param props Contents of a "wikantik.properties" file.
      */
     public DefaultPluginManager( final Engine engine, final Properties props ) {
         super( engine );

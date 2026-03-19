@@ -32,7 +32,7 @@ import static org.apache.wiki.TestEngine.with;
 
 class ReferringUndefinedPagesPluginTest {
 
-	static TestEngine testEngine = TestEngine.build( with( "jspwiki.cache.enable", "false" ) );
+	static TestEngine testEngine = TestEngine.build( with( "wikantik.cache.enable", "false" ) );
     static PluginManager manager = testEngine.getManager( PluginManager.class );
     Context context;
 

@@ -28,11 +28,11 @@
   <groupId>org.apache.jspwiki</groupId>
   <artifactId>jspwiki-builder</artifactId>
   <modelVersion>4.0.0</modelVersion>
-  <name>Apache JSPWiki</name>
+  <name>Wikantik</name>
   <version>3.1.2-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <description>Apache JSPWiki is a leading open source WikiWiki engine, feature-rich
-    and built around standard JEE components (Java, servlets, JSP).</description>
+  <description>Wikantik is a feature-rich wiki engine built around standard JEE components
+    (Java, servlets, JSP), designed for direct AI agent engagement.</description>
   <inceptionYear>2001</inceptionYear>
   <url>https://jspwiki.apache.org/</url>
 
@@ -1222,7 +1222,7 @@
 
   <mailingLists>
     <mailingList>
-      <name>Apache JSPWiki-dev List</name>
+      <name>Wikantik-dev List</name>
       <subscribe>dev-subscribe@jspwiki.apache.org</subscribe>
       <unsubscribe>dev-unsubscribe@jspwiki.apache.org</unsubscribe>
       <post>dev@jspwiki.apache.org</post>
@@ -1230,7 +1230,7 @@
     </mailingList>
 
     <mailingList>
-      <name>Apache JSPWiki-user List</name>
+      <name>Wikantik-user List</name>
       <subscribe>user-subscribe@jspwiki.apache.org</subscribe>
       <unsubscribe>user-unsubscribe@jspwiki.apache.org</unsubscribe>
       <post>user@jspwiki.apache.org</post>
@@ -1238,7 +1238,7 @@
     </mailingList>
 
     <mailingList>
-      <name>Apache JSPWiki-commits List</name>
+      <name>Wikantik-commits List</name>
       <subscribe>commits-subscribe@jspwiki.apache.org</subscribe>
       <unsubscribe>commits-unsubscribe@jspwiki.apache.org</unsubscribe>
       <archive>http://mail-archives.apache.org/mod_mbox/jspwiki-commits/</archive>

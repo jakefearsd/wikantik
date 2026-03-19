@@ -106,15 +106,15 @@ public class LuceneSearchProvider implements SearchProvider {
     // Lucene properties.
 
     /** Which analyzer to use.  Default is StandardAnalyzer. */
-    public static final String PROP_LUCENE_ANALYZER      = "jspwiki.lucene.analyzer";
-    private static final String PROP_LUCENE_INDEXDELAY   = "jspwiki.lucene.indexdelay";
-    private static final String PROP_LUCENE_INITIALDELAY = "jspwiki.lucene.initialdelay";
+    public static final String PROP_LUCENE_ANALYZER      = "wikantik.lucene.analyzer";
+    private static final String PROP_LUCENE_INDEXDELAY   = "wikantik.lucene.indexdelay";
+    private static final String PROP_LUCENE_INITIALDELAY = "wikantik.lucene.initialdelay";
 
     /**
      * How often (in seconds) to check for pages that exist on disk but are not in the Lucene index.
      * Default is 300 seconds (5 minutes). Set to 0 to disable periodic checks.
      */
-    private static final String PROP_LUCENE_MISSINGPAGECHECK_INTERVAL = "jspwiki.lucene.missingPageCheckInterval";
+    private static final String PROP_LUCENE_MISSINGPAGECHECK_INTERVAL = "wikantik.lucene.missingPageCheckInterval";
     private static final int DEFAULT_MISSING_PAGE_CHECK_INTERVAL = 300;
 
     /** How often (in seconds) to check for missing pages. Loaded from properties. */

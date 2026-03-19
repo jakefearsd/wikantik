@@ -27,7 +27,7 @@
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>jspwiki-event</artifactId>
-  <name>Apache JSPWiki event subsystem</name>
+  <name>Wikantik event subsystem</name>
 
   <dependencies>
     <dependency>

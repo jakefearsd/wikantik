@@ -148,7 +148,7 @@ public class CookieAssertionLoginModule extends AbstractLoginModule {
         if ("true".equalsIgnoreCase(
                 WikiEngine.getInstance(context.getServletConfig()).
                         getWikiProperties().
-                        getProperty("jspwiki.securecookie", "false"))) {
+                        getProperty("wikantik.securecookie", "false"))) {
             userId.setHttpOnly(true);
             userId.setSecure(true);
         }

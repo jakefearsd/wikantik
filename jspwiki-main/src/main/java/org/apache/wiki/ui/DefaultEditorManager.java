@@ -42,7 +42,7 @@ import java.util.Set;
 /**
  *  Defines an editor manager.  An editor can be added by adding a suitable JSP file under templates/default/editors
  *  If you want your editor to include any scripts or something, you can simply request it by adding the following in your
- *  {@code ini/jspwiki_module.xml}:
+ *  {@code ini/wikantik_module.xml}:
  *
  *  <pre>
  *  &lt;modules>
@@ -77,7 +77,7 @@ public class DefaultEditorManager extends BaseModuleManager implements EditorMan
         registerEditors();
     }
 
-    /** This method goes through the jspwiki_module.xml files and hunts for editors. Any editors found are put in the registry. */
+    /** This method goes through the wikantik_module.xml files and hunts for editors. Any editors found are put in the registry. */
     private void registerEditors() {
         LOG.info( "Registering editor modules" );
         editors = new HashMap<>();

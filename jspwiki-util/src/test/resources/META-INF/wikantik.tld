@@ -23,8 +23,8 @@
         version="2.3">
 
   <tlib-version>2.11</tlib-version>
-  <short-name>jspwiki</short-name>
-  <uri>http://jspwiki.apache.org/tags</uri>
+  <short-name>wikantik</short-name>
+  <uri>https://wikantik.com/tags</uri>
 
   <tag>
     <name>AdminBeanIterator</name>

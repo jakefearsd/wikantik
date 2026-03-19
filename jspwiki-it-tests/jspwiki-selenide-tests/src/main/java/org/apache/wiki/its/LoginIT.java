@@ -35,16 +35,16 @@ public class LoginIT extends WithIntegrationTestSetup {
     @DisabledOnOs(OS.WINDOWS)
     void loginAndLogout() {
         ViewWikiPage main = ViewWikiPage.open( "Main" );
-        Assertions.assertEquals( "JSPWiki: Main", main.title() );
+        Assertions.assertEquals( "Wikantik: Main", main.title() );
         Assertions.assertEquals( "Main", main.wikiTitle() );
         Assertions.assertEquals( "G’day (anonymous guest)", main.hoverLoginArea().authenticatedText() );
         
         final LoginPage login = main.clickOnLogin();
-        Assertions.assertEquals( "JSPWiki: Login", login.title() );
+        Assertions.assertEquals( "Wikantik: Login", login.title() );
         Assertions.assertEquals( "Login", login.wikiTitle() );
         
         main = login.performLogin();
-        Assertions.assertEquals( "JSPWiki: Main", main.title() );
+        Assertions.assertEquals( "Wikantik: Main", main.title() );
         Assertions.assertEquals( "G’day, Janne Jalkanen (authenticated)", main.hoverLoginArea().authenticatedText() );
         
         main.clickOnLogout();
@@ -55,16 +55,16 @@ public class LoginIT extends WithIntegrationTestSetup {
     @DisabledOnOs(OS.WINDOWS)
     void loginKO() {
         ViewWikiPage main = ViewWikiPage.open( "Main" );
-        Assertions.assertEquals( "JSPWiki: Main", main.title() );
+        Assertions.assertEquals( "Wikantik: Main", main.title() );
         Assertions.assertEquals( "Main", main.wikiTitle() );
         Assertions.assertEquals( "G’day (anonymous guest)", main.hoverLoginArea().authenticatedText() );
         
         final LoginPage login = main.clickOnLogin();
-        Assertions.assertEquals( "JSPWiki: Login", login.title() );
+        Assertions.assertEquals( "Wikantik: Login", login.title() );
         Assertions.assertEquals( "Login", login.wikiTitle() );
         
         main = login.performLogin( "perry", "mason" );
-        Assertions.assertEquals( "JSPWiki: Login", main.title() );
+        Assertions.assertEquals( "Wikantik: Login", main.title() );
         Assertions.assertEquals( "G’day (anonymous guest)", main.hoverLoginArea().authenticatedText() );
     }
 

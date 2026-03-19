@@ -219,7 +219,7 @@ public final class MailUtil {
 
     static final String DEFAULT_SENDER               = "jspwiki@localhost";
 
-    static final String PROP_MAIL_JNDI_NAME          = "jspwiki.mail.jndiname";
+    static final String PROP_MAIL_JNDI_NAME          = "wikantik.mail.jndiname";
 
     static final String MAIL_PROPS                   = "mail.smtp";
 

@@ -27,12 +27,12 @@ public class ReleaseTest {
 
     @Test
     public void testNewer1() {
-        Assertions.assertTrue( Release.isNewerOrEqual( "1.0.100" ) );
+        Assertions.assertTrue( Release.isNewerOrEqual( "0.9.100" ) );
     }
 
     @Test
     public void testNewer2() {
-        Assertions.assertTrue( Release.isNewerOrEqual( "2.0.0-alpha" ) );
+        Assertions.assertTrue( Release.isNewerOrEqual( "0.5.0-alpha" ) );
     }
 
     @Test
@@ -78,12 +78,12 @@ public class ReleaseTest {
 
     @Test
     public void testOlder1() {
-        Assertions.assertFalse( Release.isOlderOrEqual( "1.0.100" ) );
+        Assertions.assertFalse( Release.isOlderOrEqual( "0.9.100" ) );
     }
 
     @Test
     public void testOlder2() {
-        Assertions.assertFalse( Release.isOlderOrEqual( "2.0.0-alpha" ) );
+        Assertions.assertFalse( Release.isOlderOrEqual( "0.5.0-alpha" ) );
     }
 
     @Test

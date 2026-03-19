@@ -92,7 +92,7 @@ public class JDBCUserDatabaseTest {
             // ignore
         }
         final Context ctx = ( Context ) initCtx.lookup( "java:comp/env" );
-        m_ds = new TestJDBCDataSource( new File( "target/test-classes/jspwiki-custom.properties" ), m_hu.getDriverUrl() );
+        m_ds = new TestJDBCDataSource( new File( "target/test-classes/wikantik-custom.properties" ), m_hu.getDriverUrl() );
         ctx.bind( JDBCUserDatabase.DEFAULT_DB_JNDI_NAME, m_ds );
     }
 
@@ -129,7 +129,7 @@ public class JDBCUserDatabaseTest {
         // Create a new user with random name
         final String loginName = "TestUser" + System.currentTimeMillis();
         UserProfile profile = m_db.newProfile();
-        profile.setEmail( "jspwiki.tests@mailinator.com" );
+        profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "FullName" + loginName );
         profile.setPassword( "password" );
@@ -359,13 +359,13 @@ public class JDBCUserDatabaseTest {
         try {
             // Overwrite existing user
             UserProfile profile = m_db.newProfile();
-            profile.setEmail( "jspwiki.tests@mailinator.com" );
+            profile.setEmail( "wikantik.tests@mailinator.com" );
             profile.setFullname( "Test User" );
             profile.setLoginName( "user" );
             profile.setPassword( "password" );
             m_db.save( profile );
-            profile = m_db.findByEmail( "jspwiki.tests@mailinator.com" );
-            Assertions.assertEquals( "jspwiki.tests@mailinator.com", profile.getEmail() );
+            profile = m_db.findByEmail( "wikantik.tests@mailinator.com" );
+            Assertions.assertEquals( "wikantik.tests@mailinator.com", profile.getEmail() );
             Assertions.assertEquals( "Test User", profile.getFullname() );
             Assertions.assertEquals( "user", profile.getLoginName() );
             Assertions.assertTrue( CryptoUtil.verifySaltedPassword( "password".getBytes(), profile.getPassword() ) );
@@ -376,13 +376,13 @@ public class JDBCUserDatabaseTest {
 
             // Create new user
             profile = m_db.newProfile();
-            profile.setEmail( "jspwiki.tests2@mailinator.com" );
+            profile.setEmail( "wikantik.tests2@mailinator.com" );
             profile.setFullname( "Test User 2" );
             profile.setLoginName( "user2" );
             profile.setPassword( "password" );
             m_db.save( profile );
-            profile = m_db.findByEmail( "jspwiki.tests2@mailinator.com" );
-            Assertions.assertEquals( "jspwiki.tests2@mailinator.com", profile.getEmail() );
+            profile = m_db.findByEmail( "wikantik.tests2@mailinator.com" );
+            Assertions.assertEquals( "wikantik.tests2@mailinator.com", profile.getEmail() );
             Assertions.assertEquals( "Test User 2", profile.getFullname() );
             Assertions.assertEquals( "user2", profile.getLoginName() );
             Assertions.assertTrue( CryptoUtil.verifySaltedPassword( "password".getBytes(), profile.getPassword() ) );

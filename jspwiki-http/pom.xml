@@ -27,7 +27,7 @@
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>jspwiki-http</artifactId>
-  <name>Apache JSPWiki http servlet and filters</name>
+  <name>Wikantik http servlet and filters</name>
 
   <dependencies>
     <dependency>

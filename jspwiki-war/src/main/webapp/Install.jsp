@@ -18,7 +18,7 @@
 --%>
 
 <?xml version="1.0" encoding="UTF-8"?>
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ page import="org.apache.wiki.api.core.*" %>
 <%@ page import="org.apache.wiki.api.spi.Wiki" %>
 <%@ page import="org.apache.wiki.auth.AuthenticationManager" %>
@@ -33,7 +33,7 @@
 <fmt:setBundle basename="CoreResources"/>
 
 <%!
-    Logger log = LogManager.getLogger("JSPWiki");
+    Logger log = LogManager.getLogger("Wikantik");
 %>
 
 <%

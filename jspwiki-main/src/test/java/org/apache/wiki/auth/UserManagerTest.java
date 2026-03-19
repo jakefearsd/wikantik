@@ -92,7 +92,7 @@ class UserManagerTest {
         final String newLogin = "RenamedLogin" + now;
         final String newName = "Renamed User " + now;
         UserProfile profile = m_db.newProfile();
-        profile.setEmail( "jspwiki.tests@mailinator.com" );
+        profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( oldLogin );
         profile.setFullname( oldName );
         profile.setPassword( "password" );
@@ -134,7 +134,7 @@ class UserManagerTest {
 
         // Setup Step 4: change the user name in the profile and see what happens
         profile = m_db.newProfile();
-        profile.setEmail( "jspwiki.tests@mailinator.com" );
+        profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( oldLogin );
         profile.setFullname( newName );
         profile.setPassword( "password" );
@@ -193,7 +193,7 @@ class UserManagerTest {
 
         // Setup Step 8: re-save the profile with the new login name
         profile = m_db.newProfile();
-        profile.setEmail( "jspwiki.tests@mailinator.com" );
+        profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( newLogin );
         profile.setFullname( oldName );
         profile.setPassword( "password" );
@@ -250,7 +250,7 @@ class UserManagerTest {
         final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
         final String loginName = "TestUser" + System.currentTimeMillis();
         UserProfile profile = m_db.newProfile();
-        profile.setEmail( "jspwiki.tests@mailinator.com" );
+        profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "FullName" + loginName );
         profile.setPassword( "password" );
@@ -275,7 +275,7 @@ class UserManagerTest {
         final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
         final String loginName = "TestUser" + String.valueOf( System.currentTimeMillis() );
         final UserProfile profile = m_db.newProfile();
-        profile.setEmail( "jspwiki.tests@mailinator.com" );
+        profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "FullName" + loginName );
         profile.setPassword( "password" );

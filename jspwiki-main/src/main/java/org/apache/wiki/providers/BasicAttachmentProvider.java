@@ -90,7 +90,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
     private Pattern disableCache;
     
     /** The property name for specifying which attachments are not cached.  Value is <tt>{@value}</tt>. */
-    public static final String PROP_DISABLECACHE = "jspwiki.basicAttachmentProvider.disableCache";
+    public static final String PROP_DISABLECACHE = "wikantik.basicAttachmentProvider.disableCache";
 
     /** The name of the property file. */
     public static final String PROPERTY_FILE = "attachment.properties";

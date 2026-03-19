@@ -85,7 +85,7 @@ public class McpWorkflowIT extends WithMcpTestSetup {
         final String source = uniquePageName( "WFSource" );
 
         mcp.writePage( target, "Target page content" );
-        mcp.writePage( source, "Source links to [" + target + "] here" );
+        mcp.writePage( source, "Source links to [" + target + "](" + target + ") here" );
 
         final Map< String, Object > backlinks = mcp.getBacklinks( target );
         @SuppressWarnings( "unchecked" )

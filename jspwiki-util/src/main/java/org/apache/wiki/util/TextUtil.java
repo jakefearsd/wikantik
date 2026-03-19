@@ -739,9 +739,9 @@ public final class TextUtil {
      *  Creates a Properties object based on an array which contains alternatively a key and a value.  It is useful
      *  for generating default mappings. For example:
      *  <pre>
-     *     String[] properties = { "jspwiki.property1", "value1", "jspwiki.property2", "value2 };
+     *     String[] properties = { "wikantik.property1", "value1", "wikantik.property2", "value2 };
      *     Properties props = TextUtil.createPropertes( values );
-     *     System.out.println( props.getProperty("jspwiki.property1") );
+     *     System.out.println( props.getProperty("wikantik.property1") );
      *  </pre>
      *  would output "value1".
      *

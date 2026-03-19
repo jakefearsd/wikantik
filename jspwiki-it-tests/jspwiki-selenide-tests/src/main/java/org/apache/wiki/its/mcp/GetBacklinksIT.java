@@ -34,7 +34,7 @@ public class GetBacklinksIT extends WithMcpTestSetup {
         final String target = uniquePageName( "BLTarget" );
         final String source = uniquePageName( "BLSource" );
         mcp.writePage( target, "Target page content" );
-        mcp.writePage( source, "Links to [" + target + "]" );
+        mcp.writePage( source, "Links to [" + target + "](" + target + ")" );
 
         final Map< String, Object > result = mcp.getBacklinks( target );
         @SuppressWarnings( "unchecked" )
@@ -63,7 +63,7 @@ public class GetBacklinksIT extends WithMcpTestSetup {
         final String source = uniquePageName( "BacklinkSource" );
 
         mcp.writePage( target, "Target page" );
-        mcp.writePage( source, "This links to [" + target + "]" );
+        mcp.writePage( source, "This links to [" + target + "](" + target + ")" );
 
         final Map< String, Object > result = mcp.getBacklinks( target );
         @SuppressWarnings( "unchecked" )

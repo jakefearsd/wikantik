@@ -68,7 +68,7 @@ import java.util.stream.IntStream;
 public class XMLUserDatabase extends AbstractUserDatabase {
 
     /** The jspwiki.properties property specifying the file system location of the user database. */
-    public static final String  PROP_USERDATABASE = "jspwiki.xmlUserDatabaseFile";
+    public static final String  PROP_USERDATABASE = "wikantik.xmlUserDatabaseFile";
     private static final String DEFAULT_USERDATABASE = "userdatabase.xml";
     private static final String ATTRIBUTES_TAG    = "attributes";
     private static final String CREATED           = "created";

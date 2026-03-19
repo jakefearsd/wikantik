@@ -56,7 +56,7 @@ class JSPWikiMarkupParserTest {
 
     Vector< String > created = new Vector<>();
 
-    TestEngine testEngine = TestEngine.build( with( "jspwiki.translatorReader.matchEnglishPlurals", "true" ) );
+    TestEngine testEngine = TestEngine.build( with( "wikantik.translatorReader.matchEnglishPlurals", "true" ) );
 
     @AfterEach
     void tearDown() {
@@ -89,7 +89,7 @@ class JSPWikiMarkupParserTest {
     }
 
     private String translate_nofollow( final String src ) throws IOException {
-        final TestEngine testEngine2 = TestEngine.build( with( "jspwiki.translatorReader.useRelNofollow", "true" ) );
+        final TestEngine testEngine2 = TestEngine.build( with( "wikantik.translatorReader.useRelNofollow", "true" ) );
         final WikiContext context = new WikiContext( testEngine2, Wiki.contents().page( testEngine2, PAGE_NAME ) );
         final JSPWikiMarkupParser r = new JSPWikiMarkupParser( context, new BufferedReader( new StringReader( src ) ) );
         final XHTMLRenderer conv = new XHTMLRenderer( context, r.parse() );
@@ -467,7 +467,7 @@ class JSPWikiMarkupParserTest {
 
     @Test
     void testAttachmentLink2() throws Exception {
-        final TestEngine testEngine2 = TestEngine.build( with( "jspwiki.encoding", StandardCharsets.ISO_8859_1.name() ) );
+        final TestEngine testEngine2 = TestEngine.build( with( "wikantik.encoding", StandardCharsets.ISO_8859_1.name() ) );
         testEngine2.saveText( "Test", "foo " );
         created.addElement( "Test" );
 
@@ -842,7 +842,7 @@ class JSPWikiMarkupParserTest {
     @Test
     void testHTMLWhenAllowed() throws Exception {
         final String src = "<p>";
-        testEngine = TestEngine.build( with( "jspwiki.translatorReader.allowHTML", "true" ) );
+        testEngine = TestEngine.build( with( "wikantik.translatorReader.allowHTML", "true" ) );
         final Page page = Wiki.contents().page( testEngine, PAGE_NAME );
         final String out = translate( testEngine, page, src );
         Assertions.assertEquals( "<p>", out );
@@ -851,7 +851,7 @@ class JSPWikiMarkupParserTest {
     @Test
     void testHTMLWhenAllowedPre() throws Exception {
         final String src = "{{{ <br /> }}}";
-        testEngine = TestEngine.build( with( "jspwiki.translatorReader.allowHTML", "true" ) );
+        testEngine = TestEngine.build( with( "wikantik.translatorReader.allowHTML", "true" ) );
         final Page page = Wiki.contents().page( testEngine, PAGE_NAME );
         final String out = translate( testEngine, page, src );
         Assertions.assertEquals( "<pre> &lt;br /&gt; </pre>", out );
@@ -1327,8 +1327,8 @@ class JSPWikiMarkupParserTest {
     @Test
     void testMissingPlugin() throws Exception {
         final String src = "Test [{SamplePlugino foo='bar'}]";
-        Assertions.assertEquals( "Test JSPWiki : testpage - Plugin insertion failed: Could not find plugin SamplePlugino" +
-                                "<span class=\"error\">JSPWiki : testpage - Plugin insertion failed: Could not find plugin SamplePlugino</span>",
+        Assertions.assertEquals( "Test Wikantik : testpage - Plugin insertion failed: Could not find plugin SamplePlugino" +
+                                "<span class=\"error\">Wikantik : testpage - Plugin insertion failed: Could not find plugin SamplePlugino</span>",
                                 translate( src ) );
     }
 
@@ -1963,7 +1963,7 @@ class JSPWikiMarkupParserTest {
     @Test
     public void testEscapeHTMLWhenHTMLNotAllowed() throws Exception {
         final String src = "This should be a [#1 <script>alert('XSS')</script>]";
-        testEngine = TestEngine.build(with("jspwiki.translatorReader.allowHTML", "false")); // Disable HTML
+        testEngine = TestEngine.build(with("wikantik.translatorReader.allowHTML", "false")); // Disable HTML
         final Page page = Wiki.contents().page(testEngine, PAGE_NAME);
         final String output = translate(testEngine, page, src);
         Assertions.assertEquals(
@@ -1976,7 +1976,7 @@ class JSPWikiMarkupParserTest {
     @Test
     public void testNoEscapeHTMLWhenHTMLAllowed() throws Exception {
         final String src = "This should be a [#1 <b>bold</b>]";
-        testEngine = TestEngine.build(with("jspwiki.translatorReader.allowHTML", "true")); // Enable HTML
+        testEngine = TestEngine.build(with("wikantik.translatorReader.allowHTML", "true")); // Enable HTML
         final Page page = Wiki.contents().page(testEngine, PAGE_NAME);
         final String output = translate(testEngine, page, src);
         Assertions.assertEquals(
@@ -2736,7 +2736,7 @@ class JSPWikiMarkupParserTest {
     @Test
     public void testOutlinkImageDisabled() throws Exception {
         // Test external link with outlink image disabled
-        final TestEngine customEngine = TestEngine.build( with( "jspwiki.translatorReader.useOutlinkImage", "false" ) );
+        final TestEngine customEngine = TestEngine.build( with( "wikantik.translatorReader.useOutlinkImage", "false" ) );
         final WikiContext context = new WikiContext( customEngine, Wiki.contents().page( customEngine, PAGE_NAME ) );
         final JSPWikiMarkupParser tr = new JSPWikiMarkupParser( context, new BufferedReader( new StringReader( "[http://external.example.com/page]" ) ) );
         final XHTMLRenderer conv = new XHTMLRenderer( context, tr.parse() );
@@ -2757,7 +2757,7 @@ class JSPWikiMarkupParserTest {
     @Test
     public void testAttachmentImageDisabled() throws Exception {
         // Test attachment link with attachment image disabled
-        final TestEngine customEngine = TestEngine.build( with( "jspwiki.translatorReader.useAttachmentImage", "false" ) );
+        final TestEngine customEngine = TestEngine.build( with( "wikantik.translatorReader.useAttachmentImage", "false" ) );
         newPage( "TestPage" );
         final WikiContext context = new WikiContext( customEngine, Wiki.contents().page( customEngine, PAGE_NAME ) );
         final JSPWikiMarkupParser tr = new JSPWikiMarkupParser( context, new BufferedReader( new StringReader( "[TestPage/attachment.txt]" ) ) );

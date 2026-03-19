@@ -33,7 +33,7 @@ import static org.apache.wiki.TestEngine.with;
  */
 public class ReferenceManagerTest  {
 
-    TestEngine engine = TestEngine.build( with( "jspwiki.translatorReader.matchEnglishPlurals", "true" ) );
+    TestEngine engine = TestEngine.build( with( "wikantik.translatorReader.matchEnglishPlurals", "true" ) );
     ReferenceManager mgr = engine.getManager( ReferenceManager.class );
 
     @BeforeEach

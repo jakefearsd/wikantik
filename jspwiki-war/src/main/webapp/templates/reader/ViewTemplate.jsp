@@ -17,7 +17,7 @@
     under the License.
 --%>
 
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ page import="org.apache.wiki.api.core.*" %>
 <fmt:setLocale value="${prefs.Language}" />
@@ -28,7 +28,7 @@
   <meta charset="<wiki:ContentEncoding />">
   <title>
     <fmt:message key="view.title.view">
-      <fmt:param><wiki:Variable var="ApplicationName" default="Apache JSPWiki" /></fmt:param>
+      <fmt:param><wiki:Variable var="ApplicationName" default="Wikantik" /></fmt:param>
       <fmt:param><wiki:PageName /></fmt:param>
     </fmt:message>
   </title>

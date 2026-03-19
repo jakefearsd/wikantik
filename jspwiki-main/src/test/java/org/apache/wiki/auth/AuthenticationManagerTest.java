@@ -134,7 +134,7 @@ public class AuthenticationManagerTest {
         final Properties props = TestEngine.getTestProperties();
 
         // Supply a custom LoginModule class
-        props.put( "jspwiki.loginModule.class", "org.apache.wiki.auth.login.CookieAssertionLoginModule" );
+        props.put( "wikantik.loginModule.class", "org.apache.wiki.auth.login.CookieAssertionLoginModule" );
 
         // Init the engine and verify that we initialized with a custom auth
         // login module
@@ -148,9 +148,9 @@ public class AuthenticationManagerTest {
         final Properties props = TestEngine.getTestProperties();
 
         // Supply a custom LoginModule options
-        props.put( "jspwiki.loginModule.options.key1", "value1" );
-        props.put( "jspwiki.loginModule.options.key2", "value2" );
-        props.put( "jspwiki.loginModule.options.key3", "value3" );
+        props.put( "wikantik.loginModule.options.key1", "value1" );
+        props.put( "wikantik.loginModule.options.key2", "value2" );
+        props.put( "wikantik.loginModule.options.key3", "value3" );
 
         // Init the engine and verify that we initialized with the correct
         // options

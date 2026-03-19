@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
 public interface PluginManager extends ModuleManager {
 
     /** The property name defining which external jars will be added to the classpath when searching for plugin classes. */
-    String PROP_EXTERNALJARS = "jspwiki.plugin.externalJars";
+    String PROP_EXTERNALJARS = "wikantik.plugin.externalJars";
 
     /** This is the default package to try in case the instantiation fails. */
     String DEFAULT_PACKAGE = "org.apache.wiki.plugin";

@@ -50,14 +50,14 @@ class SearchManagerTest {
     @BeforeEach
     void setUp() {
         final Properties props = TestEngine.getTestProperties();
-        final String workDir = props.getProperty( "jspwiki.workDir" );
-        final String workRepo = props.getProperty( "jspwiki.fileSystemProvider.pageDir" );
+        final String workDir = props.getProperty( "wikantik.workDir" );
+        final String workRepo = props.getProperty( "wikantik.fileSystemProvider.pageDir" );
 
         props.setProperty( SearchManager.PROP_SEARCHPROVIDER, "LuceneSearchProvider" );
-        props.setProperty( "jspwiki.lucene.indexdelay", "0" );
-        props.setProperty( "jspwiki.lucene.initialdelay", "0" );
-        props.setProperty( "jspwiki.workDir", workDir + System.currentTimeMillis() );
-        props.setProperty( "jspwiki.fileSystemProvider.pageDir", workRepo + System.currentTimeMillis() );
+        props.setProperty( "wikantik.lucene.indexdelay", "0" );
+        props.setProperty( "wikantik.lucene.initialdelay", "0" );
+        props.setProperty( "wikantik.workDir", workDir + System.currentTimeMillis() );
+        props.setProperty( "wikantik.fileSystemProvider.pageDir", workRepo + System.currentTimeMillis() );
 
         m_engine = TestEngine.build( props );
         m_mgr = m_engine.getManager( SearchManager.class );

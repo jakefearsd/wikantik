@@ -30,7 +30,7 @@ import static org.apache.wiki.TestEngine.with;
  */
 class WikiPageCloneTest {
 
-    static final TestEngine engine = TestEngine.build( with( "jspwiki.cache.enable", "false" ) );
+    static final TestEngine engine = TestEngine.build( with( "wikantik.cache.enable", "false" ) );
 
     @Test
     void cloneReturnsSameClass() {

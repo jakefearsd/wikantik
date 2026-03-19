@@ -34,34 +34,34 @@ public interface CachingManager {
      * This key is deprecated, use instead {@link #PROP_CACHE_ENABLE}.
      */
     @Deprecated
-    String PROP_USECACHE_DEPRECATED = "jspwiki.usePageCache";
+    String PROP_USECACHE_DEPRECATED = "wikantik.usePageCache";
 
     /** The property value for setting the cache on/off.  Value is {@value}. */
-    String PROP_CACHE_ENABLE = "jspwiki.cache.enable";
+    String PROP_CACHE_ENABLE = "wikantik.cache.enable";
 
     /** The property value with the location of the cache configuration file.  Value is {@value}. */
-    String PROP_CACHE_CONF_FILE = "jspwiki.cache.config-file";
+    String PROP_CACHE_CONF_FILE = "wikantik.cache.config-file";
 
     /** Name of the attachment cache. */
-    String CACHE_ATTACHMENTS = "jspwiki.attachmentsCache";
+    String CACHE_ATTACHMENTS = "wikantik.attachmentsCache";
 
     /** Name of the collection attachment cache. */
-    String CACHE_ATTACHMENTS_COLLECTION = "jspwiki.attachmentCollectionsCache";
+    String CACHE_ATTACHMENTS_COLLECTION = "wikantik.attachmentCollectionsCache";
 
     /** Name of the dynamic attachment cache. */
-    String CACHE_ATTACHMENTS_DYNAMIC = "jspwiki.dynamicAttachmentCache";
+    String CACHE_ATTACHMENTS_DYNAMIC = "wikantik.dynamicAttachmentCache";
 
     /** Name of the page cache. */
-    String CACHE_PAGES = "jspwiki.pageCache";
+    String CACHE_PAGES = "wikantik.pageCache";
 
     /** Name of the page text cache. */
-    String CACHE_PAGES_TEXT = "jspwiki.pageTextCache";
+    String CACHE_PAGES_TEXT = "wikantik.pageTextCache";
 
     /** Name of the page history cache. */
-    String CACHE_PAGES_HISTORY = "jspwiki.pageHistoryCache";
+    String CACHE_PAGES_HISTORY = "wikantik.pageHistoryCache";
 
     /** Name of the rendering cache. */
-    String CACHE_DOCUMENTS = "jspwiki.renderingCache";
+    String CACHE_DOCUMENTS = "wikantik.renderingCache";
 
     /**
      * Shuts down the underlying cache manager

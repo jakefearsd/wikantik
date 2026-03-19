@@ -31,8 +31,8 @@ class McpConfigTest {
     void testDefaultProperties() {
         // The no-arg constructor loads from classpath — both main and test resources
         final McpConfig config = new McpConfig();
-        assertEquals( "jspwiki-mcp", config.serverName() );
-        assertEquals( "JSPWiki Knowledge Base", config.serverTitle() );
+        assertEquals( "wikantik-mcp", config.serverName() );
+        assertEquals( "Wikantik Knowledge Base", config.serverTitle() );
         assertEquals( "2.0.0", config.serverVersion() );
     }
 
@@ -43,7 +43,7 @@ class McpConfigTest {
         final McpConfig config = new McpConfig();
         final String instructions = config.instructions();
         assertNotNull( instructions, "Instructions should be loaded from file" );
-        assertTrue( instructions.contains( "JSPWiki" ), "Instructions should mention JSPWiki" );
+        assertTrue( instructions.contains( "Wikantik" ), "Instructions should mention Wikantik" );
         assertTrue( instructions.contains( "read_page" ), "Instructions should reference tools" );
     }
 

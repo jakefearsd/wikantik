@@ -28,15 +28,15 @@
   <!-- Container Managed Authentication -->
   <artifactId>jspwiki-it-test-cma</artifactId>
   <modelVersion>4.0.0</modelVersion>
-  <description>functional tests execution for jspwiki-it-test-container (container auth, relative URLs)</description>
+  <description>functional tests execution for Wikantik IT container (container auth, relative URLs)</description>
   <packaging>war</packaging> <!-- tests reuse [2/3]: builds a war on top of jspwiki-war -->
   
   <properties> <!-- tests reuse [3/3]: values injected at ../jspwiki-selenide-tests/.../jspwiki-custom.properties end up on generated war -->
-    <it-jspwiki.context>${project.artifactId}</it-jspwiki.context>
+    <it-wikantik.context>${project.artifactId}</it-wikantik.context>
     
-    <it-jspwiki.groupdatabase>org.apache.wiki.auth.authorize.XMLGroupDatabase</it-jspwiki.groupdatabase>
-    <it-jspwiki.userdatabase>org.apache.wiki.auth.user.XMLUserDatabase</it-jspwiki.userdatabase>
-    <it-jspwiki.referenceStyle>relative</it-jspwiki.referenceStyle>
+    <it-wikantik.groupdatabase>org.apache.wiki.auth.authorize.XMLGroupDatabase</it-wikantik.groupdatabase>
+    <it-wikantik.userdatabase>org.apache.wiki.auth.user.XMLUserDatabase</it-wikantik.userdatabase>
+    <it-wikantik.referenceStyle>relative</it-wikantik.referenceStyle>
   </properties>
   
   <build>

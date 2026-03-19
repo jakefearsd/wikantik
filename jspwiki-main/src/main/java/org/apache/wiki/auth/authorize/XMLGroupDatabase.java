@@ -74,7 +74,7 @@ public class XMLGroupDatabase implements GroupDatabase {
     private static final Logger LOG = LogManager.getLogger( XMLGroupDatabase.class );
 
     /** The jspwiki.properties property specifying the file system location of the group database. */
-    public static final String    PROP_DATABASE    = "jspwiki.xmlGroupDatabaseFile";
+    public static final String    PROP_DATABASE    = "wikantik.xmlGroupDatabaseFile";
 
     private static final String   DEFAULT_DATABASE = "groupdatabase.xml";
 

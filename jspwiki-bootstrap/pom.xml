@@ -27,7 +27,7 @@
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>jspwiki-bootstrap</artifactId>
-  <name>Apache JSPWiki bootstrapping procedures</name>
+  <name>Wikantik bootstrapping procedures</name>
 
   <dependencies>
     <dependency>

@@ -415,10 +415,10 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         if( ssoEnabled ) {
             // Read jspwiki.baseURL from properties (full URL needed for SSO callbacks).
             // engine.getBaseURL() only returns the context path, not the full URL.
-            String baseUrl = TextUtil.getStringProperty( props, "jspwiki.baseURL", "" );
+            String baseUrl = TextUtil.getStringProperty( props, "wikantik.baseURL", "" );
             if( baseUrl.isEmpty() ) {
                 baseUrl = engine.getBaseURL();
-                LOG.warn( "jspwiki.baseURL not set. SSO callback URLs will be relative, which may cause OIDC redirect_uri mismatches. "
+                LOG.warn( "wikantik.baseURL not set. SSO callback URLs will be relative, which may cause OIDC redirect_uri mismatches. "
                         + "Set jspwiki.baseURL in jspwiki-custom.properties for proper SSO operation." );
             }
             // Remove trailing slash to avoid double slashes in callback URL

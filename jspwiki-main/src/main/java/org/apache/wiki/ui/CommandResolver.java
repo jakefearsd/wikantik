@@ -48,7 +48,7 @@ import java.util.Arrays;
 public interface CommandResolver {
 
     /** Prefix in jspwiki.properties signifying special page keys. */
-    String PROP_SPECIALPAGE = "jspwiki.specialPage.";
+    String PROP_SPECIALPAGE = "wikantik.specialPage.";
 
     /**
      * Attempts to locate a wiki command for a supplied request context. The resolution technique is simple: we examine the list of

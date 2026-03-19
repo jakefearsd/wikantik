@@ -20,7 +20,7 @@
 <%@ page import="org.apache.wiki.api.core.*" %>
 <%@ page import="org.apache.wiki.api.spi.Wiki" %>
 <%@ page import="org.apache.wiki.ui.TemplateManager" %>
-<%@ taglib prefix="wiki" uri="http://jspwiki.apache.org/tags" %>
+<%@ taglib prefix="wiki" uri="https://wikantik.com/tags" %>
 
 <%
     Engine wiki = Wiki.engine().find( getServletConfig() );

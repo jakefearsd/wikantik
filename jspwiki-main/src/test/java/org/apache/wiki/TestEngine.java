@@ -439,11 +439,11 @@ public class TestEngine extends WikiEngine {
      */
     private static Properties cleanTestProps( final Properties props ) {
         final long millis = System.currentTimeMillis();
-        if( !"true".equalsIgnoreCase( props.getProperty( "jspwiki.test.disable-clean-props" ) ) ) {
+        if( !"true".equalsIgnoreCase( props.getProperty( "wikantik.test.disable-clean-props" ) ) ) {
             props.put( AuthenticationManager.PROP_LOGIN_THROTTLING, "false" );
-            props.setProperty( "jspwiki.fileSystemProvider.pageDir", cleanNewDirFrom( props.getProperty( "jspwiki.fileSystemProvider.pageDir" ), millis ) );
-            props.setProperty( "jspwiki.basicAttachmentProvider.storageDir", cleanNewDirFrom( props.getProperty( "jspwiki.basicAttachmentProvider.storageDir" ), millis ) );
-            props.setProperty( "jspwiki.workDir", cleanNewDirFrom( props.getProperty( "jspwiki.workDir" ), millis ) );
+            props.setProperty( "wikantik.fileSystemProvider.pageDir", cleanNewDirFrom( props.getProperty( "wikantik.fileSystemProvider.pageDir" ), millis ) );
+            props.setProperty( "wikantik.basicAttachmentProvider.storageDir", cleanNewDirFrom( props.getProperty( "wikantik.basicAttachmentProvider.storageDir" ), millis ) );
+            props.setProperty( "wikantik.workDir", cleanNewDirFrom( props.getProperty( "wikantik.workDir" ), millis ) );
         }
 
         return props;

@@ -34,9 +34,9 @@ import java.util.Set;
 public interface PageManager extends WikiEventListener {
 
     /** The property value for setting the current page provider.  Value is {@value}. */
-    String PROP_PAGEPROVIDER = "jspwiki.pageProvider";
+    String PROP_PAGEPROVIDER = "wikantik.pageProvider";
     /** The property value for setting the amount of time before the page locks expire. Value is {@value}. */
-    String PROP_LOCKEXPIRY = "jspwiki.lockExpiryTime";
+    String PROP_LOCKEXPIRY = "wikantik.lockExpiryTime";
 
     /**
      * Returns the page provider currently in use.

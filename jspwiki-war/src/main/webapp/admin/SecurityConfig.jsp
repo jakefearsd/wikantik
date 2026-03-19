@@ -17,7 +17,7 @@
     under the License.
 --%>
 
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ page import="java.security.Principal" %>
 <%@ page import="org.apache.logging.log4j.Logger" %>
 <%@ page import="org.apache.logging.log4j.LogManager" %>
@@ -32,7 +32,7 @@
   {
     wiki = Wiki.engine().find( getServletConfig() );
   }
-  Logger log = LogManager.getLogger("JSPWiki");
+  Logger log = LogManager.getLogger("Wikantik");
   Engine wiki;
   SecurityVerifier verifier;
 %>
@@ -51,7 +51,7 @@
   {
       %>
       <head>
-        <title><wiki:Variable var="applicationname" default="Apache JSPWiki" />: JSPWiki Security Configuration Verifier</title>
+        <title><wiki:Variable var="applicationname" default="Wikantik" />: JSPWiki Security Configuration Verifier</title>
         <base href="../"/>
         <link rel="stylesheet" media="screen, projection" type="text/css" href="<wiki:Link format="url" templatefile="jspwiki.css"/>"/>
         <wiki:IncludeResources type="stylesheet"/>
@@ -77,7 +77,7 @@
 %>
 
 <head>
-  <title><wiki:Variable var="applicationname" default="Apache JSPWiki" />: JSPWiki Security Configuration Verifier</title>
+  <title><wiki:Variable var="applicationname" default="Wikantik" />: JSPWiki Security Configuration Verifier</title>
   <base href="../"/>
   <link rel="stylesheet" media="screen, projection" type="text/css" href="<wiki:Link format="url" templatefile="jspwiki.css"/>"/>
   <wiki:IncludeResources type="stylesheet"/>

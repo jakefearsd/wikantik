@@ -17,7 +17,7 @@
     under the License.
 --%>
 
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ page import="org.apache.wiki.api.core.*" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
@@ -28,7 +28,7 @@
 <html lang="${prefs.Language}" name="top">
   <head>
 
-  <title><fmt:message key="upload.title"><fmt:param><wiki:Variable var="applicationname" default="Apache JSPWiki"/></fmt:param></fmt:message></title>
+  <title><fmt:message key="upload.title"><fmt:param><wiki:Variable var="applicationname" default="Wikantik"/></fmt:param></fmt:message></title>
   <wiki:Include page="commonheader.jsp"/>
   <meta name="robots" content="noindex,nofollow" />
 </head>

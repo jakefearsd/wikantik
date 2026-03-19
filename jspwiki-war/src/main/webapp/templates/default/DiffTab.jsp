@@ -22,7 +22,7 @@
 <%@ page import="org.apache.wiki.api.core.*" %>
 <%@ page import="org.apache.wiki.pages.PageManager" %>
 <%@ page import="org.apache.wiki.tags.InsertDiffTag" %>
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <fmt:setLocale value="${prefs.Language}" />
@@ -31,7 +31,7 @@
   Context c = Context.findContext( pageContext );
 %>
 <c:set var="history" value="<%= c.getEngine().getManager( PageManager.class ).getVersionHistory(c.getPage().getName()) %>" />
-<c:set var="diffprovider"><wiki:Variable var="jspwiki.diffProvider" /></c:set>
+<c:set var="diffprovider"><wiki:Variable var="wikantik.diffProvider" /></c:set>
 <wiki:PageExists>
 <form action="<wiki:Link jsp='Diff.jsp' format='url' />"
        class="diffbody form-inline"

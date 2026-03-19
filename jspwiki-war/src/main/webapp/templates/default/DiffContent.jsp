@@ -17,5 +17,5 @@
     under the License.  
 --%>
 
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <wiki:Include page="InfoContent.jsp"/>

@@ -57,23 +57,23 @@ public final class PropertyReader {
      * Path to the base property file, {@value}, usually overridden by values provided in
      * a jspwiki-custom.properties file.
      */
-    public static final String DEFAULT_JSPWIKI_CONFIG = "/ini/jspwiki.properties";
+    public static final String DEFAULT_JSPWIKI_CONFIG = "/ini/wikantik.properties";
 
     /**
      * The servlet context parameter (from web.xml)  that defines where the config file is to be found. If it is not defined, checks
      * the Java System Property, if that is not defined either, uses the default as defined by DEFAULT_PROPERTYFILE.
      * {@value #DEFAULT_JSPWIKI_CONFIG}
      */
-    public static final String PARAM_CUSTOMCONFIG = "jspwiki.custom.config";
+    public static final String PARAM_CUSTOMCONFIG = "wikantik.custom.config";
 
     /**
      *  The prefix when you are cascading properties.
      *
      *  @see #loadWebAppProps(ServletContext)
      */
-    public static final String PARAM_CUSTOMCONFIG_CASCADEPREFIX = "jspwiki.custom.cascade.";
+    public static final String PARAM_CUSTOMCONFIG_CASCADEPREFIX = "wikantik.custom.cascade.";
 
-    public static final String  CUSTOM_JSPWIKI_CONFIG = "/jspwiki-custom.properties";
+    public static final String  CUSTOM_JSPWIKI_CONFIG = "/wikantik-custom.properties";
 
     private static final String PARAM_VAR_DECLARATION = "var.";
     private static final String PARAM_VAR_IDENTIFIER  = "$";
@@ -172,7 +172,7 @@ public final class PropertyReader {
 
     static Map< String, String > collectPropertiesFrom( final Map< String, String > map ) {
         return map.entrySet().stream()
-                  .filter( entry -> entry.getKey().toLowerCase().startsWith( "jspwiki" ) )
+                  .filter( entry -> entry.getKey().toLowerCase().startsWith( "wikantik" ) )
                   .map( entry -> new AbstractMap.SimpleEntry<>( entry.getKey().replace( "_", "." ), entry.getValue() ) )
                   .collect( Collectors.toMap( Map.Entry::getKey, Map.Entry::getValue ) );
     }
@@ -480,19 +480,19 @@ public final class PropertyReader {
      * @since JSPWiki 2.11.1
      */
     static void setWorkDir( final ServletContext servletContext, final Properties properties ) {
-        final String workDir = TextUtil.getStringProperty(properties, "jspwiki.workDir", null);
+        final String workDir = TextUtil.getStringProperty(properties, "wikantik.workDir", null);
         if (workDir == null) {
             final File tempDir = (File) servletContext.getAttribute("jakarta.servlet.context.tempdir");
             if (tempDir != null) {
-                properties.setProperty("jspwiki.workDir", tempDir.getAbsolutePath());
+                properties.setProperty("wikantik.workDir", tempDir.getAbsolutePath());
                 LOG.info("Setting jspwiki.workDir to ServletContext's temporary directory: {}", tempDir.getAbsolutePath());
             } else {
                 final String defaultTmpDir = System.getProperty("java.io.tmpdir");
-                properties.setProperty("jspwiki.workDir", defaultTmpDir);
+                properties.setProperty("wikantik.workDir", defaultTmpDir);
                 LOG.info("ServletContext's temporary directory not found. Setting jspwiki.workDir to system's temporary directory: {}", defaultTmpDir);
             }
         } else {
-            LOG.info("jspwiki.workDir is already set to: {}", workDir);
+            LOG.info("wikantik.workDir is already set to: {}", workDir);
         }
     }
 

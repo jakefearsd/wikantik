@@ -247,7 +247,7 @@ class WikiEngineTest {
      */
     @Test
     void testOldVersionVars() throws Exception {
-        final Properties props = TestEngine.getTestProperties("/jspwiki-vers-custom.properties");
+        final Properties props = TestEngine.getTestProperties("/wikantik-vers-custom.properties");
         props.setProperty( CachingManager.PROP_CACHE_ENABLE, "true" );
         final TestEngine engine = new TestEngine( props );
         engine.saveText( NAME1, "[{SET foo=bar}]" );

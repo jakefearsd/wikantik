@@ -142,24 +142,17 @@ DOM structure:
 a.logo {
     display: block;
     font-family: @wiki-logo-font-family;
-    font-weight: 200;
-    letter-spacing: .3em;
+    font-weight: bold;
+    font-size: @wiki-logo-font-size;
+    letter-spacing: .15em;
     text-decoration: none;
-    padding: 0.15em 0.1em .25em .45em;
+    padding: 0.3em 0.5em;
     border: 1px solid @white;
-    //border-radius: .5em;
     color: inherit;
-    background-image: @wiki-logo-image;
-    background-size: cover;
-    background-repeat: no-repeat;
 
     b {
-        font-size: 150%;   //@font-size-base
         font-weight: inherit;
-        line-height: 50%;
-        letter-spacing: .08em;
     }
-    b:before { content:"\A"; white-space:pre ;}  //carriage return hack
 
 }
 

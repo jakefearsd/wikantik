@@ -37,7 +37,7 @@
 
     <a class="logo pull-left"
         href="<wiki:Link page='${frontpage}' format='url' />"
-       title="<fmt:message key='actions.home.title' ><fmt:param>${frontpage}</fmt:param></fmt:message> ">apache<b>jsp&#x03C9;iki</b></a>
+       title="<fmt:message key='actions.home.title' ><fmt:param>${frontpage}</fmt:param></fmt:message> ">wik<b>&#x03B1;ntik</b></a>
 
         <wiki:PageExists page="HomeMenu">
         <ul class="dropdown-menu" data-hover-parent=".cage">

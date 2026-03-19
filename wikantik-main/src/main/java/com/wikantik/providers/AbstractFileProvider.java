@@ -100,8 +100,7 @@ public abstract class AbstractFileProvider implements PageProvider {
     public static final String PROP_PAGEDIR = "wikantik.fileSystemProvider.pageDir";
 
     /**
-     *  All files should have this extension to be recognized as JSPWiki files. We default to .txt, because that is probably easiest for
-     *  Windows users, and guarantees correct handling.
+     *  Legacy wiki-syntax files use this extension.
      */
     public static final String FILE_EXT = ".txt";
 
@@ -255,9 +254,10 @@ public abstract class AbstractFileProvider implements PageProvider {
      *  Determines the file extension for a given page based on which file exists.
      *  <p>
      *  Uses an internal cache to avoid redundant filesystem existence checks.
+     *  Markdown (.md) is preferred and is the default for new pages.
      *
      *  @param page The name of the page.
-     *  @return The file extension (".md" or ".txt"), or ".txt" if neither exists (default for new pages).
+     *  @return The file extension (".md" or ".txt"), or ".md" if neither exists (default for new pages).
      */
     protected String getPageFileExtension( final String page ) {
         // Check cache first
@@ -279,9 +279,11 @@ public abstract class AbstractFileProvider implements PageProvider {
         final File txtFile = new File( pageDirectory, mangledName + FILE_EXT );
         if( txtFile.exists() ) {
             fileExtensionCache.put( page, FILE_EXT );
+            return FILE_EXT;
         }
 
-        return FILE_EXT;
+        // Default to Markdown for new pages
+        return MARKDOWN_EXT;
     }
 
     /**
@@ -341,10 +343,10 @@ public abstract class AbstractFileProvider implements PageProvider {
     @Override
     public void putPageText( final Page page, final String text ) throws ProviderException {
         // Determine the correct file extension based on markup syntax attribute
-        String extension = FILE_EXT; // default to wiki syntax
+        String extension = MARKDOWN_EXT; // default to Markdown
         final String markupSyntax = page.getAttribute( Page.MARKUP_SYNTAX );
-        if( "markdown".equals( markupSyntax ) ) {
-            extension = MARKDOWN_EXT;
+        if( "jspwiki".equals( markupSyntax ) ) {
+            extension = FILE_EXT;
         }
 
         // If markup syntax is explicitly set, always use the corresponding extension.

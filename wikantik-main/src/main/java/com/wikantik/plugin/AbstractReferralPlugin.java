@@ -139,6 +139,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
     protected SimpleDateFormat dateFormat;
 
     protected Engine engine;
+    protected boolean useWikiSyntax;
 
     /**
      * @param context the wiki context
@@ -149,6 +150,11 @@ public abstract class AbstractReferralPlugin implements Plugin {
     public void initialize( final Context context, final Map< String, String > params ) throws PluginException {
         dateFormat = Preferences.getDateFormat( context, TimeFormat.DATETIME );
         engine = context.getEngine();
+        // Determine link syntax: use Markdown links unless the page explicitly uses jspwiki syntax
+        // or the Markdown parser is not available on the classpath
+        final String syntax = context.getRealPage() != null ? context.getRealPage().getAttribute( Page.MARKUP_SYNTAX ) : null;
+        final boolean markdownAvailable = isMarkdownParserAvailable();
+        useWikiSyntax = "jspwiki".equals( syntax ) || !markdownAvailable;
         maxwidth = TextUtil.parseIntParameter( params.get( PARAM_MAXWIDTH ), Integer.MAX_VALUE );
         if( maxwidth < 0 ) {
             maxwidth = 0;
@@ -334,12 +340,27 @@ public abstract class AbstractReferralPlugin implements Plugin {
      *  @param numItems How many items to show.
      *  @return The WikiText
      */
+    private static Boolean markdownParserAvailable;
+
+    private static boolean isMarkdownParserAvailable() {
+        if( markdownParserAvailable == null ) {
+            try {
+                Class.forName( "com.wikantik.parser.markdown.MarkdownParser" );
+                markdownParserAvailable = true;
+            } catch ( final ClassNotFoundException e ) {
+                markdownParserAvailable = false;
+            }
+        }
+        return markdownParserAvailable;
+    }
+
     protected String wikitizeCollection( final Collection< String > links, final String separator, final int numItems ) {
         if( links == null || links.isEmpty() ) {
             return "";
         }
 
         final StringBuilder output = new StringBuilder();
+        final boolean useMarkdownLinks = !useWikiSyntax;
 
         final Iterator< String > it = links.iterator();
         int count = 0;
@@ -354,12 +375,14 @@ public abstract class AbstractReferralPlugin implements Plugin {
 
             output.append( before );
 
-            // Make a Wiki markup link. See TranslatorReader.
-            output.append( "[" )
-                  .append( engine.getManager( RenderingManager.class ).beautifyTitle( value ) )
-                  .append( "|" )
-                  .append( value )
-                  .append( "]" );
+            final String title = engine.getManager( RenderingManager.class ).beautifyTitle( value );
+            if( useMarkdownLinks ) {
+                // Markdown link: [title](pageName)
+                output.append( "[" ).append( title ).append( "](" ).append( value ).append( ")" );
+            } else {
+                // Legacy wiki link: [title|pageName]
+                output.append( "[" ).append( title ).append( "|" ).append( value ).append( "]" );
+            }
             count++;
         }
 

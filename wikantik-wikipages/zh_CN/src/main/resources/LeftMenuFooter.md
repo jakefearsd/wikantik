@@ -1,0 +1,4 @@
+
+* * *
+[{CurrentTimePlugin format='yyyy-MM-dd HH:mm, z'}]()
+

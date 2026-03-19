@@ -89,7 +89,7 @@ public class DefaultPageManagerTest {
     public void testDeletePage() throws Exception {
         engine.saveText( NAME1, "Test" );
         final String files = engine.getWikiProperties().getProperty( FileSystemProvider.PROP_PAGEDIR );
-        final File saved = new File( files, NAME1+FileSystemProvider.FILE_EXT );
+        final File saved = new File( files, NAME1+FileSystemProvider.MARKDOWN_EXT );
         Assertions.assertTrue( saved.exists(), "Didn't create it!" );
 
         final Page page = engine.getManager( PageManager.class ).getPage( NAME1, WikiProvider.LATEST_VERSION );
@@ -105,7 +105,7 @@ public class DefaultPageManagerTest {
         engine.getManager( AttachmentManager.class ).storeAttachment( att, engine.makeAttachmentFile() );
 
         final String files = engine.getWikiProperties().getProperty( FileSystemProvider.PROP_PAGEDIR );
-        final File saved = new File( files, NAME1+FileSystemProvider.FILE_EXT );
+        final File saved = new File( files, NAME1+FileSystemProvider.MARKDOWN_EXT );
 
         final String atts = engine.getWikiProperties().getProperty( AttachmentProvider.PROP_STORAGEDIR );
         final File attfile = new File( atts, NAME1+"-att/TestAtt.txt-dir" );
@@ -129,7 +129,7 @@ public class DefaultPageManagerTest {
         engine.getManager( AttachmentManager.class ).storeAttachment( att, engine.makeAttachmentFile() );
 
         final String files = engine.getWikiProperties().getProperty( FileSystemProvider.PROP_PAGEDIR );
-        final File saved = new File( files, NAME1+FileSystemProvider.FILE_EXT );
+        final File saved = new File( files, NAME1+FileSystemProvider.MARKDOWN_EXT );
 
         final String atts = engine.getWikiProperties().getProperty( AttachmentProvider.PROP_STORAGEDIR );
         final File attfile = new File( atts, NAME1+"-att/TestAtt.txt-dir" );

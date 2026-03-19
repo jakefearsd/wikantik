@@ -53,7 +53,7 @@ class GetOutboundLinksToolTest {
     void testFindsOutboundLinks() throws Exception {
         engine.saveText( "TargetA", "Target A content" );
         engine.saveText( "TargetB", "Target B content" );
-        engine.saveText( "SourcePage", "[TargetA]\n[TargetB]" );
+        engine.saveText( "SourcePage", "[TargetA]()\n\n[TargetB]()" );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "SourcePage" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();

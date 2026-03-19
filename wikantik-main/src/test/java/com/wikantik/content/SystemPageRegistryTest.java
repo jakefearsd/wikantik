@@ -57,9 +57,9 @@ class SystemPageRegistryTest {
         final Set<String> names = registry.getSystemPageNames();
         assertFalse( names.isEmpty(), "Should discover at least some system pages" );
 
-        // About.txt is the anchor resource and must always be discovered
+        // About.md is the anchor resource and must always be discovered
         assertTrue( names.contains( "About" ), "Should discover About" );
-        // TextFormattingRules.txt is in test resources alongside About.txt
+        // TextFormattingRules.md is in test resources alongside About.md
         assertTrue( names.contains( "TextFormattingRules" ), "Should discover TextFormattingRules" );
     }
 
@@ -118,8 +118,8 @@ class SystemPageRegistryTest {
 
     @Test
     void testDiscoveryFromTestResources() {
-        // In the test environment, About.txt is placed in src/test/resources
-        // alongside other .txt files. Discovery should enumerate all of them.
+        // In the test environment, About.md is placed in src/test/resources
+        // alongside other .md files. Discovery should enumerate all of them.
         final Set<String> names = registry.getSystemPageNames();
         assertTrue( names.size() >= 2, "Should discover at least About and TextFormattingRules" );
     }

@@ -71,18 +71,18 @@ public class DefaultRenderingManager implements RenderingManager {
     private static final Logger LOG = LogManager.getLogger( DefaultRenderingManager.class );
     private static final String VERSION_DELIMITER = "::";
     /** The name of the default renderer. */
-    private static final String DEFAULT_PARSER = WikantikMarkupParser.class.getName();
-    /** The name of the markdown parser. */
-    private static final String DEFAULT_MARKDOWN_PARSER = "com.wikantik.parser.markdown.MarkdownParser";
+    private static final String DEFAULT_PARSER = "com.wikantik.parser.markdown.MarkdownParser";
+    /** The name of the legacy wiki-syntax parser for .txt pages. */
+    private static final String DEFAULT_LEGACY_PARSER = WikantikMarkupParser.class.getName();
     /** The name of the default renderer. */
-    private static final String DEFAULT_RENDERER = XHTMLRenderer.class.getName();
-    /** The name of the default Markdown renderer. */
-    private static final String DEFAULT_MARKDOWN_RENDERER = "com.wikantik.render.markdown.MarkdownRenderer";
+    private static final String DEFAULT_RENDERER = "com.wikantik.render.markdown.MarkdownRenderer";
+    /** The name of the legacy XHTML renderer for wiki-syntax documents. */
+    private static final String DEFAULT_LEGACY_RENDERER = XHTMLRenderer.class.getName();
     /** The name of the default WYSIWYG renderer (falls back to standard renderer). */
-    private static final String DEFAULT_WYSIWYG_RENDERER = XHTMLRenderer.class.getName();
+    private static final String DEFAULT_WYSIWYG_RENDERER = "com.wikantik.render.markdown.MarkdownRenderer";
 
-    /** markdown parser property. */
-    String PROP_MARKDOWN_PARSER = "wikantik.renderingManager.markdownParser";
+    /** legacy parser property. */
+    String PROP_LEGACY_PARSER = "wikantik.renderingManager.legacyParser";
 
     private Engine engine;
     private CachingManager cachingManager;
@@ -92,9 +92,9 @@ public class DefaultRenderingManager implements RenderingManager {
 
     private Constructor< ? > rendererConstructor;
     private Constructor< ? > rendererWysiwygConstructor;
-    private Constructor< ? > markdownRendererConstructor;
+    private Constructor< ? > legacyRendererConstructor;
     private String markupParserClass = DEFAULT_PARSER;
-    private String markdownParserClass = DEFAULT_MARKDOWN_PARSER;
+    private String legacyParserClass = DEFAULT_LEGACY_PARSER;
 
     /**
      *  {@inheritDoc}
@@ -113,12 +113,12 @@ public class DefaultRenderingManager implements RenderingManager {
         }
         LOG.info( "Using {} as markup parser.", markupParserClass );
 
-        markdownParserClass = properties.getProperty( PROP_MARKDOWN_PARSER, DEFAULT_MARKDOWN_PARSER );
-        if( !ClassUtil.assignable( markdownParserClass, MarkupParser.class.getName() ) ) {
-        	LOG.warn( "{} does not subclass {} reverting to default markdown parser.", markdownParserClass, MarkupParser.class.getName() );
-        	markdownParserClass = DEFAULT_MARKDOWN_PARSER;
+        legacyParserClass = properties.getProperty( PROP_LEGACY_PARSER, DEFAULT_LEGACY_PARSER );
+        if( !ClassUtil.assignable( legacyParserClass, MarkupParser.class.getName() ) ) {
+        	LOG.warn( "{} does not subclass {} reverting to default legacy parser.", legacyParserClass, MarkupParser.class.getName() );
+        	legacyParserClass = DEFAULT_LEGACY_PARSER;
         }
-        LOG.info( "Using {} as markdown parser.", markdownParserClass );
+        LOG.info( "Using {} as legacy parser for .txt pages.", legacyParserClass );
 
         beautifyTitle  = TextUtil.getBooleanProperty( properties, PROP_BEAUTIFYTITLE, beautifyTitle );
         final String renderImplName = properties.getProperty( PROP_RENDERER, DEFAULT_RENDERER );
@@ -128,13 +128,13 @@ public class DefaultRenderingManager implements RenderingManager {
         rendererConstructor = initRenderer( renderImplName, rendererParams );
         rendererWysiwygConstructor = initRenderer( renderWysiwygImplName, rendererParams );
 
-        // Initialize Markdown renderer if available
+        // Initialize legacy XHTML renderer for wiki-syntax documents
         try {
-            markdownRendererConstructor = initRenderer( DEFAULT_MARKDOWN_RENDERER, rendererParams );
-            LOG.info( "Using {} as markdown renderer.", DEFAULT_MARKDOWN_RENDERER );
+            legacyRendererConstructor = initRenderer( DEFAULT_LEGACY_RENDERER, rendererParams );
+            LOG.info( "Using {} as legacy renderer for .txt pages.", DEFAULT_LEGACY_RENDERER );
         } catch( final WikiException e ) {
-            LOG.warn( "Markdown renderer not available: {}", e.getMessage() );
-            markdownRendererConstructor = null;
+            LOG.warn( "Legacy renderer not available: {}", e.getMessage() );
+            legacyRendererConstructor = null;
         }
 
         LOG.info( "Rendering content with {}.", renderImplName );
@@ -199,21 +199,21 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public MarkupParser getParser( final Context context, final String pagedata ) {
-        String parserClass = markupParserClass; // default to JSPWiki parser
+        String parserClass = markupParserClass; // default to Markdown parser
 
-        // Check if the page has a markup syntax attribute
+        // Check if the page has a markup syntax attribute indicating legacy wiki syntax
         final Page page = context.getRealPage();
         if( page != null ) {
             final String syntax = page.getAttribute( Page.MARKUP_SYNTAX );
-            if( "markdown".equals( syntax ) ) {
-                parserClass = markdownParserClass;
+            if( "jspwiki".equals( syntax ) ) {
+                parserClass = legacyParserClass;
             }
         }
 
     	try {
 			return ClassUtil.getMappedObject( parserClass, context, new StringReader( pagedata ) );
 		} catch( final ReflectiveOperationException | IllegalArgumentException e ) {
-			LOG.error( "unable to get an instance of {} ({}), returning default markup parser.", parserClass, e.getMessage(), e );
+			LOG.error( "unable to get an instance of {} ({}), returning legacy parser.", parserClass, e.getMessage(), e );
 			return new WikantikMarkupParser( context, new StringReader( pagedata ) );
 		} catch( final Exception e ) {
 			LOG.error( "Unexpected exception creating parser {} for page {}: {}", parserClass, page != null ? page.getName() : "unknown", e.getMessage(), e );
@@ -427,10 +427,10 @@ public class DefaultRenderingManager implements RenderingManager {
     public WikiRenderer getRenderer( final Context context, final WikiDocument doc ) {
         final Object[] params = { context, doc };
 
-        // Use MarkdownRenderer for MarkdownDocument if available
-        if( markdownRendererConstructor != null &&
-            doc.getClass().getName().equals( "com.wikantik.parser.markdown.MarkdownDocument" ) ) {
-            return getRenderer( params, markdownRendererConstructor );
+        // Use legacy XHTML renderer for non-Markdown documents (legacy .txt pages)
+        if( legacyRendererConstructor != null &&
+            !doc.getClass().getName().equals( "com.wikantik.parser.markdown.MarkdownDocument" ) ) {
+            return getRenderer( params, legacyRendererConstructor );
         }
 
         return getRenderer( params, rendererConstructor );

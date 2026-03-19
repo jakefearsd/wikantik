@@ -1112,16 +1112,6 @@
                   </descriptors>
                 </configuration>
               </execution>
-              <execution>
-                <id>create-markdown-wikipages-zip</id>
-                <phase>package</phase>
-                <goals><goal>single</goal></goals>
-                <configuration>
-                  <descriptors>
-                    <descriptor>../assembly/zip-markdown.xml</descriptor>
-                  </descriptors>
-                </configuration>
-              </execution>
             </executions>
           </plugin>
         </plugins>

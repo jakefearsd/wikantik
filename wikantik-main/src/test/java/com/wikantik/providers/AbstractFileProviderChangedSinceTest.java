@@ -107,11 +107,11 @@ class AbstractFileProviderChangedSinceTest {
 
     @Test
     void testRecentDateFiltersOlderPages() throws Exception {
-        // Create a page
+        // Create a page (defaults to .md)
         provider.putPageText( new WikiPage( engine, "OldPage" ), "old content" );
 
         // Set the file's last modified to 2 days ago
-        final File oldFile = new File( pageDir, "OldPage" + AbstractFileProvider.FILE_EXT );
+        final File oldFile = new File( pageDir, "OldPage" + AbstractFileProvider.MARKDOWN_EXT );
         final long twoDaysAgo = System.currentTimeMillis() - 2 * 86400_000L;
         oldFile.setLastModified( twoDaysAgo );
 
@@ -136,8 +136,9 @@ class AbstractFileProviderChangedSinceTest {
 
     @Test
     void testMixedMarkdownAndWikiFiles() throws Exception {
-        // Create a .txt wiki page
+        // Create a .txt wiki page (explicitly setting jspwiki syntax)
         final WikiPage wikiPage = new WikiPage( engine, "WikiPage" );
+        wikiPage.setAttribute( Page.MARKUP_SYNTAX, "jspwiki" );
         provider.putPageText( wikiPage, "wiki content" );
 
         // Create a .md markdown page
@@ -153,10 +154,10 @@ class AbstractFileProviderChangedSinceTest {
 
     @Test
     void testOnlyRecentMarkdownFileReturned() throws Exception {
-        // Create an old wiki page
+        // Create an old wiki page (defaults to .md)
         final WikiPage oldPage = new WikiPage( engine, "OldWiki" );
         provider.putPageText( oldPage, "old wiki" );
-        final File oldFile = new File( pageDir, "OldWiki" + AbstractFileProvider.FILE_EXT );
+        final File oldFile = new File( pageDir, "OldWiki" + AbstractFileProvider.MARKDOWN_EXT );
         oldFile.setLastModified( System.currentTimeMillis() - 2 * 86400_000L );
 
         // Create a recent markdown page

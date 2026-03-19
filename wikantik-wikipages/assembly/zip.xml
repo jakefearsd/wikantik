@@ -28,10 +28,6 @@
     <fileSet>
       <outputDirectory></outputDirectory>
       <directory>src/main/resources</directory>
-      <excludes>
-        <exclude>markdown</exclude>
-        <exclude>markdown/*</exclude>
-      </excludes>
 	  <fileMode>0644</fileMode>
       <directoryMode>0755</directoryMode>
     </fileSet>

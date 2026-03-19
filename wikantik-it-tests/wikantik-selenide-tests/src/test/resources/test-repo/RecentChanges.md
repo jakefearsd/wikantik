@@ -1,0 +1,6 @@
+
+These are the changes made to these pages during the last 30 days. Check the [FullRecentChanges]() for a complete list of all changed pages.
+
+This server lives on [{CurrentTimePlugin format=zzzz}]() and the time here is [{CurrentTimePlugin format='HH:mm \'on\' dd-MMM-yyyy'}]().
+
+[{com.wikantik.plugin.RecentChangesPlugin since=30}]()

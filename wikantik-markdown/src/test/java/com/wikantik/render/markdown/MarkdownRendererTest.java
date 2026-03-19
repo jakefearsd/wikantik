@@ -86,11 +86,12 @@ public class MarkdownRendererTest {
     }
 
     @Test
-    public void testMarkupExtensionHtmlEscaping() throws Exception {
+    public void testMarkupExtensionHtmlInLinks() throws Exception {
         testEngine.getWikiProperties().setProperty( "wikantik.translatorReader.useOutlinkImage", "true" );
         final String src = "This should be an [external <strong>link</strong>](https://wikantik.com)";
 
-        Assertions.assertEquals( "<p>This should be an <a href=\"https://wikantik.com\" class=\"external\">external &lt;strong&gt;link&lt;/strong&gt;</a><img class=\"outlink\" alt=\"\" src=\"/test/images/out.png\" /></p>\n",
+        // With allowHTML=true (the default), HTML inside link text is preserved
+        Assertions.assertEquals( "<p>This should be an <a href=\"https://wikantik.com\" class=\"external\">external <strong>link</strong></a><img class=\"outlink\" alt=\"\" src=\"/test/images/out.png\" /></p>\n",
                 translate( src ) );
         testEngine.getWikiProperties().remove( "wikantik.translatorReader.useOutlinkImage" );
     }
@@ -98,7 +99,8 @@ public class MarkdownRendererTest {
     @Test
     public void testAttachmentLink1() throws Exception {
         newPage( "Hyperlink" );
-        final String expected = "<p>This should be a <a href=\"/test/attach/Link%20%3Cstrong%3Ebold%3C/strong%3E\" class=\"attachment\">Link &lt;strong&gt;bold&lt;/strong&gt;</a><a href=\"/test/PageInfo.jsp?page=Link%20%3Cstrong%3Ebold%3C/strong%3E\" class=\"infolink\"><img src=\"/test/images/attachment_small.png\" border=\"0\" alt=\"(info)\" /></a></p>\n";
+        // With allowHTML=true (the default), raw HTML in link text is preserved
+        final String expected = "<p>This should be a <a href=\"/test/attach/Link%20%3Cstrong%3Ebold%3C/strong%3E\" class=\"attachment\">Link <strong>bold</strong></a><a href=\"/test/PageInfo.jsp?page=Link%20%3Cstrong%3Ebold%3C/strong%3E\" class=\"infolink\"><img src=\"/test/images/attachment_small.png\" border=\"0\" alt=\"(info)\" /></a></p>\n";
         Assertions.assertEquals( expected, translate( "This should be a [Link <strong>bold</strong>]()" ) );
     }
 
@@ -112,7 +114,8 @@ public class MarkdownRendererTest {
     @Test
     public void testMarkupExtensionAllowsHtmlFromPlugins() throws Exception {
         final String src = "<strong>string</strong> [{SamplePlugin text=test tag=strong}]()";
-        Assertions.assertEquals( "<p>&lt;strong&gt;string&lt;/strong&gt; <strong>test</strong></p>\n", translate( src ) );
+        // With allowHTML=true (the default), raw HTML in source is preserved
+        Assertions.assertEquals( "<p><strong>string</strong> <strong>test</strong></p>\n", translate( src ) );
     }
 
     @Test
@@ -213,7 +216,35 @@ public class MarkdownRendererTest {
     @Test
     public void testMarkupExtensionPlugin() throws Exception {
         final String src = "<strong>string</strong> [{SamplePlugin text=test}]()";
-        Assertions.assertEquals( "<p>&lt;strong&gt;string&lt;/strong&gt; test</p>\n", translate( src ) );
+        // With allowHTML=true (the default), raw HTML is preserved
+        Assertions.assertEquals( "<p><strong>string</strong> test</p>\n", translate( src ) );
+    }
+
+    @Test
+    public void testMarkupExtensionPluginWithoutTrailingParens() throws Exception {
+        final String src = "[{SamplePlugin text=test}]";
+        Assertions.assertEquals( "<p>test</p>\n", translate( src ) );
+    }
+
+    @Test
+    public void testMarkupExtensionACLWithoutTrailingParens() throws Exception {
+        final String src = "[{ALLOW view PerryMason}] This should be visible if the ACL allows you to see it";
+        Assertions.assertEquals( "<p> This should be visible if the ACL allows you to see it</p>\n", translate( src ) );
+        Assertions.assertEquals( "  user = PerryMason: ((\"com.wikantik.auth.permissions.PagePermission\",\"Wikantik:testpage\",\"view\"))\n",
+                                 ( testEngine.getManager( PageManager.class ).getPage( PAGE_NAME ) ).getAcl().toString() );
+    }
+
+    @Test
+    public void testMarkupExtensionVariableWithoutTrailingParens() throws Exception {
+        final String src = "Variable: [{$applicationname}]";
+        Assertions.assertEquals( "<p>Variable: Wikantik</p>\n", translate( src ) );
+    }
+
+    @Test
+    public void testMarkupExtensionMetadataWithoutTrailingParens() throws Exception {
+        final String src = "[{SET Perry='Mason'}] Some text after setting metadata";
+        Assertions.assertEquals( "<p> Some text after setting metadata</p>\n", translate( src ) );
+        Assertions.assertEquals( "Mason", testEngine.getManager( PageManager.class ).getPage( PAGE_NAME ).getAttribute( "Perry" ) );
     }
 
     @Test
@@ -440,6 +471,37 @@ public class MarkdownRendererTest {
         final Map< String, Object > author = ( Map< String, Object > ) p.getAttribute( "author" );
         Assertions.assertEquals( "Claude", author.get( "name" ) );
         Assertions.assertEquals( "AI", author.get( "role" ) );
+    }
+
+    @Test
+    public void testPluginOutputWithPageLinksRendersAsHtmlLinks() throws Exception {
+        // Create pages that reference a non-existent page — this sets up conditions
+        // for UndefinedPagesPlugin to produce a list of page links
+        newPage( "LinkSource" );
+        testEngine.saveText( "LinkSource", "[MissingTarget]()" );
+
+        // Invoke the plugin that generates a list of page name links
+        final String src = "[{UndefinedPagesPlugin}]()";
+        final String result = translate( src );
+
+        // The plugin output should contain proper HTML links, not raw wiki-syntax [text|url]
+        Assertions.assertFalse( result.contains( "[MissingTarget|MissingTarget]" ),
+                "Plugin output should not contain wiki-syntax links, got: " + result );
+        Assertions.assertTrue( result.contains( "<a " ),
+                "Plugin output should contain HTML anchor tags, got: " + result );
+    }
+
+    @Test
+    public void testUnusedPagesPluginRendersAsHtmlLinks() throws Exception {
+        // Create a page with no inbound links (orphan) — UnusedPagesPlugin should list it
+        newPage( "OrphanPage" );
+
+        final String src = "[{UnusedPagesPlugin}]()";
+        final String result = translate( src );
+
+        // Should render as HTML links, not wiki syntax
+        Assertions.assertFalse( result.contains( "[OrphanPage|" ),
+                "Plugin output should not contain wiki-syntax links, got: " + result );
     }
 
     @AfterEach

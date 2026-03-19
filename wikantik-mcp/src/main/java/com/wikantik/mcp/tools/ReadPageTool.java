@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
@@ -34,20 +34,25 @@ import java.util.Map;
 /**
  * MCP tool that reads a wiki page's content and metadata.
  */
-public class ReadPageTool {
+public class ReadPageTool implements McpTool {
 
     public static final String TOOL_NAME = "read_page";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final PageManager pageManager;
     private final SystemPageRegistry systemPageRegistry;
-    private final Gson gson = new Gson();
 
     public ReadPageTool( final PageManager pageManager, final SystemPageRegistry systemPageRegistry ) {
         this.pageManager = pageManager;
         this.systemPageRegistry = systemPageRegistry;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pageName", Map.of( "type", "string", "description", "Name of the wiki page to read" ) );
         properties.put( "version", Map.of( "type", "integer", "description", "Page version to read (omit for latest)" ) );
@@ -63,6 +68,7 @@ public class ReadPageTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
         final int version = McpToolUtils.getInt( arguments, "version", PageProvider.LATEST_VERSION );
@@ -73,7 +79,7 @@ public class ReadPageTool {
         if ( page == null ) {
             result.put( "exists", false );
             result.put( "pageName", pageName );
-            return McpToolUtils.jsonResult( gson, result );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
         }
 
         final String rawText = pageManager.getPureText( pageName, version );
@@ -91,6 +97,6 @@ public class ReadPageTool {
             result.put( "systemPage", systemPageRegistry.isSystemPage( page.getName() ) );
         }
 
-        return McpToolUtils.jsonResult( gson, result );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 }

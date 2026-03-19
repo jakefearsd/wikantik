@@ -96,7 +96,7 @@ class UploadAttachmentToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "upload_attachment", def.name() );
         assertFalse( def.annotations().readOnlyHint() );
     }

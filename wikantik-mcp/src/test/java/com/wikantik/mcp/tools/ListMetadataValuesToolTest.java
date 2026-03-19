@@ -89,7 +89,7 @@ class ListMetadataValuesToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "list_metadata_values", def.name() );
         assertTrue( def.annotations().readOnlyHint() );
     }

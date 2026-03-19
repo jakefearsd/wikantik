@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,15 +40,19 @@ import java.util.Map;
 /**
  * MCP tool that applies patch operations to multiple wiki pages in a single call (best-effort).
  */
-public class BatchPatchPagesTool implements AuthorConfigurable {
+public class BatchPatchPagesTool implements McpTool, AuthorConfigurable {
 
     private static final Logger LOG = LogManager.getLogger( BatchPatchPagesTool.class );
     public static final String TOOL_NAME = "batch_patch_pages";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final WikiEngine engine;
     private final SystemPageRegistry systemPageRegistry;
     private final PageSaveHelper pageSaveHelper;
-    private final Gson gson = new Gson();
 
     private String defaultAuthor = "MCP";
 
@@ -63,7 +67,8 @@ public class BatchPatchPagesTool implements AuthorConfigurable {
         this.defaultAuthor = defaultAuthor;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > opSchema = new LinkedHashMap<>();
         opSchema.put( "type", "object" );
         opSchema.put( "properties", Map.of(
@@ -102,13 +107,14 @@ public class BatchPatchPagesTool implements AuthorConfigurable {
     }
 
     @SuppressWarnings( "unchecked" )
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final List< Map< String, Object > > pages = ( List< Map< String, Object > > ) arguments.get( "pages" );
         final String author = McpToolUtils.getString( arguments, "author" );
         final String effectiveAuthor = author != null ? author : defaultAuthor;
 
         if ( pages == null || pages.isEmpty() ) {
-            return McpToolUtils.errorResult( gson,
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "No pages provided",
                     "Provide an array of {pageName, operations} objects in the pages parameter." );
         }
@@ -166,6 +172,6 @@ public class BatchPatchPagesTool implements AuthorConfigurable {
             results.add( entry );
         }
 
-        return McpToolUtils.jsonResult( gson, Map.of( "results", results ) );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of( "results", results ) );
     }
 }

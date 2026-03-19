@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
@@ -37,19 +37,24 @@ import java.util.regex.Pattern;
  * MCP tool that scans a wiki page for Markdown-style links and classifies them
  * as external, anchor, or local (wiki page) links.
  */
-public class ScanMarkdownLinksTool {
+public class ScanMarkdownLinksTool implements McpTool {
 
     public static final String TOOL_NAME = "scan_markdown_links";
+
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
     private static final Pattern LINK_PATTERN = Pattern.compile( "\\[([^\\]]*)\\]\\(([^)]+)\\)" );
 
     private final PageManager pageManager;
-    private final Gson gson = new Gson();
 
     public ScanMarkdownLinksTool( final PageManager pageManager ) {
         this.pageManager = pageManager;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pageName", Map.of( "type", "string", "description", "Name of the wiki page to scan for Markdown links" ) );
 
@@ -64,12 +69,13 @@ public class ScanMarkdownLinksTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
 
         final Page page = pageManager.getPage( pageName );
         if ( page == null ) {
-            return McpToolUtils.errorResult( gson,
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Page not found: " + pageName,
                     "Use list_pages to find existing pages." );
         }
@@ -101,7 +107,7 @@ public class ScanMarkdownLinksTool {
         result.put( "links", links );
         result.put( "localLinks", new ArrayList<>( localLinks ) );
 
-        return McpToolUtils.jsonResult( gson, result );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 
     private static String classifyLink( final String target ) {

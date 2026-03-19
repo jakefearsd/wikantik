@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.pages.PageManager;
 import com.wikantik.references.ReferenceManager;
@@ -31,20 +31,25 @@ import java.util.Map;
  * MCP tool that returns a quick dashboard overview of wiki health:
  * total pages, broken links, orphaned pages, and recent changes count.
  */
-public class GetWikiStatsTool {
+public class GetWikiStatsTool implements McpTool {
 
     public static final String TOOL_NAME = "get_wiki_stats";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final PageManager pageManager;
     private final ReferenceManager referenceManager;
-    private final Gson gson = new Gson();
 
     public GetWikiStatsTool( final PageManager pageManager, final ReferenceManager referenceManager ) {
         this.pageManager = pageManager;
         this.referenceManager = referenceManager;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Get a quick overview of wiki health and size. " +
@@ -56,12 +61,13 @@ public class GetWikiStatsTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "totalPages", pageManager.getTotalPageCount() );
         result.put( "brokenLinkCount", referenceManager.findUncreated().size() );
         result.put( "orphanedPageCount", referenceManager.findUnreferenced().size() );
         result.put( "recentChangesCount", pageManager.getRecentChanges().size() );
-        return McpToolUtils.jsonResult( gson, result );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 }

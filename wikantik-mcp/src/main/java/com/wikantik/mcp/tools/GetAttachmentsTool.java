@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,21 +33,26 @@ import java.util.stream.Collectors;
 /**
  * MCP tool that lists attachments for a wiki page.
  */
-public class GetAttachmentsTool {
+public class GetAttachmentsTool implements McpTool {
 
     private static final Logger LOG = LogManager.getLogger( GetAttachmentsTool.class );
     public static final String TOOL_NAME = "get_attachments";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final PageManager pageManager;
     private final AttachmentManager attachmentManager;
-    private final Gson gson = new Gson();
 
     public GetAttachmentsTool( final PageManager pageManager, final AttachmentManager attachmentManager ) {
         this.pageManager = pageManager;
         this.attachmentManager = attachmentManager;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pageName", Map.of( "type", "string", "description", "Name of the wiki page" ) );
 
@@ -61,13 +66,14 @@ public class GetAttachmentsTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
 
         try {
             final Page page = pageManager.getPage( pageName );
             if ( page == null ) {
-                return McpToolUtils.jsonResult( gson, Map.of(
+                return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of(
                         "exists", false,
                         "pageName", pageName,
                         "attachments", List.of() ) );
@@ -88,10 +94,10 @@ public class GetAttachmentsTool {
             response.put( "exists", true );
             response.put( "pageName", pageName );
             response.put( "attachments", result );
-            return McpToolUtils.jsonResult( gson, response );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, response );
         } catch ( final Exception e ) {
             LOG.error( "Failed to list attachments for {}: {}", pageName, e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 }

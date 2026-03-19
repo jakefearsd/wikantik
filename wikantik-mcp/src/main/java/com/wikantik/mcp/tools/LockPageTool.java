@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
 import com.wikantik.pages.PageLock;
@@ -31,12 +31,16 @@ import java.util.Map;
 /**
  * MCP tool that acquires an edit lock on a wiki page, preventing concurrent edits.
  */
-public class LockPageTool {
+public class LockPageTool implements McpTool {
 
     public static final String TOOL_NAME = "lock_page";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final PageManager pageManager;
-    private final Gson gson = new Gson();
 
     private String defaultUser = "MCP";
 
@@ -48,7 +52,8 @@ public class LockPageTool {
         this.defaultUser = defaultUser;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pageName", Map.of( "type", "string", "description", "Name of the page to lock" ) );
         properties.put( "user", Map.of( "type", "string", "description",
@@ -64,13 +69,14 @@ public class LockPageTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
         final String user = McpToolUtils.getString( arguments, "user", defaultUser );
 
         final Page page = pageManager.getPage( pageName );
         if ( page == null ) {
-            return McpToolUtils.errorResult( gson,
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Page not found: " + pageName,
                     "Use list_pages to find existing pages." );
         }
@@ -85,14 +91,14 @@ public class LockPageTool {
             error.put( "minutesLeft", currentLock.getTimeLeft() );
             error.put( "suggestion", "Wait for the lock to expire or contact " + currentLock.getLocker() );
             return McpSchema.CallToolResult.builder()
-                    .content( List.of( new McpSchema.TextContent( gson.toJson( error ) ) ) )
+                    .content( List.of( new McpSchema.TextContent( McpToolUtils.SHARED_GSON.toJson( error ) ) ) )
                     .isError( true )
                     .build();
         }
 
         final PageLock lock = pageManager.lockPage( page, user );
         if ( lock == null ) {
-            return McpToolUtils.errorResult( gson,
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Failed to acquire lock on page: " + pageName,
                     "The page may be locked by another user. Use unlock_page or wait for expiry." );
         }
@@ -103,6 +109,6 @@ public class LockPageTool {
         result.put( "locker", lock.getLocker() );
         result.put( "expiryTime", lock.getExpiryTime().toString() );
         result.put( "minutesLeft", lock.getTimeLeft() );
-        return McpToolUtils.jsonResult( gson, result );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 }

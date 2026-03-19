@@ -81,7 +81,7 @@ class GetOrphanedPagesToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "get_orphaned_pages", def.name() );
         assertTrue( def.annotations().readOnlyHint() );
     }

@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.references.ReferenceManager;
 
@@ -28,18 +28,23 @@ import java.util.*;
  * MCP tool that finds all pages a given page links to (outbound links).
  * Complement of {@link GetBacklinksTool} which finds inbound links.
  */
-public class GetOutboundLinksTool {
+public class GetOutboundLinksTool implements McpTool {
 
     public static final String TOOL_NAME = "get_outbound_links";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final ReferenceManager referenceManager;
-    private final Gson gson = new Gson();
 
     public GetOutboundLinksTool( final ReferenceManager referenceManager ) {
         this.referenceManager = referenceManager;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pageName", Map.of( "type", "string", "description", "Name of the page to find outbound links for" ) );
 
@@ -53,6 +58,7 @@ public class GetOutboundLinksTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
 
@@ -60,6 +66,6 @@ public class GetOutboundLinksTool {
         final List< String > links = new ArrayList<>( refersTo );
         Collections.sort( links );
 
-        return McpToolUtils.jsonResult( gson, Map.of( "pageName", pageName, "links", links ) );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of( "pageName", pageName, "links", links ) );
     }
 }

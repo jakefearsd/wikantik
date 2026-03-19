@@ -84,7 +84,7 @@ class BatchWritePagesToolTest {
 
     @Test
     void testToolDefinition() {
-        final McpSchema.Tool def = tool.toolDefinition();
+        final McpSchema.Tool def = tool.definition();
         assertEquals( "batch_write_pages", def.name() );
         assertNotNull( def.annotations() );
     }

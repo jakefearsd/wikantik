@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -41,15 +41,19 @@ import java.util.Map;
 /**
  * MCP tool that updates frontmatter metadata fields without touching the page body.
  */
-public class UpdateMetadataTool implements AuthorConfigurable {
+public class UpdateMetadataTool implements McpTool, AuthorConfigurable {
 
     private static final Logger LOG = LogManager.getLogger( UpdateMetadataTool.class );
     public static final String TOOL_NAME = "update_metadata";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final WikiEngine engine;
     private final SystemPageRegistry systemPageRegistry;
     private final PageSaveHelper pageSaveHelper;
-    private final Gson gson = new Gson();
 
     private String defaultAuthor = "MCP";
 
@@ -64,7 +68,8 @@ public class UpdateMetadataTool implements AuthorConfigurable {
         this.defaultAuthor = defaultAuthor;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > opSchema = new LinkedHashMap<>();
         opSchema.put( "type", "object" );
         opSchema.put( "properties", Map.of(
@@ -99,6 +104,7 @@ public class UpdateMetadataTool implements AuthorConfigurable {
     }
 
     @SuppressWarnings( "unchecked" )
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
         final List< Map< String, Object > > operations = ( List< Map< String, Object > > ) arguments.get( "operations" );
@@ -108,7 +114,7 @@ public class UpdateMetadataTool implements AuthorConfigurable {
         final String changeNote = McpToolUtils.getString( arguments, "changeNote" );
 
         if ( operations == null || operations.isEmpty() ) {
-            return McpToolUtils.errorResult( gson, "No operations provided",
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "No operations provided",
                     "Provide at least one operation with field and action." );
         }
 
@@ -118,7 +124,7 @@ public class UpdateMetadataTool implements AuthorConfigurable {
             // Check page exists
             final Page currentPage = pageManager.getPage( pageName );
             if ( currentPage == null ) {
-                return McpToolUtils.errorResult( gson,
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                         "Page not found: " + pageName,
                         "Use write_page to create new pages, or list_pages to find existing pages." );
             }
@@ -135,7 +141,7 @@ public class UpdateMetadataTool implements AuthorConfigurable {
                 final Object value = op.get( "value" );
 
                 if ( field == null || action == null ) {
-                    return McpToolUtils.errorResult( gson, "Operation missing required 'field' or 'action'" );
+                    return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "Operation missing required 'field' or 'action'" );
                 }
 
                 switch ( action ) {
@@ -156,7 +162,7 @@ public class UpdateMetadataTool implements AuthorConfigurable {
                         break;
 
                     default:
-                        return McpToolUtils.errorResult( gson,
+                        return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                                 "Unknown action: " + action,
                                 "Valid actions: set, append_to_list, remove_from_list, delete" );
                 }
@@ -182,13 +188,13 @@ public class UpdateMetadataTool implements AuthorConfigurable {
             result.put( "contentHash", McpToolUtils.computeContentHash( savedText ) );
             result.put( "metadata", metadata );
 
-            return McpToolUtils.jsonResult( gson, result );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
         } catch ( final VersionConflictException e ) {
-            return McpToolUtils.errorResult( gson, e.getMessage(),
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage(),
                     "Read the page again with read_page to get the current version and content, then retry." );
         } catch ( final Exception e ) {
             LOG.error( "Failed to update metadata for page {}: {}", pageName, e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 

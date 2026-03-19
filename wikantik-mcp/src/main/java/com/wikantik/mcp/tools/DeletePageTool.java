@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,21 +33,26 @@ import java.util.Map;
 /**
  * MCP tool that deletes a wiki page completely, including all versions.
  */
-public class DeletePageTool {
+public class DeletePageTool implements McpTool {
 
     private static final Logger LOG = LogManager.getLogger( DeletePageTool.class );
     public static final String TOOL_NAME = "delete_page";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final PageManager pageManager;
     private final SystemPageRegistry systemPageRegistry;
-    private final Gson gson = new Gson();
 
     public DeletePageTool( final PageManager pageManager, final SystemPageRegistry systemPageRegistry ) {
         this.pageManager = pageManager;
         this.systemPageRegistry = systemPageRegistry;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pageName", Map.of( "type", "string", "description", "Name of the wiki page to delete" ) );
         properties.put( "confirm", Map.of( "type", "boolean", "description",
@@ -63,18 +68,19 @@ public class DeletePageTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String pageName = McpToolUtils.getString( arguments, "pageName" );
         final boolean confirm = McpToolUtils.getBoolean( arguments, "confirm" );
 
         if ( !confirm ) {
-            return McpToolUtils.errorResult( gson,
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Deletion not confirmed",
                     "Set confirm=true to confirm you want to permanently delete '" + pageName + "' and all its versions." );
         }
 
         if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
-            return McpToolUtils.errorResult( gson,
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Cannot delete system page: " + pageName,
                     "System/template pages are managed by JSPWiki and should not be deleted." );
         }
@@ -82,7 +88,7 @@ public class DeletePageTool {
         try {
             final Page page = pageManager.getPage( pageName );
             if ( page == null ) {
-                return McpToolUtils.errorResult( gson,
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                         "Page not found: " + pageName,
                         "Use list_pages to find existing pages." );
             }
@@ -92,10 +98,10 @@ public class DeletePageTool {
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );
             result.put( "pageName", pageName );
-            return McpToolUtils.jsonResult( gson, result );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
         } catch ( final Exception e ) {
             LOG.error( "Failed to delete page {}: {}", pageName, e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 }

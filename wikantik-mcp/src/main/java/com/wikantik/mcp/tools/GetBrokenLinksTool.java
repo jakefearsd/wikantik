@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
+
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.references.ReferenceManager;
 
@@ -29,18 +29,23 @@ import java.util.*;
  * referenced but do not exist. For each broken link, reports which
  * existing pages reference it.
  */
-public class GetBrokenLinksTool {
+public class GetBrokenLinksTool implements McpTool {
 
     public static final String TOOL_NAME = "get_broken_links";
 
+    @Override
+    public String name() {
+        return TOOL_NAME;
+    }
+
     private final ReferenceManager referenceManager;
-    private final Gson gson = new Gson();
 
     public GetBrokenLinksTool( final ReferenceManager referenceManager ) {
         this.referenceManager = referenceManager;
     }
 
-    public McpSchema.Tool toolDefinition() {
+    @Override
+    public McpSchema.Tool definition() {
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Find all broken links across the wiki — pages that are referenced " +
@@ -52,6 +57,7 @@ public class GetBrokenLinksTool {
                 .build();
     }
 
+    @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final Collection< String > uncreated = referenceManager.findUncreated();
         final List< String > sorted = new ArrayList<>( uncreated );
@@ -72,6 +78,6 @@ public class GetBrokenLinksTool {
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "brokenLinks", brokenLinks );
         result.put( "count", brokenLinks.size() );
-        return McpToolUtils.jsonResult( gson, result );
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 }

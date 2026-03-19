@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# deploy-local.sh - Deploy JSPWiki to local Tomcat 11 with PostgreSQL configuration
+# deploy-local.sh - Deploy Wikantik to local Tomcat 11 with PostgreSQL configuration
 #
 # Prerequisites:
 #   1. Run 'mvn clean install' (or 'mvn clean install -Dmaven.test.skip') first
-#   2. PostgreSQL running with 'jspwiki' database created
-#   3. Run the DDL: sudo -u postgres psql -d jspwiki -f wikantik-war/src/main/config/db/postgresql.ddl
-#   4. Edit tomcat/tomcat-11/conf/Catalina/localhost/JSPWiki.xml to set your password
+#   2. PostgreSQL running with 'wikantik' database created
+#   3. Run the DDL: sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.ddl
+#   4. Edit tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml to set your password
 #
 # Usage:
 #   ./deploy-local.sh          # Deploy WAR and configure Tomcat
@@ -19,10 +19,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOMCAT_DIR="${SCRIPT_DIR}/tomcat/tomcat-11"
 WAR_SOURCE="${SCRIPT_DIR}/wikantik-war/target/Wikantik.war"
 CONFIG_DIR="${SCRIPT_DIR}/wikantik-war/src/main/config/tomcat"
-CONTEXT_DEST="${TOMCAT_DIR}/conf/Catalina/localhost/JSPWiki.xml"
-PROPS_DEST="${TOMCAT_DIR}/lib/jspwiki-custom.properties"
+CONTEXT_DEST="${TOMCAT_DIR}/conf/Catalina/localhost/ROOT.xml"
+PROPS_DEST="${TOMCAT_DIR}/lib/wikantik-custom.properties"
 LOG4J2_DEST="${TOMCAT_DIR}/lib/log4j2.xml"
-LOG_DIR="${TOMCAT_DIR}/logs/jspwiki"
+LOG_DIR="${TOMCAT_DIR}/logs/wikantik"
 JDBC_DRIVER="${TOMCAT_DIR}/lib/postgresql-42.7.4.jar"
 JDBC_URL="https://jdbc.postgresql.org/download/postgresql-42.7.4.jar"
 
@@ -55,7 +55,7 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
 fi
 
 echo "==========================================="
-echo "JSPWiki Local Deployment Script"
+echo "Wikantik Local Deployment Script"
 echo "==========================================="
 echo ""
 
@@ -89,7 +89,7 @@ mkdir -p "${TOMCAT_DIR}/conf/Catalina/localhost"
 
 # Copy context.xml template if destination doesn't exist
 if [[ ! -f "${CONTEXT_DEST}" ]]; then
-    cp "${CONFIG_DIR}/JSPWiki-context.xml.template" "${CONTEXT_DEST}"
+    cp "${CONFIG_DIR}/Wikantik-context.xml.template" "${CONTEXT_DEST}"
     print_warning "Created ${CONTEXT_DEST}"
     echo "         >>> IMPORTANT: Edit this file to set your PostgreSQL password! <<<"
 else
@@ -98,7 +98,7 @@ fi
 
 # Copy properties template if destination doesn't exist
 if [[ ! -f "${PROPS_DEST}" ]]; then
-    cp "${CONFIG_DIR}/jspwiki-custom-postgresql.properties.template" "${PROPS_DEST}"
+    cp "${CONFIG_DIR}/wikantik-custom-postgresql.properties.template" "${PROPS_DEST}"
     print_status "Created ${PROPS_DEST}"
     echo "         You may want to review and adjust paths in this file"
 else
@@ -109,7 +109,7 @@ fi
 if [[ ! -f "${LOG4J2_DEST}" ]]; then
     cp "${CONFIG_DIR}/log4j2-local.xml.template" "${LOG4J2_DEST}"
     print_status "Created ${LOG4J2_DEST}"
-    echo "         Uses portable path: \${sys:catalina.base}/logs/jspwiki"
+    echo "         Uses portable path: \${sys:catalina.base}/logs/wikantik"
 else
     print_status "Log4j2 config already exists (not overwritten)"
 fi
@@ -131,16 +131,16 @@ if [[ -f "${TOMCAT_DIR}/bin/shutdown.sh" ]]; then
 fi
 
 # Remove old deployment
-if [[ -d "${TOMCAT_DIR}/webapps/JSPWiki" ]]; then
-    echo "Removing old JSPWiki deployment..."
-    rm -rf "${TOMCAT_DIR}/webapps/JSPWiki"
+if [[ -d "${TOMCAT_DIR}/webapps/ROOT" ]]; then
+    echo "Removing old Wikantik deployment..."
+    rm -rf "${TOMCAT_DIR}/webapps/ROOT"
 fi
 
 # Deploy WAR
 echo ""
 echo "Deploying WAR file..."
-cp "${WAR_SOURCE}" "${TOMCAT_DIR}/webapps/"
-print_status "WAR deployed to ${TOMCAT_DIR}/webapps/"
+cp "${WAR_SOURCE}" "${TOMCAT_DIR}/webapps/ROOT.war"
+print_status "WAR deployed to ${TOMCAT_DIR}/webapps/ROOT.war"
 
 # Wiki pages now live in docs/wikantik-pages/ (version-controlled)
 # No copy step needed — Tomcat serves directly from docs/wikantik-pages/

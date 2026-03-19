@@ -30,26 +30,25 @@ RUN set -x \
 FROM tomcat:10.1-jdk17
 
 COPY --from=package /tmp/wikantik-war/target/Wikantik.war /tmp
-COPY --from=package /tmp/wikantik-wikipages/en/target/wikantik-wikipages-en-*-jspwiki.zip /tmp
+COPY --from=package /tmp/wikantik-wikipages/en/target/wikantik-wikipages-en-*-wikantik.zip /tmp
 COPY docker-files/log4j2.properties /tmp
 COPY docker-files/tomcat-users.xml $CATALINA_HOME/conf/tomcat-users.xml
-COPY jspwiki-portable/src/overlay/tomcat/conf/test-use-only.p12 $CATALINA_HOME/conf/
 COPY docker-files/web.xml $CATALINA_HOME/conf/web.xml
 COPY docker-files/server.xml $CATALINA_HOME/conf/server.xml
 COPY docker-files/catalina.properties $CATALINA_HOME/conf/catalina.properties
 
 #
-# set default environment entries to configure jspwiki
+# set default environment entries to configure wikantik
 ENV CATALINA_OPTS -Djava.security.egd=file:/dev/./urandom
 ENV LANG en_US.UTF-8
-ENV jspwiki_basicAttachmentProvider_storageDir /var/jspwiki/pages
-ENV jspwiki_fileSystemProvider_pageDir /var/jspwiki/pages
-ENV jspwiki_frontPage Main
-ENV jspwiki_pageProvider VersioningFileProvider
-ENV jspwiki_use_external_logconfig true
-ENV jspwiki_workDir /var/jspwiki/work
-ENV jspwiki_xmlUserDatabaseFile /var/jspwiki/etc/userdatabase.xml
-ENV jspwiki_xmlGroupDatabaseFile /var/jspwiki/etc/groupdatabase.xml
+ENV wikantik_basicAttachmentProvider_storageDir /var/wikantik/pages
+ENV wikantik_fileSystemProvider_pageDir /var/wikantik/pages
+ENV wikantik_frontPage Main
+ENV wikantik_pageProvider VersioningFileProvider
+ENV wikantik_use_external_logconfig true
+ENV wikantik_workDir /var/wikantik/work
+ENV wikantik_xmlUserDatabaseFile /var/wikantik/etc/userdatabase.xml
+ENV wikantik_xmlGroupDatabaseFile /var/wikantik/etc/groupdatabase.xml
 
 RUN set -x \
  && export DEBIAN_FRONTEND=noninteractive \
@@ -58,30 +57,30 @@ RUN set -x \
  && apt install --fix-missing --quiet --yes unzip
 
 #
-# install jspwiki
+# install wikantik
 RUN set -x \
- && mkdir /var/jspwiki \
-# remove default tomcat applications, we dont need them to run jspwiki
+ && mkdir /var/wikantik \
+# remove default tomcat applications, we dont need them to run wikantik
  && cd $CATALINA_HOME/webapps \
  && rm -rf examples host-manager manager docs ROOT \
 # remove other stuff we don't need
  && rm -rf /usr/local/tomcat/bin/*.bat \
-# create subdirectories where all jspwiki stuff will live
- && cd /var/jspwiki \
+# create subdirectories where all wikantik stuff will live
+ && cd /var/wikantik \
  && mkdir pages logs etc work \
-# deploy jspwiki
+# deploy wikantik
  && mkdir $CATALINA_HOME/webapps/ROOT \
  && unzip -q -d $CATALINA_HOME/webapps/ROOT /tmp/Wikantik.war \
  && rm /tmp/Wikantik.war \
 # deploy wiki pages
  && cd /tmp/ \
- && unzip -q wikantik-wikipages-en-*-jspwiki.zip \
- && mv wikantik-wikipages-en-*/* /var/jspwiki/pages/ \
+ && unzip -q wikantik-wikipages-en-*-wikantik.zip \
+ && mv wikantik-wikipages-en-*/* /var/wikantik/pages/ \
  && rm -rf wikantik-wikipages-en-* \
-# move the userdatabase.xml and groupdatabase.xml to /var/jspwiki/etc
+# move the userdatabase.xml and groupdatabase.xml to /var/wikantik/etc
  && cd $CATALINA_HOME/webapps/ROOT/WEB-INF \
- && mv userdatabase.xml groupdatabase.xml /var/jspwiki/etc \
-# arrange proper logging (jspwiki.use.external.logconfig = true needs to be set)
+ && mv userdatabase.xml groupdatabase.xml /var/wikantik/etc \
+# arrange proper logging (wikantik.use.external.logconfig = true needs to be set)
  && mv /tmp/log4j2.properties $CATALINA_HOME/lib/log4j2.properties
 
 # make port visible in metadata

@@ -15,26 +15,26 @@
 #  limitations under the License.
 #
 #
-# JSPWiki Custom Configuration for PostgreSQL User/Group Database
+# Wikantik Custom Configuration for PostgreSQL User/Group Database
 #
 # This file is copied by deploy-local.sh to:
-#   tomcat/tomcat-11/lib/jspwiki-custom.properties
+#   tomcat/tomcat-11/lib/wikantik-custom.properties
 #
 # Adjust paths below to match your local environment.
 #
 
 # Application settings
-wikantik.applicationName = JSPWiki
+wikantik.applicationName = Wikantik
 wikantik.pageProvider = FileSystemProvider
 wikantik.frontPage = Main
 
 # Base URL - adjust if using a different port or context path
-wikantik.baseURL = http://localhost:8080/JSPWiki/
+wikantik.baseURL = http://localhost:8080/Wikantik/
 
 # File storage locations
 # Adjust these paths to match your local environment
-wikantik.fileSystemProvider.pageDir = /home/jakefear/source/jspwiki/docs/wikantik-pages
-wikantik.workDir = /home/jakefear/source/jspwiki/tomcat/jspwiki-work
+wikantik.fileSystemProvider.pageDir = /home/jakefear/source/wikantik/docs/wikantik-pages
+wikantik.workDir = /home/jakefear/source/wikantik/tomcat/wikantik-work
 
 # Use PostgreSQL JDBC databases for user and group storage
 wikantik.userdatabase = org.apache.wiki.auth.user.JDBCUserDatabase

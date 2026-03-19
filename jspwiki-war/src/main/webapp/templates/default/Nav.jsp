@@ -23,7 +23,7 @@
 <%@ page import="org.apache.wiki.attachment.*" %>
 <%@ page import="org.apache.wiki.pages.PageManager" %>
 
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>

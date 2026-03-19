@@ -25,7 +25,7 @@
 <%@ page import="org.apache.wiki.auth.authorize.Group" %>
 <%@ page import="org.apache.wiki.util.comparators.PrincipalComparator" %>
 <%@ page errorPage="/Error.jsp" %>
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>

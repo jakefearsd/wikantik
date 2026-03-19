@@ -55,7 +55,7 @@ class CachingProviderTest {
     void testInitialization() {
         final Properties props = TestEngine.getTestProperties();
         props.setProperty( CachingManager.PROP_CACHE_ENABLE, "true" );
-        props.setProperty( "jspwiki.pageProvider", "org.apache.wiki.providers.CounterProvider" );
+        props.setProperty( "wikantik.pageProvider", "org.apache.wiki.providers.CounterProvider" );
 
         engine = TestEngine.build( props );
         final CounterProvider p = ( CounterProvider )( ( CachingProvider )engine.getManager( PageManager.class ).getProvider() ).getRealProvider();
@@ -92,7 +92,7 @@ class CachingProviderTest {
     void testGetAllWithCacheTooSmallDelegatesToRealProvider() throws Exception {
         final Properties props = TestEngine.getTestProperties();
         props.setProperty( CachingManager.PROP_CACHE_ENABLE, "true" );
-        props.setProperty( "jspwiki.cache.config-file", "ehcache-jspwiki-small.xml" );
+        props.setProperty( "wikantik.cache.config-file", "ehcache-wikantik-small.xml" );
 
         engine = TestEngine.build( props );
         engine.saveText( "page1", "page that should be cached" );
@@ -105,8 +105,8 @@ class CachingProviderTest {
     void testGetAllWithCacheTooSmallDelegatesToRealProviderWithInitialPageLoad() throws Exception {
         final Properties props = TestEngine.getTestProperties();
         props.setProperty( CachingManager.PROP_CACHE_ENABLE, "true" );
-        props.setProperty( "jspwiki.pageProvider", "org.apache.wiki.providers.CounterProvider" );
-        props.setProperty( "jspwiki.cache.config-file", "ehcache-jspwiki-small.xml" );
+        props.setProperty( "wikantik.pageProvider", "org.apache.wiki.providers.CounterProvider" );
+        props.setProperty( "wikantik.cache.config-file", "ehcache-wikantik-small.xml" );
 
         engine = TestEngine.build( props );
 
@@ -128,7 +128,7 @@ class CachingProviderTest {
     private TestEngine buildWithCounterProvider() {
         final Properties props = TestEngine.getTestProperties();
         props.setProperty( CachingManager.PROP_CACHE_ENABLE, "true" );
-        props.setProperty( "jspwiki.pageProvider", "org.apache.wiki.providers.CounterProvider" );
+        props.setProperty( "wikantik.pageProvider", "org.apache.wiki.providers.CounterProvider" );
         return TestEngine.build( props );
     }
 
@@ -450,7 +450,7 @@ class CachingProviderTest {
     private TestEngine buildWithCounterProviderAndShortTTL( final int ttlSeconds ) {
         final Properties props = TestEngine.getTestProperties();
         props.setProperty( CachingManager.PROP_CACHE_ENABLE, "true" );
-        props.setProperty( "jspwiki.pageProvider", "org.apache.wiki.providers.CounterProvider" );
+        props.setProperty( "wikantik.pageProvider", "org.apache.wiki.providers.CounterProvider" );
         props.setProperty( CachingProvider.PROP_CACHE_ALLPAGES_TTL, String.valueOf( ttlSeconds ) );
         return TestEngine.build( props );
     }

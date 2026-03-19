@@ -164,31 +164,31 @@ public class JDBCGroupDatabase implements GroupDatabase {
     public static final String DEFAULT_GROUPDB_MODIFIER = "modifier";
 
     /** The JNDI name of the DataSource. */
-    public static final String PROP_GROUPDB_DATASOURCE = "jspwiki.groupdatabase.datasource";
+    public static final String PROP_GROUPDB_DATASOURCE = "wikantik.groupdatabase.datasource";
 
     /** The table that stores the groups. */
-    public static final String PROP_GROUPDB_TABLE = "jspwiki.groupdatabase.table";
+    public static final String PROP_GROUPDB_TABLE = "wikantik.groupdatabase.table";
 
     /** The table that stores the names of group members. */
-    public static final String PROP_GROUPDB_MEMBER_TABLE = "jspwiki.groupdatabase.membertable";
+    public static final String PROP_GROUPDB_MEMBER_TABLE = "wikantik.groupdatabase.membertable";
 
     /** The column containing the group's creation timestamp. */
-    public static final String PROP_GROUPDB_CREATED = "jspwiki.groupdatabase.created";
+    public static final String PROP_GROUPDB_CREATED = "wikantik.groupdatabase.created";
 
     /** The column containing the group creator's name. */
-    public static final String PROP_GROUPDB_CREATOR = "jspwiki.groupdatabase.creator";
+    public static final String PROP_GROUPDB_CREATOR = "wikantik.groupdatabase.creator";
 
     /** The column containing the group's name. */
-    public static final String PROP_GROUPDB_NAME = "jspwiki.groupdatabase.name";
+    public static final String PROP_GROUPDB_NAME = "wikantik.groupdatabase.name";
 
     /** The column containing the group member's name. */
-    public static final String PROP_GROUPDB_MEMBER = "jspwiki.groupdatabase.member";
+    public static final String PROP_GROUPDB_MEMBER = "wikantik.groupdatabase.member";
 
     /** The column containing the group's last-modified timestamp. */
-    public static final String PROP_GROUPDB_MODIFIED = "jspwiki.groupdatabase.modified";
+    public static final String PROP_GROUPDB_MODIFIED = "wikantik.groupdatabase.modified";
 
     /** The column containing the name of the user who last modified the group. */
-    public static final String PROP_GROUPDB_MODIFIER = "jspwiki.groupdatabase.modifier";
+    public static final String PROP_GROUPDB_MODIFIER = "wikantik.groupdatabase.modifier";
 
     protected static final Logger LOG = LogManager.getLogger( JDBCGroupDatabase.class );
 

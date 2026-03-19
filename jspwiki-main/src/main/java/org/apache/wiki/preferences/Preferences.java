@@ -97,26 +97,26 @@ public class Preferences extends HashMap< String,String > {
         final String dateFormat = ctx.getEngine().getManager( InternationalizationManager.class )
                                            .get( InternationalizationManager.CORE_BUNDLE, getLocale( ctx ), "common.datetimeformat" );
 
-        prefs.put("SkinName", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.skinname", "PlainVanilla" ) );
-        prefs.put("DateFormat", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.dateformat", dateFormat ) );
-        prefs.put("TimeZone", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.timezone", TimeZone.getDefault().getID() ) );
-        prefs.put("Orientation", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.orientation", "fav-left" ) );
-        prefs.put("Sidebar", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.sidebar", "active" ) );
-        prefs.put("Layout", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.layout", "fluid" ) );
-        prefs.put("Language", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.language", getLocale( ctx ).toString() ) );
-        prefs.put("SectionEditing", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.sectionediting", "true" ) );
-        prefs.put("Appearance", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.appearance", "true" ) );
+        prefs.put("SkinName", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.skinname", "PlainVanilla" ) );
+        prefs.put("DateFormat", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.dateformat", dateFormat ) );
+        prefs.put("TimeZone", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.timezone", TimeZone.getDefault().getID() ) );
+        prefs.put("Orientation", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.orientation", "fav-left" ) );
+        prefs.put("Sidebar", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.sidebar", "active" ) );
+        prefs.put("Layout", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.layout", "fluid" ) );
+        prefs.put("Language", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.language", getLocale( ctx ).toString() ) );
+        prefs.put("SectionEditing", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.sectionediting", "true" ) );
+        prefs.put("Appearance", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.appearance", "true" ) );
 
         //editor cookies
-        prefs.put("autosuggest", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.autosuggest", "true" ) );
-        prefs.put("tabcompletion", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.tabcompletion", "true" ) );
-        prefs.put("smartpairs", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.smartpairs", "false" ) );
-        prefs.put("livepreview", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.livepreview", "true" ) );
-        prefs.put("previewcolumn", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.previewcolumn", "true" ) );
+        prefs.put("autosuggest", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.autosuggest", "true" ) );
+        prefs.put("tabcompletion", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.tabcompletion", "true" ) );
+        prefs.put("smartpairs", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.smartpairs", "false" ) );
+        prefs.put("livepreview", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.livepreview", "true" ) );
+        prefs.put("previewcolumn", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.previewcolumn", "true" ) );
 
 
         // FIXME: editormanager reads jspwiki.editor -- which of both properties should continue
-        prefs.put("editor", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.editor", "plain" ) );
+        prefs.put("editor", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.editor", "plain" ) );
         parseJSONPreferences( (HttpServletRequest) pageContext.getRequest(), prefs );
         pageContext.getSession().setAttribute( SESSIONPREFS, prefs );
     }
@@ -217,7 +217,7 @@ public class Preferences extends HashMap< String,String > {
 
         // see if default locale is set server side
         if( loc == null ) {
-            final String locale = context.getEngine().getWikiProperties().getProperty( "jspwiki.preferences.default-locale" );
+            final String locale = context.getEngine().getWikiProperties().getProperty( "wikantik.preferences.default-locale" );
             try {
                 loc = LocaleUtils.toLocale( locale );
             } catch( final IllegalArgumentException iae ) {

@@ -28,10 +28,10 @@
 <%@ page import="org.apache.wiki.http.filter.CsrfProtectionFilter" %>
 <%@ page import="org.apache.wiki.preferences.Preferences" %>
 <%@ page errorPage="/Error.jsp" %>
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 
 <%!
-    Logger log = LogManager.getLogger("JSPWiki");
+    Logger log = LogManager.getLogger("Wikantik");
 %>
 
 <%

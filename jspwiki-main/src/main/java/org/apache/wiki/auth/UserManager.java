@@ -40,7 +40,7 @@ import java.security.Principal;
 public interface UserManager extends Initializable {
 
     /** Message key for the "save profile" message. */
-    String PROP_DATABASE = "jspwiki.userdatabase";
+    String PROP_DATABASE = "wikantik.userdatabase";
 
     String JSON_USERS = "users";
 

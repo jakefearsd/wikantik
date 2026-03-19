@@ -54,7 +54,7 @@ class MailUtilTest  {
     void testProperties() {
         Assertions.assertEquals( "127.0.0.1",                   m_props.getProperty( MailUtil.PROP_MAIL_HOST ) );
         Assertions.assertEquals( "25",                          m_props.getProperty( MailUtil.PROP_MAIL_PORT ) );
-        Assertions.assertEquals( "JSPWiki <JSPWiki@localhost>", m_props.getProperty( MailUtil.PROP_MAIL_SENDER ) );
+        Assertions.assertEquals( "Wikantik <Wikantik@localhost>", m_props.getProperty( MailUtil.PROP_MAIL_SENDER ) );
         Assertions.assertNull( m_props.getProperty( MailUtil.PROP_MAIL_ACCOUNT ) );
         Assertions.assertNull( m_props.getProperty( MailUtil.PROP_MAIL_PASSWORD ) );
         Assertions.assertNull( m_props.getProperty( MailUtil.PROP_MAIL_JNDI_NAME ) );

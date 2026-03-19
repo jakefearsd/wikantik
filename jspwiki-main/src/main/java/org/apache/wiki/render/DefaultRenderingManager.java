@@ -82,7 +82,7 @@ public class DefaultRenderingManager implements RenderingManager {
     private static final String DEFAULT_WYSIWYG_RENDERER = XHTMLRenderer.class.getName();
 
     /** markdown parser property. */
-    String PROP_MARKDOWN_PARSER = "jspwiki.renderingManager.markdownParser";
+    String PROP_MARKDOWN_PARSER = "wikantik.renderingManager.markdownParser";
 
     private Engine engine;
     private CachingManager cachingManager;

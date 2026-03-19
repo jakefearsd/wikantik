@@ -27,7 +27,7 @@
 <%@ page import="org.apache.wiki.ui.progress.ProgressManager" %>
 <%@ page import="org.apache.wiki.util.TextUtil" %>
 <%@ page import="java.security.Permission" %>
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>

@@ -219,33 +219,33 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
 
     public static final String DEFAULT_DB_WIKI_NAME = "wiki_name";
 
-    public static final String PROP_DB_ATTRIBUTES = "jspwiki.userdatabase.attributes";
+    public static final String PROP_DB_ATTRIBUTES = "wikantik.userdatabase.attributes";
 
-    public static final String PROP_DB_CREATED = "jspwiki.userdatabase.created";
+    public static final String PROP_DB_CREATED = "wikantik.userdatabase.created";
 
-    public static final String PROP_DB_EMAIL = "jspwiki.userdatabase.email";
+    public static final String PROP_DB_EMAIL = "wikantik.userdatabase.email";
 
-    public static final String PROP_DB_FULL_NAME = "jspwiki.userdatabase.fullName";
+    public static final String PROP_DB_FULL_NAME = "wikantik.userdatabase.fullName";
 
-    public static final String PROP_DB_DATASOURCE = "jspwiki.userdatabase.datasource";
+    public static final String PROP_DB_DATASOURCE = "wikantik.userdatabase.datasource";
 
-    public static final String PROP_DB_LOCK_EXPIRY = "jspwiki.userdatabase.lockExpiry";
+    public static final String PROP_DB_LOCK_EXPIRY = "wikantik.userdatabase.lockExpiry";
 
-    public static final String PROP_DB_LOGIN_NAME = "jspwiki.userdatabase.loginName";
+    public static final String PROP_DB_LOGIN_NAME = "wikantik.userdatabase.loginName";
 
-    public static final String PROP_DB_MODIFIED = "jspwiki.userdatabase.modified";
+    public static final String PROP_DB_MODIFIED = "wikantik.userdatabase.modified";
 
-    public static final String PROP_DB_PASSWORD = "jspwiki.userdatabase.password";
+    public static final String PROP_DB_PASSWORD = "wikantik.userdatabase.password";
 
-    public static final String PROP_DB_UID = "jspwiki.userdatabase.uid";
+    public static final String PROP_DB_UID = "wikantik.userdatabase.uid";
 
-    public static final String PROP_DB_ROLE = "jspwiki.userdatabase.role";
+    public static final String PROP_DB_ROLE = "wikantik.userdatabase.role";
 
-    public static final String PROP_DB_ROLE_TABLE = "jspwiki.userdatabase.roleTable";
+    public static final String PROP_DB_ROLE_TABLE = "wikantik.userdatabase.roleTable";
 
-    public static final String PROP_DB_TABLE = "jspwiki.userdatabase.table";
+    public static final String PROP_DB_TABLE = "wikantik.userdatabase.table";
 
-    public static final String PROP_DB_WIKI_NAME = "jspwiki.userdatabase.wikiName";
+    public static final String PROP_DB_WIKI_NAME = "wikantik.userdatabase.wikiName";
 
     private DataSource ds;
 

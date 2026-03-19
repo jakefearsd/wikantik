@@ -32,29 +32,29 @@
    <editor name="plain">
       <author>Janne Jalkanen</author>
       <path>editors/plain.jsp</path>
-      <minVersion>2.4</minVersion>
+      <minVersion>1.0</minVersion>
       <adminBean>org.apache.wiki.ui.admin.beans.PlainEditorAdminBean</adminBean>
    </editor>
    <plugin class="org.apache.wiki.plugin.IfPlugin">
       <author>Janne Jalkanen</author>
-      <minVersion>2.4</minVersion>
+      <minVersion>1.0</minVersion>
       <alias>If</alias>
    </plugin>
 
    <plugin class="org.apache.wiki.plugin.AliasPlugin">
       <author>JSPWiki</author>
-      <minVersion>3.0</minVersion>
+      <minVersion>1.0</minVersion>
       <alias>ALIAS</alias>
    </plugin>
 
    <plugin class="org.apache.wiki.plugin.Note">
       <author>Janne Jalkanen</author>
-      <minVersion>2.4</minVersion>
+      <minVersion>1.0</minVersion>
    </plugin>
 
    <filter class="org.apache.wiki.filters.SpamFilter">
       <author>Janne Jalkanen</author>
-      <minVersion>2.6</minVersion>
+      <minVersion>1.0</minVersion>
    </filter>
 
 </modules>

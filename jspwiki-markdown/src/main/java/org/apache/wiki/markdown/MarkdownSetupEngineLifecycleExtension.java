@@ -36,11 +36,11 @@ public class MarkdownSetupEngineLifecycleExtension implements EngineLifecycleExt
     /** {@inheritDoc} */
     @Override
     public void onInit( final Properties properties ) {
-        if( "markdown".equalsIgnoreCase( properties.getProperty( "jspwiki.syntax" ) ) ) {
-            setWikiProperty( properties, "jspwiki.renderingManager.markupParser", "org.apache.wiki.parser.markdown.MarkdownParser" );
-            setWikiProperty( properties, "jspwiki.renderingManager.renderer", "org.apache.wiki.render.markdown.MarkdownRenderer" );
-            setWikiProperty( properties, "jspwiki.renderingManager.renderer.wysiwyg", "org.apache.wiki.render.markdown.MarkdownRenderer" );
-            setWikiProperty( properties, "jspwiki.syntax.plain", "plain/wiki-snips-markdown.js" );
+        if( "markdown".equalsIgnoreCase( properties.getProperty( "wikantik.syntax" ) ) ) {
+            setWikiProperty( properties, "wikantik.renderingManager.markupParser", "org.apache.wiki.parser.markdown.MarkdownParser" );
+            setWikiProperty( properties, "wikantik.renderingManager.renderer", "org.apache.wiki.render.markdown.MarkdownRenderer" );
+            setWikiProperty( properties, "wikantik.renderingManager.renderer.wysiwyg", "org.apache.wiki.render.markdown.MarkdownRenderer" );
+            setWikiProperty( properties, "wikantik.syntax.plain", "plain/wiki-snips-markdown.js" );
         }
     }
 

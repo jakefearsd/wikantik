@@ -473,13 +473,13 @@ import java.util.Properties;
 public class OAuthConfiguration {
 
     // Property keys
-    public static final String PROP_OAUTH_ENABLED = "jspwiki.oauth.enabled";
-    public static final String PROP_OAUTH_AUTO_CREATE = "jspwiki.oauth.autoCreateUsers";
+    public static final String PROP_OAUTH_ENABLED = "wikantik.oauth.enabled";
+    public static final String PROP_OAUTH_AUTO_CREATE = "wikantik.oauth.autoCreateUsers";
 
-    public static final String PROP_GOOGLE_ENABLED = "jspwiki.oauth.google.enabled";
-    public static final String PROP_GOOGLE_CLIENT_ID = "jspwiki.oauth.google.clientId";
-    public static final String PROP_GOOGLE_CLIENT_SECRET = "jspwiki.oauth.google.clientSecret";
-    public static final String PROP_GOOGLE_SCOPES = "jspwiki.oauth.google.scopes";
+    public static final String PROP_GOOGLE_ENABLED = "wikantik.oauth.google.enabled";
+    public static final String PROP_GOOGLE_CLIENT_ID = "wikantik.oauth.google.clientId";
+    public static final String PROP_GOOGLE_CLIENT_SECRET = "wikantik.oauth.google.clientSecret";
+    public static final String PROP_GOOGLE_SCOPES = "wikantik.oauth.google.scopes";
 
     // Google OAuth endpoints (constants)
     public static final String GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -1375,7 +1375,7 @@ public class OAuthCallbackServlet extends HttpServlet {
                 redirectPage = engine.getFrontPage();
             }
 
-            String wikiUrl = engine.getWikiProperties().getProperty("jspwiki.baseURL",
+            String wikiUrl = engine.getWikiProperties().getProperty("wikantik.baseURL",
                 request.getContextPath());
             response.sendRedirect(wikiUrl + "Wiki.jsp?page=" + redirectPage);
 
@@ -1608,9 +1608,9 @@ Update the beginning of `LoginContent.jsp` to set OAuth configuration variables:
     // OAuth configuration
     Properties wikiProps = ctx.getEngine().getWikiProperties();
     boolean oauthEnabled = Boolean.parseBoolean(
-        wikiProps.getProperty("jspwiki.oauth.enabled", "false"));
+        wikiProps.getProperty("wikantik.oauth.enabled", "false"));
     boolean googleOAuthEnabled = oauthEnabled && Boolean.parseBoolean(
-        wikiProps.getProperty("jspwiki.oauth.google.enabled", "false"));
+        wikiProps.getProperty("wikantik.oauth.google.enabled", "false"));
 
     String loginURL = "";
     // ... rest of existing code
@@ -1750,10 +1750,10 @@ class OAuthConfigurationTest {
     @BeforeEach
     void setUp() throws Exception {
         Properties props = TestEngine.getTestProperties();
-        props.setProperty("jspwiki.oauth.enabled", "true");
-        props.setProperty("jspwiki.oauth.google.enabled", "true");
-        props.setProperty("jspwiki.oauth.google.clientId", "test-client-id");
-        props.setProperty("jspwiki.oauth.google.clientSecret", "test-secret");
+        props.setProperty("wikantik.oauth.enabled", "true");
+        props.setProperty("wikantik.oauth.google.enabled", "true");
+        props.setProperty("wikantik.oauth.google.clientId", "test-client-id");
+        props.setProperty("wikantik.oauth.google.clientSecret", "test-secret");
         engine = new TestEngine(props);
     }
 
@@ -1767,7 +1767,7 @@ class OAuthConfigurationTest {
     @Test
     void testOAuthDisabled() throws Exception {
         Properties props = TestEngine.getTestProperties();
-        props.setProperty("jspwiki.oauth.enabled", "false");
+        props.setProperty("wikantik.oauth.enabled", "false");
         TestEngine engine = new TestEngine(props);
 
         OAuthConfiguration config = new OAuthConfiguration(engine);
@@ -1784,9 +1784,9 @@ class OAuthConfigurationTest {
     @Test
     void testValidationFailsMissingClientId() throws Exception {
         Properties props = TestEngine.getTestProperties();
-        props.setProperty("jspwiki.oauth.enabled", "true");
-        props.setProperty("jspwiki.oauth.google.enabled", "true");
-        props.setProperty("jspwiki.oauth.google.clientSecret", "secret");
+        props.setProperty("wikantik.oauth.enabled", "true");
+        props.setProperty("wikantik.oauth.google.enabled", "true");
+        props.setProperty("wikantik.oauth.google.clientSecret", "secret");
         // clientId not set
         TestEngine engine = new TestEngine(props);
 
@@ -2517,7 +2517,7 @@ Then modify `OAuthStartServlet.java` to use this property:
 ```java
 private String getCallbackUrl(HttpServletRequest request) {
     String configuredUrl = engine.getWikiProperties()
-        .getProperty("jspwiki.oauth.callbackUrl");
+        .getProperty("wikantik.oauth.callbackUrl");
 
     if (configuredUrl != null && !configuredUrl.isEmpty()) {
         return configuredUrl;

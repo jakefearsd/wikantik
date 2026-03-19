@@ -28,8 +28,8 @@
 
   <artifactId>jspwiki-mcp</artifactId>
   <modelVersion>4.0.0</modelVersion>
-  <name>Apache JSPWiki MCP Server</name>
-  <description>Model Context Protocol (MCP) server for JSPWiki, enabling AI agents to interact with the wiki as a semantic knowledge base</description>
+  <name>Wikantik MCP Server</name>
+  <description>Model Context Protocol (MCP) server for Wikantik, enabling AI agents to interact with the wiki as a semantic knowledge base</description>
 
   <dependencyManagement>
     <dependencies>

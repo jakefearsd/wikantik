@@ -25,9 +25,9 @@
 <%@ page import="org.apache.wiki.api.core.Engine" %>
 <%@ page import="org.apache.wiki.api.spi.Wiki" %>
 <%@ page import="org.apache.wiki.util.FileUtil" %>
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%!
-    Logger log = LogManager.getLogger("JSPWiki");
+    Logger log = LogManager.getLogger("Wikantik");
 %>
 <%
     Engine wiki = Wiki.engine().find( getServletConfig() );
@@ -70,7 +70,7 @@
 <!doctype html>
 <html lang="<c:out value='${prefs.Language}' default='en'/>" name="top">
   <head>
-    <title><wiki:Variable var="applicationname" default="Apache JSPWiki" />: ERROR Page</title>
+    <title><wiki:Variable var="applicationname" default="Wikantik" />: ERROR Page</title>
   </head>
 
   <body>

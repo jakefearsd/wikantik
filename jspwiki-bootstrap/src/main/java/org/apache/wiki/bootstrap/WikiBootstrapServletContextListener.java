@@ -69,7 +69,7 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
      * @return {@code true} if configuration was read from jspwiki.properties, {@code false} otherwise.
      */
     boolean initWikiLoggingFramework( final Properties properties ) {
-        final String useExternalLogConfig = TextUtil.getStringProperty( properties, "jspwiki.use.external.logconfig", "false" );
+        final String useExternalLogConfig = TextUtil.getStringProperty( properties, "wikantik.use.external.logconfig", "false" );
         if ( useExternalLogConfig.equals( "false" ) ) {
             final ConfigurationSource source = createConfigurationSource( properties );
             if( source != null ) {

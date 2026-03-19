@@ -310,9 +310,9 @@ public class TextUtilTest {
 
     @Test
     public void testGetCanonicalFilePathProperty() {
-        final String[] values = { "jspwiki.fileSystemProvider.pageDir", " ." + File.separator + "data" + File.separator + "private " };
+        final String[] values = { "wikantik.fileSystemProvider.pageDir", " ." + File.separator + "data" + File.separator + "private " };
         final Properties props = TextUtil.createProperties(values);
-        final String path = TextUtil.getCanonicalFilePathProperty(props, "jspwiki.fileSystemProvider.pageDir", "NA");
+        final String path = TextUtil.getCanonicalFilePathProperty(props, "wikantik.fileSystemProvider.pageDir", "NA");
         Assertions.assertTrue( path.endsWith( File.separator + "data" + File.separator + "private" ) );
         Assertions.assertFalse( path.endsWith( "." + File.separator + "data" + File.separator + "private" ) );
     }
@@ -322,7 +322,7 @@ public class TextUtilTest {
         final String defaultValue = System.getProperty( "user.home" ) + File.separator + "jspwiki-files";
         final String[] values = {};
         final Properties props = TextUtil.createProperties(values);
-        final String path = TextUtil.getCanonicalFilePathProperty(props, "jspwiki.fileSystemProvider.pageDir", defaultValue);
+        final String path = TextUtil.getCanonicalFilePathProperty(props, "wikantik.fileSystemProvider.pageDir", defaultValue);
         Assertions.assertTrue(path.endsWith("jspwiki-files"));
     }
 

@@ -1,4 +1,4 @@
-You are connected to a JSPWiki knowledge base — a semantic wiki that stores pages
+You are connected to a Wikantik knowledge base — a semantic wiki that stores pages
 as Markdown with YAML frontmatter for structured metadata.
 
 == Page format ==

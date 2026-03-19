@@ -27,43 +27,43 @@
         Minimal cache sizes for testing cache overflow behavior.
     -->
 
-    <cache alias="jspwiki.renderingCache">
+    <cache alias="wikantik.renderingCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
         <heap unit="entries">1</heap>
     </cache>
 
-    <cache alias="jspwiki.pageCache">
+    <cache alias="wikantik.pageCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
         <heap unit="entries">1</heap>
     </cache>
 
-    <cache alias="jspwiki.pageTextCache">
+    <cache alias="wikantik.pageTextCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
         <heap unit="entries">1</heap>
     </cache>
 
-    <cache alias="jspwiki.pageHistoryCache">
+    <cache alias="wikantik.pageHistoryCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
         <heap unit="entries">1</heap>
     </cache>
 
-    <cache alias="jspwiki.attachmentsCache">
+    <cache alias="wikantik.attachmentsCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
         <heap unit="entries">1</heap>
     </cache>
 
-    <cache alias="jspwiki.attachmentCollectionsCache">
+    <cache alias="wikantik.attachmentCollectionsCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
         <heap unit="entries">1</heap>
     </cache>
 
-    <cache alias="jspwiki.dynamicAttachmentCache">
+    <cache alias="wikantik.dynamicAttachmentCache">
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
         <heap unit="entries">1</heap>

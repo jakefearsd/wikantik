@@ -63,9 +63,9 @@
 
 ! Разрешение канала [RSS|http://blogspace.com/rss/]
 
-В Вашем файле jspwiki.properties, Вы должны будете установить "jspwiki.rss.generate" в "true",
+В Вашем файле jspwiki.properties, Вы должны будете установить "wikantik.rss.generate" в "true",
 
 ! Мне не нравится ~ThingsSquashedTogether в названиях страницы. Что я могу сделать?
 
 Поскольку финны говорят, "voe tokkiinsa", что значит "да, конечно".
-Только лишь установите свойство "jspwiki.breakTitleWithSpaces" в значение "true", в Вашем файле jspwiki.properties.
+Только лишь установите свойство "wikantik.breakTitleWithSpaces" в значение "true", в Вашем файле jspwiki.properties.

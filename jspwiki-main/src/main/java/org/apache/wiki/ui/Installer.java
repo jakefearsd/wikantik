@@ -87,7 +87,7 @@ public class Installer {
         // Stash the request
         this.request = request;
         validated = false;
-        TMP_DIR = engine.getWikiProperties().getProperty( "jspwiki.workDir" );
+        TMP_DIR = engine.getWikiProperties().getProperty( "wikantik.workDir" );
     }
     
     /**

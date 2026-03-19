@@ -62,7 +62,7 @@ public class XMLUserDatabaseTest {
         // Create a new user with random name
         final String loginName = "TestUser" + System.currentTimeMillis();
         UserProfile profile = m_db.newProfile();
-        profile.setEmail( "jspwiki.tests@mailinator.com" );
+        profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "FullName" + loginName );
         profile.setPassword( "password" );
@@ -294,12 +294,12 @@ public class XMLUserDatabaseTest {
     public void testSave() throws Exception {
         try {
             UserProfile profile = m_db.newProfile();
-            profile.setEmail( "jspwiki.tests@mailinator.com" );
+            profile.setEmail( "wikantik.tests@mailinator.com" );
             profile.setLoginName( "user" );
             profile.setPassword( "password" );
             m_db.save( profile );
-            profile = m_db.findByEmail( "jspwiki.tests@mailinator.com" );
-            Assertions.assertEquals( "jspwiki.tests@mailinator.com", profile.getEmail() );
+            profile = m_db.findByEmail( "wikantik.tests@mailinator.com" );
+            Assertions.assertEquals( "wikantik.tests@mailinator.com", profile.getEmail() );
             Assertions.assertTrue( CryptoUtil.verifySaltedPassword( "password".getBytes(), profile.getPassword() ) );
 
             // Make sure we can find it by uid

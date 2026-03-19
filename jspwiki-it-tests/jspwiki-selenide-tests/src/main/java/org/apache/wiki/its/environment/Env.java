@@ -27,31 +27,31 @@ import com.codeborne.selenide.Configuration;
 public class Env {
     
     /** Base url on which the functional tests are run. Default value is {@code https://jspwiki-wiki.apache.org}. */
-    public static final String TESTS_BASE_URL = System.getProperty( "it-jspwiki.base.url", "https://jspwiki-wiki.apache.org" );
+    public static final String TESTS_BASE_URL = System.getProperty( "it-wikantik.base.url", "https://jspwiki-wiki.apache.org" );
 
     /** Selenide tests download's folder. Default value is {@code ./target/downloads}. */
-    public static final String TESTS_CONFIG_DOWNLOADS_FOLDER = System.getProperty( "it-jspwiki.config.download-folder", "./target/downloads" );
+    public static final String TESTS_CONFIG_DOWNLOADS_FOLDER = System.getProperty( "it-wikantik.config.download-folder", "./target/downloads" );
     
     /** Should the browser start on headless mode? Only for Firefox / Chrome. Default value is {@code false}. */
-    public static final boolean TESTS_CONFIG_HEADLESS = Boolean.parseBoolean( System.getProperty( "it-jspwiki.config.headless", "false" ) );
+    public static final boolean TESTS_CONFIG_HEADLESS = Boolean.parseBoolean( System.getProperty( "it-wikantik.config.headless", "false" ) );
 
     /** Selenide tests reports' folder. Default value is {@code ./target/selenide}. */
-    public static final String TESTS_CONFIG_REPORTS_FOLDER = System.getProperty( "it-jspwiki.config.reports", "./target/selenide" );
+    public static final String TESTS_CONFIG_REPORTS_FOLDER = System.getProperty( "it-wikantik.config.reports", "./target/selenide" );
 
     /** Amount of time, in milliseconds, to wait for the search index tasks to complete. Default value is {@code 1200}. */
-    public static final long TESTS_CONFIG_SEARCH_INDEX_WAIT = Long.parseLong( System.getProperty( "it-jspwiki.config.search-index-wait", "1200" ) );
+    public static final long TESTS_CONFIG_SEARCH_INDEX_WAIT = Long.parseLong( System.getProperty( "it-wikantik.config.search-index-wait", "1200" ) );
 
     /** Which size should start the browser with?. Default value is {@code 1366x768}. */
-    public static final String TESTS_CONFIG_BROWSER_SIZE = System.getProperty( "it-jspwiki.config.browser-size", "1366x768" );
+    public static final String TESTS_CONFIG_BROWSER_SIZE = System.getProperty( "it-wikantik.config.browser-size", "1366x768" );
 
     /** Folder where the WebDriver will be downloaded. Default value is {@code ./target/wdm}. */
-    public static final String TESTS_CONFIG_WDM_TARGET_PATH = System.getProperty( "it-jspwiki.config.wdm.target-path", "./target/wdm" );
+    public static final String TESTS_CONFIG_WDM_TARGET_PATH = System.getProperty( "it-wikantik.config.wdm.target-path", "./target/wdm" );
 
     /** Janne's username. Default value is {@code janne}. */
-    public static final String LOGIN_JANNE_USERNAME = System.getProperty( "it-jspwiki.login.janne.username", "janne" );
+    public static final String LOGIN_JANNE_USERNAME = System.getProperty( "it-wikantik.login.janne.username", "janne" );
 
     /** Janne's password. Default value is {@code myP@5sw0rd}. */
-    public static final String LOGIN_JANNE_PASSWORD = System.getProperty( "it-jspwiki.login.janne.password", "myP@5sw0rd" );
+    public static final String LOGIN_JANNE_PASSWORD = System.getProperty( "it-wikantik.login.janne.password", "myP@5sw0rd" );
 
     public static void setUp() {
         Configuration.headless = Env.TESTS_CONFIG_HEADLESS;

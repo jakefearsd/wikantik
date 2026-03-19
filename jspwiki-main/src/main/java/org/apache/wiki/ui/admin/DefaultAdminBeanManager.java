@@ -68,7 +68,7 @@ public class DefaultAdminBeanManager implements WikiEventListener, AdminBeanMana
         mbeanServer = MBeanServerFactory15.getServer();
 
         this.engine = engine;
-        applicationName = this.engine.getWikiProperties().getProperty("jspwiki.applicationName").trim();
+        applicationName = this.engine.getWikiProperties().getProperty("wikantik.applicationName").trim();
 
         if( mbeanServer != null ) {
             LOG.info( mbeanServer.getClass().getName() );

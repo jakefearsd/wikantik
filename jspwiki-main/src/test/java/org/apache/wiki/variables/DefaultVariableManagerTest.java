@@ -100,7 +100,7 @@ public class DefaultVariableManagerTest {
     @Test
     public void testExpand3() {
         final String res = m_variableManager.expandVariables( m_context, "Testing {$pagename}, {$applicationname}" );
-        Assertions.assertEquals( "Testing "+PAGE_NAME+", JSPWiki", res );
+        Assertions.assertEquals( "Testing "+PAGE_NAME+", Wikantik", res );
     }
 
     @Test

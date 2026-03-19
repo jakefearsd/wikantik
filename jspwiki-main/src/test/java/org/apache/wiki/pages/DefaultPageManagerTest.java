@@ -71,7 +71,7 @@ public class DefaultPageManagerTest {
 
     @Test
     public void testPageCacheExists() throws Exception {
-        engine.getWikiProperties().setProperty( "jspwiki.cache.enable", "true" );
+        engine.getWikiProperties().setProperty( "wikantik.cache.enable", "true" );
         final PageManager m = new DefaultPageManager( engine, engine.getWikiProperties() );
 
         Assertions.assertTrue( m.getProvider() instanceof CachingProvider );
@@ -153,7 +153,7 @@ public class DefaultPageManagerTest {
     @Test
     public void testDeleteVersion() throws Exception {
         final Properties props = engine.getWikiProperties();
-        props.setProperty( "jspwiki.pageProvider", "VersioningFileProvider" );
+        props.setProperty( "wikantik.pageProvider", "VersioningFileProvider" );
         final TestEngine engine = new TestEngine( props );
         engine.saveText( NAME1, "Test1" );
         engine.saveText( NAME1, "Test2" );
@@ -170,7 +170,7 @@ public class DefaultPageManagerTest {
     @Test
     public void testDeleteVersion2() throws Exception {
         final Properties props = engine.getWikiProperties();
-        props.setProperty( "jspwiki.pageProvider", "VersioningFileProvider" );
+        props.setProperty( "wikantik.pageProvider", "VersioningFileProvider" );
         final TestEngine engine = new TestEngine( props );
         engine.saveText( NAME1, "Test1" );
         engine.saveText( NAME1, "Test2" );
@@ -188,8 +188,8 @@ public class DefaultPageManagerTest {
     @Test
     public void testLatestGet() throws Exception {
         final Properties props = engine.getWikiProperties();
-        props.setProperty( "jspwiki.pageProvider", "org.apache.wiki.providers.VerySimpleProvider" );
-        props.setProperty( "jspwiki.cache.enable", "false" );
+        props.setProperty( "wikantik.pageProvider", "org.apache.wiki.providers.VerySimpleProvider" );
+        props.setProperty( "wikantik.cache.enable", "false" );
         final WikiEngine engine = new TestEngine( props );
         final Page p = engine.getManager( PageManager.class ).getPage( "test", -1 );
         final VerySimpleProvider vsp = (VerySimpleProvider) engine.getManager( PageManager.class ).getProvider();
@@ -202,8 +202,8 @@ public class DefaultPageManagerTest {
     @Test
     public void testLatestGet2() throws Exception {
         final Properties props = engine.getWikiProperties();
-        props.setProperty( "jspwiki.pageProvider", "org.apache.wiki.providers.VerySimpleProvider" );
-        props.setProperty( "jspwiki.cache.enable", "false" );
+        props.setProperty( "wikantik.pageProvider", "org.apache.wiki.providers.VerySimpleProvider" );
+        props.setProperty( "wikantik.cache.enable", "false" );
         final WikiEngine engine = new TestEngine( props );
         final String p = engine.getManager( PageManager.class ).getText( "test", -1 );
         final VerySimpleProvider vsp = (VerySimpleProvider) engine.getManager( PageManager.class ).getProvider();
@@ -216,8 +216,8 @@ public class DefaultPageManagerTest {
     @Test
     public void testLatestGet3() throws Exception {
         final Properties props = engine.getWikiProperties();
-        props.setProperty( "jspwiki.pageProvider", "org.apache.wiki.providers.VerySimpleProvider" );
-        props.setProperty( "jspwiki.cache.enable", "false" );
+        props.setProperty( "wikantik.pageProvider", "org.apache.wiki.providers.VerySimpleProvider" );
+        props.setProperty( "wikantik.cache.enable", "false" );
         final WikiEngine engine = new TestEngine( props );
         final String p = engine.getManager( RenderingManager.class ).getHTML( "test", -1 );
         final VerySimpleProvider vsp = (VerySimpleProvider) engine.getManager( PageManager.class ).getProvider();
@@ -230,8 +230,8 @@ public class DefaultPageManagerTest {
     @Test
     public void testLatestGet4() throws Exception {
         final Properties props = engine.getWikiProperties();
-        props.setProperty( "jspwiki.pageProvider", "org.apache.wiki.providers.VerySimpleProvider" );
-        props.setProperty( "jspwiki.cache.enable", "true" );
+        props.setProperty( "wikantik.pageProvider", "org.apache.wiki.providers.VerySimpleProvider" );
+        props.setProperty( "wikantik.cache.enable", "true" );
         final WikiEngine engine = new TestEngine( props );
         final String p = engine.getManager( RenderingManager.class ).getHTML( VerySimpleProvider.PAGENAME, -1 );
         final CachingProvider cp = (CachingProvider)engine.getManager( PageManager.class ).getProvider();

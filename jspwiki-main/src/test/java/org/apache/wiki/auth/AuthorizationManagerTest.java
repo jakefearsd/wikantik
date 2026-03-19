@@ -661,7 +661,7 @@ public class AuthorizationManagerTest {
         final Properties props = TestEngine.getTestProperties();
 
         // Make sure we are using the default security policy file jspwiki.policy
-        props.put( AuthorizationManager.POLICY, "jspwiki-testUserPolicy.policy" );
+        props.put( AuthorizationManager.POLICY, "wikantik-testUserPolicy.policy" );
 
         // Initialize the test engine
         m_engine = new TestEngine( props );

@@ -40,7 +40,7 @@ public class PageSorter implements Comparator< String > {
     private static final Logger LOG = LogManager.getLogger( PageSorter.class );
 
     // The name of the property that specifies the desired page name comparator
-    protected static final String PROP_PAGE_NAME_COMPARATOR = "jspwiki.pageNameComparator.class";
+    protected static final String PROP_PAGE_NAME_COMPARATOR = "wikantik.pageNameComparator.class";
 
     private Comparator< String > comparator;
 

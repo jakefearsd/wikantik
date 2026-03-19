@@ -28,11 +28,11 @@ class MarkdownSetupEngineLifecycleExtensionTest {
     @Test
     void shouldSetUpMarkdownSupportIfJspwikiSyntaxPropertyIsGiven() {
         final Properties properties = new Properties();
-        properties.put( "jspwiki.syntax", "markdown" );
+        properties.put( "wikantik.syntax", "markdown" );
         final MarkdownSetupEngineLifecycleExtension sut = new MarkdownSetupEngineLifecycleExtension();
         sut.onInit( properties );
         Assertions.assertEquals( 5, properties.size() );
-        Assertions.assertEquals( "org.apache.wiki.parser.markdown.MarkdownParser", properties.getProperty( "jspwiki.renderingManager.markupParser" ) );
+        Assertions.assertEquals( "org.apache.wiki.parser.markdown.MarkdownParser", properties.getProperty( "wikantik.renderingManager.markupParser" ) );
 
         properties.clear();
         sut.onInit( properties );

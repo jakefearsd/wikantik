@@ -28,7 +28,7 @@ import jakarta.servlet.jsp.PageContext;
 /**
  *  Defines an editor manager.  An editor can be added by adding a suitable JSP file under templates/default/editors
  *  If you want your editor to include any scripts or something, you can simply request it by adding the following in your
- *  {@code ini/jspwiki_module.xml}:
+ *  {@code ini/wikantik_module.xml}:
  *
  *  <pre>
  *  &lt;modules>
@@ -45,8 +45,8 @@ import jakarta.servlet.jsp.PageContext;
  */
 public interface EditorManager extends ModuleManager, Initializable {
 
-    /** The property name for setting the editor. Current value is "jspwiki.editor" - not used anymore: replaced by defaultpref.template.editor */
-    String PROP_EDITORTYPE = "jspwiki.editor";
+    /** The property name for setting the editor. Current value is "wikantik.editor" - not used anymore: replaced by defaultpref.template.editor */
+    String PROP_EDITORTYPE = "wikantik.editor";
 
     /** Parameter for changing editors at run-time */
     String PARA_EDITOR = "editor";

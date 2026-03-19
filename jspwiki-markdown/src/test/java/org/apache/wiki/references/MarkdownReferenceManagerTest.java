@@ -36,9 +36,9 @@ import static org.junit.jupiter.api.Assertions.*;
 public class MarkdownReferenceManagerTest {
 
     TestEngine engine = TestEngine.build(
-            with( "jspwiki.renderingManager.markupParser", MarkdownParser.class.getName() ),
-            with( "jspwiki.renderingManager.renderer", MarkdownRenderer.class.getName() ),
-            with( "jspwiki.fileSystemProvider.pageDir", "./target/md-ref-pageDir" )
+            with( "wikantik.renderingManager.markupParser", MarkdownParser.class.getName() ),
+            with( "wikantik.renderingManager.renderer", MarkdownRenderer.class.getName() ),
+            with( "wikantik.fileSystemProvider.pageDir", "./target/md-ref-pageDir" )
     );
 
     ReferenceManager mgr = engine.getManager( ReferenceManager.class );

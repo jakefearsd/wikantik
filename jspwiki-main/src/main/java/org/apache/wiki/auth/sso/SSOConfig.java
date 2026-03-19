@@ -40,43 +40,43 @@ public class SSOConfig {
     private static final Logger LOG = LogManager.getLogger( SSOConfig.class );
 
     /** Property for enabling SSO. */
-    public static final String PROP_SSO_ENABLED = "jspwiki.sso.enabled";
+    public static final String PROP_SSO_ENABLED = "wikantik.sso.enabled";
 
     /** Property for SSO type: "oidc", "saml", or "both". */
-    public static final String PROP_SSO_TYPE = "jspwiki.sso.type";
+    public static final String PROP_SSO_TYPE = "wikantik.sso.type";
 
     /** OIDC discovery URI. */
-    public static final String PROP_OIDC_DISCOVERY_URI = "jspwiki.sso.oidc.discoveryUri";
+    public static final String PROP_OIDC_DISCOVERY_URI = "wikantik.sso.oidc.discoveryUri";
 
     /** OIDC client ID. */
-    public static final String PROP_OIDC_CLIENT_ID = "jspwiki.sso.oidc.clientId";
+    public static final String PROP_OIDC_CLIENT_ID = "wikantik.sso.oidc.clientId";
 
     /** OIDC client secret. */
-    public static final String PROP_OIDC_CLIENT_SECRET = "jspwiki.sso.oidc.clientSecret";
+    public static final String PROP_OIDC_CLIENT_SECRET = "wikantik.sso.oidc.clientSecret";
 
     /** OIDC scopes. */
-    public static final String PROP_OIDC_SCOPE = "jspwiki.sso.oidc.scope";
+    public static final String PROP_OIDC_SCOPE = "wikantik.sso.oidc.scope";
 
     /** SAML IdP metadata path. */
-    public static final String PROP_SAML_IDP_METADATA = "jspwiki.sso.saml.identityProviderMetadataPath";
+    public static final String PROP_SAML_IDP_METADATA = "wikantik.sso.saml.identityProviderMetadataPath";
 
     /** SAML SP entity ID. */
-    public static final String PROP_SAML_SP_ENTITY_ID = "jspwiki.sso.saml.serviceProviderEntityId";
+    public static final String PROP_SAML_SP_ENTITY_ID = "wikantik.sso.saml.serviceProviderEntityId";
 
     /** SAML keystore path. */
-    public static final String PROP_SAML_KEYSTORE_PATH = "jspwiki.sso.saml.keystorePath";
+    public static final String PROP_SAML_KEYSTORE_PATH = "wikantik.sso.saml.keystorePath";
 
     /** SAML keystore password. */
-    public static final String PROP_SAML_KEYSTORE_PASSWORD = "jspwiki.sso.saml.keystorePassword";
+    public static final String PROP_SAML_KEYSTORE_PASSWORD = "wikantik.sso.saml.keystorePassword";
 
     /** SAML private key password. */
-    public static final String PROP_SAML_PRIVATE_KEY_PASSWORD = "jspwiki.sso.saml.privateKeyPassword";
+    public static final String PROP_SAML_PRIVATE_KEY_PASSWORD = "wikantik.sso.saml.privateKeyPassword";
 
     /** Auto-provisioning enabled. */
-    public static final String PROP_AUTO_PROVISION = "jspwiki.sso.autoProvision";
+    public static final String PROP_AUTO_PROVISION = "wikantik.sso.autoProvision";
 
     /** Claim mapping prefix for IdP attribute to JSPWiki field mapping. */
-    public static final String PREFIX_CLAIM_MAPPING = "jspwiki.sso.claimMapping.";
+    public static final String PREFIX_CLAIM_MAPPING = "wikantik.sso.claimMapping.";
 
     /** The SSO callback URL path. */
     public static final String CALLBACK_PATH = "/sso/callback";

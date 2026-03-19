@@ -99,8 +99,8 @@ grant principal org.apache.wiki.auth.authorize.Role "Authenticated" {
 // Administrators (principals or roles possessing AllPermission)
 // are allowed to delete any page, and can edit, rename and delete
 // groups. You should match the permission target (here, 'JSPWiki')
-// with the value of the 'jspwiki.applicationName' property in
-// jspwiki.properties. Two administative groups are set up below:
+// with the value of the 'wikantik.applicationName' property in
+// wikantik.properties. Two administative groups are set up below:
 // the wiki group "Admin" (stored by default in wiki page GroupAdmin)
 // and the container role "Admin" (managed by the web container).
 

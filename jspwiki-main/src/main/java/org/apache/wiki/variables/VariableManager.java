@@ -35,7 +35,7 @@ public interface VariableManager {
     String VAR_MSG   = "msg";
 
     /** If this variable is set to false, all filters are disabled when translating. */
-    String VAR_RUNFILTERS   = "jspwiki.runFilters";
+    String VAR_RUNFILTERS   = "wikantik.runFilters";
 
     /**
      *  Parses the link and finds a value.  This is essentially used once

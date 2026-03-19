@@ -84,7 +84,7 @@ public class HsqlDbUtils
      * Starts the Hypersonic server.
      */
     public void start() throws Exception {
-        final Properties hProps = loadPropertiesFrom( "target/test-classes/jspwiki-custom.properties" );
+        final Properties hProps = loadPropertiesFrom( "target/test-classes/wikantik-custom.properties" );
         localPort =  Integer.parseInt( hProps.getProperty( "server.port" ) );
         startHsqlServer();
     }
@@ -106,7 +106,7 @@ public class HsqlDbUtils
 
     void startHsqlServer() throws Exception {
         // start Hypersonic server
-        final Properties hProps = loadPropertiesFrom( "target/test-classes/jspwiki-custom.properties" );
+        final Properties hProps = loadPropertiesFrom( "target/test-classes/wikantik-custom.properties" );
 
         hsqlServer = new Server();
         hsqlServer.setSilent( true );     // be quiet during junit tests
@@ -168,14 +168,14 @@ public class HsqlDbUtils
      * @throws SQLException problems occurred obtaining the {@link Connection}.
      */
     Connection getConnection() throws IOException, SQLException {
-        final Properties jProps = loadPropertiesFrom( "target/test-classes/jspwiki-custom.properties" );
+        final Properties jProps = loadPropertiesFrom( "target/test-classes/wikantik-custom.properties" );
         return DriverManager.getConnection( getDriverUrl(),
                                             jProps.getProperty( "jdbc.admin.id" ),
                                             jProps.getProperty( "jdbc.admin.password" ) );
     }
 
     public String getDriverUrl() throws IOException{
-        final Properties jProps = loadPropertiesFrom( "target/test-classes/jspwiki-custom.properties" );
+        final Properties jProps = loadPropertiesFrom( "target/test-classes/wikantik-custom.properties" );
         return jProps.getProperty( "jdbc.driver.url" ).replace( ":9321", ":" + localPort );
     }
     

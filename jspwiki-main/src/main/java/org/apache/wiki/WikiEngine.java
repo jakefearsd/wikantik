@@ -374,7 +374,7 @@ public class WikiEngine implements Engine {
         checkWorkingDirectory( !f.exists(), "Work directory does not exist: " + workDir );
         checkWorkingDirectory( !f.canRead(), "No permission to read work directory: " + workDir );
         checkWorkingDirectory( !f.canWrite(), "No permission to write to work directory: " + workDir );
-        checkWorkingDirectory( !f.isDirectory(), "jspwiki.workDir does not point to a directory: " + workDir );
+        checkWorkingDirectory( !f.isDirectory(), "wikantik.workDir does not point to a directory: " + workDir );
 
         LOG.info( "JSPWiki working directory is '{}'", workDir );
     }

@@ -29,11 +29,11 @@ import java.util.ServiceLoader;
 
 public class Wiki {
 
-    private static final String PROP_PROVIDER_IMPL_ACLS = "jspwiki.provider.impl.acls";
-    private static final String PROP_PROVIDER_IMPL_CONTENTS = "jspwiki.provider.impl.contents";
-    private static final String PROP_PROVIDER_IMPL_CONTEXT = "jspwiki.provider.impl.context";
-    private static final String PROP_PROVIDER_IMPL_ENGINE = "jspwiki.provider.impl.engine";
-    private static final String PROP_PROVIDER_IMPL_SESSION = "jspwiki.provider.impl.session";
+    private static final String PROP_PROVIDER_IMPL_ACLS = "wikantik.provider.impl.acls";
+    private static final String PROP_PROVIDER_IMPL_CONTENTS = "wikantik.provider.impl.contents";
+    private static final String PROP_PROVIDER_IMPL_CONTEXT = "wikantik.provider.impl.context";
+    private static final String PROP_PROVIDER_IMPL_ENGINE = "wikantik.provider.impl.engine";
+    private static final String PROP_PROVIDER_IMPL_SESSION = "wikantik.provider.impl.session";
     private static final String DEFAULT_PROVIDER_IMPL_ACLS = "org.apache.wiki.spi.AclsSPIDefaultImpl";
     private static final String DEFAULT_PROVIDER_IMPL_CONTENTS = "org.apache.wiki.spi.ContentsSPIDefaultImpl";
     private static final String DEFAULT_PROVIDER_IMPL_CONTEXT = "org.apache.wiki.spi.ContextSPIDefaultImpl";

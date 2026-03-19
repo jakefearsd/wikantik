@@ -34,16 +34,16 @@ public class XmlUtilTest {
 
     @Test
     public void testParseFromClasspath() {
-        List< Element > elements = XmlUtil.parse( "ini/jspwiki_module.xml", "/modules/plugin" );
+        List< Element > elements = XmlUtil.parse( "ini/wikantik_module.xml", "/modules/plugin" );
         Assertions.assertEquals( 2, elements.size() ); // 2 on src/test/resources
 
-        elements = XmlUtil.parse( "ini/jspwiki_module.xml", "/modules/filter" );
+        elements = XmlUtil.parse( "ini/wikantik_module.xml", "/modules/filter" );
         Assertions.assertEquals( 1, elements.size() );
 
-        elements = XmlUtil.parse( "ini/jspwiki_module.xml", "/modules/editor" );
+        elements = XmlUtil.parse( "ini/wikantik_module.xml", "/modules/editor" );
         Assertions.assertEquals( 2, elements.size() );
 
-        elements = XmlUtil.parse( "ini/jspwiki_module.xml", "/modules/heck" );
+        elements = XmlUtil.parse( "ini/wikantik_module.xml", "/modules/heck" );
         Assertions.assertEquals( 0, elements.size() );
 
         elements = XmlUtil.parse( "doesnt/exist.this", "/modules/editor" );
@@ -52,7 +52,7 @@ public class XmlUtilTest {
         elements = XmlUtil.parse( ( String )null, "/modules/editor" );
         Assertions.assertEquals( 0, elements.size() );
 
-        elements = XmlUtil.parse( "ini/jspwiki_module.xml", null );
+        elements = XmlUtil.parse( "ini/wikantik_module.xml", null );
         Assertions.assertEquals( 0, elements.size() );
 
         elements = XmlUtil.parse( ClassUtil.MAPPINGS, "/classmappings/mapping" );
@@ -61,7 +61,7 @@ public class XmlUtilTest {
 
     @Test
     public void testParseFromStream() throws IOException {
-        try( final InputStream is = new FileInputStream( new File ("./src/test/resources/ini/jspwiki_module.xml" ) ) ) {
+        try( final InputStream is = new FileInputStream( new File ("./src/test/resources/ini/wikantik_module.xml" ) ) ) {
             List< Element > elements = XmlUtil.parse( is, "/modules/plugin" );
             Assertions.assertEquals( 2, elements.size() );
 
@@ -99,7 +99,7 @@ public class XmlUtilTest {
 
     @Test
     public void testGetXPathElement() {
-        final Element base = XmlUtil.parse( "ini/jspwiki_module.xml", "/modules" ).get( 0 );
+        final Element base = XmlUtil.parse( "ini/wikantik_module.xml", "/modules" ).get( 0 );
         Assertions.assertNull( XmlUtil.getXPathElement( base, "folter" ) );
         final Element element = XmlUtil.getXPathElement( base, "filter" );
         Assertions.assertEquals( "org.apache.wiki.filters.SpamFilter", element.getAttributeValue( "class" ) );

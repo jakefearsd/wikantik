@@ -292,7 +292,7 @@ public class DefaultUserManager implements UserManager {
         }
 
         // Send admin notification email if configured
-        final String adminEmail = engine.getWikiProperties().getProperty( "jspwiki.admin.notification.email" );
+        final String adminEmail = engine.getWikiProperties().getProperty( "wikantik.admin.notification.email" );
         if ( adminEmail != null && !adminEmail.trim().isEmpty() ) {
             final Locale loc = context.getWikiSession().getLocale();
             try {

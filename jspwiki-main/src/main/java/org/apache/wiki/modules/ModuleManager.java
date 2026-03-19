@@ -24,7 +24,7 @@ import java.util.Collection;
 public interface ModuleManager {
 
     /** Location of the property-files of plugins. (Each plugin should include this property-file in its jar-file) */
-    String PLUGIN_RESOURCE_LOCATION = "ini/jspwiki_module.xml";
+    String PLUGIN_RESOURCE_LOCATION = "ini/wikantik_module.xml";
 
     /**
      *  Returns true, if the given module is compatible with this version of JSPWiki.

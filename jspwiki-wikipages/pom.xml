@@ -28,7 +28,7 @@
   <modelVersion>4.0.0</modelVersion>
   <artifactId>jspwiki-wikipages-builder</artifactId>
   <groupId>org.apache.jspwiki.wikipages</groupId>
-  <name>Apache JSPWiki initial wiki pages builder</name>
+  <name>Wikantik initial wiki pages builder</name>
   <packaging>pom</packaging>
 
   <modules>

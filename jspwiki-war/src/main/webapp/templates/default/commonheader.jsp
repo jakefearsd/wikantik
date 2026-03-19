@@ -17,7 +17,7 @@
     under the License.
 --%>
 
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ page import="org.apache.wiki.api.core.*" %>
 <%@ page import="org.apache.wiki.ui.*" %>
 <%@ page import="org.apache.wiki.util.*" %>
@@ -199,7 +199,7 @@ String.I18N.PREFIX = "javascript.";
     title='Search <wiki:Variable var="ApplicationName" />' />
 <link rel="help"   href="<wiki:LinkTo format='url' page='TextFormattingRules'/>"
     title="Help" />
-<c:set var="frontpage"><wiki:Variable var="jspwiki.frontPage" /></c:set>
+<c:set var="frontpage"><wiki:Variable var="wikantik.frontPage" /></c:set>
 <link rel="start"  href="<wiki:Link page='${frontpage}' format='url' />" title="Front page" />
 <link rel="alternate stylesheet" type="text/css" href="<wiki:Link format='url' templatefile='haddock.css'/>"
     title="Standard" />

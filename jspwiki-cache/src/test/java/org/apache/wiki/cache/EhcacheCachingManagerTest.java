@@ -46,7 +46,7 @@ public class EhcacheCachingManagerTest {
     @Test
     void testInitAndShutdown() throws Exception {
         final Properties props = new Properties();
-        props.setProperty( CachingManager.PROP_CACHE_CONF_FILE, "ehcache-jspwiki-test.xml" );
+        props.setProperty( CachingManager.PROP_CACHE_CONF_FILE, "ehcache-wikantik-test.xml" );
         EhcacheCachingManager testEcm = new EhcacheCachingManager();
         testEcm.initialize( null, props );
         Assertions.assertEquals( 7, testEcm.cacheMap.size() );

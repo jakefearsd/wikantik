@@ -28,7 +28,7 @@ import java.util.List;
 public interface FilterManager extends ModuleManager {
 
     /** Property name for setting the filter XML property file.  Value is <tt>{@value}</tt>. */
-    String PROP_FILTERXML = "jspwiki.filterConfig";
+    String PROP_FILTERXML = "wikantik.filterConfig";
     
     /** Default location for the filter XML property file.  Value is <tt>{@value}</tt>. */
     String DEFAULT_XMLFILE = "/WEB-INF/filters.xml";

@@ -36,7 +36,7 @@
 <%@ page import="org.apache.wiki.url.URLConstructor"%>
 <%@ page import="org.apache.wiki.util.*"%>
 <%@ page errorPage="/Error.jsp"%>
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%!Logger log = LogManager.getLogger( "JSPWiki" );
 
     String message = null;

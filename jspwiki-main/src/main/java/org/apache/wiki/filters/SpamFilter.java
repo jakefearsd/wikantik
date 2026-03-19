@@ -163,7 +163,7 @@ public class SpamFilter extends BasePageFilter {
     public static final String  PROP_IGNORE_AUTHENTICATED  = "ignoreauthenticated";
 
     /** The filter property name for specifying groups allowed to bypass the spam filter. Value is <tt>{@value}</tt>. */
-    public static final String PROP_ALLOWED_GROUPS = "jspwiki.filters.spamfilter.allowedgroups";
+    public static final String PROP_ALLOWED_GROUPS = "wikantik.filters.spamfilter.allowedgroups";
     
     /** The filter property name for specifying which captcha technology should be used. Value is <tt>{@value}</tt>. */
     public static final String  PROP_CAPTCHA               = "captcha";

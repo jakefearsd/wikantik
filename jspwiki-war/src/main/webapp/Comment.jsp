@@ -41,11 +41,11 @@
 <%@ page import="org.apache.wiki.variables.VariableManager" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ page import="jakarta.servlet.http.Cookie" %>
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ page import="jakarta.servlet.jsp.jstl.fmt.*" %>
 <%!
-    Logger log = LogManager.getLogger("JSPWiki");
+    Logger log = LogManager.getLogger("Wikantik");
 
 	String findParam( PageContext ctx, String key ) {
 	    ServletRequest req = ctx.getRequest();

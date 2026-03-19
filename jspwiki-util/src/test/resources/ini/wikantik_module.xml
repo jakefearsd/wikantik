@@ -25,7 +25,7 @@
     <editor name="plain">
         <author>Janne Jalkanen</author>
         <path>editors/plain.jsp</path>
-        <minVersion>2.4</minVersion>
+        <minVersion>1.0</minVersion>
         <adminBean>org.apache.wiki.ui.admin.beans.PlainEditorAdminBean</adminBean>
     </editor>
     <!--
@@ -34,7 +34,7 @@
     <editor name="wysiwyg">
         <author>MooEditable</author>
         <path>editors/wysiwyg.jsp</path>
-        <minVersion>2.10</minVersion>
+        <minVersion>1.0</minVersion>
     </editor>
     <plugin class="SamplePlugin2">
         <author>Janne Jalkanen</author>
@@ -50,6 +50,6 @@
     </plugin>
     <filter class="org.apache.wiki.filters.SpamFilter">
         <author>Janne Jalkanen</author>
-        <minVersion>2.6</minVersion>
+        <minVersion>1.0</minVersion>
     </filter>
 </modules>

@@ -36,7 +36,7 @@ import java.util.Set;
 public interface SystemPageRegistry extends Initializable {
 
     /** Property for additional system page name patterns (comma-separated regex). */
-    String PROP_EXTRA_PATTERNS = "jspwiki.systemPages.extraPatterns";
+    String PROP_EXTRA_PATTERNS = "wikantik.systemPages.extraPatterns";
 
     /**
      * Returns {@code true} if the given page name refers to a system/template page.

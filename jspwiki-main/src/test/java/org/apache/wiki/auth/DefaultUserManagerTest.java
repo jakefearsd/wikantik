@@ -47,7 +47,7 @@ class DefaultUserManagerTest {
         final AuthenticationManager aMgr = mock( AuthenticationManager.class );
         when( aMgr.isContainerAuthenticated() ).thenReturn( false );
         final Properties props = new Properties();
-        props.put( "jspwiki.userdatabase", "org.apache.wiki.auth.user.XMLUserDatabase" );
+        props.put( "wikantik.userdatabase", "org.apache.wiki.auth.user.XMLUserDatabase" );
         final Engine engine = mock( Engine.class );
         when( engine.getManager( AuthenticationManager.class ) ).thenReturn( aMgr );
         when( engine.getWikiProperties() ).thenReturn( props );

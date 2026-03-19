@@ -27,7 +27,7 @@
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>jspwiki-util</artifactId>
-  <name>Apache JSPWiki utility classes</name>
+  <name>Wikantik utility classes</name>
 
   <dependencies>
     <dependency>

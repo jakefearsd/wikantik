@@ -38,7 +38,7 @@ import java.io.IOException;
  *  instead of the ones in Engine, if you don't want the different side effects to occur - such as WikiFilters.
  *  <p>
  *  This class also manages a rendering cache, i.e. documents are stored between calls. You may control the cache by
- *  tweaking the ehcache-jspwiki.xml file.
+ *  tweaking the ehcache-wikantik.xml file.
  *  <p>
  *
  *  @since  2.4
@@ -46,15 +46,15 @@ import java.io.IOException;
 public interface RenderingManager extends RenderApi, WikiEventListener, InternalModule, Initializable {
 
     /** markup parser property. */
-    String PROP_PARSER = "jspwiki.renderingManager.markupParser";
+    String PROP_PARSER = "wikantik.renderingManager.markupParser";
 
     /** default renderer property. */
-    String PROP_RENDERER = "jspwiki.renderingManager.renderer";
+    String PROP_RENDERER = "wikantik.renderingManager.renderer";
 
     /** default wysiwyg renderer property. */
-    String PROP_WYSIWYG_RENDERER = "jspwiki.renderingManager.renderer.wysiwyg";
+    String PROP_WYSIWYG_RENDERER = "wikantik.renderingManager.renderer.wysiwyg";
 
-    String PROP_BEAUTIFYTITLE = "jspwiki.breakTitleWithSpaces";
+    String PROP_BEAUTIFYTITLE = "wikantik.breakTitleWithSpaces";
 
     /**
      *  Beautifies the title of the page by appending spaces in suitable places, if the user has so decreed in the properties when

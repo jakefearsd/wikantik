@@ -47,7 +47,7 @@ public class ShortURLConstructor extends DefaultURLConstructor {
      *  This corresponds to your WikiServlet path.  By default, it is assumed to be "wiki/", but you can set it to whatever you
      *  like - including an empty name.
      */
-    public static final String PROP_PREFIX = "jspwiki.shortURLConstructor.prefix";
+    public static final String PROP_PREFIX = "wikantik.shortURLConstructor.prefix";
     
     /** {@inheritDoc} */
     @Override

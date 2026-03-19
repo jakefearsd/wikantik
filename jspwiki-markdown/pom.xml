@@ -27,8 +27,8 @@
 
   <artifactId>jspwiki-markdown</artifactId>
   <modelVersion>4.0.0</modelVersion>
-  <name>Apache JSPWiki markdown support</name>
-  <description>Apache JSPWiki markdown support</description>
+  <name>Wikantik markdown support</name>
+  <description>Wikantik markdown support</description>
 
   <dependencies>
     <dependency>

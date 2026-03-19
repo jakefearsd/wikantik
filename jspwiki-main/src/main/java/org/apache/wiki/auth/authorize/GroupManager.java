@@ -48,7 +48,7 @@ public interface GroupManager extends Initializable, Authorizer, WikiEventListen
     /** Key used for adding UI messages to a user's Session. */
     String MESSAGES_KEY = "group";
 
-    String PROP_GROUPDATABASE = "jspwiki.groupdatabase";
+    String PROP_GROUPDATABASE = "wikantik.groupdatabase";
 
     /**
      * Returns the Group matching a given name. If the group cannot be found, this method throws a <code>NoSuchPrincipalException</code>.

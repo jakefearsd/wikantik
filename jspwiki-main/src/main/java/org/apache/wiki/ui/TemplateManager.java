@@ -90,10 +90,10 @@ public interface TemplateManager extends ModuleManager {
     String I18NSERVER_TIMEZONE = "prefs.user.timezone.server";
 
     /** Prefix of the default timeformat properties. */
-    String TIMEFORMATPROPERTIES = "jspwiki.defaultprefs.timeformat.";
+    String TIMEFORMATPROPERTIES = "wikantik.defaultprefs.timeformat.";
 
     /** The name under which the resource includes map is stored in the  WikiContext. */
-    String RESOURCE_INCLUDES = "jspwiki.resourceincludes";
+    String RESOURCE_INCLUDES = "wikantik.resourceincludes";
 
     /** Requests a HTTP header. Value is {@value}. */
     String RESOURCE_HTTPHEADER = "httpheader";

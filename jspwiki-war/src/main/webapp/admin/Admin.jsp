@@ -28,10 +28,10 @@
 <%@ page import="org.apache.wiki.preferences.Preferences" %>
 <%@ page import="org.apache.commons.lang3.time.StopWatch" %>
 <%@ page errorPage="/Error.jsp" %>
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 
 <%!
-    Logger log = LogManager.getLogger("JSPWiki");
+    Logger log = LogManager.getLogger("Wikantik");
 %>
 <%
     String bean = request.getParameter("bean");
@@ -49,7 +49,7 @@
         <!doctype html>
         <html lang="en">
         <head>
-          <title><wiki:Variable var="applicationname" default="Apache JSPWiki" />: ADMIN UI</title>
+          <title><wiki:Variable var="applicationname" default="Wikantik" />: ADMIN UI</title>
           <base href="../"/>
           <link rel="stylesheet" media="screen, projection" type="text/css" href="<wiki:Link format="url" templatefile="jspwiki.css"/>"/>
           <wiki:IncludeResources type="stylesheet"/>

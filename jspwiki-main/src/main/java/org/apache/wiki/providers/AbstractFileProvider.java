@@ -97,7 +97,7 @@ public abstract class AbstractFileProvider implements PageProvider {
     public static int MAX_PROPVALUELENGTH = DEFAULT_MAX_PROPVALUELENGTH;
 
     /** Name of the property that defines where page directories are. */
-    public static final String PROP_PAGEDIR = "jspwiki.fileSystemProvider.pageDir";
+    public static final String PROP_PAGEDIR = "wikantik.fileSystemProvider.pageDir";
 
     /**
      *  All files should have this extension to be recognized as JSPWiki files. We default to .txt, because that is probably easiest for

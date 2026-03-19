@@ -28,7 +28,7 @@
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>jspwiki-api</artifactId>
-    <name>Apache JSPWiki public API</name>
+    <name>Wikantik public API</name>
 
     <dependencies>
         <dependency>

@@ -28,15 +28,15 @@
   <!-- Container Managed Authentication using JDBC instead of XML files for user and group info -->
   <artifactId>jspwiki-it-test-cma-jdbc</artifactId>
   <modelVersion>4.0.0</modelVersion>
-  <description>functional tests execution for jspwiki-it-test-container-jdbc (container auth, relative URLs, JDBC database)</description>
+  <description>functional tests execution for Wikantik IT container-jdbc (container auth, relative URLs, JDBC database)</description>
   <packaging>war</packaging> <!-- tests reuse [2/3]: builds a war on top of jspwiki-war -->
   
   <properties> <!-- tests reuse [3/3]: values injected at ../jspwiki-selenide-tests/.../jspwiki-custom.properties end up on generated war -->
-    <it-jspwiki.context>${project.artifactId}</it-jspwiki.context>
+    <it-wikantik.context>${project.artifactId}</it-wikantik.context>
     
-    <it-jspwiki.groupdatabase>org.apache.wiki.auth.authorize.JDBCGroupDatabase</it-jspwiki.groupdatabase>
-    <it-jspwiki.userdatabase>org.apache.wiki.auth.user.JDBCUserDatabase</it-jspwiki.userdatabase>
-    <it-jspwiki.referenceStyle>relative</it-jspwiki.referenceStyle>
+    <it-wikantik.groupdatabase>org.apache.wiki.auth.authorize.JDBCGroupDatabase</it-wikantik.groupdatabase>
+    <it-wikantik.userdatabase>org.apache.wiki.auth.user.JDBCUserDatabase</it-wikantik.userdatabase>
+    <it-wikantik.referenceStyle>relative</it-wikantik.referenceStyle>
   </properties>
   
   <build>

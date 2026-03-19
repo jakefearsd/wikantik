@@ -46,10 +46,10 @@ public class MarkdownRendererTest {
 
     static final String PAGE_NAME = "testpage";
 
-    TestEngine testEngine = TestEngine.build( TestEngine.with( "jspwiki.translatorReader.matchEnglishPlurals", "true" ),
-                                              TestEngine.with( "jspwiki.fileSystemProvider.pageDir", "./target/md-pageDir" ),
-                                              TestEngine.with( "jspwiki.renderingManager.markupParser", MarkdownParser.class.getName() ),
-                                              TestEngine.with( "jspwiki.renderingManager.renderer", MarkdownRenderer.class.getName() ) );
+    TestEngine testEngine = TestEngine.build( TestEngine.with( "wikantik.translatorReader.matchEnglishPlurals", "true" ),
+                                              TestEngine.with( "wikantik.fileSystemProvider.pageDir", "./target/md-pageDir" ),
+                                              TestEngine.with( "wikantik.renderingManager.markupParser", MarkdownParser.class.getName() ),
+                                              TestEngine.with( "wikantik.renderingManager.renderer", MarkdownRenderer.class.getName() ) );
 
     @Test
     public void testMarkupSimpleMarkdown() throws Exception {
@@ -77,22 +77,22 @@ public class MarkdownRendererTest {
 
     @Test
     public void testMarkupExtensionExternalLink() throws Exception {
-        testEngine.getWikiProperties().setProperty( "jspwiki.translatorReader.useOutlinkImage", "true" );
+        testEngine.getWikiProperties().setProperty( "wikantik.translatorReader.useOutlinkImage", "true" );
         final String src = "This should be an [external link](https://jspwiki.apache.org)";
 
         Assertions.assertEquals( "<p>This should be an <a href=\"https://jspwiki.apache.org\" class=\"external\">external link</a><img class=\"outlink\" alt=\"\" src=\"/test/images/out.png\" /></p>\n",
                                  translate( src ) );
-        testEngine.getWikiProperties().remove( "jspwiki.translatorReader.useOutlinkImage" );
+        testEngine.getWikiProperties().remove( "wikantik.translatorReader.useOutlinkImage" );
     }
 
     @Test
     public void testMarkupExtensionHtmlEscaping() throws Exception {
-        testEngine.getWikiProperties().setProperty( "jspwiki.translatorReader.useOutlinkImage", "true" );
+        testEngine.getWikiProperties().setProperty( "wikantik.translatorReader.useOutlinkImage", "true" );
         final String src = "This should be an [external <strong>link</strong>](https://jspwiki.apache.org)";
 
         Assertions.assertEquals( "<p>This should be an <a href=\"https://jspwiki.apache.org\" class=\"external\">external &lt;strong&gt;link&lt;/strong&gt;</a><img class=\"outlink\" alt=\"\" src=\"/test/images/out.png\" /></p>\n",
                 translate( src ) );
-        testEngine.getWikiProperties().remove( "jspwiki.translatorReader.useOutlinkImage" );
+        testEngine.getWikiProperties().remove( "wikantik.translatorReader.useOutlinkImage" );
     }
 
     @Test
@@ -199,7 +199,7 @@ public class MarkdownRendererTest {
         // text is seen because although ACL is added to the page, it is not applied while parsing / rendering
         Assertions.assertEquals( "<p> This should be visible if the ACL allows you to see it</p>\n", translate( src ) );
         // in any case, we also check that the created wikipage has the ACL added
-        Assertions.assertEquals( "  user = PerryMason: ((\"org.apache.wiki.auth.permissions.PagePermission\",\"JSPWiki:testpage\",\"view\"))\n",
+        Assertions.assertEquals( "  user = PerryMason: ((\"org.apache.wiki.auth.permissions.PagePermission\",\"Wikantik:testpage\",\"view\"))\n",
                                  ( testEngine.getManager( PageManager.class ).getPage( PAGE_NAME ) ).getAcl().toString() );
     }
 
@@ -244,13 +244,13 @@ public class MarkdownRendererTest {
     @Test
     public void testMarkupExtensionNonExistentPlugin() throws Exception {
         final String src = "[{PampleSlugin text=test}]()";
-        Assertions.assertEquals( "<p><span class=\"error\">JSPWiki : testpage - Plugin insertion failed: Could not find plugin PampleSlugin</span></p>\n", translate( src ) );
+        Assertions.assertEquals( "<p><span class=\"error\">Wikantik : testpage - Plugin insertion failed: Could not find plugin PampleSlugin</span></p>\n", translate( src ) );
     }
 
     @Test
     public void testMarkupExtensionVariable0() throws Exception {
         final String src = "Some text with some pre-set variable: [{$applicationname}]()";
-        Assertions.assertEquals( "<p>Some text with some pre-set variable: JSPWiki</p>\n", translate( src ) );
+        Assertions.assertEquals( "<p>Some text with some pre-set variable: Wikantik</p>\n", translate( src ) );
     }
 
     @Test

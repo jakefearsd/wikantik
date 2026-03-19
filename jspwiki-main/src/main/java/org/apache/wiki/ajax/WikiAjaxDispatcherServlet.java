@@ -59,14 +59,14 @@ public class WikiAjaxDispatcherServlet extends HttpServlet {
     /**
      * {@inheritDoc}
      *
-     * This sets the AjaxPath to "/ajax/" as configured in "jspwiki.ajax.url.prefix".
+     * This sets the AjaxPath to "/ajax/" as configured in "wikantik.ajax.url.prefix".
      * Note: Do not change this without also changing the web.xml file.
      */
     @Override
     public void init( final ServletConfig config ) throws ServletException {
         super.init( config );
         engine = Wiki.engine().find( config );
-        PATH_AJAX = "/" + TextUtil.getStringProperty( engine.getWikiProperties(), "jspwiki.ajax.url.prefix", "ajax" ) + "/";
+        PATH_AJAX = "/" + TextUtil.getStringProperty( engine.getWikiProperties(), "wikantik.ajax.url.prefix", "ajax" ) + "/";
         LOG.info( "WikiAjaxDispatcherServlet initialized." );
     }
 

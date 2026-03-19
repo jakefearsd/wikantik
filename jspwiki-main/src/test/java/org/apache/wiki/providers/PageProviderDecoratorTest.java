@@ -195,7 +195,7 @@ class PageProviderDecoratorTest {
     void testDecoratorVersionHistory() throws Exception {
         final Properties props = TestEngine.getTestProperties();
         props.setProperty( CachingManager.PROP_CACHE_ENABLE, "false" );
-        props.setProperty( "jspwiki.pageProvider", "org.apache.wiki.providers.VersioningFileProvider" );
+        props.setProperty( "wikantik.pageProvider", "org.apache.wiki.providers.VersioningFileProvider" );
         engine = TestEngine.build( props );
 
         final PageProvider provider = engine.getManager( PageManager.class ).getProvider();

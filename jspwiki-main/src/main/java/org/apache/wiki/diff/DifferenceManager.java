@@ -28,7 +28,7 @@ import org.apache.wiki.api.core.Context;
 public interface DifferenceManager {
 
     /** Property value for storing a diff provider.  Value is {@value}. */
-    String PROP_DIFF_PROVIDER = "jspwiki.diffProvider";
+    String PROP_DIFF_PROVIDER = "wikantik.diffProvider";
 
     /**
      * Returns valid XHTML string to be used in any way you please.

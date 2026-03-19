@@ -63,13 +63,13 @@ public interface AuthorizationManager extends Initializable {
     String DEFAULT_AUTHORIZER = "org.apache.wiki.auth.authorize.WebContainerAuthorizer";
 
     /** Property that supplies the security policy file name, in WEB-INF. */
-    String POLICY = "jspwiki.policy.file";
+    String POLICY = "wikantik.policy.file";
 
     /** Name of the default security policy file, in WEB-INF. */
-    String DEFAULT_POLICY = "jspwiki.policy";
+    String DEFAULT_POLICY = "wikantik.policy";
 
     /** The property name in jspwiki.properties for specifying the external {@link Authorizer}. */
-    String PROP_AUTHORIZER = "jspwiki.authorizer";
+    String PROP_AUTHORIZER = "wikantik.authorizer";
 
     /**
      * Returns <code>true</code> or <code>false</code>, depending on whether a Permission is allowed for the Subject associated with

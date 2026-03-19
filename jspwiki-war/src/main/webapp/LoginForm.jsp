@@ -23,7 +23,7 @@
 <%@ page import="org.apache.wiki.api.spi.Wiki" %>
 <%@ page import="org.apache.wiki.ui.TemplateManager" %>
 <%@ page errorPage="/Error.jsp" %>
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%!
     /**
      * This page contains the logic for finding and including
@@ -33,7 +33,7 @@
        container-managed authentication is in force, the container
        will prevent direct access to it.
      */
-    Logger log = LogManager.getLogger("JSPWiki");
+    Logger log = LogManager.getLogger("Wikantik");
 
 %>
 <%

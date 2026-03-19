@@ -96,7 +96,7 @@ public class SitemapServlet extends HttpServlet {
      * correctly when JSPWiki handles SSL directly.
      * </p>
      */
-    public static final String PROP_SITEMAP_BASE_URL = "jspwiki.sitemap.baseURL";
+    public static final String PROP_SITEMAP_BASE_URL = "wikantik.sitemap.baseURL";
 
     /** Sitemap namespace */
     private static final String SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9";

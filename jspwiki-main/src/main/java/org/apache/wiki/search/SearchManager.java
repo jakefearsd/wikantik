@@ -40,7 +40,7 @@ public interface SearchManager extends PageFilter, InternalModule, WikiEventList
     String DEFAULT_SEARCHPROVIDER = "org.apache.wiki.search.LuceneSearchProvider";
 
     /** Property name for setting the search provider. Value is <tt>{@value}</tt>. */
-    String PROP_SEARCHPROVIDER = "jspwiki.searchProvider";
+    String PROP_SEARCHPROVIDER = "wikantik.searchProvider";
 
     /** The name of the JSON object that manages search. */
     String JSON_SEARCH = "search";

@@ -63,54 +63,54 @@ public interface Engine {
     String DEFAULT_TEMPLATE_NAME = "default";
 
     /** Property for application name */
-    String PROP_APPNAME = "jspwiki.applicationName";
+    String PROP_APPNAME = "wikantik.applicationName";
 
     /** This property defines the inline image pattern.  It's current value is {@value} */
-    String PROP_INLINEIMAGEPTRN = "jspwiki.translatorReader.inlinePattern";
+    String PROP_INLINEIMAGEPTRN = "wikantik.translatorReader.inlinePattern";
 
     /** Property start for any interwiki reference. */
-    String PROP_INTERWIKIREF = "jspwiki.interWikiRef.";
+    String PROP_INTERWIKIREF = "wikantik.interWikiRef.";
 
     /** The property name defining which packages will be searched for plugin classes. */
-    String PROP_SEARCHPATH = "jspwiki.plugin.searchPath";
+    String PROP_SEARCHPATH = "wikantik.plugin.searchPath";
 
     /** If true, then the user name will be stored with the page data.*/
-    String PROP_STOREUSERNAME= "jspwiki.storeUserName";
+    String PROP_STOREUSERNAME= "wikantik.storeUserName";
 
     /** Define the used encoding.  Currently supported are ISO-8859-1 and UTF-8 */
-    String PROP_ENCODING = "jspwiki.encoding";
+    String PROP_ENCODING = "wikantik.encoding";
 
     /** Do not use encoding in WikiJSPFilter, default is false for most servers.
      Double negative, cause for most servers you don't need the property */
-    String PROP_NO_FILTER_ENCODING = "jspwiki.nofilterencoding";
+    String PROP_NO_FILTER_ENCODING = "wikantik.nofilterencoding";
 
     /** Property name for where the jspwiki work directory should be.
      If not specified, reverts to ${java.tmpdir}. */
-    String PROP_WORKDIR = "jspwiki.workDir";
+    String PROP_WORKDIR = "wikantik.workDir";
 
     /** The name of the cookie that gets stored to the user browser. */
     String PREFS_COOKIE_NAME = "JSPWikiUserProfile";
 
     /** Property name for the "match english plurals" -hack. */
-    String PROP_MATCHPLURALS = "jspwiki.translatorReader.matchEnglishPlurals";
+    String PROP_MATCHPLURALS = "wikantik.translatorReader.matchEnglishPlurals";
 
     /** Property name for the template that is used. */
-    String PROP_TEMPLATEDIR = "jspwiki.templateDir";
+    String PROP_TEMPLATEDIR = "wikantik.templateDir";
 
     /** Property name for the default front page. */
-    String PROP_FRONTPAGE = "jspwiki.frontPage";
+    String PROP_FRONTPAGE = "wikantik.frontPage";
 
     /** Property name for setting the url generator instance */
-    String PROP_URLCONSTRUCTOR = "jspwiki.urlConstructor";
+    String PROP_URLCONSTRUCTOR = "wikantik.urlConstructor";
 
     /** The name of the property containing the ACLManager implementing class. The value is {@value}. */
-    String PROP_ACL_MANAGER_IMPL = "jspwiki.aclManager";
+    String PROP_ACL_MANAGER_IMPL = "wikantik.aclManager";
 
     /** The name of the property containing the ReferenceManager implementing class. The value is {@value}. */
-    String PROP_REF_MANAGER_IMPL = "jspwiki.refManager";
+    String PROP_REF_MANAGER_IMPL = "wikantik.refManager";
 
     /** If this property is set to false, we don't allow the creation of empty pages */
-    String PROP_ALLOW_CREATION_OF_EMPTY_PAGES = "jspwiki.allowCreationOfEmptyPages";
+    String PROP_ALLOW_CREATION_OF_EMPTY_PAGES = "wikantik.allowCreationOfEmptyPages";
 
     /**
      * Adapt Engine to a concrete type.
@@ -158,7 +158,7 @@ public interface Engine {
     Properties getWikiProperties();
 
     /**
-     *  Returns the JSPWiki working directory set with "jspwiki.workDir".
+     *  Returns the JSPWiki working directory set with "wikantik.workDir".
      *
      *  @since 2.1.100
      *  @return The working directory.

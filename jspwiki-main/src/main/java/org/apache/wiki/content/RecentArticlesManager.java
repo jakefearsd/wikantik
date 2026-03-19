@@ -42,16 +42,16 @@ import java.util.List;
 public interface RecentArticlesManager extends Initializable {
 
     /** Property name for cache TTL in seconds. Default is 60. */
-    String PROP_CACHE_TTL = "jspwiki.recentArticles.cacheTTL";
+    String PROP_CACHE_TTL = "wikantik.recentArticles.cacheTTL";
 
     /** Property name for default article count. Default is 10. */
-    String PROP_DEFAULT_COUNT = "jspwiki.recentArticles.defaultCount";
+    String PROP_DEFAULT_COUNT = "wikantik.recentArticles.defaultCount";
 
     /** Property name for default excerpt length. Default is 200. */
-    String PROP_DEFAULT_EXCERPT_LENGTH = "jspwiki.recentArticles.defaultExcerptLength";
+    String PROP_DEFAULT_EXCERPT_LENGTH = "wikantik.recentArticles.defaultExcerptLength";
 
     /** Property name for excluded page patterns (comma-separated regex). */
-    String PROP_EXCLUDE_PATTERNS = "jspwiki.recentArticles.excludePatterns";
+    String PROP_EXCLUDE_PATTERNS = "wikantik.recentArticles.excludePatterns";
 
     /** The wiki page name for the HTML template used by the plugin. */
     String TEMPLATE_PAGE_NAME = "RecentArticlesTemplate";

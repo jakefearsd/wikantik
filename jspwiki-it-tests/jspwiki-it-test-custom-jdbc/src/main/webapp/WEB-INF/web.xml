@@ -29,7 +29,7 @@
 
        For more information, please come to http://jspwiki.apache.org/
    </description>
-   <display-name>JSPWiki</display-name>
+   <display-name>Wikantik</display-name>
 
    <!-- Resource bundle default location -->
    <context-param>
@@ -47,10 +47,10 @@
       non-null values for getUserPrincipal() or getRemoteUser(), WikiSecurityFilter
       will pick the credentials up, and set the user's WikiSession state to
       "authenticated." WikiServletFlter will also set the WikiSession's' state
-      to "authenticated" if jspwiki.properties property "jspwiki.cookieAuthentication"
+      to "authenticated" if wikantik.properties property "wikantik.cookieAuthentication"
       is set to true, and the user possesses the correct authentication cookie.
 
-      Lastly, if jspwiki.properties property "jspwiki.cookieAssertions" is set to true,
+      Lastly, if wikantik.properties property "wikantik.cookieAssertions" is set to true,
       WikiServletFilter will also set WikiSession state to "asserted" if the user
       possesses the correct "assertion cookie."
    -->

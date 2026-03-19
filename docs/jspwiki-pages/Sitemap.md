@@ -292,7 +292,7 @@ Create tests for:
 For performance, cache the generated sitemap using JSPWiki's CachingManager:
 
 ```java
-private static final String CACHE_SITEMAP = "jspwiki.sitemapCache";
+private static final String CACHE_SITEMAP = "wikantik.sitemapCache";
 private static final String CACHE_KEY = "sitemap";
 
 @Override
@@ -336,7 +336,7 @@ Read configuration in the servlet:
 private boolean isEnabled() {
     return TextUtil.getBooleanProperty(
         m_engine.getWikiProperties(),
-        "jspwiki.sitemap.enabled",
+        "wikantik.sitemap.enabled",
         true
     );
 }

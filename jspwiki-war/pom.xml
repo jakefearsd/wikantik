@@ -28,7 +28,7 @@
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>jspwiki-war</artifactId>
-    <name>Apache JSPWiki Main War</name>
+    <name>Wikantik Main War</name>
     <packaging>war</packaging>
 
     <dependencies>

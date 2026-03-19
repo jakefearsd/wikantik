@@ -51,7 +51,7 @@ public class WikiBootstrapServletContextListenerTest {
         final Properties properties = listener.initWikiSPIs( sce );
 
         Assertions.assertTrue( listener.initWikiLoggingFramework( properties ) );
-        properties.setProperty( "jspwiki.use.external.logconfig", "true" );
+        properties.setProperty( "wikantik.use.external.logconfig", "true" );
         //Assertions.assertFalse( listener.initWikiLoggingFramework( properties ) );
     }
 

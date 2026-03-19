@@ -39,7 +39,7 @@ import java.util.Properties;
 public class McpConfig {
 
     private static final Logger LOG = LogManager.getLogger( McpConfig.class );
-    private static final String RESOURCE_NAME = "jspwiki-mcp.properties";
+    private static final String RESOURCE_NAME = "wikantik-mcp.properties";
 
     private final Properties props;
 

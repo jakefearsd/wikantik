@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 --%>
-<%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
+<%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ page import="org.apache.wiki.api.core.*" %>
 <%@ page import="org.apache.wiki.ui.*" %>
 <%@ page import="java.util.*" %>

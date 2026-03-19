@@ -72,7 +72,7 @@ public class JDBCGroupDatabaseTest
             // ignore
         }
         final Context ctx = (Context) initCtx.lookup( "java:comp/env" );
-        m_ds = new TestJDBCDataSource( new File( "target/test-classes/jspwiki-custom.properties" ), m_hu.getDriverUrl() );
+        m_ds = new TestJDBCDataSource( new File( "target/test-classes/wikantik-custom.properties" ), m_hu.getDriverUrl() );
         ctx.bind( JDBCGroupDatabase.DEFAULT_GROUPDB_DATASOURCE, m_ds );
     }
 

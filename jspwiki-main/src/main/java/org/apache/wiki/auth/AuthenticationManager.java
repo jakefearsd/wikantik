@@ -48,22 +48,22 @@ import java.util.Set;
 public interface AuthenticationManager extends Initializable {
 
     /** If this jspwiki.properties property is <code>true</code>, logs the IP address of the editor on saving. */
-    String PROP_STOREIPADDRESS = "jspwiki.storeIPAddress";
+    String PROP_STOREIPADDRESS = "wikantik.storeIPAddress";
     
     /** If this jspwiki.properties property is <code>true</code>, allow cookies to be used for authentication. */
-    String PROP_ALLOW_COOKIE_AUTH = "jspwiki.cookieAuthentication";
+    String PROP_ALLOW_COOKIE_AUTH = "wikantik.cookieAuthentication";
     
     /** Whether logins should be throttled to limit brute-forcing attempts. Defaults to true. */
-    String PROP_LOGIN_THROTTLING = "jspwiki.login.throttling";
+    String PROP_LOGIN_THROTTLING = "wikantik.login.throttling";
 
     /** Prefix for LoginModule options key/value pairs. */
-    String PREFIX_LOGIN_MODULE_OPTIONS = "jspwiki.loginModule.options.";
+    String PREFIX_LOGIN_MODULE_OPTIONS = "wikantik.loginModule.options.";
 
     /** If this jspwiki.properties property is <code>true</code>, allow cookies to be used to assert identities. */
-    String PROP_ALLOW_COOKIE_ASSERTIONS = "jspwiki.cookieAssertions";
+    String PROP_ALLOW_COOKIE_ASSERTIONS = "wikantik.cookieAssertions";
 
     /** The {@link LoginModule} to use for custom authentication. */
-    String PROP_LOGIN_MODULE = "jspwiki.loginModule.class";
+    String PROP_LOGIN_MODULE = "wikantik.loginModule.class";
 
     /**
      * Returns true if this Engine uses container-managed authentication. This method is used primarily for cosmetic purposes in the

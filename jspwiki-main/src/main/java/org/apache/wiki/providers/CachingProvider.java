@@ -71,7 +71,7 @@ public class CachingProvider implements PageProvider {
      * allowing detection of externally added or removed pages.
      * Default is 300 seconds (5 minutes).
      */
-    public static final String PROP_CACHE_ALLPAGES_TTL = "jspwiki.cache.allPagesTTL";
+    public static final String PROP_CACHE_ALLPAGES_TTL = "wikantik.cache.allPagesTTL";
 
     /** Default TTL for the all-pages cache: 5 minutes */
     private static final int DEFAULT_ALLPAGES_TTL = 300;
@@ -81,19 +81,19 @@ public class CachingProvider implements PageProvider {
      * When enabled, the watcher monitors the page directory for external changes
      * and triggers cache invalidation. Default is {@code true}.
      */
-    public static final String PROP_WATCHER_ENABLED = "jspwiki.cache.watcherEnabled";
+    public static final String PROP_WATCHER_ENABLED = "wikantik.cache.watcherEnabled";
 
     /**
      * Property name for enabling/disabling the news page generator.
      * Default is {@code true}.
      */
-    public static final String PROP_NEWS_GENERATOR_ENABLED = "jspwiki.newsPageGenerator.enabled";
+    public static final String PROP_NEWS_GENERATOR_ENABLED = "wikantik.newsPageGenerator.enabled";
 
     /**
      * Property name for configuring the watcher polling interval in seconds.
      * Default is 3 seconds.
      */
-    public static final String PROP_WATCHER_INTERVAL = "jspwiki.cache.watcherInterval";
+    public static final String PROP_WATCHER_INTERVAL = "wikantik.cache.watcherInterval";
 
     /** Default watcher polling interval: 3 seconds */
     private static final int DEFAULT_WATCHER_INTERVAL = 3;

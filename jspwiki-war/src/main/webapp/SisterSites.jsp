@@ -32,7 +32,7 @@
 <%@ page import="org.apache.wiki.rss.*" %>
 <%@ page import="org.apache.wiki.util.*" %>
 <%!
-    Logger log = LogManager.getLogger("JSPWiki");
+    Logger log = LogManager.getLogger("Wikantik");
 %>
 <%
     /*

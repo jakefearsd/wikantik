@@ -40,7 +40,7 @@ public class AnonymousViewIT extends WithIntegrationTestSetup {
     @DisabledOnOs(OS.WINDOWS)
     void anonymousView() {
         final ViewWikiPage main = ViewWikiPage.open( "Main" );
-        Assertions.assertEquals( "JSPWiki: Main", main.title() );
+        Assertions.assertEquals( "Wikantik: Main", main.title() );
         Assertions.assertEquals( "Main", main.wikiTitle() );
         
         Assertions.assertTrue( main.wikiPageContent().contains( "You have successfully installed" ) );
@@ -59,7 +59,7 @@ public class AnonymousViewIT extends WithIntegrationTestSetup {
     @DisabledOnOs(OS.WINDOWS)
     void anonymousReaderView() {
         final ViewWikiPage main = ViewWikiPage.open( "Main" );
-        Assertions.assertEquals( "JSPWiki: Main", main.title() );
+        Assertions.assertEquals( "Wikantik: Main", main.title() );
         Assertions.assertEquals( "Main", main.wikiTitle() );
         main.sidebar().should( exist );
         

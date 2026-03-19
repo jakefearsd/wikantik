@@ -39,7 +39,7 @@ import java.security.Principal;
  */
 public interface Context extends Cloneable, Command {
 
-    String ATTR_CONTEXT = "jspwiki.context";
+    String ATTR_CONTEXT = "wikantik.context";
 
     /**
      *  Variable name which tells whether plugins should be executed or not. Value can be either {@code Boolean.TRUE} or

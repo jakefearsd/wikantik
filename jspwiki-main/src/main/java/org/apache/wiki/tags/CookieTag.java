@@ -286,7 +286,7 @@ public class CookieTag
             if ("true".equalsIgnoreCase(
                     WikiEngine.getInstance(pageContext.getServletConfig()).
                             getWikiProperties().
-                            getProperty("jspwiki.securecookie", "false"))) {
+                            getProperty("wikantik.securecookie", "false"))) {
                 cookie.setHttpOnly(true);
                 cookie.setSecure(true);
             }
@@ -297,7 +297,7 @@ public class CookieTag
              if ("true".equalsIgnoreCase(
                     WikiEngine.getInstance(pageContext.getServletConfig()).
                             getWikiProperties().
-                            getProperty("jspwiki.securecookie", "false"))) {
+                            getProperty("wikantik.securecookie", "false"))) {
                 cookie.setHttpOnly(true);
                 cookie.setSecure(true);
             }

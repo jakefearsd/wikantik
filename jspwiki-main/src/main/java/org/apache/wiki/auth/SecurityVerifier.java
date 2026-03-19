@@ -723,7 +723,7 @@ public final class SecurityVerifier {
         if ( db instanceof DummyUserDatabase dummyDb ) {
             session.addMessage( ERROR_DB, "UserDatabase is DummyUserDatabase; JSPWiki " +
                     "may not have been able to initialize the database you supplied in " +
-                    "jspwiki.properties, or you left the 'jspwiki.userdatabase' property " +
+                    "wikantik.properties, or you left the 'jspwiki.userdatabase' property " +
                     "blank. Check the error logs." );
         }
 
@@ -746,7 +746,7 @@ public final class SecurityVerifier {
         final String loginName = "TestUser" + System.currentTimeMillis();
         try {
             final UserProfile profile = db.newProfile();
-            profile.setEmail( "jspwiki.tests@mailinator.com" );
+            profile.setEmail( "wikantik.tests@mailinator.com" );
             profile.setLoginName( loginName );
             profile.setFullname( "FullName" + loginName );
             profile.setPassword( "password" );

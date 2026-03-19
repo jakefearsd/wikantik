@@ -12,10 +12,10 @@
  * limitations under the License.
  */
 
-import org.apache.wiki.api.core.Context;
-import org.apache.wiki.api.core.Engine;
-import org.apache.wiki.api.exceptions.PluginException;
-import org.apache.wiki.api.plugin.Plugin;
+import com.wikantik.api.core.Context;
+import com.wikantik.api.core.Engine;
+import com.wikantik.api.exceptions.PluginException;
+import com.wikantik.api.plugin.Plugin;
 
 import java.util.Map;
 

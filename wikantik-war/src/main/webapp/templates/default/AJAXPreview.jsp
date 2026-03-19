@@ -20,11 +20,11 @@
 <%@ page language="java" pageEncoding="UTF-8"%>
 <%@ page import="org.apache.logging.log4j.Logger" %>
 <%@ page import="org.apache.logging.log4j.LogManager" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.api.spi.Wiki" %>
-<%@ page import="org.apache.wiki.auth.*" %>
-<%@ page import="org.apache.wiki.auth.permissions.*" %>
-<%@ page import="org.apache.wiki.preferences.Preferences" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.api.spi.Wiki" %>
+<%@ page import="com.wikantik.auth.*" %>
+<%@ page import="com.wikantik.auth.permissions.*" %>
+<%@ page import="com.wikantik.preferences.Preferences" %>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%! 

@@ -15,18 +15,18 @@
 //  specific language governing permissions and limitations
 //  under the License.
 
-grant principal org.apache.wiki.auth.authorize.Role "All" {
-    permission org.apache.wiki.auth.permissions.WikiPermission "*", "login";
+grant principal com.wikantik.auth.authorize.Role "All" {
+    permission com.wikantik.auth.permissions.WikiPermission "*", "login";
 };
 
-grant principal org.apache.wiki.auth.authorize.Role "Authenticated" {
-    permission org.apache.wiki.auth.permissions.PagePermission "*:*", "view";
+grant principal com.wikantik.auth.authorize.Role "Authenticated" {
+    permission com.wikantik.auth.permissions.PagePermission "*:*", "view";
 };
 
-grant principal org.apache.wiki.auth.WikiPrincipal "Janne Jalkanen" {
-    permission org.apache.wiki.auth.permissions.PagePermission "*:*", "edit,delete";
+grant principal com.wikantik.auth.WikiPrincipal "Janne Jalkanen" {
+    permission com.wikantik.auth.permissions.PagePermission "*:*", "edit,delete";
 };
 
 grant principal "Bob" {
-    permission org.apache.wiki.auth.permissions.PagePermission "*:*", "edit,delete";
+    permission com.wikantik.auth.permissions.PagePermission "*:*", "edit,delete";
 };

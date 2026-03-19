@@ -19,9 +19,9 @@
 
 <%@ page import="java.util.StringTokenizer" %>
 <%@ page import="jakarta.servlet.jsp.jstl.fmt.*" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.attachment.*" %>
-<%@ page import="org.apache.wiki.pages.PageManager" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.attachment.*" %>
+<%@ page import="com.wikantik.pages.PageManager" %>
 
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>

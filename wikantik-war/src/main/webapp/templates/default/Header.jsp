@@ -21,7 +21,7 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
+<%@ page import="com.wikantik.api.core.*" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <c:set var="frontpage"><wiki:Variable var="wikantik.frontPage" default="Main" /></c:set>

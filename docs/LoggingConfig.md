@@ -94,7 +94,7 @@ Also remove any existing broken logging lines (log4j.* properties are Log4j 1.x 
 
     <Loggers>
         <!-- JSPWiki core -->
-        <Logger name="org.apache.wiki" level="INFO" additivity="false">
+        <Logger name="com.wikantik" level="INFO" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AppLog"/>
         </Logger>
@@ -105,7 +105,7 @@ Also remove any existing broken logging lines (log4j.* properties are Log4j 1.x 
         </Logger>
 
         <!-- Page access tracking via WikiServlet -->
-        <Logger name="org.apache.wiki.WikiServlet" level="INFO" additivity="false">
+        <Logger name="com.wikantik.WikiServlet" level="INFO" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AccessLog"/>
         </Logger>
@@ -114,7 +114,7 @@ Also remove any existing broken logging lines (log4j.* properties are Log4j 1.x 
         <Logger name="org.apache.tomcat.dbcp" level="WARN"/>
 
         <!-- Lucene search indexing -->
-        <Logger name="org.apache.wiki.search" level="INFO"/>
+        <Logger name="com.wikantik.search" level="INFO"/>
 
         <!-- Root: catch-all -->
         <Root level="WARN">
@@ -255,11 +255,11 @@ sudo chown tomcat:tomcat /opt/tomcat/logs/jspwiki
 
 | Logger | Purpose |
 |--------|---------|
-| `org.apache.wiki` | All JSPWiki classes |
-| `org.apache.wiki.WikiServlet` | Page request handling |
-| `org.apache.wiki.auth` | Authentication/authorization |
-| `org.apache.wiki.search` | Lucene search indexing |
-| `org.apache.wiki.providers` | Page/attachment providers |
+| `com.wikantik` | All JSPWiki classes |
+| `com.wikantik.WikiServlet` | Page request handling |
+| `com.wikantik.auth` | Authentication/authorization |
+| `com.wikantik.search` | Lucene search indexing |
+| `com.wikantik.providers` | Page/attachment providers |
 | `SecurityLog` | Security audit events |
 | `SpamLog` | Spam filter events |
 

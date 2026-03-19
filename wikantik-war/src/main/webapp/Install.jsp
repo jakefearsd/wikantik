@@ -19,12 +19,12 @@
 
 <?xml version="1.0" encoding="UTF-8"?>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.api.spi.Wiki" %>
-<%@ page import="org.apache.wiki.auth.AuthenticationManager" %>
-<%@ page import="org.apache.wiki.auth.AuthorizationManager" %>
-<%@ page import="org.apache.wiki.preferences.Preferences" %>
-<%@ page import="org.apache.wiki.ui.Installer" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.api.spi.Wiki" %>
+<%@ page import="com.wikantik.auth.AuthenticationManager" %>
+<%@ page import="com.wikantik.auth.AuthorizationManager" %>
+<%@ page import="com.wikantik.preferences.Preferences" %>
+<%@ page import="com.wikantik.ui.Installer" %>
 <%@ page import="org.apache.logging.log4j.Logger" %>
 <%@ page import="org.apache.logging.log4j.LogManager" %>
 <%@ page import="java.util.ResourceBundle" %>

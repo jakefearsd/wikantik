@@ -22,14 +22,14 @@
 <%@ page import="java.util.*" %>
 <%@ page import="org.apache.logging.log4j.Logger" %>
 <%@ page import="org.apache.logging.log4j.LogManager" %>
-<%@ page import="org.apache.wiki.api.core.Context" %>
-<%@ page import="org.apache.wiki.auth.*" %>
-<%@ page import="org.apache.wiki.auth.authorize.Group" %>
-<%@ page import="org.apache.wiki.auth.authorize.GroupManager" %>
-<%@ page import="org.apache.wiki.auth.permissions.GroupPermission" %>
-<%@ page import="org.apache.wiki.auth.authorize.GroupManager" %>
-<%@ page import="org.apache.wiki.preferences.Preferences" %>
-<%@ page import="org.apache.wiki.util.comparators.PrincipalComparator" %>
+<%@ page import="com.wikantik.api.core.Context" %>
+<%@ page import="com.wikantik.auth.*" %>
+<%@ page import="com.wikantik.auth.authorize.Group" %>
+<%@ page import="com.wikantik.auth.authorize.GroupManager" %>
+<%@ page import="com.wikantik.auth.permissions.GroupPermission" %>
+<%@ page import="com.wikantik.auth.authorize.GroupManager" %>
+<%@ page import="com.wikantik.preferences.Preferences" %>
+<%@ page import="com.wikantik.util.comparators.PrincipalComparator" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>

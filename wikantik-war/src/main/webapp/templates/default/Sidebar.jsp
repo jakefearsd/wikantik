@@ -23,7 +23,7 @@
 <%@ page import="jakarta.servlet.jsp.jstl.fmt.*" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
-<%@ page import="org.apache.wiki.api.core.*" %>
+<%@ page import="com.wikantik.api.core.*" %>
 
 <div class="sidebar">
 

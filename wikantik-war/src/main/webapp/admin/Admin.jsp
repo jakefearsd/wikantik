@@ -19,13 +19,13 @@
 
 <%@ page import="org.apache.logging.log4j.Logger" %>
 <%@ page import="org.apache.logging.log4j.LogManager" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.api.spi.Wiki" %>
-<%@ page import="org.apache.wiki.auth.*" %>
-<%@ page import="org.apache.wiki.ui.admin.*" %>
-<%@ page import="org.apache.wiki.ui.TemplateManager" %>
-<%@ page import="org.apache.wiki.util.TextUtil" %>
-<%@ page import="org.apache.wiki.preferences.Preferences" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.api.spi.Wiki" %>
+<%@ page import="com.wikantik.auth.*" %>
+<%@ page import="com.wikantik.ui.admin.*" %>
+<%@ page import="com.wikantik.ui.TemplateManager" %>
+<%@ page import="com.wikantik.util.TextUtil" %>
+<%@ page import="com.wikantik.preferences.Preferences" %>
 <%@ page import="org.apache.commons.lang3.time.StopWatch" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>

@@ -1,0 +1,306 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.auth;
+
+import org.apache.commons.lang3.ArrayUtils;
+import com.wikantik.HttpMockFactory;
+import com.wikantik.TestEngine;
+import com.wikantik.WikiSessionTest;
+import com.wikantik.api.core.Context;
+import com.wikantik.api.core.Page;
+import com.wikantik.api.core.Session;
+import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.authorize.Group;
+import com.wikantik.auth.authorize.GroupManager;
+import com.wikantik.auth.permissions.PermissionFactory;
+import com.wikantik.auth.user.DuplicateUserException;
+import com.wikantik.auth.user.UserDatabase;
+import com.wikantik.auth.user.UserProfile;
+import com.wikantik.auth.user.XMLUserDatabase;
+import com.wikantik.pages.PageManager;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.security.Principal;
+import java.util.Properties;
+
+
+class UserManagerTest {
+
+    TestEngine m_engine;
+    UserManager m_mgr;
+    UserDatabase m_db;
+    String m_groupName;
+
+    /**
+     *
+     */
+    @BeforeEach
+    void setUp() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+
+        // Make sure we are using the XML user database
+        props.put( XMLUserDatabase.PROP_USERDATABASE, "target/test-classes/userdatabase.xml" );
+        m_engine = new TestEngine( props );
+        m_mgr = m_engine.getManager( UserManager.class );
+        m_db = m_mgr.getUserDatabase();
+        m_groupName = "Group" + System.currentTimeMillis();
+    }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        final GroupManager groupManager = m_engine.getManager( GroupManager.class );
+        if( groupManager.findRole( m_groupName ) != null ) {
+            groupManager.removeGroup( m_groupName );
+        }
+    }
+
+    //@Test
+    void testSetRenamedUserProfile() throws Exception {
+        // First, count the number of users, groups, and pages
+        final int oldUserCount = m_db.getWikiNames().length;
+        final GroupManager groupManager = m_engine.getManager( GroupManager.class );
+        final PageManager pageManager = m_engine.getManager( PageManager.class );
+        final AuthorizationManager authManager = m_engine.getManager( AuthorizationManager.class );
+        final int oldGroupCount = groupManager.getRoles().length;
+        final int oldPageCount = pageManager.getTotalPageCount();
+
+        // Setup Step 1: create a new user with random name
+        final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final Session session = context.getWikiSession();
+        final long now = System.currentTimeMillis();
+        final String oldLogin = "TestLogin" + now;
+        final String oldName = "Test User " + now;
+        final String newLogin = "RenamedLogin" + now;
+        final String newName = "Renamed User " + now;
+        UserProfile profile = m_db.newProfile();
+        profile.setEmail( "wikantik.tests@mailinator.com" );
+        profile.setLoginName( oldLogin );
+        profile.setFullname( oldName );
+        profile.setPassword( "password" );
+        m_mgr.setUserProfile( context, profile );
+
+        // 1a. Make sure the profile saved successfully and that we're logged in
+        profile = m_mgr.getUserProfile( session );
+        Assertions.assertEquals( oldLogin, profile.getLoginName() );
+        Assertions.assertEquals( oldName, profile.getFullname() );
+        Assertions.assertEquals( oldUserCount + 1, m_db.getWikiNames().length );
+        Assertions.assertTrue( session.isAuthenticated() );
+
+        // Setup Step 2: create a new group with our test user in it
+        Group group = groupManager.parseGroup( m_groupName, "Alice \n Bob \n Charlie \n " + oldLogin + "\n" + oldName, true );
+        groupManager.setGroup( session, group );
+
+        // 2a. Make sure the group is created with the user in it, and the role is added to the Subject
+        Assertions.assertEquals( oldGroupCount + 1, groupManager.getRoles().length );
+        Assertions.assertTrue( group.isMember( new WikiPrincipal( oldLogin ) ) );
+        Assertions.assertTrue( group.isMember( new WikiPrincipal( oldName ) ) );
+        Assertions.assertFalse( group.isMember( new WikiPrincipal( newLogin ) ) );
+        Assertions.assertFalse( group.isMember( new WikiPrincipal( newName ) ) );
+        Assertions.assertTrue( groupManager.isUserInRole( session, group.getPrincipal() ) );
+
+        // Setup Step 3: create a new page with our test user in the ACL
+        String pageName = "TestPage" + now;
+        m_engine.saveText( pageName, "Test text. [{ALLOW view " + oldName + ", " + oldLogin + ", Alice}] More text." );
+
+        // 3a. Make sure the page got saved, and that ONLY our test user has permission to read it.
+        Page p = m_engine.getManager( PageManager.class ).getPage( pageName );
+        Assertions.assertEquals( oldPageCount + 1, pageManager.getTotalPageCount() );
+        Assertions.assertNotNull( p.getAcl().getAclEntry( new WikiPrincipal( oldLogin ) ) );
+        Assertions.assertNotNull( p.getAcl().getAclEntry( new WikiPrincipal( oldName ) ) );
+        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newLogin ) ) );
+        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newName ) ) );
+        Assertions.assertTrue( authManager.checkPermission( session, PermissionFactory.getPagePermission( p, "view" ) ), "Test User view page" );
+        final Session bobSession = WikiSessionTest.authenticatedSession( m_engine, Users.BOB, Users.BOB_PASS );
+        Assertions.assertFalse( authManager.checkPermission( bobSession, PermissionFactory.getPagePermission( p, "view" ) ), "Bob !view page" );
+
+        // Setup Step 4: change the user name in the profile and see what happens
+        profile = m_db.newProfile();
+        profile.setEmail( "wikantik.tests@mailinator.com" );
+        profile.setLoginName( oldLogin );
+        profile.setFullname( newName );
+        profile.setPassword( "password" );
+        m_mgr.setUserProfile( context, profile );
+
+        // Test 1: the wiki session should have the new wiki name in Subject
+        Principal[] principals = session.getPrincipals();
+        Assertions.assertTrue( ArrayUtils.contains( principals, new WikiPrincipal( oldLogin ) ) );
+        Assertions.assertFalse( ArrayUtils.contains( principals, new WikiPrincipal( oldName ) ) );
+        Assertions.assertFalse( ArrayUtils.contains( principals, new WikiPrincipal( newLogin ) ) );
+        Assertions.assertTrue( ArrayUtils.contains( principals, new WikiPrincipal( newName ) ) );
+
+        // Test 2: our group should not contain the old name OR login name any more
+        // (the full name is always used)
+        group = groupManager.getGroup( m_groupName );
+        Assertions.assertFalse( group.isMember( new WikiPrincipal( oldLogin ) ) );
+        Assertions.assertFalse( group.isMember( new WikiPrincipal( oldName ) ) );
+        Assertions.assertFalse( group.isMember( new WikiPrincipal( newLogin ) ) );
+        Assertions.assertTrue( group.isMember( new WikiPrincipal( newName ) ) );
+
+        // Test 3: our page should not contain the old wiki name OR login name
+        // in the ACL any more (the full name is always used)
+        p = m_engine.getManager( PageManager.class ).getPage( pageName );
+        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( oldLogin ) ) );
+        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( oldName ) ) );
+        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newLogin ) ) );
+        Assertions.assertNotNull( p.getAcl().getAclEntry( new WikiPrincipal( newName ) ) );
+        Assertions.assertTrue( authManager.checkPermission( session, PermissionFactory.getPagePermission( p, "view" ) ), "Test User view page" );
+        Assertions.assertFalse( authManager.checkPermission( bobSession, PermissionFactory.getPagePermission( p, "view" ) ), "Bob !view page" );
+
+        // Test 4: our page text should have been re-written
+        // (The new full name should be in the ACL, but the login name should have been removed)
+        String expectedText = "[{ALLOW view Alice," + newName + "}]\nTest text.  More text.\r\n";
+        String actualText = m_engine.getManager( PageManager.class ).getText( pageName );
+        Assertions.assertEquals( expectedText, actualText );
+
+        // Remove our test page
+        m_engine.getManager( PageManager.class ).deletePage( pageName );
+
+        // Setup Step 6: re-create the group with our old test user names in it
+        group = groupManager.parseGroup( m_groupName, "Alice \n Bob \n Charlie \n " + oldLogin + "\n" + oldName, true );
+        groupManager.setGroup( session, group );
+
+        // Setup Step 7: Save a new page with the old login/wiki names in the ACL again
+        // The test user should still be able to see the page (because the login name matches...)
+        pageName = "TestPage2" + now;
+        m_engine.saveText( pageName, "More test text. [{ALLOW view " + oldName + ", " + oldLogin + ", Alice}] More text." );
+        p = m_engine.getManager( PageManager.class ).getPage( pageName );
+        Assertions.assertEquals( oldPageCount + 1, pageManager.getTotalPageCount() );
+        Assertions.assertNotNull( p.getAcl().getAclEntry( new WikiPrincipal( oldLogin ) ) );
+        Assertions.assertNotNull( p.getAcl().getAclEntry( new WikiPrincipal( oldName ) ) );
+        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newLogin ) ) );
+        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newName ) ) );
+        Assertions.assertTrue( authManager.checkPermission( session, PermissionFactory.getPagePermission( p, "view" ) ), "Test User view page" );
+        Assertions.assertFalse( authManager.checkPermission( bobSession, PermissionFactory.getPagePermission( p, "view" ) ), "Bob !view page" );
+
+        // Setup Step 8: re-save the profile with the new login name
+        profile = m_db.newProfile();
+        profile.setEmail( "wikantik.tests@mailinator.com" );
+        profile.setLoginName( newLogin );
+        profile.setFullname( oldName );
+        profile.setPassword( "password" );
+        m_mgr.setUserProfile( context, profile );
+
+        // Test 5: the wiki session should have the new login name in Subject
+        principals = session.getPrincipals();
+        Assertions.assertFalse( ArrayUtils.contains( principals, new WikiPrincipal( oldLogin ) ) );
+        Assertions.assertTrue( ArrayUtils.contains( principals, new WikiPrincipal( oldName ) ) );
+        Assertions.assertTrue( ArrayUtils.contains( principals, new WikiPrincipal( newLogin ) ) );
+        Assertions.assertFalse( ArrayUtils.contains( principals, new WikiPrincipal( newName ) ) );
+
+        // Test 6: our group should not contain the old name OR login name any more
+        // (the full name is always used)
+        group = groupManager.getGroup( m_groupName );
+        Assertions.assertFalse( group.isMember( new WikiPrincipal( oldLogin ) ) );
+        Assertions.assertTrue( group.isMember( new WikiPrincipal( oldName ) ) );
+        Assertions.assertFalse( group.isMember( new WikiPrincipal( newLogin ) ) );
+        Assertions.assertFalse( group.isMember( new WikiPrincipal( newName ) ) );
+
+        // Test 7: our page should not contain the old wiki name OR login name
+        // in the ACL any more (the full name is always used)
+        p = m_engine.getManager( PageManager.class ).getPage( pageName );
+        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( oldLogin ) ) );
+        Assertions.assertNotNull( p.getAcl().getAclEntry( new WikiPrincipal( oldName ) ) );
+        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newLogin ) ) );
+        Assertions.assertNull( p.getAcl().getAclEntry( new WikiPrincipal( newName ) ) );
+        Assertions.assertTrue( authManager.checkPermission( session, PermissionFactory.getPagePermission( p, "view" ) ), "Test User view page" );
+        Assertions.assertFalse( authManager.checkPermission( bobSession, PermissionFactory.getPagePermission( p, "view" ) ), "Bob !view page" );
+
+        // Test 8: our page text should have been re-written
+        // (The new full name should be in the ACL, but the login name should have been removed)
+        expectedText = "[{ALLOW view Alice," + oldName + "}]\nMore test text.  More text.\r\n";
+        actualText = m_engine.getManager( PageManager.class ).getText( pageName );
+        Assertions.assertEquals( expectedText, actualText );
+
+        // CLEANUP: delete the profile; user and page; should be back to old counts
+        m_db.deleteByLoginName( newLogin );
+        Assertions.assertEquals( oldUserCount, m_db.getWikiNames().length );
+
+        groupManager.removeGroup( group.getName() );
+        Assertions.assertEquals( oldGroupCount, groupManager.getRoles().length );
+
+        m_engine.getManager( PageManager.class ).deletePage( pageName );
+        Assertions.assertEquals( oldPageCount, pageManager.getTotalPageCount() );
+    }
+
+    @Test
+    void testSetUserProfile() throws Exception {
+        // First, count the number of users in the db now.
+        final int oldUserCount = m_db.getWikiNames().length;
+
+        // Create a new user with random name
+        final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final String loginName = "TestUser" + System.currentTimeMillis();
+        UserProfile profile = m_db.newProfile();
+        profile.setEmail( "wikantik.tests@mailinator.com" );
+        profile.setLoginName( loginName );
+        profile.setFullname( "FullName" + loginName );
+        profile.setPassword( "password" );
+        m_mgr.setUserProfile( context, profile );
+
+        // Make sure the profile saved successfully
+        profile = m_mgr.getUserProfile( context.getWikiSession() );
+        Assertions.assertEquals( loginName, profile.getLoginName() );
+        Assertions.assertEquals( oldUserCount + 1, m_db.getWikiNames().length );
+
+        // Now delete the profile; should be back to old count
+        m_db.deleteByLoginName( loginName );
+        Assertions.assertEquals( oldUserCount, m_db.getWikiNames().length );
+    }
+
+    @Test
+    void testSetCollidingUserProfile() throws Exception {
+        // First, count the number of users in the db now.
+        final int oldUserCount = m_db.getWikiNames().length;
+
+        // Create a new user with random name
+        final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final String loginName = "TestUser" + String.valueOf( System.currentTimeMillis() );
+        final UserProfile profile = m_db.newProfile();
+        profile.setEmail( "wikantik.tests@mailinator.com" );
+        profile.setLoginName( loginName );
+        profile.setFullname( "FullName" + loginName );
+        profile.setPassword( "password" );
+
+        // Set the login name to collide with Janne's: should prohibit saving
+        profile.setLoginName( "janne" );
+        try {
+            m_mgr.setUserProfile( context, profile );
+            Assertions.fail( "UserManager allowed saving of user with login name 'janne', but it shouldn't have." );
+        } catch( final DuplicateUserException e ) {
+            // Good! That's what we expected; reset for next test
+            profile.setLoginName( loginName );
+        }
+
+        // Set the login name to collide with Janne's: should prohibit saving
+        profile.setFullname( "Janne Jalkanen" );
+        try {
+            m_mgr.setUserProfile( context, profile );
+            Assertions.fail( "UserManager allowed saving of user with login name 'janne', but it shouldn't have." );
+        } catch( final DuplicateUserException e ) {
+            // Good! That's what we expected
+        }
+
+        // There shouldn't have been any users added
+        Assertions.assertEquals( oldUserCount, m_db.getWikiNames().length );
+    }
+
+}

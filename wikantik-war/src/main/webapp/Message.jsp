@@ -20,9 +20,9 @@
 <%@ page isErrorPage="true" %>
 <%@ page import="org.apache.logging.log4j.Logger" %>
 <%@ page import="org.apache.logging.log4j.LogManager" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.api.spi.Wiki" %>
-<%@ page import="org.apache.wiki.ui.TemplateManager" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.api.spi.Wiki" %>
+<%@ page import="com.wikantik.ui.TemplateManager" %>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%! 
     Logger log = LogManager.getLogger("Wikantik");

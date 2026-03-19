@@ -19,10 +19,10 @@
 
 <%@ page language="java" pageEncoding="UTF-8"%>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.ui.*" %>
-<%@ page import="org.apache.wiki.util.TextUtil" %>
-<%@ page import="org.apache.wiki.filters.*" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.ui.*" %>
+<%@ page import="com.wikantik.util.TextUtil" %>
+<%@ page import="com.wikantik.filters.*" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <fmt:setLocale value="${prefs.Language}" />

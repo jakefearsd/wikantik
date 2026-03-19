@@ -48,103 +48,103 @@
   
 <classmappings>
   <mapping>
-    <requestedClass>org.apache.wiki.pages.PageManager</requestedClass>
-    <mappedClass>org.apache.wiki.pages.DefaultPageManager</mappedClass>
+    <requestedClass>com.wikantik.pages.PageManager</requestedClass>
+    <mappedClass>com.wikantik.pages.DefaultPageManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.filters.FilterManager</requestedClass>
-    <mappedClass>org.apache.wiki.filters.DefaultFilterManager</mappedClass>
+    <requestedClass>com.wikantik.filters.FilterManager</requestedClass>
+    <mappedClass>com.wikantik.filters.DefaultFilterManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.plugin.PluginManager</requestedClass>
-    <mappedClass>org.apache.wiki.plugin.DefaultPluginManager</mappedClass>
+    <requestedClass>com.wikantik.plugin.PluginManager</requestedClass>
+    <mappedClass>com.wikantik.plugin.DefaultPluginManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.ui.admin.AdminBeanManager</requestedClass>
-    <mappedClass>org.apache.wiki.ui.admin.DefaultAdminBeanManager</mappedClass>
+    <requestedClass>com.wikantik.ui.admin.AdminBeanManager</requestedClass>
+    <mappedClass>com.wikantik.ui.admin.DefaultAdminBeanManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.attachment.AttachmentManager</requestedClass>
-    <mappedClass>org.apache.wiki.attachment.DefaultAttachmentManager</mappedClass>
+    <requestedClass>com.wikantik.attachment.AttachmentManager</requestedClass>
+    <mappedClass>com.wikantik.attachment.DefaultAttachmentManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.auth.AuthenticationManager</requestedClass>
-    <mappedClass>org.apache.wiki.auth.DefaultAuthenticationManager</mappedClass>
+    <requestedClass>com.wikantik.auth.AuthenticationManager</requestedClass>
+    <mappedClass>com.wikantik.auth.DefaultAuthenticationManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.auth.AuthorizationManager</requestedClass>
-    <mappedClass>org.apache.wiki.auth.DefaultAuthorizationManager</mappedClass>
+    <requestedClass>com.wikantik.auth.AuthorizationManager</requestedClass>
+    <mappedClass>com.wikantik.auth.DefaultAuthorizationManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.auth.UserManager</requestedClass>
-    <mappedClass>org.apache.wiki.auth.DefaultUserManager</mappedClass>
+    <requestedClass>com.wikantik.auth.UserManager</requestedClass>
+    <mappedClass>com.wikantik.auth.DefaultUserManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.auth.acl.AclManager</requestedClass>
-    <mappedClass>org.apache.wiki.auth.acl.DefaultAclManager</mappedClass>
+    <requestedClass>com.wikantik.auth.acl.AclManager</requestedClass>
+    <mappedClass>com.wikantik.auth.acl.DefaultAclManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.auth.authorize.GroupManager</requestedClass>
-    <mappedClass>org.apache.wiki.auth.authorize.DefaultGroupManager</mappedClass>
+    <requestedClass>com.wikantik.auth.authorize.GroupManager</requestedClass>
+    <mappedClass>com.wikantik.auth.authorize.DefaultGroupManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.cache.CachingManager</requestedClass>
-    <mappedClass>org.apache.wiki.cache.EhcacheCachingManager</mappedClass>
+    <requestedClass>com.wikantik.cache.CachingManager</requestedClass>
+    <mappedClass>com.wikantik.cache.EhcacheCachingManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.content.PageRenamer</requestedClass>
-    <mappedClass>org.apache.wiki.content.DefaultPageRenamer</mappedClass>
+    <requestedClass>com.wikantik.content.PageRenamer</requestedClass>
+    <mappedClass>com.wikantik.content.DefaultPageRenamer</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.diff.DifferenceManager</requestedClass>
-    <mappedClass>org.apache.wiki.diff.DefaultDifferenceManager</mappedClass>
+    <requestedClass>com.wikantik.diff.DifferenceManager</requestedClass>
+    <mappedClass>com.wikantik.diff.DefaultDifferenceManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.i18n.InternationalizationManager</requestedClass>
-    <mappedClass>org.apache.wiki.i18n.DefaultInternationalizationManager</mappedClass>
+    <requestedClass>com.wikantik.i18n.InternationalizationManager</requestedClass>
+    <mappedClass>com.wikantik.i18n.DefaultInternationalizationManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.references.ReferenceManager</requestedClass>
-    <mappedClass>org.apache.wiki.references.DefaultReferenceManager</mappedClass>
+    <requestedClass>com.wikantik.references.ReferenceManager</requestedClass>
+    <mappedClass>com.wikantik.references.DefaultReferenceManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.render.RenderingManager</requestedClass>
-    <mappedClass>org.apache.wiki.render.DefaultRenderingManager</mappedClass>
+    <requestedClass>com.wikantik.render.RenderingManager</requestedClass>
+    <mappedClass>com.wikantik.render.DefaultRenderingManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.rss.RSSGenerator</requestedClass>
-    <mappedClass>org.apache.wiki.rss.DefaultRSSGenerator</mappedClass>
+    <requestedClass>com.wikantik.rss.RSSGenerator</requestedClass>
+    <mappedClass>com.wikantik.rss.DefaultRSSGenerator</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.search.SearchManager</requestedClass>
-    <mappedClass>org.apache.wiki.search.DefaultSearchManager</mappedClass>
+    <requestedClass>com.wikantik.search.SearchManager</requestedClass>
+    <mappedClass>com.wikantik.search.DefaultSearchManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.ui.CommandResolver</requestedClass>
-    <mappedClass>org.apache.wiki.ui.DefaultCommandResolver</mappedClass>
+    <requestedClass>com.wikantik.ui.CommandResolver</requestedClass>
+    <mappedClass>com.wikantik.ui.DefaultCommandResolver</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.ui.EditorManager</requestedClass>
-    <mappedClass>org.apache.wiki.ui.DefaultEditorManager</mappedClass>
+    <requestedClass>com.wikantik.ui.EditorManager</requestedClass>
+    <mappedClass>com.wikantik.ui.DefaultEditorManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.ui.TemplateManager</requestedClass>
-    <mappedClass>org.apache.wiki.ui.DefaultTemplateManager</mappedClass>
+    <requestedClass>com.wikantik.ui.TemplateManager</requestedClass>
+    <mappedClass>com.wikantik.ui.DefaultTemplateManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.ui.progress.ProgressManager</requestedClass>
-    <mappedClass>org.apache.wiki.ui.progress.DefaultProgressManager</mappedClass>
+    <requestedClass>com.wikantik.ui.progress.ProgressManager</requestedClass>
+    <mappedClass>com.wikantik.ui.progress.DefaultProgressManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.variables.VariableManager</requestedClass>
-    <mappedClass>org.apache.wiki.variables.DefaultVariableManager</mappedClass>
+    <requestedClass>com.wikantik.variables.VariableManager</requestedClass>
+    <mappedClass>com.wikantik.variables.DefaultVariableManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.content.RecentArticlesManager</requestedClass>
-    <mappedClass>org.apache.wiki.content.DefaultRecentArticlesManager</mappedClass>
+    <requestedClass>com.wikantik.content.RecentArticlesManager</requestedClass>
+    <mappedClass>com.wikantik.content.DefaultRecentArticlesManager</mappedClass>
   </mapping>
   <mapping>
-    <requestedClass>org.apache.wiki.content.SystemPageRegistry</requestedClass>
-    <mappedClass>org.apache.wiki.content.DefaultSystemPageRegistry</mappedClass>
+    <requestedClass>com.wikantik.content.SystemPageRegistry</requestedClass>
+    <mappedClass>com.wikantik.content.DefaultSystemPageRegistry</mappedClass>
   </mapping>
 </classmappings>

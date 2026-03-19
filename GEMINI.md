@@ -20,9 +20,9 @@ JSPWiki is a feature-rich WikiWiki engine built on Java and Java Servlets. Its m
 
 JSPWiki's functionality can be extended by implementing various interfaces. The most common extension points are:
 
-*   **Plugins**: Implement the `org.apache.wiki.api.plugin.Plugin` interface to add new dynamic content to wiki pages.
-*   **Providers**: Implement `org.apache.wiki.api.providers.PageProvider` or `org.apache.wiki.api.providers.AttachmentProvider` to change how wiki pages and attachments are stored and retrieved.
-*   **Filters**: Implement `org.apache.wiki.api.filters.PageFilter` to intercept and modify page content before it is displayed or saved.
+*   **Plugins**: Implement the `com.wikantik.api.plugin.Plugin` interface to add new dynamic content to wiki pages.
+*   **Providers**: Implement `com.wikantik.api.providers.PageProvider` or `com.wikantik.api.providers.AttachmentProvider` to change how wiki pages and attachments are stored and retrieved.
+*   **Filters**: Implement `com.wikantik.api.filters.PageFilter` to intercept and modify page content before it is displayed or saved.
 
 ### Creating a "Hello World" Plugin
 
@@ -30,15 +30,15 @@ This example demonstrates how to create a simple plugin that greets the user.
 
 1.  **Create the Plugin Class**:
 
-    Create a new Java class that implements the `org.apache.wiki.api.plugin.Plugin` interface.
+    Create a new Java class that implements the `com.wikantik.api.plugin.Plugin` interface.
 
     ```java
     package com.example.wiki.plugins;
 
     import java.util.Map;
-    import org.apache.wiki.api.plugin.Plugin;
-    import org.apache.wiki.api.plugin.PluginException;
-    import org.apache.wiki.api.core.Context;
+    import com.wikantik.api.plugin.Plugin;
+    import com.wikantik.api.plugin.PluginException;
+    import com.wikantik.api.core.Context;
 
     public class HelloWorldPlugin implements Plugin {
         public String execute(Context context, Map<String, String> params) throws PluginException {

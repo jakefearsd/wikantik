@@ -18,7 +18,7 @@
 --%>
 
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
-<%@ page import="org.apache.wiki.ui.EditorManager" %>
+<%@ page import="com.wikantik.ui.EditorManager" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ page import="jakarta.servlet.jsp.jstl.fmt.*" %>
 <fmt:setLocale value="${prefs.Language}" />

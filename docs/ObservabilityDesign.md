@@ -115,13 +115,13 @@ rootLogger.appenderRef.console.ref = Console
 rootLogger.appenderRef.rolling.ref = RollingFile
 
 # Specific loggers for key components
-logger.wiki.name = org.apache.wiki
+logger.wiki.name = com.wikantik
 logger.wiki.level = info
 
-logger.auth.name = org.apache.wiki.auth
+logger.auth.name = com.wikantik.auth
 logger.auth.level = info
 
-logger.pages.name = org.apache.wiki.pages
+logger.pages.name = com.wikantik.pages
 logger.pages.level = info
 ```
 

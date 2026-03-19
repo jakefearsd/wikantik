@@ -21,16 +21,16 @@
 <%@ page import="java.util.*" %>
 <%@ page import="org.apache.logging.log4j.Logger" %>
 <%@ page import="org.apache.logging.log4j.LogManager" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.api.spi.Wiki" %>
-<%@ page import="org.apache.wiki.attachment.AttachmentManager" %>
-<%@ page import="org.apache.wiki.auth.AuthorizationManager" %>
-<%@ page import="org.apache.wiki.auth.permissions.*" %>
-<%@ page import="org.apache.wiki.pages.PageManager" %>
-<%@ page import="org.apache.wiki.preferences.Preferences" %>
-<%@ page import="org.apache.wiki.references.ReferenceManager" %>
-<%@ page import="org.apache.wiki.rss.*" %>
-<%@ page import="org.apache.wiki.util.*" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.api.spi.Wiki" %>
+<%@ page import="com.wikantik.attachment.AttachmentManager" %>
+<%@ page import="com.wikantik.auth.AuthorizationManager" %>
+<%@ page import="com.wikantik.auth.permissions.*" %>
+<%@ page import="com.wikantik.pages.PageManager" %>
+<%@ page import="com.wikantik.preferences.Preferences" %>
+<%@ page import="com.wikantik.references.ReferenceManager" %>
+<%@ page import="com.wikantik.rss.*" %>
+<%@ page import="com.wikantik.util.*" %>
 <%!
     Logger log = LogManager.getLogger("Wikantik");
 %>

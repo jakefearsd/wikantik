@@ -600,10 +600,10 @@ Create or edit `WEB-INF/jspwiki-custom.properties`:
 1. ============================================================================
 
 1. Enable JDBC User Database (instead of default XML)
-jspwiki.userdatabase = org.apache.wiki.auth.user.JDBCUserDatabase
+jspwiki.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
 
 1. Enable JDBC Group Database (instead of default XML)
-jspwiki.groupdatabase = org.apache.wiki.auth.authorize.JDBCGroupDatabase
+jspwiki.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 
 1. ============================================================================
 1. JNDI DataSource Names
@@ -1040,8 +1040,8 @@ java.net.ConnectException: Connection refused
 Enable JDBC debug logging in `log4j2.xml`:
 
 ```xml
-<Logger name="org.apache.wiki.auth.user.JDBCUserDatabase" level="DEBUG"/>
-<Logger name="org.apache.wiki.auth.authorize.JDBCGroupDatabase" level="DEBUG"/>
+<Logger name="com.wikantik.auth.user.JDBCUserDatabase" level="DEBUG"/>
+<Logger name="com.wikantik.auth.authorize.JDBCGroupDatabase" level="DEBUG"/>
 <Logger name="org.apache.tomcat.jdbc.pool" level="DEBUG"/>
 ```
 
@@ -1096,13 +1096,13 @@ cd /home/jakefear/source/jspwiki
 mvn clean install -Dmaven.test.skip
 
 1. Generate a SHA-256 hash (recommended)
-java -cp jspwiki-util/target/classes org.apache.wiki.util.CryptoUtil --hash "mypassword" "{SHA-256}"
+java -cp jspwiki-util/target/classes com.wikantik.util.CryptoUtil --hash "mypassword" "{SHA-256}"
 
 1. Generate a SSHA hash (legacy)
-java -cp jspwiki-util/target/classes org.apache.wiki.util.CryptoUtil --hash "mypassword" "{SSHA}"
+java -cp jspwiki-util/target/classes com.wikantik.util.CryptoUtil --hash "mypassword" "{SSHA}"
 
 1. Verify a password against a hash
-java -cp jspwiki-util/target/classes org.apache.wiki.util.CryptoUtil --verify "mypassword" "{SHA-256}xyz123..."
+java -cp jspwiki-util/target/classes com.wikantik.util.CryptoUtil --verify "mypassword" "{SHA-256}xyz123..."
 ```
 
     1. A.3 Updating a User's Password via SQL

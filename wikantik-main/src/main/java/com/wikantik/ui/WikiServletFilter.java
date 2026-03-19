@@ -1,0 +1,163 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.    
+ */
+package com.wikantik.ui;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.ThreadContext;
+import com.wikantik.api.core.Context;
+import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Session;
+import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AuthenticationManager;
+import com.wikantik.auth.SessionMonitor;
+import com.wikantik.auth.WikiSecurityException;
+
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
+import java.io.IOException;
+import java.io.PrintWriter;
+
+/**
+ * Filter that verifies that the {@link com.wikantik.api.core.Engine} is running, and sets the authentication status for the user's
+ * Session. Each HTTP request processed by this filter is wrapped by a {@link WikiRequestWrapper}. The wrapper's primary responsibility
+ * is to return the correct <code>userPrincipal</code> and <code>remoteUser</code> for authenticated JSPWiki users (whether authenticated
+ * by container or by JSPWiki's custom system). The wrapper's other responsibility is to incorporate JSPWiki built-in roles
+ * into the role-checking algorithm for {@link  HttpServletRequest#isUserInRole(String)}. Just before the request is wrapped, the method
+ * {@link com.wikantik.auth.AuthenticationManager#login(HttpServletRequest)} executes; this method contains all of the logic needed to
+ * grab any user login credentials set by the container or by cookies.
+ */
+public class WikiServletFilter implements Filter {
+
+    private static final Logger LOG = LogManager.getLogger( WikiServletFilter.class );
+    protected Engine engine;
+
+    /**
+     * Initializes the WikiServletFilter.
+     * 
+     * @param config The FilterConfig.
+     * @throws ServletException If a Engine cannot be started.
+     */
+    @Override
+    public void init( final FilterConfig config ) throws ServletException {
+        final ServletContext context = config.getServletContext();
+        engine = Wiki.engine().find( context, null );
+    }
+
+    /**
+     * Destroys the WikiServletFilter.
+     */
+    @Override
+    public void destroy() {
+    }
+
+    /**
+    * Checks that the Engine is running ok, wraps the current HTTP request, and sets the correct authentication state for the users's
+    * Session. First, the method {@link com.wikantik.auth.AuthenticationManager#login(HttpServletRequest)}
+    * executes, which sets the authentication state. Then, the request is wrapped with a
+    * {@link WikiRequestWrapper}.
+    * @param request the current HTTP request object
+    * @param response the current HTTP response object
+    * @param chain The Filter chain passed down.
+    * @throws ServletException if {@link com.wikantik.auth.AuthenticationManager#login(HttpServletRequest)} fails for any reason
+    * @throws IOException If writing to the servlet response fails. 
+    */
+    @Override
+    public void doFilter( final ServletRequest request, final ServletResponse response, final FilterChain chain ) throws IOException, ServletException {
+        //  Sanity check; it might be true in some conditions, but we need to know where.
+        if( chain == null ) {
+            throw new ServletException("FilterChain is null, even if it should not be.  Please report this to the jspwiki development team.");
+        }
+        
+        if( engine == null ) {
+            final PrintWriter out = response.getWriter();
+            out.print("<!DOCTYPE html><html lang=\"en\"><head><title>Fatal problem with JSPWiki</title></head>");
+            out.print("<body>");
+            out.print("<h1>JSPWiki has not been started</h1>");
+            out.print("<p>JSPWiki is not running.  This is probably due to a configuration error in your jspwiki.properties file, ");
+            out.print("or a problem with your servlet container.  Please double-check everything before issuing a bug report ");
+            out.print("at jspwiki.apache.org.</p>");
+            out.print("<p>We apologize for the inconvenience.  No, really, we do.  We're trying to ");
+            out.print("JSPWiki as easy as we can, but there is only so much we have time to test ");
+            out.print("platforms.</p>");
+            out.print( "<p>Please go to the <a href='Install.jsp'>installer</a> to continue.</p>" );
+            out.print("</body></html>");
+            return;
+        }   
+        
+        // If we haven't done so, wrap the request
+        HttpServletRequest httpRequest = ( HttpServletRequest )request;
+        
+        // Set the character encoding
+        httpRequest.setCharacterEncoding( engine.getContentEncoding().displayName() );
+        
+        if ( !isWrapped( request ) ) {
+            // Prepare the Session
+            try {
+                engine.getManager( AuthenticationManager.class ).login( httpRequest );
+                final Session wikiSession = SessionMonitor.getInstance( engine ).find( httpRequest.getSession() );
+                httpRequest = new WikiRequestWrapper( engine, httpRequest );
+                LOG.debug( "Executed security filters for user={}, path={}",wikiSession.getLoginPrincipal().getName(), httpRequest.getRequestURI() );
+            } catch( final WikiSecurityException e ) {
+                throw new ServletException( e );
+            }
+        }
+
+        try {
+            ThreadContext.push( engine.getApplicationName() + ":" + httpRequest.getRequestURL() );
+            chain.doFilter( httpRequest, response );
+        } finally {
+            ThreadContext.pop();
+            ThreadContext.remove( engine.getApplicationName() + ":" + httpRequest.getRequestURL() );
+        }
+    }
+
+    /**
+     *  Figures out the wiki context from the request.  This method does not create the context if it does not exist.
+     *  
+     *  @param request The request to examine
+     *  @return A valid WikiContext value (or null, if the context could not be located).
+     */
+    protected Context getWikiContext( final ServletRequest request ) {
+        final HttpServletRequest httpRequest = (HttpServletRequest) request;
+        return ( Context )httpRequest.getAttribute( Context.ATTR_CONTEXT );
+    }
+
+    /** 
+     * Determines whether the request has been previously wrapped with a WikiRequestWrapper. 
+     * We find the wrapper by recursively unwrapping successive request wrappers, if they have been supplied.
+     *
+     * @param request the current HTTP request
+     * @return <code>true</code> if the request has previously been wrapped; <code>false</code> otherwise
+     */
+    private boolean isWrapped( ServletRequest request ) {
+        while( !(request instanceof WikiRequestWrapper ) && request instanceof HttpServletRequestWrapper ) {
+            request = ( ( HttpServletRequestWrapper ) request ).getRequest();
+        }
+        return request instanceof WikiRequestWrapper;
+    }
+
+}

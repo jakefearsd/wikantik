@@ -16,7 +16,7 @@
 
 **Sequence of events during Tomcat startup:**
 1. `WikiBootstrapServletContextListener.contextInitialized()` — sets up SPIs + logging
-2. `McpServerInitializer.contextInitialized()` — looks for WikiEngine via `servletContext.getAttribute("org.apache.wiki.WikiEngine")` → **returns null** → logs WARN → returns without starting MCP
+2. `McpServerInitializer.contextInitialized()` — looks for WikiEngine via `servletContext.getAttribute("com.wikantik.WikiEngine")` → **returns null** → logs WARN → returns without starting MCP
 3. `WikiServletFilter.init()` → calls `Wiki.engine().find(context, null)` → **creates** WikiEngine, stores it in the attribute
 4. Other servlets init
 
@@ -56,7 +56,7 @@ The failsafe plugin's `verify` goal checks for test failures, but `testFailureIg
 In `McpServerInitializer.java`, add this import:
 
 ```java
-import org.apache.wiki.api.spi.Wiki;
+import com.wikantik.api.spi.Wiki;
 ```
 
 - [ ] **Step 2: Replace getAttribute with Wiki.engine().find()**
@@ -65,7 +65,7 @@ Replace lines 54-60:
 
 ```java
 // OLD:
-final WikiEngine engine = ( WikiEngine ) servletContext.getAttribute( "org.apache.wiki.WikiEngine" );
+final WikiEngine engine = ( WikiEngine ) servletContext.getAttribute( "com.wikantik.WikiEngine" );
 if ( engine == null ) {
     LOG.warn( "WikiEngine not found in ServletContext — MCP server not started. "
             + "Ensure McpServerInitializer runs after WikiBootstrapServletContextListener." );
@@ -90,12 +90,12 @@ try {
 
 - [ ] **Step 3: Remove unused WikiEngine import if needed**
 
-The `WikiEngine` import is still needed for the cast. Keep it. But the `import org.apache.wiki.WikiEngine;` can be replaced with the API import if `Wiki.engine().find()` returns `Engine`. Check the return type — it returns `Engine`, so cast to `WikiEngine`:
+The `WikiEngine` import is still needed for the cast. Keep it. But the `import com.wikantik.WikiEngine;` can be replaced with the API import if `Wiki.engine().find()` returns `Engine`. Check the return type — it returns `Engine`, so cast to `WikiEngine`:
 
 Actually, `Wiki.engine().find()` returns `Engine` (the API interface). The tool constructors need specific manager types obtained via `engine.getManager()` which is on the `Engine` interface. So we can use `Engine` instead of `WikiEngine`:
 
 ```java
-import org.apache.wiki.api.core.Engine;
+import com.wikantik.api.core.Engine;
 ```
 
 Replace:
@@ -107,7 +107,7 @@ With:
 Engine engine;
 ```
 
-And remove `import org.apache.wiki.WikiEngine;` since it's no longer needed.
+And remove `import com.wikantik.WikiEngine;` since it's no longer needed.
 
 Also update the manager lookups — they already use interface types (`PageManager`, `ReferenceManager`, `AttachmentManager`), and `getManager()` is on `Engine`, so no changes needed there.
 

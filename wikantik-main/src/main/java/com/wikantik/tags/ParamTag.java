@@ -1,0 +1,111 @@
+/* 
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.  
+ */
+package com.wikantik.tags;
+
+import jakarta.servlet.jsp.tagext.BodyContent;
+import jakarta.servlet.jsp.tagext.BodyTagSupport;
+import jakarta.servlet.jsp.tagext.Tag;
+import java.util.HashSet;
+import java.util.Set;
+
+/**
+ * ParamTag submits name-value pairs to the first enclosing 
+ * ParamHandler instance. Name and value are strings, and can
+ * be given as tag attributes, or alternatively the value can be 
+ * given as the body contents of this tag. 
+ * <p>
+ * The name-value pair is passed to the closest containing 
+ * ancestor tag that implements ParamHandler. 
+ */
+public class ParamTag 
+    extends BodyTagSupport
+{
+
+    private static final long serialVersionUID = -4671059568218551633L;
+    private String name;
+    private String value;
+    
+    /**
+     *  {@inheritDoc}
+     */
+    @Override
+    public void release() 
+    {
+        name = value = null;
+    }
+    
+    /**
+     *  Set the name of the parameter to transfer.
+     *  
+     *  @param s The name.
+     */
+    public void setName(final String s )
+    {
+        name = s;
+    }
+    
+    /**
+     *  Set the value of the parameter to transfer.
+     *  
+     *  @param s The value.
+     */
+    public void setValue(final String s )
+    {
+        value = s;
+    }
+    
+    /**
+     *  {@inheritDoc}
+     */
+    @Override
+    public int doEndTag()
+    {
+        // Start with the direct parent of this tag
+        Tag t = getParent();
+        final Set<Tag> visited = new HashSet<>();
+
+        // Keep moving up the tree until we find a parent that is a ParamHandler,
+        // or until we run out of parents. This prevents an infinite loop in case
+        // the parent of this tag is not a ParamHandler.
+        while (t != null && !(t instanceof ParamHandler)) {
+            if (!visited.add(t)) {
+                break; // We've seen this tag before, so break out of the loop
+            }
+            t = t.getParent();
+        }
+
+        if( t != null )
+        {
+            String val = value;
+            if( val == null )
+            {
+                final BodyContent bc = getBodyContent();
+                if( bc != null )
+                {
+                    val = bc.getString();
+                }
+            }
+            if( val != null )
+            {
+                ((ParamHandler)t).setContainedParameter( name, val );
+            }
+        }
+        return EVAL_PAGE;
+    }
+}

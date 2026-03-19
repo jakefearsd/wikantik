@@ -26,7 +26,7 @@
         <author>Janne Jalkanen</author>
         <path>editors/plain.jsp</path>
         <minVersion>1.0</minVersion>
-        <adminBean>org.apache.wiki.ui.admin.beans.PlainEditorAdminBean</adminBean>
+        <adminBean>com.wikantik.ui.admin.beans.PlainEditorAdminBean</adminBean>
     </editor>
     <!--
        Experimental wysiwyg editor, based on mooeditable
@@ -42,13 +42,13 @@
         <stylesheet>foo2.css</stylesheet>
         <alias>samplealias2</alias>
     </plugin>
-    <plugin class="org.apache.wiki.plugin.SamplePlugin">
+    <plugin class="com.wikantik.plugin.SamplePlugin">
         <author>Janne Jalkanen</author>
         <script>foo.js</script>
         <stylesheet>foo.css</stylesheet>
         <alias>samplealias</alias>
     </plugin>
-    <filter class="org.apache.wiki.filters.SpamFilter">
+    <filter class="com.wikantik.filters.SpamFilter">
         <author>Janne Jalkanen</author>
         <minVersion>1.0</minVersion>
     </filter>

@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-19** — Rebrand Phase 9: documentation cleanup and final sweep
+
 **2026-03-19** — Rebrand Phase 8: Docker, deployment, and infrastructure
 
 **2026-03-19** — Rebrand Phase 7: visual assets and UI text

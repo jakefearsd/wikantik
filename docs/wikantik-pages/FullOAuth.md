@@ -356,7 +356,7 @@ to the rest of the wiki system.
 │                         OAuth Module Architecture                            │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-org.apache.wiki.auth.oauth/
+com.wikantik.auth.oauth/
 ├── OAuthConfiguration.java          # Loads OAuth settings from properties
 ├── OAuthManager.java                 # Manages OAuth providers and flow
 ├── OAuthUserInfo.java                # DTO for user info from providers
@@ -462,9 +462,9 @@ Or, add version properties to root `pom.xml`:
   - Purpose:** Centralized configuration management for OAuth settings
 
 ```java
-package org.apache.wiki.auth.oauth;
+package com.wikantik.auth.oauth;
 
-import org.apache.wiki.api.core.Engine;
+import com.wikantik.api.core.Engine;
 import java.util.Properties;
 
 /**
@@ -543,7 +543,7 @@ public class OAuthConfiguration {
   - Purpose:** Data transfer object for OAuth user information
 
 ```java
-package org.apache.wiki.auth.oauth;
+package com.wikantik.auth.oauth;
 
 import java.io.Serializable;
 
@@ -639,10 +639,10 @@ public class OAuthUserInfo implements Serializable {
   - Location:** `jspwiki-main/src/main/java/org/apache/wiki/auth/oauth/provider/OAuthProvider.java`
 
 ```java
-package org.apache.wiki.auth.oauth.provider;
+package com.wikantik.auth.oauth.provider;
 
-import org.apache.wiki.auth.oauth.OAuthConfiguration;
-import org.apache.wiki.auth.oauth.OAuthUserInfo;
+import com.wikantik.auth.oauth.OAuthConfiguration;
+import com.wikantik.auth.oauth.OAuthUserInfo;
 
 /**
  * Interface for OAuth 2.0 providers.
@@ -718,7 +718,7 @@ public interface OAuthProvider {
   - Location:** `jspwiki-main/src/main/java/org/apache/wiki/auth/oauth/provider/GoogleOAuthProvider.java`
 
 ```java
-package org.apache.wiki.auth.oauth.provider;
+package com.wikantik.auth.oauth.provider;
 
 import com.auth0.jwk.Jwk;
 import com.auth0.jwk.JwkProvider;
@@ -730,8 +730,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.wiki.auth.oauth.OAuthConfiguration;
-import org.apache.wiki.auth.oauth.OAuthUserInfo;
+import com.wikantik.auth.oauth.OAuthConfiguration;
+import com.wikantik.auth.oauth.OAuthUserInfo;
 
 import java.io.IOException;
 import java.net.URI;
@@ -914,9 +914,9 @@ public class GoogleOAuthProvider implements OAuthProvider {
   - Location:** `jspwiki-main/src/main/java/org/apache/wiki/auth/login/OAuthCallback.java`
 
 ```java
-package org.apache.wiki.auth.login;
+package com.wikantik.auth.login;
 
-import org.apache.wiki.auth.oauth.OAuthUserInfo;
+import com.wikantik.auth.oauth.OAuthUserInfo;
 import javax.security.auth.callback.Callback;
 
 /**
@@ -941,11 +941,11 @@ public class OAuthCallback implements Callback {
   - Location:** `jspwiki-main/src/main/java/org/apache/wiki/auth/login/OAuthCallbackHandler.java`
 
 ```java
-package org.apache.wiki.auth.login;
+package com.wikantik.auth.login;
 
-import org.apache.wiki.api.core.Engine;
-import org.apache.wiki.auth.UserManager;
-import org.apache.wiki.auth.oauth.OAuthUserInfo;
+import com.wikantik.api.core.Engine;
+import com.wikantik.auth.UserManager;
+import com.wikantik.auth.oauth.OAuthUserInfo;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
@@ -995,15 +995,15 @@ public class OAuthCallbackHandler implements CallbackHandler {
   - Location:** `jspwiki-main/src/main/java/org/apache/wiki/auth/login/OAuthLoginModule.java`
 
 ```java
-package org.apache.wiki.auth.login;
+package com.wikantik.auth.login;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.wiki.auth.NoSuchPrincipalException;
-import org.apache.wiki.auth.WikiPrincipal;
-import org.apache.wiki.auth.oauth.OAuthUserInfo;
-import org.apache.wiki.auth.user.UserDatabase;
-import org.apache.wiki.auth.user.UserProfile;
+import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.WikiPrincipal;
+import com.wikantik.auth.oauth.OAuthUserInfo;
+import com.wikantik.auth.user.UserDatabase;
+import com.wikantik.auth.user.UserProfile;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.UnsupportedCallbackException;
@@ -1149,15 +1149,15 @@ public class OAuthLoginModule extends AbstractLoginModule {
   - Location:** `jspwiki-main/src/main/java/org/apache/wiki/auth/oauth/servlet/OAuthStartServlet.java`
 
 ```java
-package org.apache.wiki.auth.oauth.servlet;
+package com.wikantik.auth.oauth.servlet;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.wiki.Wiki;
-import org.apache.wiki.api.core.Engine;
-import org.apache.wiki.auth.oauth.OAuthConfiguration;
-import org.apache.wiki.auth.oauth.provider.GoogleOAuthProvider;
-import org.apache.wiki.auth.oauth.provider.OAuthProvider;
+import com.wikantik.Wiki;
+import com.wikantik.api.core.Engine;
+import com.wikantik.auth.oauth.OAuthConfiguration;
+import com.wikantik.auth.oauth.provider.GoogleOAuthProvider;
+import com.wikantik.auth.oauth.provider.OAuthProvider;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -1275,25 +1275,25 @@ public class OAuthStartServlet extends HttpServlet {
   - Location:** `jspwiki-main/src/main/java/org/apache/wiki/auth/oauth/servlet/OAuthCallbackServlet.java`
 
 ```java
-package org.apache.wiki.auth.oauth.servlet;
+package com.wikantik.auth.oauth.servlet;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.wiki.Wiki;
-import org.apache.wiki.api.core.Engine;
-import org.apache.wiki.api.core.Session;
-import org.apache.wiki.auth.AuthenticationManager;
-import org.apache.wiki.auth.SessionMonitor;
-import org.apache.wiki.auth.WikiSecurityException;
-import org.apache.wiki.auth.login.OAuthCallbackHandler;
-import org.apache.wiki.auth.login.OAuthLoginModule;
-import org.apache.wiki.auth.oauth.OAuthConfiguration;
-import org.apache.wiki.auth.oauth.OAuthUserInfo;
-import org.apache.wiki.auth.oauth.provider.GoogleOAuthProvider;
-import org.apache.wiki.auth.oauth.provider.OAuthProvider;
-import org.apache.wiki.auth.oauth.provider.OAuthProvider.TokenResponse;
-import org.apache.wiki.event.WikiSecurityEvent;
-import org.apache.wiki.event.WikiEventManager;
+import com.wikantik.Wiki;
+import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Session;
+import com.wikantik.auth.AuthenticationManager;
+import com.wikantik.auth.SessionMonitor;
+import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.login.OAuthCallbackHandler;
+import com.wikantik.auth.login.OAuthLoginModule;
+import com.wikantik.auth.oauth.OAuthConfiguration;
+import com.wikantik.auth.oauth.OAuthUserInfo;
+import com.wikantik.auth.oauth.provider.GoogleOAuthProvider;
+import com.wikantik.auth.oauth.provider.OAuthProvider;
+import com.wikantik.auth.oauth.provider.OAuthProvider.TokenResponse;
+import com.wikantik.event.WikiSecurityEvent;
+import com.wikantik.event.WikiEventManager;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -1493,13 +1493,13 @@ Add the following servlet definitions:
 <!-- OAuth Start Servlet -->
 <servlet>
     <servlet-name>OAuthStartServlet</servlet-name>
-    <servlet-class>org.apache.wiki.auth.oauth.servlet.OAuthStartServlet</servlet-class>
+    <servlet-class>com.wikantik.auth.oauth.servlet.OAuthStartServlet</servlet-class>
 </servlet>
 
 <!-- OAuth Callback Servlet -->
 <servlet>
     <servlet-name>OAuthCallbackServlet</servlet-name>
-    <servlet-class>org.apache.wiki.auth.oauth.servlet.OAuthCallbackServlet</servlet-class>
+    <servlet-class>com.wikantik.auth.oauth.servlet.OAuthCallbackServlet</servlet-class>
 </servlet>
 
 <servlet-mapping>
@@ -1733,9 +1733,9 @@ grant codeBase "file:${jspwiki.home}/WEB-INF/lib/jspwiki-main-*.jar" {
   - Location:** `jspwiki-main/src/test/java/org/apache/wiki/auth/oauth/OAuthConfigurationTest.java`
 
 ```java
-package org.apache.wiki.auth.oauth;
+package com.wikantik.auth.oauth;
 
-import org.apache.wiki.TestEngine;
+import com.wikantik.TestEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -1799,7 +1799,7 @@ class OAuthConfigurationTest {
       1. E.1.2 OAuthUserInfoTest.java
 
 ```java
-package org.apache.wiki.auth.oauth;
+package com.wikantik.auth.oauth;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -1848,11 +1848,11 @@ class OAuthUserInfoTest {
       1. E.1.3 OAuthLoginModuleTest.java
 
 ```java
-package org.apache.wiki.auth.login;
+package com.wikantik.auth.login;
 
-import org.apache.wiki.TestEngine;
-import org.apache.wiki.auth.oauth.OAuthUserInfo;
-import org.apache.wiki.auth.user.XMLUserDatabase;
+import com.wikantik.TestEngine;
+import com.wikantik.auth.oauth.OAuthUserInfo;
+import com.wikantik.auth.user.XMLUserDatabase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -1949,7 +1949,7 @@ class OAuthLoginModuleTest {
   - Location:** `jspwiki-it-tests/src/test/java/org/apache/wiki/its/OAuthFlowIntegrationTest.java`
 
 ```java
-package org.apache.wiki.its;
+package com.wikantik.its;
 
 import com.codeborne.selenide.Configuration;
 import com.codeborne.selenide.Selenide;
@@ -2257,8 +2257,8 @@ Enable debug logging for OAuth:
 
 ```properties
 1. In log4j2.xml
-<Logger name="org.apache.wiki.auth.oauth" level="DEBUG" />
-<Logger name="org.apache.wiki.auth.login.OAuthLoginModule" level="DEBUG" />
+<Logger name="com.wikantik.auth.oauth" level="DEBUG" />
+<Logger name="com.wikantik.auth.login.OAuthLoginModule" level="DEBUG" />
 ```
 
     1. G.3 Support Resources

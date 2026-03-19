@@ -19,9 +19,9 @@
 
 <%@ page import="java.util.*" %>
 <%@ page import="jakarta.servlet.jsp.jstl.fmt.*" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.pages.PageManager" %>
-<%@ page import="org.apache.wiki.tags.InsertDiffTag" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.pages.PageManager" %>
+<%@ page import="com.wikantik.tags.InsertDiffTag" %>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>

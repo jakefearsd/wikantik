@@ -19,14 +19,14 @@
 
 <%@ page import="org.apache.logging.log4j.Logger" %>
 <%@ page import="org.apache.logging.log4j.LogManager" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.api.spi.Wiki" %>
-<%@ page import="org.apache.wiki.auth.AuthorizationManager" %>
-<%@ page import="org.apache.wiki.auth.NoSuchPrincipalException" %>
-<%@ page import="org.apache.wiki.auth.WikiSecurityException" %>
-<%@ page import="org.apache.wiki.auth.authorize.GroupManager" %>
-<%@ page import="org.apache.wiki.http.filter.CsrfProtectionFilter" %>
-<%@ page import="org.apache.wiki.preferences.Preferences" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.api.spi.Wiki" %>
+<%@ page import="com.wikantik.auth.AuthorizationManager" %>
+<%@ page import="com.wikantik.auth.NoSuchPrincipalException" %>
+<%@ page import="com.wikantik.auth.WikiSecurityException" %>
+<%@ page import="com.wikantik.auth.authorize.GroupManager" %>
+<%@ page import="com.wikantik.http.filter.CsrfProtectionFilter" %>
+<%@ page import="com.wikantik.preferences.Preferences" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 

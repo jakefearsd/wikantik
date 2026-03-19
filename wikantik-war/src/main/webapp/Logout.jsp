@@ -17,11 +17,11 @@
     under the License.  
 --%>
 
-<%@page import="org.apache.wiki.api.core.Engine" %>
-<%@page import="org.apache.wiki.api.spi.Wiki" %>
-<%@page import="org.apache.wiki.auth.AuthenticationManager" %>
-<%@page import="org.apache.wiki.auth.login.CookieAssertionLoginModule" %>
-<%@page import="org.apache.wiki.auth.login.CookieAuthenticationLoginModule"%>
+<%@page import="com.wikantik.api.core.Engine" %>
+<%@page import="com.wikantik.api.spi.Wiki" %>
+<%@page import="com.wikantik.auth.AuthenticationManager" %>
+<%@page import="com.wikantik.auth.login.CookieAssertionLoginModule" %>
+<%@page import="com.wikantik.auth.login.CookieAuthenticationLoginModule"%>
 <%
   Engine wiki = Wiki.engine().find( getServletConfig() );
   wiki.getManager( AuthenticationManager.class ).logout( request );

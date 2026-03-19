@@ -18,7 +18,7 @@
 --%>
 
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki"  %>
-<%@ page import="org.apache.wiki.api.core.*" %>
+<%@ page import="com.wikantik.api.core.*" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ page import="jakarta.servlet.jsp.jstl.fmt.*" %>

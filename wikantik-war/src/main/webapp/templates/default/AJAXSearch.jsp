@@ -25,14 +25,14 @@
 <%@ page import="org.apache.commons.lang3.*" %>
 <%@ page import="org.apache.logging.log4j.Logger" %>
 <%@ page import="org.apache.logging.log4j.LogManager" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.api.spi.Wiki" %>
-<%@ page import="org.apache.wiki.api.search.SearchResult" %>
-<%@ page import="org.apache.wiki.auth.*" %>
-<%@ page import="org.apache.wiki.auth.permissions.*" %>
-<%@ page import="org.apache.wiki.preferences.Preferences" %>
-<%@ page import="org.apache.wiki.search.SearchManager" %>
-<%@ page import="org.apache.wiki.ui.*" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.api.spi.Wiki" %>
+<%@ page import="com.wikantik.api.search.SearchResult" %>
+<%@ page import="com.wikantik.auth.*" %>
+<%@ page import="com.wikantik.auth.permissions.*" %>
+<%@ page import="com.wikantik.preferences.Preferences" %>
+<%@ page import="com.wikantik.search.SearchManager" %>
+<%@ page import="com.wikantik.ui.*" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ page import="jakarta.servlet.jsp.jstl.fmt.*" %>

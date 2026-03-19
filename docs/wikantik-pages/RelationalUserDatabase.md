@@ -83,8 +83,8 @@ Update your `jspwiki-custom.properties` file to use the `JDBCUserDatabase` and `
 
 ```properties
 1. Use the JDBC user and group databases
-jspwiki.userdatabase = org.apache.wiki.auth.user.JDBCUserDatabase
-jspwiki.groupdatabase = org.apache.wiki.auth.authorize.JDBCGroupDatabase
+jspwiki.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
+jspwiki.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 
 1. JNDI names for the databases
 jspwiki.jdbc.user.jndiname = jdbc/UserDatabase

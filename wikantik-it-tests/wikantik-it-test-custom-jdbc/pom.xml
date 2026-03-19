@@ -33,8 +33,8 @@
   <properties> <!-- tests reuse [3/3]: values injected at ../wikantik-selenide-tests/.../wikantik-custom.properties end up on generated war -->
     <it-wikantik.context>${project.artifactId}</it-wikantik.context>
 
-    <it-wikantik.groupdatabase>org.apache.wiki.auth.authorize.JDBCGroupDatabase</it-wikantik.groupdatabase>
-    <it-wikantik.userdatabase>org.apache.wiki.auth.user.JDBCUserDatabase</it-wikantik.userdatabase>
+    <it-wikantik.groupdatabase>com.wikantik.auth.authorize.JDBCGroupDatabase</it-wikantik.groupdatabase>
+    <it-wikantik.userdatabase>com.wikantik.auth.user.JDBCUserDatabase</it-wikantik.userdatabase>
     <it-wikantik.referenceStyle>relative</it-wikantik.referenceStyle>
   </properties>
   

@@ -28,8 +28,8 @@
 
   <tag>
     <name>AdminBeanIterator</name>
-    <tag-class>org.apache.wiki.tags.AdminBeanIteratorTag</tag-class>
-    <tei-class>org.apache.wiki.tags.AdminBeanIteratorInfo</tei-class>
+    <tag-class>com.wikantik.tags.AdminBeanIteratorTag</tag-class>
+    <tei-class>com.wikantik.tags.AdminBeanIteratorInfo</tei-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>id</name>
@@ -43,8 +43,8 @@
 
   <tag>
     <name>AttachmentsIterator</name>
-    <tag-class>org.apache.wiki.tags.AttachmentsIteratorTag</tag-class>
-    <tei-class>org.apache.wiki.tags.AttachmentsIteratorInfo</tei-class>
+    <tag-class>com.wikantik.tags.AttachmentsIteratorTag</tag-class>
+    <tei-class>com.wikantik.tags.AttachmentsIteratorInfo</tei-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>id</name>
@@ -53,7 +53,7 @@
 
   <tag>
     <name>Author</name>
-    <tag-class>org.apache.wiki.tags.AuthorTag</tag-class>
+    <tag-class>com.wikantik.tags.AuthorTag</tag-class>
     <body-content>empty</body-content>
     <attribute>
        <name>format</name>
@@ -63,13 +63,13 @@
 
   <tag>
     <name>BaseURL</name>
-    <tag-class>org.apache.wiki.tags.BaseURLTag</tag-class>
+    <tag-class>com.wikantik.tags.BaseURLTag</tag-class>
     <body-content>empty</body-content>
   </tag>
 
   <tag>
     <name>Breadcrumbs</name>
-    <tag-class>org.apache.wiki.tags.BreadcrumbsTag</tag-class>
+    <tag-class>com.wikantik.tags.BreadcrumbsTag</tag-class>
     <body-content>empty</body-content>
     <attribute>
        <name>maxpages</name>
@@ -83,7 +83,7 @@
 
   <tag>
     <name>Calendar</name>
-    <tag-class>org.apache.wiki.tags.CalendarTag</tag-class>
+    <tag-class>com.wikantik.tags.CalendarTag</tag-class>
     <body-content>empty</body-content>
     <attribute>
        <name>pageformat</name>
@@ -105,8 +105,8 @@
 
   <tag>
     <name>CheckLock</name>
-    <tag-class>org.apache.wiki.tags.CheckLockTag</tag-class>
-    <tei-class>org.apache.wiki.tags.CheckLockInfo</tei-class>
+    <tag-class>com.wikantik.tags.CheckLockTag</tag-class>
+    <tei-class>com.wikantik.tags.CheckLockInfo</tei-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>mode</name>
@@ -118,7 +118,7 @@
 
   <tag>
     <name>CheckRequestContext</name>
-    <tag-class>org.apache.wiki.tags.CheckRequestContextTag</tag-class>
+    <tag-class>com.wikantik.tags.CheckRequestContextTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>context</name>
@@ -128,7 +128,7 @@
 
   <tag>
     <name>CheckVersion</name>
-    <tag-class>org.apache.wiki.tags.CheckVersionTag</tag-class>
+    <tag-class>com.wikantik.tags.CheckVersionTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>mode</name>
@@ -137,7 +137,7 @@
 
   <tag>
     <name>CommentLink</name>
-    <tag-class>org.apache.wiki.tags.CommentLinkTag</tag-class>
+    <tag-class>com.wikantik.tags.CommentLinkTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>page</name>
@@ -150,7 +150,7 @@
 
   <tag>
     <name>Content</name>
-    <tag-class>org.apache.wiki.tags.ContentTag</tag-class>
+    <tag-class>com.wikantik.tags.ContentTag</tag-class>
     <body-content>empty</body-content>
     <attribute>
        <name>view</name>
@@ -196,13 +196,13 @@
 
   <tag>
     <name>ContentEncoding</name>
-    <tag-class>org.apache.wiki.tags.ContentEncodingTag</tag-class>
+    <tag-class>com.wikantik.tags.ContentEncodingTag</tag-class>
     <body-content>empty</body-content>
   </tag>
 
   <tag>
     <name>CsrfProtection</name>
-    <tag-class>org.apache.wiki.tags.CsrfProtectionTag</tag-class>
+    <tag-class>com.wikantik.tags.CsrfProtectionTag</tag-class>
     <body-content>empty</body-content>
     <attribute>
       <name>format</name>
@@ -211,7 +211,7 @@
 
   <tag>
     <name>DiffLink</name>
-    <tag-class>org.apache.wiki.tags.DiffLinkTag</tag-class>
+    <tag-class>com.wikantik.tags.DiffLinkTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>page</name>
@@ -232,7 +232,7 @@
 
   <tag>
     <name>EditLink</name>
-    <tag-class>org.apache.wiki.tags.EditLinkTag</tag-class>
+    <tag-class>com.wikantik.tags.EditLinkTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>page</name>
@@ -257,14 +257,14 @@
 
   <tag>
     <name>Editor</name>
-    <tag-class>org.apache.wiki.tags.EditorTag</tag-class>
+    <tag-class>com.wikantik.tags.EditorTag</tag-class>
     <body-content>JSP</body-content>
   </tag>
 
   <tag>
     <name>EditorIterator</name>
-    <tag-class>org.apache.wiki.tags.EditorIteratorTag</tag-class>
-    <tei-class>org.apache.wiki.tags.EditorIteratorInfo</tei-class>
+    <tag-class>com.wikantik.tags.EditorIteratorTag</tag-class>
+    <tei-class>com.wikantik.tags.EditorIteratorInfo</tei-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>id</name>
@@ -273,14 +273,14 @@
 
   <tag>
     <name>HasAttachments</name>
-    <tag-class>org.apache.wiki.tags.HasAttachmentsTag</tag-class>
+    <tag-class>com.wikantik.tags.HasAttachmentsTag</tag-class>
     <body-content>JSP</body-content>
   </tag>
 
   <tag>
     <name>HistoryIterator</name>
-    <tag-class>org.apache.wiki.tags.HistoryIteratorTag</tag-class>
-    <tei-class>org.apache.wiki.tags.HistoryIteratorInfo</tei-class>
+    <tag-class>com.wikantik.tags.HistoryIteratorTag</tag-class>
+    <tei-class>com.wikantik.tags.HistoryIteratorInfo</tei-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>id</name>
@@ -289,13 +289,13 @@
 
   <tag>
     <name>IfNoSearchResults</name>
-    <tag-class>org.apache.wiki.tags.IfNoSearchResultsTag</tag-class>
+    <tag-class>com.wikantik.tags.IfNoSearchResultsTag</tag-class>
     <body-content>JSP</body-content>
   </tag>
 
   <tag>
     <name>Include</name>
-    <tag-class>org.apache.wiki.tags.IncludeTag</tag-class>
+    <tag-class>com.wikantik.tags.IncludeTag</tag-class>
     <body-content>empty</body-content>
     <attribute>
        <name>page</name>
@@ -305,7 +305,7 @@
 
   <tag>
     <name>IncludeResources</name>
-    <tag-class>org.apache.wiki.tags.IncludeResourcesTag</tag-class>
+    <tag-class>com.wikantik.tags.IncludeResourcesTag</tag-class>
     <body-content>empty</body-content>
     <attribute>
        <name>type</name>
@@ -315,7 +315,7 @@
 
   <tag>
     <name>InsertDiff</name>
-    <tag-class>org.apache.wiki.tags.InsertDiffTag</tag-class>
+    <tag-class>com.wikantik.tags.InsertDiffTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>page</name>
@@ -325,7 +325,7 @@
 
   <tag>
     <name>InsertPage</name>
-    <tag-class>org.apache.wiki.tags.InsertPageTag</tag-class>
+    <tag-class>com.wikantik.tags.InsertPageTag</tag-class>
     <body-content>empty</body-content>
     <attribute>
        <name>page</name>
@@ -339,7 +339,7 @@
 
   <tag>
     <name>Link</name>
-    <tag-class>org.apache.wiki.tags.LinkTag</tag-class>
+    <tag-class>com.wikantik.tags.LinkTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>page</name>
@@ -404,7 +404,7 @@
 
   <tag>
     <name>LinkTo</name>
-    <tag-class>org.apache.wiki.tags.LinkToTag</tag-class>
+    <tag-class>com.wikantik.tags.LinkToTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>page</name>
@@ -433,7 +433,7 @@
 
   <tag>
     <name>LinkToParent</name>
-    <tag-class>org.apache.wiki.tags.LinkToParentTag</tag-class>
+    <tag-class>com.wikantik.tags.LinkToParentTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>page</name>
@@ -450,7 +450,7 @@
 
   <tag>
     <name>Messages</name>
-    <tag-class>org.apache.wiki.tags.MessagesTag</tag-class>
+    <tag-class>com.wikantik.tags.MessagesTag</tag-class>
     <body-content>empty</body-content>
     <attribute>
        <name>action</name>
@@ -472,13 +472,13 @@
 
   <tag>
     <name>NextVersion</name>
-    <tag-class>org.apache.wiki.tags.NextVersionTag</tag-class>
+    <tag-class>com.wikantik.tags.NextVersionTag</tag-class>
     <body-content>empty</body-content>
   </tag>
 
   <tag>
     <name>NoSuchPage</name>
-    <tag-class>org.apache.wiki.tags.NoSuchPageTag</tag-class>
+    <tag-class>com.wikantik.tags.NoSuchPageTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>page</name>
@@ -488,7 +488,7 @@
 
   <tag>
     <name>PageExists</name>
-    <tag-class>org.apache.wiki.tags.PageExistsTag</tag-class>
+    <tag-class>com.wikantik.tags.PageExistsTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>page</name>
@@ -498,7 +498,7 @@
 
   <tag>
     <name>PageInfoLink</name>
-    <tag-class>org.apache.wiki.tags.PageInfoLinkTag</tag-class>
+    <tag-class>com.wikantik.tags.PageInfoLinkTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>page</name>
@@ -520,7 +520,7 @@
 
   <tag>
     <name>PageDate</name>
-    <tag-class>org.apache.wiki.tags.PageDateTag</tag-class>
+    <tag-class>com.wikantik.tags.PageDateTag</tag-class>
     <body-content>empty</body-content>
     <attribute>
         <name>format</name>
@@ -530,19 +530,19 @@
 
   <tag>
     <name>PageName</name>
-    <tag-class>org.apache.wiki.tags.PageNameTag</tag-class>
+    <tag-class>com.wikantik.tags.PageNameTag</tag-class>
     <body-content>empty</body-content>
   </tag>
 
   <tag>
     <name>PageSize</name>
-    <tag-class>org.apache.wiki.tags.PageSizeTag</tag-class>
+    <tag-class>com.wikantik.tags.PageSizeTag</tag-class>
     <body-content>empty</body-content>
   </tag>
 
   <tag>
     <name>PageType</name>
-    <tag-class>org.apache.wiki.tags.PageTypeTag</tag-class>
+    <tag-class>com.wikantik.tags.PageTypeTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>type</name>
@@ -552,13 +552,13 @@
 
   <tag>
     <name>PageVersion</name>
-    <tag-class>org.apache.wiki.tags.PageVersionTag</tag-class>
+    <tag-class>com.wikantik.tags.PageVersionTag</tag-class>
     <body-content>JSP</body-content>
   </tag>
 
   <tag>
     <name>Param</name>
-    <tag-class>org.apache.wiki.tags.ParamTag</tag-class>
+    <tag-class>com.wikantik.tags.ParamTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>name</name>
@@ -574,13 +574,13 @@
 
   <tag>
     <name>ParentPageName</name>
-    <tag-class>org.apache.wiki.tags.ParentPageNameTag</tag-class>
+    <tag-class>com.wikantik.tags.ParentPageNameTag</tag-class>
     <body-content>empty</body-content>
   </tag>
 
   <tag>
     <name>Permission</name>
-    <tag-class>org.apache.wiki.tags.PermissionTag</tag-class>
+    <tag-class>com.wikantik.tags.PermissionTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>permission</name>
@@ -590,13 +590,13 @@
 
   <tag>
     <name>PreviousVersion</name>
-    <tag-class>org.apache.wiki.tags.PreviousVersionTag</tag-class>
+    <tag-class>com.wikantik.tags.PreviousVersionTag</tag-class>
     <body-content>empty</body-content>
   </tag>
 
   <tag>
     <name>Plugin</name>
-    <tag-class>org.apache.wiki.tags.PluginTag</tag-class>
+    <tag-class>com.wikantik.tags.PluginTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>plugin</name>
@@ -612,7 +612,7 @@
 
   <tag>
     <name>RequestResource</name>
-    <tag-class>org.apache.wiki.tags.RequestResourceTag</tag-class>
+    <tag-class>com.wikantik.tags.RequestResourceTag</tag-class>
     <body-content>empty</body-content>
     <attribute>
        <name>type</name>
@@ -626,8 +626,8 @@
 
   <tag>
     <name>SearchResultIterator</name>
-    <tag-class>org.apache.wiki.tags.SearchResultIteratorTag</tag-class>
-    <tei-class>org.apache.wiki.tags.SearchResultIteratorInfo</tei-class>
+    <tag-class>com.wikantik.tags.SearchResultIteratorTag</tag-class>
+    <tei-class>com.wikantik.tags.SearchResultIteratorInfo</tei-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>id</name>
@@ -650,20 +650,20 @@
 
   <tag>
     <name>SearchResults</name>
-    <tag-class>org.apache.wiki.tags.SearchResultsTag</tag-class>
+    <tag-class>com.wikantik.tags.SearchResultsTag</tag-class>
     <body-content>JSP</body-content>
   </tag>
 
   <tag>
     <name>SearchResultsSize</name>
-    <tag-class>org.apache.wiki.tags.SearchResultsSizeTag</tag-class>
+    <tag-class>com.wikantik.tags.SearchResultsSizeTag</tag-class>
     <body-content>empty</body-content>
   </tag>
 
   <tag>
     <description>Returns pagination string and cache it in the pageContext</description>
     <name>SetPagination</name>
-    <tag-class>org.apache.wiki.tags.SetPaginationTag</tag-class>
+    <tag-class>com.wikantik.tags.SetPaginationTag</tag-class>
     <body-content>empty</body-content>
     <attribute>
        <name>start</name>
@@ -703,14 +703,14 @@
   <tag>
       <description>Includes input fields used by the Spam Filter</description>
       <name>SpamFilterInputs</name>
-      <tag-class>org.apache.wiki.tags.SpamFilterInputsTag</tag-class>
+      <tag-class>com.wikantik.tags.SpamFilterInputsTag</tag-class>
       <body-content>empty</body-content>
   </tag>
 
   <tag>
     <description>A BodyTag for tabbed sections</description>
     <name>TabbedSection</name>
-    <tag-class>org.apache.wiki.tags.TabbedSectionTag</tag-class>
+    <tag-class>com.wikantik.tags.TabbedSectionTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
       <name>defaultTab</name>
@@ -722,7 +722,7 @@
   <tag>
     <description>A Tag for a tab, which is a child of tabbedSection</description>
     <name>Tab</name>
-    <tag-class>org.apache.wiki.tags.TabTag</tag-class>
+    <tag-class>com.wikantik.tags.TabTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
       <name>id</name>
@@ -748,19 +748,19 @@
 
   <tag>
     <name>TemplateDir</name>
-    <tag-class>org.apache.wiki.tags.TemplateDirTag</tag-class>
+    <tag-class>com.wikantik.tags.TemplateDirTag</tag-class>
     <body-content>empty</body-content>
   </tag>
 
   <tag>
     <name>Translate</name>
-    <tag-class>org.apache.wiki.tags.TranslateTag</tag-class>
+    <tag-class>com.wikantik.tags.TranslateTag</tag-class>
     <body-content>JSP</body-content>
   </tag>
 
   <tag>
     <name>UploadLink</name>
-    <tag-class>org.apache.wiki.tags.UploadLinkTag</tag-class>
+    <tag-class>com.wikantik.tags.UploadLinkTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>page</name>
@@ -773,13 +773,13 @@
 
   <tag>
     <name>UserName</name>
-    <tag-class>org.apache.wiki.tags.UserNameTag</tag-class>
+    <tag-class>com.wikantik.tags.UserNameTag</tag-class>
     <body-content>empty</body-content>
   </tag>
 
   <tag>
     <name>UserCheck</name>
-    <tag-class>org.apache.wiki.tags.UserCheckTag</tag-class>
+    <tag-class>com.wikantik.tags.UserCheckTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>status</name>
@@ -793,7 +793,7 @@
 
   <tag>
     <name>UserProfile</name>
-    <tag-class>org.apache.wiki.tags.UserProfileTag</tag-class>
+    <tag-class>com.wikantik.tags.UserProfileTag</tag-class>
     <body-content>JSP</body-content>
     <attribute>
        <name>property</name>
@@ -803,7 +803,7 @@
 
   <tag>
     <name>Variable</name>
-    <tag-class>org.apache.wiki.tags.VariableTag</tag-class>
+    <tag-class>com.wikantik.tags.VariableTag</tag-class>
     <body-content>empty</body-content>
     <attribute>
        <name>var</name>
@@ -819,7 +819,7 @@
 
   <tag>
       <name>Cookie</name>
-      <tag-class>org.apache.wiki.tags.CookieTag</tag-class>
+      <tag-class>com.wikantik.tags.CookieTag</tag-class>
       <body-content>empty</body-content>
       <attribute>
           <name>name</name>

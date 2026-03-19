@@ -20,15 +20,15 @@
 <%@ page import="java.util.*" %>
 <%@ page import="org.apache.logging.log4j.Logger" %>
 <%@ page import="org.apache.logging.log4j.LogManager" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.api.search.*" %>
-<%@ page import="org.apache.wiki.api.spi.Wiki" %>
-<%@ page import="org.apache.wiki.auth.*" %>
-<%@ page import="org.apache.wiki.auth.permissions.*" %>
-<%@ page import="org.apache.wiki.preferences.Preferences" %>
-<%@ page import="org.apache.wiki.search.SearchManager" %>
-<%@ page import="org.apache.wiki.ui.TemplateManager" %>
-<%@ page import="org.apache.wiki.util.TextUtil" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.api.search.*" %>
+<%@ page import="com.wikantik.api.spi.Wiki" %>
+<%@ page import="com.wikantik.auth.*" %>
+<%@ page import="com.wikantik.auth.permissions.*" %>
+<%@ page import="com.wikantik.preferences.Preferences" %>
+<%@ page import="com.wikantik.search.SearchManager" %>
+<%@ page import="com.wikantik.ui.TemplateManager" %>
+<%@ page import="com.wikantik.util.TextUtil" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 

@@ -57,11 +57,11 @@
 
     <filter>
         <filter-name>WikiServletFilter</filter-name>
-        <filter-class>org.apache.wiki.ui.WikiServletFilter</filter-class>
+        <filter-class>com.wikantik.ui.WikiServletFilter</filter-class>
     </filter>
     <filter>
         <filter-name>WikiJSPFilter</filter-name>
-        <filter-class>org.apache.wiki.ui.WikiJSPFilter</filter-class>
+        <filter-class>com.wikantik.ui.WikiJSPFilter</filter-class>
     </filter>
 
     <filter-mapping>
@@ -80,17 +80,17 @@
        HttpSessionListener used for managing WikiSession's.
      -->
    <listener>
-      <listener-class>org.apache.wiki.auth.SessionMonitor</listener-class>
+      <listener-class>com.wikantik.auth.SessionMonitor</listener-class>
    </listener>
 
    <!-- servlet context listener to configure API's SPI -->
    <listener>
-       <listener-class>org.apache.wiki.bootstrap.WikiBootstrapServletContextListener</listener-class>
+       <listener-class>com.wikantik.bootstrap.WikiBootstrapServletContextListener</listener-class>
    </listener>
 
    <!-- MCP server bootstrap — must come after WikiBootstrapServletContextListener -->
    <listener>
-       <listener-class>org.apache.wiki.mcp.McpServerInitializer</listener-class>
+       <listener-class>com.wikantik.mcp.McpServerInitializer</listener-class>
    </listener>
 
    <!--
@@ -101,10 +101,10 @@
      -->
    <servlet>
        <servlet-name>XMLRPC</servlet-name>
-       <servlet-class>org.apache.wiki.xmlrpc.RPCServlet</servlet-class>
+       <servlet-class>com.wikantik.xmlrpc.RPCServlet</servlet-class>
        <init-param>
            <param-name>handler</param-name>
-           <param-value>org.apache.wiki.xmlrpc.RPCHandler</param-value>
+           <param-value>com.wikantik.xmlrpc.RPCHandler</param-value>
        </init-param>
 
        <init-param>
@@ -119,10 +119,10 @@
 
    <servlet>
        <servlet-name>XMLRPC-UTF8</servlet-name>
-       <servlet-class>org.apache.wiki.xmlrpc.RPCServlet</servlet-class>
+       <servlet-class>com.wikantik.xmlrpc.RPCServlet</servlet-class>
        <init-param>
            <param-name>handler</param-name>
-           <param-value>org.apache.wiki.xmlrpc.RPCHandlerUTF8</param-value>
+           <param-value>com.wikantik.xmlrpc.RPCHandlerUTF8</param-value>
        </init-param>
 
        <init-param>
@@ -140,13 +140,13 @@
    <!-- Atom Publishing Protocol -->
    <servlet>
        <servlet-name>ATOM</servlet-name>
-       <servlet-class>org.apache.wiki.rpc.atom.AtomAPIServlet</servlet-class>
+       <servlet-class>com.wikantik.rpc.atom.AtomAPIServlet</servlet-class>
    </servlet>
 
    <!-- Maps short URLS to JSPs; also, detects webapp shutdown. -->
    <servlet>
        <servlet-name>WikiServlet</servlet-name>
-       <servlet-class>org.apache.wiki.WikiServlet</servlet-class>
+       <servlet-class>com.wikantik.WikiServlet</servlet-class>
        <load-on-startup>1</load-on-startup>
    </servlet>
 
@@ -156,13 +156,13 @@
 
    <servlet>
        <servlet-name>AttachmentServlet</servlet-name>
-       <servlet-class>org.apache.wiki.attachment.AttachmentServlet</servlet-class>
+       <servlet-class>com.wikantik.attachment.AttachmentServlet</servlet-class>
    </servlet>
 
    <!-- Sitemap servlet for search engine indexing -->
    <servlet>
        <servlet-name>SitemapServlet</servlet-name>
-       <servlet-class>org.apache.wiki.ui.SitemapServlet</servlet-class>
+       <servlet-class>com.wikantik.ui.SitemapServlet</servlet-class>
    </servlet>
 
    <servlet-mapping>

@@ -67,11 +67,11 @@
 
    <filter>
      <filter-name>WikiServletFilter</filter-name>
-     <filter-class>org.apache.wiki.ui.WikiServletFilter</filter-class>
+     <filter-class>com.wikantik.ui.WikiServletFilter</filter-class>
    </filter>
    <filter>
      <filter-name>WikiJSPFilter</filter-name>
-     <filter-class>org.apache.wiki.ui.WikiJSPFilter</filter-class>
+     <filter-class>com.wikantik.ui.WikiJSPFilter</filter-class>
    </filter>
 
    <filter-mapping>
@@ -91,7 +91,7 @@
    -->
    <filter>
      <filter-name>COEPFilter</filter-name>
-     <filter-class>org.apache.wiki.http.filter.COEPFilter</filter-class>
+     <filter-class>com.wikantik.http.filter.COEPFilter</filter-class>
      <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
@@ -100,7 +100,7 @@
    </filter-mapping>
    <filter>
      <filter-name>CORPFilter</filter-name>
-     <filter-class>org.apache.wiki.http.filter.CORPFilter</filter-class>
+     <filter-class>com.wikantik.http.filter.CORPFilter</filter-class>
      <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
@@ -109,7 +109,7 @@
    </filter-mapping>
    <filter>
      <filter-name>ClearSiteDataFilter</filter-name>
-     <filter-class>org.apache.wiki.http.filter.ClearSiteDataFilter</filter-class>
+     <filter-class>com.wikantik.http.filter.ClearSiteDataFilter</filter-class>
    </filter>
    <filter-mapping>
      <filter-name>ClearSiteDataFilter</filter-name>
@@ -118,7 +118,7 @@
    </filter-mapping>
    <filter>
      <filter-name>ContentTypeOptionsFilter</filter-name>
-     <filter-class>org.apache.wiki.http.filter.ContentTypeOptionsFilter</filter-class>
+     <filter-class>com.wikantik.http.filter.ContentTypeOptionsFilter</filter-class>
      <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
@@ -127,7 +127,7 @@
    </filter-mapping>
    <filter>
      <filter-name>CrossDomainFilter</filter-name>
-     <filter-class>org.apache.wiki.http.filter.CrossDomainFilter</filter-class>
+     <filter-class>com.wikantik.http.filter.CrossDomainFilter</filter-class>
      <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
@@ -136,7 +136,7 @@
    </filter-mapping>
    <filter>
      <filter-name>ReferrerPolicyFilter</filter-name>
-     <filter-class>org.apache.wiki.http.filter.ReferrerPolicyFilter</filter-class>
+     <filter-class>com.wikantik.http.filter.ReferrerPolicyFilter</filter-class>
      <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
@@ -145,7 +145,7 @@
    </filter-mapping>
     <filter>
      <filter-name>STSFilter</filter-name>
-     <filter-class>org.apache.wiki.http.filter.STSFilter</filter-class>
+     <filter-class>com.wikantik.http.filter.STSFilter</filter-class>
      <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
@@ -160,31 +160,31 @@
        HttpSessionListener used for managing WikiSession's.
      -->
    <listener>
-      <listener-class>org.apache.wiki.auth.SessionMonitor</listener-class>
+      <listener-class>com.wikantik.auth.SessionMonitor</listener-class>
    </listener>
 
    <!-- servlet context listener to configure API's SPI -->
    <listener>
-       <listener-class>org.apache.wiki.bootstrap.WikiBootstrapServletContextListener</listener-class>
+       <listener-class>com.wikantik.bootstrap.WikiBootstrapServletContextListener</listener-class>
    </listener>
 
    <!-- MCP server bootstrap — must come after WikiBootstrapServletContextListener -->
    <listener>
-       <listener-class>org.apache.wiki.mcp.McpServerInitializer</listener-class>
+       <listener-class>com.wikantik.mcp.McpServerInitializer</listener-class>
    </listener>
 
 
     <!-- WikiAjaxDispatcherServlet -->
     <servlet>
         <servlet-name>WikiAjaxDispatcherServlet</servlet-name>
-        <servlet-class>org.apache.wiki.ajax.WikiAjaxDispatcherServlet</servlet-class>
+        <servlet-class>com.wikantik.ajax.WikiAjaxDispatcherServlet</servlet-class>
         <load-on-startup>1</load-on-startup>
     </servlet>
 
    <!-- Maps short URLS to JSPs; also, detects webapp shutdown. -->
    <servlet>
        <servlet-name>WikiServlet</servlet-name>
-       <servlet-class>org.apache.wiki.WikiServlet</servlet-class>
+       <servlet-class>com.wikantik.WikiServlet</servlet-class>
        <load-on-startup>1</load-on-startup>
    </servlet>
 
@@ -194,29 +194,29 @@
 
    <servlet>
        <servlet-name>AttachmentServlet</servlet-name>
-       <servlet-class>org.apache.wiki.attachment.AttachmentServlet</servlet-class>
+       <servlet-class>com.wikantik.attachment.AttachmentServlet</servlet-class>
    </servlet>
 
    <!-- Sitemap servlet for search engine indexing -->
    <servlet>
        <servlet-name>SitemapServlet</servlet-name>
-       <servlet-class>org.apache.wiki.ui.SitemapServlet</servlet-class>
+       <servlet-class>com.wikantik.ui.SitemapServlet</servlet-class>
    </servlet>
 
    <!-- REST API servlet for recent articles -->
    <servlet>
        <servlet-name>RecentArticlesServlet</servlet-name>
-       <servlet-class>org.apache.wiki.content.RecentArticlesServlet</servlet-class>
+       <servlet-class>com.wikantik.content.RecentArticlesServlet</servlet-class>
    </servlet>
 
    <!-- SSO servlets for OIDC/SAML authentication -->
    <servlet>
        <servlet-name>SSORedirectServlet</servlet-name>
-       <servlet-class>org.apache.wiki.auth.sso.SSORedirectServlet</servlet-class>
+       <servlet-class>com.wikantik.auth.sso.SSORedirectServlet</servlet-class>
    </servlet>
    <servlet>
        <servlet-name>SSOCallbackServlet</servlet-name>
-       <servlet-class>org.apache.wiki.auth.sso.SSOCallbackServlet</servlet-class>
+       <servlet-class>com.wikantik.auth.sso.SSOCallbackServlet</servlet-class>
    </servlet>
 
    <servlet-mapping>

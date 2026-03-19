@@ -21,9 +21,9 @@
 <%@ page import="java.util.Arrays" %>
 <%@ page import="org.apache.logging.log4j.Logger" %>
 <%@ page import="org.apache.logging.log4j.LogManager" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.auth.authorize.Group" %>
-<%@ page import="org.apache.wiki.util.comparators.PrincipalComparator" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.auth.authorize.Group" %>
+<%@ page import="com.wikantik.util.comparators.PrincipalComparator" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>

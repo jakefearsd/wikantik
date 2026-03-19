@@ -21,11 +21,11 @@
 <pagefilters>
 
    <filter>
-      <class>org.apache.wiki.filters.ProfanityFilter</class>
+      <class>com.wikantik.filters.ProfanityFilter</class>
    </filter>
    
    <filter>
-      <class>org.apache.wiki.filters.TestFilter</class>
+      <class>com.wikantik.filters.TestFilter</class>
 
       <param>
          <name>foobar</name>

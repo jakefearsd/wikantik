@@ -18,8 +18,8 @@
 --%>
 
 <%@ page import="java.util.*" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.ui.admin.*" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.ui.admin.*" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
@@ -77,7 +77,7 @@ function addNew()
       method="post" accept-charset="<wiki:ContentEncoding/>"
      enctype="application/x-www-form-urlencoded" >
      <wiki:CsrfProtection/>
-     <input type="hidden" name='bean' value='org.apache.wiki.ui.admin.beans.UserBean'/>
+     <input type="hidden" name='bean' value='com.wikantik.ui.admin.beans.UserBean'/>
      <input type="hidden" id="loginid" name="loginid" value="" />
      <table>
      <caption class="hide">User Details form</caption>

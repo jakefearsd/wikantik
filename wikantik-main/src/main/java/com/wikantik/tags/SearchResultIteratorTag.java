@@ -1,0 +1,141 @@
+/* 
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.  
+ */
+package com.wikantik.tags;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import com.wikantik.api.core.Command;
+import com.wikantik.api.core.Context;
+import com.wikantik.api.core.Engine;
+import com.wikantik.api.search.SearchResult;
+import com.wikantik.api.spi.Wiki;
+import com.wikantik.ui.PageCommand;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.jsp.JspWriter;
+import jakarta.servlet.jsp.PageContext;
+import java.io.IOException;
+import java.util.Collection;
+
+/**
+ *  Iterates through Search result results.
+ *
+ *  <P><B>Attributes</B></P>
+ *  <UL>
+ *    <LI>max = how many search results should be shown.
+ *  </UL>
+ *
+ *  @since 2.0
+ */
+// FIXME: Shares MUCH too much in common with IteratorTag.  Must refactor.
+public class SearchResultIteratorTag extends IteratorTag {
+
+    private static final long serialVersionUID = 0L;
+    
+    private   int         maxItems;
+    private   int         count;
+    private   int         start;
+    
+    private static final Logger LOG = LogManager.getLogger(SearchResultIteratorTag.class);
+
+    /** {@inheritDoc} */
+    @Override
+    public void release() {
+        super.release();
+        maxItems = count = 0;
+    }
+
+    public void setMaxItems( final int arg )
+    {
+        maxItems = arg;
+    }
+
+    public void setStart( final int arg )
+    {
+        start = arg;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public final int doStartTag() {
+        //  Do lazy eval if the search results have not been set.
+        if( iterator == null ) {
+            final Collection< ? > searchresults = (Collection< ? >)pageContext.getAttribute( "searchresults", PageContext.REQUEST_SCOPE );
+            setList( searchresults );
+            
+            int skip = 0;
+            
+            //  Skip the first few ones...
+            iterator = searchresults.iterator();
+            while( iterator.hasNext() && (skip++ < start) ) {
+                iterator.next();
+            }
+        }
+
+        count = 0;
+        wikiContext = ( Context )pageContext.getAttribute( Context.ATTR_CONTEXT, PageContext.REQUEST_SCOPE );
+
+        return nextResult();
+    }
+
+    private int nextResult() {
+        if( iterator != null && iterator.hasNext() && count++ < maxItems ) {
+            final SearchResult r = ( SearchResult )iterator.next();
+
+            // Create a wiki context for the result
+            final Engine engine = wikiContext.getEngine();
+            final HttpServletRequest request = wikiContext.getHttpRequest();
+            final Command command = PageCommand.VIEW.targetedCommand( r.getPage() );
+            final Context context = Wiki.context().create( engine, request, command );
+
+            // Stash it in the page context
+            pageContext.setAttribute( Context.ATTR_CONTEXT, context, PageContext.REQUEST_SCOPE );
+            pageContext.setAttribute( getId(), r );
+
+            return EVAL_BODY_BUFFERED;
+        }
+
+        return SKIP_BODY;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public int doAfterBody() {
+        if( bodyContent != null ) {
+            try {
+                final JspWriter out = getPreviousOut();
+                out.print(bodyContent.getString());
+                bodyContent.clearBody();
+            } catch( final IOException e ) {
+                LOG.error("Unable to get inner tag text", e);
+                // FIXME: throw something?
+            }
+        }
+
+        return nextResult();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public int doEndTag() {
+        iterator = null;
+        return super.doEndTag();
+    }
+
+}

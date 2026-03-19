@@ -20,11 +20,11 @@
 <%@ page isErrorPage="true" %>
 <%@ page import="org.apache.logging.log4j.Logger" %>
 <%@ page import="org.apache.logging.log4j.LogManager" %>
-<%@ page import="org.apache.wiki.api.core.Context" %>
-<%@ page import="org.apache.wiki.api.core.ContextEnum" %>
-<%@ page import="org.apache.wiki.api.core.Engine" %>
-<%@ page import="org.apache.wiki.api.spi.Wiki" %>
-<%@ page import="org.apache.wiki.util.FileUtil" %>
+<%@ page import="com.wikantik.api.core.Context" %>
+<%@ page import="com.wikantik.api.core.ContextEnum" %>
+<%@ page import="com.wikantik.api.core.Engine" %>
+<%@ page import="com.wikantik.api.spi.Wiki" %>
+<%@ page import="com.wikantik.util.FileUtil" %>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%!
     Logger log = LogManager.getLogger("Wikantik");

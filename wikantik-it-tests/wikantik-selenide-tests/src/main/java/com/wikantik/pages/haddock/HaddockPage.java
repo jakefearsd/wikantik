@@ -1,0 +1,51 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.    
+ */
+package com.wikantik.pages.haddock;
+
+import com.wikantik.pages.Page;
+import org.openqa.selenium.By;
+
+import com.codeborne.selenide.Condition;
+import com.codeborne.selenide.Selenide;
+
+import java.time.Duration;
+
+public interface HaddockPage extends Page {
+    
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    default String wikiTitle() {
+        // Use .pagename (not div.pagename) since Header.jsp uses h1.pagename for proper SEO heading hierarchy
+        return Selenide.$( ".pagename a" ).text();
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    default String wikiPageContent() {
+        // Wait for page content to be visible and stable
+        return Selenide.$( By.className( "page-content" ) )
+                       .shouldBe( Condition.visible, Duration.ofSeconds( 3 ) )
+                       .text();
+    }
+
+}

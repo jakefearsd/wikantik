@@ -1,0 +1,182 @@
+/* 
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.  
+ */
+
+package com.wikantik.tags;
+
+import com.wikantik.util.TextUtil;
+
+import jakarta.servlet.jsp.JspTagException;
+import java.io.IOException;
+
+/**
+ *  Generates single tabbed page layout. Works together with the tabbedSection javascript.  Note that if you do not
+ *  specify an url, the body contents of the tag are loaded by the tag itself.
+ *
+ *  <P><B>Attributes</B></P>
+ *  <UL>
+ *    <LI>id - ID for this tab. (mandatory)
+ *    <LI>title - Title of this tab. (mandatory)
+ *    <LI>accesskey - Single char usable as quick accesskey (alt- or ctrl-) (optional)
+ *    <li>url - If you <i>don't</i> want to create a Javascript-enabled tag, you can use this
+ *              to make the tab look just the usual tag, but instead, it will actually link
+ *              to that page.  This can be useful in certain cases where you have something
+ *              that you want to look like a part of a tag, but for example, due to it being
+ *              very big in size, don't want to include it as a part of the page content
+ *              every time.
+ *  </UL>
+ *
+ *  @since v2.3.63
+ */
+public class TabTag extends WikiTagBase {
+
+    private static final long serialVersionUID = -8534125226484616489L;
+    private String accesskey;
+    private String tabTitle;
+    private String url;
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void doFinally() {
+        super.doFinally();
+
+        accesskey = null;
+        tabTitle  = null;
+        url       = null;
+    }
+
+    /**
+     * Sets the tab title.
+     * @param aTabTitle the tab title
+     */
+    public void setTitle( final String aTabTitle ) {
+        tabTitle = TextUtil.replaceEntities( aTabTitle );
+    }
+
+    /**
+     * Sets the tab access key.
+     *
+     * @param anAccesskey the access key
+     */
+    public void setAccesskey( final String anAccesskey ) {
+        accesskey = TextUtil.replaceEntities( anAccesskey ); //take only the first char
+    }
+
+    /**
+     * Sets the tab URL.
+     *
+     * @param url the URL
+     */
+    public void setUrl( final String url ) {
+        this.url = TextUtil.replaceEntities( url );
+    }
+
+    // insert <u> ..accesskey.. </u> in title
+    private boolean handleAccesskey() {
+        if( ( tabTitle == null ) || ( accesskey == null ) ) return false;
+
+        final int pos = tabTitle.toLowerCase().indexOf( accesskey.toLowerCase() );
+        if( pos > -1 ) {
+            tabTitle = tabTitle.substring( 0, pos ) + "<span class='accesskey'>"
+                    + tabTitle.charAt( pos ) + "</span>" + tabTitle.substring( pos + 1 );
+        }
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int doWikiStartTag() throws JspTagException {
+        final TabbedSectionTag parent = ( TabbedSectionTag ) findAncestorWithClass( this, TabbedSectionTag.class );
+
+        //  Sanity checks
+        if( getId() == null ) {
+            throw new JspTagException( "Tab Tag without \"id\" attribute" );
+        }
+        if( tabTitle == null ) {
+            throw new JspTagException( "Tab Tag without \"tabTitle\" attribute" );
+        }
+        if( parent == null ) {
+            throw new JspTagException( "Tab Tag without parent \"TabbedSection\" Tag" );
+        }
+        if( !parent.isStateGenerateTabBody() ) {
+            return SKIP_BODY;
+        }
+
+        final StringBuilder sb = new StringBuilder( 32 );
+        sb.append( "<div id=\"" ).append( getId() ).append( "\"" );
+        if( !parent.validateDefaultTab( getId() ) ) {
+            sb.append( " class=\"hidetab\"" );
+        }
+        sb.append( " >\n" );
+
+        try {
+            pageContext.getOut().write( sb.toString() );
+        } catch( final IOException e ) {
+            throw new JspTagException( "IO Error: " + e.getMessage() );
+        }
+
+        return EVAL_BODY_INCLUDE;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int doEndTag() throws JspTagException {
+        final TabbedSectionTag parent = ( TabbedSectionTag ) findAncestorWithClass( this, TabbedSectionTag.class );
+        final StringBuilder sb = new StringBuilder();
+        if( parent.isStateFindDefaultTab() ) {
+            // inform the parent of each tab
+            parent.validateDefaultTab( getId() );
+        } else if( parent.isStateGenerateTabBody() ) {
+            sb.append( "</div>\n" );
+        } else if( parent.isStateGenerateTabMenu() ) {
+            sb.append( "<a" );
+            if( parent.validateDefaultTab( getId() ) ) {
+                sb.append( " class=\"activetab\"" );
+            }
+
+            sb.append( " id=\"menu-" ).append( getId() ).append( "\"" );
+
+            if( url != null ) {
+                sb.append( " href='" ).append( url ).append( "'" );
+            }
+
+            if( handleAccesskey() ) {
+                sb.append( " accesskey=\"" ).append( accesskey ).append( "\"" );
+            }
+
+            sb.append( " >" );
+            sb.append( tabTitle );
+            sb.append( "</a>" );
+        }
+
+        try {
+            pageContext.getOut().write( sb.toString() );
+        } catch( final IOException e ) {
+            throw new JspTagException( "IO Error: " + e.getMessage() );
+        }
+
+        return EVAL_PAGE;
+    }
+
+}

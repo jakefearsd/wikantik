@@ -33,26 +33,26 @@
       <author>Janne Jalkanen</author>
       <path>editors/plain.jsp</path>
       <minVersion>1.0</minVersion>
-      <adminBean>org.apache.wiki.ui.admin.beans.PlainEditorAdminBean</adminBean>
+      <adminBean>com.wikantik.ui.admin.beans.PlainEditorAdminBean</adminBean>
    </editor>
-   <plugin class="org.apache.wiki.plugin.IfPlugin">
+   <plugin class="com.wikantik.plugin.IfPlugin">
       <author>Janne Jalkanen</author>
       <minVersion>1.0</minVersion>
       <alias>If</alias>
    </plugin>
 
-   <plugin class="org.apache.wiki.plugin.AliasPlugin">
+   <plugin class="com.wikantik.plugin.AliasPlugin">
       <author>JSPWiki</author>
       <minVersion>1.0</minVersion>
       <alias>ALIAS</alias>
    </plugin>
 
-   <plugin class="org.apache.wiki.plugin.Note">
+   <plugin class="com.wikantik.plugin.Note">
       <author>Janne Jalkanen</author>
       <minVersion>1.0</minVersion>
    </plugin>
 
-   <filter class="org.apache.wiki.filters.SpamFilter">
+   <filter class="com.wikantik.filters.SpamFilter">
       <author>Janne Jalkanen</author>
       <minVersion>1.0</minVersion>
    </filter>

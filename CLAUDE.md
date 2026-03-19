@@ -95,11 +95,11 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 
 ### Core Components
 
-1. **WikiEngine** (`org.apache.wiki.WikiEngine`): Central orchestrator that manages all subsystems. Singleton per web application that provides access to all manager instances.
+1. **WikiEngine** (`com.wikantik.WikiEngine`): Central orchestrator that manages all subsystems. Singleton per web application that provides access to all manager instances.
 
-2. **WikiContext** (`org.apache.wiki.WikiContext`): Request-scoped context object that holds current page, user session, and request state. Essential for any operation that needs context about the current request.
+2. **WikiContext** (`com.wikantik.WikiContext`): Request-scoped context object that holds current page, user session, and request state. Essential for any operation that needs context about the current request.
 
-3. **WikiSession** (`org.apache.wiki.WikiSession`): Manages user authentication state and principals. Integrates with JAAS for security.
+3. **WikiSession** (`com.wikantik.WikiSession`): Manages user authentication state and principals. Integrates with JAAS for security.
 
 4. **Manager Classes**: Each major subsystem has a manager interface with a default implementation:
    - `PageManager` - Page lifecycle and storage
@@ -174,7 +174,7 @@ When implementing new features, consider these extension mechanisms:
 
 - Unit tests use JUnit 5
 - Integration tests use Selenide for browser automation
-- Test utilities in `org.apache.wiki.TestEngine`
+- Test utilities in `com.wikantik.TestEngine`
 - Mock implementations available for most components
 
 ### Critical: Integration Test Parallelism

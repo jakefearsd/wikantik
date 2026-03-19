@@ -18,10 +18,10 @@
 --%>
 
 <%@ page import="java.util.*" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.api.spi.Wiki" %>
-<%@ page import="org.apache.wiki.ui.*" %>
-<%@ page import="org.apache.wiki.ui.admin.*" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.api.spi.Wiki" %>
+<%@ page import="com.wikantik.ui.*" %>
+<%@ page import="com.wikantik.ui.admin.*" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <!doctype html>

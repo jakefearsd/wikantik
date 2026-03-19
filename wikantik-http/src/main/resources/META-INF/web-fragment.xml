@@ -24,7 +24,7 @@
               version="3.0">
     <filter>
       <filter-name>CsrfProtectionFilter</filter-name>
-      <filter-class>org.apache.wiki.http.filter.CsrfProtectionFilter</filter-class>
+      <filter-class>com.wikantik.http.filter.CsrfProtectionFilter</filter-class>
       <async-supported>true</async-supported>
     </filter>
 

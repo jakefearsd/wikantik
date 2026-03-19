@@ -1,0 +1,214 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+/*
+ * (C) Janne Jalkanen 2005
+ *
+ */
+package com.wikantik.ui;
+
+import jakarta.servlet.http.HttpServletRequest;
+import com.wikantik.HttpMockFactory;
+import com.wikantik.TestEngine;
+import com.wikantik.api.core.Command;
+import com.wikantik.api.core.ContextEnum;
+import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Page;
+import com.wikantik.auth.GroupPrincipal;
+import com.wikantik.pages.PageManager;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import java.util.Properties;
+
+
+class CommandResolverTest {
+    TestEngine m_engine;
+    CommandResolver resolver;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( Engine.PROP_MATCHPLURALS, "yes" );
+        m_engine = new TestEngine( props );
+        resolver = m_engine.getManager( CommandResolver.class );
+        m_engine.saveText( "SinglePage", "This is a test." );
+        m_engine.saveText( "PluralPages", "This is a test." );
+    }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        m_engine.getManager( PageManager.class ).deletePage( "SinglePage" );
+        m_engine.getManager( PageManager.class ).deletePage( "PluralPage" );
+    }
+
+    @Test
+    void testFindStaticWikiAction() {
+        // If we look for action with "edit" request context, we get EDIT action
+        Command a = CommandResolver.findCommand( ContextEnum.PAGE_EDIT.getRequestContext() );
+        Assertions.assertEquals( PageCommand.EDIT, a );
+        Assertions.assertEquals( ContextEnum.PAGE_EDIT.getRequestContext(), a.getRequestContext() );
+
+        // Ditto for prefs context
+        a = CommandResolver.findCommand( ContextEnum.WIKI_PREFS.getRequestContext() );
+        Assertions.assertEquals( WikiCommand.PREFS, a );
+        Assertions.assertEquals( ContextEnum.WIKI_PREFS.getRequestContext(), a.getRequestContext() );
+
+        // Ditto for group view context
+        a = CommandResolver.findCommand( ContextEnum.GROUP_VIEW.getRequestContext() );
+        Assertions.assertEquals( GroupCommand.VIEW_GROUP, a );
+        Assertions.assertEquals( ContextEnum.GROUP_VIEW.getRequestContext(), a.getRequestContext() );
+
+        // Looking for non-existent context; should result in exception
+        Assertions.assertThrows( IllegalArgumentException.class, () -> CommandResolver.findCommand( "nonExistentContext" ) );
+    }
+
+    @Test
+    void testFindWikiActionNoParams() {
+        HttpServletRequest request = HttpMockFactory.createHttpRequest( "" );
+
+        // Passing an EDIT request with no explicit page params means the EDIT action
+        Command a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        Assertions.assertEquals( PageCommand.EDIT, a );
+        Assertions.assertEquals( "EditContent.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "Edit.jsp", a.getJSP() );
+        Assertions.assertEquals( "%uEdit.jsp?page=%n", a.getURLPattern() );
+        Assertions.assertNull( a.getTarget() );
+
+        // Ditto for prefs context
+        a = resolver.findCommand( request, ContextEnum.WIKI_PREFS.getRequestContext() );
+        Assertions.assertEquals( WikiCommand.PREFS, a );
+        Assertions.assertNull( a.getTarget() );
+
+        // Ditto for group view context
+        a = resolver.findCommand( request, ContextEnum.GROUP_VIEW.getRequestContext() );
+        Assertions.assertEquals( GroupCommand.VIEW_GROUP, a );
+        Assertions.assertNull( a.getTarget() );
+
+        Assertions.assertThrows( IllegalArgumentException.class, () -> resolver.findCommand( HttpMockFactory.createHttpRequest( "" ), "nonExistentContext" ) );
+
+        // Request for "UserPreference.jsp" should resolve to PREFS action
+        request = HttpMockFactory.createHttpRequest( "/UserPreferences.jsp" );
+        a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        Assertions.assertEquals( WikiCommand.PREFS, a );
+        Assertions.assertNull( a.getTarget() );
+
+        // Request for "NewGroup.jsp" should resolve to CREATE_GROUP action
+        // but targeted at the wiki
+        request = HttpMockFactory.createHttpRequest( "/NewGroup.jsp" );
+        a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        Assertions.assertNotSame( WikiCommand.CREATE_GROUP, a );
+        Assertions.assertEquals( WikiCommand.CREATE_GROUP.getRequestContext(), a.getRequestContext() );
+        Assertions.assertEquals( m_engine.getApplicationName(), a.getTarget() );
+
+        // But request for JSP not mapped to action should get default
+        request = HttpMockFactory.createHttpRequest( "/NonExistent.jsp" );
+        a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        Assertions.assertEquals( PageCommand.EDIT, a );
+        Assertions.assertNull( a.getTarget() );
+    }
+
+    @Test
+    void testFindWikiActionWithParams() {
+        final Page page = m_engine.getManager( PageManager.class ).getPage( "SinglePage" );
+
+        // Passing an EDIT request with page param yields a wrapped action
+        HttpServletRequest request = HttpMockFactory.createHttpRequest( "/Edit.jsp?page=SinglePage" );
+        Mockito.doReturn( "SinglePage" ).when( request ).getParameter( "page" );
+        Command a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        Assertions.assertNotSame( PageCommand.EDIT, a );
+        Assertions.assertEquals( "EditContent.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "Edit.jsp", a.getJSP() );
+        Assertions.assertEquals( "%uEdit.jsp?page=%n", a.getURLPattern() );
+        Assertions.assertEquals( page, a.getTarget() );
+
+        // Passing an EDIT request with page=Search yields FIND action, *not* edit
+        request = HttpMockFactory.createHttpRequest( "/Edit.jsp?page=Search" );
+        Mockito.doReturn( "Search" ).when( request ).getParameter( "page" );
+        a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        Assertions.assertEquals( WikiCommand.FIND, a );
+        Assertions.assertEquals( "FindContent.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "Search.jsp", a.getJSP() );
+        Assertions.assertEquals( "%uSearch.jsp", a.getURLPattern() );
+        Assertions.assertNull( a.getTarget() );
+
+        // Passing an EDIT request with group="Foo" yields wrapped VIEW_GROUP
+        request = HttpMockFactory.createHttpRequest( "/Group.jsp?group=Foo" );
+        Mockito.doReturn( "Foo" ).when( request ).getParameter( "group" );
+        a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        Assertions.assertNotSame( GroupCommand.VIEW_GROUP, a );
+        Assertions.assertEquals( "GroupContent.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "Group.jsp", a.getJSP() );
+        Assertions.assertEquals( "%uGroup.jsp?group=%n", a.getURLPattern() );
+        Assertions.assertEquals( new GroupPrincipal( "Foo" ), a.getTarget() );
+    }
+
+    @Test
+    void testFindWikiActionWithPath() {
+        // Passing an EDIT request with View JSP yields EDIT of the Front page
+        HttpServletRequest request = HttpMockFactory.createHttpRequest( "/Wiki.jsp" );
+        Command a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        Assertions.assertNotNull( a.getTarget() );
+        Assertions.assertEquals( ((Page)a.getTarget()).getName(), m_engine.getFrontPage() );
+
+        // Passing an EDIT request with Group JSP yields VIEW_GROUP
+        request = HttpMockFactory.createHttpRequest( "/Group.jsp" );
+        a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        Assertions.assertEquals( GroupCommand.VIEW_GROUP, a );
+        Assertions.assertNull( a.getTarget() );
+
+        // Passing an EDIT request with UserPreferences JSP yields PREFS
+        request = HttpMockFactory.createHttpRequest( "/UserPreferences.jsp" );
+        a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        Assertions.assertEquals( WikiCommand.PREFS, a );
+        Assertions.assertNull( a.getTarget() );
+    }
+
+    @Test
+    void testFinalPageName() throws Exception {
+        String page = resolver.getFinalPageName( "SinglePage" );
+        Assertions.assertEquals( "SinglePage", page );
+        page = resolver.getFinalPageName( "SinglePages" );
+        Assertions.assertEquals( "SinglePage", page );
+
+        page = resolver.getFinalPageName( "PluralPages" );
+        Assertions.assertEquals( "PluralPages", page );
+        page = resolver.getFinalPageName( "PluralPage" );
+        Assertions.assertEquals( "PluralPages", page );
+
+        page = resolver.getFinalPageName( "NonExistentPage" );
+        Assertions.assertNull( page );
+    }
+
+    @Test
+    void testSpecialPageReference() {
+        String url = resolver.getSpecialPageReference( "RecentChanges" );
+        Assertions.assertEquals( "/test/RecentChanges.jsp", url );
+
+        url = resolver.getSpecialPageReference( "Search" );
+        Assertions.assertEquals( "/test/Search.jsp", url );
+
+        // UserPrefs doesn't exist in our test properties
+        url = resolver.getSpecialPageReference( "UserPrefs" );
+        Assertions.assertNull( url );
+    }
+
+}

@@ -17,8 +17,8 @@
     under the License.
 --%>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.ui.*" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.ui.*" %>
 <%@ page import="java.util.*" %>
 <%@ page import="org.apache.commons.lang3.*" %>
 <%@ page import="java.net.URLEncoder" %>

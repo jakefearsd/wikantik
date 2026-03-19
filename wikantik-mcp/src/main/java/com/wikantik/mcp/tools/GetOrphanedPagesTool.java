@@ -1,0 +1,71 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.mcp.tools;
+
+import com.google.gson.Gson;
+import io.modelcontextprotocol.spec.McpSchema;
+import com.wikantik.content.SystemPageRegistry;
+import com.wikantik.references.ReferenceManager;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * MCP tool that finds orphaned pages — pages that exist but have no
+ * incoming links from other pages. System pages are excluded.
+ */
+public class GetOrphanedPagesTool {
+
+    public static final String TOOL_NAME = "get_orphaned_pages";
+
+    private final ReferenceManager referenceManager;
+    private final SystemPageRegistry systemPageRegistry;
+    private final Gson gson = new Gson();
+
+    public GetOrphanedPagesTool( final ReferenceManager referenceManager,
+                                  final SystemPageRegistry systemPageRegistry ) {
+        this.referenceManager = referenceManager;
+        this.systemPageRegistry = systemPageRegistry;
+    }
+
+    public McpSchema.Tool toolDefinition() {
+        return McpSchema.Tool.builder()
+                .name( TOOL_NAME )
+                .description( "Find orphaned pages — pages that exist but have no incoming links " +
+                        "from other pages. System/template pages are excluded. " +
+                        "Returns {orphanedPages: [...], count}. " +
+                        "Use this for wiki maintenance to find disconnected content." )
+                .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
+                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                .build();
+    }
+
+    public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
+        final Collection< String > unreferenced = referenceManager.findUnreferenced();
+        final List< String > orphans = unreferenced.stream()
+                .filter( name -> systemPageRegistry == null || !systemPageRegistry.isSystemPage( name ) )
+                .sorted()
+                .collect( Collectors.toList() );
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "orphanedPages", orphans );
+        result.put( "count", orphans.size() );
+        return McpToolUtils.jsonResult( gson, result );
+    }
+}

@@ -77,7 +77,7 @@
 
     <Loggers>
         <!-- JSPWiki core - INFO to console and file -->
-        <Logger name="org.apache.wiki" level="INFO" additivity="false">
+        <Logger name="com.wikantik" level="INFO" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AppLog"/>
         </Logger>
@@ -89,25 +89,25 @@
         </Logger>
 
         <!-- Page access tracking via WikiServlet -->
-        <Logger name="org.apache.wiki.WikiServlet" level="INFO" additivity="false">
+        <Logger name="com.wikantik.WikiServlet" level="INFO" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AccessLog"/>
         </Logger>
 
         <!-- Provider debugging - useful for development -->
-        <Logger name="org.apache.wiki.providers" level="DEBUG" additivity="false">
+        <Logger name="com.wikantik.providers" level="DEBUG" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AppLog"/>
         </Logger>
 
         <!-- Search indexing -->
-        <Logger name="org.apache.wiki.search" level="INFO" additivity="false">
+        <Logger name="com.wikantik.search" level="INFO" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AppLog"/>
         </Logger>
 
         <!-- Authentication/Authorization debugging -->
-        <Logger name="org.apache.wiki.auth" level="DEBUG" additivity="false">
+        <Logger name="com.wikantik.auth" level="DEBUG" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AppLog"/>
         </Logger>

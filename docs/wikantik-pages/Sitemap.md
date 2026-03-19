@@ -47,7 +47,7 @@ Google Search Console expects sitemaps to follow the [Sitemap Protocol](https://
   - Location:** `jspwiki-main/src/main/java/org/apache/wiki/ui/SitemapServlet.java`
 
 ```java
-package org.apache.wiki.ui;
+package com.wikantik.ui;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -66,17 +66,17 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.wiki.api.core.Context;
-import org.apache.wiki.api.core.ContextEnum;
-import org.apache.wiki.api.core.Engine;
-import org.apache.wiki.api.core.Page;
-import org.apache.wiki.api.core.Session;
-import org.apache.wiki.api.spi.Wiki;
-import org.apache.wiki.auth.AuthorizationManager;
-import org.apache.wiki.auth.permissions.PagePermission;
-import org.apache.wiki.pages.PageManager;
-import org.apache.wiki.references.ReferenceManager;
-import org.apache.wiki.url.URLConstructor;
+import com.wikantik.api.core.Context;
+import com.wikantik.api.core.ContextEnum;
+import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Page;
+import com.wikantik.api.core.Session;
+import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AuthorizationManager;
+import com.wikantik.auth.permissions.PagePermission;
+import com.wikantik.pages.PageManager;
+import com.wikantik.references.ReferenceManager;
+import com.wikantik.url.URLConstructor;
 
 public class SitemapServlet extends HttpServlet {
 
@@ -263,7 +263,7 @@ private String escapeXml( final String input ) {
 ```xml
 <servlet>
     <servlet-name>SitemapServlet</servlet-name>
-    <servlet-class>org.apache.wiki.ui.SitemapServlet</servlet-class>
+    <servlet-class>com.wikantik.ui.SitemapServlet</servlet-class>
 </servlet>
 
 <servlet-mapping>

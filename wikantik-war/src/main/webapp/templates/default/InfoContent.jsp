@@ -17,15 +17,15 @@
     under the License.
 --%>
 
-<%@ page import="org.apache.wiki.api.core.*" %>
-<%@ page import="org.apache.wiki.auth.*" %>
-<%@ page import="org.apache.wiki.auth.permissions.*" %>
-<%@ page import="org.apache.wiki.attachment.*" %>
-<%@ page import="org.apache.wiki.i18n.InternationalizationManager" %>
-<%@ page import="org.apache.wiki.pages.PageManager" %>
-<%@ page import="org.apache.wiki.preferences.Preferences" %>
-<%@ page import="org.apache.wiki.ui.progress.ProgressManager" %>
-<%@ page import="org.apache.wiki.util.TextUtil" %>
+<%@ page import="com.wikantik.api.core.*" %>
+<%@ page import="com.wikantik.auth.*" %>
+<%@ page import="com.wikantik.auth.permissions.*" %>
+<%@ page import="com.wikantik.attachment.*" %>
+<%@ page import="com.wikantik.i18n.InternationalizationManager" %>
+<%@ page import="com.wikantik.pages.PageManager" %>
+<%@ page import="com.wikantik.preferences.Preferences" %>
+<%@ page import="com.wikantik.ui.progress.ProgressManager" %>
+<%@ page import="com.wikantik.util.TextUtil" %>
 <%@ page import="java.security.Permission" %>
 <%@ taglib uri="https://wikantik.com/tags" prefix="wiki" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>

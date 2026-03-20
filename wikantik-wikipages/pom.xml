@@ -54,9 +54,9 @@
   </build>
 
   <dependencies>
-    <dependency><!-- artificial dependency just to ensure that the wiki pages are built after the markdown module has generated the markdown pages -->
+    <dependency><!-- artificial dependency just to ensure that the wiki pages are built after the main module -->
       <groupId>com.wikantik</groupId>
-      <artifactId>wikantik-markdown</artifactId>
+      <artifactId>wikantik-main</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
       <exclusions>

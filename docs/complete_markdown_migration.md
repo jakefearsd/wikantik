@@ -1,49 +1,41 @@
-# Complete Markdown Migration — Optional Remaining Steps
+# Complete Markdown Migration — COMPLETED
 
-These steps are deferred from the initial migration. The system is fully functional
-without them — Markdown is the default parser, legacy `.txt` pages still render via
-the retained `WikantikMarkupParser`.
+All migration steps have been completed. The legacy wiki-syntax parser has been fully
+removed and Markdown is the only rendering pipeline.
 
-## 1. Remove legacy parser (Phase 7)
+## Completed Steps
 
-Remove `WikantikMarkupParser` and its 6 handler classes (~2,000 lines). Currently
-blocked by a circular dependency: `wikantik-main` tests need a parser on their
-classpath, but `MarkdownParser` lives in `wikantik-markdown` which depends on
-`wikantik-main`.
+### 1. Collapse `wikantik-markdown` module into `wikantik-main`
+- Moved all Java sources, tests, JS, and SPI files from `wikantik-markdown` to `wikantik-main`
+- Added Flexmark dependencies to `wikantik-main`
+- Removed `wikantik-markdown` from all parent/BOM/WAR pom.xml references
+- Deleted the `wikantik-markdown` module
 
-**Resolution options:**
-- Move `MarkdownParser` and `MarkdownRenderer` into `wikantik-main`, collapsing the
-  `wikantik-markdown` module
-- Add a minimal test-only stub parser in `wikantik-main`
-- Restructure modules to break the circular dependency
+### 2. Remove legacy parser (Phase 7)
+- Deleted `WikantikMarkupParser` and its 6 handler classes (~2,000 lines)
+- Deleted `WikantikMarkupParserTest` (303 tests)
+- Updated `DefaultRenderingManager` to use only MarkdownParser (removed legacy fallback)
+- Updated `DefaultPageRenamer` to handle Markdown link syntax `[text](target)`
+- Updated `AbstractReferralPlugin` to check configured parser instead of classpath availability
+- Converted all test fixtures and test content from wiki-syntax to Markdown
+- Updated test properties to use `MarkdownParser` and `MarkdownRenderer`
 
-**Files to remove once unblocked:**
-- `wikantik-main/src/main/java/com/wikantik/parser/WikantikMarkupParser.java`
-- `wikantik-main/src/main/java/com/wikantik/parser/WikiLinkHandler.java`
-- `wikantik-main/src/main/java/com/wikantik/parser/WikiFormattingHandler.java`
-- `wikantik-main/src/main/java/com/wikantik/parser/WikiListHandler.java`
-- `wikantik-main/src/main/java/com/wikantik/parser/WikiTableHandler.java`
-- `wikantik-main/src/main/java/com/wikantik/parser/WikiHeadingHandler.java`
-- `wikantik-main/src/main/java/com/wikantik/parser/LinkParser.java`
-- `wikantik-main/src/test/java/com/wikantik/parser/WikantikMarkupParserTest.java`
+### 3. Convert test fixtures
+- Deleted `.txt` test fixture files (`.md` versions already existed)
+- Converted all wiki-syntax links, headings, and formatting in test content strings
 
-## 2. Convert integration test fixtures
+### 4. Remove `wiki-snips-wikantik.js`
+- Deleted the legacy editor snippets JavaScript file
+- Updated `wro.xml` to only include the markdown snippets group
+- Updated `TemplateManagerTest` to reference `wiki-snips-markdown.js`
 
-9 `.txt` files in `wikantik-it-tests/wikantik-selenide-tests/src/test/resources/test-repo/`
-and 3 in `wikantik-main/src/test/resources/`. Low risk to leave as-is since the legacy
-parser still handles `.txt` files transparently.
+## Remaining Optional Item
 
-## 3. Migration script for existing deployments
-
-Users with deployed wikis full of `.txt` pages need a batch conversion tool. The
-legacy parser handles existing `.txt` pages seamlessly, so this is a convenience
-rather than a blocker. A script should:
+### Migration script for existing deployments
+Users with deployed wikis full of `.txt` pages would benefit from a batch conversion
+tool, though this is a convenience rather than a blocker since legacy `.txt` pages
+would need manual conversion. A script could:
 - Convert wiki syntax to Markdown (links, headings, formatting, lists, tables)
 - Convert `%%class ... /%` blocks to `<div class="...">` HTML
 - Move `[{ALLOW/DENY}]` ACLs to YAML frontmatter
 - Rename `.txt` files to `.md`
-
-## 4. Remove `wiki-snips-wikantik.js`
-
-The legacy editor snippets file is no longer the default but still ships in the WAR.
-Can be removed once the legacy parser is fully retired.

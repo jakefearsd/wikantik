@@ -63,6 +63,7 @@ public class MarkdownParser extends MarkupParser {
             context.getEngine().getManager( AuthorizationManager.class ) == null ) {
             disableAccessRules();
         }
+        context.getPage().setHasMetadata();
         parser = Parser.builder( MarkdownDocument.options( context, isImageInlining(), getInlineImagePatterns() ) ).build();
     }
 

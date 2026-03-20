@@ -163,7 +163,7 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
 
 
     /**
-     *  This method figures out what kind of an URL should be output.  It mirrors heavily on WikantikMarkupParser.handleHyperlinks();
+     *  This method figures out what kind of an URL should be output.
      *
      * @return the URL
      * @throws ProviderException

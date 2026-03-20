@@ -309,7 +309,6 @@ public class WikiContext implements Context, Command {
      *
      *  @return A reference to the real page.
      *  @see com.wikantik.tags.InsertPageTag
-     *  @see com.wikantik.parser.WikantikMarkupParser
      */
     @Override
     public WikiPage getRealPage()

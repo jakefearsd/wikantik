@@ -160,7 +160,7 @@ class WikiEngineTest {
         final ReferenceManager refMgr = m_engine.getManager( ReferenceManager.class );
         final AttachmentManager attMgr = m_engine.getManager( AttachmentManager.class );
 
-        m_engine.saveText( NAME1, "[TestAtt.txt]");
+        m_engine.saveText( NAME1, "[TestAtt.txt](TestAtt.txt)");
 
         // check a few pre-conditions
 
@@ -207,7 +207,7 @@ class WikiEngineTest {
         att.setAuthor( "FirstPost" );
         attMgr.storeAttachment( att, m_engine.makeAttachmentFile() );
 
-        m_engine.saveText( NAME1, " ["+NAME1+"/TestAtt.txt] ");
+        m_engine.saveText( NAME1, " ["+NAME1+"/TestAtt.txt]("+NAME1+"/TestAtt.txt) ");
 
         // and check post-conditions
         Collection< String > c = refMgr.findUncreated();
@@ -226,12 +226,12 @@ class WikiEngineTest {
         final ReferenceManager refMgr = m_engine.getManager( ReferenceManager.class );
         final AttachmentManager attMgr = m_engine.getManager( AttachmentManager.class );
 
-        m_engine.saveText( NAME1, "[TestPage2]");
+        m_engine.saveText( NAME1, "[TestPage2]()");
 
         final Attachment att = Wiki.contents().attachment( m_engine, NAME1, "TestAtt.txt" );
         att.setAuthor( "FirstPost" );
         attMgr.storeAttachment( att, m_engine.makeAttachmentFile() );
-        m_engine.saveText( "TestPage2", "["+NAME1+"/TestAtt.txt]");
+        m_engine.saveText( "TestPage2", "["+NAME1+"/TestAtt.txt]("+NAME1+"/TestAtt.txt)");
 
         // and check post-conditions
         Collection< String > c = refMgr.findUncreated();
@@ -250,8 +250,8 @@ class WikiEngineTest {
         final Properties props = TestEngine.getTestProperties("/wikantik-vers-custom.properties");
         props.setProperty( CachingManager.PROP_CACHE_ENABLE, "true" );
         final TestEngine engine = new TestEngine( props );
-        engine.saveText( NAME1, "[{SET foo=bar}]" );
-        engine.saveText( NAME1, "[{SET foo=notbar}]");
+        engine.saveText( NAME1, "[{SET foo=bar}]()" );
+        engine.saveText( NAME1, "[{SET foo=notbar}]()");
 
         final Page v1 = engine.getManager( PageManager.class ).getPage( NAME1, 1 );
         final Page v2 = engine.getManager( PageManager.class ).getPage( NAME1, 2 );
@@ -270,10 +270,10 @@ class WikiEngineTest {
 
     @Test
     void testParsedVariables() throws Exception {
-        m_engine.saveText( "TestPage", "[{SET foo=bar}][{SamplePlugin text='{$foo}'}]");
+        m_engine.saveText( "TestPage", "[{SET foo=bar}]()[{SamplePlugin text='{$foo}'}]()");
         final String res = m_engine.getManager( RenderingManager.class ).getHTML( "TestPage" );
 
-        Assertions.assertEquals( "bar\n", res );
+        Assertions.assertEquals( "<p>bar</p>\n", res );
     }
 
     /**
@@ -282,7 +282,7 @@ class WikiEngineTest {
     @Test
     void testRename() throws Exception {
         m_engine.saveText( "RenameBugTestPage", "Mary had a little generic object" );
-        m_engine.saveText( "OldNameTestPage", "Linked to RenameBugTestPage" );
+        m_engine.saveText( "OldNameTestPage", "Linked to [RenameBugTestPage](RenameBugTestPage)" );
 
         Collection< String > pages = m_engine.getManager( ReferenceManager.class ).findReferrers( "RenameBugTestPage" );
         Assertions.assertEquals( "OldNameTestPage", pages.iterator().next(), "has one" );

@@ -76,7 +76,6 @@ public interface Context extends Cloneable, Command {
      *
      *  @return A reference to the real page.
      *  @see {@code com.wikantik.tags.InsertPageTag}
-     *  @see {@code com.wikantik.parser.WikantikMarkupParser}
      */
     Page getRealPage();
 

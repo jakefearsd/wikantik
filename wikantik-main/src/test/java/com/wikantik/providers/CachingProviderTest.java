@@ -74,7 +74,7 @@ class CachingProviderTest {
         engine = TestEngine.build();
         final String dir = engine.getWikiProperties().getProperty( FileSystemProvider.PROP_PAGEDIR );
         final File f = new File( dir, "Testi.txt" );
-        final String content = "[fuufaa]";
+        final String content = "[fuufaa]()";
 
         final PrintWriter out = new PrintWriter( new FileWriter(f) );
         FileUtil.copyContents( new StringReader(content), out );
@@ -85,7 +85,7 @@ class CachingProviderTest {
         Assertions.assertNotNull( p, "page did not exist?" );
 
         final String text = engine.getManager( PageManager.class ).getText( "Testi");
-        Assertions.assertEquals( "[fuufaa]", text, "text" );
+        Assertions.assertEquals( "[fuufaa]()", text, "text" );
     }
 
     @Test

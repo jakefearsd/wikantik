@@ -26,6 +26,7 @@ import com.wikantik.WikiSession;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
+import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
@@ -40,6 +41,7 @@ import org.junit.jupiter.api.Test;
 class IfPluginTest {
 
     static TestEngine testEngine = TestEngine.build();
+    static PluginManager manager = testEngine.getManager( PluginManager.class );
 
     @AfterEach
     public void tearDown() throws Exception {
@@ -66,16 +68,13 @@ class IfPluginTest {
      * @throws WikiException test Assertions.failing.
      */
     @Test
-    void testIfPluginUserAllowed() throws WikiException {
-        final String src = "[{IfPlugin user='Janne Jalkanen'\n\nContent visible for Janne Jalkanen}]";
-        final String expected = "<p>Content visible for Janne Jalkanen</p>\n";
-
-        testEngine.saveText( "Test", src );
+    void testIfPluginUserAllowed() throws WikiException, PluginException {
+        testEngine.saveText( "Test", "test page" );
         final Page page = testEngine.getManager( PageManager.class ).getPage( "Test", PageProvider.LATEST_VERSION );
         final Context context = getJanneBasedWikiContextFor( page );
 
-        final String res = testEngine.getManager( RenderingManager.class ).getHTML( context, page );
-        Assertions.assertEquals( expected, res );
+        final String res = manager.execute( context, "{IfPlugin user='Janne Jalkanen'\n\nContent visible for Janne Jalkanen}" );
+        Assertions.assertEquals( "<p>Content visible for Janne Jalkanen</p>\n", res );
     }
 
     /**
@@ -84,16 +83,13 @@ class IfPluginTest {
      * @throws WikiException test Assertions.failing.
      */
     @Test
-    void testIfPluginUserNotAllowed() throws WikiException {
-        final String src = "[{IfPlugin user='!Janne Jalkanen'\n\nContent NOT visible for Janne Jalkanen}]";
-        final String expected = "\n";
-
-        testEngine.saveText( "Test", src );
+    void testIfPluginUserNotAllowed() throws WikiException, PluginException {
+        testEngine.saveText( "Test", "test page" );
         final Page page = testEngine.getManager( PageManager.class ).getPage( "Test", PageProvider.LATEST_VERSION );
         final Context context = getJanneBasedWikiContextFor( page );
 
-        final String res = testEngine.getManager( RenderingManager.class ).getHTML( context, page );
-        Assertions.assertEquals( expected, res );
+        final String res = manager.execute( context, "{IfPlugin user='!Janne Jalkanen'\n\nContent NOT visible for Janne Jalkanen}" );
+        Assertions.assertEquals( "", res );
     }
 
     /**
@@ -102,52 +98,43 @@ class IfPluginTest {
      * @throws WikiException test Assertions.failing.
      */
     @Test
-    void testIfPluginIPAllowed() throws WikiException {
-        final String src = "[{IfPlugin ip='127.0.0.1'\n\nContent visible for 127.0.0.1}]";
-        final String expected = "<p>Content visible for 127.0.0.1</p>\n";
-
-        testEngine.saveText( "Test", src );
+    void testIfPluginIPAllowed() throws WikiException, PluginException {
+        testEngine.saveText( "Test", "test page" );
         final Page page = testEngine.getManager( PageManager.class ).getPage( "Test", PageProvider.LATEST_VERSION );
         final Context context = getJanneBasedWikiContextFor( page );
 
-        final String res = testEngine.getManager( RenderingManager.class ).getHTML( context, page );
-        Assertions.assertEquals( expected, res );
+        final String res = manager.execute( context, "{IfPlugin ip='127.0.0.1'\n\nContent visible for 127.0.0.1}" );
+        Assertions.assertEquals( "<p>Content visible for 127.0.0.1</p>\n", res );
     }
-    
+
      /**
      * Checks that IP address is granted with netmask
      *
      * @throws WikiException test Assertions.failing.
      */
     @Test
-    void testIfPluginIPAllowedMask() throws WikiException {
-        final String src = "[{IfPlugin ip='127.0.0.0/24'\n\nContent visible for 127.0.0.0/24}]";
-        final String expected = "<p>Content visible for 127.0.0.0/24</p>\n";
-
-        testEngine.saveText( "Test", src );
+    void testIfPluginIPAllowedMask() throws WikiException, PluginException {
+        testEngine.saveText( "Test", "test page" );
         final Page page = testEngine.getManager( PageManager.class ).getPage( "Test", PageProvider.LATEST_VERSION );
         final Context context = getJanneBasedWikiContextFor( page );
 
-        final String res = testEngine.getManager( RenderingManager.class ).getHTML( context, page );
-        Assertions.assertEquals( expected, res );
+        final String res = manager.execute( context, "{IfPlugin ip='127.0.0.0/24'\n\nContent visible for 127.0.0.0/24}" );
+        Assertions.assertEquals( "<p>Content visible for 127.0.0.0/24</p>\n", res );
     }
-    
+
     /**
      * Checks that IP address is granted with netmask
      *
      * @throws WikiException test Assertions.failing.
      */
     @Test
-    void testIfPluginIPAllowedMaskDeny() throws WikiException {
-        final String src = "[{IfPlugin ip='192.168.1.1/24'\n\nContent visible for 192.168.1.1/24}]";
-        final String expected = "\n";
-
-        testEngine.saveText( "Test", src );
+    void testIfPluginIPAllowedMaskDeny() throws WikiException, PluginException {
+        testEngine.saveText( "Test", "test page" );
         final Page page = testEngine.getManager( PageManager.class ).getPage( "Test", PageProvider.LATEST_VERSION );
         final Context context = getJanneBasedWikiContextFor( page );
 
-        final String res = testEngine.getManager( RenderingManager.class ).getHTML( context, page );
-        Assertions.assertEquals( expected, res );
+        final String res = manager.execute( context, "{IfPlugin ip='192.168.1.1/24'\n\nContent visible for 192.168.1.1/24}" );
+        Assertions.assertEquals( "", res );
     }
 
     /**
@@ -156,16 +143,13 @@ class IfPluginTest {
      * @throws WikiException test Assertions.failing.
      */
     @Test
-    void testIfPluginIPNotAllowed() throws WikiException {
-        final String src = "[{IfPlugin ip='!127.0.0.1'\n\nContent NOT visible for 127.0.0.1}]";
-        final String expected = "\n";
-
-        testEngine.saveText( "Test", src );
+    void testIfPluginIPNotAllowed() throws WikiException, PluginException {
+        testEngine.saveText( "Test", "test page" );
         final Page page = testEngine.getManager( PageManager.class ).getPage( "Test", PageProvider.LATEST_VERSION );
         final Context context = getJanneBasedWikiContextFor( page );
 
-        final String res = testEngine.getManager( RenderingManager.class ).getHTML( context, page );
-        Assertions.assertEquals( expected, res );
+        final String res = manager.execute( context, "{IfPlugin ip='!127.0.0.1'\n\nContent NOT visible for 127.0.0.1}" );
+        Assertions.assertEquals( "", res );
     }
 
 }

@@ -388,11 +388,11 @@ public class FileSystemProviderTest {
     public void testGetAllPagesWithMixedExtensions() throws Exception {
         final String pageDir = props.getProperty( FileSystemProvider.PROP_PAGEDIR );
 
-        // Create wiki syntax pages
+        // Create legacy .txt wiki syntax pages directly on disk
         for( int i = 1; i <= 3; i++ ) {
-            final WikiPage page = new WikiPage( m_engine, "WikiPage" + i );
-            page.setAttribute( Page.MARKUP_SYNTAX, "jspwiki" );
-            m_provider.putPageText( page, "Wiki content " + i );
+            java.nio.file.Files.writeString(
+                new File( pageDir, "WikiPage" + i + AbstractFileProvider.FILE_EXT ).toPath(),
+                "Wiki content " + i );
         }
 
         // Create markdown pages

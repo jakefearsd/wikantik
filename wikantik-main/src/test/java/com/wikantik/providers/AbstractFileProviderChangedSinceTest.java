@@ -136,10 +136,10 @@ class AbstractFileProviderChangedSinceTest {
 
     @Test
     void testMixedMarkdownAndWikiFiles() throws Exception {
-        // Create a .txt wiki page (explicitly setting jspwiki syntax)
-        final WikiPage wikiPage = new WikiPage( engine, "WikiPage" );
-        wikiPage.setAttribute( Page.MARKUP_SYNTAX, "jspwiki" );
-        provider.putPageText( wikiPage, "wiki content" );
+        // Create a legacy .txt wiki page directly on disk
+        java.nio.file.Files.writeString(
+            new File( pageDir, "WikiPage" + AbstractFileProvider.FILE_EXT ).toPath(),
+            "wiki content" );
 
         // Create a .md markdown page
         final WikiPage mdPage = new WikiPage( engine, "MarkdownPage" );

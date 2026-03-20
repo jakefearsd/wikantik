@@ -58,31 +58,32 @@ public class McpEdgeCasesIT extends WithMcpTestSetup {
     }
 
     @Test
-    public void writePageWithSpecialWikiMarkup() {
+    public void writePageWithSpecialMarkdown() {
         final String pageName = uniquePageName( "EdgeMarkup" );
-        final String wikiContent = """
-                This has [links] and [Named Link|Target].
+        final String markdownContent = """
+                This has [links]() and [Named Link](Target).
 
-                {{{
+                ```
                 preformatted code block
                 int x = 42;
-                }}}
+                ```
 
-                || Header 1 || Header 2
-                | Cell 1    | Cell 2
+                | Header 1 | Header 2 |
+                |----------|----------|
+                | Cell 1   | Cell 2   |
 
-                ----
+                ---
 
-                __bold__ and ''italic'' and {{monospace}}""";
+                **bold** and *italic* and `monospace`""";
 
-        final Map< String, Object > result = mcp.writePage( pageName, wikiContent );
+        final Map< String, Object > result = mcp.writePage( pageName, markdownContent );
         Assertions.assertEquals( true, result.get( "success" ) );
 
         final Map< String, Object > readResult = mcp.readPage( pageName );
         final String readContent = McpTestClient.normalizeCrlf( ( String ) readResult.get( "content" ) );
-        Assertions.assertTrue( readContent.contains( "[links]" ), "Wiki links should be preserved" );
-        Assertions.assertTrue( readContent.contains( "{{{" ), "Code blocks should be preserved" );
-        Assertions.assertTrue( readContent.contains( "|| Header 1" ), "Tables should be preserved" );
+        Assertions.assertTrue( readContent.contains( "[links]()" ), "Markdown links should be preserved" );
+        Assertions.assertTrue( readContent.contains( "```" ), "Fenced code blocks should be preserved" );
+        Assertions.assertTrue( readContent.contains( "| Header 1" ), "Tables should be preserved" );
     }
 
     @Test

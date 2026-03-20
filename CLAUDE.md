@@ -27,10 +27,10 @@ mvn clean install -Dmaven.test.skip -Dminimize=false
 mvn clean test
 
 # Run a specific test class
-mvn test -Dtest=WikantikMarkupParserTest
+mvn test -Dtest=MarkdownRendererTest
 
 # Run a specific test method
-mvn test -Dtest=WikantikMarkupParserTest#testHeadingHyperlinks3
+mvn test -Dtest=MarkdownRendererTest#testMarkupSimpleMarkdown
 
 # Debug a test
 mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug
@@ -143,10 +143,10 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 
 ### Rendering Pipeline
 
-1. **Parser**: `MarkdownParser` converts Markdown to Flexmark AST (default). Legacy `WikantikMarkupParser` handles `.txt` pages with `markup.syntax=jspwiki`.
+1. **Parser**: `MarkdownParser` converts Markdown to Flexmark AST.
 2. **Filters**: Pre/post-processing of content
 3. **Plugins**: Dynamic content insertion via `[{Plugin}]` syntax (auto-normalized to `[{Plugin}]()` for Flexmark)
-4. **Renderer**: `MarkdownRenderer` produces HTML via Flexmark (default). Legacy `XHTMLRenderer` for wiki-syntax documents.
+4. **Renderer**: `MarkdownRenderer` produces HTML via Flexmark.
 
 ### Security Model
 

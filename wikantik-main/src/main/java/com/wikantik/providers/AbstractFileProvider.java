@@ -342,23 +342,10 @@ public abstract class AbstractFileProvider implements PageProvider {
      */
     @Override
     public void putPageText( final Page page, final String text ) throws ProviderException {
-        // Determine the correct file extension based on markup syntax attribute
-        String extension = MARKDOWN_EXT; // default to Markdown
-        final String markupSyntax = page.getAttribute( Page.MARKUP_SYNTAX );
-        if( "jspwiki".equals( markupSyntax ) ) {
-            extension = FILE_EXT;
-        }
-
-        // If markup syntax is explicitly set, always use the corresponding extension.
-        // Otherwise, reuse the existing file if the page already exists.
-        File file;
-        if( markupSyntax != null ) {
-            file = new File( pageDirectory, mangleName( page.getName() ) + extension );
-        } else {
-            file = findPage( page.getName() );
-            if( !file.exists() ) {
-                file = new File( pageDirectory, mangleName( page.getName() ) + extension );
-            }
+        // Reuse the existing file if the page already exists, otherwise default to Markdown.
+        File file = findPage( page.getName() );
+        if( !file.exists() ) {
+            file = new File( pageDirectory, mangleName( page.getName() ) + MARKDOWN_EXT );
         }
 
         try( final PrintWriter out = new PrintWriter( new OutputStreamWriter( Files.newOutputStream( file.toPath() ), encoding ) ) ) {

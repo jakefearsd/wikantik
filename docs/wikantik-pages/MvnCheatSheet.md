@@ -39,8 +39,8 @@ under the License.
 | mvn clean install                                               | performs a build                                                                                                                    |
 | mvn clean install -Dmaven.test.skip                             | performs a build, skipping the tests (not recommended)                                                                              |
 | mvn clean test                                                  | compiles the source and executes the tests                                                                                          |
-| mvn test -Dtest=WikantikMarkupParserTest                         | run just a single test class                                                                                                        |
-| mvn test -Dtest=WikantikMarkupParserTest#testHeadingHyperlinks3  | run just a single test within a test class                                                                                          |
+| mvn test -Dtest=MarkdownRendererTest                             | run just a single test class                                                                                                        |
+| mvn test -Dtest=MarkdownRendererTest#testMarkupSimpleMarkdown              | run just a single test within a test class                                                                                          |
 | mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug | debug a test in Eclipse or IDEA to see why it's failing (see http://www.jroller.com/gmazza/entry/jpa_and_junit#debugging)           |
 | mvn org.codehaus.cargo:cargo-maven3-plugin:run                  | (from main war module) starts Wikantik on a Tomcat9 instance at http://localhost:8080/Wikantik with an attached debugger on port 5005 |
 | mvn clean deploy -Papache-release -Dgpg.passphrase=<passphrase> | deploys generated artifact to a repository. If -Dgpg.passphrase is not given, expects a gpg-agent running                           |

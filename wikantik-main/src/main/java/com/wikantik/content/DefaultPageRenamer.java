@@ -246,60 +246,31 @@ public class DefaultPageRenamer implements PageRenamer {
         return sb.toString();
     }
 
-    private String replaceReferrerString(final String sourceText, final String from, final String to ) {
-        final StringBuilder sb = new StringBuilder( sourceText.length()+32 );
-        
-        // This monstrosity just looks for a JSPWiki link pattern.  But it is pretty cool for a regexp, isn't it?  If you can
-        // understand this in a single reading, you have way too much time in your hands.
-        final Pattern linkPattern = Pattern.compile( "([\\[~]?)\\[([^|\\]]*)(\\|)?([^|\\]]*)(\\|)?([^|\\]]*)]" );
+    private String replaceReferrerString( final String sourceText, final String from, final String to ) {
+        final StringBuilder sb = new StringBuilder( sourceText.length() + 32 );
+
+        // Matches Markdown links: [text](target) where target can include anchors and paths
+        final Pattern linkPattern = Pattern.compile( "\\[([^\\]]*)]\\(([^)]*)\\)" );
         final Matcher matcher = linkPattern.matcher( sourceText );
         int start = 0;
-        
-        while( matcher.find( start ) ) {
-            char charBefore = (char)-1;
-            
-            if( matcher.start() > 0 ) {
-                charBefore = sourceText.charAt( matcher.start() - 1 );
-            }
-            
-            if( !matcher.group(1).isEmpty() || charBefore == '~' || charBefore == '[' ) {
-                //  Found an escape character, so I am escaping.
-                sb.append( sourceText, start, matcher.end() );
-                start = matcher.end();
-                continue;
-            }
 
-            String text = matcher.group(2);
-            String link = matcher.group(4);
-            final String attr = matcher.group(6);
-             
-            if( link.isEmpty() ) {
-                text = replaceSingleLink(text, from, to );
-            } else {
-                link = replaceSingleLink(link, from, to );
-                
-                //  A very simple substitution, but should work for quite a few cases.
-                text = TextUtil.replaceString( text, from, to );
-            }
-        
-            //
-            //  Construct the new string
-            //
+        while( matcher.find( start ) ) {
+            String text = matcher.group( 1 );
+            String link = matcher.group( 2 );
+
+            link = replaceSingleLink( link, from, to );
+
+            // Also update display text if it matches the old page name
+            text = TextUtil.replaceString( text, from, to );
+
             sb.append( sourceText, start, matcher.start() );
-            sb.append( "[" ).append( text );
-            if( !link.isEmpty() ) {
-                sb.append( "|" ).append( link );
-            }
-            if( !attr.isEmpty() ) {
-                sb.append( "|" ).append( attr );
-            }
-            sb.append( "]" );
-            
+            sb.append( "[" ).append( text ).append( "](" ).append( link ).append( ")" );
+
             start = matcher.end();
         }
-        
+
         sb.append( sourceText.substring( start ) );
-        
+
         return sb.toString();
     }
 
@@ -331,14 +302,6 @@ public class DefaultPageRenamer implements PageRenamer {
         //  Yes, these point to the same page.
         //
         if( realLink.equals( from ) || original.equals( from ) || oldStyleRealLink.equals( from ) ) {
-            //
-            //  if the original contains blanks, then we should introduce a link, for example:  [My Page]  =>  [My Page|My Renamed Page]
-            final int blank = realLink.indexOf( " ");
-            
-            if( blank != -1 ) {
-                return original + "|" + newlink;
-            }
-            
             return newlink + ( ( hash > 0 ) ? original.substring( hash ) : "" ) + ( ( slash > 0 ) ? original.substring( slash ) : "" ) ;
         }
         

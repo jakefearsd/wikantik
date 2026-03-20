@@ -107,7 +107,7 @@ public class DefaultUserManager implements UserManager {
         //   ReferenceManager (background thread)
         //     -> scanWikiLinks()
         //       -> RenderingManager.textToHTML()
-        //         -> WikantikMarkupParser constructor
+        //         -> MarkdownParser constructor
         //           -> getUserDatabase()  <-- JNDI lookup fails here
         //
         // By initializing here on the main servlet thread, the database connection

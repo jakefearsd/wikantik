@@ -304,7 +304,7 @@ public class DefaultPageManagerTest {
         final String name = "RenderCacheTestPage";
         final CachingManager cachingManager = engine.getManager( CachingManager.class );
 
-        engine.saveText( name, "Some wiki content with [a link]" );
+        engine.saveText( name, "Some wiki content with [a link]()" );
 
         // The render document cache should have no entries for this page
         // because save uses PAGE_SAVE context, which skips caching

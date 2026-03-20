@@ -40,8 +40,8 @@ public class UndefinedPagesPluginTest {
 
     @BeforeEach
     public void setUp() throws Exception {
-        testEngine.saveText( "TestPage", "Reference to [Foobar]." );
-        testEngine.saveText( "Foobar", "Reference to [Foobar 2], [Foobars]" );
+        testEngine.saveText( "TestPage", "Reference to [Foobar]()." );
+        testEngine.saveText( "Foobar", "Reference to [Foobar2](), [Foobars]()" );
         context = Wiki.context().create( testEngine, Wiki.contents().page( testEngine, "TestPage" ) );
     }
 
@@ -66,7 +66,7 @@ public class UndefinedPagesPluginTest {
         final Context context2 = Wiki.context().create( testEngine, Wiki.contents().page( testEngine, "Foobar" ) );
         final String res = manager.execute( context2,"{INSERT com.wikantik.plugin.UndefinedPagesPlugin" );
 
-        // The test engine uses the legacy wiki parser, so pages get jspwiki syntax links
+        // The markdown renderer generates links for undefined pages with createpage class
         Assertions.assertTrue( res.contains( "Foobar 2</a>" ), "Should contain page link, got: " + res );
     }
 
@@ -75,14 +75,14 @@ public class UndefinedPagesPluginTest {
         final Context context2 = Wiki.context().create( testEngine, Wiki.contents().page( testEngine, "Foobar" ) );
         final String res = manager.execute( context2,"{UndefinedPagesPlugin columns=2" );
 
-        Assertions.assertTrue( res.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\"><a " ),
+        Assertions.assertTrue( res.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\"><p><a " ),
                 "Should start with columns div and anchor tag, got: " + res );
     }
 
     @Test
     public void testCount() throws Exception {
         final String result = manager.execute( context, "{UndefinedPagesPlugin show=count}");
-        Assertions.assertEquals("1", result );
+        Assertions.assertEquals("<p>1</p>\n", result );
 
         // test if the proper exception is thrown:
         final String expectedExceptionString = "parameter showLastModified is not valid for the UndefinedPagesPlugin";

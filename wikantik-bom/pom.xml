@@ -75,12 +75,6 @@
 
       <dependency>
         <groupId>com.wikantik</groupId>
-        <artifactId>wikantik-markdown</artifactId>
-        <version>${jspwiki.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.wikantik</groupId>
         <artifactId>wikantik-util</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>

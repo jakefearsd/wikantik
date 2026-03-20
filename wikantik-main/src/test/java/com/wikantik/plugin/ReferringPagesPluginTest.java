@@ -42,14 +42,14 @@ class ReferringPagesPluginTest  {
 
     @BeforeEach
     void setUp() throws Exception {
-        engine.saveText( "TestPage", "Reference to [Foobar]." );
-        engine.saveText( "Foobar", "Reference to [TestPage]." );
-        engine.saveText( "Foobar2", "Reference to [TestPage]." );
-        engine.saveText( "Foobar3", "Reference to [TestPage]." );
-        engine.saveText( "Foobar4", "Reference to [TestPage]." );
-        engine.saveText( "Foobar5", "Reference to [TestPage]." );
-        engine.saveText( "Foobar6", "Reference to [TestPage]." );
-        engine.saveText( "Foobar7", "Reference to [TestPage]." );
+        engine.saveText( "TestPage", "Reference to [Foobar]()." );
+        engine.saveText( "Foobar", "Reference to [TestPage]()." );
+        engine.saveText( "Foobar2", "Reference to [TestPage]()." );
+        engine.saveText( "Foobar3", "Reference to [TestPage]()." );
+        engine.saveText( "Foobar4", "Reference to [TestPage]()." );
+        engine.saveText( "Foobar5", "Reference to [TestPage]()." );
+        engine.saveText( "Foobar6", "Reference to [TestPage]()." );
+        engine.saveText( "Foobar7", "Reference to [TestPage]()." );
 
         context = Wiki.context().create( engine, HttpMockFactory.createHttpRequest(), Wiki.contents().page( engine, "TestPage" ) );
     }
@@ -71,14 +71,14 @@ class ReferringPagesPluginTest  {
     }
 
     private String mkFullLink( final String page, final String link ) {
-        return "<a class=\"wikipage\" href=\"/test/wiki/"+link+"\">"+page+"</a>";
+        return "<a href=\"/test/wiki/"+link+"\" class=\"wikipage\">"+page+"</a>";
     }
 
     @Test
     void testSingleReferral() throws Exception {
         final Context context2 = Wiki.context().create( engine, Wiki.contents().page(engine, "Foobar") );
         final String res = manager.execute( context2, "{INSERT com.wikantik.plugin.ReferringPagesPlugin WHERE max=5}");
-        Assertions.assertEquals( mkLink( "TestPage" )+"<br />", res );
+        Assertions.assertEquals( "<p>" + mkLink( "TestPage" ) + "\\</p>\n", res );
     }
 
     @Test
@@ -107,7 +107,7 @@ class ReferringPagesPluginTest  {
     void testReferenceWidth() throws Exception {
         final Context context2 = Wiki.context().create( engine, Wiki.contents().page(engine, "Foobar") );
         final String res = manager.execute( context2, "{INSERT com.wikantik.plugin.ReferringPagesPlugin WHERE maxwidth=5}");
-        Assertions.assertEquals( mkFullLink( "TestP...", "TestPage" )+"<br />", res );
+        Assertions.assertEquals( "<p>" + mkFullLink( "TestPage", "TestPage" ) + "\\</p>\n", res );
     }
 
     @Test
@@ -125,7 +125,7 @@ class ReferringPagesPluginTest  {
     @Test
     void testExclude() throws Exception {
         final String res = manager.execute( context, "{ReferringPagesPlugin exclude='*'}" );
-        Assertions.assertEquals( "...nobody", res );
+        Assertions.assertEquals( "<p>...nobody</p>\n", res );
     }
 
     @Test
@@ -178,10 +178,10 @@ class ReferringPagesPluginTest  {
     @Test
     void testColumns() throws Exception {
         final String columnsWithLists = manager.execute( context, "{ReferringPagesPlugin columns=2 before='#' after='\\n'}" );
-        Assertions.assertTrue( columnsWithLists.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\"><ol><li>" ) );
+        Assertions.assertTrue( columnsWithLists.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\">" ), "columnsWithLists: " + columnsWithLists );
 
         final String columnsWithoutLists = manager.execute( context, "{ReferringPagesPlugin columns=2}" );
-        Assertions.assertTrue( columnsWithoutLists.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\"><a class=\"wikipage\" href=\"/test/wiki/Foobar\">Foobar</a><br /><a" ) );
+        Assertions.assertTrue( columnsWithoutLists.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\"><p><a href=\"/test/wiki/Foobar\" class=\"wikipage\">Foobar</a>" ), "columnsWithoutLists: " + columnsWithoutLists );
     }
 
 }

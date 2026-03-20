@@ -6,6 +6,10 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-19** — Fix SystemInfo page: proper Markdown tables and updated variable names
+
+**2026-03-19** — Migrate to Markdown-only rendering as the default parser
+
 **2026-03-19** — Reduce duplication in MCP tools and JDBC database classes
 
 **2026-03-19** — Update News page content

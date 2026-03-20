@@ -40,8 +40,8 @@ public class ReferenceManagerTest  {
     public void setUp() throws Exception {
         // create two handy wiki pages used in most test cases
         // Danger! all wiki page names must start with a capital letter!
-        engine.saveText( "TestPage", "Reference to [Foobar]." );
-        engine.saveText( "Foobar", "Reference to [Foobar2], [Foobars], [Foobar]" );
+        engine.saveText( "TestPage", "Reference to [Foobar]()." );
+        engine.saveText( "Foobar", "Reference to [Foobar2](), [Foobars](), [Foobar]()" );
     }
 
     @AfterEach
@@ -75,7 +75,7 @@ public class ReferenceManagerTest  {
         Assertions.assertNotNull( c, "findReferrers should never return null" );
         Assertions.assertTrue( c.isEmpty(), "deleted page should have no referrers" );
 
-        engine.saveText( "Foobar", "[Foobar2]");
+        engine.saveText( "Foobar", "[Foobar2]()");
         c = mgr.findReferrers("Foobar2");
 
         Assertions.assertNotNull( c, "referrers expected" );
@@ -91,7 +91,7 @@ public class ReferenceManagerTest  {
 
     @Test
     public void testBecomesUnreferenced() throws Exception {
-        engine.saveText( "Foobar2", "[TestPage]" );
+        engine.saveText( "Foobar2", "[TestPage]()" );
 
         Collection< String > c = mgr.findUnreferenced();
         Assertions.assertEquals( 0, c.size(), "Wrong # of orphan pages, stage 1" );
@@ -143,9 +143,9 @@ public class ReferenceManagerTest  {
      */
     @Test
     public void testSingularReferences() throws Exception {
-        engine.saveText( "RandomPage", "FatalBugs" );
+        engine.saveText( "RandomPage", "[FatalBugs]()" );
         engine.saveText( "FatalBugs", "<foo>" );
-        engine.saveText( "BugCommentPreviewDeletesAllComments", "FatalBug" );
+        engine.saveText( "BugCommentPreviewDeletesAllComments", "[FatalBug]()" );
         final Collection< String > c = mgr.findReferrers( "FatalBugs" );
 
         Assertions.assertNotNull( c, "referrers expected" );
@@ -161,7 +161,7 @@ public class ReferenceManagerTest  {
     //     just don't do it.
     @Test
     public void testUpdatePluralOnlyRef() throws Exception {
-        engine.saveText( "TestPage", "Reference to [Foobars]." );
+        engine.saveText( "TestPage", "Reference to [Foobars]()." );
         Collection< String > c = mgr.findUnreferenced();
         Assertions.assertTrue( c.size()==1 && ( c.iterator().next() ).equals("TestPage"), "Foobar unreferenced" );
 
@@ -187,8 +187,8 @@ public class ReferenceManagerTest  {
     @Test
     public void testUpdateBothExist() throws Exception {
         engine.saveText( "BooFars", "qwertz" );
-        engine.saveText( "Boo0", "Reference to [BooFars]" );
-        engine.saveText( "Boo1", "Another reference to [BooFars]" );
+        engine.saveText( "Boo0", "Reference to [BooFars]()" );
+        engine.saveText( "Boo1", "Another reference to [BooFars]()" );
         final Collection< String > c = mgr.findReferrers( "BooFars" );
         Assertions.assertNotNull( c, "referrers expected" );
         Assertions.assertEquals( 2, c.size(), "BooFars referrers: " + c );
@@ -200,7 +200,7 @@ public class ReferenceManagerTest  {
         throws Exception
     {
         engine.saveText( "Foobars", "qwertz" );
-        engine.saveText( "TestPage", "Reference to [Foobar], [Foobars]." );
+        engine.saveText( "TestPage", "Reference to [Foobar](), [Foobars]()." );
 
         final Collection< String > c = mgr.findReferrers( "Foobars" );
         Assertions.assertNotNull( c, "referrers expected" );
@@ -210,7 +210,7 @@ public class ReferenceManagerTest  {
 
     @Test
     public void testCircularRefs() throws Exception {
-        engine.saveText( "Foobar2", "ref to [TestPage]" );
+        engine.saveText( "Foobar2", "ref to [TestPage]()" );
 
         Assertions.assertEquals( 0, mgr.findUncreated().size(), "no uncreated" );
         Assertions.assertEquals( 0, mgr.findUnreferenced().size(), "no unreferenced" );
@@ -218,10 +218,10 @@ public class ReferenceManagerTest  {
 
     @Test
     public void testPluralSingularUpdate1() throws Exception {
-        engine.saveText( "BugOne", "NewBug" );
+        engine.saveText( "BugOne", "[NewBug]()" );
         engine.saveText( "NewBugs", "foo" );
         engine.saveText( "OpenBugs", "bar" );
-        engine.saveText( "BugOne", "OpenBug" );
+        engine.saveText( "BugOne", "[OpenBug]()" );
 
         Collection< String > ref = mgr.findReferrers( "NewBugs" );
         Assertions.assertTrue( ref.isEmpty(), "newbugs" ); // No referrers must be found
@@ -243,11 +243,11 @@ public class ReferenceManagerTest  {
 
     @Test
     public void testPluralSingularUpdate2() throws Exception {
-        engine.saveText( "BugOne", "NewBug" );
+        engine.saveText( "BugOne", "[NewBug]()" );
         engine.saveText( "NewBug", "foo" );
         engine.saveText( "OpenBug", "bar" );
 
-        engine.saveText( "BugOne", "OpenBug" );
+        engine.saveText( "BugOne", "[OpenBug]()" );
 
         Collection< String > ref = mgr.findReferrers( "NewBugs" );
         Assertions.assertTrue( ref.isEmpty(), "newbugs" ); // No referrers must be found
@@ -269,11 +269,11 @@ public class ReferenceManagerTest  {
 
     @Test
     public void testPluralSingularUpdate3() throws Exception {
-        engine.saveText( "BugOne", "NewBug" );
-        engine.saveText( "BugTwo", "NewBug" );
+        engine.saveText( "BugOne", "[NewBug]()" );
+        engine.saveText( "BugTwo", "[NewBug]()" );
         engine.saveText( "NewBugs", "foo" );
         engine.saveText( "OpenBugs", "bar" );
-        engine.saveText( "BugOne", "OpenBug" );
+        engine.saveText( "BugOne", "[OpenBug]()" );
 
         Collection< String > ref = mgr.findReferrers( "NewBugs" );
         Assertions.assertNotNull( ref, "referrers expected" );
@@ -298,7 +298,7 @@ public class ReferenceManagerTest  {
 
     @Test
     public void testSelf() throws WikiException {
-        engine.saveText( "BugOne", "BugOne" );
+        engine.saveText( "BugOne", "[BugOne]()" );
         final Collection< String > ref = mgr.findReferrers( "BugOne" );
         Assertions.assertNotNull( ref, "referrers expected" );
         Assertions.assertEquals( 1, ref.size(), "wrong size" );
@@ -307,7 +307,7 @@ public class ReferenceManagerTest  {
 
     @Test
     public void testReadLinks() {
-        final String src="Foobar. [Foobar].  Frobozz.  [This is a link].";
+        final String src="Foobar. [Foobar]().  Frobozz.  [This is a link]().";
         final Object[] result = mgr.scanWikiLinks( Wiki.contents().page( engine, "Test"), src ).toArray();
 
         Assertions.assertEquals( "Foobar", result[0], "item 0" );
@@ -352,7 +352,7 @@ public class ReferenceManagerTest  {
                 "OrphanPage should initially be unreferenced" );
 
         // Now create a page that references it
-        engine.saveText( "LinkingPage", "Reference to [OrphanPage]" );
+        engine.saveText( "LinkingPage", "Reference to [OrphanPage]()" );
 
         // OrphanPage should no longer be unreferenced
         unreferenced = mgr.findUnreferenced();

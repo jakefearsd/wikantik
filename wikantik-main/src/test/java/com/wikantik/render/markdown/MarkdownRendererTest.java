@@ -49,7 +49,8 @@ public class MarkdownRendererTest {
     TestEngine testEngine = TestEngine.build( TestEngine.with( "wikantik.translatorReader.matchEnglishPlurals", "true" ),
                                               TestEngine.with( "wikantik.fileSystemProvider.pageDir", "./target/md-pageDir" ),
                                               TestEngine.with( "wikantik.renderingManager.markupParser", MarkdownParser.class.getName() ),
-                                              TestEngine.with( "wikantik.renderingManager.renderer", MarkdownRenderer.class.getName() ) );
+                                              TestEngine.with( "wikantik.renderingManager.renderer", MarkdownRenderer.class.getName() ),
+                                              TestEngine.with( "wikantik.translatorReader.allowHTML", "true" ) );
 
     @Test
     public void testMarkupSimpleMarkdown() throws Exception {

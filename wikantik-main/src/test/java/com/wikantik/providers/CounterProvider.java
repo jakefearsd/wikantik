@@ -53,7 +53,7 @@ public class CounterProvider implements PageProvider {
 
     Page[]    m_pages         = new Page[0];
 
-    String m_defaultText = "[Foo], [Bar], [Blat], [Blah]";
+    String m_defaultText = "[Foo](), [Bar](), [Blat](), [Blah]()";
 
     /**
      * Resets all counters to zero. Useful between tests.

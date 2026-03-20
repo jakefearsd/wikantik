@@ -87,12 +87,12 @@ public class RenderingManagerTest {
 
     @Test
     public void testGetHTML() throws Exception {
-        final String text = "''Foobar.''";
+        final String text = "*Foobar.*";
         final String name = "Test1";
         m_engine.saveText( name, text );
 
         final String data = m_engine.getManager( RenderingManager.class ).getHTML( name );
-        Assertions.assertEquals( "<i>Foobar.</i>\n", data );
+        Assertions.assertEquals( "<p><em>Foobar.</em></p>\n", data );
     }
 
     /**
@@ -134,21 +134,21 @@ public class RenderingManagerTest {
     }
 
     private static final String TEST_TEXT =
-        "Please ''check [RecentChanges].\n" +
+        "Please *check [RecentChanges]().\n" +
         "\n" +
         "Testing. fewfwefe\n" +
         "\n" +
-        "CHeck [testpage]\n" +
+        "CHeck [testpage]()\n" +
         "\n" +
         "More testing.\n" +
-        "dsadsadsa''\n" +
-        "Is this {{truetype}} or not?\n" +
-        "What about {{{This}}}?\n" +
-        "How about {{this?\n" +
+        "dsadsadsa*\n" +
+        "Is this `truetype` or not?\n" +
+        "What about `This`?\n" +
+        "How about `this`?\n" +
         "\n" +
-        "{{{\n" +
+        "```\n" +
         "{{text}}\n" +
-        "}}}\n" +
+        "```\n" +
         "goo\n" +
         "\n" +
         "<b>Not bold</b>\n" +
@@ -169,57 +169,57 @@ public class RenderingManagerTest {
         "\n" +
         "----\n" +
         "\n" +
-        "!!!Really big heading\n" +
+        "# Really big heading\n" +
         "Text.\n" +
-        "!! Just a normal heading [with a hyperlink|Main]\n" +
+        "## Just a normal heading [with a hyperlink](Main)\n" +
         "More text.\n" +
-        "!Just a small heading.\n" +
+        "### Just a small heading.\n" +
         "\n" +
-        "This should be __bold__ text.\n" +
+        "This should be **bold** text.\n" +
         "\n" +
-        "__more bold text continuing\n" +
-        "on the next line.__\n" +
+        "**more bold text continuing\n" +
+        "on the next line.**\n" +
         "\n" +
-        "__more bold text continuing\n" +
+        "**more bold text continuing\n" +
         "\n" +
-        "on the next paragraph.__\n" +
+        "on the next paragraph.**\n" +
         "\n" +
         "\n" +
         "This should be normal.\n" +
         "\n" +
-        "Now, let's try ''italic text''.\n" +
+        "Now, let's try *italic text*.\n" +
         "\n" +
         "Bulleted lists:\n" +
         "* One\n" +
         "Or more.\n" +
         "* Two\n" +
         "\n" +
-        "** Two.One\n" +
+        "  * Two.One\n" +
         "\n" +
-        "*** Two.One.One\n" +
+        "    * Two.One.One\n" +
         "\n" +
         "* Three\n" +
         "\n" +
         "Numbered lists.\n" +
-        "# One\n" +
-        "# Two\n" +
-        "# Three\n" +
-        "## Three.One\n" +
-        "## Three.Two\n" +
-        "## Three.Three\n" +
-        "### Three.Three.One\n" +
-        "# Four\n" +
+        "1. One\n" +
+        "1. Two\n" +
+        "1. Three\n" +
+        "   1. Three.One\n" +
+        "   1. Three.Two\n" +
+        "   1. Three.Three\n" +
+        "      1. Three.Three.One\n" +
+        "1. Four\n" +
         "\n" +
         "End?\n" +
         "\n" +
-        "No, let's {{break}} things.\\ {{{ {{{ {{text}} }}} }}}\n" +
+        "No, let's `break` things.\\ ``` ``` `text` ``` ```\n" +
         "\n" +
         "More breaking.\n" +
         "\n" +
-        "{{{\n" +
+        "```\n" +
         "code.}}\n" +
         "----\n" +
-        "author: [Asser], [Ebu], [JanneJalkanen], [Jarmo|mailto:jarmo@regex.com.au]\n";
+        "author: [Asser](), [Ebu](), [JanneJalkanen](), [Jarmo](mailto:jarmo@regex.com.au)\n";
 
     @Test
     public void testDefaultParserUsesConfigured() throws Exception {
@@ -232,27 +232,9 @@ public class RenderingManagerTest {
         final MarkupParser parser = m_manager.getParser( context, content );
 
         Assertions.assertNotNull( parser, "Parser should not be null" );
-        // In the test environment, WikantikMarkupParser is configured; in production, MarkdownParser is the default
-        Assertions.assertEquals( "com.wikantik.parser.WikantikMarkupParser",
+        Assertions.assertEquals( "com.wikantik.parser.markdown.MarkdownParser",
                                  parser.getClass().getName(),
                                  "Should use configured default parser" );
     }
 
-    @Test
-    public void testLegacyParserForJspwikiSyntax() throws Exception {
-        final String wikiContent = "!!! Test Heading\n\nThis is ''wiki'' content.";
-        final String pageName = "WikiParserTest";
-
-        // Pages with markup.syntax=jspwiki should use the legacy parser
-        final com.wikantik.WikiPage page = new com.wikantik.WikiPage( m_engine, pageName );
-        page.setAttribute( Page.MARKUP_SYNTAX, "jspwiki" );
-
-        final Context context = Wiki.context().create( m_engine, page );
-        final MarkupParser parser = m_manager.getParser( context, wikiContent );
-
-        Assertions.assertNotNull( parser, "Parser should not be null" );
-        Assertions.assertEquals( "com.wikantik.parser.WikantikMarkupParser",
-                                 parser.getClass().getName(),
-                                 "Should use WikantikMarkupParser for jspwiki pages" );
-    }
 }

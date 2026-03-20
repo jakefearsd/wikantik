@@ -76,14 +76,14 @@ public class PageRenamerTest {
     @Test
     public void testReferrerChange() throws Exception  {
         m_engine.saveText("TestPage", "foofoo" );
-        m_engine.saveText("TestPage2", "[TestPage]");
+        m_engine.saveText("TestPage2", "[TestPage]()");
 
         final Page p = m_engine.getManager( PageManager.class ).getPage("TestPage");
         final Context context = Wiki.context().create(m_engine, p);
         m_engine.getManager( PageRenamer.class ).renamePage(context, "TestPage", "FooTest", true);
 
         final String data = m_engine.getManager( PageManager.class ).getPureText("TestPage2", WikiProvider.LATEST_VERSION);
-        Assertions.assertEquals( "[FooTest]", data.trim(), "no rename" );
+        Assertions.assertEquals( "[FooTest]()", data.trim(), "no rename" );
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers("TestPage");
         Assertions.assertTrue( refs.isEmpty(), "oldpage" );
@@ -95,7 +95,7 @@ public class PageRenamerTest {
     @Test
     public void testReferrerChangeMultiRename() throws Exception  {
         m_engine.saveText("TestPage", "foofoo" );
-        m_engine.saveText("TestPage2", "[TestPage]");
+        m_engine.saveText("TestPage2", "[TestPage]()");
 
         final Page p = m_engine.getManager( PageManager.class ).getPage("TestPage");
         final Context context = Wiki.context().create(m_engine, p);
@@ -103,7 +103,7 @@ public class PageRenamerTest {
         m_engine.getManager( PageRenamer.class ).renamePage(context, "FooTest", "BarTest", true);
 
         final String data = m_engine.getManager( PageManager.class ).getPureText("TestPage2", WikiProvider.LATEST_VERSION);
-        Assertions.assertEquals( "[BarTest]", data.trim(), "no rename" );
+        Assertions.assertEquals( "[BarTest]()", data.trim(), "no rename" );
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers("TestPage");
         Assertions.assertTrue( refs.isEmpty(), "oldpage" );
@@ -117,7 +117,7 @@ public class PageRenamerTest {
     @Test
     public void testReferrerChangeMultiRename2() throws Exception  {
         m_engine.saveText("TestPage", "foofoo" );
-        m_engine.saveText("TestPage2", "[Test|TestPage]");
+        m_engine.saveText("TestPage2", "[Test](TestPage)");
 
         final Page p = m_engine.getManager( PageManager.class ).getPage("TestPage");
         final Context context = Wiki.context().create(m_engine, p);
@@ -125,7 +125,7 @@ public class PageRenamerTest {
         m_engine.getManager( PageRenamer.class ).renamePage(context, "FooTest", "BarTest", true);
 
         final String data = m_engine.getManager( PageManager.class ).getPureText("TestPage2", WikiProvider.LATEST_VERSION);
-        Assertions.assertEquals( "[Test|BarTest]", data.trim(), "no rename" );
+        Assertions.assertEquals( "[Test](BarTest)", data.trim(), "no rename" );
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers("TestPage");
         Assertions.assertTrue( refs.isEmpty(), "oldpage" );
@@ -139,14 +139,14 @@ public class PageRenamerTest {
     @Test
     public void testReferrerChangeCC() throws Exception {
         m_engine.saveText("TestPage", "foofoo" );
-        m_engine.saveText("TestPage2", "TestPage");
+        m_engine.saveText("TestPage2", "[TestPage](TestPage)");
 
         final Page p = m_engine.getManager( PageManager.class ).getPage("TestPage");
         final Context context = Wiki.context().create(m_engine, p);
         m_engine.getManager( PageRenamer.class ).renamePage(context, "TestPage", "FooTest", true);
 
         final String data = m_engine.getManager( PageManager.class ).getPureText("TestPage2", WikiProvider.LATEST_VERSION);
-        Assertions.assertEquals( "FooTest", data.trim(), "no rename" );
+        Assertions.assertEquals( "[FooTest](FooTest)", data.trim(), "no rename" );
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers("TestPage");
         Assertions.assertTrue( refs.isEmpty(), "oldpage" );
@@ -160,7 +160,7 @@ public class PageRenamerTest {
         throws Exception
     {
         m_engine.saveText("TestPage", "foofoo" );
-        m_engine.saveText("TestPage2", "[TestPage#heading1]");
+        m_engine.saveText("TestPage2", "[TestPage#heading1](TestPage#heading1)");
 
         final Page p = m_engine.getManager( PageManager.class ).getPage("TestPage");
 
@@ -170,7 +170,7 @@ public class PageRenamerTest {
 
         final String data = m_engine.getManager( PageManager.class ).getPureText("TestPage2", WikiProvider.LATEST_VERSION);
 
-        Assertions.assertEquals( "[FooTest#heading1]", data.trim(), "no rename" );
+        Assertions.assertEquals( "[FooTest#heading1](FooTest#heading1)", data.trim(), "no rename" );
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers("TestPage");
 
         Assertions.assertTrue( refs.isEmpty(), "oldpage" );
@@ -185,7 +185,7 @@ public class PageRenamerTest {
         throws Exception
     {
         m_engine.saveText("TestPage", "foofoo" );
-        m_engine.saveText("TestPage2", "[TestPage] [TestPage] [linktext|TestPage] TestPage [linktext|TestPage] [TestPage#Anchor] [TestPage] TestPage [TestPage]");
+        m_engine.saveText("TestPage2", "[TestPage]() [TestPage]() [linktext](TestPage) TestPage [linktext](TestPage) [TestPage#Anchor]() [TestPage]() TestPage [TestPage]()");
 
         final Page p = m_engine.getManager( PageManager.class ).getPage("TestPage");
 
@@ -195,8 +195,8 @@ public class PageRenamerTest {
 
         final String data = m_engine.getManager( PageManager.class ).getPureText("TestPage2", WikiProvider.LATEST_VERSION);
 
-        Assertions.assertEquals( "[FooTest] [FooTest] [linktext|FooTest] FooTest [linktext|FooTest] [FooTest#Anchor] [FooTest] FooTest [FooTest]",
-                                 data.trim(), 
+        Assertions.assertEquals( "[FooTest]() [FooTest]() [linktext](FooTest) FooTest [linktext](FooTest) [FooTest#Anchor]() [FooTest]() FooTest [FooTest]()",
+                                 data.trim(),
                                  "no rename" );
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers("TestPage");
@@ -213,7 +213,7 @@ public class PageRenamerTest {
         throws Exception
     {
         m_engine.saveText("Test","foo");
-        m_engine.saveText("TestPage2", "[Test] [Test#anchor] test Test [test] [link|test] [link|test]");
+        m_engine.saveText("TestPage2", "[Test](Test) [Test#anchor](Test#anchor) test Test [test](Test) [link](Test) [link](Test)");
 
         final Page p = m_engine.getManager( PageManager.class ).getPage("TestPage");
 
@@ -223,7 +223,7 @@ public class PageRenamerTest {
 
         final String data = m_engine.getManager( PageManager.class ).getPureText("TestPage2", WikiProvider.LATEST_VERSION );
 
-        Assertions.assertEquals( "[TestPage] [TestPage#anchor] test Test [TestPage] [link|TestPage] [link|TestPage]", data.trim(), "wrong data" );
+        Assertions.assertEquals( "[TestPage](TestPage) [TestPage#anchor](TestPage#anchor) test Test [test](TestPage) [link](TestPage) [link](TestPage)", data.trim(), "wrong data" );
     }
 
     @Test
@@ -231,7 +231,7 @@ public class PageRenamerTest {
         throws Exception
     {
         m_engine.saveText("TestPage", "foofoo" );
-        m_engine.saveText("TestPage2", "[TestPage/foo.txt] [linktext|TestPage/bar.jpg]");
+        m_engine.saveText("TestPage2", "[TestPage/foo.txt](TestPage/foo.txt) [linktext](TestPage/bar.jpg)");
 
         m_engine.addAttachment("TestPage", "foo.txt", "testing".getBytes() );
         m_engine.addAttachment("TestPage", "bar.jpg", "pr0n".getBytes() );
@@ -243,7 +243,7 @@ public class PageRenamerTest {
 
         final String data = m_engine.getManager( PageManager.class ).getPureText("TestPage2", WikiProvider.LATEST_VERSION);
 
-        Assertions.assertEquals( "[FooTest/foo.txt] [linktext|FooTest/bar.jpg]", data.trim(), "no rename" );
+        Assertions.assertEquals( "[FooTest/foo.txt](FooTest/foo.txt) [linktext](FooTest/bar.jpg)", data.trim(), "no rename" );
 
         Attachment att = m_engine.getManager( AttachmentManager.class ).getAttachmentInfo("FooTest/foo.txt");
         Assertions.assertNotNull( att, "footext" );
@@ -269,7 +269,7 @@ public class PageRenamerTest {
     @Test
     public void testSamePage() throws Exception
     {
-        m_engine.saveText( "TestPage", "[TestPage]");
+        m_engine.saveText( "TestPage", "[TestPage]()");
 
         rename( "TestPage", "FooTest" );
 
@@ -277,7 +277,7 @@ public class PageRenamerTest {
 
         Assertions.assertNotNull( p, "no page" );
 
-        Assertions.assertEquals("[FooTest]", m_engine.getManager( PageManager.class ).getText("FooTest").trim() );
+        Assertions.assertEquals("[FooTest]()", m_engine.getManager( PageManager.class ).getText("FooTest").trim() );
     }
 
     @Test
@@ -309,7 +309,7 @@ public class PageRenamerTest {
 
         Assertions.assertNotNull( p, "no page" );
 
-        Assertions.assertEquals("[|FooTest]", m_engine.getManager( PageManager.class ).getText("TestPage2").trim() );
+        Assertions.assertEquals("[|TestPage]", m_engine.getManager( PageManager.class ).getText("TestPage2").trim() );
     }
 
     private void rename( final String src, final String dst ) throws WikiException
@@ -324,13 +324,13 @@ public class PageRenamerTest {
     @Test
     public void testBug25() throws Exception
     {
-        final String src = "[Cdauth/attach.txt] [link|Cdauth/attach.txt] [cdauth|Cdauth/attach.txt]"+
-                     "[CDauth/attach.txt] [link|CDauth/attach.txt] [cdauth|CDauth/attach.txt]"+
-                     "[cdauth/attach.txt] [link|cdauth/attach.txt] [cdauth|cdauth/attach.txt]";
+        final String src = "[Cdauth/attach.txt](Cdauth/attach.txt) [link](Cdauth/attach.txt) [cdauth](Cdauth/attach.txt)"+
+                     "[CDauth/attach.txt](CDauth/attach.txt) [link](CDauth/attach.txt) [cdauth](CDauth/attach.txt)"+
+                     "[cdauth/attach.txt](cdauth/attach.txt) [link](cdauth/attach.txt) [cdauth](cdauth/attach.txt)";
 
-        final String dst = "[CdauthNew/attach.txt] [link|CdauthNew/attach.txt] [cdauth|CdauthNew/attach.txt]"+
-                     "[CDauth/attach.txt] [link|CDauth/attach.txt] [cdauth|CDauth/attach.txt]"+
-                     "[CdauthNew/attach.txt] [link|CdauthNew/attach.txt] [cdauth|CdauthNew/attach.txt]";
+        final String dst = "[CdauthNew/attach.txt](CdauthNew/attach.txt) [link](CdauthNew/attach.txt) [cdauth](CdauthNew/attach.txt)"+
+                     "[CDauth/attach.txt](CDauth/attach.txt) [link](CDauth/attach.txt) [cdauth](CDauth/attach.txt)"+
+                     "[cdauth/attach.txt](CdauthNew/attach.txt) [link](CdauthNew/attach.txt) [cdauth](CdauthNew/attach.txt)";
 
         m_engine.saveText( "Cdauth", "xxx" );
         m_engine.saveText( "TestPage", src );
@@ -345,27 +345,27 @@ public class PageRenamerTest {
     @Test
     public void testBug21() throws Exception
     {
-        final String src = "[Link to TestPage2|TestPage2]";
+        final String src = "[Link to TestPage2](TestPage2)";
 
         m_engine.saveText( "TestPage", src );
         m_engine.saveText( "TestPage2", "foo" );
 
         rename ("TestPage2", "Test");
 
-        Assertions.assertEquals( "[Link to Test|Test]", m_engine.getManager( PageManager.class ).getText( "TestPage" ).trim() );
+        Assertions.assertEquals( "[Link to Test](Test)", m_engine.getManager( PageManager.class ).getText( "TestPage" ).trim() );
     }
 
     @Test
     public void testExtendedLinks() throws Exception
     {
-        final String src = "[Link to TestPage2|TestPage2|target='_new']";
+        final String src = "[Link to TestPage2](TestPage2)";
 
         m_engine.saveText( "TestPage", src );
         m_engine.saveText( "TestPage2", "foo" );
 
         rename ("TestPage2", "Test");
 
-        Assertions.assertEquals( "[Link to Test|Test|target='_new']", m_engine.getManager( PageManager.class ).getText( "TestPage" ).trim() );
+        Assertions.assertEquals( "[Link to Test](Test)", m_engine.getManager( PageManager.class ).getText( "TestPage" ).trim() );
     }
 
     @Test
@@ -455,27 +455,31 @@ public class PageRenamerTest {
     @Test
     public void testRenameOfEscapedLinks() throws Exception
     {
-        final String src = "[[Link to TestPage2|TestPage2|target='_new']";
+        final String src = "[Link to TestPage2] (TestPage2)";
 
         m_engine.saveText( "TestPage", src );
         m_engine.saveText( "TestPage2", "foo" );
 
         rename ("TestPage2", "Test");
 
-        Assertions.assertEquals( "[[Link to TestPage2|TestPage2|target='_new']", m_engine.getManager( PageManager.class ).getText( "TestPage" ).trim() );
+        // Space between ] and ( means this is not a valid markdown link,
+        // so the renamer should not modify it
+        Assertions.assertEquals( "[Link to TestPage2] (TestPage2)", m_engine.getManager( PageManager.class ).getText( "TestPage" ).trim() );
     }
 
     @Test
     public void testRenameOfEscapedLinks2() throws Exception
     {
-        final String src = "~[Link to TestPage2|TestPage2|target='_new']";
+        final String src = "[Link to TestPage2}{TestPage2}";
 
         m_engine.saveText( "TestPage", src );
         m_engine.saveText( "TestPage2", "foo" );
 
         rename ("TestPage2", "Test");
 
-        Assertions.assertEquals( "~[Link to TestPage2|TestPage2|target='_new']", m_engine.getManager( PageManager.class ).getText( "TestPage" ).trim() );
+        // Curly braces instead of parentheses means this is not a valid markdown link,
+        // so the renamer should not modify it
+        Assertions.assertEquals( "[Link to TestPage2}{TestPage2}", m_engine.getManager( PageManager.class ).getText( "TestPage" ).trim() );
     }
 
     /**
@@ -487,12 +491,12 @@ public class PageRenamerTest {
     public void testReferrerChangeWithBlanks() throws Exception
     {
         m_engine.saveText( "TestPageReferred", "bla bla bla som content" );
-        m_engine.saveText( "TestPageReferring", "[Test Page Referred]" );
+        m_engine.saveText( "TestPageReferring", "[Test Page Referred](TestPageReferred)" );
 
         rename( "TestPageReferred", "TestPageReferredNew" );
 
         final String data = m_engine.getManager( PageManager.class ).getPureText( "TestPageReferring", WikiProvider.LATEST_VERSION );
-        Assertions.assertEquals( "[Test Page Referred|TestPageReferredNew]", data.trim(), "page not renamed" );
+        Assertions.assertEquals( "[Test Page Referred](TestPageReferredNew)", data.trim(), "page not renamed" );
 
         Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "TestPageReferred" );
         Assertions.assertTrue( refs.isEmpty(), "oldpage" );
@@ -506,19 +510,19 @@ public class PageRenamerTest {
     @Test
     public void testReferrerChangeWithBlanks2() throws Exception
     {
-        m_engine.saveText( "RenameTest", "[link one] [link two]" );
-        m_engine.saveText( "Link one", "Leonard" );
-        m_engine.saveText( "Link two", "Cohen" );
+        m_engine.saveText( "RenameTest", "[link one](LinkOne) [link two](LinkTwo)" );
+        m_engine.saveText( "LinkOne", "Leonard" );
+        m_engine.saveText( "LinkTwo", "Cohen" );
 
-        rename( "Link one", "Link uno" );
+        rename( "LinkOne", "LinkUno" );
 
         final String data = m_engine.getManager( PageManager.class ).getPureText( "RenameTest", WikiProvider.LATEST_VERSION );
-        Assertions.assertEquals( "[link one|Link uno] [link two]", data.trim(), "page not renamed" );
+        Assertions.assertEquals( "[link one](LinkUno) [link two](LinkTwo)", data.trim(), "page not renamed" );
 
-        Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "Link one" );
+        Collection< String > refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "LinkOne" );
         Assertions.assertTrue( refs.isEmpty(), "oldpage" );
 
-        refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "Link uno" );
+        refs = m_engine.getManager( ReferenceManager.class ).findReferrers( "LinkUno" );
         Assertions.assertEquals( 1, refs.size(), "new size" );
         Assertions.assertEquals( "RenameTest", refs.iterator().next() , "wrong ref");
     }

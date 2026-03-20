@@ -141,7 +141,6 @@
     <module>wikantik-cache</module>
     <module>wikantik-http</module>
     <module>wikantik-main</module>
-    <module>wikantik-markdown</module>
     <module>wikantik-mcp</module>
     <module>wikantik-war</module>
     <module>wikantik-it-tests</module><!-- IT tests are launched only if -Pintegration-tests is given -->

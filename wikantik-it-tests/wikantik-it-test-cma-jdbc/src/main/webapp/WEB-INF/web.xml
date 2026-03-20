@@ -165,31 +165,17 @@
        <servlet-class>com.wikantik.ui.SitemapServlet</servlet-class>
    </servlet>
 
-   <!-- PLACEHOLDER FOR PRE-COMPILED JSP SERVLETS -->
+   <!-- REST API servlet for recent articles -->
+   <servlet>
+       <servlet-name>RecentArticlesServlet</servlet-name>
+       <servlet-class>com.wikantik.content.RecentArticlesServlet</servlet-class>
+   </servlet>
 
-   <!--
-       And finally, let us tell the servlet container which
-       URLs should correspond to which XML RPC servlet.
-     -->
-
-   <!-- By default, this is disabled.  If you want to enabled it,
-        just uncomment the whole section. -->
-
-   <!--  REMOVE ME TO ENABLE XML-RPC
-
-   <servlet-mapping>
-       <servlet-name>XMLRPC</servlet-name>
-   </servlet-mapping>
-
-   <servlet-mapping>
-       <servlet-name>XMLRPC-UTF8</servlet-name>
-   </servlet-mapping>
-
-   <servlet-mapping>
-       <servlet-name>ATOM</servlet-name>
-   </servlet-mapping>
-
-   AND REMOVE ME TOO -->
+   <!-- Atom feed servlet for syndication -->
+   <servlet>
+       <servlet-name>AtomFeedServlet</servlet-name>
+       <servlet-class>com.wikantik.content.AtomFeedServlet</servlet-class>
+   </servlet>
 
    <servlet-mapping>
        <servlet-name>AttachmentServlet</servlet-name>
@@ -199,6 +185,16 @@
    <servlet-mapping>
        <servlet-name>SitemapServlet</servlet-name>
        <url-pattern>/sitemap.xml</url-pattern>
+   </servlet-mapping>
+
+   <servlet-mapping>
+       <servlet-name>RecentArticlesServlet</servlet-name>
+       <url-pattern>/api/recent-articles</url-pattern>
+   </servlet-mapping>
+
+   <servlet-mapping>
+       <servlet-name>AtomFeedServlet</servlet-name>
+       <url-pattern>/feed.xml</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

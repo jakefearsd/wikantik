@@ -165,6 +165,18 @@
        <servlet-class>com.wikantik.ui.SitemapServlet</servlet-class>
    </servlet>
 
+   <!-- REST API servlet for recent articles -->
+   <servlet>
+       <servlet-name>RecentArticlesServlet</servlet-name>
+       <servlet-class>com.wikantik.content.RecentArticlesServlet</servlet-class>
+   </servlet>
+
+   <!-- Atom feed servlet for syndication -->
+   <servlet>
+       <servlet-name>AtomFeedServlet</servlet-name>
+       <servlet-class>com.wikantik.content.AtomFeedServlet</servlet-class>
+   </servlet>
+
    <servlet-mapping>
        <servlet-name>AttachmentServlet</servlet-name>
        <url-pattern>/attach/*</url-pattern>
@@ -173,6 +185,16 @@
    <servlet-mapping>
        <servlet-name>SitemapServlet</servlet-name>
        <url-pattern>/sitemap.xml</url-pattern>
+   </servlet-mapping>
+
+   <servlet-mapping>
+       <servlet-name>RecentArticlesServlet</servlet-name>
+       <url-pattern>/api/recent-articles</url-pattern>
+   </servlet-mapping>
+
+   <servlet-mapping>
+       <servlet-name>AtomFeedServlet</servlet-name>
+       <url-pattern>/feed.xml</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

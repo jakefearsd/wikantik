@@ -40,7 +40,9 @@ public class McpProtocolIT extends WithMcpTestSetup {
             "get_wiki_stats", "list_metadata_values", "rename_page",
             "lock_page", "unlock_page", "upload_attachment", "read_attachment",
             "delete_attachment", "patch_page", "batch_patch_pages",
-            "update_metadata", "scan_markdown_links"
+            "update_metadata", "scan_markdown_links",
+            "batch_update_metadata", "ping_search_engines",
+            "preview_structured_data", "verify_pages"
     );
 
     @Test

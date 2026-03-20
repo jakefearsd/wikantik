@@ -214,7 +214,7 @@ public class DefaultVariableManager implements VariableManager {
             if( pg != null ) {
                 final Object metadata = pg.getAttribute( varName );
                 if( metadata != null ) {
-                    return metadata.toString();
+                    return metadataToString( metadata );
                 }
             }
 
@@ -226,7 +226,7 @@ public class DefaultVariableManager implements VariableManager {
             if( rpg != null ) {
                 final Object metadata = rpg.getAttribute( varName );
                 if( metadata != null ) {
-                    return metadata.toString();
+                    return metadataToString( metadata );
                 }
             }
 
@@ -255,6 +255,23 @@ public class DefaultVariableManager implements VariableManager {
             LOG.info("Interesting exception: cannot fetch variable value", e );
         }
         return "";
+    }
+
+    /**
+     * Converts a page metadata value to a string suitable for JSTL/EL use.
+     * Handles Date (ISO format) and List (comma-separated) values that
+     * SnakeYAML produces when parsing YAML frontmatter.
+     */
+    private static String metadataToString( final Object value ) {
+        if ( value instanceof Date date ) {
+            return new java.text.SimpleDateFormat( "yyyy-MM-dd" ).format( date );
+        }
+        if ( value instanceof List< ? > list ) {
+            return list.stream()
+                    .map( Object::toString )
+                    .collect( Collectors.joining( ", " ) );
+        }
+        return value.toString();
     }
 
     /**

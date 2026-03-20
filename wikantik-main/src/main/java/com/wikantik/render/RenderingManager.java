@@ -93,8 +93,8 @@ public interface RenderingManager extends RenderApi, WikiEventListener, Internal
     WikiDocument getRenderedDocument( Context context, String pagedata );
 
     /**
-     * Returns a WikiRenderer instance, initialized with the given context and doc. The object is an XHTMLRenderer,
-     * unless overridden in wikantik.properties with PROP_RENDERER.
+     * Returns a WikiRenderer instance, initialized with the given context and doc.
+     * Can be overridden in wikantik.properties with PROP_RENDERER.
      *
      * @param context The WikiContext
      * @param doc The document to render

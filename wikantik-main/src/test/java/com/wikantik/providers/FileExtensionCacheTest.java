@@ -166,14 +166,16 @@ public class FileExtensionCacheTest {
 
     @Test
     public void testCacheUpdatedOnExtensionChange() throws Exception {
-        // First create a .txt page (explicitly setting jspwiki syntax to get .txt extension)
-        final WikiPage txtPage = new WikiPage( m_engine, "ExtChangeTest" );
-        txtPage.setAttribute( Page.MARKUP_SYNTAX, "jspwiki" );
-        m_provider.putPageText( txtPage, "Wiki content" );
+        // Directly create a .txt file to simulate a legacy wiki-syntax page on disk
+        File txtFile = new File( m_pageDir, "ExtChangeTest" + AbstractFileProvider.FILE_EXT );
+        FileUtil.copyContents( new ByteArrayInputStream( "Wiki content".getBytes() ),
+                               new FileOutputStream( txtFile ) );
 
         // Verify it exists as .txt
-        File txtFile = new File( m_pageDir, "ExtChangeTest" + AbstractFileProvider.FILE_EXT );
         Assertions.assertTrue( txtFile.exists(), "TXT file should exist" );
+
+        // Access the page so cache is populated with .txt
+        m_provider.getPageInfo( "ExtChangeTest", -1 );
 
         // Remove the .txt and properties file, then create a .md file (simulating migration)
         txtFile.delete();

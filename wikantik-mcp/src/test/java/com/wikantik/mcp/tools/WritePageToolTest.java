@@ -302,6 +302,24 @@ class WritePageToolTest {
     }
 
     @Test
+    void testRejectsSerializedReadPageResponse() {
+        // Simulate an MCP client accidentally passing the full read_page JSON response as content
+        final String serializedResponse = "{\"exists\":true,\"pageName\":\"SomePage\",\"content\":\"# Real content\",\"metadata\":{},\"version\":1}";
+
+        final Map< String, Object > args = new HashMap<>();
+        args.put( "pageName", "McpSerializedTest" );
+        args.put( "content", serializedResponse );
+
+        final McpSchema.CallToolResult result = tool.execute( args );
+        assertTrue( result.isError() );
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( json.contains( "serialized JSON response" ) );
+
+        // Verify no page was created
+        assertNull( engine.getManager( PageManager.class ).getPage( "McpSerializedTest" ) );
+    }
+
+    @Test
     void testOptimisticLockingConflict() throws Exception {
         engine.saveText( "McpLockConflict", "Original." );
 

@@ -117,6 +117,27 @@ public final class McpToolUtils {
     }
 
     /**
+     * Checks whether a content string looks like a serialized read_page JSON response
+     * (e.g. {@code {"exists":true,"pageName":"...","content":"..."}}) that was accidentally
+     * passed as page content instead of plain Markdown.  Returns an error result if detected,
+     * or {@code null} if the content looks fine.
+     */
+    public static McpSchema.CallToolResult checkForSerializedResponse( final String content ) {
+        if ( content != null && content.length() > 20 ) {
+            final String trimmed = content.stripLeading();
+            if ( trimmed.startsWith( "{" )
+                    && ( trimmed.contains( "\"exists\"" ) || trimmed.contains( "\"pageName\"" ) )
+                    && trimmed.contains( "\"content\"" ) ) {
+                return errorResult( SHARED_GSON,
+                        "Content appears to be a serialized JSON response (contains exists/pageName/content fields). " +
+                        "Pass only the Markdown body text in the content parameter, not the full read_page response object.",
+                        "Extract the 'content' field from the read_page response and pass that string as content." );
+            }
+        }
+        return null;
+    }
+
+    /**
      * Computes a SHA-256 hex digest of the given content string.
      */
     public static String computeContentHash( final String content ) {

@@ -112,6 +112,14 @@ public class BatchWritePagesTool implements McpTool, AuthorConfigurable {
             final Map< String, Object > entry = new LinkedHashMap<>();
             entry.put( "pageName", pageName );
 
+            final McpSchema.CallToolResult contentCheck = McpToolUtils.checkForSerializedResponse( content );
+            if ( contentCheck != null ) {
+                entry.put( "success", false );
+                entry.put( "error", "Content appears to be a serialized JSON response — pass only the Markdown body" );
+                results.add( entry );
+                continue;
+            }
+
             try {
                 final Page saved = pageSaveHelper.saveText( pageName, content,
                         SaveOptions.builder()

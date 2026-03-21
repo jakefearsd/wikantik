@@ -23,11 +23,11 @@ import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
@@ -37,28 +37,29 @@ import java.io.File;
 import java.security.Principal;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Properties;
 
 /**
  */
+@TestInstance( TestInstance.Lifecycle.PER_CLASS )
 public class JDBCGroupDatabaseTest
 {
-    private static final HsqlDbUtils m_hu = new HsqlDbUtils();
-    private static DataSource        m_ds;
-    private static WikiEngine        m_engine;
-
-    private Connection        m_conn;
+    private final HsqlDbUtils m_hu = new HsqlDbUtils();
+    private DataSource        m_ds;
+    private WikiEngine        m_engine;
 
     private JDBCGroupDatabase m_db;
 
     private String            m_wiki;
 
     @BeforeAll
-    static void startDatabase() throws Exception
+    void startDatabase() throws Exception
     {
         m_hu.setUp();
         final Properties props = TestEngine.getTestProperties();
         m_engine = new TestEngine( props );
+        m_wiki = m_engine.getApplicationName();
 
         // Set up the mock JNDI initial context
         TestJNDIContext.initialize();
@@ -74,42 +75,41 @@ public class JDBCGroupDatabaseTest
         final Context ctx = (Context) initCtx.lookup( "java:comp/env" );
         m_ds = new TestJDBCDataSource( new File( "target/test-classes/wikantik-custom.properties" ), m_hu.getDriverUrl() );
         ctx.bind( JDBCGroupDatabase.DEFAULT_GROUPDB_DATASOURCE, m_ds );
+
+        m_db = new JDBCGroupDatabase();
+        m_db.initialize( m_engine, new Properties() );
     }
 
     @BeforeEach
     public void setUp() throws Exception
     {
-        m_wiki = m_engine.getApplicationName();
-
-        // Re-run DDL to reset tables (teardown drops user, setup recreates everything)
-        m_hu.exec( "src/test/config/hsql-userdb-teardown.ddl" );
-        m_hu.exec( "src/test/config/hsql-userdb-setup.ddl" );
-
-        try
+        // Reset data using DML instead of DDL teardown+setup
+        try( final Connection conn = m_ds.getConnection();
+             final Statement stmt = conn.createStatement() )
         {
-            m_conn = m_ds.getConnection();
+            stmt.executeUpdate( "DELETE FROM group_members" );
+            stmt.executeUpdate( "DELETE FROM groups" );
+            // Re-insert seed data
+            stmt.executeUpdate( "INSERT INTO groups (name, created, modified) VALUES ('TV', '2006-06-20 14:50:54.00000000', '2006-06-20 14:50:54.00000000')" );
+            stmt.executeUpdate( "INSERT INTO group_members (name, member) VALUES ('TV', 'Archie Bunker')" );
+            stmt.executeUpdate( "INSERT INTO group_members (name, member) VALUES ('TV', 'BullwinkleMoose')" );
+            stmt.executeUpdate( "INSERT INTO group_members (name, member) VALUES ('TV', 'Fred Friendly')" );
+            stmt.executeUpdate( "INSERT INTO groups (name, created, modified) VALUES ('Literature', '2006-06-20 14:50:54.00000000', '2006-06-20 14:50:54.00000000')" );
+            stmt.executeUpdate( "INSERT INTO group_members (name, member) VALUES ('Literature', 'Charles Dickens')" );
+            stmt.executeUpdate( "INSERT INTO group_members (name, member) VALUES ('Literature', 'Homer')" );
+            stmt.executeUpdate( "INSERT INTO groups (name, created, modified) VALUES ('Art', '2006-06-20 14:50:54.00000000', '2006-06-20 14:50:54.00000000')" );
+            stmt.executeUpdate( "INSERT INTO groups (name, created, modified) VALUES ('Admin', '2006-06-20 14:50:54.00000000', '2006-06-20 14:50:54.00000000')" );
+            stmt.executeUpdate( "INSERT INTO group_members (name, member) VALUES ('Admin', 'Administrator')" );
         }
         catch( final SQLException e )
         {
             Assertions.fail("Looks like your database could not be connected to - "+
                   "please make sure that you have started your database, exception: " + e.getMessage());
         }
-
-        m_db = new JDBCGroupDatabase();
-        m_db.initialize( m_engine, new Properties() );
-    }
-
-    @AfterEach
-    public void tearDown() throws Exception
-    {
-        if ( m_conn != null )
-        {
-            m_conn.close();
-        }
     }
 
     @AfterAll
-    static void stopDatabase() throws Exception
+    void stopDatabase() throws Exception
     {
         m_hu.tearDown();
     }

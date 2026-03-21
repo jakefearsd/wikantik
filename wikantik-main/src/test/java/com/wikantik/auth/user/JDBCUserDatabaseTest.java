@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
@@ -47,9 +48,10 @@ import java.util.Properties;
 /**
  *
  */
+@TestInstance( TestInstance.Lifecycle.PER_CLASS )
 public class JDBCUserDatabaseTest {
-    private static final HsqlDbUtils m_hu = new HsqlDbUtils();
-    private static DataSource m_ds;
+    private final HsqlDbUtils m_hu = new HsqlDbUtils();
+    private DataSource m_ds;
 
     private JDBCUserDatabase m_db;
 
@@ -81,7 +83,7 @@ public class JDBCUserDatabaseTest {
             "'" + new Timestamp( new Timestamp( System.currentTimeMillis() ).getTime() ) + "'" + ");";
 
     @BeforeAll
-    static void startDatabase() throws Exception {
+    void startDatabase() throws Exception {
         m_hu.setUp();
         // Set up the mock JNDI initial context
         TestJNDIContext.initialize();
@@ -94,22 +96,18 @@ public class JDBCUserDatabaseTest {
         final Context ctx = ( Context ) initCtx.lookup( "java:comp/env" );
         m_ds = new TestJDBCDataSource( new File( "target/test-classes/wikantik-custom.properties" ), m_hu.getDriverUrl() );
         ctx.bind( JDBCUserDatabase.DEFAULT_DB_JNDI_NAME, m_ds );
+
+        m_db = new JDBCUserDatabase();
+        m_db.initialize( null, new Properties() );
     }
 
     @BeforeEach
     public void setUp() throws Exception {
-        try {
-            final Connection conn = m_ds.getConnection();
-            final Statement stmt = conn.createStatement();
-
+        try( final Connection conn = m_ds.getConnection();
+             final Statement stmt = conn.createStatement() ) {
             stmt.executeUpdate( "DELETE FROM " + JDBCUserDatabase.DEFAULT_DB_TABLE + ";" );
             stmt.executeUpdate( INSERT_JANNE );
             stmt.executeUpdate( INSERT_USER );
-            stmt.close();
-            conn.close();
-
-            m_db = new JDBCUserDatabase();
-            m_db.initialize( null, new Properties() );
         } catch( final SQLException e ) {
             Assertions.fail( "Looks like your database could not be connected to - " +
                              "please make sure that you have started your database, exception: " + e.getMessage() );
@@ -117,7 +115,7 @@ public class JDBCUserDatabaseTest {
     }
 
     @AfterAll
-    static void stopDatabase() throws Exception {
+    void stopDatabase() throws Exception {
         m_hu.tearDown();
     }
 

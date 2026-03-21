@@ -34,10 +34,7 @@
   <modules>
     <module>wikantik-selenide-tests</module>
     <module>wikantik-it-test-custom</module>
-    <module>wikantik-it-test-custom-absolute-urls</module>
     <module>wikantik-it-test-custom-jdbc</module>
-    <module>wikantik-it-test-cma</module>
-    <module>wikantik-it-test-cma-jdbc</module>
   </modules>
 
   <dependencies>

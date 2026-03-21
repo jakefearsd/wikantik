@@ -122,8 +122,10 @@ public class ViewWikiPage implements HaddockPage {
      * @return {@link SearchResultsPage} instance, to allow chaining of actions.
      */
     public SearchResultsPage searchFor( final String text ) {
-        Selenide.$( By.className( "icon-search" ) ).hover();
-        Selenide.$( By.id( "query" ) ).shouldBe( Condition.visible, Duration.ofSeconds( 3L ) ).click();
+        // Use JavaScript to open the search dropdown reliably (same pattern as hoverLoginArea)
+        $( "#searchForm" ).shouldBe( Condition.visible, Duration.ofSeconds( 3 ) );
+        Selenide.executeJavaScript( "document.getElementById('searchForm').classList.add('open')" );
+        $( "#searchForm .dropdown-menu" ).shouldBe( Condition.visible, Duration.ofSeconds( 4 ) );
         Selenide.$( By.id( "query" ) ).val( text );
         Selenide.$( By.id( "searchSubmit" ) ).click();
         return new SearchResultsPage();

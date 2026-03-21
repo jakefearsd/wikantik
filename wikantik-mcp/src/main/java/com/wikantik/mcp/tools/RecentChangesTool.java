@@ -108,7 +108,7 @@ public class RecentChangesTool implements McpTool {
 
             return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of( "changes", changes ) );
         } catch ( final Exception e ) {
-            LOG.error( "Failed to get recent changes: {}", e.getMessage(), e );
+            LOG.warn( "Failed to get recent changes: {}", e.getMessage() );
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }

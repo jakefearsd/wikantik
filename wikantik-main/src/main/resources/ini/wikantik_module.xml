@@ -47,11 +47,6 @@
       <alias>ALIAS</alias>
    </plugin>
 
-   <plugin class="com.wikantik.plugin.Note">
-      <author>Janne Jalkanen</author>
-      <minVersion>1.0</minVersion>
-   </plugin>
-
    <filter class="com.wikantik.filters.SpamFilter">
       <author>Janne Jalkanen</author>
       <minVersion>1.0</minVersion>

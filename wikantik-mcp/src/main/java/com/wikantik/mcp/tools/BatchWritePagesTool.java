@@ -121,6 +121,7 @@ public class BatchWritePagesTool implements McpTool, AuthorConfigurable {
                         SaveOptions.builder()
                                 .author( effectiveAuthor )
                                 .changeNote( changeNote )
+                                .markupSyntax( "markdown" )
                                 .metadata( callerMetadata )
                                 .build() );
 

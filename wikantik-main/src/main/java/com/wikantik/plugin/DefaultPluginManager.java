@@ -500,7 +500,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
                     	}
                     }
                 } catch( final Exception e ) {
-                    LOG.info( "Cannot initialize plugin " + className, e );
+                    LOG.debug( "Cannot initialize plugin {}: {}", className, e.getMessage() );
                 }
             }
         }

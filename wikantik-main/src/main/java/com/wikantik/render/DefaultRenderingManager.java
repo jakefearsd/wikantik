@@ -48,6 +48,7 @@ import com.wikantik.util.TextUtil;
 import com.wikantik.variables.VariableManager;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.io.StringReader;
 import java.lang.reflect.Constructor;
 import java.util.Collection;
@@ -69,6 +70,8 @@ public class DefaultRenderingManager implements RenderingManager {
 
     private static final Logger LOG = LogManager.getLogger( DefaultRenderingManager.class );
     private static final String VERSION_DELIMITER = "::";
+
+    record HtmlCacheEntry( String html, String contentHash ) implements Serializable {}
     private static final String DEFAULT_PARSER = "com.wikantik.parser.markdown.MarkdownParser";
     private static final String DEFAULT_RENDERER = "com.wikantik.render.markdown.MarkdownRenderer";
     private static final String DEFAULT_WYSIWYG_RENDERER = "com.wikantik.render.markdown.MarkdownRenderer";
@@ -244,6 +247,48 @@ public class DefaultRenderingManager implements RenderingManager {
                && ContextEnum.PAGE_VIEW.getRequestContext().equals( context.getRequestContext() );
     }
 
+    private boolean useHtmlCache( final Context context ) {
+        return cachingManager.enabled( CachingManager.CACHE_HTML )
+               && ContextEnum.PAGE_VIEW.getRequestContext().equals( context.getRequestContext() );
+    }
+
+    private String htmlCacheId( final Context context ) {
+        return context.getRealPage().getName() + VERSION_DELIMITER +
+               context.getRealPage().getVersion() + VERSION_DELIMITER +
+               context.getVariable( Context.VAR_EXECUTE_PLUGINS );
+    }
+
+    @Override
+    public String getHTML( final Context context, final String pagedata ) {
+        // Check HTML cache before doing parse+render
+        if( useHtmlCache( context ) ) {
+            final String cacheId = htmlCacheId( context );
+            final HtmlCacheEntry cached = cachingManager.get( CachingManager.CACHE_HTML, cacheId, () -> null );
+            if( cached != null ) {
+                final String currentHash = WikiDocument.hashPageData( pagedata );
+                if( cached.contentHash().equals( currentHash ) ) {
+                    LOG.debug( "HTML cache hit (getHTML) for {}", cacheId );
+                    return cached.html();
+                }
+            }
+        }
+
+        try {
+            final WikiDocument doc = getRenderedDocument( context, pagedata );
+            final String html = getHTML( context, doc );
+
+            if( useHtmlCache( context ) ) {
+                final String cacheId = htmlCacheId( context );
+                final String contentHash = WikiDocument.hashPageData( pagedata );
+                cachingManager.put( CachingManager.CACHE_HTML, cacheId, new HtmlCacheEntry( html, contentHash ) );
+            }
+            return html;
+        } catch( final IOException e ) {
+            LOG.error( "Unable to parse", e );
+        }
+        return null;
+    }
+
     /**
      *  {@inheritDoc}
      */
@@ -294,6 +339,19 @@ public class DefaultRenderingManager implements RenderingManager {
     public String textToHTML( final Context context, String pagedata ) {
         String result = "";
 
+        // Try HTML cache first — skip all rendering work on hit
+        if( useHtmlCache( context ) ) {
+            final String cacheId = htmlCacheId( context );
+            final HtmlCacheEntry cached = cachingManager.get( CachingManager.CACHE_HTML, cacheId, () -> null );
+            if( cached != null ) {
+                final String currentHash = WikiDocument.hashPageData( pagedata );
+                if( cached.contentHash().equals( currentHash ) ) {
+                    LOG.debug( "HTML cache hit for {}", cacheId );
+                    return cached.html();
+                }
+            }
+        }
+
         final boolean runFilters = "true".equals( engine.getManager( VariableManager.class ).getValue( context,VariableManager.VAR_RUNFILTERS,"true" ) );
 
         final StopWatch sw = new StopWatch();
@@ -314,6 +372,13 @@ public class DefaultRenderingManager implements RenderingManager {
         }
         sw.stop();
         LOG.debug( "Page {} rendered, took {}", context.getRealPage().getName(), sw );
+
+        // Store in HTML cache
+        if( useHtmlCache( context ) ) {
+            final String cacheId = htmlCacheId( context );
+            final String contentHash = WikiDocument.hashPageData( pagedata );
+            cachingManager.put( CachingManager.CACHE_HTML, cacheId, new HtmlCacheEntry( result, contentHash ) );
+        }
 
         return result;
     }
@@ -415,9 +480,10 @@ public class DefaultRenderingManager implements RenderingManager {
     @Override
     public void actionPerformed( final WikiEvent event ) {
         LOG.debug( "event received: {}", event.toString() );
-        if( isBeginningAWikiPagePostSaveEventAndDocumentCacheIsEnabled( event ) ) {
+        if( isBeginningAWikiPagePostSaveEventAndCacheIsEnabled( event ) ) {
             final String pageName = ( ( WikiPageEvent ) event ).getPageName();
             cachingManager.remove( CachingManager.CACHE_DOCUMENTS, pageName );
+            cachingManager.remove( CachingManager.CACHE_HTML, pageName );
             final Collection< String > referringPages = engine.getManager( ReferenceManager.class ).findReferrers( pageName );
 
             // Flush also those pages that refer to this page (if a nonexistent page
@@ -425,17 +491,19 @@ public class DefaultRenderingManager implements RenderingManager {
             for( final String page : referringPages ) {
                 LOG.debug( "Flushing latest version of {}", page );
                 // as there is a new version of the page expire both plugin and pluginless versions of the old page
-                cachingManager.remove( CachingManager.CACHE_DOCUMENTS, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + Boolean.FALSE );
-                cachingManager.remove( CachingManager.CACHE_DOCUMENTS, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + Boolean.TRUE );
-                cachingManager.remove( CachingManager.CACHE_DOCUMENTS, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + null );
+                for( final String cache : new String[]{ CachingManager.CACHE_DOCUMENTS, CachingManager.CACHE_HTML } ) {
+                    cachingManager.remove( cache, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + Boolean.FALSE );
+                    cachingManager.remove( cache, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + Boolean.TRUE );
+                    cachingManager.remove( cache, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + null );
+                }
             }
         }
     }
 
-    boolean isBeginningAWikiPagePostSaveEventAndDocumentCacheIsEnabled( final WikiEvent event ) {
+    boolean isBeginningAWikiPagePostSaveEventAndCacheIsEnabled( final WikiEvent event ) {
         return event instanceof WikiPageEvent
                && event.getType() == WikiPageEvent.POST_SAVE_BEGIN
-               && cachingManager.enabled( CachingManager.CACHE_DOCUMENTS );
+               && ( cachingManager.enabled( CachingManager.CACHE_DOCUMENTS ) || cachingManager.enabled( CachingManager.CACHE_HTML ) );
     }
 
 }

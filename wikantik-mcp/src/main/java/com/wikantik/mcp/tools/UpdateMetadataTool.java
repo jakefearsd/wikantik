@@ -33,7 +33,6 @@ import com.wikantik.pages.PageSaveHelper;
 import com.wikantik.pages.SaveOptions;
 import com.wikantik.pages.VersionConflictException;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -140,31 +139,9 @@ public class UpdateMetadataTool implements McpTool, AuthorConfigurable {
                 final String action = ( String ) op.get( "action" );
                 final Object value = op.get( "value" );
 
-                if ( field == null || action == null ) {
-                    return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "Operation missing required 'field' or 'action'" );
-                }
-
-                switch ( action ) {
-                    case "set":
-                        metadata.put( field, value );
-                        break;
-
-                    case "append_to_list":
-                        applyAppendToList( metadata, field, value );
-                        break;
-
-                    case "remove_from_list":
-                        applyRemoveFromList( metadata, field, value );
-                        break;
-
-                    case "delete":
-                        metadata.remove( field );
-                        break;
-
-                    default:
-                        return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                                "Unknown action: " + action,
-                                "Valid actions: set, append_to_list, remove_from_list, delete" );
+                final String error = MetadataOperations.apply( metadata, field, action, value );
+                if ( error != null ) {
+                    return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, error );
                 }
             }
 
@@ -173,6 +150,7 @@ public class UpdateMetadataTool implements McpTool, AuthorConfigurable {
                     SaveOptions.builder()
                             .author( author != null ? author : defaultAuthor )
                             .changeNote( changeNote )
+                            .markupSyntax( "markdown" )
                             .expectedVersion( expectedVersion )
                             .expectedContentHash( expectedContentHash )
                             .metadata( metadata )
@@ -198,39 +176,4 @@ public class UpdateMetadataTool implements McpTool, AuthorConfigurable {
         }
     }
 
-    @SuppressWarnings( "unchecked" )
-    private void applyAppendToList( final Map< String, Object > metadata, final String field, final Object value ) throws Exception {
-        final Object existing = metadata.get( field );
-        if ( existing == null ) {
-            // Create new list
-            final List< Object > list = new ArrayList<>();
-            list.add( value );
-            metadata.put( field, list );
-        } else if ( existing instanceof List ) {
-            final List< Object > list = new ArrayList<>( ( List< Object > ) existing );
-            // Idempotent — skip if already present
-            if ( !list.contains( value ) ) {
-                list.add( value );
-            }
-            metadata.put( field, list );
-        } else {
-            throw new Exception( "Field '" + field + "' exists but is not a list (type: " +
-                    existing.getClass().getSimpleName() + "). Use 'set' to overwrite it." );
-        }
-    }
-
-    @SuppressWarnings( "unchecked" )
-    private void applyRemoveFromList( final Map< String, Object > metadata, final String field, final Object value ) throws Exception {
-        final Object existing = metadata.get( field );
-        if ( existing == null ) {
-            return; // Nothing to remove from
-        }
-        if ( !( existing instanceof List ) ) {
-            throw new Exception( "Field '" + field + "' is not a list (type: " +
-                    existing.getClass().getSimpleName() + "). Cannot remove from non-list field." );
-        }
-        final List< Object > list = new ArrayList<>( ( List< Object > ) existing );
-        list.remove( value );
-        metadata.put( field, list );
-    }
 }

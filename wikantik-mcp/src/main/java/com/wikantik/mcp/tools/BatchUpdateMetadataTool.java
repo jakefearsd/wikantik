@@ -38,12 +38,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MCP tool that applies patch operations to multiple wiki pages in a single call (best-effort).
+ * MCP tool that updates frontmatter metadata on multiple wiki pages in a single call (best-effort).
+ * Each page is processed independently — failures for one page do not block others.
  */
-public class BatchPatchPagesTool implements McpTool, AuthorConfigurable {
+public class BatchUpdateMetadataTool implements McpTool, AuthorConfigurable {
 
-    private static final Logger LOG = LogManager.getLogger( BatchPatchPagesTool.class );
-    public static final String TOOL_NAME = "batch_patch_pages";
+    private static final Logger LOG = LogManager.getLogger( BatchUpdateMetadataTool.class );
+    public static final String TOOL_NAME = "batch_update_metadata";
 
     @Override
     public String name() {
@@ -56,7 +57,7 @@ public class BatchPatchPagesTool implements McpTool, AuthorConfigurable {
 
     private String defaultAuthor = "MCP";
 
-    public BatchPatchPagesTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
+    public BatchUpdateMetadataTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
         this.engine = engine;
         this.systemPageRegistry = systemPageRegistry;
         this.pageSaveHelper = new PageSaveHelper( engine );
@@ -72,35 +73,36 @@ public class BatchPatchPagesTool implements McpTool, AuthorConfigurable {
         final Map< String, Object > opSchema = new LinkedHashMap<>();
         opSchema.put( "type", "object" );
         opSchema.put( "properties", Map.of(
+                "field", Map.of( "type", "string", "description", "Frontmatter field name" ),
                 "action", Map.of( "type", "string", "description",
-                        "Operation type: append_to_section, insert_before, insert_after, replace_section" ),
-                "section", Map.of( "type", "string", "description", "Heading text of the target section" ),
-                "marker", Map.of( "type", "string", "description", "Text to find in the page body" ),
-                "content", Map.of( "type", "string", "description", "Content to insert/append" )
+                        "Operation: set, append_to_list, remove_from_list, delete" ),
+                "value", Map.of( "description", "Value to set/append/remove (not needed for delete)" )
         ) );
-        opSchema.put( "required", List.of( "action", "content" ) );
+        opSchema.put( "required", List.of( "field", "action" ) );
 
         final Map< String, Object > pageSchema = new LinkedHashMap<>();
         pageSchema.put( "type", "object" );
         pageSchema.put( "properties", Map.of(
-                "pageName", Map.of( "type", "string", "description", "Name of the wiki page to patch" ),
-                "operations", Map.of( "type", "array", "description", "Patch operations for this page", "items", opSchema ),
-                "changeNote", Map.of( "type", "string", "description", "Optional change note for this page" )
+                "pageName", Map.of( "type", "string", "description", "Name of the wiki page" ),
+                "operations", Map.of( "type", "array", "description", "Metadata operations for this page", "items", opSchema )
         ) );
         pageSchema.put( "required", List.of( "pageName", "operations" ) );
 
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pages", Map.of( "type", "array", "description",
-                "Array of pages to patch. Each requires pageName and operations.",
+                "Array of pages to update. Each requires pageName and operations.",
                 "items", pageSchema ) );
         properties.put( "author", Map.of( "type", "string", "description",
-                "Author name for all patches (defaults to the MCP client name)" ) );
+                "Author name for all updates (defaults to the MCP client name)" ) );
+        properties.put( "changeNote", Map.of( "type", "string", "description",
+                "Optional change note applied to all pages" ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Apply patch operations to multiple wiki pages in a single call. Best-effort: each page is patched independently, " +
-                        "and failures for one page do not prevent others from being patched. " +
-                        "Returns {results: [{pageName, success, version?, contentHash?, error?}]}." )
+                .description( "Update frontmatter metadata on multiple pages in a single call. Best-effort: each page is updated independently, " +
+                        "and failures for one page do not prevent others from being updated. " +
+                        "Supports: set, append_to_list (idempotent), remove_from_list, delete. " +
+                        "Returns {results: [{pageName, success, version?, contentHash?, metadata?, error?}]}." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pages" ), null, null, null ) )
                 .annotations( new McpSchema.ToolAnnotations( null, false, false, true, null, null ) )
                 .build();
@@ -111,6 +113,7 @@ public class BatchPatchPagesTool implements McpTool, AuthorConfigurable {
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final List< Map< String, Object > > pages = ( List< Map< String, Object > > ) arguments.get( "pages" );
         final String author = McpToolUtils.getString( arguments, "author" );
+        final String changeNote = McpToolUtils.getString( arguments, "changeNote" );
         final String effectiveAuthor = author != null ? author : defaultAuthor;
 
         if ( pages == null || pages.isEmpty() ) {
@@ -125,13 +128,11 @@ public class BatchPatchPagesTool implements McpTool, AuthorConfigurable {
         for ( final Map< String, Object > pageSpec : pages ) {
             final String pageName = ( String ) pageSpec.get( "pageName" );
             final List< Map< String, Object > > operations = ( List< Map< String, Object > > ) pageSpec.get( "operations" );
-            final String changeNote = ( String ) pageSpec.get( "changeNote" );
 
             final Map< String, Object > entry = new LinkedHashMap<>();
             entry.put( "pageName", pageName );
 
             try {
-                // Check page exists
                 final Page currentPage = pageManager.getPage( pageName );
                 if ( currentPage == null ) {
                     entry.put( "success", false );
@@ -140,20 +141,36 @@ public class BatchPatchPagesTool implements McpTool, AuthorConfigurable {
                     continue;
                 }
 
-                // Read and parse
                 final String rawText = pageManager.getPureText( pageName, PageProvider.LATEST_VERSION );
                 final ParsedPage parsed = FrontmatterParser.parse( rawText );
+                final Map< String, Object > metadata = new LinkedHashMap<>( parsed.metadata() );
 
-                // Apply operations
-                final String patchedBody = ContentPatcher.applyOperations( parsed.body(), operations );
+                // Apply all operations for this page
+                String opError = null;
+                for ( final Map< String, Object > op : operations ) {
+                    final String field = ( String ) op.get( "field" );
+                    final String action = ( String ) op.get( "action" );
+                    final Object value = op.get( "value" );
 
-                // Save with preserved metadata via PageSaveHelper
-                final Page saved = pageSaveHelper.saveText( pageName, patchedBody,
+                    opError = MetadataOperations.apply( metadata, field, action, value );
+                    if ( opError != null ) {
+                        break;
+                    }
+                }
+
+                if ( opError != null ) {
+                    entry.put( "success", false );
+                    entry.put( "error", opError );
+                    results.add( entry );
+                    continue;
+                }
+
+                final Page saved = pageSaveHelper.saveText( pageName, parsed.body(),
                         SaveOptions.builder()
                                 .author( effectiveAuthor )
                                 .changeNote( changeNote )
                                 .markupSyntax( "markdown" )
-                                .metadata( parsed.metadata().isEmpty() ? null : parsed.metadata() )
+                                .metadata( metadata )
                                 .replaceMetadata( true )
                                 .build() );
 
@@ -161,11 +178,9 @@ public class BatchPatchPagesTool implements McpTool, AuthorConfigurable {
                 entry.put( "success", true );
                 entry.put( "version", saved != null ? McpToolUtils.normalizeVersion( saved.getVersion() ) : 1 );
                 entry.put( "contentHash", McpToolUtils.computeContentHash( savedText ) );
-            } catch ( final PatchException e ) {
-                entry.put( "success", false );
-                entry.put( "error", e.getMessage() );
+                entry.put( "metadata", metadata );
             } catch ( final Exception e ) {
-                LOG.error( "Failed to patch page {} in batch: {}", pageName, e.getMessage(), e );
+                LOG.error( "Failed to update metadata for page {} in batch: {}", pageName, e.getMessage(), e );
                 entry.put( "success", false );
                 entry.put( "error", e.getMessage() );
             }

@@ -96,6 +96,16 @@
         <heap unit="entries">1000</heap>
     </cache>
 
+    <!-- Final HTML rendering cache -->
+    <cache alias="wikantik.htmlCache">
+        <key-type>java.io.Serializable</key-type>
+        <value-type>java.lang.Object</value-type>
+        <expiry>
+            <ttl unit="seconds">60</ttl>
+        </expiry>
+        <heap unit="entries">1000</heap>
+    </cache>
+
     <!-- Dynamic attachment cache -->
     <cache alias="wikantik.dynamicAttachmentCache">
         <key-type>java.io.Serializable</key-type>

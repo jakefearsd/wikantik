@@ -63,6 +63,9 @@ public interface CachingManager {
     /** Name of the rendering cache. */
     String CACHE_DOCUMENTS = "wikantik.renderingCache";
 
+    /** Name of the HTML rendering cache (final HTML strings). */
+    String CACHE_HTML = "wikantik.htmlCache";
+
     /**
      * Shuts down the underlying cache manager
      */

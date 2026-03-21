@@ -69,13 +69,7 @@ public class SessionMonitor implements HttpSessionListener {
         if( engine == null ) {
             throw new IllegalArgumentException( "Engine cannot be null." );
         }
-        SessionMonitor monitor = monitors.get( engine );
-        if( monitor == null ) {
-            monitor = new SessionMonitor( engine );
-            monitors.put( engine, monitor );
-        }
-
-        return monitor;
+        return monitors.computeIfAbsent( engine, SessionMonitor::new );
     }
 
     /** Construct the SessionListener */

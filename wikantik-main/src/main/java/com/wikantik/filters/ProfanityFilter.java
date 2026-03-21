@@ -28,6 +28,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 /**
  *  This class is an example of how to have a simple filter.  It removes
@@ -49,7 +50,7 @@ public class ProfanityFilter extends BasePageFilter {
             if( in == null ) {
                 throw new IOException( "No property file found! (Check the installation, it should be there.)" );
             }
-            try( final BufferedReader br =  new BufferedReader( new InputStreamReader( in ) ) ) {
+            try( final BufferedReader br =  new BufferedReader( new InputStreamReader( in, StandardCharsets.UTF_8 ) ) ) {
 
                 // allow comments on profanities file
                 profanities = br.lines().filter(str -> !str.isEmpty() && !str.startsWith("#")).toArray(String[]::new);

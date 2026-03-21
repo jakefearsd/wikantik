@@ -400,8 +400,9 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
             f = new File( f, hashName );
 
             try( final ObjectOutputStream out =  new ObjectOutputStream( new BufferedOutputStream( Files.newOutputStream( f.toPath() ) ) ) ) {
-                // new Set to avoid concurrency issues
-                final Set< Map.Entry < String, Object > > entries = new HashSet<>( p.getAttributes().entrySet() );
+                // snapshot the attributes map to avoid ConcurrentModificationException
+                final Map< String, Object > attrSnapshot = new java.util.LinkedHashMap<>( p.getAttributes() );
+                final Set< Map.Entry < String, Object > > entries = attrSnapshot.entrySet();
 
                 if(entries.isEmpty()) {
                     //  Nothing to serialize, therefore we will just simply remove the serialization file so that the

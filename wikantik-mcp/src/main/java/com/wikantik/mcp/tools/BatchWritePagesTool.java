@@ -46,15 +46,11 @@ public class BatchWritePagesTool implements McpTool, AuthorConfigurable {
         return TOOL_NAME;
     }
 
-    private final WikiEngine engine;
-    private final SystemPageRegistry systemPageRegistry;
     private final PageSaveHelper pageSaveHelper;
 
     private String defaultAuthor = "MCP";
 
     public BatchWritePagesTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
-        this.engine = engine;
-        this.systemPageRegistry = systemPageRegistry;
         this.pageSaveHelper = new PageSaveHelper( engine );
     }
 

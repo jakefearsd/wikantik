@@ -176,7 +176,11 @@ public class DefaultSystemPageRegistry implements SystemPageRegistry {
 
             try ( DirectoryStream<Path> stream = Files.newDirectoryStream( dir, "*.md" ) ) {
                 for ( final Path file : stream ) {
-                    final String fileName = file.getFileName().toString();
+                    final Path fileNamePath = file.getFileName();
+                    if ( fileNamePath == null ) {
+                        continue;
+                    }
+                    final String fileName = fileNamePath.toString();
                     final String pageName = fileName.substring( 0, fileName.length() - 3 );
                     names.add( pageName );
                 }

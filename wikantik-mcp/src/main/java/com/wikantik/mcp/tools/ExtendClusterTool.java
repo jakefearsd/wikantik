@@ -50,14 +50,12 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
     }
 
     private final WikiEngine engine;
-    private final SystemPageRegistry systemPageRegistry;
     private final PageSaveHelper pageSaveHelper;
 
     private String defaultAuthor = "MCP";
 
     public ExtendClusterTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
         this.engine = engine;
-        this.systemPageRegistry = systemPageRegistry;
         this.pageSaveHelper = new PageSaveHelper( engine );
     }
 
@@ -320,7 +318,7 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
 
             result.put( "success", true );
             result.put( "detail", "Added article link to hub body and related metadata" );
-        } catch ( final Exception e ) {
+        } catch ( final com.wikantik.api.exceptions.WikiException e ) {
             LOG.error( "Failed to patch hub {}: {}", hubName, e.getMessage(), e );
             result.put( "success", false );
             result.put( "error", e.getMessage() );

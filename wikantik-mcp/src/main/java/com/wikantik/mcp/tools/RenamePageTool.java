@@ -52,15 +52,15 @@ public class RenamePageTool implements McpTool, AuthorConfigurable {
     private final WikiEngine engine;
     private final SystemPageRegistry systemPageRegistry;
 
-    private String defaultAuthor = "MCP";
-
     public RenamePageTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
         this.engine = engine;
         this.systemPageRegistry = systemPageRegistry;
     }
 
+    @Override
     public void setDefaultAuthor( final String defaultAuthor ) {
-        this.defaultAuthor = defaultAuthor;
+        // RenamePageTool does not use a default author — the rename operation
+        // uses the WikiContext principal rather than an explicit author string.
     }
 
     @Override

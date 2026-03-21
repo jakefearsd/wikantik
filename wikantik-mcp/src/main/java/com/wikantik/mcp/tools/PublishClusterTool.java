@@ -51,14 +51,12 @@ public class PublishClusterTool implements McpTool, AuthorConfigurable {
     }
 
     private final WikiEngine engine;
-    private final SystemPageRegistry systemPageRegistry;
     private final PageSaveHelper pageSaveHelper;
 
     private String defaultAuthor = "MCP";
 
     public PublishClusterTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
         this.engine = engine;
-        this.systemPageRegistry = systemPageRegistry;
         this.pageSaveHelper = new PageSaveHelper( engine );
     }
 
@@ -333,7 +331,7 @@ public class PublishClusterTool implements McpTool, AuthorConfigurable {
                             .build() );
 
             return "success";
-        } catch ( final Exception e ) {
+        } catch ( final com.wikantik.api.exceptions.WikiException e ) {
             LOG.error( "Failed to update Main page: {}", e.getMessage(), e );
             return "Failed: " + e.getMessage();
         }
@@ -342,7 +340,6 @@ public class PublishClusterTool implements McpTool, AuthorConfigurable {
     private List< String > verify( final String hubName, final List< String > articleNames ) {
         final List< String > warnings = new ArrayList<>();
         final PageManager pm = engine.getManager( PageManager.class );
-        final ReferenceManager rm = engine.getManager( ReferenceManager.class );
 
         // Check hub exists
         if ( pm.getPage( hubName ) == null ) {

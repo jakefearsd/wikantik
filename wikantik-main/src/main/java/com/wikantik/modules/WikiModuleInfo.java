@@ -26,6 +26,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
 /**
  *  A WikiModule describes whatever JSPWiki plugin there is: it can be a plugin, an editor, a filter, etc.
@@ -237,7 +238,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
         try( final BufferedInputStream in = new BufferedInputStream( url.openStream() );
              final ByteArrayOutputStream out = new ByteArrayOutputStream(1024) ) {
             FileUtil.copyContents( in, out );
-            return out.toString();
+            return out.toString( StandardCharsets.UTF_8 );
         }
     }
 

@@ -77,6 +77,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -320,7 +321,7 @@ public class LuceneSearchProvider implements SearchProvider {
         String out = filename;
         if( searchSuffix ) {
             try( final InputStream attStream = mgr.getAttachmentStream( att ); final StringWriter sout = new StringWriter() ) {
-                FileUtil.copyContents( new InputStreamReader( attStream ), sout );
+                FileUtil.copyContents( new InputStreamReader( attStream, StandardCharsets.UTF_8 ), sout );
                 out = out + " " + sout;
             } catch( final ProviderException | IOException e ) {
                 LOG.error( "Attachment cannot be loaded", e );

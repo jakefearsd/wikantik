@@ -52,14 +52,12 @@ public class BatchUpdateMetadataTool implements McpTool, AuthorConfigurable {
     }
 
     private final WikiEngine engine;
-    private final SystemPageRegistry systemPageRegistry;
     private final PageSaveHelper pageSaveHelper;
 
     private String defaultAuthor = "MCP";
 
     public BatchUpdateMetadataTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
         this.engine = engine;
-        this.systemPageRegistry = systemPageRegistry;
         this.pageSaveHelper = new PageSaveHelper( engine );
     }
 

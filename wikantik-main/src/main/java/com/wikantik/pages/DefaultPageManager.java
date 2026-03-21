@@ -275,23 +275,18 @@ public class DefaultPageManager implements PageManager {
             reaper.start();
         }
 
-        fireEvent( WikiPageEvent.PAGE_LOCK, page.getName() ); // prior to or after actual lock?
-        PageLock lock = pageLocks.get( page.getName() );
+        fireEvent( WikiPageEvent.PAGE_LOCK, page.getName() );
+        final Date d = new Date();
+        final PageLock newLock = new PageLock( page, user, d, new Date( d.getTime() + expiryTime * 60 * 1000L ) );
+        final PageLock existing = pageLocks.putIfAbsent( page.getName(), newLock );
 
-        if( lock == null ) {
-            //
-            //  Lock is available, so make a lock.
-            //
-            final Date d = new Date();
-            lock = new PageLock( page, user, d, new Date( d.getTime() + expiryTime * 60 * 1000L ) );
-            pageLocks.put( page.getName(), lock );
+        if( existing == null ) {
             LOG.debug( "Locked page " + page.getName() + " for " + user );
+            return newLock;
         } else {
-            LOG.debug( "Page " + page.getName() + " already locked by " + lock.getLocker() );
-            lock = null; // Nothing to return
+            LOG.debug( "Page " + page.getName() + " already locked by " + existing.getLocker() );
+            return null;
         }
-
-        return lock;
     }
 
     /**

@@ -257,10 +257,10 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         }
     }
 
-    private long lastCheck;
-    private long lastModifiedTime;
+    private volatile long lastCheck;
+    private volatile long lastModifiedTime;
 
-    private void checkForRefresh() {
+    private synchronized void checkForRefresh() {
         final long time = System.currentTimeMillis();
         if( time - lastCheck > 60 * 1000L ) {
             final long lastModified = userFile.lastModified();

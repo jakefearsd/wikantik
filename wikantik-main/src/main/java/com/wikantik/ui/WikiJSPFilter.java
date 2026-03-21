@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 
 
 /**
@@ -317,7 +318,7 @@ public class WikiJSPFilter extends WikiServletFilter {
 					return output.toString( response.getCharacterEncoding() );
 				}
 
-				return output.toString();
+				return output.toString( StandardCharsets.UTF_8 );
 			} catch( final UnsupportedEncodingException e ) {
                 LOG.error( e );
                 return StringUtils.EMPTY;

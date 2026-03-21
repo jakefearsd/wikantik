@@ -231,7 +231,7 @@ public class JDBCPlugin implements Plugin {
             final String tableHtml = executeQuery( context, config, sql, maxResults, showHeader );
             return "<div class='" + TextUtil.replaceEntities( cssClass ) + "'>" + tableHtml + "</div>";
         } catch ( final SQLException e ) {
-            LOG.error( "Database error executing query: {}", sql, e );
+            LOG.warn( "Database error executing query: {}: {}", sql, e.getMessage() );
             throw new PluginException( "Database error: " + e.getMessage(), e );
         }
     }

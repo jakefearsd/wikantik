@@ -351,7 +351,7 @@ public class DefaultPageManager implements PageManager {
 
             return p;
         } catch( final ProviderException e ) {
-            LOG.error( "Unable to fetch page info for " + pagereq + " [version " + version + "]", e );
+            LOG.warn( "Unable to fetch page info for {} [version {}]: {}", pagereq, version, e.getMessage() );
             return null;
         }
     }

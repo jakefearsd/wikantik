@@ -151,10 +151,7 @@
                 <username>SA</username>
                 <password />
                 <sources>
-                  <!-- ensure ITs can load data when run from either it-builder, their submodules or wikantik's parent pom -->
-                  <script><sourceFile>./wikantik-selenide-tests/src/test/resources/hsqldb/hsql-userdb-setup.sql</sourceFile></script>
-                  <script><sourceFile>../wikantik-selenide-tests/src/test/resources/hsqldb/hsql-userdb-setup.sql</sourceFile></script> 
-                  <script><sourceFile>./wikantik-it-tests/wikantik-selenide-tests/src/test/resources/hsqldb/hsql-userdb-setup.sql</sourceFile></script> 
+                  <script><sourceFile>${project.basedir}/../wikantik-selenide-tests/src/test/resources/hsqldb/hsql-userdb-setup.sql</sourceFile></script>
                 </sources>
               </configuration>
               <executions>

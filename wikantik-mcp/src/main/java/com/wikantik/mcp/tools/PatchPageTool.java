@@ -147,6 +147,7 @@ public class PatchPageTool implements McpTool, AuthorConfigurable {
                     SaveOptions.builder()
                             .author( author != null ? author : defaultAuthor )
                             .changeNote( changeNote )
+                            .markupSyntax( "markdown" )
                             .expectedVersion( expectedVersion )
                             .expectedContentHash( expectedContentHash )
                             .metadata( parsed.metadata().isEmpty() ? null : parsed.metadata() )

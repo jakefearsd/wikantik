@@ -25,9 +25,12 @@ import org.apache.logging.log4j.ThreadContext;
 import com.wikantik.WatchDog;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Page;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
+import com.wikantik.pages.PageManager;
 import com.wikantik.url.URLConstructor;
+import com.wikantik.util.HttpUtil;
 import com.wikantik.util.TextUtil;
 
 import jakarta.servlet.FilterChain;
@@ -91,12 +94,28 @@ public class WikiJSPFilter extends WikiServletFilter {
         try {
             ThreadContext.push( engine.getApplicationName() + ":" + ( ( HttpServletRequest )request ).getRequestURI() );
             w.enterState("Filtering for URL "+((HttpServletRequest)request).getRequestURI(), 90 );
-            final HttpServletResponseWrapper responseWrapper = new WikantikServletResponseWrapper( ( HttpServletResponse )response, wiki_encoding, useEncoding );
+
+            final HttpServletRequest httpRequest = ( HttpServletRequest ) request;
+            final HttpServletResponse httpResponse = ( HttpServletResponse ) response;
             request.setCharacterEncoding( engine.getContentEncoding().displayName() );
 
             // fire PAGE_REQUESTED event
-            final String pagename = URLConstructor.parsePageFromURL( ( HttpServletRequest )request, engine.getContentEncoding() );
-            fireEvent( WikiPageEvent.PAGE_REQUESTED, pagename != null ? pagename : engine.getFrontPage() );
+            final String pagename = URLConstructor.parsePageFromURL( httpRequest, engine.getContentEncoding() );
+            final String effectivePage = pagename != null ? pagename : engine.getFrontPage();
+
+            // HTTP Conditional GET — return 304 if page hasn't changed
+            if( "GET".equals( httpRequest.getMethod() ) ) {
+                final Page page = engine.getManager( PageManager.class ).getPage( effectivePage );
+                if( page != null && page.getLastModified() != null ) {
+                    if( HttpUtil.checkFor304( httpRequest, effectivePage, page.getLastModified() ) ) {
+                        httpResponse.setStatus( HttpServletResponse.SC_NOT_MODIFIED );
+                        return;
+                    }
+                }
+            }
+
+            fireEvent( WikiPageEvent.PAGE_REQUESTED, effectivePage );
+            final HttpServletResponseWrapper responseWrapper = new WikantikServletResponseWrapper( httpResponse, wiki_encoding, useEncoding );
             super.doFilter( request, responseWrapper, chain );
 
             // The response is now complete. Let's replace the markers now.
@@ -107,6 +126,16 @@ public class WikiJSPFilter extends WikiServletFilter {
                 w.enterState( "Delivering response", 30 );
                 final Context wikiContext = getWikiContext( request );
                 final String r = filter( wikiContext, responseWrapper );
+
+                // Set HTTP caching headers for page views
+                if( "GET".equals( httpRequest.getMethod() ) ) {
+                    final Page page = engine.getManager( PageManager.class ).getPage( effectivePage );
+                    if( page != null && page.getLastModified() != null ) {
+                        httpResponse.setHeader( "ETag", HttpUtil.createETag( effectivePage, page.getLastModified() ) );
+                        httpResponse.setDateHeader( "Last-Modified", page.getLastModified().getTime() );
+                        httpResponse.setHeader( "Cache-Control", "private, no-cache" );
+                    }
+                }
 
                 if( useEncoding ) {
                     final OutputStreamWriter out = new OutputStreamWriter( response.getOutputStream(), response.getCharacterEncoding() );
@@ -123,7 +152,7 @@ public class WikiJSPFilter extends WikiServletFilter {
                 }
 
                 // fire PAGE_DELIVERED event
-                fireEvent( WikiPageEvent.PAGE_DELIVERED, pagename );
+                fireEvent( WikiPageEvent.PAGE_DELIVERED, effectivePage );
 
             } finally {
                 w.exitState();

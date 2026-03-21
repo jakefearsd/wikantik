@@ -46,7 +46,6 @@ public class PluginBeanTest {
                                         "<tr><th>Name</th><th>Alias</th><th>Author</th><th>Notes</th></tr>" +
                                         "<tr><td>AliasPlugin</td><td>ALIAS</td><td>Wikantik</td><td></td></tr>" +
                                         "<tr><td>IfPlugin</td><td>If</td><td>Janne Jalkanen</td><td></td></tr>" +
-                                        "<tr><td>Note</td><td></td><td>Janne Jalkanen</td><td></td></tr>" +
                                         "<tr><td>SamplePlugin</td><td>samplealias</td><td>Janne Jalkanen</td><td></td></tr>" +
                                         "<tr><td>SamplePlugin2</td><td>samplealias2</td><td>Janne Jalkanen</td><td></td></tr>" +
                                       "</table>" +

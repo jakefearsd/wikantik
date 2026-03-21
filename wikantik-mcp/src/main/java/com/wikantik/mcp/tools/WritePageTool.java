@@ -105,6 +105,11 @@ public class WritePageTool implements McpTool, AuthorConfigurable {
         // MCP always saves pages as Markdown — callers cannot create .txt (JSPWiki syntax) files
         final String markupSyntax = "markdown";
 
+        final McpSchema.CallToolResult contentCheck = McpToolUtils.checkForSerializedResponse( content );
+        if ( contentCheck != null ) {
+            return contentCheck;
+        }
+
         try {
             final Page saved = pageSaveHelper.saveText( pageName, content,
                     SaveOptions.builder()

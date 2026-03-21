@@ -380,6 +380,15 @@ public class ReferenceManagerTest  {
         Assertions.assertTrue( c.isEmpty(), "non-existent page should have empty refers-to" );
     }
 
+    @Test
+    public void testSectionLinksExtractPageName() throws Exception {
+        engine.saveText( "MdSectionLink", "See [details](TargetPage#heading-two)." );
+
+        final Collection< String > refersTo = mgr.findRefersTo( "MdSectionLink" );
+        Assertions.assertTrue( refersTo.contains( "TargetPage" ),
+                "Section link should track page name without fragment: " + refersTo );
+    }
+
     /**
      * Test method: dumps the contents of  ReferenceManager link lists to stdout.
      * This method is NOT synchronized, and should be used in testing

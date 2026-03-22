@@ -17,3 +17,7 @@ nb-configuration.xml
 backup
 tmp
 .worktrees
+.env
+.env.*
+!.env.example
+backups/

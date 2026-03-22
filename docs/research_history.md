@@ -841,3 +841,31 @@ Expanded the existing monolithic `FoundationalAlgorithmsForComputerScientists` p
 **Verification:** All 7 cluster-internal links resolve. Broken links to `ArtificialIntelligence`, `MachineLearning`, `OperationsResearchHub` are pre-existing (also broken in `foundational-algorithms` cluster). `WarehouseAutomationLimitations` receives backlinks from all 6 other cluster pages.
 
 **Target wiki:** https://wiki.jakefear.com (production)
+
+---
+
+# Research History: Hobby Woodworking in the 21st Century Cluster
+
+Published: 2026-03-20
+
+## Cluster: hobby-woodworking
+
+### Pages Created
+
+| Page | Type | Summary |
+|------|------|---------|
+| HobbyWoodworkingInTheTwentyFirstCentury | hub | How computer-controlled tools, digital design, and a hand tool revival have transformed hobby woodworking since 2000 |
+| EvolutionOfHobbyWoodworking | article | How hobby woodworking transformed from 2000 to 2026: YouTube, the maker movement, new materials, and the digital workshop |
+| CncRoutersForTheHobbyWorkshop | article | Desktop CNC routers for hobbyists: machines, software, capabilities, and workflow |
+| ThreeDeePrintingMeetsWoodworking | article | 3D printers for jigs, fixtures, workholding, and custom hardware |
+| LaserCuttersAndEngraversForWood | article | CO2 and diode lasers for cutting, engraving, and inlay in a home shop |
+| DigitalDesignToolsForWoodworkers | article | CAD, CAM, and laser software: Fusion 360, VCarve Pro, LightBurn |
+| ModernHandToolRenaissance | article | Premium hand tools and the revival of traditional craft alongside digital tools |
+
+### Cross-Cluster Links
+- Hub links to EmbeddedAiOnLimitedHardware and GenerativeAiAdoptionGuide (technology cluster overlap)
+
+### Verification Results
+- All 7 pages exist, 0 broken links, 0 orphans, 0 missing metadata, 0 SEO warnings
+- Hub emits CollectionPage JSON-LD with hasPart for all 6 sub-articles
+- All pages news-eligible (tags present, modified within 2 days)

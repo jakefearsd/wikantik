@@ -1,25 +1,45 @@
-version: '3.7'
-
 services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-wikantik}
+      POSTGRES_USER: ${POSTGRES_USER:-wikantik}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGEME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wikantik} -d ${POSTGRES_DB:-wikantik}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   wikantik:
-    build: .
-    container_name: wikantik
-    restart: always
+    image: wikantik:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+    volumes:
+      - wikantik-pages:/var/wikantik/pages
+      - wikantik-work:/var/wikantik/work
+      - wikantik-logs:/var/wikantik/logs
     ports:
       - "8080:8080"
-    volumes:
-      - wikantik-data:/var/wikantik
-
-  backup:
-    image: alpine
-    container_name: wikantik-backup
-    restart: always
-    volumes:
-      - wikantik-data:/var/wikantik:ro
-      - type: bind
-        source: /home/jakefear/backups
-        target: /backups
-    command: ["crond", "-f", "-d", "8"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/wiki/Main"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
 
 volumes:
-  wikantik-data:
+  pgdata:
+  wikantik-pages:
+  wikantik-work:
+  wikantik-logs:

@@ -1,0 +1,17 @@
+target/
+.git/
+tomcat/
+.idea/
+*.iml
+node_modules/
+backups/
+.worktrees/
+.claude/
+docs/superpowers/
+WEB-INF/
+wiki.zip
+.mcp.json
+.mcp.json.bak
+.env
+.env.*
+!.env.example

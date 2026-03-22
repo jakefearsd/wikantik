@@ -505,6 +505,28 @@ public class MarkdownRendererTest {
                 "Plugin output should not contain wiki-syntax links, got: " + result );
     }
 
+    @Test
+    public void testVariableAsOnlyContentInParagraph() throws Exception {
+        // BUG: When a variable is the sole content of a paragraph (no siblings),
+        // addContent() failed to unlink the original node, producing both the
+        // unresolved link AND the resolved value in the output.
+        final String src = "[{$applicationname}]";
+        final String result = translate( src );
+        Assertions.assertEquals( "<p>Wikantik</p>\n", result,
+                "Variable as sole paragraph content should render only the value, not a broken link" );
+    }
+
+    @Test
+    public void testVariableOnItsOwnLine() throws Exception {
+        // Same bug as above — standalone variable on a line between other content
+        final String src = "Before\n\n[{$applicationname}]\n\nAfter";
+        final String result = translate( src );
+        Assertions.assertTrue( result.contains( "<p>Wikantik</p>" ),
+                "Variable on its own line should render as its value, got: " + result );
+        Assertions.assertFalse( result.contains( "createpage" ),
+                "Variable should not render as a create-page link, got: " + result );
+    }
+
     @AfterEach
     public void tearDown() {
         created.clear();

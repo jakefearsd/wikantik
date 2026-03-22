@@ -1,10 +1,4 @@
 ---
-related:
-- MachineLearning
-- ArtificialIntelligence
-- LlmsSinceTwentyTwenty
-- FoundationalAlgorithmsForComputerScientists
-- EmbeddedAiOnLimitedHardware
 type: article
 cluster: technology
 status: active
@@ -19,6 +13,13 @@ tags:
 - research
 - technology
 - future
+related:
+- MachineLearning
+- ArtificialIntelligence
+- LlmsSinceTwentyTwenty
+- FoundationalAlgorithmsForComputerScientists
+- EmbeddedAiOnLimitedHardware
+- DistributedComputingEvolution
 ---
 # The Future of Machine Learning
 

@@ -1,11 +1,25 @@
 ---
 type: article
 cluster: technology
-tags: [ai, llm, deep-learning, transformers, nlp, technology]
-related: [ArtificialIntelligence, MachineLearning, TheFutureOfMachineLearning, GenerativeAiAdoptionGuide, RunningLocalLlms]
 status: active
-date: 2026-03-17
-summary: The evolution of large language models from GPT-3 through modern frontier models — scaling laws, RLHF, multimodal capabilities, the open-weight movement, and what it means for practitioners
+summary: The evolution of large language models from GPT-3 through modern frontier
+  models — scaling laws, RLHF, multimodal capabilities, the open-weight movement,
+  and what it means for practitioners
+date: 2026-03-17T00:00:00Z
+tags:
+- ai
+- llm
+- deep-learning
+- transformers
+- nlp
+- technology
+related:
+- ArtificialIntelligence
+- MachineLearning
+- TheFutureOfMachineLearning
+- GenerativeAiAdoptionGuide
+- RunningLocalLlms
+- DistributedComputingEvolution
 ---
 # LLMs Since 2020
 

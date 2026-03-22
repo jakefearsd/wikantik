@@ -1,3 +1,12 @@
+---
+type: article
+tags: [retirement, FIRE, financial-independence, early-retirement, index-funds]
+date: 2026-03-21
+status: active
+cluster: retirement-planning
+summary: Financial Independence Retire Early — philosophy, methodology, variants (LeanFIRE, FatFIRE, BaristaFIRE, CoastFIRE), and substantive criticisms
+related: [CoastFire, SafeWithdrawalRates, GuardrailsSpendingStrategy, HistoryOfTheFourPercentRule, RothConversionLadder, MedicarePlanningAndHealthcare, SocialSecurityClaimingStrategy, IndexFundInvestingForEarlyRetirement, RetirementPlanningGuide]
+---
 # The FIRE Movement
 
 Financial Independence, Retire Early (FIRE) is a lifestyle and financial strategy movement built on a simple proposition: by radically increasing your savings rate and investing in low-cost index funds, you can accumulate enough wealth to make work optional decades before traditional retirement age.

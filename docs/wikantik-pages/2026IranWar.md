@@ -19,10 +19,13 @@ actors:
 - Iran
 - Hezbollah
 - IRGC
-- Donald Trump is a fucking moron
+- Donald Trump
 - Benjamin Netanyahu
 - Ali Khamenei
 status: ongoing
+summary: Overview of the February 2026 US-Israeli airstrikes on Iran, Iran's retaliatory strikes, and the broader geopolitical context
+cluster: conflicts-equity-markets
+related: [ConflictsAndEquityMarkets]
 ---
 ## Summary of Summary
 

@@ -1,11 +1,25 @@
 ---
 type: article
 cluster: technology
-tags: [ai, embedded, edge-computing, machine-learning, iot, technology]
-related: [TheFutureOfMachineLearning, MachineLearning, LlmsSinceTwentyTwenty, RunningLocalLlms, FoundationalAlgorithmsForComputerScientists]
 status: active
-date: 2026-03-17
-summary: Running AI models on microcontrollers, phones, and edge devices — what works, what doesn't, proven use cases, and the techniques that make small models effective on constrained hardware
+summary: Running AI models on microcontrollers, phones, and edge devices — what works,
+  what doesn't, proven use cases, and the techniques that make small models effective
+  on constrained hardware
+date: 2026-03-17T00:00:00Z
+tags:
+- ai
+- embedded
+- edge-computing
+- machine-learning
+- iot
+- technology
+related:
+- TheFutureOfMachineLearning
+- MachineLearning
+- LlmsSinceTwentyTwenty
+- RunningLocalLlms
+- FoundationalAlgorithmsForComputerScientists
+- DistributedComputingEvolution
 ---
 # Embedded AI on Limited Hardware
 

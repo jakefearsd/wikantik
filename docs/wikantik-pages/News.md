@@ -6,6 +6,20 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-21** — Fix corrupted page and add MCP write guard against serialized JSON responses
+
+**2026-03-21** — Fix concurrency bugs, null safety, dead code, and encoding issues from SpotBugs/PMD audit
+
+**2026-03-21** — Reduce test suite runtime: consolidate duplicates, optimize JDBC tests, remove 3 IT modules
+
+**2026-03-21** — Performance, MCP hardening, and IT test quality improvements
+
+**2026-03-20** — Fix canonical URLs to be fully qualified and harden SemanticWebIT for Cargo
+
+**2026-03-20** — Clean up remaining legacy wiki-syntax references after Markdown migration
+
+**2026-03-20** — Complete Markdown migration: remove legacy wiki-syntax parser and collapse modules
+
 **2026-03-19** — Fix SystemInfo page: proper Markdown tables and updated variable names
 
 **2026-03-19** — Migrate to Markdown-only rendering as the default parser

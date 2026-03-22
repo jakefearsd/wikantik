@@ -15,6 +15,7 @@ related:
   - SupplyChainAndLogisticsOptimization
   - ProductionSchedulingAndOR
   - RevenueManagementWithOR
+  - WarehouseAutomationHub
 status: active
 summary: Hub page for the Operations Research cluster — history, mathematical foundations, and proven applications of OR techniques
 ---
@@ -59,3 +60,4 @@ Yet OR largely operates invisibly. Unlike AI, which has become a household term,
 
 - [Foundational Algorithms for Computer Scientists](FoundationalAlgorithmsForComputerScientists) — Algorithmic foundations that overlap with OR (dynamic programming, graph algorithms)
 - [Mathematical Foundations of Machine Learning](MathematicalFoundationsOfMachineLearning) — Optimization theory shared between OR and ML
+- [Warehouse Automation Hub](WarehouseAutomationHub) — Robotics, WMS, and fulfilment systems that rely on OR scheduling and routing methods

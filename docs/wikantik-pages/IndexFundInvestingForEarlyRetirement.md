@@ -1,5 +1,25 @@
 ---
+type: hub
+tags:
+- personal-finance
+- investing
+- index-funds
+- early-retirement
+- FIRE
+- financial-independence
+date: 2026-03-21
+status: active
 cluster: index-fund-investing
+summary: Complete investing framework for building wealth with index funds to retire early, covering costs, allocation, and account strategy
+related:
+- ExpenseRatioDeepDive
+- AssetAllocationGuide
+- InvestingInYourTwenties
+- IndexFundPortfolioConstruction
+- AccountTypeStrategy
+- RothConversionLadder
+- EarlyRetirementInvestmentPlan
+- RetirementPlanningGuide
 ---
 # Index Fund Investing for Early Retirement
 
@@ -43,3 +63,4 @@ This cluster builds on and links to existing wiki content:
 - [Types of Investment Accounts](TypesofInvestmentAccountsTutorial)
 - [Compound Interest and Tax-Advantaged Accounts](CompoundInterestAndTaxAdvantagedAccounts)
 - [Maximizing Retirement Account Contributions](MaximizingRetirementAccountContributions)
+- [Retirement Planning Guide](RetirementPlanningGuide) — Strategic decision frameworks for the decumulation phase of retirement

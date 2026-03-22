@@ -1,5 +1,11 @@
 ---
+type: article
+tags: [ai, productivity, workflows, coding, generative-ai]
+date: 2026-03-21
+status: active
 cluster: generative-ai
+summary: Concrete workflow patterns for using AI as a force multiplier in coding, writing, research, and analysis tasks
+related: [GenerativeAiToolsForIndividuals, PracticalPromptEngineering, GenerativeAiAdoptionGuide, FundamentalsOfProgramming]
 ---
 # AI-Augmented Workflows
 

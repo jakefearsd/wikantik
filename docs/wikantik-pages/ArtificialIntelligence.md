@@ -1,4 +1,6 @@
 ---
+type: reference
+status: active
 summary: Comprehensive overview of artificial intelligence covering history, core
   techniques, current capabilities, major applications, ethical considerations, and
   key research organizations
@@ -13,6 +15,8 @@ related:
 - LlmsSinceTwentyTwenty
 - TheFutureOfMachineLearning
 - FoundationalAlgorithmsForComputerScientists
+- MachineLearning
+- AIModelTraining
 ---
 # Artificial Intelligence
 

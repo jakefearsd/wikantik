@@ -7,6 +7,7 @@ tags:
 - asset-allocation
 - risk-tolerance
 date: 2026-03-14
+cluster: index-fund-investing
 related:
 - RetirementPlanningGuide
 - IndexFundInvestingForEarlyRetirement

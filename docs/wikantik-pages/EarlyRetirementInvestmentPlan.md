@@ -1,5 +1,24 @@
 ---
+type: article
+tags:
+- personal-finance
+- investing
+- early-retirement
+- FIRE
+- financial-independence
+- savings-rate
+- withdrawal-strategy
+date: 2026-03-21
+status: active
 cluster: index-fund-investing
+summary: Year-by-year blueprint from first invested dollar to early retirement, covering savings rates, account filling order, and withdrawal planning
+related:
+- IndexFundInvestingForEarlyRetirement
+- IndexFundPortfolioConstruction
+- AccountTypeStrategy
+- CompoundingIntuition
+- ExpenseRatioDeepDive
+- RothConversionLadder
 ---
 # A Complete Early Retirement Investment Plan
 

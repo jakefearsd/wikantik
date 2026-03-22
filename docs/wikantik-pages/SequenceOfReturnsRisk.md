@@ -6,6 +6,7 @@ tags:
 - risk-management
 - withdrawal-strategy
 - asset-allocation
+date: 2026-03-21
 status: active
 related:
 - RetirementPlanningGuide

@@ -25,6 +25,7 @@ import com.wikantik.api.providers.PageProvider;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
 import com.wikantik.pages.PageManager;
+import com.wikantik.parser.MarkdownLinkScanner;
 import com.wikantik.references.ReferenceManager;
 
 import java.time.Instant;

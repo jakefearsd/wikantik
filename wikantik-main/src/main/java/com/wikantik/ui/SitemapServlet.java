@@ -53,6 +53,7 @@ import com.wikantik.pages.PageManager;
 import com.wikantik.providers.CachingProvider;
 import com.wikantik.providers.PageProviderDecorator;
 import com.wikantik.url.URLConstructor;
+import com.wikantik.util.BaseUrlResolver;
 import com.wikantik.util.TextUtil;
 
 /**
@@ -197,44 +198,8 @@ public class SitemapServlet extends HttpServlet {
         final URLConstructor urlConstructor = engine.getManager( URLConstructor.class );
         final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );
 
-        // Build fully qualified base URL
-        // First check for explicit sitemap baseURL configuration (for proxy/HTTPS scenarios)
-        String baseUrl = configuredBaseUrl;
-
-        // Fall back to engine's baseURL if no sitemap-specific URL configured
-        if ( baseUrl == null || baseUrl.isBlank() ) {
-            baseUrl = engine.getBaseURL();
-        }
-
-        // If still no protocol, build from request (original behavior)
-        if ( baseUrl == null || !baseUrl.startsWith( "http" ) ) {
-            final String scheme = req.getScheme();
-            final String serverName = req.getServerName();
-            final int serverPort = req.getServerPort();
-            final String contextPath = req.getContextPath();
-
-            if ( scheme != null && serverName != null ) {
-                baseUrl = scheme + "://" + serverName;
-                if ( ( "http".equals( scheme ) && serverPort != 80 ) ||
-                     ( "https".equals( scheme ) && serverPort != 443 ) ) {
-                    baseUrl += ":" + serverPort;
-                }
-                if ( contextPath != null ) {
-                    baseUrl += contextPath;
-                }
-            } else {
-                // Fallback to a safe default if request info is not available
-                baseUrl = "http://localhost";
-                if ( contextPath != null ) {
-                    baseUrl += contextPath;
-                }
-            }
-        }
-
-        // Ensure baseUrl doesn't end with slash for consistent concatenation
-        if ( baseUrl.endsWith( "/" ) ) {
-            baseUrl = baseUrl.substring( 0, baseUrl.length() - 1 );
-        }
+        // Build fully qualified base URL using shared 3-tier resolution
+        final String baseUrl = BaseUrlResolver.resolve( engine, req, configuredBaseUrl );
 
         for ( final Page page : publicPages ) {
             // Get page URL from URLConstructor - this already includes the base URL

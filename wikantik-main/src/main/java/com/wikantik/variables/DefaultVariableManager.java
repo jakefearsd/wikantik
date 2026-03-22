@@ -38,6 +38,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.lang.reflect.Method;
 import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
@@ -62,10 +64,147 @@ public class DefaultVariableManager implements VariableManager {
     };
 
     /**
+     * A resolver in the Chain of Responsibility that attempts to resolve a wiki variable from
+     * a single source. Each resolver returns the value if found, or {@code null} to delegate
+     * to the next resolver in the chain.
+     */
+    @FunctionalInterface
+    interface VariableResolver {
+        /**
+         * Attempts to resolve the given variable name.
+         *
+         * @param lowerName the lower-cased variable name (used by the system variables resolver for reflection)
+         * @param originalName the original variable name as supplied by the caller (used by all other resolvers
+         *                     for case-sensitive lookups on context, session, page attributes, etc.)
+         * @param context the current wiki context
+         * @return the resolved value, or {@code null} if this resolver cannot handle it
+         */
+        String resolve( String lowerName, String originalName, Context context );
+    }
+
+    /**
+     * The ordered chain of variable resolvers. Each resolver is tried in sequence; the first
+     * non-null result wins. The resolution order is:
+     * <ol>
+     *   <li><b>System variables</b> — reflection on {@link SystemVariables} (getXxx methods)</li>
+     *   <li><b>Context variables</b> — {@code context.getVariable(varName)}</li>
+     *   <li><b>Session attributes</b> — {@code session.getAttribute(varName)}</li>
+     *   <li><b>Request parameters</b> — {@code context.getHttpParameter(varName)}</li>
+     *   <li><b>Page attributes</b> — {@code context.getPage().getAttribute(varName)}</li>
+     *   <li><b>Real page attributes</b> — {@code context.getRealPage().getAttribute(varName)}</li>
+     *   <li><b>Wiki properties</b> — {@code engine.getWikiProperties()} (only for "wikantik." prefix)</li>
+     *   <li><b>Default empty values</b> — returns "" for the well-known "error" and "msg" variables</li>
+     * </ol>
+     */
+    private final List<VariableResolver> resolverChain;
+
+    /**
      *  Creates a VariableManager object using the property list given.
+     *  The constructor builds the Chain of Responsibility resolver list that
+     *  {@link #getValue(Context, String)} iterates over.
+     *
      *  @param props The properties.
      */
     public DefaultVariableManager( final Properties props ) {
+        final List<VariableResolver> chain = new ArrayList<>();
+
+        // 1. System variables — reflection on SystemVariables (getXxx methods).
+        //    Uses the lower-cased name for method lookup (variables are case-insensitive).
+        chain.add( ( lowerName, originalName, context ) -> {
+            try {
+                final SystemVariables sysvars = new SystemVariables( context );
+                final String methodName = "get" + Character.toUpperCase( lowerName.charAt( 0 ) ) + lowerName.substring( 1 );
+                final Method method = sysvars.getClass().getMethod( methodName );
+                return ( String ) method.invoke( sysvars );
+            } catch( final NoSuchMethodException e ) {
+                return null;
+            } catch( final Exception e ) {
+                LOG.info( "Interesting exception: cannot fetch variable value", e );
+                return "";
+            }
+        } );
+
+        // 2. Context variables — context.getVariable(varName).
+        //    Uses the original name for case-sensitive context lookup.
+        chain.add( ( lowerName, originalName, context ) -> {
+            final Object val = context.getVariable( originalName );
+            return val != null ? val.toString() : null;
+        } );
+
+        // 3. Session attributes — session.getAttribute(varName)
+        // 4. Request parameters — context.getHttpParameter(varName)
+        //    These two share a ClassCastException guard so they are combined in one resolver.
+        //    Uses the original name for case-sensitive lookups.
+        chain.add( ( lowerName, originalName, context ) -> {
+            final HttpServletRequest req = context.getHttpRequest();
+            if( req != null && req.getSession() != null ) {
+                final HttpSession session = req.getSession();
+                try {
+                    final String s = ( String ) session.getAttribute( originalName );
+                    if( s != null ) {
+                        return s;
+                    }
+
+                    final String p = context.getHttpParameter( originalName );
+                    if( p != null ) {
+                        return p;
+                    }
+                } catch( final ClassCastException e ) {
+                    LOG.debug( "Not a String: " + originalName );
+                }
+            }
+            return null;
+        } );
+
+        // 5. Page attributes — context.getPage().getAttribute(varName).
+        //    Uses the original name for case-sensitive attribute lookup.
+        chain.add( ( lowerName, originalName, context ) -> {
+            final Page pg = context.getPage();
+            if( pg != null ) {
+                final Object metadata = pg.getAttribute( originalName );
+                if( metadata != null ) {
+                    return metadataToString( metadata );
+                }
+            }
+            return null;
+        } );
+
+        // 6. Real page attributes — context.getRealPage().getAttribute(varName).
+        //    Uses the original name for case-sensitive attribute lookup.
+        chain.add( ( lowerName, originalName, context ) -> {
+            final Page rpg = context.getRealPage();
+            if( rpg != null ) {
+                final Object metadata = rpg.getAttribute( originalName );
+                if( metadata != null ) {
+                    return metadataToString( metadata );
+                }
+            }
+            return null;
+        } );
+
+        // 7. Wiki properties — engine.getWikiProperties() (only for "wikantik." prefix).
+        //    Uses the original name for property lookup (preserves original casing behavior).
+        chain.add( ( lowerName, originalName, context ) -> {
+            if( originalName.startsWith( "wikantik." ) ) {
+                final Properties wikiProps = context.getEngine().getWikiProperties();
+                final String s = wikiProps.getProperty( originalName );
+                if( s != null ) {
+                    return s;
+                }
+            }
+            return null;
+        } );
+
+        // 8. Default empty values for well-known variables ("error", "msg").
+        //    Uses the original name to preserve the original case-sensitive comparison.
+        chain.add( ( lowerName, originalName, context ) -> {
+            if( originalName.equals( VAR_ERROR ) || originalName.equals( VAR_MSG ) ) {
+                return "";
+            }
+            return null;
+        } );
+
+        this.resolverChain = Collections.unmodifiableList( chain );
     }
 
     /**
@@ -141,7 +280,13 @@ public class DefaultVariableManager implements VariableManager {
     }
 
     /**
-     *  {@inheritDoc}
+     * Resolves a wiki variable by iterating through the Chain of Responsibility.
+     * <p>
+     * The resolver chain is tried in order; the first resolver that returns a non-null
+     * value wins. If no resolver can handle the variable, a {@link NoSuchVariableException}
+     * is thrown. See the {@link #resolverChain} field documentation for the full resolution order.
+     *
+     * {@inheritDoc}
      */
     @Override
     public String getValue( final Context context, final String varName ) throws IllegalArgumentException, NoSuchVariableException {
@@ -154,107 +299,20 @@ public class DefaultVariableManager implements VariableManager {
         // Faster than doing equalsIgnoreCase()
         final String name = varName.toLowerCase();
 
-        for( final String value : THE_BIG_NO_NO_LIST ) {
-            if( name.equals( value ) ) {
+        for( final String prohibited : THE_BIG_NO_NO_LIST ) {
+            if( name.equals( prohibited ) ) {
                 return ""; // FIXME: Should this be something different?
             }
         }
 
-        try {
-            //
-            //  Using reflection to get system variables adding a new system variable
-            //  now only involves creating a new method in the SystemVariables class
-            //  with a name starting with get and the first character of the name of
-            //  the variable capitalized. Example:
-            //    public String getMysysvar(){
-            //      return "Hello World";
-            //    }
-            //
-            final SystemVariables sysvars = new SystemVariables( context );
-            final String methodName = "get" + Character.toUpperCase( name.charAt( 0 ) ) + name.substring( 1 );
-            final Method method = sysvars.getClass().getMethod( methodName );
-            return ( String )method.invoke( sysvars );
-        } catch( final NoSuchMethodException e1 ) {
-            //
-            //  It is not a system var. Time to handle the other cases.
-            //
-            //  Check if such a context variable exists, returning its string representation.
-            //
-            if( ( context.getVariable( varName ) ) != null ) {
-                return context.getVariable( varName ).toString();
+        for( final VariableResolver resolver : resolverChain ) {
+            final String value = resolver.resolve( name, varName, context );
+            if( value != null ) {
+                return value;
             }
-
-            //
-            //  Well, I guess it wasn't a final straw.  We also allow variables from the session and the request (in this order).
-            //
-            final HttpServletRequest req = context.getHttpRequest();
-            if( req != null && req.getSession() != null ) {
-                final HttpSession session = req.getSession();
-
-                try {
-                    String s = ( String )session.getAttribute( varName );
-
-                    if( s != null ) {
-                        return s;
-                    }
-
-                    s = context.getHttpParameter( varName );
-                    if( s != null ) {
-                        return s;
-                    }
-                } catch( final ClassCastException e ) {
-                    LOG.debug( "Not a String: " + varName );
-                }
-            }
-
-            //
-            // And the final straw: see if the current page has named metadata.
-            //
-            final Page pg = context.getPage();
-            if( pg != null ) {
-                final Object metadata = pg.getAttribute( varName );
-                if( metadata != null ) {
-                    return metadataToString( metadata );
-                }
-            }
-
-            //
-            // And the final straw part 2: see if the "real" current page has named metadata. This allows
-            // a parent page to control a inserted page through defining variables
-            //
-            final Page rpg = context.getRealPage();
-            if( rpg != null ) {
-                final Object metadata = rpg.getAttribute( varName );
-                if( metadata != null ) {
-                    return metadataToString( metadata );
-                }
-            }
-
-            //
-            // Next-to-final straw: attempt to fetch using property name. We don't allow fetching any other
-            // properties than those starting with "wikantik.".  I know my own code, but I can't vouch for bugs
-            // in other people's code... :-)
-            //
-            if( varName.startsWith("wikantik.") ) {
-                final Properties props = context.getEngine().getWikiProperties();
-                final String s = props.getProperty( varName );
-                if( s != null ) {
-                    return s;
-                }
-            }
-
-            //
-            //  Final defaults for some known quantities.
-            //
-            if( varName.equals( VAR_ERROR ) || varName.equals( VAR_MSG ) ) {
-                return "";
-            }
-
-            throw new NoSuchVariableException( "No variable " + varName + " defined." );
-        } catch( final Exception e ) {
-            LOG.info("Interesting exception: cannot fetch variable value", e );
         }
-        return "";
+
+        throw new NoSuchVariableException( "No variable " + varName + " defined." );
     }
 
     /**

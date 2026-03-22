@@ -52,7 +52,8 @@ import java.io.Serializable;
 import java.io.StringReader;
 import java.lang.reflect.Constructor;
 import java.util.Collection;
-import java.util.Objects;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Properties;
 
 
@@ -82,8 +83,16 @@ public class DefaultRenderingManager implements RenderingManager {
     /** If true, all titles will be cleaned. */
     private boolean beautifyTitle;
 
-    private Constructor< ? > rendererConstructor;
-    private Constructor< ? > rendererWysiwygConstructor;
+    /** Rendering mode name for standard (non-WYSIWYG) output. */
+    private static final String MODE_STANDARD = "standard";
+    /** Rendering mode name for WYSIWYG editor output. */
+    private static final String MODE_WYSIWYG = "wysiwyg";
+
+    /**
+     * Strategy map: rendering mode name → renderer constructor.
+     * New rendering modes can be added by registering a constructor here.
+     */
+    private final Map< String, Constructor< ? > > rendererStrategies = new LinkedHashMap<>();
     private String markupParserClass = DEFAULT_PARSER;
 
     /**
@@ -108,8 +117,8 @@ public class DefaultRenderingManager implements RenderingManager {
         final String renderWysiwygImplName = properties.getProperty( PROP_WYSIWYG_RENDERER, DEFAULT_WYSIWYG_RENDERER );
 
         final Class< ? >[] rendererParams = { Context.class, WikiDocument.class };
-        rendererConstructor = initRenderer( renderImplName, rendererParams );
-        rendererWysiwygConstructor = initRenderer( renderWysiwygImplName, rendererParams );
+        rendererStrategies.put( MODE_STANDARD, initRenderer( renderImplName, rendererParams ) );
+        rendererStrategies.put( MODE_WYSIWYG, initRenderer( renderWysiwygImplName, rendererParams ) );
 
         LOG.info( "Rendering content with {}.", renderImplName );
 
@@ -294,17 +303,9 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public String getHTML( final Context context, final WikiDocument doc ) throws IOException {
-        final Boolean wysiwygVariable = context.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE );
-        final boolean wysiwygEditorMode;
-        wysiwygEditorMode = Objects.requireNonNullElse(wysiwygVariable, false);
-        final WikiRenderer rend;
-        if( wysiwygEditorMode ) {
-            rend = getWysiwygRenderer( context, doc );
-        } else {
-            rend = getRenderer( context, doc );
-        }
-
-        return rend.getString();
+        final String mode = Boolean.TRUE.equals( context.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE ) )
+                ? MODE_WYSIWYG : MODE_STANDARD;
+        return createRenderer( mode, context, doc ).getString();
     }
 
     /**
@@ -447,8 +448,7 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public WikiRenderer getRenderer( final Context context, final WikiDocument doc ) {
-        final Object[] params = { context, doc };
-        return getRenderer( params, rendererConstructor );
+        return createRenderer( MODE_STANDARD, context, doc );
     }
 
     /**
@@ -456,16 +456,28 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public WikiRenderer getWysiwygRenderer( final Context context, final WikiDocument doc ) {
-        final Object[] params = { context, doc };
-        return getRenderer( params, rendererWysiwygConstructor );
+        return createRenderer( MODE_WYSIWYG, context, doc );
     }
 
+    /**
+     * Creates a renderer for the given mode using the registered strategy (GoF: Strategy).
+     *
+     * @param mode the rendering mode ({@link #MODE_STANDARD} or {@link #MODE_WYSIWYG})
+     * @param context the wiki context
+     * @param doc the parsed document
+     * @return a new WikiRenderer instance, or null if instantiation fails
+     */
     @SuppressWarnings("unchecked")
-    private < T extends WikiRenderer > T getRenderer( final Object[] params, final Constructor<?> rendererConstructor ) {
+    private < T extends WikiRenderer > T createRenderer( final String mode, final Context context, final WikiDocument doc ) {
+        final Constructor< ? > ctor = rendererStrategies.get( mode );
+        if ( ctor == null ) {
+            LOG.error( "No renderer registered for mode: {}", mode );
+            return null;
+        }
         try {
-            return ( T )rendererConstructor.newInstance( params );
+            return ( T ) ctor.newInstance( context, doc );
         } catch( final Exception e ) {
-            LOG.error( "Unable to create WikiRenderer", e );
+            LOG.error( "Unable to create WikiRenderer for mode {}", mode, e );
         }
         return null;
     }

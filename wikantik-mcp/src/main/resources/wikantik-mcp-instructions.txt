@@ -27,6 +27,39 @@ Standard frontmatter fields (all optional):
 
 You may add custom fields beyond these; they will be preserved and queryable.
 
+== Metadata and web visibility ==
+
+Frontmatter fields directly drive search engine, social sharing, feed, and news
+outputs. The mapping is:
+
+  Field     Web Output
+  -----     ----------
+  summary   <meta description>, OG/Twitter description, JSON-LD description,
+            Atom <summary>
+  tags      <meta keywords>, article:tag per tag, JSON-LD keywords,
+            Atom <category>, News Sitemap <news:keywords>
+  cluster   JSON-LD articleSection, isPartOf (non-hub), BreadcrumbList (non-hub),
+            Atom cluster filter (?cluster=X)
+  type      JSON-LD @type — hub=CollectionPage, else Article
+  date      JSON-LD datePublished
+  related   JSON-LD hasPart (hub) or relatedLink (non-hub)
+
+Summary length: Keep summary between 50-160 characters. Google truncates meta
+descriptions at roughly 155 characters. Summaries under 50 characters waste
+valuable SERP real estate.
+
+Tags and news eligibility: Pages modified within the last 2 days that have
+frontmatter tags appear in the Google News Sitemap. Pages without tags never
+appear, regardless of recency.
+
+Cluster/type interaction: Hub pages (type=hub) emit CollectionPage JSON-LD with
+hasPart listing their related pages. Non-hub clustered pages emit BreadcrumbList
+JSON-LD (Home > Cluster > Page) and isPartOf referencing the collection.
+
+Feed visibility: All articles appear in the Atom feed at /feed.xml (?cluster=X
+to filter). Pages with a summary get a feed <summary> element; pages without
+one get no summary in the feed.
+
 == Page naming ==
 
 Page names use CamelCase (e.g. SecurityPolicy, ProjectAlpha, MeetingNotes2026).
@@ -98,6 +131,50 @@ update_metadata  Update frontmatter metadata fields without modifying the page
                  body. Supports: set (overwrite field), append_to_list (add to
                  list, idempotent), remove_from_list, delete (remove field).
                  Prefer this over write_page when only metadata needs to change.
+
+batch_update_metadata  Update frontmatter metadata on multiple pages in a single
+                 call. Best-effort: each page is updated independently. Supports
+                 the same operations as update_metadata (set, append_to_list,
+                 remove_from_list, delete). Ideal for setting cross-references
+                 across a cluster of pages.
+                 Returns {results: [{pageName, success, version?, contentHash?,
+                 metadata?, error?}]}.
+
+== Verification tools ==
+
+verify_pages     Compound read-only tool that verifies the state of multiple
+                 pages in a single call. Checks: existence, broken_links,
+                 backlinks, outbound_links, metadata_completeness, seo_readiness.
+                 Pass an optional "checks" array to run a subset (seo_readiness
+                 is opt-in, not in the default set). Returns per-page details
+                 and a summary with totals. Use after creating or updating pages
+                 to confirm integrity.
+                 Returns {pages: [{pageName, exists, version?, outboundLinks?,
+                 brokenLinks?, backlinks?, metadata?, missingMetadata?,
+                 seoWarnings?}],
+                 summary: {totalPages, allExist, totalBrokenLinks?,
+                 pagesWithNoBacklinks?, metadataIssues?, seoIssues?}}.
+
+preview_structured_data  Preview what a page's frontmatter metadata produces in
+                 the HTML output: meta description, Open Graph tags, JSON-LD
+                 structured data, breadcrumbs, Atom feed inclusion, and Google
+                 News Sitemap eligibility. Read-only — does not modify anything.
+                 Use after updating metadata to verify SEO impact before moving
+                 on. Returns {pageName, exists, metaDescription, metaKeywords?,
+                 openGraph, jsonLd, breadcrumbList?, atomFeed, newsSitemap,
+                 warnings}.
+
+== Search engine notification ==
+
+ping_search_engines  Notify search engines about content changes. Supports
+                 Google Sitemap Ping (submits sitemap URL via HTTP GET) and
+                 IndexNow (submits specific page URLs via POST). Use after
+                 publishing a cluster or making significant content updates.
+                 Pass service="google_ping", "indexnow", or "all".
+                 For IndexNow, optionally pass urls=["..."] for specific pages.
+                 IndexNow requires wikantik.indexnow.apiKey in properties.
+                 Returns {results: [{service, success, status?, urlsSubmitted?,
+                 error?}]}.
 
 == Link graph tools ==
 
@@ -184,6 +261,12 @@ Resources provide direct data access without tool invocation:
   audit-links       — guides checking page link integrity
   rename-page       — guides safe page rename workflow with link updates
   wiki-health-check — guides comprehensive wiki health assessment
+  publish-cluster   — guides creation of a complete article cluster (hub + sub-articles)
+                      with batch_write_pages, batch_update_metadata, and verify_pages
+  extend-cluster    — guides adding a new article to an existing cluster with
+                      proper cross-references and verification
+  seo-audit         — guides SEO readiness assessment across the wiki using
+                      verify_pages seo_readiness checks and preview_structured_data
 
 == Completions ==
 
@@ -213,3 +296,19 @@ page name and the server will suggest matching pages.
   multiple agents are working concurrently.
 - Use batch_write_pages when creating or updating multiple pages to reduce
   round trips.
+- Use batch_update_metadata when updating metadata across multiple pages
+  (e.g. setting cross-references across a cluster).
+- Use verify_pages after creating or updating pages to confirm integrity
+  in a single call instead of multiple individual checks.
+- Use verify_pages with checks=["seo_readiness"] to audit SEO quality across
+  pages. It checks summary length, tag presence, hub/related consistency, and
+  cluster/type interaction.
+- Use preview_structured_data after updating metadata to see exactly what meta
+  tags, JSON-LD, and feed entries a page will produce. This closes the feedback
+  loop — verify before moving on.
+- Keep summaries between 50-160 characters for optimal meta descriptions.
+  Pages without tags will not appear in the Google News Sitemap.
+- To set a social sharing preview image for a page, use upload_attachment to
+  attach a file named og-image.png (or og-image.jpg / og-image.webp). The
+  wiki automatically emits og:image and twitter:image meta tags when this
+  attachment exists.

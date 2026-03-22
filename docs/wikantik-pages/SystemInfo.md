@@ -9,12 +9,17 @@ Here are some strategical figures and other interesting things about this partic
 | **Total Number of Pages** | [{$totalpages}] |
 | **Current Uptime** | [{$uptime}] |
 | **Current Page Provider** | [{$pageprovider}] |
-| **Available [InterWiki]() links** | [{$interwikilinks}] |
 | **Inlined images are** | [{$inlinedimages}] |
 | **Additional Plugin Search Path** | [{$pluginpath}] |
-| **Installed [PageFilters]()** | [{$pagefilters}] |
+| **Installed PageFilters** | [{$pagefilters}] |
 
 [{$pageproviderdescription}]
+
+#### InterWiki Links
+
+InterWiki links let you reference external wikis and services using the syntax `[PageName](WikiName:PageName)`. The following shortcuts are configured:
+
+[{$interwikilinks}]
 
 #### Usability
 
@@ -24,7 +29,7 @@ Here are some strategical figures and other interesting things about this partic
 | **Do we match english plural forms?** | [{$wikantik.translatorReader.matchEnglishPlurals}] |
 | **Is HTML allowed on pages?** | [{$wikantik.translatorReader.allowHTML}] |
 
-#### [RichSiteSummary]()
+#### RSS (Rich Site Summary)
 
 | Property | Value |
 |----------|-------|

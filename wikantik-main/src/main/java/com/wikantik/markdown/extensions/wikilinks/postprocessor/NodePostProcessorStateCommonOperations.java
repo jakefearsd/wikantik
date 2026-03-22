@@ -40,7 +40,14 @@ class NodePostProcessorStateCommonOperations {
             content.takeChildren( node );
             state.nodeAddedWithChildren( content );
         } else {
-            node.getParent().appendChild( content );
+            // Node is the only child of its parent — replace it with the content.
+            // The old code appended content without unlinking the original node,
+            // causing both the unresolved link and the resolved value to appear.
+            node.insertAfter( content );
+            node.unlink();
+            state.nodeRemoved( node );
+            content.takeChildren( node );
+            state.nodeAddedWithChildren( content );
         }
     }
 

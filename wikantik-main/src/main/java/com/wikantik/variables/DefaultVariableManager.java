@@ -341,8 +341,19 @@ public class DefaultVariableManager implements VariableManager {
         }
 
         public String getInterwikilinks() {
-
-            return context.getEngine().getAllInterWikiLinks().stream().map(link -> link + " --> " + context.getEngine().getInterWikiURL(link)).collect(Collectors.joining(", "));
+            final var links = context.getEngine().getAllInterWikiLinks();
+            if ( links.isEmpty() ) {
+                return "(none configured)";
+            }
+            final StringBuilder sb = new StringBuilder( "<table class=\"wikitable\">" );
+            sb.append( "<tr><th>Name</th><th>URL Pattern</th></tr>" );
+            for ( final String name : links.stream().sorted().collect( Collectors.toList() ) ) {
+                final String url = context.getEngine().getInterWikiURL( name );
+                sb.append( "<tr><td><code>" ).append( name ).append( "</code></td><td><code>" )
+                  .append( url != null ? url : "" ).append( "</code></td></tr>" );
+            }
+            sb.append( "</table>" );
+            return sb.toString();
         }
 
         public String getInlinedimages() {

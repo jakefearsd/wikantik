@@ -105,7 +105,7 @@
     <plugin.source.version>3.4.0</plugin.source.version>
     <plugin.surefire.version>3.5.4</plugin.surefire.version>
     <plugin.surefire.junit5-tree-reporter.version>1.5.1</plugin.surefire.junit5-tree-reporter.version>
-    <plugin.war.version>3.4.0</plugin.war.version>
+    <plugin.war.version>3.5.1</plugin.war.version>
     <plugin.inmemdb.version>1.4.3</plugin.inmemdb.version>
     <plugin.jspc.version>5.0.0</plugin.jspc.version>
     <plugin.build-helper.version>3.6.1</plugin.build-helper.version>

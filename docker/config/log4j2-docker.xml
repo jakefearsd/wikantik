@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" name="Wikantik-Docker" monitorInterval="30">
+    <Properties>
+        <Property name="logDir">/var/wikantik/logs</Property>
+        <Property name="pattern">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
+    </Properties>
+
+    <Appenders>
+        <!-- Console for docker logs -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="[%-5level] %d{HH:mm:ss.SSS} [%t] %c{1.} - %msg%n"/>
+        </Console>
+
+        <!-- Main application log with daily rotation -->
+        <RollingFile name="AppLog"
+                     fileName="${logDir}/wikantik.log"
+                     filePattern="${logDir}/wikantik-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout pattern="${pattern}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="50MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+
+        <!-- Security audit log -->
+        <RollingFile name="SecurityLog"
+                     fileName="${logDir}/security.log"
+                     filePattern="${logDir}/security-%d{yyyy-MM-dd}.log.gz">
+            <PatternLayout pattern="%d{ISO8601} %level %msg%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+            </Policies>
+            <DefaultRolloverStrategy max="90"/>
+        </RollingFile>
+
+        <!-- Access log for page views -->
+        <RollingFile name="AccessLog"
+                     fileName="${logDir}/access.log"
+                     filePattern="${logDir}/access-%d{yyyy-MM-dd}.log.gz">
+            <PatternLayout pattern="%d{ISO8601} %msg%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+            </Policies>
+            <DefaultRolloverStrategy max="7"/>
+        </RollingFile>
+    </Appenders>
+
+    <Loggers>
+        <Logger name="com.wikantik" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AppLog"/>
+        </Logger>
+
+        <Logger name="SecurityLog" level="INFO" additivity="false">
+            <AppenderRef ref="SecurityLog"/>
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <Logger name="com.wikantik.WikiServlet" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AccessLog"/>
+        </Logger>
+
+        <Logger name="com.wikantik.providers" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AppLog"/>
+        </Logger>
+
+        <Logger name="com.wikantik.search" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AppLog"/>
+        </Logger>
+
+        <Logger name="com.wikantik.auth" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="AppLog"/>
+        </Logger>
+
+        <Logger name="org.apache.tomcat.dbcp" level="WARN"/>
+
+        <Logger name="SpamLog" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <Root level="WARN">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>

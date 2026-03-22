@@ -1,0 +1,21 @@
+# Dev overrides: bind mounts, debug port, no backup
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+services:
+  db:
+    ports:
+      - "15432:5432"
+
+  wikantik:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    environment:
+      MCP_ACCESS_KEYS: ""
+    volumes:
+      - ./docs/wikantik-pages:/var/wikantik/pages
+      - wikantik-work:/var/wikantik/work
+      - wikantik-logs:/var/wikantik/logs
+      - ./wikantik-war/target/Wikantik.war:/tmp/Wikantik.war:ro
+    ports:
+      - "8080:8080"
+      - "5005:5005"

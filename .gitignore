@@ -14,7 +14,7 @@ nb-configuration.xml
 /tomcat
 /tomcat
 /secrets
-backup
+/backup
 tmp
 .worktrees
 .env

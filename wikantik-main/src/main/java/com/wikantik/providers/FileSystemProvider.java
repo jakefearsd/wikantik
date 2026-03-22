@@ -31,12 +31,29 @@ import java.nio.file.Files;
 import java.util.Properties;
 
 /**
- *  Provides a simple directory based repository for Wiki pages.
- *  <P>
- *  All files have ".txt" appended to make life easier for those
- *  who insist on using Windows or other software which makes assumptions
- *  on the files contents based on its name.
+ *  Non-versioning, file-system-backed {@link com.wikantik.api.providers.PageProvider}.
  *
+ *  <p>This is the simplest concrete subclass of {@link AbstractFileProvider}.  It stores each
+ *  page as a single content file ({@code .md} or {@code .txt}) plus a companion
+ *  {@code .properties} file for author, changenote, and custom metadata.  No version history
+ *  is maintained -- every save overwrites the previous content.</p>
+ *
+ *  <h3>Hook methods overridden from {@code AbstractFileProvider}</h3>
+ *  <ul>
+ *    <li>{@link #putPageText(Page, String)} -- calls {@code super} to write content, then
+ *        persists page properties (author, changenote, custom attributes) to the companion
+ *        {@code .properties} file.</li>
+ *    <li>{@link #getPageInfo(String, int)} -- calls {@code super} to get the base
+ *        {@code Page}, then enriches it with metadata read from the {@code .properties}
+ *        file.</li>
+ *    <li>{@link #deletePage(String)} -- calls {@code super} to remove the content file,
+ *        then deletes the companion {@code .properties} file.</li>
+ *    <li>{@link #movePage(String, String)} -- renames both the content file and the
+ *        {@code .properties} file.</li>
+ *  </ul>
+ *
+ *  @see AbstractFileProvider
+ *  @see VersioningFileProvider
  */
 public class FileSystemProvider extends AbstractFileProvider {
 

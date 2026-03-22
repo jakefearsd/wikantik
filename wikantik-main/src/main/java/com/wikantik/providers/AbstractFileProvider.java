@@ -58,12 +58,88 @@ import org.apache.commons.lang3.SystemUtils;
 
 
 /**
- *  Provides a simple directory based repository for Wiki pages.
+ *  Abstract base for file-system-backed {@link PageProvider} implementations.
+ *
+ *  <h2>Template Method Pattern</h2>
+ *
+ *  <p>This class implements the <em>Template Method</em> pattern (GoF).  It provides the
+ *  invariant skeleton for page I/O while allowing concrete subclasses to customise
+ *  metadata handling, versioning, and deletion behaviour by overriding a small set of
+ *  <em>hook methods</em>.</p>
+ *
+ *  <h3>Template methods (the skeleton -- subclasses typically do NOT override these)</h3>
+ *  <ul>
+ *    <li>{@link #initialize(Engine, Properties)} -- sets up the page directory, encoding,
+ *        and property limits.  Subclasses may call {@code super.initialize()} and then
+ *        perform additional setup (e.g.&nbsp;{@code VersioningFileProvider} creates the
+ *        {@code OLD/} directory).</li>
+ *    <li>{@link #findPage(String)} -- resolves a page name to a {@code File} on disk,
+ *        checking {@code .md} before {@code .txt} and caching the result.</li>
+ *    <li>{@link #getPageText(String, int)} -- reads raw page content from the file returned
+ *        by {@code findPage()}.  The base implementation ignores the version parameter and
+ *        always reads the current file.</li>
+ *    <li>{@link #getAllPages()} -- lists every wiki file in the page directory, delegates to
+ *        {@link #getPageInfo(String, int)} (a hook) for each file to build the metadata.</li>
+ *    <li>{@link #putPageText(Page, String)} -- writes raw page content to disk.  Subclasses
+ *        extend this to persist additional metadata (properties files, version archives).</li>
+ *    <li>{@link #findPages(QueryItem[])} -- full-text search across all page files.</li>
+ *  </ul>
+ *
+ *  <h3>Hook methods (subclasses override these to customise behaviour)</h3>
+ *  <ul>
+ *    <li>{@link #getPageInfo(String, int)} -- returns a {@link Page} with metadata.
+ *        The base implementation creates a bare {@code Page} with only a last-modified date.
+ *        {@code FileSystemProvider} adds author/changenote from a {@code .properties} file;
+ *        {@code VersioningFileProvider} adds per-version author, changenote, and version
+ *        number from a versioned properties store.</li>
+ *    <li>{@link #putPageText(Page, String)} -- the base implementation writes the text;
+ *        {@code FileSystemProvider} calls {@code super} then persists page properties;
+ *        {@code VersioningFileProvider} archives the previous version before calling
+ *        {@code super} and then writes versioned properties.</li>
+ *    <li>{@link #getVersionHistory(String)} -- returns a list of all page versions.
+ *        The base implementation returns a single-element list (no versioning);
+ *        {@code VersioningFileProvider} returns the full history.</li>
+ *    <li>{@link #deleteVersion(String, int)} -- deletes a single version.
+ *        The base implementation simply deletes the current file when
+ *        {@code LATEST_VERSION} is requested; {@code VersioningFileProvider} handles
+ *        promotion of the previous version and property cleanup.</li>
+ *    <li>{@link #deletePage(String)} -- deletes a page entirely.
+ *        The base implementation removes the page file; subclasses call {@code super}
+ *        and then clean up properties files and version directories.</li>
+ *    <li>{@link #pageExists(String, int)} -- version-aware existence check.
+ *        The base implementation ignores the version; {@code VersioningFileProvider}
+ *        checks the {@code OLD/} directory for historical versions.</li>
+ *    <li>{@link #movePage(String, String)} -- renames a page.  Not implemented here;
+ *        each subclass handles the rename of its own metadata/version artifacts.</li>
+ *  </ul>
+ *
+ *  <h3>Typical call flow for a page save</h3>
+ *  <ol>
+ *    <li>Caller invokes {@link #putPageText(Page, String)} on the concrete provider.</li>
+ *    <li>Subclass performs pre-save work (e.g.&nbsp;archiving the old version in
+ *        {@code VersioningFileProvider}).</li>
+ *    <li>Subclass calls {@code super.putPageText()} which writes raw text to disk.</li>
+ *    <li>Subclass performs post-save work (e.g.&nbsp;writing metadata properties).</li>
+ *  </ol>
+ *
+ *  <h3>Typical call flow for a page read</h3>
+ *  <ol>
+ *    <li>Caller invokes {@link #getPageInfo(String, int)} on the concrete provider.</li>
+ *    <li>Subclass calls {@code super.getPageInfo()} which locates the file via
+ *        {@code findPage()} and returns a bare {@code Page} with last-modified date.</li>
+ *    <li>Subclass enriches the {@code Page} with author, changenote, and version metadata
+ *        from its own properties store.</li>
+ *  </ol>
+ *
+ *  <h3>Creating a new file-based provider</h3>
+ *  <p>To create a new provider, extend this class and override the hook methods listed above.
+ *  At a minimum you will want to override {@link #getPageInfo(String, int)} and
+ *  {@link #putPageText(Page, String)} to handle your metadata format.  Call through to
+ *  {@code super} for the file I/O skeleton.</p>
+ *
  *  <P>
- *  All files have ".txt" appended to make life easier for those who insist on using Windows or other software which makes assumptions
- *  on the files contents based on its name.
- *  <p>
- *  This class functions as a superclass to all file based providers.
+ *  All files have ".txt" appended to make life easier for those who insist on using Windows
+ *  or other software which makes assumptions on the files contents based on its name.
  *
  *  @since 2.1.21.
  */
@@ -125,6 +201,10 @@ public abstract class AbstractFileProvider implements PageProvider {
      *  {@inheritDoc}
      *  @throws FileNotFoundException If the specified page directory does not exist.
      *  @throws IOException In case the specified page directory is a file, not a directory.
+     *  @implNote <b>Template method (skeleton).</b> Sets up the page directory, encoding, and
+     *  custom-property limits.  Subclasses that override this method <em>must</em> call
+     *  {@code super.initialize()} first so the base directory and encoding are ready before
+     *  any subclass-specific setup runs.
      */
     @Override
     public void initialize( final Engine engine, final Properties properties ) throws NoRequiredPropertyException, IOException, FileNotFoundException {
@@ -221,6 +301,11 @@ public abstract class AbstractFileProvider implements PageProvider {
      *  Uses an internal cache to avoid redundant filesystem existence checks, which significantly
      *  improves performance for frequently accessed pages.
      *
+     *  @implNote <b>Template method (skeleton).</b> Used internally by the template methods
+     *  {@code getPageText}, {@code putPageText}, {@code getAllPages}, and {@code findPages} to
+     *  resolve a logical page name to a physical {@code File}.  Subclasses generally do not
+     *  need to override this; they rely on it as infrastructure.
+     *
      *  @param page The name of the page.
      *  @return A File to the page. Returns the file even if it doesn't exist (for creation purposes).
      */
@@ -296,6 +381,11 @@ public abstract class AbstractFileProvider implements PageProvider {
 
     /**
      *  {@inheritDoc}
+     *
+     *  @implNote <b>Hook method.</b> The base implementation ignores the version parameter
+     *  and simply checks whether the current page file exists.
+     *  {@code VersioningFileProvider} overrides this to check the {@code OLD/} directory
+     *  for historical versions.
      */
     @Override
     public boolean pageExists( final String page, final int version ) {
@@ -304,6 +394,11 @@ public abstract class AbstractFileProvider implements PageProvider {
 
     /**
      *  This implementation just returns the current version, as filesystem does not provide versioning information for now.
+     *
+     *  @implNote <b>Template method (skeleton).</b> Reads the current page file via {@link #findPage(String)}.
+     *  The {@code version} parameter is ignored at this level.  {@code VersioningFileProvider}
+     *  overrides this to read historical versions from the {@code OLD/} directory, delegating
+     *  back to {@code super} for the latest version.
      *
      *  {@inheritDoc}
      */
@@ -339,6 +434,13 @@ public abstract class AbstractFileProvider implements PageProvider {
 
     /**
      *  {@inheritDoc}
+     *
+     *  @implNote <b>Hook method.</b> Writes raw page text to disk.  Subclasses override this
+     *  to add metadata persistence: {@code FileSystemProvider} calls {@code super.putPageText()}
+     *  then writes a {@code .properties} file; {@code VersioningFileProvider} archives the
+     *  previous version first, calls {@code super.putPageText()} to write the new content,
+     *  then records versioned metadata.  Overriding methods should always call
+     *  {@code super.putPageText()} to perform the actual file write.
      */
     @Override
     public void putPageText( final Page page, final String text ) throws ProviderException {
@@ -361,6 +463,11 @@ public abstract class AbstractFileProvider implements PageProvider {
 
     /**
      *  {@inheritDoc}
+     *
+     *  @implNote <b>Template method (skeleton).</b> Scans the page directory for wiki files
+     *  and delegates to {@link #getPageInfo(String, int)} (a hook) for each file to build
+     *  the metadata-enriched {@link Page} objects.  {@code VersioningFileProvider} overrides
+     *  this to re-fetch each page with full version information.
      */
     @Override
     public Collection< Page > getAllPages()  throws ProviderException {
@@ -466,6 +573,9 @@ public abstract class AbstractFileProvider implements PageProvider {
     /**
      * Iterates through all WikiPages, matches them against the given query, and returns a Collection of SearchResult objects.
      *
+     * @implNote <b>Template method (skeleton).</b> Performs a brute-force full-text search over
+     * all wiki files in the page directory.  This method is not typically overridden by subclasses.
+     *
      * {@inheritDoc}
      */
     @Override
@@ -507,6 +617,14 @@ public abstract class AbstractFileProvider implements PageProvider {
      *  Always returns the latest version, since FileSystemProvider
      *  does not support versioning.
      *
+     *  @implNote <b>Hook method.</b> Returns a bare {@link Page} with only the last-modified
+     *  date set.  Subclasses override this to enrich the page with author, changenote,
+     *  version number, and other metadata from their respective property stores.
+     *  {@code FileSystemProvider} reads a {@code .properties} file alongside the page;
+     *  {@code VersioningFileProvider} reads versioned properties from the {@code OLD/}
+     *  directory.  Both call {@code super.getPageInfo()} to obtain the base {@code Page}
+     *  object and then augment it.
+     *
      *  {@inheritDoc}
      */
     @Override
@@ -524,6 +642,10 @@ public abstract class AbstractFileProvider implements PageProvider {
 
     /**
      *  The FileSystemProvider provides only one version.
+     *
+     *  @implNote <b>Hook method.</b> The base implementation returns a single-element list
+     *  (no versioning support).  {@code VersioningFileProvider} overrides this to walk the
+     *  {@code OLD/} directory and return the complete version history in descending order.
      *
      *  {@inheritDoc}
      */
@@ -546,6 +668,11 @@ public abstract class AbstractFileProvider implements PageProvider {
 
     /**
      *  {@inheritDoc}
+     *
+     *  @implNote <b>Hook method.</b> The base implementation simply deletes the current page
+     *  file when {@code LATEST_VERSION} is requested.  {@code VersioningFileProvider} overrides
+     *  this to handle version-specific deletion, property cleanup, and promotion of the
+     *  previous version to become the current file.
      */
     @Override
     public void deleteVersion( final String pageName, final int version ) throws ProviderException {
@@ -559,6 +686,11 @@ public abstract class AbstractFileProvider implements PageProvider {
 
     /**
      *  {@inheritDoc}
+     *
+     *  @implNote <b>Hook method.</b> Deletes the page file and invalidates the extension cache.
+     *  Subclasses call {@code super.deletePage()} and then clean up their own artifacts:
+     *  {@code FileSystemProvider} removes the companion {@code .properties} file;
+     *  {@code VersioningFileProvider} removes the version directory under {@code OLD/}.
      */
     @Override
     public void deletePage( final String pageName ) throws ProviderException {

@@ -33,6 +33,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
 import com.wikantik.pages.PageManager;
+import com.wikantik.util.BaseUrlResolver;
 import com.wikantik.util.TextUtil;
 
 import java.io.IOException;
@@ -117,8 +118,8 @@ public class AtomFeedServlet extends HttpServlet {
         final List< ArticleSummary > articles = manager.getRecentArticles( context, query );
         final PageManager pageManager = engine.getManager( PageManager.class );
 
-        // Resolve base URL
-        final String baseUrl = resolveBaseUrl( req );
+        // Resolve base URL using shared 3-tier resolution
+        final String baseUrl = BaseUrlResolver.resolve( engine, req, configuredBaseUrl );
         final String appName = engine.getApplicationName();
 
         // Determine feed-level updated time
@@ -208,40 +209,6 @@ public class AtomFeedServlet extends HttpServlet {
         out.println( "</feed>" );
 
         LOG.debug( "Atom feed generated with {} entries", emitted );
-    }
-
-    private String resolveBaseUrl( final HttpServletRequest req ) {
-        if ( configuredBaseUrl != null && !configuredBaseUrl.isBlank() ) {
-            return stripTrailingSlash( configuredBaseUrl );
-        }
-
-        final String engineBase = engine.getBaseURL();
-        if ( engineBase != null && engineBase.startsWith( "http" ) ) {
-            return stripTrailingSlash( engineBase );
-        }
-
-        // Fall back to request
-        final String scheme = req.getScheme();
-        final String serverName = req.getServerName();
-        final int serverPort = req.getServerPort();
-        final String contextPath = req.getContextPath();
-
-        final StringBuilder url = new StringBuilder( scheme ).append( "://" ).append( serverName );
-        if ( ( "http".equals( scheme ) && serverPort != 80 ) ||
-             ( "https".equals( scheme ) && serverPort != 443 ) ) {
-            url.append( ':' ).append( serverPort );
-        }
-        if ( contextPath != null ) {
-            url.append( contextPath );
-        }
-        return stripTrailingSlash( url.toString() );
-    }
-
-    private static String stripTrailingSlash( final String url ) {
-        if ( url != null && url.endsWith( "/" ) ) {
-            return url.substring( 0, url.length() - 1 );
-        }
-        return url;
     }
 
     private static String escapeXml( final String input ) {

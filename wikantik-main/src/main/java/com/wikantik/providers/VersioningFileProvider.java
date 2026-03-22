@@ -44,8 +44,12 @@ import java.util.List;
 import java.util.Properties;
 
 /**
- *  Provides a simple directory based repository for Wiki pages.
- *  Pages are held in a directory structure:
+ *  Versioning, file-system-backed {@link com.wikantik.api.providers.PageProvider}.
+ *
+ *  <p>This subclass of {@link AbstractFileProvider} adds full version history.  The current
+ *  version of each page lives as a single file in the page directory (handled by the
+ *  superclass), while previous versions are archived under an {@code OLD/} subdirectory
+ *  with the following layout:</p>
  *  <PRE>
  *    Main.txt
  *    Foobar.txt
@@ -58,16 +62,39 @@ import java.util.Properties;
  *          page.properties
  *  </PRE>
  *
- *  In this case, "Main" has three versions, and "Foobar" just one version.
- *  <P>
- *  The properties file contains the necessary metainformation (such as author)
- *  information of the page.  DO NOT MESS WITH IT!
+ *  <p>In this example, "Main" has three versions (1.txt, 2.txt, and the current Main.txt),
+ *  while "Foobar" has just one version.</p>
  *
- *  <P>
- *  All files have ".txt" appended to make life easier for those
- *  who insist on using Windows or other software which makes assumptions
- *  on the files contents based on its name.
+ *  <p>The {@code page.properties} file stores per-version metadata (author, changenote,
+ *  markup syntax) keyed by version number (e.g. {@code 2.author=admin}).
+ *  <b>DO NOT MODIFY IT BY HAND.</b></p>
  *
+ *  <h3>Hook methods overridden from {@code AbstractFileProvider}</h3>
+ *  <ul>
+ *    <li>{@link #initialize(Engine, Properties)} -- calls {@code super} then creates the
+ *        {@code OLD/} directory and initialises the property cache.</li>
+ *    <li>{@link #putPageText(Page, String)} -- archives the current file into {@code OLD/},
+ *        calls {@code super} to write the new content, then writes versioned metadata.</li>
+ *    <li>{@link #getPageText(String, int)} -- for the latest version, delegates to
+ *        {@code super}; for older versions, reads from the {@code OLD/} directory.</li>
+ *    <li>{@link #getPageInfo(String, int)} -- for the latest version, calls {@code super}
+ *        then enriches with versioned metadata; for older versions, reads directly from
+ *        {@code OLD/}.</li>
+ *    <li>{@link #getVersionHistory(String)} -- returns all versions in descending order.</li>
+ *    <li>{@link #deleteVersion(String, int)} -- removes a specific version, promoting the
+ *        previous version when the latest is deleted.</li>
+ *    <li>{@link #deletePage(String)} -- calls {@code super} then removes the entire version
+ *        directory under {@code OLD/}.</li>
+ *    <li>{@link #pageExists(String, int)} -- checks the {@code OLD/} directory for
+ *        historical versions.</li>
+ *    <li>{@link #getAllPages()} -- calls {@code super} then re-fetches each page to include
+ *        version numbers.</li>
+ *    <li>{@link #movePage(String, String)} -- renames both the current file and the version
+ *        directory.</li>
+ *  </ul>
+ *
+ *  @see AbstractFileProvider
+ *  @see FileSystemProvider
  */
 public class VersioningFileProvider extends AbstractFileProvider {
 

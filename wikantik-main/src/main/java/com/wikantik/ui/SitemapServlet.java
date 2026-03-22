@@ -47,6 +47,8 @@ import com.wikantik.attachment.AttachmentManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.content.SystemPageRegistry;
+import com.wikantik.frontmatter.FrontmatterParser;
+import com.wikantik.frontmatter.ParsedPage;
 import com.wikantik.pages.PageManager;
 import com.wikantik.providers.CachingProvider;
 import com.wikantik.providers.PageProviderDecorator;
@@ -103,6 +105,12 @@ public class SitemapServlet extends HttpServlet {
 
     /** Google Image sitemap namespace */
     private static final String IMAGE_NS = "http://www.google.com/schemas/sitemap-image/1.1";
+
+    /** Google News sitemap namespace */
+    private static final String NEWS_NS = "http://www.google.com/schemas/sitemap-news/0.9";
+
+    /** Pages modified within this many days get a news:news element. */
+    public static final int NEWS_CUTOFF_DAYS = 2;
 
     /** Image file extensions that should be included in the sitemap */
     private static final Set<String> IMAGE_EXTENSIONS = Set.of(
@@ -178,7 +186,12 @@ public class SitemapServlet extends HttpServlet {
         final PrintWriter out = resp.getWriter();
         out.println( "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" );
         out.println( "<urlset xmlns=\"" + SITEMAP_NS + "\"" );
-        out.println( "        xmlns:image=\"" + IMAGE_NS + "\">" );
+        out.println( "        xmlns:image=\"" + IMAGE_NS + "\"" );
+        out.println( "        xmlns:news=\"" + NEWS_NS + "\">" );
+
+        // Compute news cutoff date (pages modified within NEWS_CUTOFF_DAYS get news extension)
+        final long newsCutoffMillis = System.currentTimeMillis() - ( NEWS_CUTOFF_DAYS * 24L * 60 * 60 * 1000 );
+        final String appName = engine.getApplicationName();
 
         final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern( "yyyy-MM-dd", Locale.ROOT );
         final URLConstructor urlConstructor = engine.getManager( URLConstructor.class );
@@ -245,6 +258,11 @@ public class SitemapServlet extends HttpServlet {
             // Add image entries for image attachments
             // Note: changefreq and priority are intentionally omitted as Google ignores them
             writeImageEntries( out, page, baseUrl, attachmentManager );
+
+            // Add Google News extension for recently modified pages that have frontmatter tags
+            if ( page.getLastModified() != null && page.getLastModified().getTime() >= newsCutoffMillis ) {
+                writeNewsEntryIfTagged( out, page, pageManager, appName, dateFormat );
+            }
 
             out.println( "  </url>" );
         }
@@ -352,6 +370,55 @@ public class SitemapServlet extends HttpServlet {
         } catch ( final Exception e ) {
             LOG.debug( "Error listing attachments for page {}: {}", page.getName(), e.getMessage() );
         }
+    }
+
+    /**
+     * Writes a Google News Sitemap extension element for a recently modified page,
+     * but only if the page has frontmatter with tags. Pages without frontmatter metadata
+     * are not curated content and should not appear in Google News.
+     *
+     * @param out the PrintWriter
+     * @param page the recently modified page
+     * @param pageManager the page manager for reading page text
+     * @param publicationName the publication name (wiki application name)
+     * @param dateFormat the date formatter for publication date
+     */
+    private void writeNewsEntryIfTagged( final PrintWriter out, final Page page,
+                                          final PageManager pageManager, final String publicationName,
+                                          final DateTimeFormatter dateFormat ) {
+        final String rawText = pageManager.getPureText( page );
+        if ( rawText == null || rawText.isEmpty() ) {
+            return;
+        }
+
+        final ParsedPage parsed = FrontmatterParser.parse( rawText );
+        if ( parsed.metadata().isEmpty() ) {
+            return;
+        }
+
+        // Extract tags for news:keywords
+        String keywords = null;
+        final Object tags = parsed.metadata().get( "tags" );
+        if ( tags instanceof java.util.List< ? > tagList && !tagList.isEmpty() ) {
+            keywords = tagList.stream()
+                .map( Object::toString )
+                .collect( java.util.stream.Collectors.joining( ", " ) );
+        }
+
+        final String pubDate = dateFormat.format(
+            page.getLastModified().toInstant().atZone( ZoneId.systemDefault() ).toLocalDate() );
+
+        out.println( "    <news:news>" );
+        out.println( "      <news:publication>" );
+        out.println( "        <news:name>" + escapeXml( publicationName ) + "</news:name>" );
+        out.println( "        <news:language>en</news:language>" );
+        out.println( "      </news:publication>" );
+        out.println( "      <news:publication_date>" + pubDate + "</news:publication_date>" );
+        out.println( "      <news:title>" + escapeXml( page.getName() ) + "</news:title>" );
+        if ( keywords != null ) {
+            out.println( "      <news:keywords>" + escapeXml( keywords ) + "</news:keywords>" );
+        }
+        out.println( "    </news:news>" );
     }
 
     /**

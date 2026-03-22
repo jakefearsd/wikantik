@@ -786,4 +786,85 @@ class SitemapServletTest {
         m_engine.getManager( PageManager.class ).deletePage( "NewPageAfterCache" );
     }
 
+    @Test
+    void testSitemapIncludesNewsNamespace() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter stringWriter = new StringWriter();
+        final PrintWriter printWriter = new PrintWriter( stringWriter );
+
+        Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+        servlet.doGet( request, response );
+
+        final String sitemap = stringWriter.toString();
+
+        Assertions.assertTrue( sitemap.contains( "xmlns:news=\"http://www.google.com/schemas/sitemap-news/0.9\"" ),
+            "Sitemap should include Google News sitemap namespace" );
+    }
+
+    @Test
+    void testSitemapNewsExtensionForRecentFrontmatterPages() throws Exception {
+        // Create a page with frontmatter tags — it was just created, so it's within the news cutoff
+        m_engine.saveText( "NewsTestPage",
+            "---\ntype: article\ntags: [ai, testing]\nsummary: A test article\n---\n# News Test\nBody." );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+        Mockito.when( request.getScheme() ).thenReturn( "http" );
+        Mockito.when( request.getServerName() ).thenReturn( "localhost" );
+        Mockito.when( request.getServerPort() ).thenReturn( 8080 );
+        Mockito.when( request.getContextPath() ).thenReturn( "" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter stringWriter = new StringWriter();
+        final PrintWriter printWriter = new PrintWriter( stringWriter );
+
+        Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+        servlet.doGet( request, response );
+
+        final String sitemap = stringWriter.toString();
+
+        // Verify news extension elements are present for the page with frontmatter
+        Assertions.assertTrue( sitemap.contains( "<news:news>" ),
+            "Sitemap should contain news:news element for frontmatter page" );
+        Assertions.assertTrue( sitemap.contains( "<news:title>NewsTestPage</news:title>" ),
+            "Sitemap should contain news:title for the test page" );
+        Assertions.assertTrue( sitemap.contains( "<news:keywords>ai, testing</news:keywords>" ),
+            "Sitemap should contain news:keywords from frontmatter tags" );
+        Assertions.assertTrue( sitemap.contains( "<news:language>en</news:language>" ),
+            "Sitemap should contain news:language" );
+        Assertions.assertTrue( sitemap.contains( "<news:publication_date>" ),
+            "Sitemap should contain news:publication_date" );
+
+        // Cleanup
+        m_engine.getManager( PageManager.class ).deletePage( "NewsTestPage" );
+    }
+
+    @Test
+    void testSitemapNewsExtensionSkipsPageWithoutFrontmatter() throws Exception {
+        // TestPage1 has no frontmatter — it should NOT get a news entry
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+        Mockito.when( request.getScheme() ).thenReturn( "http" );
+        Mockito.when( request.getServerName() ).thenReturn( "localhost" );
+        Mockito.when( request.getServerPort() ).thenReturn( 8080 );
+        Mockito.when( request.getContextPath() ).thenReturn( "" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter stringWriter = new StringWriter();
+        final PrintWriter printWriter = new PrintWriter( stringWriter );
+
+        Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+        servlet.doGet( request, response );
+
+        final String sitemap = stringWriter.toString();
+
+        // TestPage1 should be in the sitemap (as a URL) but NOT have a news entry
+        Assertions.assertTrue( sitemap.contains( "TestPage1" ),
+            "Sitemap should contain TestPage1" );
+        Assertions.assertFalse( sitemap.contains( "<news:title>TestPage1</news:title>" ),
+            "Sitemap should NOT contain news:title for page without frontmatter" );
+    }
+
 }

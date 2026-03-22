@@ -34,7 +34,8 @@ public final class WikiPrompts {
     }
 
     public static List< McpServerFeatures.SyncPromptSpecification > all() {
-        return List.of( createArticle(), summarizeTopic(), auditLinks(), renamePage(), wikiHealthCheck() );
+        return List.of( createArticle(), summarizeTopic(), auditLinks(), renamePage(), wikiHealthCheck(),
+                publishCluster(), extendCluster(), seoAudit() );
     }
 
     private static McpServerFeatures.SyncPromptSpecification createArticle() {
@@ -67,8 +68,9 @@ public final class WikiPrompts {
                          - `type: %s`
                          - `tags: [relevant, tags]`
                          - `date: %s` (today's date)
-                         - `summary: one-line description`
+                         - `summary: one-line description` (50-160 chars — this becomes the meta description in search results)
                          - `related: [RelatedPageName]` (link to pages found in step 1)
+                       Include tags — these enable Google News Sitemap inclusion.
                        - `changeNote`: "Initial creation"
 
                     4. **Verify**: Use `read_page` to confirm the article was saved correctly.
@@ -239,6 +241,142 @@ public final class WikiPrompts {
         } );
     }
 
+    private static McpServerFeatures.SyncPromptSpecification publishCluster() {
+        final McpSchema.Prompt prompt = new McpSchema.Prompt(
+                "publish-cluster",
+                "Guide creation of a complete article cluster with hub and sub-articles",
+                List.of(
+                        new McpSchema.PromptArgument( "topic", "The topic for the article cluster", true ),
+                        new McpSchema.PromptArgument( "pageCount", "Desired number of sub-articles (default: 3-5)", false ),
+                        new McpSchema.PromptArgument( "clusterSlug", "Kebab-case cluster identifier (auto-generated if omitted)", false )
+                )
+        );
+
+        return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
+            final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
+            final String topic = args.getOrDefault( "topic", "NewCluster" ).toString();
+            final String pageCount = args.getOrDefault( "pageCount", "3-5" ).toString();
+            final String clusterSlug = args.getOrDefault( "clusterSlug", "" ).toString();
+            final String today = java.time.LocalDate.now().toString();
+
+            final String guide = String.format( """
+                    You are creating a cluster of interlinked wiki articles about "%s".
+
+                    Follow these steps:
+
+                    1. **Survey existing content**: Use `search_pages` with query "%s" and `list_metadata_values` \
+                    to discover related pages and metadata conventions already in use.
+
+                    2. **Design the cluster**: Plan a hub page and %s sub-articles. All page names must be CamelCase. \
+                    %sDesign the inter-page link structure: hub links to all sub-articles, sub-articles link back to hub.
+
+                    3. **Publish pages**: Use `batch_write_pages` to create all pages. Write the hub page first. \
+                    Each page must include full metadata:
+                       - `type`: "hub" for the hub page, "article" for sub-articles
+                       - `tags`: relevant topic tags (consistent across all cluster pages)
+                       - `date`: %s
+                       - `related`: list of related CamelCase page names within the cluster
+                       - `cluster`: %s
+                       - `status`: "active"
+                       - `summary`: one-line description
+                       - `author`: set to a descriptive name, not "MCP"
+                       - `changeNote`: "Initial creation"
+
+                    4. **Set cross-references**: Use `batch_update_metadata` to set the `related` field across all cluster pages \
+                    so each page references its siblings and the hub.
+
+                    5. **Verify integrity**: Use `verify_pages` on all cluster pages to confirm:
+                       - All pages exist
+                       - No broken links
+                       - All pages have backlinks
+                       - Metadata is complete
+
+                    5b. **Verify SEO**: Use `preview_structured_data` on the hub and one sub-article to verify \
+                    JSON-LD, meta tags, and feed entries. Hub should show CollectionPage with hasPart.
+
+                    6. **Document**: Append cluster details to `docs/research_history.md` including topic, all pages created, and cross-links.
+
+                    Use Markdown `[link text](PageName)` syntax for internal links.""",
+                    topic, topic, pageCount,
+                    clusterSlug.isEmpty() ? "" : "Use cluster identifier: \"" + clusterSlug + "\". ",
+                    today,
+                    clusterSlug.isEmpty() ? "a kebab-case slug derived from the topic" : "\"" + clusterSlug + "\"" );
+
+            return new McpSchema.GetPromptResult(
+                    "Guide for creating an article cluster with hub and sub-articles",
+                    List.of( new McpSchema.PromptMessage(
+                            McpSchema.Role.USER,
+                            new McpSchema.TextContent( guide ) ) ) );
+        } );
+    }
+
+    private static McpServerFeatures.SyncPromptSpecification extendCluster() {
+        final McpSchema.Prompt prompt = new McpSchema.Prompt(
+                "extend-cluster",
+                "Guide adding a new article to an existing cluster",
+                List.of(
+                        new McpSchema.PromptArgument( "clusterSlug", "Cluster identifier to extend", true ),
+                        new McpSchema.PromptArgument( "newPageName", "CamelCase name for the new article", true )
+                )
+        );
+
+        return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
+            final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
+            final String clusterSlug = args.getOrDefault( "clusterSlug", "my-cluster" ).toString();
+            final String newPageName = args.getOrDefault( "newPageName", "NewArticle" ).toString();
+
+            final String guide = String.format( """
+                    You are adding the article "%s" to the existing cluster "%s".
+
+                    Follow these steps:
+
+                    1. **Find cluster members**: Use `query_metadata` with field="cluster" and value="%s" \
+                    to find all existing pages in this cluster.
+
+                    2. **Read the hub**: Identify the hub page (type="hub") and use `read_page` to understand \
+                    the cluster structure, naming conventions, and content style.
+
+                    3. **Create the new article**: Use `write_page` for "%s" with:
+                       - `content`: the article body in Markdown
+                       - `metadata`: match the cluster's metadata schema:
+                         - `type`: "article"
+                         - `tags`: consistent with existing cluster tags
+                         - `date`: %s
+                         - `related`: include hub page and relevant sibling articles
+                         - `cluster`: "%s"
+                         - `status`: "active"
+                         - `summary`: one-line description
+                       - `author`: set to a descriptive name
+                       - `changeNote`: "Initial creation"
+
+                    4. **Update the hub**: Use `batch_patch_pages` to add a link to "%s" in the hub page's \
+                    article listing section.
+
+                    5. **Update cross-references**: Use `batch_update_metadata` to add "%s" to the `related` \
+                    lists of the hub page and relevant sibling articles.
+
+                    6. **Verify**: Use `verify_pages` on the new article, the hub, and any updated siblings \
+                    to confirm:
+                       - No broken links
+                       - Backlinks are correct
+                       - Metadata is complete
+
+                    7. **Verify SEO**: Use `preview_structured_data` on the new article to verify \
+                    BreadcrumbList, isPartOf, and cluster feed inclusion.
+
+                    Use Markdown `[link text](PageName)` syntax for internal links.""",
+                    newPageName, clusterSlug, clusterSlug, newPageName,
+                    java.time.LocalDate.now().toString(), clusterSlug,
+                    newPageName, newPageName );
+
+            return new McpSchema.GetPromptResult(
+                    "Guide for adding an article to an existing cluster",
+                    List.of( new McpSchema.PromptMessage(
+                            McpSchema.Role.USER,
+                            new McpSchema.TextContent( guide ) ) ) );
+        } );
+    }
+
     private static McpServerFeatures.SyncPromptSpecification wikiHealthCheck() {
         final McpSchema.Prompt prompt = new McpSchema.Prompt(
                 "wiki-health-check",
@@ -269,9 +407,12 @@ public final class WikiPrompts {
                        - Missing type classifications
                        - Pages without tags or summaries
 
-                    5. **Review recent activity**: Use `recent_changes` to check recent edits for any issues.
+                    5. **Check SEO quality**: Use `verify_pages` with `checks=["seo_readiness"]` on a sample \
+                    of pages to assess SEO quality across the wiki. Look for missing summaries, tags, and dates.
 
-                    6. **Report findings**: Summarize the wiki health status with:
+                    6. **Review recent activity**: Use `recent_changes` to check recent edits for any issues.
+
+                    7. **Report findings**: Summarize the wiki health status with:
                        - Overall statistics
                        - Critical issues (broken links, orphaned important pages)
                        - Recommendations for improvement
@@ -279,6 +420,62 @@ public final class WikiPrompts {
 
             return new McpSchema.GetPromptResult(
                     "Guide for comprehensive wiki health assessment",
+                    List.of( new McpSchema.PromptMessage(
+                            McpSchema.Role.USER,
+                            new McpSchema.TextContent( guide ) ) ) );
+        } );
+    }
+
+    private static McpServerFeatures.SyncPromptSpecification seoAudit() {
+        final McpSchema.Prompt prompt = new McpSchema.Prompt(
+                "seo-audit",
+                "Guide SEO readiness assessment across the wiki",
+                List.of(
+                        new McpSchema.PromptArgument( "cluster", "Optional cluster to scope the audit (omit for wiki-wide)", false )
+                )
+        );
+
+        return new McpServerFeatures.SyncPromptSpecification( prompt, ( exchange, request ) -> {
+            final Map< String, Object > args = request.arguments() != null ? request.arguments() : Map.of();
+            final String cluster = args.getOrDefault( "cluster", "" ).toString();
+
+            final String guide = String.format( """
+                    You are performing an SEO readiness audit%s.
+
+                    Follow these steps:
+
+                    1. **Find pages in scope**: %s
+
+                    2. **Run SEO checks**: Use `verify_pages` with `checks=["seo_readiness"]` on all pages in scope. \
+                    Review the seoWarnings for each page and the seoIssues summary.
+
+                    3. **Preview impact**: For pages with warnings, use `preview_structured_data` to see the \
+                    exact meta tags, JSON-LD, feed entries, and News Sitemap eligibility they produce. \
+                    This shows the real-world impact of the issues.
+
+                    4. **Fix issues**: Use `update_metadata` or `batch_update_metadata` to fix metadata problems:
+                       - Add or improve summaries (aim for 50-160 characters)
+                       - Add tags to enable News Sitemap inclusion
+                       - Add date fields for JSON-LD datePublished
+                       - Fix hub pages: ensure related lists reference existing pages
+                       - Set type on clustered pages that lack it
+
+                    5. **Re-verify**: Run `verify_pages` with `checks=["seo_readiness"]` again to confirm \
+                    all seoIssues are resolved.
+
+                    6. **Report**: Summarize findings:
+                       - Pages with good SEO (no warnings)
+                       - Pages that needed attention and what was fixed
+                       - News-eligible page count (pages with tags modified recently)
+                       - Any remaining issues that need manual attention""",
+                    cluster.isEmpty() ? " across the entire wiki" : " for cluster \"" + cluster + "\"",
+                    cluster.isEmpty()
+                            ? "Use `list_pages` to get all pages, or `query_metadata` to find pages by type."
+                            : "Use `query_metadata` with field=\"cluster\" and value=\"" + cluster +
+                              "\" to find all pages in this cluster." );
+
+            return new McpSchema.GetPromptResult(
+                    "Guide for SEO readiness assessment",
                     List.of( new McpSchema.PromptMessage(
                             McpSchema.Role.USER,
                             new McpSchema.TextContent( guide ) ) ) );

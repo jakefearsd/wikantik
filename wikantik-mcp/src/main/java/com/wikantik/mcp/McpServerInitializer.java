@@ -137,7 +137,19 @@ public class McpServerInitializer implements ServletContextListener {
             final PatchPageTool patchPage = new PatchPageTool( engine, systemPageRegistry );
             final BatchPatchPagesTool batchPatchPages = new BatchPatchPagesTool( engine, systemPageRegistry );
             final UpdateMetadataTool updateMetadata = new UpdateMetadataTool( engine, systemPageRegistry );
+            final BatchUpdateMetadataTool batchUpdateMetadata = new BatchUpdateMetadataTool( engine, systemPageRegistry );
             final ScanMarkdownLinksTool scanMarkdownLinks = new ScanMarkdownLinksTool( pageManager );
+            final VerifyPagesTool verifyPages = new VerifyPagesTool( pageManager, referenceManager );
+            final PreviewStructuredDataTool previewStructuredData = new PreviewStructuredDataTool( pageManager, engine );
+            final String indexNowApiKey = engine.getWikiProperties().getProperty( "wikantik.indexnow.apiKey" );
+            final PingSearchEnginesTool pingSearchEngines = new PingSearchEnginesTool(
+                    engine.getBaseURL(), indexNowApiKey, java.net.http.HttpClient.newHttpClient() );
+            final GetClusterMapTool getClusterMap = new GetClusterMapTool( pageManager, systemPageRegistry );
+            final AuditClusterTool auditCluster = new AuditClusterTool( pageManager, referenceManager );
+            final AuditCrossClusterTool auditCrossCluster = new AuditCrossClusterTool( pageManager, referenceManager, systemPageRegistry );
+            final ApplyAuditFixesTool applyAuditFixes = new ApplyAuditFixesTool( engine, systemPageRegistry );
+            final PublishClusterTool publishCluster = new PublishClusterTool( engine, systemPageRegistry );
+            final ExtendClusterTool extendCluster = new ExtendClusterTool( engine, systemPageRegistry );
 
             // Resources
             final WikiResources wikiResources = new WikiResources(
@@ -165,7 +177,8 @@ public class McpServerInitializer implements ServletContextListener {
                     getAttachments, queryMetadata, deletePage, getPageHistory, diffPage,
                     getOutboundLinks, getBrokenLinks, getOrphanedPages, getWikiStats,
                     listMetadataValues, unlockPage, readAttachment, deleteAttachment,
-                    scanMarkdownLinks
+                    scanMarkdownLinks, verifyPages, previewStructuredData, pingSearchEngines,
+                    getClusterMap, auditCluster, auditCrossCluster
             };
             for ( final McpTool tool : readOnlyTools ) {
                 builder.toolCall( tool.definition(), ( exchange, request ) ->
@@ -174,7 +187,8 @@ public class McpServerInitializer implements ServletContextListener {
 
             // Register tools that need author resolution from the MCP exchange
             for ( final McpTool tool : new McpTool[] { writePage, batchWrite, renamePage,
-                    uploadAttachment, patchPage, batchPatchPages, updateMetadata } ) {
+                    uploadAttachment, patchPage, batchPatchPages, updateMetadata, batchUpdateMetadata,
+                    applyAuditFixes, publishCluster, extendCluster } ) {
                 builder.toolCall( tool.definition(), ( exchange, request ) -> {
                     resolveAuthor( exchange, tool );
                     return tool.execute( request.arguments() );
@@ -202,7 +216,7 @@ public class McpServerInitializer implements ServletContextListener {
             subscriptionBridge.register( pageManager );
 
             servletContext.setAttribute( ATTR_MCP_SERVER, mcpServer );
-            LOG.info( "MCP server started successfully with 27 tools, 6 resources, 5 prompts, and 3 completions at /mcp" );
+            LOG.info( "MCP server started successfully with 37 tools, 6 resources, 8 prompts, and 3 completions at /mcp" );
 
         } catch ( final Exception e ) {
             LOG.error( "Failed to start MCP server: {}", e.getMessage(), e );

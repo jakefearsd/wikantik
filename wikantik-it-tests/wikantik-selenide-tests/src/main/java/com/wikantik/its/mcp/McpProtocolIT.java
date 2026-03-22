@@ -42,7 +42,9 @@ public class McpProtocolIT extends WithMcpTestSetup {
             "delete_attachment", "patch_page", "batch_patch_pages",
             "update_metadata", "scan_markdown_links",
             "batch_update_metadata", "ping_search_engines",
-            "preview_structured_data", "verify_pages"
+            "preview_structured_data", "verify_pages",
+            "get_cluster_map", "audit_cluster", "audit_cross_cluster", "apply_audit_fixes",
+            "publish_cluster", "extend_cluster"
     );
 
     @Test

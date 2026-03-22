@@ -26,16 +26,13 @@ import com.wikantik.pages.PageManager;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * MCP tool that scans a wiki page for Markdown-style links and classifies them
- * as external, anchor, or local (wiki page) links.
+ * as external, anchor, or local (wiki page) links. Delegates to {@link MarkdownLinkScanner}.
  */
 public class ScanMarkdownLinksTool implements McpTool {
 
@@ -45,7 +42,6 @@ public class ScanMarkdownLinksTool implements McpTool {
     public String name() {
         return TOOL_NAME;
     }
-    private static final Pattern LINK_PATTERN = Pattern.compile( "\\[([^\\]]*)\\]\\(([^)]+)\\)" );
 
     private final PageManager pageManager;
 
@@ -81,26 +77,8 @@ public class ScanMarkdownLinksTool implements McpTool {
         }
 
         final String rawText = pageManager.getPureText( pageName, PageProvider.LATEST_VERSION );
-        final Matcher matcher = LINK_PATTERN.matcher( rawText );
-
-        final List< Map< String, String > > links = new ArrayList<>();
-        final Set< String > localLinks = new LinkedHashSet<>();
-
-        while ( matcher.find() ) {
-            final String text = matcher.group( 1 );
-            final String target = matcher.group( 2 );
-            final String type = classifyLink( target );
-
-            final Map< String, String > link = new LinkedHashMap<>();
-            link.put( "target", target );
-            link.put( "text", text );
-            link.put( "type", type );
-            links.add( link );
-
-            if ( "local".equals( type ) ) {
-                localLinks.add( target );
-            }
-        }
+        final List< Map< String, String > > links = MarkdownLinkScanner.scanAll( rawText );
+        final Set< String > localLinks = MarkdownLinkScanner.findLocalLinks( rawText );
 
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "pageName", pageName );
@@ -108,15 +86,5 @@ public class ScanMarkdownLinksTool implements McpTool {
         result.put( "localLinks", new ArrayList<>( localLinks ) );
 
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
-    }
-
-    private static String classifyLink( final String target ) {
-        if ( target.startsWith( "http://" ) || target.startsWith( "https://" ) || target.startsWith( "ftp://" ) ) {
-            return "external";
-        }
-        if ( target.startsWith( "#" ) ) {
-            return "anchor";
-        }
-        return "local";
     }
 }

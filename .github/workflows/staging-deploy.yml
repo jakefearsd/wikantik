@@ -32,6 +32,11 @@ jobs:
       - name: Build Docker image
         run: docker build -t $IMAGE_NAME:$IMAGE_TAG .
 
+      - name: Sync DB init scripts to staging
+        run: |
+          mkdir -p $STAGING_DIR/db-init
+          cp docker/db/*.sql $STAGING_DIR/db-init/
+
       - name: Deploy to staging
         run: |
           cd $STAGING_DIR

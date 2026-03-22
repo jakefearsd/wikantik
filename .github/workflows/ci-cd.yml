@@ -42,6 +42,13 @@ jobs:
             ssh -i $SSH_KEY_PATH -o StrictHostKeyChecking=accept-new \
             $DEPLOY_USER@$DEPLOY_HOST 'gunzip | docker load'
 
+      - name: Update config on production
+        run: |
+          ssh -i $SSH_KEY_PATH $DEPLOY_USER@$DEPLOY_HOST "
+            cd $DEPLOY_DIR
+            git pull --ff-only origin main
+          "
+
       - name: Deploy on production
         run: |
           ssh -i $SSH_KEY_PATH $DEPLOY_USER@$DEPLOY_HOST "

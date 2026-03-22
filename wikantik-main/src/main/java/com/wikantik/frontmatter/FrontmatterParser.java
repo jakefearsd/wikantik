@@ -73,7 +73,7 @@ public final class FrontmatterParser {
         final Matcher closeMatcher = CLOSING.matcher( text );
         if ( !closeMatcher.find( yamlStart ) ) {
             // No closing delimiter found — check if text ends with \n--- (no trailing newline)
-            if ( text.matches( "(?s).*\\r?\\n---$" ) ) {
+            if ( text.endsWith( "\n---" ) || text.endsWith( "\r\n---" ) ) {
                 final int lastDelim = text.lastIndexOf( "---" );
                 // Walk back past optional \r
                 int bodyEnd = lastDelim;

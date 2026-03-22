@@ -52,7 +52,15 @@ import java.util.regex.Pattern;
 public class DefaultPageRenamer implements PageRenamer {
 
     private static final Logger LOG = LogManager.getLogger( DefaultPageRenamer.class );
-    
+
+    /** Pre-compiled pattern for CamelCase wiki words (avoids re-compilation on every rename). */
+    private static final Pattern CAMELCASE_PATTERN =
+            Pattern.compile( "\\p{Lu}+\\p{Ll}+\\p{Lu}+[\\p{L}\\p{Digit}]*" );
+
+    /** Pre-compiled pattern for Markdown links: [text](target). */
+    private static final Pattern MARKDOWN_LINK_PATTERN =
+            Pattern.compile( "\\[([^\\]]*)]\\(([^)]*)\\)" );
+
     private boolean camelCase;
     
     /**
@@ -222,8 +230,7 @@ public class DefaultPageRenamer implements PageRenamer {
      */
     private String replaceCCReferrerString( final String sourceText, final String from, final String to ) {
         final StringBuilder sb = new StringBuilder( sourceText.length()+32 );
-        final Pattern linkPattern = Pattern.compile( "\\p{Lu}+\\p{Ll}+\\p{Lu}+[\\p{L}\\p{Digit}]*" );
-        final Matcher matcher = linkPattern.matcher( sourceText );
+        final Matcher matcher = CAMELCASE_PATTERN.matcher( sourceText );
         int start = 0;
         
         while( matcher.find( start ) ) {
@@ -249,9 +256,7 @@ public class DefaultPageRenamer implements PageRenamer {
     private String replaceReferrerString( final String sourceText, final String from, final String to ) {
         final StringBuilder sb = new StringBuilder( sourceText.length() + 32 );
 
-        // Matches Markdown links: [text](target) where target can include anchors and paths
-        final Pattern linkPattern = Pattern.compile( "\\[([^\\]]*)]\\(([^)]*)\\)" );
-        final Matcher matcher = linkPattern.matcher( sourceText );
+        final Matcher matcher = MARKDOWN_LINK_PATTERN.matcher( sourceText );
         int start = 0;
 
         while( matcher.find( start ) ) {

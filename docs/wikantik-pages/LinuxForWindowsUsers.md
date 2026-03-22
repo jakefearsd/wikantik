@@ -1,5 +1,11 @@
 ---
+type: hub
+tags: [linux, windows, operating-systems, tutorial, career]
+date: 2026-03-21
+status: active
 cluster: linux-for-windows-users
+summary: A structured learning path for experienced Windows users who want to genuinely understand Linux and add it to their skillset
+related: [WhyLearnLinuxDeeply, ChoosingALinuxDistribution, LinuxCommandLineEssentials, LinuxFilesystemAndPermissions, LinuxPackageManagement, LinuxSystemAdministration, LinuxShellScriptingFundamentals]
 ---
 # Linux for Windows Users
 

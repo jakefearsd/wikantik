@@ -1,3 +1,12 @@
+---
+type: article
+tags: [retirement, four-percent-rule, withdrawal-rates, financial-history]
+date: 2026-03-21
+status: active
+cluster: retirement-planning
+summary: How Bengen's 1994 SAFEMAX became the most famous number in retirement planning — from discovery through the Trinity Study to modern reinterpretation
+related: [SafeWithdrawalRates, GuardrailsSpendingStrategy, RetirementIncomeBlueprint, SocialSecurityClaimingStrategy, FireMovement, RetirementPlanningGuide]
+---
 # History of the Four Percent Rule
 
 No single number has shaped more retirement decisions than 4%. It appears in every financial planning textbook, every retirement calculator, every FIRE blog. Yet the story of how this number was discovered, popularised, challenged, and ultimately reinterpreted tells us as much about how financial ideas travel as it does about retirement planning itself.

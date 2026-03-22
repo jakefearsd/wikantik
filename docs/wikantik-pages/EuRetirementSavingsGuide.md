@@ -14,6 +14,7 @@ related:
 - EuRetirementTaxComparison
 - SafeWithdrawalRates
 - MonteCarloRetirementPlanning
+- IndexFundInvestingForEarlyRetirement
 type: hub
 summary: 'How EU retirement savings and investing law differs from the US: three-pillar
   system, contribution limits, capital gains tax, and structural differences'
@@ -111,3 +112,4 @@ The Netherlands is the outlier — no capital gains tax at all, but instead a we
 - [Safe Withdrawal Rates](SafeWithdrawalRates) — The 4% rule and dynamic spending strategies (applicable in any currency)
 - [Monte Carlo Simulation in Retirement Planning](MonteCarloRetirementPlanning) — Stress-testing spending plans across thousands of possible futures
 - [Roth Conversion Strategy](RothConversionStrategy) — US-specific tax bracket targeting (contrast with EU's lack of Roth equivalents)
+- [Index Fund Investing for Early Retirement](IndexFundInvestingForEarlyRetirement) — Low-cost index fund framework for building wealth (US-focused but principles apply cross-border)

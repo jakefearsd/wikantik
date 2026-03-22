@@ -9,6 +9,10 @@ tags:
 - architecture
 type: reference
 status: active
+related:
+- Main
+- WikantikOnDocker
+- GoodMcpDesign
 ---
 # About This Wiki
 

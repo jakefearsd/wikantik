@@ -1,3 +1,12 @@
+---
+type: article
+tags: [retirement, withdrawal-strategy, guardrails, spending-strategy, financial-planning]
+date: 2026-03-21
+status: active
+cluster: retirement-planning
+summary: Adaptive retirement spending using Guyton-Klinger decision rules and Kitces-Pfau ratcheting — start higher than 4% with lower risk of ruin
+related: [SafeWithdrawalRates, HistoryOfTheFourPercentRule, RetirementIncomeBlueprint, SocialSecurityClaimingStrategy, RetirementWithdrawalSequencing, RetirementPlanningGuide]
+---
 # Guardrails Spending Strategy
 
 The [4% rule](HistoryOfTheFourPercentRule) tells you to withdraw the same inflation-adjusted amount every year regardless of what happens in the market. Nobody actually does this. If your portfolio drops 40%, you tighten your belt. If it doubles, you take that trip. Guardrails formalise this natural instinct into a disciplined system.

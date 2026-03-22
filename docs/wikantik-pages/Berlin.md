@@ -1,5 +1,7 @@
 ---
-cluster: conflicts-equity-markets
+type: hub
+status: active
+cluster: berlin-history
 tags:
 - history
 - berlin
@@ -9,6 +11,10 @@ tags:
 summary: Comprehensive overview of Berlin's history from medieval founding through
   Cold War division to modern reunified capital, covering its political, cultural,
   and economic significance
+related:
+- BerlinsTransformationFromMargraviateToCapitalCity
+- ReformationAndUrbanDevelopmentInBerlin
+- ReformationEraInBerlin
 ---
 # Berlin
 

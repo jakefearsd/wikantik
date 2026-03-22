@@ -1,3 +1,12 @@
+---
+type: article
+tags: [retirement, FIRE, coast-fire, compound-growth, financial-planning]
+date: 2026-03-21
+status: active
+cluster: retirement-planning
+summary: Front-load retirement savings early, then let compound growth do the rest — work on your terms without saving another dollar for retirement
+related: [FireMovement, RetirementPlanningGuide, SafeWithdrawalRates, SocialSecurityClaimingStrategy, AccountTypeStrategy, MedicarePlanningAndHealthcare, IndexFundInvestingForEarlyRetirement]
+---
 # CoastFIRE
 
 CoastFIRE is the variant of [FIRE](FireMovement) that asks a different question. Traditional FIRE asks: "How fast can I accumulate 25x my expenses?" CoastFIRE asks: **"How much do I need to save before I can stop saving and let compound growth do the rest?"**

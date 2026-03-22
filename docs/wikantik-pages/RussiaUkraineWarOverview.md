@@ -11,6 +11,8 @@ related:
 - RussiaUkraineWarMilitaryTechnology
 - RussiaUkraineWarEnergyWar
 - RussiaUkraineWarInternationalResponse
+- ConflictsAndEquityMarkets
+- RussiaUkraineWarMarkets
 summary: Comprehensive overview of the Russia-Ukraine war as of March 2026, covering
   four years of full-scale conflict
 status: active
@@ -60,6 +62,11 @@ The human cost of the war has been staggering:
 - [Drone Warfare and Military Technology](RussiaUkraineWarMilitaryTechnology) — The drone revolution and AI on the battlefield
 - [The Energy Infrastructure War](RussiaUkraineWarEnergyWar) — Russia's campaign against Ukraine's power grid
 - [International Response](RussiaUkraineWarInternationalResponse) — European and international military support
+
+## See Also
+
+- [Conflicts and Global Equity Markets](ConflictsAndEquityMarkets) — How this and other major conflicts have shaped global equity markets
+- [Russia-Ukraine War: Market Impact](RussiaUkraineWarMarkets) — Energy weaponisation, sanctions-driven market fragmentation, and European defence spending
 
 ---
 

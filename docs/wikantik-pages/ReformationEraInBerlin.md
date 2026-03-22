@@ -1,3 +1,12 @@
+---
+type: article
+tags: [history, berlin, reformation, lutheranism, religion]
+date: 2026-03-21
+status: active
+cluster: berlin-history
+summary: The 16th-century religious and cultural transformation that shifted Berlin from Catholicism to Lutheranism
+related: [Berlin, ReformationAndUrbanDevelopmentInBerlin, BerlinsTransformationFromMargraviateToCapitalCity]
+---
 # ReformationEraInBerlin
 
 ## Prerequisite Context

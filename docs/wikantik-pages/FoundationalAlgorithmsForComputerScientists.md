@@ -1,3 +1,12 @@
+---
+type: article
+tags: [algorithms, computer-science, data-structures, complexity, programming]
+date: 2026-03-21
+status: active
+cluster: technology
+summary: Essential algorithms every computer scientist should understand deeply, from sorting and searching to graph traversal and dynamic programming
+related: [MachineLearning, ArtificialIntelligence, FundamentalsOfProgramming]
+---
 # Foundational Algorithms for Computer Scientists
 
 Algorithms are the intellectual core of computer science. While languages, frameworks, and platforms change every few years, the fundamental algorithms endure — the same graph traversal that powered early network routing now drives social media recommendations, and the same dynamic programming principles behind sequence alignment underpin modern [machine learning](MachineLearning) optimization.

@@ -1,4 +1,6 @@
 ---
+type: article
+status: active
 cluster: generative-ai
 tags:
 - ai
@@ -9,6 +11,7 @@ tags:
 summary: 'How AI models are trained: the full pipeline from data preparation through
   pre-training, fine-tuning, and RLHF, including hardware requirements and scaling
   laws'
+related: [ArtificialIntelligence, MachineLearning, LlmsSinceTwentyTwenty, TheFutureOfMachineLearning]
 ---
 # AI Model Training
 

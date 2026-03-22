@@ -1,4 +1,6 @@
 ---
+type: reference
+status: active
 summary: Deep dive into machine learning covering supervised, unsupervised, and reinforcement
   learning, key algorithms, the training process, and practical tools and frameworks
 tags:
@@ -13,6 +15,8 @@ related:
 - TheFutureOfMachineLearning
 - FoundationalAlgorithmsForComputerScientists
 - MathematicalFoundationsOfMachineLearning
+- ArtificialIntelligence
+- AIModelTraining
 ---
 # Machine Learning
 

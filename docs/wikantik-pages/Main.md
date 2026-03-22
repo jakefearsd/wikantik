@@ -22,12 +22,31 @@ A curated collection of in-depth research articles, organized into topic cluster
 - [LLMs Since 2020](LlmsSinceTwentyTwenty) — The evolution of large language models from GPT-3 through modern frontier models: scaling laws, RLHF, multimodal capabilities, the open-weight movement, and what it means for practitioners
 - [The Future of Machine Learning](TheFutureOfMachineLearning) — Where machine learning is headed: foundation models, data efficiency, edge AI, AI safety, neurosymbolic approaches, and the engineering challenges of deploying ML at scale
 - [Foundational Algorithms for Computer Scientists](FoundationalAlgorithmsForComputerScientists) — The essential algorithms every computer scientist should know: sorting, graph algorithms, dynamic programming, greedy methods, cryptographic primitives, and compression
+- [Distributed Computing Evolution](DistributedComputingEvolution) — Thirty years of distributed systems: from CORBA and client-server to cloud-native microservices, event-driven architecture, and modern best practices for reliability, observability, and scale
 - [Embedded AI on Limited Hardware](EmbeddedAiOnLimitedHardware) — Running AI models on microcontrollers, phones, and edge devices: proven use cases, quantization, TinyML, and the economics of on-device inference
 - [Mathematical Foundations of Machine Learning](MathematicalFoundationsOfMachineLearning) — The math that underpins ML: linear algebra, calculus, probability, optimization, and information theory, with concrete examples of how each concept drives real techniques
+
+### Hobby Woodworking
+
+- [Hobby Woodworking in the Twenty-First Century](HobbyWoodworkingInTheTwentyFirstCentury) — How computer-controlled tools, digital design, and a hand tool revival have transformed hobby woodworking since 2000
+- [Evolution of Hobby Woodworking](EvolutionOfHobbyWoodworking) — How the craft has changed in tools, materials, knowledge access, and community since 2000
+- [CNC Routers for the Hobby Workshop](CncRoutersForTheHobbyWorkshop) — Desktop CNC routers for hobbyists: machines, software, capabilities, and workflow
+- [3D Printing Meets Woodworking](ThreeDeePrintingMeetsWoodworking) — Jigs, fixtures, workholding, and custom hardware from a 3D printer
+- [Laser Cutters and Engravers for Wood](LaserCuttersAndEngraversForWood) — CO2 and diode lasers for cutting, engraving, and inlay in a home shop
+- [Digital Design Tools for Woodworkers](DigitalDesignToolsForWoodworkers) — CAD, CAM, and laser software: Fusion 360, VCarve Pro, LightBurn, and more
+- [The Modern Hand Tool Renaissance](ModernHandToolRenaissance) — Premium hand tools and a global maker community brought traditional craft back
 
 ### Operations Research
 
 - [Operations Research](OperationsResearchHub) — History, mathematical foundations, and proven applications of OR: linear programming, integer optimization, stochastic models, supply chain, scheduling, and revenue management
+
+### Warehouse Automation
+
+- [Warehouse Automation Hub](WarehouseAutomationHub) — The technology stack behind modern warehouse automation: robotics, conveyor systems, WMS platforms, AI-driven optimization, and the practical limits of automation
+
+### Berlin History
+
+- [Berlin](Berlin) — The history of Berlin from medieval margraviate to modern capital: Reformation-era urban development, Prussian transformation, and the city's evolving identity
 
 ### Immigration
 

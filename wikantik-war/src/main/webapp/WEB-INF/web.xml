@@ -209,6 +209,12 @@
        <servlet-class>com.wikantik.content.RecentArticlesServlet</servlet-class>
    </servlet>
 
+   <!-- Atom feed servlet for syndication -->
+   <servlet>
+       <servlet-name>AtomFeedServlet</servlet-name>
+       <servlet-class>com.wikantik.content.AtomFeedServlet</servlet-class>
+   </servlet>
+
    <!-- SSO servlets for OIDC/SAML authentication -->
    <servlet>
        <servlet-name>SSORedirectServlet</servlet-name>
@@ -241,6 +247,11 @@
    <servlet-mapping>
        <servlet-name>RecentArticlesServlet</servlet-name>
        <url-pattern>/api/recent-articles</url-pattern>
+   </servlet-mapping>
+
+   <servlet-mapping>
+       <servlet-name>AtomFeedServlet</servlet-name>
+       <url-pattern>/feed.xml</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

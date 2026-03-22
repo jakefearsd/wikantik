@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.mcp.tools;
+package com.wikantik.parser;
 
 import org.junit.jupiter.api.Test;
 
@@ -111,6 +111,42 @@ class MarkdownLinkScannerTest {
         final String text = "See [A](PageA), [B](PageB), and [C](PageC).";
         final Set< String > locals = MarkdownLinkScanner.findLocalLinks( text );
         assertEquals( Set.of( "PageA", "PageB", "PageC" ), locals );
+    }
+
+    @Test
+    void testFindLocalLinksStripsAnchors() {
+        final String text = "See [section](PageName#overview) and [another](OtherPage#details).";
+        final Set< String > locals = MarkdownLinkScanner.findLocalLinks( text );
+        assertEquals( Set.of( "PageName", "OtherPage" ), locals );
+    }
+
+    @Test
+    void testFindLocalLinksAnchorOnlyLinkExcluded() {
+        // A link to just #anchor (no page name) should be excluded
+        final String text = "Jump to [top](#top).";
+        assertTrue( MarkdownLinkScanner.findLocalLinks( text ).isEmpty() );
+    }
+
+    @Test
+    void testFindLocalLinksEmptyTargetUsesText() {
+        // Wikantik convention: [PageName]() — empty target, text is the page name
+        final String text = "See [Foobar]() and [TestPage]().";
+        final Set< String > locals = MarkdownLinkScanner.findLocalLinks( text );
+        assertEquals( Set.of( "Foobar", "TestPage" ), locals );
+    }
+
+    @Test
+    void testFindLocalLinksEmptyTargetSkipsPlugins() {
+        // Plugin syntax [{PluginName}]() should NOT be treated as a page link
+        final String text = "[{TableOfContents}]() and [RealPage]()";
+        final Set< String > locals = MarkdownLinkScanner.findLocalLinks( text );
+        assertEquals( Set.of( "RealPage" ), locals );
+    }
+
+    @Test
+    void testFindLocalLinksEmptyTargetSkipsVariables() {
+        final String text = "[{$applicationname}]() some text";
+        assertTrue( MarkdownLinkScanner.findLocalLinks( text ).isEmpty() );
     }
 
     // --- scanAll ---

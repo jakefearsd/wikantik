@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.mcp.tools;
+package com.wikantik.parser;
 
 
 import java.util.ArrayList;
@@ -29,19 +29,34 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Shared utility for scanning Markdown-style links from wiki page text.
- * Extracted from {@link ScanMarkdownLinksTool} to enable reuse across audit tools.
+ * Lightweight utility for extracting Markdown-style links from raw wiki page text
+ * without invoking the full rendering pipeline.
+ *
+ * <p>Used by the {@link com.wikantik.references.DefaultReferenceManager} for fast
+ * link extraction during reference graph updates, and by MCP audit/verification
+ * tools for structural analysis.
+ *
+ * <p>This class operates on raw Markdown text via regex — no AST construction,
+ * no Flexmark, no rendering.  Typical execution time is microseconds per page.
  */
 public final class MarkdownLinkScanner {
 
-    static final Pattern LINK_PATTERN = Pattern.compile( "\\[([^\\]]*)\\]\\(([^)]+)\\)" );
+    /** Matches Markdown links: {@code [text](target)} where target may be empty (wikantik page link convention). */
+    static final Pattern LINK_PATTERN = Pattern.compile( "\\[([^\\]]*)\\]\\(([^)]*)\\)" );
 
     private MarkdownLinkScanner() {
     }
 
     /**
      * Finds all local wiki page targets in the given body text.
-     * External URLs (http/https/ftp) and anchor links (#fragment) are excluded.
+     * External URLs (http/https/ftp/mailto) and anchor links (#fragment) are excluded.
+     * Anchor suffixes ({@code PageName#section}) are stripped — only the page name is returned.
+     *
+     * <p>Handles both link formats used in this wiki:
+     * <ul>
+     *   <li>{@code [text](PageName)} — standard Markdown, page name is in the target</li>
+     *   <li>{@code [PageName]()} — wikantik convention, page name is in the text (target is empty)</li>
+     * </ul>
      *
      * @param bodyText the Markdown body text to scan
      * @return an ordered set of local page names referenced in the text
@@ -53,9 +68,27 @@ public final class MarkdownLinkScanner {
         final Set< String > locals = new LinkedHashSet<>();
         final Matcher matcher = LINK_PATTERN.matcher( bodyText );
         while ( matcher.find() ) {
-            final String target = matcher.group( 2 );
+            final String linkText = matcher.group( 1 );
+            String target = matcher.group( 2 );
+
+            // Wikantik convention: [PageName]() — empty target means the text IS the page name
+            if ( target.isEmpty() ) {
+                // Skip plugin syntax [{...}]() and variable syntax [{$...}]()
+                if ( !linkText.isEmpty() && !linkText.startsWith( "{" ) ) {
+                    locals.add( linkText );
+                }
+                continue;
+            }
+
             if ( "local".equals( classifyLink( target ) ) ) {
-                locals.add( target );
+                // Strip anchor: [text](PageName#section) → PageName
+                final int hash = target.indexOf( '#' );
+                if ( hash > 0 ) {
+                    target = target.substring( 0, hash );
+                }
+                if ( !target.isEmpty() ) {
+                    locals.add( target );
+                }
             }
         }
         return locals;

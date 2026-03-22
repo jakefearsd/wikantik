@@ -26,6 +26,7 @@ import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
 import com.wikantik.pages.PageManager;
+import com.wikantik.parser.MarkdownLinkScanner;
 import com.wikantik.references.ReferenceManager;
 
 import java.util.*;

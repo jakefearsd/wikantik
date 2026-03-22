@@ -31,6 +31,7 @@ import com.wikantik.frontmatter.ParsedPage;
 import com.wikantik.pages.PageManager;
 import com.wikantik.pages.PageSaveHelper;
 import com.wikantik.pages.SaveOptions;
+import com.wikantik.parser.MarkdownLinkScanner;
 import com.wikantik.references.ReferenceManager;
 
 import java.util.*;

@@ -6,6 +6,32 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-22** — Add git pull step to CI/CD and step-by-step setup guide
+
+**2026-03-22** — Add Docker containerization: Dockerfile, Compose, backup system
+
+**2026-03-22** — Update wiki content: new articles, metadata improvements, and fixes
+
+**2026-03-22** — Update skills, audit reports, and gitignore
+
+**2026-03-22** — Replace legacy CI with self-hosted runner CI/CD pipeline
+
+**2026-03-22** — Add Atom feed servlet and update sitemap with news extension
+
+**2026-03-22** — Add MCP audit, SEO, and cluster management tools with tests
+
+**2026-03-22** — Add test coverage for MetadataOperations, RecentArticlesServlet
+
+**2026-03-22** — Extract page validation checks into Strategy pattern (GoF)
+
+**2026-03-22** — Remove dead JSPWiki syntax handling — Markdown is the only parser
+
+**2026-03-22** — Optimize string handling: hoist Pattern.compile, eliminate regex in hot path
+
+**2026-03-22** — Fix mailto link classification, code block heading detection, and redundant splits
+
+**2026-03-22** — Fix wiki variable rendering when variable is sole child of paragraph
+
 **2026-03-21** — Fix corrupted page and add MCP write guard against serialized JSON responses
 
 **2026-03-21** — Fix concurrency bugs, null safety, dead code, and encoding issues from SpotBugs/PMD audit

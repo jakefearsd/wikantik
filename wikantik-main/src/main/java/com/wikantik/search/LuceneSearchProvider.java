@@ -318,17 +318,16 @@ public class LuceneSearchProvider implements SearchProvider {
 
         boolean searchSuffix = Arrays.stream(SEARCHABLE_FILE_SUFFIXES).anyMatch(filename::endsWith);
 
-        String out = filename;
         if( searchSuffix ) {
             try( final InputStream attStream = mgr.getAttachmentStream( att ); final StringWriter sout = new StringWriter() ) {
                 FileUtil.copyContents( new InputStreamReader( attStream, StandardCharsets.UTF_8 ), sout );
-                out = out + " " + sout;
+                return filename + " " + sout;
             } catch( final ProviderException | IOException e ) {
                 LOG.error( "Attachment cannot be loaded", e );
             }
         }
 
-        return out;
+        return filename;
     }
 
     /**

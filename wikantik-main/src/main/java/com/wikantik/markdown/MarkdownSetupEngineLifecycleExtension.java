@@ -26,8 +26,8 @@ import java.util.Properties;
 
 
 /**
- * {@link EngineLifecycleExtension} that sets up all the relevant properties to enable markdown syntax if the
- * {@code wikantik.syntax} property has been given, with the {@code markdown} value.
+ * {@link EngineLifecycleExtension} that ensures Markdown parser and renderer properties are set.
+ * Markdown is the only supported syntax — the old JSPWiki parser/renderer have been removed.
  */
 public class MarkdownSetupEngineLifecycleExtension implements EngineLifecycleExtension {
 
@@ -36,13 +36,11 @@ public class MarkdownSetupEngineLifecycleExtension implements EngineLifecycleExt
     /** {@inheritDoc} */
     @Override
     public void onInit( final Properties properties ) {
-        if( "markdown".equalsIgnoreCase( properties.getProperty( "wikantik.syntax" ) ) ) {
-            setWikiProperty( properties, "wikantik.renderingManager.markupParser", "com.wikantik.parser.markdown.MarkdownParser" );
-            setWikiProperty( properties, "wikantik.renderingManager.renderer", "com.wikantik.render.markdown.MarkdownRenderer" );
-            setWikiProperty( properties, "wikantik.renderingManager.renderer.wysiwyg", "com.wikantik.render.markdown.MarkdownRenderer" );
-            setWikiProperty( properties, "wikantik.syntax.plain", "plain/wiki-snips-markdown.js" );
-            setWikiProperty( properties, "wikantik.translatorReader.allowHTML", "true" );
-        }
+        setWikiProperty( properties, "wikantik.renderingManager.markupParser", "com.wikantik.parser.markdown.MarkdownParser" );
+        setWikiProperty( properties, "wikantik.renderingManager.renderer", "com.wikantik.render.markdown.MarkdownRenderer" );
+        setWikiProperty( properties, "wikantik.renderingManager.renderer.wysiwyg", "com.wikantik.render.markdown.MarkdownRenderer" );
+        setWikiProperty( properties, "wikantik.syntax.plain", "plain/wiki-snips-markdown.js" );
+        setWikiProperty( properties, "wikantik.translatorReader.allowHTML", "true" );
     }
 
     void setWikiProperty( final Properties properties, final String key, final String value ) {

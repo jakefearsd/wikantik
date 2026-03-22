@@ -480,7 +480,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
                     if( MARKDOWN_EXT.equals( extension ) ) {
                         markupSyntax = "markdown";
                     } else {
-                        markupSyntax = "jspwiki";
+                        markupSyntax = "markdown";
                     }
                 }
                 p.setAttribute( Page.MARKUP_SYNTAX, markupSyntax );

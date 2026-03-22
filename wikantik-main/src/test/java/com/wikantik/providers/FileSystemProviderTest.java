@@ -406,20 +406,13 @@ public class FileSystemProviderTest {
         final var allPages = m_provider.getAllPages();
         Assertions.assertEquals( 6, allPages.size(), "Should have 6 pages total" );
 
-        // Verify markup syntax is correctly set for each page
-        int wikiCount = 0;
-        int markdownCount = 0;
+        // All pages should have "markdown" syntax — the old JSPWiki parser was removed,
+        // so even .txt files are treated as Markdown
         for( final Page page : allPages ) {
             final String syntax = page.getAttribute( Page.MARKUP_SYNTAX );
-            if( "jspwiki".equals( syntax ) ) {
-                wikiCount++;
-            } else if( "markdown".equals( syntax ) ) {
-                markdownCount++;
-            }
+            Assertions.assertEquals( "markdown", syntax,
+                    "Page " + page.getName() + " should have markdown syntax regardless of file extension" );
         }
-
-        Assertions.assertEquals( 3, wikiCount, "Should have 3 wiki pages" );
-        Assertions.assertEquals( 3, markdownCount, "Should have 3 markdown pages" );
 
         // Cleanup
         for( int i = 1; i <= 3; i++ ) {

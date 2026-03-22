@@ -122,7 +122,7 @@ public class FileSystemProvider extends AbstractFileProvider {
                     if( MARKDOWN_EXT.equals( extension ) ) {
                         markupSyntax = "markdown";
                     } else {
-                        markupSyntax = "jspwiki";
+                        markupSyntax = "markdown";
                     }
                 }
                 page.setAttribute( Page.MARKUP_SYNTAX, markupSyntax );
@@ -136,7 +136,7 @@ public class FileSystemProvider extends AbstractFileProvider {
             if( MARKDOWN_EXT.equals( extension ) ) {
                 page.setAttribute( Page.MARKUP_SYNTAX, "markdown" );
             } else {
-                page.setAttribute( Page.MARKUP_SYNTAX, "jspwiki" );
+                page.setAttribute( Page.MARKUP_SYNTAX, "markdown" );
             }
         }
     }

@@ -27,6 +27,10 @@ import java.util.regex.Pattern;
 /**
  * Pure-logic utility for section and marker-based content patching.
  * Operates on plain Markdown body strings — no wiki dependencies.
+ *
+ * <p>Performance note: each public method splits the body into lines exactly once.
+ * Internal helpers ({@code findSectionsFromLines}, {@code findMarkerLine}) accept
+ * pre-split arrays to avoid redundant {@code String.split()} calls.
  */
 public final class ContentPatcher {
 
@@ -59,21 +63,37 @@ public final class ContentPatcher {
 
     /**
      * Finds all top-level and nested sections in the body text.
+     * Lines inside fenced code blocks ({@code ```}) are skipped.
      */
     public static List< Section > findSections( final String body ) {
-        final String[] lines = body.split( "\n", -1 );
+        return findSectionsFromLines( body.split( "\n", -1 ) );
+    }
+
+    /**
+     * Finds sections from a pre-split line array, avoiding a redundant {@code split()}.
+     */
+    static List< Section > findSectionsFromLines( final String[] lines ) {
         final List< int[] > headings = new ArrayList<>(); // [lineIndex, level]
         final List< String > headingTexts = new ArrayList<>();
 
+        boolean inCodeBlock = false;
         for ( int i = 0; i < lines.length; i++ ) {
-            final Matcher m = HEADING_PATTERN.matcher( lines[ i ].trim() );
+            final String trimmed = lines[ i ].trim();
+            if ( trimmed.startsWith( "```" ) ) {
+                inCodeBlock = !inCodeBlock;
+                continue;
+            }
+            if ( inCodeBlock ) {
+                continue;
+            }
+            final Matcher m = HEADING_PATTERN.matcher( trimmed );
             if ( m.matches() ) {
                 headings.add( new int[]{ i, m.group( 1 ).length() } );
                 headingTexts.add( m.group( 2 ).trim() );
             }
         }
 
-        final List< Section > sections = new ArrayList<>();
+        final List< Section > sections = new ArrayList<>( headings.size() );
         for ( int i = 0; i < headings.size(); i++ ) {
             final int startLine = headings.get( i )[ 0 ];
             final int level = headings.get( i )[ 1 ];
@@ -142,76 +162,27 @@ public final class ContentPatcher {
      * Appends content at the end of the named section (before the next heading of same/higher level).
      */
     public static String appendToSection( final String body, final String sectionHeading, final String content ) throws PatchException {
-        final Section section = findSectionByHeading( body, sectionHeading );
         final String[] lines = body.split( "\n", -1 );
-
-        final StringBuilder sb = new StringBuilder();
-        for ( int i = 0; i < section.endLine; i++ ) {
-            sb.append( lines[ i ] ).append( "\n" );
-        }
-
-        // Ensure content is on its own line
-        final String trimmedContent = content.endsWith( "\n" ) ? content : content + "\n";
-        sb.append( trimmedContent );
-
-        for ( int i = section.endLine; i < lines.length; i++ ) {
-            sb.append( lines[ i ] );
-            if ( i < lines.length - 1 ) {
-                sb.append( "\n" );
-            }
-        }
-
-        return sb.toString();
+        final Section section = findSectionByHeading( lines, sectionHeading );
+        return rebuildWithInsertion( lines, body.length(), section.endLine, section.endLine, content );
     }
 
     /**
      * Inserts content on the line before the first occurrence of the marker text.
      */
     public static String insertBefore( final String body, final String marker, final String content ) throws PatchException {
-        final int markerLine = findMarkerLine( body, marker );
         final String[] lines = body.split( "\n", -1 );
-
-        final StringBuilder sb = new StringBuilder();
-        for ( int i = 0; i < markerLine; i++ ) {
-            sb.append( lines[ i ] ).append( "\n" );
-        }
-
-        final String trimmedContent = content.endsWith( "\n" ) ? content : content + "\n";
-        sb.append( trimmedContent );
-
-        for ( int i = markerLine; i < lines.length; i++ ) {
-            sb.append( lines[ i ] );
-            if ( i < lines.length - 1 ) {
-                sb.append( "\n" );
-            }
-        }
-
-        return sb.toString();
+        final int markerLine = findMarkerLine( lines, marker );
+        return rebuildWithInsertion( lines, body.length(), markerLine, markerLine, content );
     }
 
     /**
      * Inserts content on the line after the first occurrence of the marker text.
      */
     public static String insertAfter( final String body, final String marker, final String content ) throws PatchException {
-        final int markerLine = findMarkerLine( body, marker );
         final String[] lines = body.split( "\n", -1 );
-
-        final StringBuilder sb = new StringBuilder();
-        for ( int i = 0; i <= markerLine; i++ ) {
-            sb.append( lines[ i ] ).append( "\n" );
-        }
-
-        final String trimmedContent = content.endsWith( "\n" ) ? content : content + "\n";
-        sb.append( trimmedContent );
-
-        for ( int i = markerLine + 1; i < lines.length; i++ ) {
-            sb.append( lines[ i ] );
-            if ( i < lines.length - 1 ) {
-                sb.append( "\n" );
-            }
-        }
-
-        return sb.toString();
+        final int markerLine = findMarkerLine( lines, marker );
+        return rebuildWithInsertion( lines, body.length(), markerLine + 1, markerLine + 1, content );
     }
 
     /**
@@ -220,46 +191,74 @@ public final class ContentPatcher {
      * up to the next section of same/higher level.
      */
     public static String replaceSection( final String body, final String sectionHeading, final String content ) throws PatchException {
-        final Section section = findSectionByHeading( body, sectionHeading );
         final String[] lines = body.split( "\n", -1 );
+        final Section section = findSectionByHeading( lines, sectionHeading );
+        // Keep the heading line, skip section body (startLine+1 to endLine), insert new content
+        return rebuildWithInsertion( lines, body.length(), section.startLine + 1, section.endLine, content );
+    }
 
-        final StringBuilder sb = new StringBuilder();
-        // Keep heading line
-        sb.append( lines[ section.startLine ] ).append( "\n" );
+    /**
+     * Rebuilds the body from lines, inserting new content between {@code insertBefore}
+     * and {@code skipUntil}.  Lines in [{@code insertBefore}, {@code skipUntil}) are
+     * replaced by the new content.
+     *
+     * <p>This is the common operation for all patch types — only the insertion point
+     * and skip range differ:
+     * <ul>
+     *   <li>append_to_section: insert at endLine, skip nothing</li>
+     *   <li>insert_before: insert at markerLine, skip nothing</li>
+     *   <li>insert_after: insert at markerLine+1, skip nothing</li>
+     *   <li>replace_section: insert at startLine+1, skip to endLine</li>
+     * </ul>
+     *
+     * @param lines        pre-split line array
+     * @param sizeHint     approximate size of the original body (for StringBuilder capacity)
+     * @param insertBefore line index at which to insert content
+     * @param skipUntil    line index at which to resume copying (exclusive range [insertBefore, skipUntil) is skipped)
+     * @param content      content to insert
+     * @return the rebuilt body
+     */
+    private static String rebuildWithInsertion( final String[] lines, final int sizeHint,
+                                                  final int insertBefore, final int skipUntil,
+                                                  final String content ) {
+        final StringBuilder sb = new StringBuilder( sizeHint + content.length() + 64 );
 
-        // Insert new content
-        final String trimmedContent = content.endsWith( "\n" ) ? content : content + "\n";
-        sb.append( trimmedContent );
-
-        // Prepend everything before the section
-        final StringBuilder prefix = new StringBuilder();
-        for ( int i = 0; i < section.startLine; i++ ) {
-            prefix.append( lines[ i ] ).append( "\n" );
+        // Lines before insertion point
+        for ( int i = 0; i < insertBefore; i++ ) {
+            sb.append( lines[ i ] ).append( '\n' );
         }
 
-        // Append everything after the section
-        final StringBuilder suffix = new StringBuilder();
-        for ( int i = section.endLine; i < lines.length; i++ ) {
-            suffix.append( lines[ i ] );
+        // Inserted content (ensure trailing newline)
+        sb.append( content );
+        if ( !content.endsWith( "\n" ) ) {
+            sb.append( '\n' );
+        }
+
+        // Lines after the skipped range
+        for ( int i = skipUntil; i < lines.length; i++ ) {
+            sb.append( lines[ i ] );
             if ( i < lines.length - 1 ) {
-                suffix.append( "\n" );
+                sb.append( '\n' );
             }
         }
 
-        return prefix.toString() + sb.toString() + suffix.toString();
+        return sb.toString();
     }
 
-    private static Section findSectionByHeading( final String body, final String sectionHeading ) throws PatchException {
+    /**
+     * Finds a section by heading text from pre-split lines.
+     */
+    private static Section findSectionByHeading( final String[] lines, final String sectionHeading ) throws PatchException {
         if ( sectionHeading == null ) {
             throw new PatchException( "Section heading is required for this operation" );
         }
-        final List< Section > sections = findSections( body );
+        final List< Section > sections = findSectionsFromLines( lines );
         for ( final Section s : sections ) {
             if ( s.heading().equals( sectionHeading ) ) {
                 return s;
             }
         }
-        final List< String > available = new ArrayList<>();
+        final List< String > available = new ArrayList<>( sections.size() );
         for ( final Section s : sections ) {
             available.add( s.heading() );
         }
@@ -268,11 +267,13 @@ public final class ContentPatcher {
                 "Available sections: " + available );
     }
 
-    private static int findMarkerLine( final String body, final String marker ) throws PatchException {
+    /**
+     * Finds the line index of the first line containing the marker text, from pre-split lines.
+     */
+    private static int findMarkerLine( final String[] lines, final String marker ) throws PatchException {
         if ( marker == null ) {
             throw new PatchException( "Marker text is required for insert_before/insert_after operations" );
         }
-        final String[] lines = body.split( "\n", -1 );
         for ( int i = 0; i < lines.length; i++ ) {
             if ( lines[ i ].contains( marker ) ) {
                 return i;

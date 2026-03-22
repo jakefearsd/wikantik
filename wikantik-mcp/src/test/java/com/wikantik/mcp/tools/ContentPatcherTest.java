@@ -140,6 +140,75 @@ class ContentPatcherTest {
     }
 
     @Test
+    void testFindSectionsIgnoresCodeBlocks() {
+        final String body =
+                "## Real Section\n" +
+                "Some text.\n" +
+                "\n" +
+                "```python\n" +
+                "# This is a comment, not a heading\n" +
+                "## Also not a heading\n" +
+                "```\n" +
+                "\n" +
+                "## Another Real Section\n" +
+                "More text.";
+        final List< ContentPatcher.Section > sections = ContentPatcher.findSections( body );
+        assertEquals( 2, sections.size() );
+        assertEquals( "Real Section", sections.get( 0 ).heading() );
+        assertEquals( "Another Real Section", sections.get( 1 ).heading() );
+    }
+
+    @Test
+    void testFindSectionsCodeBlockToggle() {
+        final String body =
+                "## Before\n" +
+                "```\n" +
+                "# inside code\n" +
+                "```\n" +
+                "## After\n" +
+                "text";
+        final List< ContentPatcher.Section > sections = ContentPatcher.findSections( body );
+        assertEquals( 2, sections.size() );
+        assertEquals( "Before", sections.get( 0 ).heading() );
+        assertEquals( "After", sections.get( 1 ).heading() );
+    }
+
+    @Test
+    void testReplaceSectionLastSection() throws PatchException {
+        final String result = ContentPatcher.replaceSection( BODY, "Further Reading", "- New link only" );
+        assertTrue( result.contains( "## Further Reading\n- New link only" ) );
+        assertFalse( result.contains( "- Link 1" ) );
+        assertTrue( result.contains( "Subsection content." ) );
+    }
+
+    @Test
+    void testInsertBeforeFirstLine() throws PatchException {
+        final String result = ContentPatcher.insertBefore( BODY, "## Introduction", "PREAMBLE" );
+        assertTrue( result.startsWith( "PREAMBLE\n## Introduction" ) );
+    }
+
+    @Test
+    void testNullSectionHeadingThrows() {
+        assertThrows( PatchException.class,
+                () -> ContentPatcher.appendToSection( BODY, null, "content" ) );
+    }
+
+    @Test
+    void testNullMarkerThrows() {
+        assertThrows( PatchException.class,
+                () -> ContentPatcher.insertBefore( BODY, null, "content" ) );
+    }
+
+    @Test
+    void testMissingActionField() {
+        final List< Map< String, Object > > ops = List.of(
+                Map.of( "section", "Introduction", "content", "text" )
+        );
+        assertThrows( PatchException.class,
+                () -> ContentPatcher.applyOperations( BODY, ops ) );
+    }
+
+    @Test
     void testMissingContentField() {
         final List< Map< String, Object > > ops = List.of(
                 Map.of( "action", "append_to_section", "section", "Introduction" )

@@ -8,7 +8,7 @@ COPY wikantik-bootstrap/pom.xml wikantik-bootstrap/pom.xml
 COPY wikantik-cache/pom.xml wikantik-cache/pom.xml
 COPY wikantik-event/pom.xml wikantik-event/pom.xml
 COPY wikantik-main/pom.xml wikantik-main/pom.xml
-COPY wikantik-markdown/pom.xml wikantik-markdown/pom.xml
+COPY wikantik-http/pom.xml wikantik-http/pom.xml
 COPY wikantik-mcp/pom.xml wikantik-mcp/pom.xml
 COPY wikantik-util/pom.xml wikantik-util/pom.xml
 COPY wikantik-war/pom.xml wikantik-war/pom.xml

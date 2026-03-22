@@ -67,8 +67,8 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
     private static final int DEFAULT_CACHE_TTL = 60;
 
 
-    /** Regex to match H1 headings in wiki markup (both !!! and # styles). */
-    private static final Pattern H1_WIKI_PATTERN = Pattern.compile( "^\\s*(?:!!!|#)\\s*(.+?)\\s*$", Pattern.MULTILINE );
+    /** Regex to match Markdown H1 headings ({@code # Title}). */
+    private static final Pattern H1_WIKI_PATTERN = Pattern.compile( "^\\s*#\\s+(.+?)\\s*$", Pattern.MULTILINE );
 
     /** Regex to match H1 in rendered HTML. */
     private static final Pattern H1_HTML_PATTERN = Pattern.compile( "<h1[^>]*>([^<]+)</h1>", Pattern.CASE_INSENSITIVE );

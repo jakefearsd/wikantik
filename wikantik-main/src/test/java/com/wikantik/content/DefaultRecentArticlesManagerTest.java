@@ -69,9 +69,9 @@ public class DefaultRecentArticlesManagerTest {
     @Test
     public void testGetRecentArticlesWithPages() throws Exception {
         // Create some test pages
-        m_engine.saveText( "TestArticle1", "!!! Article One\nThis is the content of article one." );
-        m_engine.saveText( "TestArticle2", "!!! Article Two\nThis is the content of article two." );
-        m_engine.saveText( "TestArticle3", "!!! Article Three\nThis is the content of article three." );
+        m_engine.saveText( "TestArticle1", "# Article One\nThis is the content of article one." );
+        m_engine.saveText( "TestArticle2", "# Article Two\nThis is the content of article two." );
+        m_engine.saveText( "TestArticle3", "# Article Three\nThis is the content of article three." );
 
         // Clear cache to ensure fresh results
         m_manager.clearCache();
@@ -93,7 +93,7 @@ public class DefaultRecentArticlesManagerTest {
     @Test
     public void testTitleExtraction() throws Exception {
         // Create a page with an H1 heading
-        m_engine.saveText( "TestTitleExtraction", "!!! My Article Title\nSome content here." );
+        m_engine.saveText( "TestTitleExtraction", "# My Article Title\nSome content here." );
 
         m_manager.clearCache();
 
@@ -221,7 +221,7 @@ public class DefaultRecentArticlesManagerTest {
 
     @Test
     public void testExcerptGeneration() throws Exception {
-        m_engine.saveText( "ExcerptTestPage", "!!! Test\nThis is a longer piece of content that should be used to generate an excerpt." );
+        m_engine.saveText( "ExcerptTestPage", "# Test\nThis is a longer piece of content that should be used to generate an excerpt." );
 
         m_manager.clearCache();
 
@@ -331,7 +331,7 @@ public class DefaultRecentArticlesManagerTest {
 
     @Test
     public void testArticleSummaryFields() throws Exception {
-        m_engine.saveText( "FieldTestPage", "!!! Field Test Title\nTest content for field validation." );
+        m_engine.saveText( "FieldTestPage", "# Field Test Title\nTest content for field validation." );
 
         m_manager.clearCache();
 

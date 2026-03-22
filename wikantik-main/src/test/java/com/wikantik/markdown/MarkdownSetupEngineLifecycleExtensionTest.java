@@ -26,17 +26,32 @@ import java.util.Properties;
 class MarkdownSetupEngineLifecycleExtensionTest {
 
     @Test
-    void shouldSetUpMarkdownSupportIfJspwikiSyntaxPropertyIsGiven() {
+    void shouldAlwaysSetMarkdownProperties() {
         final Properties properties = new Properties();
-        properties.put( "wikantik.syntax", "markdown" );
         final MarkdownSetupEngineLifecycleExtension sut = new MarkdownSetupEngineLifecycleExtension();
         sut.onInit( properties );
-        Assertions.assertEquals( 6, properties.size() );
-        Assertions.assertEquals( "com.wikantik.parser.markdown.MarkdownParser", properties.getProperty( "wikantik.renderingManager.markupParser" ) );
 
-        properties.clear();
-        sut.onInit( properties );
-        Assertions.assertEquals( 0, properties.size() );
+        // Markdown is the only supported syntax — properties are always set
+        Assertions.assertEquals( 5, properties.size() );
+        Assertions.assertEquals( "com.wikantik.parser.markdown.MarkdownParser",
+                properties.getProperty( "wikantik.renderingManager.markupParser" ) );
+        Assertions.assertEquals( "com.wikantik.render.markdown.MarkdownRenderer",
+                properties.getProperty( "wikantik.renderingManager.renderer" ) );
+        Assertions.assertEquals( "com.wikantik.render.markdown.MarkdownRenderer",
+                properties.getProperty( "wikantik.renderingManager.renderer.wysiwyg" ) );
+        Assertions.assertEquals( "plain/wiki-snips-markdown.js",
+                properties.getProperty( "wikantik.syntax.plain" ) );
+        Assertions.assertEquals( "true",
+                properties.getProperty( "wikantik.translatorReader.allowHTML" ) );
     }
 
+    @Test
+    void shouldSetPropertiesEvenWithoutSyntaxProperty() {
+        // Previously the extension required wikantik.syntax=markdown.
+        // Now it always sets Markdown since it's the only supported syntax.
+        final Properties properties = new Properties();
+        final MarkdownSetupEngineLifecycleExtension sut = new MarkdownSetupEngineLifecycleExtension();
+        sut.onInit( properties );
+        Assertions.assertEquals( 5, properties.size() );
+    }
 }

@@ -22,8 +22,8 @@ package com.wikantik.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Context;
+import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.diff.DifferenceManager;
@@ -46,10 +46,15 @@ public class DiffPageTool implements McpTool {
         return TOOL_NAME;
     }
 
-    private final WikiEngine engine;
+    private final Engine engine;
+    private final PageManager pageManager;
+    private final DifferenceManager differenceManager;
 
-    public DiffPageTool( final WikiEngine engine ) {
+    public DiffPageTool( final Engine engine, final PageManager pageManager,
+                         final DifferenceManager differenceManager ) {
         this.engine = engine;
+        this.pageManager = pageManager;
+        this.differenceManager = differenceManager;
     }
 
     @Override
@@ -77,7 +82,6 @@ public class DiffPageTool implements McpTool {
         final int version2 = McpToolUtils.getInt( arguments, "version2", 1 );
 
         try {
-            final PageManager pageManager = engine.getManager( PageManager.class );
             final Page page = pageManager.getPage( pageName );
             if ( page == null ) {
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
@@ -90,8 +94,7 @@ public class DiffPageTool implements McpTool {
 
             final Page contextPage = Wiki.contents().page( engine, pageName );
             final Context context = Wiki.context().create( engine, contextPage );
-            final DifferenceManager diffMgr = engine.getManager( DifferenceManager.class );
-            final String htmlDiff = diffMgr.makeDiff( context, text1, text2 );
+            final String htmlDiff = differenceManager.makeDiff( context, text1, text2 );
 
             // Strip HTML tags to return a plain-text diff suitable for AI consumption
             final String plainDiff = stripHtml( htmlDiff );

@@ -22,9 +22,7 @@ package com.wikantik.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Page;
-import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.pages.PageSaveHelper;
 import com.wikantik.pages.SaveOptions;
 
@@ -50,8 +48,8 @@ public class BatchWritePagesTool implements McpTool, AuthorConfigurable {
 
     private String defaultAuthor = "MCP";
 
-    public BatchWritePagesTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
-        this.pageSaveHelper = new PageSaveHelper( engine );
+    public BatchWritePagesTool( final PageSaveHelper pageSaveHelper ) {
+        this.pageSaveHelper = pageSaveHelper;
     }
 
     @Override

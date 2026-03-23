@@ -22,10 +22,8 @@ package com.wikantik.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
-import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
 import com.wikantik.pages.PageManager;
@@ -50,14 +48,14 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
         return TOOL_NAME;
     }
 
-    private final WikiEngine engine;
     private final PageSaveHelper pageSaveHelper;
+    private final PageManager pageManager;
 
     private String defaultAuthor = "MCP";
 
-    public ExtendClusterTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
-        this.engine = engine;
-        this.pageSaveHelper = new PageSaveHelper( engine );
+    public ExtendClusterTool( final PageSaveHelper pageSaveHelper, final PageManager pageManager ) {
+        this.pageSaveHelper = pageSaveHelper;
+        this.pageManager = pageManager;
     }
 
     @Override
@@ -133,12 +131,10 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "article.name and article.body are required" );
         }
 
-        final PageManager pm = engine.getManager( PageManager.class );
-
         // 1. Discover existing cluster members
         final Collection< Page > allPages;
         try {
-            allPages = pm.getAllPages();
+            allPages = pageManager.getAllPages();
         } catch ( final Exception e ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "Failed to list pages: " + e.getMessage() );
         }
@@ -148,7 +144,7 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
         final Map< String, Map< String, Object > > memberMetadata = new LinkedHashMap<>();
 
         for ( final Page page : allPages ) {
-            final String rawText = pm.getPureText( page.getName(), PageProvider.LATEST_VERSION );
+            final String rawText = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
             final ParsedPage parsed = FrontmatterParser.parse( rawText );
             final Map< String, Object > meta = parsed.metadata();
 
@@ -234,14 +230,14 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
         // 7. Verify
         final List< String > warnings = new ArrayList<>();
         if ( hubName != null ) {
-            final String hubText = pm.getPureText( hubName, PageProvider.LATEST_VERSION );
+            final String hubText = pageManager.getPureText( hubName, PageProvider.LATEST_VERSION );
             final ParsedPage hubParsed = FrontmatterParser.parse( hubText );
             if ( !MarkdownLinkScanner.findLocalLinks( hubParsed.body() ).contains( articleName ) ) {
                 warnings.add( "Hub body does not link to new article " + articleName );
             }
         }
 
-        final String savedText = pm.getPureText( articleName, PageProvider.LATEST_VERSION );
+        final String savedText = pageManager.getPureText( articleName, PageProvider.LATEST_VERSION );
         if ( savedText != null ) {
             final ParsedPage articleParsed = FrontmatterParser.parse( savedText );
             if ( hubName != null && !MarkdownLinkScanner.findLocalLinks( articleParsed.body() ).contains( hubName ) ) {
@@ -262,8 +258,8 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
         result.put( "pageName", hubName );
 
         try {
-            final PageManager pm = engine.getManager( PageManager.class );
-            final String rawText = pm.getPureText( hubName, PageProvider.LATEST_VERSION );
+
+            final String rawText = pageManager.getPureText( hubName, PageProvider.LATEST_VERSION );
             final ParsedPage parsed = FrontmatterParser.parse( rawText );
             String body = parsed.body();
             final Map< String, Object > hubMeta = new LinkedHashMap<>( parsed.metadata() );
@@ -332,8 +328,8 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
     private Map< String, Object > updateRelatedMetadata( final String pageName, final String newArticle,
                                                             final String author ) {
         try {
-            final PageManager pm = engine.getManager( PageManager.class );
-            final String rawText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
+
+            final String rawText = pageManager.getPureText( pageName, PageProvider.LATEST_VERSION );
             final ParsedPage parsed = FrontmatterParser.parse( rawText );
             final Map< String, Object > meta = new LinkedHashMap<>( parsed.metadata() );
 
@@ -378,13 +374,13 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
                                      final List< String > existingMembers,
                                      final String author ) {
         try {
-            final PageManager pm = engine.getManager( PageManager.class );
-            final Page mainPage = pm.getPage( "Main" );
+
+            final Page mainPage = pageManager.getPage( "Main" );
             if ( mainPage == null ) {
                 return "Main page not found — skipped";
             }
 
-            final String rawText = pm.getPureText( "Main", PageProvider.LATEST_VERSION );
+            final String rawText = pageManager.getPureText( "Main", PageProvider.LATEST_VERSION );
             final ParsedPage parsed = FrontmatterParser.parse( rawText );
             String body = parsed.body();
 

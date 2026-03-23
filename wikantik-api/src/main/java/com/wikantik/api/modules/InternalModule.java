@@ -16,14 +16,19 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.modules;
+package com.wikantik.api.modules;
 
 /**
- * Backward-compatibility shim. The canonical interface has moved to
- * {@link com.wikantik.api.modules.InternalModule} in wikantik-api.
+ * Marker interface for internal wiki engine modules that should not appear
+ * in user-facing module listings (e.g., installed filters list).
  *
- * @deprecated Use {@link com.wikantik.api.modules.InternalModule}
+ * <p>Some engine components (ReferenceManager, SearchManager) reuse the
+ * PageFilter mechanism internally. This marker prevents them from appearing
+ * alongside user-installed filters.
+ *
+ * <p>Plugin developers should never implement this interface.
+ *
+ * @since 2.4
  */
-@Deprecated
-public interface InternalModule extends com.wikantik.api.modules.InternalModule {
+public interface InternalModule {
 }

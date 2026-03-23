@@ -14,54 +14,26 @@
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
-    under the License.     
+    under the License.
  */
 package com.wikantik.attachment;
 
+import com.wikantik.api.attachment.DynamicAttachmentProvider;
 import com.wikantik.api.core.Engine;
 
 
 /**
- *  A DynamicAttachment is an attachment which does not really exist, but is created dynamically by a JSPWiki component.
- *  <p>
- *  Note that a DynamicAttachment might not be available before it is actually created by a component (e.g. plugin), and therefore trying
- *  to access it before that component has been invoked, might result in a surprising 404.
- *  <p>
- *  DynamicAttachments are not listed among regular attachments in the current version.
- *  <p>
- *  Usage:
+ * Backward-compatibility shim. The canonical interface has moved to
+ * {@link com.wikantik.api.attachment.DynamicAttachment} in wikantik-api.
  *
- *  <pre>
+ * <p>This concrete class remains so that existing {@code new DynamicAttachment(...)}
+ * call sites continue to compile. New code should program against the
+ * {@code com.wikantik.api.attachment.DynamicAttachment} interface instead.
  *
- *  class MyDynamicComponent implements DynamicAttachmentProvider {
- *  ...
- *
- *     DynamicAttachment destatt = mgr.getDynamicAttachment( destattname );
- *
- *     if( destatt == null ) {
- *         destatt = new DynamicAttachment( context.getEngine(),
- *                                          context.getPage().getName(),
- *                                          destfilename,
- *                                          this );
- *         destatt.setCacheable( false );
- *     }
- *
- *     // This is used to check whether the attachment is modified or not so don't forget to update this if your attachment source changes!
- *     // Else JSPWiki will be serving 304s to anyone who asks...
- *
- *     destatt.setLastModified( context.getPage().getLastModified() );
- *     mgr.storeDynamicAttachment( context,  destatt );
- *  ...
- *
- *      public InputStream getAttachmentData( WikiContext context, Attachment att ) throws IOException {
- *          byte[] bytes = "This is a test".getBytes();
- *          return new ByteArrayInputStream( bytes );
- *      }
- *  </pre>
- *
- *  @since 2.5.34
+ * @deprecated Use {@link com.wikantik.api.attachment.DynamicAttachment}
  */
-public class DynamicAttachment extends Attachment {
+@Deprecated
+public class DynamicAttachment extends Attachment implements com.wikantik.api.attachment.DynamicAttachment {
 
     private final DynamicAttachmentProvider provider;
 
@@ -86,6 +58,7 @@ public class DynamicAttachment extends Attachment {
      *
      *  @return A Provider component for this attachment.
      */
+    @Override
     public DynamicAttachmentProvider getProvider() {
         return provider;
     }

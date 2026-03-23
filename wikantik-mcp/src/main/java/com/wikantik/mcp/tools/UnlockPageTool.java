@@ -21,7 +21,7 @@ package com.wikantik.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
-import com.wikantik.pages.PageLock;
+import com.wikantik.api.pages.PageLock;
 import com.wikantik.pages.PageManager;
 
 import java.util.LinkedHashMap;

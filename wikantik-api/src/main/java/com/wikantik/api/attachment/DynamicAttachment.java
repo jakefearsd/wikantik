@@ -16,14 +16,28 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.modules;
+package com.wikantik.api.attachment;
+
+import com.wikantik.api.core.Attachment;
+
 
 /**
- * Backward-compatibility shim. The canonical interface has moved to
- * {@link com.wikantik.api.modules.InternalModule} in wikantik-api.
+ *  A DynamicAttachment is an attachment which does not really exist, but is created dynamically by a JSPWiki component.
+ *  <p>
+ *  Note that a DynamicAttachment might not be available before it is actually created by a component (e.g. plugin), and therefore trying
+ *  to access it before that component has been invoked, might result in a surprising 404.
+ *  <p>
+ *  DynamicAttachments are not listed among regular attachments in the current version.
  *
- * @deprecated Use {@link com.wikantik.api.modules.InternalModule}
+ *  @since 2.5.34
  */
-@Deprecated
-public interface InternalModule extends com.wikantik.api.modules.InternalModule {
+public interface DynamicAttachment extends Attachment {
+
+    /**
+     *  Returns the provider which is used to generate this attachment.
+     *
+     *  @return A Provider component for this attachment.
+     */
+    DynamicAttachmentProvider getProvider();
+
 }

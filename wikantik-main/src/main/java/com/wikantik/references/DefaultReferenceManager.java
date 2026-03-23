@@ -36,9 +36,9 @@ import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.pages.PageManager;
-import com.wikantik.frontmatter.FrontmatterParser;
-import com.wikantik.frontmatter.ParsedPage;
-import com.wikantik.parser.MarkdownLinkScanner;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.parser.MarkdownLinkScanner;
 import com.wikantik.util.TextUtil;
 
 import java.io.*;

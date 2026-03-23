@@ -20,7 +20,7 @@ package com.wikantik.mcp.completions;
 
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.ReferenceManager;
 
 import java.util.ArrayList;
 import java.util.Collection;

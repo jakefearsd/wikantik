@@ -20,8 +20,8 @@ package com.wikantik.mcp.tools;
 
 
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.pages.PageManager;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 
 import java.util.LinkedHashMap;
 import java.util.List;

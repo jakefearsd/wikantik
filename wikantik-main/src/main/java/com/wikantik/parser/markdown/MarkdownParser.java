@@ -27,8 +27,8 @@ import com.wikantik.api.core.Context;
 import com.wikantik.attachment.AttachmentManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.UserManager;
-import com.wikantik.frontmatter.FrontmatterParser;
-import com.wikantik.frontmatter.ParsedPage;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
 

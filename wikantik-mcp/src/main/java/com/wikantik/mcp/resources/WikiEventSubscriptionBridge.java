@@ -26,7 +26,7 @@ import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventListener;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 
 /**
  * Bridges JSPWiki's WikiEvent system to MCP resource subscriptions,

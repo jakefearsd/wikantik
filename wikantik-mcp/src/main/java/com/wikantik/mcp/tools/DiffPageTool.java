@@ -27,7 +27,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.diff.DifferenceManager;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 
 import java.util.LinkedHashMap;
 import java.util.List;

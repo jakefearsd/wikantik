@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.frontmatter;
+package com.wikantik.api.frontmatter;
 
 import java.util.Map;
 

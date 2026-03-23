@@ -24,9 +24,9 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.frontmatter.FrontmatterParser;
-import com.wikantik.frontmatter.FrontmatterWriter;
-import com.wikantik.frontmatter.ParsedPage;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.FrontmatterWriter;
+import com.wikantik.api.frontmatter.ParsedPage;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

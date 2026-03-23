@@ -19,14 +19,14 @@
 package com.wikantik.mcp;
 
 import com.wikantik.WikiEngine;
-import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.content.PageRenamer;
-import com.wikantik.content.SystemPageRegistry;
+import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.diff.DifferenceManager;
 import com.wikantik.mcp.tools.*;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.pages.PageSaveHelper;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.ReferenceManager;
 
 import java.util.List;
 

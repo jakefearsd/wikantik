@@ -26,8 +26,8 @@ import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.attachment.AttachmentManager;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.AttachmentManager;
+import com.wikantik.api.managers.PageManager;
 
 import java.io.ByteArrayInputStream;
 import java.util.Base64;

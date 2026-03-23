@@ -21,9 +21,9 @@ package com.wikantik.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
-import com.wikantik.parser.MarkdownLinkScanner;
+import com.wikantik.api.parser.MarkdownLinkScanner;
 import com.wikantik.api.providers.PageProvider;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

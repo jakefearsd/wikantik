@@ -20,40 +20,40 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.references.ReferenceManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubReferenceManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class GetOutboundLinksToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
+    private StubReferenceManager refMgr;
     private GetOutboundLinksTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new GetOutboundLinksTool( engine.getManager( ReferenceManager.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        refMgr = new StubReferenceManager();
+        tool = new GetOutboundLinksTool( refMgr );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
     void testFindsOutboundLinks() throws Exception {
-        engine.saveText( "TargetA", "Target A content" );
-        engine.saveText( "TargetB", "Target B content" );
-        engine.saveText( "SourcePage", "[TargetA]()\n\n[TargetB]()" );
+        pm.savePage( "TargetA", "Target A content" );
+        pm.savePage( "TargetB", "Target B content" );
+        pm.savePage( "SourcePage", "[TargetA]()\n\n[TargetB]()" );
+        refMgr.addReferences( "TargetA", Set.of() );
+        refMgr.addReferences( "TargetB", Set.of() );
+        refMgr.addReferences( "SourcePage", Set.of( "TargetA", "TargetB" ) );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "SourcePage" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
@@ -68,7 +68,8 @@ class GetOutboundLinksToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testPageWithNoLinks() throws Exception {
-        engine.saveText( "Isolated", "No links here." );
+        pm.savePage( "Isolated", "No links here." );
+        refMgr.addReferences( "Isolated", Set.of() );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "Isolated" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();

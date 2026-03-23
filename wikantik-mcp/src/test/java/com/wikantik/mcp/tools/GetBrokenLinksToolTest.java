@@ -20,38 +20,36 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.references.ReferenceManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubReferenceManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class GetBrokenLinksToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
+    private StubReferenceManager refMgr;
     private GetBrokenLinksTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new GetBrokenLinksTool( engine.getManager( ReferenceManager.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        refMgr = new StubReferenceManager();
+        tool = new GetBrokenLinksTool( refMgr );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
     void testFindsBrokenLinks() throws Exception {
-        engine.saveText( "PageWithBrokenLink", "[NonExistentPage]()" );
+        pm.savePage( "PageWithBrokenLink", "[NonExistentPage]()" );
+        refMgr.addReferences( "PageWithBrokenLink", Set.of( "NonExistentPage" ) );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of() );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
@@ -70,8 +68,10 @@ class GetBrokenLinksToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testNoBrokenLinks() throws Exception {
-        engine.saveText( "ExistingTarget", "I exist." );
-        engine.saveText( "LinkerPage", "[ExistingTarget]" );
+        pm.savePage( "ExistingTarget", "I exist." );
+        pm.savePage( "LinkerPage", "[ExistingTarget]" );
+        refMgr.addReferences( "ExistingTarget", Set.of() );
+        refMgr.addReferences( "LinkerPage", Set.of( "ExistingTarget" ) );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of() );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();

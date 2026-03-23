@@ -20,40 +20,35 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.pages.PageManager;
-import com.wikantik.references.ReferenceManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubReferenceManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class GetWikiStatsToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
+    private StubReferenceManager refMgr;
     private GetWikiStatsTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new GetWikiStatsTool(
-                engine.getManager( PageManager.class ),
-                engine.getManager( ReferenceManager.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        refMgr = new StubReferenceManager();
+        tool = new GetWikiStatsTool( pm, refMgr );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
     void testReturnsAllStatFields() throws Exception {
-        engine.saveText( "StatsTestPage", "Some content [BrokenLink]" );
+        pm.savePage( "StatsTestPage", "Some content [BrokenLink]" );
+        refMgr.addReferences( "StatsTestPage", Set.of( "BrokenLink" ) );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of() );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();

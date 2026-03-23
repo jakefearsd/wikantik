@@ -20,57 +20,59 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
-import com.wikantik.pages.PageManager;
-import com.wikantik.references.ReferenceManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubReferenceManager;
+import com.wikantik.test.StubSystemPageRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class AuditCrossClusterToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
+    private StubReferenceManager refMgr;
+    private StubSystemPageRegistry spr;
     private AuditCrossClusterTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() throws Exception {
-        engine = TestEngine.build();
-        tool = new AuditCrossClusterTool(
-                engine.getManager( PageManager.class ),
-                engine.getManager( ReferenceManager.class ),
-                engine.getManager( SystemPageRegistry.class ) );
+        pm = new StubPageManager();
+        refMgr = new StubReferenceManager();
+        spr = new StubSystemPageRegistry();
+        tool = new AuditCrossClusterTool( pm, refMgr, spr );
 
         // Create Main page that links to ClusterAHub but NOT ClusterBHub
-        engine.saveText( "Main", "---\ntype: hub\n---\n# Wiki Main\n\n- [ClusterAHub](ClusterAHub)\n" );
+        pm.savePage( "Main", "---\ntype: hub\n---\n# Wiki Main\n\n- [ClusterAHub](ClusterAHub)\n" );
+        refMgr.addReferences( "Main", Set.of( "ClusterAHub" ) );
 
-        // Cluster A: tags ai, ml — hub page links to its article
-        engine.saveText( "ClusterAHub", "---\ntype: hub\ncluster: cluster-a\ntags:\n- ai\n- ml\n" +
+        // Cluster A: tags ai, ml -- hub page links to its article
+        pm.savePage( "ClusterAHub", "---\ntype: hub\ncluster: cluster-a\ntags:\n- ai\n- ml\n" +
                 "summary: Hub for cluster A content and articles\n---\n# Cluster A\n\n- [ClusterAArticle](ClusterAArticle)" );
-        engine.saveText( "ClusterAArticle", "---\ntype: article\ncluster: cluster-a\ntags:\n- ai\n" +
+        pm.savePage( "ClusterAArticle", "---\ntype: article\ncluster: cluster-a\ntags:\n- ai\n" +
                 "summary: Article in cluster A about artificial intelligence\n---\nBody." );
+        refMgr.addReferences( "ClusterAHub", Set.of( "ClusterAArticle" ) );
+        refMgr.addReferences( "ClusterAArticle", Set.of() );
 
-        // Cluster B: tags ai, finance — NO cross-reference to Cluster A (shared tag: ai)
-        engine.saveText( "ClusterBHub", "---\ntype: hub\ncluster: cluster-b\ntags:\n- ai\n- finance\n" +
+        // Cluster B: tags ai, finance -- NO cross-reference to Cluster A (shared tag: ai)
+        pm.savePage( "ClusterBHub", "---\ntype: hub\ncluster: cluster-b\ntags:\n- ai\n- finance\n" +
                 "summary: Hub for cluster B content and articles\n---\n# Cluster B\n\n- [ClusterBArticle](ClusterBArticle)" );
-        engine.saveText( "ClusterBArticle", "---\ntype: article\ncluster: cluster-b\ntags:\n- finance\n" +
+        pm.savePage( "ClusterBArticle", "---\ntype: article\ncluster: cluster-b\ntags:\n- finance\n" +
                 "summary: Article in cluster B about financial topics\n---\nBody." );
+        refMgr.addReferences( "ClusterBHub", Set.of( "ClusterBArticle" ) );
+        refMgr.addReferences( "ClusterBArticle", Set.of() );
 
         // Page with duplicate summary
-        engine.saveText( "DupSummary1", "---\ntype: article\ncluster: cluster-a\nsummary: Exact same summary text here\n---\nBody." );
-        engine.saveText( "DupSummary2", "---\ntype: article\ncluster: cluster-b\nsummary: Exact same summary text here\n---\nBody." );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm.savePage( "DupSummary1", "---\ntype: article\ncluster: cluster-a\nsummary: Exact same summary text here\n---\nBody." );
+        pm.savePage( "DupSummary2", "---\ntype: article\ncluster: cluster-b\nsummary: Exact same summary text here\n---\nBody." );
+        refMgr.addReferences( "DupSummary1", Set.of() );
+        refMgr.addReferences( "DupSummary2", Set.of() );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -133,7 +135,8 @@ class AuditCrossClusterToolTest {
     @SuppressWarnings( "unchecked" )
     void testPerClusterBrokenLinksDedup() throws Exception {
         // Create a page with a broken link
-        engine.saveText( "CrossBrokenSource", "---\ntype: article\n---\nSee [BrokenTarget](BrokenTarget)." );
+        pm.savePage( "CrossBrokenSource", "---\ntype: article\n---\nSee [BrokenTarget](BrokenTarget)." );
+        refMgr.addReferences( "CrossBrokenSource", Set.of( "BrokenTarget" ) );
 
         final Map< String, Object > argsWithDedup = new HashMap<>();
         argsWithDedup.put( "perClusterBrokenLinks", List.of( "BrokenTarget" ) );

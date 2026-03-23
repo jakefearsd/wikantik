@@ -724,15 +724,15 @@ public class SpamFilter extends BasePageFilter {
             ch += HttpUtil.getRemoteAddress( context.getHttpRequest() );
         }
 
-        for( final Pattern p : spamPatterns ) {
-            // LOG.debug("Attempting to match page contents with "+p.pattern());
+        for( final Pattern pattern : spamPatterns ) {
+            // LOG.debug("Attempting to match page contents with "+pattern.pattern());
 
-            if( p.matcher( ch ).find() ) {
+            if( pattern.matcher( ch ).find() ) {
                 //  Spam filter has a match.
-                final String uid = log( context, REJECT, REASON_REGEXP + "(" + p.pattern() + ")", ch );
+                final String uid = log( context, REJECT, REASON_REGEXP + "(" + pattern.pattern() + ")", ch );
 
-                LOG.info( "SPAM:Regexp (" + uid + "). Content matches the spam filter '" + p.pattern() + "'" );
-                checkStrategy( context, "Herb says '" + p.pattern() + "' is a bad spam word and I trust Herb! (Incident code " + uid + ")" );
+                LOG.info( "SPAM:Regexp (" + uid + "). Content matches the spam filter '" + pattern.pattern() + "'" );
+                checkStrategy( context, "Herb says '" + pattern.pattern() + "' is a bad spam word and I trust Herb! (Incident code " + uid + ")" );
             }
         }
     }
@@ -751,19 +751,19 @@ public class SpamFilter extends BasePageFilter {
         }
 
         final String remoteIP = HttpUtil.getRemoteAddress( context.getHttpRequest() );
-        LOG.info("Attempting to match remoteIP " + remoteIP + " against " + IPPatterns.size() + " patterns");
+        LOG.info("Attempting to match remoteIP {} against {} patterns", remoteIP, IPPatterns.size());
 
-        for( final Pattern p : IPPatterns ) {
-             LOG.debug("Attempting to match remoteIP with " + p.pattern());
+        for( final Pattern pattern : IPPatterns ) {
+             LOG.debug("Attempting to match remoteIP with " + pattern.pattern());
 
-            if( p.matcher( remoteIP ).find() ) {
+            if( pattern.matcher( remoteIP ).find() ) {
 
                 //  IP filter has a match.
                 //
-                final String uid = log( context, REJECT, REASON_IP_BANNED_PERMANENTLY + "(" + p.pattern() + ")", remoteIP );
+                final String uid = log( context, REJECT, REASON_IP_BANNED_PERMANENTLY + "(" + pattern.pattern() + ")", remoteIP );
 
-                LOG.info( "SPAM:IPBanList (" + uid + "). remoteIP matches the IP filter '" + p.pattern() + "'" );
-                checkStrategy( context, "Herb says '" + p.pattern() + "' is a banned IP and I trust Herb! (Incident code " + uid + ")" );
+                LOG.info( "SPAM:IPBanList (" + uid + "). remoteIP matches the IP filter '" + pattern.pattern() + "'" );
+                checkStrategy( context, "Herb says '" + pattern.pattern() + "' is a banned IP and I trust Herb! (Incident code " + uid + ")" );
             }
         }
     }

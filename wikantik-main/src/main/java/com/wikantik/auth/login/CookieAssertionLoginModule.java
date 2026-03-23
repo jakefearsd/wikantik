@@ -96,7 +96,7 @@ public class CookieAssertionLoginModule extends AbstractLoginModule {
             principals.add( new WikiPrincipal( name, WikiPrincipal.FULL_NAME ) );
             return true;
         } catch( final IOException e ) {
-            LOG.error( "IOException: " + e.getMessage() );
+            LOG.error( "IOException: {}", e.getMessage(), e );
             return false;
         } catch( final UnsupportedCallbackException e ) {
             final String message = "Unable to handle callback, disallowing login.";

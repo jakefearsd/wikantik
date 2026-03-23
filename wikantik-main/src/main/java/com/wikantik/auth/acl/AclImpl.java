@@ -68,15 +68,15 @@ public class AclImpl implements com.wikantik.api.core.Acl, Serializable {
             return false;
         }
 
-        for( final AclEntry e : entries ) {
-            final Principal ep = e.getPrincipal();
-            final Principal entryp = entry.getPrincipal();
+        for( final AclEntry entry2 : entries ) {
+            final Principal existingPrincipal = entry2.getPrincipal();
+            final Principal newPrincipal = entry.getPrincipal();
 
-            if( ep == null || entryp == null ) {
-                throw new IllegalArgumentException( "Entry is null; check code, please (entry=" + entry + "; e=" + e + ")" );
+            if( existingPrincipal == null || newPrincipal == null ) {
+                throw new IllegalArgumentException( "Entry is null; check code, please (entry=" + entry + "; e=" + entry2 + ")" );
             }
 
-            if( ep.getName().equals( entryp.getName() ) ) {
+            if( existingPrincipal.getName().equals( newPrincipal.getName() ) ) {
                 return true;
             }
         }

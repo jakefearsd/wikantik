@@ -325,7 +325,6 @@
                         <phase>package</phase>
                         <configuration>
                             <excludes>
-                                <exclude>**/test*/**</exclude>
                                 <exclude>**/*Test.class</exclude>
                                 <exclude>**/*Test$*.class</exclude>
                                 <exclude>**/*Tests.class</exclude>

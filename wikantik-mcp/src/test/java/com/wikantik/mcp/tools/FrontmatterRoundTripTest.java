@@ -20,11 +20,11 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubPageSaveHelper;
+import com.wikantik.test.StubSystemPageRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,12 +35,12 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * End-to-end MCP test exercising write → read → query round-trip with realistic
+ * End-to-end MCP test exercising write, read, and query round-trip with realistic
  * article content and YAML frontmatter metadata.
  */
 class FrontmatterRoundTripTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private WritePageTool writeTool;
     private ReadPageTool readTool;
     private QueryMetadataTool queryTool;
@@ -48,17 +48,11 @@ class FrontmatterRoundTripTest {
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        final var spr = engine.getManager( com.wikantik.content.SystemPageRegistry.class );
-        writeTool = new WritePageTool( engine, spr );
-        final PageManager pm = engine.getManager( PageManager.class );
+        pm = new StubPageManager();
+        final var spr = new StubSystemPageRegistry();
+        writeTool = new WritePageTool( new StubPageSaveHelper( pm ), spr );
         readTool = new ReadPageTool( pm, spr );
         queryTool = new QueryMetadataTool( pm );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
     }
 
     @Test
@@ -108,15 +102,15 @@ class FrontmatterRoundTripTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testQueryArticleByTypeAndTags() throws Exception {
+    void testQueryArticleByTypeAndTags() {
         // Store two articles with different types
-        engine.saveText( "IranReport",
+        pm.savePage( "IranReport",
                 "---\ntype: intelligence-report\nregion: Middle East\ntags: [Iran, geopolitics]\n---\n"
                         + "Iranian Supreme Leader Mojtaba Khamenei issued his first public statement." );
-        engine.saveText( "TechArticle",
+        pm.savePage( "TechArticle",
                 "---\ntype: article\nregion: Technology\ntags: [AI, software]\n---\n"
                         + "An article about technology." );
-        engine.saveText( "PlainPage", "A page with no frontmatter at all." );
+        pm.savePage( "PlainPage", "A page with no frontmatter at all." );
 
         // Query by type shortcut
         final McpSchema.CallToolResult typeResult = queryTool.execute(
@@ -157,7 +151,7 @@ class FrontmatterRoundTripTest {
         writeTool.execute( writeArgs );
 
         // Verify the raw stored text has proper frontmatter structure
-        final String stored = engine.getManager( PageManager.class ).getPureText( "IranFmTest", -1 );
+        final String stored = pm.getPureText( "IranFmTest", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
 
         assertEquals( "intelligence-report", parsed.metadata().get( "type" ) );

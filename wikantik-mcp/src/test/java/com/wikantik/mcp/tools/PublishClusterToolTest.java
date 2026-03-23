@@ -20,12 +20,10 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubPageSaveHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,22 +35,17 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PublishClusterToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private PublishClusterTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
-    void setUp() throws Exception {
-        engine = TestEngine.build();
-        tool = new PublishClusterTool( engine, engine.getManager( SystemPageRegistry.class ) );
+    void setUp() {
+        pm = new StubPageManager();
+        tool = new PublishClusterTool( new StubPageSaveHelper( pm ), pm );
 
         // Create a Main page with Article Clusters section
-        engine.saveText( "Main", "# Wiki\n\n## Article Clusters\n\n### Existing Section\n\n- [SomePage](SomePage)\n\n## About\n\nFooter." );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm.savePage( "Main", "# Wiki\n\n## Article Clusters\n\n### Existing Section\n\n- [SomePage](SomePage)\n\n## About\n\nFooter." );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -95,7 +88,6 @@ class PublishClusterToolTest {
         assertTrue( ( Boolean ) results.get( 2 ).get( "success" ) );
 
         // Verify pages exist with correct metadata
-        final PageManager pm = engine.getManager( PageManager.class );
         assertNotNull( pm.getPage( "TestClusterHub" ) );
         assertNotNull( pm.getPage( "TestArticle1" ) );
         assertNotNull( pm.getPage( "TestArticle2" ) );
@@ -125,7 +117,7 @@ class PublishClusterToolTest {
         assertTrue( ( Boolean ) results.get( 1 ).get( "success" ) );
 
         // Article should have auto-set type, cluster, status, related
-        final String articleText = engine.getManager( PageManager.class ).getPureText( "AutoMetaArticle", -1 );
+        final String articleText = pm.getPureText( "AutoMetaArticle", -1 );
         final ParsedPage articleParsed = FrontmatterParser.parse( articleText );
         assertEquals( "article", articleParsed.metadata().get( "type" ) );
         assertEquals( "auto-meta", articleParsed.metadata().get( "cluster" ) );
@@ -151,14 +143,14 @@ class PublishClusterToolTest {
         executeAndParse( args );
 
         // Hub related should contain both articles
-        final String hubText = engine.getManager( PageManager.class ).getPureText( "RelHub", -1 );
+        final String hubText = pm.getPureText( "RelHub", -1 );
         final ParsedPage hubParsed = FrontmatterParser.parse( hubText );
         final List< String > hubRelated = ( List< String > ) hubParsed.metadata().get( "related" );
         assertTrue( hubRelated.contains( "RelA" ) );
         assertTrue( hubRelated.contains( "RelB" ) );
 
         // Article A's related should contain hub + sibling B
-        final String aText = engine.getManager( PageManager.class ).getPureText( "RelA", -1 );
+        final String aText = pm.getPureText( "RelA", -1 );
         final ParsedPage aParsed = FrontmatterParser.parse( aText );
         final List< String > aRelated = ( List< String > ) aParsed.metadata().get( "related" );
         assertTrue( aRelated.contains( "RelHub" ) );
@@ -182,7 +174,7 @@ class PublishClusterToolTest {
         assertEquals( "success", data.get( "mainPageUpdate" ) );
 
         // Check Main page contains the new cluster
-        final String mainText = engine.getManager( PageManager.class ).getPureText( "Main", -1 );
+        final String mainText = pm.getPureText( "Main", -1 );
         assertTrue( mainText.contains( "MainTestHub" ) );
         assertTrue( mainText.contains( "MainTestArticle" ) );
     }

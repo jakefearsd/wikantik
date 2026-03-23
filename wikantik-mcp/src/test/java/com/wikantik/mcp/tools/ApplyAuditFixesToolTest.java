@@ -20,12 +20,10 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubPageSaveHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,19 +35,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ApplyAuditFixesToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private ApplyAuditFixesTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new ApplyAuditFixesTool( engine, engine.getManager( SystemPageRegistry.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new ApplyAuditFixesTool( new StubPageSaveHelper( pm ), pm );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -61,8 +54,8 @@ class ApplyAuditFixesToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testSetMetadata() throws Exception {
-        engine.saveText( "FixMeta1", "---\ntype: article\n---\nBody content." );
+    void testSetMetadata() {
+        pm.savePage( "FixMeta1", "---\ntype: article\n---\nBody content." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "fixes", List.of(
@@ -77,7 +70,7 @@ class ApplyAuditFixesToolTest {
         assertNull( results.get( 0 ).get( "previousValue" ) );
 
         // Verify metadata was applied
-        final String stored = engine.getManager( PageManager.class ).getPureText( "FixMeta1", -1 );
+        final String stored = pm.getPureText( "FixMeta1", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         assertEquals( "active", parsed.metadata().get( "status" ) );
         assertTrue( stored.contains( "Body content." ) );
@@ -85,8 +78,8 @@ class ApplyAuditFixesToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testSetMetadataPreviousValue() throws Exception {
-        engine.saveText( "FixMetaPrev", "---\ntype: article\nstatus: draft\n---\nBody." );
+    void testSetMetadataPreviousValue() {
+        pm.savePage( "FixMetaPrev", "---\ntype: article\nstatus: draft\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "fixes", List.of(
@@ -101,8 +94,8 @@ class ApplyAuditFixesToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testAddHubBacklinkWithExistingSeeAlso() throws Exception {
-        engine.saveText( "FixBacklink1", "---\ntype: article\ncluster: ai\n---\n# Article\n\nContent here.\n\n## See Also\n\n- [OtherPage](OtherPage)" );
+    void testAddHubBacklinkWithExistingSeeAlso() {
+        pm.savePage( "FixBacklink1", "---\ntype: article\ncluster: ai\n---\n# Article\n\nContent here.\n\n## See Also\n\n- [OtherPage](OtherPage)" );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "fixes", List.of(
@@ -113,15 +106,15 @@ class ApplyAuditFixesToolTest {
         final List< Map< String, Object > > results = ( List< Map< String, Object > > ) data.get( "results" );
         assertEquals( true, results.get( 0 ).get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "FixBacklink1", -1 );
+        final String stored = pm.getPureText( "FixBacklink1", -1 );
         assertTrue( stored.contains( "[AiHub](AiHub)" ) );
         assertTrue( stored.contains( "[OtherPage](OtherPage)" ) );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testAddHubBacklinkWithoutSeeAlso() throws Exception {
-        engine.saveText( "FixBacklink2", "---\ntype: article\ncluster: ai\n---\n# Article\n\nContent here." );
+    void testAddHubBacklinkWithoutSeeAlso() {
+        pm.savePage( "FixBacklink2", "---\ntype: article\ncluster: ai\n---\n# Article\n\nContent here." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "fixes", List.of(
@@ -132,15 +125,15 @@ class ApplyAuditFixesToolTest {
         final List< Map< String, Object > > results = ( List< Map< String, Object > > ) data.get( "results" );
         assertEquals( true, results.get( 0 ).get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "FixBacklink2", -1 );
+        final String stored = pm.getPureText( "FixBacklink2", -1 );
         assertTrue( stored.contains( "## See Also" ) );
         assertTrue( stored.contains( "[AiHub](AiHub)" ) );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testFixTypoLink() throws Exception {
-        engine.saveText( "FixTypo1", "---\ntype: article\n---\nSee [MachinLearning](MachinLearning) for details." );
+    void testFixTypoLink() {
+        pm.savePage( "FixTypo1", "---\ntype: article\n---\nSee [MachinLearning](MachinLearning) for details." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "fixes", List.of(
@@ -152,15 +145,15 @@ class ApplyAuditFixesToolTest {
         final List< Map< String, Object > > results = ( List< Map< String, Object > > ) data.get( "results" );
         assertEquals( true, results.get( 0 ).get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "FixTypo1", -1 );
+        final String stored = pm.getPureText( "FixTypo1", -1 );
         assertTrue( stored.contains( "(MachineLearning)" ) );
         assertFalse( stored.contains( "(MachinLearning)" ) );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testPartialFailure() throws Exception {
-        engine.saveText( "FixPartial1", "---\ntype: article\n---\nBody." );
+    void testPartialFailure() {
+        pm.savePage( "FixPartial1", "---\ntype: article\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "fixes", List.of(
@@ -178,8 +171,8 @@ class ApplyAuditFixesToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testIdempotentHubBacklink() throws Exception {
-        engine.saveText( "FixIdem1", "---\ntype: article\n---\n# Article\n\n## See Also\n\n- [AiHub](AiHub)" );
+    void testIdempotentHubBacklink() {
+        pm.savePage( "FixIdem1", "---\ntype: article\n---\n# Article\n\n## See Also\n\n- [AiHub](AiHub)" );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "fixes", List.of(

@@ -20,12 +20,10 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubPageSaveHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,33 +35,28 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ExtendClusterToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private ExtendClusterTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
-    void setUp() throws Exception {
-        engine = TestEngine.build();
-        tool = new ExtendClusterTool( engine, engine.getManager( SystemPageRegistry.class ) );
+    void setUp() {
+        pm = new StubPageManager();
+        tool = new ExtendClusterTool( new StubPageSaveHelper( pm ), pm );
 
         // Set up an existing cluster
-        engine.saveText( "ExtHub", "---\ntype: hub\ncluster: ext-test\ntags:\n- test\n" +
+        pm.savePage( "ExtHub", "---\ntype: hub\ncluster: ext-test\ntags:\n- test\n" +
                 "summary: Hub for extension tests with enough characters\nstatus: active\n" +
                 "date: 2026-01-01\nauthor: Admin\nrelated:\n- ExtArticle1\n---\n" +
                 "# Ext Hub\n\n## Cluster Articles\n\n- [ExtArticle1](ExtArticle1) — first article\n\n## See Also\n" );
-        engine.saveText( "ExtArticle1", "---\ntype: article\ncluster: ext-test\ntags:\n- test\n" +
+        pm.savePage( "ExtArticle1", "---\ntype: article\ncluster: ext-test\ntags:\n- test\n" +
                 "summary: First article in the extension test cluster here\nstatus: active\n" +
                 "date: 2026-01-02\nauthor: Admin\nrelated:\n- ExtHub\n---\n" +
                 "# Ext Article 1\n\nContent.\n\n## See Also\n\n- [ExtHub](ExtHub)\n" );
 
         // Set up Main page with the cluster listed
-        engine.saveText( "Main", "# Wiki\n\n## Article Clusters\n\n### Test Cluster\n\n" +
+        pm.savePage( "Main", "# Wiki\n\n## Article Clusters\n\n### Test Cluster\n\n" +
                 "- [ExtHub](ExtHub) — Hub for extension tests\n- [ExtArticle1](ExtArticle1) — first article\n\n## About\n" );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
     }
 
     @SuppressWarnings( "unchecked" )
@@ -96,7 +89,6 @@ class ExtendClusterToolTest {
         assertTrue( ( Boolean ) created.get( "success" ) );
 
         // Verify article exists with correct metadata
-        final PageManager pm = engine.getManager( PageManager.class );
         final String articleText = pm.getPureText( "ExtArticle2", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( articleText );
         assertEquals( "article", parsed.metadata().get( "type" ) );
@@ -116,7 +108,7 @@ class ExtendClusterToolTest {
         executeAndParse( args );
 
         // Hub body should now contain a link to ExtNew
-        final String hubText = engine.getManager( PageManager.class ).getPureText( "ExtHub", -1 );
+        final String hubText = pm.getPureText( "ExtHub", -1 );
         assertTrue( hubText.contains( "(ExtNew)" ), "Hub body should contain link to new article" );
     }
 
@@ -132,7 +124,7 @@ class ExtendClusterToolTest {
         executeAndParse( args );
 
         // Hub's related metadata should include the new article
-        final String hubText = engine.getManager( PageManager.class ).getPureText( "ExtHub", -1 );
+        final String hubText = pm.getPureText( "ExtHub", -1 );
         final ParsedPage hubParsed = FrontmatterParser.parse( hubText );
         final List< String > hubRelated = ( List< String > ) hubParsed.metadata().get( "related" );
         assertTrue( hubRelated.contains( "ExtRelated" ) );
@@ -150,7 +142,7 @@ class ExtendClusterToolTest {
         executeAndParse( args );
 
         // ExtArticle1's related should now include ExtSibling
-        final String art1Text = engine.getManager( PageManager.class ).getPureText( "ExtArticle1", -1 );
+        final String art1Text = pm.getPureText( "ExtArticle1", -1 );
         final ParsedPage art1Parsed = FrontmatterParser.parse( art1Text );
         final List< String > art1Related = ( List< String > ) art1Parsed.metadata().get( "related" );
         assertTrue( art1Related.contains( "ExtSibling" ) );
@@ -168,7 +160,7 @@ class ExtendClusterToolTest {
         executeAndParse( args );
 
         // New article's related should contain hub + existing sibling
-        final String text = engine.getManager( PageManager.class ).getPureText( "ExtAutoRel", -1 );
+        final String text = pm.getPureText( "ExtAutoRel", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( text );
         final List< String > related = ( List< String > ) parsed.metadata().get( "related" );
         assertTrue( related.contains( "ExtHub" ) );
@@ -188,7 +180,7 @@ class ExtendClusterToolTest {
         assertEquals( "success", data.get( "mainPageUpdate" ) );
 
         // Main page should contain the new article
-        final String mainText = engine.getManager( PageManager.class ).getPureText( "Main", -1 );
+        final String mainText = pm.getPureText( "Main", -1 );
         assertTrue( mainText.contains( "(ExtMainPage)" ) );
     }
 

@@ -20,12 +20,12 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
 import com.wikantik.api.core.Page;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubPageSaveHelper;
+import com.wikantik.test.StubSystemPageRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,19 +37,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class WritePageToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private WritePageTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new WritePageTool( engine, engine.getManager( com.wikantik.content.SystemPageRegistry.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new WritePageTool( new StubPageSaveHelper( pm ), new StubSystemPageRegistry() );
     }
 
     @Test
@@ -64,8 +59,7 @@ class WritePageToolTest {
 
         assertEquals( true, data.get( "success" ) );
 
-        // JSPWiki normalizes to CRLF with trailing newline
-        final String stored = engine.getManager( PageManager.class ).getPureText( "McpWriteTest", -1 );
+        final String stored = pm.getPureText( "McpWriteTest", -1 );
         assertTrue( stored.contains( "New page content." ) );
     }
 
@@ -81,7 +75,7 @@ class WritePageToolTest {
         final Map< String, Object > data = gson.fromJson( json, Map.class );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "McpWriteFm", -1 );
+        final String stored = pm.getPureText( "McpWriteFm", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         assertEquals( "concept", parsed.metadata().get( "type" ) );
         assertTrue( parsed.body().contains( "Page with frontmatter." ) );
@@ -95,7 +89,7 @@ class WritePageToolTest {
 
         tool.execute( args );
 
-        final Page saved = engine.getManager( PageManager.class ).getPage( "McpWriteDefault" );
+        final Page saved = pm.getPage( "McpWriteDefault" );
         // When no markupSyntax is specified, the page should default to markdown
         assertEquals( "markdown", saved.getAttribute( Page.MARKUP_SYNTAX ) );
     }
@@ -112,7 +106,7 @@ class WritePageToolTest {
         final Map< String, Object > data = gson.fromJson( json, Map.class );
         assertEquals( true, data.get( "success" ) );
 
-        final Page saved = engine.getManager( PageManager.class ).getPage( "McpMarkdownPage" );
+        final Page saved = pm.getPage( "McpMarkdownPage" );
         assertEquals( "markdown", saved.getAttribute( Page.MARKUP_SYNTAX ) );
     }
 
@@ -128,7 +122,7 @@ class WritePageToolTest {
         final Map< String, Object > data = gson.fromJson( json, Map.class );
         assertEquals( true, data.get( "success" ) );
 
-        final Page saved = engine.getManager( PageManager.class ).getPage( "McpJspwikiPage" );
+        final Page saved = pm.getPage( "McpJspwikiPage" );
         // MCP always saves as markdown regardless of what the caller requests
         assertEquals( "markdown", saved.getAttribute( Page.MARKUP_SYNTAX ) );
     }
@@ -147,9 +141,9 @@ class WritePageToolTest {
     }
 
     @Test
-    void testMetadataMergePreservesExistingFields() throws Exception {
+    void testMetadataMergePreservesExistingFields() {
         // Write page with initial metadata
-        engine.saveText( "McpMergeTest", "---\ntype: report\ntags: [security]\nstatus: draft\n---\nOriginal body." );
+        pm.savePage( "McpMergeTest", "---\ntype: report\ntags: [security]\nstatus: draft\n---\nOriginal body." );
 
         // Update with only a new status — type and tags should be preserved
         final Map< String, Object > args = new HashMap<>();
@@ -159,7 +153,7 @@ class WritePageToolTest {
 
         tool.execute( args );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "McpMergeTest", -1 );
+        final String stored = pm.getPureText( "McpMergeTest", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         assertEquals( "report", parsed.metadata().get( "type" ) );
         assertEquals( "active", parsed.metadata().get( "status" ) );
@@ -167,9 +161,9 @@ class WritePageToolTest {
     }
 
     @Test
-    void testContentOnlyUpdatePreservesMetadata() throws Exception {
+    void testContentOnlyUpdatePreservesMetadata() {
         // Write page with metadata
-        engine.saveText( "McpContentOnly", "---\ntype: concept\ntags: [ai]\n---\nOriginal body." );
+        pm.savePage( "McpContentOnly", "---\ntype: concept\ntags: [ai]\n---\nOriginal body." );
 
         // Update with only content — metadata should be preserved
         final Map< String, Object > args = new HashMap<>();
@@ -179,7 +173,7 @@ class WritePageToolTest {
 
         tool.execute( args );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "McpContentOnly", -1 );
+        final String stored = pm.getPureText( "McpContentOnly", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         // When metadata is null (not provided), we don't merge — the page will have no frontmatter
         // This is by design: if you want to preserve metadata, pass the fields you want to keep
@@ -187,9 +181,9 @@ class WritePageToolTest {
     }
 
     @Test
-    void testReplaceMetadataOverwritesAll() throws Exception {
+    void testReplaceMetadataOverwritesAll() {
         // Write page with metadata
-        engine.saveText( "McpReplaceTest", "---\ntype: report\ntags: [security]\nstatus: draft\n---\nBody." );
+        pm.savePage( "McpReplaceTest", "---\ntype: report\ntags: [security]\nstatus: draft\n---\nBody." );
 
         // Replace with completely new metadata
         final Map< String, Object > args = new HashMap<>();
@@ -200,7 +194,7 @@ class WritePageToolTest {
 
         tool.execute( args );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "McpReplaceTest", -1 );
+        final String stored = pm.getPureText( "McpReplaceTest", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         assertEquals( "note", parsed.metadata().get( "type" ) );
         assertNull( parsed.metadata().get( "tags" ) );    // old field gone
@@ -216,7 +210,7 @@ class WritePageToolTest {
 
         tool.execute( args );
 
-        final Page saved = engine.getManager( PageManager.class ).getPage( "McpAuthorTest" );
+        final Page saved = pm.getPage( "McpAuthorTest" );
         assertEquals( "JaneDoe", saved.getAuthor() );
     }
 
@@ -230,7 +224,7 @@ class WritePageToolTest {
 
         tool.execute( args );
 
-        final Page saved = engine.getManager( PageManager.class ).getPage( "McpClientAuthor" );
+        final Page saved = pm.getPage( "McpClientAuthor" );
         assertEquals( "Claude Code", saved.getAuthor() );
     }
 
@@ -250,10 +244,10 @@ class WritePageToolTest {
     }
 
     @Test
-    void testOptimisticLockingSuccess() throws Exception {
-        engine.saveText( "McpLockPage", "Original." );
+    void testOptimisticLockingSuccess() {
+        pm.savePage( "McpLockPage", "Original." );
 
-        final Page current = engine.getManager( PageManager.class ).getPage( "McpLockPage" );
+        final Page current = pm.getPage( "McpLockPage" );
         final int currentVersion = Math.max( current.getVersion(), 1 );
 
         final Map< String, Object > args = new HashMap<>();
@@ -268,11 +262,11 @@ class WritePageToolTest {
     }
 
     @Test
-    void testContentHashCASSuccess() throws Exception {
-        engine.saveText( "McpHashCAS", "Original text." );
+    void testContentHashCASSuccess() {
+        pm.savePage( "McpHashCAS", "Original text." );
 
         // Compute the hash of the stored content
-        final String stored = engine.getManager( PageManager.class ).getPureText( "McpHashCAS", -1 );
+        final String stored = pm.getPureText( "McpHashCAS", -1 );
         final String hash = McpToolUtils.computeContentHash( stored );
 
         final Map< String, Object > args = new HashMap<>();
@@ -287,8 +281,8 @@ class WritePageToolTest {
     }
 
     @Test
-    void testContentHashCASConflict() throws Exception {
-        engine.saveText( "McpHashConflict", "Original text." );
+    void testContentHashCASConflict() {
+        pm.savePage( "McpHashConflict", "Original text." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "McpHashConflict" );
@@ -316,12 +310,12 @@ class WritePageToolTest {
         assertTrue( json.contains( "serialized JSON response" ) );
 
         // Verify no page was created
-        assertNull( engine.getManager( PageManager.class ).getPage( "McpSerializedTest" ) );
+        assertNull( pm.getPage( "McpSerializedTest" ) );
     }
 
     @Test
-    void testOptimisticLockingConflict() throws Exception {
-        engine.saveText( "McpLockConflict", "Original." );
+    void testOptimisticLockingConflict() {
+        pm.savePage( "McpLockConflict", "Original." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "McpLockConflict" );

@@ -21,6 +21,8 @@ package com.wikantik.mcp.tools;
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.TestEngine;
+import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.pages.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +42,8 @@ class UploadAttachmentToolTest {
     @BeforeEach
     void setUp() {
         engine = TestEngine.build();
-        tool = new UploadAttachmentTool( engine );
+        tool = new UploadAttachmentTool( engine, engine.getManager( PageManager.class ),
+                engine.getManager( AttachmentManager.class ) );
     }
 
     @AfterEach

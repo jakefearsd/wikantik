@@ -20,12 +20,10 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubPageSaveHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PatchPageToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private PatchPageTool tool;
     private final Gson gson = new Gson();
 
@@ -54,13 +52,8 @@ class PatchPageToolTest {
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new PatchPageTool( engine, engine.getManager( SystemPageRegistry.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new PatchPageTool( new StubPageSaveHelper( pm ), pm );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -71,8 +64,8 @@ class PatchPageToolTest {
     }
 
     @Test
-    void testAppendToSection() throws Exception {
-        engine.saveText( "PatchAppend", PAGE_CONTENT );
+    void testAppendToSection() {
+        pm.savePage( "PatchAppend", PAGE_CONTENT );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PatchAppend" );
@@ -83,14 +76,14 @@ class PatchPageToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "PatchAppend", -1 );
+        final String stored = pm.getPureText( "PatchAppend", -1 );
         assertTrue( stored.contains( "- Link 1" ) );
         assertTrue( stored.contains( "- Link 2" ) );
     }
 
     @Test
-    void testAppendToLastSection() throws Exception {
-        engine.saveText( "PatchAppendLast", PAGE_CONTENT );
+    void testAppendToLastSection() {
+        pm.savePage( "PatchAppendLast", PAGE_CONTENT );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PatchAppendLast" );
@@ -103,8 +96,8 @@ class PatchPageToolTest {
     }
 
     @Test
-    void testInsertBefore() throws Exception {
-        engine.saveText( "PatchBefore", PAGE_CONTENT );
+    void testInsertBefore() {
+        pm.savePage( "PatchBefore", PAGE_CONTENT );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PatchBefore" );
@@ -115,13 +108,13 @@ class PatchPageToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "PatchBefore", -1 );
+        final String stored = pm.getPureText( "PatchBefore", -1 );
         assertTrue( stored.contains( "New line before." ) );
     }
 
     @Test
-    void testInsertAfter() throws Exception {
-        engine.saveText( "PatchAfter", PAGE_CONTENT );
+    void testInsertAfter() {
+        pm.savePage( "PatchAfter", PAGE_CONTENT );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PatchAfter" );
@@ -132,13 +125,13 @@ class PatchPageToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "PatchAfter", -1 );
+        final String stored = pm.getPureText( "PatchAfter", -1 );
         assertTrue( stored.contains( "Extra intro." ) );
     }
 
     @Test
-    void testReplaceSection() throws Exception {
-        engine.saveText( "PatchReplace", PAGE_CONTENT );
+    void testReplaceSection() {
+        pm.savePage( "PatchReplace", PAGE_CONTENT );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PatchReplace" );
@@ -149,15 +142,15 @@ class PatchPageToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "PatchReplace", -1 );
+        final String stored = pm.getPureText( "PatchReplace", -1 );
         assertTrue( stored.contains( "Completely new intro." ) );
         assertFalse( stored.contains( "Intro text." ) );
         assertTrue( stored.contains( "## Introduction" ) ); // heading preserved
     }
 
     @Test
-    void testMultipleOperations() throws Exception {
-        engine.saveText( "PatchMulti", PAGE_CONTENT );
+    void testMultipleOperations() {
+        pm.savePage( "PatchMulti", PAGE_CONTENT );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PatchMulti" );
@@ -169,14 +162,14 @@ class PatchPageToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "PatchMulti", -1 );
+        final String stored = pm.getPureText( "PatchMulti", -1 );
         assertTrue( stored.contains( "- Link 2" ) );
         assertTrue( stored.contains( "Added after intro." ) );
     }
 
     @Test
-    void testSectionNotFound() throws Exception {
-        engine.saveText( "PatchNoSection", PAGE_CONTENT );
+    void testSectionNotFound() {
+        pm.savePage( "PatchNoSection", PAGE_CONTENT );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PatchNoSection" );
@@ -191,8 +184,8 @@ class PatchPageToolTest {
     }
 
     @Test
-    void testMarkerNotFound() throws Exception {
-        engine.saveText( "PatchNoMarker", PAGE_CONTENT );
+    void testMarkerNotFound() {
+        pm.savePage( "PatchNoMarker", PAGE_CONTENT );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PatchNoMarker" );
@@ -207,8 +200,8 @@ class PatchPageToolTest {
     }
 
     @Test
-    void testOptimisticLockingVersion() throws Exception {
-        engine.saveText( "PatchLock", PAGE_CONTENT );
+    void testOptimisticLockingVersion() {
+        pm.savePage( "PatchLock", PAGE_CONTENT );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PatchLock" );
@@ -224,8 +217,8 @@ class PatchPageToolTest {
     }
 
     @Test
-    void testOptimisticLockingHash() throws Exception {
-        engine.saveText( "PatchHashLock", PAGE_CONTENT );
+    void testOptimisticLockingHash() {
+        pm.savePage( "PatchHashLock", PAGE_CONTENT );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PatchHashLock" );
@@ -241,8 +234,8 @@ class PatchPageToolTest {
     }
 
     @Test
-    void testPreservesMetadata() throws Exception {
-        engine.saveText( "PatchMeta", PAGE_CONTENT );
+    void testPreservesMetadata() {
+        pm.savePage( "PatchMeta", PAGE_CONTENT );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PatchMeta" );
@@ -253,7 +246,7 @@ class PatchPageToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "PatchMeta", -1 );
+        final String stored = pm.getPureText( "PatchMeta", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         assertEquals( "guide", parsed.metadata().get( "type" ) );
     }
@@ -273,8 +266,8 @@ class PatchPageToolTest {
     }
 
     @Test
-    void testContentHashInResponse() throws Exception {
-        engine.saveText( "PatchHashResp", PAGE_CONTENT );
+    void testContentHashInResponse() {
+        pm.savePage( "PatchHashResp", PAGE_CONTENT );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PatchHashResp" );

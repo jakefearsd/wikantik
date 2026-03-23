@@ -21,6 +21,7 @@ package com.wikantik.mcp.tools;
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.TestEngine;
+import com.wikantik.content.PageRenamer;
 import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.pages.PageManager;
 import org.junit.jupiter.api.AfterEach;
@@ -41,7 +42,8 @@ class RenamePageToolTest {
     @BeforeEach
     void setUp() {
         engine = TestEngine.build();
-        tool = new RenamePageTool( engine, engine.getManager( SystemPageRegistry.class ) );
+        tool = new RenamePageTool( engine, engine.getManager( PageManager.class ),
+                engine.getManager( PageRenamer.class ), engine.getManager( SystemPageRegistry.class ) );
     }
 
     @AfterEach

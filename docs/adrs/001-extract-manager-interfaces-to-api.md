@@ -1,96 +1,97 @@
 # ADR-001: Extract Manager Interfaces to wikantik-api
 
-**Status:** Proposed
-**Date:** 2026-03-22
+**Status:** Implemented (Phases 1-5 complete, Phase 6 partially complete)
+**Date:** 2026-03-22 (proposed) → 2026-03-23 (implemented)
 **Deciders:** jakefear
 
 ## Context
 
-The MCP module (`wikantik-mcp`) depends directly on manager interfaces defined in `wikantik-main`:
+The MCP module (`wikantik-mcp`) depended directly on manager interfaces and utility types defined in `wikantik-main`. This meant MCP couldn't compile without the full engine implementation, preventing alternative engine implementations, lightweight testing, and clean module boundaries.
 
-- `com.wikantik.pages.PageManager` (referenced by 165 files)
-- `com.wikantik.references.ReferenceManager` (41 files)
-- `com.wikantik.attachment.AttachmentManager` (37 files)
-- `com.wikantik.content.SystemPageRegistry` (41 files)
+## What was done
 
-These interfaces are the contracts that define what a wiki engine provides. They belong in `wikantik-api` — the module that's supposed to define the public API. Instead, they live in `wikantik-main` alongside their implementations, which means:
+### Phase 1-4: Manager interfaces extracted (complete)
 
-1. **MCP can't compile without wikantik-main** — it imports concrete package paths from main
-2. **No alternative implementations** — you can't build a lightweight engine that satisfies the same contracts
-3. **"API" module is incomplete** — `wikantik-api` defines `Engine`, `Page`, `Context`, `PageProvider` but NOT the managers that tie them together
-4. **Test isolation impossible** — testing a single manager requires the full `WikiEngine` with all 25+ managers initialized
+8 types moved from wikantik-main to wikantik-api with backward-compatibility shims:
 
-## Analysis
+| Type | API Location | Shim in Main |
+|------|-------------|-------------|
+| `InternalModule` | `com.wikantik.api.modules` | `com.wikantik.modules` |
+| `SystemPageRegistry` | `com.wikantik.api.managers` | `com.wikantik.content` |
+| `PageManager` | `com.wikantik.api.managers` | `com.wikantik.pages` |
+| `ReferenceManager` | `com.wikantik.api.managers` | `com.wikantik.references` |
+| `AttachmentManager` | `com.wikantik.api.managers` | `com.wikantik.attachment` |
+| `DynamicAttachment` | `com.wikantik.api.attachment` | `com.wikantik.attachment` |
+| `DynamicAttachmentProvider` | `com.wikantik.api.attachment` | `com.wikantik.attachment` |
+| `PageLock` | `com.wikantik.api.pages` | `com.wikantik.pages` |
 
-### What's clean to move
+The shim approach meant zero import changes were needed in existing wikantik-main code. The ADR originally estimated 20-30 hours; actual time was ~3 hours thanks to the shim pattern.
 
-**SystemPageRegistry** — Only 2 methods, imports only `com.wikantik.api.engine.Initializable`. Could move to `wikantik-api` today with zero complications.
+### Phase 5: Utility types and concrete classes moved (complete)
 
-**InternalModule** — Empty marker interface in `com.wikantik.modules`. Trivial to move.
+7 additional types moved directly (no shims — import updates applied via sed):
 
-### What has dependency chains
+| Type | API Location | Notes |
+|------|-------------|-------|
+| `FrontmatterParser` | `com.wikantik.api.frontmatter` | Pure utility, only SnakeYAML deps |
+| `FrontmatterWriter` | `com.wikantik.api.frontmatter` | Pure utility, only SnakeYAML deps |
+| `ParsedPage` | `com.wikantik.api.frontmatter` | Record, no deps |
+| `MarkdownLinkScanner` | `com.wikantik.api.parser` | Pure regex, no deps |
+| `PageSaveHelper` | `com.wikantik.api.pages` | All imports already from API |
+| `SaveOptions` | `com.wikantik.api.pages` | Record, no deps |
+| `VersionConflictException` | `com.wikantik.api.pages` | Extends WikiException (API) |
 
-**PageManager** — Its method signatures reference:
-- `PageLock` (`com.wikantik.pages.PageLock`) — used in `lockPage()`, `unlockPage()`, `getCurrentLock()`, `getActiveLocks()`
-- `PageSorter` (`com.wikantik.pages.PageSorter`) — used in `getPageSorter()`
-- Both are in wikantik-main. Moving PageManager requires moving these too.
+### Phase 6: MCP decoupling from WikiEngine (partially complete)
 
-**ReferenceManager** — Extends `InternalModule` (in wikantik-main) and `PageFilter` (in wikantik-api). Moving requires InternalModule to move first.
+13 MCP tool constructors refactored to accept managers directly instead of WikiEngine. Tools now receive `PageSaveHelper`, `PageManager`, etc. as constructor params. `McpToolRegistry` resolves all managers and creates the `PageSaveHelper` once.
 
-**AttachmentManager** — Not fully analyzed but likely has similar dependency chains with attachment-specific types.
+MCP source imports from wikantik-main reduced from **15 to 5**:
+- `WikiEngine` — bootstrapping in McpServerInitializer
+- `PageRenamer` — used by RenamePageTool
+- `DifferenceManager` — used by DiffPageTool
+- `SearchManager` — used by SearchPagesTool
+- `SitemapServlet` — one constant reference
 
-### Scale of the change
+### Test infrastructure decoupled (complete)
 
-- ~200+ files need import updates (165 for PageManager alone)
-- 4-6 dependent types need to move alongside the interfaces
-- Each moved type may pull additional types
-- All tests reference the old package names
-- JSP pages and plugins may also reference old names (need backward-compat shims)
+Created lightweight test stubs that don't require WikiEngine:
+- `StubPageManager` — in-memory PageManager with locking, version history
+- `StubSystemPageRegistry` — configurable system page registry
+- `StubReferenceManager` — in-memory reference tracking with addReferences()
+- `StubPageSaveHelper` — extends PageSaveHelper, saves to StubPageManager
 
-## Decision
+29 of 36 MCP tool test classes converted from TestEngine to stubs. Test execution time for converted tests: 2-27ms each (previously 1-3 seconds).
 
-Deferred. The refactoring is architecturally correct but too large for incremental execution. The existing coupling is functional and doesn't block current development.
+## Remaining work
 
-## Recommended approach when ready
+### Would further reduce MCP→main coupling (diminishing returns)
+- Extract `PageRenamer`, `DifferenceManager`, `SearchManager` interfaces to API (same shim pattern, ~2 hours)
+- Replace `SitemapServlet.PROP_SITEMAP_BASE_URL` constant with string literal (~5 minutes)
+- After that, only `WikiEngine` import remains (irreducible — needed for bootstrapping)
 
-### Phase 1: SystemPageRegistry (1-2 hours)
-Move `SystemPageRegistry` to `wikantik-api` as proof of concept. It has zero dependency chains. Establishes the `com.wikantik.api.managers` package and the pattern for future moves.
+### Would further improve test infrastructure
+- Convert 7 remaining TestEngine-dependent MCP tests (need Engine for Context creation)
+- Create `StubAttachmentManager` for attachment tool tests
+- Reduce TestEngine startup cost for wikantik-main tests (JDBC tests are the real bottleneck at 34 seconds)
 
-### Phase 2: InternalModule + ReferenceManager (4-6 hours)
-Move `InternalModule` (marker interface, trivial), then `ReferenceManager`. ReferenceManager has 41 references — manageable with sed.
+## Key insight
 
-### Phase 3: PageManager (8-12 hours)
-Move `PageLock`, `PageSorter`, then `PageManager`. The 165-file import update is mechanical but requires careful testing. Leave backward-compat shims:
-```java
-package com.wikantik.pages;
-/** @deprecated Use com.wikantik.api.managers.PageManager */
-@Deprecated
-public interface PageManager extends com.wikantik.api.managers.PageManager {}
+The backward-compatibility shim pattern made this dramatically easier than expected. Instead of updating 200+ imports, each interface move was: create in API, leave `@Deprecated` shim in old location, done. The shim extends the API version, so all existing code continues to work unchanged. Import migration can happen gradually.
+
+For concrete types (records, classes), direct moves with sed-based import updates worked well. 33 files updated in seconds.
+
+## Module dependency graph (current)
+
 ```
+wikantik-api ← wikantik-event, wikantik-util, snakeyaml
+  Contains: Engine, Page, Context, PageProvider, AttachmentProvider,
+            PageManager, ReferenceManager, AttachmentManager, SystemPageRegistry,
+            InternalModule, PageLock, PageSaveHelper, SaveOptions,
+            FrontmatterParser/Writer/ParsedPage, MarkdownLinkScanner
 
-### Phase 4: AttachmentManager (4-6 hours)
-Similar to Phase 2. Analyze dependency chain first.
-
-### Phase 5: Remove wikantik-main from MCP compile scope (2-4 hours)
-Once all manager interfaces are in wikantik-api, change MCP's `pom.xml` dependency on wikantik-main from `provided` to `runtime`. MCP compiles against API only, main is provided at deployment.
-
-## Related findings
-
-### WikiEngine as service locator
-77 calls to `engine.getManager(X.class)` across 41 files. This is the root cause — all component discovery goes through WikiEngine. Full decoupling would eventually replace this with constructor injection or a DI container.
-
-### Test infrastructure coupling
-`TestEngine` extends `WikiEngine` and initializes all 25+ managers for every test. Decoupling managers would enable lightweight test fixtures that initialize only the managers a test needs.
-
-### Event system
-Synchronous, singleton-based. Well-designed but could benefit from async option for I/O-bound listeners (webhooks, remote notifications).
-
-### Module dependency graph (current)
-```
-wikantik-api ← wikantik-event, wikantik-util
 wikantik-main ← wikantik-api, wikantik-event, wikantik-cache, wikantik-http
-wikantik-mcp ← wikantik-api, wikantik-main (should be API-only)
-```
+  Contains: WikiEngine, DefaultPageManager, DefaultReferenceManager, etc.
+  Shims: PageManager, ReferenceManager, AttachmentManager, etc.
 
-### No circular dependencies
-Verified: no module depends on a module that depends back on it. The dependency graph is acyclic.
+wikantik-mcp ← wikantik-api (primary), wikantik-main (5 imports remaining)
+```

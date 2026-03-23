@@ -25,7 +25,7 @@ import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.diff.DifferenceManager;
 import com.wikantik.mcp.tools.*;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.pages.PageSaveHelper;
+import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.managers.ReferenceManager;
 
 import java.util.List;

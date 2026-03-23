@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.pages;
+package com.wikantik.api.pages;
 
 import com.wikantik.api.exceptions.WikiException;
 

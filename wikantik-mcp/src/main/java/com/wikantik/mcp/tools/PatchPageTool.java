@@ -27,9 +27,9 @@ import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.pages.PageSaveHelper;
-import com.wikantik.pages.SaveOptions;
-import com.wikantik.pages.VersionConflictException;
+import com.wikantik.api.pages.PageSaveHelper;
+import com.wikantik.api.pages.SaveOptions;
+import com.wikantik.api.pages.VersionConflictException;
 
 import java.util.LinkedHashMap;
 import java.util.List;

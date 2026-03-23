@@ -20,6 +20,9 @@ package com.wikantik.pages;
 
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.pages.PageSaveHelper;
+import com.wikantik.api.pages.SaveOptions;
+import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import org.junit.jupiter.api.AfterEach;

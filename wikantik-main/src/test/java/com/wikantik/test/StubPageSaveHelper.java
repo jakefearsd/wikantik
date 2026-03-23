@@ -21,9 +21,9 @@ package com.wikantik.test;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
-import com.wikantik.pages.PageSaveHelper;
-import com.wikantik.pages.SaveOptions;
-import com.wikantik.pages.VersionConflictException;
+import com.wikantik.api.pages.PageSaveHelper;
+import com.wikantik.api.pages.SaveOptions;
+import com.wikantik.api.pages.VersionConflictException;
 
 import java.util.Map;
 

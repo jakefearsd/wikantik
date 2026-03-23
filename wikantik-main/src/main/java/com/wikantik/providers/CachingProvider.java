@@ -342,8 +342,8 @@ public class CachingProvider implements PageProvider {
                 }
 
                 // Populate the cache with all pages from provider
-                for( final Page p : providerPages ) {
-                    cachingManager.put( CachingManager.CACHE_PAGES, p.getName(), p );
+                for( final Page page : providerPages ) {
+                    cachingManager.put( CachingManager.CACHE_PAGES, page.getName(), page );
                 }
                 allPagesLastRefresh.set( System.currentTimeMillis() );
                 pages.set( providerPages.size() );

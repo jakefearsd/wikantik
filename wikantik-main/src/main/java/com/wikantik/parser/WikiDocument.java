@@ -102,8 +102,8 @@ public class WikiDocument extends Document {
             final MessageDigest digest = MessageDigest.getInstance( "SHA-256" );
             final byte[] hashBytes = digest.digest( data.getBytes( StandardCharsets.UTF_8 ) );
             final StringBuilder hexString = new StringBuilder( hashBytes.length * 2 );
-            for( final byte b : hashBytes ) {
-                final String hex = Integer.toHexString( 0xff & b );
+            for( final byte hashByte : hashBytes ) {
+                final String hex = Integer.toHexString( 0xff & hashByte );
                 if( hex.length() == 1 ) {
                     hexString.append( '0' );
                 }

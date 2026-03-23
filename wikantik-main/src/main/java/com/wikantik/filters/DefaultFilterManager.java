@@ -204,12 +204,12 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
      */
     private void parseConfigFile( final InputStream xmlStream ) {
     	final List< Element > pageFilters = XmlUtil.parse( xmlStream, "/pagefilters/filter" );
-        for( final Element f : pageFilters ) {
-            final String filterClass = f.getChildText( "class" );
+        for( final Element filterElement : pageFilters ) {
+            final String filterClass = filterElement.getChildText( "class" );
             final Properties props = new Properties();
-            final List<Element> params = f.getChildren( "param" );
-            for( final Element p : params ) {
-                props.setProperty( p.getChildText( "name" ), p.getChildText( "value" ) );
+            final List<Element> params = filterElement.getChildren( "param" );
+            for( final Element paramElement : params ) {
+                props.setProperty( paramElement.getChildText( "name" ), paramElement.getChildText( "value" ) );
             }
 
             initPageFilter( filterClass, props );

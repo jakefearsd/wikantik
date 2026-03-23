@@ -278,8 +278,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 
         final File newfile = new File( attDir, versionNumber + "." + getFileExtension( att.getFileName() ) );
         try( final OutputStream out = Files.newOutputStream( newfile.toPath() ) ) {
-            LOG.info( "Uploading attachment " + att.getFileName() + " to page " + att.getParentName() );
-            LOG.info( "Saving attachment contents to " + newfile.getAbsolutePath() );
+            LOG.info( "Uploading attachment {} to page {}", att.getFileName(), att.getParentName() );
+            LOG.info( "Saving attachment contents to {}", newfile.getAbsolutePath() );
             FileUtil.copyContents( data, out );
 
             final Properties props = getPageProperties( att );
@@ -526,8 +526,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         if( files == null ) {
             return;
         }
-        for( final String s : files ) {
-            final File file = new File( dir.getAbsolutePath() + "/" + s );
+        for( final String filename : files ) {
+            final File file = new File( dir.getAbsolutePath() + "/" + filename );
             file.delete();
         }
         dir.delete();

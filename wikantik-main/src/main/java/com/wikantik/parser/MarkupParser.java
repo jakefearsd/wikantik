@@ -275,8 +275,8 @@ public abstract class MarkupParser {
     public static Pattern compileGlobPattern( final String glob ) throws PatternSyntaxException {
         final StringBuilder regex = new StringBuilder();
         for( int i = 0; i < glob.length(); i++ ) {
-            final char c = glob.charAt( i );
-            switch( c ) {
+            final char globChar = glob.charAt( i );
+            switch( globChar ) {
                 case '*':
                     regex.append( ".*" );
                     break;
@@ -295,10 +295,10 @@ public abstract class MarkupParser {
                 case '|':
                 case '\\':
                 case '+':
-                    regex.append( '\\' ).append( c );
+                    regex.append( '\\' ).append( globChar );
                     break;
                 default:
-                    regex.append( c );
+                    regex.append( globChar );
             }
         }
         return Pattern.compile( regex.toString(), Pattern.CASE_INSENSITIVE );
@@ -323,8 +323,8 @@ public abstract class MarkupParser {
             return text;
         }
 
-        for( final StringTransmutator m : list ) {
-            text = m.mutate( context, text );
+        for( final StringTransmutator mutator : list ) {
+            text = mutator.mutate( context, text );
         }
 
         return text;

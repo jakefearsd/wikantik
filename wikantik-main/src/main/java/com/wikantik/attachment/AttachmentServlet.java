@@ -189,7 +189,7 @@ public class AttachmentServlet extends HttpServlet {
         }
 
         try( final OutputStream out = res.getOutputStream() ) {
-            LOG.debug("Attempting to download att "+page+", version "+version);
+            LOG.debug("Attempting to download att {}, version {}", page, version);
             if( version != null ) {
                 ver = Integer.parseInt( version );
             }
@@ -230,7 +230,6 @@ public class AttachmentServlet extends HttpServlet {
 
                 // If a size is provided by the provider, report it.
                 if( att.getSize() >= 0 ) {
-                    // LOG.info("size:"+att.getSize());
                     res.setContentLength( (int)att.getSize() );
                 }
 

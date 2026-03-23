@@ -212,8 +212,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
         try {
             final Properties props = getPageProperties( page );
 
-            for( final Object o : props.keySet() ) {
-                final String key = ( String )o;
+            for( final Object propertyKey : props.keySet() ) {
+                final String key = ( String )propertyKey;
                 if( key.endsWith( ".author" ) ) {
                     final int cutpoint = key.indexOf( '.' );
                     if( cutpoint > 0 ) {

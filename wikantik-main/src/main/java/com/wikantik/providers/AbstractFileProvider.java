@@ -235,7 +235,7 @@ public abstract class AbstractFileProvider implements PageProvider {
         MAX_PROPKEYLENGTH = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXKEYLENGTH, DEFAULT_MAX_PROPKEYLENGTH );
         MAX_PROPVALUELENGTH = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXVALUELENGTH, DEFAULT_MAX_PROPVALUELENGTH );
 
-        LOG.info( "Wikipages are read from '" + pageDirectory + "'" );
+        LOG.info( "Wikipages are read from '{}'", pageDirectory );
     }
 
 

@@ -216,9 +216,9 @@ public abstract class AbstractUserDatabase implements UserDatabase {
             return verified;
         } catch( final NoSuchPrincipalException e ) {
         } catch( final NoSuchAlgorithmException e ) {
-            LOG.error( "Unsupported algorithm: " + e.getMessage() );
+            LOG.error( "Unsupported algorithm: {}", e.getMessage() );
         } catch( final WikiSecurityException e ) {
-            LOG.error( "Could not upgrade SHA password to SSHA because profile could not be saved. Reason: " + e.getMessage(), e );
+            LOG.error( "Could not upgrade SHA password to SSHA because profile could not be saved. Reason: {}", e.getMessage(), e );
         }
         return false;
     }

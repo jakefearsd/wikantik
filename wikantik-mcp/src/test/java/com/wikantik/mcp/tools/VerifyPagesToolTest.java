@@ -20,36 +20,30 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.pages.PageManager;
-import com.wikantik.references.ReferenceManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubReferenceManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class VerifyPagesToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
+    private StubReferenceManager refMgr;
     private VerifyPagesTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new VerifyPagesTool(
-                engine.getManager( PageManager.class ),
-                engine.getManager( ReferenceManager.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        refMgr = new StubReferenceManager();
+        tool = new VerifyPagesTool( pm, refMgr );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -62,7 +56,8 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testExistingPage() throws Exception {
-        engine.saveText( "VerifyExist", "---\ntype: article\ntags:\n- test\nsummary: A test page\n---\nBody." );
+        pm.savePage( "VerifyExist", "---\ntype: article\ntags:\n- test\nsummary: A test page\n---\nBody." );
+        refMgr.addReferences( "VerifyExist", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "VerifyExist" ) );
@@ -94,7 +89,8 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testMissingMetadata() throws Exception {
-        engine.saveText( "VerifyNoMeta", "Body with no frontmatter." );
+        pm.savePage( "VerifyNoMeta", "Body with no frontmatter." );
+        refMgr.addReferences( "VerifyNoMeta", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "VerifyNoMeta" ) );
@@ -115,7 +111,8 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testBrokenLinks() throws Exception {
-        engine.saveText( "VerifyLinks", "---\ntype: article\ntags:\n- test\nsummary: test\n---\nSee [page](NonExistentTarget)." );
+        pm.savePage( "VerifyLinks", "---\ntype: article\ntags:\n- test\nsummary: test\n---\nSee [page](NonExistentTarget)." );
+        refMgr.addReferences( "VerifyLinks", Set.of( "NonExistentTarget" ) );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "VerifyLinks" ) );
@@ -133,7 +130,8 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testSelectiveChecks() throws Exception {
-        engine.saveText( "VerifySelective", "---\ntype: article\n---\nBody." );
+        pm.savePage( "VerifySelective", "---\ntype: article\n---\nBody." );
+        refMgr.addReferences( "VerifySelective", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "VerifySelective" ) );
@@ -170,8 +168,10 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testMultiplePages() throws Exception {
-        engine.saveText( "VerifyMulti1", "---\ntype: article\ntags:\n- a\nsummary: p1\n---\nBody 1." );
-        engine.saveText( "VerifyMulti2", "---\ntype: article\ntags:\n- b\nsummary: p2\n---\nBody 2." );
+        pm.savePage( "VerifyMulti1", "---\ntype: article\ntags:\n- a\nsummary: p1\n---\nBody 1." );
+        pm.savePage( "VerifyMulti2", "---\ntype: article\ntags:\n- b\nsummary: p2\n---\nBody 2." );
+        refMgr.addReferences( "VerifyMulti1", Set.of() );
+        refMgr.addReferences( "VerifyMulti2", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "VerifyMulti1", "VerifyMulti2", "VerifyMultiMissing" ) );
@@ -193,8 +193,9 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testSeoReadiness_goodMetadata() throws Exception {
-        engine.saveText( "SeoGood", "---\ntype: article\ntags:\n- ai\n- ml\ndate: 2026-03-15\n" +
+        pm.savePage( "SeoGood", "---\ntype: article\ntags:\n- ai\n- ml\ndate: 2026-03-15\n" +
                 "summary: A well-written summary that is between fifty and one hundred sixty characters long for SEO\n---\nBody." );
+        refMgr.addReferences( "SeoGood", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "SeoGood" ) );
@@ -210,7 +211,8 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testSeoReadiness_summaryTooShort() throws Exception {
-        engine.saveText( "SeoShort", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\nsummary: Short\n---\nBody." );
+        pm.savePage( "SeoShort", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\nsummary: Short\n---\nBody." );
+        refMgr.addReferences( "SeoShort", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "SeoShort" ) );
@@ -227,7 +229,8 @@ class VerifyPagesToolTest {
     @SuppressWarnings( "unchecked" )
     void testSeoReadiness_summaryTooLong() throws Exception {
         final String longSummary = "A".repeat( 200 );
-        engine.saveText( "SeoLong", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\nsummary: " + longSummary + "\n---\nBody." );
+        pm.savePage( "SeoLong", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\nsummary: " + longSummary + "\n---\nBody." );
+        refMgr.addReferences( "SeoLong", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "SeoLong" ) );
@@ -243,7 +246,8 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testSeoReadiness_missingSummary() throws Exception {
-        engine.saveText( "SeoNoSummary", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\n---\nBody." );
+        pm.savePage( "SeoNoSummary", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\n---\nBody." );
+        refMgr.addReferences( "SeoNoSummary", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "SeoNoSummary" ) );
@@ -259,8 +263,9 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testSeoReadiness_missingTags() throws Exception {
-        engine.saveText( "SeoNoTags", "---\ntype: article\ndate: 2026-03-15\n" +
+        pm.savePage( "SeoNoTags", "---\ntype: article\ndate: 2026-03-15\n" +
                 "summary: A reasonable summary that is long enough for SEO purposes and search engines\n---\nBody." );
+        refMgr.addReferences( "SeoNoTags", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "SeoNoTags" ) );
@@ -276,8 +281,9 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testSeoReadiness_hubMissingRelated() throws Exception {
-        engine.saveText( "SeoHubNoRel", "---\ntype: hub\ntags:\n- ai\ndate: 2026-03-15\n" +
+        pm.savePage( "SeoHubNoRel", "---\ntype: hub\ntags:\n- ai\ndate: 2026-03-15\n" +
                 "summary: A hub page about AI topics with enough characters for a good meta description\n---\nBody." );
+        refMgr.addReferences( "SeoHubNoRel", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "SeoHubNoRel" ) );
@@ -293,9 +299,10 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testSeoReadiness_hubBrokenRelated() throws Exception {
-        engine.saveText( "SeoHubBroken", "---\ntype: hub\ntags:\n- ai\ndate: 2026-03-15\n" +
+        pm.savePage( "SeoHubBroken", "---\ntype: hub\ntags:\n- ai\ndate: 2026-03-15\n" +
                 "summary: A hub page about AI topics with enough characters for a good meta description\n" +
                 "related:\n- NonExistentPage\n---\nBody." );
+        refMgr.addReferences( "SeoHubBroken", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "SeoHubBroken" ) );
@@ -311,8 +318,9 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testSeoReadiness_missingDate() throws Exception {
-        engine.saveText( "SeoNoDate", "---\ntype: article\ntags:\n- ai\n" +
+        pm.savePage( "SeoNoDate", "---\ntype: article\ntags:\n- ai\n" +
                 "summary: A reasonable summary that is long enough for SEO purposes and search engines\n---\nBody." );
+        refMgr.addReferences( "SeoNoDate", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "SeoNoDate" ) );
@@ -328,8 +336,9 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testSeoReadiness_clusterWithoutType() throws Exception {
-        engine.saveText( "SeoClusterNoType", "---\ncluster: my-cluster\ntags:\n- ai\ndate: 2026-03-15\n" +
+        pm.savePage( "SeoClusterNoType", "---\ncluster: my-cluster\ntags:\n- ai\ndate: 2026-03-15\n" +
                 "summary: A reasonable summary that is long enough for SEO purposes and search engines\n---\nBody." );
+        refMgr.addReferences( "SeoClusterNoType", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "SeoClusterNoType" ) );
@@ -345,11 +354,12 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testSeoReadiness_notInDefaultChecks() throws Exception {
-        engine.saveText( "SeoDefault", "---\ntype: article\n---\nBody." );
+        pm.savePage( "SeoDefault", "---\ntype: article\n---\nBody." );
+        refMgr.addReferences( "SeoDefault", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "SeoDefault" ) );
-        // No checks parameter — uses defaults
+        // No checks parameter -- uses defaults
 
         final Map< String, Object > data = executeAndParse( args );
         final List< Map< String, Object > > pages = ( List< Map< String, Object > > ) data.get( "pages" );
@@ -362,7 +372,8 @@ class VerifyPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testSeoReadiness_summaryInSummary() throws Exception {
-        engine.saveText( "SeoSummary1", "---\ntype: article\n---\nBody." );
+        pm.savePage( "SeoSummary1", "---\ntype: article\n---\nBody." );
+        refMgr.addReferences( "SeoSummary1", Set.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageNames", List.of( "SeoSummary1" ) );

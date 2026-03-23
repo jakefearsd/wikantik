@@ -20,41 +20,39 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
-import com.wikantik.references.ReferenceManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubReferenceManager;
+import com.wikantik.test.StubSystemPageRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class GetOrphanedPagesToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
+    private StubReferenceManager refMgr;
+    private StubSystemPageRegistry spr;
     private GetOrphanedPagesTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new GetOrphanedPagesTool(
-                engine.getManager( ReferenceManager.class ),
-                engine.getManager( SystemPageRegistry.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        refMgr = new StubReferenceManager();
+        spr = new StubSystemPageRegistry();
+        tool = new GetOrphanedPagesTool( refMgr, spr );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
     void testFindsOrphanedPages() throws Exception {
-        engine.saveText( "OrphanPage", "Nobody links to me." );
+        pm.savePage( "OrphanPage", "Nobody links to me." );
+        refMgr.addReferences( "OrphanPage", Set.of() );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of() );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
@@ -68,8 +66,10 @@ class GetOrphanedPagesToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testLinkedPageNotOrphaned() throws Exception {
-        engine.saveText( "LinkedPage", "I am linked." );
-        engine.saveText( "LinkerPage", "[LinkedPage]()" );
+        pm.savePage( "LinkedPage", "I am linked." );
+        pm.savePage( "LinkerPage", "[LinkedPage]()" );
+        refMgr.addReferences( "LinkedPage", Set.of() );
+        refMgr.addReferences( "LinkerPage", Set.of( "LinkedPage" ) );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of() );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();

@@ -20,10 +20,8 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.pages.PageManager;
-import com.wikantik.references.ReferenceManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubReferenceManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,41 +33,36 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AuditClusterToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
+    private StubReferenceManager refMgr;
     private AuditClusterTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() throws Exception {
-        engine = TestEngine.build();
-        tool = new AuditClusterTool(
-                engine.getManager( PageManager.class ),
-                engine.getManager( ReferenceManager.class ) );
+        pm = new StubPageManager();
+        refMgr = new StubReferenceManager();
+        tool = new AuditClusterTool( pm, refMgr );
 
         // Create a hub page that links to Article1 but not Article2
-        engine.saveText( "AuditHub", "---\ntype: hub\ncluster: audit-test\ntags:\n- audit\n" +
+        pm.savePage( "AuditHub", "---\ntype: hub\ncluster: audit-test\ntags:\n- audit\n" +
                 "summary: The hub page for audit test cluster with enough chars\n" +
                 "status: active\ndate: 2026-01-01\nauthor: Admin\n" +
                 "related:\n- AuditArticle1\n- AuditArticle2\n---\n" +
                 "# Audit Hub\n\nSee [Article1](AuditArticle1).\n\n## See Also\n\n- [AuditArticle1](AuditArticle1)" );
 
         // Article1: good metadata, links back to hub
-        engine.saveText( "AuditArticle1", "---\ntype: article\ncluster: audit-test\ntags:\n- audit\n" +
+        pm.savePage( "AuditArticle1", "---\ntype: article\ncluster: audit-test\ntags:\n- audit\n" +
                 "summary: A proper article with a summary that is long enough for SEO purposes\n" +
                 "status: active\ndate: 2026-01-02\nauthor: Admin\n" +
                 "related:\n- AuditHub\n---\n" +
                 "# Article 1\n\nContent.\n\n## See Also\n\n- [AuditHub](AuditHub)" );
 
         // Article2: missing hub backlink, short summary, missing status
-        engine.saveText( "AuditArticle2", "---\ntype: article\ncluster: audit-test\ntags:\n- audit\n" +
+        pm.savePage( "AuditArticle2", "---\ntype: article\ncluster: audit-test\ntags:\n- audit\n" +
                 "summary: Short\nauthor: MCP\ndate: 2026-01-03\n" +
                 "related:\n- AuditHub\n---\n" +
                 "# Article 2\n\nSee [BrokenPageXyz](BrokenPageXyz).\n\n## See Also\n\n- [OtherPage](OtherPage)" );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
     }
 
     @SuppressWarnings( "unchecked" )
@@ -155,7 +148,7 @@ class AuditClusterToolTest {
     @Test
     @SuppressWarnings( "unchecked" )
     void testDraftExcludedFromSeo() throws Exception {
-        engine.saveText( "AuditDraft", "---\ntype: article\ncluster: audit-test\nstatus: draft\nauthor: Admin\ndate: 2026-01-01\n" +
+        pm.savePage( "AuditDraft", "---\ntype: article\ncluster: audit-test\nstatus: draft\nauthor: Admin\ndate: 2026-01-01\n" +
                 "related:\n- AuditHub\n---\n# Draft\n\nDraft content.\n\n## See Also\n\n- [AuditHub](AuditHub)" );
 
         final Map< String, Object > data = executeAndParse( Map.of( "cluster", "audit-test" ) );

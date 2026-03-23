@@ -22,8 +22,8 @@ package com.wikantik.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Attachment;
+import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.attachment.AttachmentManager;
@@ -49,12 +49,17 @@ public class UploadAttachmentTool implements McpTool, AuthorConfigurable {
     }
     private static final int MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
-    private final WikiEngine engine;
+    private final Engine engine;
+    private final PageManager pageManager;
+    private final AttachmentManager attachmentManager;
 
     private String defaultAuthor = "MCP";
 
-    public UploadAttachmentTool( final WikiEngine engine ) {
+    public UploadAttachmentTool( final Engine engine, final PageManager pageManager,
+                                 final AttachmentManager attachmentManager ) {
         this.engine = engine;
+        this.pageManager = pageManager;
+        this.attachmentManager = attachmentManager;
     }
 
     public void setDefaultAuthor( final String defaultAuthor ) {
@@ -90,7 +95,6 @@ public class UploadAttachmentTool implements McpTool, AuthorConfigurable {
         final String author = McpToolUtils.getString( arguments, "author" );
 
         try {
-            final PageManager pageManager = engine.getManager( PageManager.class );
             final Page page = pageManager.getPage( pageName );
             if ( page == null ) {
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
@@ -105,7 +109,6 @@ public class UploadAttachmentTool implements McpTool, AuthorConfigurable {
                         "Reduce the file size to under 10 MB." );
             }
 
-            final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );
             final Attachment att = Wiki.contents().attachment( engine, pageName, fileName );
             att.setAuthor( author != null ? author : defaultAuthor );
 

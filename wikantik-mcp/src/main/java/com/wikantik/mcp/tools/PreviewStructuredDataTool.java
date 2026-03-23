@@ -19,7 +19,6 @@
 package com.wikantik.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.frontmatter.FrontmatterParser;
@@ -42,11 +41,14 @@ public class PreviewStructuredDataTool implements McpTool {
     public static final String TOOL_NAME = "preview_structured_data";
 
     private final PageManager pageManager;
-    private final Engine engine;
+    private final String applicationName;
+    private final String baseUrl;
 
-    public PreviewStructuredDataTool( final PageManager pageManager, final Engine engine ) {
+    public PreviewStructuredDataTool( final PageManager pageManager, final String applicationName,
+                                      final String baseUrl ) {
         this.pageManager = pageManager;
-        this.engine = engine;
+        this.applicationName = applicationName;
+        this.baseUrl = baseUrl;
     }
 
     @Override
@@ -92,8 +94,8 @@ public class PreviewStructuredDataTool implements McpTool {
         final ParsedPage parsed = FrontmatterParser.parse( rawText != null ? rawText : "" );
         final Map< String, Object > metadata = parsed.metadata();
 
-        final String appName = engine.getApplicationName();
-        final String baseUrl = normalizeBaseUrl( engine.getBaseURL() );
+        final String appName = applicationName;
+        final String normalizedBaseUrl = normalizeBaseUrl( baseUrl );
 
         final String summary = getStringField( metadata, "summary" );
         final String pageType = getStringField( metadata, "type" );
@@ -119,7 +121,7 @@ public class PreviewStructuredDataTool implements McpTool {
         result.put( "openGraph", buildOpenGraph( pageName, appName, summary, tags ) );
 
         // JSON-LD
-        result.put( "jsonLd", buildJsonLd( pageName, appName, baseUrl, summary, tags, date,
+        result.put( "jsonLd", buildJsonLd( pageName, appName, normalizedBaseUrl, summary, tags, date,
                 cluster, related, isHub ) );
 
         // Breadcrumb (clustered non-hub pages only)

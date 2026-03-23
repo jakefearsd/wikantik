@@ -22,8 +22,8 @@ package com.wikantik.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Context;
+import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.content.PageRenamer;
@@ -49,11 +49,16 @@ public class RenamePageTool implements McpTool, AuthorConfigurable {
         return TOOL_NAME;
     }
 
-    private final WikiEngine engine;
+    private final Engine engine;
+    private final PageManager pageManager;
+    private final PageRenamer pageRenamer;
     private final SystemPageRegistry systemPageRegistry;
 
-    public RenamePageTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
+    public RenamePageTool( final Engine engine, final PageManager pageManager,
+                           final PageRenamer pageRenamer, final SystemPageRegistry systemPageRegistry ) {
         this.engine = engine;
+        this.pageManager = pageManager;
+        this.pageRenamer = pageRenamer;
         this.systemPageRegistry = systemPageRegistry;
     }
 
@@ -112,7 +117,6 @@ public class RenamePageTool implements McpTool, AuthorConfigurable {
         }
 
         try {
-            final PageManager pageManager = engine.getManager( PageManager.class );
             final Page page = pageManager.getPage( oldName );
             if ( page == null ) {
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
@@ -122,8 +126,7 @@ public class RenamePageTool implements McpTool, AuthorConfigurable {
 
             final Context context = Wiki.context().create( engine, page );
 
-            final PageRenamer renamer = engine.getManager( PageRenamer.class );
-            final String finalName = renamer.renamePage( context, oldName, newName, updateLinks );
+            final String finalName = pageRenamer.renamePage( context, oldName, newName, updateLinks );
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );

@@ -20,9 +20,12 @@ package com.wikantik.mcp;
 
 import com.wikantik.WikiEngine;
 import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.content.PageRenamer;
 import com.wikantik.content.SystemPageRegistry;
+import com.wikantik.diff.DifferenceManager;
 import com.wikantik.mcp.tools.*;
 import com.wikantik.pages.PageManager;
+import com.wikantik.pages.PageSaveHelper;
 import com.wikantik.references.ReferenceManager;
 
 import java.util.List;
@@ -61,6 +64,9 @@ public class McpToolRegistry {
         final ReferenceManager referenceManager = engine.getManager( ReferenceManager.class );
         final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );
         final SystemPageRegistry systemPageRegistry = engine.getManager( SystemPageRegistry.class );
+        final DifferenceManager differenceManager = engine.getManager( DifferenceManager.class );
+        final PageRenamer pageRenamer = engine.getManager( PageRenamer.class );
+        final PageSaveHelper pageSaveHelper = new PageSaveHelper( engine );
 
         // --- Read-only tools (no author resolution needed) ---
         final ReadPageTool readPage = new ReadPageTool( pageManager, systemPageRegistry );
@@ -72,7 +78,7 @@ public class McpToolRegistry {
         final QueryMetadataTool queryMetadata = new QueryMetadataTool( pageManager );
         final DeletePageTool deletePage = new DeletePageTool( pageManager, systemPageRegistry );
         final GetPageHistoryTool getPageHistory = new GetPageHistoryTool( pageManager );
-        final DiffPageTool diffPage = new DiffPageTool( engine );
+        final DiffPageTool diffPage = new DiffPageTool( engine, pageManager, differenceManager );
         final GetOutboundLinksTool getOutboundLinks = new GetOutboundLinksTool( referenceManager );
         final GetBrokenLinksTool getBrokenLinks = new GetBrokenLinksTool( referenceManager );
         final GetOrphanedPagesTool getOrphanedPages = new GetOrphanedPagesTool( referenceManager, systemPageRegistry );
@@ -83,7 +89,8 @@ public class McpToolRegistry {
         final DeleteAttachmentTool deleteAttachment = new DeleteAttachmentTool( attachmentManager );
         final ScanMarkdownLinksTool scanMarkdownLinks = new ScanMarkdownLinksTool( pageManager );
         final VerifyPagesTool verifyPages = new VerifyPagesTool( pageManager, referenceManager );
-        final PreviewStructuredDataTool previewStructuredData = new PreviewStructuredDataTool( pageManager, engine );
+        final PreviewStructuredDataTool previewStructuredData = new PreviewStructuredDataTool(
+                pageManager, engine.getApplicationName(), engine.getBaseURL() );
         final String indexNowApiKey = engine.getWikiProperties().getProperty( "wikantik.indexnow.apiKey" );
         final PingSearchEnginesTool pingSearchEngines = new PingSearchEnginesTool(
                 engine.getBaseURL(), indexNowApiKey, java.net.http.HttpClient.newHttpClient() );
@@ -101,17 +108,17 @@ public class McpToolRegistry {
         );
 
         // --- Author-configurable tools (need author resolution from MCP exchange) ---
-        final WritePageTool writePage = new WritePageTool( engine, systemPageRegistry );
-        final BatchWritePagesTool batchWrite = new BatchWritePagesTool( engine, systemPageRegistry );
-        final RenamePageTool renamePage = new RenamePageTool( engine, systemPageRegistry );
-        final UploadAttachmentTool uploadAttachment = new UploadAttachmentTool( engine );
-        final PatchPageTool patchPage = new PatchPageTool( engine, systemPageRegistry );
-        final BatchPatchPagesTool batchPatchPages = new BatchPatchPagesTool( engine, systemPageRegistry );
-        final UpdateMetadataTool updateMetadata = new UpdateMetadataTool( engine, systemPageRegistry );
-        final BatchUpdateMetadataTool batchUpdateMetadata = new BatchUpdateMetadataTool( engine, systemPageRegistry );
-        final ApplyAuditFixesTool applyAuditFixes = new ApplyAuditFixesTool( engine, systemPageRegistry );
-        final PublishClusterTool publishCluster = new PublishClusterTool( engine, systemPageRegistry );
-        final ExtendClusterTool extendCluster = new ExtendClusterTool( engine, systemPageRegistry );
+        final WritePageTool writePage = new WritePageTool( pageSaveHelper, systemPageRegistry );
+        final BatchWritePagesTool batchWrite = new BatchWritePagesTool( pageSaveHelper );
+        final RenamePageTool renamePage = new RenamePageTool( engine, pageManager, pageRenamer, systemPageRegistry );
+        final UploadAttachmentTool uploadAttachment = new UploadAttachmentTool( engine, pageManager, attachmentManager );
+        final PatchPageTool patchPage = new PatchPageTool( pageSaveHelper, pageManager );
+        final BatchPatchPagesTool batchPatchPages = new BatchPatchPagesTool( pageSaveHelper, pageManager );
+        final UpdateMetadataTool updateMetadata = new UpdateMetadataTool( pageSaveHelper, pageManager );
+        final BatchUpdateMetadataTool batchUpdateMetadata = new BatchUpdateMetadataTool( pageSaveHelper, pageManager );
+        final ApplyAuditFixesTool applyAuditFixes = new ApplyAuditFixesTool( pageSaveHelper, pageManager );
+        final PublishClusterTool publishCluster = new PublishClusterTool( pageSaveHelper, pageManager );
+        final ExtendClusterTool extendCluster = new ExtendClusterTool( pageSaveHelper, pageManager );
 
         authorConfigurable = List.of(
                 writePage, batchWrite, renamePage, uploadAttachment,

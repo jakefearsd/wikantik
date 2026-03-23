@@ -22,10 +22,8 @@ package com.wikantik.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
-import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
 import com.wikantik.pages.PageManager;
@@ -71,17 +69,17 @@ public class ApplyAuditFixesTool implements McpTool, AuthorConfigurable {
         return TOOL_NAME;
     }
 
-    private final WikiEngine engine;
     private final PageSaveHelper pageSaveHelper;
+    private final PageManager pageManager;
 
     /** Dispatch table mapping action name strings to their {@link FixAction} implementations. */
     private final Map< String, FixAction > actions;
 
     private String defaultAuthor = "MCP";
 
-    public ApplyAuditFixesTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
-        this.engine = engine;
-        this.pageSaveHelper = new PageSaveHelper( engine );
+    public ApplyAuditFixesTool( final PageSaveHelper pageSaveHelper, final PageManager pageManager ) {
+        this.pageSaveHelper = pageSaveHelper;
+        this.pageManager = pageManager;
         this.actions = Map.of(
                 "set_metadata", new SetMetadataAction( pageSaveHelper ),
                 "add_hub_backlink", new AddHubBacklinkAction( pageSaveHelper ),
@@ -145,7 +143,6 @@ public class ApplyAuditFixesTool implements McpTool, AuthorConfigurable {
                     "Provide an array of fix objects in the fixes parameter." );
         }
 
-        final PageManager pageManager = engine.getManager( PageManager.class );
         final List< Map< String, Object > > results = new ArrayList<>();
 
         for ( final Map< String, Object > fix : fixes ) {

@@ -22,10 +22,8 @@ package com.wikantik.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
-import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
 import com.wikantik.pages.PageManager;
@@ -51,14 +49,14 @@ public class BatchUpdateMetadataTool implements McpTool, AuthorConfigurable {
         return TOOL_NAME;
     }
 
-    private final WikiEngine engine;
     private final PageSaveHelper pageSaveHelper;
+    private final PageManager pageManager;
 
     private String defaultAuthor = "MCP";
 
-    public BatchUpdateMetadataTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
-        this.engine = engine;
-        this.pageSaveHelper = new PageSaveHelper( engine );
+    public BatchUpdateMetadataTool( final PageSaveHelper pageSaveHelper, final PageManager pageManager ) {
+        this.pageSaveHelper = pageSaveHelper;
+        this.pageManager = pageManager;
     }
 
     @Override
@@ -120,7 +118,6 @@ public class BatchUpdateMetadataTool implements McpTool, AuthorConfigurable {
                     "Provide an array of {pageName, operations} objects in the pages parameter." );
         }
 
-        final PageManager pageManager = engine.getManager( PageManager.class );
         final List< Map< String, Object > > results = new ArrayList<>();
 
         for ( final Map< String, Object > pageSpec : pages ) {

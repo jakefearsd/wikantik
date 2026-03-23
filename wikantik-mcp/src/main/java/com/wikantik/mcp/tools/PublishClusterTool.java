@@ -22,17 +22,14 @@ package com.wikantik.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
-import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
 import com.wikantik.pages.PageManager;
 import com.wikantik.pages.PageSaveHelper;
 import com.wikantik.pages.SaveOptions;
 import com.wikantik.parser.MarkdownLinkScanner;
-import com.wikantik.references.ReferenceManager;
 
 import java.util.*;
 
@@ -51,14 +48,14 @@ public class PublishClusterTool implements McpTool, AuthorConfigurable {
         return TOOL_NAME;
     }
 
-    private final WikiEngine engine;
     private final PageSaveHelper pageSaveHelper;
+    private final PageManager pageManager;
 
     private String defaultAuthor = "MCP";
 
-    public PublishClusterTool( final WikiEngine engine, final SystemPageRegistry systemPageRegistry ) {
-        this.engine = engine;
-        this.pageSaveHelper = new PageSaveHelper( engine );
+    public PublishClusterTool( final PageSaveHelper pageSaveHelper, final PageManager pageManager ) {
+        this.pageSaveHelper = pageSaveHelper;
+        this.pageManager = pageManager;
     }
 
     @Override
@@ -243,13 +240,12 @@ public class PublishClusterTool implements McpTool, AuthorConfigurable {
                                      final List< Map< String, Object > > articleSpecs,
                                      final String mainSection, final String author ) {
         try {
-            final PageManager pm = engine.getManager( PageManager.class );
-            final Page mainPage = pm.getPage( "Main" );
+            final Page mainPage = pageManager.getPage( "Main" );
             if ( mainPage == null ) {
                 return "Main page not found — skipped";
             }
 
-            final String rawText = pm.getPureText( "Main", PageProvider.LATEST_VERSION );
+            final String rawText = pageManager.getPureText( "Main", PageProvider.LATEST_VERSION );
             final ParsedPage parsed = FrontmatterParser.parse( rawText );
             String body = parsed.body();
 
@@ -340,22 +336,21 @@ public class PublishClusterTool implements McpTool, AuthorConfigurable {
 
     private List< String > verify( final String hubName, final List< String > articleNames ) {
         final List< String > warnings = new ArrayList<>();
-        final PageManager pm = engine.getManager( PageManager.class );
 
         // Check hub exists
-        if ( pm.getPage( hubName ) == null ) {
+        if ( pageManager.getPage( hubName ) == null ) {
             warnings.add( "Hub page " + hubName + " was not created" );
             return warnings;
         }
 
         // Check each article exists and has backlink to hub in body
         for ( final String articleName : articleNames ) {
-            if ( pm.getPage( articleName ) == null ) {
+            if ( pageManager.getPage( articleName ) == null ) {
                 warnings.add( "Article " + articleName + " was not created" );
                 continue;
             }
 
-            final String body = pm.getPureText( articleName, PageProvider.LATEST_VERSION );
+            final String body = pageManager.getPureText( articleName, PageProvider.LATEST_VERSION );
             final ParsedPage parsed = FrontmatterParser.parse( body );
             final Set< String > localLinks = MarkdownLinkScanner.findLocalLinks( parsed.body() );
 
@@ -366,7 +361,7 @@ public class PublishClusterTool implements McpTool, AuthorConfigurable {
         }
 
         // Check hub body links to all articles
-        final String hubText = pm.getPureText( hubName, PageProvider.LATEST_VERSION );
+        final String hubText = pageManager.getPureText( hubName, PageProvider.LATEST_VERSION );
         final ParsedPage hubParsed = FrontmatterParser.parse( hubText );
         final Set< String > hubLinks = MarkdownLinkScanner.findLocalLinks( hubParsed.body() );
         for ( final String articleName : articleNames ) {

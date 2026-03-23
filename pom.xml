@@ -77,7 +77,7 @@
     <lucene.version>10.4.0</lucene.version>
     <mockito.version>5.23.0</mockito.version>
     <nekohtml.version>3.0.3</nekohtml.version>
-    <pac4j.version>6.3.1</pac4j.version>
+    <pac4j.version>6.3.3</pac4j.version>
     <rome.version>2.1.0</rome.version>
     <selenide.version>7.12.1</selenide.version>
     <selenium.version>4.38.0</selenium.version>

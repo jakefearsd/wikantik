@@ -20,12 +20,10 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubPageSaveHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,19 +35,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class UpdateMetadataToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private UpdateMetadataTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new UpdateMetadataTool( engine, engine.getManager( SystemPageRegistry.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new UpdateMetadataTool( new StubPageSaveHelper( pm ), pm );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -60,8 +53,8 @@ class UpdateMetadataToolTest {
     }
 
     @Test
-    void testSetField() throws Exception {
-        engine.saveText( "MetaSet", "---\ntype: guide\n---\nBody text." );
+    void testSetField() {
+        pm.savePage( "MetaSet", "---\ntype: guide\n---\nBody text." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "MetaSet" );
@@ -72,15 +65,15 @@ class UpdateMetadataToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "MetaSet", -1 );
+        final String stored = pm.getPureText( "MetaSet", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         assertEquals( "published", parsed.metadata().get( "status" ) );
         assertEquals( "guide", parsed.metadata().get( "type" ) );
     }
 
     @Test
-    void testSetExistingField() throws Exception {
-        engine.saveText( "MetaSetEx", "---\nstatus: draft\n---\nBody." );
+    void testSetExistingField() {
+        pm.savePage( "MetaSetEx", "---\nstatus: draft\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "MetaSetEx" );
@@ -91,15 +84,15 @@ class UpdateMetadataToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "MetaSetEx", -1 );
+        final String stored = pm.getPureText( "MetaSetEx", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         assertEquals( "active", parsed.metadata().get( "status" ) );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testAppendToList() throws Exception {
-        engine.saveText( "MetaAppend", "---\ntags:\n- finance\n---\nBody." );
+    void testAppendToList() {
+        pm.savePage( "MetaAppend", "---\ntags:\n- finance\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "MetaAppend" );
@@ -110,7 +103,7 @@ class UpdateMetadataToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "MetaAppend", -1 );
+        final String stored = pm.getPureText( "MetaAppend", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         final List< String > tags = ( List< String > ) parsed.metadata().get( "tags" );
         assertTrue( tags.contains( "finance" ) );
@@ -119,8 +112,8 @@ class UpdateMetadataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testAppendToNewList() throws Exception {
-        engine.saveText( "MetaNewList", "---\ntype: guide\n---\nBody." );
+    void testAppendToNewList() {
+        pm.savePage( "MetaNewList", "---\ntype: guide\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "MetaNewList" );
@@ -131,7 +124,7 @@ class UpdateMetadataToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "MetaNewList", -1 );
+        final String stored = pm.getPureText( "MetaNewList", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         final List< String > tags = ( List< String > ) parsed.metadata().get( "tags" );
         assertEquals( 1, tags.size() );
@@ -140,8 +133,8 @@ class UpdateMetadataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testAppendDuplicateIdempotent() throws Exception {
-        engine.saveText( "MetaDup", "---\ntags:\n- finance\n---\nBody." );
+    void testAppendDuplicateIdempotent() {
+        pm.savePage( "MetaDup", "---\ntags:\n- finance\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "MetaDup" );
@@ -152,7 +145,7 @@ class UpdateMetadataToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "MetaDup", -1 );
+        final String stored = pm.getPureText( "MetaDup", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         final List< String > tags = ( List< String > ) parsed.metadata().get( "tags" );
         // Should not have duplicates
@@ -161,8 +154,8 @@ class UpdateMetadataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testRemoveFromList() throws Exception {
-        engine.saveText( "MetaRemove", "---\ntags:\n- finance\n- investing\n---\nBody." );
+    void testRemoveFromList() {
+        pm.savePage( "MetaRemove", "---\ntags:\n- finance\n- investing\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "MetaRemove" );
@@ -173,7 +166,7 @@ class UpdateMetadataToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "MetaRemove", -1 );
+        final String stored = pm.getPureText( "MetaRemove", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         final List< String > tags = ( List< String > ) parsed.metadata().get( "tags" );
         assertFalse( tags.contains( "finance" ) );
@@ -181,8 +174,8 @@ class UpdateMetadataToolTest {
     }
 
     @Test
-    void testDeleteField() throws Exception {
-        engine.saveText( "MetaDelete", "---\ntype: guide\nstatus: draft\n---\nBody." );
+    void testDeleteField() {
+        pm.savePage( "MetaDelete", "---\ntype: guide\nstatus: draft\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "MetaDelete" );
@@ -193,15 +186,15 @@ class UpdateMetadataToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "MetaDelete", -1 );
+        final String stored = pm.getPureText( "MetaDelete", -1 );
         final ParsedPage parsed = FrontmatterParser.parse( stored );
         assertNull( parsed.metadata().get( "status" ) );
         assertEquals( "guide", parsed.metadata().get( "type" ) );
     }
 
     @Test
-    void testBodyPreserved() throws Exception {
-        engine.saveText( "MetaBody", "---\ntype: guide\n---\nImportant body content." );
+    void testBodyPreserved() {
+        pm.savePage( "MetaBody", "---\ntype: guide\n---\nImportant body content." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "MetaBody" );
@@ -212,7 +205,7 @@ class UpdateMetadataToolTest {
         final Map< String, Object > data = executeAndParse( args );
         assertEquals( true, data.get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "MetaBody", -1 );
+        final String stored = pm.getPureText( "MetaBody", -1 );
         assertTrue( stored.contains( "Important body content." ) );
     }
 
@@ -229,8 +222,8 @@ class UpdateMetadataToolTest {
     }
 
     @Test
-    void testFieldTypeMismatch() throws Exception {
-        engine.saveText( "MetaMismatch", "---\ntype: guide\n---\nBody." );
+    void testFieldTypeMismatch() {
+        pm.savePage( "MetaMismatch", "---\ntype: guide\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "MetaMismatch" );
@@ -245,8 +238,8 @@ class UpdateMetadataToolTest {
     }
 
     @Test
-    void testOptimisticLocking() throws Exception {
-        engine.saveText( "MetaLock", "---\ntype: guide\n---\nBody." );
+    void testOptimisticLocking() {
+        pm.savePage( "MetaLock", "---\ntype: guide\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "MetaLock" );

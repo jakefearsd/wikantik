@@ -20,10 +20,8 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubPageSaveHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,26 +33,21 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BatchPatchPagesToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private BatchPatchPagesTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new BatchPatchPagesTool( engine, engine.getManager( SystemPageRegistry.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new BatchPatchPagesTool( new StubPageSaveHelper( pm ), pm );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testBatchMultiplePages() throws Exception {
-        engine.saveText( "BatchPatch1", "## Intro\nContent 1.\n\n## Links\n- A" );
-        engine.saveText( "BatchPatch2", "## Intro\nContent 2.\n\n## Links\n- B" );
+    void testBatchMultiplePages() {
+        pm.savePage( "BatchPatch1", "## Intro\nContent 1.\n\n## Links\n- A" );
+        pm.savePage( "BatchPatch2", "## Intro\nContent 2.\n\n## Links\n- B" );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pages", List.of(
@@ -73,14 +66,14 @@ class BatchPatchPagesToolTest {
         assertEquals( true, results.get( 0 ).get( "success" ) );
         assertEquals( true, results.get( 1 ).get( "success" ) );
 
-        final String stored1 = engine.getManager( PageManager.class ).getPureText( "BatchPatch1", -1 );
+        final String stored1 = pm.getPureText( "BatchPatch1", -1 );
         assertTrue( stored1.contains( "- C" ) );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testPartialFailure() throws Exception {
-        engine.saveText( "BatchPatchOk", "## Intro\nContent.\n\n## Links\n- A" );
+    void testPartialFailure() {
+        pm.savePage( "BatchPatchOk", "## Intro\nContent.\n\n## Links\n- A" );
         // BatchPatchMissing does not exist
 
         final Map< String, Object > args = new HashMap<>();
@@ -120,8 +113,8 @@ class BatchPatchPagesToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testAuthorPropagation() throws Exception {
-        engine.saveText( "BatchPatchAuthor", "## Intro\nContent.\n\n## Links\n- A" );
+    void testAuthorPropagation() {
+        pm.savePage( "BatchPatchAuthor", "## Intro\nContent.\n\n## Links\n- A" );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pages", List.of(
@@ -132,7 +125,7 @@ class BatchPatchPagesToolTest {
 
         tool.execute( args );
 
-        final com.wikantik.api.core.Page saved = engine.getManager( PageManager.class ).getPage( "BatchPatchAuthor" );
+        final com.wikantik.api.core.Page saved = pm.getPage( "BatchPatchAuthor" );
         assertEquals( "TestAuthor", saved.getAuthor() );
     }
 }

@@ -20,12 +20,10 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.frontmatter.FrontmatterParser;
 import com.wikantik.frontmatter.ParsedPage;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubPageSaveHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,19 +35,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BatchUpdateMetadataToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private BatchUpdateMetadataTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new BatchUpdateMetadataTool( engine, engine.getManager( SystemPageRegistry.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new BatchUpdateMetadataTool( new StubPageSaveHelper( pm ), pm );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -61,9 +54,9 @@ class BatchUpdateMetadataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testBatchMultiplePages() throws Exception {
-        engine.saveText( "BatchMeta1", "---\ntype: article\ntags:\n- finance\n---\nBody 1." );
-        engine.saveText( "BatchMeta2", "---\ntype: article\ntags:\n- tech\n---\nBody 2." );
+    void testBatchMultiplePages() {
+        pm.savePage( "BatchMeta1", "---\ntype: article\ntags:\n- finance\n---\nBody 1." );
+        pm.savePage( "BatchMeta2", "---\ntype: article\ntags:\n- tech\n---\nBody 2." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pages", List.of(
@@ -82,13 +75,13 @@ class BatchUpdateMetadataToolTest {
         assertEquals( true, results.get( 1 ).get( "success" ) );
 
         // Verify actual metadata
-        final String stored1 = engine.getManager( PageManager.class ).getPureText( "BatchMeta1", -1 );
+        final String stored1 = pm.getPureText( "BatchMeta1", -1 );
         final ParsedPage parsed1 = FrontmatterParser.parse( stored1 );
         final List< String > tags1 = ( List< String > ) parsed1.metadata().get( "tags" );
         assertTrue( tags1.contains( "finance" ) );
         assertTrue( tags1.contains( "investing" ) );
 
-        final String stored2 = engine.getManager( PageManager.class ).getPureText( "BatchMeta2", -1 );
+        final String stored2 = pm.getPureText( "BatchMeta2", -1 );
         final ParsedPage parsed2 = FrontmatterParser.parse( stored2 );
         final List< String > tags2 = ( List< String > ) parsed2.metadata().get( "tags" );
         assertTrue( tags2.contains( "tech" ) );
@@ -97,8 +90,8 @@ class BatchUpdateMetadataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testPartialFailure() throws Exception {
-        engine.saveText( "BatchMetaOk", "---\ntype: guide\n---\nBody." );
+    void testPartialFailure() {
+        pm.savePage( "BatchMetaOk", "---\ntype: guide\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pages", List.of(
@@ -127,8 +120,8 @@ class BatchUpdateMetadataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testBodyPreserved() throws Exception {
-        engine.saveText( "BatchMetaBody", "---\ntype: guide\n---\nImportant body content." );
+    void testBodyPreserved() {
+        pm.savePage( "BatchMetaBody", "---\ntype: guide\n---\nImportant body content." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pages", List.of(
@@ -140,14 +133,14 @@ class BatchUpdateMetadataToolTest {
         final List< Map< String, Object > > results = ( List< Map< String, Object > > ) data.get( "results" );
         assertEquals( true, results.get( 0 ).get( "success" ) );
 
-        final String stored = engine.getManager( PageManager.class ).getPureText( "BatchMetaBody", -1 );
+        final String stored = pm.getPureText( "BatchMetaBody", -1 );
         assertTrue( stored.contains( "Important body content." ) );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testOperationError() throws Exception {
-        engine.saveText( "BatchMetaTypeErr", "---\ntype: guide\n---\nBody." );
+    void testOperationError() {
+        pm.savePage( "BatchMetaTypeErr", "---\ntype: guide\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pages", List.of(
@@ -172,8 +165,8 @@ class BatchUpdateMetadataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testAuthorPropagation() throws Exception {
-        engine.saveText( "BatchMetaAuthor", "---\ntype: guide\n---\nBody." );
+    void testAuthorPropagation() {
+        pm.savePage( "BatchMetaAuthor", "---\ntype: guide\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pages", List.of(
@@ -184,14 +177,14 @@ class BatchUpdateMetadataToolTest {
 
         tool.execute( args );
 
-        final com.wikantik.api.core.Page saved = engine.getManager( PageManager.class ).getPage( "BatchMetaAuthor" );
+        final com.wikantik.api.core.Page saved = pm.getPage( "BatchMetaAuthor" );
         assertEquals( "TestAuthor", saved.getAuthor() );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testResultIncludesMetadata() throws Exception {
-        engine.saveText( "BatchMetaResult", "---\ntype: guide\n---\nBody." );
+    void testResultIncludesMetadata() {
+        pm.savePage( "BatchMetaResult", "---\ntype: guide\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pages", List.of(

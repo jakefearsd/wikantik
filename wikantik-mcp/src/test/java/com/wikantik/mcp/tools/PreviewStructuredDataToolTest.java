@@ -20,9 +20,7 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,20 +32,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PreviewStructuredDataToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private PreviewStructuredDataTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new PreviewStructuredDataTool(
-                engine.getManager( PageManager.class ), engine );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new PreviewStructuredDataTool( pm, "TestWiki", "http://localhost:8080" );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -59,8 +51,8 @@ class PreviewStructuredDataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testArticleWithFullMetadata() throws Exception {
-        engine.saveText( "PreviewFull", "---\ntype: article\ntags:\n- ai\n- ml\ndate: 2026-03-15\n" +
+    void testArticleWithFullMetadata() {
+        pm.savePage( "PreviewFull", "---\ntype: article\ntags:\n- ai\n- ml\ndate: 2026-03-15\n" +
                 "summary: A comprehensive guide to modern AI techniques and applications\n" +
                 "cluster: ai-fundamentals\nrelated:\n- AiOverview\n---\nBody content." );
 
@@ -111,8 +103,8 @@ class PreviewStructuredDataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testHubPage() throws Exception {
-        engine.saveText( "PreviewHub", "---\ntype: hub\ntags:\n- ai\ndate: 2026-03-15\n" +
+    void testHubPage() {
+        pm.savePage( "PreviewHub", "---\ntype: hub\ntags:\n- ai\ndate: 2026-03-15\n" +
                 "summary: Hub page for AI content cluster\n" +
                 "cluster: ai-fundamentals\nrelated:\n- SubArticle1\n- SubArticle2\n---\nHub body." );
 
@@ -132,8 +124,8 @@ class PreviewStructuredDataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testPageWithoutFrontmatter() throws Exception {
-        engine.saveText( "PreviewPlain", "Just plain body text without any frontmatter." );
+    void testPageWithoutFrontmatter() {
+        pm.savePage( "PreviewPlain", "Just plain body text without any frontmatter." );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PreviewPlain" );
@@ -156,10 +148,10 @@ class PreviewStructuredDataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testNewsSitemapEligibility() throws Exception {
+    void testNewsSitemapEligibility() {
         // Use today's date to ensure recency
         final String today = java.time.LocalDate.now().toString();
-        engine.saveText( "PreviewNews", "---\ntype: article\ntags:\n- breaking\ndate: " + today + "\n" +
+        pm.savePage( "PreviewNews", "---\ntype: article\ntags:\n- breaking\ndate: " + today + "\n" +
                 "summary: Breaking news about AI developments\n---\nNews body." );
 
         final Map< String, Object > args = new HashMap<>();
@@ -172,9 +164,9 @@ class PreviewStructuredDataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testNewsSitemapIneligible_noTags() throws Exception {
+    void testNewsSitemapIneligible_noTags() {
         final String today = java.time.LocalDate.now().toString();
-        engine.saveText( "PreviewNoTagNews", "---\ntype: article\ndate: " + today + "\n" +
+        pm.savePage( "PreviewNoTagNews", "---\ntype: article\ndate: " + today + "\n" +
                 "summary: An article without tags\n---\nBody." );
 
         final Map< String, Object > args = new HashMap<>();
@@ -188,9 +180,9 @@ class PreviewStructuredDataToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testSummaryLengthWarnings() throws Exception {
+    void testSummaryLengthWarnings() {
         // Short summary
-        engine.saveText( "PreviewWarnShort", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\nsummary: Short\n---\nBody." );
+        pm.savePage( "PreviewWarnShort", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\nsummary: Short\n---\nBody." );
         Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "PreviewWarnShort" );
         Map< String, Object > data = executeAndParse( args );
@@ -198,7 +190,7 @@ class PreviewStructuredDataToolTest {
         assertTrue( warnings.stream().anyMatch( w -> w.contains( "short" ) || w.contains( "50" ) ) );
 
         // Long summary
-        engine.saveText( "PreviewWarnLong", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\nsummary: " +
+        pm.savePage( "PreviewWarnLong", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\nsummary: " +
                 "A".repeat( 200 ) + "\n---\nBody." );
         args = new HashMap<>();
         args.put( "pageName", "PreviewWarnLong" );
@@ -207,7 +199,7 @@ class PreviewStructuredDataToolTest {
         assertTrue( warnings.stream().anyMatch( w -> w.contains( "long" ) || w.contains( "truncate" ) ) );
 
         // Good summary
-        engine.saveText( "PreviewWarnGood", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\n" +
+        pm.savePage( "PreviewWarnGood", "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\n" +
                 "summary: A well-sized summary that describes the page content effectively for search\n---\nBody." );
         args = new HashMap<>();
         args.put( "pageName", "PreviewWarnGood" );

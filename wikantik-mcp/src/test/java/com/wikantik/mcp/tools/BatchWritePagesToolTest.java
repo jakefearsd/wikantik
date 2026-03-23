@@ -20,10 +20,8 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubPageSaveHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,19 +33,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BatchWritePagesToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private BatchWritePagesTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new BatchWritePagesTool( engine, engine.getManager( SystemPageRegistry.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new BatchWritePagesTool( new StubPageSaveHelper( pm ) );
     }
 
     @Test
@@ -69,8 +62,8 @@ class BatchWritePagesToolTest {
         assertEquals( true, results.get( 1 ).get( "success" ) );
 
         // Verify pages were actually saved
-        assertNotNull( engine.getManager( PageManager.class ).getPage( "BatchPage1" ) );
-        assertNotNull( engine.getManager( PageManager.class ).getPage( "BatchPage2" ) );
+        assertNotNull( pm.getPage( "BatchPage1" ) );
+        assertNotNull( pm.getPage( "BatchPage2" ) );
     }
 
     @Test

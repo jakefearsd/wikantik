@@ -21,7 +21,7 @@ package com.wikantik.mcp.tools;
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

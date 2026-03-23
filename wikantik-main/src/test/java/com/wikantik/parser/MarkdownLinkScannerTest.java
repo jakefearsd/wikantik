@@ -18,6 +18,8 @@
  */
 package com.wikantik.parser;
 
+import com.wikantik.api.parser.MarkdownLinkScanner;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

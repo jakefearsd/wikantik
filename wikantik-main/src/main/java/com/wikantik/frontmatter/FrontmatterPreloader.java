@@ -22,6 +22,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.WikiContext;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.pages.PageManager;
 
 import java.text.SimpleDateFormat;

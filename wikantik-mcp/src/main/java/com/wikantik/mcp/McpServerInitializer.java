@@ -33,8 +33,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.attachment.AttachmentManager;
-import com.wikantik.content.SystemPageRegistry;
+import com.wikantik.api.managers.AttachmentManager;
+import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.mcp.completions.WikiCompletions;
 import com.wikantik.mcp.prompts.WikiPrompts;
 import com.wikantik.mcp.resources.WikiEventSubscriptionBridge;
@@ -42,8 +42,8 @@ import com.wikantik.mcp.resources.WikiResources;
 import com.wikantik.mcp.tools.AuthorConfigurable;
 import com.wikantik.mcp.tools.LockPageTool;
 import com.wikantik.mcp.tools.McpTool;
-import com.wikantik.pages.PageManager;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 
 import java.util.EnumSet;
 

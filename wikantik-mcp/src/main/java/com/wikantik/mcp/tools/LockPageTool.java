@@ -22,7 +22,7 @@ package com.wikantik.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.pages.PageLock;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 
 import java.util.LinkedHashMap;
 import java.util.List;

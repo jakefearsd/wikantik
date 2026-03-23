@@ -19,7 +19,7 @@
 package com.wikantik.mcp.tools;
 
 import com.wikantik.api.core.Page;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 
 import java.util.Map;
 

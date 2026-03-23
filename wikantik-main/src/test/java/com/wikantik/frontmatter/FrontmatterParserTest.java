@@ -18,6 +18,10 @@
  */
 package com.wikantik.frontmatter;
 
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.FrontmatterWriter;
+import com.wikantik.api.frontmatter.ParsedPage;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

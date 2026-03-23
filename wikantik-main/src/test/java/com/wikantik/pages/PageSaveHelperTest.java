@@ -20,8 +20,8 @@ package com.wikantik.pages;
 
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Page;
-import com.wikantik.frontmatter.FrontmatterParser;
-import com.wikantik.frontmatter.ParsedPage;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

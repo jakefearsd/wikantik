@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.parser;
+package com.wikantik.api.parser;
 
 
 import java.util.ArrayList;
@@ -121,7 +121,7 @@ public final class MarkdownLinkScanner {
     /**
      * Classifies a link target as external, anchor, or local.
      */
-    static String classifyLink( final String target ) {
+    public static String classifyLink( final String target ) {
         if ( target.startsWith( "http://" ) || target.startsWith( "https://" )
                 || target.startsWith( "ftp://" ) || target.startsWith( "mailto:" ) ) {
             return "external";

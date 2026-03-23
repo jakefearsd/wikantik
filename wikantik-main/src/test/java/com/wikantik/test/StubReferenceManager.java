@@ -24,7 +24,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.FilterException;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.event.WikiEvent;
-import com.wikantik.parser.MarkdownLinkScanner;
+import com.wikantik.api.parser.MarkdownLinkScanner;
 import com.wikantik.references.ReferenceManager;
 
 import java.util.*;

@@ -23,8 +23,8 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Page;
-import com.wikantik.content.SystemPageRegistry;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.api.managers.PageManager;
 
 import java.util.LinkedHashMap;
 import java.util.List;

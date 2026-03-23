@@ -24,9 +24,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
-import com.wikantik.frontmatter.FrontmatterParser;
-import com.wikantik.frontmatter.ParsedPage;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.managers.PageManager;
 
 import java.util.*;
 import java.util.stream.Collectors;

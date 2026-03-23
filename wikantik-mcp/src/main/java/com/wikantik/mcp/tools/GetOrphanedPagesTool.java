@@ -20,8 +20,8 @@ package com.wikantik.mcp.tools;
 
 
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.content.SystemPageRegistry;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.api.managers.ReferenceManager;
 
 import java.util.*;
 import java.util.stream.Collectors;

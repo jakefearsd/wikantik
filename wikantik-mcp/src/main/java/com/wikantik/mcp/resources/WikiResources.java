@@ -26,12 +26,12 @@ import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
-import com.wikantik.attachment.AttachmentManager;
-import com.wikantik.content.SystemPageRegistry;
-import com.wikantik.frontmatter.FrontmatterParser;
-import com.wikantik.frontmatter.ParsedPage;
-import com.wikantik.pages.PageManager;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.AttachmentManager;
+import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 
 import java.util.*;
 import java.util.stream.Collectors;

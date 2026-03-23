@@ -23,7 +23,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Page;
-import com.wikantik.content.SystemPageRegistry;
+import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.pages.PageSaveHelper;
 import com.wikantik.pages.SaveOptions;
 import com.wikantik.pages.VersionConflictException;

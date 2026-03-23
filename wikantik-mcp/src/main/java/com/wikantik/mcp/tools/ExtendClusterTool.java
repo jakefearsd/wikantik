@@ -24,12 +24,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
-import com.wikantik.frontmatter.FrontmatterParser;
-import com.wikantik.frontmatter.ParsedPage;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.pages.PageSaveHelper;
 import com.wikantik.pages.SaveOptions;
-import com.wikantik.parser.MarkdownLinkScanner;
+import com.wikantik.api.parser.MarkdownLinkScanner;
 
 import java.util.*;
 

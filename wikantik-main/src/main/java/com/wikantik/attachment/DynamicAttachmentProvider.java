@@ -14,37 +14,20 @@
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
-    under the License.     
+    under the License.
  */
 package com.wikantik.attachment;
 
-import com.wikantik.api.core.Attachment;
-import com.wikantik.api.core.Context;
-import com.wikantik.api.exceptions.ProviderException;
-
-import java.io.IOException;
-import java.io.InputStream;
-
-
 /**
- *  Provides the data for an attachment.  Please note that there will be a strong reference retained for the provider for each Attachment
- *  it provides, so do try to keep the object light.  Also, reuse objects if possible.
- *  <p>
- *  The Provider needs to be thread-safe.
+ * Backward-compatibility shim. The canonical interface has moved to
+ * {@link com.wikantik.api.attachment.DynamicAttachmentProvider} in wikantik-api.
  *
- *  @since  2.5.34
+ * <p>Existing code that imports {@code com.wikantik.attachment.DynamicAttachmentProvider}
+ * continues to work unchanged. New code should import from
+ * {@code com.wikantik.api.attachment} instead.
+ *
+ * @deprecated Use {@link com.wikantik.api.attachment.DynamicAttachmentProvider}
  */
-public interface DynamicAttachmentProvider {
-
-    /**
-     *  Returns a stream of data for this attachment.  The stream will be closed by AttachmentServlet.
-     *
-     *  @param context A Wiki Context
-     *  @param att The Attachment for which the data should be received.
-     *  @return InputStream for the data.
-     *  @throws ProviderException If something goes wrong internally
-     *  @throws IOException If something goes wrong when reading the data
-     */
-    InputStream getAttachmentData( Context context, Attachment att ) throws ProviderException, IOException;
-
+@Deprecated
+public interface DynamicAttachmentProvider extends com.wikantik.api.attachment.DynamicAttachmentProvider {
 }

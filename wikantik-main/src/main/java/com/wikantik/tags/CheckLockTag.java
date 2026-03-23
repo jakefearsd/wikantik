@@ -21,7 +21,7 @@ package com.wikantik.tags;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
-import com.wikantik.pages.PageLock;
+import com.wikantik.api.pages.PageLock;
 import com.wikantik.pages.PageManager;
 
 import jakarta.servlet.http.HttpSession;

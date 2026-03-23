@@ -31,7 +31,7 @@ import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.permissions.PermissionFactory;
-import com.wikantik.pages.PageLock;
+import com.wikantik.api.pages.PageLock;
 import com.wikantik.pages.PageManager;
 import com.wikantik.util.comparators.PrincipalComparator;
 

@@ -18,38 +18,16 @@
  */
 package com.wikantik.content;
 
-import com.wikantik.api.engine.Initializable;
-
-import java.util.Set;
-
 /**
- * Registry of system/template pages that ship with JSPWiki. System pages include
- * menu fragments (LeftMenu, MoreMenu), help pages (LoginHelp, EditPageHelp),
- * CSS theme pages, and other template-provided pages.
+ * Backward-compatibility shim. The canonical interface has moved to
+ * {@link com.wikantik.api.managers.SystemPageRegistry} in wikantik-api.
  *
- * <p>System pages are auto-discovered at startup from the {@code wikantik-wikipages}
- * classpath JAR. Additional patterns can be added via the
- * {@value #PROP_EXTRA_PATTERNS} property.
+ * <p>Existing code that imports {@code com.wikantik.content.SystemPageRegistry}
+ * continues to work unchanged. New code should import from
+ * {@code com.wikantik.api.managers} instead.
  *
- * @since 3.0.7
+ * @deprecated Use {@link com.wikantik.api.managers.SystemPageRegistry}
  */
-public interface SystemPageRegistry extends Initializable {
-
-    /** Property for additional system page name patterns (comma-separated regex). */
-    String PROP_EXTRA_PATTERNS = "wikantik.systemPages.extraPatterns";
-
-    /**
-     * Returns {@code true} if the given page name refers to a system/template page.
-     *
-     * @param pageName the wiki page name to check
-     * @return true if the page is a system page
-     */
-    boolean isSystemPage( String pageName );
-
-    /**
-     * Returns the set of all discovered system page names.
-     *
-     * @return unmodifiable set of system page names
-     */
-    Set<String> getSystemPageNames();
+@Deprecated
+public interface SystemPageRegistry extends com.wikantik.api.managers.SystemPageRegistry {
 }

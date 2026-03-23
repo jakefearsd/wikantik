@@ -81,7 +81,7 @@ public class DefaultPageManager implements PageManager {
     private final PageProvider provider;
     private final Engine engine;
     private final int expiryTime;
-    protected final ConcurrentHashMap< String, PageLock > pageLocks = new ConcurrentHashMap<>();
+    protected final ConcurrentHashMap< String, com.wikantik.api.pages.PageLock > pageLocks = new ConcurrentHashMap<>();
     private final PageSorter pageSorter = new PageSorter();
     private LockReaper reaper;
 
@@ -267,7 +267,7 @@ public class DefaultPageManager implements PageManager {
      * @see com.wikantik.pages.PageManager#lockPage(com.wikantik.api.core.Page, java.lang.String)
      */
     @Override
-    public PageLock lockPage( final Page page, final String user ) {
+    public com.wikantik.api.pages.PageLock lockPage( final Page page, final String user ) {
         if( reaper == null ) {
             //  Start the lock reaper lazily.  We don't want to start it in the constructor, because starting threads in constructors
             //  is a bad idea when it comes to inheritance.  Besides, laziness is a virtue.
@@ -277,8 +277,8 @@ public class DefaultPageManager implements PageManager {
 
         fireEvent( WikiPageEvent.PAGE_LOCK, page.getName() );
         final Date d = new Date();
-        final PageLock newLock = new PageLock( page, user, d, new Date( d.getTime() + expiryTime * 60 * 1000L ) );
-        final PageLock existing = pageLocks.putIfAbsent( page.getName(), newLock );
+        final com.wikantik.api.pages.PageLock newLock = new PageLock( page, user, d, new Date( d.getTime() + expiryTime * 60 * 1000L ) );
+        final com.wikantik.api.pages.PageLock existing = pageLocks.putIfAbsent( page.getName(), newLock );
 
         if( existing == null ) {
             LOG.debug( "Locked page " + page.getName() + " for " + user );
@@ -294,7 +294,7 @@ public class DefaultPageManager implements PageManager {
      * @see com.wikantik.pages.PageManager#unlockPage(com.wikantik.pages.PageLock)
      */
     @Override
-    public void unlockPage( final PageLock lock ) {
+    public void unlockPage( final com.wikantik.api.pages.PageLock lock ) {
         if (lock == null) {
             return;
         }
@@ -310,7 +310,7 @@ public class DefaultPageManager implements PageManager {
      * @see com.wikantik.pages.PageManager#getCurrentLock(com.wikantik.api.core.Page)
      */
     @Override
-    public PageLock getCurrentLock( final Page page ) {
+    public com.wikantik.api.pages.PageLock getCurrentLock( final Page page ) {
         return pageLocks.get( page.getName() );
     }
 
@@ -319,7 +319,7 @@ public class DefaultPageManager implements PageManager {
      * @see com.wikantik.pages.PageManager#getActiveLocks()
      */
     @Override
-    public List< PageLock > getActiveLocks() {
+    public List< com.wikantik.api.pages.PageLock > getActiveLocks() {
         return  new ArrayList<>( pageLocks.values() );
     }
 
@@ -614,9 +614,9 @@ public class DefaultPageManager implements PageManager {
 
         @Override
         public void backgroundTask() {
-            final Collection< PageLock > entries = pageLocks.values();
-            for( final Iterator<PageLock> i = entries.iterator(); i.hasNext(); ) {
-                final PageLock p = i.next();
+            final Collection< com.wikantik.api.pages.PageLock > entries = pageLocks.values();
+            for( final Iterator<com.wikantik.api.pages.PageLock> i = entries.iterator(); i.hasNext(); ) {
+                final com.wikantik.api.pages.PageLock p = i.next();
 
                 if ( p.isExpired() ) {
                     i.remove();

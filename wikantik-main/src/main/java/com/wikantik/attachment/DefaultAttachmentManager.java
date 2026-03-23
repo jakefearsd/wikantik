@@ -226,7 +226,7 @@ public class DefaultAttachmentManager implements AttachmentManager {
             return null;
         }
 
-        if( att instanceof DynamicAttachment dynamicAtt ) {
+        if( att instanceof com.wikantik.api.attachment.DynamicAttachment dynamicAtt ) {
             return dynamicAtt.getProvider().getAttachmentData( ctx, att );
         }
 
@@ -235,13 +235,13 @@ public class DefaultAttachmentManager implements AttachmentManager {
 
     /** {@inheritDoc} */
     @Override
-    public void storeDynamicAttachment( final Context ctx, final DynamicAttachment att ) {
+    public void storeDynamicAttachment( final Context ctx, final com.wikantik.api.attachment.DynamicAttachment att ) {
         cachingManager.put( CachingManager.CACHE_ATTACHMENTS_DYNAMIC, att.getName(), att );
     }
 
     /** {@inheritDoc} */
     @Override
-    public DynamicAttachment getDynamicAttachment( final String name ) {
+    public com.wikantik.api.attachment.DynamicAttachment getDynamicAttachment( final String name ) {
         return cachingManager.get( CachingManager.CACHE_ATTACHMENTS_DYNAMIC, name, () -> null );
     }
 

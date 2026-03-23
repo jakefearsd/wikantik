@@ -20,10 +20,8 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubSystemPageRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,36 +33,29 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class GetClusterMapToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private GetClusterMapTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
-    void setUp() throws Exception {
-        engine = TestEngine.build();
-        tool = new GetClusterMapTool(
-                engine.getManager( PageManager.class ),
-                engine.getManager( SystemPageRegistry.class ) );
+    void setUp() {
+        pm = new StubPageManager();
+        tool = new GetClusterMapTool( pm, new StubSystemPageRegistry() );
 
         // Create test pages across 3 clusters + a sub-cluster
-        engine.saveText( "AiHub", "---\ntype: hub\ncluster: ai\ntags:\n- ai\nsummary: AI cluster hub\nstatus: active\ndate: 2026-01-01\nauthor: Admin\nrelated:\n- AiArticle1\n---\n# AI Hub" );
-        engine.saveText( "AiArticle1", "---\ntype: article\ncluster: ai\ntags:\n- ai\n- ml\nsummary: First AI article about machine learning\nstatus: active\ndate: 2026-01-02\nauthor: Admin\nrelated:\n- AiHub\n---\nBody." );
+        pm.savePage( "AiHub", "---\ntype: hub\ncluster: ai\ntags:\n- ai\nsummary: AI cluster hub\nstatus: active\ndate: 2026-01-01\nauthor: Admin\nrelated:\n- AiArticle1\n---\n# AI Hub" );
+        pm.savePage( "AiArticle1", "---\ntype: article\ncluster: ai\ntags:\n- ai\n- ml\nsummary: First AI article about machine learning\nstatus: active\ndate: 2026-01-02\nauthor: Admin\nrelated:\n- AiHub\n---\nBody." );
 
-        engine.saveText( "FinanceHub", "---\ntype: hub\ncluster: finance\ntags:\n- finance\nsummary: Finance cluster hub page\nstatus: active\ndate: 2026-01-01\nauthor: Admin\n---\n# Finance Hub" );
-        engine.saveText( "FinanceArticle1", "---\ntype: article\ncluster: finance\ntags:\n- finance\nsummary: A finance article about investing\nstatus: active\ndate: 2026-01-03\nauthor: Admin\n---\nBody." );
+        pm.savePage( "FinanceHub", "---\ntype: hub\ncluster: finance\ntags:\n- finance\nsummary: Finance cluster hub page\nstatus: active\ndate: 2026-01-01\nauthor: Admin\n---\n# Finance Hub" );
+        pm.savePage( "FinanceArticle1", "---\ntype: article\ncluster: finance\ntags:\n- finance\nsummary: A finance article about investing\nstatus: active\ndate: 2026-01-03\nauthor: Admin\n---\nBody." );
 
-        engine.saveText( "WoodHub", "---\ntype: hub\ncluster: woodworking\ntags:\n- wood\nsummary: Woodworking cluster hub page\nstatus: active\ndate: 2026-01-01\nauthor: Admin\n---\n# Wood Hub" );
-        engine.saveText( "WoodSubHub", "---\ntype: hub\ncluster: woodworking/cnc\ntags:\n- cnc\nsummary: CNC sub-cluster hub page info\nstatus: active\ndate: 2026-01-01\nauthor: Admin\n---\n# CNC Hub" );
-        engine.saveText( "CncArticle", "---\ntype: article\ncluster: woodworking/cnc\ntags:\n- cnc\nsummary: CNC article about routing details\nstatus: active\ndate: 2026-01-04\nauthor: Admin\n---\nBody." );
+        pm.savePage( "WoodHub", "---\ntype: hub\ncluster: woodworking\ntags:\n- wood\nsummary: Woodworking cluster hub page\nstatus: active\ndate: 2026-01-01\nauthor: Admin\n---\n# Wood Hub" );
+        pm.savePage( "WoodSubHub", "---\ntype: hub\ncluster: woodworking/cnc\ntags:\n- cnc\nsummary: CNC sub-cluster hub page info\nstatus: active\ndate: 2026-01-01\nauthor: Admin\n---\n# CNC Hub" );
+        pm.savePage( "CncArticle", "---\ntype: article\ncluster: woodworking/cnc\ntags:\n- cnc\nsummary: CNC article about routing details\nstatus: active\ndate: 2026-01-04\nauthor: Admin\n---\nBody." );
 
         // Unclustered pages
-        engine.saveText( "RandomPage", "---\ntype: article\ntags:\n- misc\nsummary: A random unclustered page here\n---\nBody." );
-        engine.saveText( "PlainPage", "Just plain text with no frontmatter at all." );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm.savePage( "RandomPage", "---\ntype: article\ntags:\n- misc\nsummary: A random unclustered page here\n---\nBody." );
+        pm.savePage( "PlainPage", "Just plain text with no frontmatter at all." );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -205,8 +196,8 @@ class GetClusterMapToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testClusterWithNoHub() throws Exception {
-        engine.saveText( "OrphanClusterPage", "---\ntype: article\ncluster: orphan-cluster\n---\nBody." );
+    void testClusterWithNoHub() {
+        pm.savePage( "OrphanClusterPage", "---\ntype: article\ncluster: orphan-cluster\n---\nBody." );
 
         final Map< String, Object > data = executeAndParse( Map.of() );
         final List< Map< String, Object > > clusters = ( List< Map< String, Object > > ) data.get( "clusters" );

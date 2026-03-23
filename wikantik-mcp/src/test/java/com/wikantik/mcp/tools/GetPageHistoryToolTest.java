@@ -20,9 +20,7 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,25 +31,20 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class GetPageHistoryToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private GetPageHistoryTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new GetPageHistoryTool( engine.getManager( PageManager.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new GetPageHistoryTool( pm );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testHistoryForExistingPage() throws Exception {
-        engine.saveText( "McpHistPage", "Version 1." );
+    void testHistoryForExistingPage() {
+        pm.savePage( "McpHistPage", "Version 1." );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "McpHistPage" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();

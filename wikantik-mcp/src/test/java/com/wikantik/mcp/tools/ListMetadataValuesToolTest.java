@@ -20,9 +20,7 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,26 +32,21 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ListMetadataValuesToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private ListMetadataValuesTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new ListMetadataValuesTool( engine.getManager( PageManager.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new ListMetadataValuesTool( pm );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testCollectsMetadataFromMultiplePages() throws Exception {
-        engine.saveText( "MetaPageA", "---\ntype: report\ntags: [security, api]\n---\nContent A" );
-        engine.saveText( "MetaPageB", "---\ntype: note\ntags: [api, design]\n---\nContent B" );
+    void testCollectsMetadataFromMultiplePages() {
+        pm.savePage( "MetaPageA", "---\ntype: report\ntags: [security, api]\n---\nContent A" );
+        pm.savePage( "MetaPageB", "---\ntype: note\ntags: [api, design]\n---\nContent B" );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of() );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
@@ -72,8 +65,8 @@ class ListMetadataValuesToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testFilterByField() throws Exception {
-        engine.saveText( "MetaPageC", "---\ntype: concept\nstatus: draft\n---\nContent" );
+    void testFilterByField() {
+        pm.savePage( "MetaPageC", "---\ntype: concept\nstatus: draft\n---\nContent" );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "field", "type" );

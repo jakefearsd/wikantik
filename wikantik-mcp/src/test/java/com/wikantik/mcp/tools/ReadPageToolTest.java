@@ -20,10 +20,8 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubSystemPageRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,24 +31,19 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ReadPageToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private ReadPageTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new ReadPageTool( engine.getManager( PageManager.class ), engine.getManager( SystemPageRegistry.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new ReadPageTool( pm, new StubSystemPageRegistry() );
     }
 
     @Test
-    void testReadExistingPage() throws Exception {
-        engine.saveText( "TestMcpRead", "Hello from MCP!" );
+    void testReadExistingPage() {
+        pm.savePage( "TestMcpRead", "Hello from MCP!" );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "TestMcpRead" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
@@ -58,13 +51,12 @@ class ReadPageToolTest {
 
         assertEquals( true, data.get( "exists" ) );
         assertEquals( "TestMcpRead", data.get( "pageName" ) );
-        // JSPWiki normalizes stored text to CRLF with trailing newline
         assertTrue( data.get( "content" ).toString().strip().contains( "Hello from MCP!" ) );
     }
 
     @Test
-    void testReadPageWithFrontmatter() throws Exception {
-        engine.saveText( "TestMcpFm", "---\ntype: concept\ntags: [ai]\n---\nBody text here." );
+    void testReadPageWithFrontmatter() {
+        pm.savePage( "TestMcpFm", "---\ntype: concept\ntags: [ai]\n---\nBody text here." );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "TestMcpFm" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
@@ -87,8 +79,8 @@ class ReadPageToolTest {
     }
 
     @Test
-    void testContentHashPresent() throws Exception {
-        engine.saveText( "TestMcpHash", "Hash test content." );
+    void testContentHashPresent() {
+        pm.savePage( "TestMcpHash", "Hash test content." );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of( "pageName", "TestMcpHash" ) );
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();

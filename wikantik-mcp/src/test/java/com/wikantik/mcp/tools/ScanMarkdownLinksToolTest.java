@@ -20,9 +20,7 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,19 +31,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ScanMarkdownLinksToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private ScanMarkdownLinksTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new ScanMarkdownLinksTool( engine.getManager( PageManager.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new ScanMarkdownLinksTool( pm );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -57,8 +50,8 @@ class ScanMarkdownLinksToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testLocalLinks() throws Exception {
-        engine.saveText( "ScanLocal", "Check [this page](OtherPage) and [another](SecondPage)." );
+    void testLocalLinks() {
+        pm.savePage( "ScanLocal", "Check [this page](OtherPage) and [another](SecondPage)." );
 
         final Map< String, Object > data = executeAndParse( Map.of( "pageName", "ScanLocal" ) );
         final List< Map< String, String > > links = ( List< Map< String, String > > ) data.get( "links" );
@@ -73,8 +66,8 @@ class ScanMarkdownLinksToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testExternalLinksFiltered() throws Exception {
-        engine.saveText( "ScanExternal", "Visit [Google](https://google.com) and [FTP](ftp://files.example.com)." );
+    void testExternalLinksFiltered() {
+        pm.savePage( "ScanExternal", "Visit [Google](https://google.com) and [FTP](ftp://files.example.com)." );
 
         final Map< String, Object > data = executeAndParse( Map.of( "pageName", "ScanExternal" ) );
         final List< Map< String, String > > links = ( List< Map< String, String > > ) data.get( "links" );
@@ -88,8 +81,8 @@ class ScanMarkdownLinksToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testAnchorLinksFiltered() throws Exception {
-        engine.saveText( "ScanAnchor", "Jump to [section](#overview)." );
+    void testAnchorLinksFiltered() {
+        pm.savePage( "ScanAnchor", "Jump to [section](#overview)." );
 
         final Map< String, Object > data = executeAndParse( Map.of( "pageName", "ScanAnchor" ) );
         final List< Map< String, String > > links = ( List< Map< String, String > > ) data.get( "links" );
@@ -102,8 +95,8 @@ class ScanMarkdownLinksToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testMixedLinks() throws Exception {
-        engine.saveText( "ScanMixed", "See [page](WikiPage), [ext](https://example.com), and [anchor](#top)." );
+    void testMixedLinks() {
+        pm.savePage( "ScanMixed", "See [page](WikiPage), [ext](https://example.com), and [anchor](#top)." );
 
         final Map< String, Object > data = executeAndParse( Map.of( "pageName", "ScanMixed" ) );
         final List< Map< String, String > > links = ( List< Map< String, String > > ) data.get( "links" );
@@ -116,8 +109,8 @@ class ScanMarkdownLinksToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testNoLinks() throws Exception {
-        engine.saveText( "ScanEmpty", "Just plain text with no links at all." );
+    void testNoLinks() {
+        pm.savePage( "ScanEmpty", "Just plain text with no links at all." );
 
         final Map< String, Object > data = executeAndParse( Map.of( "pageName", "ScanEmpty" ) );
         final List< Map< String, String > > links = ( List< Map< String, String > > ) data.get( "links" );

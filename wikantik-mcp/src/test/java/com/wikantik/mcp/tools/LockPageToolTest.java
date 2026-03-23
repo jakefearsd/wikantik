@@ -20,9 +20,7 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,25 +31,20 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class LockPageToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private LockPageTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new LockPageTool( engine.getManager( PageManager.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new LockPageTool( pm );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testLockPageSucceeds() throws Exception {
-        engine.saveText( "LockTestPage", "Content to lock" );
+    void testLockPageSucceeds() {
+        pm.savePage( "LockTestPage", "Content to lock" );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "LockTestPage" );
@@ -70,8 +63,8 @@ class LockPageToolTest {
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testLockAlreadyLockedByAnotherUser() throws Exception {
-        engine.saveText( "LockConflictPage", "Content" );
+    void testLockAlreadyLockedByAnotherUser() {
+        pm.savePage( "LockConflictPage", "Content" );
 
         // First user locks the page
         final Map< String, Object > args1 = new HashMap<>();

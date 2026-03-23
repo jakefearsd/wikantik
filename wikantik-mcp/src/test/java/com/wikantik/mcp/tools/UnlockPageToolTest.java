@@ -20,10 +20,8 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
 import com.wikantik.api.core.Page;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,29 +32,22 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class UnlockPageToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private UnlockPageTool tool;
-    private PageManager pageManager;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        pageManager = engine.getManager( PageManager.class );
-        tool = new UnlockPageTool( pageManager );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new UnlockPageTool( pm );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testUnlockLockedPage() throws Exception {
-        engine.saveText( "UnlockTestPage", "Content" );
-        final Page page = pageManager.getPage( "UnlockTestPage" );
-        pageManager.lockPage( page, "SomeUser" );
+    void testUnlockLockedPage() {
+        pm.savePage( "UnlockTestPage", "Content" );
+        final Page page = pm.getPage( "UnlockTestPage" );
+        pm.lockPage( page, "SomeUser" );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "UnlockTestPage" );
@@ -67,13 +58,13 @@ class UnlockPageToolTest {
 
         assertTrue( ( Boolean ) data.get( "success" ) );
         assertTrue( ( Boolean ) data.get( "wasLocked" ) );
-        assertNull( pageManager.getCurrentLock( page ) );
+        assertNull( pm.getCurrentLock( page ) );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testUnlockUnlockedPageIsIdempotent() throws Exception {
-        engine.saveText( "NotLockedPage", "Content" );
+    void testUnlockUnlockedPageIsIdempotent() {
+        pm.savePage( "NotLockedPage", "Content" );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "NotLockedPage" );

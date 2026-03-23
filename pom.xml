@@ -79,7 +79,7 @@
     <nekohtml.version>3.0.3</nekohtml.version>
     <pac4j.version>6.3.1</pac4j.version>
     <rome.version>2.1.0</rome.version>
-    <selenide.version>7.12.1</selenide.version>
+    <selenide.version>7.15.0</selenide.version>
     <selenium.version>4.38.0</selenium.version>
     <slf4j.version>2.0.17</slf4j.version>
     <tika.version>3.2.3</tika.version>

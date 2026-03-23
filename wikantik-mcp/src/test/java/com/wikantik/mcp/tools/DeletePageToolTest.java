@@ -20,10 +20,8 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubSystemPageRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,28 +32,21 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class DeletePageToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private DeletePageTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
     void setUp() {
-        engine = TestEngine.build();
-        tool = new DeletePageTool(
-                engine.getManager( PageManager.class ),
-                engine.getManager( SystemPageRegistry.class ) );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm = new StubPageManager();
+        tool = new DeletePageTool( pm, new StubSystemPageRegistry() );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testDeleteExistingPage() throws Exception {
-        engine.saveText( "McpDeleteMe", "Delete this page." );
-        assertNotNull( engine.getManager( PageManager.class ).getPage( "McpDeleteMe" ) );
+    void testDeleteExistingPage() {
+        pm.savePage( "McpDeleteMe", "Delete this page." );
+        assertNotNull( pm.getPage( "McpDeleteMe" ) );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "pageName", "McpDeleteMe" );
@@ -66,7 +57,7 @@ class DeletePageToolTest {
         final Map< String, Object > data = gson.fromJson( json, Map.class );
 
         assertEquals( true, data.get( "success" ) );
-        assertNull( engine.getManager( PageManager.class ).getPage( "McpDeleteMe" ) );
+        assertNull( pm.getPage( "McpDeleteMe" ) );
     }
 
     @Test

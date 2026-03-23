@@ -20,10 +20,8 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubSystemPageRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -38,25 +36,20 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class ListPagesSystemPageFilterTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private ListPagesTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
-    void setUp() throws Exception {
-        engine = TestEngine.build();
-        final PageManager pageManager = engine.getManager( PageManager.class );
-        final SystemPageRegistry systemPageRegistry = engine.getManager( SystemPageRegistry.class );
-        tool = new ListPagesTool( pageManager, systemPageRegistry );
+    void setUp() {
+        pm = new StubPageManager();
+        final StubSystemPageRegistry spr = new StubSystemPageRegistry();
+        spr.addSystemPage( "About" );
+        tool = new ListPagesTool( pm, spr );
 
-        // Create a user content page and a system page (About.txt is on test classpath)
-        engine.saveText( "UserArticle", "This is a user article" );
-        engine.saveText( "About", "About page content" );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        // Create a user content page and a system page
+        pm.savePage( "UserArticle", "This is a user article" );
+        pm.savePage( "About", "About page content" );
     }
 
     @Test
@@ -70,7 +63,7 @@ class ListPagesSystemPageFilterTest {
         // UserArticle should be present
         assertTrue( pages.stream().anyMatch( p -> "UserArticle".equals( p.get( "name" ) ) ),
                 "User content page should be in default results" );
-        // About is a system page (discovered from About.txt on classpath) and should be excluded
+        // About is a system page and should be excluded
         assertFalse( pages.stream().anyMatch( p -> "About".equals( p.get( "name" ) ) ),
                 "System page About should be excluded by default" );
     }

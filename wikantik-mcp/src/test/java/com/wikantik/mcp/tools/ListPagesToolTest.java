@@ -20,10 +20,8 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.content.SystemPageRegistry;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
+import com.wikantik.test.StubSystemPageRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,23 +33,18 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ListPagesToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private ListPagesTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
-    void setUp() throws Exception {
-        engine = TestEngine.build();
-        tool = new ListPagesTool( engine.getManager( PageManager.class ), engine.getManager( SystemPageRegistry.class ) );
+    void setUp() {
+        pm = new StubPageManager();
+        tool = new ListPagesTool( pm, new StubSystemPageRegistry() );
 
-        engine.saveText( "McpListAlpha", "Alpha page" );
-        engine.saveText( "McpListBeta", "Beta page" );
-        engine.saveText( "OtherPage", "Other page" );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm.savePage( "McpListAlpha", "Alpha page" );
+        pm.savePage( "McpListBeta", "Beta page" );
+        pm.savePage( "OtherPage", "Other page" );
     }
 
     @Test

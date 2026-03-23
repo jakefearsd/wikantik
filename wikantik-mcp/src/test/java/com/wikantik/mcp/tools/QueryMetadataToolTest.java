@@ -20,9 +20,7 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
-import com.wikantik.TestEngine;
-import com.wikantik.pages.PageManager;
-import org.junit.jupiter.api.AfterEach;
+import com.wikantik.test.StubPageManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,23 +32,18 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class QueryMetadataToolTest {
 
-    private TestEngine engine;
+    private StubPageManager pm;
     private QueryMetadataTool tool;
     private final Gson gson = new Gson();
 
     @BeforeEach
-    void setUp() throws Exception {
-        engine = TestEngine.build();
-        tool = new QueryMetadataTool( engine.getManager( PageManager.class ) );
+    void setUp() {
+        pm = new StubPageManager();
+        tool = new QueryMetadataTool( pm );
 
-        engine.saveText( "McpQmConcept", "---\ntype: concept\ntags: [ai, mcp]\n---\nConcept page." );
-        engine.saveText( "McpQmRef", "---\ntype: reference\ntags: [java]\n---\nReference page." );
-        engine.saveText( "McpQmPlain", "No frontmatter here." );
-    }
-
-    @AfterEach
-    void tearDown() {
-        engine.stop();
+        pm.savePage( "McpQmConcept", "---\ntype: concept\ntags: [ai, mcp]\n---\nConcept page." );
+        pm.savePage( "McpQmRef", "---\ntype: reference\ntags: [java]\n---\nReference page." );
+        pm.savePage( "McpQmPlain", "No frontmatter here." );
     }
 
     @Test

@@ -115,6 +115,9 @@
     <plugin.jslint.version>1.0.1</plugin.jslint.version>
     <plugin.cargo.version>1.10.20</plugin.cargo.version>
     <plugin.pmd.version>3.26.0</plugin.pmd.version>
+    <plugin.site.version>3.21.0</plugin.site.version>
+    <plugin.spotbugs.version>4.9.3.0</plugin.spotbugs.version>
+    <plugin.checkstyle.version>3.6.0</plugin.checkstyle.version>
     <plugin.clirr.version>2.8</plugin.clirr.version>
     <plugin.cobertura.version>2.7</plugin.cobertura.version>
     <plugin.cyclonedx.version>2.9.1</plugin.cyclonedx.version>
@@ -133,6 +136,13 @@
     <url>https://github.com/jakefearsd/wikantik</url>
     <tag>2.12.1-RC1</tag>
   </scm>
+
+  <distributionManagement>
+    <site>
+      <id>local-site</id>
+      <url>https://wikantik.com/site</url>
+    </site>
+  </distributionManagement>
 
   <modules>
     <module>wikantik-wikipages</module>
@@ -1105,9 +1115,190 @@
                 </execution>
             </executions>
         </plugin>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-site-plugin</artifactId>
+            <version>${plugin.site.version}</version>
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.maven.skins</groupId>
+                    <artifactId>maven-fluido-skin</artifactId>
+                    <version>2.0.0-M9</version>
+                </dependency>
+            </dependencies>
+        </plugin>
+        <plugin>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-maven-plugin</artifactId>
+            <version>${plugin.spotbugs.version}</version>
+        </plugin>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-checkstyle-plugin</artifactId>
+            <version>${plugin.checkstyle.version}</version>
+            <configuration>
+                <configLocation>google_checks.xml</configLocation>
+                <failsOnError>false</failsOnError>
+                <linkXRef>true</linkXRef>
+                <!-- do not check resource files; google_checks.xml is Java-only
+                     and linkXRef on .properties files creates broken xref links -->
+                <includeResources>false</includeResources>
+                <includeTestResources>false</includeTestResources>
+            </configuration>
+        </plugin>
       </plugins>
     </pluginManagement>
   </build>
+
+  <reporting>
+    <plugins>
+
+      <!-- Project metadata and dependency reports -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-project-info-reports-plugin</artifactId>
+        <version>${plugin.project-info-reports.version}</version>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>summary</report>
+              <report>dependencies</report>
+              <report>dependency-management</report>
+              <report>plugins</report>
+              <report>plugin-management</report>
+              <report>licenses</report>
+              <report>scm</report>
+              <report>issue-management</report>
+              <report>ci-management</report>
+              <report>mailing-lists</report>
+              <report>modules</report>
+              <report>team</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
+
+      <!-- Source cross-reference (must precede PMD/Checkstyle for link generation) -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jxr-plugin</artifactId>
+        <version>${plugin.jxr.version}</version>
+        <reportSets>
+          <reportSet>
+            <id>aggregate</id>
+            <inherited>false</inherited>
+            <reports>
+              <report>aggregate</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
+
+      <!-- Javadoc with UML class diagrams (config inherited from pluginManagement) -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>${plugin.javadoc.version}</version>
+        <configuration>
+          <!-- allow modules where test classes are all package-private to succeed -->
+          <failOnError>false</failOnError>
+          <!-- document package-private classes so JXR source links resolve -->
+          <show>package</show>
+        </configuration>
+        <reportSets>
+          <reportSet>
+            <!-- per-module: apidocs + testapidocs so JXR source cross-reference links resolve -->
+            <reports>
+              <report>javadoc</report>
+              <report>test-javadoc</report>
+            </reports>
+          </reportSet>
+          <reportSet>
+            <id>aggregate</id>
+            <inherited>false</inherited>
+            <reports>
+              <report>aggregate</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
+
+      <!-- Unit test results -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-report-plugin</artifactId>
+        <version>${plugin.surefire.version}</version>
+        <reportSets>
+          <reportSet>
+            <id>aggregate</id>
+            <inherited>false</inherited>
+            <reports>
+              <report>report-only</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
+
+      <!-- Code coverage -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${jacoco-version}</version>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>report</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
+
+      <!-- Static analysis — PMD -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-pmd-plugin</artifactId>
+        <version>${plugin.pmd.version}</version>
+        <configuration>
+          <linkXRef>true</linkXRef>
+          <targetJdk>${jdk.version}</targetJdk>
+          <aggregate>true</aggregate>
+        </configuration>
+      </plugin>
+
+      <!-- Bug analysis -->
+      <plugin>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>${plugin.spotbugs.version}</version>
+      </plugin>
+
+      <!-- Code style -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>${plugin.checkstyle.version}</version>
+        <configuration>
+          <configLocation>google_checks.xml</configLocation>
+          <failsOnError>false</failsOnError>
+          <linkXRef>true</linkXRef>
+          <!-- do not check resource files; google_checks.xml is Java-only
+               and linkXRef on .properties files creates broken xref links -->
+          <includeResources>false</includeResources>
+          <includeTestResources>false</includeTestResources>
+        </configuration>
+        <reportSets>
+          <reportSet>
+            <id>aggregate</id>
+            <inherited>false</inherited>
+            <reports>
+              <report>checkstyle-aggregate</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
+
+    </plugins>
+  </reporting>
 
   <profiles>
     <profile>

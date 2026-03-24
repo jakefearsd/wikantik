@@ -173,13 +173,13 @@ public class XMLGroupDatabase implements GroupDatabase {
         // Get database file location
         final String filePath = TextUtil.getStringProperty(props, PROP_DATABASE , defaultFile.getAbsolutePath());
         if ( filePath == null ) {
-            LOG.warn( "XML group database property " + PROP_DATABASE + " not found; trying " + defaultFile );
+            LOG.warn( "XML group database property {} not found; trying {}", PROP_DATABASE, defaultFile );
             file = defaultFile;
         } else {
             file = new File( filePath );
         }
 
-        LOG.info( "XML group database at " + file.getAbsolutePath() );
+        LOG.info( "XML group database at {}", file.getAbsolutePath() );
 
         // Read DOM
         buildDOM();
@@ -301,8 +301,7 @@ public class XMLGroupDatabase implements GroupDatabase {
                 group.setCreated( defaultFormat.parse( created ) );
                 group.setLastModified( defaultFormat.parse( modified ) );
             } catch ( final ParseException e2 ) {
-                LOG.warn( "Could not parse 'created' or 'lastModified' " + "attribute for " + " group'"
-                          + group.getName() + "'." + " It may have been tampered with." );
+                LOG.warn( "Could not parse 'created' or 'lastModified' attribute for group'{}'. It may have been tampered with.", group.getName() );
             }
         }
         group.setCreator( creator );

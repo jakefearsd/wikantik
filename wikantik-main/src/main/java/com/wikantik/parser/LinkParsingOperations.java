@@ -172,7 +172,7 @@ public class LinkParsingOperations {
         try {
             return wikiContext.getEngine().getFinalPageName( page ) != null;
         } catch( final ProviderException e ) {
-            LOG.warn( "TranslatorReader got a faulty page name [" + page + "]!", e );
+            LOG.warn( "TranslatorReader got a faulty page name [{}]!", page, e );
             return false;
         }
     }
@@ -190,7 +190,7 @@ public class LinkParsingOperations {
         try {
             return wikiContext.getEngine().getFinalPageName( page );
         } catch( final ProviderException e ) {
-            LOG.warn( "TranslatorReader got a faulty page name [" + page + "]!", e );
+            LOG.warn( "TranslatorReader got a faulty page name [{}]!", page, e );
             return null;
         }
     }

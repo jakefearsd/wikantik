@@ -60,7 +60,7 @@ public class ShortURLConstructor extends DefaultURLConstructor {
             urlPrefix = DEFAULT_PREFIX;
         }
 
-        LOG.info("Short URL prefix path="+urlPrefix+" (You can use "+PROP_PREFIX+" to override this)");
+        LOG.info("Short URL prefix path={} (You can use {} to override this)", urlPrefix, PROP_PREFIX);
     }
 
     /**

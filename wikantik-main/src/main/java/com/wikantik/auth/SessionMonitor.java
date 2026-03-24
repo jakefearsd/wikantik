@@ -265,7 +265,7 @@ public class SessionMonitor implements HttpSessionListener {
     @Override
     public void sessionCreated( final HttpSessionEvent se ) {
         final HttpSession session = se.getSession();
-        LOG.debug( "Created session: " + session.getId() + "." );
+        LOG.debug( "Created session: {}.", session.getId() );
     }
 
     /**
@@ -279,7 +279,7 @@ public class SessionMonitor implements HttpSessionListener {
         for( final SessionMonitor monitor : monitors.values() ) {
             final Session storedSession = monitor.findSession( session );
             monitor.remove( session );
-            LOG.debug( "Removed session " + session.getId() + "." );
+            LOG.debug( "Removed session {}.", session.getId() );
             if( storedSession != null ) {
                 fireEvent( WikiSecurityEvent.SESSION_EXPIRED, storedSession.getLoginPrincipal(), storedSession );
             }

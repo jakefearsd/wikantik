@@ -65,7 +65,7 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
     public final void actionPerformed( final WikiEvent event ) {
         if ( event instanceof WikiEngineEvent engineEvent ) {
             if ( engineEvent.getType() == WikiEngineEvent.SHUTDOWN ) {
-                LOG.info( "Detected wiki engine shutdown: killing " + getName() + "." );
+                LOG.info( "Detected wiki engine shutdown: killing {}.", getName() );
                 killMe = true;
             }
         }
@@ -110,7 +110,7 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
         try {
             // Perform the initial startup task
             final String name = getName();
-            LOG.info( "Starting up background thread: " + name + ".");
+            LOG.info( "Starting up background thread: {}.", name);
             startupTask();
             
             // Perform the background task; check every second for thread death
@@ -126,7 +126,7 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
                         Thread.sleep( POLLING_INTERVAL );
                         if( killMe ) {
                             interrupted = true;
-                            LOG.info( "Interrupted background thread: " + name + "." );
+                            LOG.info( "Interrupted background thread: {}.", name );
                             break;
                         }
                     }

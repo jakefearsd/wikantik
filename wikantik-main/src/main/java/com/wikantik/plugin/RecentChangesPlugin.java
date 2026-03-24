@@ -103,7 +103,7 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
         final Calendar sincedate = new GregorianCalendar();
         sincedate.add( Calendar.DAY_OF_MONTH, -since );
 
-        LOG.debug("Calculating recent changes from "+sincedate.getTime());
+        LOG.debug("Calculating recent changes from {}", sincedate.getTime());
 
         Collection< Page > changes = engine.getManager( PageManager.class ).getRecentChanges( sincedate.getTime() );
         super.initialize( context, params );

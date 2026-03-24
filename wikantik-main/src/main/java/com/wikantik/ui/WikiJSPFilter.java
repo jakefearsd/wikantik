@@ -225,7 +225,7 @@ public class WikiJSPFilter extends WikiServletFilter {
         final StringBuilder concat = new StringBuilder( resources.length * 40 );
 
         for( final String resource : resources ) {
-            LOG.debug( "...:::" + resource );
+            LOG.debug( "...:::{}", resource );
             concat.append( resource );
         }
 

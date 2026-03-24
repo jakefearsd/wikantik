@@ -159,7 +159,7 @@ public class DefaultPageManager implements PageManager {
             text = provider.getPageText( pageName, version );
         } catch ( final RepositoryModifiedException e ) {
             //  This only occurs with the latest version.
-            LOG.info( "Repository has been modified externally while fetching page " + pageName );
+            LOG.info( "Repository has been modified externally while fetching page {}", pageName );
 
             //  Empty the references and yay, it shall be recalculated
             final Page p = provider.getPageInfo( pageName, version );
@@ -182,7 +182,7 @@ public class DefaultPageManager implements PageManager {
         try {
             result = getPageText( page, version );
         } catch( final ProviderException e ) {
-            LOG.error( "ProviderException getPureText for page " + page + " [version " + version + "]", e );
+            LOG.error( "ProviderException getPureText for page {} [version {}]", page, version, e );
         } finally {
             if( result == null ) {
                 result = "";
@@ -281,10 +281,10 @@ public class DefaultPageManager implements PageManager {
         final com.wikantik.api.pages.PageLock existing = pageLocks.putIfAbsent( page.getName(), newLock );
 
         if( existing == null ) {
-            LOG.debug( "Locked page " + page.getName() + " for " + user );
+            LOG.debug( "Locked page {} for {}", page.getName(), user );
             return newLock;
         } else {
-            LOG.debug( "Page " + page.getName() + " already locked by " + existing.getLocker() );
+            LOG.debug( "Page {} already locked by {}", page.getName(), existing.getLocker() );
             return null;
         }
     }
@@ -300,7 +300,7 @@ public class DefaultPageManager implements PageManager {
         }
 
         pageLocks.remove( lock.getPage() );
-        LOG.debug( "Unlocked page " + lock.getPage() );
+        LOG.debug( "Unlocked page {}", lock.getPage() );
 
         fireEvent( WikiPageEvent.PAGE_UNLOCK, lock.getPage() );
     }
@@ -367,7 +367,7 @@ public class DefaultPageManager implements PageManager {
             page = provider.getPageInfo( pageName, version );
         } catch( final RepositoryModifiedException e ) {
             //  This only occurs with the latest version.
-            LOG.info( "Repository has been modified externally while fetching info for " + pageName );
+            LOG.info( "Repository has been modified externally while fetching info for {}", pageName );
             page = provider.getPageInfo( pageName, version );
             if( page != null ) {
                 engine.getManager( ReferenceManager.class ).updateReferences( page );
@@ -396,7 +396,7 @@ public class DefaultPageManager implements PageManager {
                 c = ( List< T > )engine.getManager( AttachmentManager.class ).getVersionHistory( pageName );
             }
         } catch( final ProviderException e ) {
-            LOG.error( "ProviderException requesting version history for " + pageName, e );
+            LOG.error( "ProviderException requesting version history for {}", pageName, e );
         }
 
         return c;
@@ -621,10 +621,8 @@ public class DefaultPageManager implements PageManager {
                 if ( p.isExpired() ) {
                     i.remove();
 
-                    LOG.debug( "Reaped lock: " + p.getPage() +
-                               " by " + p.getLocker() +
-                               ", acquired " + p.getAcquisitionTime() +
-                               ", and expired " + p.getExpiryTime() );
+                    LOG.debug( "Reaped lock: {} by {}, acquired {}, and expired {}",
+                               p.getPage(), p.getLocker(), p.getAcquisitionTime(), p.getExpiryTime() );
                 }
             }
         }
@@ -679,15 +677,15 @@ public class DefaultPageManager implements PageManager {
                         try {
                             engine.getManager( AclManager.class ).setPermissions( page, page.getAcl() );
                         } catch( final WikiSecurityException e ) {
-                            LOG.error("Could not change page ACL for page " + page.getName() + ": " + e.getMessage(), e);
+                            LOG.error("Could not change page ACL for page {}: {}", page.getName(), e.getMessage(), e);
                         }
                         pagesChanged++;
                     }
                 }
-                LOG.info( "Profile name change for '" + newPrincipal + "' caused " + pagesChanged + " page ACLs to change also." );
+                LOG.info( "Profile name change for '{}' caused {} page ACLs to change also.", newPrincipal, pagesChanged );
             } catch( final ProviderException e ) {
                 // Oooo! This is really bad...
-                LOG.error( "Could not change user name in Page ACLs because of Provider error:" + e.getMessage(), e );
+                LOG.error( "Could not change user name in Page ACLs because of Provider error:{}", e.getMessage(), e );
             }
         }
     }

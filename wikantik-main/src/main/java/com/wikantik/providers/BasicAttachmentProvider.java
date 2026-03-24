@@ -344,7 +344,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
             final File f = findFile( attDir, att );
             return Files.newInputStream( f.toPath() );
         } catch( final FileNotFoundException e ) {
-            LOG.error( "File not found: " + e.getMessage() );
+            LOG.error( "File not found: {}", e.getMessage() );
             throw new ProviderException( "No such page was found." );
         }
     }
@@ -475,7 +475,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
             att.setSize( f.length() );
             att.setLastModified( new Date( f.lastModified() ) );
         } catch( final FileNotFoundException e ) {
-            LOG.error( "Can't get attachment properties for " + att, e );
+            LOG.error( "Can't get attachment properties for {}", att, e );
             return null;
         } catch( final IOException e ) {
             LOG.error("Can't read page properties", e );
@@ -501,7 +501,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
                 }
             }
         } catch( final ProviderException e ) {
-            LOG.error( "Getting version history failed for page: " + att, e );
+            LOG.error( "Getting version history failed for page: {}", att, e );
             // FIXME: Should this fail?
         }
 
@@ -569,11 +569,11 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         final File srcDir = findPageDir( oldParent );
         final File destDir = findPageDir( newParent );
 
-        LOG.debug( "Trying to move all attachments from " + srcDir + " to " + destDir );
+        LOG.debug( "Trying to move all attachments from {} to {}", srcDir, destDir );
 
         // If it exists, we're overwriting an old page (this has already been confirmed at a higher level), so delete any existing attachments.
         if( destDir.exists() ) {
-            LOG.error( "Page rename failed because target directory " + destDir + " exists" );
+            LOG.error( "Page rename failed because target directory {} exists", destDir );
         } else {
             // destDir.getParentFile().mkdir();
             srcDir.renameTo( destDir );

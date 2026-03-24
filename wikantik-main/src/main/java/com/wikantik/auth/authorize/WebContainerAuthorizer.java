@@ -120,7 +120,7 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
 
         if( containerRoles.length > 0 ) {
             final String roles = Arrays.stream(containerRoles).map(containerRole -> containerRole + " ").collect(Collectors.joining());
-            LOG.info( " JSPWiki determined the web container manages these roles: " + roles );
+            LOG.info( " JSPWiki determined the web container manages these roles: {}", roles );
         }
         LOG.info( "Authorizer WebContainerAuthorizer initialized successfully." );
     }
@@ -337,7 +337,7 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
         } else {
             url = engine.getServletContext().getResource( "/WEB-INF/web.xml" );
             if( url != null )
-                LOG.info( "Examining " + url.toExternalForm() );
+                LOG.info( "Examining {}", url.toExternalForm() );
         }
         if( url == null ) {
             throw new IOException("Unable to find web.xml for processing.");

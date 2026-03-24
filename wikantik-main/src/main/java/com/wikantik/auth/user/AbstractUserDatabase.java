@@ -278,7 +278,7 @@ public abstract class AbstractUserDatabase implements UserDatabase {
             final byte[] digestedBytes = md.digest();
             return ByteUtils.bytes2hex( digestedBytes );
         } catch( final NoSuchAlgorithmException e ) {
-            LOG.error( "Error creating SHA password hash:" + e.getMessage() );
+            LOG.error( "Error creating SHA password hash:{}", e.getMessage() );
             return text;
         }
     }

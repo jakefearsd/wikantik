@@ -75,7 +75,7 @@ public class PluginLinkNodePostProcessorState implements NodePostProcessorState<
                 NodePostProcessorStateCommonOperations.addContent( state, link, content );
             }
         } catch( final PluginException e ) {
-            LOG.info( wikiContext.getRealPage().getWiki() + " : " + wikiContext.getRealPage().getName() + " - Failed to insert plugin: " + e.getMessage() );
+            LOG.info( "{} : {} - Failed to insert plugin: {}", wikiContext.getRealPage().getWiki(), wikiContext.getRealPage().getName(), e.getMessage() );
             if( !wysiwygEditorMode ) {
                 final ResourceBundle rbPlugin = Preferences.getBundle( wikiContext, Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
                 NodePostProcessorStateCommonOperations.makeError( state, link, MessageFormat.format( rbPlugin.getString( "plugin.error.insertionfailed" ),

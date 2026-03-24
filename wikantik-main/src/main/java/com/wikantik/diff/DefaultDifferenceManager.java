@@ -51,7 +51,7 @@ public class DefaultDifferenceManager implements DifferenceManager {
         loadProvider( props );
         initializeProvider( engine, props );
 
-        LOG.info( "Using difference provider: " + provider.getProviderInfo() );
+        LOG.info( "Using difference provider: {}", provider.getProviderInfo() );
     }
 
     private void loadProvider( final Properties props ) {

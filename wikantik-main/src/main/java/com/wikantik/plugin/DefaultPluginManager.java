@@ -405,21 +405,21 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
         // Register the plugin with the className without the package-part
         name = pluginClass.getName();
         if( name != null ) {
-            LOG.debug( "Registering plugin [name]: " + name );
+            LOG.debug( "Registering plugin [name]: {}", name );
             pluginClassMap.put( name, pluginClass );
         }
 
         // Register the plugin with a short convenient name.
         name = pluginClass.getAlias();
         if( name != null ) {
-            LOG.debug( "Registering plugin [shortName]: " + name );
+            LOG.debug( "Registering plugin [shortName]: {}", name );
             pluginClassMap.put( name, pluginClass );
         }
 
         // Register the plugin with the className with the package-part
         name = pluginClass.getClassName();
         if( name != null ) {
-            LOG.debug( "Registering plugin [className]: " + name );
+            LOG.debug( "Registering plugin [className]: {}", name );
             pluginClassMap.put( name, pluginClass );
         }
 

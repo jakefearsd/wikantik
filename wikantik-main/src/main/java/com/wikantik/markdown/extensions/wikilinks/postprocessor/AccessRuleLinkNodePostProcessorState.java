@@ -62,7 +62,7 @@ public class AccessRuleLinkNodePostProcessorState implements NodePostProcessorSt
             if( ruleLine.endsWith( "}" ) ) {
                 ruleLine = ruleLine.substring( 0, ruleLine.length() - 1 );
             }
-            LOG.debug( "page=" + page.getName() + ", ACL = " + ruleLine );
+            LOG.debug( "page={}, ACL = {}", page.getName(), ruleLine );
 
             try {
                 final Acl acl = wikiContext.getEngine().getManager( AclManager.class ).parseAcl( page, ruleLine );

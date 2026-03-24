@@ -88,7 +88,7 @@ public class AnonymousLoginModule extends AbstractLoginModule
             principals.add( ipAddr );
             return true;
         } catch( final IOException e ) {
-            LOG.error("IOException: " + e.getMessage());
+            LOG.error("IOException: {}", e.getMessage());
             return false;
         } catch( final UnsupportedCallbackException e ) {
             final String message = "Unable to handle callback, disallowing login.";

@@ -103,10 +103,10 @@ public class DefaultAclManager implements AclManager {
                 final AclEntry oldEntry = acl.getAclEntry(principal);
 
                 if( oldEntry != null ) {
-                    LOG.debug( "Adding to old acl list: " + principal + ", " + actions );
+                    LOG.debug( "Adding to old acl list: {}, {}", principal, actions );
                     oldEntry.addPermission( PermissionFactory.getPagePermission( page, actions ) );
                 } else {
-                    LOG.debug( "Adding new acl entry for " + actions );
+                    LOG.debug( "Adding new acl entry for {}", actions );
                     final AclEntry entry = Wiki.acls().entry();
                     entry.setPrincipal( principal );
                     entry.addPermission( PermissionFactory.getPagePermission( page, actions ) );
@@ -118,7 +118,7 @@ public class DefaultAclManager implements AclManager {
             page.setAcl( acl );
             LOG.debug( acl.toString() );
         } catch( final NoSuchElementException nsee ) {
-            LOG.warn( "Invalid access rule: " + ruleLine + " - defaults will be used." );
+            LOG.warn( "Invalid access rule: {} - defaults will be used.", ruleLine );
             throw new WikiSecurityException( "Invalid access rule: " + ruleLine, nsee );
         } catch( final IllegalArgumentException iae ) {
             throw new WikiSecurityException("Invalid permission type: " + ruleLine, iae);
@@ -133,7 +133,7 @@ public class DefaultAclManager implements AclManager {
     public Acl getPermissions( final Page page ) {
         //  Does the page already have cached ACLs?
         Acl acl = page.getAcl();
-        LOG.debug( "page=" + page.getName() + "\n" + acl );
+        LOG.debug( "page={}\n{}", page.getName(), acl );
 
         if( acl == null ) {
             //  If null, try the parent.

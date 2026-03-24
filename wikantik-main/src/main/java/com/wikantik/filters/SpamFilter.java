@@ -260,8 +260,8 @@ public class SpamFilter extends BasePageFilter {
         akismetAPIKey = TextUtil.getStringProperty( properties, PROP_AKISMET_API_KEY, akismetAPIKey );
         stopAtFirstMatch = TextUtil.getStringProperty( properties, PROP_FILTERSTRATEGY, STRATEGY_EAGER ).equals( STRATEGY_EAGER );
 
-        LOG.info( "# Spam filter initialized.  Temporary ban time " + banTime +
-                  " mins, max page changes/minute: " + limitSinglePageChanges );
+        LOG.info( "# Spam filter initialized.  Temporary ban time {} mins, max page changes/minute: {}",
+                  banTime, limitSinglePageChanges );
     }
 
     private static final int REJECT = 0;
@@ -281,7 +281,7 @@ public class SpamFilter extends BasePageFilter {
             case NOTE   -> "NOTE";
             default     -> throw new InternalWikiException( "Illegal type " + type );
         };
-        C_SPAMLOG.info( reason + " " + source + " " + uid + " " + addr + " \"" + page + "\" " + message );
+        C_SPAMLOG.info( "{} {} {} {} \"{}\" {}", reason, source, uid, addr, page, message );
 
         return uid;
     }
@@ -324,7 +324,7 @@ public class SpamFilter extends BasePageFilter {
 
             final String uid = log( context, REJECT, REASON_PAGENAME_TOO_LONG + "(" + pageNameMaxLength + ")" , pageName);
 
-            LOG.info("SPAM:PageNameTooLong (" + uid + "). The length of the page name is too large (" + pageName.length() + " , limit is " + pageNameMaxLength + ")");
+            LOG.info("SPAM:PageNameTooLong ({}). The length of the page name is too large ({} , limit is {})", uid, pageName.length(), pageNameMaxLength);
             checkStrategy( context, "Herb says '" + pageName + "' is a bad pageName and I trust Herb! (Incident code " + uid + ")" );
 
         }
@@ -364,7 +364,7 @@ public class SpamFilter extends BasePageFilter {
                 try {
                     compiledpatterns.add( Pattern.compile( pattern ) );
                 } catch( final PatternSyntaxException e ) {
-                    LOG.debug( "Malformed spam filter pattern " + pattern );
+                    LOG.debug( "Malformed spam filter pattern {}", pattern );
                     source.setAttribute("error", "Malformed spam filter pattern " + pattern);
                 }
             }
@@ -398,7 +398,7 @@ public class SpamFilter extends BasePageFilter {
                     try {
                         compiledpatterns.add( Pattern.compile( line ) );
                     } catch( final PatternSyntaxException e ) {
-                        LOG.debug( "Malformed spam filter pattern " + line );
+                        LOG.debug( "Malformed spam filter pattern {}", line );
                     }
                 }
             } catch( final IOException e ) {
@@ -425,7 +425,7 @@ public class SpamFilter extends BasePageFilter {
             int hostCounter = 0;
             int changeCounter = 0;
 
-            LOG.debug( "Change is " + change.change );
+            LOG.debug( "Change is {}", change.change );
 
             final long time = System.currentTimeMillis() - 60*1000L; // 1 minute
 
@@ -434,7 +434,7 @@ public class SpamFilter extends BasePageFilter {
 
                 //  Check if this item is invalid
                 if( host.addedTime() < time ) {
-                    LOG.debug( "Removed host " + host.address() + " from modification queue (expired)" );
+                    LOG.debug( "Removed host {} from modification queue (expired)", host.address() );
                     i.remove();
                     continue;
                 }
@@ -456,7 +456,7 @@ public class SpamFilter extends BasePageFilter {
                 temporaryBanList.add( host );
 
                 final String uid = log( context, REJECT, REASON_TOO_MANY_MODIFICATIONS, change.change );
-                LOG.info( "SPAM:TooManyModifications (" + uid + "). Added host " + addr + " to temporary ban list for doing too many modifications/minute" );
+                LOG.info( "SPAM:TooManyModifications ({}). Added host {} to temporary ban list for doing too many modifications/minute", uid, addr );
                 checkStrategy( context, "Herb says you look like a spammer, and I trust Herb! (Incident code " + uid + ")" );
             }
 
@@ -465,7 +465,7 @@ public class SpamFilter extends BasePageFilter {
                 temporaryBanList.add( host );
 
                 final String uid = log( context, REJECT, REASON_SIMILAR_MODIFICATIONS, change.change );
-                LOG.info( "SPAM:SimilarModifications (" + uid + "). Added host " + addr + " to temporary ban list for doing too many similar modifications" );
+                LOG.info( "SPAM:SimilarModifications ({}). Added host {} to temporary ban list for doing too many similar modifications", uid, addr );
                 checkStrategy( context, "Herb says you look like a spammer, and I trust Herb! (Incident code "+uid+")");
             }
 
@@ -482,7 +482,7 @@ public class SpamFilter extends BasePageFilter {
                 temporaryBanList.add( host );
 
                 final String uid = log( context, REJECT, REASON_TOO_MANY_URLS, change.toString() );
-                LOG.info( "SPAM:TooManyUrls (" + uid + "). Added host " + addr + " to temporary ban list for adding too many URLs" );
+                LOG.info( "SPAM:TooManyUrls ({}). Added host {} to temporary ban list for adding too many URLs", uid, addr );
                 checkStrategy( context, "Herb says you look like a spammer, and I trust Herb! (Incident code " + uid + ")" );
             }
 
@@ -555,14 +555,14 @@ public class SpamFilter extends BasePageFilter {
                 final boolean isSpam = akismet.checkComment(comment);
 
                 sw.stop();
-                LOG.debug( "Akismet request done in: " + sw );
+                LOG.debug( "Akismet request done in: {}", sw );
 
                 if( isSpam ) {
                     // Host host = new Host( ipAddress, null );
                     // temporaryBanList.add( host );
 
                     final String uid = log( context, REJECT, REASON_AKISMET, change.toString() );
-                    LOG.info( "SPAM:Akismet (" + uid + "). Akismet thinks this change is spam; added host to temporary ban list." );
+                    LOG.info( "SPAM:Akismet ({}). Akismet thinks this change is spam; added host to temporary ban list.", uid );
                     checkStrategy( context, "Akismet tells Herb you're a spammer, Herb trusts Akismet, and I trust Herb! (Incident code " + uid + ")" );
                 }
             }
@@ -592,7 +592,7 @@ public class SpamFilter extends BasePageFilter {
             if( unspam != null && !unspam.isEmpty() ) {
                 final String uid = log( context, REJECT, REASON_BOT_TRAP, change.toString() );
 
-                LOG.info( "SPAM:BotTrap (" + uid + ").  Wildly behaving bot detected." );
+                LOG.info( "SPAM:BotTrap ({}).  Wildly behaving bot detected.", uid );
                 checkStrategy( context, "Spamming attempt detected. (Incident code " + uid + ")" );
             }
         }
@@ -605,7 +605,7 @@ public class SpamFilter extends BasePageFilter {
             if( utf8field != null && !utf8field.equals( "\u3041" ) ) {
                 final String uid = log( context, REJECT, REASON_UTF8_TRAP, change.toString() );
 
-                LOG.info( "SPAM:UTF8Trap (" + uid + ").  Wildly posting dumb bot detected." );
+                LOG.info( "SPAM:UTF8Trap ({}).  Wildly posting dumb bot detected.", uid );
                 checkStrategy( context, "Spamming attempt detected. (Incident code " + uid + ")" );
             }
         }
@@ -618,7 +618,7 @@ public class SpamFilter extends BasePageFilter {
             final Host host = i.next();
 
             if( host.releaseTime() < now ) {
-                LOG.debug( "Removed host " + host.address() + " from temporary ban list (expired)" );
+                LOG.debug( "Removed host {} from temporary ban list (expired)", host.address() );
                 i.remove();
             }
         }
@@ -685,17 +685,17 @@ public class SpamFilter extends BasePageFilter {
                 lastRebuild = new Date();
                 spamPatterns = parseWordList( sourceSpam, ( sourceSpam != null ) ? sourceSpam.getAttribute( LISTVAR ) : null );
 
-                LOG.info( "Spam filter reloaded - recognizing " + spamPatterns.size() + " patterns from page " + forbiddenWordsPage );
+                LOG.info( "Spam filter reloaded - recognizing {} patterns from page {}", spamPatterns.size(), forbiddenWordsPage );
 
                 IPPatterns = parseWordList( sourceIPs,  ( sourceIPs != null ) ? sourceIPs.getAttribute( LISTIPVAR ) : null );
-                LOG.info( "IP filter reloaded - recognizing " + IPPatterns.size() + " patterns from page " + forbiddenIPsPage );
+                LOG.info( "IP filter reloaded - recognizing {} patterns from page {}", IPPatterns.size(), forbiddenIPsPage );
 
                 if( att != null ) {
                     final InputStream in = context.getEngine().getManager( AttachmentManager.class ).getAttachmentStream(att);
                     final StringWriter out = new StringWriter();
                     FileUtil.copyContents( new InputStreamReader( in, StandardCharsets.UTF_8 ), out );
                     final Collection< Pattern > blackList = parseBlacklist( out.toString() );
-                    LOG.info( "...recognizing additional " + blackList.size() + " patterns from blacklist " + blacklist );
+                    LOG.info( "...recognizing additional {} patterns from blacklist {}", blackList.size(), blacklist );
                     spamPatterns.addAll( blackList );
                 }
             }
@@ -731,7 +731,7 @@ public class SpamFilter extends BasePageFilter {
                 //  Spam filter has a match.
                 final String uid = log( context, REJECT, REASON_REGEXP + "(" + pattern.pattern() + ")", ch );
 
-                LOG.info( "SPAM:Regexp (" + uid + "). Content matches the spam filter '" + pattern.pattern() + "'" );
+                LOG.info( "SPAM:Regexp ({}). Content matches the spam filter '{}'", uid, pattern.pattern() );
                 checkStrategy( context, "Herb says '" + pattern.pattern() + "' is a bad spam word and I trust Herb! (Incident code " + uid + ")" );
             }
         }
@@ -754,7 +754,7 @@ public class SpamFilter extends BasePageFilter {
         LOG.info("Attempting to match remoteIP {} against {} patterns", remoteIP, IPPatterns.size());
 
         for( final Pattern pattern : IPPatterns ) {
-             LOG.debug("Attempting to match remoteIP with " + pattern.pattern());
+             LOG.debug("Attempting to match remoteIP with {}", pattern.pattern());
 
             if( pattern.matcher( remoteIP ).find() ) {
 
@@ -762,7 +762,7 @@ public class SpamFilter extends BasePageFilter {
                 //
                 final String uid = log( context, REJECT, REASON_IP_BANNED_PERMANENTLY + "(" + pattern.pattern() + ")", remoteIP );
 
-                LOG.info( "SPAM:IPBanList (" + uid + "). remoteIP matches the IP filter '" + pattern.pattern() + "'" );
+                LOG.info( "SPAM:IPBanList ({}). remoteIP matches the IP filter '{}'", uid, pattern.pattern() );
                 checkStrategy( context, "Herb says '" + pattern.pattern() + "' is a banned IP and I trust Herb! (Incident code " + uid + ")" );
             }
         }

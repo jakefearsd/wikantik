@@ -56,7 +56,7 @@ public class ProfanityFilter extends BasePageFilter {
                 profanities = br.lines().filter(str -> !str.isEmpty() && !str.startsWith("#")).toArray(String[]::new);
             }
         } catch( final IOException e ) {
-            LOG.error( "Unable to load profanities from " + PROPERTYFILE, e );
+            LOG.error( "Unable to load profanities from {}", PROPERTYFILE, e );
         } catch( final Exception e ) {
             LOG.error( "Unable to initialize Profanity Filter", e );
         }

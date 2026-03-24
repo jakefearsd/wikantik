@@ -122,7 +122,7 @@ public class ContextualDiffProvider implements DiffProvider {
         try {
             limit = Integer.parseInt( configuredLimit );
         } catch( final NumberFormatException e ) {
-            LOG.warn("Failed to parseInt " + PROP_UNCHANGED_CONTEXT_LIMIT + "=" + configuredLimit + " Will use a huge number as limit.", e );
+            LOG.warn("Failed to parseInt {}={} Will use a huge number as limit.", PROP_UNCHANGED_CONTEXT_LIMIT, configuredLimit, e );
         }
         unchangedContextLimit = limit;
     }

@@ -134,7 +134,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 throw new IOException( "Page version directory is not writable: " + oldpages.getAbsolutePath() );
             }
         }
-        LOG.info( "Using directory " + oldpages.getAbsolutePath() + " for storing old versions of pages" );
+        LOG.info( "Using directory {} for storing old versions of pages", oldpages.getAbsolutePath() );
 
         // Initialize property cache strategy based on configuration
         final int cacheSize = Integer.parseInt( properties.getProperty( PROP_CACHE_SIZE, String.valueOf( DEFAULT_CACHE_SIZE ) ) );
@@ -334,7 +334,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
                     throw new ProviderException("I/O error: "+e.getMessage());
                 }
             } else {
-                LOG.warn("Failed to read page from '"+pagedata.getAbsolutePath()+"', possibly a permissions problem");
+                LOG.warn("Failed to read page from '{}', possibly a permissions problem", pagedata.getAbsolutePath());
                 throw new ProviderException("I cannot read the requested page.");
             }
         } else {
@@ -515,7 +515,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 // Set the props values to the page attributes
                 setCustomProperties( p, props );
             } catch( final IOException e ) {
-                LOG.error( "Cannot get author for page" + page + ": ", e );
+                LOG.error( "Cannot get author for page {}: ", page, e );
             }
         }
 
@@ -673,7 +673,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
         final File pageFile = new File( dir, ""+version+FILE_EXT );
         if( pageFile.exists() ) {
             if( !pageFile.delete() ) {
-                LOG.error("Unable to delete page." + pageFile.getPath() );
+                LOG.error("Unable to delete page. {}", pageFile.getPath() );
             }
         } else {
             throw new NoSuchVersionException("Page "+page+", version="+version);

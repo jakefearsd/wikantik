@@ -121,7 +121,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
             dbInstantiationError = "Access GroupDatabase class " + dbClassName + " denied";
             cause = e;
         } catch( final NoRequiredPropertyException e ) {
-            LOG.error( "Missing property: " + e.getMessage() + "." );
+            LOG.error( "Missing property: {}.", e.getMessage() );
             dbInstantiationError = "Missing property: " + e.getMessage();
             cause = e;
         }
@@ -164,7 +164,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         engine.getManager( UserManager.class ).addWikiEventListener( this );
 
         // Success!
-        LOG.info( "Authorizer GroupManager initialized successfully; loaded " + groups.length + " group(s)." );
+        LOG.info( "Authorizer GroupManager initialized successfully; loaded {} group(s).", groups.length );
     }
 
     /** {@inheritDoc} */
@@ -415,9 +415,9 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
                 }
             } catch( final WikiException e ) {
                 // Oooo! This is really bad...
-                LOG.error( "Could not change user name in Group lists because of GroupDatabase error:" + e.getMessage() );
+                LOG.error( "Could not change user name in Group lists because of GroupDatabase error:{}", e.getMessage() );
             }
-            LOG.info( "Profile name change for '" + newPrincipal + "' caused " + groupsChanged + " groups to change also." );
+            LOG.info( "Profile name change for '{}' caused {} groups to change also.", newPrincipal, groupsChanged );
         }
     }
 

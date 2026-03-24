@@ -87,7 +87,7 @@ public class InterWikiLinkNodePostProcessorState implements NodePostProcessorSta
                     NodePostProcessorStateCommonOperations.addOutlinkImage( state, link, wikiContext, useOutlinkImage );
                 }
             } else {
-                LOG.debug( refAndPage[0] + " not recognized as InterWiki link [document node: " + document + "]" );
+                LOG.debug( "{} not recognized as InterWiki link [document node: {}]", refAndPage[0], document );
                 final Object[] args = { refAndPage[ 0 ] };
                 final ResourceBundle rb = Preferences.getBundle( wikiContext, InternationalizationManager.CORE_BUNDLE );
                 final String errMsg = MessageFormat.format( rb.getString( "markupparser.error.nointerwikiref" ), args );

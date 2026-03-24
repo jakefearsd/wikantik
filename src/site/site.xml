@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/DECORATION/1.8.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/DECORATION/1.8.0
+             https://maven.apache.org/xsd/decoration-1.8.0.xsd"
+         name="Wikantik">
+
+    <skin>
+        <groupId>org.apache.maven.skins</groupId>
+        <artifactId>maven-fluido-skin</artifactId>
+        <version>2.0.0-M9</version>
+    </skin>
+
+    <body>
+        <links>
+            <item name="GitHub" href="https://github.com/jakefearsd/wikantik"/>
+            <item name="Issue Tracker" href="http://issues.apache.org/jira/browse/JSPWIKI"/>
+        </links>
+
+        <menu name="Wikantik">
+            <item name="Overview" href="index.html"/>
+        </menu>
+        <menu ref="parent"/>
+        <menu ref="modules"/>
+        <menu ref="reports"/>
+    </body>
+</project>

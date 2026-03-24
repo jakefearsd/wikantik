@@ -150,7 +150,7 @@ public class DefaultVariableManager implements VariableManager {
                         return p;
                     }
                 } catch( final ClassCastException e ) {
-                    LOG.debug( "Not a String: " + originalName );
+                    LOG.debug( "Not a String: {}", originalName );
                 }
             }
             return null;

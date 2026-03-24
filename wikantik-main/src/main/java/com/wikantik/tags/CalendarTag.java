@@ -264,7 +264,7 @@ public class CalendarTag extends WikiTagBase {
             try {
                 currentDate = LocalDate.parse( calendarDate, DATE_FORMAT );
             } catch( final DateTimeParseException e ) {
-                LOG.warn( "date format wrong: " + calendarDate );
+                LOG.warn( "date format wrong: {}", calendarDate );
             }
         }
 

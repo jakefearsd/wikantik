@@ -110,10 +110,10 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
                     return;
                 }
                 final String itemId = params.get( 0 );
-                LOG.debug( "itemId=" + itemId );
+                LOG.debug( "itemId={}", itemId );
                 if( params.size() > 1 ) {
                     final String maxResultsParam = params.get( 1 );
-                    LOG.debug( "maxResultsParam=" + maxResultsParam );
+                    LOG.debug( "maxResultsParam={}", maxResultsParam );
                     if( StringUtils.isNotBlank( maxResultsParam ) && StringUtils.isNumeric( maxResultsParam ) ) {
                         maxResults = Integer.parseInt( maxResultsParam );
                     }
@@ -122,17 +122,17 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
                 if( actionName.equals( AJAX_ACTION_SUGGESTIONS ) ) {
                     LOG.debug( "Calling getSuggestions() START" );
                     final List< String > callResults = getSuggestions( itemId, maxResults );
-                    LOG.debug( "Calling getSuggestions() DONE. " + callResults.size() );
+                    LOG.debug( "Calling getSuggestions() DONE. {}", callResults.size() );
                     result = AjaxUtil.toJson( callResults );
                 } else if( actionName.equals( AJAX_ACTION_PAGES ) ) {
                     LOG.debug("Calling findPages() START");
                     final Context wikiContext = Wiki.context().create( engine, req, ContextEnum.PAGE_VIEW.getRequestContext() );
                     final List< Map< String, Object > > callResults = findPages( itemId, maxResults, wikiContext );
-                    LOG.debug( "Calling findPages() DONE. " + callResults.size() );
+                    LOG.debug( "Calling findPages() DONE. {}", callResults.size() );
                     result = AjaxUtil.toJson( callResults );
                 }
             }
-            LOG.debug( "result=" + result );
+            LOG.debug( "result={}", result );
             resp.getWriter().write( result );
         }
 

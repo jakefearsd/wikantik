@@ -108,7 +108,7 @@ public class InsertPageTag extends WikiTagBase {
             // FIXME: Do version setting later.
             // page.setVersion( WikiProvider.LATEST_VERSION );
 
-            LOG.debug("Inserting page "+insertedPage);
+            LOG.debug("Inserting page {}", insertedPage);
 
             final JspWriter out = pageContext.getOut();
             final Page oldPage = wikiContext.setRealPage( insertedPage );

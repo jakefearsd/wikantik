@@ -93,7 +93,7 @@ public class InsertDiffTag extends WikiTagBase {
         final Integer vernew = ( Integer )pageContext.getAttribute( ATTR_NEWVERSION, PageContext.REQUEST_SCOPE );
         final Integer verold = ( Integer )pageContext.getAttribute( ATTR_OLDVERSION, PageContext.REQUEST_SCOPE );
 
-        LOG.debug("Request diff between version "+verold+" and "+vernew);
+        LOG.debug("Request diff between version {} and {}", verold, vernew);
 
         if( ctx.getPage() != null ) {
             final JspWriter out = pageContext.getOut();

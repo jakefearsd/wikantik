@@ -116,7 +116,7 @@ public class DefaultAdminBeanManager implements WikiEventListener, AdminBeanMana
 
             allBeans.add( ab );
 
-            LOG.info( "Registered new admin bean " + ab.getTitle() );
+            LOG.info( "Registered new admin bean {}", ab.getTitle() );
         } catch( final InstanceAlreadyExistsException e ) {
             LOG.error( "Admin bean already registered to JMX", e );
         } catch( final MBeanRegistrationException e ) {
@@ -238,7 +238,7 @@ public class DefaultAdminBeanManager implements WikiEventListener, AdminBeanMana
                         final ObjectName on = getObjectName( m_allBean );
                         if( mbeanServer.isRegistered( on ) ) {
                             mbeanServer.unregisterMBean( on );
-                            LOG.info( "Unregistered AdminBean " + m_allBean.getTitle() );
+                            LOG.info( "Unregistered AdminBean {}", m_allBean.getTitle() );
                         }
                     } catch( final MalformedObjectNameException e ) {
                         LOG.error( "Malformed object name when unregistering", e );

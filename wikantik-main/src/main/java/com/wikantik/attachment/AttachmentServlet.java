@@ -264,7 +264,7 @@ public class AttachmentServlet extends HttpServlet {
             //
             sendError( res, "Provider error: "+ pe.getMessage() );
         } catch( final NumberFormatException nfe ) {
-            LOG.warn( "Invalid version number: " + version );
+            LOG.warn( "Invalid version number: {}", version );
             res.sendError( HttpServletResponse.SC_BAD_REQUEST, "Invalid version number" );
         } catch( final SocketException se ) {
             //
@@ -362,7 +362,7 @@ public class AttachmentServlet extends HttpServlet {
         if( nextPage.contains( "://" ) ) {
             // It's an absolute link, so unless it starts with our address, we'll log an error.
             if( !nextPage.startsWith( engine.getBaseURL() ) ) {
-                LOG.warn("Detected phishing attempt by redirecting to an unsecure location: "+nextPage);
+                LOG.warn("Detected phishing attempt by redirecting to an unsecure location: {}", nextPage);
                 nextPage = errorPage;
             }
         }
@@ -453,19 +453,19 @@ public class AttachmentServlet extends HttpServlet {
 
         } catch( final ProviderException e ) {
             msg = "Upload failed because the provider failed: "+e.getMessage();
-            LOG.warn( msg + " (attachment: " + attName + ")", e );
+            LOG.warn( "{} (attachment: {})", msg, attName, e );
 
             throw new IOException( msg );
         } catch( final FileUploadException e ) {
             // Show the submit page again, but with a bit more intimidating output.
             msg = "Upload failure: " + e.getMessage();
-            LOG.warn( msg + " (attachment: " + attName + ")", e );
+            LOG.warn( "{} (attachment: {})", msg, attName, e );
 
             throw new IOException( msg, e );
         } catch( final IOException e ) {
             // Show the submit page again, but with a bit more intimidating output.
             msg = "Upload failure: " + e.getMessage();
-            LOG.warn( msg + " (attachment: " + attName + ")", e );
+            LOG.warn( "{} (attachment: {})", msg, attName, e );
 
             throw e;
         } finally {
@@ -527,7 +527,7 @@ public class AttachmentServlet extends HttpServlet {
         final Principal user    = context.getCurrentUser();
         final AttachmentManager mgr = engine.getManager( AttachmentManager.class );
 
-        LOG.debug("file="+filename);
+        LOG.debug("file={}", filename);
 
         if( data == null ) {
             LOG.error("File could not be opened.");
@@ -564,7 +564,7 @@ public class AttachmentServlet extends HttpServlet {
                 throw new ProviderException( Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE ).getString( pe.getMessage() ) );
             }
 
-            LOG.info( "User " + user + " uploaded attachment to " + parentPage + " called "+filename+", size " + att.getSize() );
+            LOG.info( "User {} uploaded attachment to {} called {}, size {}", user, parentPage, filename, att.getSize() );
         } else {
             throw new RedirectException( "No permission to upload a file", errorPage );
         }

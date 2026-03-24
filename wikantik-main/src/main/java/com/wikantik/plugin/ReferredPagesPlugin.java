@@ -140,11 +140,8 @@ public class ReferredPagesPlugin implements Plugin {
             items = TextUtil.parseIntParameter( columns, 0 );
         }
 
-        LOG.debug( "Fetching referred pages for "+ rootname +
-                   " with a depth of "+ depth +
-                   " with include pattern of "+ includePatternStr +
-                   " with exclude pattern of "+ excludePatternStr +
-                   " with " + columns + " items" );
+        LOG.debug( "Fetching referred pages for {} with a depth of {} with include pattern of {} with exclude pattern of {} with {} items",
+                   rootname, depth, includePatternStr, excludePatternStr, columns );
 
         //
         // do the actual work

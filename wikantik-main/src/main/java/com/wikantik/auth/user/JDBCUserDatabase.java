@@ -484,14 +484,14 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                               + "=?";
             renameRoles = "UPDATE " + roleTable + " SET " + loginName + "=? WHERE " + loginName + "=?";
         } catch( final NamingException e ) {
-            LOG.error( "JDBCUserDatabase initialization error: " + e.getMessage() );
+            LOG.error( "JDBCUserDatabase initialization error: {}", e.getMessage() );
             throw new NoRequiredPropertyException( PROP_DB_DATASOURCE, "JDBCUserDatabase initialization error: " + e.getMessage() );
         }
 
         // Test connection by doing a quickie select
         try( final Connection conn = ds.getConnection(); final PreparedStatement ps = conn.prepareStatement( findAll ) ) {
         } catch( final SQLException e ) {
-            LOG.error( "DB connectivity error: " + e.getMessage() );
+            LOG.error( "DB connectivity error: {}", e.getMessage() );
             throw new WikiSecurityException("DB connectivity error: " + e.getMessage(), e );
         }
         LOG.info( "JDBCUserDatabase initialized from JNDI DataSource: {}", jndiName );

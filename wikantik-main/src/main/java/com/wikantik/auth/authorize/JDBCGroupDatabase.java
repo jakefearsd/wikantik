@@ -434,7 +434,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         }
         catch( final NamingException e )
         {
-            LOG.error( "JDBCGroupDatabase initialization error: " + e );
+            LOG.error( "JDBCGroupDatabase initialization error: {}", e.toString() );
             throw new NoRequiredPropertyException( PROP_GROUPDB_DATASOURCE, "JDBCGroupDatabase initialization error: " + e);
         }
 
@@ -445,10 +445,10 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         }
         catch( final SQLException e )
         {
-            LOG.error( "DB connectivity error: " + e.getMessage() );
+            LOG.error( "DB connectivity error: {}", e.getMessage() );
             throw new WikiSecurityException("DB connectivity error: " + e.getMessage(), e );
         }
-        LOG.info( "JDBCGroupDatabase initialized from JNDI DataSource: " + jndiName );
+        LOG.info( "JDBCGroupDatabase initialized from JNDI DataSource: {}", jndiName );
 
         // Determine if the datasource supports commits
         try( final Connection conn = ds.getConnection() )
@@ -463,7 +463,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         }
         catch( final SQLException e )
         {
-            LOG.warn( "JDBCGroupDatabase warning: user database doesn't seem to support transactions. Reason: " + e);
+            LOG.warn( "JDBCGroupDatabase warning: user database doesn't seem to support transactions. Reason: {}", e.toString() );
         }
     }
 

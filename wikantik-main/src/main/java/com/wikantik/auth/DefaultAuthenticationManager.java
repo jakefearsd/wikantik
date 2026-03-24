@@ -266,7 +266,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             final int count = lastLoginAttempts.count( username );
 
             final long delay = Math.min( 1L << count, MAX_LOGIN_DELAY );
-            LOG.debug( "Sleeping for " + delay + " ms to allow login." );
+            LOG.debug( "Sleeping for {} ms to allow login.", delay );
             Thread.sleep( delay );
 
             lastLoginAttempts.add( username );

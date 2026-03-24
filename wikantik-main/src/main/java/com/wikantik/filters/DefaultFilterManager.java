@@ -162,7 +162,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
             registerFilters();
 
             if( engine.getServletContext() != null ) {
-                LOG.debug( "Attempting to locate " + DEFAULT_XMLFILE + " from servlet context." );
+                LOG.debug( "Attempting to locate {} from servlet context.", DEFAULT_XMLFILE );
                 xmlStream = engine.getServletContext().getResourceAsStream(Objects.requireNonNullElse(xmlFile, DEFAULT_XMLFILE));
             }
 
@@ -174,12 +174,12 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
             }
 
             if( (xmlStream == null) && (xmlFile != null) ) {
-                LOG.debug("Attempting to load property file "+xmlFile);
+                LOG.debug("Attempting to load property file {}", xmlFile);
                 xmlStream = Files.newInputStream( new File(xmlFile).toPath() );
             }
 
             if( xmlStream == null ) {
-                LOG.info( "Cannot find property file for filters (this is okay, expected to find it as: '" + DEFAULT_XMLFILE + "')" );
+                LOG.info( "Cannot find property file for filters (this is okay, expected to find it as: '{}')", DEFAULT_XMLFILE );
                 return;
             }
 

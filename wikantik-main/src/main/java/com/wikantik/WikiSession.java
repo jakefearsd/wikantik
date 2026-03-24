@@ -434,7 +434,7 @@ public final class WikiSession implements Session {
         } catch ( final NoSuchPrincipalException e ) {
             // We will get here if the user has a principal but not a profile
             // For example, it's a container-managed user who hasn't set up a profile yet
-            LOG.warn("User profile '" + searchId + "' not found. This is normal for container-auth users who haven't set up a profile yet.");
+            LOG.warn("User profile '{}' not found. This is normal for container-auth users who haven't set up a profile yet.", searchId);
         }
     }
 

@@ -103,7 +103,7 @@ public class Search implements Plugin {
     }
 
     private Collection<SearchResult> doBasicQuery( final Context context, final String query ) throws ProviderException, IOException {
-        LOG.debug( "Searching for string " + query );
+        LOG.debug( "Searching for string {}", query );
         return context.getEngine().getManager( SearchManager.class ).findPages( query, context );
     }
 

@@ -231,7 +231,7 @@ public class Preferences extends HashMap< String,String > {
             loc = ( request != null ) ? request.getLocale() : Locale.getDefault();
         }
 
-        LOG.debug( "using locale " + loc.toString() );
+        LOG.debug( "using locale {}", loc.toString() );
         return loc;
     }
 
@@ -270,10 +270,10 @@ public class Preferences extends HashMap< String,String > {
         switch( tf ) {
             case DATETIME:
                 prefDateFormat = getPreference( context, "DateFormat" );
-                LOG.debug("Preferences fmt = "+prefDateFormat);
+                LOG.debug("Preferences fmt = {}", prefDateFormat);
                 if( prefDateFormat == null ) {
                     prefDateFormat = imgr.get( InternationalizationManager.CORE_BUNDLE, clientLocale,"common.datetimeformat" );
-                    LOG.debug("Using locale-format = "+prefDateFormat);
+                    LOG.debug("Using locale-format = {}", prefDateFormat);
                 }
                 break;
 

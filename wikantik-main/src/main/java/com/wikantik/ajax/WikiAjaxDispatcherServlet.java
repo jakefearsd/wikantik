@@ -93,7 +93,7 @@ public class WikiAjaxDispatcherServlet extends HttpServlet {
      * @param perm the permission required to execute the servlet.
      */
     public static void registerServlet( final String alias, final WikiAjaxServlet servlet, final Permission perm ) {
-        LOG.info( "WikiAjaxDispatcherServlet registering " + alias + "=" + servlet + " perm=" + perm );
+        LOG.info( "WikiAjaxDispatcherServlet registering {}={} perm={}", alias, servlet, perm );
         ajaxServlets.put( alias, new AjaxServletContainer( alias, servlet, perm ) );
     }
 
@@ -133,9 +133,9 @@ public class WikiAjaxDispatcherServlet extends HttpServlet {
                     req.setCharacterEncoding( engine.getContentEncoding().displayName() );
                     res.setCharacterEncoding( engine.getContentEncoding().displayName() );
                     final String actionName = AjaxUtil.getNextPathPart( req.getRequestURI(), servlet.getServletMapping() );
-                    LOG.debug( "actionName=" + actionName );
+                    LOG.debug( "actionName={}", actionName );
                     final String params = req.getParameter( "params" );
-                    LOG.debug( "params=" + params );
+                    LOG.debug( "params={}", params );
                     List< String > paramValues = new ArrayList<>();
                     if( params != null ) {
                         if( StringUtils.isNotBlank( params ) ) {
@@ -144,10 +144,10 @@ public class WikiAjaxDispatcherServlet extends HttpServlet {
                     }
                     servlet.service( req, res, actionName, paramValues );
                 } else {
-                    LOG.warn( "Servlet container " + container + " not authorised. Permission required." );
+                    LOG.warn( "Servlet container {} not authorised. Permission required.", container );
                 }
             } else {
-                LOG.error( "No registered class for servletName=" + servletName + " in path=" + path );
+                LOG.error( "No registered class for servletName={} in path={}", servletName, path );
                 throw new ServletException( "No registered class for servletName=" + servletName );
             }
         }

@@ -220,7 +220,7 @@ public final class WatchDog {
                 }
             }
         } else {
-            LOG.warn( "Stack for " + watchable.getName() + " is empty!" );
+            LOG.warn( "Stack for {} is empty!", watchable.getName() );
         }
     }
 
@@ -251,15 +251,15 @@ public final class WatchDog {
                 final long now = System.currentTimeMillis();
 
                 if( now > st.getExpiryTime() ) {
-                    LOG.info( "Watchable '" + watchable.getName() + "' exceeded timeout in state '" + st.getState() +
-                              "' by " + (now - st.getExpiryTime()) / 1000 + " seconds" +
-                             ( LOG.isDebugEnabled() ? "" : "Enable DEBUG-level logging to see stack traces." ) );
+                    LOG.info( "Watchable '{}' exceeded timeout in state '{}' by {} seconds{}",
+                              watchable.getName(), st.getState(), (now - st.getExpiryTime()) / 1000,
+                              LOG.isDebugEnabled() ? "" : "Enable DEBUG-level logging to see stack traces." );
                     dumpStackTraceForWatchable();
 
                     watchable.timeoutExceeded( st.getState() );
                 }
             } else {
-                LOG.warn( "Stack for " + watchable.getName() + " is empty!" );
+                LOG.warn( "Stack for {} is empty!", watchable.getName() );
             }
         }
     }

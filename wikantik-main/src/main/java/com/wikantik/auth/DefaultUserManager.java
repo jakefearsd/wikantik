@@ -484,7 +484,7 @@ public class DefaultUserManager implements UserManager {
             		return;
             	}
         		final String uid = params.get(0);
-	        	LOG.debug("uid="+uid);
+	        	LOG.debug("uid={}", uid);
 	        	if (StringUtils.isNotBlank(uid)) {
 		            final UserProfile prof = getUserInfo(uid);
 		            resp.getWriter().write(AjaxUtil.toJson(prof));

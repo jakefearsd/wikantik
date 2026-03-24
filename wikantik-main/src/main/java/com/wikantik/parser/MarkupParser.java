@@ -255,7 +255,7 @@ public abstract class MarkupParser {
                 try {
                     compiledpatterns.add( compileGlobPattern( pattern ) );
                 } catch( final PatternSyntaxException e ) {
-                    LOG.error( "Malformed pattern [" + pattern + "] in properties: ", e );
+                    LOG.error( "Malformed pattern [{}] in properties: ", pattern, e );
                 }
             }
 

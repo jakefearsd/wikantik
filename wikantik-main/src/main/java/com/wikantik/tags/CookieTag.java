@@ -261,7 +261,7 @@ public class CookieTag
                 }
                 catch( final IOException ioe )
                 {
-                    LOG.warn( "Failed to write to JSP page: " + ioe.getMessage(), ioe );
+                    LOG.warn( "Failed to write to JSP page: {}", ioe.getMessage(), ioe );
                 }
             }
         }

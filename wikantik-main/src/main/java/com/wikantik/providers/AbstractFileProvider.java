@@ -422,11 +422,11 @@ public abstract class AbstractFileProvider implements PageProvider {
                     LOG.error( "Failed to read", e );
                 }
             } else {
-                LOG.warn( "Failed to read page '" + page + "' from '" + pagedata.getAbsolutePath() + "', possibly a permissions problem" );
+                LOG.warn( "Failed to read page '{}' from '{}', possibly a permissions problem", page, pagedata.getAbsolutePath() );
             }
         } else {
             // This is okay.
-            LOG.info( "New page '" + page + "'" );
+            LOG.info( "New page '{}'", page );
         }
 
         return result;
@@ -477,7 +477,7 @@ public abstract class AbstractFileProvider implements PageProvider {
         final File[] wikipages = wikipagedir.listFiles( new WikiFileFilter() );
 
         if( wikipages == null ) {
-            LOG.error("Wikipages directory '" + pageDirectory + "' does not exist! Please check " + PROP_PAGEDIR + " in wikantik.properties.");
+            LOG.error("Wikipages directory '{}' does not exist! Please check {} in wikantik.properties.", pageDirectory, PROP_PAGEDIR);
             throw new ProviderException( "Page directory does not exist" );
         }
 
@@ -496,7 +496,7 @@ public abstract class AbstractFileProvider implements PageProvider {
             if( page == null ) {
                 // This should not really happen.
                 // FIXME: Should we throw an exception here?
-                LOG.error( "Page " + wikiname + " was found in directory listing, but could not be located individually." );
+                LOG.error( "Page {} was found in directory listing, but could not be located individually.", wikiname );
                 continue;
             }
 
@@ -522,7 +522,7 @@ public abstract class AbstractFileProvider implements PageProvider {
         final File[] wikipages = wikipagedir.listFiles( new WikiFileFilter() );
 
         if( wikipages == null ) {
-            LOG.error( "Wikipages directory '" + pageDirectory + "' does not exist! Please check " + PROP_PAGEDIR + " in wikantik.properties." );
+            LOG.error( "Wikipages directory '{}' does not exist! Please check {} in wikantik.properties.", pageDirectory, PROP_PAGEDIR );
             return set;
         }
 
@@ -547,13 +547,13 @@ public abstract class AbstractFileProvider implements PageProvider {
             try {
                 final Page page = getPageInfo( unmangleName( wikiname.substring( 0, cutpoint ) ), PageProvider.LATEST_VERSION );
                 if( page == null ) {
-                    LOG.error( "Page " + wikiname + " was found in directory listing, but could not be located individually." );
+                    LOG.error( "Page {} was found in directory listing, but could not be located individually.", wikiname );
                     continue;
                 }
 
                 set.add( page );
             } catch( final ProviderException e ) {
-                LOG.error( "Error getting page info for " + wikiname, e );
+                LOG.error( "Error getting page info for {}", wikiname, e );
             }
         }
 
@@ -605,7 +605,7 @@ public abstract class AbstractFileProvider implements PageProvider {
                         res.add( comparison );
                     }
                 } catch( final IOException e ) {
-                    LOG.error( "Failed to read " + filename, e );
+                    LOG.error( "Failed to read {}", filename, e );
                 }
             }
         }

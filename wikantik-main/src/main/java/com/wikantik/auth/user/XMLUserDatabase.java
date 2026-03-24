@@ -179,13 +179,13 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         // Get database file location
         final String file = TextUtil.getStringProperty( props, PROP_USERDATABASE, defaultFile.getAbsolutePath() );
         if( file == null ) {
-            LOG.warn( "XML user database property " + PROP_USERDATABASE + " not found; trying " + defaultFile );
+            LOG.warn( "XML user database property {} not found; trying {}", PROP_USERDATABASE, defaultFile );
             userFile = defaultFile;
         } else {
             userFile = new File( file );
         }
 
-        LOG.info( "XML user database at " + userFile.getAbsolutePath() );
+        LOG.info( "XML user database at {}", userFile.getAbsolutePath() );
 
         buildDOM();
         sanitizeDOM();
@@ -337,7 +337,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         if( user == null ) {
             // Create new user node
             profile.setCreated( modDate );
-            LOG.info( "Creating new user " + index );
+            LOG.info( "Creating new user {}", index );
             user = dom.createElement( USER_TAG );
             dom.getDocumentElement().appendChild( user );
             setAttribute( user, CREATED, dateFormat.format( profile.getCreated() ) );
@@ -496,8 +496,8 @@ public class XMLUserDatabase extends AbstractUserDatabase {
             try {
                 return DateFormat.getDateTimeInstance().parse( date );
             } catch( final ParseException e2 ) {
-                LOG.warn( "Could not parse 'created' or 'lastModified' attribute for profile '" + profile.getLoginName() + "'." +
-                          " It may have been tampered with.", e2 );
+                LOG.warn( "Could not parse 'created' or 'lastModified' attribute for profile '{}'. It may have been tampered with.",
+                          profile.getLoginName(), e2 );
             }
         }
         return null;
@@ -540,8 +540,8 @@ public class XMLUserDatabase extends AbstractUserDatabase {
                     user.setAttribute( CREATED, created );
                     user.setAttribute( LAST_MODIFIED, modified );
                 } catch( final ParseException e2 ) {
-                    LOG.warn( "Could not parse 'created' or 'lastModified' attribute for profile '" + loginName + "'."
-                            + " It may have been tampered with." );
+                    LOG.warn( "Could not parse 'created' or 'lastModified' attribute for profile '{}'. It may have been tampered with.",
+                            loginName );
                 }
             }
         }

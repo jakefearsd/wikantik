@@ -18,7 +18,7 @@
  */
 package com.wikantik.mcp;
 
-import com.wikantik.WikiEngine;
+import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.content.PageRenamer;
 import com.wikantik.api.managers.SystemPageRegistry;
@@ -59,7 +59,7 @@ public class McpToolRegistry {
      *
      * @param engine the wiki engine used to obtain managers and configuration
      */
-    public McpToolRegistry( final WikiEngine engine ) {
+    public McpToolRegistry( final Engine engine ) {
         final PageManager pageManager = engine.getManager( PageManager.class );
         final ReferenceManager referenceManager = engine.getManager( ReferenceManager.class );
         final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );

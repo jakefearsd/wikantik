@@ -22,7 +22,7 @@ package com.wikantik.mcp.tools;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.WikiEngine;
+import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.search.SearchResult;
@@ -44,9 +44,9 @@ public class SearchPagesTool implements McpTool {
         return TOOL_NAME;
     }
 
-    private final WikiEngine engine;
+    private final Engine engine;
 
-    public SearchPagesTool( final WikiEngine engine ) {
+    public SearchPagesTool( final Engine engine ) {
         this.engine = engine;
     }
 

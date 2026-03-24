@@ -58,9 +58,9 @@ public class CurrentTimePlugin implements Plugin {
                 fmt = Preferences.getDateFormat( context, TimeFormat.DATETIME );
             }
 
-            final Date d = new Date();  // Now.
+            final Date now = new Date();
 
-            return TextUtil.replaceEntities( fmt.format( d ) );
+            return TextUtil.replaceEntities( fmt.format( now ) );
 
         } catch( final IllegalArgumentException e ) {
             final ResourceBundle rb = Preferences.getBundle( context, Plugin.CORE_PLUGINS_RESOURCEBUNDLE );

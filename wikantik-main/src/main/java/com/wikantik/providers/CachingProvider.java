@@ -254,10 +254,10 @@ public class CachingProvider implements PageProvider {
         if( version == PageProvider.LATEST_VERSION ) {
             result = getTextFromCache( pageName );
         } else {
-            final Page p = getPageInfoFromCache( pageName );
+            final Page cachedPage = getPageInfoFromCache( pageName );
 
             //  Or is this the latest version fetched by version number?
-            if( p != null && p.getVersion() == version ) {
+            if( cachedPage != null && cachedPage.getVersion() == version ) {
                 result = getTextFromCache( pageName );
             } else {
                 result = provider.getPageText( pageName, version );

@@ -211,86 +211,86 @@ public final class SecurityVerifier {
             colWidth = "67%";
         }
 
-        final StringBuilder s = new StringBuilder();
+        final StringBuilder table = new StringBuilder();
 
         // Write the table header
-        s.append( "<table class=\"wikitable\" border=\"1\">\n" );
-        s.append( "  <colgroup span=\"1\" width=\"33%\"/>\n" );
-        s.append( "  <colgroup span=\"" ).append( pageActionsLength * rolesLength ).append( "\" width=\"" ).append( colWidth ).append( "\" align=\"center\"/>\n" );
-        s.append( "  <tr>\n" );
-        s.append( "    <th rowspan=\"2\" valign=\"bottom\">Permission</th>\n" );
+        table.append( "<table class=\"wikitable\" border=\"1\">\n" );
+        table.append( "  <colgroup span=\"1\" width=\"33%\"/>\n" );
+        table.append( "  <colgroup span=\"" ).append( pageActionsLength * rolesLength ).append( "\" width=\"" ).append( colWidth ).append( "\" align=\"center\"/>\n" );
+        table.append( "  <tr>\n" );
+        table.append( "    <th rowspan=\"2\" valign=\"bottom\">Permission</th>\n" );
         for (final Principal principal : roles) {
-            s.append("    <th colspan=\"").append(pageActionsLength).append("\" title=\"").append(principal.getClass().getName()).append("\">").append(principal.getName()).append("</th>\n");
+            table.append("    <th colspan=\"").append(pageActionsLength).append("\" title=\"").append(principal.getClass().getName()).append("\">").append(principal.getName()).append("</th>\n");
         }
-        s.append( "  </tr>\n" );
+        table.append( "  </tr>\n" );
 
         // Print a column for each role
-        s.append( "  <tr>\n" );
+        table.append( "  <tr>\n" );
         for( int i = 0; i < rolesLength; i++ )
         {
             for( final String pageAction : pageActions )
             {
                 final String action = pageAction.substring( 0, 1 );
-                s.append( "    <th title=\"" ).append( pageAction ).append( "\">" ).append( action ).append( "</th>\n" );
+                table.append( "    <th title=\"" ).append( pageAction ).append( "\">" ).append( action ).append( "</th>\n" );
             }
         }
-        s.append( "  </tr>\n" );
+        table.append( "  </tr>\n" );
 
         // Write page permission tests first
         for( final String page : pages ) {
-            s.append( "  <tr>\n" );
-            s.append( "    <td>PagePermission \"" ).append( wiki ).append( ":" ).append( page ).append( "\"</td>\n" );
+            table.append( "  <tr>\n" );
+            table.append( "    <td>PagePermission \"" ).append( wiki ).append( ":" ).append( page ).append( "\"</td>\n" );
             for( final Principal role : roles ) {
                 for( final String pageAction : pageActions ) {
                     final Permission permission = PermissionFactory.getPagePermission( wiki + ":" + page, pageAction );
-                    s.append( printPermissionTest( permission, role, 1 ) );
+                    table.append( printPermissionTest( permission, role, 1 ) );
                 }
             }
-            s.append( "  </tr>\n" );
+            table.append( "  </tr>\n" );
         }
 
         // Now do the group tests
         for( final String group : groups ) {
-            s.append( "  <tr>\n" );
-            s.append( "    <td>GroupPermission \"" ).append( wiki ).append( ":" ).append( group ).append( "\"</td>\n" );
+            table.append( "  <tr>\n" );
+            table.append( "    <td>GroupPermission \"" ).append( wiki ).append( ":" ).append( group ).append( "\"</td>\n" );
             for( final Principal role : roles ) {
                 for( final String groupAction : groupActions ) {
                     Permission permission = null;
                     if( groupAction != null ) {
                         permission = new GroupPermission( wiki + ":" + group, groupAction );
                     }
-                    s.append( printPermissionTest( permission, role, 1 ) );
+                    table.append( printPermissionTest( permission, role, 1 ) );
                 }
             }
-            s.append( "  </tr>\n" );
+            table.append( "  </tr>\n" );
         }
 
 
         // Now check the wiki-wide permissions
         final String[] wikiPerms = new String[] { "createGroups", "createPages", "login", "editPreferences", "editProfile" };
         for( final String wikiPerm : wikiPerms ) {
-            s.append( "  <tr>\n" );
-            s.append( "    <td>WikiPermission \"" ).append( wiki ).append( "\",\"" ).append( wikiPerm ).append( "\"</td>\n" );
+            table.append( "  <tr>\n" );
+            table.append( "    <td>WikiPermission \"" ).append( wiki ).append( "\",\"" ).append( wikiPerm ).append( "\"</td>\n" );
             for( final Principal role : roles ) {
                 final Permission permission = new WikiPermission( wiki, wikiPerm );
-                s.append( printPermissionTest( permission, role, pageActionsLength ) );
+                table.append( printPermissionTest( permission, role, pageActionsLength ) );
             }
-            s.append( "  </tr>\n" );
+            table.append( "  </tr>\n" );
         }
 
         // Lastly, check for AllPermission
-        s.append( "  <tr>\n" );
-        s.append( "    <td>AllPermission \"" ).append( wiki ).append( "\"</td>\n" );
+        table.append( "  <tr>\n" );
+        table.append( "    <td>AllPermission \"" ).append( wiki ).append( "\"</td>\n" );
         for( final Principal role : roles )
         {
             final Permission permission = new AllPermission( wiki );
-            s.append( printPermissionTest( permission, role, pageActionsLength ) );
+            table.append( printPermissionTest( permission, role, pageActionsLength ) );
         }
-        s.append( "  </tr>\n" );
+        table.append( "  </tr>\n" );
 
         // We're done!
-        s.append( "</table>" );
-        return s.toString();
+        table.append( "</table>" );
+        return table.toString();
     }
 
     /**
@@ -300,34 +300,34 @@ public final class SecurityVerifier {
      * @param cols
      */
     private String printPermissionTest( final Permission permission, final Principal principal, final int cols ) {
-    	final StringBuilder s = new StringBuilder();
+    	final StringBuilder cell = new StringBuilder();
         if( permission == null ) {
-            s.append( "    <td colspan=\"" ).append( cols ).append( "\" align=\"center\" title=\"N/A\">" );
-            s.append( "&nbsp;</td>\n" );
+            cell.append( "    <td colspan=\"" ).append( cols ).append( "\" align=\"center\" title=\"N/A\">" );
+            cell.append( "&nbsp;</td>\n" );
         } else {
             final boolean allowed = verifyStaticPermission( principal, permission );
-            s.append( "    <td colspan=\"" ).append( cols ).append( "\" align=\"center\" title=\"" );
-            s.append( allowed ? "ALLOW: " : "DENY: " );
-            s.append( permission.getClass().getName() );
-            s.append( " &quot;" );
-            s.append( permission.getName() );
-            s.append( "&quot;" );
+            cell.append( "    <td colspan=\"" ).append( cols ).append( "\" align=\"center\" title=\"" );
+            cell.append( allowed ? "ALLOW: " : "DENY: " );
+            cell.append( permission.getClass().getName() );
+            cell.append( " &quot;" );
+            cell.append( permission.getName() );
+            cell.append( "&quot;" );
             if ( permission.getName() != null )
             {
-                s.append( ",&quot;" );
-                s.append( permission.getActions() );
-                s.append( "&quot;" );
+                cell.append( ",&quot;" );
+                cell.append( permission.getActions() );
+                cell.append( "&quot;" );
             }
-            s.append( " " );
-            s.append( principal.getClass().getName() );
-            s.append( " &quot;" );
-            s.append( principal.getName() );
-            s.append( "&quot;" );
-            s.append( "\"" );
-            s.append( allowed ? BG_GREEN + ">" : BG_RED + ">" );
-            s.append( "&nbsp;</td>\n" );
+            cell.append( " " );
+            cell.append( principal.getClass().getName() );
+            cell.append( " &quot;" );
+            cell.append( principal.getName() );
+            cell.append( "&quot;" );
+            cell.append( "\"" );
+            cell.append( allowed ? BG_GREEN + ">" : BG_RED + ">" );
+            cell.append( "&nbsp;</td>\n" );
         }
-        return s.toString();
+        return cell.toString();
     }
 
     /**
@@ -350,23 +350,23 @@ public final class SecurityVerifier {
         // Now, print a table with JSP pages listed on the left, and
         // an evaluation of each pages' constraints for each role
         // we discovered
-        final StringBuilder s = new StringBuilder();
+        final StringBuilder containerTable = new StringBuilder();
         final Principal[] roles = authorizer.getRoles();
-        s.append( "<table class=\"wikitable\" border=\"1\">\n" );
-        s.append( "<thead>\n" );
-        s.append( "  <tr>\n" );
-        s.append( "    <th rowspan=\"2\">Action</th>\n" );
-        s.append( "    <th rowspan=\"2\">Page</th>\n" );
-        s.append( "    <th colspan=\"" ).append( roles.length ).append( 1 ).append( "\">Roles</th>\n" );
-        s.append( "  </tr>\n" );
-        s.append( "  <tr>\n" );
-        s.append( "    <th>Anonymous</th>\n" );
+        containerTable.append( "<table class=\"wikitable\" border=\"1\">\n" );
+        containerTable.append( "<thead>\n" );
+        containerTable.append( "  <tr>\n" );
+        containerTable.append( "    <th rowspan=\"2\">Action</th>\n" );
+        containerTable.append( "    <th rowspan=\"2\">Page</th>\n" );
+        containerTable.append( "    <th colspan=\"" ).append( roles.length ).append( 1 ).append( "\">Roles</th>\n" );
+        containerTable.append( "  </tr>\n" );
+        containerTable.append( "  <tr>\n" );
+        containerTable.append( "    <th>Anonymous</th>\n" );
         for( final Principal role : roles ) {
-            s.append( "    <th>" ).append( role.getName() ).append( "</th>\n" );
+            containerTable.append( "    <th>" ).append( role.getName() ).append( "</th>\n" );
         }
-        s.append( "</tr>\n" );
-        s.append( "</thead>\n" );
-        s.append( "<tbody>\n" );
+        containerTable.append( "</tr>\n" );
+        containerTable.append( "</thead>\n" );
+        containerTable.append( "<tbody>\n" );
 
         for( int i = 0; i < CONTAINER_ACTIONS.length; i++ ) {
             final String action = CONTAINER_ACTIONS[i];
@@ -374,37 +374,37 @@ public final class SecurityVerifier {
 
             // Print whether the page is constrained for each role
             final boolean allowsAnonymous = !wca.isConstrained( jsp, Role.ALL );
-            s.append( "  <tr>\n" );
-            s.append( "    <td>" ).append( action ).append( "</td>\n" );
-            s.append( "    <td>" ).append( jsp ).append( "</td>\n" );
-            s.append( "    <td title=\"" );
-            s.append( allowsAnonymous ? "ALLOW: " : "DENY: " );
-            s.append( jsp );
-            s.append( " Anonymous" );
-            s.append( "\"" );
-            s.append( allowsAnonymous ? BG_GREEN + ">" : BG_RED + ">" );
-            s.append( "&nbsp;</td>\n" );
+            containerTable.append( "  <tr>\n" );
+            containerTable.append( "    <td>" ).append( action ).append( "</td>\n" );
+            containerTable.append( "    <td>" ).append( jsp ).append( "</td>\n" );
+            containerTable.append( "    <td title=\"" );
+            containerTable.append( allowsAnonymous ? "ALLOW: " : "DENY: " );
+            containerTable.append( jsp );
+            containerTable.append( " Anonymous" );
+            containerTable.append( "\"" );
+            containerTable.append( allowsAnonymous ? BG_GREEN + ">" : BG_RED + ">" );
+            containerTable.append( "&nbsp;</td>\n" );
             for( final Principal role : roles )
             {
                 final boolean allowed = allowsAnonymous || wca.isConstrained( jsp, (Role)role );
-                s.append( "    <td title=\"" );
-                s.append( allowed ? "ALLOW: " : "DENY: " );
-                s.append( jsp );
-                s.append( " " );
-                s.append( role.getClass().getName() );
-                s.append( " &quot;" );
-                s.append( role.getName() );
-                s.append( "&quot;" );
-                s.append( "\"" );
-                s.append( allowed ? BG_GREEN + ">" : BG_RED + ">" );
-                s.append( "&nbsp;</td>\n" );
+                containerTable.append( "    <td title=\"" );
+                containerTable.append( allowed ? "ALLOW: " : "DENY: " );
+                containerTable.append( jsp );
+                containerTable.append( " " );
+                containerTable.append( role.getClass().getName() );
+                containerTable.append( " &quot;" );
+                containerTable.append( role.getName() );
+                containerTable.append( "&quot;" );
+                containerTable.append( "\"" );
+                containerTable.append( allowed ? BG_GREEN + ">" : BG_RED + ">" );
+                containerTable.append( "&nbsp;</td>\n" );
             }
-            s.append( "  </tr>\n" );
+            containerTable.append( "  </tr>\n" );
         }
 
-        s.append( "</tbody>\n" );
-        s.append( "</table>\n" );
-        return s.toString();
+        containerTable.append( "</tbody>\n" );
+        containerTable.append( "</table>\n" );
+        return containerTable.toString();
     }
 
     /**

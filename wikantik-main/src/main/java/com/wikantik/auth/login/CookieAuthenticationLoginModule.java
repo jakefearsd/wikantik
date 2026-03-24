@@ -253,10 +253,10 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
      * @param value of the cookie
      */
     private static Cookie getLoginCookie( final String value ) {
-        final Cookie c = new Cookie( LOGIN_COOKIE_NAME, value );
-        c.setHttpOnly( true ); // no browser access
-        c.setSecure( true ); // only access via encrypted https allowed
-        return c;
+        final Cookie loginCookie = new Cookie( LOGIN_COOKIE_NAME, value );
+        loginCookie.setHttpOnly( true ); // no browser access
+        loginCookie.setSecure( true ); // only access via encrypted https allowed
+        return loginCookie;
     }
 
     /**
@@ -279,10 +279,10 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
             return;
         }
         for( int i = 0; i < files.length; i++ ) {
-            final File f = files[ i ];
-            final long lastModified = f.lastModified();
+            final File cookieFile = files[ i ];
+            final long lastModified = cookieFile.lastModified();
             if( lastModified < obsoleteDateLimit ) {
-                if( f.delete() ) {
+                if( cookieFile.delete() ) {
                     deleteCount++;
                 } else {
                     LOG.debug( "Error deleting cookie login with index {}", i );

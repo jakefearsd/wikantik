@@ -37,9 +37,9 @@ public class ByteUtils
     {
         final char[] ca = new char[bytes.length * 2];
         for ( int i = 0; i < bytes.length; i++ ) {
-            final int v = bytes[i] & 0xff;
-            ca[i * 2] = hexArray[v >>> 4];
-            ca[i * 2 + 1] = hexArray[v & 0x0f];
+            final int unsignedByte = bytes[i] & 0xff;
+            ca[i * 2] = hexArray[unsignedByte >>> 4];
+            ca[i * 2 + 1] = hexArray[unsignedByte & 0x0f];
         }
         return new String(ca);
     }
@@ -66,12 +66,12 @@ public class ByteUtils
         }
         final byte[] out = new byte[len/2];
         for( int i = 0; i < len; i+=2 ) {
-            final int h = hexToBin(hex.charAt(i));
-            final int l = hexToBin(hex.charAt(i+1));
-            if ( h==-1 || l==-1 ) {
+            final int highNibble = hexToBin(hex.charAt(i));
+            final int lowNibble = hexToBin(hex.charAt(i+1));
+            if ( highNibble==-1 || lowNibble==-1 ) {
                 throw new IllegalArgumentException("contains illegal character for hexBinary: "+hex);
             }
-            out[i/2] = (byte)(h*16+l);
+            out[i/2] = (byte)(highNibble*16+lowNibble);
         }
         return out;
     }

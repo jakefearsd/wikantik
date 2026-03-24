@@ -79,15 +79,15 @@ public final class PropertiesUtils {
      */
     public static String saveConvert(final String string, final boolean encodeWhiteSpace )
     {
-        final int i = string.length();
-        final StringBuilder stringbuffer = new StringBuilder( i * 2 );
-        for( int i3 = 0; i3 < i; i3++ )
+        final int length = string.length();
+        final StringBuilder stringbuffer = new StringBuilder( length * 2 );
+        for( int charIndex = 0; charIndex < length; charIndex++ )
         {
-            final char c = string.charAt( i3 );
-            switch( c )
+            final char currentChar = string.charAt( charIndex );
+            switch( currentChar )
             {
                 case ' ':
-                    if( i3 == 0 || encodeWhiteSpace )
+                    if( charIndex == 0 || encodeWhiteSpace )
                     {
                         stringbuffer.append( '\\' );
                     }
@@ -114,22 +114,22 @@ public final class PropertiesUtils {
                     stringbuffer.append( 'f' );
                     break;
                 default:
-                    if( c < 32 || c > 126 )
+                    if( currentChar < 32 || currentChar > 126 )
                     {
                         stringbuffer.append( '\\' );
                         stringbuffer.append( 'u' );
-                        stringbuffer.append( toHex( c >> 12 & 0xf ) );
-                        stringbuffer.append( toHex( c >> 8 & 0xf ) );
-                        stringbuffer.append( toHex( c >> 4 & 0xf ) );
-                        stringbuffer.append( toHex( c & 0xf ) );
+                        stringbuffer.append( toHex( currentChar >> 12 & 0xf ) );
+                        stringbuffer.append( toHex( currentChar >> 8 & 0xf ) );
+                        stringbuffer.append( toHex( currentChar >> 4 & 0xf ) );
+                        stringbuffer.append( toHex( currentChar & 0xf ) );
                     }
                     else
                     {
-                        if( OTHER_WHITESPACE.indexOf( c ) != -1 )
+                        if( OTHER_WHITESPACE.indexOf( currentChar ) != -1 )
                         {
                             stringbuffer.append( '\\' );
                         }
-                        stringbuffer.append( c );
+                        stringbuffer.append( currentChar );
                     }
             }
         }

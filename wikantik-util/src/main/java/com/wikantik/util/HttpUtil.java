@@ -169,9 +169,9 @@ public final class HttpUtil {
                     }
                 } else {
                     try {
-                        final String s = req.getHeader("If-Modified-Since");
-                        if( s != null ) {
-                            final ZonedDateTime ifModifiedSinceDateTime = ZonedDateTime.parse( s, rfcDateFormat );
+                        final String ifModifiedSinceHeader = req.getHeader("If-Modified-Since");
+                        if( ifModifiedSinceHeader != null ) {
+                            final ZonedDateTime ifModifiedSinceDateTime = ZonedDateTime.parse( ifModifiedSinceHeader, rfcDateFormat );
                             final Date ifModifiedSinceDate = Date.from( ifModifiedSinceDateTime.toInstant() );
                             if( lastModified.before( ifModifiedSinceDate ) ) {
                                 return true;

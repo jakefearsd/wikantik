@@ -191,8 +191,8 @@ public class DefaultUserManager implements UserManager {
     public void setUserProfile( final Context context, final UserProfile profile ) throws DuplicateUserException, WikiException {
         final Session session = context.getWikiSession();
         // Verify user is allowed to save profile!
-        final Permission p = new WikiPermission( engine.getApplicationName(), WikiPermission.EDIT_PROFILE_ACTION );
-        if ( !engine.getManager( AuthorizationManager.class ).checkPermission( session, p ) ) {
+        final Permission editProfilePermission = new WikiPermission( engine.getApplicationName(), WikiPermission.EDIT_PROFILE_ACTION );
+        if ( !engine.getManager( AuthorizationManager.class ).checkPermission( session, editProfilePermission ) ) {
             throw new WikiSecurityException( "You are not allowed to save wiki profiles." );
         }
 

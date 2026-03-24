@@ -192,8 +192,8 @@ public final class GroupPermission extends Permission implements Serializable
         {
             return false;
         }
-        final GroupPermission p = (GroupPermission) obj;
-        return  p.mask == mask && p.group.equals( group ) && p.wiki != null && p.wiki.equals( wiki );
+        final GroupPermission other = (GroupPermission) obj;
+        return  other.mask == mask && other.group.equals( group ) && other.wiki != null && other.wiki.equals( wiki );
     }
 
     /**
@@ -275,33 +275,33 @@ public final class GroupPermission extends Permission implements Serializable
         }
 
         // Build up an "implied mask"
-        final GroupPermission p = (GroupPermission) permission;
+        final GroupPermission other = (GroupPermission) permission;
         final int impliedMask = impliedMask( mask );
 
         // If actions aren't a proper subset, return false
-        if ( ( impliedMask & p.mask ) != p.mask )
+        if ( ( impliedMask & other.mask ) != other.mask )
         {
             return false;
         }
 
         // See if the tested permission's wiki is implied
-        final boolean impliedWiki = PagePermission.isSubset( wiki, p.wiki );
+        final boolean impliedWiki = PagePermission.isSubset( wiki, other.wiki );
 
         // If this page is "*", the tested permission's
         // group is implied, unless implied permission has <groupmember> token
         final boolean impliedGroup;
-        if ( MEMBER_TOKEN.equals( p.group ) )
+        if ( MEMBER_TOKEN.equals( other.group ) )
         {
             impliedGroup = MEMBER_TOKEN.equals( group );
         }
         else
         {
-            impliedGroup = PagePermission.isSubset( group, p.group );
+            impliedGroup = PagePermission.isSubset( group, other.group );
         }
 
         // See if this permission is <groupmember> and Subject possesses
         // GroupPrincipal matching the implied GroupPermission's group
-        final boolean impliedMember = impliesMember( p );
+        final boolean impliedMember = impliesMember( other );
 
         return  impliedWiki && ( impliedGroup || impliedMember );
     }

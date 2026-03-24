@@ -124,10 +124,10 @@ public class AttachmentServlet extends HttpServlet {
             forbiddenPatterns = new String[0];
         }
 
-        final File f = new File( tmpDir );
-        if( !f.exists() ) {
-            f.mkdirs();
-        } else if( !f.isDirectory() ) {
+        final File tmpDirFile = new File( tmpDir );
+        if( !tmpDirFile.exists() ) {
+            tmpDirFile.mkdirs();
+        } else if( !tmpDirFile.isDirectory() ) {
             LOG.fatal( "A file already exists where the temporary dir is supposed to be: {}. Please remove it.", tmpDir );
         }
 
@@ -314,10 +314,10 @@ public class AttachmentServlet extends HttpServlet {
 
         final HttpServletRequest req = ctx.getHttpRequest();
         if( req != null ) {
-            final ServletContext s = req.getSession().getServletContext();
+            final ServletContext servletContext = req.getSession().getServletContext();
 
-            if( s != null ) {
-                mimetype = s.getMimeType( fileName.toLowerCase() );
+            if( servletContext != null ) {
+                mimetype = servletContext.getMimeType( fileName.toLowerCase() );
             }
         }
 
@@ -418,9 +418,9 @@ public class AttachmentServlet extends HttpServlet {
                     case "page":
                         // FIXME: Kludge alert.  We must end up with the parent page name, if this is an upload of a new revision
                         wikipage = item.getString( StandardCharsets.UTF_8);
-                        final int x = wikipage.indexOf( "/" );
-                        if( x != -1 ) {
-                            wikipage = wikipage.substring( 0, x );
+                        final int slashIndex = wikipage.indexOf( "/" );
+                        if( slashIndex != -1 ) {
+                            wikipage = wikipage.substring( 0, slashIndex );
                         }
                         break;
                     case "changenote":

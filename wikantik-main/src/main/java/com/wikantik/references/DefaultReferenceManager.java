@@ -271,8 +271,8 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     private synchronized long unserializeFromDisk() throws IOException, ClassNotFoundException {
         final long saved;
 
-        final File f = new File( engine.getWorkDir(), SERIALIZATION_FILE );
-        try( final ObjectInputStream in = new ObjectInputStream( new BufferedInputStream( Files.newInputStream( f.toPath() ) ) ) ) {
+        final File serializationFile = new File( engine.getWorkDir(), SERIALIZATION_FILE );
+        try( final ObjectInputStream in = new ObjectInputStream( new BufferedInputStream( Files.newInputStream( serializationFile.toPath() ) ) ) ) {
             final StopWatch sw = new StopWatch();
             sw.start();
 
@@ -300,8 +300,8 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      *  Serializes hashmaps to disk.  The format is private, don't touch it.
      */
     private synchronized void serializeToDisk() {
-        final File f = new File( engine.getWorkDir(), SERIALIZATION_FILE );
-        try( final ObjectOutputStream out = new ObjectOutputStream( new BufferedOutputStream( Files.newOutputStream( f.toPath() ) ) ) ) {
+        final File serializationFile = new File( engine.getWorkDir(), SERIALIZATION_FILE );
+        try( final ObjectOutputStream out = new ObjectOutputStream( new BufferedOutputStream( Files.newOutputStream( serializationFile.toPath() ) ) ) ) {
             final StopWatch sw = new StopWatch();
             sw.start();
 
@@ -911,8 +911,8 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
     private String getFinalPageName( final String orig ) {
         try {
-            final String s = engine.getFinalPageName( orig );
-            return s != null ? s : orig;
+            final String resolvedName = engine.getFinalPageName( orig );
+            return resolvedName != null ? resolvedName : orig;
         } catch( final ProviderException e ) {
             LOG.error( "Error while trying to fetch a page name; trying to cope with the situation.", e );
             return orig;

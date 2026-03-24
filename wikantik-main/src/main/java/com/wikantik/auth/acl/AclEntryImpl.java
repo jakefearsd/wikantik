@@ -105,9 +105,9 @@ public class AclEntryImpl implements com.wikantik.api.core.AclEntry, Serializabl
      */
     @Override
     public synchronized boolean removePermission(final Permission permission ) {
-        final Permission p = findPermission( permission );
-        if( p != null ) {
-            permissions.remove( p );
+        final Permission existingPermission = findPermission( permission );
+        if( existingPermission != null ) {
+            permissions.remove( existingPermission );
             return true;
         }
 
@@ -137,9 +137,9 @@ public class AclEntryImpl implements com.wikantik.api.core.AclEntry, Serializabl
      * @return a string representation of the contents.
      */
     public String toString() {
-        final Principal p = getPrincipal();
+        final Principal entryPrincipal = getPrincipal();
 
-        return permissions.stream().map(pp -> pp.toString() + ",").collect(Collectors.joining("", "[AclEntry ALLOW " + (p != null ? p.getName() : "null") + " ", "]"));
+        return permissions.stream().map(pp -> pp.toString() + ",").collect(Collectors.joining("", "[AclEntry ALLOW " + (entryPrincipal != null ? entryPrincipal.getName() : "null") + " ", "]"));
     }
 
     /**

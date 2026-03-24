@@ -140,14 +140,14 @@ public class DefaultVariableManager implements VariableManager {
             if( req != null && req.getSession() != null ) {
                 final HttpSession session = req.getSession();
                 try {
-                    final String s = ( String ) session.getAttribute( originalName );
-                    if( s != null ) {
-                        return s;
+                    final String sessionAttribute = ( String ) session.getAttribute( originalName );
+                    if( sessionAttribute != null ) {
+                        return sessionAttribute;
                     }
 
-                    final String p = context.getHttpParameter( originalName );
-                    if( p != null ) {
-                        return p;
+                    final String httpParameter = context.getHttpParameter( originalName );
+                    if( httpParameter != null ) {
+                        return httpParameter;
                     }
                 } catch( final ClassCastException e ) {
                     LOG.debug( "Not a String: {}", originalName );
@@ -187,9 +187,9 @@ public class DefaultVariableManager implements VariableManager {
         chain.add( ( lowerName, originalName, context ) -> {
             if( originalName.startsWith( "wikantik." ) ) {
                 final Properties wikiProps = context.getEngine().getWikiProperties();
-                final String s = wikiProps.getProperty( originalName );
-                if( s != null ) {
-                    return s;
+                final String propertyValue = wikiProps.getProperty( originalName );
+                if( propertyValue != null ) {
+                    return propertyValue;
                 }
             }
             return null;
@@ -389,13 +389,13 @@ public class DefaultVariableManager implements VariableManager {
         }
 
         public String getAttachmentprovider() {
-            final WikiProvider p = context.getEngine().getManager( AttachmentManager.class ).getCurrentProvider();
-            return (p != null) ? p.getClass().getName() : "-";
+            final WikiProvider attachmentProvider = context.getEngine().getManager( AttachmentManager.class ).getCurrentProvider();
+            return (attachmentProvider != null) ? attachmentProvider.getClass().getName() : "-";
         }
 
         public String getAttachmentproviderdescription() {
-            final WikiProvider p = context.getEngine().getManager( AttachmentManager.class ).getCurrentProvider();
-            return (p != null) ? p.getProviderInfo() : "-";
+            final WikiProvider attachmentProvider = context.getEngine().getManager( AttachmentManager.class ).getCurrentProvider();
+            return (attachmentProvider != null) ? attachmentProvider.getProviderInfo() : "-";
         }
 
         public String getInterwikilinks() {
@@ -420,9 +420,9 @@ public class DefaultVariableManager implements VariableManager {
         }
 
         public String getPluginpath() {
-            final String s = context.getEngine().getPluginSearchPath();
+            final String pluginSearchPath = context.getEngine().getPluginSearchPath();
 
-            return ( s == null ) ? "-" : s;
+            return ( pluginSearchPath == null ) ? "-" : pluginSearchPath;
         }
 
         public String getBaseurl()
@@ -435,9 +435,11 @@ public class DefaultVariableManager implements VariableManager {
             long secondsRunning = ( now.getTime() - context.getEngine().getStartTime().getTime() ) / 1_000L;
 
             final long seconds = secondsRunning % 60;
-            final long minutes = (secondsRunning /= 60) % 60;
-            final long hours = (secondsRunning /= 60) % 24;
-            final long days = secondsRunning /= 24;
+            secondsRunning /= 60;
+            final long minutes = secondsRunning % 60;
+            secondsRunning /= 60;
+            final long hours = secondsRunning % 24;
+            final long days = secondsRunning / 24;
 
             return days + "d, " + hours + "h " + minutes + "m " + seconds + "s";
         }
@@ -463,7 +465,7 @@ public class DefaultVariableManager implements VariableManager {
             final List< PageFilter > filters = fm.getFilterList();
             final StringBuilder sb = new StringBuilder();
             for( final PageFilter pf : filters ) {
-                final String f = pf.getClass().getName();
+                final String filterClassName = pf.getClass().getName();
                 if( pf instanceof InternalModule im ) {
                     continue;
                 }
@@ -471,7 +473,7 @@ public class DefaultVariableManager implements VariableManager {
                 if( sb.length() > 0 ) {
                     sb.append( ", " );
                 }
-                sb.append( f );
+                sb.append( filterClassName );
             }
             return sb.toString();
         }

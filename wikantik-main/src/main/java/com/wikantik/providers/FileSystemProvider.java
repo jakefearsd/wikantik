@@ -163,17 +163,17 @@ public class FileSystemProvider extends AbstractFileProvider {
      */
     @Override
     public Page getPageInfo( final String page, final int version ) throws ProviderException {
-        final Page p = super.getPageInfo( page, version );
-        if( p != null ) {
+        final Page pageInfo = super.getPageInfo( page, version );
+        if( pageInfo != null ) {
             try {
-                getPageProperties( p );
+                getPageProperties( pageInfo );
             } catch( final IOException e ) {
                 LOG.error( "Unable to read page properties", e );
                 throw new ProviderException( "Unable to read page properties, check logs." );
             }
         }
 
-        return p;
+        return pageInfo;
     }
 
     /**

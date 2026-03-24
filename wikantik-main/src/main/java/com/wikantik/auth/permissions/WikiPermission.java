@@ -125,8 +125,8 @@ public final class WikiPermission extends Permission implements Serializable
         {
             return false;
         }
-        final WikiPermission p = (WikiPermission) obj;
-        return  p.mask == mask && p.wiki != null && p.wiki.equals( wiki );
+        final WikiPermission other = (WikiPermission) obj;
+        return  other.mask == mask && other.wiki != null && other.wiki.equals( wiki );
     }
 
     /**
@@ -181,16 +181,16 @@ public final class WikiPermission extends Permission implements Serializable
         {
             return false;
         }
-        final WikiPermission p = (WikiPermission) permission;
+        final WikiPermission other = (WikiPermission) permission;
 
         // See if the wiki is implied
-        final boolean impliedWiki = PagePermission.isSubset( wiki, p.wiki );
+        final boolean impliedWiki = PagePermission.isSubset( wiki, other.wiki );
 
         // Build up an "implied mask" for actions
         final int impliedMask = impliedMask( mask );
 
         // If actions aren't a proper subset, return false
-        return impliedWiki && ( impliedMask & p.mask ) == p.mask;
+        return impliedWiki && ( impliedMask & other.mask ) == other.mask;
     }
 
     /**

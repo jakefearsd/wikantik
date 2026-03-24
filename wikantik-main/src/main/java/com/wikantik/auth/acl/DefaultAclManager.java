@@ -236,22 +236,22 @@ public class DefaultAclManager implements AclManager {
         }
 
         // Now, iterate through each permission in the map and generate an ACL string
-        final StringBuilder s = new StringBuilder();
+        final StringBuilder aclText = new StringBuilder();
         for( final Map.Entry< String, List< Principal > > entry : permissionPrincipals.entrySet() ) {
             final String action = entry.getKey();
             final List< Principal > principals = entry.getValue();
             principals.sort( new PrincipalComparator() );
-            s.append( "[{ALLOW " ).append( action ).append( " " );
+            aclText.append( "[{ALLOW " ).append( action ).append( " " );
             for( int i = 0; i < principals.size(); i++ ) {
                 final Principal principal = principals.get( i );
-                s.append( principal.getName() );
+                aclText.append( principal.getName() );
                 if( i < ( principals.size() - 1 ) ) {
-                    s.append( "," );
+                    aclText.append( "," );
                 }
             }
-            s.append( "}]\n" );
+            aclText.append( "}]\n" );
         }
-        return s.toString();
+        return aclText.toString();
     }
 
 }

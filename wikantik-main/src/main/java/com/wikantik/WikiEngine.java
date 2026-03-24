@@ -362,19 +362,19 @@ public class WikiEngine implements Engine {
     void createAndFindWorkingDirectory( final Properties props ) throws WikiException {
         workDir = TextUtil.getStringProperty( props, PROP_WORKDIR, null );
 
-        final File f = new File( workDir );
+        final File workDirFile = new File( workDir );
         try {
-            f.mkdirs();
+            workDirFile.mkdirs();
         } catch( final SecurityException e ) {
             LOG.fatal( "Unable to find or create the working directory: {}", workDir, e );
             throw new WikiException( "Unable to find or create the working dir: " + workDir, e );
         }
 
         //  A bunch of sanity checks
-        checkWorkingDirectory( !f.exists(), "Work directory does not exist: " + workDir );
-        checkWorkingDirectory( !f.canRead(), "No permission to read work directory: " + workDir );
-        checkWorkingDirectory( !f.canWrite(), "No permission to write to work directory: " + workDir );
-        checkWorkingDirectory( !f.isDirectory(), "wikantik.workDir does not point to a directory: " + workDir );
+        checkWorkingDirectory( !workDirFile.exists(), "Work directory does not exist: " + workDir );
+        checkWorkingDirectory( !workDirFile.canRead(), "No permission to read work directory: " + workDir );
+        checkWorkingDirectory( !workDirFile.canWrite(), "No permission to write to work directory: " + workDir );
+        checkWorkingDirectory( !workDirFile.isDirectory(), "wikantik.workDir does not point to a directory: " + workDir );
 
         LOG.info( "JSPWiki working directory is '{}'", workDir );
     }

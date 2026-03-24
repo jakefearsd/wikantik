@@ -769,9 +769,9 @@ public class SpamFilter extends BasePageFilter {
     }
 
     private void checkPatternList( final Context context, final String change ) throws RedirectException {
-        final Change c = new Change();
-        c.change = change;
-        checkPatternList( context, c );
+        final Change changeRecord = new Change();
+        changeRecord.change = change;
+        checkPatternList( context, changeRecord );
     }
  
     /**
@@ -800,12 +800,12 @@ public class SpamFilter extends BasePageFilter {
             }
             
             for( int i = 0; i < rev.size(); i++ ) {
-                final Delta d = rev.getDelta( i );
+                final Delta delta = rev.getDelta( i );
 
-                if( d instanceof AddDelta || d instanceof ChangeDelta ) {
-                    d.getRevised().toString( change, "", "\r\n" );
+                if( delta instanceof AddDelta || delta instanceof ChangeDelta ) {
+                    delta.getRevised().toString( change, "", "\r\n" );
                     ch.adds++;
-                } else if( d instanceof DeleteDelta ) {
+                } else if( delta instanceof DeleteDelta ) {
                     ch.removals++;
                 }
             }
@@ -860,8 +860,8 @@ public class SpamFilter extends BasePageFilter {
     private static String getUniqueID() {
         final StringBuilder sb = new StringBuilder();
         for( int i = 0; i < 6; i++ ) {
-            final char x = ( char )( 'A' + RANDOM.nextInt( 26 ) );
-            sb.append( x );
+            final char randomChar = ( char )( 'A' + RANDOM.nextInt( 26 ) );
+            sb.append( randomChar );
         }
 
         return sb.toString();

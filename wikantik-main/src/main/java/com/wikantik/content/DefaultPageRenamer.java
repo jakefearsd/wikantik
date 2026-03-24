@@ -184,9 +184,9 @@ public class DefaultPageRenamer implements PageRenamer {
                 pageName = toPage.getName();
             }
             
-            final Page p = engine.getManager( PageManager.class ).getPage( pageName );
+            final Page referrerPage = engine.getManager( PageManager.class ).getPage( pageName );
 
-            final String sourceText = engine.getManager( PageManager.class ).getPureText( p );
+            final String sourceText = engine.getManager( PageManager.class ).getPureText( referrerPage );
             String newText = replaceReferrerString(sourceText, fromPage.getName(), toPage.getName() );
 
             camelCase = TextUtil.getBooleanProperty( engine.getWikiProperties(), MarkupParser.PROP_CAMELCASELINKS, camelCase );
@@ -195,12 +195,12 @@ public class DefaultPageRenamer implements PageRenamer {
             }
             
             if( !sourceText.equals( newText ) ) {
-                p.setAttribute( Page.CHANGENOTE, fromPage.getName()+" ==> "+toPage.getName() );
-                p.setAuthor( context.getCurrentUser().getName() );
-         
+                referrerPage.setAttribute( Page.CHANGENOTE, fromPage.getName()+" ==> "+toPage.getName() );
+                referrerPage.setAuthor( context.getCurrentUser().getName() );
+
                 try {
-                    engine.getManager( PageManager.class ).putPageText( p, newText );
-                    engine.getManager( ReferenceManager.class ).updateReferences( p );
+                    engine.getManager( PageManager.class ).putPageText( referrerPage, newText );
+                    engine.getManager( ReferenceManager.class ).updateReferences( referrerPage );
                 } catch( final ProviderException e ) {
                     //  We fail with an error, but we will try to continue to rename other referrers as well.
                     LOG.error("Unable to perform rename.",e);

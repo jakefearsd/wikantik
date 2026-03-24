@@ -269,11 +269,11 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
         final Iterator< Map.Entry< String, String > > it = params.entrySet().iterator();
         while( it.hasNext() ) {
             final Map.Entry< String, String > e = it.next();
-            final String n = e.getKey();
-            final String v = e.getValue();
-            buf.append( n );
+            final String paramName = e.getKey();
+            final String paramValue = e.getValue();
+            buf.append( paramName );
             buf.append( "=" );
-            buf.append( v );
+            buf.append( paramValue );
             if( it.hasNext() ) {
                 buf.append( "&amp;" );
             }

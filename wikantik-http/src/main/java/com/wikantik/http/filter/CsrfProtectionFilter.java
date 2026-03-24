@@ -55,7 +55,7 @@ public class CsrfProtectionFilter implements Filter {
     @Override
     public void doFilter( final ServletRequest request, final ServletResponse response, final FilterChain chain ) throws IOException, ServletException {
         final HttpServletRequest httpRequest = ( HttpServletRequest ) request;
-        if( isPost( httpRequest ) && !isMcpEndpoint( httpRequest ) ) {
+        if( isPost( httpRequest ) && !isMcpEndpoint( httpRequest ) && !isRestApiEndpoint( httpRequest ) ) {
             final Engine engine = Wiki.engine().find( request.getServletContext(), null );
             final Session session = Wiki.session().find( engine, httpRequest );
             if( !requestContainsValidCsrfToken( request, session ) ) {
@@ -88,6 +88,18 @@ public class CsrfProtectionFilter implements Filter {
     static boolean isMcpEndpoint( final HttpServletRequest request ) {
         final String servletPath = request.getServletPath();
         return "/mcp".equals( servletPath );
+    }
+
+    /**
+     * REST API endpoints use {@code Content-Type: application/json} which provides natural CSRF
+     * protection — browsers cannot forge cross-origin JSON POST requests without a CORS preflight.
+     *
+     * @param request the HTTP request
+     * @return {@code true} if the request targets a REST API endpoint
+     */
+    static boolean isRestApiEndpoint( final HttpServletRequest request ) {
+        final String servletPath = request.getServletPath();
+        return servletPath != null && servletPath.startsWith( "/api/" );
     }
 
     /** {@inheritDoc} */

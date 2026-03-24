@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <parent>
+    <groupId>com.wikantik.it</groupId>
+    <artifactId>wikantik-it-tests</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>wikantik-it-test-rest</artifactId>
+  <modelVersion>4.0.0</modelVersion>
+  <packaging>war</packaging>
+  <description>REST API integration tests for Wikantik — validates all REST endpoints with real HTTP calls against a Cargo-deployed Tomcat instance</description>
+
+  <properties>
+    <it-wikantik.context>${project.artifactId}</it-wikantik.context>
+
+    <it-wikantik.groupdatabase>com.wikantik.auth.authorize.XMLGroupDatabase</it-wikantik.groupdatabase>
+    <it-wikantik.userdatabase>com.wikantik.auth.user.XMLUserDatabase</it-wikantik.userdatabase>
+    <it-wikantik.referenceStyle>relative</it-wikantik.referenceStyle>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <!-- Do NOT scan the selenide tests dependency — this module has its own tests -->
+          <dependenciesToScan combine.self="override" />
+          <includes>
+            <include>**/RestApiIT.java</include>
+          </includes>
+          <systemPropertyVariables>
+            <it-wikantik.base.url>http://localhost:8080/${it-wikantik.context}</it-wikantik.base.url>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.cargo</groupId>
+        <artifactId>cargo-maven3-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+  <dependencies>
+    <!-- JSON parsing for REST response validation -->
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

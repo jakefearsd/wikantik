@@ -33,7 +33,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.io.BufferedReader;
 import java.io.PrintWriter;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.Properties;
 
@@ -108,6 +110,77 @@ class AuthResourceTest {
         assertEquals( 404, obj.get( "status" ).getAsInt() );
     }
 
+    @Test
+    void testLoginFailureReturns401() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "username", "nosuchuser" );
+        body.addProperty( "password", "badpassword" );
+
+        final String json = doPost( "login", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 401, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testLoginMissingUsernameReturns400() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "password", "somepassword" );
+
+        final String json = doPost( "login", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testLoginMissingPasswordReturns400() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "username", "someuser" );
+
+        final String json = doPost( "login", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testLoginInvalidJsonReturns400() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/auth/login" );
+        Mockito.doReturn( "/login" ).when( request ).getPathInfo();
+        Mockito.doReturn( new BufferedReader( new StringReader( "not json" ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPost( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testLogoutSuccess() throws Exception {
+        final String json = doPost( "logout", new JsonObject() );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "success" ).getAsBoolean() );
+    }
+
+    @Test
+    void testUnknownPostEndpoint() throws Exception {
+        final String json = doPost( "unknown", new JsonObject() );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 404, obj.get( "status" ).getAsInt() );
+    }
+
     // ----- Helper methods -----
 
     private String doGetUser() throws Exception {
@@ -119,6 +192,19 @@ class AuthResourceTest {
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
 
         servlet.doGet( request, response );
+        return sw.toString();
+    }
+
+    private String doPost( final String action, final JsonObject body ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/auth/" + action );
+        Mockito.doReturn( "/" + action ).when( request ).getPathInfo();
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPost( request, response );
         return sw.toString();
     }
 

@@ -60,8 +60,8 @@ public class AuthorTag extends WikiTagBase {
             if( engine.getManager( PageManager.class ).wikiPageExists(author) && !( "plain".equalsIgnoreCase( format ) ) ) {
                 // FIXME: It's very boring to have to do this.  Slow, too.
                 final RenderingManager mgr = engine.getManager( RenderingManager.class );
-                final MarkupParser p = mgr.getParser( wikiContext, "["+author+"|"+author+"]" );
-                final WikiDocument d = p.parse();
+                final MarkupParser parser = mgr.getParser( wikiContext, "["+author+"|"+author+"]" );
+                final WikiDocument d = parser.parse();
                 author = mgr.getHTML( wikiContext, d );
             }
 

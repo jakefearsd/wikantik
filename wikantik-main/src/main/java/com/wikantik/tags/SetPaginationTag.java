@@ -212,11 +212,11 @@ public class SetPaginationTag
 
         /* +++ processing done +++ */
 
-        final String p = pagination.toString();
+        final String paginationHtml = pagination.toString();
 
-        pageContext.getOut().println( p );
+        pageContext.getOut().println( paginationHtml );
 
-        pageContext.setAttribute( "pagination", p ); /* and cache for later use in page context */
+        pageContext.setAttribute( "pagination", paginationHtml ); /* and cache for later use in page context */
 
         return SKIP_BODY;
     }

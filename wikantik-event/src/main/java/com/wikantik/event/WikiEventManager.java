@@ -400,9 +400,9 @@ public final class WikiEventManager {
             synchronized( m_listenerList ) {
                 final TreeSet< WikiEventListener > set = new TreeSet<>( new WikiEventListenerComparator() );
                 for( final WeakReference< WikiEventListener > wikiEventListenerWeakReference : m_listenerList ) {
-                    final WikiEventListener l = wikiEventListenerWeakReference.get();
-                    if( l != null ) {
-                        set.add( l );
+                    final WikiEventListener listener = wikiEventListenerWeakReference.get();
+                    if( listener != null ) {
+                        set.add( listener );
                     }
                 }
 

@@ -162,10 +162,10 @@ public class DefaultPageManager implements PageManager {
             LOG.info( "Repository has been modified externally while fetching page {}", pageName );
 
             //  Empty the references and yay, it shall be recalculated
-            final Page p = provider.getPageInfo( pageName, version );
+            final Page reindexedPage = provider.getPageInfo( pageName, version );
 
-            engine.getManager( ReferenceManager.class ).updateReferences( p );
-            fireEvent( WikiPageEvent.PAGE_REINDEX, p.getName() );
+            engine.getManager( ReferenceManager.class ).updateReferences( reindexedPage );
+            fireEvent( WikiPageEvent.PAGE_REINDEX, reindexedPage.getName() );
             text = provider.getPageText( pageName, version );
         }
 
@@ -276,8 +276,8 @@ public class DefaultPageManager implements PageManager {
         }
 
         fireEvent( WikiPageEvent.PAGE_LOCK, page.getName() );
-        final Date d = new Date();
-        final com.wikantik.api.pages.PageLock newLock = new PageLock( page, user, d, new Date( d.getTime() + expiryTime * 60 * 1000L ) );
+        final Date lockTime = new Date();
+        final com.wikantik.api.pages.PageLock newLock = new PageLock( page, user, lockTime, new Date( lockTime.getTime() + expiryTime * 60 * 1000L ) );
         final com.wikantik.api.pages.PageLock existing = pageLocks.putIfAbsent( page.getName(), newLock );
 
         if( existing == null ) {
@@ -564,22 +564,22 @@ public class DefaultPageManager implements PageManager {
      */
     @Override
     public void deletePage( final String pageName ) throws ProviderException {
-        final Page p = getPage( pageName );
-        if( p != null ) {
-            if( p instanceof Attachment att ) {
+        final Page pageToDelete = getPage( pageName );
+        if( pageToDelete != null ) {
+            if( pageToDelete instanceof Attachment att ) {
                 engine.getManager( AttachmentManager.class ).deleteAttachment( att );
             } else {
                 final Collection< String > refTo = new ArrayList<>( engine.getManager( ReferenceManager.class ).findRefersTo( pageName ) );
 
-                if( engine.getManager( AttachmentManager.class ).hasAttachments( p ) ) {
-                    final List< Attachment > attachments = engine.getManager( AttachmentManager.class ).listAttachments( p );
+                if( engine.getManager( AttachmentManager.class ).hasAttachments( pageToDelete ) ) {
+                    final List< Attachment > attachments = engine.getManager( AttachmentManager.class ).listAttachments( pageToDelete );
                     for( final Attachment attachment : attachments ) {
                         refTo.remove( attachment.getName() );
 
                         engine.getManager( AttachmentManager.class ).deleteAttachment( attachment );
                     }
                 }
-                deletePage( p );
+                deletePage( pageToDelete );
                 fireEvent( WikiPageEvent.PAGE_DELETED, pageName );
             }
         }

@@ -149,8 +149,8 @@ public class PluginContent extends Text implements PluginElement {
                 final String cmdLine = params.get( CMDLINE ).replaceAll( LINEBREAK, ELEMENT_BR );
                 result = result + cmdLine + PLUGIN_END;
             } else {
-                final Boolean b = context.getVariable( Context.VAR_EXECUTE_PLUGINS );
-                if (b != null && !b ) {
+                final Boolean executePlugins = context.getVariable( Context.VAR_EXECUTE_PLUGINS );
+                if (executePlugins != null && !executePlugins ) {
                     return BLANK;
                 }
 

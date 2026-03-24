@@ -220,9 +220,9 @@ public class IfPlugin implements Plugin {
                 invert = true;
             }
 
-            final Principal g = context.getEngine().getManager( AuthorizationManager.class ).resolvePrincipal( gname );
+            final Principal groupPrincipal = context.getEngine().getManager( AuthorizationManager.class ).resolvePrincipal( gname );
 
-            include |= context.getEngine().getManager( AuthorizationManager.class ).isUserInRole( context.getWikiSession(), g ) ^ invert;
+            include |= context.getEngine().getManager( AuthorizationManager.class ).isUserInRole( context.getWikiSession(), groupPrincipal ) ^ invert;
         }
         return include;
     }

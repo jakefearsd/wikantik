@@ -137,8 +137,8 @@ public class PermissionTag extends WikiTagBase {
                 }
             }
 
-            final Permission p = PermissionFactory.getPagePermission( page, permission );
-            gotPermission = mgr.checkPermission( session, p );
+            final Permission pagePermission = PermissionFactory.getPagePermission( page, permission );
+            gotPermission = mgr.checkPermission( session, pagePermission );
         }
         
         return gotPermission;

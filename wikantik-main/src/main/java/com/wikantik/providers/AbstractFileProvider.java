@@ -634,10 +634,10 @@ public abstract class AbstractFileProvider implements PageProvider {
             return null;
         }
 
-        final Page p = Wiki.contents().page( engine, page );
-        p.setLastModified( new Date( file.lastModified() ) );
+        final Page pageInfo = Wiki.contents().page( engine, page );
+        pageInfo.setLastModified( new Date( file.lastModified() ) );
 
-        return p;
+        return pageInfo;
     }
 
     /**

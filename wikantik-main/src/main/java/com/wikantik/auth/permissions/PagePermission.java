@@ -223,9 +223,9 @@ public final class PagePermission extends Permission implements Serializable
         if ( !( obj instanceof PagePermission ) ) {
             return false;
         }
-        final PagePermission p = ( PagePermission )obj;
-        return  p.mask == mask && p.page.equals( page )
-             && p.wiki != null && p.wiki.equals( wiki );
+        final PagePermission other = ( PagePermission )obj;
+        return  other.mask == mask && other.page.equals( page )
+             && other.wiki != null && other.wiki.equals( wiki );
     }
 
     /**
@@ -305,21 +305,21 @@ public final class PagePermission extends Permission implements Serializable
         }
 
         // Build up an "implied mask"
-        final PagePermission p = (PagePermission) permission;
+        final PagePermission other = (PagePermission) permission;
         final int impliedMask = impliedMask( mask );
 
         // If actions aren't a proper subset, return false
-        if ( ( impliedMask & p.mask ) != p.mask )
+        if ( ( impliedMask & other.mask ) != other.mask )
         {
             return false;
         }
 
         // See if the tested permission's wiki is implied
-        final boolean impliedWiki = isSubset( wiki, p.wiki );
+        final boolean impliedWiki = isSubset( wiki, other.wiki );
 
         // If this page is "*", the tested permission's
         // page is implied
-        final boolean impliedPage = isSubset( page, p.page );
+        final boolean impliedPage = isSubset( page, other.page );
 
         return  impliedWiki && impliedPage;
     }

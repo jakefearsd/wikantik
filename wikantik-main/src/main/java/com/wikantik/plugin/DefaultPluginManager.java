@@ -488,11 +488,11 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
                 initialized = true;
 
                 try {
-                    final Plugin p = newPluginInstance(searchPath, externalJars);
-                    if( p instanceof InitializablePlugin ip ) {
+                    final Plugin plugin = newPluginInstance(searchPath, externalJars);
+                    if( plugin instanceof InitializablePlugin ip ) {
                         ip.initialize( engine );
                     }
-                    if( p instanceof WikiAjaxServlet ajaxServlet ) {
+                    if( plugin instanceof WikiAjaxServlet ajaxServlet ) {
                     	WikiAjaxDispatcherServlet.registerServlet( ajaxServlet );
                     	final String ajaxAlias = info.getAjaxAlias();
                     	if (StringUtils.isNotBlank(ajaxAlias)) {

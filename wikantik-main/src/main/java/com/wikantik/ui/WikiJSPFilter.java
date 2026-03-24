@@ -91,10 +91,10 @@ public class WikiJSPFilter extends WikiServletFilter {
 
     @Override
     public void doFilter( final ServletRequest  request, final ServletResponse response, final FilterChain chain ) throws ServletException, IOException {
-        final WatchDog w = WatchDog.getCurrentWatchDog( engine );
+        final WatchDog watchDog = WatchDog.getCurrentWatchDog( engine );
         try {
             ThreadContext.push( engine.getApplicationName() + ":" + ( ( HttpServletRequest )request ).getRequestURI() );
-            w.enterState("Filtering for URL "+((HttpServletRequest)request).getRequestURI(), 90 );
+            watchDog.enterState("Filtering for URL "+((HttpServletRequest)request).getRequestURI(), 90 );
 
             final HttpServletRequest httpRequest = ( HttpServletRequest ) request;
             final HttpServletResponse httpResponse = ( HttpServletResponse ) response;
@@ -124,9 +124,9 @@ public class WikiJSPFilter extends WikiServletFilter {
             // WikiContext is only available after doFilter! (That is after interpreting the jsp)
 
             try {
-                w.enterState( "Delivering response", 30 );
+                watchDog.enterState( "Delivering response", 30 );
                 final Context wikiContext = getWikiContext( request );
-                final String r = filter( wikiContext, responseWrapper );
+                final String filteredResponse = filter( wikiContext, responseWrapper );
 
                 // Set HTTP caching headers for page views
                 if( "GET".equals( httpRequest.getMethod() ) ) {
@@ -140,11 +140,11 @@ public class WikiJSPFilter extends WikiServletFilter {
 
                 if( useEncoding ) {
                     final OutputStreamWriter out = new OutputStreamWriter( response.getOutputStream(), response.getCharacterEncoding() );
-                    out.write( r );
+                    out.write( filteredResponse );
                     out.flush();
                     out.close();
                 } else {
-                    response.getWriter().write(r);
+                    response.getWriter().write( filteredResponse );
                 }
 
                 // Clean up the UI messages and loggers
@@ -156,10 +156,10 @@ public class WikiJSPFilter extends WikiServletFilter {
                 fireEvent( WikiPageEvent.PAGE_DELIVERED, effectivePage );
 
             } finally {
-                w.exitState();
+                watchDog.exitState();
             }
         } finally {
-            w.exitState();
+            watchDog.exitState();
             ThreadContext.pop();
             ThreadContext.remove( engine.getApplicationName() + ":" + ( ( HttpServletRequest )request ).getRequestURI() );
         }

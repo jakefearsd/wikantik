@@ -376,11 +376,11 @@ public class CookieTag
         final Iterator< Map.Entry< String, String > > it = values.entrySet().iterator();
         while( it.hasNext() ) {
             final Map.Entry< String, String > e = it.next();
-            final String n = e.getKey();
-            final String v = e.getValue();
-            if( v != null ) {
-                final String nv = n + "=" + v;
-                rval.append( encode( nv ) );
+            final String cookieName = e.getKey();
+            final String cookieValue = e.getValue();
+            if( cookieValue != null ) {
+                final String nameValuePair = cookieName + "=" + cookieValue;
+                rval.append( encode( nameValuePair ) );
             }
         }
 

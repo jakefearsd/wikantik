@@ -163,10 +163,10 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
 
                 int counter = 0;
                 for( final Iterator< String > i = allPages.iterator(); i.hasNext() && counter < maxLength; ) {
-                    final String p = i.next();
-                    final String pp = p.toLowerCase();
-                    if( pp.startsWith( cleanWikiName) || pp.startsWith( oldStyleName ) ) {
-                        list.add( p );
+                    final String candidatePage = i.next();
+                    final String lowerPageName = candidatePage.toLowerCase();
+                    if( lowerPageName.startsWith( cleanWikiName) || lowerPageName.startsWith( oldStyleName ) ) {
+                        list.add( candidatePage );
                         counter++;
                     }
                 }
@@ -257,15 +257,15 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
         if( event instanceof WikiPageEvent pageEvent ) {
             final String pageName = pageEvent.getPageName();
             if( event.getType() == WikiPageEvent.PAGE_DELETE_REQUEST ) {
-                final Page p = engine.getManager( PageManager.class ).getPage( pageName );
-                if( p != null ) {
-                    pageRemoved( p );
+                final Page deletedPage = engine.getManager( PageManager.class ).getPage( pageName );
+                if( deletedPage != null ) {
+                    pageRemoved( deletedPage );
                 }
             }
             if( event.getType() == WikiPageEvent.PAGE_REINDEX ) {
-                final Page p = engine.getManager( PageManager.class ).getPage( pageName );
-                if( p != null ) {
-                    reindexPage( p );
+                final Page reindexedPage = engine.getManager( PageManager.class ).getPage( pageName );
+                if( reindexedPage != null ) {
+                    reindexPage( reindexedPage );
                 }
             }
         }

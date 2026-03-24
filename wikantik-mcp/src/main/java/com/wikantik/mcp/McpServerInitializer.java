@@ -31,7 +31,7 @@ import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.ServletRegistration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.WikiEngine;
+import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.SystemPageRegistry;
@@ -67,9 +67,9 @@ public class McpServerInitializer implements ServletContextListener {
         // Eagerly create the WikiEngine if it doesn't exist yet.
         // WikiBootstrapServletContextListener has already initialized SPIs by the time
         // this listener runs, so getInstance() is safe to call here.
-        final WikiEngine engine;
+        final Engine engine;
         try {
-            engine = ( WikiEngine ) Wiki.engine().find( servletContext, null );
+            engine = Wiki.engine().find( servletContext, null );
         } catch ( final Exception e ) {
             LOG.warn( "WikiEngine could not be created — MCP server not started: {}", e.getMessage() );
             return;

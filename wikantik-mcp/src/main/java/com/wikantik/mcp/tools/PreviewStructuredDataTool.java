@@ -24,8 +24,6 @@ import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.ui.SitemapServlet;
-
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -39,6 +37,9 @@ import java.util.*;
 public class PreviewStructuredDataTool implements McpTool {
 
     public static final String TOOL_NAME = "preview_structured_data";
+
+    // Keep in sync with NEWS_CUTOFF_DAYS
+    private static final int NEWS_CUTOFF_DAYS = 2;
 
     private final PageManager pageManager;
     private final String applicationName;
@@ -242,13 +243,13 @@ public class PreviewStructuredDataTool implements McpTool {
         }
 
         final long cutoffMillis = System.currentTimeMillis()
-                - ( ( long ) SitemapServlet.NEWS_CUTOFF_DAYS * 24 * 60 * 60 * 1000 );
+                - ( ( long ) NEWS_CUTOFF_DAYS * 24 * 60 * 60 * 1000 );
         if ( page.getLastModified() != null && page.getLastModified().getTime() >= cutoffMillis ) {
             news.put( "eligible", true );
-            news.put( "reason", "Has tags and modified within " + SitemapServlet.NEWS_CUTOFF_DAYS + " days" );
+            news.put( "reason", "Has tags and modified within " + NEWS_CUTOFF_DAYS + " days" );
         } else {
             news.put( "eligible", false );
-            news.put( "reason", "Page not modified within the last " + SitemapServlet.NEWS_CUTOFF_DAYS + " days" );
+            news.put( "reason", "Page not modified within the last " + NEWS_CUTOFF_DAYS + " days" );
         }
 
         return news;

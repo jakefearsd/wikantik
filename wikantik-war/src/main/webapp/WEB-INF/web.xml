@@ -228,6 +228,18 @@
        <servlet-name>AuthResource</servlet-name>
        <servlet-class>com.wikantik.rest.AuthResource</servlet-class>
    </servlet>
+   <servlet>
+       <servlet-name>SearchResource</servlet-name>
+       <servlet-class>com.wikantik.rest.SearchResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>HistoryResource</servlet-name>
+       <servlet-class>com.wikantik.rest.HistoryResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>BacklinksResource</servlet-name>
+       <servlet-class>com.wikantik.rest.BacklinksResource</servlet-class>
+   </servlet>
 
    <!-- SSO servlets for OIDC/SAML authentication -->
    <servlet>
@@ -279,6 +291,18 @@
    <servlet-mapping>
        <servlet-name>AuthResource</servlet-name>
        <url-pattern>/api/auth/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>SearchResource</servlet-name>
+       <url-pattern>/api/search</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>HistoryResource</servlet-name>
+       <url-pattern>/api/history/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>BacklinksResource</servlet-name>
+       <url-pattern>/api/backlinks/*</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

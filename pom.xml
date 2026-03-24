@@ -155,6 +155,7 @@
     <module>wikantik-http</module>
     <module>wikantik-main</module>
     <module>wikantik-mcp</module>
+    <module>wikantik-rest</module>
     <module>wikantik-war</module>
     <module>wikantik-it-tests</module><!-- IT tests are launched only if -Pintegration-tests is given -->
     <module>wikantik-bom</module>

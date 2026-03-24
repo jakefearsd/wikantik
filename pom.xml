@@ -87,6 +87,8 @@
     <xstream.version>1.4.21</xstream.version>
     <mcp-sdk.version>1.1.0</mcp-sdk.version>
     <snakeyaml.version>2.4</snakeyaml.version>
+    <xmemcached.version>2.4.8</xmemcached.version>
+    <testcontainers.version>1.20.4</testcontainers.version>
 
     <plugin.antrun.version>3.1.0</plugin.antrun.version>
     <plugin.assembly.version>3.7.1</plugin.assembly.version>
@@ -139,6 +141,7 @@
     <module>wikantik-api</module>
     <module>wikantik-bootstrap</module>
     <module>wikantik-cache</module>
+    <module>wikantik-cache-memcached</module>
     <module>wikantik-http</module>
     <module>wikantik-main</module>
     <module>wikantik-mcp</module>
@@ -499,7 +502,25 @@
         <version>${snakeyaml.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>com.googlecode.xmemcached</groupId>
+        <artifactId>xmemcached</artifactId>
+        <version>${xmemcached.version}</version>
+      </dependency>
+
       <!-- test dependencies -->
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers</artifactId>
+        <version>${testcontainers.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>${testcontainers.version}</version>
+      </dependency>
+
       <dependency>
         <groupId>com.github.jbellis</groupId>
         <artifactId>jamm</artifactId>

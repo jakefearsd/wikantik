@@ -90,9 +90,9 @@ public class DefaultEditorManager extends BaseModuleManager implements EditorMan
 
             if( checkCompatibility( info ) ) {
                 this.editors.put( name, info );
-                LOG.debug( "Registered editor " + name );
+                LOG.debug( "Registered editor {}", name );
             } else {
-                LOG.info( "Editor '" + name + "' not compatible with this version of JSPWiki." );
+                LOG.info( "Editor '{}' not compatible with this version of JSPWiki.", name );
             }
         }
     }

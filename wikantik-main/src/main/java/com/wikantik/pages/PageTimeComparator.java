@@ -50,10 +50,10 @@ public class PageTimeComparator implements Comparator< Page >, Serializable {
         final Date w2LastMod = p2.getLastModified();
 
         if( w1LastMod == null ) {
-            LOG.error( "NULL MODIFY DATE WITH " + p1.getName() );
+            LOG.error( "NULL MODIFY DATE WITH {}", p1.getName() );
             return 0;
         } else if( w2LastMod == null ) {
-            LOG.error( "NULL MODIFY DATE WITH " + p2.getName() );
+            LOG.error( "NULL MODIFY DATE WITH {}", p2.getName() );
             return 0;
         }
 

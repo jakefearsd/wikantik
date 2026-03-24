@@ -85,7 +85,7 @@ public class DefaultTemplateManager extends BaseModuleManager implements Templat
                 }
             }
         } catch( final IOException e ) {
-            LOG.error( "unable to open " + name + " as resource stream", e );
+            LOG.error( "unable to open {} as resource stream", name, e );
         }
         return resourceName;
     }
@@ -150,8 +150,8 @@ public class DefaultTemplateManager extends BaseModuleManager implements Templat
     @Override
     public String findJSP( final PageContext pageContext, final String template, final String name ) {
         if( name == null || template == null ) {
-            LOG.fatal("findJSP() was asked to find a null template or name (" + template + "," + name + ")." + " JSP page '" +
-                      ( ( HttpServletRequest )pageContext.getRequest() ).getRequestURI() + "'" );
+            LOG.fatal("findJSP() was asked to find a null template or name ({},{}). JSP page '{}'",
+                      template, name, ( ( HttpServletRequest )pageContext.getRequest() ).getRequestURI() );
             throw new InternalWikiException( "Illegal arguments to findJSP(); please check logs." );
         }
 

@@ -138,7 +138,7 @@ public class BreadcrumbsTag extends WikiTagBase
                     }
                 }
             } else {
-                LOG.debug( "didn't add page because it doesn't exist: " + page );
+                LOG.debug( "didn't add page because it doesn't exist: {}", page );
             }
         }
 

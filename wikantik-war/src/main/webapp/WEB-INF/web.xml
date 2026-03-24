@@ -215,6 +215,20 @@
        <servlet-class>com.wikantik.content.AtomFeedServlet</servlet-class>
    </servlet>
 
+   <!-- REST API -->
+   <servlet>
+       <servlet-name>PageResource</servlet-name>
+       <servlet-class>com.wikantik.rest.PageResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>PageListResource</servlet-name>
+       <servlet-class>com.wikantik.rest.PageListResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>AuthResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AuthResource</servlet-class>
+   </servlet>
+
    <!-- SSO servlets for OIDC/SAML authentication -->
    <servlet>
        <servlet-name>SSORedirectServlet</servlet-name>
@@ -252,6 +266,19 @@
    <servlet-mapping>
        <servlet-name>AtomFeedServlet</servlet-name>
        <url-pattern>/feed.xml</url-pattern>
+   </servlet-mapping>
+
+   <servlet-mapping>
+       <servlet-name>PageResource</servlet-name>
+       <url-pattern>/api/pages/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>PageListResource</servlet-name>
+       <url-pattern>/api/pages</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AuthResource</servlet-name>
+       <url-pattern>/api/auth/*</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

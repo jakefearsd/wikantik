@@ -6,6 +6,102 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-25** — Remove legacy JSPWiki artifacts superseded by Markdown migration
+
+**2026-03-25** — Update React sidebar to match JSP LeftMenu navigation structure
+
+**2026-03-25** — Bundle React SPA into WAR — served at /app/ from same Tomcat
+
+**2026-03-25** — Add React frontend — editorial magazine aesthetic with full read/write
+
+**2026-03-25** — REST API: add render option, version retrieval, metadata PATCH
+
+**2026-03-25** — REST API: add attachments, diff, recent changes, outbound links endpoints
+
+**2026-03-25** — Add REST API integration tests -- Cargo-based HTTP validation
+
+**2026-03-24** — REST API Phases 2-3: search, history, backlinks, login/logout
+
+**2026-03-24** — Add wikantik-rest module — REST/JSON API for alternative frontends (Phase 1)
+
+**2026-03-24** — Upgrade Selenide from 7.12.1 to 7.13.0
+
+**2026-03-24** — Revert "Merge pull request #20 from jakefearsd/dependabot/maven/selenide.version-7.15.0"
+
+**2026-03-24** — Merge pull request #20 from jakefearsd/dependabot/maven/selenide.version-7.15.0
+
+**2026-03-24** — Merge pull request #17 from jakefearsd/dependabot/maven/pac4j.version-6.3.3
+
+**2026-03-24** — Merge pull request #19 from jakefearsd/dependabot/maven/commons-net-commons-net-3.13.0
+
+**2026-03-24** — Merge pull request #18 from jakefearsd/dependabot/maven/org.apache.maven.plugins-maven-pmd-plugin-3.28.0
+
+**2026-03-24** — Bump org.apache.maven.plugins:maven-pmd-plugin from 3.26.0 to 3.28.0
+
+**2026-03-24** — Rename single-letter local variables to descriptive names across 33 files
+
+**2026-03-24** — Add Maven site generation — reports, coverage, and per-module navigation
+
+**2026-03-24** — Fix encapsulation violations in wikantik-mcp — use Engine interface, remove SitemapServlet import
+
+**2026-03-24** — Add wikantik-cache-memcached module — distributed cache adapter
+
+**2026-03-24** — Convert 124 remaining LOG string concatenations to parameterized placeholders
+
+**2026-03-24** — Improve logging: convert string concatenation to parameterized placeholders in 10 files
+
+**2026-03-24** — Add MCP audit tools and wiki audit skill design specs
+
+**2026-03-23** — Improve readability: rename single-letter vars, use log placeholders, cleanup
+
+**2026-03-23** — Update ADR-001 to reflect completed implementation + add production architecture doc
+
+**2026-03-23** — Move PageSaveHelper, SaveOptions, VersionConflictException to wikantik-api
+
+**2026-03-23** — Move FrontmatterParser, FrontmatterWriter, ParsedPage, MarkdownLinkScanner to wikantik-api
+
+**2026-03-23** — Convert 11 more MCP tests from TestEngine to stubs
+
+**2026-03-23** — Decouple 13 MCP tool constructors from WikiEngine
+
+**2026-03-23** — Add StubPageManagerTest and test stub conversion plan
+
+**2026-03-23** — Extract 8 manager interfaces from wikantik-main to wikantik-api (ADR-001)
+
+**2026-03-23** — Fix test-jar configuration so stubs are available to MCP tests
+
+**2026-03-23** — test: create StubReferenceManager and convert 7 MEDIUM MCP tests from TestEngine to stubs
+
+**2026-03-23** — test: convert 11 MCP tool tests from TestEngine to StubPageManager
+
+**2026-03-23** — Bump selenide.version from 7.12.1 to 7.15.0
+
+**2026-03-23** — Bump commons-net:commons-net from 3.12.0 to 3.13.0
+
+**2026-03-23** — Bump pac4j.version from 6.3.1 to 6.3.3
+
+**2026-03-22** — Add ADR-001: Extract manager interfaces to wikantik-api
+
+**2026-03-22** — Apply 6 Gang of Four design patterns across core and MCP modules
+
+**2026-03-22** — Sync DB init scripts to staging before deploy
+
+**2026-03-22** — Fix Dockerfile: replace non-existent wikantik-markdown with wikantik-http
+
+**2026-03-22** — Update News page content
+
+**2026-03-22** — Merge pull request #15 from jakefearsd/dependabot/maven/org.codelibs-nekohtml-3.0.3
+
+**2026-03-22** — Merge pull request #16 from jakefearsd/dependabot/maven/mcp-sdk.version-1.1.0
+
+**2026-03-22** — Merge pull request #14 from jakefearsd/dependabot/maven/org.apache.maven.plugins-maven-war-plugin-3.5.1
+
+**2026-03-22** — Merge pull request #13 from jakefearsd/dependabot/maven/org.apache.maven.plugins-maven-dependency-plugin-3.10.0
+
+**2026-03-22** — Add staging deploy workflow for local Docker deployment
+
+**2026-03-22** — Replace full Markdown render with regex link extraction in ReferenceManager
+
 **2026-03-22** — Add git pull step to CI/CD and step-by-step setup guide
 
 **2026-03-22** — Add Docker containerization: Dockerfile, Compose, backup system
@@ -69,6 +165,14 @@ A log of recent development activity on the JSPWiki project.
 **2026-03-19** — Rebrand Phases 1-4: identity, config prefix, resource renames, taglib URI
 
 **2026-03-19** — Remove .mcp.json — leaked API key
+
+**2026-03-19** — Bump mcp-sdk.version from 1.0.0 to 1.1.0
+
+**2026-03-19** — Bump org.codelibs:nekohtml from 2.1.3 to 3.0.3
+
+**2026-03-19** — Bump org.apache.maven.plugins:maven-war-plugin from 3.4.0 to 3.5.1
+
+**2026-03-19** — Bump org.apache.maven.plugins:maven-dependency-plugin
 
 **2026-03-18** — Add warehouse-automation cluster pages to jspwiki-pages
 

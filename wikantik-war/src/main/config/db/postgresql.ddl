@@ -86,8 +86,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON roles TO wikantik;
 GRANT SELECT, INSERT, UPDATE, DELETE ON groups TO wikantik;
 GRANT SELECT, INSERT, UPDATE, DELETE ON group_members TO wikantik;
 
--- Insert default admin user
--- Password is 'admin' hashed with {SSHA} - change immediately after first login!
+-- Insert default admin user (admin / admin123)
 INSERT INTO users (
   uid,
   email,
@@ -100,7 +99,7 @@ INSERT INTO users (
   'admin@localhost',
   'Administrator',
   'admin',
-  '{SHA-256}o2tqerJSAYZA6mtgiVYt8DhgA9QnlLFQcIs8RBO785XuY4w4twYOUA==',
+  '{SHA-256}zij+qwD6JAlf9h+1tHdjNWTgqDASCJxt4y70G64C9PIoxFO2Lyq/xg==',
   'Administrator'
 );
 
@@ -111,6 +110,23 @@ INSERT INTO roles (
 ) VALUES (
   'admin',
   'Admin'
+);
+
+-- Insert basic user (jakefear@gmail.com / passw0rd)
+INSERT INTO users (
+  uid,
+  email,
+  full_name,
+  login_name,
+  password,
+  wiki_name
+) VALUES (
+  '-7234567890123456789',
+  'jakefear@gmail.com',
+  'Jake Fear',
+  'jakefear@gmail.com',
+  '{SHA-256}Y4V5SEIjsLbLdfhb/fgG+SHjSPSnKQszCndaucWNX1EHzXBOYy8HNw==',
+  'JakeFear'
 );
 
 -- Create default Admin group

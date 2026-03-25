@@ -37,7 +37,8 @@
 
   /* Layout */
   --sidebar-width: 280px;
-  --content-max-width: 720px;
+  --sidebar-tab-width: 35px;
+  --content-max-width: 864px;
   --toc-width: 200px;
 
   /* Transitions */
@@ -149,6 +150,7 @@ input, textarea, select {
 
 .app-main {
   flex: 1;
+  min-width: 0;
   margin-left: var(--sidebar-width);
   min-height: 100vh;
   transition: margin-left var(--duration-slow) var(--ease);
@@ -523,20 +525,64 @@ input, textarea, select {
    Responsive
    ============================================================ */
 
+/* Tab handle — hidden on desktop */
+.sidebar-tab-handle {
+  display: none;
+}
+
+/* --- Backdrop (desktop: unused; always below sidebar z-index) --- */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  z-index: 9;
+}
+
 @media (max-width: 768px) {
   .app-sidebar {
-    transform: translateX(calc(-1 * var(--sidebar-width)));
+    /* Leave 30px tab always visible on left edge */
+    transform: translateX(calc(-1 * (var(--sidebar-width) - var(--sidebar-tab-width))));
   }
   .app-sidebar.open {
     transform: translateX(0);
   }
   .app-main {
-    margin-left: 0;
+    /* Reserve the 30px tab; content never slides under it */
+    margin-left: var(--sidebar-tab-width);
   }
   .app-content {
     padding: var(--space-lg) var(--space-md);
   }
   .editor-container {
     grid-template-columns: 1fr;
+  }
+  /* Show the tap handle in the visible 35px strip */
+  .sidebar-tab-handle {
+    display: flex;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: var(--sidebar-tab-width);
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 0.6rem;
+    cursor: pointer;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 1rem;
+    user-select: none;
+    /* Subtle shadow to hint it extends further */
+    box-shadow: 2px 0 6px var(--shadow);
+    z-index: 1;
+  }
+  /* Hide handle when sidebar is fully open (backdrop handles close) */
+  .app-sidebar.open .sidebar-tab-handle {
+    display: none;
+  }
+  /* Remove the old floating hamburger — no longer needed */
+  .mobile-hamburger {
+    display: none !important;
   }
 }

@@ -6,7 +6,7 @@ import { useDarkMode } from '../hooks/useDarkMode';
 import SearchOverlay from './SearchOverlay';
 import UserBadge from './UserBadge';
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose = () => {}, onMobileOpen = () => {} }) {
   const { name: activePage } = useParams();
   const [pages, setPages] = useState([]);
   const [recentChanges, setRecentChanges] = useState([]);
@@ -47,6 +47,7 @@ export default function Sidebar({ collapsed, onToggle }) {
     <Link
       to={to}
       className={`sidebar-link ${activePage === to.replace('/wiki/', '') ? 'active' : ''}`}
+      onClick={onMobileClose}
     >
       {label}
     </Link>
@@ -54,10 +55,13 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   return (
     <>
-      <aside className={`app-sidebar ${collapsed ? 'collapsed' : ''}`}>
+      <aside className={`app-sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'open' : ''}`}>
+        <div className="sidebar-tab-handle" onClick={onMobileOpen} aria-label="Open navigation">
+          ☰
+        </div>
         <div className="sidebar-brand">
-          <Link to="/wiki/Main" style={{ color: 'inherit', textDecoration: 'none' }}>
-            Wiki<span>antik</span>
+          <Link to="/wiki/Main" style={{ color: 'inherit', textDecoration: 'none' }} onClick={onMobileClose}>
+            Wik<span>antik</span>
           </Link>
         </div>
 
@@ -92,6 +96,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                 key={c.name}
                 to={`/wiki/${c.name}`}
                 className={`sidebar-link ${activePage === c.name ? 'active' : ''}`}
+                onClick={onMobileClose}
               >
                 {c.name}
               </Link>
@@ -108,6 +113,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                 key={p.name}
                 to={`/wiki/${p.name}`}
                 className={`sidebar-link ${activePage === p.name ? 'active' : ''}`}
+                onClick={onMobileClose}
               >
                 {p.name}
               </Link>
@@ -124,6 +130,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                 key={p.name}
                 to={`/wiki/${p.name}`}
                 className={`sidebar-link ${activePage === p.name ? 'active' : ''}`}
+                onClick={onMobileClose}
               >
                 {p.name}
               </Link>

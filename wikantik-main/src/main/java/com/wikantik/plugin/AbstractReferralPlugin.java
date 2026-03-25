@@ -346,6 +346,19 @@ public abstract class AbstractReferralPlugin implements Plugin {
         final StringBuilder output = new StringBuilder();
         final boolean useMarkdownLinks = !useWikiSyntax;
 
+        // In Markdown mode the default JSPWiki line-break separator ("\\") renders as a literal
+        // backslash.  When the caller has not overridden before/after, switch to Markdown bullet
+        // list syntax so items appear as a proper <ul> list.
+        final String effectiveBefore;
+        final String effectiveAfter;
+        if( useMarkdownLinks && "".equals( before ) && "\\\\".equals( after ) ) {
+            effectiveBefore = "* ";
+            effectiveAfter  = "\n";
+        } else {
+            effectiveBefore = before;
+            effectiveAfter  = after;
+        }
+
         final Iterator< String > it = links.iterator();
         int count = 0;
 
@@ -353,11 +366,11 @@ public abstract class AbstractReferralPlugin implements Plugin {
         while( it.hasNext() && ( (count < numItems) || ( numItems == ALL_ITEMS ) ) ) {
             final String value = it.next();
             if( count > 0 ) {
-                output.append( after );
+                output.append( effectiveAfter );
                 output.append( separator );
             }
 
-            output.append( before );
+            output.append( effectiveBefore );
 
             final String title = engine.getManager( RenderingManager.class ).beautifyTitle( value );
             if( useMarkdownLinks ) {
@@ -372,7 +385,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
 
         //  Output final item - if there have been none, no "after" is printed
         if( count > 0 ) {
-            output.append( after );
+            output.append( effectiveAfter );
         }
 
         return output.toString();

@@ -582,6 +582,20 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public String getURL( final String context, final String page, final String params ) {
+        // TODO: Remove with JSP UI — redirect PAGE_VIEW and PAGE_EDIT links to React SPA when rendering for React
+        final String reactBase = (String) getVariable( Context.VAR_REACT_URL_BASE );
+        if ( reactBase != null ) {
+            if ( ContextEnum.PAGE_VIEW.getRequestContext().equals( context ) ) {
+                final String engineUrl = engine.getURL( context, page, params );
+                // Strip the engine's context path prefix so we can prepend the React base instead
+                final String engineBase = engine.getBaseURL(); // e.g. "" for ROOT, "/wikantik" for non-ROOT
+                return reactBase + engineUrl.substring( engineBase.length() );
+            }
+            if ( ContextEnum.PAGE_EDIT.getRequestContext().equals( context ) ) {
+                // TODO: Remove with JSP UI — React edit route is /app/edit/<name>
+                return reactBase + "/edit/" + engine.encodeName( page );
+            }
+        }
         // FIXME: is rather slow
         return engine.getURL( context, page, params );
     }

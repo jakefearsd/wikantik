@@ -75,8 +75,8 @@ public class UndefinedPagesPluginTest {
         final Context context2 = Wiki.context().create( testEngine, Wiki.contents().page( testEngine, "Foobar" ) );
         final String res = manager.execute( context2,"{UndefinedPagesPlugin columns=2" );
 
-        Assertions.assertTrue( res.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\"><p><a " ),
-                "Should start with columns div and anchor tag, got: " + res );
+        Assertions.assertTrue( res.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\"><ul>" ),
+                "Should start with columns div and list, got: " + res );
     }
 
     @Test

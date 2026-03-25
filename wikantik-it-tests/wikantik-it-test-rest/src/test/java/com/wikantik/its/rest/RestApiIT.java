@@ -108,6 +108,16 @@ public class RestApiIT {
         return client.send( request, HttpResponse.BodyHandlers.ofString() );
     }
 
+    private HttpResponse< String > patch( final String path, final String jsonBody ) throws IOException, InterruptedException {
+        final HttpRequest request = HttpRequest.newBuilder()
+                .uri( URI.create( baseUrl + path ) )
+                .header( "Content-Type", "application/json" )
+                .header( "Accept", "application/json" )
+                .method( "PATCH", HttpRequest.BodyPublishers.ofString( jsonBody ) )
+                .build();
+        return client.send( request, HttpResponse.BodyHandlers.ofString() );
+    }
+
     private Map< String, Object > parseJson( final String body ) {
         return GSON.fromJson( body, MAP_TYPE );
     }
@@ -330,10 +340,83 @@ public class RestApiIT {
         assertTrue( ( Boolean ) logoutJson.get( "success" ), "Logout should succeed" );
     }
 
-    // ---- CORS tests ----
+    // ---- Render, Version, PATCH tests ----
 
     @Test
     @Order( 12 )
+    void testGetPageRendered() throws Exception {
+        final HttpResponse< String > resp = get( "/api/pages/Main?render=true" );
+        assertEquals( 200, resp.statusCode(), "GET /api/pages/Main?render=true should return 200" );
+
+        final Map< String, Object > json = parseJson( resp.body() );
+        assertNotNull( json.get( "contentHtml" ), "Response should include contentHtml" );
+        assertTrue( json.get( "contentHtml" ).toString().contains( "<" ),
+                "contentHtml should contain HTML tags" );
+    }
+
+    @Test
+    @Order( 13 )
+    void testGetPageVersion() throws Exception {
+        final String pageName = "RestVersionTestPage";
+
+        // Save version 1
+        final String body1 = GSON.toJson( Map.of( "content", "First version content", "changeNote", "v1" ) );
+        put( "/api/pages/" + pageName, body1 );
+
+        // Save version 2
+        final String body2 = GSON.toJson( Map.of( "content", "Second version content", "changeNote", "v2" ) );
+        put( "/api/pages/" + pageName, body2 );
+
+        // Retrieve version 1
+        final HttpResponse< String > resp = get( "/api/pages/" + pageName + "?version=1" );
+        assertEquals( 200, resp.statusCode(), "GET with ?version=1 should return 200" );
+
+        final Map< String, Object > json = parseJson( resp.body() );
+        assertTrue( json.get( "content" ).toString().contains( "First version content" ),
+                "Version 1 should contain first version's content" );
+        assertEquals( 1.0, ( ( Number ) json.get( "version" ) ).doubleValue(),
+                "Version field should be 1" );
+    }
+
+    @Test
+    @Order( 14 )
+    @SuppressWarnings( "unchecked" )
+    void testPatchMetadata() throws Exception {
+        final String pageName = "RestPatchTestPage";
+
+        // Create a page with metadata
+        final String createBody = GSON.toJson( Map.of(
+                "content", "Patch test body",
+                "metadata", Map.of( "type", "article", "tags", List.of( "original" ) )
+        ) );
+        put( "/api/pages/" + pageName, createBody );
+
+        // PATCH to add a new tag via merge
+        final String patchBody = GSON.toJson( Map.of(
+                "metadata", Map.of( "category", "patched" ),
+                "action", "merge"
+        ) );
+        final HttpResponse< String > patchResp = patch( "/api/pages/" + pageName, patchBody );
+        assertEquals( 200, patchResp.statusCode(), "PATCH should return 200" );
+
+        final Map< String, Object > patchJson = parseJson( patchResp.body() );
+        assertTrue( ( Boolean ) patchJson.get( "success" ), "PATCH should report success" );
+
+        // GET and verify merged metadata
+        final HttpResponse< String > getResp = get( "/api/pages/" + pageName );
+        assertEquals( 200, getResp.statusCode() );
+
+        final Map< String, Object > getJson = parseJson( getResp.body() );
+        final Map< String, Object > meta = ( Map< String, Object > ) getJson.get( "metadata" );
+        assertNotNull( meta, "Metadata should be present" );
+        assertEquals( "article", meta.get( "type" ), "Original type should be preserved" );
+        assertEquals( "patched", meta.get( "category" ), "New category should be present" );
+    }
+
+    // ---- CORS tests ----
+
+    @Test
+    @Order( 15 )
     void testCorsHeaders() throws Exception {
         final HttpResponse< String > resp = get( "/api/pages/Main" );
         assertEquals( 200, resp.statusCode() );

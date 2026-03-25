@@ -21,16 +21,20 @@ package com.wikantik.rest;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.api.spi.Wiki;
+import com.wikantik.render.RenderingManager;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -50,7 +54,10 @@ import java.util.Map;
  * Mapped to {@code /api/pages/*}. Handles:
  * <ul>
  *   <li>{@code GET /api/pages/PageName} - Read a page's content and metadata</li>
+ *   <li>{@code GET /api/pages/PageName?render=true} - Include rendered HTML in the response</li>
+ *   <li>{@code GET /api/pages/PageName?version=N} - Retrieve a specific page version</li>
  *   <li>{@code PUT /api/pages/PageName} - Create or update a page</li>
+ *   <li>{@code PATCH /api/pages/PageName} - Update metadata only (merge or replace)</li>
  *   <li>{@code DELETE /api/pages/PageName} - Delete a page</li>
  * </ul>
  */
@@ -73,19 +80,58 @@ public class PageResource extends RestServletBase {
 
         final Engine engine = getEngine();
         final PageManager pm = engine.getManager( PageManager.class );
-        final Page page = pm.getPage( pageName );
 
-        if ( page == null ) {
-            sendNotFound( response, "Page not found: " + pageName );
-            return;
+        // Version-specific retrieval
+        final String versionParam = request.getParameter( "version" );
+        final Page page;
+        final String rawText;
+
+        if ( versionParam != null && !versionParam.isEmpty() ) {
+            final int version;
+            try {
+                version = Integer.parseInt( versionParam );
+            } catch ( final NumberFormatException e ) {
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid version number: " + versionParam );
+                return;
+            }
+            page = pm.getPage( pageName, version );
+            if ( page == null ) {
+                sendNotFound( response, "Page not found: " + pageName + " version " + version );
+                return;
+            }
+            rawText = pm.getPureText( pageName, version );
+            if ( rawText == null ) {
+                sendNotFound( response, "Page not found: " + pageName + " version " + version );
+                return;
+            }
+        } else {
+            page = pm.getPage( pageName );
+            if ( page == null ) {
+                sendNotFound( response, "Page not found: " + pageName );
+                return;
+            }
+            rawText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
         }
 
-        final String rawText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
         final ParsedPage parsed = FrontmatterParser.parse( rawText );
 
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "name", page.getName() );
         result.put( "content", parsed.body() );
+
+        // Rendered HTML option
+        if ( "true".equalsIgnoreCase( request.getParameter( "render" ) ) ) {
+            try {
+                final RenderingManager renderingManager = engine.getManager( RenderingManager.class );
+                final Context context = Wiki.context().create( engine, request, page );
+                final String html = renderingManager.textToHTML( context, rawText );
+                result.put( "contentHtml", html );
+            } catch ( final Exception e ) {
+                LOG.warn( "Failed to render page {}: {}", pageName, e.getMessage() );
+                result.put( "contentHtml", null );
+            }
+        }
+
         result.put( "metadata", parsed.metadata() );
         result.put( "version", Math.max( page.getVersion(), 1 ) );
         result.put( "author", page.getAuthor() );
@@ -186,6 +232,106 @@ public class PageResource extends RestServletBase {
             LOG.error( "Error deleting page {}: {}", pageName, e.getMessage() );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Error deleting page: " + e.getMessage() );
+        }
+    }
+
+    /**
+     * Routes PATCH requests to {@link #doPatch(HttpServletRequest, HttpServletResponse)}.
+     * HttpServlet does not provide a doPatch method by default, so we intercept it here.
+     */
+    @Override
+    protected void service( final HttpServletRequest req, final HttpServletResponse resp )
+            throws ServletException, IOException {
+        if ( "PATCH".equalsIgnoreCase( req.getMethod() ) ) {
+            doPatch( req, resp );
+        } else {
+            super.service( req, resp );
+        }
+    }
+
+    /**
+     * Handles PATCH requests for metadata-only updates.
+     * <p>
+     * Accepts a JSON body with:
+     * <ul>
+     *   <li>{@code metadata} - a map of frontmatter fields to set</li>
+     *   <li>{@code action} - "merge" (default) to merge with existing metadata, or "replace" to overwrite</li>
+     * </ul>
+     */
+    @SuppressWarnings( "unchecked" )
+    protected void doPatch( final HttpServletRequest request, final HttpServletResponse response )
+            throws ServletException, IOException {
+
+        final String pageName = extractPathParam( request );
+        if ( pageName == null || pageName.isEmpty() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
+            return;
+        }
+
+        LOG.debug( "PATCH page: {}", pageName );
+
+        final Engine engine = getEngine();
+        final PageManager pm = engine.getManager( PageManager.class );
+        final Page page = pm.getPage( pageName );
+
+        if ( page == null ) {
+            sendNotFound( response, "Page not found: " + pageName );
+            return;
+        }
+
+        // Parse JSON body
+        final JsonObject body;
+        try ( final BufferedReader reader = request.getReader() ) {
+            body = JsonParser.parseReader( reader ).getAsJsonObject();
+        } catch ( final Exception e ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + e.getMessage() );
+            return;
+        }
+
+        if ( !body.has( "metadata" ) ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "metadata field is required" );
+            return;
+        }
+
+        final Map< String, Object > callerMetadata = GSON.fromJson( body.get( "metadata" ), Map.class );
+        final String action = body.has( "action" ) ? body.get( "action" ).getAsString() : "merge";
+
+        // Read current page text and parse frontmatter
+        final String currentText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
+        final ParsedPage parsed = FrontmatterParser.parse( currentText );
+
+        // Build new metadata
+        final Map< String, Object > newMetadata;
+        if ( "replace".equalsIgnoreCase( action ) ) {
+            newMetadata = new LinkedHashMap<>( callerMetadata );
+        } else {
+            // Default: merge (caller wins)
+            newMetadata = new LinkedHashMap<>( parsed.metadata() );
+            newMetadata.putAll( callerMetadata );
+        }
+
+        // Reconstruct page text with updated frontmatter
+        final String newText = FrontmatterWriter.write( newMetadata, parsed.body() );
+
+        try {
+            final PageSaveHelper helper = new PageSaveHelper( engine );
+            final SaveOptions options = SaveOptions.builder()
+                    .changeNote( "Metadata " + action + " via REST PATCH" )
+                    .build();
+            final Page saved = helper.saveText( pageName, newText, options );
+
+            final Map< String, Object > result = new LinkedHashMap<>();
+            result.put( "success", true );
+            result.put( "name", pageName );
+            result.put( "version", Math.max( saved.getVersion(), 1 ) );
+            result.put( "metadata", newMetadata );
+
+            sendJson( response, result );
+
+        } catch ( final WikiException e ) {
+            LOG.error( "Error patching page {}: {}", pageName, e.getMessage() );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Error patching page: " + e.getMessage() );
         }
     }
 

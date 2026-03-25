@@ -38,6 +38,7 @@ import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -67,6 +68,10 @@ class PageResourceTest {
             try { pm.deletePage( "RestTestFrontmatter" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "RestPutPage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "RestDeletePage" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "RestRenderPage" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "RestVersionPage" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "RestPatchMergePage" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "RestPatchReplacePage" ); } catch ( final Exception e ) { /* ignore */ }
             engine.stop();
         }
     }
@@ -168,7 +173,7 @@ class PageResourceTest {
         servlet.doGet( request, response );
 
         Mockito.verify( response ).setHeader( "Access-Control-Allow-Origin", "*" );
-        Mockito.verify( response ).setHeader( "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS" );
+        Mockito.verify( response ).setHeader( "Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS" );
         Mockito.verify( response ).setHeader( "Access-Control-Allow-Headers", "Content-Type, Authorization" );
     }
 
@@ -183,10 +188,133 @@ class PageResourceTest {
         Mockito.verify( response ).setStatus( HttpServletResponse.SC_OK );
     }
 
+    // ----- Feature 1: Rendered HTML option -----
+
+    @Test
+    void testGetPageWithRenderOption() throws Exception {
+        engine.saveText( "RestRenderPage", "Hello **bold** world." );
+
+        final String json = doGetWithParams( "RestRenderPage", Map.of( "render", "true" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertEquals( "RestRenderPage", obj.get( "name" ).getAsString() );
+        assertTrue( obj.has( "contentHtml" ), "Response should include contentHtml when render=true" );
+        assertNotNull( obj.get( "contentHtml" ), "contentHtml should not be null" );
+        final String html = obj.get( "contentHtml" ).getAsString();
+        assertTrue( html.contains( "<" ), "contentHtml should contain HTML tags" );
+    }
+
+    @Test
+    void testGetPageWithoutRenderOption() throws Exception {
+        engine.saveText( "RestRenderPage", "No render test." );
+
+        final String json = doGet( "RestRenderPage" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertEquals( "RestRenderPage", obj.get( "name" ).getAsString() );
+        assertFalse( obj.has( "contentHtml" ), "Response should NOT include contentHtml when render is absent" );
+    }
+
+    // ----- Feature 2: Version-specific retrieval -----
+
+    @Test
+    void testGetPageSpecificVersion() throws Exception {
+        engine.saveText( "RestVersionPage", "Version content here." );
+
+        // FileSystemProvider only has version 1; requesting version=1 should return it
+        final String json = doGetWithParams( "RestVersionPage", Map.of( "version", "1" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertEquals( "RestVersionPage", obj.get( "name" ).getAsString() );
+        assertTrue( obj.get( "content" ).getAsString().contains( "Version content here." ),
+                "Should return content from the requested version" );
+        assertEquals( 1, obj.get( "version" ).getAsInt(), "Version should be 1" );
+        assertTrue( obj.get( "exists" ).getAsBoolean() );
+    }
+
+    // ----- Feature 3: Metadata-only PATCH -----
+
+    @Test
+    void testPatchMergeMetadata() throws Exception {
+        engine.saveText( "RestPatchMergePage",
+                "---\ntype: article\ntags: [existing]\n---\nBody." );
+
+        final JsonObject patchBody = new JsonObject();
+        final JsonObject meta = new JsonObject();
+        meta.addProperty( "category", "new-category" );
+        patchBody.add( "metadata", meta );
+        patchBody.addProperty( "action", "merge" );
+
+        final String json = doPatch( "RestPatchMergePage", patchBody );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "success" ).getAsBoolean() );
+        final JsonObject resultMeta = obj.getAsJsonObject( "metadata" );
+        assertEquals( "article", resultMeta.get( "type" ).getAsString(),
+                "Original type should be preserved on merge" );
+        assertEquals( "new-category", resultMeta.get( "category" ).getAsString(),
+                "New category should be added" );
+    }
+
+    @Test
+    void testPatchReplaceMetadata() throws Exception {
+        engine.saveText( "RestPatchReplacePage",
+                "---\ntype: article\ntags: [existing]\n---\nBody." );
+
+        final JsonObject patchBody = new JsonObject();
+        final JsonObject meta = new JsonObject();
+        meta.addProperty( "category", "replaced" );
+        patchBody.add( "metadata", meta );
+        patchBody.addProperty( "action", "replace" );
+
+        final String json = doPatch( "RestPatchReplacePage", patchBody );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "success" ).getAsBoolean() );
+        final JsonObject resultMeta = obj.getAsJsonObject( "metadata" );
+        assertFalse( resultMeta.has( "type" ), "Original type should be gone after replace" );
+        assertFalse( resultMeta.has( "tags" ), "Original tags should be gone after replace" );
+        assertEquals( "replaced", resultMeta.get( "category" ).getAsString() );
+    }
+
+    @Test
+    void testPatchNonexistentPage() throws Exception {
+        final JsonObject patchBody = new JsonObject();
+        final JsonObject meta = new JsonObject();
+        meta.addProperty( "type", "article" );
+        patchBody.add( "metadata", meta );
+
+        final HttpServletRequest request = createRequest( "NonExistentPatchPage99" );
+        Mockito.doReturn( new BufferedReader( new StringReader( patchBody.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPatch( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 404, obj.get( "status" ).getAsInt() );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pageName ) throws Exception {
         final HttpServletRequest request = createRequest( pageName );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+        return sw.toString();
+    }
+
+    private String doGetWithParams( final String pageName, final Map< String, String > params ) throws Exception {
+        final HttpServletRequest request = createRequest( pageName );
+        for ( final Map.Entry< String, String > entry : params.entrySet() ) {
+            Mockito.doReturn( entry.getValue() ).when( request ).getParameter( entry.getKey() );
+        }
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         final StringWriter sw = new StringWriter();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
@@ -204,6 +332,18 @@ class PageResourceTest {
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
 
         servlet.doPut( request, response );
+        return sw.toString();
+    }
+
+    private String doPatch( final String pageName, final JsonObject body ) throws Exception {
+        final HttpServletRequest request = createRequest( pageName );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPatch( request, response );
         return sw.toString();
     }
 

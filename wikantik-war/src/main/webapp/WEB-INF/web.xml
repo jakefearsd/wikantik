@@ -65,6 +65,16 @@
       possesses the correct "assertion cookie."
    -->
 
+   <!-- React SPA routing: forwards /app/* paths to /app/index.html for client-side routing -->
+   <filter>
+     <filter-name>SpaRoutingFilter</filter-name>
+     <filter-class>com.wikantik.rest.SpaRoutingFilter</filter-class>
+   </filter>
+   <filter-mapping>
+     <filter-name>SpaRoutingFilter</filter-name>
+     <url-pattern>/app/*</url-pattern>
+   </filter-mapping>
+
    <filter>
      <filter-name>WikiServletFilter</filter-name>
      <filter-class>com.wikantik.ui.WikiServletFilter</filter-class>

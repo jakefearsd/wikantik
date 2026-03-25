@@ -241,6 +241,42 @@
                 </executions>
             </plugin>
 
+            <!-- Build React frontend (npm install + npm run build) -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>frontend-npm-install</id>
+                        <phase>generate-resources</phase>
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <executable>npm</executable>
+                            <workingDirectory>${project.basedir}/../wikantik-frontend</workingDirectory>
+                            <arguments>
+                                <argument>install</argument>
+                                <argument>--no-audit</argument>
+                                <argument>--no-fund</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>frontend-npm-build</id>
+                        <phase>generate-resources</phase>
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <executable>npx</executable>
+                            <workingDirectory>${project.basedir}/../wikantik-frontend</workingDirectory>
+                            <arguments>
+                                <argument>vite</argument>
+                                <argument>build</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <artifactId>maven-war-plugin</artifactId>
                 <configuration>
@@ -255,6 +291,11 @@
                         </resource>
                         <resource>
                             <directory>src/main/styles/static</directory>
+                        </resource>
+                        <!-- React SPA frontend — served at /app/ -->
+                        <resource>
+                            <directory>${project.basedir}/../wikantik-frontend/dist</directory>
+                            <targetPath>app</targetPath>
                         </resource>
                     </webResources>
                 </configuration>

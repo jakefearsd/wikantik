@@ -51,6 +51,14 @@ public interface Context extends Cloneable, Command {
     String VAR_WYSIWYG_EDITOR_MODE = "WYSIWYG_EDITOR_MODE";
 
     /**
+     *  When set, WikiContext.getURL() will route PAGE_VIEW links through the React SPA
+     *  base path rather than the JSP URL constructor output.
+     *  Value is the React app base path, e.g. {@code "/app"}.
+     *  // TODO: Remove with JSP UI
+     */
+    String VAR_REACT_URL_BASE = "_WikiContext.reactUrlBase";
+
+    /**
      *  Returns the WikiPage that is being handled.
      *
      *  @return the WikiPage which was fetched.

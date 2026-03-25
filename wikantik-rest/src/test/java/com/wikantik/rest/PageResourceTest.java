@@ -69,6 +69,9 @@ class PageResourceTest {
             try { pm.deletePage( "RestPutPage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "RestDeletePage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "RestRenderPage" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "RestPluginPage" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "RestPluginLinkPage" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "RestEditLinkPage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "RestVersionPage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "RestPatchMergePage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "RestPatchReplacePage" ); } catch ( final Exception e ) { /* ignore */ }
@@ -213,6 +216,64 @@ class PageResourceTest {
 
         assertEquals( "RestRenderPage", obj.get( "name" ).getAsString() );
         assertFalse( obj.has( "contentHtml" ), "Response should NOT include contentHtml when render is absent" );
+    }
+
+    @Test
+    void testGetPageWithPluginRendering() throws Exception {
+        // Counter plugin increments and returns a number; it must produce non-empty, non-error output
+        engine.saveText( "RestPluginPage", "[{Counter}]" );
+
+        final String json = doGetWithParams( "RestPluginPage", Map.of( "render", "true" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.has( "contentHtml" ), "render=true must include contentHtml" );
+        final String html = obj.get( "contentHtml" ).getAsString();
+        assertNotNull( html );
+        // Plugin output must not be literal Markdown syntax
+        assertFalse( html.contains( "[{Counter}]" ), "Plugin syntax must not appear in rendered output" );
+        // Plugin output must not be an empty string (plugin must have fired)
+        assertFalse( html.isBlank(), "Plugin must produce output" );
+    }
+
+    @Test
+    void testGetPagePluginLinksUseReactPaths() throws Exception {
+        // IndexPlugin generates PAGE_VIEW links for every page in the engine via context.getURL()
+        engine.saveText( "RestPluginLinkPage", "[{IndexPlugin}]" );
+
+        final String json = doGetWithParams( "RestPluginLinkPage", Map.of( "render", "true" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.has( "contentHtml" ), "render=true must include contentHtml" );
+        final String html = obj.get( "contentHtml" ).getAsString();
+        assertFalse( html.isBlank(), "Plugin must produce output" );
+
+        // All page-view hrefs must use the React SPA base path, not the raw JSP /wiki/ prefix.
+        // The context path is engine.getBaseURL() (e.g. "/test" in unit tests, "" for ROOT deployment).
+        final String contextPath = engine.getBaseURL();
+        assertTrue( html.contains( "href=\"" + contextPath + "/app/wiki/" ),
+                "Links must use React " + contextPath + "/app/wiki/ base path, got: " + html );
+        assertFalse( html.matches( "(?s).*href=\"" + contextPath + "/wiki/.*" ),
+                "Links must not use bare " + contextPath + "/wiki/ path" );
+    }
+
+    @Test
+    void testGetPageEditLinksUseReactPaths() throws Exception {
+        // A link to a non-existent page is rendered as a "create page" edit link
+        engine.saveText( "RestEditLinkPage", "[NonExistentPageXYZ](NonExistentPageXYZ)" );
+
+        final String json = doGetWithParams( "RestEditLinkPage", Map.of( "render", "true" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.has( "contentHtml" ), "render=true must include contentHtml" );
+        final String html = obj.get( "contentHtml" ).getAsString();
+        assertFalse( html.isBlank(), "Content must not be blank" );
+
+        // Non-existent page links must route to the React editor, not the JSP ?do=Edit URL
+        final String contextPath = engine.getBaseURL();
+        assertTrue( html.contains( "href=\"" + contextPath + "/app/edit/" ),
+                "Edit links must use React /app/edit/ path, got: " + html );
+        assertFalse( html.contains( "?do=Edit" ),
+                "Edit links must not use JSP ?do=Edit pattern, got: " + html );
     }
 
     // ----- Feature 2: Version-specific retrieval -----

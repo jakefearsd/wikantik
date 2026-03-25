@@ -78,7 +78,7 @@ class ReferringPagesPluginTest  {
     void testSingleReferral() throws Exception {
         final Context context2 = Wiki.context().create( engine, Wiki.contents().page(engine, "Foobar") );
         final String res = manager.execute( context2, "{INSERT com.wikantik.plugin.ReferringPagesPlugin WHERE max=5}");
-        Assertions.assertEquals( "<p>" + mkLink( "TestPage" ) + "\\</p>\n", res );
+        Assertions.assertEquals( "<ul>\n<li>" + mkLink( "TestPage" ) + "</li>\n</ul>\n", res );
     }
 
     @Test
@@ -107,7 +107,7 @@ class ReferringPagesPluginTest  {
     void testReferenceWidth() throws Exception {
         final Context context2 = Wiki.context().create( engine, Wiki.contents().page(engine, "Foobar") );
         final String res = manager.execute( context2, "{INSERT com.wikantik.plugin.ReferringPagesPlugin WHERE maxwidth=5}");
-        Assertions.assertEquals( "<p>" + mkFullLink( "TestPage", "TestPage" ) + "\\</p>\n", res );
+        Assertions.assertEquals( "<ul>\n<li>" + mkFullLink( "TestPage", "TestPage" ) + "</li>\n</ul>\n", res );
     }
 
     @Test
@@ -181,7 +181,7 @@ class ReferringPagesPluginTest  {
         Assertions.assertTrue( columnsWithLists.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\">" ), "columnsWithLists: " + columnsWithLists );
 
         final String columnsWithoutLists = manager.execute( context, "{ReferringPagesPlugin columns=2}" );
-        Assertions.assertTrue( columnsWithoutLists.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\"><p><a href=\"/test/wiki/Foobar\" class=\"wikipage\">Foobar</a>" ), "columnsWithoutLists: " + columnsWithoutLists );
+        Assertions.assertTrue( columnsWithoutLists.startsWith( "<div style=\"columns:2;-moz-columns:2;-webkit-columns:2;\"><ul>\n<li><a href=\"/test/wiki/Foobar\" class=\"wikipage\">Foobar</a>" ), "columnsWithoutLists: " + columnsWithoutLists );
     }
 
 }

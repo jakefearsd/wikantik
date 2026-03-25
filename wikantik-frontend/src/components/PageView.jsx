@@ -1,6 +1,4 @@
 import { useParams, Link } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
@@ -10,7 +8,7 @@ import '../styles/article.css';
 export default function PageView() {
   const { name = 'Main' } = useParams();
   const { user } = useAuth();
-  const { data: page, loading, error } = useApi(() => api.getPage(name), [name]);
+  const { data: page, loading, error } = useApi(() => api.getPage(name, { render: true }), [name]);
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error?.status === 404) return <NotFound name={name} />;
@@ -28,22 +26,10 @@ export default function PageView() {
         )}
       </div>
 
-      <article className="article-prose">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            a: ({ href, children }) => {
-              // Internal wiki links: [PageName]() or [text](PageName)
-              if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:')) {
-                return <Link to={`/wiki/${href}`}>{children}</Link>;
-              }
-              return <a href={href} target={href?.startsWith('http') ? '_blank' : undefined} rel="noopener">{children}</a>;
-            },
-          }}
-        >
-          {page.content || ''}
-        </ReactMarkdown>
-      </article>
+      <article
+        className="article-prose"
+        dangerouslySetInnerHTML={{ __html: page.contentHtml || page.content || '' }}
+      />
 
       {page.metadata?.tags && (
         <div style={{ marginTop: 'var(--space-2xl)', display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>

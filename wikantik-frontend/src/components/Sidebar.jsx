@@ -15,7 +15,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   const { user } = useAuth();
 
   useEffect(() => {
-    api.listPages({ limit: 200 }).then(d => setPages(d.pages || [])).catch(() => {});
+    api.listPages({ limit: 500 }).then(d => setPages(d.pages || [])).catch(() => {});
     api.getRecentChanges(10).then(d => setRecentChanges(d.changes || [])).catch(() => {});
   }, []);
 
@@ -43,6 +43,15 @@ export default function Sidebar({ collapsed, onToggle }) {
     }
   });
 
+  const navLink = (to, label) => (
+    <Link
+      to={to}
+      className={`sidebar-link ${activePage === to.replace('/wiki/', '') ? 'active' : ''}`}
+    >
+      {label}
+    </Link>
+  );
+
   return (
     <>
       <aside className={`app-sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -57,19 +66,38 @@ export default function Sidebar({ collapsed, onToggle }) {
           <kbd>⌘K</kbd>
         </button>
 
-        {/* Recent Changes */}
+        {/* Primary Navigation — matches JSP LeftMenu */}
         <div className="sidebar-section">
-          <div className="sidebar-section-title">Recent Changes</div>
-          {recentChanges.slice(0, 8).map(c => (
-            <Link
-              key={c.name}
-              to={`/wiki/${c.name}`}
-              className={`sidebar-link ${activePage === c.name ? 'active' : ''}`}
-            >
-              {c.name}
-            </Link>
-          ))}
+          <div className="sidebar-section-title">Navigation</div>
+          {navLink('/wiki/Main', 'Main page')}
+          {navLink('/wiki/About', 'About')}
+          {navLink('/wiki/News', 'News')}
+          {navLink('/wiki/RecentChanges', 'Recent Changes')}
         </div>
+
+        <div className="sidebar-section">
+          <div className="sidebar-section-title">Wiki Tools</div>
+          {navLink('/wiki/PageIndex', 'Page Index')}
+          {navLink('/wiki/UnusedPages', 'Unused pages')}
+          {navLink('/wiki/UndefinedPages', 'Undefined pages')}
+          {navLink('/wiki/SystemInfo', 'System Info')}
+        </div>
+
+        {/* Recent Changes — live feed */}
+        {recentChanges.length > 0 && (
+          <div className="sidebar-section">
+            <div className="sidebar-section-title">Recently Modified</div>
+            {recentChanges.slice(0, 8).map(c => (
+              <Link
+                key={c.name}
+                to={`/wiki/${c.name}`}
+                className={`sidebar-link ${activePage === c.name ? 'active' : ''}`}
+              >
+                {c.name}
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* Clusters */}
         {Object.keys(clusters).sort().map(cluster => (
@@ -87,7 +115,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           </div>
         ))}
 
-        {/* Unclustered */}
+        {/* Unclustered pages */}
         {unclustered.length > 0 && (
           <div className="sidebar-section">
             <div className="sidebar-section-title">Pages</div>

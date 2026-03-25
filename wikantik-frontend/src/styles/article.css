@@ -1,0 +1,192 @@
+/* ============================================================
+   Article Prose — The heart of the editorial aesthetic.
+   Source Serif 4 for body text, Playfair Display for headings.
+   ============================================================ */
+
+.article-prose {
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  line-height: 1.8;
+  color: var(--text);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Headings — Playfair Display with dramatic weight contrast */
+.article-prose h1 {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  margin: 0 0 var(--space-lg) 0;
+  color: var(--text);
+}
+
+.article-prose h2 {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  margin: var(--space-2xl) 0 var(--space-md) 0;
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.article-prose h3 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: var(--space-xl) 0 var(--space-sm) 0;
+  color: var(--text);
+}
+
+.article-prose h4 {
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: var(--space-xl) 0 var(--space-sm) 0;
+  color: var(--text-secondary);
+}
+
+/* Paragraphs */
+.article-prose p {
+  margin-bottom: var(--space-lg);
+}
+
+/* Links */
+.article-prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--accent);
+  transition: text-decoration-color var(--duration) var(--ease);
+}
+
+.article-prose a:hover {
+  text-decoration-color: var(--accent-hover);
+}
+
+/* Lists */
+.article-prose ul, .article-prose ol {
+  margin-bottom: var(--space-lg);
+  padding-left: 1.5em;
+}
+
+.article-prose li {
+  margin-bottom: var(--space-xs);
+}
+
+.article-prose li > ul, .article-prose li > ol {
+  margin-top: var(--space-xs);
+  margin-bottom: 0;
+}
+
+/* Blockquote — editorial pull-quote style */
+.article-prose blockquote {
+  border-left: 3px solid var(--accent);
+  padding: var(--space-sm) var(--space-lg);
+  margin: var(--space-xl) 0;
+  font-style: italic;
+  color: var(--text-secondary);
+  background: var(--bg-sidebar);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.article-prose blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Code */
+.article-prose code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--accent);
+}
+
+.article-prose pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  overflow-x: auto;
+  margin-bottom: var(--space-lg);
+  line-height: 1.6;
+}
+
+.article-prose pre code {
+  background: none;
+  padding: 0;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+/* Tables — clean editorial style */
+.article-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--space-lg);
+  font-size: 0.95rem;
+}
+
+.article-prose thead th {
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 2px solid var(--border-strong);
+}
+
+.article-prose tbody td {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.article-prose tbody tr:hover {
+  background: var(--bg-sidebar);
+}
+
+/* Images */
+.article-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  margin: var(--space-lg) 0;
+}
+
+/* Horizontal rule */
+.article-prose hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: var(--space-2xl) 0;
+}
+
+/* Strong & emphasis */
+.article-prose strong {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.article-prose em {
+  font-style: italic;
+}
+
+/* Task lists (GFM) */
+.article-prose input[type="checkbox"] {
+  margin-right: var(--space-sm);
+  accent-color: var(--accent);
+}

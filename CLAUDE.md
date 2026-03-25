@@ -4,6 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The preferred development apppoach is test driven development, with putting tests in place to show
 defects before they are repaired, so that we know we have an effective test to detect the issue.
 
+## Prerequisites
+
+| Tool | Version | Notes |
+|------|---------|-------|
+| Java (JDK) | 21+ | `java -version` |
+| Maven | 3.9+ | `mvn -version` |
+| Node.js + npm | 18+ | Required — WAR build runs `npm install` + `vite build` automatically |
+| PostgreSQL | 15+ | For local deployment; unit tests use in-memory H2 |
+
+The `tomcat/` directory is **gitignored** and created on first run of `deploy-local.sh`.
+
 ## Development Commands
 
 ### Build Commands
@@ -45,30 +56,46 @@ mvn test -Dtest=MemoryProfiling
 
 ### Local Deployment (Tomcat 11)
 
-The local Tomcat instance lives at `tomcat/tomcat-11`. Use this for running and testing — do not use Cargo.
+The local Tomcat instance lives at `tomcat/tomcat-11` (gitignored). Use this for running and testing — do not use Cargo.
 
 The wiki is deployed as the ROOT context, serving pages from `docs/wikantik-pages/` (version-controlled).
-Configuration files:
+
+Configuration files (gitignored; templates in `wikantik-war/src/main/config/tomcat/`, applied by `deploy-local.sh`):
 - `tomcat/tomcat-11/lib/wikantik-custom.properties` — wiki settings (page provider, base URL, PostgreSQL JDBC, etc.)
 - `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml` — Tomcat context with PostgreSQL JNDI DataSources
 
+#### First-time setup (fresh clone)
+
 ```bash
-# 1. Build the WAR (skip tests for speed)
+# 1. Create the wikantik PostgreSQL database (one time, as superuser)
+sudo -u postgres psql -c "CREATE DATABASE wikantik;"
+sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.ddl
+
+# 2. Build the WAR (also builds the React frontend via npm automatically)
 mvn clean install -Dmaven.test.skip -T 1C
 
-# 2. Deploy as ROOT to local Tomcat
-cp wikantik-war/target/Wikantik.war tomcat/tomcat-11/webapps/ROOT.war
+# 3. Bootstrap — downloads Tomcat if absent, copies and patches config templates,
+#    removes stale files, deploys the WAR
+./deploy-local.sh
 
-# 3. Start Tomcat
+# 4. Set your PostgreSQL password in the context file (path shown by script output):
+#    tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml
+
+# 5. Start Tomcat
 tomcat/tomcat-11/bin/startup.sh
-
-# 4. Access at http://localhost:8080/
-
-# Stop Tomcat
-tomcat/tomcat-11/bin/shutdown.sh
+# Access at http://localhost:8080/ — default login: admin / admin
+# React SPA at http://localhost:8080/app/
 ```
 
-To redeploy after code changes, stop Tomcat, remove the extracted `webapps/ROOT/` directory, rebuild the WAR, copy it as `ROOT.war`, and start again.
+#### Routine redeploy (after first-time setup)
+
+```bash
+tomcat/tomcat-11/bin/shutdown.sh
+mvn clean install -Dmaven.test.skip -T 1C
+rm -rf tomcat/tomcat-11/webapps/ROOT
+cp wikantik-war/target/Wikantik.war tomcat/tomcat-11/webapps/ROOT.war
+tomcat/tomcat-11/bin/startup.sh
+```
 
 ### Code Quality
 ```bash

@@ -20,7 +20,7 @@
 # This file is copied by deploy-local.sh to:
 #   tomcat/tomcat-11/lib/wikantik-custom.properties
 #
-# Adjust paths below to match your local environment.
+# @@REPO_ROOT@@ tokens are substituted by deploy-local.sh with the repo root path.
 #
 
 # Application settings
@@ -29,16 +29,15 @@ wikantik.pageProvider = FileSystemProvider
 wikantik.frontPage = Main
 
 # Base URL - adjust if using a different port or context path
-wikantik.baseURL = http://localhost:8080/Wikantik/
+wikantik.baseURL = http://localhost:8080/
 
 # File storage locations
-# Adjust these paths to match your local environment
-wikantik.fileSystemProvider.pageDir = /home/jakefear/source/wikantik/docs/wikantik-pages
-wikantik.workDir = /home/jakefear/source/wikantik/tomcat/wikantik-work
+wikantik.fileSystemProvider.pageDir = @@REPO_ROOT@@/docs/wikantik-pages
+wikantik.workDir                    = @@REPO_ROOT@@/tomcat/tomcat-11/data/workdir
 
 # Use PostgreSQL JDBC databases for user and group storage
-wikantik.userdatabase = org.apache.wiki.auth.user.JDBCUserDatabase
-wikantik.groupdatabase = org.apache.wiki.auth.authorize.JDBCGroupDatabase
+wikantik.userdatabase  = com.wikantik.auth.user.JDBCUserDatabase
+wikantik.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 
 # JNDI DataSource names (must match context.xml Resource names)
 wikantik.userdatabase.datasource = jdbc/UserDatabase

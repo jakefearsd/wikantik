@@ -27,6 +27,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
+import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.pages.PageManager;
 import com.wikantik.pages.PageSorter;
 import com.wikantik.parser.MarkupParser;
@@ -122,6 +123,10 @@ public abstract class AbstractReferralPlugin implements Plugin {
     protected static final String PARAM_SORTORDER_JAVA   = "java";
     protected static final String PARAM_SORTORDER_LOCALE = "locale";
 
+    /** Parameter name for including system pages in the output.  Value is <tt>{@value}</tt>.
+     *  Default is false — system/template pages (LeftMenu, CSS themes, etc.) are excluded. */
+    public static final String PARAM_INCLUDE_SYSTEM_PAGES = "includeSystemPages";
+
     protected int maxwidth = Integer.MAX_VALUE;
     protected String before = ""; // null not blank
     protected String separator = ""; // null not blank
@@ -130,6 +135,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
 
     protected Pattern[]  exclude;
     protected Pattern[]  include;
+    protected boolean includeSystemPages;
     protected PageSorter sorter;
 
     protected String show = "pages";
@@ -184,6 +190,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
 
         exclude = compileGlobPatterns( params.get( PARAM_EXCLUDE ), PARAM_EXCLUDE );
         include = compileGlobPatterns( params.get( PARAM_INCLUDE ), PARAM_INCLUDE );
+        includeSystemPages = TextUtil.isPositive( params.get( PARAM_INCLUDE_SYSTEM_PAGES ) );
 
         // LOG.debug( "Requested maximum width is "+maxwidth );
         s = params.get(PARAM_SHOW);
@@ -223,8 +230,13 @@ public abstract class AbstractReferralPlugin implements Plugin {
      *  @return A filtered collection.
      */
     protected List< String > filterCollection( final Collection< String > c ) {
+        final SystemPageRegistry spr = engine.getManager( SystemPageRegistry.class );
         final var result = new ArrayList< String >();
         for( final String pageName : c ) {
+            // Filter system/template pages (LeftMenu, CSS themes, etc.) unless explicitly requested
+            if ( !includeSystemPages && spr != null && spr.isSystemPage( pageName ) ) {
+                continue;
+            }
             //
             //  If include parameter exists, then by default we include only those
             //  pages in it (excluding the ones in the exclude pattern list).

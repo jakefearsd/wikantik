@@ -33,13 +33,10 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
 
   // Group pages by cluster
   const clusters = {};
-  const unclustered = [];
   pages.forEach(p => {
     const cluster = p.cluster || p.metadata?.cluster;
     if (cluster) {
       (clusters[cluster] = clusters[cluster] || []).push(p);
-    } else {
-      unclustered.push(p);
     }
   });
 
@@ -63,6 +60,13 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           <Link to="/wiki/Main" style={{ color: 'inherit', textDecoration: 'none' }} onClick={onMobileClose}>
             Wik<span>antik</span>
           </Link>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: 'var(--space-md) 0' }}>
+          <UserBadge />
+          <button className="theme-toggle" onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'}>
+            {dark ? '☀️' : '🌙'}
+          </button>
         </div>
 
         <button className="search-trigger" onClick={() => setSearchOpen(true)}>
@@ -121,37 +125,6 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           </div>
         ))}
 
-        {/* Unclustered pages */}
-        {unclustered.length > 0 && (
-          <div className="sidebar-section">
-            <div className="sidebar-section-title">Pages</div>
-            {unclustered.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 30).map(p => (
-              <Link
-                key={p.name}
-                to={`/wiki/${p.name}`}
-                className={`sidebar-link ${activePage === p.name ? 'active' : ''}`}
-                onClick={onMobileClose}
-              >
-                {p.name}
-              </Link>
-            ))}
-            {unclustered.length > 30 && (
-              <span className="sidebar-link" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                +{unclustered.length - 30} more…
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Footer controls */}
-        <div className="sidebar-controls">
-          <UserBadge />
-          <div style={{ marginLeft: 'auto' }}>
-            <button className="theme-toggle" onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'}>
-              {dark ? '☀️' : '🌙'}
-            </button>
-          </div>
-        </div>
       </aside>
 
       {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}

@@ -5,12 +5,14 @@ import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import SearchOverlay from './SearchOverlay';
 import UserBadge from './UserBadge';
+import NewArticleModal from './NewArticleModal';
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose = () => {}, onMobileOpen = () => {} }) {
   const { name: activePage } = useParams();
   const [pages, setPages] = useState([]);
   const [recentChanges, setRecentChanges] = useState([]);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [newArticleOpen, setNewArticleOpen] = useState(false);
   const [dark, toggleDark] = useDarkMode();
   const { user } = useAuth();
 
@@ -39,6 +41,9 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
       (clusters[cluster] = clusters[cluster] || []).push(p);
     }
   });
+
+  const existingPageNames = new Set(pages.map(p => p.name));
+  const existingClusters = Object.keys(clusters).sort();
 
   const navLink = (to, label) => (
     <Link
@@ -73,6 +78,16 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           <span>🔍</span> Search…
           <kbd>⌘K</kbd>
         </button>
+
+        {user?.authenticated && (
+          <button
+            className="btn btn-primary"
+            onClick={() => setNewArticleOpen(true)}
+            style={{ width: '100%', margin: 'var(--space-sm) 0', justifyContent: 'center' }}
+          >
+            + New Article
+          </button>
+        )}
 
         {/* Primary Navigation — matches JSP LeftMenu */}
         <div className="sidebar-section">
@@ -128,6 +143,14 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
       </aside>
 
       {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}
+      {newArticleOpen && (
+        <NewArticleModal
+          isOpen={newArticleOpen}
+          onClose={() => setNewArticleOpen(false)}
+          existingPageNames={existingPageNames}
+          existingClusters={existingClusters}
+        />
+      )}
     </>
   );
 }

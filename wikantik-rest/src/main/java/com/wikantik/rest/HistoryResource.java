@@ -78,6 +78,7 @@ public class HistoryResource extends RestServletBase {
             entry.put( "version", Math.max( page.getVersion(), 1 ) );
             entry.put( "author", page.getAuthor() );
             entry.put( "lastModified", page.getLastModified() );
+            entry.put( "changeNote", page.getAttribute( Page.CHANGENOTE ) );
             versionList = List.of( entry );
         } else {
             versionList = versions.stream()
@@ -86,6 +87,7 @@ public class HistoryResource extends RestServletBase {
                         entry.put( "version", Math.max( v.getVersion(), 1 ) );
                         entry.put( "author", v.getAuthor() );
                         entry.put( "lastModified", v.getLastModified() );
+                        entry.put( "changeNote", v.getAttribute( Page.CHANGENOTE ) );
                         return entry;
                     } )
                     .toList();

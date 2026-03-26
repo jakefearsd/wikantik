@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
+import { reconstructContent } from '../utils/frontmatterUtils';
 import '../styles/article.css';
 
 export default function PageEditor() {
   const { name } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [content, setContent] = useState('');
   const [originalVersion, setOriginalVersion] = useState(null);
   const [changeNote, setChangeNote] = useState('');
@@ -17,12 +19,12 @@ export default function PageEditor() {
 
   useEffect(() => {
     api.getPage(name).then(page => {
-      setContent(page.content || '');
+      setContent(reconstructContent(page.metadata, page.content));
       setOriginalVersion(page.version);
       setIsNew(false);
     }).catch(err => {
       if (err.status === 404) {
-        setContent(`# ${name}\n\nWrite your content here.`);
+        setContent(location.state?.initialContent || `# ${name}\n\nWrite your content here.`);
         setIsNew(true);
       } else {
         setError(err.message);

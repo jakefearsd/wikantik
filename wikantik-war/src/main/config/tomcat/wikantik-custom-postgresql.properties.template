@@ -25,7 +25,7 @@
 
 # Application settings
 wikantik.applicationName = Wikantik
-wikantik.pageProvider = FileSystemProvider
+wikantik.pageProvider = VersioningFileProvider
 wikantik.frontPage = Main
 
 # Base URL - adjust if using a different port or context path

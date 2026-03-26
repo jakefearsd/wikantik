@@ -6,6 +6,12 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-26** — Filter system pages from all referral plugins — finally done!
+
+**2026-03-26** — Update News page with recent development entries + remove test artifacts
+
+**2026-03-26** — Add search index rebuild guide for local and Docker deployments
+
 **2026-03-26** — Clickable metadata chips with Lucene frontmatter indexing
 
 **2026-03-26** — Sidebar UX: move sign-in + theme toggle between logo and search, remove Pages section

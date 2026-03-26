@@ -21,6 +21,10 @@ package com.wikantik.rest;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Page;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.search.SearchManager;
@@ -86,12 +90,50 @@ public class SearchResource extends RestServletBase {
                 ? searchResults
                 : List.of();
 
+        final PageManager pm = engine.getManager( PageManager.class );
+
         final List< Map< String, Object > > resultList = safeResults.stream()
                 .limit( limit )
                 .map( sr -> {
                     final Map< String, Object > entry = new LinkedHashMap<>();
-                    entry.put( "name", sr.getPage().getName() );
+                    final Page page = sr.getPage();
+                    entry.put( "name", page.getName() );
                     entry.put( "score", sr.getScore() );
+
+                    // Author and date from page metadata
+                    if ( page.getAuthor() != null ) {
+                        entry.put( "author", page.getAuthor() );
+                    }
+                    if ( page.getLastModified() != null ) {
+                        entry.put( "lastModified", page.getLastModified() );
+                    }
+
+                    // Frontmatter metadata (summary, tags, cluster)
+                    try {
+                        final String rawText = pm.getPureText( page.getName(), -1 );
+                        if ( rawText != null && !rawText.isEmpty() ) {
+                            final ParsedPage parsed = FrontmatterParser.parse( rawText );
+                            final var metadata = parsed.metadata();
+                            if ( metadata.get( "summary" ) != null ) {
+                                entry.put( "summary", metadata.get( "summary" ).toString() );
+                            }
+                            if ( metadata.get( "tags" ) != null ) {
+                                entry.put( "tags", metadata.get( "tags" ) );
+                            }
+                            if ( metadata.get( "cluster" ) != null ) {
+                                entry.put( "cluster", metadata.get( "cluster" ).toString() );
+                            }
+                        }
+                    } catch ( final Exception e ) {
+                        LOG.debug( "Could not parse frontmatter for {}: {}", page.getName(), e.getMessage() );
+                    }
+
+                    // Lucene context snippets (highlighted match fragments)
+                    final String[] contexts = sr.getContexts();
+                    if ( contexts != null && contexts.length > 0 ) {
+                        entry.put( "contexts", List.of( contexts ) );
+                    }
+
                     return entry;
                 } )
                 .toList();

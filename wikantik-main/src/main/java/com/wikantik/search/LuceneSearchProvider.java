@@ -139,6 +139,9 @@ public class LuceneSearchProvider implements SearchProvider {
     protected static final String LUCENE_ATTACHMENTS   = "attachment";
     protected static final String LUCENE_PAGE_NAME     = "name";
     protected static final String LUCENE_PAGE_KEYWORDS = "keywords";
+    protected static final String LUCENE_PAGE_TAGS     = "tags";
+    protected static final String LUCENE_PAGE_CLUSTER  = "cluster";
+    protected static final String LUCENE_PAGE_SUMMARY  = "summary";
 
     private String luceneDirectory;
     protected final List< Object[] > updates = Collections.synchronizedList( new ArrayList<>() );
@@ -423,6 +426,31 @@ public class LuceneSearchProvider implements SearchProvider {
             field = new Field( LUCENE_PAGE_KEYWORDS, page.getAttribute( "keywords" ).toString(), TextField.TYPE_STORED );
             doc.add( field );
         }
+
+        // Index frontmatter metadata (tags, cluster, summary) for semantic search
+        try {
+            final com.wikantik.api.frontmatter.ParsedPage parsed = com.wikantik.api.frontmatter.FrontmatterParser.parse( text );
+            final java.util.Map< String, Object > metadata = parsed.metadata();
+
+            final Object tags = metadata.get( "tags" );
+            if ( tags instanceof java.util.List< ? > tagList && !tagList.isEmpty() ) {
+                final String tagString = tagList.stream().map( Object::toString ).collect( Collectors.joining( " " ) );
+                doc.add( new Field( LUCENE_PAGE_TAGS, tagString, TextField.TYPE_STORED ) );
+            }
+
+            final Object cluster = metadata.get( "cluster" );
+            if ( cluster != null ) {
+                doc.add( new Field( LUCENE_PAGE_CLUSTER, cluster.toString(), TextField.TYPE_STORED ) );
+            }
+
+            final Object summary = metadata.get( "summary" );
+            if ( summary != null ) {
+                doc.add( new Field( LUCENE_PAGE_SUMMARY, summary.toString(), TextField.TYPE_STORED ) );
+            }
+        } catch ( final Exception e ) {
+            LOG.debug( "Could not parse frontmatter for indexing {}: {}", page.getName(), e.getMessage() );
+        }
+
         synchronized( writer ) {
             writer.addDocument( doc );
         }
@@ -623,7 +651,8 @@ public class LuceneSearchProvider implements SearchProvider {
 
         try( final Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
              final IndexReader reader = DirectoryReader.open( luceneDir ) ) {
-            final String[] queryfields = { LUCENE_PAGE_CONTENTS, LUCENE_PAGE_NAME, LUCENE_AUTHOR, LUCENE_ATTACHMENTS, LUCENE_PAGE_KEYWORDS };
+            final String[] queryfields = { LUCENE_PAGE_CONTENTS, LUCENE_PAGE_NAME, LUCENE_AUTHOR, LUCENE_ATTACHMENTS,
+                    LUCENE_PAGE_KEYWORDS, LUCENE_PAGE_TAGS, LUCENE_PAGE_CLUSTER, LUCENE_PAGE_SUMMARY };
             final QueryParser qp = new MultiFieldQueryParser( queryfields, getLuceneAnalyzer() );
             final Query luceneQuery = qp.parse( query );
             final IndexSearcher searcher = new IndexSearcher( reader, searchExecutor );

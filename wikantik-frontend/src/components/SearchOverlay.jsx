@@ -46,6 +46,13 @@ export default function SearchOverlay({ onClose }) {
     onClose();
   };
 
+  const goToSearchResults = () => {
+    if (query.trim()) {
+      navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+      onClose();
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -53,8 +60,9 @@ export default function SearchOverlay({ onClose }) {
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setFocused(f => Math.max(f - 1, 0));
-    } else if (e.key === 'Enter' && results[focused]) {
-      select(results[focused].name);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      goToSearchResults();
     }
   };
 

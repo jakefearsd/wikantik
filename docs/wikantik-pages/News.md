@@ -6,6 +6,14 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-26** — Clickable metadata chips with Lucene frontmatter indexing
+
+**2026-03-26** — Sidebar UX: move sign-in + theme toggle between logo and search, remove Pages section
+
+**2026-03-25** — Fix React SPA link routing for plugin-rendered content
+
+**2026-03-25** — Mobile sidebar UX, dev seed, and CLAUDE.md docs
+
 **2026-03-25** — Remove legacy JSPWiki artifacts superseded by Markdown migration
 
 **2026-03-25** — Update React sidebar to match JSP LeftMenu navigation structure

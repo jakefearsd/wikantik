@@ -24,6 +24,7 @@ import com.google.gson.JsonParser;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
@@ -178,7 +179,6 @@ public class PageResource extends RestServletBase {
 
         final SaveOptions.Builder optionsBuilder = SaveOptions.builder()
                 .changeNote( changeNote )
-                .author( author )
                 .expectedVersion( expectedVersion )
                 .expectedContentHash( expectedContentHash );
 
@@ -188,6 +188,20 @@ public class PageResource extends RestServletBase {
 
         try {
             final Engine engine = getEngine();
+
+            // Resolve the author: use the explicitly-supplied value from the request body, or
+            // fall back to the authenticated session user.  PageSaveHelper creates a headless
+            // context (no HttpServletRequest), so without this the author would always resolve
+            // to WikiPrincipal.GUEST regardless of who is logged in.
+            String effectiveAuthor = author;
+            if ( effectiveAuthor == null ) {
+                final Session wikiSession = Wiki.session().find( engine, request );
+                if ( wikiSession.isAuthenticated() ) {
+                    effectiveAuthor = wikiSession.getUserPrincipal().getName();
+                }
+            }
+            optionsBuilder.author( effectiveAuthor );
+
             final PageSaveHelper helper = new PageSaveHelper( engine );
             final Page saved = helper.saveText( pageName, content, optionsBuilder.build() );
 

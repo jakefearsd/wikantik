@@ -3,6 +3,8 @@ import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
 import PageMeta from './PageMeta';
+import MetadataPanel from './MetadataPanel';
+import ChangeNotesPanel from './ChangeNotesPanel';
 import '../styles/article.css';
 
 export default function PageView() {
@@ -25,6 +27,8 @@ export default function PageView() {
           </Link>
         )}
       </div>
+      <MetadataPanel metadata={page.metadata} />
+      <ChangeNotesPanel pageName={name} />
 
       <article
         className="article-prose"

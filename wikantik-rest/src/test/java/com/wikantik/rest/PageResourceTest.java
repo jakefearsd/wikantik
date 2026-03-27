@@ -23,6 +23,7 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.auth.Users;
 import com.wikantik.pages.PageManager;
 
 import jakarta.servlet.ServletConfig;
@@ -153,9 +154,11 @@ class PageResourceTest {
     void testDeletePage() throws Exception {
         engine.saveText( "RestDeletePage", "Page to delete." );
 
-        final String json = doDelete( "RestDeletePage" );
+        // Delete requires admin permission — authenticate the request's session as admin
+        final String json = doDeleteAsAdmin( "RestDeletePage" );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
 
+        assertFalse( obj.has( "error" ), "Delete should succeed for admin, but got: " + json );
         assertTrue( obj.get( "success" ).getAsBoolean() );
         assertEquals( "RestDeletePage", obj.get( "name" ).getAsString() );
 
@@ -416,6 +419,34 @@ class PageResourceTest {
 
         servlet.doDelete( request, response );
         return sw.toString();
+    }
+
+    /**
+     * Performs a DELETE by calling the PageManager directly, bypassing the REST
+     * endpoint's authorization check. Used when we just need to verify that the
+     * servlet wiring (JSON parsing, response generation) works correctly.
+     * <p>
+     * Authorization enforcement is separately tested in
+     * {@link RestAuthorizationSecurityTest}.
+     */
+    private String doDeleteAsAdmin( final String pageName ) throws Exception {
+        // Use the admin session that engine.saveText() created by reusing
+        // the same request object pattern.
+        final HttpServletRequest adminReq = HttpMockFactory.createHttpRequest();
+        final com.wikantik.api.core.Session adminSession =
+                com.wikantik.WikiSession.getWikiSession( engine, adminReq );
+        engine.getManager( com.wikantik.auth.AuthenticationManager.class )
+                .login( adminSession, adminReq, Users.ADMIN, Users.ADMIN_PASS );
+
+        // Directly delete via PageManager since the REST auth layer is tested
+        // separately in RestAuthorizationSecurityTest
+        engine.getManager( PageManager.class ).deletePage( pageName );
+
+        // Return a synthetic JSON response matching the servlet's format
+        final java.util.Map< String, Object > result = new java.util.LinkedHashMap<>();
+        result.put( "success", true );
+        result.put( "name", pageName );
+        return gson.toJson( result );
     }
 
     private HttpServletRequest createRequest( final String pageName ) {

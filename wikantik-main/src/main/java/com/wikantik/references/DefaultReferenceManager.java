@@ -138,6 +138,44 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     private static final long serialVersionUID = 4L;
 
     /**
+     * Set of classes that are safe to deserialize from the reference manager cache.
+     * Only standard JDK collection and value types used by the reference data structures are allowed.
+     */
+    private static final Set<String> SAFE_DESERIALIZE_CLASSES = Set.of(
+        "java.util.HashMap", "java.util.LinkedHashMap", "java.util.TreeMap",
+        "java.util.ArrayList", "java.util.HashSet", "java.util.LinkedHashSet", "java.util.TreeSet",
+        "java.util.concurrent.ConcurrentHashMap",
+        "java.lang.String", "java.lang.Integer", "java.lang.Long",
+        "java.lang.Boolean", "java.lang.Float", "java.lang.Double",
+        "java.lang.Number", "java.lang.Enum", "java.util.Date"
+    );
+
+    /**
+     * ObjectInputFilter whitelist for reference manager deserialization. Rejects
+     * any class not in the safe set, blocking arbitrary class instantiation attacks.
+     */
+    private static final ObjectInputFilter SAFE_DESERIALIZE_FILTER = filterInfo -> {
+        final Class<?> clazz = filterInfo.serialClass();
+        if ( clazz == null ) {
+            return ObjectInputFilter.Status.UNDECIDED;
+        }
+        if ( clazz.isArray() ) {
+            final Class<?> component = clazz.getComponentType();
+            if ( component.isPrimitive() || SAFE_DESERIALIZE_CLASSES.contains( component.getName() ) ) {
+                return ObjectInputFilter.Status.ALLOWED;
+            }
+            if ( component.getName().startsWith( "java.util." ) ) {
+                return ObjectInputFilter.Status.ALLOWED;
+            }
+            return ObjectInputFilter.Status.REJECTED;
+        }
+        if ( SAFE_DESERIALIZE_CLASSES.contains( clazz.getName() ) ) {
+            return ObjectInputFilter.Status.ALLOWED;
+        }
+        return ObjectInputFilter.Status.REJECTED;
+    };
+
+    /**
      *  Builds a new ReferenceManager.
      *
      *  @param newEngine The Engine to which this is managing references to.
@@ -273,6 +311,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
         final File serializationFile = new File( engine.getWorkDir(), SERIALIZATION_FILE );
         try( final ObjectInputStream in = new ObjectInputStream( new BufferedInputStream( Files.newInputStream( serializationFile.toPath() ) ) ) ) {
+            in.setObjectInputFilter( SAFE_DESERIALIZE_FILTER );
             final StopWatch sw = new StopWatch();
             sw.start();
 
@@ -349,6 +388,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
             }
 
             try( final ObjectInputStream in = new ObjectInputStream( new BufferedInputStream( Files.newInputStream( f.toPath() ) ) ) ) {
+                in.setObjectInputFilter( SAFE_DESERIALIZE_FILTER );
                 final StopWatch sw = new StopWatch();
                 sw.start();
                 LOG.debug( "Deserializing attributes for {}", p.getName() );

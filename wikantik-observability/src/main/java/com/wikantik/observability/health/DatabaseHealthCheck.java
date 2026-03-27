@@ -18,6 +18,9 @@
  */
 package com.wikantik.observability.health;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.sql.DataSource;
@@ -30,6 +33,8 @@ import java.sql.Statement;
  * a simple query. Reports the response time of the check.
  */
 public class DatabaseHealthCheck implements HealthCheck {
+
+    private static final Logger LOG = LogManager.getLogger( DatabaseHealthCheck.class );
 
     private final String jndiName;
     private final DataSource directDataSource;
@@ -72,7 +77,8 @@ public class DatabaseHealthCheck implements HealthCheck {
             }
             return HealthResult.up( System.currentTimeMillis() - start );
         } catch ( final Exception e ) {
-            return HealthResult.down( System.currentTimeMillis() - start, e.getMessage() );
+            LOG.warn( "Database health check failed", e );
+            return HealthResult.down( System.currentTimeMillis() - start, "Database connectivity check failed" );
         }
     }
 

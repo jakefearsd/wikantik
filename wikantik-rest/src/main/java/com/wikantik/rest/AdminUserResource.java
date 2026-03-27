@@ -23,6 +23,7 @@ import com.google.gson.JsonParser;
 
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.validate.PasswordValidator;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 
@@ -173,6 +174,12 @@ public class AdminUserResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "password is required" );
             return;
         }
+        final List<String> passwordErrors = PasswordValidator.validate( password, getEngine().getWikiProperties() );
+        if ( !passwordErrors.isEmpty() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    passwordErrors.stream().map( PasswordValidator::describeError ).collect( java.util.stream.Collectors.joining( "; " ) ) );
+            return;
+        }
 
         try {
             final UserDatabase db = getUserDatabase();
@@ -210,7 +217,15 @@ public class AdminUserResource extends RestServletBase {
 
             if ( fullName != null ) profile.setFullname( fullName );
             if ( email != null ) profile.setEmail( email );
-            if ( password != null && !password.isBlank() ) profile.setPassword( password );
+            if ( password != null && !password.isBlank() ) {
+                final List<String> passwordErrors = PasswordValidator.validate( password, getEngine().getWikiProperties() );
+                if ( !passwordErrors.isEmpty() ) {
+                    sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                            passwordErrors.stream().map( PasswordValidator::describeError ).collect( java.util.stream.Collectors.joining( "; " ) ) );
+                    return;
+                }
+                profile.setPassword( password );
+            }
 
             db.save( profile );
             LOG.info( "Updated user: {}", loginName );

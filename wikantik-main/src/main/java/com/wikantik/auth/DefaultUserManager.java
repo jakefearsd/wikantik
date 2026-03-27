@@ -30,6 +30,7 @@ import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.filters.PageFilter;
+import com.wikantik.auth.validate.PasswordValidator;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.auth.user.DummyUserDatabase;
@@ -380,6 +381,19 @@ public class DefaultUserManager implements UserManager {
             if( password == null ) {
                 session.addMessage( SESSION_MESSAGES, rb.getString( "security.error.blankpassword" ) );
             } else {
+                // Password strength validation (NIST 800-63B)
+                final List<String> passwordErrors = PasswordValidator.validate( password, engine.getWikiProperties() );
+                for ( final String key : passwordErrors ) {
+                    if ( key.contains( "{0}" ) || key.equals( PasswordValidator.KEY_TOO_SHORT ) || key.equals( PasswordValidator.KEY_TOO_LONG ) ) {
+                        final int limit = key.equals( PasswordValidator.KEY_TOO_SHORT )
+                                ? TextUtil.getIntegerProperty( engine.getWikiProperties(), PasswordValidator.PROP_MIN_LENGTH, PasswordValidator.DEFAULT_MIN_LENGTH )
+                                : TextUtil.getIntegerProperty( engine.getWikiProperties(), PasswordValidator.PROP_MAX_LENGTH, PasswordValidator.DEFAULT_MAX_LENGTH );
+                        session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( key ), limit ) );
+                    } else {
+                        session.addMessage( SESSION_MESSAGES, rb.getString( key ) );
+                    }
+                }
+
                 final HttpServletRequest request = context.getHttpRequest();
                 final String password0 = ( request == null ) ? null : request.getParameter( "password0" );
                 final String password2 = ( request == null ) ? null : request.getParameter( "password2" );

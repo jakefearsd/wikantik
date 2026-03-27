@@ -64,7 +64,12 @@ export default function UserFormModal({ user, isOpen, onClose, onSave }) {
           </div>
           <div className="form-field">
             <label>{isEdit ? 'New Password (leave blank to keep)' : 'Password'}</label>
-            <input type="password" value={form.password} onChange={set('password')} required={!isEdit} />
+            <input type="password" value={form.password} onChange={set('password')} required={!isEdit} minLength={8} />
+            {(!isEdit || form.password.length > 0) && (
+              <small style={{ color: form.password.length >= 8 ? 'var(--color-success, #22c55e)' : 'var(--color-muted, #888)', marginTop: '0.25rem', display: 'block' }}>
+                {form.password.length} of 8 minimum characters
+              </small>
+            )}
           </div>
 
           <div className="modal-actions">

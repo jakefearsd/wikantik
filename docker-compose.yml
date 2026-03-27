@@ -32,7 +32,7 @@ services:
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/wiki/Main"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
       interval: 30s
       timeout: 10s
       start_period: 60s

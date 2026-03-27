@@ -88,6 +88,7 @@
     <mcp-sdk.version>1.1.0</mcp-sdk.version>
     <snakeyaml.version>2.4</snakeyaml.version>
     <xmemcached.version>2.4.8</xmemcached.version>
+    <micrometer.version>1.14.6</micrometer.version>
     <testcontainers.version>1.20.4</testcontainers.version>
 
     <plugin.antrun.version>3.1.0</plugin.antrun.version>
@@ -155,6 +156,7 @@
     <module>wikantik-http</module>
     <module>wikantik-main</module>
     <module>wikantik-mcp</module>
+    <module>wikantik-observability</module>
     <module>wikantik-rest</module>
     <module>wikantik-war</module>
     <module>wikantik-it-tests</module><!-- IT tests are launched only if -Pintegration-tests is given -->
@@ -270,6 +272,18 @@
         <groupId>commons-io</groupId>
         <artifactId>commons-io</artifactId>
         <version>${commons-io.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.micrometer</groupId>
+        <artifactId>micrometer-core</artifactId>
+        <version>${micrometer.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.micrometer</groupId>
+        <artifactId>micrometer-registry-prometheus</artifactId>
+        <version>${micrometer.version}</version>
       </dependency>
 
       <dependency>
@@ -390,6 +404,12 @@
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-core</artifactId>
+        <version>${log4j2.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-layout-template-json</artifactId>
         <version>${log4j2.version}</version>
       </dependency>
 

@@ -22,6 +22,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputFilter;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -29,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 
 /**
@@ -42,6 +44,48 @@ public final class Serializer
      * Prefix used to indicated that a serialized item was encoded with Base64.
      */
     static final String BASE64_PREFIX = "base64 ";
+
+    /**
+     * Set of classes that are safe to deserialize. Only standard JDK collection
+     * and value types used by user profile attributes are allowed.
+     */
+    private static final Set<String> SAFE_CLASSES = Set.of(
+        "java.util.HashMap", "java.util.LinkedHashMap", "java.util.TreeMap",
+        "java.util.ArrayList", "java.util.HashSet", "java.util.LinkedHashSet", "java.util.TreeSet",
+        "java.lang.String", "java.lang.Integer", "java.lang.Long",
+        "java.lang.Boolean", "java.lang.Float", "java.lang.Double",
+        "java.lang.Number", "java.lang.Enum", "java.util.Date"
+    );
+
+    /**
+     * ObjectInputFilter whitelist that restricts deserialization to safe JDK
+     * collection and value types. Array types of allowed classes and JDK-internal
+     * types (e.g. {@code HashMap$Node[]}) are permitted, but any non-whitelisted
+     * concrete class is rejected, blocking arbitrary class instantiation attacks.
+     */
+    private static final ObjectInputFilter SAFE_FILTER = filterInfo -> {
+        final Class<?> clazz = filterInfo.serialClass();
+        if ( clazz == null ) {
+            // Not a class check (e.g., depth/reference check) -- allow
+            return ObjectInputFilter.Status.UNDECIDED;
+        }
+        // Allow array types whose component is either primitive or whitelisted
+        if ( clazz.isArray() ) {
+            Class<?> component = clazz.getComponentType();
+            if ( component.isPrimitive() || SAFE_CLASSES.contains( component.getName() ) ) {
+                return ObjectInputFilter.Status.ALLOWED;
+            }
+            // Allow JDK-internal array types used by collections (e.g. HashMap$Node[])
+            if ( component.getName().startsWith( "java.util." ) ) {
+                return ObjectInputFilter.Status.ALLOWED;
+            }
+            return ObjectInputFilter.Status.REJECTED;
+        }
+        if ( SAFE_CLASSES.contains( clazz.getName() ) ) {
+            return ObjectInputFilter.Status.ALLOWED;
+        }
+        return ObjectInputFilter.Status.REJECTED;
+    };
 
     /**
      *  Prevent instantiation.
@@ -64,6 +108,7 @@ public final class Serializer
         // Deserialize from the input stream to the Map
         final InputStream bytesIn = new ByteArrayInputStream( decodedBytes );
         try(final ObjectInputStream in = new ObjectInputStream( bytesIn ) ) {
+            in.setObjectInputFilter( SAFE_FILTER );
             return ( HashMap< String, Serializable > )in.readObject();
         } catch ( final ClassNotFoundException e ) {
             throw new IOException( "Could not deserialiaze user profile attributes. Reason: " + e.getMessage() );

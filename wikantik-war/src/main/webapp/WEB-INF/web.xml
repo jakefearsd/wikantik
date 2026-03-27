@@ -65,6 +65,27 @@
       possesses the correct "assertion cookie."
    -->
 
+   <!-- Request correlation: generates unique request ID and enriches MDC for all log lines -->
+   <filter>
+     <filter-name>RequestCorrelationFilter</filter-name>
+     <filter-class>com.wikantik.observability.RequestCorrelationFilter</filter-class>
+   </filter>
+   <filter-mapping>
+     <filter-name>RequestCorrelationFilter</filter-name>
+     <url-pattern>/*</url-pattern>
+   </filter-mapping>
+
+   <!-- Request metrics: records HTTP request duration for Prometheus -->
+   <filter>
+     <filter-name>RequestMetricsFilter</filter-name>
+     <filter-class>com.wikantik.observability.RequestMetricsFilter</filter-class>
+   </filter>
+   <filter-mapping>
+     <filter-name>RequestMetricsFilter</filter-name>
+     <url-pattern>/api/*</url-pattern>
+     <url-pattern>/wiki/*</url-pattern>
+   </filter-mapping>
+
    <!-- Admin authorization: enforces AllPermission on /admin/* endpoints -->
    <filter>
      <filter-name>AdminAuthFilter</filter-name>
@@ -291,6 +312,16 @@
        <servlet-class>com.wikantik.rest.AdminContentResource</servlet-class>
    </servlet>
 
+   <!-- Observability -->
+   <servlet>
+       <servlet-name>HealthServlet</servlet-name>
+       <servlet-class>com.wikantik.observability.HealthServlet</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>MetricsServlet</servlet-name>
+       <servlet-class>com.wikantik.observability.MetricsServlet</servlet-class>
+   </servlet>
+
    <!-- SSO servlets for OIDC/SAML authentication -->
    <servlet>
        <servlet-name>SSORedirectServlet</servlet-name>
@@ -381,6 +412,15 @@
    <servlet-mapping>
        <servlet-name>AdminContentResource</servlet-name>
        <url-pattern>/admin/content/*</url-pattern>
+   </servlet-mapping>
+
+   <servlet-mapping>
+       <servlet-name>HealthServlet</servlet-name>
+       <url-pattern>/api/health</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>MetricsServlet</servlet-name>
+       <url-pattern>/metrics</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

@@ -18,7 +18,7 @@ services:
         limits:
           memory: 1G
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/wiki/Main"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
       interval: 30s
       timeout: 10s
       start_period: 90s

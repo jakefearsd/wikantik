@@ -6,9 +6,11 @@
     </Properties>
 
     <Appenders>
-        <!-- Console for docker logs -->
+        <!-- Console for docker logs: structured JSON for log aggregation (Loki/Promtail) -->
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="[%-5level] %d{HH:mm:ss.SSS} [%t] %c{1.} - %msg%n"/>
+            <JsonTemplateLayout eventTemplateUri="classpath:EcsLayout.json">
+                <EventTemplateAdditionalField key="application" value="wikantik"/>
+            </JsonTemplateLayout>
         </Console>
 
         <!-- Main application log with daily rotation -->

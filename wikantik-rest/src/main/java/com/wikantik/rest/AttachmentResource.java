@@ -69,6 +69,9 @@ public class AttachmentResource extends RestServletBase {
 
         // Determine if this is a list request or a download request
         final int slashIndex = pathParam.indexOf( '/' );
+        final String parentPage = ( slashIndex < 0 ) ? pathParam : pathParam.substring( 0, slashIndex );
+        if ( !checkPagePermission( request, response, parentPage, "view" ) ) return;
+
         if ( slashIndex < 0 ) {
             doListAttachments( pathParam, response );
         } else {
@@ -176,6 +179,7 @@ public class AttachmentResource extends RestServletBase {
 
         // Path should be just the page name for upload
         final String pageName = pathParam.contains( "/" ) ? pathParam.substring( 0, pathParam.indexOf( '/' ) ) : pathParam;
+        if ( !checkPagePermission( request, response, pageName, "upload" ) ) return;
 
         LOG.debug( "POST attachment upload: {}", pageName );
 
@@ -233,6 +237,7 @@ public class AttachmentResource extends RestServletBase {
 
         final String pageName = pathParam.substring( 0, slashIndex );
         final String fileName = pathParam.substring( slashIndex + 1 );
+        if ( !checkPagePermission( request, response, pageName, "delete" ) ) return;
 
         LOG.debug( "DELETE attachment: {}/{}", pageName, fileName );
 

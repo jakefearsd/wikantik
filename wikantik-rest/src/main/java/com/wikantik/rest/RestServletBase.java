@@ -22,7 +22,13 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Page;
+import com.wikantik.api.core.Session;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AuthorizationManager;
+import com.wikantik.auth.permissions.PagePermission;
+import com.wikantik.auth.permissions.PermissionFactory;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletException;
@@ -158,6 +164,40 @@ public abstract class RestServletBase extends HttpServlet {
         }
         // Strip leading slash
         return pathInfo.substring( 1 );
+    }
+
+    /**
+     * Checks whether the current user has the specified permission for the given page.
+     * If the page exists, its ACL is evaluated via {@link PermissionFactory#getPagePermission(Page, String)}.
+     * If the user lacks permission, a 403 JSON error is sent and this method returns {@code false}.
+     *
+     * @param request  the HTTP request (used to resolve the user's session)
+     * @param response the HTTP response (used to send 403 if denied)
+     * @param pageName the wiki page name
+     * @param action   the permission action (e.g., "view", "edit", "delete")
+     * @return {@code true} if the user is authorized; {@code false} if a 403 was sent
+     * @throws IOException if writing the error response fails
+     */
+    protected boolean checkPagePermission( final HttpServletRequest request,
+                                            final HttpServletResponse response,
+                                            final String pageName,
+                                            final String action ) throws IOException {
+        final Engine eng = getEngine();
+        final Session session = Wiki.session().find( eng, request );
+        final Page page = eng.getManager( PageManager.class ).getPage( pageName );
+        // When the page exists, use the Page overload so ACLs embedded in the content
+        // are evaluated.  When it doesn't exist yet (e.g. a PUT creating a new page),
+        // construct the permission with the wiki's application name so that the
+        // policy grant "wiki:*" still matches.
+        final java.security.Permission perm = ( page != null )
+                ? PermissionFactory.getPagePermission( page, action )
+                : new PagePermission( eng.getApplicationName() + ":" + pageName, action );
+        final AuthorizationManager authMgr = eng.getManager( AuthorizationManager.class );
+        if ( !authMgr.checkPermission( session, perm ) ) {
+            sendError( response, HttpServletResponse.SC_FORBIDDEN, "Forbidden" );
+            return false;
+        }
+        return true;
     }
 
 }

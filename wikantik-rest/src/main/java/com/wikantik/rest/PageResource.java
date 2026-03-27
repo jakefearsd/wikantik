@@ -76,6 +76,7 @@ public class PageResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
             return;
         }
+        if ( !checkPagePermission( request, response, pageName, "view" ) ) return;
 
         LOG.debug( "GET page: {}", pageName );
 
@@ -153,6 +154,7 @@ public class PageResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
             return;
         }
+        if ( !checkPagePermission( request, response, pageName, "edit" ) ) return;
 
         LOG.debug( "PUT page: {}", pageName );
 
@@ -230,6 +232,7 @@ public class PageResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
             return;
         }
+        if ( !checkPagePermission( request, response, pageName, "delete" ) ) return;
 
         LOG.debug( "DELETE page: {}", pageName );
 
@@ -283,6 +286,7 @@ public class PageResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
             return;
         }
+        if ( !checkPagePermission( request, response, pageName, "edit" ) ) return;
 
         LOG.debug( "PATCH page: {}", pageName );
 

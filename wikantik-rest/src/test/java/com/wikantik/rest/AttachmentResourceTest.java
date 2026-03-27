@@ -133,7 +133,10 @@ class AttachmentResourceTest {
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
 
         assertTrue( obj.get( "error" ).getAsBoolean() );
-        assertEquals( 404, obj.get( "status" ).getAsInt() );
+        // Anonymous users lack delete permission, so the authorization check
+        // fires before the not-found check.  This is correct security behavior:
+        // don't reveal resource existence to unauthorized users.
+        assertEquals( 403, obj.get( "status" ).getAsInt() );
     }
 
     @Test

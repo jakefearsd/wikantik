@@ -422,28 +422,18 @@ class PageResourceTest {
     }
 
     /**
-     * Performs a DELETE by calling the PageManager directly, bypassing the REST
-     * endpoint's authorization check. Used when we just need to verify that the
-     * servlet wiring (JSON parsing, response generation) works correctly.
+     * Performs a page delete via PageManager directly. JAAS authentication is not
+     * available in the {@code wikantik-rest} test context (the user database XML
+     * file path resolves relative to {@code wikantik-main}), so we cannot create
+     * an admin-authenticated session to call the REST servlet's doDelete().
      * <p>
-     * Authorization enforcement is separately tested in
-     * {@link RestAuthorizationSecurityTest}.
+     * Authorization enforcement for DELETE is tested separately in
+     * {@link RestAuthorizationSecurityTest#testAnonymousDeletePageReturnsForbidden()}.
      */
     private String doDeleteAsAdmin( final String pageName ) throws Exception {
-        // Use the admin session that engine.saveText() created by reusing
-        // the same request object pattern.
-        final HttpServletRequest adminReq = HttpMockFactory.createHttpRequest();
-        final com.wikantik.api.core.Session adminSession =
-                com.wikantik.WikiSession.getWikiSession( engine, adminReq );
-        engine.getManager( com.wikantik.auth.AuthenticationManager.class )
-                .login( adminSession, adminReq, Users.ADMIN, Users.ADMIN_PASS );
-
-        // Directly delete via PageManager since the REST auth layer is tested
-        // separately in RestAuthorizationSecurityTest
         engine.getManager( PageManager.class ).deletePage( pageName );
 
-        // Return a synthetic JSON response matching the servlet's format
-        final java.util.Map< String, Object > result = new java.util.LinkedHashMap<>();
+        final java.util.LinkedHashMap< String, Object > result = new java.util.LinkedHashMap<>();
         result.put( "success", true );
         result.put( "name", pageName );
         return gson.toJson( result );

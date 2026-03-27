@@ -21,3 +21,4 @@ tmp
 .env.*
 !.env.example
 backups/
+docs/wikantik-pages/OLD/

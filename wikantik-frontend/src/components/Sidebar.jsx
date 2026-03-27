@@ -123,6 +123,27 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           </div>
         )}
 
+        {/* Admin — only for admin users */}
+        {user?.authenticated && user?.roles?.includes('Admin') && (
+          <div className="sidebar-section">
+            <div className="sidebar-section-title">Admin</div>
+            <Link
+              to="/admin/users"
+              className="sidebar-link"
+              onClick={onMobileClose}
+            >
+              User Management
+            </Link>
+            <Link
+              to="/admin/content"
+              className="sidebar-link"
+              onClick={onMobileClose}
+            >
+              Content Management
+            </Link>
+          </div>
+        )}
+
         {/* Clusters */}
         {Object.keys(clusters).sort().map(cluster => (
           <div key={cluster} className="sidebar-section">

@@ -6,6 +6,12 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-27** — Add wikantik-observability module: health checks, Prometheus metrics, structured logging, request correlation
+
+**2026-03-27** — Admin panel: user management, content management, and infrastructure improvements
+
+**2026-03-26** — Article authoring UX: new article wizard, frontmatter editing, change history
+
 **2026-03-26** — Filter system pages from all referral plugins — finally done!
 
 **2026-03-26** — Update News page with recent development entries + remove test artifacts

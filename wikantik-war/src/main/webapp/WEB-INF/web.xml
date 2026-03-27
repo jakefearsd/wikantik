@@ -69,16 +69,30 @@
    <filter>
      <filter-name>RequestCorrelationFilter</filter-name>
      <filter-class>com.wikantik.observability.RequestCorrelationFilter</filter-class>
+     <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
      <filter-name>RequestCorrelationFilter</filter-name>
      <url-pattern>/*</url-pattern>
    </filter-mapping>
 
+   <!-- Internal network guard: restricts observability endpoints to localhost + private networks -->
+   <filter>
+     <filter-name>InternalNetworkFilter</filter-name>
+     <filter-class>com.wikantik.observability.InternalNetworkFilter</filter-class>
+     <async-supported>true</async-supported>
+   </filter>
+   <filter-mapping>
+     <filter-name>InternalNetworkFilter</filter-name>
+     <url-pattern>/api/health</url-pattern>
+     <url-pattern>/metrics</url-pattern>
+   </filter-mapping>
+
    <!-- Request metrics: records HTTP request duration for Prometheus -->
    <filter>
      <filter-name>RequestMetricsFilter</filter-name>
      <filter-class>com.wikantik.observability.RequestMetricsFilter</filter-class>
+     <async-supported>true</async-supported>
    </filter>
    <filter-mapping>
      <filter-name>RequestMetricsFilter</filter-name>

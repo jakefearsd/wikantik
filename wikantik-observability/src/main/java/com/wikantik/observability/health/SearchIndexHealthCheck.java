@@ -21,12 +21,17 @@ package com.wikantik.observability.health;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.providers.PageProvider;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 /**
  * Checks that the search/page subsystem is operational by verifying the page provider
  * is accessible. This is a lightweight check that avoids importing SearchManager
  * (which lives in wikantik-main).
  */
 public class SearchIndexHealthCheck implements HealthCheck {
+
+    private static final Logger LOG = LogManager.getLogger( SearchIndexHealthCheck.class );
 
     private final Engine engine;
 
@@ -51,7 +56,8 @@ public class SearchIndexHealthCheck implements HealthCheck {
             provider.getProviderInfo();
             return HealthResult.up( System.currentTimeMillis() - start );
         } catch ( final Exception e ) {
-            return HealthResult.down( System.currentTimeMillis() - start, e.getMessage() );
+            LOG.warn( "Search index health check failed", e );
+            return HealthResult.down( System.currentTimeMillis() - start, "Search index check failed" );
         }
     }
 

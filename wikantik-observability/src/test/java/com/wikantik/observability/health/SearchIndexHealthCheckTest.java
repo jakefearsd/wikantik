@@ -65,7 +65,7 @@ class SearchIndexHealthCheckTest {
         final HealthResult result = check.check();
 
         assertEquals( HealthStatus.DOWN, result.status() );
-        assertEquals( "provider error", result.detail().get( "error" ) );
+        assertEquals( "Search index check failed", result.detail().get( "error" ) );
     }
 
     @Test

@@ -62,7 +62,7 @@ class DatabaseHealthCheckTest {
         final HealthResult result = check.check();
 
         assertEquals( HealthStatus.DOWN, result.status() );
-        assertEquals( "Connection refused", result.detail().get( "error" ) );
+        assertEquals( "Database connectivity check failed", result.detail().get( "error" ) );
         assertTrue( result.responseTimeMs() >= 0 );
     }
 
@@ -76,7 +76,7 @@ class DatabaseHealthCheckTest {
         final HealthResult result = check.check();
 
         assertEquals( HealthStatus.DOWN, result.status() );
-        assertEquals( "Query failed", result.detail().get( "error" ) );
+        assertEquals( "Database connectivity check failed", result.detail().get( "error" ) );
     }
 
     @Test

@@ -46,13 +46,21 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Security tests that verify REST API endpoints enforce authorization.
  * <p>
+ * These tests focus on <b>denial of unauthorized access</b> — the critical
+ * security invariant that was missing before the fix. Positive tests for
+ * authenticated users (admin delete, authorized ACL view) are not feasible
+ * here because JAAS authentication requires {@code userdatabase.xml} at a
+ * filesystem path relative to {@code wikantik-main}, which is not available
+ * when running from the {@code wikantik-rest} module. Authenticated-session
+ * tests are covered by the {@code wikantik-main} test suite.
+ * <p>
  * The test security policy grants:
  * <ul>
  *   <li>All (including anonymous): {@code PagePermission "*:*", "view"}</li>
  *   <li>Anonymous: {@code PagePermission "*:*", "edit"}</li>
  *   <li>Admin only: {@code AllPermission} (which includes delete)</li>
  * </ul>
- * Page-level ACLs (e.g., {@code [{ALLOW view Janne Jalkanen}]}) should further restrict access.
+ * Page-level ACLs (e.g., {@code [{ALLOW view Janne Jalkanen}]}) further restrict access.
  */
 class RestAuthorizationSecurityTest {
 
@@ -115,8 +123,7 @@ class RestAuthorizationSecurityTest {
 
     /**
      * A page with ACL [{ALLOW view Janne Jalkanen}] should deny anonymous view access.
-     * The security policy grants view to "All", but the ACL restricts it to Janne.
-     * The authorization algorithm requires BOTH policy AND ACL to allow access.
+     * The security policy grants view to "All", but the ACL restricts it to Janne only.
      */
     @Test
     void testAclRestrictedPageDeniesUnauthorizedView() throws Exception {

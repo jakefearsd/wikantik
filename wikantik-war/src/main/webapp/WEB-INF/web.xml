@@ -65,6 +65,16 @@
       possesses the correct "assertion cookie."
    -->
 
+   <!-- Admin authorization: enforces AllPermission on /admin/* endpoints -->
+   <filter>
+     <filter-name>AdminAuthFilter</filter-name>
+     <filter-class>com.wikantik.rest.AdminAuthFilter</filter-class>
+   </filter>
+   <filter-mapping>
+     <filter-name>AdminAuthFilter</filter-name>
+     <url-pattern>/admin/*</url-pattern>
+   </filter-mapping>
+
    <!-- React SPA routing: forwards /app/* paths to /app/index.html for client-side routing -->
    <filter>
      <filter-name>SpaRoutingFilter</filter-name>
@@ -271,6 +281,16 @@
        <servlet-class>com.wikantik.rest.OutboundLinksResource</servlet-class>
    </servlet>
 
+   <!-- Admin API -->
+   <servlet>
+       <servlet-name>AdminUserResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminUserResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>AdminContentResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminContentResource</servlet-class>
+   </servlet>
+
    <!-- SSO servlets for OIDC/SAML authentication -->
    <servlet>
        <servlet-name>SSORedirectServlet</servlet-name>
@@ -349,6 +369,18 @@
    <servlet-mapping>
        <servlet-name>OutboundLinksResource</servlet-name>
        <url-pattern>/api/outbound-links/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminUserResource</servlet-name>
+       <url-pattern>/admin/users/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminUserResource</servlet-name>
+       <url-pattern>/admin/users</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminContentResource</servlet-name>
+       <url-pattern>/admin/content/*</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

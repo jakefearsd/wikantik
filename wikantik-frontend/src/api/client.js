@@ -95,4 +95,72 @@ export const api = {
     }),
 
   logout: () => request('/api/auth/logout', { method: 'POST' }),
+
+  // Admin — User Management
+  admin: {
+    listUsers: () => request('/admin/users'),
+
+    getUser: (loginName) =>
+      request(`/admin/users/${encodeURIComponent(loginName)}`),
+
+    createUser: (data) =>
+      request('/admin/users', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    updateUser: (loginName, data) =>
+      request(`/admin/users/${encodeURIComponent(loginName)}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    deleteUser: (loginName) =>
+      request(`/admin/users/${encodeURIComponent(loginName)}`, {
+        method: 'DELETE',
+      }),
+
+    lockUser: (loginName, expiry) =>
+      request(`/admin/users/${encodeURIComponent(loginName)}/lock`, {
+        method: 'POST',
+        body: JSON.stringify({ expiry }),
+      }),
+
+    unlockUser: (loginName) =>
+      request(`/admin/users/${encodeURIComponent(loginName)}/unlock`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }),
+
+    // Content Management
+    getContentStats: () => request('/admin/content/stats'),
+
+    getOrphanedPages: () => request('/admin/content/orphaned-pages'),
+
+    getBrokenLinks: () => request('/admin/content/broken-links'),
+
+    bulkDeletePages: (pages) =>
+      request('/admin/content/bulk-delete', {
+        method: 'POST',
+        body: JSON.stringify({ pages }),
+      }),
+
+    purgeVersions: (page, keepLatest) =>
+      request('/admin/content/purge-versions', {
+        method: 'POST',
+        body: JSON.stringify({ page, keepLatest }),
+      }),
+
+    reindex: () =>
+      request('/admin/content/reindex', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }),
+
+    flushCache: (cache) =>
+      request('/admin/content/cache/flush', {
+        method: 'POST',
+        body: JSON.stringify({ cache: cache || null }),
+      }),
+  },
 };

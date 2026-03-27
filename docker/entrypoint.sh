@@ -9,7 +9,7 @@ cat > "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
 
 wikantik.applicationName = Wikantik
 wikantik.use.external.logconfig = true
-wikantik.pageProvider = FileSystemProvider
+wikantik.pageProvider = VersioningFileProvider
 wikantik.frontPage = Main
 
 wikantik.baseURL = ${WIKANTIK_BASE_URL:-http://localhost:8080/}

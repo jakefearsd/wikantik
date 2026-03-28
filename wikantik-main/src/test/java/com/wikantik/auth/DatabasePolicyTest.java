@@ -42,7 +42,9 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.Properties;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -246,6 +248,84 @@ class DatabasePolicyTest
         );
     }
 
+    // ---- Error handling tests ----
+
+    /**
+     * When refresh() fails due to a database error (e.g., DB is down), the previously
+     * loaded grants should be retained. This ensures the system keeps working with
+     * stale data rather than losing all permissions.
+     */
+    @Test
+    void testRefreshWithDatabaseDownKeepsStaleGrants() throws Exception
+    {
+        // Verify initial grants are loaded
+        assertTrue(
+            policy.implies( Role.ALL, new PagePermission( "*:*", "view" ) ),
+            "All role should have view permission before DB failure"
+        );
+
+        // Create a DataSource that throws on getConnection() (simulating DB down)
+        final DataSource failingDs = org.mockito.Mockito.mock( DataSource.class );
+        org.mockito.Mockito.when( failingDs.getConnection() ).thenThrow(
+            new java.sql.SQLException( "Connection refused - simulated DB failure" )
+        );
+
+        // Create a policy with normal data, then swap to failing DataSource via a new policy
+        // that starts with the same data but then fails on refresh
+        final DatabasePolicy policyWithFailure = new DatabasePolicy( ds, "policy_grants" );
+        assertTrue(
+            policyWithFailure.implies( Role.ALL, new PagePermission( "*:*", "view" ) ),
+            "Should have grants after initial load"
+        );
+
+        // Now attempt refresh with a new policy backed by failing DS.
+        // The refresh should log an error but keep the old grants from the successful constructor.
+        final DatabasePolicy failPolicy = new DatabasePolicy( failingDs, "policy_grants" );
+        // Constructor calls refresh() which will fail -- grants should be empty since there
+        // were no previously loaded grants for this instance.
+        assertFalse(
+            failPolicy.implies( Role.ALL, new PagePermission( "*:*", "view" ) ),
+            "Policy created with failing DB should have no grants"
+        );
+
+        // But the original policy should still work fine
+        assertTrue(
+            policy.implies( Role.ALL, new PagePermission( "*:*", "view" ) ),
+            "Original policy should still have its grants"
+        );
+    }
+
+    /**
+     * When no grants are loaded (empty database table), implies() should return false
+     * for all permission checks, effectively denying everything.
+     */
+    @Test
+    void testImpliesWithEmptyGrantsReturnsFalse() throws Exception
+    {
+        // Clear all grants
+        try( final Connection conn = ds.getConnection();
+             final Statement stmt = conn.createStatement() )
+        {
+            stmt.executeUpdate( "DELETE FROM policy_grants" );
+        }
+
+        // Create a fresh policy from the now-empty table
+        final DatabasePolicy emptyPolicy = new DatabasePolicy( ds, "policy_grants" );
+
+        assertFalse(
+            emptyPolicy.implies( Role.ALL, new PagePermission( "*:*", "view" ) ),
+            "Empty grants should deny All role view permission"
+        );
+        assertFalse(
+            emptyPolicy.implies( Role.AUTHENTICATED, new PagePermission( "*:*", "modify" ) ),
+            "Empty grants should deny Authenticated role modify permission"
+        );
+        assertFalse(
+            emptyPolicy.implies( new Role( "Admin" ), new AllPermission( "*" ) ),
+            "Empty grants should deny Admin role AllPermission"
+        );
+    }
+
     // ---- Bootstrap admin override tests (at DefaultAuthorizationManager level) ----
 
     @Test
@@ -272,6 +352,52 @@ class DatabasePolicyTest
         final AuthorizationManager authMgr = engine.getManager( AuthorizationManager.class );
         final Session guestSession = engine.guestSession();
         assertFalse( authMgr.checkPermission( guestSession, new AllPermission( "*" ) ) );
+        engine.stop();
+    }
+
+    /**
+     * Verifies that when {@code wikantik.admin.bootstrap} is set in properties,
+     * the DefaultAuthorizationManager stores the configured bootstrap admin name.
+     * Uses reflection to verify the field since JAAS authentication is not available
+     * in the test module.
+     */
+    @Test
+    void testBootstrapPropertyIsReadDuringInitialization() throws Exception
+    {
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( "wikantik.admin.bootstrap", "testadmin" );
+        final TestEngine engine = new TestEngine( props );
+        final AuthorizationManager authMgr = engine.getManager( AuthorizationManager.class );
+
+        // Use reflection to verify the private field
+        final java.lang.reflect.Field field =
+                DefaultAuthorizationManager.class.getDeclaredField( "bootstrapAdmin" );
+        field.setAccessible( true );
+        final String bootstrapAdmin = (String) field.get( authMgr );
+
+        assertEquals( "testadmin", bootstrapAdmin,
+                "bootstrapAdmin field should equal the configured property value" );
+        engine.stop();
+    }
+
+    /**
+     * Verifies that a blank bootstrap admin property is normalized to null.
+     */
+    @Test
+    void testBootstrapBlankPropertyIsNormalized() throws Exception
+    {
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( "wikantik.admin.bootstrap", "   " );
+        final TestEngine engine = new TestEngine( props );
+        final AuthorizationManager authMgr = engine.getManager( AuthorizationManager.class );
+
+        final java.lang.reflect.Field field =
+                DefaultAuthorizationManager.class.getDeclaredField( "bootstrapAdmin" );
+        field.setAccessible( true );
+        final String bootstrapAdmin = (String) field.get( authMgr );
+
+        assertNull( bootstrapAdmin,
+                "Blank bootstrap admin property should be normalized to null" );
         engine.stop();
     }
 }

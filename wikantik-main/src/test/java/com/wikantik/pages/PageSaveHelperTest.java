@@ -205,4 +205,31 @@ class PageSaveHelperTest {
         assertEquals( "guide", merged.get( "type" ) );
     }
 
+    /**
+     * Verifies optimistic locking via content hash: saving with a matching hash succeeds,
+     * but saving with a stale hash (content has changed since the hash was computed)
+     * throws VersionConflictException.
+     */
+    @Test
+    void testSaveWithVersionConflictThrows() throws Exception {
+        // Save initial content
+        helper.saveText( "HelperConflict", "Version 1 content.",
+                SaveOptions.builder().author( "Bot" ).build() );
+
+        // Compute the content hash of version 1
+        final String v1Text = pageManager.getPureText( "HelperConflict", -1 );
+        final String v1Hash = PageSaveHelper.computeContentHash( v1Text );
+
+        // Save again with matching hash -- should succeed
+        helper.saveText( "HelperConflict", "Version 2 content.",
+                SaveOptions.builder().author( "Bot" ).expectedContentHash( v1Hash ).build() );
+
+        // Save again with the same v1Hash, but the content is now "Version 2 content."
+        // This should throw VersionConflictException because the hash no longer matches.
+        assertThrows( VersionConflictException.class, () ->
+                helper.saveText( "HelperConflict", "Version 3 content.",
+                        SaveOptions.builder().author( "Bot" ).expectedContentHash( v1Hash ).build() ),
+                "Saving with stale content hash should throw VersionConflictException" );
+    }
+
 }

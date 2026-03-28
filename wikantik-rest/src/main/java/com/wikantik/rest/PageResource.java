@@ -142,6 +142,15 @@ public class PageResource extends RestServletBase {
         result.put( "lastModified", page.getLastModified() );
         result.put( "exists", true );
 
+        // Include the current user's effective permissions for this page
+        final Map< String, Boolean > permissions = new LinkedHashMap<>();
+        permissions.put( "edit", hasPagePermission( request, pageName, "edit" ) );
+        permissions.put( "comment", hasPagePermission( request, pageName, "comment" ) );
+        permissions.put( "upload", hasPagePermission( request, pageName, "upload" ) );
+        permissions.put( "rename", hasPagePermission( request, pageName, "rename" ) );
+        permissions.put( "delete", hasPagePermission( request, pageName, "delete" ) );
+        result.put( "permissions", permissions );
+
         sendJson( response, result );
     }
 

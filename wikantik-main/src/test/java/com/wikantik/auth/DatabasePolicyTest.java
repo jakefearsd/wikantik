@@ -19,8 +19,10 @@
 package com.wikantik.auth;
 
 import com.wikantik.HsqlDbUtils;
+import com.wikantik.TestEngine;
 import com.wikantik.TestJDBCDataSource;
 import com.wikantik.TestJNDIContext;
+import com.wikantik.api.core.Session;
 import com.wikantik.auth.authorize.Role;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.permissions.PagePermission;
@@ -39,6 +41,7 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -241,5 +244,34 @@ class DatabasePolicyTest
             policy.implies( Role.ANONYMOUS, new PagePermission( "*:*", "edit" ) ),
             "Anonymous should have edit after refresh picks up the new grant"
         );
+    }
+
+    // ---- Bootstrap admin override tests (at DefaultAuthorizationManager level) ----
+
+    @Test
+    void testBootstrapAdminNotTriggeredForGuest() throws Exception
+    {
+        // A guest session should NOT get bootstrap override
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( "wikantik.admin.bootstrap", "admin" );
+        final TestEngine engine = new TestEngine( props );
+        final AuthorizationManager authMgr = engine.getManager( AuthorizationManager.class );
+        final Session guestSession = engine.guestSession();
+        // Guest's principal is "Guest", not "admin"
+        assertFalse( authMgr.checkPermission( guestSession, new AllPermission( "*" ) ),
+                "Guest should not receive bootstrap override" );
+        engine.stop();
+    }
+
+    @Test
+    void testBootstrapInactiveWhenNotConfigured() throws Exception
+    {
+        final Properties props = TestEngine.getTestProperties();
+        // Don't set wikantik.admin.bootstrap
+        final TestEngine engine = new TestEngine( props );
+        final AuthorizationManager authMgr = engine.getManager( AuthorizationManager.class );
+        final Session guestSession = engine.guestSession();
+        assertFalse( authMgr.checkPermission( guestSession, new AllPermission( "*" ) ) );
+        engine.stop();
     }
 }

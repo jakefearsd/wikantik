@@ -206,4 +206,157 @@ public class GroupManagerTest
         m_groupMgr.removeGroup( "Events" );
     }
 
+    /**
+     * Tests that getGroup returns an existing group by name.
+     */
+    @Test
+    public void testGetGroupExisting() throws Exception {
+        final Group group = m_groupMgr.getGroup( "Test" );
+        Assertions.assertNotNull( group, "Should return the Test group" );
+        Assertions.assertEquals( "Test", group.getName() );
+        Assertions.assertTrue( group.isMember( new WikiPrincipal( "Alice" ) ) );
+        Assertions.assertTrue( group.isMember( new WikiPrincipal( "Bob" ) ) );
+        Assertions.assertTrue( group.isMember( new WikiPrincipal( "Charlie" ) ) );
+    }
+
+    /**
+     * Tests that getGroup throws NoSuchPrincipalException for a nonexistent group.
+     */
+    @Test
+    public void testGetGroupNonexistent() {
+        Assertions.assertThrows( NoSuchPrincipalException.class,
+            () -> m_groupMgr.getGroup( "NonExistentGroupXYZ" ),
+            "Should throw NoSuchPrincipalException for nonexistent group" );
+    }
+
+    /**
+     * Tests the CRUD lifecycle: create, read, modify, delete a group.
+     */
+    @Test
+    public void testGroupCrudLifecycle() throws Exception {
+        final String groupName = "LifecycleTest";
+        try {
+            m_groupMgr.removeGroup( groupName );
+        } catch ( final NoSuchPrincipalException e ) {
+            // Fine, doesn't exist yet
+        }
+        m_trap.clearEvents();
+
+        // CREATE: parse and set a new group
+        Group group = m_groupMgr.parseGroup( groupName, "Alice\nBob", true );
+        m_groupMgr.setGroup( m_session, group );
+
+        // READ: retrieve and verify members
+        group = m_groupMgr.getGroup( groupName );
+        Assertions.assertNotNull( group );
+        Assertions.assertEquals( 2, group.members().length );
+        Assertions.assertTrue( group.isMember( new WikiPrincipal( "Alice" ) ) );
+        Assertions.assertTrue( group.isMember( new WikiPrincipal( "Bob" ) ) );
+
+        // UPDATE: modify membership
+        group = m_groupMgr.parseGroup( groupName, "Alice\nCharlie\nDave", true );
+        m_groupMgr.setGroup( m_session, group );
+        group = m_groupMgr.getGroup( groupName );
+        Assertions.assertEquals( 3, group.members().length );
+        Assertions.assertTrue( group.isMember( new WikiPrincipal( "Alice" ) ) );
+        Assertions.assertFalse( group.isMember( new WikiPrincipal( "Bob" ) ), "Bob should have been removed" );
+        Assertions.assertTrue( group.isMember( new WikiPrincipal( "Charlie" ) ) );
+        Assertions.assertTrue( group.isMember( new WikiPrincipal( "Dave" ) ) );
+
+        // DELETE
+        m_groupMgr.removeGroup( groupName );
+        Assertions.assertThrows( NoSuchPrincipalException.class,
+            () -> m_groupMgr.getGroup( groupName ),
+            "Group should no longer exist after removal" );
+    }
+
+    /**
+     * Tests that removeGroup with a null name throws IllegalArgumentException.
+     */
+    @Test
+    public void testRemoveGroupNull() {
+        Assertions.assertThrows( IllegalArgumentException.class,
+            () -> m_groupMgr.removeGroup( null ) );
+    }
+
+    /**
+     * Tests that removeGroup with a nonexistent name throws NoSuchPrincipalException.
+     */
+    @Test
+    public void testRemoveGroupNonexistent() {
+        Assertions.assertThrows( NoSuchPrincipalException.class,
+            () -> m_groupMgr.removeGroup( "DoesNotExistXYZ" ) );
+    }
+
+    /**
+     * Tests that findRole returns a principal for an existing group and null for a nonexistent one.
+     */
+    @Test
+    public void testFindRole() {
+        final Principal found = m_groupMgr.findRole( "Test" );
+        Assertions.assertNotNull( found, "findRole should return principal for existing group" );
+        Assertions.assertEquals( "Test", found.getName() );
+
+        final Principal notFound = m_groupMgr.findRole( "NonExistentRole12345" );
+        Assertions.assertNull( notFound, "findRole should return null for nonexistent group" );
+    }
+
+    /**
+     * Tests isUserInRole returns false for a null session.
+     */
+    @Test
+    public void testIsUserInRoleNullSession() {
+        Assertions.assertFalse( m_groupMgr.isUserInRole( null, new GroupPrincipal( "Test" ) ),
+                                "isUserInRole should return false for null session" );
+    }
+
+    /**
+     * Tests isUserInRole returns false for a non-GroupPrincipal role.
+     */
+    @Test
+    public void testIsUserInRoleNonGroupPrincipal() throws Exception {
+        final Session s = WikiSessionTest.authenticatedSession( m_engine, Users.ALICE, Users.ALICE_PASS );
+        // WikiPrincipal is not a GroupPrincipal, so should return false
+        Assertions.assertFalse( m_groupMgr.isUserInRole( s, new WikiPrincipal( "Test" ) ),
+                                "isUserInRole should return false for non-GroupPrincipal" );
+    }
+
+    /**
+     * Tests that parseGroup with null name in create mode defaults to "MyGroup".
+     */
+    @Test
+    public void testParseGroupNullNameCreate() throws Exception {
+        final Group group = m_groupMgr.parseGroup( null, "Alice", true );
+        Assertions.assertNotNull( group );
+        Assertions.assertEquals( "MyGroup", group.getName() );
+    }
+
+    /**
+     * Tests that parseGroup with null name in non-create mode throws WikiSecurityException.
+     */
+    @Test
+    public void testParseGroupNullNameNoCreate() {
+        Assertions.assertThrows( WikiSecurityException.class,
+            () -> m_groupMgr.parseGroup( null, "Alice", false ) );
+    }
+
+    /**
+     * Tests that parseGroup rejects restricted group names.
+     */
+    @Test
+    public void testParseGroupRestrictedName() {
+        Assertions.assertThrows( WikiSecurityException.class,
+            () -> m_groupMgr.parseGroup( "Anonymous", "Alice", true ),
+            "Should reject restricted group name 'Anonymous'" );
+    }
+
+    /**
+     * Tests that getGroupDatabase returns a non-null database.
+     */
+    @Test
+    public void testGetGroupDatabase() throws Exception {
+        Assertions.assertNotNull( m_groupMgr.getGroupDatabase(),
+                                  "Group database should not be null" );
+    }
+
 }

@@ -45,6 +45,8 @@ import java.util.Properties;
 
 class UserManagerTest {
 
+    private static final String SESSION_MESSAGES = "profile";
+
     TestEngine m_engine;
     UserManager m_mgr;
     UserDatabase m_db;
@@ -301,6 +303,129 @@ class UserManagerTest {
 
         // There shouldn't have been any users added
         Assertions.assertEquals( oldUserCount, m_db.getWikiNames().length );
+    }
+
+    /**
+     * Tests that getUserProfile returns a new profile for an anonymous session.
+     */
+    @Test
+    void testGetUserProfileAnonymous() throws Exception {
+        final Session session = WikiSessionTest.anonymousSession( m_engine );
+        final UserProfile profile = m_mgr.getUserProfile( session );
+        Assertions.assertNotNull( profile, "Profile should not be null for anonymous session" );
+        Assertions.assertTrue( profile.isNew(), "Profile should be marked as new for anonymous session" );
+    }
+
+    /**
+     * Tests that getUserProfile returns an existing profile for an authenticated session.
+     */
+    @Test
+    void testGetUserProfileAuthenticated() throws Exception {
+        final Session session = WikiSessionTest.authenticatedSession( m_engine, Users.JANNE, Users.JANNE_PASS );
+        final UserProfile profile = m_mgr.getUserProfile( session );
+        Assertions.assertNotNull( profile, "Profile should not be null for authenticated session" );
+        Assertions.assertFalse( profile.isNew(), "Profile should not be new for authenticated user 'janne'" );
+        Assertions.assertEquals( "janne", profile.getLoginName(), "Login name should match" );
+    }
+
+    /**
+     * Tests that validateProfile catches a missing login name.
+     */
+    @Test
+    void testValidateProfileMissingLoginName() throws Exception {
+        final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final UserProfile profile = m_db.newProfile();
+        profile.setLoginName( null );
+        profile.setFullname( "Test Fullname" );
+        profile.setEmail( "test@example.com" );
+        profile.setPassword( "myP@5sw0rd" );
+        m_mgr.validateProfile( context, profile );
+
+        final String[] messages = context.getWikiSession().getMessages( SESSION_MESSAGES );
+        Assertions.assertTrue( messages.length > 0, "Should have validation error for missing login name" );
+    }
+
+    /**
+     * Tests that validateProfile catches a missing full name.
+     */
+    @Test
+    void testValidateProfileMissingFullName() throws Exception {
+        final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final UserProfile profile = m_db.newProfile();
+        profile.setLoginName( "testlogin" );
+        profile.setFullname( null );
+        profile.setEmail( "test@example.com" );
+        profile.setPassword( "myP@5sw0rd" );
+        m_mgr.validateProfile( context, profile );
+
+        final String[] messages = context.getWikiSession().getMessages( SESSION_MESSAGES );
+        Assertions.assertTrue( messages.length > 0, "Should have validation error for missing full name" );
+    }
+
+    /**
+     * Tests that validateProfile catches a null password.
+     */
+    @Test
+    void testValidateProfileNullPassword() throws Exception {
+        final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final UserProfile profile = m_db.newProfile();
+        profile.setLoginName( "testlogin" );
+        profile.setFullname( "Test Fullname" );
+        profile.setEmail( "test@example.com" );
+        profile.setPassword( null );
+        m_mgr.validateProfile( context, profile );
+
+        final String[] messages = context.getWikiSession().getMessages( SESSION_MESSAGES );
+        Assertions.assertTrue( messages.length > 0, "Should have validation error for null password" );
+    }
+
+    /**
+     * Tests that setUserProfile creates a profile and it can be retrieved.
+     */
+    @Test
+    void testSetAndGetUserProfile() throws Exception {
+        final int oldUserCount = m_db.getWikiNames().length;
+        final Context context = Wiki.context().create( m_engine, HttpMockFactory.createHttpRequest(), "" );
+        final String loginName = "SetGetUser" + System.currentTimeMillis();
+        final UserProfile profile = m_db.newProfile();
+        profile.setEmail( "setget@mailinator.com" );
+        profile.setLoginName( loginName );
+        profile.setFullname( "FullName" + loginName );
+        profile.setPassword( "password" );
+        m_mgr.setUserProfile( context, profile );
+
+        // Retrieve via the session - should match what we just set
+        final UserProfile retrieved = m_mgr.getUserProfile( context.getWikiSession() );
+        Assertions.assertNotNull( retrieved );
+        Assertions.assertEquals( loginName, retrieved.getLoginName() );
+        Assertions.assertEquals( "setget@mailinator.com", retrieved.getEmail() );
+        Assertions.assertEquals( "FullName" + loginName, retrieved.getFullname() );
+
+        // Verify user count increased
+        Assertions.assertEquals( oldUserCount + 1, m_db.getWikiNames().length );
+
+        // Cleanup
+        m_db.deleteByLoginName( loginName );
+        Assertions.assertEquals( oldUserCount, m_db.getWikiNames().length );
+    }
+
+    /**
+     * Tests that getUserDatabase returns a non-null database.
+     */
+    @Test
+    void testGetUserDatabase() {
+        final UserDatabase db = m_mgr.getUserDatabase();
+        Assertions.assertNotNull( db, "User database should not be null" );
+    }
+
+    /**
+     * Tests that listWikiNames returns existing names.
+     */
+    @Test
+    void testListWikiNames() throws Exception {
+        final Principal[] wikiNames = m_mgr.listWikiNames();
+        Assertions.assertNotNull( wikiNames, "Wiki names should not be null" );
+        Assertions.assertTrue( wikiNames.length > 0, "Should have at least one wiki name (from test user database)" );
     }
 
 }

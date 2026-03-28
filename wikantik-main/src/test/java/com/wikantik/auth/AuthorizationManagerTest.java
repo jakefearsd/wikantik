@@ -767,4 +767,104 @@ public class AuthorizationManagerTest {
         }
     }
 
+    /**
+     * Tests that checkPermission returns false when session is null.
+     */
+    @Test
+    public void testCheckPermissionNullSession() {
+        Assertions.assertFalse( m_auth.checkPermission( null, PagePermission.VIEW ),
+                                "checkPermission should return false for null session" );
+    }
+
+    /**
+     * Tests that checkPermission returns false when permission is null.
+     */
+    @Test
+    public void testCheckPermissionNullPermission() throws Exception {
+        final Session session = WikiSessionTest.anonymousSession( m_engine );
+        Assertions.assertFalse( m_auth.checkPermission( session, null ),
+                                "checkPermission should return false for null permission" );
+    }
+
+    /**
+     * Tests that hasRoleOrPrincipal returns false for null session.
+     */
+    @Test
+    public void testHasRoleOrPrincipalNullSession() {
+        Assertions.assertFalse( m_auth.hasRoleOrPrincipal( null, Role.AUTHENTICATED ),
+                                "hasRoleOrPrincipal should return false for null session" );
+    }
+
+    /**
+     * Tests that hasRoleOrPrincipal returns false for null principal.
+     */
+    @Test
+    public void testHasRoleOrPrincipalNullPrincipal() throws Exception {
+        final Session session = WikiSessionTest.anonymousSession( m_engine );
+        Assertions.assertFalse( m_auth.hasRoleOrPrincipal( session, null ),
+                                "hasRoleOrPrincipal should return false for null principal" );
+    }
+
+    /**
+     * Tests that resolvePrincipal returns an UnresolvedPrincipal for a completely unknown name.
+     */
+    @Test
+    public void testResolvePrincipalUnknown() {
+        final Principal resolved = m_auth.resolvePrincipal( "CompletelyUnknownUser12345" );
+        Assertions.assertNotNull( resolved );
+        Assertions.assertTrue( resolved instanceof UnresolvedPrincipal,
+                               "Unknown name should resolve to UnresolvedPrincipal, got: " + resolved.getClass().getName() );
+        Assertions.assertEquals( "CompletelyUnknownUser12345", resolved.getName() );
+    }
+
+    /**
+     * Tests that resolvePrincipal resolves a group name to a GroupPrincipal.
+     */
+    @Test
+    public void testResolvePrincipalGroupName() throws Exception {
+        final Group group = m_groupMgr.parseGroup( "ResolveTestGroup", "Alice", true );
+        m_groupMgr.setGroup( m_session, group );
+
+        final Principal resolved = m_auth.resolvePrincipal( "ResolveTestGroup" );
+        Assertions.assertNotNull( resolved );
+        Assertions.assertTrue( resolved instanceof GroupPrincipal,
+                               "Should resolve to GroupPrincipal, got: " + resolved.getClass().getName() );
+        Assertions.assertEquals( "ResolveTestGroup", resolved.getName() );
+
+        m_groupMgr.removeGroup( "ResolveTestGroup" );
+    }
+
+    /**
+     * Tests that resolvePrincipal resolves a known user by login name.
+     */
+    @Test
+    public void testResolvePrincipalUserLoginName() {
+        // 'janne' is a known user from the test user database
+        final Principal resolved = m_auth.resolvePrincipal( "janne" );
+        Assertions.assertNotNull( resolved );
+        Assertions.assertFalse( resolved instanceof UnresolvedPrincipal,
+                                "'janne' should resolve to a known principal" );
+        Assertions.assertEquals( "janne", resolved.getName() );
+    }
+
+    /**
+     * Tests that the WikiPermission (non-PagePermission) check works.
+     */
+    @Test
+    public void testCheckPermissionWikiPermission() throws Exception {
+        final Session session = WikiSessionTest.authenticatedSession( m_engine, Users.JANNE, Users.JANNE_PASS );
+        final Permission createPages = new WikiPermission( m_engine.getApplicationName(), WikiPermission.CREATE_PAGES_ACTION );
+        Assertions.assertTrue( m_auth.checkPermission( session, createPages ),
+                               "Authenticated user should have create pages permission" );
+    }
+
+    /**
+     * Tests that getAuthorizer returns a non-null authorizer after initialization.
+     */
+    @Test
+    public void testGetAuthorizer() throws Exception {
+        Assertions.assertNotNull( m_auth.getAuthorizer(),
+                                  "Authorizer should not be null after initialization" );
+    }
+
 }

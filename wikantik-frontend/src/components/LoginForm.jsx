@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export default function LoginForm({ onClose }) {
@@ -86,8 +87,22 @@ export default function LoginForm({ onClose }) {
 
           <button type="submit" className="btn btn-primary" disabled={loading}
             style={{ width: '100%', justifyContent: 'center', padding: 'var(--space-sm) var(--space-lg)' }}>
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
+
+          <div style={{ textAlign: 'center', marginTop: 'var(--space-md)' }}>
+            <Link
+              to="/reset-password"
+              onClick={onClose}
+              style={{
+                color: 'var(--text-muted)',
+                textDecoration: 'none',
+                fontSize: '0.8rem',
+              }}
+            >
+              Forgot your password?
+            </Link>
+          </div>
         </form>
       </div>
     </div>

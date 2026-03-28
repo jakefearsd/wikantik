@@ -11,6 +11,8 @@ import AdminUsersPage from './components/admin/AdminUsersPage';
 import AdminContentPage from './components/admin/AdminContentPage';
 import AdminSecurityPage from './components/admin/AdminSecurityPage';
 import DiffViewer from './components/DiffViewer';
+import UserPreferencesPage from './components/UserPreferencesPage';
+import ResetPasswordPage from './components/ResetPasswordPage';
 import './styles/globals.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -25,6 +27,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/edit/:name" element={<PageEditor />} />
             <Route path="/diff/:name" element={<DiffViewer />} />
             <Route path="/search" element={<SearchResultsPage />} />
+            <Route path="/preferences" element={<UserPreferencesPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Navigate to="users" replace />} />
               <Route path="users" element={<AdminUsersPage />} />

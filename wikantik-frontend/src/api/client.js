@@ -112,6 +112,14 @@ export const api = {
 
   logout: () => request('/api/auth/logout', { method: 'POST' }),
 
+  getProfile: () => request('/api/auth/profile'),
+
+  updateProfile: (data) =>
+    request('/api/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
+
+  resetPassword: (email) =>
+    request('/api/auth/reset-password', { method: 'POST', body: JSON.stringify({ email }) }),
+
   // Admin — User Management
   admin: {
     listUsers: () => request('/admin/users'),

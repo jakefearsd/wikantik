@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
 import { reconstructContent } from '../utils/frontmatterUtils';
 import '../styles/article.css';
+import '../styles/admin.css';
 
 export default function PageEditor() {
   const { name } = useParams();
@@ -16,6 +17,7 @@ export default function PageEditor() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [isNew, setIsNew] = useState(false);
+  const [conflict, setConflict] = useState(null);
 
   useEffect(() => {
     api.getPage(name).then(page => {
@@ -44,13 +46,53 @@ export default function PageEditor() {
       navigate(`/wiki/${name}`);
     } catch (err) {
       if (err.status === 409) {
-        setError('Version conflict — someone else edited this page. Please reload and try again.');
+        try {
+          const serverPage = await api.getPage(name);
+          const serverContent = reconstructContent(serverPage.metadata, serverPage.content);
+          setConflict({ serverContent, serverVersion: serverPage.version });
+        } catch (fetchErr) {
+          setError('Version conflict, and failed to fetch the current server version.');
+        }
       } else {
         setError(err.message || 'Save failed');
       }
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleOverwrite = async () => {
+    setSaving(true);
+    setConflict(null);
+    setError(null);
+    try {
+      await api.savePage(name, {
+        content,
+        changeNote: changeNote || 'Updated page (overwrite)',
+      });
+      navigate(`/wiki/${name}`);
+    } catch (err) {
+      setError(err.message || 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDiscard = () => {
+    setContent(conflict.serverContent);
+    setOriginalVersion(conflict.serverVersion);
+    setConflict(null);
+  };
+
+  const handleCopyAndLoad = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+    } catch {
+      // Fallback: select-and-copy not available in all contexts; proceed anyway
+    }
+    setContent(conflict.serverContent);
+    setOriginalVersion(conflict.serverVersion);
+    setConflict(null);
   };
 
   return (
@@ -104,6 +146,41 @@ export default function PageEditor() {
           </article>
         </div>
       </div>
+
+      {conflict && (
+        <div className="modal-overlay" onClick={() => setConflict(null)}>
+          <div className="modal-content admin-modal" onClick={e => e.stopPropagation()}>
+            <h3 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              marginBottom: 'var(--space-md)',
+            }}>
+              Version Conflict
+            </h3>
+            <p style={{
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.9rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6,
+              marginBottom: 'var(--space-lg)',
+            }}>
+              Someone else edited this page while you were working. Choose how to proceed:
+            </p>
+            <div className="modal-actions" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <button className="btn btn-primary" onClick={handleOverwrite} disabled={saving}>
+                {saving ? 'Saving...' : 'Overwrite with my version'}
+              </button>
+              <button className="btn btn-ghost" onClick={handleDiscard}>
+                Discard my changes (load server version)
+              </button>
+              <button className="btn btn-ghost" onClick={handleCopyAndLoad}>
+                Copy my text to clipboard, then load server version
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

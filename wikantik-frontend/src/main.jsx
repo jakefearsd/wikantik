@@ -9,6 +9,7 @@ import SearchResultsPage from './components/SearchResultsPage';
 import AdminLayout from './components/admin/AdminLayout';
 import AdminUsersPage from './components/admin/AdminUsersPage';
 import AdminContentPage from './components/admin/AdminContentPage';
+import AdminSecurityPage from './components/admin/AdminSecurityPage';
 import './styles/globals.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -26,6 +27,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route index element={<Navigate to="users" replace />} />
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="content" element={<AdminContentPage />} />
+              <Route path="security" element={<AdminSecurityPage />} />
             </Route>
           </Route>
         </Routes>

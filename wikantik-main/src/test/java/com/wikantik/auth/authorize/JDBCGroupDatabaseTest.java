@@ -266,6 +266,35 @@ public class JDBCGroupDatabaseTest
         m_db.delete( group );
     }
 
+    @Test
+    public void testDeleteAdminGroupThrows() throws WikiSecurityException {
+        final Group adminGroup = backendGroup( "Admin" );
+        Assertions.assertThrows( WikiSecurityException.class, () -> m_db.delete( adminGroup ),
+                "Deleting the Admin group must throw WikiSecurityException" );
+        // Verify it still exists
+        Assertions.assertNotNull( backendGroup( "Admin" ) );
+    }
+
+    @Test
+    public void testSaveAdminGroupWithZeroMembersThrows() throws WikiSecurityException {
+        final Group emptyAdmin = new Group( "Admin", m_wiki );
+        Assertions.assertThrows( WikiSecurityException.class,
+                () -> m_db.save( emptyAdmin, new WikiPrincipal( "Tester" ) ),
+                "Saving the Admin group with zero members must throw WikiSecurityException" );
+        // Verify original Admin group still has its member
+        final Group actual = backendGroup( "Admin" );
+        Assertions.assertEquals( 1, actual.members().length );
+    }
+
+    @Test
+    public void testSaveAdminGroupWithMembersSucceeds() throws WikiSecurityException {
+        final Group adminGroup = backendGroup( "Admin" );
+        adminGroup.add( new WikiPrincipal( "NewAdmin" ) );
+        m_db.save( adminGroup, new WikiPrincipal( "Tester" ) );
+        final Group updated = backendGroup( "Admin" );
+        Assertions.assertEquals( 2, updated.members().length );
+    }
+
     private Group backendGroup( final String name ) throws WikiSecurityException {
         final Group[] groups = m_db.groups();
         for( final Group group : groups ) {

@@ -236,6 +236,10 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
      */
     @Override public void delete( final Group group ) throws WikiSecurityException
     {
+        if ( "Admin".equals( group.getName() ) ) {
+            throw new WikiSecurityException( "The Admin group cannot be deleted." );
+        }
+
         if( !exists( group ) )
         {
             throw new NoSuchPrincipalException( "Not in database: " + group.getName() );
@@ -326,6 +330,11 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         if( group == null || modifier == null )
         {
             throw new IllegalArgumentException( "Group or modifier cannot be null." );
+        }
+
+        if ( "Admin".equals( group.getName() ) && group.members().length == 0 ) {
+            throw new WikiSecurityException(
+                    "The Admin group must have at least one member. Cannot save with zero members." );
         }
 
         final boolean exists = exists( group );

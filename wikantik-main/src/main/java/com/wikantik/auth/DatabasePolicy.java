@@ -142,6 +142,26 @@ public class DatabasePolicy
     }
 
     /**
+     * Returns the DataSource used by this policy.
+     *
+     * @return the JDBC DataSource
+     */
+    public DataSource getDataSource()
+    {
+        return dataSource;
+    }
+
+    /**
+     * Returns the table name used for policy grants.
+     *
+     * @return the table name
+     */
+    public String getTableName()
+    {
+        return tableName;
+    }
+
+    /**
      * Builds a Permission object from the database row values.
      *
      * @param permType the permission type: "page", "wiki", or "group"

@@ -48,6 +48,7 @@ import com.wikantik.util.ClassUtil;
 import org.freshcookies.security.policy.LocalPolicy;
 
 import jakarta.servlet.http.HttpServletResponse;
+import javax.sql.DataSource;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -78,6 +79,18 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
     private static final Logger LOG = LogManager.getLogger( DefaultAuthorizationManager.class );
 
+    /** Property name for the JNDI DataSource used by DatabasePolicy. When set, the database-backed policy is used instead of file-based. */
+    public static final String PROP_POLICY_DATASOURCE = "wikantik.policy.datasource";
+
+    /** Property name for the database table holding policy grants. */
+    public static final String PROP_POLICY_TABLE = "wikantik.policy.table";
+
+    /** Default table name for database-backed policy grants. */
+    public static final String DEFAULT_POLICY_TABLE = "policy_grants";
+
+    /** Property name for the bootstrap admin override. When set, the named user bypasses all policy checks. */
+    public static final String PROP_BOOTSTRAP_ADMIN = "wikantik.admin.bootstrap";
+
     private Authorizer authorizer;
 
     /** Cache for storing ProtectionDomains used to evaluate the local policy. */
@@ -86,6 +99,9 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     private Engine engine;
 
     private volatile LocalPolicy localPolicy;
+
+    private DatabasePolicy databasePolicy;
+    private String bootstrapAdmin;
 
     /**
      * Constructs a new DefaultAuthorizationManager instance.
@@ -100,6 +116,16 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         if( session == null || permission == null ) {
             fireEvent( WikiSecurityEvent.ACCESS_DENIED, null, permission );
             return false;
+        }
+
+        // Bootstrap admin override — bypasses all policy checks for the configured user
+        if ( bootstrapAdmin != null ) {
+            for ( final Principal p : session.getPrincipals() ) {
+                if ( bootstrapAdmin.equals( p.getName() ) ) {
+                    fireEvent( WikiSecurityEvent.ACCESS_ALLOWED, session.getLoginPrincipal(), permission );
+                    return true;
+                }
+            }
         }
 
         final Principal user = session.getLoginPrincipal();
@@ -234,30 +260,56 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         authorizer = getAuthorizerImplementation( properties );
         authorizer.initialize( engine, properties );
 
-        // Initialize local security policy
-        try {
-            final String policyFileName = properties.getProperty( POLICY, DEFAULT_POLICY );
-            final URL policyURL = engine.findConfigFile( policyFileName );
-
-            if (policyURL != null) {
-                final File policyFile = new File( policyURL.toURI().getPath() );
-                LOG.info("We found security policy URL: {} and transformed it to file {}",policyURL, policyFile.getAbsolutePath());
-                final LocalPolicy newLocalPolicy = new LocalPolicy( policyFile, engine.getContentEncoding().displayName() );
-                newLocalPolicy.refresh();
-                localPolicy = newLocalPolicy;  // Assign after refresh completes for thread safety
-                LOG.info( "Initialized default security policy: {} - anonymous access now permitted", policyFile.getAbsolutePath() );
-            } else {
-                final String sb = "JSPWiki was unable to initialize the default security policy (WEB-INF/wikantik.policy) file. " +
-                                  "Please ensure that the wikantik.policy file exists in the default location. " +
-                		          "This file should exist regardless of the existance of a global policy file. " +
-                                  "The global policy file is identified by the java.security.policy variable. ";
-                final WikiSecurityException wse = new WikiSecurityException( sb );
-                LOG.fatal( sb, wse );
-                throw wse;
+        // Initialize security policy — database or file-based
+        final String policyDatasource = properties.getProperty( PROP_POLICY_DATASOURCE );
+        if ( policyDatasource != null && !policyDatasource.isBlank() ) {
+            // Database-backed policy
+            try {
+                final String tableName = properties.getProperty( PROP_POLICY_TABLE, DEFAULT_POLICY_TABLE );
+                final javax.naming.Context initCtx = new javax.naming.InitialContext();
+                final javax.naming.Context ctx = (javax.naming.Context) initCtx.lookup( "java:comp/env" );
+                final DataSource policyDs = (DataSource) ctx.lookup( policyDatasource );
+                databasePolicy = new DatabasePolicy( policyDs, tableName );
+                LOG.info( "Initialized database-backed security policy from JNDI DataSource: {}", policyDatasource );
+            } catch ( final Exception e ) {
+                LOG.error( "Could not initialize database security policy: {}", e.getMessage() );  // Error justified: startup failure is fatal
+                throw new WikiException( "Could not initialize database security policy: " + e.getMessage(), e );
             }
-        } catch ( final Exception e) {
-            LOG.error("Could not initialize local security policy: {}", e.getMessage() );
-            throw new WikiException( "Could not initialize local security policy: " + e.getMessage(), e );
+        } else {
+            // File-based policy (existing behavior)
+            try {
+                final String policyFileName = properties.getProperty( POLICY, DEFAULT_POLICY );
+                final URL policyURL = engine.findConfigFile( policyFileName );
+                if (policyURL != null) {
+                    final File policyFile = new File( policyURL.toURI().getPath() );
+                    LOG.info("We found security policy URL: {} and transformed it to file {}", policyURL, policyFile.getAbsolutePath());
+                    final LocalPolicy newLocalPolicy = new LocalPolicy( policyFile, engine.getContentEncoding().displayName() );
+                    newLocalPolicy.refresh();
+                    localPolicy = newLocalPolicy;
+                    LOG.info( "Initialized default security policy: {} - anonymous access now permitted", policyFile.getAbsolutePath() );
+                } else {
+                    final String sb = "JSPWiki was unable to initialize the default security policy (WEB-INF/wikantik.policy) file. "
+                            + "Please ensure that the wikantik.policy file exists in the default location. "
+                            + "This file should exist regardless of the existance of a global policy file. "
+                            + "The global policy file is identified by the java.security.policy variable. ";
+                    final WikiSecurityException wse = new WikiSecurityException( sb );
+                    LOG.fatal( sb, wse );
+                    throw wse;
+                }
+            } catch ( final Exception e) {
+                LOG.error("Could not initialize local security policy: {}", e.getMessage() );  // Error justified: startup failure
+                throw new WikiException( "Could not initialize local security policy: " + e.getMessage(), e );
+            }
+        }
+
+        // Bootstrap admin override
+        bootstrapAdmin = properties.getProperty( PROP_BOOTSTRAP_ADMIN );
+        if ( bootstrapAdmin != null && !bootstrapAdmin.isBlank() ) {
+            LOG.warn( "BOOTSTRAP ADMIN OVERRIDE IS ACTIVE — user '{}' has AllPermission regardless of "
+                    + "database grants. Remove the wikantik.admin.bootstrap property for production use.",
+                    bootstrapAdmin );
+        } else {
+            bootstrapAdmin = null;  // normalize blank to null
         }
     }
 
@@ -290,7 +342,17 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     /** {@inheritDoc} */
     @Override
     public boolean allowedByLocalPolicy( final Principal[] principals, final Permission permission ) {
-        // Check if local policy is initialized - deny access during startup window
+        // Database-backed policy path
+        if ( databasePolicy != null ) {
+            for ( final Principal principal : principals ) {
+                if ( databasePolicy.implies( principal, permission ) ) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // File-based policy path (existing behavior)
         final LocalPolicy currentPolicy = localPolicy;
         if ( currentPolicy == null ) {
             LOG.warn( "Local security policy not yet initialized - denying access for permission: {}", permission );
@@ -370,6 +432,11 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         }
     }
 
+
+    /** Returns the DatabasePolicy instance, or null if using file-based policy. */
+    public DatabasePolicy getDatabasePolicy() {
+        return databasePolicy;
+    }
 
     // events processing .......................................................
 

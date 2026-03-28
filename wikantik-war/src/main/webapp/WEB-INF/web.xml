@@ -325,6 +325,14 @@
        <servlet-name>AdminContentResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminContentResource</servlet-class>
    </servlet>
+   <servlet>
+       <servlet-name>AdminGroupResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminGroupResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>AdminPolicyResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminPolicyResource</servlet-class>
+   </servlet>
 
    <!-- Observability -->
    <servlet>
@@ -426,6 +434,22 @@
    <servlet-mapping>
        <servlet-name>AdminContentResource</servlet-name>
        <url-pattern>/admin/content/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminGroupResource</servlet-name>
+       <url-pattern>/admin/groups/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminGroupResource</servlet-name>
+       <url-pattern>/admin/groups</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminPolicyResource</servlet-name>
+       <url-pattern>/admin/policy/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminPolicyResource</servlet-name>
+       <url-pattern>/admin/policy</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

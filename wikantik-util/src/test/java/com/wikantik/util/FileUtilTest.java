@@ -25,8 +25,11 @@ import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 
@@ -111,6 +114,46 @@ public class FileUtilTest
         final String result = FileUtil.readContents( new StringReader( data ) );
 
         Assertions.assertEquals( data, result );
+    }
+
+    /**
+     * Verifies that non-ASCII characters (umlauts, CJK) survive a round-trip through
+     * UTF-8 stream readers/writers, which requires explicit charset specification.
+     */
+    @Test
+    public void testNonAsciiRoundTripThroughUtf8Streams() throws IOException {
+        final String nonAscii = "Gr\u00fc\u00dfe \u00e4\u00f6\u00fc \u4e16\u754c \ud55c\uad6d\uc5b4";
+
+        // Write through OutputStreamWriter with explicit UTF-8
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try ( final OutputStreamWriter writer = new OutputStreamWriter( baos, StandardCharsets.UTF_8 ) ) {
+            writer.write( nonAscii );
+        }
+
+        // Read back through InputStreamReader with explicit UTF-8
+        final ByteArrayInputStream bais = new ByteArrayInputStream( baos.toByteArray() );
+        final String result;
+        try ( final InputStreamReader reader = new InputStreamReader( bais, StandardCharsets.UTF_8 ) ) {
+            result = FileUtil.readContents( reader );
+        }
+
+        Assertions.assertEquals( nonAscii, result );
+    }
+
+    /**
+     * Verifies that newTmpFile correctly handles non-ASCII content with UTF-8 encoding.
+     */
+    @Test
+    public void testNewTmpFileWithNonAsciiUtf8() throws IOException {
+        final String nonAscii = "\u00e4\u00f6\u00fc\u00df \u4e16\u754c";
+        final File tmpFile = FileUtil.newTmpFile( nonAscii, StandardCharsets.UTF_8 );
+        try {
+            final String result = FileUtil.readContents(
+                java.nio.file.Files.newInputStream( tmpFile.toPath() ), StandardCharsets.UTF_8.name() );
+            Assertions.assertEquals( nonAscii, result );
+        } finally {
+            tmpFile.delete();
+        }
     }
 
 }

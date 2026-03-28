@@ -54,7 +54,9 @@ public class McpConfig {
     public McpConfig() {
         props = new Properties();
         final ClassLoader ownCl = McpConfig.class.getClassLoader();
-        loadFromClasspath( ownCl, props );
+        if ( ownCl != null ) {
+            loadFromClasspath( ownCl, props );
+        }
 
         // Overlay from the parent classloader (e.g. Tomcat's common classloader
         // which includes tomcat/lib/) so admin-placed overrides take effect.
@@ -179,12 +181,15 @@ public class McpConfig {
                 LOG.warn( "Error reading instructions file '{}': {}", resourceName, e.getMessage() );
             }
         }
-        try ( final InputStream is = McpConfig.class.getClassLoader().getResourceAsStream( resourceName ) ) {
-            if ( is != null ) {
-                return new String( is.readAllBytes(), StandardCharsets.UTF_8 ).strip();
+        final ClassLoader ownCl = McpConfig.class.getClassLoader();
+        if ( ownCl != null ) {
+            try ( final InputStream is = ownCl.getResourceAsStream( resourceName ) ) {
+                if ( is != null ) {
+                    return new String( is.readAllBytes(), StandardCharsets.UTF_8 ).strip();
+                }
+            } catch ( final IOException e ) {
+                LOG.warn( "Error reading instructions file '{}': {}", resourceName, e.getMessage() );
             }
-        } catch ( final IOException e ) {
-            LOG.warn( "Error reading instructions file '{}': {}", resourceName, e.getMessage() );
         }
         return null;
     }

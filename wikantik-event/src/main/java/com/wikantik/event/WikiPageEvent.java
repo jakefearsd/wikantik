@@ -19,6 +19,8 @@
 
 package com.wikantik.event;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * WikiPageEvent indicates a change in the state or processing of a WikiPage. There are basically two types of page events:
  * <dl>
@@ -191,6 +193,8 @@ public non-sealed class WikiPageEvent extends WikiEvent {
     /**
      * Returns true if the int value is a WikiPageEvent type.
      */
+    @SuppressFBWarnings( value = "HSM_HIDING_METHOD",
+            justification = "Intentional: static method validates WikiPageEvent-specific types, not parent types" )
     public static boolean isValidType( final int type ) {
         return type >= PAGE_LOCK && type <= PAGE_DELETED;
     }

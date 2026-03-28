@@ -112,8 +112,8 @@ public final class FileUtil {
         pb.directory( new File( directory ) );
         final Process process = pb.start();
 
-        try( final BufferedReader stdout = new BufferedReader( new InputStreamReader( process.getInputStream() ) );
-             final BufferedReader stderr = new BufferedReader( new InputStreamReader( process.getErrorStream() ) ) ) {
+        try( final BufferedReader stdout = new BufferedReader( new InputStreamReader( process.getInputStream(), StandardCharsets.UTF_8 ) );
+             final BufferedReader stderr = new BufferedReader( new InputStreamReader( process.getErrorStream(), StandardCharsets.UTF_8 ) ) ) {
             String line;
 
             while( (line = stdout.readLine()) != null ) {

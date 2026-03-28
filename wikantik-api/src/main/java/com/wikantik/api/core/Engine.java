@@ -429,7 +429,7 @@ public interface Engine {
         }
         final var events = ServiceLoader.load( CustomWikiEventListener.class );
         for( final var event : events ) {
-            CustomWikiEventListener.LISTENERS.add( event );
+            CustomWikiEventListener.addListener( event );
             event.initialize( this, getWikiProperties() );
             WikiEventManager.addWikiEventListener( event.client(), event );
         }

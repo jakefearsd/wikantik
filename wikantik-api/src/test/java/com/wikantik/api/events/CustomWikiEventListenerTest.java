@@ -29,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Properties;
 
 @ExtendWith( MockitoExtension.class )
@@ -39,7 +40,7 @@ class CustomWikiEventListenerTest {
 
     @BeforeEach
     void setUp() {
-        CustomWikiEventListener.LISTENERS.clear();
+        CustomWikiEventListener.clearListeners();
     }
 
     @Test
@@ -54,7 +55,18 @@ class CustomWikiEventListenerTest {
         Assertions.assertEquals( "initialize", properties.getProperty( "test1" ) );
         Assertions.assertEquals( "client", properties.getProperty( "test2" ) );
         Assertions.assertEquals( "actionPerformed", properties.getProperty( "test3" ) );
-        Assertions.assertEquals( 1, CustomWikiEventListener.LISTENERS.size() );
+        Assertions.assertEquals( 1, CustomWikiEventListener.listeners().size() );
+    }
+
+    @Test
+    void listenersViewShouldBeUnmodifiable() {
+        final List< CustomWikiEventListener< ? > > view = CustomWikiEventListener.listeners();
+        Assertions.assertThrows( UnsupportedOperationException.class, () -> view.add( null ),
+                "listeners() should return an unmodifiable list" );
+        Assertions.assertThrows( UnsupportedOperationException.class, () -> view.remove( 0 ),
+                "listeners() should return an unmodifiable list" );
+        Assertions.assertThrows( UnsupportedOperationException.class, view::clear,
+                "listeners() should return an unmodifiable list" );
     }
 
 }

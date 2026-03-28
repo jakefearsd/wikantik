@@ -19,6 +19,7 @@
 package com.wikantik.pages;
 
 import com.wikantik.api.core.Page;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.util.Date;
 
@@ -29,6 +30,8 @@ import java.util.Date;
  * @deprecated Use {@link com.wikantik.api.pages.PageLock} instead.
  */
 @Deprecated( since = "2.12.0", forRemoval = true )
+@SuppressFBWarnings( value = "NM_SAME_SIMPLE_NAME_AS_SUPERCLASS",
+        justification = "Intentional: backward-compatibility shim, scheduled for removal" )
 public class PageLock extends com.wikantik.api.pages.PageLock {
 
     private static final long serialVersionUID = 0L;

@@ -19,6 +19,8 @@
 
 package com.wikantik.event;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  *  WikiPageRenameEvent extends WikiPageEvent to indicate a change in the name of a WikiPage.
  *  <p>
@@ -72,6 +74,8 @@ public class WikiPageRenameEvent extends WikiPageEvent {
     /**
      * Returns true if the int value is a WikiPageRenameEvent type.
      */
+    @SuppressFBWarnings( value = "HSM_HIDING_METHOD",
+            justification = "Intentional: static method validates WikiPageRenameEvent-specific types, not parent types" )
     public static boolean isValidType( final int type ) {
         return type == PAGE_RENAMED;
     }

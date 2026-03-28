@@ -76,6 +76,26 @@ public class SerializerSecurityTest {
     }
 
     /**
+     * A round-trip of a HashMap containing non-ASCII String values (umlauts, CJK)
+     * must preserve the characters exactly. This verifies that the Base64 encoding
+     * uses an explicit charset rather than platform default.
+     */
+    @Test
+    public void testNonAsciiRoundTrip() throws Exception {
+        final Map<String, Serializable> map = new HashMap<>();
+        map.put( "german", "Gr\u00fc\u00dfe \u00e4\u00f6\u00fc" );
+        map.put( "chinese", "\u4e16\u754c\u4f60\u597d" );
+        map.put( "korean", "\ud55c\uad6d\uc5b4" );
+        final String serialized = Serializer.serializeToBase64( map );
+
+        final Map<String, ? extends Serializable> result = Serializer.deserializeFromBase64( serialized );
+        Assertions.assertEquals( 3, result.size() );
+        Assertions.assertEquals( "Gr\u00fc\u00dfe \u00e4\u00f6\u00fc", result.get( "german" ) );
+        Assertions.assertEquals( "\u4e16\u754c\u4f60\u597d", result.get( "chinese" ) );
+        Assertions.assertEquals( "\ud55c\uad6d\uc5b4", result.get( "korean" ) );
+    }
+
+    /**
      * A round-trip of a HashMap containing common value types (Integer, Long,
      * Boolean, Date) must succeed. This verifies the whitelist includes types
      * commonly used in user profile attributes.

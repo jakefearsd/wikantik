@@ -141,6 +141,13 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
             >
               Content Management
             </Link>
+            <Link
+              to="/admin/security"
+              className="sidebar-link"
+              onClick={onMobileClose}
+            >
+              Security
+            </Link>
           </div>
         )}
 

@@ -162,5 +162,42 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ cache: cache || null }),
       }),
+
+    // Group Management
+    listGroups: () => request('/admin/groups'),
+
+    getGroup: (name) =>
+      request(`/admin/groups/${encodeURIComponent(name)}`),
+
+    updateGroup: (name, data) =>
+      request(`/admin/groups/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    deleteGroup: (name) =>
+      request(`/admin/groups/${encodeURIComponent(name)}`, {
+        method: 'DELETE',
+      }),
+
+    // Policy Grant Management
+    listPolicyGrants: () => request('/admin/policy'),
+
+    createPolicyGrant: (data) =>
+      request('/admin/policy', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    updatePolicyGrant: (id, data) =>
+      request(`/admin/policy/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    deletePolicyGrant: (id) =>
+      request(`/admin/policy/${id}`, {
+        method: 'DELETE',
+      }),
   },
 };

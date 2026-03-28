@@ -130,7 +130,9 @@ export default function PageView() {
       {page.metadata?.tags && (
         <div style={{ marginTop: 'var(--space-2xl)', display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
           {(Array.isArray(page.metadata.tags) ? page.metadata.tags : [page.metadata.tags]).map(tag => (
-            <span key={tag} className="tag">{tag}</span>
+            <Link key={tag} to={`/search?q=${encodeURIComponent(tag)}`} className="tag" style={{ textDecoration: 'none' }}>
+              {tag}
+            </Link>
           ))}
         </div>
       )}

@@ -69,7 +69,7 @@ public class LruPropertyCache implements PropertyCacheStrategy {
         this.cache = new LinkedHashMap<>( maxSize + 1, 0.75f, true ) {
             @Override
             protected boolean removeEldestEntry( final Map.Entry<String, CachedEntry> eldest ) {
-                return size() > LruPropertyCache.this.maxSize;
+                return this.size() > LruPropertyCache.this.maxSize;
             }
         };
     }

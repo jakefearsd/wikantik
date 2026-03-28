@@ -18,6 +18,8 @@
  */
 package com.wikantik.search;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 
 /**
  * This simple class just fulfils the role of a container for searches.  It tells the word and whether it is requested or not.
@@ -26,5 +28,7 @@ package com.wikantik.search;
  * @see com.wikantik.api.search.QueryItem
  */
 @Deprecated
+@SuppressFBWarnings( value = "NM_SAME_SIMPLE_NAME_AS_SUPERCLASS",
+        justification = "Intentional: backward-compatibility shim, scheduled for removal" )
 public class QueryItem extends com.wikantik.api.search.QueryItem {
 }

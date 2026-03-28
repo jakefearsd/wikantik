@@ -18,6 +18,8 @@
  */
 package com.wikantik.event;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
   * WikiEngineEvent indicates a change in the state of the Engine.
   *
@@ -69,11 +71,13 @@ public final class WikiEngineEvent extends WikiEvent {
     }
 
     /**
-     * Returns <code>true</code> if the int value is a WikiPageEvent type.
+     * Returns <code>true</code> if the int value is a WikiEngineEvent type.
      *
      * @param type the event type
      * @return the result
      */
+    @SuppressFBWarnings( value = "HSM_HIDING_METHOD",
+            justification = "Intentional: static method validates WikiEngineEvent-specific types, not parent types" )
     public static boolean isValidType( final int type ) {
         return type >= INITIALIZING && type <= STOPPED;
     }

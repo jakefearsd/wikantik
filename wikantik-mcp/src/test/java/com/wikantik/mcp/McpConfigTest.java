@@ -185,6 +185,22 @@ class McpConfigTest {
         assertTrue( config.accessKeys().isEmpty() );
     }
 
+    /**
+     * Verifies that constructing McpConfig via the no-arg constructor does not throw
+     * a NullPointerException from classloader handling. The class loader of McpConfig
+     * should always be non-null in a standard JVM, so the constructor must handle it
+     * safely and return a functional config.
+     */
+    @Test
+    void testConstructorHandlesClassLoaderSafely() {
+        // The no-arg constructor loads from classpath, exercising the classloader null-check path
+        final McpConfig config = new McpConfig();
+        assertNotNull( config );
+        // Should return defaults without error
+        assertNotNull( config.serverName() );
+        assertNotNull( config.serverVersion() );
+    }
+
     // --- Rate limit tests ---
 
     @Test

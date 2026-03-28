@@ -23,6 +23,7 @@ import com.wikantik.api.engine.Initializable;
 import com.wikantik.event.WikiEventListener;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
@@ -32,8 +33,38 @@ import java.util.Properties;
  */
 public interface CustomWikiEventListener< T > extends WikiEventListener, Initializable {
 
-    /** {@link WikiEventListener}s are stored on a {@code List< WeaKReference >} so we use this List to strong reference custom event listeners. */
+    /**
+     * Internal mutable backing list for registered listeners.
+     * {@link WikiEventListener}s are stored on a {@code List< WeakReference >} so we use this List
+     * to strong-reference custom event listeners. Not directly exposed; use {@link #listeners()},
+     * {@link #addListener(CustomWikiEventListener)}, and {@link #clearListeners()} instead.
+     */
     List< CustomWikiEventListener< ? > > LISTENERS = new ArrayList<>();
+
+    /**
+     * Returns an unmodifiable view of the registered custom event listeners.
+     *
+     * @return an unmodifiable list of listeners
+     */
+    static List< CustomWikiEventListener< ? > > listeners() {
+        return Collections.unmodifiableList( LISTENERS );
+    }
+
+    /**
+     * Registers a custom event listener, adding a strong reference to prevent garbage collection.
+     *
+     * @param listener the listener to register
+     */
+    static void addListener( final CustomWikiEventListener< ? > listener ) {
+        LISTENERS.add( listener );
+    }
+
+    /**
+     * Removes all registered custom event listeners.
+     */
+    static void clearListeners() {
+        LISTENERS.clear();
+    }
 
     /**
      * Returns the object of the events' source. Typically, it will be obtained on the

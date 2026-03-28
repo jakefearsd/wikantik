@@ -49,6 +49,16 @@ export const api = {
     return request(`/api/pages?${params}`);
   },
 
+  // Comments
+  getComments: (name) =>
+    request(`/api/comments/${encodeURIComponent(name)}`),
+
+  addComment: (name, text) =>
+    request(`/api/comments/${encodeURIComponent(name)}`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
+
   // Search
   search: (query, limit = 20) =>
     request(`/api/search?q=${encodeURIComponent(query)}&limit=${limit}`),

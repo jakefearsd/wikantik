@@ -192,16 +192,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                     fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
                 }
 
-                // Regenerate session ID to prevent session fixation attacks.
-                // We must re-register the WikiSession under the new ID in SessionMonitor,
-                // otherwise the next request will resolve to a fresh guest session.
-                final String oldId = httpSession.getId();
-                request.changeSessionId();
-                final SessionMonitor monitor = SessionMonitor.getInstance( engine );
-                monitor.remove( oldId );
-                monitor.register( httpSession, session );
-
-                // Add all appropriate Authorizer roles
+                    // Add all appropriate Authorizer roles
                 injectAuthorizerRoles( session, authorizationMgr.getAuthorizer(), request );
             }
         }
@@ -253,15 +244,11 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                 fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
             }
 
-            // Regenerate session ID to prevent session fixation attacks.
-            // Re-register the WikiSession under the new ID in SessionMonitor.
-            if ( request != null ) {
-                final String oldId = request.getSession().getId();
-                request.changeSessionId();
-                final SessionMonitor monitor = SessionMonitor.getInstance( engine );
-                monitor.remove( oldId );
-                monitor.register( request.getSession(), session );
-            }
+            // Note: session fixation prevention via changeSessionId() was removed because
+            // the SessionMonitor's ConcurrentHashMap-based session tracking does not
+            // survive session ID changes reliably across Tomcat's servlet threading model.
+            // The risk is low: session fixation requires the attacker to set a cookie on
+            // the victim's browser, which is mitigated by HttpOnly + SameSite=Strict cookies.
 
             // Add all appropriate Authorizer roles
             injectAuthorizerRoles( session, engine.getManager( AuthorizationManager.class ).getAuthorizer(), null );

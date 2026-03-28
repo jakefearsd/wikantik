@@ -1,4 +1,5 @@
-import { useParams, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
@@ -6,11 +7,25 @@ import PageMeta from './PageMeta';
 import MetadataPanel from './MetadataPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
 import '../styles/article.css';
+import '../styles/admin.css';
 
 export default function PageView() {
   const { name = 'Main' } = useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: page, loading, error } = useApi(() => api.getPage(name, { render: true }), [name]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
+  async function handleDelete() {
+    try {
+      await api.deletePage(name);
+      setConfirmDelete(false);
+      navigate('/wiki/Main');
+    } catch (err) {
+      setDeleteError(err.message || 'Failed to delete page');
+    }
+  }
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error?.status === 404) return <NotFound name={name} />;
@@ -21,12 +36,33 @@ export default function PageView() {
     <div className="page-enter">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-md)' }}>
         <PageMeta page={page} />
-        {page.permissions?.edit && (
-          <Link to={`/edit/${name}`} className="btn btn-ghost" style={{ flexShrink: 0 }}>
-            ✎ Edit
-          </Link>
-        )}
+        <div style={{ display: 'flex', gap: 'var(--space-sm)', flexShrink: 0 }}>
+          {page.permissions?.edit && (
+            <Link to={`/edit/${name}`} className="btn btn-ghost">
+              ✎ Edit
+            </Link>
+          )}
+          {page.permissions?.delete && (
+            <button className="btn btn-ghost btn-danger" onClick={() => { setConfirmDelete(true); setDeleteError(null); }}>
+              🗑 Delete
+            </button>
+          )}
+        </div>
       </div>
+
+      {confirmDelete && (
+        <div className="modal-overlay" onClick={() => setConfirmDelete(false)}>
+          <div className="modal-content admin-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Delete Page</h3>
+            <p>Are you sure you want to delete "{name}"? This action cannot be undone.</p>
+            {deleteError && <p className="error-banner" style={{ marginBottom: 'var(--space-sm)' }}>{deleteError}</p>}
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              <button className="btn btn-primary btn-danger" onClick={handleDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
       <MetadataPanel metadata={page.metadata} />
       <ChangeNotesPanel pageName={name} />
 

@@ -35,6 +35,7 @@ import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.content.PageRenamer;
 import com.wikantik.render.RenderingManager;
 
 import jakarta.servlet.ServletException;
@@ -60,6 +61,7 @@ import java.util.Map;
  *   <li>{@code PUT /api/pages/PageName} - Create or update a page</li>
  *   <li>{@code PATCH /api/pages/PageName} - Update metadata only (merge or replace)</li>
  *   <li>{@code DELETE /api/pages/PageName} - Delete a page</li>
+ *   <li>{@code POST /api/pages/PageName/rename} - Rename a page</li>
  * </ul>
  */
 public class PageResource extends RestServletBase {
@@ -361,6 +363,91 @@ public class PageResource extends RestServletBase {
             LOG.error( "Error patching page {}: {}", pageName, e.getMessage() );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Error patching page: " + e.getMessage() );
+        }
+    }
+
+    @Override
+    protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
+            throws ServletException, IOException {
+        final String pathParam = extractPathParam( request );
+        if ( pathParam != null && pathParam.endsWith( "/rename" ) ) {
+            final String pageName = pathParam.substring( 0, pathParam.length() - "/rename".length() );
+            handleRename( request, response, pageName );
+            return;
+        }
+        sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint" );
+    }
+
+    /**
+     * Handles a page rename request.
+     * <p>
+     * Expects a JSON body with:
+     * <ul>
+     *   <li>{@code newName} - the new page name (required, must not be blank)</li>
+     *   <li>{@code changeReferrers} - if {@code true}, update all referring pages (default {@code true})</li>
+     * </ul>
+     *
+     * @param request  the HTTP request
+     * @param response the HTTP response
+     * @param pageName the current name of the page to rename
+     * @throws IOException if writing the response fails
+     */
+    private void handleRename( final HttpServletRequest request, final HttpServletResponse response,
+                                final String pageName ) throws IOException {
+        if ( !checkPagePermission( request, response, pageName, "rename" ) ) return;
+
+        LOG.debug( "POST rename page: {} ", pageName );
+
+        // Parse JSON body
+        final JsonObject body;
+        try ( final BufferedReader reader = request.getReader() ) {
+            body = JsonParser.parseReader( reader ).getAsJsonObject();
+        } catch ( final Exception e ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + e.getMessage() );
+            return;
+        }
+
+        // Validate newName
+        if ( !body.has( "newName" ) || body.get( "newName" ).getAsString().isBlank() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "newName is required and must not be blank" );
+            return;
+        }
+        final String newName = body.get( "newName" ).getAsString().trim();
+
+        final boolean changeReferrers = !body.has( "changeReferrers" ) || body.get( "changeReferrers" ).getAsBoolean();
+
+        final Engine engine = getEngine();
+        final PageManager pm = engine.getManager( PageManager.class );
+
+        // Source page must exist
+        final Page page = pm.getPage( pageName );
+        if ( page == null ) {
+            sendNotFound( response, "Page not found: " + pageName );
+            return;
+        }
+
+        // Target page must not already exist
+        if ( pm.getPage( newName ) != null ) {
+            sendError( response, HttpServletResponse.SC_CONFLICT, "Page already exists: " + newName );
+            return;
+        }
+
+        try {
+            final PageRenamer renamer = engine.getManager( PageRenamer.class );
+            final Context context = Wiki.context().create( engine, request, page );
+            final String finalName = renamer.renamePage( context, pageName, newName, changeReferrers );
+
+            final Map< String, Object > result = new LinkedHashMap<>();
+            result.put( "success", true );
+            result.put( "oldName", pageName );
+            result.put( "newName", finalName );
+
+            sendJson( response, result );
+
+        } catch ( final WikiException e ) {
+            LOG.error( "Error renaming page {} to {}: {}", pageName, newName, e.getMessage() );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Error renaming page: " + e.getMessage() );
         }
     }
 

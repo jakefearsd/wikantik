@@ -76,6 +76,9 @@ class PageResourceTest {
             try { pm.deletePage( "RestVersionPage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "RestPatchMergePage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "RestPatchReplacePage" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "RestRenameSource" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "RestRenameTarget" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "RestRenameExisting" ); } catch ( final Exception e ) { /* ignore */ }
             engine.stop();
         }
     }
@@ -711,10 +714,147 @@ class PageResourceTest {
         return gson.toJson( result );
     }
 
+    /**
+     * Performs a POST request using a spy servlet that bypasses authorization.
+     * JAAS authentication is not available in the {@code wikantik-rest} test context
+     * (the user database XML file path resolves relative to {@code wikantik-main}),
+     * so we spy on the servlet and stub {@code checkPagePermission} to always allow.
+     * Authorization enforcement is tested separately in
+     * {@link RestAuthorizationSecurityTest}.
+     */
+    private String doPostAsAuthenticated( final String pathInfo, final JsonObject body ) throws Exception {
+        final PageResource spy = Mockito.spy( servlet );
+        Mockito.doReturn( true ).when( spy ).checkPagePermission(
+                Mockito.any(), Mockito.any(), Mockito.anyString(), Mockito.anyString() );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages/" + pathInfo );
+        Mockito.doReturn( "/" + pathInfo ).when( request ).getPathInfo();
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        spy.doPost( request, response );
+        return sw.toString();
+    }
+
     private HttpServletRequest createRequest( final String pageName ) {
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages/" + pageName );
         Mockito.doReturn( "/" + pageName ).when( request ).getPathInfo();
         return request;
+    }
+
+    // ----- Feature: Page Rename -----
+
+    /**
+     * Rename with missing newName field must return 400.
+     * <p>
+     * The rename endpoint requires "rename" permission which anonymous users lack,
+     * so we mock the authorization manager to allow it and test the validation logic.
+     */
+    @Test
+    void testRenamePageMissingNewName() throws Exception {
+        engine.saveText( "RestRenameSource", "Content to rename." );
+
+        final JsonObject body = new JsonObject();
+        // No newName field at all
+
+        final String json = doPostAsAuthenticated( "RestRenameSource/rename", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "newName" ) );
+    }
+
+    @Test
+    void testRenamePageBlankNewName() throws Exception {
+        engine.saveText( "RestRenameSource", "Content to rename." );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "newName", "   " );
+
+        final String json = doPostAsAuthenticated( "RestRenameSource/rename", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "newName" ) );
+    }
+
+    /**
+     * Successful rename: source page is moved to the new name.
+     * <p>
+     * JAAS authentication is not available in the {@code wikantik-rest} test context,
+     * so we exercise the rename via PageRenamer directly (the same way
+     * {@link #doDeleteAsAdmin(String)} bypasses the REST delete endpoint).
+     * Authorization enforcement for rename is tested in
+     * {@link RestAuthorizationSecurityTest}.
+     */
+    @Test
+    void testRenamePageSuccess() throws Exception {
+        engine.saveText( "RestRenameSource", "Content to rename." );
+
+        // Exercise rename through the engine (same approach as doDeleteAsAdmin)
+        final com.wikantik.api.core.Page page = engine.getManager( PageManager.class ).getPage( "RestRenameSource" );
+        final com.wikantik.api.core.Context ctx = com.wikantik.api.spi.Wiki.context().create( engine, page );
+        final com.wikantik.content.PageRenamer renamer = engine.getManager( com.wikantik.content.PageRenamer.class );
+        final String finalName = renamer.renamePage( ctx, "RestRenameSource", "RestRenameTarget", true );
+
+        assertEquals( "RestRenameTarget", finalName );
+
+        // Verify: old page gone, new page exists
+        final PageManager pm = engine.getManager( PageManager.class );
+        assertNull( pm.getPage( "RestRenameSource" ), "Old page should no longer exist" );
+        assertNotNull( pm.getPage( "RestRenameTarget" ), "New page should exist" );
+    }
+
+    @Test
+    void testRenamePageTargetExists() throws Exception {
+        engine.saveText( "RestRenameSource", "Source content." );
+        engine.saveText( "RestRenameExisting", "Existing target content." );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "newName", "RestRenameExisting" );
+
+        final String json = doPostAsAuthenticated( "RestRenameSource/rename", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 409, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "RestRenameExisting" ) );
+    }
+
+    @Test
+    void testRenamePageSourceNotFound() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "newName", "RestRenameTarget" );
+
+        final String json = doPostAsAuthenticated( "NonExistentPage99/rename", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 404, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testPostUnknownEndpoint() throws Exception {
+        final JsonObject body = new JsonObject();
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages/SomePage/unknown" );
+        Mockito.doReturn( "/SomePage/unknown" ).when( request ).getPathInfo();
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPost( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 404, obj.get( "status" ).getAsInt() );
     }
 
 }

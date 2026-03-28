@@ -2,6 +2,27 @@
 
 This guide provides a comprehensive walkthrough for deploying a production-ready Wikantik instance using Docker, with a focus on configuration, data persistence, and automated backups.
 
+## Current Application Endpoints
+
+The deployed Wikantik instance includes the following endpoints:
+
+| Path | Description |
+|------|-------------|
+| `/` | Traditional JSP-based wiki interface |
+| `/app/` | React SPA (modern reading/editing UI) |
+| `/app/admin/` | Admin panel (user, content, and security management) |
+| `/api/` | REST API |
+| `/mcp/` | MCP server for AI agent integration |
+
+The `wikantik-observability` module provides additional endpoints:
+
+| Path | Description |
+|------|-------------|
+| `/api/health` | Application health checks |
+| `/metrics` | Prometheus-compatible metrics |
+
+Observability endpoints are IP-restricted to internal networks via `InternalNetworkFilter`.
+
 ## 1. Configuration
 
 Wikantik's Docker container is highly configurable through environment variables. This allows you to customize your installation without modifying the core application files.
@@ -20,6 +41,8 @@ The following environment variables are available to configure your Wikantik ins
 *   `jspwiki_workDir`: The working directory for Wikantik. Defaults to `/var/jspwiki/work`.
 *   `jspwiki_xmlUserDatabaseFile`: The path to the user database file. Defaults to `/var/jspwiki/etc/userdatabase.xml`.
 *   `jspwiki_xmlGroupDatabaseFile`: The path to the group database file. Defaults to `/var/jspwiki/etc/groupdatabase.xml`.
+
+**Note on naming conventions**: The environment variables above use the legacy `jspwiki_` prefix for backward compatibility. The current codebase uses `wikantik` naming internally, but the `jspwiki_` prefix continues to work for property overrides.
 
 ## 2. Data Persistence and Backup Strategy
 

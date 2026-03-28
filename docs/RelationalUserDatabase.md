@@ -99,6 +99,7 @@ CREATE TABLE users (
     password VARCHAR(255),
     email VARCHAR(255),
     created DATETIME,
+    lock_expiry DATETIME,
     attributes TEXT,
     PRIMARY KEY (uid)
 );
@@ -131,6 +132,7 @@ CREATE TABLE users (
     password VARCHAR(255),
     email VARCHAR(255),
     created TIMESTAMP,
+    lock_expiry TIMESTAMP,
     attributes TEXT,
     PRIMARY KEY (uid)
 );
@@ -159,5 +161,76 @@ While the configuration is similar for both databases, there are a few key diffe
 *   **JDBC Driver:** Use the appropriate JDBC driver for your database.
 *   **JDBC URL:** The JDBC URL format is different for each database.
 *   **SQL Dialect:** The SQL syntax for creating tables is slightly different (e.g., `AUTO_INCREMENT` in MySQL vs. `SERIAL` in PostgreSQL).
+
+## 5. Database-Backed Authorization Policy
+
+In addition to users and groups, Wikantik supports storing authorization policy grants in the database via the `policy_grants` table. This replaces the file-based `wikantik.policy` with a database-backed equivalent.
+
+### Enabling Database-Backed Policy
+
+Set the following property in `wikantik-custom.properties`:
+
+```properties
+# Enable database-backed authorization policy (replaces file-based wikantik.policy)
+wikantik.policy.datasource = jdbc/UserDatabase
+```
+
+### policy_grants Table
+
+#### MySQL
+
+```sql
+CREATE TABLE policy_grants (
+    id INT NOT NULL AUTO_INCREMENT,
+    principal_type VARCHAR(50) NOT NULL,
+    principal_name VARCHAR(255) NOT NULL,
+    permission_type VARCHAR(255) NOT NULL,
+    target VARCHAR(255),
+    actions VARCHAR(255),
+    PRIMARY KEY (id)
+);
+```
+
+#### PostgreSQL
+
+```sql
+CREATE TABLE policy_grants (
+    id SERIAL PRIMARY KEY,
+    principal_type VARCHAR(50) NOT NULL,
+    principal_name VARCHAR(255) NOT NULL,
+    permission_type VARCHAR(255) NOT NULL,
+    target VARCHAR(255),
+    actions VARCHAR(255)
+);
+```
+
+### Admin UI
+
+Groups and policy grants are manageable via the admin UI at `/app/admin/security`.
+
+## 6. Additional Users Table Columns
+
+The users table may include the following additional columns depending on your Wikantik version:
+
+- `lock_expiry TIMESTAMP` -- Tracks account lock expiration (e.g., after failed login attempts)
+- `attributes TEXT` -- Stores serialized user attributes
+
+If your existing schema is missing these columns, add them:
+
+#### MySQL
+
+```sql
+ALTER TABLE users ADD COLUMN lock_expiry DATETIME;
+ALTER TABLE users ADD COLUMN attributes TEXT;
+```
+
+#### PostgreSQL
+
+```sql
+ALTER TABLE users ADD COLUMN lock_expiry TIMESTAMP;
+ALTER TABLE users ADD COLUMN attributes TEXT;
+```
+
+---
 
 By following these steps, you can successfully configure Wikantik to use a relational database for user and group management, providing a more robust and scalable solution for your wiki.

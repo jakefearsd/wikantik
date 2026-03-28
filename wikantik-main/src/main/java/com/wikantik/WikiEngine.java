@@ -129,7 +129,7 @@ public class WikiEngine implements Engine {
     private String           appid = "";
 
     /** engine is up and running or not */
-    private boolean          isConfigured;
+    private volatile boolean isConfigured;
 
     /** Stores wikiengine attributes. */
     private final Map< String, Object > attributes = new ConcurrentHashMap<>();

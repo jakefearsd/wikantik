@@ -136,7 +136,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         return findBy( WIKI_NAME, index );
     }
 
-    public UserProfile findBy( final String attr, final String value ) throws NoSuchPrincipalException {
+    public synchronized UserProfile findBy( final String attr, final String value ) throws NoSuchPrincipalException {
         final UserProfile profile = findByAttribute( attr, value );
         if ( profile != null ) {
             return profile;
@@ -146,7 +146,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
 
     /** {@inheritDoc} */
     @Override
-    public Principal[] getWikiNames() throws WikiSecurityException {
+    public synchronized Principal[] getWikiNames() throws WikiSecurityException {
         if ( dom == null ) {
             throw new IllegalStateException( "FATAL: database does not exist" );
         }
@@ -399,7 +399,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
      * @param index value to match
      * @return the profile, or <code>null</code> if not found
      */
-    private UserProfile findByAttribute( final String matchAttribute, String index ) {
+    private synchronized UserProfile findByAttribute( final String matchAttribute, String index ) {
         if ( dom == null ) {
             throw new IllegalStateException( "FATAL: database does not exist" );
         }

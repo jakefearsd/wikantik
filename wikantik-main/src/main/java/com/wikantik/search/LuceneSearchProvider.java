@@ -747,7 +747,7 @@ public class LuceneSearchProvider implements SearchProvider {
 
         private final int initialDelay;
         private final int missingPageCheckInterval;
-        private long lastMissingPageCheck;
+        private volatile long lastMissingPageCheck;
 
         private WatchDog watchdog;
 

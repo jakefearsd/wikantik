@@ -239,18 +239,12 @@ public final class WikiEventManager {
      */
     public static boolean removeWikiEventListener( final WikiEventListener listener ) {
         boolean removed = false;
-        // get the Map.entry object for the entire Map, then check match on entry (listener)
         final WikiEventManager mgr = getInstance();
-        final Map< Object, WikiEventDelegate > sources =  Collections.synchronizedMap( mgr.getDelegates() );
-        synchronized( sources ) {
-            // get an iterator over the Map.Enty objects in the map
-            for( final Map.Entry< Object, WikiEventDelegate > entry : sources.entrySet() ) {
-                // the entry value is the delegate
+        synchronized( mgr.delegates ) {
+            for( final Map.Entry< Object, WikiEventDelegate > entry : mgr.delegates.entrySet() ) {
                 final WikiEventDelegate delegate = entry.getValue();
-
-                // now see if we can remove the listener from the delegate (delegate may be null because this is a weak reference)
                 if( delegate != null && delegate.removeWikiEventListener( listener ) ) {
-                    removed = true; // was removed
+                    removed = true;
                 }
             }
         }
@@ -261,9 +255,7 @@ public final class WikiEventManager {
         synchronized( delegates ) {
             delegates.clear();
         }
-        synchronized( preloadCache ) {
-            preloadCache.clear();
-        }
+        preloadCache.clear();
     }
 
     public static void shutdown() {

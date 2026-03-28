@@ -72,7 +72,7 @@ public class NewsPageGenerator extends WikiBackgroundThread {
     private final int monthsOfHistory;
     private String lastContentHash;
     private Path gitRoot;
-    private boolean disabled;
+    private volatile boolean disabled;
 
     /**
      * Creates a new NewsPageGenerator with default settings (24-hour interval, 6 months of history).

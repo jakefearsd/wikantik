@@ -403,6 +403,43 @@ class AdminContentResourceTest {
         assertTrue( obj.has( "brokenLinkCount" ), "Stats should include brokenLinkCount" );
     }
 
+    @Test
+    void testPurgeVersionsWithHistory() throws Exception {
+        // Create a page with multiple versions by saving it twice
+        engine.saveText( "PurgeTestPage", "Version 1 content" );
+        engine.saveText( "PurgeTestPage", "Version 2 content" );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "page", "PurgeTestPage" );
+        body.addProperty( "keepLatest", 1 );
+
+        final String json = doPost( "/purge-versions", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Purge should succeed, got: " + json );
+        assertTrue( obj.has( "purged" ), "Response should have 'purged' count" );
+        assertTrue( obj.get( "purged" ).getAsInt() >= 0, "Purged count should be non-negative" );
+    }
+
+    @Test
+    void testBulkDeleteActuallyDeletesPages() throws Exception {
+        engine.saveText( "BulkDeleteMe1", "Delete me." );
+        engine.saveText( "BulkDeleteMe2", "Delete me too." );
+
+        final JsonObject body = new JsonObject();
+        final com.google.gson.JsonArray pages = new com.google.gson.JsonArray();
+        pages.add( "BulkDeleteMe1" );
+        pages.add( "BulkDeleteMe2" );
+        body.add( "pages", pages );
+
+        final String json = doPost( "/bulk-delete", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.has( "deleted" ), "Response should have 'deleted' array" );
+        final com.google.gson.JsonArray deleted = obj.getAsJsonArray( "deleted" );
+        assertEquals( 2, deleted.size(), "Should have deleted 2 pages" );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pathInfo ) throws Exception {

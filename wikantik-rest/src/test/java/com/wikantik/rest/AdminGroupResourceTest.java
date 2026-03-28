@@ -359,6 +359,44 @@ class AdminGroupResourceTest {
         }
     }
 
+    @Test
+    void testCreateGroupWithRestrictedNameReturns400() throws Exception {
+        // "Authenticated" is a restricted group name — GroupManager rejects it
+        final JsonObject body = new JsonObject();
+        final JsonArray members = new JsonArray();
+        members.add( "alice" );
+        body.add( "members", members );
+
+        final String json = doPut( "Authenticated", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean(),
+                "Creating group with restricted name should fail" );
+        assertEquals( 400, obj.get( "status" ).getAsInt(),
+                "Restricted group name should return 400" );
+    }
+
+    @Test
+    void testDeleteNonexistentGroupReturnsError() throws Exception {
+        final String json = doDelete( "NonExistentGroup99999" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean(),
+                "Deleting nonexistent group should return an error" );
+        // May return 400 (from GroupManager) or 404 depending on the backend
+        assertTrue( obj.get( "status" ).getAsInt() >= 400,
+                "Should return a 4xx error status" );
+    }
+
+    @Test
+    void testGetNonexistentGroupReturns404() throws Exception {
+        final String json = doGet( "NoSuchGroup99999" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 404, obj.get( "status" ).getAsInt() );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String groupName ) throws Exception {

@@ -26,6 +26,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -214,5 +215,88 @@ class GetClusterMapToolTest {
         assertEquals( "get_cluster_map", def.name() );
         assertNotNull( def.description() );
         assertTrue( def.annotations().readOnlyHint() );
+    }
+
+    // --- Tests for extracted methods ---
+
+    @Test
+    void testScanPages_groupsByCluster() {
+        final GetClusterMapTool.ScanResult scan = tool.scanPages( pm.getAllPages() );
+
+        // ai cluster should have 2 pages
+        assertTrue( scan.clusterPages().containsKey( "ai" ) );
+        assertEquals( 2, scan.clusterPages().get( "ai" ).size() );
+
+        // finance cluster should have 2 pages
+        assertTrue( scan.clusterPages().containsKey( "finance" ) );
+        assertEquals( 2, scan.clusterPages().get( "finance" ).size() );
+
+        // woodworking/cnc sub-cluster should have 2 pages
+        assertTrue( scan.clusterPages().containsKey( "woodworking/cnc" ) );
+        assertEquals( 2, scan.clusterPages().get( "woodworking/cnc" ).size() );
+    }
+
+    @Test
+    void testScanPages_identifiesHubs() {
+        final GetClusterMapTool.ScanResult scan = tool.scanPages( pm.getAllPages() );
+
+        assertEquals( "AiHub", scan.clusterHubs().get( "ai" ) );
+        assertEquals( "FinanceHub", scan.clusterHubs().get( "finance" ) );
+        assertEquals( "WoodHub", scan.clusterHubs().get( "woodworking" ) );
+        assertEquals( "WoodSubHub", scan.clusterHubs().get( "woodworking/cnc" ) );
+    }
+
+    @Test
+    void testScanPages_identifiesUnclustered() {
+        final GetClusterMapTool.ScanResult scan = tool.scanPages( pm.getAllPages() );
+
+        assertTrue( scan.unclustered().contains( "RandomPage" ) );
+        assertTrue( scan.unclustered().contains( "PlainPage" ) );
+    }
+
+    @Test
+    void testScanPages_collectsConventions() {
+        final GetClusterMapTool.ScanResult scan = tool.scanPages( pm.getAllPages() );
+
+        assertTrue( scan.conventions().containsKey( "type" ) );
+        assertTrue( scan.conventions().get( "type" ).contains( "hub" ) );
+        assertTrue( scan.conventions().get( "type" ).contains( "article" ) );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testAssembleClusters_nestsSubClusters() {
+        final GetClusterMapTool.ScanResult scan = tool.scanPages( pm.getAllPages() );
+        final Map< String, Map< String, Object > > parentClusters = new LinkedHashMap<>();
+        final Map< String, Map< String, Object > > subClusterMap = new LinkedHashMap<>();
+
+        tool.assembleClusters( scan.clusterPages(), scan.clusterHubs(), parentClusters, subClusterMap );
+
+        // woodworking should be a parent cluster
+        assertTrue( parentClusters.containsKey( "woodworking" ) );
+        // woodworking/cnc should be nested as a sub-cluster
+        assertFalse( parentClusters.containsKey( "woodworking/cnc" ) );
+
+        final Map< String, Object > woodCluster = parentClusters.get( "woodworking" );
+        final List< Map< String, Object > > subs =
+                ( List< Map< String, Object > > ) woodCluster.get( "subClusters" );
+        assertEquals( 1, subs.size() );
+        assertEquals( "woodworking/cnc", subs.get( 0 ).get( "name" ) );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testAssembleClusters_orphanedSubClusterPromotedToTopLevel() {
+        final Map< String, List< String > > clusterPages = new LinkedHashMap<>();
+        clusterPages.put( "orphan/sub", new java.util.ArrayList<>( List.of( "OrphanPage" ) ) );
+
+        final Map< String, String > clusterHubs = new LinkedHashMap<>();
+        final Map< String, Map< String, Object > > parentClusters = new LinkedHashMap<>();
+        final Map< String, Map< String, Object > > subClusterMap = new LinkedHashMap<>();
+
+        tool.assembleClusters( clusterPages, clusterHubs, parentClusters, subClusterMap );
+
+        // No parent "orphan" exists, so "orphan/sub" should become top-level
+        assertTrue( parentClusters.containsKey( "orphan/sub" ) );
     }
 }

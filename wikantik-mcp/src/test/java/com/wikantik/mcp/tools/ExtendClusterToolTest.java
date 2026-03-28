@@ -216,4 +216,78 @@ class ExtendClusterToolTest {
         assertNotNull( def.description() );
         assertFalse( def.annotations().readOnlyHint() );
     }
+
+    // --- Tests for extracted methods ---
+
+    @Test
+    void testDiscoverCluster_findsHubAndMembers() {
+        final ExtendClusterTool.ClusterInfo info = tool.discoverCluster( "ext-test", pm.getAllPages() );
+
+        assertEquals( "ExtHub", info.hubName() );
+        assertTrue( info.members().contains( "ExtHub" ) );
+        assertTrue( info.members().contains( "ExtArticle1" ) );
+        assertEquals( 2, info.members().size() );
+    }
+
+    @Test
+    void testDiscoverCluster_nonexistentClusterReturnsEmpty() {
+        final ExtendClusterTool.ClusterInfo info = tool.discoverCluster( "nonexistent", pm.getAllPages() );
+
+        assertNull( info.hubName() );
+        assertTrue( info.members().isEmpty() );
+        assertTrue( info.memberMetadata().isEmpty() );
+    }
+
+    @Test
+    void testDiscoverCluster_memberMetadataPopulated() {
+        final ExtendClusterTool.ClusterInfo info = tool.discoverCluster( "ext-test", pm.getAllPages() );
+
+        assertTrue( info.memberMetadata().containsKey( "ExtHub" ) );
+        assertEquals( "hub", info.memberMetadata().get( "ExtHub" ).get( "type" ) );
+        assertTrue( info.memberMetadata().containsKey( "ExtArticle1" ) );
+        assertEquals( "article", info.memberMetadata().get( "ExtArticle1" ).get( "type" ) );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testBuildArticleMetadata_autoSetsDefaults() {
+        final ExtendClusterTool.ClusterInfo cluster = tool.discoverCluster( "ext-test", pm.getAllPages() );
+        final Map< String, Object > supplied = new HashMap<>();
+        supplied.put( "tags", List.of( "test" ) );
+
+        final Map< String, Object > meta = tool.buildArticleMetadata( "ext-test", supplied, cluster );
+
+        assertEquals( "article", meta.get( "type" ) );
+        assertEquals( "ext-test", meta.get( "cluster" ) );
+        assertEquals( "active", meta.get( "status" ) );
+
+        final List< String > related = ( List< String > ) meta.get( "related" );
+        assertNotNull( related );
+        assertTrue( related.contains( "ExtHub" ), "Related should include the hub" );
+        assertTrue( related.contains( "ExtArticle1" ), "Related should include existing members" );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testBuildArticleMetadata_preservesSuppliedRelated() {
+        final ExtendClusterTool.ClusterInfo cluster = tool.discoverCluster( "ext-test", pm.getAllPages() );
+        final Map< String, Object > supplied = new HashMap<>();
+        supplied.put( "related", List.of( "CustomPage" ) );
+
+        final Map< String, Object > meta = tool.buildArticleMetadata( "ext-test", supplied, cluster );
+
+        final List< String > related = ( List< String > ) meta.get( "related" );
+        assertEquals( List.of( "CustomPage" ), related, "Supplied related should not be overridden" );
+    }
+
+    @Test
+    void testBuildArticleMetadata_respectsSuppliedType() {
+        final ExtendClusterTool.ClusterInfo cluster = tool.discoverCluster( "ext-test", pm.getAllPages() );
+        final Map< String, Object > supplied = new HashMap<>();
+        supplied.put( "type", "guide" );
+
+        final Map< String, Object > meta = tool.buildArticleMetadata( "ext-test", supplied, cluster );
+
+        assertEquals( "guide", meta.get( "type" ), "Supplied type should not be overridden" );
+    }
 }

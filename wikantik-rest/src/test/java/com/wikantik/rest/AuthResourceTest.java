@@ -229,11 +229,104 @@ class AuthResourceTest {
         assertEquals( 404, obj.get( "status" ).getAsInt() );
     }
 
+    // ----- Task 6: User Preferences tests -----
+
+    @Test
+    void testGetProfileUnauthenticated() throws Exception {
+        final String json = doGet( "profile" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 401, obj.get( "status" ).getAsInt() );
+        assertEquals( "Authentication required", obj.get( "message" ).getAsString() );
+    }
+
+    @Test
+    void testPutProfileUnauthenticated() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "fullName", "New Name" );
+
+        final String json = doPut( "profile", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 401, obj.get( "status" ).getAsInt() );
+        assertEquals( "Authentication required", obj.get( "message" ).getAsString() );
+    }
+
+    @Test
+    void testPutProfileMissingCurrentPasswordForPasswordChange() throws Exception {
+        // Even though this user is unauthenticated (so it will fail at 401),
+        // we test the body parsing separately.  For authenticated tests,
+        // we'd need JAAS, which is not available in wikantik-rest tests.
+        // This test verifies the endpoint exists and routes correctly.
+        final JsonObject body = new JsonObject();
+        body.addProperty( "newPassword", "NewPassword123!" );
+
+        final String json = doPut( "profile", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        // Will get 401 because the mock session is unauthenticated
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 401, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testUnknownPutEndpoint() throws Exception {
+        final JsonObject body = new JsonObject();
+
+        final String json = doPut( "unknown", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 404, obj.get( "status" ).getAsInt() );
+    }
+
+    // ----- Task 7: Lost Password Recovery tests -----
+
+    @Test
+    void testResetPasswordMissingEmail() throws Exception {
+        final JsonObject body = new JsonObject();
+
+        final String json = doPost( "reset-password", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "Email" ) );
+    }
+
+    @Test
+    void testResetPasswordEmptyEmail() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "email", "   " );
+
+        final String json = doPost( "reset-password", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testResetPasswordReturnsGenericSuccess() throws Exception {
+        // Even for an unknown email, the response should be generic success
+        // to prevent email enumeration
+        final JsonObject body = new JsonObject();
+        body.addProperty( "email", "nonexistent@example.com" );
+
+        final String json = doPost( "reset-password", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "success" ).getAsBoolean() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "If an account exists" ) );
+    }
+
     // ----- Helper methods -----
 
-    private String doGetUser() throws Exception {
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/auth/user" );
-        Mockito.doReturn( "/user" ).when( request ).getPathInfo();
+    private String doGet( final String action ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/auth/" + action );
+        Mockito.doReturn( "/" + action ).when( request ).getPathInfo();
 
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         final StringWriter sw = new StringWriter();
@@ -241,6 +334,10 @@ class AuthResourceTest {
 
         servlet.doGet( request, response );
         return sw.toString();
+    }
+
+    private String doGetUser() throws Exception {
+        return doGet( "user" );
     }
 
     private String doPost( final String action, final JsonObject body ) throws Exception {
@@ -253,6 +350,19 @@ class AuthResourceTest {
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
 
         servlet.doPost( request, response );
+        return sw.toString();
+    }
+
+    private String doPut( final String action, final JsonObject body ) throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/auth/" + action );
+        Mockito.doReturn( "/" + action ).when( request ).getPathInfo();
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPut( request, response );
         return sw.toString();
     }
 

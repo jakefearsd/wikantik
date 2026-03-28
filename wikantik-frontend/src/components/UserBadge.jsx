@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import LoginForm from './LoginForm';
 
@@ -24,6 +25,13 @@ export default function UserBadge() {
       <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
         {user.username}
       </span>
+      <Link
+        to="/preferences"
+        className="btn btn-ghost"
+        style={{ fontSize: '0.75rem', padding: '2px 6px', textDecoration: 'none' }}
+      >
+        Preferences
+      </Link>
       <button className="btn btn-ghost" onClick={logout} style={{ fontSize: '0.75rem', padding: '2px 6px' }}>
         Logout
       </button>

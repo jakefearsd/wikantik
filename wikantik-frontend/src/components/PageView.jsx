@@ -21,11 +21,9 @@ export default function PageView() {
     <div className="page-enter">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-md)' }}>
         <PageMeta page={page} />
-        {user?.authenticated && (
-          <Link to={`/edit/${name}`} className="btn btn-ghost" style={{ flexShrink: 0 }}>
-            ✎ Edit
-          </Link>
-        )}
+        <Link to={`/edit/${name}`} className="btn btn-ghost" style={{ flexShrink: 0 }}>
+          ✎ Edit
+        </Link>
       </div>
       <MetadataPanel metadata={page.metadata} />
       <ChangeNotesPanel pageName={name} />
@@ -47,7 +45,6 @@ export default function PageView() {
 }
 
 function NotFound({ name }) {
-  const { user } = useAuth();
   return (
     <div className="page-enter" style={{ textAlign: 'center', padding: 'var(--space-2xl) 0' }}>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', marginBottom: 'var(--space-md)' }}>
@@ -56,11 +53,9 @@ function NotFound({ name }) {
       <p style={{ color: 'var(--text-muted)', marginBottom: 'var(--space-lg)' }}>
         "{name}" doesn't exist yet.
       </p>
-      {user?.authenticated && (
-        <Link to={`/edit/${name}`} className="btn btn-primary">
-          Create "{name}"
-        </Link>
-      )}
+      <Link to={`/edit/${name}`} className="btn btn-primary">
+        Create "{name}"
+      </Link>
     </div>
   );
 }

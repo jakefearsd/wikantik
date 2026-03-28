@@ -64,7 +64,10 @@ import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.api.core.Acl;
+import com.wikantik.api.core.Session;
 import com.wikantik.auth.AuthorizationManager;
+import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.pages.PageManager;
 import com.wikantik.util.ClassUtil;
@@ -664,6 +667,16 @@ public class LuceneSearchProvider implements SearchProvider {
             }
 
             final AuthorizationManager mgr = engine.getManager( AuthorizationManager.class );
+            final AclManager aclMgr = engine.getManager( AclManager.class );
+            final PageManager pm = engine.getManager( PageManager.class );
+            final Session session = wikiContext.getWikiSession();
+
+            // Pre-check: does the user's session pass the static policy for "view"?
+            // This is an in-memory check against DatabasePolicy/LocalPolicy — no I/O.
+            // If the policy denies view, no search results are visible at all.
+            final PagePermission globalViewPerm = new PagePermission( engine.getApplicationName() + ":*", PagePermission.VIEW_ACTION );
+            final boolean policyAllowsView = mgr.checkStaticPermission( session, globalViewPerm );
+
             final TopDocs hits = searcher.search( luceneQuery, MAX_SEARCH_HITS );
             final StoredFields storedFields = reader.storedFields();
 
@@ -671,11 +684,22 @@ public class LuceneSearchProvider implements SearchProvider {
             for( final ScoreDoc hit : hits.scoreDocs ) {
                 final Document doc = storedFields.document( hit.doc );
                 final String pageName = doc.get( LUCENE_ID );
-                final Page page = engine.getManager( PageManager.class ).getPage( pageName, PageProvider.LATEST_VERSION );
+                final Page page = pm.getPage( pageName, PageProvider.LATEST_VERSION );
 
                 if( page != null ) {
-                    final PagePermission pp = new PagePermission( page, PagePermission.VIEW_ACTION );
-                    if( mgr.checkPermission( wikiContext.getWikiSession(), pp ) ) {
+                    // Fast path: if the policy allows view and the page has no ACL,
+                    // skip the full checkPermission() call (avoids loading page text
+                    // to parse [{ALLOW}] markers for pages that have none).
+                    final Acl acl = aclMgr.getPermissions( page );
+                    final boolean allowed;
+                    if( policyAllowsView && ( acl == null || acl.isEmpty() ) ) {
+                        allowed = true;
+                    } else {
+                        final PagePermission pp = new PagePermission( page, PagePermission.VIEW_ACTION );
+                        allowed = mgr.checkPermission( session, pp );
+                    }
+
+                    if( allowed ) {
                         final int score = ( int ) ( hit.score * 100 );
 
                         // Get highlighted search contexts

@@ -31,7 +31,10 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.StringReader;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class FileUtilTest
 {
@@ -154,6 +157,121 @@ public class FileUtilTest
         } finally {
             tmpFile.delete();
         }
+    }
+
+    // --- copyContents (Reader/Writer) tests ---
+
+    @Test
+    public void testCopyContentsReaderWriter() throws IOException {
+        final String content = "Hello, World! This is a test with special chars: \u00e4\u00f6\u00fc";
+        final StringReader reader = new StringReader( content );
+        final StringWriter writer = new StringWriter();
+        FileUtil.copyContents( reader, writer );
+        assertEquals( content, writer.toString() );
+    }
+
+    @Test
+    public void testCopyContentsReaderWriterEmpty() throws IOException {
+        final StringReader reader = new StringReader( "" );
+        final StringWriter writer = new StringWriter();
+        FileUtil.copyContents( reader, writer );
+        assertEquals( "", writer.toString() );
+    }
+
+    // --- copyContents (InputStream/OutputStream) tests ---
+
+    @Test
+    public void testCopyContentsStreamRoundTrip() throws IOException {
+        final byte[] data = "Stream copy test data 12345".getBytes( StandardCharsets.UTF_8 );
+        final ByteArrayInputStream in = new ByteArrayInputStream( data );
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        FileUtil.copyContents( in, out );
+        assertArrayEquals( data, out.toByteArray() );
+    }
+
+    @Test
+    public void testCopyContentsStreamEmpty() throws IOException {
+        final ByteArrayInputStream in = new ByteArrayInputStream( new byte[0] );
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        FileUtil.copyContents( in, out );
+        assertEquals( 0, out.size() );
+    }
+
+    // --- readContents (InputStream with encoding) tests ---
+
+    @Test
+    public void testReadContentsUTF8() throws IOException {
+        final String expected = "Hello UTF-8 \u00e4\u00f6\u00fc";
+        final ByteArrayInputStream in = new ByteArrayInputStream(
+            expected.getBytes( StandardCharsets.UTF_8 ) );
+        final String result = FileUtil.readContents( in, StandardCharsets.UTF_8.name() );
+        assertEquals( expected, result );
+    }
+
+    @Test
+    public void testReadContentsEmpty() throws IOException {
+        final ByteArrayInputStream in = new ByteArrayInputStream( new byte[0] );
+        final String result = FileUtil.readContents( in, StandardCharsets.UTF_8.name() );
+        assertEquals( "", result );
+    }
+
+    // --- runSimpleCommand tests ---
+
+    @Test
+    @DisabledOnOs( OS.WINDOWS )
+    public void testRunSimpleCommand() throws Exception {
+        final String result = FileUtil.runSimpleCommand( "echo hello", "/tmp" );
+        assertEquals( "hello\n", result );
+    }
+
+    @Test
+    @DisabledOnOs( OS.WINDOWS )
+    public void testRunSimpleCommandMultipleWords() throws Exception {
+        final String result = FileUtil.runSimpleCommand( "echo foo bar", "/tmp" );
+        assertEquals( "foo bar\n", result );
+    }
+
+    // --- newTmpFile tests ---
+
+    @Test
+    public void testNewTmpFileDefaultEncoding() throws IOException {
+        final String content = "test content";
+        final File f = FileUtil.newTmpFile( content );
+        try {
+            assertTrue( f.exists() );
+            assertTrue( f.getName().startsWith( "wikantik" ) );
+            final String result = FileUtil.readContents(
+                java.nio.file.Files.newInputStream( f.toPath() ), StandardCharsets.ISO_8859_1.name() );
+            assertEquals( content, result );
+        } finally {
+            f.delete();
+        }
+    }
+
+    // --- getThrowingMethod tests ---
+
+    @Test
+    public void testGetThrowingMethod() {
+        try {
+            throw new RuntimeException( "test" );
+        } catch ( RuntimeException e ) {
+            String result = FileUtil.getThrowingMethod( e );
+            assertNotNull( result );
+            assertTrue( result.contains( "FileUtilTest" ) );
+            assertTrue( result.contains( "testGetThrowingMethod" ) );
+        }
+    }
+
+    @Test
+    public void testGetThrowingMethodEmptyStackTrace() {
+        final Throwable t = new Throwable() {
+            @Override
+            public StackTraceElement[] getStackTrace() {
+                return new StackTraceElement[0];
+            }
+        };
+        final String result = FileUtil.getThrowingMethod( t );
+        assertEquals( "[Stack trace not available]", result );
     }
 
 }

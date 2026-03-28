@@ -19,19 +19,27 @@
 
 package com.wikantik.util;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.StringReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 
 public class CommentedPropertiesTest
@@ -201,6 +209,140 @@ public class CommentedPropertiesTest
         }
 
         return file;
+    }
+
+    // --- Additional coverage tests ---
+
+    @Test
+    public void testLoadFromReader() throws IOException {
+        final String propContent = "# Comment line\nkey1 = value1\nkey2 = value2\n";
+        final CommentedProperties props = new CommentedProperties();
+        props.load( new StringReader( propContent ) );
+
+        assertEquals( "value1", props.getProperty( "key1" ) );
+        assertEquals( "value2", props.getProperty( "key2" ) );
+        // toString should preserve the comment
+        assertTrue( props.toString().contains( "# Comment line" ) );
+    }
+
+    @Test
+    public void testPutAll() throws IOException {
+        final String propContent = "existingKey = existingValue\n";
+        final CommentedProperties props = new CommentedProperties();
+        props.load( new ByteArrayInputStream( propContent.getBytes( StandardCharsets.ISO_8859_1 ) ) );
+
+        final Map< String, String > newEntries = new HashMap<>();
+        newEntries.put( "newKey1", "newVal1" );
+        newEntries.put( "newKey2", "newVal2" );
+        props.putAll( newEntries );
+
+        assertEquals( "newVal1", props.getProperty( "newKey1" ) );
+        assertEquals( "newVal2", props.getProperty( "newKey2" ) );
+        assertEquals( "existingValue", props.getProperty( "existingKey" ) );
+        assertTrue( props.toString().contains( "newKey1" ) );
+    }
+
+    @Test
+    public void testSetPropertyNewKey() throws IOException {
+        final String propContent = "key1 = value1\n";
+        final CommentedProperties props = new CommentedProperties();
+        props.load( new ByteArrayInputStream( propContent.getBytes( StandardCharsets.ISO_8859_1 ) ) );
+
+        props.setProperty( "newKey", "newValue" );
+        assertEquals( "newValue", props.getProperty( "newKey" ) );
+        assertTrue( props.toString().contains( "newKey = newValue" ) );
+    }
+
+    @Test
+    public void testPutNullKeyThrows() throws IOException {
+        final String propContent = "key1 = value1\n";
+        final CommentedProperties props = new CommentedProperties();
+        props.load( new ByteArrayInputStream( propContent.getBytes( StandardCharsets.ISO_8859_1 ) ) );
+
+        assertThrows( IllegalArgumentException.class, () -> props.put( null, "value" ) );
+    }
+
+    @Test
+    public void testRemoveNullKeyThrows() throws IOException {
+        final String propContent = "key1 = value1\n";
+        final CommentedProperties props = new CommentedProperties();
+        props.load( new ByteArrayInputStream( propContent.getBytes( StandardCharsets.ISO_8859_1 ) ) );
+
+        assertThrows( IllegalArgumentException.class, () -> props.remove( null ) );
+    }
+
+    @Test
+    public void testStorePreservesComments() throws IOException {
+        final String propContent = "# This is a comment\nkey1 = value1\n# Another comment\nkey2 = value2\n";
+        final CommentedProperties props = new CommentedProperties();
+        props.load( new ByteArrayInputStream( propContent.getBytes( StandardCharsets.ISO_8859_1 ) ) );
+
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        props.store( out, null );
+
+        final String stored = out.toString( StandardCharsets.ISO_8859_1 );
+        assertTrue( stored.contains( "# This is a comment" ) );
+        assertTrue( stored.contains( "# Another comment" ) );
+        assertTrue( stored.contains( "key1" ) );
+        assertTrue( stored.contains( "value1" ) );
+    }
+
+    @Test
+    public void testDefaultValuesConstructor() {
+        final Properties defaults = new Properties();
+        defaults.setProperty( "defaultKey", "defaultVal" );
+
+        final CommentedProperties props = new CommentedProperties( defaults );
+        assertEquals( "defaultVal", props.getProperty( "defaultKey" ) );
+    }
+
+    @Test
+    public void testSetPropertyUpdatesExistingInString() throws IOException {
+        final String propContent = "key1 = oldValue\n";
+        final CommentedProperties props = new CommentedProperties();
+        props.load( new ByteArrayInputStream( propContent.getBytes( StandardCharsets.ISO_8859_1 ) ) );
+
+        props.setProperty( "key1", "newValue" );
+        assertEquals( "newValue", props.getProperty( "key1" ) );
+        assertTrue( props.toString().contains( "newValue" ) );
+        assertFalse( props.toString().contains( "oldValue" ) );
+    }
+
+    @Test
+    public void testRemoveNonexistentKey() throws IOException {
+        final String propContent = "key1 = value1\n";
+        final CommentedProperties props = new CommentedProperties();
+        props.load( new ByteArrayInputStream( propContent.getBytes( StandardCharsets.ISO_8859_1 ) ) );
+
+        // Removing a key that doesn't exist should not fail
+        props.remove( "nonexistent" );
+        assertEquals( "value1", props.getProperty( "key1" ) );
+    }
+
+    @Test
+    public void testCommentedLineSkippedDuringWrite() throws IOException {
+        // Property key appears in a comment line - comments should be skipped during writeProperty
+        final String propContent = "\n# key1 = commented out\nkey1 = realValue\n";
+        final CommentedProperties props = new CommentedProperties();
+        props.load( new ByteArrayInputStream( propContent.getBytes( StandardCharsets.ISO_8859_1 ) ) );
+
+        // Update key1 should change the real value, not the commented one
+        props.setProperty( "key1", "updatedValue" );
+        assertEquals( "updatedValue", props.getProperty( "key1" ) );
+        // The comment should still be in the string
+        assertTrue( props.toString().contains( "# key1 = commented out" ) );
+        assertTrue( props.toString().contains( "updatedValue" ) );
+    }
+
+    @Test
+    public void testUnicodeValueRoundTrip() throws IOException {
+        final String propContent = "key1 = value1\n";
+        final CommentedProperties props = new CommentedProperties();
+        props.load( new ByteArrayInputStream( propContent.getBytes( StandardCharsets.ISO_8859_1 ) ) );
+
+        props.setProperty( "key1", "\u00e4\u00f6\u00fc" );
+        // native2Ascii should convert unicode to \\uXXXX notation
+        assertTrue( props.toString().contains( "\\u00E4" ) );
     }
 
 }

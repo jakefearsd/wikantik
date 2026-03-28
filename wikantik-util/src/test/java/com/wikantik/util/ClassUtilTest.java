@@ -22,7 +22,12 @@ package com.wikantik.util;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 
 public class ClassUtilTest
@@ -87,6 +92,98 @@ public class ClassUtilTest
     public void testBuildInstance() throws Exception {
         Assertions.assertTrue( ClassUtil.buildInstance( "java.util.ArrayList" ) instanceof List );
         Assertions.assertThrows( NoSuchMethodException.class, () -> ClassUtil.buildInstance( "java.util.List" ) );
+    }
+
+    // --- getMappedClass tests ---
+
+    @Test
+    public void testGetMappedClassWithUnmappedClass() throws Exception {
+        // When no mapping exists, it should fall back to using the class name directly
+        Class< ? > clazz = ClassUtil.getMappedClass( "java.util.ArrayList" );
+        assertEquals( "java.util.ArrayList", clazz.getName() );
+    }
+
+    @Test
+    public void testGetMappedClassNotFound() {
+        assertThrows( ClassNotFoundException.class, () -> ClassUtil.getMappedClass( "com.nonexistent.Foo" ) );
+    }
+
+    // --- buildInstance with package tests ---
+
+    @Test
+    public void testBuildInstanceWithPackage() throws Exception {
+        Object obj = ClassUtil.buildInstance( "java.util", "ArrayList" );
+        assertNotNull( obj );
+        assertTrue( obj instanceof List );
+    }
+
+    @Test
+    public void testBuildInstanceWithFullyQualifiedName() throws Exception {
+        Object obj = ClassUtil.buildInstance( "", "java.util.ArrayList" );
+        assertTrue( obj instanceof List );
+    }
+
+    @Test
+    public void testBuildInstanceNotFoundThrows() {
+        assertThrows( ClassNotFoundException.class, () -> ClassUtil.buildInstance( "com.nonexistent", "FooBar" ) );
+    }
+
+    // --- buildInstance with constructor args ---
+
+    @Test
+    public void testBuildInstanceWithArgs() throws Exception {
+        // ArrayList has a constructor that takes an int (initial capacity)
+        Object obj = ClassUtil.buildInstance( ArrayList.class, 10 );
+        assertTrue( obj instanceof List );
+    }
+
+    @Test
+    public void testBuildInstanceDefaultCtor() throws Exception {
+        Object obj = ClassUtil.buildInstance( HashMap.class );
+        assertTrue( obj instanceof Map );
+    }
+
+    // --- getMappedObject tests ---
+
+    @Test
+    public void testGetMappedObjectNoArgs() throws Exception {
+        Object obj = ClassUtil.getMappedObject( "java.util.ArrayList" );
+        assertTrue( obj instanceof List );
+    }
+
+    // --- findClass with packages list ---
+
+    @Test
+    public void testFindClassWithPackagesList() throws Exception {
+        List< String > packages = List.of( "java.util", "java.io" );
+        List< String > jars = List.of();
+        Class< ? > clazz = ClassUtil.findClass( packages, jars, "ArrayList" );
+        assertEquals( "java.util.ArrayList", clazz.getName() );
+    }
+
+    @Test
+    public void testFindClassWithPackagesListFullyQualified() throws Exception {
+        List< String > packages = List.of();
+        List< String > jars = List.of();
+        Class< ? > clazz = ClassUtil.findClass( packages, jars, "java.util.HashMap" );
+        assertEquals( "java.util.HashMap", clazz.getName() );
+    }
+
+    @Test
+    public void testFindClassWithPackagesListNotFound() {
+        List< String > packages = List.of( "java.util" );
+        List< String > jars = List.of();
+        assertThrows( ClassNotFoundException.class, () ->
+            ClassUtil.findClass( packages, jars, "NonExistentClass" ) );
+    }
+
+    // --- getExtraClassMappings ---
+
+    @Test
+    public void testGetExtraClassMappings() {
+        Map< String, String > extra = ClassUtil.getExtraClassMappings();
+        assertNotNull( extra );
+        // Should be a map (possibly empty if classmappings-extra.xml is not present or has no entries)
     }
 
 }

@@ -39,7 +39,7 @@ export default function DiffViewer() {
     setDiffLoading(true);
     setError(null);
     api.getDiff(name, fromVer, toVer)
-      .then(data => setDiffHtml(data.diffHtml))
+      .then(data => setDiffHtml(data.diffHtml || data.diff || ''))
       .catch(err => setError(err.message || 'Failed to load diff'))
       .finally(() => setDiffLoading(false));
   }, [name, fromVer, toVer]);

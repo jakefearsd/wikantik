@@ -1,34 +1,30 @@
-# Wikantik Reader UI - Implementation Plan
+# Wikantik Reader UI
 
 A modern, Medium.com-inspired reading experience built with React.
 
+> **Implementation Status:** This React SPA has been fully implemented in the `wikantik-frontend/` directory and is bundled into the WAR at `/app/`. The application includes: page viewing with rendered Markdown, inline editing, search, dark mode, metadata chips, change history, admin panel (Users, Content, Security tabs), and sidebar navigation with cluster grouping.
+
 ## Overview
 
-Build a standalone React SPA that consumes Wikantik's existing REST API, providing a modern reading experience while the traditional JSP templates handle editing/administration.
+A standalone React SPA that consumes Wikantik's REST API, providing a modern reading and editing experience alongside the traditional JSP templates.
 
 ## Architecture
 
 ### Core Concept
 
-- **Standalone React SPA** (recommended approach)
+- **Standalone React SPA** deployed at `/app/`
 - Consumes Wikantik REST API (`/api/`)
-- Can be hosted at `/reader/` context or separate domain
+- Admin panel at `/app/admin/`
 - Clean separation of concerns
 
-### Technology Stack
+### Technology Stack (Implemented)
 
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
+| Layer | Choice | Notes |
+|-------|--------|-------|
 | Framework | React 18 | Industry standard, large ecosystem |
-| Build | Vite | Fast HMR, modern defaults |
-| Language | TypeScript | Type safety, better DX |
-| Routing | React Router 6 | Standard, simple |
-| State | Zustand | Lightweight, simple API |
-| Data Fetching | TanStack Query | Caching, background refetch |
-| Styling | CSS Modules + CSS Variables | No runtime cost, native features |
-| Icons | Lucide React | Consistent, tree-shakeable |
-| Code Highlighting | Shiki | Accurate, VSCode-quality |
-| Mobile Gestures | @use-gesture/react | Swipe navigation |
+| Build | Vite | Fast HMR, modern defaults; integrated into Maven build |
+| Routing | React Router v6 | Client-side routing |
+| Styling | Custom CSS design system | No frameworks; CSS variables for theming |
 
 ## Project Structure
 
@@ -461,87 +457,50 @@ export function processWikiContent(html: string): string {
 
 ## Implementation Phases
 
-### Phase 1: Project Setup (3-4 days)
-- Create jspwiki-reader module
-- Configure Vite + TypeScript + React
-- Set up CSS architecture
-- Implement API client
-- Basic routing
+### Phase 1: Project Setup -- COMPLETED
+- Created `wikantik-frontend/` module
+- Configured Vite + React
+- Set up CSS design system architecture
+- Implemented API client
+- Basic routing with React Router v6
 
-### Phase 2: Core Reading Experience (5-7 days)
-- ArticleView component
-- ArticleBody with wiki content processing
+### Phase 2: Core Reading Experience -- COMPLETED
+- Page viewing with rendered Markdown
+- Inline editing
 - Typography and spacing
-- Mobile-first responsive layout
+- Responsive layout
 
-### Phase 3: Navigation & Chrome (4-5 days)
-- Header with scroll behavior
-- Mobile bottom navigation
-- Table of Contents (sidebar + slide-out)
-- Reading progress bar
+### Phase 3: Navigation & Chrome -- COMPLETED
+- Sidebar navigation with cluster grouping
+- Metadata chips
+- Change history viewing
 
-### Phase 4: Search & Discovery (3-4 days)
-- Search modal (Cmd+K)
-- Search results page
-- Related pages component
-- Home page with recent content
+### Phase 4: Search & Discovery -- COMPLETED
+- Search functionality
+- Home page with content listing
 
-### Phase 5: Polish (4-5 days)
+### Phase 5: Polish -- COMPLETED
 - Dark mode
-- Loading skeletons
+- Loading states
 - Error states
-- Swipe gestures
-- Image lightbox
-- Code syntax highlighting
 
-### Phase 6: Integration (2-3 days)
-- Maven build integration
-- Deployment configuration
-- CORS setup if needed
-- Documentation
+### Phase 6: Integration -- COMPLETED
+- Maven build integration (npm install + Vite build run automatically during WAR build)
+- Deployed at `/app/` within the WAR
+- Admin panel at `/app/admin/` with Users, Content, and Security tabs
 
-## Deployment Options
+## Deployment
 
-1. **Embedded in WAR** - Serve from `/reader/` path
-2. **Separate static hosting** - CDN with API proxy
-3. **Hybrid** - Static assets on CDN, API calls to wiki server
+The React SPA is embedded in the WAR and served from `/app/`. The Vite build is triggered automatically during the Maven WAR build (`npm install` + `vite build`). No separate hosting or CORS configuration is needed.
 
-## Pre-Implementation Checklist
+### Architectural Decisions (Resolved)
 
-Before starting implementation, the following decisions and information are needed:
-
-### Required Information
-
-| Item | Description | Status |
-|------|-------------|--------|
-| API Documentation | REST API endpoints and response formats | Pending |
-| Sample Content | Example pages with various content types | Pending |
-| Node.js | Confirm v18+ installed | Pending |
-
-### Architectural Decisions
-
-| Decision | Options | Choice |
-|----------|---------|--------|
-| Module Location | New `jspwiki-reader/` module vs inside `wikantik-war/` | TBD |
-| Deployment Model | Same WAR (`/reader/`) vs separate hosting | TBD |
-| Authentication | Public only vs respect ACLs | TBD |
-| v1 Feature Scope | Reading only? Search? Dark mode? | TBD |
-
-### Commands to Gather Information
-
-```bash
-# Check Node availability
-node --version && npm --version
-
-# Show API structure
-find . -path "*/api/*" -name "*.java" | head -20
-
-# Fetch a sample page via API (if server is running)
-curl -s http://localhost:8080/Wikantik/api/pages/Main
-
-# Show existing REST controller
-grep -r "RestController\|@Path\|@GET" --include="*.java" | head -30
-```
+| Decision | Choice |
+|----------|--------|
+| Module Location | `wikantik-frontend/` module |
+| Deployment Model | Embedded in WAR at `/app/` |
+| Authentication | Respects ACLs via REST API session |
+| Feature Scope | Full: reading, editing, search, dark mode, admin panel |
 
 ## Risks & Mitigations
 

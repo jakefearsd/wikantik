@@ -1,5 +1,7 @@
 # **Evolutionary Architectures for Personal Knowledge Management: Integrating Semantic Web Ontologies and Agentic AI through the Model Context Protocol**
 
+> **Note:** This document captures aspirational research on semantic wiki capabilities. Some concepts described here (frontmatter metadata, content clusters, MCP integration) have been partially implemented. Others (RDF triplestores, SPARQL endpoints) remain future possibilities.
+
 ## **The Paradigm Shift in Cognitive Externalization**
 
 The history of personal knowledge management (PKM) has reached a critical inflection point where the traditional barriers between human cognition and digital storage are dissolving. Historically, knowledge workers have relied on fragmented systems—ranging from simple text files to sophisticated hierarchical wikis—to archive their intellectual output. However, these systems have largely remained passive repositories, functioning as digital "graveyards" where information is stored but rarely synthesized or proactively retrieved. The emergence of large language models (LLMs) initially promised to solve this by providing a conversational interface to data, yet early implementations were hampered by the isolation of models from the user’s private, high-fidelity context. This isolation resulted in a "copy and paste tango," where users manually fed fragments of their history into AI interfaces to receive relevant responses.

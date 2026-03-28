@@ -1,5 +1,7 @@
 # Wikantik Observability System Design
 
+> **Implementation Status:** The observability design described here has been implemented in the `wikantik-observability` module. Health checks are available at `/api/health`, Prometheus metrics at `/metrics`, and request correlation via `X-Request-ID` header. Observability endpoints are IP-restricted to internal networks via `InternalNetworkFilter`.
+
 ## Overview
 
 This document describes an open-source observability stack for Wikantik, leveraging the existing Log4j2 logging infrastructure. The design follows the three pillars of observability: **Logs**, **Metrics**, and **Traces**.

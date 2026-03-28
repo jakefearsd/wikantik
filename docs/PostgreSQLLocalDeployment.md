@@ -62,6 +62,14 @@ This creates:
 - Default `admin` user with password `admin` (SSHA hashed)
 - Default `Admin` role and group
 
+Then run the permissions DDL to set up table-level grants:
+
+```bash
+sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql-permissions.ddl
+```
+
+**Note**: The DDL scripts reference a `jspwiki` database user by default. The actual database user may vary by installation -- adjust the permissions DDL if your PostgreSQL user differs.
+
 **Important**: Change the admin password immediately after first login!
 
 ### Step 2: Build Wikantik
@@ -85,8 +93,9 @@ The script will:
 2. Download the PostgreSQL JDBC driver (if not present)
 3. Create configuration directories
 4. Copy template files (if they don't already exist)
-5. Stop Tomcat (if running)
-6. Deploy the WAR file
+5. Run the permissions migration (`postgresql-permissions.ddl`) if the database is reachable
+6. Stop Tomcat (if running)
+7. Deploy the WAR file
 
 ### Step 4: Configure the Database Password
 

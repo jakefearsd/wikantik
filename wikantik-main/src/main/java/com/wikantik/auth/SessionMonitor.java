@@ -115,6 +115,29 @@ public class SessionMonitor implements HttpSessionListener {
     }
 
     /**
+     * Explicitly registers a WikiSession under an HTTP session's ID.
+     * Used after {@code request.changeSessionId()} to re-associate the authenticated
+     * WikiSession with the new session ID.
+     *
+     * @param httpSession the HTTP session (provides the new ID)
+     * @param wikiSession the WikiSession to register
+     */
+    public final void register( final HttpSession httpSession, final Session wikiSession ) {
+        sessions.put( httpSession.getId(), wikiSession );
+    }
+
+    /**
+     * Removes the session entry for the given session ID string.
+     *
+     * @param sessionId the session ID to remove
+     */
+    public final void remove( final String sessionId ) {
+        if ( sessionId != null ) {
+            sessions.remove( sessionId );
+        }
+    }
+
+    /**
      * Creates a new guest session for the given session ID.
      * Called by {@link ConcurrentHashMap#computeIfAbsent} — guaranteed to run at most once per key.
      */

@@ -192,8 +192,14 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                     fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
                 }
 
-                // Regenerate session ID to prevent session fixation attacks
+                // Regenerate session ID to prevent session fixation attacks.
+                // We must re-register the WikiSession under the new ID in SessionMonitor,
+                // otherwise the next request will resolve to a fresh guest session.
+                final String oldId = httpSession.getId();
                 request.changeSessionId();
+                final SessionMonitor monitor = SessionMonitor.getInstance( engine );
+                monitor.remove( oldId );
+                monitor.register( httpSession, session );
 
                 // Add all appropriate Authorizer roles
                 injectAuthorizerRoles( session, authorizationMgr.getAuthorizer(), request );
@@ -247,9 +253,14 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                 fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
             }
 
-            // Regenerate session ID to prevent session fixation attacks
+            // Regenerate session ID to prevent session fixation attacks.
+            // Re-register the WikiSession under the new ID in SessionMonitor.
             if ( request != null ) {
+                final String oldId = request.getSession().getId();
                 request.changeSessionId();
+                final SessionMonitor monitor = SessionMonitor.getInstance( engine );
+                monitor.remove( oldId );
+                monitor.register( request.getSession(), session );
             }
 
             // Add all appropriate Authorizer roles

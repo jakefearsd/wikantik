@@ -173,15 +173,29 @@ echo "Deploying WAR file..."
 cp "${WAR_SOURCE}" "${TOMCAT_DIR}/webapps/ROOT.war"
 print_status "WAR deployed to ${TOMCAT_DIR}/webapps/ROOT.war"
 
-# Seed dev user accounts (idempotent upsert — safe to run every deploy)
-echo ""
-echo "Seeding user accounts..."
 # Detect the actual database name from the deployed context file (may differ from template default)
 WIKI_DB="wikantik"
 if [[ -f "${CONTEXT_DEST}" ]]; then
     _db=$(grep -oE 'jdbc:postgresql://[^/]+/[^"]+' "${CONTEXT_DEST}" | head -1 | sed 's|.*jdbc:postgresql://[^/]*/||')
     [[ -n "${_db}" ]] && WIKI_DB="${_db}"
 fi
+
+# Run permissions migration (idempotent — uses IF NOT EXISTS and ON CONFLICT)
+PERMISSIONS_DDL="${SCRIPT_DIR}/wikantik-war/src/main/config/db/postgresql-permissions.ddl"
+echo ""
+echo "Running permissions migration..."
+if psql -d "${WIKI_DB}" -f "${PERMISSIONS_DDL}" -q 2>/dev/null; then
+    print_status "Permissions migration complete (policy_grants table)"
+elif psql -U postgres -d "${WIKI_DB}" -f "${PERMISSIONS_DDL}" -q 2>/dev/null; then
+    print_status "Permissions migration complete (policy_grants table)"
+else
+    print_warning "Could not run permissions migration automatically."
+    echo "         Run manually: psql -d ${WIKI_DB} -f ${PERMISSIONS_DDL}"
+fi
+
+# Seed dev user accounts (idempotent upsert — safe to run every deploy)
+echo ""
+echo "Seeding user accounts..."
 if psql -d "${WIKI_DB}" -f "${SEED_SQL}" -q 2>/dev/null; then
     print_status "User accounts seeded in ${WIKI_DB} (admin/admin123, jakefear@gmail.com/passw0rd)"
 elif psql -U postgres -d "${WIKI_DB}" -f "${SEED_SQL}" -q 2>/dev/null; then

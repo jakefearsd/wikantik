@@ -255,6 +255,110 @@ class AdminGroupResourceTest {
                 "Admin endpoints should not allow cross-origin requests" );
     }
 
+    @Test
+    void testCreateGroupWithEmptyMembers() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.add( "members", new JsonArray() );
+
+        final String json = doPut( "NewGroup", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Creating group with empty members should succeed, got: " + json );
+        assertEquals( "NewGroup", obj.get( "name" ).getAsString() );
+        assertTrue( obj.has( "members" ) );
+        final JsonArray members = obj.getAsJsonArray( "members" );
+        assertEquals( 0, members.size(), "Members should be empty" );
+    }
+
+    @Test
+    void testUpdateExistingGroup() throws Exception {
+        // Create the group first
+        final GroupManager gm = engine.getManager( GroupManager.class );
+        final Group group = gm.parseGroup( "TestGroup", "alice\nbob", true );
+        gm.setGroup( engine.guestSession(), group );
+
+        // Update with completely different members
+        final JsonObject body = new JsonObject();
+        final JsonArray members = new JsonArray();
+        members.add( "eve" );
+        members.add( "frank" );
+        members.add( "grace" );
+        body.add( "members", members );
+
+        final String json = doPut( "TestGroup", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Update should succeed, got: " + json );
+        assertEquals( "TestGroup", obj.get( "name" ).getAsString() );
+        final JsonArray updatedMembers = obj.getAsJsonArray( "members" );
+        assertEquals( 3, updatedMembers.size(), "Should have 3 updated members" );
+    }
+
+    @Test
+    void testDeleteGroupMissingNameReturns400() throws Exception {
+        final HttpServletRequest request = createRequest( null );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doDelete( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testPutGroupWithInvalidJsonReturns400() throws Exception {
+        final HttpServletRequest request = createRequest( "TestGroup" );
+        Mockito.doReturn( new BufferedReader( new StringReader( "not valid json" ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPut( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testPutGroupWithoutMembersField() throws Exception {
+        // Test the branch where "members" key is absent from the body
+        final JsonObject body = new JsonObject();
+        // No "members" field at all — should create a group with zero members
+
+        final String json = doPut( "NewGroup", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Should succeed without members field, got: " + json );
+        assertEquals( "NewGroup", obj.get( "name" ).getAsString() );
+    }
+
+    @Test
+    void testListGroupsReturnsGroupStructure() throws Exception {
+        // Create a group to ensure at least one exists
+        final GroupManager gm = engine.getManager( GroupManager.class );
+        final Group group = gm.parseGroup( "TestGroup", "alice\nbob", true );
+        gm.setGroup( engine.guestSession(), group );
+
+        final String json = doGet( null );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        final JsonArray groups = obj.getAsJsonArray( "groups" );
+
+        for ( int i = 0; i < groups.size(); i++ ) {
+            final JsonObject g = groups.get( i ).getAsJsonObject();
+            assertTrue( g.has( "name" ), "Group entry should have 'name'" );
+            assertTrue( g.has( "members" ), "Group entry should have 'members'" );
+            assertTrue( g.has( "creator" ), "Group entry should have 'creator'" );
+            assertTrue( g.has( "created" ), "Group entry should have 'created'" );
+            assertTrue( g.has( "modifier" ), "Group entry should have 'modifier'" );
+            assertTrue( g.has( "lastModified" ), "Group entry should have 'lastModified'" );
+        }
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String groupName ) throws Exception {

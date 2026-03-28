@@ -181,6 +181,54 @@ class AuthResourceTest {
         assertEquals( 404, obj.get( "status" ).getAsInt() );
     }
 
+    @Test
+    void testLoginEmptyUsernameReturns400() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "username", "   " );
+        body.addProperty( "password", "somepassword" );
+
+        final String json = doPost( "login", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testGetUserMissingPathReturns404() throws Exception {
+        // No pathInfo at all
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/auth" );
+        Mockito.doReturn( null ).when( request ).getPathInfo();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 404, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testPostMissingPathReturns404() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/auth" );
+        Mockito.doReturn( null ).when( request ).getPathInfo();
+        final JsonObject body = new JsonObject();
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPost( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 404, obj.get( "status" ).getAsInt() );
+    }
+
     // ----- Helper methods -----
 
     private String doGetUser() throws Exception {

@@ -121,6 +121,39 @@ class HistoryResourceTest {
         assertEquals( 400, obj.get( "status" ).getAsInt() );
     }
 
+    @Test
+    void testGetHistoryEmptyPathInfo() throws Exception {
+        // PathInfo of "/" should return null from extractPathParam
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/history/" );
+        Mockito.doReturn( "/" ).when( request ).getPathInfo();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testGetHistoryVersionEntryStructure() throws Exception {
+        final String json = doGet( "RestHistoryPage" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        final JsonArray versions = obj.getAsJsonArray( "versions" );
+        assertTrue( versions.size() >= 1, "Should have at least one version" );
+
+        final JsonObject firstVersion = versions.get( 0 ).getAsJsonObject();
+        // The version entry should have these fields (changeNote may be null)
+        assertTrue( firstVersion.has( "version" ) );
+        assertTrue( firstVersion.has( "author" ) );
+        assertTrue( firstVersion.has( "lastModified" ) );
+        assertTrue( firstVersion.get( "version" ).getAsInt() >= 1 );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pageName ) throws Exception {

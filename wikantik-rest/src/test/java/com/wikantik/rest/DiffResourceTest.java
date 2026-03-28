@@ -160,6 +160,23 @@ class DiffResourceTest {
         assertEquals( 400, obj.get( "status" ).getAsInt() );
     }
 
+    @Test
+    void testDiffEmptyPageName() throws Exception {
+        // pathInfo of "/" extracts to empty string
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/diff/" );
+        Mockito.doReturn( "/" ).when( request ).getPathInfo();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pageName, final String from, final String to ) throws Exception {

@@ -292,6 +292,346 @@ class AdminPolicyResourceTest {
         assertEquals( 400, obj.get( "status" ).getAsInt() );
     }
 
+    // ----- Additional validation and routing tests -----
+
+    @Test
+    void testCreateGrantMissingPrincipalName() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "role" );
+        // Missing principalName
+        body.addProperty( "permissionType", "page" );
+        body.addProperty( "target", "*" );
+        body.addProperty( "actions", "view" );
+
+        final String json = doPost( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "principalName" ),
+                "Error should mention missing principalName" );
+    }
+
+    @Test
+    void testCreateGrantMissingPermissionType() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "role" );
+        body.addProperty( "principalName", "Authenticated" );
+        // Missing permissionType
+        body.addProperty( "target", "*" );
+        body.addProperty( "actions", "view" );
+
+        final String json = doPost( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "permissionType" ),
+                "Error should mention missing permissionType" );
+    }
+
+    @Test
+    void testCreateGrantMissingTarget() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "role" );
+        body.addProperty( "principalName", "Authenticated" );
+        body.addProperty( "permissionType", "page" );
+        // Missing target
+        body.addProperty( "actions", "view" );
+
+        final String json = doPost( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "target" ),
+                "Error should mention missing target" );
+    }
+
+    @Test
+    void testCreateGrantMissingActions() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "role" );
+        body.addProperty( "principalName", "Authenticated" );
+        body.addProperty( "permissionType", "page" );
+        body.addProperty( "target", "*" );
+        // Missing actions
+
+        final String json = doPost( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "actions" ),
+                "Error should mention missing actions" );
+    }
+
+    @Test
+    void testDeleteGrantInvalidIdFormat() throws Exception {
+        final HttpServletRequest request = createRequest( "not-a-number" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doDelete( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt(),
+                "Non-numeric grant ID should return 400" );
+        assertTrue( obj.get( "message" ).getAsString().contains( "Invalid grant ID" ) );
+    }
+
+    @Test
+    void testUpdateGrantInvalidIdFormat() throws Exception {
+        final HttpServletRequest request = createRequest( "abc" );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "role" );
+        body.addProperty( "principalName", "Admin" );
+        body.addProperty( "permissionType", "page" );
+        body.addProperty( "target", "*" );
+        body.addProperty( "actions", "view" );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPut( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt(),
+                "Non-numeric grant ID should return 400" );
+    }
+
+    @Test
+    void testDeleteGrantNoDatabasePolicy() throws Exception {
+        // With file-based test config, DatabasePolicy is null
+        final HttpServletRequest request = createRequest( "1" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doDelete( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean(),
+                "Should return error without database policy" );
+        assertEquals( 503, obj.get( "status" ).getAsInt(),
+                "Should return 503 when database policy is unavailable" );
+    }
+
+    @Test
+    void testUpdateGrantNoDatabasePolicy() throws Exception {
+        final HttpServletRequest request = createRequest( "1" );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "role" );
+        body.addProperty( "principalName", "Admin" );
+        body.addProperty( "permissionType", "page" );
+        body.addProperty( "target", "*" );
+        body.addProperty( "actions", "view" );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPut( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean(),
+                "Should return error without database policy" );
+        assertEquals( 503, obj.get( "status" ).getAsInt(),
+                "Should return 503 when database policy is unavailable" );
+    }
+
+    @Test
+    void testCreateGrantNoDatabasePolicy() throws Exception {
+        // Valid fields but no DB policy available
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "role" );
+        body.addProperty( "principalName", "Admin" );
+        body.addProperty( "permissionType", "page" );
+        body.addProperty( "target", "*" );
+        body.addProperty( "actions", "view" );
+
+        final String json = doPost( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean(),
+                "Should return error without database policy" );
+        assertEquals( 503, obj.get( "status" ).getAsInt(),
+                "Should return 503 when database policy is unavailable" );
+    }
+
+    @Test
+    void testCreateGrantWithInvalidJsonBody() throws Exception {
+        final HttpServletRequest request = createRequest( null );
+        Mockito.doReturn( new BufferedReader( new StringReader( "not valid json" ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPost( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt(),
+                "Invalid JSON body should return 400" );
+    }
+
+    @Test
+    void testUpdateGrantWithInvalidJsonBody() throws Exception {
+        final HttpServletRequest request = createRequest( "42" );
+        Mockito.doReturn( new BufferedReader( new StringReader( "{{bad}}" ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPut( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt(),
+                "Invalid JSON body should return 400" );
+    }
+
+    @Test
+    void testInvalidPageAction() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "user" );
+        body.addProperty( "principalName", "testuser" );
+        body.addProperty( "permissionType", "page" );
+        body.addProperty( "target", "TestPage" );
+        body.addProperty( "actions", "createPages" );  // wiki action, not valid for page
+
+        final String json = doPost( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "Invalid action" ) );
+    }
+
+    @Test
+    void testInvalidWikiAction() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "group" );
+        body.addProperty( "principalName", "editors" );
+        body.addProperty( "permissionType", "wiki" );
+        body.addProperty( "target", "*" );
+        body.addProperty( "actions", "delete" );  // page action, not valid for wiki
+
+        final String json = doPost( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testInvalidGroupAction() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "role" );
+        body.addProperty( "principalName", "Admin" );
+        body.addProperty( "permissionType", "group" );
+        body.addProperty( "target", "*" );
+        body.addProperty( "actions", "delete" );  // not a valid group action
+
+        final String json = doPost( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testUpdateGrantWithValidFieldsNoDatabasePolicy() throws Exception {
+        // Test that validation passes before hitting the DB check
+        final HttpServletRequest request = createRequest( "999" );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "user" );
+        body.addProperty( "principalName", "testuser" );
+        body.addProperty( "permissionType", "page" );
+        body.addProperty( "target", "TestPage" );
+        body.addProperty( "actions", "view,edit" );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPut( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        // Should be 503 (no DB), not 400 (validation) -- proves validation passed
+        assertEquals( 503, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testUpdateGrantWithInvalidFieldsReturns400() throws Exception {
+        final HttpServletRequest request = createRequest( "999" );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "badtype" );
+        body.addProperty( "principalName", "testuser" );
+        body.addProperty( "permissionType", "page" );
+        body.addProperty( "target", "TestPage" );
+        body.addProperty( "actions", "view" );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPut( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt(),
+                "Invalid principal type should return 400, not reach DB" );
+    }
+
+    @Test
+    void testCreateGrantWithWildcardWikiAction() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "role" );
+        body.addProperty( "principalName", "Admin" );
+        body.addProperty( "permissionType", "wiki" );
+        body.addProperty( "target", "*" );
+        body.addProperty( "actions", "*" );
+
+        final String json = doPost( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        if ( obj.has( "error" ) ) {
+            // Should pass validation (wildcard), fail on DB
+            assertNotEquals( 400, obj.get( "status" ).getAsInt(),
+                    "Wildcard '*' should not trigger validation error for wiki permission" );
+        }
+    }
+
+    @Test
+    void testCreateGrantWithWildcardGroupAction() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalType", "group" );
+        body.addProperty( "principalName", "editors" );
+        body.addProperty( "permissionType", "group" );
+        body.addProperty( "target", "*" );
+        body.addProperty( "actions", "*" );
+
+        final String json = doPost( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        if ( obj.has( "error" ) ) {
+            assertNotEquals( 400, obj.get( "status" ).getAsInt(),
+                    "Wildcard '*' should not trigger validation error for group permission" );
+        }
+    }
+
     // ----- CORS restriction tests -----
 
     /**

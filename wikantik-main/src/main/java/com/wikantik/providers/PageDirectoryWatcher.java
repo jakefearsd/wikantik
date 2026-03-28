@@ -237,33 +237,14 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
      */
     private void processCreatedOrModified( final String pageName ) {
         LOG.info( "External change detected for page: {}", pageName );
-
         try {
-            // 1. Invalidate file extension cache so .md/.txt precedence is re-evaluated
-            fileProvider.invalidateFileExtensionCache( pageName );
+            invalidateCaches( pageName );
 
-            // 2. Invalidate EhCache entries
-            cachingManager.remove( CachingManager.CACHE_PAGES, pageName );
-            cachingManager.remove( CachingManager.CACHE_PAGES_TEXT, pageName );
-            cachingManager.remove( CachingManager.CACHE_PAGES_HISTORY, pageName );
-
-            // 3. Fire POST_SAVE_BEGIN event on FilterManager to trigger rendering cache flush
-            //    DefaultRenderingManager listens for this event and flushes CACHE_DOCUMENTS
-            //    for this page and all pages that refer to it
-            final FilterManager filterManager = engine.getManager( FilterManager.class );
-            if( filterManager != null && WikiEventManager.isListening( filterManager ) ) {
-                WikiEventManager.fireEvent( filterManager,
-                        new WikiPageEvent( engine, WikiPageEvent.POST_SAVE_BEGIN, pageName ) );
-            }
-
-            // 4. Update references — rebuild the link graph for this page
             final ReferenceManager refMgr = engine.getManager( ReferenceManager.class );
             if( refMgr != null ) {
-                final Page page = Wiki.contents().page( engine, pageName );
-                refMgr.updateReferences( page );
+                refMgr.updateReferences( Wiki.contents().page( engine, pageName ) );
             }
 
-            // 5. Reindex for search
             final SearchManager searchMgr = engine.getManager( SearchManager.class );
             if( searchMgr != null ) {
                 final Page page = Wiki.contents().page( engine, pageName );
@@ -281,38 +262,38 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
      */
     private void processDeleted( final String pageName ) {
         LOG.info( "External deletion detected for page: {}", pageName );
-
         try {
-            // 1. Invalidate file extension cache
-            fileProvider.invalidateFileExtensionCache( pageName );
+            invalidateCaches( pageName );
 
-            // 2. Invalidate EhCache entries
-            cachingManager.remove( CachingManager.CACHE_PAGES, pageName );
-            cachingManager.remove( CachingManager.CACHE_PAGES_TEXT, pageName );
-            cachingManager.remove( CachingManager.CACHE_PAGES_HISTORY, pageName );
-
-            // 3. Fire POST_SAVE_BEGIN to flush rendering cache
-            final FilterManager filterManager = engine.getManager( FilterManager.class );
-            if( filterManager != null && WikiEventManager.isListening( filterManager ) ) {
-                WikiEventManager.fireEvent( filterManager,
-                        new WikiPageEvent( engine, WikiPageEvent.POST_SAVE_BEGIN, pageName ) );
-            }
-
-            // 4. Notify reference manager about removal
             final ReferenceManager refMgr = engine.getManager( ReferenceManager.class );
             if( refMgr != null ) {
-                final Page page = Wiki.contents().page( engine, pageName );
-                refMgr.pageRemoved( page );
+                refMgr.pageRemoved( Wiki.contents().page( engine, pageName ) );
             }
 
-            // 5. Remove from search index
             final SearchManager searchMgr = engine.getManager( SearchManager.class );
             if( searchMgr != null ) {
-                final Page page = Wiki.contents().page( engine, pageName );
-                searchMgr.pageRemoved( page );
+                searchMgr.pageRemoved( Wiki.contents().page( engine, pageName ) );
             }
         } catch( final Exception e ) {
             LOG.error( "Error processing external deletion for page: {}", pageName, e );
+        }
+    }
+
+    /**
+     * Invalidates file extension cache, EhCache entries, and fires a POST_SAVE_BEGIN
+     * event to flush the rendering cache. Shared by both create/modify and delete paths.
+     */
+    private void invalidateCaches( final String pageName ) {
+        fileProvider.invalidateFileExtensionCache( pageName );
+
+        cachingManager.remove( CachingManager.CACHE_PAGES, pageName );
+        cachingManager.remove( CachingManager.CACHE_PAGES_TEXT, pageName );
+        cachingManager.remove( CachingManager.CACHE_PAGES_HISTORY, pageName );
+
+        final FilterManager filterManager = engine.getManager( FilterManager.class );
+        if( filterManager != null && WikiEventManager.isListening( filterManager ) ) {
+            WikiEventManager.fireEvent( filterManager,
+                    new WikiPageEvent( engine, WikiPageEvent.POST_SAVE_BEGIN, pageName ) );
         }
     }
 

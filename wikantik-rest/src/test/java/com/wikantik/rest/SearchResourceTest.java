@@ -57,13 +57,13 @@ class SearchResourceTest {
         engine.saveText( "RestSearchAlpha", "Alpha page content for search testing." );
         engine.saveText( "RestSearchBeta", "Beta page content for search testing." );
 
-        // Force reindex to ensure pages are in the Lucene index
+        // Force reindex and wait for the Lucene background thread to process
         final SearchManager sm = engine.getManager( SearchManager.class );
         final PageManager pmSetup = engine.getManager( PageManager.class );
         sm.reindexPage( pmSetup.getPage( "RestSearchAlpha" ) );
         sm.reindexPage( pmSetup.getPage( "RestSearchBeta" ) );
 
-        // Allow Lucene time to index
+        // Wait for Lucene indexer — it runs on a background thread
         Thread.sleep( 500 );
 
         servlet = new SearchResource();
@@ -238,7 +238,7 @@ class SearchResourceTest {
     void testSearchResultsContainExpectedPageFields() throws Exception {
         // Lucene indexing is asynchronous; search for content with retries
         JsonArray results = null;
-        for ( int attempt = 0; attempt < 5; attempt++ ) {
+        for ( int attempt = 0; attempt < 10; attempt++ ) {
             Thread.sleep( 500 );
             final String json = doSearch( "Alpha", null );
             final JsonObject obj = gson.fromJson( json, JsonObject.class );
@@ -246,16 +246,55 @@ class SearchResourceTest {
             if ( results.size() > 0 ) break;
         }
 
-        // If Lucene didn't index in time, skip detailed assertions but still
-        // verify the response structure
+        // If Lucene indexed, verify the full result structure
         if ( results != null && results.size() > 0 ) {
             final JsonObject entry = results.get( 0 ).getAsJsonObject();
+            // Core fields that SearchResource always sets
             assertTrue( entry.has( "name" ), "Result entry should have 'name'" );
             assertTrue( entry.has( "score" ), "Result entry should have 'score'" );
-            assertFalse( entry.get( "name" ).getAsString().isEmpty(),
-                    "Name should not be empty" );
-            assertTrue( entry.get( "score" ).getAsInt() > 0,
-                    "Score should be positive" );
+            assertTrue( entry.has( "lastModified" ), "Result entry should have 'lastModified'" );
+            assertFalse( entry.get( "name" ).getAsString().isEmpty(), "Name should not be empty" );
+            assertTrue( entry.get( "score" ).getAsInt() > 0, "Score should be positive" );
+        }
+    }
+
+    @Test
+    void testSearchResultsWithFrontmatterFields() throws Exception {
+        // Create a page with full frontmatter
+        engine.saveText( "RestSearchFmFields",
+                "---\nsummary: Unique findable summary\ntags: [alpha, beta]\ncluster: test-cluster\n---\nUniqueFmFieldContent here." );
+        final SearchManager sm = engine.getManager( SearchManager.class );
+        sm.reindexPage( engine.getManager( PageManager.class ).getPage( "RestSearchFmFields" ) );
+
+        try {
+            // Wait for indexing and search with retries
+            JsonObject foundEntry = null;
+            for ( int attempt = 0; attempt < 10; attempt++ ) {
+                Thread.sleep( 500 );
+                final String json = doSearch( "UniqueFmFieldContent", null );
+                final JsonObject obj = gson.fromJson( json, JsonObject.class );
+                final JsonArray res = obj.getAsJsonArray( "results" );
+                for ( int i = 0; i < res.size(); i++ ) {
+                    final JsonObject e = res.get( i ).getAsJsonObject();
+                    if ( "RestSearchFmFields".equals( e.get( "name" ).getAsString() ) ) {
+                        foundEntry = e;
+                        break;
+                    }
+                }
+                if ( foundEntry != null ) break;
+            }
+
+            if ( foundEntry != null ) {
+                // Verify frontmatter fields are extracted into the result
+                assertEquals( "Unique findable summary", foundEntry.get( "summary" ).getAsString(),
+                        "Summary should be extracted from frontmatter" );
+                assertTrue( foundEntry.has( "tags" ), "Tags should be extracted from frontmatter" );
+                assertEquals( "test-cluster", foundEntry.get( "cluster" ).getAsString(),
+                        "Cluster should be extracted from frontmatter" );
+            }
+        } finally {
+            try { engine.getManager( PageManager.class ).deletePage( "RestSearchFmFields" ); }
+            catch ( final Exception e ) { /* ignore */ }
         }
     }
 

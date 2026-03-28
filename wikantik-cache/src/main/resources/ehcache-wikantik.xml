@@ -41,9 +41,9 @@
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
         <expiry>
-            <ttl unit="seconds">60</ttl>
+            <ttl unit="seconds">3600</ttl>
         </expiry>
-        <heap unit="entries">1000</heap>
+        <heap unit="entries">10000</heap>
     </cache>
 
     <!-- Page metadata cache -->
@@ -53,7 +53,7 @@
         <expiry>
             <ttl unit="seconds">60</ttl>
         </expiry>
-        <heap unit="entries">1000</heap>
+        <heap unit="entries">10000</heap>
     </cache>
 
     <!-- Page text content cache -->
@@ -63,7 +63,7 @@
         <expiry>
             <ttl unit="seconds">60</ttl>
         </expiry>
-        <heap unit="entries">1000</heap>
+        <heap unit="entries">10000</heap>
     </cache>
 
     <!-- Page version history cache -->
@@ -73,7 +73,7 @@
         <expiry>
             <ttl unit="seconds">60</ttl>
         </expiry>
-        <heap unit="entries">1000</heap>
+        <heap unit="entries">10000</heap>
     </cache>
 
     <!-- Attachment metadata cache -->
@@ -101,9 +101,9 @@
         <key-type>java.io.Serializable</key-type>
         <value-type>java.lang.Object</value-type>
         <expiry>
-            <ttl unit="seconds">60</ttl>
+            <ttl unit="seconds">3600</ttl>
         </expiry>
-        <heap unit="entries">1000</heap>
+        <heap unit="entries">10000</heap>
     </cache>
 
     <!-- Dynamic attachment cache -->

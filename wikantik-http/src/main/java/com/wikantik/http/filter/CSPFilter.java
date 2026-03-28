@@ -30,7 +30,7 @@ import java.io.IOException;
  */
 public class CSPFilter implements Filter {
 
-    private String mode = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self';";
+    private String mode = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self';";
 
     public void init(FilterConfig filterConfig) {
         String configMode = filterConfig.getInitParameter("CSPValue");

@@ -65,6 +65,11 @@ public class AdminUserResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( AdminUserResource.class );
 
+    @Override
+    protected boolean isCrossOriginAllowed() {
+        return false;
+    }
+
     private UserDatabase getUserDatabase() {
         return getEngine().getManager( UserManager.class ).getUserDatabase();
     }
@@ -143,7 +148,7 @@ public class AdminUserResource extends RestServletBase {
             sendJson( response, Map.of( "users", users ) );
         } catch ( final WikiSecurityException e ) {
             LOG.error( "Failed to list users", e );
-            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to list users: " + e.getMessage() );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to list users" );
         }
     }
 
@@ -195,7 +200,7 @@ public class AdminUserResource extends RestServletBase {
             sendJson( response, profileToMap( db.findByLoginName( loginName ) ) );
         } catch ( final WikiSecurityException e ) {
             LOG.error( "Failed to create user {}: {}", loginName, e.getMessage() );
-            sendError( response, HttpServletResponse.SC_CONFLICT, "Failed to create user: " + e.getMessage() );
+            sendError( response, HttpServletResponse.SC_CONFLICT, "Failed to create user" );
         } catch ( final Exception e ) {
             LOG.error( "Failed to create user {}", loginName, e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to create user" );

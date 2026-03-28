@@ -85,14 +85,27 @@ public abstract class RestServletBase extends HttpServlet {
     }
 
     /**
-     * Sets CORS headers on the response.
+     * Returns whether cross-origin requests are allowed for this servlet.
+     * Subclasses (e.g. admin servlets) can override this to return {@code false},
+     * which suppresses CORS headers and enforces same-origin policy.
+     *
+     * @return {@code true} if cross-origin requests should be allowed (default)
+     */
+    protected boolean isCrossOriginAllowed() {
+        return true;
+    }
+
+    /**
+     * Sets CORS headers on the response, unless {@link #isCrossOriginAllowed()} returns false.
      *
      * @param response the HTTP response
      */
     protected void setCorsHeaders( final HttpServletResponse response ) {
-        response.setHeader( "Access-Control-Allow-Origin", "*" );
-        response.setHeader( "Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS" );
-        response.setHeader( "Access-Control-Allow-Headers", "Content-Type, Authorization" );
+        if ( isCrossOriginAllowed() ) {
+            response.setHeader( "Access-Control-Allow-Origin", "*" );
+            response.setHeader( "Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS" );
+            response.setHeader( "Access-Control-Allow-Headers", "Content-Type, Authorization" );
+        }
     }
 
     /**

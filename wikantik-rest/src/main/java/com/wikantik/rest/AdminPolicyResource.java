@@ -79,6 +79,11 @@ public class AdminPolicyResource extends RestServletBase {
     /** Valid permission types. */
     private static final Set< String > PERMISSION_TYPES = Set.of( "page", "wiki", "group" );
 
+    @Override
+    protected boolean isCrossOriginAllowed() {
+        return false;
+    }
+
     /**
      * Returns the DatabasePolicy from the DefaultAuthorizationManager, or null
      * if the engine is using file-based policy.
@@ -162,7 +167,7 @@ public class AdminPolicyResource extends RestServletBase {
         } catch ( final SQLException e ) {
             LOG.error( "Failed to list policy grants", e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Failed to list policy grants: " + e.getMessage() );
+                    "Failed to list policy grants" );
         }
     }
 
@@ -233,7 +238,7 @@ public class AdminPolicyResource extends RestServletBase {
         } catch ( final SQLException e ) {
             LOG.error( "Failed to create policy grant", e );
             sendError( response, HttpServletResponse.SC_CONFLICT,
-                    "Failed to create policy grant: " + e.getMessage() );
+                    "Failed to create policy grant" );
         }
     }
 
@@ -310,7 +315,7 @@ public class AdminPolicyResource extends RestServletBase {
         } catch ( final SQLException e ) {
             LOG.error( "Failed to update policy grant {}", id, e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Failed to update policy grant: " + e.getMessage() );
+                    "Failed to update policy grant" );
         }
     }
 
@@ -352,7 +357,7 @@ public class AdminPolicyResource extends RestServletBase {
         } catch ( final SQLException e ) {
             LOG.error( "Failed to delete policy grant {}", id, e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Failed to delete policy grant: " + e.getMessage() );
+                    "Failed to delete policy grant" );
         }
     }
 

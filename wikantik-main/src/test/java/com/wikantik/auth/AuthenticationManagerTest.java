@@ -18,6 +18,7 @@
  */
 package com.wikantik.auth;
 
+import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.WikiEngine;
 import com.wikantik.WikiSession;
@@ -32,6 +33,7 @@ import com.wikantik.auth.login.CookieAssertionLoginModule;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.Principal;
@@ -244,6 +246,27 @@ public class AuthenticationManagerTest {
 
         // Clean up
         m_groupMgr.removeGroup( "Test2" );
+    }
+
+    @Test
+    public void testSessionIdRegeneratedAfterLogin() throws Exception {
+        // Create a mock request with a tracked changeSessionId() call
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+
+        // Perform login with username/password
+        final Session session = WikiSession.guestSession( m_engine );
+        m_auth.login( session, request, Users.JANNE, Users.JANNE_PASS );
+
+        // Verify that changeSessionId() was called to prevent session fixation
+        Mockito.verify( request ).changeSessionId();
+    }
+
+    @Test
+    public void testSessionIdNotRegeneratedWhenRequestIsNull() throws Exception {
+        // When request is null, login should still succeed without NPE
+        final Session session = WikiSession.guestSession( m_engine );
+        final boolean result = m_auth.login( session, null, Users.JANNE, Users.JANNE_PASS );
+        Assertions.assertTrue( result, "Login should succeed even with null request" );
     }
 
 }

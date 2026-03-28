@@ -192,6 +192,9 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                     fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
                 }
 
+                // Regenerate session ID to prevent session fixation attacks
+                request.changeSessionId();
+
                 // Add all appropriate Authorizer roles
                 injectAuthorizerRoles( session, authorizationMgr.getAuthorizer(), request );
             }
@@ -242,6 +245,11 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             fireEvent(WikiSecurityEvent.LOGIN_AUTHENTICATED, getLoginPrincipal( principals ), session );
             for ( final Principal principal : principals ) {
                 fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
+            }
+
+            // Regenerate session ID to prevent session fixation attacks
+            if ( request != null ) {
+                request.changeSessionId();
             }
 
             // Add all appropriate Authorizer roles

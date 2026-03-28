@@ -327,4 +327,43 @@ class WritePageToolTest {
         final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         assertTrue( json.contains( "Version conflict" ) );
     }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testWriteSystemPageIncludesWarning() {
+        // Register a system page
+        final StubSystemPageRegistry sysRegistry = new StubSystemPageRegistry();
+        sysRegistry.addSystemPage( "LeftMenu" );
+        final WritePageTool toolWithSys = new WritePageTool( new StubPageSaveHelper( pm ), sysRegistry );
+
+        final Map< String, Object > args = new HashMap<>();
+        args.put( "pageName", "LeftMenu" );
+        args.put( "content", "Modified system page." );
+
+        final McpSchema.CallToolResult result = toolWithSys.execute( args );
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        final Map< String, Object > data = gson.fromJson( json, Map.class );
+
+        assertEquals( true, data.get( "success" ) );
+        assertEquals( true, data.get( "systemPage" ) );
+        assertNotNull( data.get( "warning" ) );
+        assertTrue( ( ( String ) data.get( "warning" ) ).contains( "system" ) );
+    }
+
+    @Test
+    void testToolDefinition() {
+        final McpSchema.Tool def = tool.definition();
+        assertEquals( "write_page", def.name() );
+        assertNotNull( def.description() );
+        assertNotNull( def.inputSchema() );
+        assertTrue( def.inputSchema().required().contains( "pageName" ) );
+        assertTrue( def.inputSchema().required().contains( "content" ) );
+        // write_page should NOT be read-only
+        assertFalse( def.annotations().readOnlyHint() );
+    }
+
+    @Test
+    void testToolName() {
+        assertEquals( "write_page", tool.name() );
+    }
 }

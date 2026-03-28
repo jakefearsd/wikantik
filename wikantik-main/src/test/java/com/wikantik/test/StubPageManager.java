@@ -157,8 +157,8 @@ public class StubPageManager implements PageManager {
         return pageInfos.size();
     }
 
-    @Override public Set< Page > getRecentChanges() { return Set.of(); }
-    @Override public Set< Page > getRecentChanges( final Date since ) { return Set.of(); }
+    @Override public Set< Page > getRecentChanges() { return new LinkedHashSet<>( pageInfos.values() ); }
+    @Override public Set< Page > getRecentChanges( final Date since ) { return new LinkedHashSet<>( pageInfos.values() ); }
 
     @Override
     public boolean pageExists( final String pageName ) {

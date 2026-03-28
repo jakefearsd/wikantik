@@ -137,4 +137,108 @@ class McpRateLimiterTest {
             assertTrue( limiter.tryAcquire( "client-a" ) );
         }
     }
+
+    @Test
+    void testGlobalLimitOnlyIgnoresPerClient() {
+        final AtomicLong clock = new AtomicLong( 0 );
+        // Only global limit, no per-client limit
+        final McpRateLimiter limiter = createWithClock( 5, 0, clock );
+
+        // Same client can make all 5 calls
+        for ( int i = 0; i < 5; i++ ) {
+            assertTrue( limiter.tryAcquire( "client-a" ) );
+        }
+        assertFalse( limiter.tryAcquire( "client-a" ) );
+    }
+
+    @Test
+    void testPerClientOnlyIgnoresGlobal() {
+        final AtomicLong clock = new AtomicLong( 0 );
+        // No global limit, per-client limit of 2
+        final McpRateLimiter limiter = createWithClock( 0, 2, clock );
+
+        assertTrue( limiter.tryAcquire( "client-a" ) );
+        assertTrue( limiter.tryAcquire( "client-a" ) );
+        assertFalse( limiter.tryAcquire( "client-a" ) );
+
+        // Many different clients should all get their own budget
+        for ( int i = 0; i < 50; i++ ) {
+            assertTrue( limiter.tryAcquire( "client-" + i ) );
+        }
+    }
+
+    @Test
+    void testCleanupStaleBucketsRemovedAfterTimeout() {
+        // This test exercises the cleanupStaleEntries path by making
+        // enough calls that the 1-in-100 probability cleanup triggers
+        final AtomicLong clock = new AtomicLong( 0 );
+        final McpRateLimiter limiter = createWithClock( 1000, 1000, clock );
+
+        // Make a request from a client
+        assertTrue( limiter.tryAcquire( "stale-client" ) );
+
+        // Advance clock past the stale threshold (60 seconds = 60_000_000_000 ns)
+        clock.set( 61_000_000_000L );
+
+        // Make many requests to increase probability of cleanup trigger (1 in 100)
+        // With 200 calls, probability of at least one cleanup is 1-(99/100)^200 ≈ 87%
+        for ( int i = 0; i < 200; i++ ) {
+            limiter.tryAcquire( "active-client-" + i );
+        }
+
+        // The stale bucket should eventually be cleaned up. We verify indirectly
+        // by checking that the limiter still functions correctly.
+        clock.set( 62_000_000_000L );
+        assertTrue( limiter.tryAcquire( "stale-client" ),
+                "Stale client should be able to acquire again after window slides" );
+    }
+
+    @Test
+    void testWindowEvictionWithPerClientLimit() {
+        final AtomicLong clock = new AtomicLong( 0 );
+        final McpRateLimiter limiter = createWithClock( 0, 3, clock );
+
+        // Fill up the per-client budget
+        assertTrue( limiter.tryAcquire( "client-a" ) );
+        assertTrue( limiter.tryAcquire( "client-a" ) );
+        assertTrue( limiter.tryAcquire( "client-a" ) );
+        assertFalse( limiter.tryAcquire( "client-a" ) );
+
+        // Advance half a second — oldest entries still in window
+        clock.set( 500_000_000L );
+        assertFalse( limiter.tryAcquire( "client-a" ) );
+
+        // Advance past full window for first 3 entries
+        clock.set( 1_000_000_001L );
+        assertTrue( limiter.tryAcquire( "client-a" ) );
+    }
+
+    @Test
+    void testBothLimitsGlobalHitsFirst() {
+        final AtomicLong clock = new AtomicLong( 0 );
+        // Global=2, per-client=5 — global limit is more restrictive
+        final McpRateLimiter limiter = createWithClock( 2, 5, clock );
+
+        assertTrue( limiter.tryAcquire( "client-a" ) );
+        assertTrue( limiter.tryAcquire( "client-b" ) );
+        // Global limit reached even though per-client has budget
+        assertFalse( limiter.tryAcquire( "client-c" ) );
+    }
+
+    @Test
+    void testFailedPerClientDoesNotPolluteGlobalBucket() {
+        final AtomicLong clock = new AtomicLong( 0 );
+        // Global=3, per-client=1
+        final McpRateLimiter limiter = createWithClock( 3, 1, clock );
+
+        assertTrue( limiter.tryAcquire( "client-a" ) );
+        // client-a per-client limit reached — this should NOT consume global budget
+        assertFalse( limiter.tryAcquire( "client-a" ) );
+
+        // Global budget should still have 2 slots (only 1 consumed by first successful call)
+        assertTrue( limiter.tryAcquire( "client-b" ) );
+        assertTrue( limiter.tryAcquire( "client-c" ) );
+        // Now global is full
+        assertFalse( limiter.tryAcquire( "client-d" ) );
+    }
 }

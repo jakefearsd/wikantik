@@ -74,10 +74,46 @@ class DiffPageToolTest {
     }
 
     @Test
+    void testStripHtmlBlockElements() {
+        // Closing block tags add \n — with existing \n, duplicates collapse to \n\n
+        assertEquals( "paragraph\n\ncontent", DiffPageTool.stripHtml( "<p>paragraph</p>\ncontent" ) );
+        assertEquals( "div\n\ncontent", DiffPageTool.stripHtml( "<div>div</div>\ncontent" ) );
+        assertEquals( "row\n\ncell", DiffPageTool.stripHtml( "<tr>row</tr>\ncell" ) );
+        assertEquals( "item\n\nnext", DiffPageTool.stripHtml( "<li>item</li>\nnext" ) );
+    }
+
+    @Test
+    void testStripHtmlEntityDecoding() {
+        assertEquals( "\"quoted\"", DiffPageTool.stripHtml( "&quot;quoted&quot;" ) );
+        assertEquals( "it's", DiffPageTool.stripHtml( "it&#39;s" ) );
+        assertEquals( "a > b < c", DiffPageTool.stripHtml( "a &gt; b &lt; c" ) );
+    }
+
+    @Test
+    void testStripHtmlSelfClosingBr() {
+        assertEquals( "line1\nline2", DiffPageTool.stripHtml( "line1<br>line2" ) );
+        assertEquals( "line1\nline2", DiffPageTool.stripHtml( "line1<br />line2" ) );
+    }
+
+    @Test
+    void testStripHtmlCollapseMultipleNewlines() {
+        // 3+ consecutive newlines should be collapsed to 2
+        assertEquals( "a\n\nb", DiffPageTool.stripHtml( "a\n\n\n\nb" ) );
+    }
+
+    @Test
     void testToolDefinition() {
         final McpSchema.Tool def = tool.definition();
         assertEquals( "diff_page", def.name() );
         assertNotNull( def.annotations() );
         assertTrue( def.annotations().readOnlyHint() );
+        assertTrue( def.inputSchema().required().contains( "pageName" ) );
+        assertTrue( def.inputSchema().required().contains( "version1" ) );
+        assertTrue( def.inputSchema().required().contains( "version2" ) );
+    }
+
+    @Test
+    void testToolName() {
+        assertEquals( "diff_page", tool.name() );
     }
 }

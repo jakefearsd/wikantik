@@ -99,7 +99,8 @@ public class CsrfProtectionFilter implements Filter {
      */
     static boolean isRestApiEndpoint( final HttpServletRequest request ) {
         final String servletPath = request.getServletPath();
-        return servletPath != null && servletPath.startsWith( "/api/" );
+        return servletPath != null
+                && ( servletPath.startsWith( "/api/" ) || servletPath.startsWith( "/admin/" ) );
     }
 
     /** {@inheritDoc} */

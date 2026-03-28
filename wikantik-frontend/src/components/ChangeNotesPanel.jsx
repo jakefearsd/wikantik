@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 
 export default function ChangeNotesPanel({ pageName }) {
@@ -57,42 +58,59 @@ export default function ChangeNotesPanel({ pageName }) {
             <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>No history available.</div>
           )}
           {versions && versions.length > 0 && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-              <thead>
-                <tr>
-                  {['Version', 'Author', 'Date', 'Note'].map(h => (
-                    <th key={h} style={{
-                      textAlign: 'left',
-                      color: 'var(--text-muted)',
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                      paddingBottom: 'var(--space-xs)',
-                      borderBottom: '1px solid var(--border)',
-                    }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {versions.map(v => (
-                  <tr key={v.version} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: 'var(--space-xs) var(--space-sm) var(--space-xs) 0', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
-                      v{v.version}
-                    </td>
-                    <td style={{ padding: 'var(--space-xs) var(--space-sm)', whiteSpace: 'nowrap' }}>
-                      {v.author || '—'}
-                    </td>
-                    <td style={{ padding: 'var(--space-xs) var(--space-sm)', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
-                      {v.lastModified ? new Date(v.lastModified).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
-                    </td>
-                    <td style={{ padding: 'var(--space-xs) 0 var(--space-xs) var(--space-sm)', color: v.changeNote ? 'inherit' : 'var(--text-muted)' }}>
-                      {v.changeNote || '—'}
-                    </td>
+            <>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr>
+                    {['Version', 'Author', 'Date', 'Note'].map(h => (
+                      <th key={h} style={{
+                        textAlign: 'left',
+                        color: 'var(--text-muted)',
+                        fontSize: '0.75rem',
+                        fontWeight: 500,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        paddingBottom: 'var(--space-xs)',
+                        borderBottom: '1px solid var(--border)',
+                      }}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {versions.map(v => (
+                    <tr key={v.version} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: 'var(--space-xs) var(--space-sm) var(--space-xs) 0', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
+                        v{v.version}
+                      </td>
+                      <td style={{ padding: 'var(--space-xs) var(--space-sm)', whiteSpace: 'nowrap' }}>
+                        {v.author || '—'}
+                      </td>
+                      <td style={{ padding: 'var(--space-xs) var(--space-sm)', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
+                        {v.lastModified ? new Date(v.lastModified).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                      </td>
+                      <td style={{ padding: 'var(--space-xs) 0 var(--space-xs) var(--space-sm)', color: v.changeNote ? 'inherit' : 'var(--text-muted)' }}>
+                        {v.changeNote || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {versions.length >= 2 && (
+                <div style={{ marginTop: 'var(--space-md)', textAlign: 'right' }}>
+                  <Link
+                    to={`/diff/${pageName}`}
+                    style={{
+                      fontFamily: 'var(--font-ui)',
+                      fontSize: '0.8rem',
+                      color: 'var(--accent)',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Compare versions &rarr;
+                  </Link>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

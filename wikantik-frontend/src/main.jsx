@@ -10,6 +10,7 @@ import AdminLayout from './components/admin/AdminLayout';
 import AdminUsersPage from './components/admin/AdminUsersPage';
 import AdminContentPage from './components/admin/AdminContentPage';
 import AdminSecurityPage from './components/admin/AdminSecurityPage';
+import DiffViewer from './components/DiffViewer';
 import './styles/globals.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -22,6 +23,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/wiki/:name" element={<PageView />} />
             <Route path="/wiki" element={<Navigate to="/wiki/Main" replace />} />
             <Route path="/edit/:name" element={<PageEditor />} />
+            <Route path="/diff/:name" element={<DiffViewer />} />
             <Route path="/search" element={<SearchResultsPage />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Navigate to="users" replace />} />

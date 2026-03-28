@@ -180,4 +180,97 @@ class PropertyReaderTest {
         }
     }
 
+    @Test
+    void testPropertyExpansionWithSysPrefix() {
+        try {
+            System.setProperty( "MY_SYS_PROP", "sysvalue" );
+            final Properties p = new Properties();
+            p.put( "wikantik.test", "${sys:MY_SYS_PROP}/data" );
+            PropertyReader.propertyExpansion( p );
+            Assertions.assertEquals( "sysvalue/data", p.getProperty( "wikantik.test" ) );
+        } finally {
+            System.clearProperty( "MY_SYS_PROP" );
+        }
+    }
+
+    @Test
+    void testPropertyExpansionWithEnvPrefix() {
+        // Use a system property as fallback since env vars can't be set in tests
+        try {
+            System.setProperty( "MY_ENV_PROP", "envvalue" );
+            final Properties p = new Properties();
+            p.put( "wikantik.test", "${env:MY_ENV_PROP}/data" );
+            PropertyReader.propertyExpansion( p );
+            Assertions.assertEquals( "envvalue/data", p.getProperty( "wikantik.test" ) );
+        } finally {
+            System.clearProperty( "MY_ENV_PROP" );
+        }
+    }
+
+    @Test
+    void testPropertyExpansionNoChange() {
+        final Properties p = new Properties();
+        p.put( "wikantik.test", "no-expansion-needed" );
+        PropertyReader.propertyExpansion( p );
+        Assertions.assertEquals( "no-expansion-needed", p.getProperty( "wikantik.test" ) );
+    }
+
+    @Test
+    void testGetDefaultProperties() {
+        final Properties props = PropertyReader.getDefaultProperties();
+        Assertions.assertNotNull( props );
+        // The default properties file should contain at least some wikantik properties
+        Assertions.assertFalse( props.isEmpty(), "Default properties should not be empty" );
+    }
+
+    @Test
+    void testGetCombinedPropertiesWithNonexistentFile() {
+        final Properties props = PropertyReader.getCombinedProperties( "/nonexistent-file.properties" );
+        Assertions.assertNotNull( props );
+        // Should still have defaults even though custom file was not found
+        Assertions.assertFalse( props.isEmpty() );
+    }
+
+    @Test
+    void testGetCombinedPropertiesWithExistingResource() {
+        // test.properties exists on the test classpath
+        final Properties props = PropertyReader.getCombinedProperties( "/test.properties" );
+        Assertions.assertNotNull( props );
+        // Should have merged default props + test props
+        Assertions.assertEquals( "Foo", props.getProperty( "testProp1" ) );
+    }
+
+    @Test
+    void testCollectPropertiesFromFiltersNonWikantik() {
+        Map< String, String > input = new HashMap<>();
+        input.put( "wikantik_test_key", "val1" );
+        input.put( "WIKANTIK_UPPER", "val2" );
+        input.put( "other_key", "val3" );
+        input.put( "wikantik", "val4" );
+
+        Map< String, String > result = PropertyReader.collectPropertiesFrom( input );
+
+        Assertions.assertEquals( "val1", result.get( "wikantik.test.key" ) );
+        Assertions.assertNull( result.get( "other_key" ) );
+        Assertions.assertNull( result.get( "other.key" ) );
+        Assertions.assertEquals( "val4", result.get( "wikantik" ) );
+    }
+
+    @Test
+    void testExpandVarsNoVarsDefined() {
+        final Properties p = new Properties();
+        p.put( "wikantik.test", "no vars here" );
+        PropertyReader.expandVars( p );
+        Assertions.assertEquals( "no vars here", p.getProperty( "wikantik.test" ) );
+    }
+
+    @Test
+    void testExpandVarsUndefinedVarLeftAlone() {
+        final Properties p = new Properties();
+        p.put( "wikantik.test", "$undefinedVar/path" );
+        PropertyReader.expandVars( p );
+        // $undefinedVar has no matching var.undefinedVar, so it stays
+        Assertions.assertEquals( "$undefinedVar/path", p.getProperty( "wikantik.test" ) );
+    }
+
 }

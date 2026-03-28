@@ -77,6 +77,53 @@ public class EhcacheCachingManagerTest {
     }
 
     @Test
+    void testInfoTracksHitsAndMisses() {
+        // First access — cache miss (supplier is called)
+        ecm.get( CachingManager.CACHE_PAGES, "missKey", () -> "fromBackend" );
+        final CacheInfo info = ecm.info( CachingManager.CACHE_PAGES );
+        Assertions.assertNotNull( info );
+        Assertions.assertEquals( 1, info.getMisses() );
+
+        // Second access — cache hit (value already cached)
+        ecm.get( CachingManager.CACHE_PAGES, "missKey", () -> "shouldNotBeCalled" );
+        Assertions.assertEquals( 1, info.getHits() );
+    }
+
+    @Test
+    void testRegisterListenerForExpired() {
+        final java.util.concurrent.atomic.AtomicBoolean flag = new java.util.concurrent.atomic.AtomicBoolean( true );
+        Assertions.assertTrue( ecm.registerListener( CachingManager.CACHE_PAGES, "expired", flag ) );
+    }
+
+    @Test
+    void testRegisterListenerForUnknownType() {
+        Assertions.assertFalse( ecm.registerListener( CachingManager.CACHE_PAGES, "nonexistent" ) );
+    }
+
+    @Test
+    void testRegisterListenerForNonexistentCache() {
+        final java.util.concurrent.atomic.AtomicBoolean flag = new java.util.concurrent.atomic.AtomicBoolean( true );
+        Assertions.assertFalse( ecm.registerListener( "fakecache", "expired", flag ) );
+    }
+
+    @Test
+    void testPutNullValueRemovesEntry() {
+        ecm.put( CachingManager.CACHE_PAGES, "nullTest", "value" );
+        Assertions.assertEquals( "value", ecm.get( CachingManager.CACHE_PAGES, "nullTest", () -> null ) );
+        ecm.put( CachingManager.CACHE_PAGES, "nullTest", null );
+        // After putting null, the entry is removed — supplier should be called
+        Assertions.assertEquals( "fresh", ecm.get( CachingManager.CACHE_PAGES, "nullTest", () -> "fresh" ) );
+    }
+
+    @Test
+    void testKeysWithNonStringKey() {
+        // Put with an Integer key
+        ecm.put( CachingManager.CACHE_PAGES, 42, "intKeyValue" );
+        final java.util.List< String > keys = ecm.keys( CachingManager.CACHE_PAGES );
+        Assertions.assertTrue( keys.contains( "42" ) );
+    }
+
+    @Test
     void testPutGetRemoveAndKeys() {
         final String retrieveFromBackend = "item";
         ecm.put( CachingManager.CACHE_PAGES, "key", "test" );

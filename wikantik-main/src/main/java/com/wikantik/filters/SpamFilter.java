@@ -224,8 +224,8 @@ public class SpamFilter extends BasePageFilter {
 
     private boolean         stopAtFirstMatch = true;
 
-    private static String   hashName;
-    private static long     lastUpdate;
+    private static volatile String   hashName;
+    private static volatile long     lastUpdate;
 
     /** The HASH_DELAY value is a maximum amount of time that an user can keep
      *  a session open, because after the value has expired, we will invent a new

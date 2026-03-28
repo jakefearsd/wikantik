@@ -89,12 +89,12 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     private static final Set<Principal> NO_PRINCIPALS = Set.of();
 
     /** Static Boolean for lazily-initializing the "allows assertions" flag */
-    private boolean allowsCookieAssertions = true;
+    private volatile boolean allowsCookieAssertions = true;
 
-    private boolean throttleLogins = true;
+    private volatile boolean throttleLogins = true;
 
     /** Static Boolean for lazily-initializing the "allows cookie authentication" flag */
-    private boolean allowsCookieAuthentication;
+    private volatile boolean allowsCookieAuthentication;
 
     private Engine engine;
 

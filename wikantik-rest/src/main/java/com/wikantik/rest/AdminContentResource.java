@@ -68,6 +68,11 @@ public class AdminContentResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( AdminContentResource.class );
 
+    @Override
+    protected boolean isCrossOriginAllowed() {
+        return false;
+    }
+
     private static final String[] CACHE_NAMES = {
         CachingManager.CACHE_PAGES,
         CachingManager.CACHE_PAGES_TEXT,
@@ -220,7 +225,7 @@ public class AdminContentResource extends RestServletBase {
                 deleted.add( pageName );
                 LOG.info( "Bulk delete: deleted page {}", pageName );
             } catch ( final ProviderException e ) {
-                failed.add( Map.of( "page", pageName, "error", e.getMessage() ) );
+                failed.add( Map.of( "page", pageName, "error", "deletion failed" ) );
                 LOG.warn( "Bulk delete: failed to delete {}: {}", pageName, e.getMessage() );
             }
         }
@@ -270,7 +275,7 @@ public class AdminContentResource extends RestServletBase {
             LOG.info( "Purged {} old versions of {}, kept latest {}", purged, pageName, keepLatest );
             sendJson( response, Map.of( "purged", purged, "remaining", Math.min( keepLatest, history.size() ) ) );
         } catch ( final Exception e ) {
-            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to purge versions: " + e.getMessage() );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to purge versions" );
         }
     }
 
@@ -292,7 +297,7 @@ public class AdminContentResource extends RestServletBase {
             sendJson( response, Map.of( "started", true, "pagesQueued", count ) );
         } catch ( final ProviderException e ) {
             LOG.error( "Failed to trigger reindex", e );
-            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Reindex failed: " + e.getMessage() );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Reindex failed" );
         }
     }
 

@@ -234,6 +234,27 @@ class AdminGroupResourceTest {
         assertEquals( 400, obj.get( "status" ).getAsInt() );
     }
 
+    @Test
+    void testAdminEndpointDoesNotSetCorsHeaders() throws Exception {
+        // Admin endpoints should NOT set CORS headers (same-origin only)
+        final HttpServletRequest request = createRequest( null );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+
+        // Verify that Access-Control-Allow-Origin was never set
+        Mockito.verify( response, Mockito.never() ).setHeader(
+                Mockito.eq( "Access-Control-Allow-Origin" ), Mockito.anyString() );
+    }
+
+    @Test
+    void testAdminEndpointIsCrossOriginAllowedReturnsFalse() {
+        assertFalse( servlet.isCrossOriginAllowed(),
+                "Admin endpoints should not allow cross-origin requests" );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String groupName ) throws Exception {

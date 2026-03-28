@@ -61,6 +61,11 @@ public class AdminGroupResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( AdminGroupResource.class );
 
+    @Override
+    protected boolean isCrossOriginAllowed() {
+        return false;
+    }
+
     private GroupManager getGroupManager() {
         return getEngine().getManager( GroupManager.class );
     }
@@ -121,7 +126,7 @@ public class AdminGroupResource extends RestServletBase {
         } catch ( final Exception e ) {
             LOG.error( "Failed to list groups", e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Failed to list groups: " + e.getMessage() );
+                    "Failed to list groups" );
         }
     }
 
@@ -170,7 +175,7 @@ public class AdminGroupResource extends RestServletBase {
         } catch ( final Exception e ) {
             LOG.error( "Failed to create/update group {}", groupName, e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Failed to create/update group: " + e.getMessage() );
+                    "Failed to create/update group" );
         }
     }
 

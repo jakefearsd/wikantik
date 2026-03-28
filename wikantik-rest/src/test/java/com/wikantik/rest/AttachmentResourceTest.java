@@ -171,6 +171,146 @@ class AttachmentResourceTest {
         assertEquals( 400, obj.get( "status" ).getAsInt() );
     }
 
+    @Test
+    void testDownloadExistingAttachment() throws Exception {
+        // Store an attachment
+        final AttachmentManager am = engine.getManager( AttachmentManager.class );
+        final Attachment att = Wiki.contents().attachment( engine, "RestAttachPage", "download.txt" );
+        am.storeAttachment( att, new ByteArrayInputStream( "download content".getBytes( StandardCharsets.UTF_8 ) ) );
+
+        // Download the attachment
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/attachments/RestAttachPage/download.txt" );
+        Mockito.doReturn( "/RestAttachPage/download.txt" ).when( request ).getPathInfo();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        final jakarta.servlet.ServletOutputStream sos = new jakarta.servlet.ServletOutputStream() {
+            @Override public void write( final int b ) { baos.write( b ); }
+            @Override public boolean isReady() { return true; }
+            @Override public void setWriteListener( final jakarta.servlet.WriteListener listener ) { }
+        };
+        Mockito.doReturn( sos ).when( response ).getOutputStream();
+
+        servlet.doGet( request, response );
+
+        final String downloaded = baos.toString( StandardCharsets.UTF_8 );
+        assertEquals( "download content", downloaded,
+                "Downloaded content should match uploaded content" );
+        Mockito.verify( response ).setContentType( "text/plain" );
+        Mockito.verify( response ).setHeader( Mockito.eq( "Content-Disposition" ),
+                Mockito.contains( "download.txt" ) );
+    }
+
+    @Test
+    void testUploadAttachmentRequiresPermission() throws Exception {
+        // Anonymous users lack "upload" permission, so upload returns 403 before
+        // the file part is even checked. This verifies permission enforcement.
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/attachments/RestAttachPage" );
+        Mockito.doReturn( "/RestAttachPage" ).when( request ).getPathInfo();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPost( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 403, obj.get( "status" ).getAsInt(),
+                "Anonymous upload should return 403 Forbidden" );
+    }
+
+    @Test
+    void testUploadAttachmentMissingPageName() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/attachments" );
+        Mockito.doReturn( null ).when( request ).getPathInfo();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPost( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testDeleteMissingPageAndFileReturns400() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/attachments" );
+        Mockito.doReturn( null ).when( request ).getPathInfo();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doDelete( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testDownloadBinaryAttachment() throws Exception {
+        // Store a binary attachment with an unknown extension to cover the
+        // content-type fallback to "application/octet-stream"
+        final AttachmentManager am = engine.getManager( AttachmentManager.class );
+        final byte[] binaryData = new byte[] { 0x00, 0x01, 0x02, 0x03 };
+        final Attachment att = Wiki.contents().attachment( engine, "RestAttachPage", "data.xyz" );
+        am.storeAttachment( att, new ByteArrayInputStream( binaryData ) );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/attachments/RestAttachPage/data.xyz" );
+        Mockito.doReturn( "/RestAttachPage/data.xyz" ).when( request ).getPathInfo();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        final jakarta.servlet.ServletOutputStream sos = new jakarta.servlet.ServletOutputStream() {
+            @Override public void write( final int b ) { baos.write( b ); }
+            @Override public boolean isReady() { return true; }
+            @Override public void setWriteListener( final jakarta.servlet.WriteListener listener ) { }
+        };
+        Mockito.doReturn( sos ).when( response ).getOutputStream();
+
+        servlet.doGet( request, response );
+
+        final byte[] downloaded = baos.toByteArray();
+        assertArrayEquals( binaryData, downloaded,
+                "Downloaded binary content should match uploaded" );
+        // Unknown extension should fall back to application/octet-stream
+        Mockito.verify( response ).setContentType( "application/octet-stream" );
+    }
+
+    @Test
+    void testListAttachmentsWithMultipleFiles() throws Exception {
+        final AttachmentManager am = engine.getManager( AttachmentManager.class );
+        am.storeAttachment(
+                Wiki.contents().attachment( engine, "RestAttachPage", "file1.txt" ),
+                new ByteArrayInputStream( "content1".getBytes( StandardCharsets.UTF_8 ) ) );
+        am.storeAttachment(
+                Wiki.contents().attachment( engine, "RestAttachPage", "file2.txt" ),
+                new ByteArrayInputStream( "content2".getBytes( StandardCharsets.UTF_8 ) ) );
+
+        final String json = doGet( "RestAttachPage" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertEquals( "RestAttachPage", obj.get( "page" ).getAsString() );
+        final JsonArray attachments = obj.getAsJsonArray( "attachments" );
+        assertEquals( 2, attachments.size(), "Should have 2 attachments" );
+        assertEquals( 2, obj.get( "count" ).getAsInt() );
+
+        // Verify attachment entry structure has specific field values
+        for ( int i = 0; i < attachments.size(); i++ ) {
+            final JsonObject entry = attachments.get( i ).getAsJsonObject();
+            final String fileName = entry.get( "fileName" ).getAsString();
+            assertTrue( "file1.txt".equals( fileName ) || "file2.txt".equals( fileName ),
+                    "Attachment fileName should be file1.txt or file2.txt, got: " + fileName );
+            assertTrue( entry.get( "version" ).getAsInt() >= 1, "Version should be >= 1" );
+            assertTrue( entry.get( "size" ).getAsLong() > 0, "Size should be positive" );
+        }
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String path ) throws Exception {

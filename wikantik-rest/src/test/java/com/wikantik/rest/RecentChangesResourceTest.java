@@ -119,6 +119,17 @@ class RecentChangesResourceTest {
         assertTrue( changes.size() <= 50 );
     }
 
+    @Test
+    void testRecentChangesWithInvalidLimit() throws Exception {
+        final String json = doGet( "not-a-number" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        // Invalid limit should fallback to default (50), not cause an error
+        assertFalse( obj.has( "error" ), "Invalid limit should not cause an error" );
+        assertTrue( obj.has( "changes" ) );
+        assertTrue( obj.get( "changes" ).isJsonArray() );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String limit ) throws Exception {

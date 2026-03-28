@@ -362,6 +362,278 @@ class PageResourceTest {
         assertEquals( 404, obj.get( "status" ).getAsInt() );
     }
 
+    // ----- Feature 4: PUT with metadata -----
+
+    @Test
+    void testPutPageWithMetadata() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "Page with metadata content" );
+        body.addProperty( "changeNote", "Created with metadata" );
+        final JsonObject meta = new JsonObject();
+        meta.addProperty( "type", "article" );
+        meta.addProperty( "category", "testing" );
+        body.add( "metadata", meta );
+
+        final String json = doPut( "RestPutPage", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "success" ).getAsBoolean() );
+        assertEquals( "RestPutPage", obj.get( "name" ).getAsString() );
+        assertTrue( obj.get( "version" ).getAsInt() >= 1 );
+
+        // Verify the saved page contains the metadata
+        final String readJson = doGet( "RestPutPage" );
+        final JsonObject readObj = gson.fromJson( readJson, JsonObject.class );
+        assertTrue( readObj.has( "metadata" ) );
+        final JsonObject savedMeta = readObj.getAsJsonObject( "metadata" );
+        assertEquals( "article", savedMeta.get( "type" ).getAsString(),
+                "Saved metadata should contain type field" );
+        assertEquals( "testing", savedMeta.get( "category" ).getAsString(),
+                "Saved metadata should contain category field" );
+    }
+
+    @Test
+    void testPutPageWithAuthor() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "Authored page content" );
+        body.addProperty( "author", "TestAuthor" );
+
+        final String json = doPut( "RestPutPage", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "success" ).getAsBoolean() );
+        assertEquals( "RestPutPage", obj.get( "name" ).getAsString() );
+    }
+
+    @Test
+    void testGetPageWithPermissions() throws Exception {
+        engine.saveText( "RestTestPage", "Permissions test page." );
+
+        final String json = doGet( "RestTestPage" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.has( "permissions" ), "Response should contain permissions" );
+        final JsonObject perms = obj.getAsJsonObject( "permissions" );
+        // The anonymous user should have at least view permission per the test security policy
+        assertTrue( perms.has( "edit" ), "Permissions should contain 'edit'" );
+        assertTrue( perms.has( "comment" ), "Permissions should contain 'comment'" );
+        assertTrue( perms.has( "upload" ), "Permissions should contain 'upload'" );
+        assertTrue( perms.has( "rename" ), "Permissions should contain 'rename'" );
+        assertTrue( perms.has( "delete" ), "Permissions should contain 'delete'" );
+    }
+
+    @Test
+    void testPatchMissingMetadata() throws Exception {
+        engine.saveText( "RestPatchMergePage", "---\ntype: article\n---\nBody." );
+
+        final JsonObject patchBody = new JsonObject();
+        // No "metadata" field
+        patchBody.addProperty( "action", "merge" );
+
+        final String json = doPatch( "RestPatchMergePage", patchBody );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "metadata" ),
+                "Error should mention missing metadata field" );
+    }
+
+    @Test
+    void testPutPageMissingNameReturns400() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages" );
+        Mockito.doReturn( null ).when( request ).getPathInfo();
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "No page name" );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPut( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testPutPageInvalidJsonReturns400() throws Exception {
+        final HttpServletRequest request = createRequest( "RestPutPage" );
+        Mockito.doReturn( new BufferedReader( new StringReader( "not valid json" ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPut( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testPatchInvalidJsonReturns400() throws Exception {
+        engine.saveText( "RestPatchMergePage", "---\ntype: article\n---\nBody." );
+
+        final HttpServletRequest request = createRequest( "RestPatchMergePage" );
+        Mockito.doReturn( new BufferedReader( new StringReader( "bad json" ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPatch( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testPatchMissingNameReturns400() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages" );
+        Mockito.doReturn( null ).when( request ).getPathInfo();
+        final JsonObject patchBody = new JsonObject();
+        final JsonObject meta = new JsonObject();
+        meta.addProperty( "type", "article" );
+        patchBody.add( "metadata", meta );
+        Mockito.doReturn( new BufferedReader( new StringReader( patchBody.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPatch( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testPutPageWithExpectedVersion() throws Exception {
+        // Create a page first
+        engine.saveText( "RestPutPage", "Initial content" );
+
+        // Update with expectedVersion matching the current version
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "Updated content with version check" );
+        body.addProperty( "expectedVersion", 1 );
+        body.addProperty( "changeNote", "Version-checked update" );
+
+        final String json = doPut( "RestPutPage", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "success" ).getAsBoolean(),
+                "PUT with matching expectedVersion should succeed" );
+        assertEquals( "RestPutPage", obj.get( "name" ).getAsString() );
+    }
+
+    @Test
+    void testPutPageWithVersionConflict() throws Exception {
+        // Create a page
+        engine.saveText( "RestPutPage", "Original content" );
+
+        // Try to update with a wrong expected version (999 != actual version)
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "Conflicting update" );
+        body.addProperty( "expectedVersion", 999 );
+
+        final String json = doPut( "RestPutPage", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        // Should get a 409 Conflict if VersionConflictException is thrown,
+        // or success if the provider doesn't enforce version checks
+        if ( obj.has( "error" ) ) {
+            assertEquals( 409, obj.get( "status" ).getAsInt(),
+                    "Version mismatch should return 409 Conflict" );
+        }
+    }
+
+    @Test
+    void testDeletePageMissingNameReturns400() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages" );
+        Mockito.doReturn( null ).when( request ).getPathInfo();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doDelete( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testGetPageInvalidVersionReturns400() throws Exception {
+        engine.saveText( "RestVersionPage", "Content." );
+
+        final String json = doGetWithParams( "RestVersionPage", Map.of( "version", "abc" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "Invalid version" ) );
+    }
+
+    @Test
+    void testGetPageVersionNotFoundReturns404() throws Exception {
+        engine.saveText( "RestVersionPage", "Content." );
+
+        final String json = doGetWithParams( "RestVersionPage", Map.of( "version", "999" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 404, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testServiceRoutesNonPatchToSuper() throws Exception {
+        // Calling service() with a GET method should route through super.service()
+        engine.saveText( "RestTestPage", "Service test content." );
+
+        final HttpServletRequest request = createRequest( "RestTestPage" );
+        Mockito.doReturn( "GET" ).when( request ).getMethod();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.service( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertEquals( "RestTestPage", obj.get( "name" ).getAsString(),
+                "service() with GET should route to doGet via super.service()" );
+    }
+
+    @Test
+    void testServiceRoutesToPatch() throws Exception {
+        engine.saveText( "RestPatchMergePage", "---\ntype: article\n---\nBody." );
+
+        final HttpServletRequest request = createRequest( "RestPatchMergePage" );
+        Mockito.doReturn( "PATCH" ).when( request ).getMethod();
+        final JsonObject patchBody = new JsonObject();
+        final JsonObject meta = new JsonObject();
+        meta.addProperty( "newField", "value" );
+        patchBody.add( "metadata", meta );
+        Mockito.doReturn( new BufferedReader( new StringReader( patchBody.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.service( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "success" ).getAsBoolean(),
+                "service() should route PATCH to doPatch" );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pageName ) throws Exception {

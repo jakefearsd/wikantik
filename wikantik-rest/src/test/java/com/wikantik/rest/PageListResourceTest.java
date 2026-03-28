@@ -143,6 +143,29 @@ class PageListResourceTest {
         assertTrue( entry.has( "author" ) );
     }
 
+    @Test
+    void testListPagesWithInvalidLimit() throws Exception {
+        final String json = doGetList( null, "not-a-number", null );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        // Invalid limit should fallback to default (100), not cause an error
+        assertFalse( obj.has( "error" ), "Invalid limit should not cause an error" );
+        assertTrue( obj.has( "pages" ) );
+        assertEquals( 100, obj.get( "limit" ).getAsInt(),
+                "Invalid limit should default to 100" );
+    }
+
+    @Test
+    void testListPagesWithInvalidOffset() throws Exception {
+        final String json = doGetList( null, null, "xyz" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Invalid offset should not cause an error" );
+        assertTrue( obj.has( "pages" ) );
+        assertEquals( 0, obj.get( "offset" ).getAsInt(),
+                "Invalid offset should default to 0" );
+    }
+
     // ----- Helper methods -----
 
     private String doGetList( final String prefix, final String limit, final String offset ) throws Exception {

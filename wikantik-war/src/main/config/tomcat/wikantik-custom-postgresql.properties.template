@@ -68,5 +68,15 @@ wikantik.groupdatabase.member = member
 wikantik.groupdatabase.modified = modified
 wikantik.groupdatabase.modifier = modifier
 
+# Database-backed security policy (replaces wikantik.policy file)
+# Set this to use the same JNDI DataSource as the wiki database.
+# When set, policy grants are read from the policy_grants table.
+# When not set, the file-based wikantik.policy is used (legacy behavior).
+wikantik.policy.datasource = jdbc/GroupDatabase
+
+# Bootstrap admin override — ensures the named user always has AllPermission.
+# Set this on first deployment, then remove once you have confirmed admin access works.
+# wikantik.admin.bootstrap = admin
+
 # Sitemap base URL for HTTPS behind proxy (e.g., cloudflared)
 #wikantik.sitemap.baseURL = https://example.com

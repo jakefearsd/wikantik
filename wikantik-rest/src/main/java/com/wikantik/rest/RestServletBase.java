@@ -178,6 +178,22 @@ public abstract class RestServletBase extends HttpServlet {
      * @return {@code true} if the user is authorized; {@code false} if a 403 was sent
      * @throws IOException if writing the error response fails
      */
+    /**
+     * Returns {@code true} if the current user has the specified permission for the given page.
+     * Unlike {@link #checkPagePermission}, this method does not send a 403 — it only queries.
+     */
+    protected boolean hasPagePermission( final HttpServletRequest request,
+                                          final String pageName,
+                                          final String action ) {
+        final Engine eng = getEngine();
+        final Session session = Wiki.session().find( eng, request );
+        final Page page = eng.getManager( PageManager.class ).getPage( pageName );
+        final java.security.Permission perm = ( page != null )
+                ? PermissionFactory.getPagePermission( page, action )
+                : new PagePermission( eng.getApplicationName() + ":" + pageName, action );
+        return eng.getManager( AuthorizationManager.class ).checkPermission( session, perm );
+    }
+
     protected boolean checkPagePermission( final HttpServletRequest request,
                                             final HttpServletResponse response,
                                             final String pageName,

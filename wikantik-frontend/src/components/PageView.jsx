@@ -21,9 +21,11 @@ export default function PageView() {
     <div className="page-enter">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-md)' }}>
         <PageMeta page={page} />
-        <Link to={`/edit/${name}`} className="btn btn-ghost" style={{ flexShrink: 0 }}>
-          ✎ Edit
-        </Link>
+        {page.permissions?.edit && (
+          <Link to={`/edit/${name}`} className="btn btn-ghost" style={{ flexShrink: 0 }}>
+            ✎ Edit
+          </Link>
+        )}
       </div>
       <MetadataPanel metadata={page.metadata} />
       <ChangeNotesPanel pageName={name} />

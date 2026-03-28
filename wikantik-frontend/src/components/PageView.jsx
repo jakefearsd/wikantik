@@ -14,7 +14,7 @@ export default function PageView() {
   const { name = 'Main' } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { data: page, loading, error } = useApi(() => api.getPage(name, { render: true }), [name]);
+  const { data: page, loading, error } = useApi(() => api.getPage(name, { render: true }), [name, user?.authenticated]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
   const [showRename, setShowRename] = useState(false);

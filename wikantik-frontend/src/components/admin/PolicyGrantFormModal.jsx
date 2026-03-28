@@ -132,17 +132,27 @@ export default function PolicyGrantFormModal({ grant, isOpen, onClose, onSave })
             )}
           </div>
 
-          <div className="form-field">
-            <label>
-              <input
-                type="checkbox"
-                checked={form.allPermission}
-                onChange={handleAllPermissionToggle}
-                style={{ marginRight: 'var(--space-xs)' }}
-              />
-              * (all) — AllPermission
-            </label>
-          </div>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-sm, 8px)',
+            padding: 'var(--space-sm, 8px) var(--space-md, 12px)',
+            background: form.allPermission ? 'var(--color-warning-bg, #fce4b8)' : 'var(--color-bg-subtle, #f5f0eb)',
+            borderRadius: 'var(--radius, 6px)',
+            cursor: 'pointer',
+            fontWeight: form.allPermission ? 600 : 400,
+            fontSize: '0.9rem',
+            marginBottom: 'var(--space-md, 12px)',
+            border: '1px solid var(--color-border, #d4c9bc)',
+          }}>
+            <input
+              type="checkbox"
+              checked={form.allPermission}
+              onChange={handleAllPermissionToggle}
+              style={{ width: '16px', height: '16px' }}
+            />
+            Grant AllPermission (full admin access)
+          </label>
 
           {!form.allPermission && (
             <>

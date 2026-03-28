@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import PageMeta from './PageMeta';
 import MetadataPanel from './MetadataPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
+import CommentsPanel from './CommentsPanel';
 import '../styles/article.css';
 import '../styles/admin.css';
 
@@ -123,6 +124,8 @@ export default function PageView() {
         className="article-prose"
         dangerouslySetInnerHTML={{ __html: page.contentHtml || page.content || '' }}
       />
+
+      <CommentsPanel pageName={name} />
 
       {page.metadata?.tags && (
         <div style={{ marginTop: 'var(--space-2xl)', display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>

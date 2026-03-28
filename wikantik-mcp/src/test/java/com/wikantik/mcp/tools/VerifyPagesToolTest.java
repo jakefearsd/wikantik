@@ -25,7 +25,9 @@ import com.wikantik.test.StubReferenceManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -384,5 +386,142 @@ class VerifyPagesToolTest {
         final List< String > seoIssues = ( List< String > ) summary.get( "seoIssues" );
         assertNotNull( seoIssues, "seo_readiness check should produce seoIssues in summary" );
         assertFalse( seoIssues.isEmpty() );
+    }
+
+    // --- Tests for extracted check methods ---
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testCheckBrokenLinks_populatesEntry() throws Exception {
+        pm.savePage( "CheckBrokenPage", "---\ntype: article\n---\nBody." );
+        refMgr.addReferences( "CheckBrokenPage", Set.of( "ExistingTarget", "MissingTarget" ) );
+        pm.savePage( "ExistingTarget", "---\ntype: article\n---\nBody." );
+
+        final Map< String, Object > entry = new LinkedHashMap<>();
+        final Set< String > activeChecks = Set.of( "outbound_links", "broken_links" );
+
+        final int brokenCount = tool.checkBrokenLinks( "CheckBrokenPage", entry, activeChecks );
+
+        final List< String > outbound = ( List< String > ) entry.get( "outboundLinks" );
+        assertNotNull( outbound, "outboundLinks should be populated" );
+        assertTrue( outbound.contains( "ExistingTarget" ) );
+        assertTrue( outbound.contains( "MissingTarget" ) );
+
+        final List< String > broken = ( List< String > ) entry.get( "brokenLinks" );
+        assertNotNull( broken, "brokenLinks should be populated" );
+        assertEquals( 1, broken.size() );
+        assertTrue( broken.contains( "MissingTarget" ) );
+        assertEquals( 1, brokenCount );
+    }
+
+    @Test
+    void testCheckBrokenLinks_skippedWhenNotActive() {
+        final Map< String, Object > entry = new LinkedHashMap<>();
+        final Set< String > activeChecks = Set.of( "existence" );
+
+        final int brokenCount = tool.checkBrokenLinks( "AnyPage", entry, activeChecks );
+
+        assertNull( entry.get( "outboundLinks" ) );
+        assertNull( entry.get( "brokenLinks" ) );
+        assertEquals( 0, brokenCount );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testCheckBacklinks_populatesEntry() throws Exception {
+        pm.savePage( "BacklinkTarget", "---\ntype: article\n---\nBody." );
+        refMgr.addReferences( "Referrer1", Set.of( "BacklinkTarget" ) );
+        refMgr.addReferences( "Referrer2", Set.of( "BacklinkTarget" ) );
+
+        final Map< String, Object > entry = new LinkedHashMap<>();
+        final List< String > pagesWithNoBacklinks = new ArrayList<>();
+        final Set< String > activeChecks = Set.of( "backlinks" );
+
+        tool.checkBacklinks( "BacklinkTarget", entry, activeChecks, pagesWithNoBacklinks );
+
+        final List< String > backlinks = ( List< String > ) entry.get( "backlinks" );
+        assertNotNull( backlinks );
+        assertTrue( backlinks.contains( "Referrer1" ) );
+        assertTrue( backlinks.contains( "Referrer2" ) );
+        assertTrue( pagesWithNoBacklinks.isEmpty() );
+    }
+
+    @Test
+    void testCheckBacklinks_noBacklinksAddsToAggregate() throws Exception {
+        pm.savePage( "Orphan", "Body." );
+        refMgr.addReferences( "Orphan", Set.of() );
+
+        final Map< String, Object > entry = new LinkedHashMap<>();
+        final List< String > pagesWithNoBacklinks = new ArrayList<>();
+        final Set< String > activeChecks = Set.of( "backlinks" );
+
+        tool.checkBacklinks( "Orphan", entry, activeChecks, pagesWithNoBacklinks );
+
+        assertEquals( List.of( "Orphan" ), pagesWithNoBacklinks );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testCheckMetadata_populatesEntry() {
+        final Map< String, Object > metadata = Map.of( "type", "article", "tags", List.of( "a" ) );
+        final Map< String, Object > entry = new LinkedHashMap<>();
+        final List< String > metadataIssues = new ArrayList<>();
+        final Set< String > activeChecks = Set.of( "metadata_completeness" );
+
+        tool.checkMetadata( "MetaPage", metadata, entry, activeChecks, metadataIssues );
+
+        assertNotNull( entry.get( "metadata" ) );
+        final List< String > missing = ( List< String > ) entry.get( "missingMetadata" );
+        assertNotNull( missing );
+        assertTrue( missing.contains( "summary" ) );
+        assertFalse( missing.contains( "type" ) );
+        assertFalse( missing.contains( "tags" ) );
+        assertFalse( metadataIssues.isEmpty() );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testCheckMetadata_emptyMetadata() {
+        final Map< String, Object > metadata = Map.of();
+        final Map< String, Object > entry = new LinkedHashMap<>();
+        final List< String > metadataIssues = new ArrayList<>();
+        final Set< String > activeChecks = Set.of( "metadata_completeness" );
+
+        tool.checkMetadata( "EmptyMetaPage", metadata, entry, activeChecks, metadataIssues );
+
+        assertNull( entry.get( "metadata" ), "Empty metadata should not be added to entry" );
+        final List< String > missing = ( List< String > ) entry.get( "missingMetadata" );
+        assertEquals( 3, missing.size() );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testCheckSeoReadiness_populatesEntry() throws Exception {
+        pm.savePage( "SeoCheck", "---\ntype: article\n---\nBody." );
+        final Map< String, Object > metadata = Map.of( "type", "article" );
+        final Map< String, Object > entry = new LinkedHashMap<>();
+        final List< String > seoIssues = new ArrayList<>();
+        final Set< String > activeChecks = Set.of( "seo_readiness" );
+
+        tool.checkSeoReadiness( "SeoCheck", metadata, pm.getPage( "SeoCheck" ), entry, activeChecks, seoIssues );
+
+        final List< String > seoWarnings = ( List< String > ) entry.get( "seoWarnings" );
+        assertNotNull( seoWarnings );
+        assertFalse( seoWarnings.isEmpty(), "Article with minimal metadata should have SEO warnings" );
+        assertFalse( seoIssues.isEmpty() );
+    }
+
+    @Test
+    void testCheckSeoReadiness_skippedWhenNotActive() throws Exception {
+        pm.savePage( "SeoSkip", "---\ntype: article\n---\nBody." );
+        final Map< String, Object > metadata = Map.of( "type", "article" );
+        final Map< String, Object > entry = new LinkedHashMap<>();
+        final List< String > seoIssues = new ArrayList<>();
+        final Set< String > activeChecks = Set.of( "existence" );
+
+        tool.checkSeoReadiness( "SeoSkip", metadata, pm.getPage( "SeoSkip" ), entry, activeChecks, seoIssues );
+
+        assertNull( entry.get( "seoWarnings" ) );
+        assertTrue( seoIssues.isEmpty() );
     }
 }

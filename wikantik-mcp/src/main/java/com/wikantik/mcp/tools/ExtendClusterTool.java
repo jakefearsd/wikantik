@@ -102,6 +102,10 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
                 .build();
     }
 
+    /** Holds the result of discovering an existing cluster's members. */
+    record ClusterInfo( String hubName, List< String > members,
+                        Map< String, Map< String, Object > > memberMetadata ) {}
+
     @SuppressWarnings( "unchecked" )
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
@@ -123,7 +127,7 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
 
         final String articleName = ( String ) articleSpec.get( "name" );
         final String articleBody = ( String ) articleSpec.get( "body" );
-        final Map< String, Object > articleMeta = articleSpec.get( "metadata" ) != null
+        final Map< String, Object > suppliedMeta = articleSpec.get( "metadata" ) != null
                 ? new LinkedHashMap<>( ( Map< String, Object > ) articleSpec.get( "metadata" ) )
                 : new LinkedHashMap<>();
 
@@ -139,51 +143,20 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "Failed to list pages: " + e.getMessage() );
         }
 
-        String hubName = null;
-        final List< String > existingMembers = new ArrayList<>();
-        final Map< String, Map< String, Object > > memberMetadata = new LinkedHashMap<>();
+        final ClusterInfo cluster = discoverCluster( clusterName, allPages );
 
-        for ( final Page page : allPages ) {
-            final String rawText = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
-            final ParsedPage parsed = FrontmatterParser.parse( rawText );
-            final Map< String, Object > meta = parsed.metadata();
-
-            if ( clusterName.equals( meta.get( "cluster" ) ) ) {
-                existingMembers.add( page.getName() );
-                memberMetadata.put( page.getName(), meta );
-                if ( "hub".equals( meta.get( "type" ) ) ) {
-                    hubName = page.getName();
-                }
-            }
-        }
-
-        if ( existingMembers.isEmpty() ) {
+        if ( cluster.members().isEmpty() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "No pages found for cluster: " + clusterName,
                     "Use publish_cluster to create a new cluster." );
         }
 
         // 2. Auto-set article metadata
-        articleMeta.putIfAbsent( "type", "article" );
-        articleMeta.put( "cluster", clusterName );
-        articleMeta.putIfAbsent( "status", "active" );
-
-        if ( !articleMeta.containsKey( "related" ) ) {
-            final List< String > related = new ArrayList<>();
-            if ( hubName != null ) {
-                related.add( hubName );
-            }
-            for ( final String member : existingMembers ) {
-                if ( !member.equals( hubName ) ) {
-                    related.add( member );
-                }
-            }
-            articleMeta.put( "related", related );
-        }
+        final Map< String, Object > articleMeta = buildArticleMetadata( clusterName, suppliedMeta, cluster );
 
         final Map< String, Object > output = new LinkedHashMap<>();
         output.put( "clusterName", clusterName );
-        output.put( "hub", hubName );
+        output.put( "hub", cluster.hubName() );
 
         // 3. Create the new article
         try {
@@ -206,12 +179,12 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
 
         // 4. Patch hub body to add article link
         final List< Map< String, Object > > pagesUpdated = new ArrayList<>();
-        if ( hubName != null ) {
-            pagesUpdated.add( patchHubBody( hubName, articleName, articleMeta, effectiveAuthor ) );
+        if ( cluster.hubName() != null ) {
+            pagesUpdated.add( patchHubBody( cluster.hubName(), articleName, articleMeta, effectiveAuthor ) );
         }
 
         // 5. Update related metadata on all existing members (add new article)
-        for ( final String member : existingMembers ) {
+        for ( final String member : cluster.members() ) {
             final Map< String, Object > updateResult = updateRelatedMetadata(
                     member, articleName, effectiveAuthor );
             if ( updateResult != null ) {
@@ -224,13 +197,14 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
         // 6. Update Main page
         if ( updateMain ) {
             output.put( "mainPageUpdate", updateMainPage(
-                    articleName, articleMeta, mainSection, hubName, existingMembers, effectiveAuthor ) );
+                    articleName, articleMeta, mainSection, cluster.hubName(),
+                    cluster.members(), effectiveAuthor ) );
         }
 
         // 7. Verify
         final List< String > warnings = new ArrayList<>();
-        if ( hubName != null ) {
-            final String hubText = pageManager.getPureText( hubName, PageProvider.LATEST_VERSION );
+        if ( cluster.hubName() != null ) {
+            final String hubText = pageManager.getPureText( cluster.hubName(), PageProvider.LATEST_VERSION );
             final ParsedPage hubParsed = FrontmatterParser.parse( hubText );
             if ( !MarkdownLinkScanner.findLocalLinks( hubParsed.body() ).contains( articleName ) ) {
                 warnings.add( "Hub body does not link to new article " + articleName );
@@ -240,14 +214,69 @@ public class ExtendClusterTool implements McpTool, AuthorConfigurable {
         final String savedText = pageManager.getPureText( articleName, PageProvider.LATEST_VERSION );
         if ( savedText != null ) {
             final ParsedPage articleParsed = FrontmatterParser.parse( savedText );
-            if ( hubName != null && !MarkdownLinkScanner.findLocalLinks( articleParsed.body() ).contains( hubName ) ) {
-                warnings.add( articleName + " body does not link back to hub " + hubName );
+            if ( cluster.hubName() != null
+                    && !MarkdownLinkScanner.findLocalLinks( articleParsed.body() ).contains( cluster.hubName() ) ) {
+                warnings.add( articleName + " body does not link back to hub " + cluster.hubName() );
             }
         }
 
         output.put( "verification", Map.of( "warnings", warnings, "allGreen", warnings.isEmpty() ) );
 
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, output );
+    }
+
+    /**
+     * Scan all pages and return the hub name, members, and member metadata
+     * for the given cluster.
+     */
+    ClusterInfo discoverCluster( final String clusterName, final Collection< Page > allPages ) {
+        String hubName = null;
+        final List< String > existingMembers = new ArrayList<>();
+        final Map< String, Map< String, Object > > memberMetadata = new LinkedHashMap<>();
+
+        for ( final Page page : allPages ) {
+            final String rawText = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
+            final ParsedPage parsed = FrontmatterParser.parse( rawText );
+            final Map< String, Object > meta = parsed.metadata();
+
+            if ( clusterName.equals( meta.get( "cluster" ) ) ) {
+                existingMembers.add( page.getName() );
+                memberMetadata.put( page.getName(), meta );
+                if ( "hub".equals( meta.get( "type" ) ) ) {
+                    hubName = page.getName();
+                }
+            }
+        }
+
+        return new ClusterInfo( hubName, existingMembers, memberMetadata );
+    }
+
+    /**
+     * Build the article metadata map, auto-setting type, cluster, status, and
+     * related fields as needed.
+     */
+    Map< String, Object > buildArticleMetadata( final String clusterName,
+                                                 final Map< String, Object > suppliedMeta,
+                                                 final ClusterInfo cluster ) {
+        final Map< String, Object > articleMeta = new LinkedHashMap<>( suppliedMeta );
+        articleMeta.putIfAbsent( "type", "article" );
+        articleMeta.put( "cluster", clusterName );
+        articleMeta.putIfAbsent( "status", "active" );
+
+        if ( !articleMeta.containsKey( "related" ) ) {
+            final List< String > related = new ArrayList<>();
+            if ( cluster.hubName() != null ) {
+                related.add( cluster.hubName() );
+            }
+            for ( final String member : cluster.members() ) {
+                if ( !member.equals( cluster.hubName() ) ) {
+                    related.add( member );
+                }
+            }
+            articleMeta.put( "related", related );
+        }
+
+        return articleMeta;
     }
 
     @SuppressWarnings( "unchecked" )

@@ -71,6 +71,15 @@ public class GetClusterMapTool implements McpTool {
                 .build();
     }
 
+    /** Intermediate result from the page-scanning phase. */
+    record ScanResult(
+            Map< String, List< String > > clusterPages,
+            Map< String, String > clusterHubs,
+            List< String > unclustered,
+            Map< String, Map< String, Object > > pageMetadataMap,
+            Map< String, Set< String > > conventions
+    ) {}
+
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String scopeCluster = McpToolUtils.getString( arguments, "cluster" );
@@ -82,6 +91,43 @@ public class GetClusterMapTool implements McpTool {
         } catch ( final Exception e ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "Failed to list pages: " + e.getMessage() );
         }
+
+        final ScanResult scan = scanPages( allPages );
+
+        // Build cluster tree from scan results
+        final Map< String, Map< String, Object > > parentClusters = new LinkedHashMap<>();
+        final Map< String, Map< String, Object > > subClusterMap = new LinkedHashMap<>();
+        assembleClusters( scan.clusterPages(), scan.clusterHubs(), parentClusters, subClusterMap );
+
+        // Scoped mode: filter to single cluster
+        if ( scopeCluster != null ) {
+            return buildScopedResult( scopeCluster, parentClusters, subClusterMap,
+                    scan.pageMetadataMap(), allPages.size() );
+        }
+
+        // Build full result
+        final List< String > unclustered = scan.unclustered();
+        Collections.sort( unclustered );
+        final Map< String, Object > conventionsSorted = new LinkedHashMap<>();
+        for ( final Map.Entry< String, Set< String > > entry : scan.conventions().entrySet() ) {
+            conventionsSorted.put( entry.getKey(), new ArrayList<>( entry.getValue() ) );
+        }
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "totalPages", scan.pageMetadataMap().size() );
+        result.put( "clusters", new ArrayList<>( parentClusters.values() ) );
+        result.put( "unclusteredPages", unclustered );
+        result.put( "metadataConventions", conventionsSorted );
+        result.put( "pageMetadata", scan.pageMetadataMap() );
+
+        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
+    }
+
+    /**
+     * Scan all pages in a single pass: parse frontmatter, group by cluster,
+     * collect per-page metadata summaries and metadata conventions.
+     */
+    ScanResult scanPages( final Collection< Page > allPages ) {
         final Map< String, List< String > > clusterPages = new LinkedHashMap<>();
         final Map< String, String > clusterHubs = new LinkedHashMap<>();
         final List< String > unclustered = new ArrayList<>();
@@ -137,10 +183,19 @@ public class GetClusterMapTool implements McpTool {
             }
         }
 
-        // Build cluster list with sub-cluster detection
-        final Map< String, Map< String, Object > > parentClusters = new LinkedHashMap<>();
-        final Map< String, Map< String, Object > > subClusterMap = new LinkedHashMap<>();
+        return new ScanResult( clusterPages, clusterHubs, unclustered, pageMetadataMap, conventions );
+    }
 
+    /**
+     * Build the parent/sub-cluster tree from the flat cluster-pages map.
+     * Sub-clusters (names containing "/") are nested under their parent;
+     * orphaned sub-clusters are promoted to top-level.
+     */
+    @SuppressWarnings( "unchecked" )
+    void assembleClusters( final Map< String, List< String > > clusterPages,
+                           final Map< String, String > clusterHubs,
+                           final Map< String, Map< String, Object > > parentClusters,
+                           final Map< String, Map< String, Object > > subClusterMap ) {
         for ( final Map.Entry< String, List< String > > entry : clusterPages.entrySet() ) {
             final String clusterName = entry.getKey();
             final List< String > pages = entry.getValue();
@@ -166,35 +221,14 @@ public class GetClusterMapTool implements McpTool {
             final String parentName = subName.substring( 0, subName.indexOf( '/' ) );
             final Map< String, Object > parent = parentClusters.get( parentName );
             if ( parent != null ) {
-                @SuppressWarnings( "unchecked" )
-                final List< Map< String, Object > > subs = ( List< Map< String, Object > > ) parent.get( "subClusters" );
+                final List< Map< String, Object > > subs =
+                        ( List< Map< String, Object > > ) parent.get( "subClusters" );
                 subs.add( entry.getValue() );
             } else {
                 // Orphaned sub-cluster — treat as top-level
                 parentClusters.put( subName, entry.getValue() );
             }
         }
-
-        // Scoped mode: filter to single cluster
-        if ( scopeCluster != null ) {
-            return buildScopedResult( scopeCluster, parentClusters, subClusterMap, pageMetadataMap, allPages.size() );
-        }
-
-        // Build full result
-        Collections.sort( unclustered );
-        final Map< String, Object > conventionsSorted = new LinkedHashMap<>();
-        for ( final Map.Entry< String, Set< String > > entry : conventions.entrySet() ) {
-            conventionsSorted.put( entry.getKey(), new ArrayList<>( entry.getValue() ) );
-        }
-
-        final Map< String, Object > result = new LinkedHashMap<>();
-        result.put( "totalPages", pageMetadataMap.size() );
-        result.put( "clusters", new ArrayList<>( parentClusters.values() ) );
-        result.put( "unclusteredPages", unclustered );
-        result.put( "metadataConventions", conventionsSorted );
-        result.put( "pageMetadata", pageMetadataMap );
-
-        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
     }
 
     private McpSchema.CallToolResult buildScopedResult( final String scopeCluster,

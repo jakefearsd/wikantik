@@ -126,38 +126,9 @@ public class VerifyPagesTool implements McpTool {
                 continue;
             }
 
-            if ( activeChecks.contains( "outbound_links" ) || activeChecks.contains( "broken_links" ) ) {
-                final Collection< String > refersTo = referenceManager.findRefersTo( pageName );
-                final List< String > outbound = new ArrayList<>( refersTo );
-                Collections.sort( outbound );
+            totalBrokenLinks += checkBrokenLinks( pageName, entry, activeChecks );
 
-                if ( activeChecks.contains( "outbound_links" ) ) {
-                    entry.put( "outboundLinks", outbound );
-                }
-
-                if ( activeChecks.contains( "broken_links" ) ) {
-                    final List< String > broken = new ArrayList<>();
-                    for ( final String target : outbound ) {
-                        if ( pageManager.getPage( target ) == null ) {
-                            broken.add( target );
-                        }
-                    }
-                    Collections.sort( broken );
-                    entry.put( "brokenLinks", broken );
-                    totalBrokenLinks += broken.size();
-                }
-            }
-
-            if ( activeChecks.contains( "backlinks" ) ) {
-                final Set< String > referrers = referenceManager.findReferrers( pageName );
-                final List< String > backlinks = new ArrayList<>( referrers );
-                Collections.sort( backlinks );
-                entry.put( "backlinks", backlinks );
-
-                if ( backlinks.isEmpty() ) {
-                    pagesWithNoBacklinks.add( pageName );
-                }
-            }
+            checkBacklinks( pageName, entry, activeChecks, pagesWithNoBacklinks );
 
             // Parse frontmatter once for metadata_completeness and/or seo_readiness
             final boolean needsMetadata = activeChecks.contains( "metadata_completeness" )
@@ -169,43 +140,9 @@ public class VerifyPagesTool implements McpTool {
                 metadata = parsed.metadata();
             }
 
-            if ( activeChecks.contains( "metadata_completeness" ) ) {
-                if ( !metadata.isEmpty() ) {
-                    entry.put( "metadata", new LinkedHashMap<>( metadata ) );
-                }
+            checkMetadata( pageName, metadata, entry, activeChecks, metadataIssues );
 
-                final List< String > missing = new ArrayList<>();
-                for ( final String field : STANDARD_METADATA_FIELDS ) {
-                    if ( !metadata.containsKey( field ) ) {
-                        missing.add( field );
-                    }
-                }
-                Collections.sort( missing );
-                entry.put( "missingMetadata", missing );
-
-                if ( !missing.isEmpty() ) {
-                    metadataIssues.add( pageName + " missing: " + String.join( ", ", missing ) );
-                }
-            }
-
-            if ( activeChecks.contains( "seo_readiness" ) ) {
-                // SEO checks use the Strategy pattern — shared PageCheck implementations
-                // from PageChecks avoid duplicating validation logic with AuditClusterTool.
-                final PageCheckContext checkCtx = new PageCheckContext(
-                        pageName, metadata, "", page, pageManager );
-                final List< String > seoWarnings = new ArrayList<>();
-                for ( final PageCheck check : SEO_CHECKS ) {
-                    for ( final PageCheckResult result : check.check( checkCtx ) ) {
-                        seoWarnings.add( result.detail() );
-                    }
-                }
-
-                entry.put( "seoWarnings", seoWarnings );
-
-                if ( !seoWarnings.isEmpty() ) {
-                    seoIssues.add( pageName + ": " + String.join( "; ", seoWarnings ) );
-                }
-            }
+            checkSeoReadiness( pageName, metadata, page, entry, activeChecks, seoIssues );
 
             pageResults.add( entry );
         }
@@ -231,5 +168,113 @@ public class VerifyPagesTool implements McpTool {
         result.put( "summary", summary );
 
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
+    }
+
+    /**
+     * Check outbound and broken links for a page, populating the entry map.
+     *
+     * @return the number of broken links found (for aggregation into the summary)
+     */
+    int checkBrokenLinks( final String pageName, final Map< String, Object > entry,
+                          final Set< String > activeChecks ) {
+        if ( !activeChecks.contains( "outbound_links" ) && !activeChecks.contains( "broken_links" ) ) {
+            return 0;
+        }
+
+        final Collection< String > refersTo = referenceManager.findRefersTo( pageName );
+        final List< String > outbound = new ArrayList<>( refersTo );
+        Collections.sort( outbound );
+
+        if ( activeChecks.contains( "outbound_links" ) ) {
+            entry.put( "outboundLinks", outbound );
+        }
+
+        if ( activeChecks.contains( "broken_links" ) ) {
+            final List< String > broken = new ArrayList<>();
+            for ( final String target : outbound ) {
+                if ( pageManager.getPage( target ) == null ) {
+                    broken.add( target );
+                }
+            }
+            Collections.sort( broken );
+            entry.put( "brokenLinks", broken );
+            return broken.size();
+        }
+
+        return 0;
+    }
+
+    /**
+     * Check backlinks for a page, populating the entry map and aggregate list.
+     */
+    void checkBacklinks( final String pageName, final Map< String, Object > entry,
+                         final Set< String > activeChecks, final List< String > pagesWithNoBacklinks ) {
+        if ( !activeChecks.contains( "backlinks" ) ) {
+            return;
+        }
+
+        final Set< String > referrers = referenceManager.findReferrers( pageName );
+        final List< String > backlinks = new ArrayList<>( referrers );
+        Collections.sort( backlinks );
+        entry.put( "backlinks", backlinks );
+
+        if ( backlinks.isEmpty() ) {
+            pagesWithNoBacklinks.add( pageName );
+        }
+    }
+
+    /**
+     * Check metadata completeness for a page, populating the entry map and aggregate list.
+     */
+    void checkMetadata( final String pageName, final Map< String, Object > metadata,
+                        final Map< String, Object > entry, final Set< String > activeChecks,
+                        final List< String > metadataIssues ) {
+        if ( !activeChecks.contains( "metadata_completeness" ) ) {
+            return;
+        }
+
+        if ( !metadata.isEmpty() ) {
+            entry.put( "metadata", new LinkedHashMap<>( metadata ) );
+        }
+
+        final List< String > missing = new ArrayList<>();
+        for ( final String field : STANDARD_METADATA_FIELDS ) {
+            if ( !metadata.containsKey( field ) ) {
+                missing.add( field );
+            }
+        }
+        Collections.sort( missing );
+        entry.put( "missingMetadata", missing );
+
+        if ( !missing.isEmpty() ) {
+            metadataIssues.add( pageName + " missing: " + String.join( ", ", missing ) );
+        }
+    }
+
+    /**
+     * Check SEO readiness for a page using composed {@link PageCheck} strategies,
+     * populating the entry map and aggregate list.
+     */
+    void checkSeoReadiness( final String pageName, final Map< String, Object > metadata,
+                            final Page page, final Map< String, Object > entry,
+                            final Set< String > activeChecks, final List< String > seoIssues ) {
+        if ( !activeChecks.contains( "seo_readiness" ) ) {
+            return;
+        }
+
+        final PageCheckContext checkCtx = new PageCheckContext(
+                pageName, metadata, "", page, pageManager );
+        final List< String > seoWarnings = new ArrayList<>();
+        for ( final PageCheck check : SEO_CHECKS ) {
+            for ( final PageCheckResult result : check.check( checkCtx ) ) {
+                seoWarnings.add( result.detail() );
+            }
+        }
+
+        entry.put( "seoWarnings", seoWarnings );
+
+        if ( !seoWarnings.isEmpty() ) {
+            seoIssues.add( pageName + ": " + String.join( "; ", seoWarnings ) );
+        }
     }
 }

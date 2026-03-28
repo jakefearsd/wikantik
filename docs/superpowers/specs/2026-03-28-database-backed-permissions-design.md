@@ -100,8 +100,8 @@ Implements the existing `GroupDatabase` interface, replacing `XMLGroupDatabase`.
 - `initialize(Engine, Properties)` — obtains JNDI DataSource
 - `groups()` — queries `groups` + `group_members`, returns `Group[]`
 - `find(String name)` — finds a single group by name
-- `save(Group)` — inserts or updates group and members (upsert pattern)
-- `delete(Group)` — deletes group by name (cascade removes members)
+- `save(Group)` — inserts or updates group and members (upsert pattern). **Admin group guard:** if saving the "Admin" group with zero members, throws `WikiSecurityException` — the last member of the Admin group cannot be removed.
+- `delete(Group)` — deletes group by name (cascade removes members). **Admin group guard:** if deleting the "Admin" group, throws `WikiSecurityException` — the Admin group cannot be deleted.
 
 Selected via property: `wikantik.groupdatabase=com.wikantik.auth.authorize.JDBCGroupDatabase`
 
@@ -239,6 +239,11 @@ VALUES ((SELECT id FROM groups WHERE name = 'Admin'), 'admin');
 - Bootstrap admin override grants AllPermission when property is configured
 - Bootstrap admin override is inactive when property is absent
 - Startup log warning emitted when bootstrap override is active
+
+**`JDBCGroupDatabaseTest` (new tests in addition to existing 4):**
+- Saving the Admin group with zero members throws `WikiSecurityException`
+- Deleting the Admin group throws `WikiSecurityException`
+- Saving the Admin group with at least one member succeeds
 
 **`AdminGroupResourceTest`:**
 - List all groups returns seeded data

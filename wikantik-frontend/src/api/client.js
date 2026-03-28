@@ -37,6 +37,12 @@ export const api = {
   deletePage: (name) =>
     request(`/api/pages/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 
+  renamePage: (name, newName) =>
+    request(`/api/pages/${encodeURIComponent(name)}/rename`, {
+      method: 'POST',
+      body: JSON.stringify({ newName }),
+    }),
+
   listPages: ({ prefix, limit = 100, offset = 0 } = {}) => {
     const params = new URLSearchParams({ limit, offset });
     if (prefix) params.set('prefix', prefix);

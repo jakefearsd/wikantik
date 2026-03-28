@@ -16,6 +16,10 @@ export default function PageView() {
   const { data: page, loading, error } = useApi(() => api.getPage(name, { render: true }), [name]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [showRename, setShowRename] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [renameError, setRenameError] = useState(null);
+  const [renaming, setRenaming] = useState(false);
 
   async function handleDelete() {
     try {
@@ -24,6 +28,25 @@ export default function PageView() {
       navigate('/wiki/Main');
     } catch (err) {
       setDeleteError(err.message || 'Failed to delete page');
+    }
+  }
+
+  async function handleRename() {
+    if (!newName.trim()) {
+      setRenameError('New page name cannot be blank');
+      return;
+    }
+    setRenaming(true);
+    setRenameError(null);
+    try {
+      const result = await api.renamePage(name, newName.trim());
+      setShowRename(false);
+      setNewName('');
+      navigate(`/wiki/${result.newName}`);
+    } catch (err) {
+      setRenameError(err.body?.message || err.message || 'Failed to rename page');
+    } finally {
+      setRenaming(false);
     }
   }
 
@@ -42,6 +65,11 @@ export default function PageView() {
               ✎ Edit
             </Link>
           )}
+          {page.permissions?.rename && (
+            <button className="btn btn-ghost" onClick={() => { setShowRename(true); setNewName(name); setRenameError(null); }}>
+              Rename
+            </button>
+          )}
           {page.permissions?.delete && (
             <button className="btn btn-ghost btn-danger" onClick={() => { setConfirmDelete(true); setDeleteError(null); }}>
               🗑 Delete
@@ -59,6 +87,31 @@ export default function PageView() {
             <div className="modal-actions">
               <button className="btn btn-ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
               <button className="btn btn-primary btn-danger" onClick={handleDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRename && (
+        <div className="modal-overlay" onClick={() => setShowRename(false)}>
+          <div className="modal-content admin-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Rename Page</h3>
+            <p>Enter a new name for "{name}":</p>
+            <input
+              type="text"
+              className="form-input"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !renaming) handleRename(); }}
+              autoFocus
+              style={{ width: '100%', marginBottom: 'var(--space-sm)' }}
+            />
+            {renameError && <p className="error-banner" style={{ marginBottom: 'var(--space-sm)' }}>{renameError}</p>}
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={() => setShowRename(false)} disabled={renaming}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleRename} disabled={renaming}>
+                {renaming ? 'Renaming...' : 'Rename'}
+              </button>
             </div>
           </div>
         </div>

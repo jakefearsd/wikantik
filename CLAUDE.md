@@ -70,6 +70,7 @@ Configuration files (gitignored; templates in `wikantik-war/src/main/config/tomc
 # 1. Create the wikantik PostgreSQL database (one time, as superuser)
 sudo -u postgres psql -c "CREATE DATABASE wikantik;"
 sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.ddl
+sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql-permissions.ddl
 
 # 2. Build the WAR (also builds the React frontend via npm automatically)
 mvn clean install -Dmaven.test.skip -T 1C
@@ -138,15 +139,18 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 
 ### Module Structure
 
-- **wikantik-api**: Core interfaces and contracts
-- **wikantik-main**: Main implementation of wiki functionality
+- **wikantik-api**: Core interfaces and contracts (manager interfaces, frontmatter, page save)
+- **wikantik-main**: Main implementation — rendering, providers, auth, search, references
 - **wikantik-event**: Event system for decoupled communication
 - **wikantik-util**: Utility classes and helpers
 - **wikantik-bootstrap**: Initialization and bootstrap
-- **wikantik-cache**: EhCache-based caching layer
-- **wikantik-markdown**: Markdown syntax support
-- **wikantik-mcp**: MCP server for AI agent integration
-- **wikantik-war**: WAR packaging for deployment
+- **wikantik-cache**: EhCache-based caching layer (1-hour TTL for render caches, 10K entry capacity)
+- **wikantik-cache-memcached**: Distributed cache adapter for Memcached
+- **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers
+- **wikantik-rest**: REST/JSON API and admin panel endpoints
+- **wikantik-mcp**: MCP server for AI agent integration (37 tools, 6 resources, 8 prompts)
+- **wikantik-observability**: Health checks, Prometheus metrics, request correlation
+- **wikantik-war**: WAR packaging, React frontend build, deployment config
 
 ### Key Design Patterns
 
@@ -178,15 +182,24 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 ### Security Model
 
 - JAAS-based authentication and authorization
-- Fine-grained permissions (PagePermission, WikiPermission)
-- ACL support for individual pages
-- Pluggable authentication (LDAP, database, container)
+- Fine-grained permissions: `view`, `comment`, `edit`, `modify`, `upload`, `rename`, `delete` (page); `createPages`, `createGroups`, `editPreferences`, `editProfile`, `login` (wiki)
+- **Database-backed policy grants** — default role permissions stored in `policy_grants` table, managed via admin UI at `/admin/security`
+- **Database-backed groups** — stored in `groups` + `group_members` tables, managed via admin UI
+- Page-level ACLs via inline `[{ALLOW view Admin}]` syntax in page content
+- REST API permission enforcement — all `/api/*` endpoints check ACLs via `RestServletBase.checkPagePermission()`
+- Admin endpoints at `/admin/*` protected by `AdminAuthFilter` (requires `AllPermission`)
+- Bootstrap admin override — `wikantik.admin.bootstrap` property guarantees admin access during initial setup
+- Property-driven policy switch: set `wikantik.policy.datasource` to use database; omit to fall back to file-based `wikantik.policy`
+- NIST 800-63B password validation with common-password blocklist
+- Deserialization filtering — `ObjectInputFilter` whitelists on all `ObjectInputStream` usage
+- Pluggable authentication (LDAP, database, container, SSO via pac4j)
 
 ### Important Configuration
 
 - Main configuration: `ini/wikantik.properties` (in JAR)
 - Custom overrides: `wikantik-custom.properties` (in WEB-INF or container lib)
-- Security policy: `WEB-INF/wikantik.policy`
+- Security policy: `policy_grants` table (database-backed) or `WEB-INF/wikantik.policy` (file-based fallback)
+- Permission migration DDL: `wikantik-war/src/main/config/db/postgresql-permissions.ddl`
 
 ### Extension Points
 

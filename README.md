@@ -1,4 +1,4 @@
-# Apache Wikantik
+# Wikantik
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -22,51 +22,130 @@ The license file can be found in LICENSE.
 
 ## What is Wikantik?
 
-Wikantik is a simple (well, not anymore) WikiWiki clone, written in Java
-and JSP.  A WikiWiki is a website which allows anyone to participate
-in its development.  Wikantik supports all the traditional wiki features,
-as well as very detailed access control and security integration using JAAS.
+Wikantik is a modular Java-based knowledge base platform built on JEE technologies. It combines a Markdown-native authoring system with a React single-page application, a REST API, an MCP server for AI agent integration, and a full observability stack. Content is organized into thematic clusters with structured frontmatter metadata, indexed by Lucene for full-text and faceted search.
 
-* For more information see https://wikantik-wiki.apache.org/
+Key capabilities:
 
+- **Markdown rendering** with Flexmark — fenced code blocks, tables, footnotes, definition lists, TOC generation, and wiki-style internal links
+- **React SPA** at `/app/` — editorial magazine aesthetic with dark mode, metadata chips, change history, and inline editing
+- **REST API** at `/api/` — full CRUD for pages, attachments, search, history, diffs, and backlinks with ACL-based permission enforcement
+- **MCP server** at `/mcp/` — 37 tools, 6 resources, 8 prompts for AI-assisted wiki operations including cluster publishing, auditing, and content management
+- **Admin panel** — user management, content management (orphaned pages, broken links, version purging, cache stats), security management (groups and policy grants)
+- **Database-backed authorization** — policy grants and groups stored in PostgreSQL, manageable through the admin UI, with bootstrap admin override for recovery
+- **Observability** — health checks, Prometheus metrics at `/metrics`, structured logging with request correlation, IP-restricted to internal networks
+- **Content clusters** — thematic article groupings with hub pages, sub-clusters, cross-references, and automated structural auditing
+- **NIST 800-63B password validation** — blocklist-checked password strength enforcement for account creation
+- **Frontmatter metadata** — YAML frontmatter for type, tags, summary, cluster, status, and related articles, indexed in Lucene for semantic navigation
+
+
+## Prerequisites
+
+| Tool | Version | Notes |
+|------|---------|-------|
+| Java (JDK) | 21+ | `java -version` |
+| Maven | 3.9+ | `mvn -version` |
+| Node.js + npm | 18+ | Required — WAR build runs `npm install` + `vite build` automatically |
+| PostgreSQL | 15+ | For local deployment; unit tests use in-memory H2 |
+
+## Quick Start (Local Development)
+
+```bash
+# 1. Create the PostgreSQL database
+sudo -u postgres psql -c "CREATE DATABASE wikantik;"
+sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.ddl
+sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql-permissions.ddl
+
+# 2. Build (includes React frontend via npm)
+mvn clean install -Dmaven.test.skip -T 1C
+
+# 3. Bootstrap Tomcat, configure, and deploy
+./deploy-local.sh
+
+# 4. Set your PostgreSQL password in the context file (path shown by script output)
+
+# 5. Start Tomcat
+tomcat/tomcat-11/bin/startup.sh
+# Access at http://localhost:8080/ — default login: admin / admin123
+# React SPA at http://localhost:8080/app/
+```
+
+See [PostgreSQLLocalDeployment.md](docs/PostgreSQLLocalDeployment.md) for the full guide.
+
+## Using Docker
+
+```bash
+docker compose up -d
+```
+
+Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeployment.md) for backups, data persistence, and the full container guide.
+
+## Module Structure
+
+| Module | Purpose |
+|--------|---------|
+| `wikantik-api` | Core interfaces and contracts (manager interfaces, frontmatter, page save) |
+| `wikantik-main` | Main implementation — rendering, providers, auth, search, references |
+| `wikantik-event` | Event system for decoupled communication |
+| `wikantik-util` | Utility classes and helpers |
+| `wikantik-bootstrap` | Initialization and bootstrap |
+| `wikantik-cache` | EhCache-based caching layer |
+| `wikantik-cache-memcached` | Distributed cache adapter for Memcached |
+| `wikantik-http` | Servlet filters — CSRF, CORS, CSP, security headers |
+| `wikantik-rest` | REST/JSON API and admin panel endpoints |
+| `wikantik-mcp` | MCP server for AI agent integration (37 tools) |
+| `wikantik-observability` | Health checks, Prometheus metrics, request correlation |
+| `wikantik-war` | WAR packaging, React frontend build, deployment config |
+| `wikantik-wikipages` | Default wiki pages (en, es, ru) |
+| `wikantik-it-tests` | Integration tests (Selenide browser automation, REST API, custom providers) |
 
 ## Documentation
 
 ### Development Setup
 
 - [PostgreSQLLocalDeployment.md](docs/PostgreSQLLocalDeployment.md) — Local dev environment with PostgreSQL and Tomcat
-- [DevelopingWithPostgresql.md](docs/DevelopingWithPostgresql.md) — Full PostgreSQL schema, JDBC, and JNDI configuration guide
+- [DevelopingWithPostgresql.md](docs/DevelopingWithPostgresql.md) — Full PostgreSQL schema, JDBC, and JNDI configuration
 - [MvnCheatSheet.md](docs/MvnCheatSheet.md) — Maven build, test, and debug commands
 - [LoggingConfig.md](docs/LoggingConfig.md) — Log4j2 external configuration
+- [IndexRebuild.md](docs/IndexRebuild.md) — Search index rebuild guide for local and Docker deployments
 
 ### Deployment & Operations
 
 - [DockerDeployment.md](docs/DockerDeployment.md) — Docker Compose setup, backups, and restoration
-- [JspwikiDeployment.md](docs/JspwikiDeployment.md) — Docker vs. direct Tomcat deployment comparison
+- [production-container-architecture.md](docs/production-container-architecture.md) — Production architecture with Cloudflare, Tomcat, and PostgreSQL
+- [ci-cd-step-by-step.md](docs/ci-cd-step-by-step.md) — CI/CD pipeline setup with self-hosted runner
 - [SendingEmailFromTheWiki.md](docs/SendingEmailFromTheWiki.md) — SMTP relay setup (Brevo, SendGrid, Mailjet, SES, Resend)
 - [ObservabilityDesign.md](docs/ObservabilityDesign.md) — Grafana, Prometheus, and Loki observability stack
 
 ### Features
 
 - [MarkdownLinks.md](docs/MarkdownLinks.md) — Markdown internal and external link syntax
+- [NewUI.md](docs/NewUI.md) — React SPA design and architecture
+- [RelationalUserDatabase.md](docs/RelationalUserDatabase.md) — PostgreSQL user and group database configuration
+- [Sitemap.md](docs/Sitemap.md) — Sitemap.xml and Atom feed servlets
 - [OAuthImplementation.md](docs/OAuthImplementation.md) — OAuth SSO implementation plan (Google, GitHub)
 - [FullOAuth.md](docs/FullOAuth.md) — OAuth/OpenID Connect detailed design
-- [RelationalUserDatabase.md](docs/RelationalUserDatabase.md) — MySQL/PostgreSQL user database configuration
-- [Sitemap.md](docs/Sitemap.md) — Sitemap.xml servlet implementation
-- [SitemapOptimization.md](docs/SitemapOptimization.md) — SEO best practices for sitemaps
+
+### Security
+
+- Database-backed authorization — policy grants and groups managed via admin UI (see [design spec](docs/superpowers/specs/2026-03-28-database-backed-permissions-design.md))
+- Page-level ACLs via inline `[{ALLOW view Admin}]` syntax in page content
+- REST API permission enforcement — all endpoints check ACLs and policy grants
+- NIST 800-63B password validation with common-password blocklist
+- CSRF protection (synchronizer token pattern for JSP forms, Content-Type protection for REST/admin endpoints)
+- Deserialization filtering — ObjectInputFilter whitelists on all ObjectInputStream usage
+- Bootstrap admin override — `wikantik.admin.bootstrap` property guarantees admin access during initial setup
 
 ### Architecture & Design
 
-- [RefactorToPatterns.md](docs/RefactorToPatterns.md) — GoF design pattern opportunities in the codebase
+- [RefactorToPatterns.md](docs/RefactorToPatterns.md) — GoF design patterns applied across the codebase
 - [PerformanceEvaluation.md](docs/PerformanceEvaluation.md) — I/O, indexing, and rendering bottleneck analysis
-- [NewUI.md](docs/NewUI.md) — React SPA reader UI design
+- [complete_markdown_migration.md](docs/complete_markdown_migration.md) — Migration from legacy wiki syntax to Markdown-only rendering
 - [semantic_wiki_thoughts.md](docs/semantic_wiki_thoughts.md) — AI-augmented semantic wiki vision
+- [ADR-001: Extract manager interfaces to API](docs/adrs/001-extract-manager-interfaces-to-api.md)
 
 ### MCP Integration
 
-The `wikantik-mcp` module provides a Model Context Protocol server for AI-assisted wiki operations. See the module's own documentation for setup and usage.
-
-- [wiki-article-cluster skill](.claude/skills/wiki-article-cluster/SKILL.md) — Skill for researching and publishing multi-page wiki article clusters
+The `wikantik-mcp` module provides a Model Context Protocol server for AI-assisted wiki operations — article authoring, cluster management, structural auditing, and content publishing. 37 tools, 6 resources, 8 prompts, and 3 completions.
 
 ### Research
 
@@ -78,112 +157,23 @@ The `wikantik-mcp` module provides a Model Context Protocol server for AI-assist
 - [TermsOfService.md](docs/TermsOfService.md) — Terms of service template
 
 
-## Pre-requirements
+## Building
 
-Okay, so you wanna Wiki?  You'll need the following things:
+```bash
+# Standard build with tests
+mvn clean install
 
-REQUIRED:
+# Parallel build, unit tests only (fastest for development)
+mvn clean install -T 1C -DskipITs
 
-* A JSP engine that supports Servlet API 6.0.  We recommend [Apache Tomcat](https://tomcat.apache.org/)
-  for a really easy installation. Tomcat 11 or later is required.
+# Build without tests
+mvn clean install -Dmaven.test.skip
 
-* Some previous administration experience...  If you've ever installed
-  Apache or any other web server, you should be pretty well off.
-
-* And of course, a server to run the JSP engine on.
-
-* JDK 21+
-
-
-OPTIONAL:
-
-* JavaMail package from java.sun.com, if you want to use log4j mailing
-  capabilities.  You'll also need the Java Activation Framework.
-
-## Really simple installation
-
-Since Wikantik 2.1.153, Wikantik comes with a really simple installation
-engine.  Just do the following:
-
-1) Install Tomcat from https://tomcat.apache.org/ (or any other servlet
-   container)
-
-2) Rename the Wikantik.war file from the download and rename it based on
-   your desired URL (if you want it different from /Wikantik).  For example,
-   if you want your URL to be http://.../wiki, rename it to wiki.war.
-   This name will be referred to as <appname> below.
-   Place this WAR in your `$TOMCAT_HOME/webapps` folder and then start Tomcat.
-
-3) Point your browser at http://&lt;myhost>/&lt;appname>/Install.jsp
-
-4) Answer a couple of simple questions
-
-5) Restart your container
-
-6) Point your browser to http://&lt;myhost>/&lt;appname>/
-
-That's it!
-
-## Advanced Installation
-
-In the `$TOMCAT_HOME/lib` folder (or equivalent based on your servlet container),
-place a `wikantik-custom.properties` file, which can contain any overrides to the
-default `ini/wikantik.properties` file in the Wikantik JAR.  For any values not
-placed in `wikantik-custom.properties` file Wikantik will rely on the default file.
-Review the default file to look for values you may wish to override in the custom
-file.  Some common values to override in your custom file include
-`wikantik.xmlUserDatabaseFile`, `wikantik.xmlGroupDatabaseFile`,
-`wikantik.fileSystemProvider.pageDir`, `wikantik.basicAttachmentProvider.storageDir`,
-and `appender.rolling.fileName`.  The comments in the default file will suggest
-appropriate values to override them with.
-
-The custom file can also be placed in the `WEB-INF/` folder of the WAR, but storing
-this file in `$TOMCAT_HOME/lib` allows you to upgrade the Wikantik WAR without needing
-to re-insert your customizations.
-
-Unzip the contents of `wikantik-corepages.zip` into your newly created
-directory.  You can find the rest of the documentation in the
-`Wikantik-doc.zip` file.
-
-(Re)start tomcat.
-
-Point your browser at http://&lt;where your Tomcat is installed>/MyWiki/.
-You should see the Main Wiki page.  See the next section if you want
-to edit the pages =).
-
-The `WEB-INF/wikantik.policy` file is used to change access permissions for
-the Wiki.
-
-Check the Apache Wikantik website and project documentation for additional
-setup and configuration suggestions.
-
-## Using Docker
-
-A `Dockerfile` and `docker-compose.yml` are included in this repository for building
-and running Wikantik from source. See [DockerDeployment.md](docs/DockerDeployment.md)
-for the full guide including backups and data persistence.
-
-### Build and Run from Source
+# Integration tests (MUST be sequential — no -T flag)
+mvn clean install -Pintegration-tests -fae
 ```
-$ docker compose up -d
-```
-
-Then point your browser at http://localhost:8080/.
-
-> **Note:** The upstream Docker Hub image at
-> [apache/wikantik](https://registry.hub.docker.com/r/apache/wikantik/) tracks the
-> official Apache release and may not reflect the current state of this repository.
-> Building from source (as shown above) is recommended.
-
-## Upgrading from previous versions
-
-Please read [ReleaseNotes](./ReleaseNotes) and the [UPGRADING](./UPGRADING) documents available with this
-distribution.
 
 ## Contact
 
-Questions can be asked to Wikantik team members and fellow users via the wikantik-users
+Questions can be asked to the Wikantik team via the wikantik-users
 mailing list: See https://wikantik.apache.org/community/mailing_lists.html.
-Please use the user mailing list instead of contacting team members directly,
-and as this is a public list stored in public archives, be sure to avoid including
-any sensitive information (passwords, data, etc.) in your questions.

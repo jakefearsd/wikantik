@@ -87,6 +87,7 @@ class RestAuthorizationSecurityTest {
             try { pm.deletePage( "SecTestAclPage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "SecTestPublicPage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "SecTestEditPage" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "SecTestAttPage" ); } catch ( final Exception e ) { /* ignore */ }
             engine.stop();
         }
     }
@@ -191,6 +192,44 @@ class RestAuthorizationSecurityTest {
         assertTrue( obj.get( "success" ).getAsBoolean(),
                 "Anonymous user should be able to edit unrestricted page" );
         assertEquals( "SecTestEditPage", obj.get( "name" ).getAsString() );
+    }
+
+    // ===== Attachment ACL test =====
+
+    /**
+     * Verifies that anonymous users cannot list attachments on a page restricted by ACL.
+     * The page ACL restricts view to Admin only, so an anonymous request should get 403.
+     */
+    @Test
+    void testAnonymousCannotAccessAttachmentOnRestrictedPage() throws Exception {
+        engine.saveText( "SecTestAttPage", "[{ALLOW view Admin}]\nRestricted." );
+
+        // Set up an AttachmentResource servlet
+        final AttachmentResource attachServlet = new AttachmentResource();
+        final ServletConfig attConfig = Mockito.mock( ServletConfig.class );
+        Mockito.doReturn( engine.getServletContext() ).when( attConfig ).getServletContext();
+        attachServlet.init( attConfig );
+
+        final HttpSession httpSession = Mockito.mock( HttpSession.class );
+        Mockito.doReturn( "anon-att-session-" + System.nanoTime() ).when( httpSession ).getId();
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/attachments/SecTestAttPage" );
+        Mockito.doReturn( "/SecTestAttPage" ).when( request ).getPathInfo();
+        Mockito.doReturn( httpSession ).when( request ).getSession();
+        Mockito.doReturn( httpSession ).when( request ).getSession( Mockito.anyBoolean() );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        attachServlet.doGet( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertNotNull( obj.get( "error" ),
+                "Response must contain 'error' field -- should deny anonymous attachment listing on ACL-restricted page" );
+        assertTrue( obj.get( "error" ).getAsBoolean(), "Response should be an error" );
+        assertEquals( 403, obj.get( "status" ).getAsInt(),
+                "Anonymous attachment listing on ACL-restricted page must return 403" );
     }
 
     // ===== Helper methods =====

@@ -88,4 +88,17 @@ class CsrfProtectionFilterTest {
         assertFalse( CsrfProtectionFilter.isRestApiEndpoint( request ) );
     }
 
+    /**
+     * Admin endpoints (under /admin/) are exempt from CSRF token checks because they
+     * use JSON Content-Type which provides natural CSRF protection via CORS preflight.
+     */
+    @ParameterizedTest
+    @ValueSource( strings = { "/admin/groups", "/admin/policy", "/admin/users", "/admin/content" } )
+    void testIsRestApiEndpointReturnsTrueForAdminPaths( final String servletPath ) {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( servletPath ).when( request ).getServletPath();
+        assertTrue( CsrfProtectionFilter.isRestApiEndpoint( request ),
+                "Admin path '" + servletPath + "' should be recognized as a REST API endpoint" );
+    }
+
 }

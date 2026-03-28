@@ -292,6 +292,32 @@ class AdminPolicyResourceTest {
         assertEquals( 400, obj.get( "status" ).getAsInt() );
     }
 
+    // ----- CORS restriction tests -----
+
+    /**
+     * Verifies that the admin policy endpoint does NOT set Access-Control-Allow-Origin
+     * headers. Admin endpoints should be same-origin only.
+     */
+    @Test
+    void testAdminPolicyEndpointDoesNotSetCorsHeaders() throws Exception {
+        final HttpServletRequest request = createRequest( null );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+
+        // Verify that Access-Control-Allow-Origin was never set
+        Mockito.verify( response, Mockito.never() ).setHeader(
+                Mockito.eq( "Access-Control-Allow-Origin" ), Mockito.anyString() );
+    }
+
+    @Test
+    void testAdminPolicyEndpointIsCrossOriginAllowedReturnsFalse() {
+        assertFalse( servlet.isCrossOriginAllowed(),
+                "Admin policy endpoint should not allow cross-origin requests" );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pathParam ) throws Exception {

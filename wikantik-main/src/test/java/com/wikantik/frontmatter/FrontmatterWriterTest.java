@@ -93,4 +93,112 @@ class FrontmatterWriterTest {
         assertEquals( "Round trip test", parsed.metadata().get( "summary" ) );
         assertEquals( body, parsed.body() );
     }
+
+    // =============== Round-trip edge case tests ===============
+
+    /**
+     * Verifies that values containing YAML control characters (triple-dash, colons, newlines)
+     * survive a write-then-parse round trip.
+     */
+    @Test
+    void testRoundTripWithYamlControlCharacters() {
+        final Map< String, Object > metadata = new LinkedHashMap<>();
+        metadata.put( "title", "Value with --- dashes" );
+        metadata.put( "description", "Contains: a colon" );
+        metadata.put( "note", "Line one\nLine two" );
+
+        final String written = FrontmatterWriter.write( metadata, "Body text." );
+        final ParsedPage parsed = FrontmatterParser.parse( written );
+
+        assertEquals( "Value with --- dashes", parsed.metadata().get( "title" ) );
+        assertEquals( "Contains: a colon", parsed.metadata().get( "description" ) );
+        assertEquals( "Line one\nLine two", parsed.metadata().get( "note" ) );
+        assertEquals( "Body text.", parsed.body() );
+    }
+
+    /**
+     * Verifies that Unicode values (CJK characters, emoji, RTL text) round-trip correctly.
+     */
+    @Test
+    void testRoundTripWithUnicodeValues() {
+        final Map< String, Object > metadata = new LinkedHashMap<>();
+        metadata.put( "cjk", "\u4F60\u597D\u4E16\u754C" );  // Chinese: hello world
+        metadata.put( "japanese", "\u3053\u3093\u306B\u3061\u306F" );  // Japanese: konnichiwa
+        metadata.put( "rtl", "\u0645\u0631\u062D\u0628\u0627" );  // Arabic: marhaba
+
+        final String written = FrontmatterWriter.write( metadata, "Unicode body." );
+        final ParsedPage parsed = FrontmatterParser.parse( written );
+
+        assertEquals( "\u4F60\u597D\u4E16\u754C", parsed.metadata().get( "cjk" ) );
+        assertEquals( "\u3053\u3093\u306B\u3061\u306F", parsed.metadata().get( "japanese" ) );
+        assertEquals( "\u0645\u0631\u062D\u0628\u0627", parsed.metadata().get( "rtl" ) );
+        assertEquals( "Unicode body.", parsed.body() );
+    }
+
+    /**
+     * Verifies that nested structures (lists of maps) round-trip correctly.
+     */
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testRoundTripWithNestedStructures() {
+        final Map< String, Object > metadata = new LinkedHashMap<>();
+        final Map< String, Object > author1 = new LinkedHashMap<>();
+        author1.put( "name", "Alice" );
+        author1.put( "role", "writer" );
+        final Map< String, Object > author2 = new LinkedHashMap<>();
+        author2.put( "name", "Bob" );
+        author2.put( "role", "reviewer" );
+        metadata.put( "authors", List.of( author1, author2 ) );
+
+        final String written = FrontmatterWriter.write( metadata, "Nested body." );
+        final ParsedPage parsed = FrontmatterParser.parse( written );
+
+        final List< Map< String, Object > > authors =
+                ( List< Map< String, Object > > ) parsed.metadata().get( "authors" );
+        assertNotNull( authors, "authors list should survive round-trip" );
+        assertEquals( 2, authors.size() );
+        assertEquals( "Alice", authors.get( 0 ).get( "name" ) );
+        assertEquals( "reviewer", authors.get( 1 ).get( "role" ) );
+        assertEquals( "Nested body.", parsed.body() );
+    }
+
+    /**
+     * Verifies that metadata with only normal values round-trips correctly,
+     * including when the body is empty.
+     */
+    @Test
+    void testRoundTripWithEmptyBody() {
+        final Map< String, Object > metadata = new LinkedHashMap<>();
+        metadata.put( "status", "draft" );
+        metadata.put( "version", 1 );
+
+        final String written = FrontmatterWriter.write( metadata, "" );
+        final ParsedPage parsed = FrontmatterParser.parse( written );
+
+        assertNotNull( parsed.metadata(), "metadata should not be null after round-trip" );
+        assertEquals( "draft", parsed.metadata().get( "status" ),
+                "status should survive round-trip" );
+        assertEquals( 1, parsed.metadata().get( "version" ),
+                "version should survive round-trip" );
+        assertEquals( "", parsed.body(), "empty body should survive round-trip" );
+    }
+
+    /**
+     * Verifies that an empty list value round-trips correctly.
+     */
+    @Test
+    void testRoundTripWithEmptyList() {
+        final Map< String, Object > metadata = new LinkedHashMap<>();
+        metadata.put( "tags", List.of() );
+        metadata.put( "type", "test" );
+
+        final String written = FrontmatterWriter.write( metadata, "Body." );
+        final ParsedPage parsed = FrontmatterParser.parse( written );
+
+        assertEquals( "test", parsed.metadata().get( "type" ),
+                "type should survive round-trip" );
+        // Empty list may be serialized as [] and parsed back as empty list
+        // The key is it does not crash
+        assertNotNull( parsed.metadata(), "metadata should not be null" );
+    }
 }

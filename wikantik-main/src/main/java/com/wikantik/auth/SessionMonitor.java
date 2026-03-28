@@ -35,8 +35,6 @@ import jakarta.servlet.http.HttpSessionListener;
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Map;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -52,8 +50,9 @@ public class SessionMonitor implements HttpSessionListener {
     /** Map with Engines as keys, and SessionMonitors as values. */
     private static final ConcurrentHashMap< Engine, SessionMonitor > monitors = new ConcurrentHashMap<>();
 
-    /** Weak hashmap with HttpSessions as keys, and WikiSessions as values. */
-    private final Map< String, Session > sessions = new WeakHashMap<>();
+    /** Thread-safe map from HTTP session ID to WikiSession. Entries are removed
+     *  explicitly via {@link #remove(HttpSession)} when the container destroys a session. */
+    private final ConcurrentHashMap< String, Session > sessions = new ConcurrentHashMap<>();
 
     private Engine engine;
 
@@ -81,92 +80,47 @@ public class SessionMonitor implements HttpSessionListener {
     }
 
     /**
-     *  Just looks for a WikiSession; does not create a new one.
-     * This method may return <code>null</code>, <em>and
-     * callers should check for this value</em>.
-     *
-     *  @param session the user's HTTP session
-     *  @return the WikiSession, if found
+     * Looks up the wiki session for an HTTP session without creating one.
+     * Returns {@code null} if no session is found.
      */
     private Session findSession( final HttpSession session ) {
         final String sid = ( session == null ) ? "(null)" : session.getId();
-        return findSession( sid );
+        return sessions.get( sid );
     }
 
     /**
-     *  Just looks for a WikiSession; does not create a new one.
-     * This method may return <code>null</code>, <em>and
-     * callers should check for this value</em>.
-     *
-     *  @param sessionId the user's HTTP session id
-     *  @return the WikiSession, if found
-     */
-    private Session findSession( final String sessionId ) {
-        Session wikiSession = null;
-        final String sid = ( sessionId == null ) ? "(null)" : sessionId;
-        final Session storedSession = sessions.get( sid );
-
-        // If the weak reference returns a wiki session, return it
-        if( storedSession != null ) {
-            LOG.debug( "Looking up WikiSession for session ID={}... found it", sid );
-            wikiSession = storedSession;
-        }
-
-        return wikiSession;
-    }
-
-    /**
-     * <p>Looks up the wiki session associated with a user's Http session and adds it to the session cache. This method will return the
-     * "guest session" as constructed by {@link com.wikantik.api.spi.SessionSPI#guest(Engine)} if the HttpSession is not currently
-     * associated with a WikiSession. This method is guaranteed to return a non-<code>null</code> WikiSession.</p>
-     * <p>Internally, the session is stored in a HashMap; keys are the HttpSession objects, while the values are
-     * {@link java.lang.ref.WeakReference}-wrapped WikiSessions.</p>
+     * Looks up the wiki session associated with a user's HTTP session. If none exists,
+     * atomically creates a new guest session via {@link ConcurrentHashMap#computeIfAbsent}.
+     * This method is guaranteed to return a non-{@code null} WikiSession and is lock-free
+     * for the common case (session already exists).
      *
      * @param session the HTTP session
      * @return the wiki session
      */
     public final Session find( final HttpSession session ) {
-        final Session wikiSession = findSession( session );
         final String sid = ( session == null ) ? "(null)" : session.getId();
-        if( wikiSession == null ) {
-            return createGuestSessionFor( sid );
-        }
-
-        return wikiSession;
+        return sessions.computeIfAbsent( sid, this::createGuestSession );
     }
 
     /**
-     * <p>Looks up the wiki session associated with a user's Http session and adds it to the session cache. This method will return the
-     * "guest session" as constructed by {@link com.wikantik.api.spi.SessionSPI#guest(Engine)} if the HttpSession is not currently
-     * associated with a WikiSession. This method is guaranteed to return a non-<code>null</code> WikiSession.</p>
-     * <p>Internally, the session is stored in a HashMap; keys are the HttpSession objects, while the values are
-     * {@link java.lang.ref.WeakReference}-wrapped WikiSessions.</p>
+     * Looks up the wiki session by session ID string. If none exists,
+     * atomically creates a new guest session.
      *
-     * @param sessionId the HTTP session
+     * @param sessionId the HTTP session ID
      * @return the wiki session
      */
     public final Session find( final String sessionId ) {
-        final Session wikiSession = findSession( sessionId );
-        if( wikiSession == null ) {
-            return createGuestSessionFor( sessionId );
-        }
-
-        return wikiSession;
+        final String sid = ( sessionId == null ) ? "(null)" : sessionId;
+        return sessions.computeIfAbsent( sid, this::createGuestSession );
     }
 
     /**
-     * Creates a new session and stashes it
-     *
-     * @param sessionId id looked for before creating the guest session
-     * @return a new guest session
+     * Creates a new guest session for the given session ID.
+     * Called by {@link ConcurrentHashMap#computeIfAbsent} — guaranteed to run at most once per key.
      */
-    private Session createGuestSessionFor( final String sessionId ) {
+    private Session createGuestSession( final String sessionId ) {
         LOG.debug( "Session for session ID={}... not found. Creating guestSession()", sessionId );
-        final Session wikiSession = Wiki.session().guest( engine );
-        synchronized( sessions ) {
-            sessions.put( sessionId, wikiSession );
-        }
-        return wikiSession;
+        return Wiki.session().guest( engine );
     }
 
     /**
@@ -190,9 +144,7 @@ public class SessionMonitor implements HttpSessionListener {
         if( session == null ) {
             throw new IllegalArgumentException( "Session cannot be null." );
         }
-        synchronized( sessions ) {
-            sessions.remove( session.getId() );
-        }
+        sessions.remove( session.getId() );
     }
 
     /**
@@ -214,11 +166,9 @@ public class SessionMonitor implements HttpSessionListener {
      * @return the array of user principals
      */
     public final Principal[] userPrincipals() {
-        final Collection<Principal> principals;
-        synchronized ( sessions ) {
-            principals = sessions.values().stream().map(Session::getUserPrincipal).toList();
-        }
-        final Principal[] p = principals.toArray( new Principal[0] );
+        final Principal[] p = sessions.values().stream()
+                .map( Session::getUserPrincipal )
+                .toArray( Principal[]::new );
         Arrays.sort( p, comparator );
         return p;
     }

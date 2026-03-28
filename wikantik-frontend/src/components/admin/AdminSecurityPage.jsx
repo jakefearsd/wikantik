@@ -293,8 +293,8 @@ function GrantsSection() {
               <th>Principal</th>
               <th>Type</th>
               <th>Target</th>
-              <th>Actions</th>
-              <th>Manage</th>
+              <th style={{ width: '40%' }}>Actions</th>
+              <th style={{ width: '120px', textAlign: 'right' }}>Manage</th>
             </tr>
           </thead>
           <tbody>
@@ -333,7 +333,7 @@ function GrantsSection() {
                     ))
                   )}
                 </td>
-                <td className="admin-cell-actions">
+                <td className="admin-cell-actions" style={{ justifyContent: 'flex-end' }}>
                   <button
                     className="btn btn-ghost btn-sm"
                     onClick={() => { setEditingGrant(g); setModalOpen(true); }}

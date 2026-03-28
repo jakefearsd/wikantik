@@ -2,6 +2,7 @@ const BASE = '';
 
 async function request(path, options = {}) {
   const resp = await fetch(`${BASE}${path}`, {
+    credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
   });

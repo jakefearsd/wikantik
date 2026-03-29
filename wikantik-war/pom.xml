@@ -217,6 +217,7 @@
             </plugin>
             -->
 
+            <!-- JSLint plugin removed: legacy scripts/ directory deleted with JSP UI
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>jslint-maven-plugin</artifactId>
@@ -234,8 +235,6 @@
                             </excludes>
                         </configuration>
                     </execution>
-                    <!-- Some third party JSs have many multiple number of VARs per function
-                         block, are outside our control so suppressing such messages -->
                     <execution>
                         <id>checkThirdParty</id>
                         <goals>
@@ -252,6 +251,7 @@
                     </execution>
                 </executions>
             </plugin>
+            -->
 
             <!-- Build React frontend (npm install + npm run build) -->
             <plugin>

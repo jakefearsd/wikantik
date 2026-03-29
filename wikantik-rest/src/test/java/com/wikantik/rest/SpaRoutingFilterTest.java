@@ -25,15 +25,13 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.Mockito;
 
 import static org.mockito.Mockito.*;
 
 /**
- * Tests for {@link SpaRoutingFilter} — forwards /app/* routes to index.html
- * for React Router, while letting static assets pass through.
+ * Tests for {@link SpaRoutingFilter} — redirects root paths to /wiki/Main,
+ * forwards SPA routes to /index.html for React Router, and lets static assets
+ * pass through.
  */
 class SpaRoutingFilterTest {
 
@@ -49,56 +47,154 @@ class SpaRoutingFilterTest {
         chain = mock( FilterChain.class );
     }
 
-    @ParameterizedTest( name = "Static asset passes through: {0}" )
-    @ValueSource( strings = {
-            "/app/assets/index-ABC123.js",
-            "/app/assets/index-XYZ789.css",
-            "/app/favicon.ico",
-            "/app/assets/logo.png",
-            "/app/assets/font.woff2"
-    } )
-    void testStaticAssetsPassThrough( final String path ) throws Exception {
-        final HttpServletRequest request = mockRequest( path );
+    // ---- Redirect tests ----
+
+    @Test
+    void testRootRedirectsToWikiMain() throws Exception {
+        final HttpServletRequest request = mockRequest( "/" );
 
         filter.doFilter( request, response, chain );
 
-        // Static assets go directly through the chain — no forwarding
-        verify( chain ).doFilter( request, response );
-        verify( request, never() ).getRequestDispatcher( anyString() );
+        verify( response ).sendRedirect( "/wiki/Main" );
+        verify( chain, never() ).doFilter( any(), any() );
     }
 
-    @ParameterizedTest( name = "SPA route forwards to index.html: {0}" )
-    @ValueSource( strings = {
-            "/app/wiki/Main",
-            "/app/edit/SomePage",
-            "/app/search",
-            "/app/admin/users",
-            "/app/admin/security",
-            "/app/"
-    } )
-    void testSpaRoutesForwardToIndexHtml( final String path ) throws Exception {
-        final HttpServletRequest request = mockRequest( path );
-        final RequestDispatcher dispatcher = mock( RequestDispatcher.class );
-        when( request.getRequestDispatcher( "/app/index.html" ) ).thenReturn( dispatcher );
+    @Test
+    void testWikiSlashRedirectsToWikiMain() throws Exception {
+        final HttpServletRequest request = mockRequest( "/wiki/" );
 
         filter.doFilter( request, response, chain );
 
-        // SPA routes forward to index.html — chain is NOT called
+        verify( response ).sendRedirect( "/wiki/Main" );
+        verify( chain, never() ).doFilter( any(), any() );
+    }
+
+    @Test
+    void testWikiNoSlashRedirectsToWikiMain() throws Exception {
+        final HttpServletRequest request = mockRequest( "/wiki" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).sendRedirect( "/wiki/Main" );
+        verify( chain, never() ).doFilter( any(), any() );
+    }
+
+    // ---- Forward tests (SPA routes) ----
+
+    @Test
+    void testWikiPageForwardsToIndex() throws Exception {
+        final HttpServletRequest request = mockRequest( "/wiki/SomePage" );
+        final RequestDispatcher dispatcher = mock( RequestDispatcher.class );
+        when( request.getRequestDispatcher( "/index.html" ) ).thenReturn( dispatcher );
+
+        filter.doFilter( request, response, chain );
+
         verify( chain, never() ).doFilter( any(), any() );
         verify( dispatcher ).forward( request, response );
     }
 
     @Test
-    void testHtmlFilesForwardToIndexHtml() throws Exception {
-        // .html files are NOT treated as static assets — they go through React Router
-        final HttpServletRequest request = mockRequest( "/app/index.html" );
+    void testEditPageForwardsToIndex() throws Exception {
+        final HttpServletRequest request = mockRequest( "/edit/SomePage" );
         final RequestDispatcher dispatcher = mock( RequestDispatcher.class );
-        when( request.getRequestDispatcher( "/app/index.html" ) ).thenReturn( dispatcher );
+        when( request.getRequestDispatcher( "/index.html" ) ).thenReturn( dispatcher );
 
         filter.doFilter( request, response, chain );
 
         verify( chain, never() ).doFilter( any(), any() );
         verify( dispatcher ).forward( request, response );
+    }
+
+    @Test
+    void testDiffPageForwardsToIndex() throws Exception {
+        final HttpServletRequest request = mockRequest( "/diff/SomePage" );
+        final RequestDispatcher dispatcher = mock( RequestDispatcher.class );
+        when( request.getRequestDispatcher( "/index.html" ) ).thenReturn( dispatcher );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( dispatcher ).forward( request, response );
+    }
+
+    @Test
+    void testSearchForwardsToIndex() throws Exception {
+        final HttpServletRequest request = mockRequest( "/search" );
+        final RequestDispatcher dispatcher = mock( RequestDispatcher.class );
+        when( request.getRequestDispatcher( "/index.html" ) ).thenReturn( dispatcher );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( dispatcher ).forward( request, response );
+    }
+
+    @Test
+    void testPreferencesForwardsToIndex() throws Exception {
+        final HttpServletRequest request = mockRequest( "/preferences" );
+        final RequestDispatcher dispatcher = mock( RequestDispatcher.class );
+        when( request.getRequestDispatcher( "/index.html" ) ).thenReturn( dispatcher );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( dispatcher ).forward( request, response );
+    }
+
+    @Test
+    void testResetPasswordForwardsToIndex() throws Exception {
+        final HttpServletRequest request = mockRequest( "/reset-password" );
+        final RequestDispatcher dispatcher = mock( RequestDispatcher.class );
+        when( request.getRequestDispatcher( "/index.html" ) ).thenReturn( dispatcher );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( dispatcher ).forward( request, response );
+    }
+
+    @Test
+    void testAdminForwardsToIndex() throws Exception {
+        final HttpServletRequest request = mockRequest( "/admin/security" );
+        final RequestDispatcher dispatcher = mock( RequestDispatcher.class );
+        when( request.getRequestDispatcher( "/index.html" ) ).thenReturn( dispatcher );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( dispatcher ).forward( request, response );
+    }
+
+    // ---- Passthrough tests (static assets) ----
+
+    @Test
+    void testJsAssetsPassThrough() throws Exception {
+        final HttpServletRequest request = mockRequest( "/assets/index-ABC.js" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+        verify( request, never() ).getRequestDispatcher( anyString() );
+    }
+
+    @Test
+    void testCssAssetsPassThrough() throws Exception {
+        final HttpServletRequest request = mockRequest( "/assets/index-XYZ.css" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+        verify( request, never() ).getRequestDispatcher( anyString() );
+    }
+
+    @Test
+    void testFaviconPassesThrough() throws Exception {
+        final HttpServletRequest request = mockRequest( "/favicon.ico" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+        verify( request, never() ).getRequestDispatcher( anyString() );
     }
 
     private HttpServletRequest mockRequest( final String uri ) {

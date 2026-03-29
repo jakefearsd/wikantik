@@ -1,12 +1,28 @@
 ---
-type: hub
-tags: [retirement, financial-planning, decumulation, tax-strategy]
-date: 2026-03-21
+date: 2026-03-21T01:00:00Z
+summary: Strategic decision frameworks for retirement planning — income, taxes, healthcare, and how each choice constrains the others
 status: active
 cluster: retirement-planning
-summary: Strategic decision frameworks for retirement planning — income, taxes, healthcare, and how each choice constrains the others
-related: [SocialSecurityClaimingStrategy, RothConversionStrategy, RetirementWithdrawalSequencing, RequiredMinimumDistributions, MedicarePlanningAndHealthcare, SafeWithdrawalRates, SequenceOfReturnsRisk, RetirementIncomeBlueprint, MonteCarloRetirementPlanning, GuardrailsSpendingStrategy, IndexFundInvestingForEarlyRetirement]
+type: hub
+related:
+- SocialSecurityClaimingStrategy
+- RothConversionStrategy
+- RetirementWithdrawalSequencing
+- RequiredMinimumDistributions
+- MedicarePlanningAndHealthcare
+- SafeWithdrawalRates
+- SequenceOfReturnsRisk
+- RetirementIncomeBlueprint
+- MonteCarloRetirementPlanning
+- GuardrailsSpendingStrategy
+- IndexFundInvestingForEarlyRetirement
+tags:
+- retirement
+- financial-planning
+- decumulation
+- tax-strategy
 ---
+
 # Retirement Planning Guide
 
 Retirement planning is not a single decision. It is a web of interconnected decisions where each choice constrains or expands the others. Convert too much to Roth in one year and you trigger IRMAA surcharges on your Medicare premiums two years later. Claim Social Security too early and you may need to withdraw more from your portfolio, pushing you into a higher tax bracket. Ignore required minimum distributions until they begin and you face a tax bomb that could have been defused over the prior decade.

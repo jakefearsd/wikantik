@@ -6,7 +6,7 @@ export default defineConfig({
   test: {
     environment: 'node',
   },
-  base: '/app/',
+  base: '/',
   build: {
     outDir: 'dist',
     emptyOutDir: true,

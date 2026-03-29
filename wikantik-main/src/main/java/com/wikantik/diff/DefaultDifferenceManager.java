@@ -24,8 +24,8 @@ import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
-import com.wikantik.pages.PageManager;
 import com.wikantik.util.ClassUtil;
 
 import java.io.IOException;
@@ -40,6 +40,7 @@ public class DefaultDifferenceManager implements DifferenceManager {
     private static final Logger LOG = LogManager.getLogger( DefaultDifferenceManager.class );
 
     private DiffProvider provider;
+    private final PageManager pageManager;
 
     /**
      * Creates a new DifferenceManager for the given engine.
@@ -48,10 +49,34 @@ public class DefaultDifferenceManager implements DifferenceManager {
      * @param props  A set of properties.
      */
     public DefaultDifferenceManager( final Engine engine, final Properties props ) {
+        this( engine.getManager( PageManager.class ), props, engine );
+    }
+
+    /**
+     * Package-private constructor for testing — accepts collaborators directly.
+     *
+     * @param pageManager The PageManager to use for retrieving page text.
+     * @param props       A set of properties.
+     * @param engine      The Engine (used only to initialize the DiffProvider).
+     */
+    DefaultDifferenceManager( final PageManager pageManager, final Properties props, final Engine engine ) {
+        this.pageManager = pageManager;
         loadProvider( props );
         initializeProvider( engine, props );
 
         LOG.info( "Using difference provider: {}", provider.getProviderInfo() );
+    }
+
+    /**
+     * Package-private constructor for testing — accepts a pre-built DiffProvider directly,
+     * bypassing class loading and initialization.
+     *
+     * @param pageManager  The PageManager to use for retrieving page text.
+     * @param diffProvider The DiffProvider to use for generating diffs.
+     */
+    DefaultDifferenceManager( final PageManager pageManager, final DiffProvider diffProvider ) {
+        this.pageManager = pageManager;
+        this.provider = diffProvider;
     }
 
     private void loadProvider( final Properties props ) {
@@ -115,8 +140,8 @@ public class DefaultDifferenceManager implements DifferenceManager {
     @Override
     public String getDiff( final Context context, final int version1, final int version2 ) {
         final String page = context.getPage().getName();
-        String page1 = context.getEngine().getManager( PageManager.class ).getPureText( page, version1 );
-        final String page2 = context.getEngine().getManager( PageManager.class ).getPureText( page, version2 );
+        String page1 = pageManager.getPureText( page, version1 );
+        final String page2 = pageManager.getPureText( page, version2 );
 
         // Kludge to make diffs for new pages to work this way.
         if( version1 == PageProvider.LATEST_VERSION ) {

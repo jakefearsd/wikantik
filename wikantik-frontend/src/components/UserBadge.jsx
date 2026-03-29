@@ -22,15 +22,12 @@ export default function UserBadge() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', fontSize: '0.8rem' }}>
-      <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
-        {user.username}
-      </span>
       <Link
         to="/preferences"
-        className="btn btn-ghost"
-        style={{ fontSize: '0.75rem', padding: '2px 6px', textDecoration: 'none' }}
+        style={{ color: 'var(--text-secondary)', fontWeight: 500, textDecoration: 'none' }}
+        title="Preferences"
       >
-        Preferences
+        {user.username}
       </Link>
       <button className="btn btn-ghost" onClick={logout} style={{ fontSize: '0.75rem', padding: '2px 6px' }}>
         Logout

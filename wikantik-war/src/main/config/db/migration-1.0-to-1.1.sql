@@ -10,10 +10,12 @@
  *   3. Ensures Admin group exists with admin user
  *
  * Usage:
- *   sudo -u postgres psql -d wikantik -f migration-1.0-to-1.1.sql
+ *   sudo -u postgres psql -d jspwiki -f migration-1.0-to-1.1.sql
  *
- * NOTE: Adjust 'jspwiki' in GRANT statements to match your application
- * database user if different.
+ * NOTE: The database name is assumed to be 'jspwiki' (unchanged from 1.0).
+ * Adjust the -d parameter if your database has a different name.
+ * The 'jspwiki' in GRANT statements refers to the application database USER,
+ * not the database name — adjust if your application user is different.
  */
 
 -- 1. Create policy_grants table

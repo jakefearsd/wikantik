@@ -38,7 +38,7 @@ HTTP session timeout increased from 10 minutes to 60 minutes.
 ### Step 1: Back Up the Database
 
 ```bash
-pg_dump -U postgres wikantik > wikantik_backup_$(date +%Y%m%d).sql
+pg_dump -U postgres jspwiki > jspwiki_backup_$(date +%Y%m%d).sql
 ```
 
 ### Step 2: Run the Database Migration
@@ -46,7 +46,7 @@ pg_dump -U postgres wikantik > wikantik_backup_$(date +%Y%m%d).sql
 The migration script creates the `policy_grants` table and seeds it with production-appropriate defaults (anonymous = view-only).
 
 ```bash
-sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/migration-1.0-to-1.1.sql
+sudo -u postgres psql -d jspwiki -f wikantik-war/src/main/config/db/migration-1.0-to-1.1.sql
 ```
 
 This script:
@@ -176,7 +176,7 @@ $TOMCAT_HOME/bin/startup.sh
 
 If you need to roll back to 1.0:
 
-1. Restore the database backup: `psql -d wikantik < wikantik_backup_YYYYMMDD.sql`
+1. Restore the database backup: `psql -d jspwiki < jspwiki_backup_YYYYMMDD.sql`
 2. Remove `wikantik.policy.datasource` from `wikantik-custom.properties`
 3. Deploy the 1.0 WAR file
 4. The `policy_grants` table will be ignored (the wiki falls back to `wikantik.policy` file)

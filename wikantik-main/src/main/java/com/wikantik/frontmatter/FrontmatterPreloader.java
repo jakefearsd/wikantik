@@ -34,18 +34,10 @@ import java.util.stream.Collectors;
 
 /**
  * Preloads YAML frontmatter metadata into page attributes so that it is available
- * in JSP templates before the rendering pipeline runs.
+ * before the rendering pipeline runs.
  *
- * <p>This solves the timing problem where {@code commonheader.jsp} emits {@code <head>}
- * (meta tags, JSON-LD) before {@code <wiki:Content/>} triggers the parser, which is
- * where frontmatter is normally extracted.
- *
- * <p>Usage from JSP:
- * <pre>{@code
- * <% com.wikantik.frontmatter.FrontmatterPreloader.preloadMetadata(
- *        (com.wikantik.WikiContext) pageContext.getAttribute("jspwiki.context",
- *        PageContext.REQUEST_SCOPE)); %>
- * }</pre>
+ * <p>This solves the timing problem where page metadata (meta tags, JSON-LD) is needed
+ * before the parser extracts frontmatter during rendering.
  */
 public final class FrontmatterPreloader {
 

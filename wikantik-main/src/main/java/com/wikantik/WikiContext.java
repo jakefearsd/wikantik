@@ -41,16 +41,14 @@ import com.wikantik.util.TextUtil;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
-import jakarta.servlet.jsp.PageContext;
 import java.security.Permission;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.PropertyPermission;
 
 /**
- *  <p>Provides state information throughout the processing of a page.  A WikiContext is born when the JSP pages that are the main entry
- *  points, are invoked.  The JSPWiki engine creates the new WikiContext, which basically holds information about the page, the
- *  handling engine, and in which context (view, edit, etc) the call was done.</p>
+ *  <p>Provides state information throughout the processing of a page.  A WikiContext is born when a request enters the wiki engine.
+ *  It holds information about the page, the handling engine, and in which context (view, edit, etc) the call was done.</p>
  *  <p>A WikiContext also provides request-specific variables, which can be used to communicate between plugins on the same page, or
  *  between different instances of the same plugin.  A WikiContext variable is valid until the processing of the page has ended.  For
  *  an example, please see the Counter plugin.</p>
@@ -114,7 +112,7 @@ public class WikiContext implements Context, Command {
     /** User is viewing page history. */
     public static final String INFO = ContextEnum.PAGE_INFO.getRequestContext();
 
-    /** User is administering JSPWiki (Install, SecurityConfig). */
+    /** User is running the install/configuration wizard. */
     public static final String INSTALL = ContextEnum.WIKI_INSTALL.getRequestContext();
 
     /** User is preparing for a login/authentication. */
@@ -123,10 +121,10 @@ public class WikiContext implements Context, Command {
     /** User is preparing to log out. */
     public static final String LOGOUT = ContextEnum.WIKI_LOGOUT.getRequestContext();
 
-    /** JSPWiki wants to display a message. */
+    /** The wiki wants to display a message. */
     public static final String MESSAGE = ContextEnum.WIKI_MESSAGE.getRequestContext();
 
-    /** This is not a JSPWiki context, use it to access static files. */
+    /** Not a wiki context; use to access static files. */
     public static final String NONE = ContextEnum.PAGE_NONE.getRequestContext();
 
     /** Same as NONE; this is just a clarification. */
@@ -278,16 +276,14 @@ public class WikiContext implements Context, Command {
      *  Sets a reference to the real page whose content is currently being rendered.
      *  <p>
      *  Sometimes you may want to render the page using some other page's context. In those cases, it is highly recommended that you set
-     *  the setRealPage() to point at the real page you are rendering.  Please see InsertPageTag for an example.
+     *  the setRealPage() to point at the real page you are rendering.
      *  <p>
-     *  Also, if your plugin e.g. does some variable setting, be aware that if it is embedded in the LeftMenu or some other page added
-     *  with InsertPageTag, you should consider what you want to do - do you wish to really reference the "master" page or the included
-     *  page.
+     *  Also, if your plugin e.g. does some variable setting, be aware that if it is embedded in the LeftMenu or some other included
+     *  page, you should consider what you want to do - do you wish to really reference the "master" page or the included page.
      *
      *  @param page  The real page which is being rendered.
      *  @return The previous real page
      *  @since 2.3.14
-     *  @see com.wikantik.tags.InsertPageTag
      */
     @Override
     public WikiPage setRealPage( final Page page ) {
@@ -299,7 +295,7 @@ public class WikiContext implements Context, Command {
 
     /**
      *  Gets a reference to the real page whose content is currently being rendered. If your plugin e.g. does some variable setting, be
-     *  aware that if it is embedded in the LeftMenu or some other page added with InsertPageTag, you should consider what you want to
+     *  aware that if it is embedded in the LeftMenu or some other included page, you should consider what you want to
      *  do - do you wish to really reference the "master" page or the included page.
      *  <p>
      *  For example, in the default template, there is a page called "LeftMenu". Whenever you access a page, e.g. "Main", the master
@@ -307,7 +303,6 @@ public class WikiContext implements Context, Command {
      *  the Main page.  However, getRealPage() will return "LeftMenu".
      *
      *  @return A reference to the real page.
-     *  @see com.wikantik.tags.InsertPageTag
      */
     @Override
     public WikiPage getRealPage()
@@ -500,7 +495,7 @@ public class WikiContext implements Context, Command {
     }
 
     /**
-     * Returns the target of this wiki context: a page, group name or JSP. If the associated Command is a PageCommand, this method
+     * Returns the target of this wiki context: a page or group name. If the associated Command is a PageCommand, this method
      * returns the page's name. Otherwise, this method delegates to the associated Command's {@link com.wikantik.api.core.Command#getName()}
      * method. Calling classes can rely on the results of this method for looking up canonically-correct page or group names. Because it
      * does not automatically assume that the wiki context is a PageCommand, calling this method is inherently safer than calling
@@ -679,22 +674,6 @@ public class WikiContext implements Context, Command {
     @Override
     public WikiSession getWikiSession() {
         return ( WikiSession )session;
-    }
-
-    /**
-     * This method can be used to find the WikiContext programmatically from a JSP PageContext. We check the request context.
-     * The wiki context, if it exists, is looked up using the key {@link #ATTR_CONTEXT}.
-     *
-     * @since 2.4
-     * @param pageContext the JSP page context
-     * @return Current WikiContext, or null, of no context exists.
-     * @deprecated use {@link Context#findContext( PageContext )} instead.
-     * @see Context#findContext( PageContext )
-     */
-    @Deprecated
-    public static WikiContext findContext( final PageContext pageContext ) {
-        final HttpServletRequest request = ( HttpServletRequest )pageContext.getRequest();
-        return ( WikiContext )request.getAttribute( ATTR_CONTEXT );
     }
 
     /**

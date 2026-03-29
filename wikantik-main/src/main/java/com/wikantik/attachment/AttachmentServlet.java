@@ -84,6 +84,10 @@ public class AttachmentServlet extends HttpServlet {
     private static final int BUFFER_SIZE = 8192;
 
     private Engine engine;
+    private AttachmentManager attachmentManager;
+    private AuthorizationManager authorizationManager;
+    private ProgressManager progressManager;
+
     private static final Logger LOG = LogManager.getLogger( AttachmentServlet.class );
     private static final String HDR_VERSION = "version";
 
@@ -101,11 +105,39 @@ public class AttachmentServlet extends HttpServlet {
     //private final DateFormat rfcDateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z");
 
     /**
+     *  Package-private constructor that accepts manager dependencies directly,
+     *  allowing unit tests to inject mocks without booting a full engine.
+     *
+     *  @param engine the Engine
+     *  @param attachmentManager the AttachmentManager to use
+     *  @param authorizationManager the AuthorizationManager to use
+     *  @param progressManager the ProgressManager to use
+     */
+    AttachmentServlet( final Engine engine,
+                       final AttachmentManager attachmentManager,
+                       final AuthorizationManager authorizationManager,
+                       final ProgressManager progressManager ) {
+        this.engine = engine;
+        this.attachmentManager = attachmentManager;
+        this.authorizationManager = authorizationManager;
+        this.progressManager = progressManager;
+    }
+
+    /**
+     *  Default constructor used by the servlet container.
+     */
+    public AttachmentServlet() {
+    }
+
+    /**
      *  Initializes the servlet from Engine properties.
      */
     @Override
     public void init( final ServletConfig config ) throws ServletException {
         engine = Wiki.engine().find( config );
+        attachmentManager = engine.getManager( AttachmentManager.class );
+        authorizationManager = engine.getManager( AuthorizationManager.class );
+        progressManager = engine.getManager( ProgressManager.class );
         final Properties props = engine.getWikiProperties();
         final String tmpDir = engine.getWorkDir() + File.separator + "attach-tmp";
         final String allowed = TextUtil.getStringProperty( props, AttachmentManager.PROP_ALLOWEDEXTENSIONS, null );
@@ -132,6 +164,32 @@ public class AttachmentServlet extends HttpServlet {
         }
 
         LOG.debug( "UploadServlet initialized. Using {} for temporary storage.", tmpDir );
+    }
+
+    /**
+     *  Creates a Context for the given request. Package-private so that tests
+     *  can override via Mockito spy.
+     */
+    Context createContext( final HttpServletRequest req, final String requestContext ) {
+        return Wiki.context().create( engine, req, requestContext );
+    }
+
+    /**
+     *  Finds or creates a Session for the given request. Package-private so that tests
+     *  can override via Mockito spy.
+     */
+    Session findSession( final HttpServletRequest req ) {
+        return Wiki.session().find( engine, req );
+    }
+
+    /**
+     *  Sets the allowed/forbidden extension patterns and max upload size.
+     *  Package-private so unit tests can configure these without calling {@link #init}.
+     */
+    void setUploadConstraints( final String[] allowedPatterns, final String[] forbiddenPatterns, final int maxSize ) {
+        this.allowedPatterns = allowedPatterns != null ? allowedPatterns : new String[0];
+        this.forbiddenPatterns = forbiddenPatterns != null ? forbiddenPatterns : new String[0];
+        this.maxSize = maxSize;
     }
 
     private boolean isTypeAllowed( String name )
@@ -174,9 +232,9 @@ public class AttachmentServlet extends HttpServlet {
     // FIXME: Messages would need to be localized somehow.
     @Override
     public void doGet( final HttpServletRequest  req, final HttpServletResponse res ) throws IOException {
-        final Context context = Wiki.context().create( engine, req, ContextEnum.PAGE_ATTACH.getRequestContext() );
-        final AttachmentManager mgr = engine.getManager( AttachmentManager.class );
-        final AuthorizationManager authmgr = engine.getManager( AuthorizationManager.class );
+        final Context context = createContext( req, ContextEnum.PAGE_ATTACH.getRequestContext() );
+        final AttachmentManager mgr = attachmentManager;
+        final AuthorizationManager authmgr = authorizationManager;
         final String version = req.getParameter( HDR_VERSION );
         final String nextPage = req.getParameter( "nextpage" );
         final String page = context.getPage().getName();
@@ -287,7 +345,7 @@ public class AttachmentServlet extends HttpServlet {
         // We use 'inline' instead of 'attachment' so that user agents can try to automatically open the file,
         // except those cases in which we want to enforce the file download.
         String contentDisposition = "inline; filename=\"";
-        if( engine.getManager( AttachmentManager.class ).forceDownload( att.getFileName() ) ) {
+        if( attachmentManager.forceDownload( att.getFileName() ) ) {
             contentDisposition = "attachment; filename=\"";
         }
         contentDisposition += att.getFileName() + "\";";
@@ -346,7 +404,7 @@ public class AttachmentServlet extends HttpServlet {
             req.getSession().removeAttribute("msg");
             res.sendRedirect( nextPage );
         } catch( final RedirectException e ) {
-            final Session session = Wiki.session().find( engine, req );
+            final Session session = findSession( req );
             session.addMessage( e.getMessage() );
 
             req.getSession().setAttribute("msg", e.getMessage());
@@ -394,10 +452,10 @@ public class AttachmentServlet extends HttpServlet {
             final FileItemFactory factory = DiskFileItemFactory.builder().get();
 
             // Create the context _before_ Multipart operations, otherwise strict servlet containers may fail when setting encoding.
-            final Context context = Wiki.context().create( engine, req, ContextEnum.PAGE_ATTACH.getRequestContext() );
+            final Context context = createContext( req, ContextEnum.PAGE_ATTACH.getRequestContext() );
             final UploadListener pl = new UploadListener();
 
-            engine.getManager( ProgressManager.class ).startProgress( pl, progressId );
+            progressManager.startProgress( pl, progressId );
 
             final JakartaServletFileUpload upload = new JakartaServletFileUpload( factory );
             upload.setHeaderCharset(StandardCharsets.UTF_8);
@@ -469,7 +527,7 @@ public class AttachmentServlet extends HttpServlet {
 
             throw e;
         } finally {
-            engine.getManager( ProgressManager.class ).stopProgress( progressId );
+            progressManager.stopProgress( progressId );
             // FIXME: In case of exceptions should absolutely remove the uploaded file.
         }
 
@@ -525,7 +583,7 @@ public class AttachmentServlet extends HttpServlet {
         }
 
         final Principal user    = context.getCurrentUser();
-        final AttachmentManager mgr = engine.getManager( AttachmentManager.class );
+        final AttachmentManager mgr = attachmentManager;
 
         LOG.debug("file={}", filename);
 
@@ -547,7 +605,7 @@ public class AttachmentServlet extends HttpServlet {
 
         //  Check if we're allowed to do this?
         final Permission permission = PermissionFactory.getPagePermission( att, "upload" );
-        if( engine.getManager( AuthorizationManager.class ).checkPermission( context.getWikiSession(), permission ) ) {
+        if( authorizationManager.checkPermission( context.getWikiSession(), permission ) ) {
             if( user != null ) {
                 att.setAuthor( user.getName() );
             }
@@ -557,7 +615,7 @@ public class AttachmentServlet extends HttpServlet {
             }
 
             try {
-                engine.getManager( AttachmentManager.class ).storeAttachment( att, data );
+                attachmentManager.storeAttachment( att, data );
             } catch( final ProviderException pe ) {
                 // this is a kludge, the exception that is caught here contains the i18n key
                 // here we have the context available, so we can internationalize it properly :

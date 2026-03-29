@@ -23,3 +23,7 @@ tmp
 backups/
 docs/wikantik-pages/OLD/
 .superpowers/
+socket:*
+*.swp
+wiki.zip
+.mcp.json.bak

@@ -175,15 +175,27 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         return ObjectInputFilter.Status.REJECTED;
     };
 
+    private final PageManager pageManager;
+    private final AttachmentManager attachmentManager;
+
     /**
-     *  Builds a new ReferenceManager.
+     *  Builds a new ReferenceManager with all dependencies injected directly.
+     *  This is the preferred constructor for testability and is safe to use
+     *  because ReferenceManager is initialized in Phase 8 (last), so all
+     *  managers are already available.
      *
      *  @param newEngine The Engine to which this is managing references to.
+     *  @param pageManager The page manager for page lookups.
+     *  @param attachmentManager The attachment manager for attachment lookups.
      */
-    public DefaultReferenceManager( final Engine newEngine ) {
+    public DefaultReferenceManager( final Engine newEngine,
+                                    final PageManager pageManager,
+                                    final AttachmentManager attachmentManager ) {
         refersTo = new ConcurrentHashMap<>();
         referredBy = new ConcurrentHashMap<>();
         this.engine = newEngine;
+        this.pageManager = pageManager;
+        this.attachmentManager = attachmentManager;
         matchEnglishPlurals = TextUtil.getBooleanProperty( newEngine.getWikiProperties(), Engine.PROP_MATCHPLURALS, false );
 
         //
@@ -194,13 +206,24 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     }
 
     /**
+     *  Builds a new ReferenceManager, resolving dependencies from the engine.
+     *
+     *  @param newEngine The Engine to which this is managing references to.
+     */
+    public DefaultReferenceManager( final Engine newEngine ) {
+        this( newEngine,
+              newEngine.getManager( PageManager.class ),
+              newEngine.getManager( AttachmentManager.class ) );
+    }
+
+    /**
      *  Does a full reference update.  Does not sync; assumes that you do it afterwards.
      */
     private void updatePageReferences( final Page page ) throws ProviderException {
-        final String content = engine.getManager( PageManager.class ).getPageText( page.getName(), PageProvider.LATEST_VERSION );
+        final String content = pageManager.getPageText( page.getName(), PageProvider.LATEST_VERSION );
         final Collection< String > links = scanWikiLinks( page, content );
         final var res = new TreeSet<>( links );
-        final List< Attachment > attachments = engine.getManager( AttachmentManager.class ).listAttachments( page );
+        final List< Attachment > attachments = attachmentManager.listAttachments( page );
         for( final Attachment att : attachments ) {
             res.add( att.getName() );
         }
@@ -240,7 +263,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
             for( final Page page : pages ) {
                 if( !( page instanceof Attachment ) ) {
                     // Refresh with the latest copy
-                    final Page wp = engine.getManager( PageManager.class ).getPage( page.getName() );
+                    final Page wp = pageManager.getPage( page.getName() );
 
                     if( wp.getLastModified() == null ) {
                         LOG.fatal( "Provider returns null lastModified.  Please submit a bug report." );
@@ -277,7 +300,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         sw.stop();
         LOG.info( "Cross reference scan done in {} - ReferenceManager is now ready", sw );
 
-        WikiEventManager.addWikiEventListener( engine.getManager( PageManager.class ), this );
+        WikiEventManager.addWikiEventListener( pageManager, this );
     }
 
     /**
@@ -551,7 +574,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
                 // We won't put it back again if it becomes empty and does not exist.  It will be added
                 // later on anyway, if it becomes referenced again.
-                if( !( refBy.isEmpty() && !engine.getManager( PageManager.class ).wikiPageExists( referredPageName ) ) ) {
+                if( !( refBy.isEmpty() && !pageManager.wikiPageExists( referredPageName ) ) ) {
                     referredBy.put( referredPageName, refBy );
                 }
             }
@@ -585,7 +608,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
      */
     @Override
     public void updateReferences( final Page page ) {
-        final String pageData = engine.getManager( PageManager.class ).getPureText( page.getName(), WikiProvider.LATEST_VERSION );
+        final String pageData = pageManager.getPureText( page.getName(), WikiProvider.LATEST_VERSION );
         updateReferences( page.getName(), scanWikiLinks( page, pageData ) );
     }
 
@@ -684,7 +707,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
             // If the page is referred to by no one AND it doesn't even exist, we might just as well forget about this
             // entry. It will be added again elsewhere if new references appear.
-            if( ( oldRefBy == null || oldRefBy.isEmpty() ) && !engine.getManager( PageManager.class ).wikiPageExists( referredPage ) ) {
+            if( ( oldRefBy == null || oldRefBy.isEmpty() ) && !pageManager.wikiPageExists( referredPage ) ) {
                 referredBy.remove( referredPage );
             }
         }
@@ -807,7 +830,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         // Go through refersTo values and check that refersTo has the corresponding keys.
         // We want to reread the code to make sure our HashMaps are in sync...
         final Collection< Collection< String > > allReferences = refersTo.values();
-        uncreated = allReferences.stream().filter(Objects::nonNull).flatMap(Collection::stream).filter(aReference -> !engine.getManager(PageManager.class).wikiPageExists(aReference)).collect(Collectors.toCollection(TreeSet::new));
+        uncreated = allReferences.stream().filter(Objects::nonNull).flatMap(Collection::stream).filter(aReference -> !pageManager.wikiPageExists(aReference)).collect(Collectors.toCollection(TreeSet::new));
 
         return uncreated;
     }

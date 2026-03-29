@@ -64,9 +64,13 @@ public class ShortURLConstructor extends DefaultURLConstructor {
     }
 
     /**
-     *  Constructs the actual URL based on the context.
+     *  {@inheritDoc}
+     *
+     *  Provides short-URL routing: page views use {@code /wiki/PageName} style paths
+     *  rather than the default {@code Wiki.jsp?page=PageName} pattern.
      */
-    private String makeURL( final String context, final String name ) {
+    @Override
+    protected String makeBaseURL( final String context, final String name ) {
         final String viewurl = "%p" + urlPrefix + "%n";
 
         if( context.equals( ContextEnum.PAGE_VIEW.getRequestContext() ) ) {
@@ -90,20 +94,20 @@ public class ShortURLConstructor extends DefaultURLConstructor {
         } else if( context.equals( ContextEnum.PAGE_NONE.getRequestContext() ) ) {
             return doReplacement( "%u%n", name );
         } else if( context.equals( ContextEnum.PAGE_UPLOAD.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=Upload", name ); 
+            return doReplacement( viewurl + "?do=Upload", name );
         } else if( context.equals( ContextEnum.PAGE_COMMENT.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=Comment", name ); 
+            return doReplacement( viewurl + "?do=Comment", name );
         } else if( context.equals( ContextEnum.WIKI_LOGIN.getRequestContext() ) ) {
             final String loginUrl = "%pLogin.jsp?redirect=%n";
-            return doReplacement( loginUrl, name ); 
+            return doReplacement( loginUrl, name );
         } else if( context.equals( ContextEnum.PAGE_DELETE.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=Delete", name ); 
+            return doReplacement( viewurl + "?do=Delete", name );
         } else if( context.equals( ContextEnum.PAGE_CONFLICT.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=PageModified", name ); 
+            return doReplacement( viewurl + "?do=PageModified", name );
         } else if( context.equals( ContextEnum.WIKI_PREFS.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=UserPreferences", name ); 
+            return doReplacement( viewurl + "?do=UserPreferences", name );
         } else if( context.equals( ContextEnum.WIKI_FIND.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=Search", name ); 
+            return doReplacement( viewurl + "?do=Search", name );
         } else if( context.equals( ContextEnum.WIKI_ERROR.getRequestContext() ) ) {
             return doReplacement( "%uError.jsp", name );
         } else if( context.equals( ContextEnum.WIKI_CREATE_GROUP.getRequestContext() ) ) {
@@ -115,27 +119,19 @@ public class ShortURLConstructor extends DefaultURLConstructor {
         } else if( context.equals( ContextEnum.GROUP_VIEW.getRequestContext() ) ) {
             return doReplacement( viewurl + "?do=Group&group=%n", name );
         }
-        
+
         throw new InternalWikiException( "Requested unsupported context " + context );
     }
 
     /**
      *  {@inheritDoc}
+     *
+     *  In the short-URL scheme, {@code PAGE_VIEW} URLs also use query-string style
+     *  parameters (i.e. {@code ?key=value} rather than {@code &amp;key=value}).
      */
     @Override
-    public String makeURL( final String context, final String name, String parameters ) {
-        if( parameters != null && !parameters.isEmpty() ) {
-            if( context.equals( ContextEnum.PAGE_ATTACH.getRequestContext() ) || context.equals( ContextEnum.PAGE_VIEW.getRequestContext() ) ) {
-                parameters = "?" + parameters;
-            } else if( context.equals(ContextEnum.PAGE_NONE.getRequestContext()) ) {
-                parameters = (name.indexOf('?') != -1 ) ? "&amp;" : "?" + parameters;
-            } else {
-                parameters = "&amp;"+parameters;
-            }
-        } else {
-            parameters = "";
-        }
-        return makeURL( context, name )+parameters;
+    protected boolean usesQueryPrefix( final String context ) {
+        return super.usesQueryPrefix( context ) || context.equals( ContextEnum.PAGE_VIEW.getRequestContext() );
     }
 
     /**

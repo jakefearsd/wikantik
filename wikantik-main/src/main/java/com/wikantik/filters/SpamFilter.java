@@ -35,7 +35,6 @@ import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.attachment.AttachmentManager;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.pages.PageManager;
-import com.wikantik.ui.EditorManager;
 import com.wikantik.util.FileUtil;
 import com.wikantik.util.HttpUtil;
 import com.wikantik.util.TextUtil;
@@ -50,7 +49,6 @@ import org.suigeneris.jrcs.diff.myers.MyersDiff;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.jsp.PageContext;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -948,53 +946,6 @@ public class SpamFilter extends BasePageFilter {
     }
 
 
-    /**
-     *  This method checks if the hash value is still valid, i.e. if it exists at all. This can occur in two cases: 
-     *  either this is a spam bot which is not adaptive, or it is someone who has been editing one page for too long, 
-     *  and their session has expired.
-     *  <p>
-     *  This method puts a redirect to the http response field to page "SessionExpired" and logs the incident in 
-     *  the spam log (it may or may not be spam, but it's rather likely that it is).
-     *
-     *  @param context The WikiContext
-     *  @param pageContext The JSP PageContext.
-     *  @return True, if hash is okay.  False, if hash is not okay, and you need to redirect.
-     *  @throws IOException If redirection fails
-     *  @since 2.6
-     */
-    public static boolean checkHash( final Context context, final PageContext pageContext ) throws IOException {
-        final String hashName = getHashFieldName( (HttpServletRequest)pageContext.getRequest() );
-        if( pageContext.getRequest().getParameter(hashName) == null ) {
-            if( pageContext.getAttribute( hashName ) == null ) {
-                final Change change = getChange( context, EditorManager.getEditedText( pageContext ) );
-                log( context, REJECT, "MissingHash", change.change );
-
-                final String redirect = context.getURL( ContextEnum.PAGE_VIEW.getRequestContext(),"SessionExpired" );
-                ( ( HttpServletResponse )pageContext.getResponse() ).sendRedirect( redirect );
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * This helper method adds all the input fields to your editor that the SpamFilter requires
-     * to check for spam.  This <i>must</i> be in your editor form if you intend to use the SpamFilter.
-     *  
-     * @param pageContext The PageContext
-     * @return A HTML string which contains input fields for the SpamFilter.
-     */
-    public static String insertInputFields( final PageContext pageContext ) {
-        final Context ctx = Context.findContext( pageContext );
-        final Engine engine = ctx.getEngine();
-        final StringBuilder sb = new StringBuilder();
-        if( engine.getContentEncoding().equals( StandardCharsets.UTF_8 ) ) {
-            sb.append( "<input name='encodingcheck' type='hidden' value='\u3041' />\n" );
-        }
-
-        return sb.toString();
-    }
     
     /**
      *  A local class for storing host information.

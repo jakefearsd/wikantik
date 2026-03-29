@@ -324,7 +324,7 @@ class WikiEngineTest {
         Assertions.assertEquals( 0, m_engine.getManagers( String.class ).size() );
         Assertions.assertEquals( 1, m_engine.getManagers( RenderApi.class ).size() );
         Assertions.assertEquals( 1, m_engine.getManagers( PageManager.class ).size() );
-        Assertions.assertEquals( 4, m_engine.getManagers( ModuleManager.class ).size() );
+        Assertions.assertEquals( 2, m_engine.getManagers( ModuleManager.class ).size() );
     }
 
     @Test

@@ -50,9 +50,6 @@ import com.wikantik.references.ReferenceManager;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.search.SearchManager;
 import com.wikantik.ui.CommandResolver;
-import com.wikantik.ui.EditorManager;
-import com.wikantik.ui.TemplateManager;
-import com.wikantik.ui.admin.AdminBeanManager;
 import com.wikantik.ui.progress.ProgressManager;
 import com.wikantik.url.URLConstructor;
 import com.wikantik.util.ClassUtil;
@@ -307,13 +304,10 @@ public class WikiEngine implements Engine {
             initComponent( GroupManager.class );
 
             // Phase 4: Managers that depend on earlier phases
-            initComponent( EditorManager.class, this );
             initComponent( ProgressManager.class, this );
             initComponent( aclClassName, AclManager.class );
             initComponent( InternationalizationManager.class, this );
-            initComponent( TemplateManager.class, this, props );
             initComponent( FilterManager.class, this, props );
-            initComponent( AdminBeanManager.class, this );
             initComponent( PageRenamer.class, this, props );
 
             // Phase 5: RenderingManager depends on FilterManager events.

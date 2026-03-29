@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
@@ -50,6 +50,36 @@ export default function PageView() {
       setRenaming(false);
     }
   }
+
+  // Intercept clicks on internal wiki links in rendered HTML content
+  // so they use React Router navigation instead of full-page reloads.
+  const handleContentClick = useCallback((e) => {
+    const anchor = e.target.closest('a');
+    if (!anchor) return;
+
+    const href = anchor.getAttribute('href');
+    if (!href) return;
+
+    // Handle links relative to the /app/ base path
+    const appPrefix = '/app/';
+    let internalPath = null;
+
+    if (href.startsWith(appPrefix)) {
+      internalPath = href.substring(appPrefix.length - 1); // keep leading /
+    } else if (href.startsWith('/') && !href.startsWith('//')) {
+      // Absolute path on same host — check if it's a wiki path
+      // Links rendered by the wiki engine use /app/wiki/ or /app/edit/
+      return; // let non-/app/ absolute links navigate normally
+    } else {
+      return; // external link — let browser handle it
+    }
+
+    // Ctrl/Cmd+click or middle-click: let browser open in new tab
+    if (e.metaKey || e.ctrlKey || e.button !== 0) return;
+
+    e.preventDefault();
+    navigate(internalPath);
+  }, [navigate]);
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error?.status === 404) return <NotFound name={name} />;
@@ -122,6 +152,7 @@ export default function PageView() {
 
       <article
         className="article-prose"
+        onClick={handleContentClick}
         dangerouslySetInnerHTML={{ __html: page.contentHtml || page.content || '' }}
       />
 

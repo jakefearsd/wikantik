@@ -232,12 +232,34 @@ public class SpamFilter extends BasePageFilter {
      */
     private static final long HASH_DELAY = 24;
 
+    private PageManager pageManager;
+    private AttachmentManager attachmentManager;
+
+    /**
+     *  Package-private constructor for unit testing. Allows injection of manager
+     *  dependencies without booting a full engine.
+     *
+     *  @param pageManager the PageManager to use
+     *  @param attachmentManager the AttachmentManager to use
+     */
+    SpamFilter( final PageManager pageManager, final AttachmentManager attachmentManager ) {
+        this.pageManager = pageManager;
+        this.attachmentManager = attachmentManager;
+    }
+
+    /**
+     *  Default constructor used by the filter framework.
+     */
+    public SpamFilter() {
+    }
 
     /**
      *  {@inheritDoc}
      */
     @Override
     public void initialize( final Engine engine, final Properties properties ) {
+        this.pageManager = engine.getManager( PageManager.class );
+        this.attachmentManager = engine.getManager( AttachmentManager.class );
         forbiddenWordsPage = properties.getProperty( PROP_WORDLIST, forbiddenWordsPage );
         forbiddenIPsPage = properties.getProperty( PROP_IPLIST, forbiddenIPsPage);
         pageNameMaxLength = properties.getProperty( PROP_MAX_PAGENAME_LENGTH, pageNameMaxLength);
@@ -657,21 +679,21 @@ public class SpamFilter extends BasePageFilter {
             boolean rebuild = false;
 
             //  Rebuild, if the spam words page, the attachment or the IP ban page has changed since.
-            final Page sourceSpam = context.getEngine().getManager( PageManager.class ).getPage( forbiddenWordsPage );
+            final Page sourceSpam = pageManager.getPage( forbiddenWordsPage );
             if( sourceSpam != null ) {
                 if( spamPatterns == null || spamPatterns.isEmpty() || sourceSpam.getLastModified().after( lastRebuild ) ) {
                     rebuild = true;
                 }
             }
 
-            final Attachment att = context.getEngine().getManager( AttachmentManager.class ).getAttachmentInfo( context, blacklist );
+            final Attachment att = attachmentManager.getAttachmentInfo( context, blacklist );
             if( att != null ) {
                 if( spamPatterns == null || spamPatterns.isEmpty() || att.getLastModified().after( lastRebuild ) ) {
                     rebuild = true;
                 }
             }
 
-            final Page sourceIPs = context.getEngine().getManager( PageManager.class ).getPage( forbiddenIPsPage );
+            final Page sourceIPs = pageManager.getPage( forbiddenIPsPage );
             if( sourceIPs != null ) {
                 if( IPPatterns == null || IPPatterns.isEmpty() || sourceIPs.getLastModified().after( lastRebuild ) ) {
                     rebuild = true;
@@ -689,7 +711,7 @@ public class SpamFilter extends BasePageFilter {
                 LOG.info( "IP filter reloaded - recognizing {} patterns from page {}", IPPatterns.size(), forbiddenIPsPage );
 
                 if( att != null ) {
-                    final InputStream in = context.getEngine().getManager( AttachmentManager.class ).getAttachmentStream(att);
+                    final InputStream in = attachmentManager.getAttachmentStream(att);
                     final StringWriter out = new StringWriter();
                     FileUtil.copyContents( new InputStreamReader( in, StandardCharsets.UTF_8 ), out );
                     final Collection< Pattern > blackList = parseBlacklist( out.toString() );
@@ -779,16 +801,15 @@ public class SpamFilter extends BasePageFilter {
      *  @param newText added content
      *  @return Empty string, if there is no change.
      */
-    private static Change getChange( final Context context, final String newText ) {
+    private Change getChange( final Context context, final String newText ) {
         final Page page = context.getPage();
         final StringBuffer change = new StringBuffer();
-        final Engine engine = context.getEngine();
         // Get current page version
 
         final Change ch = new Change();
-        
+
         try {
-            final String oldText = engine.getManager( PageManager.class ).getPureText( page.getName(), WikiProvider.LATEST_VERSION );
+            final String oldText = pageManager.getPureText( page.getName(), WikiProvider.LATEST_VERSION );
             final String[] first  = Diff.stringToArray( oldText );
             final String[] second = Diff.stringToArray( newText );
             final Revision rev = Diff.diff( first, second, new MyersDiff() );

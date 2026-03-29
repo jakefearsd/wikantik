@@ -56,6 +56,12 @@ public class DefaultVariableManager implements VariableManager {
 
     private static final Logger LOG = LogManager.getLogger( DefaultVariableManager.class );
 
+    // Injected managers — null when using the default public constructor (managers are resolved
+    // from context.getEngine() at call time). Set via the package-private test constructor.
+    private final com.wikantik.api.managers.PageManager pageManager;
+    private final com.wikantik.api.managers.AttachmentManager attachmentManager;
+    private final FilterManager filterManager;
+
     /**
      *  Contains a list of those properties that shall never be shown. Put names here in lower case.
      */
@@ -106,13 +112,34 @@ public class DefaultVariableManager implements VariableManager {
      *  @param props The properties.
      */
     public DefaultVariableManager( final Properties props ) {
+        this( props, null, null, null );
+    }
+
+    /**
+     * Package-private constructor for testing.  Accepts pre-built manager instances so that
+     * tests can inject mocks without starting a full wiki engine.  Pass {@code null} for any
+     * manager to fall back to the normal {@code context.getEngine().getManager(...)} lookup.
+     *
+     * @param props              wiki properties (may be empty for most tests)
+     * @param pageManager        optional injected PageManager
+     * @param attachmentManager  optional injected AttachmentManager
+     * @param filterManager      optional injected FilterManager
+     */
+    DefaultVariableManager( final Properties props,
+                            final com.wikantik.api.managers.PageManager pageManager,
+                            final com.wikantik.api.managers.AttachmentManager attachmentManager,
+                            final FilterManager filterManager ) {
+        this.pageManager = pageManager;
+        this.attachmentManager = attachmentManager;
+        this.filterManager = filterManager;
+
         final List<VariableResolver> chain = new ArrayList<>();
 
         // 1. System variables — reflection on SystemVariables (getXxx methods).
         //    Uses the lower-cased name for method lookup (variables are case-insensitive).
         chain.add( ( lowerName, originalName, context ) -> {
             try {
-                final SystemVariables sysvars = new SystemVariables( context );
+                final SystemVariables sysvars = new SystemVariables( context, this.pageManager, this.attachmentManager, this.filterManager );
                 final String methodName = "get" + Character.toUpperCase( lowerName.charAt( 0 ) ) + lowerName.substring( 1 );
                 final Method method = sysvars.getClass().getMethod( methodName );
                 return ( String ) method.invoke( sysvars );
@@ -351,10 +378,40 @@ public class DefaultVariableManager implements VariableManager {
     private static class SystemVariables {
 
         private final Context context;
+        private final com.wikantik.api.managers.PageManager pageManager;
+        private final com.wikantik.api.managers.AttachmentManager attachmentManager;
+        private final FilterManager filterManager;
 
+        /** Standard constructor — managers resolved from engine at call time. */
         public SystemVariables( final Context ctx )
         {
+            this( ctx, null, null, null );
+        }
+
+        /**
+         * Test-friendly constructor — accepts pre-built manager instances.
+         * A {@code null} manager falls back to {@code context.getEngine().getManager(...)}.
+         */
+        SystemVariables( final Context ctx,
+                         final com.wikantik.api.managers.PageManager pageManager,
+                         final com.wikantik.api.managers.AttachmentManager attachmentManager,
+                         final FilterManager filterManager ) {
             this.context = ctx;
+            this.pageManager = pageManager;
+            this.attachmentManager = attachmentManager;
+            this.filterManager = filterManager;
+        }
+
+        private com.wikantik.api.managers.PageManager pageManager() {
+            return pageManager != null ? pageManager : context.getEngine().getManager( PageManager.class );
+        }
+
+        private com.wikantik.api.managers.AttachmentManager attachmentManager() {
+            return attachmentManager != null ? attachmentManager : context.getEngine().getManager( AttachmentManager.class );
+        }
+
+        private FilterManager filterManager() {
+            return filterManager != null ? filterManager : context.getEngine().getManager( FilterManager.class );
         }
 
         public String getPagename()
@@ -377,24 +434,24 @@ public class DefaultVariableManager implements VariableManager {
         }
 
         public String getTotalpages() {
-            return Integer.toString( context.getEngine().getManager( PageManager.class ).getTotalPageCount() );
+            return Integer.toString( pageManager().getTotalPageCount() );
         }
 
         public String getPageprovider() {
-            return context.getEngine().getManager( PageManager.class ).getCurrentProvider();
+            return pageManager().getCurrentProvider();
         }
 
         public String getPageproviderdescription() {
-            return context.getEngine().getManager( PageManager.class ).getProviderDescription();
+            return pageManager().getProviderDescription();
         }
 
         public String getAttachmentprovider() {
-            final WikiProvider attachmentProvider = context.getEngine().getManager( AttachmentManager.class ).getCurrentProvider();
+            final WikiProvider attachmentProvider = attachmentManager().getCurrentProvider();
             return (attachmentProvider != null) ? attachmentProvider.getClass().getName() : "-";
         }
 
         public String getAttachmentproviderdescription() {
-            final WikiProvider attachmentProvider = context.getEngine().getManager( AttachmentManager.class ).getCurrentProvider();
+            final WikiProvider attachmentProvider = attachmentManager().getCurrentProvider();
             return (attachmentProvider != null) ? attachmentProvider.getProviderInfo() : "-";
         }
 
@@ -461,7 +518,7 @@ public class DefaultVariableManager implements VariableManager {
         }
 
         public String getPagefilters() {
-            final FilterManager fm = context.getEngine().getManager( FilterManager.class );
+            final FilterManager fm = filterManager();
             final List< PageFilter > filters = fm.getFilterList();
             final StringBuilder sb = new StringBuilder();
             for( final PageFilter pf : filters ) {

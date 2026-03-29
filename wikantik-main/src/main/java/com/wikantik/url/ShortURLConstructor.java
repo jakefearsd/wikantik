@@ -121,21 +121,13 @@ public class ShortURLConstructor extends DefaultURLConstructor {
 
     /**
      *  {@inheritDoc}
+     *
+     *  In the short-URL scheme, {@code PAGE_VIEW} URLs also use query-string style
+     *  parameters (i.e. {@code ?key=value} rather than {@code &amp;key=value}).
      */
     @Override
-    public String makeURL( final String context, final String name, String parameters ) {
-        if( parameters != null && !parameters.isEmpty() ) {
-            if( context.equals( ContextEnum.PAGE_ATTACH.getRequestContext() ) || context.equals( ContextEnum.PAGE_VIEW.getRequestContext() ) ) {
-                parameters = "?" + parameters;
-            } else if( context.equals(ContextEnum.PAGE_NONE.getRequestContext()) ) {
-                parameters = (name.indexOf('?') != -1 ) ? "&amp;" : "?" + parameters;
-            } else {
-                parameters = "&amp;"+parameters;
-            }
-        } else {
-            parameters = "";
-        }
-        return makeURL( context, name )+parameters;
+    protected boolean usesQueryPrefix( final String context ) {
+        return super.usesQueryPrefix( context ) || context.equals( ContextEnum.PAGE_VIEW.getRequestContext() );
     }
 
     /**

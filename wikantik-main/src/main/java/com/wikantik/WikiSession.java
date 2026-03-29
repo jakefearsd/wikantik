@@ -262,125 +262,113 @@ public final class WikiSession implements Session {
      */
     @Override
     public void actionPerformed( final WikiEvent event ) {
-        if ( event instanceof WikiSecurityEvent e ) {
-            if ( e.getTarget() != null ) {
-                switch( e.getType() ) {
-                case WikiSecurityEvent.GROUP_ADD:
-                    final Group groupAdd = ( Group )e.getTarget();
-                    if( isInGroup( groupAdd ) ) {
-                        subject.getPrincipals().add( groupAdd.getPrincipal() );
-                    }
-                    break;
-                case WikiSecurityEvent.GROUP_REMOVE:
-                    final Group group = ( Group )e.getTarget();
-                    subject.getPrincipals().remove( group.getPrincipal() );
-                    break;
-                case WikiSecurityEvent.GROUP_CLEAR_GROUPS:
-                    subject.getPrincipals().removeAll( subject.getPrincipals( GroupPrincipal.class ) );
-                    break;
-                case WikiSecurityEvent.LOGIN_INITIATED:
-                    // Do nothing
-                    break;
-                case WikiSecurityEvent.PRINCIPAL_ADD:
-                    final WikiSession targetPA = ( WikiSession )e.getTarget();
-                    if( this.equals( targetPA ) && status.equals( AUTHENTICATED ) ) {
-                        final Set< Principal > principals = subject.getPrincipals();
-                        principals.add( ( Principal )e.getPrincipal() );
-                    }
-                    break;
-                case WikiSecurityEvent.LOGIN_ANONYMOUS:
-                    final WikiSession targetLAN = ( WikiSession )e.getTarget();
-                    if( this.equals( targetLAN ) ) {
-                        status = ANONYMOUS;
-
-                        // Set the login/user principals and login status
-                        final Set< Principal > principals = subject.getPrincipals();
-                        loginPrincipal = ( Principal )e.getPrincipal();
-                        userPrincipal = loginPrincipal;
-
-                        // Add the login principal to the Subject, and set the built-in roles
-                        principals.clear();
-                        principals.add( loginPrincipal );
-                        principals.add( Role.ALL );
-                        principals.add( Role.ANONYMOUS );
-                    }
-                    break;
-                case WikiSecurityEvent.LOGIN_ASSERTED:
-                    final WikiSession targetLAS = ( WikiSession )e.getTarget();
-                    if( this.equals( targetLAS ) ) {
-                        status = ASSERTED;
-
-                        // Set the login/user principals and login status
-                        final Set< Principal > principals = subject.getPrincipals();
-                        loginPrincipal = ( Principal )e.getPrincipal();
-                        userPrincipal = loginPrincipal;
-
-                        // Add the login principal to the Subject, and set the built-in roles
-                        principals.clear();
-                        principals.add( loginPrincipal );
-                        principals.add( Role.ALL );
-                        principals.add( Role.ASSERTED );
-                    }
-                    break;
-                case WikiSecurityEvent.LOGIN_AUTHENTICATED:
-                    final WikiSession targetLAU = ( WikiSession )e.getTarget();
-                    if( this.equals( targetLAU ) ) {
-                        status = AUTHENTICATED;
-
-                        // Set the login/user principals and login status
-                        final Set< Principal > principals = subject.getPrincipals();
-                        loginPrincipal = ( Principal )e.getPrincipal();
-                        userPrincipal = loginPrincipal;
-
-                        // Add the login principal to the Subject, and set the built-in roles
-                        principals.clear();
-                        principals.add( loginPrincipal );
-                        principals.add( Role.ALL );
-                        principals.add( Role.AUTHENTICATED );
-
-                        // Add the user and group principals
-                        injectUserProfilePrincipals();  // Add principals for the user profile
-                        injectGroupPrincipals();  // Inject group principals
-                    }
-                    break;
-                case WikiSecurityEvent.PROFILE_SAVE:
-                    final WikiSession sourcePS = e.getSrc();
-                    if( this.equals( sourcePS ) ) {
-                        injectUserProfilePrincipals();  // Add principals for the user profile
-                        injectGroupPrincipals();  // Inject group principals
-                    }
-                    break;
-                case WikiSecurityEvent.PROFILE_NAME_CHANGED:
-                    // Refresh user principals based on new user profile
-                    final WikiSession sourcePNC = e.getSrc();
-                    if( this.equals( sourcePNC ) && status.equals( AUTHENTICATED ) ) {
-                        // To prepare for refresh, set the new full name as the primary principal
-                        final UserProfile[] profiles = ( UserProfile[] )e.getTarget();
-                        final UserProfile newProfile = profiles[ 1 ];
-                        if( newProfile.getFullname() == null ) {
-                            throw new IllegalStateException( "User profile FullName cannot be null." );
-                        }
-
-                        final Set< Principal > principals = subject.getPrincipals();
-                        loginPrincipal = new WikiPrincipal( newProfile.getLoginName() );
-
-                        // Add the login principal to the Subject, and set the built-in roles
-                        principals.clear();
-                        principals.add( loginPrincipal );
-                        principals.add( Role.ALL );
-                        principals.add( Role.AUTHENTICATED );
-
-                        // Add the user and group principals
-                        injectUserProfilePrincipals();  // Add principals for the user profile
-                        injectGroupPrincipals();  // Inject group principals
-                    }
-                    break;
-
-                //  No action, if the event is not recognized.
-                default:
-                    break;
-                }
+        if ( event instanceof WikiSecurityEvent e && e.getTarget() != null ) {
+            switch( e.getType() ) {
+                case WikiSecurityEvent.GROUP_ADD          -> handleGroupAdd( e );
+                case WikiSecurityEvent.GROUP_REMOVE       -> handleGroupRemove( e );
+                case WikiSecurityEvent.GROUP_CLEAR_GROUPS -> handleGroupClear();
+                case WikiSecurityEvent.LOGIN_INITIATED    -> { /* no-op */ }
+                case WikiSecurityEvent.PRINCIPAL_ADD      -> handlePrincipalAdd( e );
+                case WikiSecurityEvent.LOGIN_ANONYMOUS    -> handleLoginAnonymous( e );
+                case WikiSecurityEvent.LOGIN_ASSERTED     -> handleLoginAsserted( e );
+                case WikiSecurityEvent.LOGIN_AUTHENTICATED -> handleLoginAuthenticated( e );
+                case WikiSecurityEvent.PROFILE_SAVE       -> handleProfileSave( e );
+                case WikiSecurityEvent.PROFILE_NAME_CHANGED -> handleProfileNameChanged( e );
+                default -> { /* unrecognized event — no action */ }
             }
+        }
+    }
+
+    private void handleGroupAdd( final WikiSecurityEvent e ) {
+        final Group groupAdd = ( Group )e.getTarget();
+        if( isInGroup( groupAdd ) ) {
+            subject.getPrincipals().add( groupAdd.getPrincipal() );
+        }
+    }
+
+    private void handleGroupRemove( final WikiSecurityEvent e ) {
+        final Group group = ( Group )e.getTarget();
+        subject.getPrincipals().remove( group.getPrincipal() );
+    }
+
+    private void handleGroupClear() {
+        subject.getPrincipals().removeAll( subject.getPrincipals( GroupPrincipal.class ) );
+    }
+
+    private void handlePrincipalAdd( final WikiSecurityEvent e ) {
+        final WikiSession targetPA = ( WikiSession )e.getTarget();
+        if( this.equals( targetPA ) && status.equals( AUTHENTICATED ) ) {
+            subject.getPrincipals().add( ( Principal )e.getPrincipal() );
+        }
+    }
+
+    private void handleLoginAnonymous( final WikiSecurityEvent e ) {
+        applyLogin( e, ANONYMOUS, Role.ANONYMOUS );
+    }
+
+    private void handleLoginAsserted( final WikiSecurityEvent e ) {
+        applyLogin( e, ASSERTED, Role.ASSERTED );
+    }
+
+    private void handleLoginAuthenticated( final WikiSecurityEvent e ) {
+        applyLogin( e, AUTHENTICATED, Role.AUTHENTICATED );
+        if( this.equals( ( WikiSession )e.getTarget() ) ) {
+            injectUserProfilePrincipals();  // Add principals for the user profile
+            injectGroupPrincipals();        // Inject group principals
+        }
+    }
+
+    /**
+     * Shared helper for the three login transitions (anonymous, asserted, authenticated). Sets the session status, clears all
+     * existing principals, then populates with the login principal plus {@link Role#ALL} and the given status role.
+     *
+     * @param e          the security event carrying the target session and login principal
+     * @param newStatus  one of {@link Session#ANONYMOUS}, {@link Session#ASSERTED}, {@link Session#AUTHENTICATED}
+     * @param statusRole the Role constant matching {@code newStatus}
+     */
+    private void applyLogin( final WikiSecurityEvent e, final String newStatus, final Role statusRole ) {
+        final WikiSession target = ( WikiSession )e.getTarget();
+        if( this.equals( target ) ) {
+            status = newStatus;
+            loginPrincipal = ( Principal )e.getPrincipal();
+            userPrincipal = loginPrincipal;
+            final Set< Principal > principals = subject.getPrincipals();
+            principals.clear();
+            principals.add( loginPrincipal );
+            principals.add( Role.ALL );
+            principals.add( statusRole );
+        }
+    }
+
+    private void handleProfileSave( final WikiSecurityEvent e ) {
+        final WikiSession sourcePS = e.getSrc();
+        if( this.equals( sourcePS ) ) {
+            injectUserProfilePrincipals();  // Add principals for the user profile
+            injectGroupPrincipals();        // Inject group principals
+        }
+    }
+
+    private void handleProfileNameChanged( final WikiSecurityEvent e ) {
+        // Refresh user principals based on new user profile
+        final WikiSession sourcePNC = e.getSrc();
+        if( this.equals( sourcePNC ) && status.equals( AUTHENTICATED ) ) {
+            // To prepare for refresh, set the new full name as the primary principal
+            final UserProfile[] profiles = ( UserProfile[] )e.getTarget();
+            final UserProfile newProfile = profiles[ 1 ];
+            if( newProfile.getFullname() == null ) {
+                throw new IllegalStateException( "User profile FullName cannot be null." );
+            }
+
+            loginPrincipal = new WikiPrincipal( newProfile.getLoginName() );
+            final Set< Principal > principals = subject.getPrincipals();
+            principals.clear();
+            principals.add( loginPrincipal );
+            principals.add( Role.ALL );
+            principals.add( Role.AUTHENTICATED );
+
+            // Add the user and group principals
+            injectUserProfilePrincipals();  // Add principals for the user profile
+            injectGroupPrincipals();        // Inject group principals
         }
     }
 

@@ -50,16 +50,16 @@ public class DefaultCommandResolver implements CommandResolver {
     /** Private map with request contexts as keys, Commands as values */
     private static final Map< String, Command > CONTEXTS;
 
-    /** Private map with JSPs as keys, Commands as values */
-    private static final Map< String, Command > JSPS;
+    /** Private map with route paths as keys, Commands as values */
+    private static final Map< String, Command > ROUTES;
 
-    /* Store the JSP-to-Command and context-to-Command mappings */
+    /* Store the route-path-to-Command and context-to-Command mappings */
     static {
         CONTEXTS = new HashMap<>();
-        JSPS = new HashMap<>();
+        ROUTES = new HashMap<>();
         final Command[] commands = AllCommands.get();
         for( final Command command : commands ) {
-            JSPS.put( command.getJSP(), command );
+            ROUTES.put( command.getRoutePath(), command );
             CONTEXTS.put( command.getRequestContext(), command );
         }
     }
@@ -94,7 +94,7 @@ public class DefaultCommandResolver implements CommandResolver {
                 if ( jsp != null ) {
                     specialPage = specialPage.trim();
                     jsp = jsp.trim();
-                    Command command = JSPS.get( jsp );
+                    Command command = ROUTES.get( jsp );
                     if ( command == null ) {
                         final Command redirect = RedirectCommand.REDIRECT;
                         command = redirect.targetedCommand( jsp );
@@ -225,39 +225,39 @@ public class DefaultCommandResolver implements CommandResolver {
     }
 
     /**
-     * Extracts a Command based on the JSP path of an HTTP request. If the JSP requested matches a Command's <code>getJSP()</code>
+     * Extracts a Command based on the route path of an HTTP request. If the path requested matches a Command's <code>getRoutePath()</code>
      * value, that Command is returned.
      *
      * @param request the HTTP request
      * @return the resolved Command, or <code>null</code> if not found
      */
     protected Command extractCommandFromPath( final HttpServletRequest request ) {
-        String jsp = request.getServletPath();
+        String path = request.getServletPath();
 
         // Take everything to right of initial / and left of # or ?
-        final int hashMark = jsp.indexOf( '#' );
+        final int hashMark = path.indexOf( '#' );
         if ( hashMark != -1 ) {
-            jsp = jsp.substring( 0, hashMark );
+            path = path.substring( 0, hashMark );
         }
-        final int questionMark = jsp.indexOf( '?' );
+        final int questionMark = path.indexOf( '?' );
         if ( questionMark != -1 ) {
-            jsp = jsp.substring( 0, questionMark );
+            path = path.substring( 0, questionMark );
         }
-        if ( jsp.startsWith( "/" ) ) {
-            jsp = jsp.substring( 1 );
+        if ( path.startsWith( "/" ) ) {
+            path = path.substring( 1 );
         }
 
         // Find special page reference?
         for( final Map.Entry< String, Command > entry : specialPages.entrySet() ) {
             final Command specialCommand = entry.getValue();
-            if( specialCommand.getJSP().equals( jsp ) ) {
+            if( specialCommand.getRoutePath().equals( path ) ) {
                 return specialCommand;
             }
         }
 
-        // Still haven't found a matching command? Ok, see if we match against our standard list of JSPs
-        if ( !jsp.isEmpty() && JSPS.containsKey( jsp ) ) {
-            return JSPS.get( jsp );
+        // Still haven't found a matching command? Ok, see if we match against our standard list of route paths
+        if ( !path.isEmpty() && ROUTES.containsKey( path ) ) {
+            return ROUTES.get( path );
         }
 
         return null;

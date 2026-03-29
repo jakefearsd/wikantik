@@ -89,7 +89,7 @@ class CommandResolverTest {
         Command a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertEquals( PageCommand.EDIT, a );
         Assertions.assertEquals( "EditContent.jsp", a.getContentTemplate() );
-        Assertions.assertEquals( "Edit.jsp", a.getJSP() );
+        Assertions.assertEquals( "Edit.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uEdit.jsp?page=%n", a.getURLPattern() );
         Assertions.assertNull( a.getTarget() );
 
@@ -136,7 +136,7 @@ class CommandResolverTest {
         Command a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertNotSame( PageCommand.EDIT, a );
         Assertions.assertEquals( "EditContent.jsp", a.getContentTemplate() );
-        Assertions.assertEquals( "Edit.jsp", a.getJSP() );
+        Assertions.assertEquals( "Edit.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uEdit.jsp?page=%n", a.getURLPattern() );
         Assertions.assertEquals( page, a.getTarget() );
 
@@ -146,7 +146,7 @@ class CommandResolverTest {
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertEquals( WikiCommand.FIND, a );
         Assertions.assertEquals( "FindContent.jsp", a.getContentTemplate() );
-        Assertions.assertEquals( "Search.jsp", a.getJSP() );
+        Assertions.assertEquals( "Search.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uSearch.jsp", a.getURLPattern() );
         Assertions.assertNull( a.getTarget() );
 
@@ -156,7 +156,7 @@ class CommandResolverTest {
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertNotSame( GroupCommand.VIEW_GROUP, a );
         Assertions.assertEquals( "GroupContent.jsp", a.getContentTemplate() );
-        Assertions.assertEquals( "Group.jsp", a.getJSP() );
+        Assertions.assertEquals( "Group.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uGroup.jsp?group=%n", a.getURLPattern() );
         Assertions.assertEquals( new GroupPrincipal( "Foo" ), a.getTarget() );
     }

@@ -35,7 +35,7 @@ public class RedirectCommandTest
     {
         final Command a = RedirectCommand.REDIRECT;
         Assertions.assertEquals( "", a.getRequestContext() );
-        Assertions.assertEquals( "", a.getJSP() );
+        Assertions.assertEquals( "", a.getRoutePath() );
         Assertions.assertEquals( "%u%n", a.getURLPattern() );
         Assertions.assertNull( a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
@@ -50,7 +50,7 @@ public class RedirectCommandTest
         // Test with local JSP
         Command b = a.targetedCommand( "%uTestPage.jsp" );
         Assertions.assertEquals( "", b.getRequestContext() );
-        Assertions.assertEquals( "TestPage.jsp", b.getJSP() );
+        Assertions.assertEquals( "TestPage.jsp", b.getRoutePath() );
         Assertions.assertEquals( "%uTestPage.jsp", b.getURLPattern() );
         Assertions.assertNull( b.getContentTemplate() );
         Assertions.assertEquals( "%uTestPage.jsp", b.getTarget() );
@@ -59,7 +59,7 @@ public class RedirectCommandTest
         // Test with non-local URL
         b = a.targetedCommand( "http://www.yahoo.com" );
         Assertions.assertEquals( "", b.getRequestContext() );
-        Assertions.assertEquals( "http://www.yahoo.com", b.getJSP() );
+        Assertions.assertEquals( "http://www.yahoo.com", b.getRoutePath() );
         Assertions.assertEquals( "http://www.yahoo.com", b.getURLPattern() );
         Assertions.assertNull( b.getContentTemplate() );
         Assertions.assertEquals( "http://www.yahoo.com", b.getTarget() );

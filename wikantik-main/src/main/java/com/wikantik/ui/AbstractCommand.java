@@ -32,8 +32,8 @@ public abstract class AbstractCommand implements Command {
     private static final String HTTPS = "HTTPS://";
     private static final String HTTP = "HTTP://";
 
-    private final String jsp;
-    private final String jspFriendlyName;
+    private final String routePath;
+    private final String routeFriendlyName;
     private final String urlPattern;
     private final String requestContext;
     private final String contentTemplate;
@@ -41,9 +41,9 @@ public abstract class AbstractCommand implements Command {
 
     /**
      * Constructs a new Command with a specified wiki context, URL pattern, content template and target. The URL pattern is used to derive
-     * the JSP; if it is a "local" JSP (that is, it does not contain the <code>http://</code> or <code>https://</code> prefixes),
-     * then the JSP will be a cleansed version of the URL pattern; symbols (such as <code>%u</code>) will be removed. If the supplied
-     * URL pattern points to a non-local destination, the JSP will be set to the value supplied, unmodified.
+     * the route path; if it is a "local" path (that is, it does not contain the <code>http://</code> or <code>https://</code> prefixes),
+     * then the route path will be a cleansed version of the URL pattern; symbols (such as <code>%u</code>) will be removed. If the supplied
+     * URL pattern points to a non-local destination, the route path will be set to the value supplied, unmodified.
      *
      * @param requestContext the request context
      * @param urlPattern the URL pattern
@@ -59,23 +59,23 @@ public abstract class AbstractCommand implements Command {
         this.requestContext = requestContext;
         if ( urlPattern.toUpperCase().startsWith( HTTP ) || urlPattern.toUpperCase().startsWith( HTTPS ) ) {
             // For an HTTP/HTTPS url, pass it through without modification
-            jsp = urlPattern;
-            jspFriendlyName = "Special Page";
+            routePath = urlPattern;
+            routeFriendlyName = "Special Page";
         } else {
-            // For local JSPs, take everything to the left of ?, then delete all variable substitutions
-            String localJsp = urlPattern;
+            // For local route paths, take everything to the left of ?, then delete all variable substitutions
+            String localRoutePath = urlPattern;
             final int qPosition = urlPattern.indexOf( '?' );
             if ( qPosition != -1 ) {
-                localJsp = localJsp.substring( 0, qPosition );
+                localRoutePath = localRoutePath.substring( 0, qPosition );
             }
-            localJsp = removeSubstitutions(localJsp);
-            this.jsp = localJsp;
+            localRoutePath = removeSubstitutions(localRoutePath);
+            this.routePath = localRoutePath;
 
-            // Calculate the "friendly name" for the JSP
-            if ( localJsp.toUpperCase().endsWith( ".JSP" ) ) {
-                jspFriendlyName = TextUtil.beautifyString( localJsp.substring( 0, localJsp.length() - 4 ) );
+            // Calculate the "friendly name" for the route path
+            if ( localRoutePath.toUpperCase().endsWith( ".JSP" ) ) {
+                routeFriendlyName = TextUtil.beautifyString( localRoutePath.substring( 0, localRoutePath.length() - 4 ) );
             } else {
-                jspFriendlyName = localJsp;
+                routeFriendlyName = localRoutePath;
             }
         }
         this.urlPattern = urlPattern;
@@ -86,18 +86,18 @@ public abstract class AbstractCommand implements Command {
     //
     //  This is just *so* much faster than doing String.replaceAll().  It would, in fact, be worth to cache this value.
     //
-    private String removeSubstitutions( final String jsp ) {
-        //return jsp.replaceAll( "\u0025[a-z|A-Z]", "" );
-        final StringBuilder newjsp = new StringBuilder( jsp.length() );
-        for( int i = 0; i < jsp.length(); i++ ) {
-            final char c = jsp.charAt(i);
-            if( c == '%' && i < jsp.length() - 1 && Character.isLetterOrDigit( jsp.charAt( i + 1 ) ) ) {
+    private String removeSubstitutions( final String path ) {
+        //return path.replaceAll( "\u0025[a-z|A-Z]", "" );
+        final StringBuilder newPath = new StringBuilder( path.length() );
+        for( int i = 0; i < path.length(); i++ ) {
+            final char c = path.charAt(i);
+            if( c == '%' && i < path.length() - 1 && Character.isLetterOrDigit( path.charAt( i + 1 ) ) ) {
                 i++;
                 continue;
             }
-            newjsp.append( c );
+            newPath.append( c );
         }
-        return newjsp.toString();
+        return newPath.toString();
     }
 
     /**
@@ -115,11 +115,11 @@ public abstract class AbstractCommand implements Command {
     }
 
     /**
-     * @see com.wikantik.api.core.Command#getJSP()
+     * @see com.wikantik.api.core.Command#getRoutePath()
      */
     @Override
-    public final String getJSP() {
-        return jsp;
+    public final String getRoutePath() {
+        return routePath;
     }
 
     /**
@@ -153,12 +153,12 @@ public abstract class AbstractCommand implements Command {
     }
 
     /**
-     * Returns the "friendly name" for this command's JSP, namely a beatified version of the JSP's name without the .jsp suffix.
+     * Returns the "friendly name" for this command's route path, namely a beautified version of the path's name without the .jsp suffix.
      *
      * @return the friendly name
      */
-    protected final String getJSPFriendlyName() {
-        return jspFriendlyName;
+    protected final String getRouteFriendlyName() {
+        return routeFriendlyName;
     }
 
     /**
@@ -170,7 +170,7 @@ public abstract class AbstractCommand implements Command {
         return "Command" +
                "[context=" + requestContext + "," +
                "urlPattern=" + urlPattern + "," +
-               "jsp=" +  jsp +
+               "routePath=" +  routePath +
                ( target == null ? "" : ",target=" + target + target ) +
                "]";
     }

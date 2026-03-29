@@ -110,7 +110,7 @@ public final class GroupCommand extends AbstractCommand {
     public String getName() {
         final Object target = getTarget();
         if ( target == null ) {
-            return getJSPFriendlyName();
+            return getRouteFriendlyName();
         }
         return ( ( GroupPrincipal ) target ).getName();
     }

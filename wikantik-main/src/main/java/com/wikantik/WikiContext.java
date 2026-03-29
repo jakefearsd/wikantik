@@ -264,10 +264,10 @@ public class WikiContext implements Context, Command {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.api.core.Command#getJSP()
+     * @see com.wikantik.api.core.Command#getRoutePath()
      */
     @Override
-    public String getJSP()
+    public String getRoutePath()
     {
         return command.getContentTemplate();
     }

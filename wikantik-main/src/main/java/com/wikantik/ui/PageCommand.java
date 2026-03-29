@@ -114,7 +114,7 @@ public final class PageCommand extends AbstractCommand {
     public String getName() {
         final Object target = getTarget();
         if( target == null ) {
-            return getJSPFriendlyName();
+            return getRouteFriendlyName();
         }
         return ( ( Page )target ).getName();
     }

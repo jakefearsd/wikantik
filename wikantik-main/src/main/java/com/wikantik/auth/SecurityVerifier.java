@@ -56,7 +56,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Helper class for verifying JSPWiki's security configuration. Invoked by <code>admin/SecurityConfig.jsp</code>.
+ * Helper class for verifying Wikantik's security configuration. Invoked by the admin security API at
+ * <code>/admin/policy/verify</code>.
  *
  * @since 2.4
  */
@@ -136,13 +137,13 @@ public final class SecurityVerifier {
                                                                                 "Delete pages"
                                                                               };
 
-    private static final String[] CONTAINER_JSPS               = new String[] { "/Wiki.jsp",
-                                                                                "/Comment.jsp",
-                                                                                "/Edit.jsp",
-                                                                                "/Upload.jsp",
-                                                                                "/NewGroup.jsp",
-                                                                                "/Rename.jsp",
-                                                                                "/Delete.jsp"
+    private static final String[] CONTAINER_PATHS               = new String[] { "/attach/*",
+                                                                                "/attach/*",
+                                                                                "/api/*",
+                                                                                "/api/attachments/*",
+                                                                                "/admin/*",
+                                                                                "/admin/*",
+                                                                                "/admin/*"
                                                                               };
 
     private static final String   BG_GREEN                     = "bgcolor=\"#c0ffc0\"";
@@ -196,7 +197,7 @@ public final class SecurityVerifier {
     }
 
     /**
-     * Returns an array of unique Principals from the JSPWIki security policy
+     * Returns an array of unique Principals from the Wikantik security policy
      * file. This array will be zero-length if the policy file was not
      * successfully located, or if the file did not specify any Principals in
      * the policy.
@@ -361,7 +362,7 @@ public final class SecurityVerifier {
 
     /**
      * Formats and returns an HTML table containing the roles the web container
-     * is aware of, and whether each role maps to particular JSPs. This method
+     * is aware of, and whether each role maps to particular servlet URL patterns. This method
      * throws an {@link IllegalStateException} if the authorizer is not of type
      * {@link com.wikantik.auth.authorize.WebContainerAuthorizer}
      * @return the formatted HTML table containing the result of the tests
@@ -375,8 +376,8 @@ public final class SecurityVerifier {
             throw new IllegalStateException( "Authorizer should be WebContainerAuthorizer" );
         }
 
-        // Now, print a table with JSP pages listed on the left, and
-        // an evaluation of each pages' constraints for each role
+        // Now, print a table with servlet URL patterns listed on the left, and
+        // an evaluation of each pattern's constraints for each role
         // we discovered
         final StringBuilder containerTable = new StringBuilder();
         final Principal[] roles = authorizer.getRoles();
@@ -398,26 +399,26 @@ public final class SecurityVerifier {
 
         for( int i = 0; i < CONTAINER_ACTIONS.length; i++ ) {
             final String action = CONTAINER_ACTIONS[i];
-            final String jsp = CONTAINER_JSPS[i];
+            final String path = CONTAINER_PATHS[i];
 
-            // Print whether the page is constrained for each role
-            final boolean allowsAnonymous = !wca.isConstrained( jsp, Role.ALL );
+            // Print whether the path is constrained for each role
+            final boolean allowsAnonymous = !wca.isConstrained( path, Role.ALL );
             containerTable.append( "  <tr>\n" );
             containerTable.append( "    <td>" ).append( action ).append( "</td>\n" );
-            containerTable.append( "    <td>" ).append( jsp ).append( "</td>\n" );
+            containerTable.append( "    <td>" ).append( path ).append( "</td>\n" );
             containerTable.append( "    <td title=\"" );
             containerTable.append( allowsAnonymous ? "ALLOW: " : "DENY: " );
-            containerTable.append( jsp );
+            containerTable.append( path );
             containerTable.append( " Anonymous" );
             containerTable.append( "\"" );
             containerTable.append( allowsAnonymous ? BG_GREEN + ">" : BG_RED + ">" );
             containerTable.append( "&nbsp;</td>\n" );
             for( final Principal role : roles )
             {
-                final boolean allowed = allowsAnonymous || wca.isConstrained( jsp, (Role)role );
+                final boolean allowed = allowsAnonymous || wca.isConstrained( path, (Role)role );
                 containerTable.append( "    <td title=\"" );
                 containerTable.append( allowed ? "ALLOW: " : "DENY: " );
-                containerTable.append( jsp );
+                containerTable.append( path );
                 containerTable.append( " " );
                 containerTable.append( role.getClass().getName() );
                 containerTable.append( " &quot;" );

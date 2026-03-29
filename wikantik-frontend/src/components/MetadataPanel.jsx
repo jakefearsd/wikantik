@@ -115,7 +115,7 @@ function renderValue(key, value) {
       return (
         <span style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-xs)' }}>
           {value.map(item => (
-            <span key={item} className="tag">{item}</span>
+            <Link key={item} to={`/search?q=${encodeURIComponent(item)}`} className="tag" style={{ textDecoration: 'none' }}>{item}</Link>
           ))}
         </span>
       );

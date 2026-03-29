@@ -36,7 +36,7 @@ public class PageCommandTest {
     public void testStaticCommand() {
         Command a = PageCommand.VIEW;
         Assertions.assertEquals( "view", a.getRequestContext() );
-        Assertions.assertEquals( "Wiki.jsp", a.getJSP() );
+        Assertions.assertEquals( "Wiki.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uWiki.jsp?page=%n", a.getURLPattern() );
         Assertions.assertEquals( "PageContent.jsp", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget());
@@ -45,7 +45,7 @@ public class PageCommandTest {
 
         a = PageCommand.EDIT;
         Assertions.assertEquals( "edit", a.getRequestContext() );
-        Assertions.assertEquals( "Edit.jsp", a.getJSP() );
+        Assertions.assertEquals( "Edit.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uEdit.jsp?page=%n", a.getURLPattern() );
         Assertions.assertEquals( "EditContent.jsp", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget());
@@ -54,7 +54,7 @@ public class PageCommandTest {
 
         a = PageCommand.PREVIEW;
         Assertions.assertEquals( "preview", a.getRequestContext() );
-        Assertions.assertEquals( "Preview.jsp", a.getJSP() );
+        Assertions.assertEquals( "Preview.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uPreview.jsp?page=%n", a.getURLPattern() );
         Assertions.assertEquals( "PreviewContent.jsp", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget());
@@ -75,7 +75,7 @@ public class PageCommandTest {
         Command b = a.targetedCommand( testPage );
         Assertions.assertNotSame( a, b );
         Assertions.assertEquals( a.getRequestContext(), b.getRequestContext() );
-        Assertions.assertEquals( a.getJSP(), b.getJSP() );
+        Assertions.assertEquals( a.getRoutePath(), b.getRoutePath() );
         Assertions.assertEquals( a.getURLPattern(), b.getURLPattern() );
         Assertions.assertEquals( a.getContentTemplate(), b.getContentTemplate() );
         Assertions.assertNotNull( b.getTarget() );

@@ -6,6 +6,64 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-29** — Fix flaky parallel test assertion in DefaultPageManagerCITest
+
+**2026-03-29** — Add unit tests for modules package (WikiModuleInfo, InternalModule)
+
+**2026-03-29** — Refactor DefaultDifferenceManager to constructor injection, add unit tests
+
+**2026-03-29** — Refactor DefaultVariableManager to constructor injection, add CI tests
+
+**2026-03-29** — Refactor WikiAjaxDispatcherServlet for testability, add unit tests
+
+**2026-03-29** — Refactor 4 core managers to constructor injection, add 237 unit tests
+
+**2026-03-29** — Refactor AttachmentServlet to constructor injection + add 23 unit tests
+
+**2026-03-29** — Refactor SecurityVerifier to constructor injection + add 36 unit tests
+
+**2026-03-29** — Refactor SpamFilter to injectable dependencies + add 40 unit tests
+
+**2026-03-29** — Add MockEngineBuilder test utility for mock Engine creation
+
+**2026-03-29** — Add implementation plan: testability via MockEngineBuilder + constructor injection
+
+**2026-03-29** — Remove JSP API remnants, add 241 unit tests for wikantik-main
+
+**2026-03-29** — Update robots.txt: remove JSP references, add React SPA paths
+
+**2026-03-29** — Remove /app from rendered wiki link base URL
+
+**2026-03-29** — Remove accidentally committed socket files and temp artifacts, update .gitignore
+
+**2026-03-29** — Fix WAR build: remove jslint plugin referencing deleted scripts/, remove stale changeSessionId test
+
+**2026-03-29** — Clean up web.xml: remove JSP filters, servlets, and legacy config
+
+**2026-03-29** — Fix compilation after JSP UI/form/tag class deletion
+
+**2026-03-29** — Delete JSP pages, templates, and legacy JavaScript (68+ files)
+
+**2026-03-29** — Move React SPA from /app/ to WAR root, change basename to /
+
+**2026-03-29** — Add implementation plan: remove JSP UI and /app/ prefix (7 tasks)
+
+**2026-03-29** — Add design spec: remove JSP UI and /app/ context path prefix
+
+**2026-03-29** — Fix link interception to handle /wiki/ links without /app/ prefix
+
+**2026-03-29** — Clarify migration script needs to be copied to production server first
+
+**2026-03-29** — Fix backup command: use sudo -u postgres for peer authentication
+
+**2026-03-29** — Add properties file rename migration step to 1.0→1.1 guide
+
+**2026-03-29** — Fix migration guide and script: database name is jspwiki, not wikantik
+
+**2026-03-29** — Add 1.0→1.1 migration guide and production database migration script
+
+**2026-03-29** — Increase HTTP session timeout from 10 to 60 minutes
+
 **2026-03-29** — Make username the Preferences link, remove separate Preferences button
 
 **2026-03-29** — Intercept internal wiki links for React Router navigation

@@ -78,13 +78,13 @@ public interface Command {
     String getContentTemplate();
 
     /**
-     * Returns the JSP associated with the Command. The JSP is a "local" JSP within the JSPWiki webapp; it is not a general HTTP URL.
-     * If it exists, the JSP will be expressed relative to the webapp root, without a leading slash. This method is guaranteed to return
+     * Returns the URL route path associated with the Command. The route path is a local path within the webapp; it is not a general HTTP URL.
+     * If it exists, the route path will be expressed relative to the webapp root, without a leading slash. This method is guaranteed to return
      * a non-<code>null</code> result, although in some cases the result may be an empty string.
      *
-     * @return the JSP or url associated with the wiki command
+     * @return the route path associated with the wiki command
      */
-    String getJSP();
+    String getRoutePath();
 
     /**
      * Returns the human-friendly name for this command.

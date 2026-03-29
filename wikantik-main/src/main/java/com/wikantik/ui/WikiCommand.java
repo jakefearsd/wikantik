@@ -134,7 +134,7 @@ public final class WikiCommand extends AbstractCommand {
      */
     @Override
     public String getName() {
-        return getJSPFriendlyName();
+        return getRouteFriendlyName();
     }
 
     /**

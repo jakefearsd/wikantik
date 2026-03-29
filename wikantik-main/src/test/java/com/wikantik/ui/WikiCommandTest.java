@@ -49,7 +49,7 @@ public class WikiCommandTest
     {
         Command a = WikiCommand.CREATE_GROUP;
         Assertions.assertEquals( "createGroup", a.getRequestContext() );
-        Assertions.assertEquals( "NewGroup.jsp", a.getJSP() );
+        Assertions.assertEquals( "NewGroup.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uNewGroup.jsp", a.getURLPattern() );
         Assertions.assertEquals( "NewGroupContent.jsp", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
@@ -58,7 +58,7 @@ public class WikiCommandTest
 
         a = WikiCommand.ERROR;
         Assertions.assertEquals( "error", a.getRequestContext() );
-        Assertions.assertEquals( "Error.jsp", a.getJSP() );
+        Assertions.assertEquals( "Error.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uError.jsp", a.getURLPattern() );
         Assertions.assertEquals( "DisplayMessage.jsp", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
@@ -67,7 +67,7 @@ public class WikiCommandTest
 
         a = WikiCommand.FIND;
         Assertions.assertEquals( "find", a.getRequestContext() );
-        Assertions.assertEquals( "Search.jsp", a.getJSP() );
+        Assertions.assertEquals( "Search.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uSearch.jsp", a.getURLPattern() );
         Assertions.assertEquals( "FindContent.jsp", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
@@ -76,7 +76,7 @@ public class WikiCommandTest
 
         a = WikiCommand.INSTALL;
         Assertions.assertEquals( "install", a.getRequestContext() );
-        Assertions.assertEquals( "Install.jsp", a.getJSP() );
+        Assertions.assertEquals( "Install.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uInstall.jsp", a.getURLPattern() );
         Assertions.assertNull( a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
@@ -85,7 +85,7 @@ public class WikiCommandTest
 
         a = WikiCommand.LOGIN;
         Assertions.assertEquals( "login", a.getRequestContext() );
-        Assertions.assertEquals( "Login.jsp", a.getJSP() );
+        Assertions.assertEquals( "Login.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uLogin.jsp?redirect=%n", a.getURLPattern() );
         Assertions.assertEquals( "LoginContent.jsp", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
@@ -94,7 +94,7 @@ public class WikiCommandTest
 
         a = WikiCommand.LOGOUT;
         Assertions.assertEquals( "logout", a.getRequestContext() );
-        Assertions.assertEquals( "Logout.jsp", a.getJSP() );
+        Assertions.assertEquals( "Logout.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uLogout.jsp", a.getURLPattern() );
         Assertions.assertNull( a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
@@ -103,7 +103,7 @@ public class WikiCommandTest
 
         a = WikiCommand.PREFS;
         Assertions.assertEquals( "prefs", a.getRequestContext() );
-        Assertions.assertEquals( "UserPreferences.jsp", a.getJSP() );
+        Assertions.assertEquals( "UserPreferences.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uUserPreferences.jsp", a.getURLPattern() );
         Assertions.assertEquals( "PreferencesContent.jsp", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
@@ -121,7 +121,7 @@ public class WikiCommandTest
         Command b = a.targetedCommand( wiki );
         Assertions.assertNotSame( a, b );
         Assertions.assertEquals( a.getRequestContext(), b.getRequestContext() );
-        Assertions.assertEquals( a.getJSP(), b.getJSP() );
+        Assertions.assertEquals( a.getRoutePath(), b.getRoutePath() );
         Assertions.assertEquals( a.getURLPattern(), b.getURLPattern() );
         Assertions.assertEquals( a.getContentTemplate(), b.getContentTemplate() );
         Assertions.assertNotNull( b.getTarget() );

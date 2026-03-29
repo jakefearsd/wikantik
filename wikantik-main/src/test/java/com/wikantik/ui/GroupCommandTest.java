@@ -48,7 +48,7 @@ public class GroupCommandTest
 
         a = GroupCommand.VIEW_GROUP;
         Assertions.assertEquals( "viewGroup", a.getRequestContext() );
-        Assertions.assertEquals( "Group.jsp", a.getJSP() );
+        Assertions.assertEquals( "Group.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uGroup.jsp?group=%n", a.getURLPattern() );
         Assertions.assertEquals( "GroupContent.jsp", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget());
@@ -57,7 +57,7 @@ public class GroupCommandTest
 
         a = GroupCommand.EDIT_GROUP;
         Assertions.assertEquals( "editGroup", a.getRequestContext() );
-        Assertions.assertEquals( "EditGroup.jsp", a.getJSP() );
+        Assertions.assertEquals( "EditGroup.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uEditGroup.jsp?group=%n", a.getURLPattern() );
         Assertions.assertEquals( "EditGroupContent.jsp", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget());
@@ -66,7 +66,7 @@ public class GroupCommandTest
 
         a = GroupCommand.DELETE_GROUP;
         Assertions.assertEquals( "deleteGroup", a.getRequestContext() );
-        Assertions.assertEquals( "DeleteGroup.jsp", a.getJSP() );
+        Assertions.assertEquals( "DeleteGroup.jsp", a.getRoutePath() );
         Assertions.assertEquals( "%uDeleteGroup.jsp?group=%n", a.getURLPattern() );
         Assertions.assertNull( null );
         Assertions.assertNull( a.getTarget());
@@ -85,7 +85,7 @@ public class GroupCommandTest
         Command b = a.targetedCommand( group );
         Assertions.assertNotSame( a, b );
         Assertions.assertEquals( a.getRequestContext(), b.getRequestContext() );
-        Assertions.assertEquals( a.getJSP(), b.getJSP() );
+        Assertions.assertEquals( a.getRoutePath(), b.getRoutePath() );
         Assertions.assertEquals( a.getURLPattern(), b.getURLPattern() );
         Assertions.assertEquals( a.getContentTemplate(), b.getContentTemplate() );
         Assertions.assertNotNull( b.getTarget() );

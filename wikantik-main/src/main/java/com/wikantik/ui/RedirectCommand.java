@@ -27,7 +27,7 @@ import java.security.Permission;
  * <p>Defines Commands for redirections to off-site special pages. RedirectCommands do not have associated permissions; the
  * {@link #requiredPermission()} method will always return <code>null</code>. When combined with a supplied String url,
  * the {@link #getTarget()} method will return a String, the {@link #getURLPattern()} method will return the supplied target URL,
- * and {@link #getJSP()} method will return the "cleansed" URL.</p>
+ * and {@link #getRoutePath()} method will return the "cleansed" URL.</p>
  *
  * @since 2.4.22
  */
@@ -83,7 +83,7 @@ public final class RedirectCommand extends AbstractCommand {
     public String getName() {
         final Object target = getTarget();
         if ( target == null ) {
-            return getJSPFriendlyName();
+            return getRouteFriendlyName();
         }
         return target.toString();
     }

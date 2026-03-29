@@ -71,7 +71,7 @@ public class DefaultProgressManager implements ProgressManager {
      */
     @Override
     public void startProgress( final ProgressItem pi, final String id ) {
-        LOG.debug( "Adding {} to progress queue", id );
+        LOG.debug( "Adding " + id + " to progress queue" );
         progressingTasks.put( id, pi );
         pi.setState( ProgressItem.STARTED );
     }
@@ -84,7 +84,7 @@ public class DefaultProgressManager implements ProgressManager {
      */
     @Override
     public void stopProgress( final String id ) {
-        LOG.debug( "Removed {} from progress queue", id );
+        LOG.debug( "Removed " + id + " from progress queue" );
         final ProgressItem pi = progressingTasks.remove( id );
         if( pi != null ) {
             pi.setState( ProgressItem.STOPPED );
@@ -139,14 +139,14 @@ public class DefaultProgressManager implements ProgressManager {
         		return;
         	}
         	final String progressId = params.get(0);
-        	LOG.debug( "progressId={}", progressId );
+        	LOG.debug( "progressId=" + progressId );
         	String progressString = "";
         	try {
         		progressString = Integer.toString( getProgress( progressId ) );
         	} catch( final IllegalArgumentException e ) { // ignore
-        		LOG.debug( "progressId {} is no longer valid", progressId );
+        		LOG.debug( "progressId " + progressId + " is no longer valid" );
         	}
-        	LOG.debug( "progressString={}", progressString );
+        	LOG.debug( "progressString=" + progressString );
         	resp.getWriter().write( progressString );
         	LOG.debug( "ProgressManager.doGet() DONE" );
         }

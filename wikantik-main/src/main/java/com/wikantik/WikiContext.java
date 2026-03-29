@@ -35,7 +35,6 @@ import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.pages.PageManager;
 import com.wikantik.ui.CommandResolver;
-import com.wikantik.ui.Installer;
 import com.wikantik.ui.PageCommand;
 import com.wikantik.ui.WikiCommand;
 import com.wikantik.util.TextUtil;
@@ -715,7 +714,7 @@ public class WikiContext implements Context, Command {
             try {
                 final UserManager userMgr = engine.getManager( UserManager.class );
                 final UserDatabase userDb = userMgr.getUserDatabase();
-                userDb.findByLoginName( Installer.ADMIN_ID );
+                userDb.findByLoginName( "admin" );
             } catch ( final NoSuchPrincipalException e ) {
                 return DUMMY_PERMISSION;
             }

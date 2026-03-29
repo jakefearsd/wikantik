@@ -6,39 +6,22 @@ User-agent: *
 # Allow the sitemap
 Sitemap: https://wiki.jakefear.com/sitemap.xml
 
-# Block administrative and action pages (not content)
-Disallow: /Edit.jsp
-Disallow: /Delete.jsp
-Disallow: /Comment.jsp
-Disallow: /Upload.jsp
-Disallow: /Rename.jsp
-Disallow: /NewGroup.jsp
-Disallow: /Login.jsp
-Disallow: /LoginForm.jsp
-Disallow: /Logout.jsp
-Disallow: /UserPreferences.jsp
-Disallow: /Workflow.jsp
+# Block administrative pages
 Disallow: /admin/
 
-# Block diff and version history views (duplicate content)
-Disallow: /Diff.jsp
-Disallow: /PageInfo.jsp
+# Block editing, diff, and action paths (not content)
+Disallow: /edit/
+Disallow: /diff/
+Disallow: /preferences
+Disallow: /reset-password
+
+# Block API and internal endpoints
+Disallow: /api/
+Disallow: /mcp
+Disallow: /metrics
 
 # Block search results pages (let Google use its own index)
-Disallow: /Search.jsp
+Disallow: /search
 
-# Block attachment management (but not attachment files themselves)
-Disallow: /AttachmentInfo.jsp
-
-# Block error pages
-Disallow: /Error.jsp
-Disallow: /Message.jsp
-
-# Block raw page source
-Disallow: /Raw.jsp
-
-# Block JSON/AJAX endpoints
-Disallow: /JSON-RPC
-
-# Crawl-delay: be polite to crawlers (optional, 1 second between requests)
+# Crawl-delay: be polite to crawlers (1 second between requests)
 Crawl-delay: 1

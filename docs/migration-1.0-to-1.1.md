@@ -23,7 +23,21 @@ Without this property, the wiki falls back to the file-based `wikantik.policy` (
 
 The 1.1 production migration restricts anonymous users to **view-only** access. In 1.0, anonymous users could edit pages and create new pages by default. After migration, only authenticated users can edit.
 
-### 4. REST API Permission Enforcement
+### 4. Properties File Renamed
+
+The custom properties file and all property name prefixes changed from `jspwiki` to `wikantik`:
+
+| Before (1.0) | After (1.1) |
+|-------------|-------------|
+| `jspwiki-custom.properties` | `wikantik-custom.properties` |
+| `jspwiki.pageProvider` | `wikantik.pageProvider` |
+| `jspwiki.baseURL` | `wikantik.baseURL` |
+| `jspwiki.userdatabase` | `wikantik.userdatabase` |
+| (all `jspwiki.*` properties) | (all `wikantik.*` properties) |
+
+The 1.1 code does **not** have backwards compatibility for the old names. If you deploy 1.1 without renaming your properties file and updating the property prefixes, the wiki will start with default settings (ignoring your custom configuration).
+
+### 5. REST API Permission Enforcement
 
 All REST API endpoints (`/api/pages/*`, `/api/attachments/*`) now enforce page-level ACL permissions. Previously, the REST API did not check permissions. Any API clients that relied on unauthenticated access to restricted pages will receive 403 responses.
 
@@ -55,9 +69,24 @@ This script:
 - Seeds default policy grants with **anonymous restricted to view-only**
 - Ensures the Admin group exists with the `admin` user
 
-### Step 3: Update Properties
+### Step 3: Rename and Update Properties File
 
-Add to `wikantik-custom.properties` (typically in `$TOMCAT_HOME/lib/`):
+The properties file must be renamed and all property prefixes updated from `jspwiki` to `wikantik`.
+
+```bash
+# Rename the file
+cd $TOMCAT_HOME/lib
+cp jspwiki-custom.properties wikantik-custom.properties
+
+# Replace all jspwiki. prefixes with wikantik.
+sed -i 's/^jspwiki\./wikantik./g' wikantik-custom.properties
+
+# Verify the replacement
+grep "^jspwiki\." wikantik-custom.properties  # should return nothing
+grep "^wikantik\." wikantik-custom.properties  # should show all your properties
+```
+
+Then add the new database-backed policy property:
 
 ```properties
 # Enable database-backed authorization policy (replaces wikantik.policy file)
@@ -68,6 +97,11 @@ Optional — enable bootstrap admin override for initial deployment safety:
 ```properties
 # Remove after confirming admin access works
 wikantik.admin.bootstrap = admin
+```
+
+Once the 1.1 WAR is deployed and verified, you can remove the old file:
+```bash
+rm $TOMCAT_HOME/lib/jspwiki-custom.properties
 ```
 
 ### Step 4: Deploy the WAR
@@ -177,9 +211,9 @@ $TOMCAT_HOME/bin/startup.sh
 If you need to roll back to 1.0:
 
 1. Restore the database backup: `psql -d jspwiki < jspwiki_backup_YYYYMMDD.sql`
-2. Remove `wikantik.policy.datasource` from `wikantik-custom.properties`
+2. Restore the old properties file: `cp jspwiki-custom.properties.bak jspwiki-custom.properties` (if you kept a backup) or rename and revert the prefix: `sed -i 's/^wikantik\./jspwiki./g' wikantik-custom.properties && mv wikantik-custom.properties jspwiki-custom.properties`
 3. Deploy the 1.0 WAR file
-4. The `policy_grants` table will be ignored (the wiki falls back to `wikantik.policy` file)
+4. The `policy_grants` table will be ignored (the wiki falls back to `jspwiki.policy` file)
 
 ---
 

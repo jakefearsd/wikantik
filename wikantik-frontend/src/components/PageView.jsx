@@ -60,18 +60,25 @@ export default function PageView() {
     const href = anchor.getAttribute('href');
     if (!href) return;
 
-    // Handle links relative to the /app/ base path
-    const appPrefix = '/app/';
+    // Handle internal wiki links — these may be:
+    //   /app/wiki/PageName  (React-prefixed)
+    //   /wiki/PageName      (rendered by wiki engine without /app/ prefix)
+    //   /app/edit/PageName  (React edit links)
+    //   /edit/PageName      (edit links without prefix)
     let internalPath = null;
 
-    if (href.startsWith(appPrefix)) {
-      internalPath = href.substring(appPrefix.length - 1); // keep leading /
-    } else if (href.startsWith('/') && !href.startsWith('//')) {
-      // Absolute path on same host — check if it's a wiki path
-      // Links rendered by the wiki engine use /app/wiki/ or /app/edit/
-      return; // let non-/app/ absolute links navigate normally
+    if (href.startsWith('/app/')) {
+      internalPath = href.substring('/app'.length); // keep leading /
+    } else if (href.startsWith('/wiki/')) {
+      internalPath = href; // /wiki/PageName → navigate as /wiki/PageName
+    } else if (href.startsWith('/edit/')) {
+      internalPath = href;
+    } else if (href.startsWith('/diff/')) {
+      internalPath = href;
+    } else if (href.startsWith('/search')) {
+      internalPath = href;
     } else {
-      return; // external link — let browser handle it
+      return; // external or unrecognized link — let browser handle it
     }
 
     // Ctrl/Cmd+click or middle-click: let browser open in new tab

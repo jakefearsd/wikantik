@@ -57,10 +57,10 @@ sudo -u postgres pg_dump jspwiki > jspwiki_backup_$(date +%Y%m%d).sql
 
 ### Step 2: Run the Database Migration
 
-The migration script creates the `policy_grants` table and seeds it with production-appropriate defaults (anonymous = view-only).
+Copy `wikantik-war/src/main/config/db/migration-1.0-to-1.1.sql` to the production server, then run it. This can be done while 1.0 is still running — the new table is ignored until the 1.1 WAR is deployed.
 
 ```bash
-sudo -u postgres psql -d jspwiki -f wikantik-war/src/main/config/db/migration-1.0-to-1.1.sql
+sudo -u postgres psql -d jspwiki -f migration-1.0-to-1.1.sql
 ```
 
 This script:

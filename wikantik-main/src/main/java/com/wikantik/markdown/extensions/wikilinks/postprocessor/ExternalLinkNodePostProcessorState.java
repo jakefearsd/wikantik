@@ -22,8 +22,8 @@ import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.NodeTracker;
 import com.vladsch.flexmark.util.sequence.CharSubSequence;
 import com.wikantik.api.core.Context;
+import com.wikantik.markdown.extensions.wikilinks.AbstractLinkState;
 import com.wikantik.markdown.nodes.WikantikLink;
-import com.wikantik.parser.LinkParsingOperations;
 import com.wikantik.parser.MarkupParser;
 
 import java.util.List;
@@ -33,21 +33,14 @@ import java.util.regex.Pattern;
 /**
  * {@link NodePostProcessorState} which further post processes external links.
  */
-public class ExternalLinkNodePostProcessorState implements NodePostProcessorState< WikantikLink > {
+public class ExternalLinkNodePostProcessorState extends AbstractLinkState implements NodePostProcessorState< WikantikLink > {
 
-    private final Context wikiContext;
-    private final LinkParsingOperations linkOperations;
-    private final boolean isImageInlining;
-    private final List< Pattern > inlineImagePatterns;
     private boolean useOutlinkImage = true;
 
     public ExternalLinkNodePostProcessorState( final Context wikiContext,
                                                final boolean isImageInlining,
                                                final List< Pattern > inlineImagePatterns ) {
-        this.wikiContext = wikiContext;
-        this.linkOperations = new LinkParsingOperations( wikiContext );
-        this.isImageInlining = isImageInlining;
-        this.inlineImagePatterns = inlineImagePatterns;
+        super( wikiContext, isImageInlining, inlineImagePatterns );
         this.useOutlinkImage = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USEOUTLINKIMAGE, useOutlinkImage );
     }
 
@@ -58,11 +51,11 @@ public class ExternalLinkNodePostProcessorState implements NodePostProcessorStat
      */
     @Override
     public void process( final NodeTracker state, final WikantikLink link ) {
-        if( linkOperations.isImageLink( link.getUrl().toString(), isImageInlining, inlineImagePatterns ) ) {
-            new ImageLinkNodePostProcessorState( wikiContext, link.getUrl().toString(), link.hasRef() ).process( state, link );
+        if( linkOperations().isImageLink( link.getUrl().toString(), isImageInlining(), inlineImagePatterns() ) ) {
+            new ImageLinkNodePostProcessorState( wikiContext(), link.getUrl().toString(), link.hasRef() ).process( state, link );
         } else {
             link.setUrl( CharSubSequence.of( link.getUrl().toString() ) );
-            NodePostProcessorStateCommonOperations.addOutlinkImage( state, link, wikiContext, useOutlinkImage );
+            NodePostProcessorStateCommonOperations.addOutlinkImage( state, link, wikiContext(), useOutlinkImage );
         }
     }
 

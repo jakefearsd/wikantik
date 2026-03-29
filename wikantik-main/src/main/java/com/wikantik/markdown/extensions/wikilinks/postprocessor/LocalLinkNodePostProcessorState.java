@@ -24,8 +24,8 @@ import com.vladsch.flexmark.util.sequence.CharSubSequence;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.markdown.extensions.wikilinks.AbstractLinkState;
 import com.wikantik.markdown.nodes.WikantikLink;
-import com.wikantik.parser.LinkParsingOperations;
 import com.wikantik.parser.MarkupParser;
 
 import java.util.List;
@@ -35,20 +35,12 @@ import java.util.regex.Pattern;
 /**
  * {@link NodePostProcessorState} which further post processes local links.
  */
-public class LocalLinkNodePostProcessorState implements NodePostProcessorState< WikantikLink > {
-
-    private final Context wikiContext;
-    private final LinkParsingOperations linkOperations;
-    private final boolean isImageInlining;
-    private final List< Pattern > inlineImagePatterns;
+public class LocalLinkNodePostProcessorState extends AbstractLinkState implements NodePostProcessorState< WikantikLink > {
 
     public LocalLinkNodePostProcessorState( final Context wikiContext,
                                             final boolean isImageInlining,
                                             final List< Pattern > inlineImagePatterns ) {
-        this.wikiContext = wikiContext;
-        this.linkOperations = new LinkParsingOperations( wikiContext );
-        this.isImageInlining = isImageInlining;
-        this.inlineImagePatterns = inlineImagePatterns;
+        super( wikiContext, isImageInlining, inlineImagePatterns );
     }
 
     /**
@@ -59,42 +51,42 @@ public class LocalLinkNodePostProcessorState implements NodePostProcessorState< 
     @Override
     public void process( final NodeTracker state, final WikantikLink link ) {
         final int hashMark = link.getUrl().toString().indexOf( '#' );
-        final String attachment = wikiContext.getEngine().getManager( AttachmentManager.class ).getAttachmentInfoName( wikiContext, link.getUrl().toString() );
+        final String attachment = wikiContext().getEngine().getManager( AttachmentManager.class ).getAttachmentInfoName( wikiContext(), link.getUrl().toString() );
         if( attachment != null  ) {
-            if( !linkOperations.isImageLink( link.getUrl().toString(), isImageInlining, inlineImagePatterns ) ) {
-                final String attlink = wikiContext.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), link.getUrl().toString() );
+            if( !linkOperations().isImageLink( link.getUrl().toString(), isImageInlining(), inlineImagePatterns() ) ) {
+                final String attlink = wikiContext().getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), link.getUrl().toString() );
                 link.setUrl( CharSubSequence.of( attlink ) );
                 link.removeChildren();
-                final WikiHtmlInline content = WikiHtmlInline.of( link.getText().toString(), wikiContext );
+                final WikiHtmlInline content = WikiHtmlInline.of( link.getText().toString(), wikiContext() );
                 link.appendChild( content );
                 state.nodeAddedWithChildren( content );
                 addAttachmentLink( state, link );
             } else {
-                new ImageLinkNodePostProcessorState( wikiContext, attachment, link.hasRef() ).process( state, link );
+                new ImageLinkNodePostProcessorState( wikiContext(), attachment, link.hasRef() ).process( state, link );
             }
         } else if( hashMark != -1 ) { // It's an internal Wiki link, but to a named section
             final String namedSection = link.getUrl().toString().substring( hashMark + 1 );
             link.setUrl( CharSubSequence.of( link.getUrl().toString().substring( 0, hashMark ) ) );
-            final String matchedLink = linkOperations.linkIfExists( link.getUrl().toString() );
+            final String matchedLink = linkOperations().linkIfExists( link.getUrl().toString() );
             if( matchedLink != null ) {
-                String sectref = "#section-" + wikiContext.getEngine().encodeName( matchedLink + "-" + MarkupParser.wikifyLink( namedSection ) );
+                String sectref = "#section-" + wikiContext().getEngine().encodeName( matchedLink + "-" + MarkupParser.wikifyLink( namedSection ) );
                 sectref = sectref.replace( '%', '_' );
-                link.setUrl( CharSubSequence.of( wikiContext.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), link.getUrl().toString() + sectref ) ) );
+                link.setUrl( CharSubSequence.of( wikiContext().getURL( ContextEnum.PAGE_VIEW.getRequestContext(), link.getUrl().toString() + sectref ) ) );
             } else {
-                link.setUrl( CharSubSequence.of( wikiContext.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), link.getUrl().toString() ) ) );
+                link.setUrl( CharSubSequence.of( wikiContext().getURL( ContextEnum.PAGE_EDIT.getRequestContext(), link.getUrl().toString() ) ) );
             }
         } else {
-            if( linkOperations.linkExists( link.getUrl().toString() ) ) {
-                link.setUrl( CharSubSequence.of( wikiContext.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), link.getUrl().toString() ) ) );
+            if( linkOperations().linkExists( link.getUrl().toString() ) ) {
+                link.setUrl( CharSubSequence.of( wikiContext().getURL( ContextEnum.PAGE_VIEW.getRequestContext(), link.getUrl().toString() ) ) );
             } else {
-                link.setUrl( CharSubSequence.of( wikiContext.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), link.getUrl().toString() ) ) );
+                link.setUrl( CharSubSequence.of( wikiContext().getURL( ContextEnum.PAGE_EDIT.getRequestContext(), link.getUrl().toString() ) ) );
             }
         }
     }
 
     void addAttachmentLink( final NodeTracker state, final WikantikLink link ) {
-        final String infolink = wikiContext.getURL( ContextEnum.PAGE_INFO.getRequestContext(), link.getWikiLink() );
-        final String imglink = wikiContext.getURL( ContextEnum.PAGE_NONE.getRequestContext(), "images/attachment_small.png" );
+        final String infolink = wikiContext().getURL( ContextEnum.PAGE_INFO.getRequestContext(), link.getWikiLink() );
+        final String imglink = wikiContext().getURL( ContextEnum.PAGE_NONE.getRequestContext(), "images/attachment_small.png" );
         final WikiHtmlInline aimg = WikiHtmlInline.of( "<a href=\""+ infolink + "\" class=\"infolink\">" +
                                                               "<img src=\""+ imglink + "\" border=\"0\" alt=\"(info)\" />" +
                                                            "</a>" ) ;

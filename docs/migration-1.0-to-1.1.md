@@ -52,7 +52,7 @@ HTTP session timeout increased from 10 minutes to 60 minutes.
 ### Step 1: Back Up the Database
 
 ```bash
-pg_dump -U postgres jspwiki > jspwiki_backup_$(date +%Y%m%d).sql
+sudo -u postgres pg_dump jspwiki > jspwiki_backup_$(date +%Y%m%d).sql
 ```
 
 ### Step 2: Run the Database Migration

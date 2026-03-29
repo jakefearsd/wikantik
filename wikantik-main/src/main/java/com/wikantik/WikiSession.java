@@ -73,6 +73,11 @@ public final class WikiSession implements Session {
     /** The Engine that created this session. */
     private Engine engine;
 
+    // Managers stored at construction time to avoid repeated engine.getManager() lookups.
+    private GroupManager groupManager;
+    private UserManager userManager;
+    private AuthenticationManager authenticationManager;
+
     private String antiCsrfToken;
     private String status            = ANONYMOUS;
 
@@ -97,6 +102,21 @@ public final class WikiSession implements Session {
      * Private constructor to prevent WikiSession from being instantiated directly.
      */
     private WikiSession() {
+    }
+
+    /**
+     * Package-private constructor for dependency injection. Accepts the three manager
+     * instances used by this session so that no further {@code engine.getManager()} calls
+     * are required in instance methods.
+     *
+     * @param groupManager          the GroupManager to use for group-principal injection
+     * @param userManager           the UserManager to use for user-profile injection
+     * @param authenticationManager the AuthenticationManager for event registration
+     */
+    WikiSession( final GroupManager groupManager, final UserManager userManager, final AuthenticationManager authenticationManager ) {
+        this.groupManager = groupManager;
+        this.userManager = userManager;
+        this.authenticationManager = authenticationManager;
     }
 
     /** {@inheritDoc} */
@@ -388,7 +408,7 @@ public final class WikiSession implements Session {
         subject.getPrincipals().removeAll( subject.getPrincipals(GroupPrincipal.class) );
 
         // Get the GroupManager and test for each Group
-        final GroupManager manager = engine.getManager( GroupManager.class );
+        final GroupManager manager = groupManager != null ? groupManager : engine.getManager( GroupManager.class );
         for( final Principal group : manager.getRoles() ) {
             if ( manager.isUserInRole( this, group ) ) {
                 subject.getPrincipals().add( group );
@@ -411,7 +431,8 @@ public final class WikiSession implements Session {
         }
 
         // Look up the user and go get the new Principals
-        final UserDatabase database = engine.getManager( UserManager.class ).getUserDatabase();
+        final UserManager um = userManager != null ? userManager : engine.getManager( UserManager.class );
+        final UserDatabase database = um.getUserDatabase();
         if( database == null ) {
             throw new IllegalStateException( "User database cannot be null." );
         }
@@ -505,15 +526,17 @@ public final class WikiSession implements Session {
      * @return the guest wiki session
      */
     public static Session guestSession( final Engine engine ) {
-        final WikiSession session = new WikiSession();
+        // Resolve managers once here and store them on the session for later use.
+        final GroupManager groupMgr = engine.getManager( GroupManager.class );
+        final AuthenticationManager authMgr = engine.getManager( AuthenticationManager.class );
+        final UserManager userMgr = engine.getManager( UserManager.class );
+
+        final WikiSession session = new WikiSession( groupMgr, userMgr, authMgr );
         session.engine = engine;
         session.invalidate();
         session.antiCsrfToken = UUID.randomUUID().toString();
 
         // Add the session as listener for GroupManager, AuthManager, UserManager events
-        final GroupManager groupMgr = engine.getManager( GroupManager.class );
-        final AuthenticationManager authMgr = engine.getManager( AuthenticationManager.class );
-        final UserManager userMgr = engine.getManager( UserManager.class );
         groupMgr.addWikiEventListener( session );
         authMgr.addWikiEventListener( session );
         userMgr.addWikiEventListener( session );

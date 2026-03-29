@@ -6,6 +6,146 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-29** — Make username the Preferences link, remove separate Preferences button
+
+**2026-03-29** — Intercept internal wiki links for React Router navigation
+
+**2026-03-29** — Improve 403 error message in UserFormModal to suggest re-login
+
+**2026-03-29** — Add autocomplete attributes to login form for browser credential suggestions
+
+**2026-03-29** — Make tags in MetadataPanel clickable search links too
+
+**2026-03-29** — Make tags clickable search links for cross-article navigation
+
+**2026-03-28** — Fix diff viewer: API returns 'diff' field, not 'diffHtml'
+
+**2026-03-28** — Re-fetch page data when auth state changes to update permission buttons
+
+**2026-03-28** — Add explicit credentials: 'same-origin' to fetch calls
+
+**2026-03-28** — Revert changeSessionId() — breaks SessionMonitor session tracking
+
+**2026-03-28** — Fix login broken by session fixation prevention: re-register WikiSession after changeSessionId()
+
+**2026-03-28** — Add JSP dead code catalog: 228 files identified for removal after React migration
+
+**2026-03-28** — Add user preferences and lost password recovery
+
+**2026-03-28** — Add comments system: REST endpoint + React panel
+
+**2026-03-28** — Add page rename: REST endpoint + React modal
+
+**2026-03-28** — Add diff/version comparison viewer to React SPA
+
+**2026-03-28** — Add conflict resolution modal to page editor
+
+**2026-03-28** — Add page delete button with confirmation modal to React SPA
+
+**2026-03-28** — Add implementation plan: JSP to React migration (8 tasks)
+
+**2026-03-28** — Add design spec: JSP to React migration — complete UI feature parity
+
+**2026-03-28** — Add comprehensive plugin test coverage: 8 plugins, 74 new tests
+
+**2026-03-28** — Improve wikantik-main test coverage: auth, render, groups, JDBC
+
+**2026-03-28** — Extract invalidateCaches() in PageDirectoryWatcher to eliminate duplication
+
+**2026-03-28** — Push wikantik-rest toward 80%: restricted group names, nonexistent groups, version purge with history, bulk delete verification, search frontmatter
+
+**2026-03-28** — Improve wikantik-rest test coverage with meaningful assertions
+
+**2026-03-28** — Improve wikantik-util test coverage with meaningful assertions
+
+**2026-03-28** — Improve wikantik-mcp test coverage from 74.6% to 81.6% with meaningful assertions
+
+**2026-03-28** — Add CacheInfo tests and EhcacheCachingManager coverage improvements
+
+**2026-03-28** — Add WikiEvent base class and WikiEventManager coverage tests
+
+**2026-03-28** — Add AdminUserResource and AdminContentResource tests — wikantik-rest coverage improvement
+
+**2026-03-28** — Add tests for FormUtil, XhtmlUtil, XHTML, PropertiesUtils — wikantik-util coverage improvement
+
+**2026-03-28** — Add event module tests: WikiSecurityEvent, WikiPageEvent, WikiEngineEvent, WikiPageRenameEvent
+
+**2026-03-28** — Add SpaRoutingFilter tests: static asset passthrough, SPA route forwarding
+
+**2026-03-28** — Add AdminAuthFilter tests: OPTIONS passthrough, 403 for non-admin, valid JSON response
+
+**2026-03-28** — Add comprehensive tests for all 9 OWASP security header filters
+
+**2026-03-28** — Add test coverage: search permissions, SessionMonitor, CSRF admin exemption, attachment ACLs, frontmatter edge cases, DatabasePolicy errors, version conflicts, concurrency, CORS, bootstrap
+
+**2026-03-28** — Security hardening: CSP, session fixation, CORS restriction, error sanitization
+
+**2026-03-28** — Refactor MCP tools: extract methods to reduce cyclomatic complexity
+
+**2026-03-28** — Fix SpotBugs encoding, null-check, naming, and mutable-collection issues
+
+**2026-03-28** — Fix SpotBugs encoding, null-check, naming, and mutable-collection issues
+
+**2026-03-28** — Replace SessionMonitor WeakHashMap with ConcurrentHashMap for lock-free session lookup
+
+**2026-03-28** — Optimize Lucene search: skip full permission check for pages without ACLs
+
+**2026-03-28** — Update 6 docs to reflect current system capabilities
+
+**2026-03-28** — Update README and CLAUDE.md to reflect current capabilities
+
+**2026-03-28** — Scalability: increase cache capacity/TTL, replace synchronized with ReadWriteLock
+
+**2026-03-28** — Include effective permissions in page API response, gate Edit button on actual permission
+
+**2026-03-28** — Show Edit/Create buttons for all users, not just authenticated
+
+**2026-03-28** — Fix AllPermission checkbox: style as a clear toggle control, not orphaned checkbox
+
+**2026-03-28** — Fix policy grants table: align Manage column and constrain Actions width
+
+**2026-03-28** — Fix CSRF filter blocking admin POST/PUT/DELETE requests
+
+**2026-03-28** — Add Security tab to admin panel navigation and routing
+
+**2026-03-28** — Add AdminSecurityPage with Groups and Policy Grants sub-sections
+
+**2026-03-28** — Add PolicyGrantFormModal with context-sensitive action checkboxes
+
+**2026-03-28** — Add GroupFormModal component for create/edit group
+
+**2026-03-28** — Add implementation plan: admin security UI
+
+**2026-03-28** — Add design spec: admin security UI for groups and policy grants
+
+**2026-03-28** — Update config template and deploy script for database-backed permissions
+
+**2026-03-28** — Add admin REST endpoints for groups and policy grants, integrate DatabasePolicy into DefaultAuthorizationManager
+
+**2026-03-28** — Add DatabasePolicy: database-backed policy provider for authorization
+
+**2026-03-28** — Guard Admin group: block deletion and empty-member saves
+
+**2026-03-28** — Add DDL migration for policy_grants table with default seed data
+
+**2026-03-28** — Add implementation plan: database-backed permissions
+
+**2026-03-28** — Spec update: block removal of last Admin group member in code
+
+**2026-03-28** — Add design spec: database-backed permissions and group management
+
+**2026-03-27** — Security: add ObjectInputFilter whitelist to block unsafe deserialization
+
+**2026-03-27** — Security: enforce ACL/permission checks on REST API endpoints
+
+**2026-03-27** — Security: enforce ACL/permission checks on REST API endpoints
+
+**2026-03-27** — Update News page with recent development entries
+
+**2026-03-27** — Add NIST 800-63B password strength validation for user account creation
+
+**2026-03-27** — Security hardening: IP-restrict observability endpoints, sanitize health error messages, fix async filter support
+
 **2026-03-27** — Add wikantik-observability module: health checks, Prometheus metrics, structured logging, request correlation
 
 **2026-03-27** — Admin panel: user management, content management, and infrastructure improvements
@@ -838,69 +978,4 @@ A log of recent development activity on the JSPWiki project.
 **2025-09-30** — remove extra whitespace
 
 **2025-09-30** — Remove deprecated libraries usage + use some jdk-17 constructs
-
-**2025-09-27** — Dockerfile FROM tomcat 10.1
-
-**2025-09-27** — Leftovers from proper rebase from master
-
-**2025-09-27** — 3.0.0-git-01
-
-**2025-09-27** — Update tomcat binaries
-
-**2025-09-27** — Depedencies update
-
-
----
-
-## May 2025
-
-**2025-05-10** — Delete jspwiki-wikipages/de/.gitignore
-
-
----
-
-## April 2025
-
-**2025-04-16** — add jboss-deployment-structure.xml
-
-**2025-04-15** — moved xmlrpc to web-fragment
-
-**2025-04-07** — typo
-
-**2025-04-07** — pulled out xmlrpc
-
-
----
-
-## December 2024
-
-**2024-12-07** — Removes angus-mail definition, as it not used anywhere + fix a typo
-
-**2024-12-07** — Rework poms
-
-**2024-12-07** — remove Jetty usage
-
-**2024-12-07** — remove Stripes, http mocking is done through Mockito at the HttpMockFactory class
-
-
----
-
-## October 2024
-
-**2024-10-11** — remaining Tests work
-
-**2024-10-11** — MailUtilTest
-
-**2024-10-10** — Fixed most unit tests
-
-
----
-
-## September 2024
-
-**2024-09-08** — jakarta schemaLocation
-
-**2024-09-08** — AttachmentServlet to Commons FileUpload 2
-
-**2024-09-06** — javax to jakarta
 

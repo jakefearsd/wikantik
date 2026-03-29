@@ -249,20 +249,7 @@ public class AuthenticationManagerTest {
     }
 
     @Test
-    public void testSessionIdRegeneratedAfterLogin() throws Exception {
-        // Create a mock request with a tracked changeSessionId() call
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
-
-        // Perform login with username/password
-        final Session session = WikiSession.guestSession( m_engine );
-        m_auth.login( session, request, Users.JANNE, Users.JANNE_PASS );
-
-        // Verify that changeSessionId() was called to prevent session fixation
-        Mockito.verify( request ).changeSessionId();
-    }
-
-    @Test
-    public void testSessionIdNotRegeneratedWhenRequestIsNull() throws Exception {
+    public void testLoginWithNullRequestSucceeds() throws Exception {
         // When request is null, login should still succeed without NPE
         final Session session = WikiSession.guestSession( m_engine );
         final boolean result = m_auth.login( session, null, Users.JANNE, Users.JANNE_PASS );

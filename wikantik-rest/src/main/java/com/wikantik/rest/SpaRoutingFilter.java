@@ -30,17 +30,24 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
- * SPA routing filter for the React frontend at {@code /app/*}.
+ * SPA routing filter for the React frontend served at the root context.
  *
- * <p>When a request comes in for a path like {@code /app/wiki/SomePage},
- * Tomcat would normally return 404 because no such file exists.
- * This filter forwards non-asset requests to {@code /app/index.html}
- * so React Router can handle client-side routing.
- *
- * <p>Requests for static assets (JS, CSS, images, fonts) are passed
- * through to be served directly by Tomcat.
+ * <p>Handles three concerns:
+ * <ol>
+ *   <li><b>Redirects</b> — {@code /}, {@code /wiki}, and {@code /wiki/} redirect
+ *       to {@code /wiki/Main} so the wiki always has a concrete page.</li>
+ *   <li><b>SPA forwarding</b> — known SPA prefixes ({@code /wiki/}, {@code /edit/},
+ *       {@code /diff/}, {@code /admin/}) and exact SPA routes ({@code /search},
+ *       {@code /preferences}, {@code /reset-password}) are forwarded to
+ *       {@code /index.html} for React Router.</li>
+ *   <li><b>Static assets</b> — requests containing a file extension (other than
+ *       {@code .html}) pass through to Tomcat's default servlet.</li>
+ * </ol>
  */
 public class SpaRoutingFilter implements Filter {
+
+    private static final String[] SPA_PREFIXES = { "/wiki/", "/edit/", "/diff/", "/admin/" };
+    private static final String[] SPA_EXACT = { "/search", "/preferences", "/reset-password" };
 
     @Override
     public void init( final FilterConfig filterConfig ) throws ServletException {
@@ -50,7 +57,14 @@ public class SpaRoutingFilter implements Filter {
     public void doFilter( final ServletRequest request, final ServletResponse response,
                            final FilterChain chain ) throws IOException, ServletException {
         final HttpServletRequest req = ( HttpServletRequest ) request;
+        final HttpServletResponse resp = ( HttpServletResponse ) response;
         final String path = req.getRequestURI();
+
+        // Redirect / and /wiki/ to /wiki/Main (server-side, independent of SPA)
+        if ( "/".equals( path ) || "/wiki/".equals( path ) || "/wiki".equals( path ) ) {
+            resp.sendRedirect( "/wiki/Main" );
+            return;
+        }
 
         // Let static assets through (JS, CSS, images, fonts, favicon)
         if ( path.contains( "." ) && !path.endsWith( ".html" ) ) {
@@ -58,8 +72,22 @@ public class SpaRoutingFilter implements Filter {
             return;
         }
 
-        // Forward all other /app/* requests to index.html for React Router
-        req.getRequestDispatcher( "/app/index.html" ).forward( request, response );
+        // Check if this is a SPA route — forward to index.html
+        for ( final String prefix : SPA_PREFIXES ) {
+            if ( path.startsWith( prefix ) ) {
+                req.getRequestDispatcher( "/index.html" ).forward( request, response );
+                return;
+            }
+        }
+        for ( final String exact : SPA_EXACT ) {
+            if ( path.equals( exact ) || path.startsWith( exact + "?" ) ) {
+                req.getRequestDispatcher( "/index.html" ).forward( request, response );
+                return;
+            }
+        }
+
+        // Everything else passes through
+        chain.doFilter( request, response );
     }
 
     @Override

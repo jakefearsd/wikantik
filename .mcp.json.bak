@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "wiki-content": {
+      "type": "http",
+      "url": "https://wiki.jakefear.com/mcp",
+      "headers": {
+        "Authorization": "Bearer 23f84aa9677bdc33e36d4bf8e21c4fba81c7ff9f5f2c8262d80cd5a3643c3a15"
+      }
+    }
+  }
+}

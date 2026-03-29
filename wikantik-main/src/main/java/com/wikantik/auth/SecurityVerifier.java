@@ -70,6 +70,12 @@ public final class SecurityVerifier {
 
     private final Session               session;
 
+    private final AuthorizationManager  authorizationManager;
+
+    private final GroupManager          groupManager;
+
+    private final UserManager           userManager;
+
     /** Message prefix for errors. */
     public static final String    ERROR                        = "Error.";
 
@@ -152,8 +158,31 @@ public final class SecurityVerifier {
      * @param session the wiki session (typically, that of an administrator)
      */
     public SecurityVerifier( final Engine engine, final Session session ) {
+        this( engine, session,
+              engine.getManager( AuthorizationManager.class ),
+              engine.getManager( GroupManager.class ),
+              engine.getManager( UserManager.class ) );
+    }
+
+    /**
+     * Constructs a new SecurityVerifier with explicitly provided manager dependencies.
+     * This constructor is useful for testing, allowing mock managers to be injected directly.
+     *
+     * @param engine the wiki engine
+     * @param session the wiki session (typically, that of an administrator)
+     * @param authorizationManager the authorization manager
+     * @param groupManager the group manager
+     * @param userManager the user manager
+     */
+    SecurityVerifier( final Engine engine, final Session session,
+                      final AuthorizationManager authorizationManager,
+                      final GroupManager groupManager,
+                      final UserManager userManager ) {
         this.engine = engine;
         this.session = session;
+        this.authorizationManager = authorizationManager;
+        this.groupManager = groupManager;
+        this.userManager = userManager;
         this.session.clearMessages();
         verifyJaas();
         verifyPolicy();
@@ -339,7 +368,6 @@ public final class SecurityVerifier {
      * @throws WikiException if tests fail for unexpected reasons
      */
     public String containerRoleTable() throws WikiException {
-        final AuthorizationManager authorizationManager = engine.getManager( AuthorizationManager.class );
         final Authorizer authorizer = authorizationManager.getAuthorizer();
 
         // If authorizer not WebContainerAuthorizer, print error message
@@ -424,7 +452,7 @@ public final class SecurityVerifier {
      * @throws WikiException if the web authorizer cannot obtain the list of roles
      */
     public Principal[] webContainerRoles() throws WikiException {
-        final Authorizer authorizer = engine.getManager( AuthorizationManager.class ).getAuthorizer();
+        final Authorizer authorizer = authorizationManager.getAuthorizer();
         if ( authorizer instanceof WebContainerAuthorizer wca ) {
             return wca.getRoles();
         }
@@ -437,7 +465,7 @@ public final class SecurityVerifier {
      * @throws WikiException if the web authorizer cannot verify the roles
      */
     void verifyPolicyAndContainerRoles() throws WikiException {
-        final Authorizer authorizer = engine.getManager( AuthorizationManager.class ).getAuthorizer();
+        final Authorizer authorizer = authorizationManager.getAuthorizer();
         final Principal[] containerRoles = authorizer.getRoles();
         boolean missing = false;
         for( final Principal principal : policyPrincipals ) {
@@ -459,10 +487,10 @@ public final class SecurityVerifier {
      * user add and delete operations work as they should.
      */
     void verifyGroupDatabase() {
-        final GroupManager mgr = engine.getManager( GroupManager.class );
+        final GroupManager mgr = groupManager;
         GroupDatabase db = null;
         try {
-            db = engine.getManager( GroupManager.class ).getGroupDatabase();
+            db = groupManager.getGroupDatabase();
         } catch ( final WikiSecurityException e ) {
             session.addMessage( ERROR_GROUPS, "Could not retrieve GroupManager: " + e.getMessage() );
         }
@@ -704,7 +732,7 @@ public final class SecurityVerifier {
         // JSPWiki now relies solely on its local policy for authorization.
         // Check local policy directly
         final Principal[] principals = new Principal[]{ principal };
-        return engine.getManager( AuthorizationManager.class ).allowedByLocalPolicy( principals, permission );
+        return authorizationManager.allowedByLocalPolicy( principals, permission );
     }
 
     /**
@@ -712,7 +740,7 @@ public final class SecurityVerifier {
      * user add and delete operations work as they should.
      */
     void verifyUserDatabase() {
-        final UserDatabase db = engine.getManager( UserManager.class ).getUserDatabase();
+        final UserDatabase db = userManager.getUserDatabase();
 
         // Check for obvious error conditions
         if ( db == null ) {

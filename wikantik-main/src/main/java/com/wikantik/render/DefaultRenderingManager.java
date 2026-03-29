@@ -79,6 +79,10 @@ public class DefaultRenderingManager implements RenderingManager {
 
     private Engine engine;
     private CachingManager cachingManager;
+    private FilterManager filterManager;
+    private PageManager pageManager;
+    private AttachmentManager attachmentManager;
+    private VariableManager variableManager;
 
     /** If true, all titles will be cleaned. */
     private boolean beautifyTitle;
@@ -96,6 +100,46 @@ public class DefaultRenderingManager implements RenderingManager {
     private String markupParserClass = DEFAULT_PARSER;
 
     /**
+     * Constructor that accepts all dependencies directly for testability.
+     * <p>
+     * Note: {@link ReferenceManager} is NOT injected here because it is Phase 8
+     * (DefaultRenderingManager is Phase 5). It is resolved lazily via
+     * {@link #getReferenceManager()}.
+     *
+     * @param engine              the wiki engine
+     * @param cachingManager      cache facade (Phase 1)
+     * @param filterManager       filter pipeline (Phase 4)
+     * @param pageManager         page storage (Phase 2)
+     * @param attachmentManager   attachment storage (Phase 2)
+     * @param variableManager     variable resolution (Phase 3)
+     */
+    public DefaultRenderingManager( final Engine engine,
+                                    final CachingManager cachingManager,
+                                    final FilterManager filterManager,
+                                    final PageManager pageManager,
+                                    final AttachmentManager attachmentManager,
+                                    final VariableManager variableManager ) {
+        this.engine = engine;
+        this.cachingManager = cachingManager;
+        this.filterManager = filterManager;
+        this.pageManager = pageManager;
+        this.attachmentManager = attachmentManager;
+        this.variableManager = variableManager;
+    }
+
+    /** Legacy no-arg constructor used by the SPI loader; delegates to the full constructor. */
+    public DefaultRenderingManager() {
+    }
+
+    /**
+     * Lazy accessor for {@link ReferenceManager} — it is Phase 8, so it is not available at
+     * construction time (Phase 5). Resolved on first use in {@link #actionPerformed}.
+     */
+    private ReferenceManager getReferenceManager() {
+        return engine.getManager( ReferenceManager.class );
+    }
+
+    /**
      *  {@inheritDoc}
      *
      *  Checks for cache size settings, initializes the document cache. Looks for alternative WikiRenderers, initializes one, or the
@@ -104,7 +148,12 @@ public class DefaultRenderingManager implements RenderingManager {
     @Override
     public void initialize( final Engine engine, final Properties properties ) throws WikiException {
         this.engine = engine;
-        cachingManager = this.engine.getManager( CachingManager.class );
+        this.cachingManager = engine.getManager( CachingManager.class );
+        this.filterManager = engine.getManager( FilterManager.class );
+        this.pageManager = engine.getManager( PageManager.class );
+        this.attachmentManager = engine.getManager( AttachmentManager.class );
+        this.variableManager = engine.getManager( VariableManager.class );
+
         markupParserClass = properties.getProperty( PROP_PARSER, DEFAULT_PARSER );
         if( !ClassUtil.assignable( markupParserClass, MarkupParser.class.getName() ) ) {
         	LOG.warn( "{} does not subclass {} reverting to default markup parser.", markupParserClass, MarkupParser.class.getName() );
@@ -122,7 +171,7 @@ public class DefaultRenderingManager implements RenderingManager {
 
         LOG.info( "Rendering content with {}.", renderImplName );
 
-        WikiEventManager.addWikiEventListener( this.engine.getManager( FilterManager.class ),this );
+        WikiEventManager.addWikiEventListener( this.filterManager, this );
     }
 
     private Constructor< ? > initRenderer( final String renderImplName, final Class< ? >[] rendererParams ) throws WikiException {
@@ -150,7 +199,7 @@ public class DefaultRenderingManager implements RenderingManager {
     public String beautifyTitle( final String title ) {
         if( beautifyTitle ) {
             try {
-                final Attachment att = engine.getManager( AttachmentManager.class ).getAttachmentInfo( title );
+                final Attachment att = attachmentManager.getAttachmentInfo( title );
                 if( att == null ) {
                     return TextUtil.beautifyString( title );
                 }
@@ -313,7 +362,7 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public String getHTML( final Context context, final Page page ) {
-        final String pagedata = engine.getManager( PageManager.class ).getPureText( page.getName(), page.getVersion() );
+        final String pagedata = pageManager.getPureText( page.getName(), page.getVersion() );
         return textToHTML( context, pagedata );
     }
 
@@ -327,7 +376,7 @@ public class DefaultRenderingManager implements RenderingManager {
      */
     @Override
     public String getHTML( final String pagename, final int version ) {
-        final Page page = engine.getManager( PageManager.class ).getPage( pagename, version );
+        final Page page = pageManager.getPage( pagename, version );
         final Context context = Wiki.context().create( engine, page );
         context.setRequestContext( ContextEnum.PAGE_NONE.getRequestContext() );
         return getHTML( context, page );
@@ -353,19 +402,19 @@ public class DefaultRenderingManager implements RenderingManager {
             }
         }
 
-        final boolean runFilters = "true".equals( engine.getManager( VariableManager.class ).getValue( context,VariableManager.VAR_RUNFILTERS,"true" ) );
+        final boolean runFilters = "true".equals( variableManager.getValue( context, VariableManager.VAR_RUNFILTERS, "true" ) );
 
         final StopWatch sw = new StopWatch();
         sw.start();
         try {
             if( runFilters ) {
-                pagedata = engine.getManager( FilterManager.class ).doPreTranslateFiltering( context, pagedata );
+                pagedata = filterManager.doPreTranslateFiltering( context, pagedata );
             }
 
             result = getHTML( context, pagedata );
 
             if( runFilters ) {
-                result = engine.getManager( FilterManager.class ).doPostTranslateFiltering( context, result );
+                result = filterManager.doPostTranslateFiltering( context, result );
             }
         } catch( final FilterException e ) {
             LOG.error( "page filter threw exception: ", e );
@@ -402,14 +451,14 @@ public class DefaultRenderingManager implements RenderingManager {
             return null;
         }
 
-        final boolean runFilters = "true".equals( engine.getManager( VariableManager.class ).getValue( context, VariableManager.VAR_RUNFILTERS,"true" ) );
+        final boolean runFilters = "true".equals( variableManager.getValue( context, VariableManager.VAR_RUNFILTERS, "true" ) );
 
         try {
             final StopWatch sw = new StopWatch();
             sw.start();
 
-            if( runFilters && engine.getManager( FilterManager.class ) != null ) {
-                pagedata = engine.getManager( FilterManager.class ).doPreTranslateFiltering( context, pagedata );
+            if( runFilters && filterManager != null ) {
+                pagedata = filterManager.doPreTranslateFiltering( context, pagedata );
             }
 
             final MarkupParser mp = getParser( context, pagedata );
@@ -425,8 +474,8 @@ public class DefaultRenderingManager implements RenderingManager {
             //  In some cases it's better just to parse, not to render
             if( !justParse ) {
                 result = getHTML( context, doc );
-                if( runFilters && engine.getManager( FilterManager.class ) != null ) {
-                    result = engine.getManager( FilterManager.class ).doPostTranslateFiltering( context, result );
+                if( runFilters && filterManager != null ) {
+                    result = filterManager.doPostTranslateFiltering( context, result );
                 }
             }
 
@@ -496,7 +545,7 @@ public class DefaultRenderingManager implements RenderingManager {
             final String pageName = ( ( WikiPageEvent ) event ).getPageName();
             cachingManager.remove( CachingManager.CACHE_DOCUMENTS, pageName );
             cachingManager.remove( CachingManager.CACHE_HTML, pageName );
-            final Collection< String > referringPages = engine.getManager( ReferenceManager.class ).findReferrers( pageName );
+            final Collection< String > referringPages = getReferenceManager().findReferrers( pageName );
 
             // Flush also those pages that refer to this page (if a nonexistent page
             // appears, we need to flush the HTML that refers to the now-existent page)

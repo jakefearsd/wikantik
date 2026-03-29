@@ -89,6 +89,8 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
     private static final Pattern NUMERIC_ENTITY_PATTERN = Pattern.compile( "&#(x?)([0-9a-fA-F]+);" );
 
     private Engine engine;
+    private PageManager pageManager;
+    private RenderingManager renderingManager;
     private SystemPageRegistry systemPageRegistry;
     private int cacheTTL;
     private int defaultCount;
@@ -99,18 +101,42 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
     private final ConcurrentHashMap<Integer, CacheEntry> cache = new ConcurrentHashMap<>();
 
     /**
+     * Constructor with explicit dependency injection for testability.
+     *
+     * @param engine             the wiki engine
+     * @param pageManager        the page manager for page retrieval
+     * @param renderingManager   the rendering manager for HTML generation
+     * @param systemPageRegistry the system page registry for exclusion checks
+     */
+    public DefaultRecentArticlesManager( final Engine engine,
+                                         final PageManager pageManager,
+                                         final RenderingManager renderingManager,
+                                         final SystemPageRegistry systemPageRegistry ) {
+        this.engine = engine;
+        this.pageManager = pageManager;
+        this.renderingManager = renderingManager;
+        this.systemPageRegistry = systemPageRegistry;
+    }
+
+    /**
+     * No-arg constructor for SPI/reflection-based instantiation.
+     * Fields are populated in {@link #initialize(Engine, Properties)}.
+     */
+    public DefaultRecentArticlesManager() {
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override
     public void initialize( final Engine newEngine, final Properties props ) {
         this.engine = newEngine;
-
+        this.pageManager = newEngine.getManager( PageManager.class );
+        this.renderingManager = newEngine.getManager( RenderingManager.class );
+        this.systemPageRegistry = newEngine.getManager( SystemPageRegistry.class );
         cacheTTL = TextUtil.getIntegerProperty( props, PROP_CACHE_TTL, DEFAULT_CACHE_TTL );
         defaultCount = TextUtil.getIntegerProperty( props, PROP_DEFAULT_COUNT, RecentArticlesQuery.DEFAULT_COUNT );
         defaultExcerptLength = TextUtil.getIntegerProperty( props, PROP_DEFAULT_EXCERPT_LENGTH, RecentArticlesQuery.DEFAULT_EXCERPT_LENGTH );
-
-        // Use centralized SystemPageRegistry for system page exclusion
-        systemPageRegistry = newEngine.getManager( SystemPageRegistry.class );
 
         // Parse additional exclude patterns from properties
         excludePatterns = new ArrayList<>();
@@ -170,7 +196,6 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
      */
     @Override
     public boolean hasTemplatePage() {
-        final PageManager pageManager = engine.getManager( PageManager.class );
         return pageManager != null && pageManager.wikiPageExists( TEMPLATE_PAGE_NAME );
     }
 
@@ -200,7 +225,6 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
      * The template page can use special placeholders that get replaced with article data.
      */
     private String renderWithWikiTemplate( final Context context, final List<ArticleSummary> articles ) {
-        final PageManager pageManager = engine.getManager( PageManager.class );
         final String templateText = pageManager.getPureText( TEMPLATE_PAGE_NAME, -1 );
 
         if ( templateText == null || templateText.isEmpty() ) {
@@ -242,7 +266,6 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         result.append( renderTemplatePart( footer, null, 0, articles.size() ) );
 
         // Render the wiki markup to HTML
-        final RenderingManager renderingManager = engine.getManager( RenderingManager.class );
         if ( renderingManager != null ) {
             try {
                 return renderingManager.textToHTML( context, result.toString() );
@@ -269,7 +292,6 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         result = result.replace( "%%ARTICLE_LIST%%", articleList.toString() );
 
         // Render to HTML
-        final RenderingManager renderingManager = engine.getManager( RenderingManager.class );
         if ( renderingManager != null ) {
             try {
                 return renderingManager.textToHTML( context, result );
@@ -319,8 +341,6 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
      */
     private List<ArticleSummary> buildRecentArticles( final Context context, final RecentArticlesQuery query ) {
         final List<ArticleSummary> results = new ArrayList<>();
-        final PageManager pageManager = engine.getManager( PageManager.class );
-        final RenderingManager renderingManager = engine.getManager( RenderingManager.class );
 
         if ( pageManager == null ) {
             LOG.warn( "PageManager not available" );

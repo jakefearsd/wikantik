@@ -85,8 +85,11 @@ public class DefaultPageManager implements PageManager {
     private final PageSorter pageSorter = new PageSorter();
     private LockReaper reaper;
 
+    // Injected Phase 1 manager — available at PageManager construction time
+    private final CommandResolver commandResolver;
+
     /**
-     * Creates a new PageManager.
+     * Creates a new PageManager, resolving managers from the engine.
      *
      * @param newEngine Engine instance
      * @param props  Properties to use for initialization
@@ -94,7 +97,27 @@ public class DefaultPageManager implements PageManager {
      * @throws WikiException If anything goes wrong, you get this.
      */
     public DefaultPageManager(final Engine newEngine, final Properties props) throws NoSuchElementException, WikiException {
+        this( newEngine, props, newEngine.getManager( CommandResolver.class ) );
+    }
+
+    /**
+     * Constructor that accepts pre-resolved managers for testability.
+     * <p>
+     * Only Phase 1 managers (those initialized before PageManager in WikiEngine) can be injected here.
+     * Phase 2+ managers (AttachmentManager, FilterManager, SearchManager, ReferenceManager, AclManager)
+     * are not available at PageManager construction time due to initialization ordering and are
+     * accessed lazily via {@code engine.getManager()}.
+     *
+     * @param newEngine       Engine instance
+     * @param props           Properties to use for initialization
+     * @param commandResolver Phase 1 CommandResolver
+     * @throws NoSuchElementException {@value #PROP_PAGEPROVIDER} property not found on Engine properties
+     * @throws WikiException If anything goes wrong, you get this.
+     */
+    DefaultPageManager(final Engine newEngine, final Properties props,
+                       final CommandResolver commandResolver) throws NoSuchElementException, WikiException {
         this.engine = newEngine;
+        this.commandResolver = commandResolver;
         final String classname;
         final boolean useCache = engine.getManager( CachingManager.class ).enabled( CachingManager.CACHE_PAGES );
         expiryTime = TextUtil.parseIntParameter( props.getProperty( PROP_LOCKEXPIRY ), 60 );
@@ -124,6 +147,25 @@ public class DefaultPageManager implements PageManager {
             throw new WikiException("Unable to start page provider: " + e.getMessage(), e);
         }
 
+    }
+
+    /**
+     * Package-private test-only constructor that bypasses provider initialization entirely.
+     * Accepts a pre-built PageProvider so tests can use mocks without hitting the filesystem.
+     *
+     * @param newEngine       Engine instance (may be a mock)
+     * @param commandResolver Phase 1 CommandResolver (may be a mock)
+     * @param pageProvider    Pre-built PageProvider (may be a mock)
+     * @param lockExpiryMinutes Lock expiry time in minutes
+     */
+    DefaultPageManager(final Engine newEngine,
+                       final CommandResolver commandResolver,
+                       final PageProvider pageProvider,
+                       final int lockExpiryMinutes) {
+        this.engine = newEngine;
+        this.commandResolver = commandResolver;
+        this.provider = pageProvider;
+        this.expiryTime = lockExpiryMinutes;
     }
 
     /**
@@ -164,7 +206,7 @@ public class DefaultPageManager implements PageManager {
             //  Empty the references and yay, it shall be recalculated
             final Page reindexedPage = provider.getPageInfo( pageName, version );
 
-            engine.getManager( ReferenceManager.class ).updateReferences( reindexedPage );
+            getReferenceManager().updateReferences( reindexedPage );
             fireEvent( WikiPageEvent.PAGE_REINDEX, reindexedPage.getName() );
             text = provider.getPageText( pageName, version );
         }
@@ -226,18 +268,18 @@ public class DefaultPageManager implements PageManager {
         }
 
         // Run pre-save filters
-        final String saveText = engine.getManager( FilterManager.class ).doPreSaveFiltering( context, proposedText );
+        final String saveText = getFilterManager().doPreSaveFiltering( context, proposedText );
 
         // Save the page text
         putPageText( page, saveText );
 
         // Refresh the context for post-save filtering
         getPage( page.getName() );
-        engine.getManager( FilterManager.class ).doPostSaveFiltering( context, saveText );
+        getFilterManager().doPostSaveFiltering( context, saveText );
 
         // Reindex the saved page
         page.setVersion( com.wikantik.api.providers.PageProvider.LATEST_VERSION );
-        engine.getManager( SearchManager.class ).reindexPage( page );
+        getSearchManager().reindexPage( page );
     }
 
     /**
@@ -247,6 +289,34 @@ public class DefaultPageManager implements PageManager {
      */
     protected Engine getEngine() {
         return engine;
+    }
+
+    // --- Lazy accessors for managers initialized AFTER PageManager (Phase 2+) ---
+    // These cannot be constructor-injected because WikiEngine creates them after PageManager.
+
+    /** Phase 2 — initialized immediately after PageManager in WikiEngine. */
+    private AttachmentManager getAttachmentManager() {
+        return engine.getManager( AttachmentManager.class );
+    }
+
+    /** Phase 3 — initialized after all storage providers. */
+    private SearchManager getSearchManager() {
+        return engine.getManager( SearchManager.class );
+    }
+
+    /** Phase 4 — initialized after utility/security managers. */
+    private FilterManager getFilterManager() {
+        return engine.getManager( FilterManager.class );
+    }
+
+    /** Phase 4 — initialized after utility/security managers. */
+    private AclManager getAclManager() {
+        return engine.getManager( AclManager.class );
+    }
+
+    /** Phase 8 — initialized last, after RenderingManager. */
+    private ReferenceManager getReferenceManager() {
+        return engine.getManager( ReferenceManager.class );
     }
 
     /**
@@ -341,7 +411,7 @@ public class DefaultPageManager implements PageManager {
         try {
             Page p = getPageInfo( pagereq, version );
             if( p == null ) {
-                p = engine.getManager( AttachmentManager.class ).getAttachmentInfo( null, pagereq );
+                p = getAttachmentManager().getAttachmentInfo( null, pagereq );
             }
 
             return p;
@@ -370,9 +440,9 @@ public class DefaultPageManager implements PageManager {
             LOG.info( "Repository has been modified externally while fetching info for {}", pageName );
             page = provider.getPageInfo( pageName, version );
             if( page != null ) {
-                engine.getManager( ReferenceManager.class ).updateReferences( page );
+                getReferenceManager().updateReferences( page );
             } else {
-                engine.getManager( ReferenceManager.class ).pageRemoved( Wiki.contents().page( engine, pageName ) );
+                getReferenceManager().pageRemoved( Wiki.contents().page( engine, pageName ) );
             }
         }
 
@@ -393,7 +463,7 @@ public class DefaultPageManager implements PageManager {
             }
 
             if( c == null ) {
-                c = ( List< T > )engine.getManager( AttachmentManager.class ).getVersionHistory( pageName );
+                c = ( List< T > )getAttachmentManager().getVersionHistory( pageName );
             }
         } catch( final ProviderException e ) {
             LOG.error( "ProviderException requesting version history for {}", pageName, e );
@@ -453,7 +523,7 @@ public class DefaultPageManager implements PageManager {
         try {
             final var sortedPages = new TreeSet<>( new PageTimeComparator() );
             sortedPages.addAll( provider.getAllChangedSince( since ) );
-            sortedPages.addAll( engine.getManager( AttachmentManager.class ).getAllAttachmentsSince( since ) );
+            sortedPages.addAll( getAttachmentManager().getAllAttachmentsSince( since ) );
 
             return sortedPages;
         } catch( final ProviderException e ) {
@@ -498,7 +568,7 @@ public class DefaultPageManager implements PageManager {
      */
     @Override
     public boolean wikiPageExists( final String page ) {
-        if( engine.getManager( CommandResolver.class ).getSpecialPageReference( page ) != null ) {
+        if( commandResolver.getSpecialPageReference( page ) != null ) {
             return true;
         }
 
@@ -508,7 +578,7 @@ public class DefaultPageManager implements PageManager {
                 return true;
             }
 
-            att = engine.getManager( AttachmentManager.class ).getAttachmentInfo( null, page );
+            att = getAttachmentManager().getAttachmentInfo( null, page );
         } catch( final ProviderException e ) {
             LOG.debug( "pageExists() failed to find attachments", e );
         }
@@ -522,7 +592,7 @@ public class DefaultPageManager implements PageManager {
      */
     @Override
     public boolean wikiPageExists( final String page, final int version ) throws ProviderException {
-        if( engine.getManager( CommandResolver.class ).getSpecialPageReference( page ) != null ) {
+        if( commandResolver.getSpecialPageReference( page ) != null ) {
             return true;
         }
 
@@ -535,7 +605,7 @@ public class DefaultPageManager implements PageManager {
         if( !isThere ) {
             //  Go check if such an attachment exists.
             try {
-                isThere = engine.getManager( AttachmentManager.class ).getAttachmentInfo( null, page, version ) != null;
+                isThere = getAttachmentManager().getAttachmentInfo( null, page, version ) != null;
             } catch( final ProviderException e ) {
                 LOG.debug( "wikiPageExists() failed to find attachments", e );
             }
@@ -551,7 +621,7 @@ public class DefaultPageManager implements PageManager {
     @Override
     public void deleteVersion( final Page page ) throws ProviderException {
         if( page instanceof Attachment att ) {
-            engine.getManager( AttachmentManager.class ).deleteVersion( att );
+            getAttachmentManager().deleteVersion( att );
         } else {
             provider.deleteVersion( page.getName(), page.getVersion() );
             // FIXME: If this was the latest, reindex Lucene, update RefMgr
@@ -567,16 +637,16 @@ public class DefaultPageManager implements PageManager {
         final Page pageToDelete = getPage( pageName );
         if( pageToDelete != null ) {
             if( pageToDelete instanceof Attachment att ) {
-                engine.getManager( AttachmentManager.class ).deleteAttachment( att );
+                getAttachmentManager().deleteAttachment( att );
             } else {
-                final Collection< String > refTo = new ArrayList<>( engine.getManager( ReferenceManager.class ).findRefersTo( pageName ) );
+                final Collection< String > refTo = new ArrayList<>( getReferenceManager().findRefersTo( pageName ) );
 
-                if( engine.getManager( AttachmentManager.class ).hasAttachments( pageToDelete ) ) {
-                    final List< Attachment > attachments = engine.getManager( AttachmentManager.class ).listAttachments( pageToDelete );
+                if( getAttachmentManager().hasAttachments( pageToDelete ) ) {
+                    final List< Attachment > attachments = getAttachmentManager().listAttachments( pageToDelete );
                     for( final Attachment attachment : attachments ) {
                         refTo.remove( attachment.getName() );
 
-                        engine.getManager( AttachmentManager.class ).deleteAttachment( attachment );
+                        getAttachmentManager().deleteAttachment( attachment );
                     }
                 }
                 deletePage( pageToDelete );
@@ -675,7 +745,7 @@ public class DefaultPageManager implements PageManager {
                     if( aclChanged ) {
                         // If the Acl needed changing, change it now
                         try {
-                            engine.getManager( AclManager.class ).setPermissions( page, page.getAcl() );
+                            getAclManager().setPermissions( page, page.getAcl() );
                         } catch( final WikiSecurityException e ) {
                             LOG.error("Could not change page ACL for page {}: {}", page.getName(), e.getMessage(), e);
                         }

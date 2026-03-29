@@ -25,7 +25,11 @@ export default function UserFormModal({ user, isOpen, onClose, onSave }) {
       await onSave(form);
       onClose();
     } catch (err) {
-      setError(err.message || 'Failed to save user');
+      if (err.status === 403) {
+        setError('Session expired or not authorized. Please refresh the page and log in again.');
+      } else {
+        setError(err.message || 'Failed to save user');
+      }
     } finally {
       setSaving(false);
     }

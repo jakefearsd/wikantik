@@ -111,17 +111,6 @@ public class LogLevelEnforcementTest {
             "WikiServletFilter.java",
             "SimpleMBean.java",
             "Preferences.java",
-            // JSP tags — rendering failures in tags
-            "WikiTagBase.java",
-            "WikiBodyTag.java",
-            "PluginTag.java",
-            "LinkTag.java",
-            "TranslateTag.java",
-            "IteratorTag.java",
-            "HistoryIteratorTag.java",
-            "AttachmentsIteratorTag.java",
-            "EditorTag.java",
-            "SearchResultIteratorTag.java",
             // Diff providers — diff generation failures
             "ContextualDiffProvider.java",
             "TraditionalDiffProvider.java",
@@ -138,11 +127,8 @@ public class LogLevelEnforcementTest {
             "DefaultFilterManager.java",
             "SpamFilter.java",
             "ProfanityFilter.java",
-            // UI layer — JSP filter, template, admin, servlets
+            // UI layer — servlets and command resolver
             "WikiJSPFilter.java",
-            "DefaultTemplateManager.java",
-            "WikiFormAdminBean.java",
-            "DefaultAdminBeanManager.java",
             "SitemapServlet.java",
             "DefaultCommandResolver.java",
             "AttachmentServlet.java",

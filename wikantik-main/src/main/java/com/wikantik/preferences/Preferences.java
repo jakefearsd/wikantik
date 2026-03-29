@@ -18,7 +18,6 @@
  */
 package com.wikantik.preferences;
 
-import com.google.gson.Gson;
 import org.apache.commons.lang3.LocaleUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -26,21 +25,14 @@ import org.apache.logging.log4j.Logger;
 import com.wikantik.InternalWikiException;
 import com.wikantik.api.core.Context;
 import com.wikantik.i18n.InternationalizationManager;
-import com.wikantik.util.HttpUtil;
-import com.wikantik.util.PropertyReader;
-import com.wikantik.util.TextUtil;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
-import jakarta.servlet.jsp.PageContext;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 import java.util.MissingResourceException;
-import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.TimeZone;
 
@@ -57,100 +49,14 @@ public class Preferences extends HashMap< String,String > {
      */
     public static final String SESSIONPREFS = "prefs";
 
-    public static final String COOKIE_USER_PREFS_NAME = "JSPWikiUserPrefs";
-
     private static final Logger LOG = LogManager.getLogger( Preferences.class );
 
     /**
-     *  This is an utility method which is called to make sure that the
-     *  JSP pages do have proper access to any user preferences.  It should be
-     *  called from the commonheader.jsp.
-     *  <p>
-     *  This method reads user cookie preferences and mixes them up with any
-     *  default preferences (and in the future, any user-specific preferences)
-     *  and puts them all in the session, so that they do not have to be rewritten
-     *  again.
-     *  <p>
-     *  This method will remember if the user has already changed his prefs.
-     *
-     *  @param pageContext The JSP PageContext.
-     */
-    public static void setupPreferences( final PageContext pageContext ) {
-        final HttpSession session = pageContext.getSession();
-        if( session.getAttribute( SESSIONPREFS ) == null ) {
-            reloadPreferences( pageContext );
-        }
-    }
-
-    /**
-     *  Reloads the preferences from the PageContext into the WikiContext.
-     *
-     *  @param pageContext The page context.
-     */
-    // FIXME: The way that date preferences are chosen is currently a bit wacky: it all gets saved to the cookie based on the browser state
-    //        with which the user happened to first arrive to the site with.  This, unfortunately, means that even if the user changes e.g.
-    //        language preferences (like in a web cafe), the old preferences still remain in a site cookie.
-    public static void reloadPreferences( final PageContext pageContext ) {
-        final Preferences prefs = new Preferences();
-        final Properties props = PropertyReader.loadWebAppProps( pageContext.getServletContext() );
-        final Context ctx = Context.findContext( pageContext );
-        final String dateFormat = ctx.getEngine().getManager( InternationalizationManager.class )
-                                           .get( InternationalizationManager.CORE_BUNDLE, getLocale( ctx ), "common.datetimeformat" );
-
-        prefs.put("SkinName", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.skinname", "PlainVanilla" ) );
-        prefs.put("DateFormat", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.dateformat", dateFormat ) );
-        prefs.put("TimeZone", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.timezone", TimeZone.getDefault().getID() ) );
-        prefs.put("Orientation", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.orientation", "fav-left" ) );
-        prefs.put("Sidebar", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.sidebar", "active" ) );
-        prefs.put("Layout", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.layout", "fluid" ) );
-        prefs.put("Language", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.language", getLocale( ctx ).toString() ) );
-        prefs.put("SectionEditing", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.sectionediting", "true" ) );
-        prefs.put("Appearance", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.appearance", "true" ) );
-
-        //editor cookies
-        prefs.put("autosuggest", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.autosuggest", "true" ) );
-        prefs.put("tabcompletion", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.tabcompletion", "true" ) );
-        prefs.put("smartpairs", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.smartpairs", "false" ) );
-        prefs.put("livepreview", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.livepreview", "true" ) );
-        prefs.put("previewcolumn", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.previewcolumn", "true" ) );
-
-
-        // FIXME: editormanager reads wikantik.editor -- which of both properties should continue
-        prefs.put("editor", TextUtil.getStringProperty( props, "wikantik.defaultprefs.template.editor", "plain" ) );
-        parseJSONPreferences( (HttpServletRequest) pageContext.getRequest(), prefs );
-        pageContext.getSession().setAttribute( SESSIONPREFS, prefs );
-    }
-
-
-    /**
-     * Parses new-style preferences stored as JSON objects and stores them in the session.  Everything in the cookie is stored.
-     *
-     * @param request
-     * @param prefs The default hashmap of preferences
-     */
-	private static void parseJSONPreferences( final HttpServletRequest request, final Preferences prefs ) {
-        final String prefVal = TextUtil.urlDecodeUTF8( HttpUtil.retrieveCookieValue( request, COOKIE_USER_PREFS_NAME ) );
-        if( prefVal != null ) {
-            // Convert prefVal JSON to a generic hashmap
-            @SuppressWarnings( "unchecked" ) final Map< String, String > map = new Gson().fromJson( prefVal, Map.class );
-            for( String key : map.keySet() ) {
-                key = TextUtil.replaceEntities( key );
-                // Sometimes this is not a String as it comes from the Cookie set by Javascript
-                final Object value = map.get( key );
-                if( value != null ) {
-                    prefs.put( key, value.toString() );
-                }
-            }
-        }
-    }
-
-    /**
      *  Returns a preference value programmatically.
-     *  FIXME
      *
-     *  @param wikiContext
-     *  @param name
-     *  @return the preference value
+     *  @param wikiContext the current wiki context
+     *  @param name the preference key
+     *  @return the preference value, or null if not found
      */
     public static String getPreference( final Context wikiContext, final String name ) {
         final HttpServletRequest request = wikiContext.getHttpRequest();
@@ -159,23 +65,6 @@ public class Preferences extends HashMap< String,String > {
         }
 
         final Preferences prefs = (Preferences)request.getSession().getAttribute( SESSIONPREFS );
-        if( prefs != null ) {
-            return prefs.get( name );
-        }
-
-        return null;
-    }
-
-    /**
-     *  Returns a preference value programmatically.
-     *  FIXME
-     *
-     *  @param pageContext
-     *  @param name
-     *  @return the preference value
-     */
-    public static String getPreference( final PageContext pageContext, final String name ) {
-        final Preferences prefs = ( Preferences )pageContext.getSession().getAttribute( SESSIONPREFS );
         if( prefs != null ) {
             return prefs.get( name );
         }

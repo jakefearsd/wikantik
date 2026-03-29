@@ -19,14 +19,12 @@
 package com.wikantik.api.core;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.jsp.PageContext;
 import java.security.Principal;
 
 
 /**
- *  <p>Provides state information throughout the processing of a page.  A Context is born when the JSP pages that are the main entry
- *  points, are invoked.  The JSPWiki engine creates the new Context, which basically holds information about the page, the
- *  handling engine, and in which context (view, edit, etc) the call was done.</p>
+ *  <p>Provides state information throughout the processing of a page.  A Context is born when a request enters the wiki engine.
+ *  It holds information about the page, the handling engine, and in which context (view, edit, etc) the call was done.</p>
  *  <p>A Context also provides request-specific variables, which can be used to communicate between plugins on the same page, or
  *  between different instances of the same plugin. A Context variable is valid until the processing of the WikiPage has ended. For
  *  an example, please see the Counter plugin.</p>
@@ -266,18 +264,5 @@ public interface Context extends Cloneable, Command {
      *  @return A deep clone of the Context.
      */
     Context deepClone();
-
-    /**
-     *  This method can be used to find the WikiContext programmatically from a JSP PageContext. We check the request context.
-     *  The wiki context, if it exists, is looked up using the key {@link #ATTR_CONTEXT}.
-     *
-     *  @since 2.4
-     *  @param pageContext the JSP page context
-     *  @return Current WikiContext, or null, of no context exists.
-     */
-    static Context findContext( final PageContext pageContext ) {
-        final HttpServletRequest request = ( HttpServletRequest )pageContext.getRequest();
-        return ( Context )request.getAttribute( ATTR_CONTEXT );
-    }
 
 }

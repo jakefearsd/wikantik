@@ -48,6 +48,8 @@ export default function LoginForm({ onClose }) {
             }}>Username</label>
             <input
               type="text"
+              name="username"
+              autoComplete="username"
               value={username}
               onChange={e => setUsername(e.target.value)}
               autoFocus
@@ -72,6 +74,8 @@ export default function LoginForm({ onClose }) {
             }}>Password</label>
             <input
               type="password"
+              name="password"
+              autoComplete="current-password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               style={{

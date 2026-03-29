@@ -105,6 +105,10 @@ public class LuceneSearchProvider implements SearchProvider {
     protected static final Logger LOG = LogManager.getLogger( LuceneSearchProvider.class );
 
     private Engine engine;
+    private PageManager pageManager;
+    private AttachmentManager attachmentManager;
+    private AuthorizationManager authorizationManager;
+    private AclManager aclManager;
     private Executor searchExecutor;
 
     // Lucene properties.
@@ -157,10 +161,37 @@ public class LuceneSearchProvider implements SearchProvider {
 
     private static final String PUNCTUATION_TO_SPACES = StringUtils.repeat( " ", TextUtil.PUNCTUATION_CHARS_ALLOWED.length() );
 
+    /** No-arg constructor required for reflection-based instantiation. */
+    public LuceneSearchProvider() {
+    }
+
+    /**
+     * Package-private constructor for testing — accepts collaborators directly,
+     * bypassing the {@link #initialize(Engine, Properties)} lifecycle.
+     *
+     * @param pageManager          the PageManager to use
+     * @param attachmentManager    the AttachmentManager to use
+     * @param authorizationManager the AuthorizationManager to use
+     * @param aclManager           the AclManager to use
+     */
+    LuceneSearchProvider( final PageManager pageManager,
+                          final AttachmentManager attachmentManager,
+                          final AuthorizationManager authorizationManager,
+                          final AclManager aclManager ) {
+        this.pageManager = pageManager;
+        this.attachmentManager = attachmentManager;
+        this.authorizationManager = authorizationManager;
+        this.aclManager = aclManager;
+    }
+
     /** {@inheritDoc} */
     @Override
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, IOException {
         this.engine = engine;
+        this.pageManager = engine.getManager( PageManager.class );
+        this.attachmentManager = engine.getManager( AttachmentManager.class );
+        // AuthorizationManager and AclManager are initialized after SearchManager
+        // in the engine startup sequence, so we resolve them lazily on first use.
         searchExecutor = Executors.newCachedThreadPool();
 
         luceneDirectory = engine.getWorkDir() + File.separator + LUCENE_DIR;
@@ -244,10 +275,10 @@ public class LuceneSearchProvider implements SearchProvider {
                 final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
                 try( final IndexWriter writer = getIndexWriter( luceneDir ) ) {
                     long pagesIndexed = 0L;
-                    final Collection< Page > allPages = engine.getManager( PageManager.class ).getAllPages();
+                    final Collection< Page > allPages = pageManager.getAllPages();
                     for( final Page page : allPages ) {
                         try {
-                            final String text = engine.getManager( PageManager.class ).getPageText( page.getName(), WikiProvider.LATEST_VERSION );
+                            final String text = pageManager.getPageText( page.getName(), WikiProvider.LATEST_VERSION );
                             luceneIndexPage( page, text, writer );
                             pagesIndexed++;
                         } catch( final IOException e ) {
@@ -257,7 +288,7 @@ public class LuceneSearchProvider implements SearchProvider {
                     LOG.info( "Indexed {} pages", pagesIndexed );
 
                     long attachmentsIndexed = 0L;
-                    final Collection< Attachment > allAttachments = engine.getManager( AttachmentManager.class ).getAllAttachments();
+                    final Collection< Attachment > allAttachments = attachmentManager.getAllAttachments();
                     for( final Attachment att : allAttachments ) {
                         try {
                             final String text = getAttachmentContent( att.getName(), WikiProvider.LATEST_VERSION );
@@ -297,9 +328,8 @@ public class LuceneSearchProvider implements SearchProvider {
      * @return the content of the Attachment as a String.
      */
     protected String getAttachmentContent( final String attachmentName, final int version ) {
-        final AttachmentManager mgr = engine.getManager( AttachmentManager.class );
         try {
-            final Attachment att = mgr.getAttachmentInfo( attachmentName, version );
+            final Attachment att = attachmentManager.getAttachmentInfo( attachmentName, version );
             //FIXME: Find out why sometimes att is null
             if( att != null ) {
                 return getAttachmentContent( att );
@@ -317,7 +347,6 @@ public class LuceneSearchProvider implements SearchProvider {
      * This should be replaced /moved to Attachment search providers or some other 'pluggable' way to search attachments
      */
     protected String getAttachmentContent( final Attachment att ) {
-        final AttachmentManager mgr = engine.getManager( AttachmentManager.class );
         //FIXME: Add attachment plugin structure
 
         final String filename = att.getFileName();
@@ -325,7 +354,7 @@ public class LuceneSearchProvider implements SearchProvider {
         boolean searchSuffix = Arrays.stream(SEARCHABLE_FILE_SUFFIXES).anyMatch(filename::endsWith);
 
         if( searchSuffix ) {
-            try( final InputStream attStream = mgr.getAttachmentStream( att ); final StringWriter sout = new StringWriter() ) {
+            try( final InputStream attStream = attachmentManager.getAttachmentStream( att ); final StringWriter sout = new StringWriter() ) {
                 FileUtil.copyContents( new InputStreamReader( attStream, StandardCharsets.UTF_8 ), sout );
                 return filename + " " + sout;
             } catch( final ProviderException | IOException e ) {
@@ -413,7 +442,7 @@ public class LuceneSearchProvider implements SearchProvider {
 
         // Now add the names of the attachments of this page
         try {
-            final List< Attachment > attachments = engine.getManager( AttachmentManager.class ).listAttachments( page );
+            final List< Attachment > attachments = attachmentManager.listAttachments( page );
             final String attachmentNames = attachments.stream().map(att -> att.getName() + ";").collect(Collectors.joining());
 
             field = new Field( LUCENE_ATTACHMENTS, attachmentNames, TextField.TYPE_STORED );
@@ -536,7 +565,7 @@ public class LuceneSearchProvider implements SearchProvider {
             final Set< String > indexedPages = getIndexedPageNames();
 
             // Get all pages from disk
-            final Collection< Page > allPages = engine.getManager( PageManager.class ).getAllPages();
+            final Collection< Page > allPages = pageManager.getAllPages();
 
             // Find pages that exist on disk but not in index
             final List< Page > missingPages = allPages.stream()
@@ -550,7 +579,7 @@ public class LuceneSearchProvider implements SearchProvider {
                      final IndexWriter writer = getIndexWriter( luceneDir ) ) {
                     for( final Page page : missingPages ) {
                         try {
-                            final String text = engine.getManager( PageManager.class )
+                            final String text = pageManager
                                     .getPageText( page.getName(), WikiProvider.LATEST_VERSION );
                             luceneIndexPage( page, text, writer );
                             pagesIndexed++;
@@ -564,7 +593,7 @@ public class LuceneSearchProvider implements SearchProvider {
             }
 
             // Also check for missing attachments
-            final Collection< Attachment > allAttachments = engine.getManager( AttachmentManager.class ).getAllAttachments();
+            final Collection< Attachment > allAttachments = attachmentManager.getAllAttachments();
             final List< Attachment > missingAttachments = allAttachments.stream()
                     .filter( att -> !indexedPages.contains( att.getName() ) )
                     .toList();
@@ -612,7 +641,7 @@ public class LuceneSearchProvider implements SearchProvider {
             if( page instanceof Attachment att ) {
                 text = getAttachmentContent( att );
             } else {
-                text = engine.getManager( PageManager.class ).getPureText( page );
+                text = pageManager.getPureText( page );
             }
 
             if( text != null ) {
@@ -666,9 +695,17 @@ public class LuceneSearchProvider implements SearchProvider {
                                                new QueryScorer( luceneQuery ) );
             }
 
-            final AuthorizationManager mgr = engine.getManager( AuthorizationManager.class );
-            final AclManager aclMgr = engine.getManager( AclManager.class );
-            final PageManager pm = engine.getManager( PageManager.class );
+            // AuthorizationManager and AclManager are initialized after SearchManager in the engine
+            // startup sequence, so resolve them lazily from the engine on first use.
+            if( authorizationManager == null ) {
+                authorizationManager = engine.getManager( AuthorizationManager.class );
+            }
+            if( aclManager == null ) {
+                aclManager = engine.getManager( AclManager.class );
+            }
+            final AuthorizationManager mgr = authorizationManager;
+            final AclManager aclMgr = aclManager;
+            final PageManager pm = pageManager;
             final Session session = wikiContext.getWikiSession();
 
             // Pre-check: does the user's session pass the static policy for "view"?

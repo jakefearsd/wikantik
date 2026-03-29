@@ -103,10 +103,33 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     private DatabasePolicy databasePolicy;
     private String bootstrapAdmin;
 
+    // Manager dependencies — populated in initialize() (production) or via test constructor
+    private PageManager pageManager;
+    private AclManager aclManager;
+    private GroupManager groupManager;
+    private UserManager userManager;
+
     /**
      * Constructs a new DefaultAuthorizationManager instance.
+     * Required for SPI/reflection instantiation.
      */
     public DefaultAuthorizationManager() {
+    }
+
+    /**
+     * Package-private constructor for unit testing — injects manager dependencies directly,
+     * bypassing the SPI {@link #initialize(Engine, Properties)} path.
+     */
+    DefaultAuthorizationManager( final Engine engine,
+                                 final PageManager pageManager,
+                                 final AclManager aclManager,
+                                 final GroupManager groupManager,
+                                 final UserManager userManager ) {
+        this.engine = engine;
+        this.pageManager = pageManager;
+        this.aclManager = aclManager;
+        this.groupManager = groupManager;
+        this.userManager = userManager;
     }
 
     /** {@inheritDoc} */
@@ -153,8 +176,8 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
         // If the page or ACL is null, it's allowed.
         final String pageName = pagePerm.getPage();
-        final Page page = engine.getManager( PageManager.class ).getPage( pageName );
-        final Acl acl = ( page == null) ? null : engine.getManager( AclManager.class ).getPermissions( page );
+        final Page page = pageManager().getPage( pageName );
+        final Acl acl = ( page == null) ? null : aclManager().getPermissions( page );
         if( page == null ||  acl == null || acl.isEmpty() ) {
             fireEvent( WikiSecurityEvent.ACCESS_ALLOWED, user, permission );
             return true;
@@ -254,6 +277,9 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     @Override
     public void initialize( final Engine engine, final Properties properties ) throws WikiException {
         this.engine = engine;
+        // Note: manager fields are populated lazily via getXxxManager() helpers
+        // because AuthorizationManager is initialized before UserManager, GroupManager,
+        // and AclManager in the WikiEngine boot sequence.
         LOG.info( "Initializing AuthorizationManager - anonymous access will be blocked until initialization completes" );
 
         //  JAAS authorization continues
@@ -412,13 +438,13 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         }
 
         // Check Groups
-        principal = engine.getManager( GroupManager.class ).findRole( name );
+        principal = groupManager().findRole( name );
         if ( principal != null ) {
             return principal;
         }
 
         // Ok, no luck---this must be a user principal
-        final UserDatabase db = engine.getManager( UserManager.class ).getUserDatabase();
+        final UserDatabase db = userManager().getUserDatabase();
         try {
             final UserProfile profile = db.find( name );
             final Principal[] principals = db.getPrincipals( profile.getLoginName() );
@@ -432,6 +458,40 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         }
     }
 
+
+    // --- Lazy accessors for manager dependencies ---
+    // In the production SPI path, AuthorizationManager is initialized before
+    // UserManager, GroupManager, and AclManager. These helpers resolve the
+    // dependency lazily on first use and cache it for subsequent calls.
+    // The test constructor populates the fields eagerly so the engine is never consulted.
+
+    private PageManager pageManager() {
+        if ( pageManager == null ) {
+            pageManager = engine.getManager( PageManager.class );
+        }
+        return pageManager;
+    }
+
+    private AclManager aclManager() {
+        if ( aclManager == null ) {
+            aclManager = engine.getManager( AclManager.class );
+        }
+        return aclManager;
+    }
+
+    private GroupManager groupManager() {
+        if ( groupManager == null ) {
+            groupManager = engine.getManager( GroupManager.class );
+        }
+        return groupManager;
+    }
+
+    private UserManager userManager() {
+        if ( userManager == null ) {
+            userManager = engine.getManager( UserManager.class );
+        }
+        return userManager;
+    }
 
     /** Returns the DatabasePolicy instance, or null if using file-based policy. */
     public DatabasePolicy getDatabasePolicy() {

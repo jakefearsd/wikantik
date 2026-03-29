@@ -98,11 +98,29 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 
     private Engine engine;
 
+    // Manager dependency — populated lazily via authorizationManager() or via test constructor
+    private AuthorizationManager authorizationManager;
+
     /** If true, logs the IP address of the editor */
     private boolean storeIPAddress = true;
 
     /** Keeps a list of the usernames who have attempted a login recently. */
     private final TimedCounterList< String > lastLoginAttempts = new TimedCounterList<>();
+
+    /**
+     * Default no-arg constructor required for SPI/reflection instantiation.
+     */
+    public DefaultAuthenticationManager() {
+    }
+
+    /**
+     * Package-private constructor for unit testing — injects manager dependencies directly,
+     * bypassing the SPI {@link #initialize(Engine, Properties)} path.
+     */
+    DefaultAuthenticationManager( final Engine engine, final AuthorizationManager authorizationManager ) {
+        this.engine = engine;
+        this.authorizationManager = authorizationManager;
+    }
 
     /**
      * {@inheritDoc}
@@ -143,7 +161,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     @Override
     public boolean isContainerAuthenticated() {
         try {
-            final Authorizer authorizer = engine.getManager( AuthorizationManager.class ).getAuthorizer();
+            final Authorizer authorizer = authorizationManager().getAuthorizer();
             if ( authorizer instanceof WebContainerAuthorizer wca ) {
                  return wca.isContainerAuthorized();
             }
@@ -160,8 +178,8 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     public boolean login( final HttpServletRequest request ) throws WikiSecurityException {
         final HttpSession httpSession = request.getSession();
         final Session session = SessionMonitor.getInstance( engine ).find( httpSession );
-        final AuthenticationManager authenticationMgr = engine.getManager( AuthenticationManager.class );
-        final AuthorizationManager authorizationMgr = engine.getManager( AuthorizationManager.class );
+        final AuthenticationManager authenticationMgr = this;
+        final AuthorizationManager authorizationMgr = authorizationManager();
         CallbackHandler handler = null;
         final Map< String, String > options = EMPTY_MAP;
 
@@ -251,7 +269,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             // the victim's browser, which is mitigated by HttpOnly + SameSite=Strict cookies.
 
             // Add all appropriate Authorizer roles
-            injectAuthorizerRoles( session, engine.getManager( AuthorizationManager.class ).getAuthorizer(), null );
+            injectAuthorizerRoles( session, authorizationManager().getAuthorizer(), null );
 
             return true;
         }
@@ -381,6 +399,18 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
     @Override
     public synchronized void removeWikiEventListener( final WikiEventListener listener ) {
         WikiEventManager.removeWikiEventListener( this, listener );
+    }
+
+    // --- Lazy accessor for AuthorizationManager ---
+    // AuthorizationManager is initialized in the same boot pass, so it is
+    // always available by the time any of the login-related methods are called.
+    // The test constructor populates the field eagerly so the engine is never consulted.
+
+    private AuthorizationManager authorizationManager() {
+        if ( authorizationManager == null ) {
+            authorizationManager = engine.getManager( AuthorizationManager.class );
+        }
+        return authorizationManager;
     }
 
     /**

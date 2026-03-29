@@ -128,8 +128,8 @@ public class PageResource extends RestServletBase {
             try {
                 final RenderingManager renderingManager = engine.getManager( RenderingManager.class );
                 final Context context = Wiki.context().create( engine, request, page );
-                // TODO: Remove with JSP UI — REST API serves the React SPA; route plugin links through /app/
-                context.setVariable( Context.VAR_REACT_URL_BASE, engine.getBaseURL() + "/app" );
+                // SPA is served at root — wiki links use baseURL directly
+                context.setVariable( Context.VAR_REACT_URL_BASE, engine.getBaseURL() );
                 final String html = renderingManager.textToHTML( context, rawText );
                 result.put( "contentHtml", html );
             } catch ( final Exception e ) {

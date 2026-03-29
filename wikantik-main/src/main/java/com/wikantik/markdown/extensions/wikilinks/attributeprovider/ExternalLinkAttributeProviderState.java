@@ -21,8 +21,8 @@ package com.wikantik.markdown.extensions.wikilinks.attributeprovider;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.html.MutableAttributes;
 import com.wikantik.api.core.Context;
+import com.wikantik.markdown.extensions.wikilinks.AbstractLinkState;
 import com.wikantik.markdown.nodes.WikantikLink;
-import com.wikantik.parser.LinkParsingOperations;
 import com.wikantik.parser.MarkupParser;
 
 import java.util.List;
@@ -32,24 +32,17 @@ import java.util.regex.Pattern;
 /**
  * {@link NodeAttributeProviderState} which sets the attributes for external links.
  */
-public class ExternalLinkAttributeProviderState implements NodeAttributeProviderState< WikantikLink > {
+public class ExternalLinkAttributeProviderState extends AbstractLinkState implements NodeAttributeProviderState< WikantikLink > {
 
     private final boolean hasRef;
     private final boolean useRelNofollow;
-    private final Context wikiContext;
-    private final LinkParsingOperations linkOperations;
-    private final boolean isImageInlining;
-    private final List< Pattern > inlineImagePatterns;
 
     public ExternalLinkAttributeProviderState( final Context wikiContext,
                                                final boolean hasRef,
                                                final boolean isImageInlining,
                                                final List< Pattern > inlineImagePatterns ) {
+        super( wikiContext, isImageInlining, inlineImagePatterns );
         this.hasRef = hasRef;
-        this.wikiContext = wikiContext;
-        this.linkOperations = new LinkParsingOperations( wikiContext );
-        this.isImageInlining = isImageInlining;
-        this.inlineImagePatterns = inlineImagePatterns;
         this.useRelNofollow = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USERELNOFOLLOW, false );
     }
 
@@ -60,8 +53,8 @@ public class ExternalLinkAttributeProviderState implements NodeAttributeProvider
      */
     @Override
     public void setAttributes( final MutableAttributes attributes, final WikantikLink link ) {
-        if( linkOperations.isImageLink( link.getUrl().toString(), isImageInlining, inlineImagePatterns ) ) {
-            new ImageLinkAttributeProviderState( wikiContext, link.getText().toString(), hasRef ).setAttributes( attributes, link );
+        if( linkOperations().isImageLink( link.getUrl().toString(), isImageInlining(), inlineImagePatterns() ) ) {
+            new ImageLinkAttributeProviderState( wikiContext(), link.getText().toString(), hasRef ).setAttributes( attributes, link );
         } else {
             attributes.replaceValue( "class", MarkupParser.CLASS_EXTERNAL );
             attributes.replaceValue( "href", link.getUrl().toString() );

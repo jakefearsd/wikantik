@@ -22,8 +22,8 @@ import com.vladsch.flexmark.ast.Link;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.html.MutableAttributes;
 import com.wikantik.api.core.Context;
+import com.wikantik.markdown.extensions.wikilinks.AbstractLinkState;
 import com.wikantik.markdown.nodes.WikantikLink;
-import com.wikantik.parser.LinkParsingOperations;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.util.TextUtil;
 
@@ -34,24 +34,17 @@ import java.util.regex.Pattern;
 /**
  * {@link NodeAttributeProviderState} which sets the attributes for interwiki links.
  */
-public class InterWikiLinkAttributeProviderState implements NodeAttributeProviderState< WikantikLink > {
+public class InterWikiLinkAttributeProviderState extends AbstractLinkState implements NodeAttributeProviderState< WikantikLink > {
 
     private final boolean hasRef;
     private final boolean wysiwygEditorMode;
-    private final Context wikiContext;
-    private final LinkParsingOperations linkOperations;
-    private final boolean isImageInlining;
-    private final List< Pattern > inlineImagePatterns;
 
     public InterWikiLinkAttributeProviderState( final Context wikiContext,
                                                 final boolean hasRef,
                                                 final boolean isImageInlining,
                                                 final List< Pattern > inlineImagePatterns ) {
+        super( wikiContext, isImageInlining, inlineImagePatterns );
         this.hasRef = hasRef;
-        this.wikiContext = wikiContext;
-        this.linkOperations = new LinkParsingOperations( wikiContext );
-        this.isImageInlining = isImageInlining;
-        this.inlineImagePatterns = inlineImagePatterns;
         final Boolean wysiwygVariable = wikiContext.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE );
         wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
     }
@@ -65,11 +58,11 @@ public class InterWikiLinkAttributeProviderState implements NodeAttributeProvide
     public void setAttributes( final MutableAttributes attributes, final WikantikLink link ) {
         final String[] refAndPage = link.getWikiLink().split( ":" );
         if( !wysiwygEditorMode ) {
-            String urlReference = wikiContext.getEngine().getInterWikiURL( refAndPage[ 0 ] );
+            String urlReference = wikiContext().getEngine().getInterWikiURL( refAndPage[ 0 ] );
             if( urlReference != null ) {
                 urlReference = TextUtil.replaceString( urlReference, "%s", refAndPage[ 1 ] );
-                if( linkOperations.isImageLink( urlReference, isImageInlining, inlineImagePatterns ) ) {
-                    new ImageLinkAttributeProviderState( wikiContext, urlReference, hasRef ).setAttributes( attributes, link );
+                if( linkOperations().isImageLink( urlReference, isImageInlining(), inlineImagePatterns() ) ) {
+                    new ImageLinkAttributeProviderState( wikiContext(), urlReference, hasRef ).setAttributes( attributes, link );
                 } else {
                     setInterWikiLinkAttrs( attributes, link, urlReference );
                 }

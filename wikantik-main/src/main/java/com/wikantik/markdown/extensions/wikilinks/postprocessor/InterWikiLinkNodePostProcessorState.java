@@ -26,8 +26,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Context;
 import com.wikantik.i18n.InternationalizationManager;
+import com.wikantik.markdown.extensions.wikilinks.AbstractLinkState;
 import com.wikantik.markdown.nodes.WikantikLink;
-import com.wikantik.parser.LinkParsingOperations;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.util.TextUtil;
@@ -41,13 +41,9 @@ import java.util.regex.Pattern;
 /**
  * {@link NodePostProcessorState} which further post processes interwiki links.
  */
-public class InterWikiLinkNodePostProcessorState implements NodePostProcessorState< WikantikLink > {
+public class InterWikiLinkNodePostProcessorState extends AbstractLinkState implements NodePostProcessorState< WikantikLink > {
 
     private static final Logger LOG = LogManager.getLogger( InterWikiLinkNodePostProcessorState.class );
-    private final Context wikiContext;
-    private final LinkParsingOperations linkOperations;
-    private final boolean isImageInlining;
-    private final List< Pattern > inlineImagePatterns;
     private final Document document;
     private final boolean wysiwygEditorMode;
     private boolean useOutlinkImage = true;
@@ -56,10 +52,7 @@ public class InterWikiLinkNodePostProcessorState implements NodePostProcessorSta
                                                 final Document document,
                                                 final boolean isImageInlining,
                                                 final List< Pattern > inlineImagePatterns ) {
-        this.wikiContext = wikiContext;
-        this.linkOperations = new LinkParsingOperations( wikiContext );
-        this.isImageInlining = isImageInlining;
-        this.inlineImagePatterns = inlineImagePatterns;
+        super( wikiContext, isImageInlining, inlineImagePatterns );
         this.document = document;
         this.useOutlinkImage = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USEOUTLINKIMAGE, useOutlinkImage );
         final Boolean wysiwygVariable = wikiContext.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE );
@@ -75,21 +68,21 @@ public class InterWikiLinkNodePostProcessorState implements NodePostProcessorSta
     public void process( final NodeTracker state, final WikantikLink link ) {
         final String[] refAndPage = link.getUrl().toString().split( ":" );
         if( !wysiwygEditorMode ) {
-            String urlReference = wikiContext.getEngine().getInterWikiURL( refAndPage[ 0 ] );
+            String urlReference = wikiContext().getEngine().getInterWikiURL( refAndPage[ 0 ] );
             if( urlReference != null ) {
                 urlReference = TextUtil.replaceString( urlReference, "%s", refAndPage[ 1 ] );
-                if( linkOperations.isImageLink( urlReference, isImageInlining, inlineImagePatterns ) ) {
-                    new ImageLinkNodePostProcessorState( wikiContext, urlReference, link.hasRef() ).process( state, link );
+                if( linkOperations().isImageLink( urlReference, isImageInlining(), inlineImagePatterns() ) ) {
+                    new ImageLinkNodePostProcessorState( wikiContext(), urlReference, link.hasRef() ).process( state, link );
                 } else {
                     link.setUrl( CharSubSequence.of( urlReference ) );
                 }
-                if( linkOperations.isExternalLink( urlReference ) ) {
-                    NodePostProcessorStateCommonOperations.addOutlinkImage( state, link, wikiContext, useOutlinkImage );
+                if( linkOperations().isExternalLink( urlReference ) ) {
+                    NodePostProcessorStateCommonOperations.addOutlinkImage( state, link, wikiContext(), useOutlinkImage );
                 }
             } else {
                 LOG.debug( "{} not recognized as InterWiki link [document node: {}]", refAndPage[0], document );
                 final Object[] args = { refAndPage[ 0 ] };
-                final ResourceBundle rb = Preferences.getBundle( wikiContext, InternationalizationManager.CORE_BUNDLE );
+                final ResourceBundle rb = Preferences.getBundle( wikiContext(), InternationalizationManager.CORE_BUNDLE );
                 final String errMsg = MessageFormat.format( rb.getString( "markupparser.error.nointerwikiref" ), args );
                 NodePostProcessorStateCommonOperations.makeError( state, link, errMsg );
             }

@@ -30,7 +30,7 @@ import org.mockito.Mockito;
 
 import java.util.Date;
 
-public class WikiJSPFilterTest {
+public class WikiServletFilterTest {
 
     TestEngine engine = TestEngine.build();
 

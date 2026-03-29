@@ -128,7 +128,7 @@ public class LogLevelEnforcementTest {
             "SpamFilter.java",
             "ProfanityFilter.java",
             // UI layer — servlets and command resolver
-            "WikiJSPFilter.java",
+            "WikiServletFilter.java",
             "SitemapServlet.java",
             "DefaultCommandResolver.java",
             "AttachmentServlet.java",

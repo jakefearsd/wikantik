@@ -349,10 +349,18 @@ public class DefaultUserManager implements UserManager {
     @Override
     public void validateProfile( final Context context, final UserProfile profile ) {
         final Session session = context.getWikiSession();
-        final InputValidator validator = new InputValidator( SESSION_MESSAGES, context );
         final ResourceBundle rb = Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE );
 
-        //  Query the SpamFilter first
+        if( validateSpamFilter( context, session, profile ) ) {
+            return;
+        }
+        validateRequiredFields( context, session, profile, rb );
+        validatePassword( context, session, profile, rb );
+        validateUniqueness( session, profile, rb );
+    }
+
+    /** Returns {@code true} if the spam filter rejected the profile (caller should stop further validation). */
+    private boolean validateSpamFilter( final Context context, final Session session, final UserProfile profile ) {
         final FilterManager fm = engine.getManager( FilterManager.class );
         final boolean spamFilterRejects = fm.getFilterList().stream()
                 .filter( SpamFilter.class::isInstance )
@@ -362,58 +370,67 @@ public class DefaultUserManager implements UserManager {
                 .orElse( false );
         if( spamFilterRejects ) {
             session.addMessage( SESSION_MESSAGES, "Invalid userprofile" );
-            return;
+            return true;
         }
+        return false;
+    }
 
+    private void validateRequiredFields( final Context context, final Session session, final UserProfile profile, final ResourceBundle rb ) {
         // If container-managed auth and user not logged in, throw an error
         if ( engine.getManager( AuthenticationManager.class ).isContainerAuthenticated()
              && !context.getWikiSession().isAuthenticated() ) {
             session.addMessage( SESSION_MESSAGES, rb.getString("security.error.createprofilebeforelogin") );
         }
 
+        final InputValidator validator = new InputValidator( SESSION_MESSAGES, context );
         validator.validateNotNull( profile.getLoginName(), rb.getString("security.user.loginname") );
         validator.validateNotNull( profile.getFullname(), rb.getString("security.user.fullname") );
         validator.validate( profile.getEmail(), rb.getString("security.user.email"), InputValidator.EMAIL );
+    }
 
-        if( !engine.getManager( AuthenticationManager.class ).isContainerAuthenticated() ) {
-            // passwords must match and can't be null
-            final String password = profile.getPassword();
-            if( password == null ) {
-                session.addMessage( SESSION_MESSAGES, rb.getString( "security.error.blankpassword" ) );
-            } else {
-                // Password strength validation (NIST 800-63B)
-                final List<String> passwordErrors = PasswordValidator.validate( password, engine.getWikiProperties() );
-                for ( final String key : passwordErrors ) {
-                    if ( key.contains( "{0}" ) || key.equals( PasswordValidator.KEY_TOO_SHORT ) || key.equals( PasswordValidator.KEY_TOO_LONG ) ) {
-                        final int limit = key.equals( PasswordValidator.KEY_TOO_SHORT )
-                                ? TextUtil.getIntegerProperty( engine.getWikiProperties(), PasswordValidator.PROP_MIN_LENGTH, PasswordValidator.DEFAULT_MIN_LENGTH )
-                                : TextUtil.getIntegerProperty( engine.getWikiProperties(), PasswordValidator.PROP_MAX_LENGTH, PasswordValidator.DEFAULT_MAX_LENGTH );
-                        session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( key ), limit ) );
-                    } else {
-                        session.addMessage( SESSION_MESSAGES, rb.getString( key ) );
-                    }
-                }
-
-                final HttpServletRequest request = context.getHttpRequest();
-                final String password0 = ( request == null ) ? null : request.getParameter( "password0" );
-                final String password2 = ( request == null ) ? null : request.getParameter( "password2" );
-                if( !password.equals( password2 ) ) {
-                    session.addMessage( SESSION_MESSAGES, rb.getString( "security.error.passwordnomatch" ) );
-                }
-                if( !profile.isNew() && !getUserDatabase().validatePassword( profile.getLoginName(), password0 ) ) {
-                    session.addMessage( SESSION_MESSAGES, rb.getString( "security.error.passwordnomatch" ) );
-                }
-            }
+    private void validatePassword( final Context context, final Session session, final UserProfile profile, final ResourceBundle rb ) {
+        if( engine.getManager( AuthenticationManager.class ).isContainerAuthenticated() ) {
+            return;
         }
 
-        UserProfile otherProfile;
+        // passwords must match and can't be null
+        final String password = profile.getPassword();
+        if( password == null ) {
+            session.addMessage( SESSION_MESSAGES, rb.getString( "security.error.blankpassword" ) );
+        } else {
+            // Password strength validation (NIST 800-63B)
+            final List<String> passwordErrors = PasswordValidator.validate( password, engine.getWikiProperties() );
+            for ( final String key : passwordErrors ) {
+                if ( key.contains( "{0}" ) || key.equals( PasswordValidator.KEY_TOO_SHORT ) || key.equals( PasswordValidator.KEY_TOO_LONG ) ) {
+                    final int limit = key.equals( PasswordValidator.KEY_TOO_SHORT )
+                            ? TextUtil.getIntegerProperty( engine.getWikiProperties(), PasswordValidator.PROP_MIN_LENGTH, PasswordValidator.DEFAULT_MIN_LENGTH )
+                            : TextUtil.getIntegerProperty( engine.getWikiProperties(), PasswordValidator.PROP_MAX_LENGTH, PasswordValidator.DEFAULT_MAX_LENGTH );
+                    session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( key ), limit ) );
+                } else {
+                    session.addMessage( SESSION_MESSAGES, rb.getString( key ) );
+                }
+            }
+
+            final HttpServletRequest request = context.getHttpRequest();
+            final String password0 = ( request == null ) ? null : request.getParameter( "password0" );
+            final String password2 = ( request == null ) ? null : request.getParameter( "password2" );
+            if( !password.equals( password2 ) ) {
+                session.addMessage( SESSION_MESSAGES, rb.getString( "security.error.passwordnomatch" ) );
+            }
+            if( !profile.isNew() && !getUserDatabase().validatePassword( profile.getLoginName(), password0 ) ) {
+                session.addMessage( SESSION_MESSAGES, rb.getString( "security.error.passwordnomatch" ) );
+            }
+        }
+    }
+
+    private void validateUniqueness( final Session session, final UserProfile profile, final ResourceBundle rb ) {
         final String fullName = profile.getFullname();
         final String loginName = profile.getLoginName();
         final String email = profile.getEmail();
 
         // It's illegal to use as a full name someone else's login name
         try {
-            otherProfile = getUserDatabase().find( fullName );
+            final UserProfile otherProfile = getUserDatabase().find( fullName );
             if( otherProfile != null && !profile.equals( otherProfile ) && !fullName.equals( otherProfile.getFullname() ) ) {
                 final Object[] args = { fullName };
                 session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( "security.error.illegalfullname" ), args ) );
@@ -422,7 +439,7 @@ public class DefaultUserManager implements UserManager {
 
         // It's illegal to use as a login name someone else's full name
         try {
-            otherProfile = getUserDatabase().find( loginName );
+            final UserProfile otherProfile = getUserDatabase().find( loginName );
             if( otherProfile != null && !profile.equals( otherProfile ) && !loginName.equals( otherProfile.getLoginName() ) ) {
                 final Object[] args = { loginName };
                 session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( "security.error.illegalloginname" ), args ) );
@@ -431,7 +448,7 @@ public class DefaultUserManager implements UserManager {
 
         // It's illegal to use multiple accounts with the same email
         try {
-            otherProfile = getUserDatabase().findByEmail( email );
+            final UserProfile otherProfile = getUserDatabase().findByEmail( email );
             if( otherProfile != null && !profile.getUid().equals( otherProfile.getUid() ) // Issue JSPWIKI-1042
                     && !profile.equals( otherProfile ) && StringUtils.lowerCase( email )
                     .equals( StringUtils.lowerCase( otherProfile.getEmail() ) ) ) {

@@ -112,10 +112,27 @@ public class DefaultURLConstructor implements URLConstructor {
     }
 
     /**
-     *  Constructs the actual URL based on the context.
+     *  Constructs the base URL for the given context and page name, without parameters.
+     *  Subclasses may override to provide alternative URL schemes (e.g. short URLs).
+     *
+     *  @param context the request context
+     *  @param name    the page name
+     *  @return the base URL string
      */
-    private String makeURL( final String context, final String name ) {
+    protected String makeBaseURL( final String context, final String name ) {
         return doReplacement( getURLPattern( context, name ), name );
+    }
+
+    /**
+     *  Returns {@code true} if the given context should use a {@code ?} query prefix rather
+     *  than {@code &amp;} when appending parameters.  Subclasses may override to extend the
+     *  set of contexts that require query-string style parameters.
+     *
+     *  @param context the request context string
+     *  @return {@code true} if a {@code ?} prefix should be used
+     */
+    protected boolean usesQueryPrefix( final String context ) {
+        return context.equals( ContextEnum.PAGE_ATTACH.getRequestContext() );
     }
 
     /**
@@ -127,7 +144,7 @@ public class DefaultURLConstructor implements URLConstructor {
     @Override
     public String makeURL( final String context, final String name, String parameters ) {
         if( parameters != null && !parameters.isEmpty() ) {
-            if( context.equals( ContextEnum.PAGE_ATTACH.getRequestContext() ) ) {
+            if( usesQueryPrefix( context ) ) {
                 parameters = "?" + parameters;
             } else if( context.equals( ContextEnum.PAGE_NONE.getRequestContext() ) ) {
                 parameters = name.indexOf( '?' ) != -1 ? "&amp;" : "?" + parameters;
@@ -137,7 +154,7 @@ public class DefaultURLConstructor implements URLConstructor {
         } else {
             parameters = "";
         }
-        return makeURL( context, name ) + parameters;
+        return makeBaseURL( context, name ) + parameters;
     }
 
     /**

@@ -23,6 +23,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PagePermission;
@@ -55,6 +56,25 @@ public class WikiAjaxDispatcherServlet extends HttpServlet {
     private static final Logger LOG = LogManager.getLogger( WikiAjaxDispatcherServlet.class.getName() );
     private String PATH_AJAX = "/ajax/";
     private Engine engine;
+    private AuthorizationManager authorizationManager;
+
+    /**
+     * Package-private constructor for unit tests — accepts pre-built dependencies
+     * so tests can inject mocks without booting a full engine.
+     *
+     * @param engine               the wiki engine
+     * @param authorizationManager the authorization manager
+     */
+    WikiAjaxDispatcherServlet( final Engine engine, final AuthorizationManager authorizationManager ) {
+        this.engine = engine;
+        this.authorizationManager = authorizationManager;
+    }
+
+    /**
+     * Default no-arg constructor used by the servlet container.
+     */
+    public WikiAjaxDispatcherServlet() {
+    }
 
     /**
      * {@inheritDoc}
@@ -66,6 +86,7 @@ public class WikiAjaxDispatcherServlet extends HttpServlet {
     public void init( final ServletConfig config ) throws ServletException {
         super.init( config );
         engine = Wiki.engine().find( config );
+        authorizationManager = engine.getManager( AuthorizationManager.class );
         PATH_AJAX = "/" + TextUtil.getStringProperty( engine.getWikiProperties(), "wikantik.ajax.url.prefix", "ajax" ) + "/";
         LOG.info( "WikiAjaxDispatcherServlet initialized." );
     }
@@ -154,6 +175,16 @@ public class WikiAjaxDispatcherServlet extends HttpServlet {
     }
 
     /**
+     * Returns the {@link Session} for the given request. Protected so tests can override via spy.
+     *
+     * @param req the current HTTP request
+     * @return the wiki session
+     */
+    protected Session findSession( final HttpServletRequest req ) {
+        return Wiki.session().find( engine, req );
+    }
+
+    /**
      * Validate the permission of the {@link WikiAjaxServlet} using the {@link AuthorizationManager#checkPermission}
      *
      * @param req the servlet request
@@ -161,10 +192,9 @@ public class WikiAjaxDispatcherServlet extends HttpServlet {
      * @return true if permission is valid
      */
     private boolean validatePermission( final HttpServletRequest req, final AjaxServletContainer container ) {
-        final Engine e = Wiki.engine().find( req.getSession().getServletContext(), null );
         boolean valid = false;
         if( container != null ) {
-            valid = e.getManager( AuthorizationManager.class ).checkPermission( Wiki.session().find( e, req ), container.permission );
+            valid = authorizationManager.checkPermission( findSession( req ), container.permission );
         }
         return valid;
     }

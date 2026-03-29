@@ -60,17 +60,15 @@ export default function PageView() {
     const href = anchor.getAttribute('href');
     if (!href) return;
 
-    // Handle internal wiki links — these may be:
-    //   /app/wiki/PageName  (React-prefixed)
-    //   /wiki/PageName      (rendered by wiki engine without /app/ prefix)
-    //   /app/edit/PageName  (React edit links)
-    //   /edit/PageName      (edit links without prefix)
+    // Handle internal wiki links:
+    //   /wiki/PageName
+    //   /edit/PageName
+    //   /diff/PageName
+    //   /search?q=...
     let internalPath = null;
 
-    if (href.startsWith('/app/')) {
-      internalPath = href.substring('/app'.length); // keep leading /
-    } else if (href.startsWith('/wiki/')) {
-      internalPath = href; // /wiki/PageName → navigate as /wiki/PageName
+    if (href.startsWith('/wiki/')) {
+      internalPath = href;
     } else if (href.startsWith('/edit/')) {
       internalPath = href;
     } else if (href.startsWith('/diff/')) {

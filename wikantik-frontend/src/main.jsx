@@ -18,7 +18,7 @@ import './styles/globals.css';
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>
-      <BrowserRouter basename="/app">
+      <BrowserRouter basename="/">
         <Routes>
           <Route element={<App />}>
             <Route path="/" element={<Navigate to="/wiki/Main" replace />} />

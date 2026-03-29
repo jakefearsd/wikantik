@@ -304,10 +304,9 @@
                         <resource>
                             <directory>src/main/styles/static</directory>
                         </resource>
-                        <!-- React SPA frontend — served at /app/ -->
+                        <!-- React SPA frontend — served at / -->
                         <resource>
                             <directory>${project.basedir}/../wikantik-frontend/dist</directory>
-                            <targetPath>app</targetPath>
                         </resource>
                     </webResources>
                 </configuration>

@@ -20,6 +20,7 @@ package com.wikantik.auth.user;
 
 import com.wikantik.TestEngine;
 import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.Users;
 import com.wikantik.auth.WikiSecurityException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -130,7 +131,7 @@ class AbstractUserDatabaseCITest {
 
     @Test
     void testValidatePasswordReturnsTrueForCorrectPassword() {
-        assertTrue( db.validatePassword( "janne", "myP@5sw0rd" ) );
+        assertTrue( db.validatePassword( "janne", Users.JANNE_PASS ) );
     }
 
     // --- validatePassword() with legacy SHA prefix — covers getShaHash() branch ---

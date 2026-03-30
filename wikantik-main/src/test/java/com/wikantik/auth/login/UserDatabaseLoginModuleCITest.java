@@ -19,6 +19,7 @@
 package com.wikantik.auth.login;
 
 import com.wikantik.TestEngine;
+import com.wikantik.auth.Users;
 import com.wikantik.auth.user.XMLUserDatabase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,7 +68,7 @@ class UserDatabaseLoginModuleCITest {
                 } else if ( cb instanceof NameCallback nc ) {
                     nc.setName( "janne" );
                 } else if ( cb instanceof PasswordCallback pc ) {
-                    pc.setPassword( "myP@5sw0rd".toCharArray() );
+                    pc.setPassword( Users.JANNE_PASS.toCharArray() );
                 }
             }
         };
@@ -91,7 +92,7 @@ class UserDatabaseLoginModuleCITest {
 
     @Test
     void testLoginFailsForNonExistentUser() {
-        final CallbackHandler handler = new WikiCallbackHandler( engine, null, "nosuchuser", "password" );
+        final CallbackHandler handler = new WikiCallbackHandler( engine, null, "nosuchuser", Users.ALICE_PASS );
         final LoginModule module = new UserDatabaseLoginModule();
         module.initialize( subject, handler, new HashMap<>(), new HashMap<>() );
         assertThrows( FailedLoginException.class, module::login );
@@ -125,7 +126,7 @@ class UserDatabaseLoginModuleCITest {
 
     @Test
     void testCommitReturnsFalseWhenLoginFailed() throws LoginException {
-        final CallbackHandler handler = new WikiCallbackHandler( engine, null, "nosuchuser", "password" );
+        final CallbackHandler handler = new WikiCallbackHandler( engine, null, "nosuchuser", Users.ALICE_PASS );
         final LoginModule module = new UserDatabaseLoginModule();
         module.initialize( subject, handler, new HashMap<>(), new HashMap<>() );
         // login() will throw FailedLoginException; principals set stays empty

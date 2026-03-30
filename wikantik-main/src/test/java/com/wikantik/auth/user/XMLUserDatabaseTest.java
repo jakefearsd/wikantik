@@ -65,7 +65,7 @@ public class XMLUserDatabaseTest {
         profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "FullName" + loginName );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_db.save( profile );
 
         // Make sure the profile saved successfully
@@ -255,7 +255,7 @@ public class XMLUserDatabaseTest {
         profile.setEmail( "renamed@mailinator.com" );
         profile.setFullname( "Renamed User" );
         profile.setLoginName( "olduser" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_db.save( profile );
         profile = m_db.findByLoginName( "olduser" );
         Assertions.assertNotNull( profile );
@@ -284,7 +284,7 @@ public class XMLUserDatabaseTest {
         Assertions.assertEquals( "renamed@mailinator.com", profile.getEmail() );
         Assertions.assertEquals( "Renamed User", profile.getFullname() );
         Assertions.assertEquals( "renameduser", profile.getLoginName() );
-        Assertions.assertTrue( CryptoUtil.verifySaltedPassword( "password".getBytes(), profile.getPassword() ) );
+        Assertions.assertTrue( CryptoUtil.verifySaltedPassword( Users.ALICE_PASS.getBytes(), profile.getPassword() ) );
 
         // Delete the user
         m_db.deleteByLoginName( "renameduser" );
@@ -296,11 +296,11 @@ public class XMLUserDatabaseTest {
             UserProfile profile = m_db.newProfile();
             profile.setEmail( "wikantik.tests@mailinator.com" );
             profile.setLoginName( "user" );
-            profile.setPassword( "password" );
+            profile.setPassword( Users.ALICE_PASS );
             m_db.save( profile );
             profile = m_db.findByEmail( "wikantik.tests@mailinator.com" );
             Assertions.assertEquals( "wikantik.tests@mailinator.com", profile.getEmail() );
-            Assertions.assertTrue( CryptoUtil.verifySaltedPassword( "password".getBytes(), profile.getPassword() ) );
+            Assertions.assertTrue( CryptoUtil.verifySaltedPassword( Users.ALICE_PASS.getBytes(), profile.getPassword() ) );
 
             // Make sure we can find it by uid
             final String uid = profile.getUid();
@@ -313,8 +313,8 @@ public class XMLUserDatabaseTest {
     @Test
     public void testValidatePassword() {
         Assertions.assertFalse( m_db.validatePassword( "janne", "test" ) );
-        Assertions.assertTrue( m_db.validatePassword( "janne", "myP@5sw0rd" ) );
-        Assertions.assertTrue( m_db.validatePassword( "user", "password" ) );
+        Assertions.assertTrue( m_db.validatePassword( "janne", Users.JANNE_PASS ) );
+        Assertions.assertTrue( m_db.validatePassword( "user", Users.ALICE_PASS ) );
     }
 
     // ========== Edge Case Tests for Improved Coverage ==========
@@ -380,7 +380,7 @@ public class XMLUserDatabaseTest {
         profile.setEmail( "locked@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "Locked User" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         profile.setLockExpiry( new Date( System.currentTimeMillis() + 3600000 ) ); // Lock for 1 hour
         m_db.save( profile );
 
@@ -459,7 +459,7 @@ public class XMLUserDatabaseTest {
         profile.setEmail( "samepass@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "Same Password User" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_db.save( profile );
 
         // Re-save with same password (hashed password shouldn't change)
@@ -469,7 +469,7 @@ public class XMLUserDatabaseTest {
         m_db.save( profile );
 
         // Verify password still works
-        Assertions.assertTrue( m_db.validatePassword( loginName, "password" ) );
+        Assertions.assertTrue( m_db.validatePassword( loginName, Users.ALICE_PASS ) );
 
         // Clean up
         m_db.deleteByLoginName( loginName );
@@ -483,7 +483,7 @@ public class XMLUserDatabaseTest {
         profile.setEmail( "noattr@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "No Attribute User" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         // Don't add any attributes
         m_db.save( profile );
 
@@ -510,7 +510,7 @@ public class XMLUserDatabaseTest {
         profile.setLoginName( "testuser" );
         profile.setFullname( "Test User" );
         profile.setEmail( "test@example.com" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         db.save( profile );
 
         profile = db.findByLoginName( "testuser" );
@@ -556,7 +556,7 @@ public class XMLUserDatabaseTest {
         profile.setEmail( "special@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "Special-User_Test" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_db.save( profile );
 
         // Wiki name is derived from full name
@@ -585,14 +585,14 @@ public class XMLUserDatabaseTest {
         profile1.setEmail( "rename1@mailinator.com" );
         profile1.setLoginName( loginName1 );
         profile1.setFullname( "Rename User 1" );
-        profile1.setPassword( "password" );
+        profile1.setPassword( Users.ALICE_PASS );
         m_db.save( profile1 );
 
         UserProfile profile2 = m_db.newProfile();
         profile2.setEmail( "rename2@mailinator.com" );
         profile2.setLoginName( loginName2 );
         profile2.setFullname( "Rename User 2" );
-        profile2.setPassword( "password" );
+        profile2.setPassword( Users.ALICE_PASS );
         m_db.save( profile2 );
 
         // Attempting to rename user1 to user2's login name should throw DuplicateUserException
@@ -613,7 +613,7 @@ public class XMLUserDatabaseTest {
         profile.setEmail( "largeattr@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "Large Attribute User" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
 
         // Add a large attribute
         final StringBuilder largeValue = new StringBuilder();
@@ -639,7 +639,7 @@ public class XMLUserDatabaseTest {
         profile.setEmail( "attrremove@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "Attr Remove User" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         profile.getAttributes().put( "attr1", "value1" );
         profile.getAttributes().put( "attr2", "value2" );
         m_db.save( profile );

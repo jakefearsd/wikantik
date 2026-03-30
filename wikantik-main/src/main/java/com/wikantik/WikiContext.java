@@ -64,6 +64,7 @@ public class WikiContext implements Context, Command {
     private WikiPage page;
     private WikiPage realPage;
     private Engine   engine;
+    private final CommandResolver commandResolver;
     private String   template = "default";
 
     private HashMap< String, Object > variableMap = new HashMap<>();
@@ -182,12 +183,26 @@ public class WikiContext implements Context, Command {
      * @throws IllegalArgumentException if <code>engine</code> or <code>command</code> are <code>null</code>
      */
     public WikiContext( final Engine engine, final HttpServletRequest request, final Command command ) throws IllegalArgumentException {
+        this( engine, request, command, engine.getManager( CommandResolver.class ) );
+    }
+
+    /**
+     * Package-private constructor that accepts an explicit {@link CommandResolver}, primarily for testing.
+     *
+     * @param engine the Engine that is handling the request
+     * @param request the HttpServletRequest; may be {@code null}
+     * @param command the command
+     * @param commandResolver the CommandResolver to use
+     * @throws IllegalArgumentException if {@code engine} or {@code command} are {@code null}
+     */
+    WikiContext( final Engine engine, final HttpServletRequest request, final Command command, final CommandResolver commandResolver ) throws IllegalArgumentException {
         if ( engine == null || command == null ) {
             throw new IllegalArgumentException( "Parameter engine and command must not be null." );
         }
 
         this.engine = engine;
         this.request = request;
+        this.commandResolver = commandResolver;
         this.session = Wiki.session().find( engine, request );
         this.command = command;
 
@@ -246,7 +261,7 @@ public class WikiContext implements Context, Command {
      *  @since 2.1.15.
      */
     public WikiContext( final Engine engine, final HttpServletRequest request, final String requestContext ) {
-        this( engine, request, engine.getManager( CommandResolver.class ).findCommand( request, requestContext ) );
+        this( engine, request, engine.getManager( CommandResolver.class ).findCommand( request, requestContext ), engine.getManager( CommandResolver.class ) );
         if( !engine.isConfigured() ) {
             throw new InternalWikiException( "Engine has not been properly started.  It is likely that the configuration is faulty.  Please check all logs for the possible reason." );
         }
@@ -319,7 +334,7 @@ public class WikiContext implements Context, Command {
     @Override
     public String getRedirectURL() {
         final String pagename = page.getName();
-        String redirURL = engine.getManager( CommandResolver.class ).getSpecialPageReference( pagename );
+        String redirURL = commandResolver.getSpecialPageReference( pagename );
         if( redirURL == null ) {
             final String alias = page.getAttribute( WikiPage.ALIAS );
             if( alias != null ) {
@@ -626,6 +641,7 @@ public class WikiContext implements Context, Command {
             copy.session     = session;
             copy.page        = page;
             copy.realPage    = realPage;
+            // commandResolver is final — super.clone() already copies it
             return copy;
         } catch( final CloneNotSupportedException e ){} // Never happens
 
@@ -650,6 +666,7 @@ public class WikiContext implements Context, Command {
             //  No need to deep clone these
             copy.engine  = engine;
             copy.command = command; // Static structure
+            // commandResolver is final — super.clone() already copies it
 
             copy.template    = template;
             copy.variableMap = (HashMap<String,Object>)variableMap.clone();
@@ -801,8 +818,7 @@ public class WikiContext implements Context, Command {
         if ( requestContext == null ) {
             command = PageCommand.NONE;
         } else {
-            final CommandResolver resolver = engine.getManager( CommandResolver.class );
-            command = resolver.findCommand( request, requestContext );
+            command = commandResolver.findCommand( request, requestContext );
         }
 
         if ( command instanceof PageCommand && page != null ) {

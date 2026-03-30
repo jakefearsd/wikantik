@@ -54,7 +54,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
-import org.apache.commons.lang3.SystemUtils;
 
 
 /**
@@ -188,8 +187,6 @@ public abstract class AbstractFileProvider implements PageProvider {
     /** The default encoding. */
     public static final String DEFAULT_ENCODING = StandardCharsets.ISO_8859_1.toString();
 
-    private boolean windowsHackNeeded;
-
     /**
      * Cache for page file extensions to avoid redundant filesystem existence checks.
      * Maps page name to file extension (".md" or ".txt").
@@ -229,8 +226,6 @@ public abstract class AbstractFileProvider implements PageProvider {
 
         this.engine = engine;
         encoding = properties.getProperty( Engine.PROP_ENCODING, DEFAULT_ENCODING );
-        windowsHackNeeded = SystemUtils.IS_OS_WINDOWS;
-
         MAX_PROPLIMIT = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXLIMIT, DEFAULT_MAX_PROPLIMIT );
         MAX_PROPKEYLENGTH = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXKEYLENGTH, DEFAULT_MAX_PROPKEYLENGTH );
         MAX_PROPVALUELENGTH = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXVALUELENGTH, DEFAULT_MAX_PROPVALUELENGTH );
@@ -243,11 +238,6 @@ public abstract class AbstractFileProvider implements PageProvider {
     {
         return pageDirectory;
     }
-
-    private static final String[] WINDOWS_DEVICE_NAMES = {
-        "con", "prn", "nul", "aux", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
-        "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9"
-    };
 
     /**
      *  This makes sure that the queried page name is still readable by the file system.  For example, all XML entities
@@ -265,17 +255,6 @@ public abstract class AbstractFileProvider implements PageProvider {
             pagename = "%2E" + pagename.substring( 1 );
         }
 
-        if( windowsHackNeeded ) {
-            final String pn = pagename.toLowerCase();
-            final StringBuilder pagenameBuilder = new StringBuilder(pagename);
-            for( final String windowsDeviceName : WINDOWS_DEVICE_NAMES ) {
-                if( windowsDeviceName.equals( pn ) ) {
-                    pagenameBuilder.insert(0, "$$$");
-                }
-            }
-            pagename = pagenameBuilder.toString();
-        }
-
         return pagename;
     }
 
@@ -285,12 +264,7 @@ public abstract class AbstractFileProvider implements PageProvider {
      *  @param filename The filename to unmangle
      *  @return The unmangled name.
      */
-    String unmangleName( String filename ) {
-        // The exception should never happen.
-        if( windowsHackNeeded && filename.startsWith( "$$$" ) && filename.length() > 3 ) {
-            filename = filename.substring( 3 );
-        }
-
+    String unmangleName( final String filename ) {
         return TextUtil.urlDecode( filename, encoding );
     }
 

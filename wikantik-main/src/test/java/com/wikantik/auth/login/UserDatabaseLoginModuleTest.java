@@ -30,6 +30,7 @@ import javax.security.auth.spi.LoginModule;
 import com.wikantik.TestEngine;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
+import com.wikantik.auth.Users;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.authorize.Role;
 import com.wikantik.auth.user.UserDatabase;
@@ -54,7 +55,7 @@ public class UserDatabaseLoginModuleTest
         try
         {
             // Log in with a user that isn't in the database
-            CallbackHandler handler = new WikiCallbackHandler( m_engine, null, "user", "password" );
+            CallbackHandler handler = new WikiCallbackHandler( m_engine, null, "user", Users.ALICE_PASS );
             LoginModule module = new UserDatabaseLoginModule();
             module.initialize( m_subject, handler,
                               new HashMap<String, Object>(),
@@ -69,7 +70,7 @@ public class UserDatabaseLoginModuleTest
 
             // Login with a user that IS in the database
             m_subject = new Subject();
-            handler = new WikiCallbackHandler( m_engine, null, "janne", "myP@5sw0rd" );
+            handler = new WikiCallbackHandler( m_engine, null, Users.JANNE, Users.JANNE_PASS );
             module = new UserDatabaseLoginModule();
             module.initialize( m_subject, handler,
                               new HashMap<String, Object>(),
@@ -94,7 +95,7 @@ public class UserDatabaseLoginModuleTest
     {
         try
         {
-            final CallbackHandler handler = new WikiCallbackHandler( m_engine, null, "user", "password" );
+            final CallbackHandler handler = new WikiCallbackHandler( m_engine, null, "user", Users.ALICE_PASS );
             final LoginModule module = new UserDatabaseLoginModule();
             module.initialize( m_subject, handler,
                               new HashMap<String, Object>(),

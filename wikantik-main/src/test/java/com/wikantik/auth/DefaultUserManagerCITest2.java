@@ -171,7 +171,7 @@ class DefaultUserManagerCITest2 {
         bob.setLoginName( loginBob );
         bob.setFullname( "ValbobFull" + loginBob );
         bob.setEmail( loginBob + "@example.com" );
-        bob.setPassword( "password" );
+        bob.setPassword( Users.ALICE_PASS );
         m_mgr.setUserProfile( ctx1, bob );
 
         // Now try to create a second user whose FULL NAME equals bob's login name
@@ -181,7 +181,7 @@ class DefaultUserManagerCITest2 {
         newUser.setLoginName( "newuser" + System.currentTimeMillis() );
         newUser.setFullname( loginBob );  // same as bob's loginName — should be rejected
         newUser.setEmail( "newuser" + System.currentTimeMillis() + "@example.com" );
-        newUser.setPassword( "password" );
+        newUser.setPassword( Users.ALICE_PASS );
 
         m_mgr.validateProfile( ctx2, newUser );
 
@@ -207,7 +207,7 @@ class DefaultUserManagerCITest2 {
         existing.setLoginName( existingLogin );
         existing.setFullname( existingFull );
         existing.setEmail( existingLogin + "@example.com" );
-        existing.setPassword( "password" );
+        existing.setPassword( Users.ALICE_PASS );
         m_mgr.setUserProfile( ctx1, existing );
 
         // Now try to create a new user whose LOGIN NAME equals existingFull
@@ -217,7 +217,7 @@ class DefaultUserManagerCITest2 {
         newUser.setLoginName( existingFull );  // same as existing user's full name
         newUser.setFullname( "DifferentFull" + System.currentTimeMillis() );
         newUser.setEmail( "conflict" + System.currentTimeMillis() + "@example.com" );
-        newUser.setPassword( "password" );
+        newUser.setPassword( Users.ALICE_PASS );
 
         m_mgr.validateProfile( ctx2, newUser );
 

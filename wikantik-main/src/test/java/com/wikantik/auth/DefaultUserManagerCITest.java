@@ -217,7 +217,7 @@ class DefaultUserManagerCITest {
         first.setLoginName( loginName1 );
         first.setFullname( "User One " + loginName1 );
         first.setEmail( sharedEmail );
-        first.setPassword( "password" );
+        first.setPassword( Users.ALICE_PASS );
         m_mgr.setUserProfile( ctx1, first );
 
         // Create a second NEW profile (different UID) that claims the same email
@@ -228,7 +228,7 @@ class DefaultUserManagerCITest {
         second.setLoginName( loginName2 );
         second.setFullname( "User Two " + loginName2 );
         second.setEmail( sharedEmail );
-        second.setPassword( "password" );
+        second.setPassword( Users.ALICE_PASS );
 
         m_mgr.validateProfile( ctx2, second );
 
@@ -253,7 +253,7 @@ class DefaultUserManagerCITest {
         newUser.setLoginName( login );
         newUser.setFullname( "FullName" + login );
         newUser.setEmail( login + "@example.com" );
-        newUser.setPassword( "password" );
+        newUser.setPassword( Users.ALICE_PASS );
         m_mgr.setUserProfile( ctx, newUser );
 
         // Try to change password but supply wrong current password (password0)

@@ -97,7 +97,7 @@ class UserManagerTest {
         profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( oldLogin );
         profile.setFullname( oldName );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_mgr.setUserProfile( context, profile );
 
         // 1a. Make sure the profile saved successfully and that we're logged in
@@ -139,7 +139,7 @@ class UserManagerTest {
         profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( oldLogin );
         profile.setFullname( newName );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_mgr.setUserProfile( context, profile );
 
         // Test 1: the wiki session should have the new wiki name in Subject
@@ -198,7 +198,7 @@ class UserManagerTest {
         profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( newLogin );
         profile.setFullname( oldName );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_mgr.setUserProfile( context, profile );
 
         // Test 5: the wiki session should have the new login name in Subject
@@ -255,7 +255,7 @@ class UserManagerTest {
         profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "FullName" + loginName );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_mgr.setUserProfile( context, profile );
 
         // Make sure the profile saved successfully
@@ -280,7 +280,7 @@ class UserManagerTest {
         profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "FullName" + loginName );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
 
         // Set the login name to collide with Janne's: should prohibit saving
         profile.setLoginName( "janne" );
@@ -338,7 +338,7 @@ class UserManagerTest {
         profile.setLoginName( null );
         profile.setFullname( "Test Fullname" );
         profile.setEmail( "test@example.com" );
-        profile.setPassword( "myP@5sw0rd" );
+        profile.setPassword( Users.ADMIN_PASS );
         m_mgr.validateProfile( context, profile );
 
         final String[] messages = context.getWikiSession().getMessages( SESSION_MESSAGES );
@@ -355,7 +355,7 @@ class UserManagerTest {
         profile.setLoginName( "testlogin" );
         profile.setFullname( null );
         profile.setEmail( "test@example.com" );
-        profile.setPassword( "myP@5sw0rd" );
+        profile.setPassword( Users.ADMIN_PASS );
         m_mgr.validateProfile( context, profile );
 
         final String[] messages = context.getWikiSession().getMessages( SESSION_MESSAGES );
@@ -391,7 +391,7 @@ class UserManagerTest {
         profile.setEmail( "setget@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "FullName" + loginName );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_mgr.setUserProfile( context, profile );
 
         // Retrieve via the session - should match what we just set

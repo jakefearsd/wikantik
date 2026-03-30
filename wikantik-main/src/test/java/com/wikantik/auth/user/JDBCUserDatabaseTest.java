@@ -22,6 +22,7 @@ import com.wikantik.HsqlDbUtils;
 import com.wikantik.TestJDBCDataSource;
 import com.wikantik.TestJNDIContext;
 import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.Users;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.util.CryptoUtil;
 import org.junit.jupiter.api.AfterAll;
@@ -130,7 +131,7 @@ public class JDBCUserDatabaseTest {
         profile.setEmail( "wikantik.tests@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "FullName" + loginName );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_db.save( profile );
 
         // Make sure the profile saved successfully
@@ -317,7 +318,7 @@ public class JDBCUserDatabaseTest {
         profile.setEmail( "renamed@mailinator.com" );
         profile.setFullname( "Renamed User" );
         profile.setLoginName( "olduser" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_db.save( profile );
         profile = m_db.findByLoginName( "olduser" );
         Assertions.assertNotNull( profile );
@@ -346,7 +347,7 @@ public class JDBCUserDatabaseTest {
         Assertions.assertEquals( "renamed@mailinator.com", profile.getEmail() );
         Assertions.assertEquals( "Renamed User", profile.getFullname() );
         Assertions.assertEquals( "renameduser", profile.getLoginName() );
-        Assertions.assertTrue( CryptoUtil.verifySaltedPassword( "password".getBytes(), profile.getPassword() ) );
+        Assertions.assertTrue( CryptoUtil.verifySaltedPassword( Users.ALICE_PASS.getBytes(), profile.getPassword() ) );
 
         // Delete the user
         m_db.deleteByLoginName( "renameduser" );
@@ -360,13 +361,13 @@ public class JDBCUserDatabaseTest {
             profile.setEmail( "wikantik.tests@mailinator.com" );
             profile.setFullname( "Test User" );
             profile.setLoginName( "user" );
-            profile.setPassword( "password" );
+            profile.setPassword( Users.ALICE_PASS );
             m_db.save( profile );
             profile = m_db.findByEmail( "wikantik.tests@mailinator.com" );
             Assertions.assertEquals( "wikantik.tests@mailinator.com", profile.getEmail() );
             Assertions.assertEquals( "Test User", profile.getFullname() );
             Assertions.assertEquals( "user", profile.getLoginName() );
-            Assertions.assertTrue( CryptoUtil.verifySaltedPassword( "password".getBytes(), profile.getPassword() ) );
+            Assertions.assertTrue( CryptoUtil.verifySaltedPassword( Users.ALICE_PASS.getBytes(), profile.getPassword() ) );
             Assertions.assertEquals( "TestUser", profile.getWikiName() );
             Assertions.assertNotNull( profile.getCreated() );
             Assertions.assertNotNull( profile.getLastModified() );
@@ -377,13 +378,13 @@ public class JDBCUserDatabaseTest {
             profile.setEmail( "wikantik.tests2@mailinator.com" );
             profile.setFullname( "Test User 2" );
             profile.setLoginName( "user2" );
-            profile.setPassword( "password" );
+            profile.setPassword( Users.ALICE_PASS );
             m_db.save( profile );
             profile = m_db.findByEmail( "wikantik.tests2@mailinator.com" );
             Assertions.assertEquals( "wikantik.tests2@mailinator.com", profile.getEmail() );
             Assertions.assertEquals( "Test User 2", profile.getFullname() );
             Assertions.assertEquals( "user2", profile.getLoginName() );
-            Assertions.assertTrue( CryptoUtil.verifySaltedPassword( "password".getBytes(), profile.getPassword() ) );
+            Assertions.assertTrue( CryptoUtil.verifySaltedPassword( Users.ALICE_PASS.getBytes(), profile.getPassword() ) );
             Assertions.assertEquals( "TestUser2", profile.getWikiName() );
             Assertions.assertNotNull( profile.getCreated() );
             Assertions.assertNotNull( profile.getLastModified() );
@@ -401,8 +402,8 @@ public class JDBCUserDatabaseTest {
     @Test
     public void testValidatePassword() {
         Assertions.assertFalse( m_db.validatePassword( "janne", "test" ) );
-        Assertions.assertTrue( m_db.validatePassword( "janne", "myP@5sw0rd" ) );
-        Assertions.assertTrue( m_db.validatePassword( "user", "password" ) );
+        Assertions.assertTrue( m_db.validatePassword( "janne", Users.JANNE_PASS ) );
+        Assertions.assertTrue( m_db.validatePassword( "user", Users.ALICE_PASS ) );
     }
 
     // ========== Edge Case Tests for Improved Coverage ==========
@@ -458,7 +459,7 @@ public class JDBCUserDatabaseTest {
         profile.setEmail( "locked@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "Locked User" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_db.save( profile );
 
         // Now update with a lock expiry date (this tests the UPDATE path with lockExpiry)
@@ -561,7 +562,7 @@ public class JDBCUserDatabaseTest {
         profile.setEmail( "rename@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "Rename User" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_db.save( profile );
 
         // Attempting to rename to existing "janne" login name should throw DuplicateUserException
@@ -581,7 +582,7 @@ public class JDBCUserDatabaseTest {
         profile.setEmail( "attr@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "Attribute User" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         profile.getAttributes().put( "testAttr", "testValue" );
         m_db.save( profile );
 
@@ -611,7 +612,7 @@ public class JDBCUserDatabaseTest {
         profile.setEmail( "noattr@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "No Attribute User" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         // Don't add any attributes
         m_db.save( profile );
 
@@ -640,7 +641,7 @@ public class JDBCUserDatabaseTest {
         profile.setEmail( "samepass@mailinator.com" );
         profile.setLoginName( loginName );
         profile.setFullname( "Same Password User" );
-        profile.setPassword( "password" );
+        profile.setPassword( Users.ALICE_PASS );
         m_db.save( profile );
 
         // Re-save with same password (hashed password shouldn't change)
@@ -650,7 +651,7 @@ public class JDBCUserDatabaseTest {
         m_db.save( profile );
 
         // Verify password still works
-        Assertions.assertTrue( m_db.validatePassword( loginName, "password" ) );
+        Assertions.assertTrue( m_db.validatePassword( loginName, Users.ALICE_PASS ) );
 
         // Clean up
         m_db.deleteByLoginName( loginName );

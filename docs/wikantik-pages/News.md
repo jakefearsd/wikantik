@@ -6,6 +6,58 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-31** — Fix admin API requests intercepted by SpaRoutingFilter
+
+**2026-03-30** — Move test passwords from Java source to properties file
+
+**2026-03-30** — Add tests for ui, parser, references, and remaining gaps
+
+**2026-03-30** — Add tests for search, diff, and variables coverage gaps
+
+**2026-03-30** — Add tests for attachment and filters coverage gaps
+
+**2026-03-30** — Add tests for auth core and SSO coverage gaps
+
+**2026-03-30** — Add tests for auth.login and auth.user coverage gaps
+
+**2026-03-30** — Add tests for remaining plugin coverage gaps
+
+**2026-03-30** — Add tests for JDBCPlugin, DefaultPluginManager, and AbstractReferralPlugin
+
+**2026-03-30** — Refactor WikiContext to inject CommandResolver, add tests for com.wikantik package
+
+**2026-03-30** — Add error-path and edge-case tests for file-based providers
+
+**2026-03-30** — Add comprehensive tests for provider decorator classes
+
+**2026-03-30** — Remove Windows filesystem device-name escaping from AbstractFileProvider
+
+**2026-03-29** — Consolidate duplicated makeURL parameter handling into DefaultURLConstructor
+
+**2026-03-29** — Extract AbstractLinkState base class to consolidate 6 duplicate constructors
+
+**2026-03-29** — Extract WikiSession event handlers into focused methods (CC 24 -> dispatch + helpers)
+
+**2026-03-29** — Extract validateProfile into focused validation methods (CC 29 -> 4 methods)
+
+**2026-03-29** — Consolidate duplicated makeURL parameter handling into DefaultURLConstructor
+
+**2026-03-29** — Fix duplicate WikiServletFilter entry in LogLevelEnforcementTest allowlist
+
+**2026-03-29** — Rename getJSP() to getRoutePath() across Command interface and implementations
+
+**2026-03-29** — Clean up JSP remnants: SecurityVerifier, WikiJSPFilter rename, stale javadoc
+
+**2026-03-29** — Add unit tests for PluginContent, DefaultUserManager, DefaultAclManager
+
+**2026-03-29** — Refactor WikiSession to constructor injection, add CI tests
+
+**2026-03-29** — Refactor LuceneSearchProvider to constructor injection, add CI tests
+
+**2026-03-29** — Refactor auth managers to constructor injection, add CI tests
+
+**2026-03-29** — Add unit tests for WatchDog and ShortURLConstructor
+
 **2026-03-29** — Fix flaky parallel test assertion in DefaultPageManagerCITest
 
 **2026-03-29** — Add unit tests for modules package (WikiModuleInfo, InternalModule)
@@ -1017,23 +1069,4 @@ A log of recent development activity on the JSPWiki project.
 **2025-10-27** — JSPWIKI-1211 minor tweak to fix a bootup issue when the rss directory path does not exist
 
 **2025-10-22** — JSPWIKI-1207 temporary fix for the ehcache causing bootup crashes on the portable builds
-
-**2025-10-01** — Bump jakarta.mail:jakarta.mail-api from 2.1.3 to 2.1.5
-
-
----
-
-## September 2025
-
-**2025-09-30** — 3.0.0-git-02
-
-**2025-09-30** — Update dependencies
-
-**2025-09-30** — Update wro4j maven plugin to 2.1.1 + fix typo preventing including polyfills.js to be processed by wro4j
-
-**2025-09-30** — Update dependencies
-
-**2025-09-30** — remove extra whitespace
-
-**2025-09-30** — Remove deprecated libraries usage + use some jdk-17 constructs
 

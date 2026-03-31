@@ -49,6 +49,11 @@ public class SpaRoutingFilter implements Filter {
     private static final String[] SPA_PREFIXES = { "/wiki/", "/edit/", "/diff/", "/admin/" };
     private static final String[] SPA_EXACT = { "/search", "/preferences", "/reset-password" };
 
+    /** Admin sub-paths that are REST API endpoints, not SPA routes. */
+    private static final String[] ADMIN_API_PREFIXES = {
+        "/admin/content", "/admin/users", "/admin/groups", "/admin/policy"
+    };
+
     @Override
     public void init( final FilterConfig filterConfig ) throws ServletException {
     }
@@ -70,6 +75,14 @@ public class SpaRoutingFilter implements Filter {
         if ( path.contains( "." ) && !path.endsWith( ".html" ) ) {
             chain.doFilter( request, response );
             return;
+        }
+
+        // Admin API endpoints must pass through to their servlets
+        for ( final String apiPrefix : ADMIN_API_PREFIXES ) {
+            if ( path.startsWith( apiPrefix ) ) {
+                chain.doFilter( request, response );
+                return;
+            }
         }
 
         // Check if this is a SPA route — forward to index.html

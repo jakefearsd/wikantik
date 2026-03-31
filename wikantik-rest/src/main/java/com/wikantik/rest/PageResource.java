@@ -128,8 +128,8 @@ public class PageResource extends RestServletBase {
             try {
                 final RenderingManager renderingManager = engine.getManager( RenderingManager.class );
                 final Context context = Wiki.context().create( engine, request, page );
-                // SPA is served at root — wiki links use baseURL directly
-                context.setVariable( Context.VAR_REACT_URL_BASE, engine.getBaseURL() );
+                // SPA is served at /app — wiki links use baseURL + /app prefix
+                context.setVariable( Context.VAR_REACT_URL_BASE, engine.getBaseURL() + "/app" );
                 final String html = renderingManager.textToHTML( context, rawText );
                 result.put( "contentHtml", html );
             } catch ( final Exception e ) {

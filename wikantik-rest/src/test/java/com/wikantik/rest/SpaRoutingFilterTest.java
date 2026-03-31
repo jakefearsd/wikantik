@@ -200,6 +200,7 @@ class SpaRoutingFilterTest {
     private HttpServletRequest mockRequest( final String uri ) {
         final HttpServletRequest request = mock( HttpServletRequest.class );
         when( request.getRequestURI() ).thenReturn( uri );
+        when( request.getHeader( "Accept" ) ).thenReturn( "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" );
         return request;
     }
 }

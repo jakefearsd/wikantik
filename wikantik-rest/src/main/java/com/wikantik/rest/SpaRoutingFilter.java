@@ -37,9 +37,10 @@ import java.io.IOException;
  *   <li><b>Redirects</b> — {@code /}, {@code /wiki}, and {@code /wiki/} redirect
  *       to {@code /wiki/Main} so the wiki always has a concrete page.</li>
  *   <li><b>SPA forwarding</b> — known SPA prefixes ({@code /wiki/}, {@code /edit/},
- *       {@code /diff/}, {@code /admin/}) and exact SPA routes ({@code /search},
- *       {@code /preferences}, {@code /reset-password}) are forwarded to
- *       {@code /index.html} for React Router.</li>
+ *       {@code /diff/}) and exact SPA routes ({@code /search}, {@code /preferences},
+ *       {@code /reset-password}, {@code /admin/*} tab routes) are forwarded to
+ *       {@code /index.html} for React Router. Admin API endpoints like
+ *       {@code /admin/content/stats} pass through to their servlets.</li>
  *   <li><b>Static assets</b> — requests containing a file extension (other than
  *       {@code .html}) pass through to Tomcat's default servlet.</li>
  * </ol>
@@ -48,11 +49,6 @@ public class SpaRoutingFilter implements Filter {
 
     private static final String[] SPA_PREFIXES = { "/wiki/", "/edit/", "/diff/", "/admin/" };
     private static final String[] SPA_EXACT = { "/search", "/preferences", "/reset-password" };
-
-    /** Admin sub-paths that are REST API endpoints, not SPA routes. */
-    private static final String[] ADMIN_API_PREFIXES = {
-        "/admin/content", "/admin/users", "/admin/groups", "/admin/policy"
-    };
 
     @Override
     public void init( final FilterConfig filterConfig ) throws ServletException {
@@ -77,25 +73,23 @@ public class SpaRoutingFilter implements Filter {
             return;
         }
 
-        // Admin API endpoints must pass through to their servlets
-        for ( final String apiPrefix : ADMIN_API_PREFIXES ) {
-            if ( path.startsWith( apiPrefix ) ) {
-                chain.doFilter( request, response );
-                return;
-            }
-        }
+        // Only forward to the SPA for browser navigation requests (Accept: text/html).
+        // API calls from fetch() send Accept: */* and must reach their servlets.
+        final String accept = req.getHeader( "Accept" );
+        final boolean isBrowserNavigation = accept != null && accept.contains( "text/html" );
 
-        // Check if this is a SPA route — forward to index.html
-        for ( final String prefix : SPA_PREFIXES ) {
-            if ( path.startsWith( prefix ) ) {
-                req.getRequestDispatcher( "/index.html" ).forward( request, response );
-                return;
+        if ( isBrowserNavigation ) {
+            for ( final String prefix : SPA_PREFIXES ) {
+                if ( path.startsWith( prefix ) ) {
+                    req.getRequestDispatcher( "/index.html" ).forward( request, response );
+                    return;
+                }
             }
-        }
-        for ( final String exact : SPA_EXACT ) {
-            if ( path.equals( exact ) || path.startsWith( exact + "?" ) ) {
-                req.getRequestDispatcher( "/index.html" ).forward( request, response );
-                return;
+            for ( final String exact : SPA_EXACT ) {
+                if ( path.equals( exact ) || path.startsWith( exact + "?" ) ) {
+                    req.getRequestDispatcher( "/index.html" ).forward( request, response );
+                    return;
+                }
             }
         }
 

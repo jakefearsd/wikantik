@@ -678,7 +678,7 @@ public class LuceneSearchProvider implements SearchProvider {
             return Collections.emptyList();
         }
 
-        ArrayList< SearchResult > list = null;
+        ArrayList< SearchResult > list = new ArrayList<>();
         Highlighter highlighter = null;
 
         try( final Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );

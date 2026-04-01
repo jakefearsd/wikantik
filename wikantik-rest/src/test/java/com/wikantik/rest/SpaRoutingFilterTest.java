@@ -165,6 +165,48 @@ class SpaRoutingFilterTest {
         verify( dispatcher ).forward( request, response );
     }
 
+    // ---- Passthrough tests (API calls with non-HTML Accept) ----
+
+    @Test
+    void testAdminApiOrphanedPagesPassesThrough() throws Exception {
+        final HttpServletRequest request = mockApiRequest( "/admin/content/orphaned-pages" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+        verify( request, never() ).getRequestDispatcher( anyString() );
+    }
+
+    @Test
+    void testAdminApiStatsPassesThrough() throws Exception {
+        final HttpServletRequest request = mockApiRequest( "/admin/content/stats" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+        verify( request, never() ).getRequestDispatcher( anyString() );
+    }
+
+    @Test
+    void testAdminApiUsersPassesThrough() throws Exception {
+        final HttpServletRequest request = mockApiRequest( "/admin/users" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+        verify( request, never() ).getRequestDispatcher( anyString() );
+    }
+
+    @Test
+    void testAdminApiBrokenLinksPassesThrough() throws Exception {
+        final HttpServletRequest request = mockApiRequest( "/admin/content/broken-links" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+        verify( request, never() ).getRequestDispatcher( anyString() );
+    }
+
     // ---- Passthrough tests (static assets) ----
 
     @Test
@@ -201,6 +243,13 @@ class SpaRoutingFilterTest {
         final HttpServletRequest request = mock( HttpServletRequest.class );
         when( request.getRequestURI() ).thenReturn( uri );
         when( request.getHeader( "Accept" ) ).thenReturn( "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" );
+        return request;
+    }
+
+    private HttpServletRequest mockApiRequest( final String uri ) {
+        final HttpServletRequest request = mock( HttpServletRequest.class );
+        when( request.getRequestURI() ).thenReturn( uri );
+        when( request.getHeader( "Accept" ) ).thenReturn( "application/json" );
         return request;
     }
 }

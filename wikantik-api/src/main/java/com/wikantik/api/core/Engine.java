@@ -143,6 +143,17 @@ public interface Engine {
     < T > List< T > getManagers( Class< T > manager );
 
     /**
+     * Registers an object with the Engine under the given type key, making it retrievable via
+     * {@link #getManager(Class)}. Use this to expose background services or other components
+     * that are created outside the normal engine initialization sequence.
+     *
+     * @param clazz the type key to register under
+     * @param manager the object to register
+     * @param <T> type of the object
+     */
+    < T > void setManager( Class< T > clazz, T manager );
+
+    /**
      * check if the Engine has been configured.
      *
      * @return {@code true} if it has, {@code false} otherwise.

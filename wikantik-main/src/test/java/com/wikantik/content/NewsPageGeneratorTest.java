@@ -238,4 +238,100 @@ public class NewsPageGeneratorTest {
         Assertions.assertEquals( 64, hash1.length(), "SHA-256 hex should be 64 chars" );
     }
 
+    @Test
+    public void testIntervalIsOneHour() throws Exception {
+        // DEFAULT_INTERVAL_SECONDS is package-private via the constructor default — verify
+        // by checking the constant value via reflection, or simply test it indirectly:
+        // the no-arg constructor delegate uses 3600.
+        final Engine engine = Mockito.mock( Engine.class );
+        final Path tempDir = Files.createTempDirectory( Path.of( "target" ).toAbsolutePath(), "interval-test-" );
+        try {
+            final NewsPageGenerator gen = new NewsPageGenerator( engine, tempDir.toString() );
+            // We can't inspect the interval field directly (it's in the superclass), but
+            // we can verify by checking the DEFAULT_INTERVAL_SECONDS constant value via
+            // the class source. Instead, assert through a sanity check: if the interval
+            // were still 86400 the test would document the intent.
+            // The clearest assertion is to confirm the default constructor does NOT use 86400.
+            // We do this by verifying the generator can be created and the interval field
+            // in WikiBackgroundThread matches 3600, accessed via reflection.
+            final java.lang.reflect.Field intervalField = gen.getClass().getSuperclass().getDeclaredField( "interval" );
+            intervalField.setAccessible( true );
+            final int interval = ( int ) intervalField.get( gen );
+            Assertions.assertEquals( 3_600, interval, "Default interval should be 1 hour (3600 seconds)" );
+        } finally {
+            Files.deleteIfExists( tempDir );
+        }
+    }
+
+    @Test
+    public void testRunGitFetchSucceedsInRealRepo() throws Exception {
+        // Create a temp dir inside the project tree so findGitRoot finds the real .git
+        final Path tempDir = Files.createTempDirectory( Path.of( "target" ).toAbsolutePath(), "fetch-test-" );
+        try {
+            final Engine engine = Mockito.mock( Engine.class );
+            final NewsPageGenerator gen = new NewsPageGenerator( engine, tempDir.toString() );
+            gen.startupTask();
+            // runGitFetch should succeed because we have a remote (origin) configured
+            final boolean result = gen.runGitFetch();
+            Assertions.assertTrue( result, "git fetch origin should succeed in real repo" );
+        } finally {
+            Files.deleteIfExists( tempDir );
+        }
+    }
+
+    @Test
+    public void testRunGitLogWithExplicitHeadRef() throws Exception {
+        final Path tempDir = Files.createTempDirectory( Path.of( "target" ).toAbsolutePath(), "log-ref-test-" );
+        try {
+            final Engine engine = Mockito.mock( Engine.class );
+            final NewsPageGenerator gen = new NewsPageGenerator( engine, tempDir.toString() );
+            gen.startupTask();
+            final List< String > lines = gen.runGitLog( "HEAD" );
+            Assertions.assertFalse( lines.isEmpty(), "runGitLog(HEAD) should return commits" );
+        } finally {
+            Files.deleteIfExists( tempDir );
+        }
+    }
+
+    @Test
+    public void testGenerateNowUpdatesFile() throws Exception {
+        final Path tempDir = Files.createTempDirectory( Path.of( "target" ).toAbsolutePath(), "gennow-test-" );
+        try {
+            final Path newsFile = tempDir.resolve( "News.md" );
+            Assertions.assertFalse( Files.exists( newsFile ), "News.md should not exist initially" );
+
+            final Engine engine = Mockito.mock( Engine.class );
+            final NewsPageGenerator gen = new NewsPageGenerator( engine, tempDir.toString() );
+            gen.startupTask();
+            gen.generateNow();
+
+            Assertions.assertTrue( Files.exists( newsFile ), "generateNow() should create News.md" );
+            final String content = Files.readString( newsFile, StandardCharsets.UTF_8 );
+            Assertions.assertTrue( content.startsWith( "# JSPWiki Development News" ),
+                    "News page should have expected header" );
+        } finally {
+            final Path newsFile = tempDir.resolve( "News.md" );
+            Files.deleteIfExists( newsFile );
+            Files.deleteIfExists( tempDir );
+        }
+    }
+
+    @Test
+    public void testGenerateNowWhenDisabledDoesNothing( @TempDir final Path tempDir ) throws Exception {
+        final Engine engine = Mockito.mock( Engine.class );
+        final NewsPageGenerator gen = new NewsPageGenerator( engine, tempDir.toString() );
+        // startupTask() not called — gitRoot is null and disabled=false by default.
+        // Force disabled by calling startupTask() in a directory with no .git:
+        // use a TempDir that is NOT inside a git repo... but we can't guarantee that.
+        // Instead, use reflection to set the disabled flag directly.
+        final java.lang.reflect.Field disabledField = NewsPageGenerator.class.getDeclaredField( "disabled" );
+        disabledField.setAccessible( true );
+        disabledField.set( gen, true );
+
+        final Path newsFile = tempDir.resolve( "News.md" );
+        gen.generateNow();
+
+        Assertions.assertFalse( Files.exists( newsFile ), "generateNow() should not write when disabled" );
+    }
+
 }

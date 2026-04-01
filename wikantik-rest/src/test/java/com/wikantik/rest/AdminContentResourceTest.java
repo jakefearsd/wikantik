@@ -24,6 +24,7 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.content.NewsPageGenerator;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,6 +42,7 @@ import java.io.StringWriter;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class AdminContentResourceTest {
 
@@ -438,6 +440,32 @@ class AdminContentResourceTest {
         assertTrue( obj.has( "deleted" ), "Response should have 'deleted' array" );
         final com.google.gson.JsonArray deleted = obj.getAsJsonArray( "deleted" );
         assertEquals( 2, deleted.size(), "Should have deleted 2 pages" );
+    }
+
+    @Test
+    void testRefreshNewsWhenGeneratorNotAvailable() throws Exception {
+        // No NewsPageGenerator registered — should return 503
+        final JsonObject body = new JsonObject();
+        final String json = doPost( "/refresh-news", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 503, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testRefreshNewsWhenGeneratorAvailable() throws Exception {
+        // Register a mock NewsPageGenerator so generateNow() can be verified
+        final NewsPageGenerator mockGen = Mockito.mock( NewsPageGenerator.class );
+        engine.setManager( NewsPageGenerator.class, mockGen );
+
+        final JsonObject body = new JsonObject();
+        final String json = doPost( "/refresh-news", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Should succeed, got: " + json );
+        assertTrue( obj.get( "triggered" ).getAsBoolean() );
+        verify( mockGen, times( 1 ) ).generateNow();
     }
 
     // ----- Helper methods -----

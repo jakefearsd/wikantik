@@ -429,6 +429,12 @@ public class WikiEngine implements Engine {
 
     /** {@inheritDoc} */
     @Override
+    public < T > void setManager( final Class< T > clazz, final T manager ) {
+        managers.put( clazz, manager );
+    }
+
+    /** {@inheritDoc} */
+    @Override
     public boolean isConfigured() {
         return isConfigured;
     }

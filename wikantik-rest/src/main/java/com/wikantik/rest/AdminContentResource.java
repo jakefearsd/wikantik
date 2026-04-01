@@ -30,6 +30,7 @@ import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.cache.CacheInfo;
 import com.wikantik.cache.CachingManager;
+import com.wikantik.content.NewsPageGenerator;
 import com.wikantik.search.SearchManager;
 
 import jakarta.servlet.ServletException;
@@ -60,6 +61,7 @@ import java.util.Set;
  *   <li>{@code POST /admin/content/bulk-delete} — delete multiple pages</li>
  *   <li>{@code POST /admin/content/purge-versions} — purge old page versions</li>
  *   <li>{@code POST /admin/content/reindex} — force full search index rebuild</li>
+ *   <li>{@code POST /admin/content/refresh-news} — trigger immediate news page update from git</li>
  *   <li>{@code POST /admin/content/cache/flush} — flush caches</li>
  * </ul>
  */
@@ -115,6 +117,8 @@ public class AdminContentResource extends RestServletBase {
             handleReindex( response );
         } else if ( "cache/flush".equals( action ) ) {
             handleCacheFlush( request, response );
+        } else if ( "refresh-news".equals( action ) ) {
+            handleRefreshNews( response );
         } else {
             sendNotFound( response, "Unknown content endpoint: " + action );
         }
@@ -330,6 +334,17 @@ public class AdminContentResource extends RestServletBase {
         }
 
         sendJson( response, Map.of( "flushed", true, "entriesRemoved", flushed ) );
+    }
+
+    private void handleRefreshNews( final HttpServletResponse response ) throws IOException {
+        final NewsPageGenerator gen = getEngine().getManager( NewsPageGenerator.class );
+        if ( gen == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                       "News page generator is not running" );
+            return;
+        }
+        gen.generateNow();
+        sendJson( response, Map.of( "triggered", true ) );
     }
 
     // ---- Helpers ----

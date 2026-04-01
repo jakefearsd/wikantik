@@ -163,6 +163,7 @@ public class CachingProvider implements PageProvider {
                 final String pageDir = fileProvider.getPageDirectory();
                 final NewsPageGenerator newsGenerator = new NewsPageGenerator( engine, pageDir );
                 newsGenerator.start();
+                engine.setManager( NewsPageGenerator.class, newsGenerator );
             }
         }
     }

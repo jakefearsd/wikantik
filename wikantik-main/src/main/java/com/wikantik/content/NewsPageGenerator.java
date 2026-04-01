@@ -25,7 +25,9 @@ import com.wikantik.api.core.Engine;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -60,7 +62,7 @@ public class NewsPageGenerator extends WikiBackgroundThread {
 
     private static final Logger LOG = LogManager.getLogger( NewsPageGenerator.class );
 
-    private static final int DEFAULT_INTERVAL_SECONDS = 86_400;
+    private static final int DEFAULT_INTERVAL_SECONDS = 3_600;
     private static final int DEFAULT_MONTHS_OF_HISTORY = 6;
     private static final String NEWS_PAGE_NAME = "News.md";
     private static final long GIT_TIMEOUT_SECONDS = 30;
@@ -70,7 +72,7 @@ public class NewsPageGenerator extends WikiBackgroundThread {
 
     private final Path pageDirectory;
     private final int monthsOfHistory;
-    private String lastContentHash;
+    private volatile String lastContentHash;
     private Path gitRoot;
     private volatile boolean disabled;
 
@@ -122,16 +124,55 @@ public class NewsPageGenerator extends WikiBackgroundThread {
     }
 
     /**
+     * Fetches the latest commits from the remote origin, updating {@code FETCH_HEAD}.
+     * Returns {@code true} on success, {@code false} if fetch is unavailable or fails
+     * (e.g. no network, no remote configured). Failures are logged as warnings only;
+     * the generator falls back to local history.
+     */
+    boolean runGitFetch() {
+        final ProcessBuilder pb = new ProcessBuilder( "git", "fetch", "origin" );
+        pb.directory( gitRoot.toFile() );
+        pb.redirectErrorStream( true );
+        try {
+            final Process process = pb.start();
+            // Drain output so the process doesn't block on a full pipe buffer
+            try( final InputStream is = process.getInputStream() ) {
+                is.transferTo( OutputStream.nullOutputStream() );
+            }
+            if( !process.waitFor( GIT_TIMEOUT_SECONDS, TimeUnit.SECONDS ) ) {
+                process.destroyForcibly();
+                LOG.warn( "git fetch timed out after {} seconds", GIT_TIMEOUT_SECONDS );
+                return false;
+            }
+            final boolean ok = process.exitValue() == 0;
+            if( !ok ) {
+                LOG.warn( "git fetch exited with code {}", process.exitValue() );
+            }
+            return ok;
+        } catch( final IOException e ) {
+            LOG.warn( "git fetch failed: {}", e.getMessage() );
+            return false;
+        } catch( final InterruptedException e ) {
+            Thread.currentThread().interrupt();
+            LOG.warn( "git fetch interrupted" );
+            return false;
+        }
+    }
+
+    /**
      * Runs the git log command, formats the output, and writes {@code News.md} if content changed.
+     * Synchronized to prevent concurrent execution with {@link #generateNow()}.
      */
     @Override
-    public void backgroundTask() throws Exception {
+    public synchronized void backgroundTask() throws Exception {
         if( disabled ) {
             return;
         }
 
         try {
-            final List< String > gitLogLines = runGitLog();
+            final boolean fetched = runGitFetch();
+            final String ref = fetched ? "FETCH_HEAD" : "HEAD";
+            final List< String > gitLogLines = runGitLog( ref );
             final String content = formatNewsPage( gitLogLines );
             final String hash = sha256( content );
 
@@ -142,21 +183,51 @@ public class NewsPageGenerator extends WikiBackgroundThread {
 
             Files.writeString( pageDirectory.resolve( NEWS_PAGE_NAME ), content, StandardCharsets.UTF_8 );
             lastContentHash = hash;
-            LOG.info( "News page updated with {} commits", gitLogLines.size() );
+            LOG.info( "News page updated with {} commits (source: {})", gitLogLines.size(), ref );
         } catch( final IOException e ) {
             LOG.warn( "Failed to generate news page, will retry next cycle", e );
         }
     }
 
     /**
-     * Runs {@code git log} and returns the output lines.
+     * Triggers an immediate news page generation outside of the normal schedule.
+     * Blocks until generation is complete. Safe to call from any thread.
+     * Does nothing if the generator is disabled (e.g. no git repository found).
+     */
+    public void generateNow() {
+        if( disabled ) {
+            LOG.info( "News page generator is disabled; skipping on-demand generation" );
+            return;
+        }
+        try {
+            backgroundTask();
+        } catch( final Exception e ) {
+            LOG.warn( "On-demand news generation failed", e );
+        }
+    }
+
+    /**
+     * Runs {@code git log} against the local {@code HEAD} and returns the output lines.
+     * Convenience wrapper for {@link #runGitLog(String)}.
      *
      * @return list of lines in the format "YYYY-MM-DD commit message"
      * @throws IOException if the process cannot be started or times out
      */
     List< String > runGitLog() throws IOException {
+        return runGitLog( "HEAD" );
+    }
+
+    /**
+     * Runs {@code git log} against the given ref and returns the output lines.
+     *
+     * @param ref git ref to log from (e.g. {@code "HEAD"} or {@code "FETCH_HEAD"})
+     * @return list of lines in the format "YYYY-MM-DD commit message"
+     * @throws IOException if the process cannot be started or times out
+     */
+    List< String > runGitLog( final String ref ) throws IOException {
         final ProcessBuilder pb = new ProcessBuilder(
                 "git", "--no-pager", "log",
+                ref,
                 "--since=" + monthsOfHistory + " months ago",
                 "--format=%ad %s",
                 "--date=short"

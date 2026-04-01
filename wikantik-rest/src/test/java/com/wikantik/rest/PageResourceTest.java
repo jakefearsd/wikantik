@@ -253,13 +253,10 @@ class PageResourceTest {
         final String html = obj.get( "contentHtml" ).getAsString();
         assertFalse( html.isBlank(), "Plugin must produce output" );
 
-        // All page-view hrefs must use the React SPA base path, not the raw JSP /wiki/ prefix.
-        // The context path is engine.getBaseURL() (e.g. "/test" in unit tests, "" for ROOT deployment).
+        // All page-view hrefs must use the /wiki/ path routed through the React SPA.
         final String contextPath = engine.getBaseURL();
-        assertTrue( html.contains( "href=\"" + contextPath + "/app/wiki/" ),
-                "Links must use React " + contextPath + "/app/wiki/ base path, got: " + html );
-        assertFalse( html.matches( "(?s).*href=\"" + contextPath + "/wiki/.*" ),
-                "Links must not use bare " + contextPath + "/wiki/ path" );
+        assertTrue( html.contains( "href=\"" + contextPath + "/wiki/" ),
+                "Links must use " + contextPath + "/wiki/ base path, got: " + html );
     }
 
     @Test
@@ -276,8 +273,8 @@ class PageResourceTest {
 
         // Non-existent page links must route to the React editor, not the JSP ?do=Edit URL
         final String contextPath = engine.getBaseURL();
-        assertTrue( html.contains( "href=\"" + contextPath + "/app/edit/" ),
-                "Edit links must use React /app/edit/ path, got: " + html );
+        assertTrue( html.contains( "href=\"" + contextPath + "/edit/" ),
+                "Edit links must use /edit/ path, got: " + html );
         assertFalse( html.contains( "?do=Edit" ),
                 "Edit links must not use JSP ?do=Edit pattern, got: " + html );
     }

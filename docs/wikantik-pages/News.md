@@ -6,6 +6,12 @@ A log of recent development activity on the JSPWiki project.
 
 ## March 2026
 
+**2026-03-31** — Fix SpaRoutingFilter tests and React URL base path for page rendering
+
+**2026-03-31** — Fix LuceneSearchProvider null list and update News with recent activity
+
+**2026-03-31** — Fix SpaRoutingFilter intercepting admin REST API requests
+
 **2026-03-31** — Fix admin API requests intercepted by SpaRoutingFilter
 
 **2026-03-30** — Move test passwords from Java source to properties file

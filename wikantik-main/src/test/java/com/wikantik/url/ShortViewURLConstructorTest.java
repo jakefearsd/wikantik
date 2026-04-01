@@ -119,7 +119,7 @@ public class ShortViewURLConstructorTest
     {
         final URLConstructor c = getConstructor(null );
 
-        Assertions.assertEquals( "/test/Edit.jsp?page=Main", c.makeURL(ContextEnum.PAGE_EDIT.getRequestContext(),"Main",null) );
+        Assertions.assertEquals( "/test/edit/Main", c.makeURL(ContextEnum.PAGE_EDIT.getRequestContext(),"Main",null) );
     }
 
     @Test

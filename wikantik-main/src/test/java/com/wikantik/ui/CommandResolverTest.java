@@ -204,7 +204,7 @@ class CommandResolverTest {
         Assertions.assertEquals( "/test/RecentChanges.jsp", url );
 
         url = resolver.getSpecialPageReference( "Search" );
-        Assertions.assertEquals( "/test/Search.jsp", url );
+        Assertions.assertEquals( "/test/search", url );
 
         // UserPrefs doesn't exist in our test properties
         url = resolver.getSpecialPageReference( "UserPrefs" );

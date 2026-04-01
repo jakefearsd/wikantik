@@ -89,8 +89,8 @@ public class ShortURLConstructorCITest {
     void testDiffURL() throws Exception {
         final URLConstructor c = getConstructor( "wiki/" );
         final String url = c.makeURL( ContextEnum.PAGE_DIFF.getRequestContext(), "Main", null );
-        Assertions.assertTrue( url.contains( "wiki/Main" ), "Expected short prefix in URL: " + url );
-        Assertions.assertTrue( url.contains( "do=Diff" ), "Expected do=Diff in URL: " + url );
+        Assertions.assertTrue( url.contains( "/diff/Main" ), "Expected /diff/Main in URL: " + url );
+        Assertions.assertFalse( url.contains( "do=Diff" ), "Must not use legacy do=Diff in URL: " + url );
     }
 
     // -----------------------------------------------------------------------
@@ -160,8 +160,8 @@ public class ShortURLConstructorCITest {
     void testPrefsURL() throws Exception {
         final URLConstructor c = getConstructor( "wiki/" );
         final String url = c.makeURL( ContextEnum.WIKI_PREFS.getRequestContext(), "Main", null );
-        Assertions.assertTrue( url.contains( "wiki/Main" ), "Expected short prefix in URL: " + url );
-        Assertions.assertTrue( url.contains( "do=UserPreferences" ), "Expected do=UserPreferences in URL: " + url );
+        Assertions.assertTrue( url.contains( "/preferences" ), "Expected /preferences in URL: " + url );
+        Assertions.assertFalse( url.contains( "do=UserPreferences" ), "Must not use legacy do=UserPreferences in URL: " + url );
     }
 
     // -----------------------------------------------------------------------
@@ -172,7 +172,8 @@ public class ShortURLConstructorCITest {
     void testFindURL() throws Exception {
         final URLConstructor c = getConstructor( "wiki/" );
         final String url = c.makeURL( ContextEnum.WIKI_FIND.getRequestContext(), "Main", null );
-        Assertions.assertTrue( url.contains( "do=Search" ), "Expected do=Search in URL: " + url );
+        Assertions.assertTrue( url.contains( "/search" ), "Expected /search in URL: " + url );
+        Assertions.assertFalse( url.contains( "do=Search" ), "Must not use legacy do=Search in URL: " + url );
     }
 
     // -----------------------------------------------------------------------

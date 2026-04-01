@@ -119,7 +119,7 @@ public class ShortURLConstructorTest
     {
         final URLConstructor c = getConstructor(null );
 
-        Assertions.assertEquals( "/test/wiki/Main?do=Edit", c.makeURL(ContextEnum.PAGE_EDIT.getRequestContext(),"Main",null) );
+        Assertions.assertEquals( "/test/edit/Main", c.makeURL(ContextEnum.PAGE_EDIT.getRequestContext(),"Main",null) );
     }
 
     @Test

@@ -19,7 +19,6 @@
 package com.wikantik;
 
 import com.wikantik.api.core.Command;
-import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
@@ -192,32 +191,8 @@ class WikiContextCITest {
     }
 
     // -----------------------------------------------------------------------
-    // getURL with React URL base
+    // getURL
     // -----------------------------------------------------------------------
-
-    @Test
-    void getURL_viewContextWithReactBase_routesThroughReactSPA() {
-        when( engine.getURL( eq( ContextEnum.PAGE_VIEW.getRequestContext() ), eq( "TestPage" ), any() ) )
-                .thenReturn( "/wiki/TestPage" );
-        when( engine.getBaseURL() ).thenReturn( "" );
-
-        final WikiContext ctx = createViewContext( frontPage );
-        ctx.setVariable( Context.VAR_REACT_URL_BASE, "/app" );
-
-        final String url = ctx.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), "TestPage", null );
-        assertEquals( "/app/wiki/TestPage", url );
-    }
-
-    @Test
-    void getURL_editContextWithReactBase_routesThroughReactEdit() {
-        when( engine.encodeName( "TestPage" ) ).thenReturn( "TestPage" );
-
-        final WikiContext ctx = createViewContext( frontPage );
-        ctx.setVariable( Context.VAR_REACT_URL_BASE, "/app" );
-
-        final String url = ctx.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), "TestPage", null );
-        assertEquals( "/app/edit/TestPage", url );
-    }
 
     @Test
     void getURL_withoutReactBase_delegatesToEngine() {

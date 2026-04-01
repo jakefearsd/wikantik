@@ -72,7 +72,7 @@ public class MarkdownRendererTest {
     public void testMarkupExtensionSelfEditLink() throws Exception {
         final String src = "This should be a [self<->link]()";
 
-        Assertions.assertEquals( "<p>This should be a <a href=\"/test/Edit.jsp?page=self%3C-%3Elink\" title=\"Create &quot;self&lt;-&gt;link&quot;\" class=\"createpage\">self&lt;-&gt;link</a></p>\n",
+        Assertions.assertEquals( "<p>This should be a <a href=\"/test/edit/self%3C-%3Elink\" title=\"Create &quot;self&lt;-&gt;link&quot;\" class=\"createpage\">self&lt;-&gt;link</a></p>\n",
                                  translate( src ) );
     }
 
@@ -108,7 +108,7 @@ public class MarkdownRendererTest {
     @Test
     public void testMarkupExtensionHtmlAllowsMDInsideLinks() throws Exception {
         newPage( "Hyperlink" );
-        final String expected = "<p>This should be a <a href=\"/test/Edit.jsp?page=Link%20**bold**\" title=\"Create &quot;Link **bold**&quot;\" class=\"createpage\">Link <strong>bold</strong></a></p>\n";
+        final String expected = "<p>This should be a <a href=\"/test/edit/Link%20**bold**\" title=\"Create &quot;Link **bold**&quot;\" class=\"createpage\">Link <strong>bold</strong></a></p>\n";
         Assertions.assertEquals( expected, translate( "This should be a [Link **bold**]()" ) );
     }
 

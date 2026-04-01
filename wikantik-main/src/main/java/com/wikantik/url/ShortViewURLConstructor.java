@@ -45,6 +45,14 @@ public class ShortViewURLConstructor extends ShortURLConstructor {
                 return doReplacement("%u","" );
             }
             return doReplacement( viewurl, name );
+        } else if( context.equals( ContextEnum.PAGE_EDIT.getRequestContext() ) ) {
+            return doReplacement( "%pedit/%n", name );
+        } else if( context.equals( ContextEnum.PAGE_DIFF.getRequestContext() ) ) {
+            return doReplacement( "%pdiff/%n", name );
+        } else if( context.equals( ContextEnum.WIKI_FIND.getRequestContext() ) ) {
+            return doReplacement( "%psearch", name );
+        } else if( context.equals( ContextEnum.WIKI_PREFS.getRequestContext() ) ) {
+            return doReplacement( "%ppreferences", name );
         }
 
         return doReplacement( DefaultURLConstructor.getURLPattern( context, name ), name );

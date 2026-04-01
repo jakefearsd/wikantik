@@ -84,13 +84,13 @@ public class ShortURLConstructor extends DefaultURLConstructor {
             }
             return doReplacement( viewurl + "?do=Preview", name );
         } else if( context.equals( ContextEnum.PAGE_EDIT.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=Edit", name );
+            return doReplacement( "%pedit/%n", name );
         } else if( context.equals( ContextEnum.PAGE_ATTACH.getRequestContext() ) ) {
             return doReplacement( "%uattach/%n", name );
         } else if( context.equals( ContextEnum.PAGE_INFO.getRequestContext() ) ) {
             return doReplacement( viewurl + "?do=PageInfo", name );
         } else if( context.equals( ContextEnum.PAGE_DIFF.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=Diff", name );
+            return doReplacement( "%pdiff/%n", name );
         } else if( context.equals( ContextEnum.PAGE_NONE.getRequestContext() ) ) {
             return doReplacement( "%u%n", name );
         } else if( context.equals( ContextEnum.PAGE_UPLOAD.getRequestContext() ) ) {
@@ -105,9 +105,9 @@ public class ShortURLConstructor extends DefaultURLConstructor {
         } else if( context.equals( ContextEnum.PAGE_CONFLICT.getRequestContext() ) ) {
             return doReplacement( viewurl + "?do=PageModified", name );
         } else if( context.equals( ContextEnum.WIKI_PREFS.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=UserPreferences", name );
+            return doReplacement( "%ppreferences", name );
         } else if( context.equals( ContextEnum.WIKI_FIND.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=Search", name );
+            return doReplacement( "%psearch", name );
         } else if( context.equals( ContextEnum.WIKI_ERROR.getRequestContext() ) ) {
             return doReplacement( "%uError.jsp", name );
         } else if( context.equals( ContextEnum.WIKI_CREATE_GROUP.getRequestContext() ) ) {

@@ -422,6 +422,19 @@ public abstract class AbstractFileProvider implements PageProvider {
         File file = findPage( page.getName() );
         if( !file.exists() ) {
             file = new File( pageDirectory, mangleName( page.getName() ) + MARKDOWN_EXT );
+        } else {
+            // If markup syntax indicates markdown but file is .txt, migrate to .md
+            final String syntax = page.getAttribute( Page.MARKUP_SYNTAX );
+            if( "markdown".equals( syntax ) && file.getName().endsWith( FILE_EXT ) ) {
+                final File mdFile = new File( pageDirectory, mangleName( page.getName() ) + MARKDOWN_EXT );
+                if( file.renameTo( mdFile ) ) {
+                    LOG.info( "Migrated page '{}' from {} to {}", page.getName(), FILE_EXT, MARKDOWN_EXT );
+                    file = mdFile;
+                    fileExtensionCache.put( page.getName(), MARKDOWN_EXT );
+                } else {
+                    LOG.warn( "Failed to migrate page '{}' from {} to {}", page.getName(), FILE_EXT, MARKDOWN_EXT );
+                }
+            }
         }
 
         try( final PrintWriter out = new PrintWriter( new OutputStreamWriter( Files.newOutputStream( file.toPath() ), encoding ) ) ) {

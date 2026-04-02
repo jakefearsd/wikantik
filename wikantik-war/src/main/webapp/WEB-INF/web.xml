@@ -272,6 +272,10 @@
        <servlet-name>CommentResource</servlet-name>
        <servlet-class>com.wikantik.rest.CommentResource</servlet-class>
    </servlet>
+   <servlet>
+       <servlet-name>ConvertResource</servlet-name>
+       <servlet-class>com.wikantik.rest.ConvertResource</servlet-class>
+   </servlet>
 
    <!-- Admin API -->
    <servlet>
@@ -383,6 +387,10 @@
    <servlet-mapping>
        <servlet-name>CommentResource</servlet-name>
        <url-pattern>/api/comments/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>ConvertResource</servlet-name>
+       <url-pattern>/api/convert/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminUserResource</servlet-name>

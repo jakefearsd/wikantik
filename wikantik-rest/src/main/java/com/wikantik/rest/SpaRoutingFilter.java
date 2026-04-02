@@ -28,6 +28,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 /**
  * SPA routing filter for the React frontend served at the root context.
@@ -50,6 +51,9 @@ public class SpaRoutingFilter implements Filter {
     private static final String[] SPA_PREFIXES = { "/wiki/", "/edit/", "/diff/", "/admin/" };
     private static final String[] SPA_EXACT = { "/search", "/preferences", "/reset-password" };
 
+    /** Matches Vite-style content-hashed filenames, e.g. {@code index-BCNdZRMf.js}. */
+    private static final Pattern HASHED_ASSET = Pattern.compile( "-[A-Za-z0-9]{6,}\\." );
+
     @Override
     public void init( final FilterConfig filterConfig ) throws ServletException {
     }
@@ -63,12 +67,18 @@ public class SpaRoutingFilter implements Filter {
 
         // Redirect / and /wiki/ to /wiki/Main (server-side, independent of SPA)
         if ( "/".equals( path ) || "/wiki/".equals( path ) || "/wiki".equals( path ) ) {
+            resp.setHeader( "Cache-Control", "no-cache" );
             resp.sendRedirect( "/wiki/Main" );
             return;
         }
 
         // Let static assets through (JS, CSS, images, fonts, favicon)
         if ( path.contains( "." ) && !path.endsWith( ".html" ) ) {
+            // Hashed assets (e.g. /assets/index-BCNdZRMf.js) can be cached forever —
+            // the hash changes whenever the content changes.
+            if ( path.startsWith( "/assets/" ) && HASHED_ASSET.matcher( path ).find() ) {
+                resp.setHeader( "Cache-Control", "public, max-age=31536000, immutable" );
+            }
             chain.doFilter( request, response );
             return;
         }
@@ -81,12 +91,16 @@ public class SpaRoutingFilter implements Filter {
         if ( isBrowserNavigation ) {
             for ( final String prefix : SPA_PREFIXES ) {
                 if ( path.startsWith( prefix ) ) {
+                    // index.html must never be cached — it references hashed asset filenames
+                    // that change on each build.
+                    resp.setHeader( "Cache-Control", "no-cache" );
                     req.getRequestDispatcher( "/index.html" ).forward( request, response );
                     return;
                 }
             }
             for ( final String exact : SPA_EXACT ) {
                 if ( path.equals( exact ) || path.startsWith( exact + "?" ) ) {
+                    resp.setHeader( "Cache-Control", "no-cache" );
                     req.getRequestDispatcher( "/index.html" ).forward( request, response );
                     return;
                 }

@@ -27,3 +27,4 @@ socket:*
 *.swp
 wiki.zip
 .mcp.json.bak
+/test.properties

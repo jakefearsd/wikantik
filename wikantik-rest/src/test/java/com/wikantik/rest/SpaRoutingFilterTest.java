@@ -56,6 +56,7 @@ class SpaRoutingFilterTest {
         filter.doFilter( request, response, chain );
 
         verify( response ).sendRedirect( "/wiki/Main" );
+        verify( response ).setHeader( "Cache-Control", "no-cache" );
         verify( chain, never() ).doFilter( any(), any() );
     }
 
@@ -205,6 +206,46 @@ class SpaRoutingFilterTest {
 
         verify( chain ).doFilter( request, response );
         verify( request, never() ).getRequestDispatcher( anyString() );
+    }
+
+    // ---- Cache-Control header tests ----
+
+    @Test
+    void testSpaForwardSetsNoCacheHeader() throws Exception {
+        final HttpServletRequest request = mockRequest( "/wiki/SomePage" );
+        final RequestDispatcher dispatcher = mock( RequestDispatcher.class );
+        when( request.getRequestDispatcher( "/index.html" ) ).thenReturn( dispatcher );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).setHeader( "Cache-Control", "no-cache" );
+    }
+
+    @Test
+    void testHashedAssetSetsImmutableCacheHeader() throws Exception {
+        final HttpServletRequest request = mockRequest( "/assets/index-BCNdZRMf.js" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).setHeader( "Cache-Control", "public, max-age=31536000, immutable" );
+    }
+
+    @Test
+    void testHashedCssAssetSetsImmutableCacheHeader() throws Exception {
+        final HttpServletRequest request = mockRequest( "/assets/index-CCel3tKT.css" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).setHeader( "Cache-Control", "public, max-age=31536000, immutable" );
+    }
+
+    @Test
+    void testNonHashedStaticAssetDoesNotSetImmutableCache() throws Exception {
+        final HttpServletRequest request = mockRequest( "/favicon.svg" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response, never() ).setHeader( eq( "Cache-Control" ), anyString() );
     }
 
     // ---- Passthrough tests (static assets) ----

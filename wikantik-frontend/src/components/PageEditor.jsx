@@ -18,11 +18,15 @@ export default function PageEditor() {
   const [error, setError] = useState(null);
   const [isNew, setIsNew] = useState(false);
   const [conflict, setConflict] = useState(null);
+  const [markupSyntax, setMarkupSyntax] = useState('markdown');
+  const [converting, setConverting] = useState(false);
+  const [conversionWarnings, setConversionWarnings] = useState([]);
 
   useEffect(() => {
     api.getPage(name).then(page => {
       setContent(reconstructContent(page.metadata, page.content));
       setOriginalVersion(page.version);
+      setMarkupSyntax(page.markupSyntax || 'markdown');
       setIsNew(false);
     }).catch(err => {
       if (err.status === 404) {
@@ -34,6 +38,21 @@ export default function PageEditor() {
     });
   }, [name]);
 
+  const handleConvert = async () => {
+    setConverting(true);
+    setError(null);
+    try {
+      const result = await api.convertWikiToMarkdown(content);
+      setContent(result.markdown);
+      setMarkupSyntax('markdown');
+      setConversionWarnings(result.warnings || []);
+    } catch (err) {
+      setError('Conversion failed: ' + (err.message || 'Unknown error'));
+    } finally {
+      setConverting(false);
+    }
+  };
+
   const save = async () => {
     setSaving(true);
     setError(null);
@@ -42,6 +61,7 @@ export default function PageEditor() {
         content,
         changeNote: changeNote || (isNew ? 'Created page' : 'Updated page'),
         expectedVersion: isNew ? undefined : originalVersion,
+        markupSyntax: markupSyntax === 'markdown' ? 'markdown' : undefined,
       });
       navigate(`/wiki/${name}`);
     } catch (err) {
@@ -126,6 +146,24 @@ export default function PageEditor() {
           </button>
         </div>
       </div>
+
+      {(markupSyntax === 'wiki' || markupSyntax === 'likely-wiki') && (
+        <div className="info-banner">
+          <span>This page uses legacy wiki syntax. Convert to Markdown?</span>
+          <button className="btn btn-primary btn-sm" onClick={handleConvert} disabled={converting}>
+            {converting ? 'Converting\u2026' : 'Convert to Markdown'}
+          </button>
+        </div>
+      )}
+
+      {conversionWarnings.length > 0 && (
+        <div className="warning-banner">
+          <strong>Conversion notes:</strong>
+          <ul>
+            {conversionWarnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
 
       {error && <div className="error-banner">{error}</div>}
 

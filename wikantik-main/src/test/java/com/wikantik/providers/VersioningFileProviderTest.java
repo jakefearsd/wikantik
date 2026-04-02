@@ -765,4 +765,25 @@ public class VersioningFileProviderTest {
         Assertions.assertEquals( "Second change", v2again.getAttribute( Page.CHANGENOTE ) );
     }
 
+    @Test
+    public void testWikiSyntaxInferredForTxtFiles() throws IOException {
+        // Create a .txt file directly (simulating a legacy wiki page)
+        injectFile( NAME1 + AbstractFileProvider.FILE_EXT, "!!!Heading\n\nSome __bold__ text." );
+
+        final Page page = engine.getManager( PageManager.class ).getPage( NAME1, 1 );
+        Assertions.assertNotNull( page, "Page should be retrieved" );
+        Assertions.assertEquals( "wiki", page.getAttribute( Page.MARKUP_SYNTAX ),
+                                 "Should infer wiki syntax from .txt extension" );
+    }
+
+    @Test
+    public void testMarkdownSyntaxInferredForMdFiles() throws IOException {
+        injectFile( NAME1 + AbstractFileProvider.MARKDOWN_EXT, "# Heading\n\nSome **bold** text." );
+
+        final Page page = engine.getManager( PageManager.class ).getPage( NAME1, 1 );
+        Assertions.assertNotNull( page, "Page should be retrieved" );
+        Assertions.assertEquals( "markdown", page.getAttribute( Page.MARKUP_SYNTAX ),
+                                 "Should infer markdown syntax from .md extension" );
+    }
+
 }

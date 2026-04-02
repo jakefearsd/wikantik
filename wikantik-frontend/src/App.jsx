@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import { useAuth } from './hooks/useAuth';
 
@@ -7,6 +7,8 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user } = useAuth();
+  const location = useLocation();
+  const isEditorRoute = location.pathname.startsWith('/edit/');
 
   // Close mobile sidebar when user successfully authenticates
   useEffect(() => {
@@ -26,7 +28,7 @@ export default function App() {
         onMobileOpen={() => setMobileOpen(true)}
       />
       <main className={`app-main ${sidebarCollapsed ? 'expanded' : ''}`}>
-        <div className="app-content">
+        <div className={`app-content${isEditorRoute ? ' app-content-wide' : ''}`}>
           <Outlet />
         </div>
       </main>

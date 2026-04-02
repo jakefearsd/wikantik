@@ -12,16 +12,16 @@ from wiki2markdown import convert, is_likely_wiki_syntax, process_directory
 # ==================== Headings ====================
 
 @pytest.mark.parametrize('wiki,expected', [
-    ('!!! Large heading', '### Large heading'),
+    ('!!! Large heading', '# Large heading'),
     ('!! Medium heading', '## Medium heading'),
-    ('! Small heading', '# Small heading'),
+    ('! Small heading', '### Small heading'),
 ])
 def test_headings(wiki, expected):
     assert convert(wiki)[0] == expected
 
 
 def test_heading_with_inline_formatting():
-    assert convert('! __Bold__ heading')[0] == '# **Bold** heading'
+    assert convert('! __Bold__ heading')[0] == '### **Bold** heading'
 
 
 # ==================== Text Formatting ====================
@@ -199,7 +199,7 @@ def test_markdown_formatting_passthrough():
 
 def test_mixed_content():
     wiki = "!!! My Page\n\nThis is __bold__ and ''italic''.\n\n* Item 1\n* Item 2\n\n----\n\n[Click|http://example.com]"
-    expected = "### My Page\n\nThis is **bold** and *italic*.\n\n* Item 1\n* Item 2\n\n---\n\n[Click](http://example.com)"
+    expected = "# My Page\n\nThis is **bold** and *italic*.\n\n* Item 1\n* Item 2\n\n---\n\n[Click](http://example.com)"
     assert convert(wiki)[0] == expected
 
 
@@ -251,7 +251,7 @@ def test_process_directory_converts_wiki_file():
         md = Path(d) / 'TestPage.md'
         assert md.exists(), '.md should be created'
         content = md.read_text(encoding='utf-8')
-        assert content.startswith('### Hello')
+        assert content.startswith('# Hello')
 
 
 def test_process_directory_renames_markdown_txt_to_md():

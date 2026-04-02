@@ -39,6 +39,7 @@
   --sidebar-width: 280px;
   --sidebar-tab-width: 40px;
   --content-max-width: 864px;
+  --content-max-width-wide: 1400px;
   --toc-width: 200px;
 
   /* Transitions */
@@ -164,6 +165,10 @@ input, textarea, select {
   max-width: var(--content-max-width);
   margin: 0 auto;
   padding: var(--space-2xl) var(--space-xl);
+}
+
+.app-content-wide {
+  max-width: var(--content-max-width-wide);
 }
 
 /* ============================================================

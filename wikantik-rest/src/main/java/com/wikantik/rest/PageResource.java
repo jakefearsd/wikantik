@@ -36,6 +36,7 @@ import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.content.PageRenamer;
+import com.wikantik.content.WikiToMarkdownConverter;
 import com.wikantik.render.RenderingManager;
 
 import jakarta.servlet.ServletException;
@@ -142,6 +143,17 @@ public class PageResource extends RestServletBase {
         result.put( "lastModified", page.getLastModified() );
         result.put( "exists", true );
 
+        // Include markup syntax — "wiki" for legacy .txt pages, "markdown" for .md pages,
+        // or "likely-wiki" if heuristic detects wiki syntax in a .md page
+        String markupSyntax = page.getAttribute( Page.MARKUP_SYNTAX );
+        if( markupSyntax == null ) {
+            markupSyntax = "markdown";
+        }
+        if( "markdown".equals( markupSyntax ) && WikiToMarkdownConverter.isLikelyWikiSyntax( parsed.body() ) ) {
+            markupSyntax = "likely-wiki";
+        }
+        result.put( "markupSyntax", markupSyntax );
+
         // Include the current user's effective permissions for this page
         final Map< String, Boolean > permissions = new LinkedHashMap<>();
         permissions.put( "edit", hasPagePermission( request, pageName, "edit" ) );
@@ -181,6 +193,7 @@ public class PageResource extends RestServletBase {
         final String author = body.has( "author" ) ? body.get( "author" ).getAsString() : null;
         final int expectedVersion = body.has( "expectedVersion" ) ? body.get( "expectedVersion" ).getAsInt() : -1;
         final String expectedContentHash = body.has( "expectedContentHash" ) ? body.get( "expectedContentHash" ).getAsString() : null;
+        final String markupSyntax = body.has( "markupSyntax" ) ? body.get( "markupSyntax" ).getAsString() : null;
 
         // Extract metadata if present
         @SuppressWarnings( "unchecked" )
@@ -195,6 +208,9 @@ public class PageResource extends RestServletBase {
 
         if ( metadata != null ) {
             optionsBuilder.metadata( metadata );
+        }
+        if ( markupSyntax != null ) {
+            optionsBuilder.markupSyntax( markupSyntax );
         }
 
         try {

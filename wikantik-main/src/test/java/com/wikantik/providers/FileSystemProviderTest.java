@@ -406,12 +406,16 @@ public class FileSystemProviderTest {
         final var allPages = m_provider.getAllPages();
         Assertions.assertEquals( 6, allPages.size(), "Should have 6 pages total" );
 
-        // All pages should have "markdown" syntax — the old JSPWiki parser was removed,
-        // so even .txt files are treated as Markdown
+        // .txt files should report "wiki" syntax, .md files should report "markdown"
         for( final Page page : allPages ) {
             final String syntax = page.getAttribute( Page.MARKUP_SYNTAX );
-            Assertions.assertEquals( "markdown", syntax,
-                    "Page " + page.getName() + " should have markdown syntax regardless of file extension" );
+            if( page.getName().startsWith( "WikiPage" ) ) {
+                Assertions.assertEquals( "wiki", syntax,
+                        "Page " + page.getName() + " (.txt) should have wiki syntax" );
+            } else {
+                Assertions.assertEquals( "markdown", syntax,
+                        "Page " + page.getName() + " (.md) should have markdown syntax" );
+            }
         }
 
         // Cleanup
@@ -445,6 +449,25 @@ public class FileSystemProviderTest {
 
         // Cleanup
         mdFile.delete();
+    }
+
+    @Test
+    public void testWikiSyntaxInferredForTxtFiles() throws Exception {
+        final String pageDir = props.getProperty( FileSystemProvider.PROP_PAGEDIR );
+        final String pageName = "WikiSyntaxTest";
+
+        // Create a .txt file directly (simulating a legacy wiki page)
+        final File txtFile = new File( pageDir, pageName + AbstractFileProvider.FILE_EXT );
+        java.nio.file.Files.writeString( txtFile.toPath(), "!!!Heading\n\nSome __bold__ text." );
+
+        // Retrieve page info — should infer "wiki" syntax from .txt extension
+        final Page page = m_provider.getPageInfo( pageName, -1 );
+        Assertions.assertNotNull( page, "Page should be retrieved" );
+        Assertions.assertEquals( "wiki", page.getAttribute( Page.MARKUP_SYNTAX ),
+                                 "Should infer wiki syntax from .txt extension" );
+
+        // Cleanup
+        txtFile.delete();
     }
 
     @Test

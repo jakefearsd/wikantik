@@ -32,6 +32,40 @@ mvn clean install -T 1C -DskipITs
 mvn clean install -Dmaven.test.skip -Dminimize=false
 ```
 
+### Manual Testing Credentials
+
+A dedicated admin account exists for manual and automated testing against the local deployment.
+Credentials are stored in `test.properties` (gitignored, project root):
+
+```bash
+# Read credentials
+cat test.properties
+# test.user.login=testbot
+# test.user.password=<password>
+```
+
+Use these credentials wherever a logged-in admin is needed — browser login, REST API calls, curl:
+
+```bash
+# Example: trigger an on-demand news page refresh
+source <(grep -v '^#' test.properties | sed 's/^test.user.//' | sed 's/=/="/' | sed 's/$/"/')
+curl -u "${login}:${password}" -X POST http://localhost:8080/admin/content/refresh-news
+```
+
+The account (`testbot`, role `Admin`) lives in the local PostgreSQL database alongside `admin`.
+To recreate it after a database reset, run:
+
+```bash
+PASSWORD=$(grep test.user.password test.properties | cut -d= -f2)
+HASH=$(java -cp wikantik-util/target/wikantik-util-*.jar \
+       com.wikantik.util.CryptoUtil --hash "$PASSWORD")
+PGPASSWORD="<db-password>" psql -h localhost -U jspwiki -d jspwiki <<SQL
+INSERT INTO users (uid, email, full_name, login_name, password, wiki_name, created, modified)
+VALUES ('testbot','testbot@localhost','Test Automation Bot','testbot','$HASH','TestBot',NOW(),NOW());
+INSERT INTO roles (login_name, role) VALUES ('testbot', 'Admin');
+SQL
+```
+
 ### Testing Commands
 ```bash
 # Run all tests
@@ -85,7 +119,7 @@ mvn clean install -Dmaven.test.skip -T 1C
 # 5. Start Tomcat
 tomcat/tomcat-11/bin/startup.sh
 # Access at http://localhost:8080/ — default login: admin / admin
-# React SPA at http://localhost:8080/app/
+# React SPA at http://localhost:8080/
 ```
 
 #### Routine redeploy (after first-time setup)

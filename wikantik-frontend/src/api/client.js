@@ -23,10 +23,10 @@ export const api = {
     return request(`/api/pages/${encodeURIComponent(name)}${qs ? '?' + qs : ''}`);
   },
 
-  savePage: (name, { content, metadata, changeNote, author, expectedVersion, expectedContentHash }) =>
+  savePage: (name, { content, metadata, changeNote, author, expectedVersion, expectedContentHash, markupSyntax }) =>
     request(`/api/pages/${encodeURIComponent(name)}`, {
       method: 'PUT',
-      body: JSON.stringify({ content, metadata, changeNote, author, expectedVersion, expectedContentHash }),
+      body: JSON.stringify({ content, metadata, changeNote, author, expectedVersion, expectedContentHash, markupSyntax }),
     }),
 
   patchMetadata: (name, metadata, action = 'merge') =>
@@ -58,6 +58,13 @@ export const api = {
     request(`/api/comments/${encodeURIComponent(name)}`, {
       method: 'POST',
       body: JSON.stringify({ text }),
+    }),
+
+  // Conversion
+  convertWikiToMarkdown: (content) =>
+    request('/api/convert/wiki-to-markdown', {
+      method: 'POST',
+      body: JSON.stringify({ content }),
     }),
 
   // Search

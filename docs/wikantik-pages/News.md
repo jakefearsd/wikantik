@@ -4,6 +4,15 @@ A log of recent development activity on the JSPWiki project.
 
 ---
 
+## April 2026
+
+**2026-04-01** — Move URL routes into URL constructors and remove VAR_REACT_URL_BASE indirection
+
+**2026-04-01** — Add hourly news page refresh from GitHub with admin on-demand trigger
+
+
+---
+
 ## March 2026
 
 **2026-03-31** — Fix SpaRoutingFilter tests and React URL base path for page rendering

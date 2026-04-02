@@ -521,6 +521,47 @@ input, textarea, select {
   color: #FFB0A0;
 }
 
+.info-banner {
+  background: #EEF6FF;
+  border: 1px solid #CCE0FF;
+  color: #1A4B8C;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+[data-theme="dark"] .info-banner {
+  background: #142A4A;
+  border-color: #1E3A5A;
+  color: #A0C8FF;
+}
+
+.warning-banner {
+  background: #FFF8E1;
+  border: 1px solid #FFE082;
+  color: #6D4C00;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+  font-size: 0.875rem;
+}
+
+.warning-banner ul {
+  margin: var(--space-xs) 0 0 var(--space-lg);
+  padding: 0;
+}
+
+[data-theme="dark"] .warning-banner {
+  background: #3A2E00;
+  border-color: #5A4800;
+  color: #FFD54F;
+}
+
 /* ============================================================
    Responsive
    ============================================================ */

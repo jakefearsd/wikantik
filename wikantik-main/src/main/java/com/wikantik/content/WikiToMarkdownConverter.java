@@ -172,10 +172,10 @@ public final class WikiToMarkdownConverter {
             // --- Line-by-line conversions ---
             String converted = line;
 
-            // Headings (process longest match first, apply inline conversion to heading text)
+            // Headings (process longest match first; !!! = largest = h1, ! = smallest = h3)
             Matcher m = HEADING3.matcher( converted );
             if( m.matches() ) {
-                converted = "### " + convertInline( m.group( 1 ).trim() );
+                converted = "# " + convertInline( m.group( 1 ).trim() );
                 result.append( converted ).append( '\n' );
                 continue;
             }
@@ -187,7 +187,7 @@ public final class WikiToMarkdownConverter {
             }
             m = HEADING1.matcher( converted );
             if( m.matches() ) {
-                converted = "# " + convertInline( m.group( 1 ).trim() );
+                converted = "### " + convertInline( m.group( 1 ).trim() );
                 result.append( converted ).append( '\n' );
                 continue;
             }

@@ -31,9 +31,9 @@ public class WikiToMarkdownConverterTest {
 
     @ParameterizedTest
     @CsvSource( delimiter = '→', value = {
-        "!!! Large heading   → ### Large heading",
+        "!!! Large heading   → # Large heading",
         "!! Medium heading   → ## Medium heading",
-        "! Small heading     → # Small heading",
+        "! Small heading     → ### Small heading",
     } )
     void testHeadings( final String wiki, final String expected ) {
         assertEquals( expected.trim(), convert( wiki.trim() ) );
@@ -41,7 +41,7 @@ public class WikiToMarkdownConverterTest {
 
     @Test
     void testHeadingWithInlineFormatting() {
-        assertEquals( "# **Bold** heading", convert( "! __Bold__ heading" ) );
+        assertEquals( "### **Bold** heading", convert( "! __Bold__ heading" ) );
     }
 
     // ==================== Text Formatting ====================
@@ -267,7 +267,7 @@ public class WikiToMarkdownConverterTest {
     @Test
     void testMixedContent() {
         final String wiki = "!!! My Page\n\nThis is __bold__ and ''italic''.\n\n* Item 1\n* Item 2\n\n----\n\n[Click|http://example.com]";
-        final String expected = "### My Page\n\nThis is **bold** and *italic*.\n\n* Item 1\n* Item 2\n\n---\n\n[Click](http://example.com)";
+        final String expected = "# My Page\n\nThis is **bold** and *italic*.\n\n* Item 1\n* Item 2\n\n---\n\n[Click](http://example.com)";
         assertEquals( expected, convert( wiki ) );
     }
 

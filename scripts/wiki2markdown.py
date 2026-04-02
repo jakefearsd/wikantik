@@ -220,10 +220,10 @@ def convert(wiki_text: str) -> tuple[str, list[str]]:
         # --- Line-by-line conversions ---
         converted = line
 
-        # Headings (longest prefix first)
+        # Headings (longest prefix first; !!! = largest = h1, ! = smallest = h3)
         m = _HEADING3.match(converted)
         if m:
-            result.append('### ' + _convert_inline(m.group(1).strip()))
+            result.append('# ' + _convert_inline(m.group(1).strip()))
             continue
         m = _HEADING2.match(converted)
         if m:
@@ -231,7 +231,7 @@ def convert(wiki_text: str) -> tuple[str, list[str]]:
             continue
         m = _HEADING1.match(converted)
         if m:
-            result.append('# ' + _convert_inline(m.group(1).strip()))
+            result.append('### ' + _convert_inline(m.group(1).strip()))
             continue
 
         # Horizontal rule

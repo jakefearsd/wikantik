@@ -28,6 +28,7 @@ create table users (
   created timestamp,
   modified timestamp,
   lock_expiry timestamp,
+  bio varchar(1000),
   attributes longvarchar,
   constraint users primary key (uid)
 );

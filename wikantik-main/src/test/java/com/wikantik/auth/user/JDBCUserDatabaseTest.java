@@ -25,6 +25,9 @@ import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.Users;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.util.CryptoUtil;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -619,6 +622,39 @@ public class JDBCUserDatabaseTest {
         // Retrieve and verify
         profile = m_db.findByLoginName( loginName );
         Assertions.assertTrue( profile.getAttributes().isEmpty() );
+
+        // Clean up
+        m_db.deleteByLoginName( loginName );
+    }
+
+    @Test
+    public void testSaveAndRetrieveBio() throws WikiSecurityException {
+        final String loginName = "BioUser" + System.currentTimeMillis();
+        UserProfile profile = m_db.newProfile();
+        profile.setEmail( "bio@mailinator.com" );
+        profile.setLoginName( loginName );
+        profile.setFullname( "Bio User" );
+        profile.setPassword( Users.ALICE_PASS );
+        profile.setBio( "I love editing wikis." );
+        m_db.save( profile );
+
+        // Retrieve and verify bio was persisted
+        profile = m_db.findByLoginName( loginName );
+        assertEquals( "I love editing wikis.", profile.getBio() );
+
+        // Update bio
+        profile.setBio( "Updated bio text." );
+        m_db.save( profile );
+
+        profile = m_db.findByLoginName( loginName );
+        assertEquals( "Updated bio text.", profile.getBio() );
+
+        // Clear bio
+        profile.setBio( null );
+        m_db.save( profile );
+
+        profile = m_db.findByLoginName( loginName );
+        assertNull( profile.getBio() );
 
         // Clean up
         m_db.deleteByLoginName( loginName );

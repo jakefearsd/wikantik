@@ -70,7 +70,7 @@ public class BlogListing implements Plugin {
         final BlogManager blogManager = engine.getManager( BlogManager.class );
 
         if ( blogManager == null ) {
-            LOG.error( "BlogManager not available" );
+            LOG.warn( "BlogManager not available" );
             return "<p class=\"error\">BlogListing plugin: BlogManager not available.</p>";
         }
 
@@ -108,7 +108,7 @@ public class BlogListing implements Plugin {
             return renderHtml( blogs, engine.getBaseURL() );
 
         } catch ( final Exception e ) {
-            LOG.error( "Error executing BlogListing plugin", e );
+            LOG.warn( "Error executing BlogListing plugin", e );
             throw new PluginException( "Error listing blogs: " + e.getMessage() );
         }
     }

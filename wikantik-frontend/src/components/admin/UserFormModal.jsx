@@ -2,15 +2,15 @@ import { useState, useEffect } from 'react';
 
 export default function UserFormModal({ user, isOpen, onClose, onSave }) {
   const isEdit = !!user;
-  const [form, setForm] = useState({ loginName: '', fullName: '', email: '', password: '' });
+  const [form, setForm] = useState({ loginName: '', fullName: '', email: '', bio: '', password: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (user) {
-      setForm({ loginName: user.loginName, fullName: user.fullName || '', email: user.email || '', password: '' });
+      setForm({ loginName: user.loginName, fullName: user.fullName || '', email: user.email || '', bio: user.bio || '', password: '' });
     } else {
-      setForm({ loginName: '', fullName: '', email: '', password: '' });
+      setForm({ loginName: '', fullName: '', email: '', bio: '', password: '' });
     }
     setError(null);
   }, [user, isOpen]);
@@ -65,6 +65,19 @@ export default function UserFormModal({ user, isOpen, onClose, onSave }) {
           <div className="form-field">
             <label>Email</label>
             <input type="email" value={form.email} onChange={set('email')} />
+          </div>
+          <div className="form-field">
+            <label>Bio</label>
+            <textarea
+              value={form.bio}
+              onChange={set('bio')}
+              maxLength={1000}
+              rows={3}
+              placeholder="User bio..."
+            />
+            <small style={{ color: 'var(--color-muted, #888)', display: 'block', marginTop: '0.25rem' }}>
+              {form.bio.length} / 1000
+            </small>
           </div>
           <div className="form-field">
             <label>{isEdit ? 'New Password (leave blank to keep)' : 'Password'}</label>

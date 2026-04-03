@@ -8,9 +8,12 @@ export default function BlogEntry() {
   const { username, entryName } = useParams();
   const { user } = useAuth();
   const { data: entry, loading, error } = useApi(
-    () => api.blog.getEntry(username, entryName, { render: true }),
+    (signal) => api.blog.getEntry(username, entryName, { render: true, signal }),
     [username, entryName, user?.authenticated]
   );
+
+  const isOwner = user?.authenticated && user.loginPrincipal?.toLowerCase() === username?.toLowerCase();
+  const isAdmin = user?.authenticated && user.roles?.includes('Admin');
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error?.status === 404) {
@@ -30,13 +33,18 @@ export default function BlogEntry() {
 
   return (
     <div className="page-enter">
-      <div style={{ marginBottom: 'var(--space-md)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-md)' }}>
         <Link
           to={`/blog/${encodeURIComponent(username)}/Blog`}
           style={{ color: 'var(--text-muted)', fontSize: '0.875rem', textDecoration: 'none' }}
         >
           ← {username}'s Blog
         </Link>
+        {(isOwner || isAdmin) && (
+          <Link to={`/edit/blog/${encodeURIComponent(username)}/${encodeURIComponent(entryName)}`} className="btn btn-ghost">
+            Edit Entry
+          </Link>
+        )}
       </div>
 
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', marginBottom: 'var(--space-xs)' }}>

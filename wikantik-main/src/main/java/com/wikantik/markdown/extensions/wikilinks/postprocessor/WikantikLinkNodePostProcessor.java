@@ -88,11 +88,23 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
                 linkPostProcessor = new LocalFootnoteLinkNodePostProcessorState( context );
             } else if( TextUtil.isNumber( link.getUrl().toString() ) ) {
                 linkPostProcessor = new LocalFootnoteRefLinkNodePostProcessorState( context );
+            } else if( isRelativePathLink( link.getUrl().toString() ) ) {
+                linkPostProcessor = null; // relative paths are left as-is for the browser to resolve
             } else {
                 linkPostProcessor = new LocalLinkNodePostProcessorState( context, isImageInlining, inlineImagePatterns );
             }
-            linkPostProcessor.process( state, link );
+            if( linkPostProcessor != null ) {
+                linkPostProcessor.process( state, link );
+            }
         }
+    }
+
+    /**
+     * Returns {@code true} if the URL is a relative filesystem path (starts with {@code ./} or {@code ../}).
+     * Such links are left untouched so the browser resolves them against the current page URL.
+     */
+    static boolean isRelativePathLink( final String url ) {
+        return url.startsWith( "./" ) || url.startsWith( "../" );
     }
 
     WikantikLink replaceLinkWithWikantikLink( final NodeTracker state, final Link linkNode ) {

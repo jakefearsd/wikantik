@@ -9,4 +9,4 @@ description: "Welcome to my blog"
 
 ## All Posts
 
-[{ArticleListing count=10 excerpt=true}]
+[{ArticleListing count=10 excerpt=true skipLatest=true}]

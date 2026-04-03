@@ -222,6 +222,7 @@ public class BlogResource extends RestServletBase {
                 blogMap.put( "title", info.title() );
                 blogMap.put( "description", info.description() );
                 blogMap.put( "entryCount", info.entryCount() );
+                blogMap.put( "authorFullName", info.authorFullName() );
                 result.add( blogMap );
             }
             sendJson( response, result );
@@ -266,16 +267,17 @@ public class BlogResource extends RestServletBase {
             result.put( "description", blogInfo.description() );
             result.put( "entryCount", blogInfo.entryCount() );
 
-            // Always include raw content (editor needs it); add rendered HTML when ?render=true
+            // Return body and metadata separately (consistent with entry endpoint)
             final Page blogPage = blogManager.getBlog( username );
             if ( blogPage != null ) {
                 final PageManager pm = getEngine().getManager( PageManager.class );
                 final String rawText = pm.getPureText( blogPage.getName(), PageProvider.LATEST_VERSION );
-                result.put( "content", rawText );
+                final ParsedPage parsed = FrontmatterParser.parse( rawText );
+                result.put( "content", parsed.body() );
+                result.put( "metadata", parsed.metadata() );
                 result.put( "version", blogPage.getVersion() );
 
                 if ( "true".equals( request.getParameter( "render" ) ) ) {
-                    final ParsedPage parsed = FrontmatterParser.parse( rawText );
                     final Context ctx = Wiki.context().create( getEngine(), request, blogPage );
                     final RenderingManager rm = getEngine().getManager( RenderingManager.class );
                     result.put( "contentHtml", rm.textToHTML( ctx, parsed.body() ) );
@@ -389,9 +391,15 @@ public class BlogResource extends RestServletBase {
                 entryMap.put( "date", metadata.getOrDefault( "date", "" ) );
                 entryMap.put( "author", metadata.getOrDefault( "author", entry.getAuthor() ) );
 
-                // Generate excerpt from body (first 200 chars)
+                // Use synopsis from frontmatter if available, otherwise truncate body
                 final String body = parsed.body().trim();
-                final String excerpt = body.length() > 200 ? body.substring( 0, 200 ) + "..." : body;
+                final Object synopsis = metadata.get( "synopsis" );
+                final String excerpt;
+                if ( synopsis != null ) {
+                    excerpt = synopsis.toString();
+                } else {
+                    excerpt = body.length() > 200 ? body.substring( 0, 200 ) + "..." : body;
+                }
                 entryMap.put( "excerpt", excerpt );
 
                 result.add( entryMap );
@@ -483,10 +491,12 @@ public class BlogResource extends RestServletBase {
         }
 
         final String topic = body.get( "topic" ).getAsString().trim();
+        final String content = body.has( "content" ) && !body.get( "content" ).isJsonNull()
+            ? body.get( "content" ).getAsString() : null;
 
         try {
             final BlogManager blogManager = getEngine().getManager( BlogManager.class );
-            final Page entryPage = blogManager.createEntry( session, topic );
+            final Page entryPage = blogManager.createEntry( session, topic, content );
 
             final String entrySlug = entryPage.getName().substring( entryPage.getName().lastIndexOf( '/' ) + 1 );
 

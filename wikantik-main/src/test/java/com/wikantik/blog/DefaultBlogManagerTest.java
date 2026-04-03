@@ -126,6 +126,42 @@ class DefaultBlogManagerTest {
     }
 
     @Test
+    void testCreateEntryWithContent() throws Exception {
+        final Session session = engine.janneSession();
+        blogManager.createBlog( session );
+
+        final Page entryPage = blogManager.createEntry( session, "RichPost", "Hello world, this is my first post." );
+
+        assertNotNull( entryPage, "createEntry with content should return the entry page" );
+
+        final String content = pageManager.getPureText( entryPage );
+        final ParsedPage parsed = FrontmatterParser.parse( content );
+        assertNotNull( parsed.metadata().get( "title" ), "Frontmatter should have a title" );
+        assertNotNull( parsed.metadata().get( "date" ), "Frontmatter should have a date" );
+        assertNotNull( parsed.metadata().get( "author" ), "Frontmatter should have an author" );
+        assertTrue( parsed.body().contains( "# Rich Post" ), "Body should contain the heading" );
+        assertTrue( parsed.body().contains( "Hello world, this is my first post." ),
+            "Body should contain the user-supplied content" );
+    }
+
+    @Test
+    void testCreateEntryWithNullContentMatchesOriginal() throws Exception {
+        final Session session = engine.janneSession();
+        blogManager.createBlog( session );
+
+        final Page entryPage = blogManager.createEntry( session, "PlainPost", null );
+
+        assertNotNull( entryPage, "createEntry with null content should return the entry page" );
+
+        final String content = pageManager.getPureText( entryPage );
+        final ParsedPage parsed = FrontmatterParser.parse( content );
+        assertNotNull( parsed.metadata().get( "title" ), "Frontmatter should have a title" );
+        // Body should only have the heading, no additional content
+        final String body = parsed.body().trim();
+        assertEquals( "# Plain Post", body, "Body should only contain the heading when content is null" );
+    }
+
+    @Test
     void testListEntries() throws Exception {
         final Session session = engine.janneSession();
         blogManager.createBlog( session );
@@ -164,6 +200,7 @@ class DefaultBlogManagerTest {
             .orElse( null );
         assertNotNull( found, "listBlogs should include the blog we just created" );
         assertNotNull( found.title(), "Blog title should not be null" );
+        assertNotNull( found.authorFullName(), "Author full name should not be null" );
     }
 
     @Test

@@ -1,0 +1,14 @@
+---
+title: "admin's Blog"
+description: "Welcome to my blog"
+---
+
+# Welcome to my blog
+
+I'm testing this, and Claude keeps kind of going rouge on me at the moment, so I think this project may have reached a bit beyond what my setup is capable of doing well.
+
+[{LatestArticle excerpt=true}]
+
+## All Posts
+
+[{ArticleListing count=10 excerpt=true}]

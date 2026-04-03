@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
+import { reconstructContent } from '../utils/frontmatterUtils';
 import '../styles/article.css';
 import '../styles/admin.css';
 
@@ -25,7 +26,7 @@ export default function BlogEditor() {
       : api.blog.getEntry(username, pageName);
 
     fetcher.then(data => {
-      setContent(data.content || '');
+      setContent(reconstructContent(data.metadata, data.content));
       setOriginalVersion(data.version);
       setLoading(false);
     }).catch(err => {
@@ -50,6 +51,12 @@ export default function BlogEditor() {
       setSaving(false);
     }
   };
+
+  // Strip frontmatter from preview — show only the body portion
+  const previewContent = useMemo(() => {
+    const match = content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n([\s\S]*)$/);
+    return match ? match[1] : content;
+  }, [content]);
 
   if (loading) return <div className="loading">Loading…</div>;
 
@@ -102,7 +109,7 @@ export default function BlogEditor() {
         <div className="editor-pane editor-preview">
           <article className="article-prose">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {content}
+              {previewContent}
             </ReactMarkdown>
           </article>
         </div>

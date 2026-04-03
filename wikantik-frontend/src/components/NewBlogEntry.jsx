@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
+import '../styles/article.css';
+import '../styles/admin.css';
 
 export default function NewBlogEntry() {
   const { username } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [topic, setTopic] = useState('');
+  const [body, setBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -23,7 +28,7 @@ export default function NewBlogEntry() {
     setSubmitting(true);
     setError(null);
     try {
-      const result = await api.blog.createEntry(username, strippedTopic);
+      const result = await api.blog.createEntry(username, strippedTopic, body.trim() || undefined);
       const entryName = result.name || result.entryName || strippedTopic;
       navigate(`/blog/${encodeURIComponent(username)}/${encodeURIComponent(entryName)}`);
     } catch (err) {
@@ -46,7 +51,7 @@ export default function NewBlogEntry() {
   }
 
   return (
-    <div className="page-enter" style={{ maxWidth: '480px', margin: '0 auto', padding: 'var(--space-2xl) 0' }}>
+    <div className="page-enter" style={{ padding: 'var(--space-2xl) 0' }}>
       <div style={{ marginBottom: 'var(--space-md)' }}>
         <Link
           to={`/blog/${encodeURIComponent(username)}/Blog`}
@@ -56,32 +61,52 @@ export default function NewBlogEntry() {
         </Link>
       </div>
 
-      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', marginBottom: 'var(--space-lg)' }}>
-        New Blog Entry
-      </h1>
-
       <form onSubmit={handleSubmit}>
-        <label style={{ display: 'block', marginBottom: 'var(--space-xs)', fontWeight: 500 }}>
-          Topic Name
-        </label>
-        <input
-          type="text"
-          className="form-input"
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          placeholder="e.g. MyFirstPost"
-          autoFocus
-          style={{ width: '100%', marginBottom: 'var(--space-sm)' }}
-        />
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: 'var(--space-md)' }}>
-          Spaces will be removed from the topic name.
-        </p>
+        <div style={{ textAlign: 'center', marginBottom: 'var(--space-lg)' }}>
+          <input
+            type="text"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="Enter blog post title…"
+            autoFocus
+            style={{
+              textAlign: 'center',
+              fontSize: '1.5rem',
+              fontFamily: 'var(--font-display)',
+              fontWeight: 600,
+              border: '1px dashed var(--border)',
+              borderRadius: 'var(--radius-md)',
+              padding: 'var(--space-sm) var(--space-lg)',
+              width: '80%',
+              maxWidth: '500px',
+              background: 'transparent',
+              color: 'var(--text)',
+            }}
+          />
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: 'var(--space-xs)' }}>
+            Spaces will be removed to form the page name
+          </p>
+        </div>
+
+        <div className="editor-container">
+          <div className="editor-pane">
+            <textarea
+              className="editor-textarea"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Write your blog post here… (Markdown supported)"
+            />
+          </div>
+          <div className="editor-pane editor-preview article-content">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
+          </div>
+        </div>
 
         {error && (
-          <div className="error-banner" style={{ marginBottom: 'var(--space-md)' }}>{error}</div>
+          <div className="error-banner" style={{ marginTop: 'var(--space-md)' }}>{error}</div>
         )}
 
-        <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-sm)', marginTop: 'var(--space-md)' }}>
           <Link to={`/blog/${encodeURIComponent(username)}/Blog`} className="btn btn-ghost">
             Cancel
           </Link>

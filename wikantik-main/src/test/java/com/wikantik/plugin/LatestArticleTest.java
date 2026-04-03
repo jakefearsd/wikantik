@@ -194,6 +194,31 @@ class LatestArticleTest {
     }
 
     @Test
+    void synopsisOverridesBodyExcerpt() throws Exception {
+        final Session janneSession = engine.janneSession();
+        final String username = janneSession.getLoginPrincipal().getName().toLowerCase();
+        final BlogManager blogManager = engine.getManager( BlogManager.class );
+        blogManager.createBlog( janneSession );
+        final Page entry = blogManager.createEntry( janneSession, "SynopsisPost" );
+
+        final String synopsis = "A hand-crafted summary for listing pages.";
+        final String content = "---\ntitle: \"Synopsis Post\"\ndate: 2026-01-01\nauthor: \"janne\"\n"
+            + "synopsis: \"" + synopsis + "\"\n---\n\nThis is the actual body which is much longer.";
+        engine.getManager( PageManager.class ).putPageText( entry, content );
+
+        final Page blogPage = blogManager.getBlog( username );
+        final Context context = Wiki.context().create( engine, blogPage );
+
+        final Map< String, String > params = new HashMap<>();
+        final String result = plugin.execute( context, params );
+
+        assertTrue( result.contains( synopsis ),
+            "Should display synopsis from frontmatter: " + result );
+        assertFalse( result.contains( "actual body" ),
+            "Should not display body text when synopsis is present: " + result );
+    }
+
+    @Test
     void resolveUsernameFromPageContext() throws Exception {
         final Session janneSession = engine.janneSession();
         final String username = janneSession.getLoginPrincipal().getName().toLowerCase();

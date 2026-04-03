@@ -1,0 +1,16 @@
+---
+title: "Admin's Blog"
+description: "Administrative Information About Wikantik"
+---
+
+# Welcome to my blog
+
+I'm testing this, and Claude keeps kind of going rouge on me at the moment, so I think this project may have reached a bit beyond what my setup is capable of doing well.
+
+I'm getting ready to throttle Claude at this point :-)
+
+[{LatestArticle excerpt=true}]
+
+## All Posts
+
+[{ArticleListing count=10 excerpt=true skipLatest=true}]

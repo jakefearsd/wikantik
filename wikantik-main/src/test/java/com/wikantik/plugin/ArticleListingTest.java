@@ -79,9 +79,9 @@ class ArticleListingTest {
             "Result should contain 'First Post': " + result );
         assertTrue( result.contains( "Second Post" ),
             "Result should contain 'Second Post': " + result );
-        // Should contain date info
-        assertTrue( result.contains( "entry-date" ),
-            "Result should contain entry-date CSS class: " + result );
+        // Should contain date info inline in the title link
+        assertTrue( result.contains( "&mdash;" ),
+            "Result should contain date separator in title: " + result );
     }
 
     @Test
@@ -207,6 +207,59 @@ class ArticleListingTest {
         // Links should go to /blog/<username>/<entryFile>
         assertTrue( result.contains( "/blog/" + username + "/" ),
             "Links should point to blog entry URLs: " + result );
+    }
+
+    @Test
+    void synopsisOverridesBodyExcerpt() throws Exception {
+        final Session janneSession = engine.janneSession();
+        final String username = janneSession.getLoginPrincipal().getName().toLowerCase();
+        final BlogManager blogManager = engine.getManager( BlogManager.class );
+        blogManager.createBlog( janneSession );
+        final Page entry = blogManager.createEntry( janneSession, "SynopsisEntry" );
+
+        final String synopsis = "A custom synopsis for the listing.";
+        final String content = "---\ntitle: \"Synopsis Entry\"\ndate: 2026-01-01\nauthor: \"janne\"\n"
+            + "synopsis: \"" + synopsis + "\"\n---\n\nThis is the real body content that should not appear.";
+        engine.getManager( PageManager.class ).putPageText( entry, content );
+
+        final Page blogPage = blogManager.getBlog( username );
+        final Context context = Wiki.context().create( engine, blogPage );
+
+        final Map< String, String > params = new HashMap<>();
+        final String result = plugin.execute( context, params );
+
+        assertTrue( result.contains( synopsis ),
+            "Should display synopsis from frontmatter: " + result );
+        assertFalse( result.contains( "real body content" ),
+            "Should not display body text when synopsis is present: " + result );
+    }
+
+    @Test
+    void skipLatestOmitsMostRecentEntry() throws Exception {
+        final Session janneSession = engine.janneSession();
+        final String username = janneSession.getLoginPrincipal().getName().toLowerCase();
+        final BlogManager blogManager = engine.getManager( BlogManager.class );
+        blogManager.createBlog( janneSession );
+        // Names chosen so alphabetical sort matches intended order:
+        // "AAA..." sorts before "ZZZ..." → reversed: ZZZ is index 0 (newest)
+        blogManager.createEntry( janneSession, "AAAOlderPost" );
+        blogManager.createEntry( janneSession, "ZZZNewestPost" );
+
+        final Page blogPage = blogManager.getBlog( username );
+        final Context context = Wiki.context().create( engine, blogPage );
+
+        // Without skipLatest — both entries appear
+        final Map< String, String > paramsAll = new HashMap<>();
+        final String resultAll = plugin.execute( context, paramsAll );
+        assertEquals( 2, countOccurrences( resultAll, "entry-item" ),
+            "Both entries should appear without skipLatest" );
+
+        // With skipLatest=true — the first entry (newest by sort) is omitted
+        final Map< String, String > paramsSkip = new HashMap<>();
+        paramsSkip.put( "skipLatest", "true" );
+        final String resultSkip = plugin.execute( context, paramsSkip );
+        assertEquals( 1, countOccurrences( resultSkip, "entry-item" ),
+            "Only one entry should appear with skipLatest=true: " + resultSkip );
     }
 
     private int countOccurrences( final String text, final String sub ) {

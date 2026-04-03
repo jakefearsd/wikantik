@@ -103,7 +103,7 @@ public class LatestArticle implements Plugin {
 
             // Build the link to the entry
             final String entrySlug = latestEntry.getName().substring( latestEntry.getName().lastIndexOf( '/' ) + 1 );
-            final String href = engine.getBaseURL() + "/wiki/blog/" + escapeHtml( username ) + "/" + escapeHtml( entrySlug );
+            final String href = engine.getBaseURL() + "/blog/" + escapeHtml( username ) + "/" + escapeHtml( entrySlug );
 
             return renderHtml( title, date, body, href, showExcerpt, excerptLength );
 

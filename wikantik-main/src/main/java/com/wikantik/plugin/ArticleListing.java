@@ -135,7 +135,7 @@ public class ArticleListing implements Plugin {
 
             // Build the link to the entry
             final String entrySlug = entry.getName().substring( entry.getName().lastIndexOf( '/' ) + 1 );
-            final String href = baseURL + "/wiki/blog/" + escapeHtml( username ) + "/" + escapeHtml( entrySlug );
+            final String href = baseURL + "/blog/" + escapeHtml( username ) + "/" + escapeHtml( entrySlug );
 
             sb.append( "  <li class=\"entry-item\">\n" );
 

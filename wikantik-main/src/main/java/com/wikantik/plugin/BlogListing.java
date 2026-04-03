@@ -122,7 +122,7 @@ public class BlogListing implements Plugin {
         sb.append( "<ul>\n" );
 
         for ( final BlogInfo blog : blogs ) {
-            final String href = baseURL + "/wiki/blog/" + escapeHtml( blog.username() ) + "/Blog";
+            final String href = baseURL + "/blog/" + escapeHtml( blog.username() ) + "/Blog";
             sb.append( "  <li class=\"blog-item\">" );
             sb.append( "<a href=\"" ).append( href ).append( "\">" );
             sb.append( escapeHtml( blog.title() ) );

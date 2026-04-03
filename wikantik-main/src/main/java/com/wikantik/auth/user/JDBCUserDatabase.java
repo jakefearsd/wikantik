@@ -193,6 +193,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
 
     public static final String DEFAULT_DB_ATTRIBUTES = "attributes";
 
+    public static final String DEFAULT_DB_BIO = "bio";
+
     public static final String DEFAULT_DB_CREATED = "created";
 
     public static final String DEFAULT_DB_EMAIL = "email";
@@ -220,6 +222,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     public static final String DEFAULT_DB_WIKI_NAME = "wiki_name";
 
     public static final String PROP_DB_ATTRIBUTES = "wikantik.userdatabase.attributes";
+
+    public static final String PROP_DB_BIO = "wikantik.userdatabase.bio";
 
     public static final String PROP_DB_CREATED = "wikantik.userdatabase.created";
 
@@ -292,6 +296,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     private String uid;
     
     private String wikiName;
+
+    private String bio;
 
     private String created;
 
@@ -433,6 +439,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             created = props.getProperty( PROP_DB_CREATED, DEFAULT_DB_CREATED );
             modified = props.getProperty( PROP_DB_MODIFIED, DEFAULT_DB_MODIFIED );
             attributes = props.getProperty( PROP_DB_ATTRIBUTES, DEFAULT_DB_ATTRIBUTES );
+            bio = props.getProperty( PROP_DB_BIO, DEFAULT_DB_BIO );
 
             findAll = "SELECT * FROM " + userTable;
             findByEmail = "SELECT * FROM " + userTable + " WHERE " + email + "=?";
@@ -451,8 +458,9 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                               + modified + ","
                               + loginName + ","
                               + attributes + ","
+                              + bio + ","
                               + created
-                              + ") VALUES (?,?,?,?,?,?,?,?,?)";
+                              + ") VALUES (?,?,?,?,?,?,?,?,?,?)";
             
             // The user update SQL prepared statement
             updateProfile = "UPDATE " + userTable + " SET "
@@ -464,6 +472,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                               + modified + "=?,"
                               + loginName + "=?,"
                               + attributes + "=?,"
+                              + bio + "=?,"
                               + lockExpiry + "=? "
                               + "WHERE " + loginName + "=?";
 
@@ -609,7 +618,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             if( existingProfile == null ) {
                 // User is new: insert new user record
                 setProfileParameters( ps1, profile, password, ts );
-                ps1.setTimestamp( 9, ts );
+                ps1.setTimestamp( 10, ts );
                 ps1.execute();
 
                 // Insert new role record
@@ -632,8 +641,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             } else {
                 // User exists: modify existing record
                 setProfileParameters( ps4, profile, password, ts );
-                ps4.setDate( 9, lockExpiry );
-                ps4.setString( 10, profile.getLoginName() );
+                ps4.setDate( 10, lockExpiry );
+                ps4.setString( 11, profile.getLoginName() );
                 ps4.execute();
             }
             // Set the profile mod time
@@ -658,7 +667,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      * @throws NoSuchPrincipalException problems accessing the database
      */
     /**
-     * Sets the common profile parameters (1-8) on a PreparedStatement for both insert and update operations.
+     * Sets the common profile parameters (1-9) on a PreparedStatement for both insert and update operations.
      */
     private void setProfileParameters( final PreparedStatement ps, final UserProfile profile,
                                         final String password, final Timestamp ts ) throws WikiSecurityException, SQLException {
@@ -674,6 +683,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         } catch ( final IOException e ) {
             throw new WikiSecurityException( "Could not save user profile attribute. Reason: " + e.getMessage(), e );
         }
+        ps.setString( 9, profile.getBio() );
     }
 
     private UserProfile findByPreparedStatement( final String sql, final Object index ) throws NoSuchPrincipalException
@@ -717,7 +727,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                     profile.setLockExpiry( rs.wasNull() ? null : lockExpiryDate );
                     profile.setLoginName( rs.getString( loginName ) );
                     profile.setPassword( rs.getString( password ) );
-                    
+                    profile.setBio( rs.getString( bio ) );
+
                     // Fetch the user attributes
                     final String rawAttributes = rs.getString( attributes );
                     if ( rawAttributes != null ) {

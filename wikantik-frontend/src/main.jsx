@@ -13,6 +13,11 @@ import AdminSecurityPage from './components/admin/AdminSecurityPage';
 import DiffViewer from './components/DiffViewer';
 import UserPreferencesPage from './components/UserPreferencesPage';
 import ResetPasswordPage from './components/ResetPasswordPage';
+import BlogDiscovery from './components/BlogDiscovery';
+import BlogHome from './components/BlogHome';
+import BlogEntry from './components/BlogEntry';
+import CreateBlog from './components/CreateBlog';
+import NewBlogEntry from './components/NewBlogEntry';
 import './styles/globals.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -35,6 +40,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="content" element={<AdminContentPage />} />
               <Route path="security" element={<AdminSecurityPage />} />
             </Route>
+            <Route path="/blog" element={<BlogDiscovery />} />
+            <Route path="/blog/create" element={<CreateBlog />} />
+            <Route path="/blog/:username/new" element={<NewBlogEntry />} />
+            <Route path="/blog/:username/Blog" element={<BlogHome />} />
+            <Route path="/blog/:username/:entryName" element={<BlogEntry />} />
           </Route>
         </Routes>
       </BrowserRouter>

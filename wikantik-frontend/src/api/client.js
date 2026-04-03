@@ -128,6 +128,35 @@ export const api = {
   resetPassword: (email) =>
     request('/api/auth/reset-password', { method: 'POST', body: JSON.stringify({ email }) }),
 
+  // Blog
+  blog: {
+    list: () => request('/api/blog'),
+    get: (username) => request(`/api/blog/${encodeURIComponent(username)}`),
+    create: () => request('/api/blog', { method: 'POST', body: '{}' }),
+    remove: (username) => request(`/api/blog/${encodeURIComponent(username)}`, { method: 'DELETE' }),
+    listEntries: (username) => request(`/api/blog/${encodeURIComponent(username)}/entries`),
+    getEntry: (username, name, { render } = {}) => {
+      const params = new URLSearchParams();
+      if (render) params.set('render', 'true');
+      const qs = params.toString();
+      return request(`/api/blog/${encodeURIComponent(username)}/entries/${encodeURIComponent(name)}${qs ? '?' + qs : ''}`);
+    },
+    createEntry: (username, topic) =>
+      request(`/api/blog/${encodeURIComponent(username)}/entries`, {
+        method: 'POST',
+        body: JSON.stringify({ topic }),
+      }),
+    updateEntry: (username, name, content) =>
+      request(`/api/blog/${encodeURIComponent(username)}/entries/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ content }),
+      }),
+    deleteEntry: (username, name) =>
+      request(`/api/blog/${encodeURIComponent(username)}/entries/${encodeURIComponent(name)}`, {
+        method: 'DELETE',
+      }),
+  },
+
   // Admin — User Management
   admin: {
     listUsers: () => request('/admin/users'),

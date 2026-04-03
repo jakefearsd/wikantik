@@ -50,6 +50,7 @@ CREATE TABLE users (
   created TIMESTAMP,
   modified TIMESTAMP,
   lock_expiry TIMESTAMP,
+  bio VARCHAR(1000),
   attributes TEXT
 );
 

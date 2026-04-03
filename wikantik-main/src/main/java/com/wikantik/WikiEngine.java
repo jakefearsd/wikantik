@@ -35,6 +35,7 @@ import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.content.PageRenamer;
+import com.wikantik.blog.BlogManager;
 import com.wikantik.content.RecentArticlesManager;
 import com.wikantik.content.SystemPageRegistry;
 import com.wikantik.diff.DifferenceManager;
@@ -318,6 +319,9 @@ public class WikiEngine implements Engine {
 
             // Phase 7: RecentArticlesManager for article listing APIs and plugins.
             initComponent( RecentArticlesManager.class );
+
+            // Phase 7b: BlogManager for user blog lifecycle and plugins.
+            initComponent( BlogManager.class );
 
             // Phase 8: ReferenceManager scans all pages for cross-references.
             initReferenceManager();

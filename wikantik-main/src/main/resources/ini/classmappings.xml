@@ -147,4 +147,8 @@
     <requestedClass>com.wikantik.content.SystemPageRegistry</requestedClass>
     <mappedClass>com.wikantik.content.DefaultSystemPageRegistry</mappedClass>
   </mapping>
+  <mapping>
+    <requestedClass>com.wikantik.blog.BlogManager</requestedClass>
+    <mappedClass>com.wikantik.blog.DefaultBlogManager</mappedClass>
+  </mapping>
 </classmappings>

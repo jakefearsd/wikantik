@@ -1,0 +1,12 @@
+---
+title: "{username}'s Blog"
+description: "Welcome to my blog"
+---
+
+# Welcome to my blog
+
+[{LatestArticle excerpt=true}]
+
+## All Posts
+
+[{ArticleListing count=10 excerpt=true}]

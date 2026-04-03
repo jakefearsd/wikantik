@@ -81,7 +81,7 @@ public class ArticleListing implements Plugin {
         final PageManager pageManager = engine.getManager( PageManager.class );
 
         if ( blogManager == null ) {
-            LOG.error( "BlogManager not available" );
+            LOG.warn( "BlogManager not available" );
             return "<p class=\"error\">ArticleListing plugin: BlogManager not available.</p>";
         }
 
@@ -109,7 +109,7 @@ public class ArticleListing implements Plugin {
             return renderHtml( entries, username, pageManager, engine.getBaseURL(), showExcerpt, excerptLength );
 
         } catch ( final Exception e ) {
-            LOG.error( "Error executing ArticleListing plugin", e );
+            LOG.warn( "Error executing ArticleListing plugin", e );
             throw new PluginException( "Error listing blog entries: " + e.getMessage() );
         }
     }

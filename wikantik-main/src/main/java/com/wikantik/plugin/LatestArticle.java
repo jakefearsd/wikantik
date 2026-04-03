@@ -72,7 +72,7 @@ public class LatestArticle implements Plugin {
         final PageManager pageManager = engine.getManager( PageManager.class );
 
         if ( blogManager == null ) {
-            LOG.error( "BlogManager not available" );
+            LOG.warn( "BlogManager not available" );
             return "<p class=\"error\">LatestArticle plugin: BlogManager not available.</p>";
         }
 
@@ -108,7 +108,7 @@ public class LatestArticle implements Plugin {
             return renderHtml( title, date, body, href, showExcerpt, excerptLength );
 
         } catch ( final Exception e ) {
-            LOG.error( "Error executing LatestArticle plugin", e );
+            LOG.warn( "Error executing LatestArticle plugin", e );
             throw new PluginException( "Error retrieving latest article: " + e.getMessage() );
         }
     }

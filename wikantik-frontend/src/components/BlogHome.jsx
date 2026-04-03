@@ -12,7 +12,8 @@ export default function BlogHome() {
     [username, user?.authenticated]
   );
 
-  const isOwner = user?.authenticated && user.loginName?.toLowerCase() === username?.toLowerCase();
+  const isOwner = user?.authenticated && user.loginPrincipal?.toLowerCase() === username?.toLowerCase();
+  const isAdmin = user?.authenticated && user.roles?.includes('Admin');
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error?.status === 404) {
@@ -42,14 +43,18 @@ export default function BlogHome() {
             {username}'s Blog
           </h1>
         </div>
-        {isOwner && (
+        {(isOwner || isAdmin) && (
           <div style={{ display: 'flex', gap: 'var(--space-sm)', flexShrink: 0 }}>
-            <Link to={`/blog/${encodeURIComponent(username)}/new`} className="btn btn-primary">
-              New Entry
-            </Link>
-            <Link to={`/edit/blog/${username}/Blog`} className="btn btn-ghost">
-              Edit Blog Page
-            </Link>
+            {isOwner && (
+              <Link to={`/blog/${encodeURIComponent(username)}/new`} className="btn btn-primary">
+                New Entry
+              </Link>
+            )}
+            {isOwner && (
+              <Link to={`/edit/blog/${username}/Blog`} className="btn btn-ghost">
+                Edit Blog Page
+              </Link>
+            )}
           </div>
         )}
       </div>

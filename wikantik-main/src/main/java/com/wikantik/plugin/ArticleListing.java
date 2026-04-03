@@ -116,7 +116,7 @@ public class ArticleListing implements Plugin {
 
             // Determine excerpt settings
             final boolean showExcerpt = !"false".equalsIgnoreCase( params.get( PARAM_EXCERPT ) );
-            final int excerptLength = parsePositiveInt( params.get( PARAM_EXCERPT_LENGTH ), DEFAULT_EXCERPT_LENGTH );
+            final int excerptLength = TextUtil.parsePositiveInt( params.get( PARAM_EXCERPT_LENGTH ), DEFAULT_EXCERPT_LENGTH );
 
             return renderHtml( entries, username, pageManager, engine.getBaseURL(), showExcerpt, excerptLength );
 
@@ -151,15 +151,15 @@ public class ArticleListing implements Plugin {
 
             // Build the link to the entry
             final String entrySlug = entry.getName().substring( entry.getName().lastIndexOf( '/' ) + 1 );
-            final String href = baseURL + "/blog/" + escapeHtml( username ) + "/" + escapeHtml( entrySlug );
+            final String href = baseURL + "/blog/" + TextUtil.escapeHtml( username ) + "/" + TextUtil.escapeHtml( entrySlug );
 
             sb.append( "  <li class=\"entry-item\">" );
 
             // Title with date as link: "Title - Fri Apr 03"
             sb.append( "<a href=\"" ).append( href ).append( "\" class=\"entry-title\">" );
-            sb.append( escapeHtml( title ) );
+            sb.append( TextUtil.escapeHtml( title ) );
             if ( !formattedDate.isEmpty() ) {
-                sb.append( " &mdash; " ).append( escapeHtml( formattedDate ) );
+                sb.append( " &mdash; " ).append( TextUtil.escapeHtml( formattedDate ) );
             }
             sb.append( "</a>" );
 
@@ -167,8 +167,8 @@ public class ArticleListing implements Plugin {
             if ( showExcerpt && !body.isEmpty() ) {
                 final String excerptText = synopsis != null
                         ? synopsis
-                        : truncate( LatestArticle.stripMarkdown( body ), excerptLength );
-                sb.append( "\n    <p class=\"entry-excerpt\">" ).append( escapeHtml( excerptText ) ).append( "</p>" );
+                        : TextUtil.truncate( LatestArticle.stripMarkdown( body ), excerptLength );
+                sb.append( "\n    <p class=\"entry-excerpt\">" ).append( TextUtil.escapeHtml( excerptText ) ).append( "</p>" );
             }
 
             sb.append( "</li>\n" );
@@ -179,42 +179,5 @@ public class ArticleListing implements Plugin {
         return sb.toString();
     }
 
-    /**
-     * Truncates text to the specified length, appending "..." if truncated.
-     */
-    private String truncate( final String text, final int maxLength ) {
-        if ( text.length() <= maxLength ) {
-            return text;
-        }
-        return text.substring( 0, maxLength ) + "...";
-    }
 
-    /**
-     * Parses a string as a positive integer, returning the default if parsing fails or value is non-positive.
-     */
-    private int parsePositiveInt( final String value, final int defaultValue ) {
-        if ( value == null || value.isEmpty() ) {
-            return defaultValue;
-        }
-        try {
-            final int parsed = Integer.parseInt( value );
-            return parsed > 0 ? parsed : defaultValue;
-        } catch ( final NumberFormatException e ) {
-            return defaultValue;
-        }
-    }
-
-    /**
-     * Escapes HTML special characters.
-     */
-    private String escapeHtml( final String text ) {
-        if ( text == null ) {
-            return "";
-        }
-        return text
-            .replace( "&", "&amp;" )
-            .replace( "<", "&lt;" )
-            .replace( ">", "&gt;" )
-            .replace( "\"", "&quot;" );
-    }
 }

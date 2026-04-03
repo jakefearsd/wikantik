@@ -819,4 +819,102 @@ public class TextUtilTest {
         assertTrue( TextUtil.isPositive( "YES" ) );
     }
 
+    // --- escapeHtml tests ---
+
+    @Test
+    public void testEscapeHtmlNull() {
+        assertEquals( "", TextUtil.escapeHtml( null ) );
+    }
+
+    @Test
+    public void testEscapeHtmlEmpty() {
+        assertEquals( "", TextUtil.escapeHtml( "" ) );
+    }
+
+    @Test
+    public void testEscapeHtmlPlainText() {
+        assertEquals( "hello world", TextUtil.escapeHtml( "hello world" ) );
+    }
+
+    @Test
+    public void testEscapeHtmlAmpersand() {
+        assertEquals( "a &amp; b", TextUtil.escapeHtml( "a & b" ) );
+    }
+
+    @Test
+    public void testEscapeHtmlLessThan() {
+        assertEquals( "&lt;div&gt;", TextUtil.escapeHtml( "<div>" ) );
+    }
+
+    @Test
+    public void testEscapeHtmlQuote() {
+        assertEquals( "&quot;quoted&quot;", TextUtil.escapeHtml( "\"quoted\"" ) );
+    }
+
+    @Test
+    public void testEscapeHtmlAllSpecialChars() {
+        assertEquals( "&amp;&lt;&gt;&quot;", TextUtil.escapeHtml( "&<>\"" ) );
+    }
+
+    @Test
+    public void testEscapeHtmlDoubleEscapesExistingEntities() {
+        // Unlike escapeHTMLEntities, escapeHtml always escapes & — even in existing entities
+        assertEquals( "&amp;amp;", TextUtil.escapeHtml( "&amp;" ) );
+        assertEquals( "&amp;#123;", TextUtil.escapeHtml( "&#123;" ) );
+    }
+
+    // --- truncate tests ---
+
+    @Test
+    public void testTruncateShorterThanLimit() {
+        assertEquals( "hello", TextUtil.truncate( "hello", 10 ) );
+    }
+
+    @Test
+    public void testTruncateExactlyAtLimit() {
+        assertEquals( "hello", TextUtil.truncate( "hello", 5 ) );
+    }
+
+    @Test
+    public void testTruncateLongerThanLimit() {
+        assertEquals( "hel...", TextUtil.truncate( "hello world", 3 ) );
+    }
+
+    @Test
+    public void testTruncateEmpty() {
+        assertEquals( "", TextUtil.truncate( "", 5 ) );
+    }
+
+    // --- parsePositiveInt tests ---
+
+    @Test
+    public void testParsePositiveIntNull() {
+        assertEquals( 42, TextUtil.parsePositiveInt( null, 42 ) );
+    }
+
+    @Test
+    public void testParsePositiveIntEmpty() {
+        assertEquals( 42, TextUtil.parsePositiveInt( "", 42 ) );
+    }
+
+    @Test
+    public void testParsePositiveIntZero() {
+        assertEquals( 42, TextUtil.parsePositiveInt( "0", 42 ) );
+    }
+
+    @Test
+    public void testParsePositiveIntNegative() {
+        assertEquals( 42, TextUtil.parsePositiveInt( "-1", 42 ) );
+    }
+
+    @Test
+    public void testParsePositiveIntNotANumber() {
+        assertEquals( 42, TextUtil.parsePositiveInt( "abc", 42 ) );
+    }
+
+    @Test
+    public void testParsePositiveIntValid() {
+        assertEquals( 5, TextUtil.parsePositiveInt( "5", 42 ) );
+    }
+
 }

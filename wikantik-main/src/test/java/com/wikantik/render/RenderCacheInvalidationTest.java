@@ -21,8 +21,10 @@ package com.wikantik.render;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.core.Session;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.blog.BlogManager;
 import com.wikantik.pages.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +50,16 @@ class RenderCacheInvalidationTest {
             } catch( final Exception e ) {
                 /* ignore */
             }
+            try {
+                final BlogManager bm = engine.getManager( BlogManager.class );
+                final Session session = engine.janneSession();
+                final String username = session.getLoginPrincipal().getName().toLowerCase();
+                if ( bm.blogExists( username ) ) {
+                    bm.deleteBlog( session, username );
+                }
+            } catch ( final Exception e ) {
+                /* ignore */
+            }
             engine.stop();
         }
     }
@@ -68,6 +80,30 @@ class RenderCacheInvalidationTest {
         final String html2 = renderPage( "CacheTestPage" );
         assertTrue( html2.contains( "Version Two" ), "After edit, render should contain 'Version Two', got: " + html2 );
         assertFalse( html2.contains( "Version One" ), "After edit, render should NOT contain 'Version One'" );
+    }
+
+    @Test
+    void testBlogHomeHtmlUpdatesAfterNewEntry() throws Exception {
+        final BlogManager bm = engine.getManager( BlogManager.class );
+        final Session session = engine.janneSession();
+        final String username = session.getLoginPrincipal().getName().toLowerCase();
+
+        // Create blog and first entry
+        bm.createBlog( session );
+        bm.createEntry( session, "FirstPost", "First post content" );
+
+        // Render Blog.md — should contain "First Post" (from LatestArticle plugin)
+        final String blogPage = BlogManager.blogPagePath( username, BlogManager.BLOG_HOME_PAGE );
+        final String html1 = renderPage( blogPage );
+        assertTrue( html1.contains( "First Post" ), "Blog home should show first entry, got: " + html1 );
+
+        // Create a second entry
+        bm.createEntry( session, "SecondPost", "Second post content" );
+
+        // Render Blog.md again — cache should be evicted, showing the NEW entry
+        final String html2 = renderPage( blogPage );
+        assertTrue( html2.contains( "Second Post" ),
+                "After new entry, Blog home should show second entry, got: " + html2 );
     }
 
     private String renderPage( final String pageName ) throws Exception {

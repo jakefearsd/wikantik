@@ -34,6 +34,7 @@ import com.wikantik.auth.UserManager;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.pages.PageManager;
 import com.wikantik.providers.AbstractFileProvider;
+import com.wikantik.render.RenderingManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -115,7 +116,7 @@ public class DefaultBlogManager implements BlogManager {
         final String templateContent = loadTemplate( username );
 
         // Create the Blog.md page via PageManager
-        final String pageName = BLOG_DIR + "/" + username + "/" + BLOG_HOME_PAGE;
+        final String pageName = BlogManager.blogPagePath( username, BLOG_HOME_PAGE );
         final Page page = Wiki.contents().page( engine, pageName );
         pageManager.putPageText( page, templateContent );
 
@@ -145,7 +146,7 @@ public class DefaultBlogManager implements BlogManager {
         }
 
         // Delete the Blog.md page
-        final String blogPageName = BLOG_DIR + "/" + normalizedUsername + "/" + BLOG_HOME_PAGE;
+        final String blogPageName = BlogManager.blogPagePath( normalizedUsername, BLOG_HOME_PAGE );
         if ( pageManager.wikiPageExists( blogPageName ) ) {
             pageManager.deletePage( blogPageName );
         }
@@ -179,7 +180,7 @@ public class DefaultBlogManager implements BlogManager {
         // Build the entry page name with YYYYMMDD prefix
         final String datePrefix = LocalDate.now().format( DATE_PREFIX_FORMAT );
         final String entrySlug = datePrefix + topicName;
-        final String pageName = BLOG_DIR + "/" + username + "/" + entrySlug;
+        final String pageName = BlogManager.blogPagePath( username, entrySlug );
 
         // Build frontmatter content
         final String title = camelCaseToSpaced( topicName );
@@ -202,6 +203,9 @@ public class DefaultBlogManager implements BlogManager {
         final Page page = Wiki.contents().page( engine, pageName );
         pageManager.putPageText( page, sb.toString() );
 
+        // Evict the blog homepage render cache so plugins (LatestArticle, ArticleListing) show the new entry
+        getRenderingManager().evictRenderCache( BlogManager.blogPagePath( username, BLOG_HOME_PAGE ) );
+
         LOG.info( "Created blog entry '{}' for user '{}'", pageName, username );
         return pageManager.getPage( pageName );
     }
@@ -210,7 +214,7 @@ public class DefaultBlogManager implements BlogManager {
     @Override
     public Page getBlog( final String username ) throws ProviderException {
         final String normalizedUsername = username.toLowerCase();
-        final String pageName = BLOG_DIR + "/" + normalizedUsername + "/" + BLOG_HOME_PAGE;
+        final String pageName = BlogManager.blogPagePath( normalizedUsername, BLOG_HOME_PAGE );
 
         if ( pageManager.wikiPageExists( pageName ) ) {
             return pageManager.getPage( pageName );
@@ -237,33 +241,16 @@ public class DefaultBlogManager implements BlogManager {
         }
 
         for ( final File file : files ) {
-            if ( !file.isFile() ) {
+            if ( !isBlogEntryFile( file ) ) {
                 continue;
             }
 
             final String fileName = file.getName();
+            final String slug = fileName.endsWith( ".md" )
+                ? fileName.substring( 0, fileName.length() - 3 )
+                : fileName.substring( 0, fileName.length() - 4 );
 
-            // Skip .properties files
-            if ( fileName.endsWith( ".properties" ) ) {
-                continue;
-            }
-
-            // Determine the page slug by stripping file extension
-            final String slug;
-            if ( fileName.endsWith( ".md" ) ) {
-                slug = fileName.substring( 0, fileName.length() - 3 );
-            } else if ( fileName.endsWith( ".txt" ) ) {
-                slug = fileName.substring( 0, fileName.length() - 4 );
-            } else {
-                continue;
-            }
-
-            // Skip the Blog homepage
-            if ( BLOG_HOME_PAGE.equals( slug ) ) {
-                continue;
-            }
-
-            final String pageName = BLOG_DIR + "/" + normalizedUsername + "/" + slug;
+            final String pageName = BlogManager.blogPagePath( normalizedUsername, slug );
             final Page page = pageManager.getPage( pageName, PageProvider.LATEST_VERSION );
             if ( page != null ) {
                 entries.add( page );
@@ -286,6 +273,44 @@ public class DefaultBlogManager implements BlogManager {
 
     /** {@inheritDoc} */
     @Override
+    public BlogInfo getBlogInfo( final String username ) throws ProviderException {
+        final String normalizedUsername = username.toLowerCase();
+        final String blogPageName = BlogManager.blogPagePath( normalizedUsername, BLOG_HOME_PAGE );
+
+        if ( !pageManager.wikiPageExists( blogPageName ) ) {
+            return null;
+        }
+
+        // Read frontmatter for title and description
+        final String content = pageManager.getPureText( blogPageName, PageProvider.LATEST_VERSION );
+        final ParsedPage parsed = FrontmatterParser.parse( content );
+        final Map< String, Object > metadata = parsed.metadata();
+
+        final String title = metadata.getOrDefault( "title", normalizedUsername + "'s Blog" ).toString();
+        final String description = metadata.containsKey( "description" )
+            ? metadata.get( "description" ).toString()
+            : "";
+
+        // Count entries (excluding Blog.md and .properties files)
+        final Path blogDirPath = Path.of( pageDir, BLOG_DIR, normalizedUsername );
+        final int entryCount = countEntries( blogDirPath.toFile() );
+
+        // Look up author full name from user account
+        String authorFullName = normalizedUsername;
+        try {
+            final UserProfile profile = userManager.getUserDatabase().findByLoginName( normalizedUsername );
+            if ( profile.getFullname() != null && !profile.getFullname().isEmpty() ) {
+                authorFullName = profile.getFullname();
+            }
+        } catch ( final NoSuchPrincipalException e ) {
+            LOG.debug( "No user profile found for blog owner {}", normalizedUsername );
+        }
+
+        return new BlogInfo( normalizedUsername, title, description, entryCount, authorFullName );
+    }
+
+    /** {@inheritDoc} */
+    @Override
     public List< BlogInfo > listBlogs() throws ProviderException {
         final Path blogRootPath = Path.of( pageDir, BLOG_DIR );
 
@@ -293,7 +318,6 @@ public class DefaultBlogManager implements BlogManager {
             return List.of();
         }
 
-        final List< BlogInfo > blogs = new ArrayList<>();
         final File blogRoot = blogRootPath.toFile();
         final File[] userDirs = blogRoot.listFiles( File::isDirectory );
 
@@ -301,45 +325,25 @@ public class DefaultBlogManager implements BlogManager {
             return List.of();
         }
 
+        final List< BlogInfo > blogs = new ArrayList<>();
         for ( final File userDir : userDirs ) {
-            final String username = userDir.getName();
-            final String blogPageName = BLOG_DIR + "/" + username + "/" + BLOG_HOME_PAGE;
-
-            if ( !pageManager.wikiPageExists( blogPageName ) ) {
-                continue;
+            final BlogInfo info = getBlogInfo( userDir.getName() );
+            if ( info != null ) {
+                blogs.add( info );
             }
-
-            // Read frontmatter for title and description
-            final String content = pageManager.getPureText( blogPageName, PageProvider.LATEST_VERSION );
-            final ParsedPage parsed = FrontmatterParser.parse( content );
-            final Map< String, Object > metadata = parsed.metadata();
-
-            final String title = metadata.getOrDefault( "title", username + "'s Blog" ).toString();
-            final String description = metadata.containsKey( "description" )
-                ? metadata.get( "description" ).toString()
-                : "";
-
-            // Count entries (excluding Blog.md and .properties files)
-            final int entryCount = countEntries( userDir );
-
-            // Look up author full name from user account
-            String authorFullName = username;
-            try {
-                final UserProfile profile = userManager.getUserDatabase().findByLoginName( username );
-                if ( profile.getFullname() != null && !profile.getFullname().isEmpty() ) {
-                    authorFullName = profile.getFullname();
-                }
-            } catch ( final NoSuchPrincipalException e ) {
-                LOG.debug( "No user profile found for blog owner {}", username );
-            }
-
-            blogs.add( new BlogInfo( username, title, description, entryCount, authorFullName ) );
         }
 
         return blogs;
     }
 
     // ---- Private helpers ----
+
+    /**
+     * Lazy accessor for RenderingManager (initialized after BlogManager in the engine lifecycle).
+     */
+    private RenderingManager getRenderingManager() {
+        return engine.getManager( RenderingManager.class );
+    }
 
     /**
      * Extracts and lowercases the username from the session's login principal.
@@ -414,25 +418,31 @@ public class DefaultBlogManager implements BlogManager {
         if ( files == null ) {
             return 0;
         }
-
         int count = 0;
         for ( final File file : files ) {
-            if ( !file.isFile() ) {
-                continue;
-            }
-            final String name = file.getName();
-            if ( name.endsWith( ".properties" ) ) {
-                continue;
-            }
-            // Skip Blog.md / Blog.txt
-            if ( name.startsWith( BLOG_HOME_PAGE + "." ) ) {
-                continue;
-            }
-            if ( name.endsWith( ".md" ) || name.endsWith( ".txt" ) ) {
+            if ( isBlogEntryFile( file ) ) {
                 count++;
             }
         }
         return count;
+    }
+
+    /**
+     * Returns {@code true} if the file is a blog entry (a {@code .md} or {@code .txt} file
+     * that is not the Blog homepage and not a {@code .properties} file).
+     */
+    private static boolean isBlogEntryFile( final File file ) {
+        if ( !file.isFile() ) {
+            return false;
+        }
+        final String name = file.getName();
+        if ( name.endsWith( ".properties" ) ) {
+            return false;
+        }
+        if ( name.startsWith( BLOG_HOME_PAGE + "." ) ) {
+            return false;
+        }
+        return name.endsWith( ".md" ) || name.endsWith( ".txt" );
     }
 
     /**

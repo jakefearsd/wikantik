@@ -19,7 +19,6 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
@@ -44,7 +43,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -127,6 +125,21 @@ public class BlogResource extends RestServletBase {
      */
     Session resolveSession( final HttpServletRequest request ) {
         return Wiki.session().find( getEngine(), request );
+    }
+
+    /**
+     * Resolves the session and sends a 401 if not authenticated.
+     *
+     * @return the authenticated session, or {@code null} if a 401 was sent
+     */
+    private Session requireAuthenticated( final HttpServletRequest request,
+                                           final HttpServletResponse response ) throws IOException {
+        final Session session = resolveSession( request );
+        if ( !session.isAuthenticated() ) {
+            sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required" );
+            return null;
+        }
+        return session;
     }
 
     // ----- HTTP method handlers -----
@@ -240,21 +253,7 @@ public class BlogResource extends RestServletBase {
                                 final String username ) throws IOException {
         try {
             final BlogManager blogManager = getEngine().getManager( BlogManager.class );
-
-            if ( !blogManager.blogExists( username ) ) {
-                sendNotFound( response, "Blog not found for user: " + username );
-                return;
-            }
-
-            // Build a BlogInfo for the single blog
-            final List< BlogInfo > allBlogs = blogManager.listBlogs();
-            BlogInfo blogInfo = null;
-            for ( final BlogInfo info : allBlogs ) {
-                if ( info.username().equals( username.toLowerCase() ) ) {
-                    blogInfo = info;
-                    break;
-                }
-            }
+            final BlogInfo blogInfo = blogManager.getBlogInfo( username );
 
             if ( blogInfo == null ) {
                 sendNotFound( response, "Blog not found for user: " + username );
@@ -297,10 +296,8 @@ public class BlogResource extends RestServletBase {
      */
     private void handleCreateBlog( final HttpServletRequest request, final HttpServletResponse response )
             throws IOException {
-        final Session session = resolveSession( request );
-
-        if ( !session.isAuthenticated() ) {
-            sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required" );
+        final Session session = requireAuthenticated( request, response );
+        if ( session == null ) {
             return;
         }
 
@@ -332,10 +329,8 @@ public class BlogResource extends RestServletBase {
      */
     private void handleDeleteBlog( final HttpServletRequest request, final HttpServletResponse response,
                                     final String username ) throws IOException {
-        final Session session = resolveSession( request );
-
-        if ( !session.isAuthenticated() ) {
-            sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required" );
+        final Session session = requireAuthenticated( request, response );
+        if ( session == null ) {
             return;
         }
 
@@ -427,7 +422,7 @@ public class BlogResource extends RestServletBase {
             return;
         }
 
-        final String pageName = BlogManager.BLOG_DIR + "/" + username.toLowerCase() + "/" + entryName;
+        final String pageName = BlogManager.blogPagePath( username, entryName );
         final PageManager pm = engine.getManager( PageManager.class );
         final Page page = pm.getPage( pageName );
 
@@ -469,17 +464,14 @@ public class BlogResource extends RestServletBase {
      */
     private void handleCreateEntry( final HttpServletRequest request, final HttpServletResponse response,
                                      final String username ) throws IOException {
-        final Session session = resolveSession( request );
-
-        if ( !session.isAuthenticated() ) {
-            sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required" );
+        final Session session = requireAuthenticated( request, response );
+        if ( session == null ) {
             return;
         }
 
-        // Parse JSON body
         final JsonObject body;
-        try ( final BufferedReader reader = request.getReader() ) {
-            body = JsonParser.parseReader( reader ).getAsJsonObject();
+        try {
+            body = readJsonBody( request );
         } catch ( final Exception e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + e.getMessage() );
             return;
@@ -520,14 +512,12 @@ public class BlogResource extends RestServletBase {
      */
     private void handleUpdateBlogHome( final HttpServletRequest request, final HttpServletResponse response,
                                         final String username ) throws IOException {
-        final Session session = resolveSession( request );
-
-        if ( !session.isAuthenticated() ) {
-            sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required" );
+        final Session session = requireAuthenticated( request, response );
+        if ( session == null ) {
             return;
         }
 
-        final String pageName = BlogManager.BLOG_DIR + "/" + username.toLowerCase() + "/" + BlogManager.BLOG_HOME_PAGE;
+        final String pageName = BlogManager.blogPagePath( username, BlogManager.BLOG_HOME_PAGE );
         final Engine engine = getEngine();
         final PageManager pm = engine.getManager( PageManager.class );
         final Page page = pm.getPage( pageName );
@@ -538,8 +528,8 @@ public class BlogResource extends RestServletBase {
         }
 
         final JsonObject body;
-        try ( final BufferedReader reader = request.getReader() ) {
-            body = JsonParser.parseReader( reader ).getAsJsonObject();
+        try {
+            body = readJsonBody( request );
         } catch ( final Exception e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + e.getMessage() );
             return;
@@ -569,14 +559,12 @@ public class BlogResource extends RestServletBase {
      */
     private void handleUpdateEntry( final HttpServletRequest request, final HttpServletResponse response,
                                      final String username, final String entryName ) throws IOException {
-        final Session session = resolveSession( request );
-
-        if ( !session.isAuthenticated() ) {
-            sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required" );
+        final Session session = requireAuthenticated( request, response );
+        if ( session == null ) {
             return;
         }
 
-        final String pageName = BlogManager.BLOG_DIR + "/" + username.toLowerCase() + "/" + entryName;
+        final String pageName = BlogManager.blogPagePath( username, entryName );
         final Engine engine = getEngine();
         final PageManager pm = engine.getManager( PageManager.class );
         final Page page = pm.getPage( pageName );
@@ -586,10 +574,9 @@ public class BlogResource extends RestServletBase {
             return;
         }
 
-        // Parse JSON body
         final JsonObject body;
-        try ( final BufferedReader reader = request.getReader() ) {
-            body = JsonParser.parseReader( reader ).getAsJsonObject();
+        try {
+            body = readJsonBody( request );
         } catch ( final Exception e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + e.getMessage() );
             return;
@@ -599,6 +586,10 @@ public class BlogResource extends RestServletBase {
 
         try {
             pm.putPageText( page, content );
+
+            // Evict blog homepage cache so plugins reflect updated entry metadata
+            final RenderingManager rm = engine.getManager( RenderingManager.class );
+            rm.evictRenderCache( BlogManager.blogPagePath( username, BlogManager.BLOG_HOME_PAGE ) );
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );
@@ -619,14 +610,12 @@ public class BlogResource extends RestServletBase {
      */
     private void handleDeleteEntry( final HttpServletRequest request, final HttpServletResponse response,
                                      final String username, final String entryName ) throws IOException {
-        final Session session = resolveSession( request );
-
-        if ( !session.isAuthenticated() ) {
-            sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required" );
+        final Session session = requireAuthenticated( request, response );
+        if ( session == null ) {
             return;
         }
 
-        final String pageName = BlogManager.BLOG_DIR + "/" + username.toLowerCase() + "/" + entryName;
+        final String pageName = BlogManager.blogPagePath( username, entryName );
         final Engine engine = getEngine();
         final PageManager pm = engine.getManager( PageManager.class );
         final Page page = pm.getPage( pageName );
@@ -638,6 +627,10 @@ public class BlogResource extends RestServletBase {
 
         try {
             pm.deletePage( pageName );
+
+            // Evict blog homepage cache so plugins reflect the deleted entry
+            final RenderingManager rm = engine.getManager( RenderingManager.class );
+            rm.evictRenderCache( BlogManager.blogPagePath( username, BlogManager.BLOG_HOME_PAGE ) );
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );

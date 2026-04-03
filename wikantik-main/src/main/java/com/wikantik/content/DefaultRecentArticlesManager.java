@@ -657,12 +657,12 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
 
         for ( final ArticleSummary article : articles ) {
             sb.append( "  <div class=\"article-card\">\n" );
-            sb.append( "    <h3><a href=\"" ).append( escapeHtml( article.getUrl() ) ).append( "\">" );
-            sb.append( escapeHtml( article.getTitle() ) ).append( "</a></h3>\n" );
+            sb.append( "    <h3><a href=\"" ).append( TextUtil.escapeHtml( article.getUrl() ) ).append( "\">" );
+            sb.append( TextUtil.escapeHtml( article.getTitle() ) ).append( "</a></h3>\n" );
 
             sb.append( "    <p class=\"article-meta\">" );
             if ( article.getAuthor() != null ) {
-                sb.append( escapeHtml( article.getAuthor() ) );
+                sb.append( TextUtil.escapeHtml( article.getAuthor() ) );
             }
             if ( article.getLastModified() != null ) {
                 sb.append( " &middot; " ).append( article.getLastModified() );
@@ -670,7 +670,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
             sb.append( "</p>\n" );
 
             if ( article.getExcerpt() != null ) {
-                sb.append( "    <p class=\"article-excerpt\">" ).append( escapeHtml( article.getExcerpt() ) ).append( "</p>\n" );
+                sb.append( "    <p class=\"article-excerpt\">" ).append( TextUtil.escapeHtml( article.getExcerpt() ) ).append( "</p>\n" );
             }
 
             sb.append( "  </div>\n" );
@@ -680,19 +680,6 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         return sb.toString();
     }
 
-    /**
-     * Escapes HTML special characters.
-     */
-    private String escapeHtml( final String text ) {
-        if ( text == null ) {
-            return "";
-        }
-        return text
-            .replace( "&", "&amp;" )
-            .replace( "<", "&lt;" )
-            .replace( ">", "&gt;" )
-            .replace( "\"", "&quot;" );
-    }
 
     /**
      * Simple cache entry with timestamp.

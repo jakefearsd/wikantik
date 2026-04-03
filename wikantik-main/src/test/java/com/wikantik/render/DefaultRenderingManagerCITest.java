@@ -516,19 +516,16 @@ class DefaultRenderingManagerCITest {
         final WikiPageEvent event = new WikiPageEvent( this, WikiPageEvent.POST_SAVE_BEGIN, "SavedPage" );
         mgr.actionPerformed( event );
 
-        // Should remove the saved page from both caches
-        verify( cachingManager ).remove( CachingManager.CACHE_DOCUMENTS, "SavedPage" );
-        verify( cachingManager ).remove( CachingManager.CACHE_HTML, "SavedPage" );
-
-        // Should flush referrer pages in both caches for all three plugin-var states
-        for( final String referrer : Set.of( "ReferrerA", "ReferrerB" ) ) {
+        // Should remove the saved page and both referrers from both caches
+        // using compound keys for all three plugin-var states
+        for( final String page : new String[]{ "SavedPage", "ReferrerA", "ReferrerB" } ) {
             for( final String cache : new String[]{ CachingManager.CACHE_DOCUMENTS, CachingManager.CACHE_HTML } ) {
                 verify( cachingManager ).remove( cache,
-                        referrer + "::" + PageProvider.LATEST_VERSION + "::" + Boolean.FALSE );
+                        page + "::" + PageProvider.LATEST_VERSION + "::" + Boolean.FALSE );
                 verify( cachingManager ).remove( cache,
-                        referrer + "::" + PageProvider.LATEST_VERSION + "::" + Boolean.TRUE );
+                        page + "::" + PageProvider.LATEST_VERSION + "::" + Boolean.TRUE );
                 verify( cachingManager ).remove( cache,
-                        referrer + "::" + PageProvider.LATEST_VERSION + "::" + null );
+                        page + "::" + PageProvider.LATEST_VERSION + "::" + null );
             }
         }
     }
@@ -595,11 +592,17 @@ class DefaultRenderingManagerCITest {
         final WikiPageEvent event = new WikiPageEvent( this, WikiPageEvent.POST_SAVE_BEGIN, "LonelyPage" );
         mgr.actionPerformed( event );
 
-        // Only the saved page itself should be removed, no referrer flushes
-        verify( cachingManager ).remove( CachingManager.CACHE_DOCUMENTS, "LonelyPage" );
-        verify( cachingManager ).remove( CachingManager.CACHE_HTML, "LonelyPage" );
-        // Exactly 2 remove calls total
-        verify( cachingManager, times( 2 ) ).remove( anyString(), any() );
+        // Only the saved page itself should be removed (compound keys, no referrer flushes).
+        // evictRenderCache removes 6 entries: 2 caches × 3 plugin variants.
+        for( final String cache : new String[]{ CachingManager.CACHE_DOCUMENTS, CachingManager.CACHE_HTML } ) {
+            verify( cachingManager ).remove( cache,
+                    "LonelyPage::" + PageProvider.LATEST_VERSION + "::" + Boolean.FALSE );
+            verify( cachingManager ).remove( cache,
+                    "LonelyPage::" + PageProvider.LATEST_VERSION + "::" + Boolean.TRUE );
+            verify( cachingManager ).remove( cache,
+                    "LonelyPage::" + PageProvider.LATEST_VERSION + "::" + null );
+        }
+        verify( cachingManager, times( 6 ) ).remove( anyString(), any() );
     }
 
     // ========== HTML cache: getHTML(context, pagedata) stores in HTML cache ==========

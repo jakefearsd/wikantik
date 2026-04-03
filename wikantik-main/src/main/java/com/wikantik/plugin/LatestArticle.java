@@ -30,6 +30,7 @@ import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.blog.BlogManager;
 import com.wikantik.pages.PageManager;
+import com.wikantik.util.TextUtil;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -112,11 +113,11 @@ public class LatestArticle implements Plugin {
 
             // Determine excerpt vs. full content
             final boolean showExcerpt = !"false".equalsIgnoreCase( params.get( PARAM_EXCERPT ) );
-            final int excerptLength = parsePositiveInt( params.get( PARAM_EXCERPT_LENGTH ), DEFAULT_EXCERPT_LENGTH );
+            final int excerptLength = TextUtil.parsePositiveInt( params.get( PARAM_EXCERPT_LENGTH ), DEFAULT_EXCERPT_LENGTH );
 
             // Build the link to the entry
             final String entrySlug = latestEntry.getName().substring( latestEntry.getName().lastIndexOf( '/' ) + 1 );
-            final String href = engine.getBaseURL() + "/blog/" + escapeHtml( username ) + "/" + escapeHtml( entrySlug );
+            final String href = engine.getBaseURL() + "/blog/" + TextUtil.escapeHtml( username ) + "/" + TextUtil.escapeHtml( entrySlug );
 
             return renderHtml( title, date, body, synopsis, href, showExcerpt, excerptLength );
 
@@ -170,9 +171,9 @@ public class LatestArticle implements Plugin {
 
         // Title with date as link: "Title — Fri Apr 03"
         sb.append( "  <h3 class=\"entry-title\"><a href=\"" ).append( href ).append( "\">" );
-        sb.append( escapeHtml( title ) );
+        sb.append( TextUtil.escapeHtml( title ) );
         if ( !date.isEmpty() ) {
-            sb.append( " &mdash; " ).append( escapeHtml( date ) );
+            sb.append( " &mdash; " ).append( TextUtil.escapeHtml( date ) );
         }
         sb.append( "</a></h3>\n" );
 
@@ -181,10 +182,10 @@ public class LatestArticle implements Plugin {
             if ( showExcerpt ) {
                 final String excerptText = synopsis != null
                         ? synopsis
-                        : truncate( stripMarkdown( body ), excerptLength );
-                sb.append( "  <p class=\"entry-excerpt\">" ).append( escapeHtml( excerptText ) ).append( "</p>\n" );
+                        : TextUtil.truncate( stripMarkdown( body ), excerptLength );
+                sb.append( "  <p class=\"entry-excerpt\">" ).append( TextUtil.escapeHtml( excerptText ) ).append( "</p>\n" );
             } else {
-                sb.append( "  <div class=\"entry-content\">" ).append( escapeHtml( body ) ).append( "</div>\n" );
+                sb.append( "  <div class=\"entry-content\">" ).append( TextUtil.escapeHtml( body ) ).append( "</div>\n" );
             }
         }
 
@@ -255,42 +256,5 @@ public class LatestArticle implements Plugin {
             .trim();
     }
 
-    /**
-     * Truncates text to the specified length, appending "..." if truncated.
-     */
-    private String truncate( final String text, final int maxLength ) {
-        if ( text.length() <= maxLength ) {
-            return text;
-        }
-        return text.substring( 0, maxLength ) + "...";
-    }
 
-    /**
-     * Parses a string as a positive integer, returning the default if parsing fails or value is non-positive.
-     */
-    private int parsePositiveInt( final String value, final int defaultValue ) {
-        if ( value == null || value.isEmpty() ) {
-            return defaultValue;
-        }
-        try {
-            final int parsed = Integer.parseInt( value );
-            return parsed > 0 ? parsed : defaultValue;
-        } catch ( final NumberFormatException e ) {
-            return defaultValue;
-        }
-    }
-
-    /**
-     * Escapes HTML special characters.
-     */
-    private String escapeHtml( final String text ) {
-        if ( text == null ) {
-            return "";
-        }
-        return text
-            .replace( "&", "&amp;" )
-            .replace( "<", "&lt;" )
-            .replace( ">", "&gt;" )
-            .replace( "\"", "&quot;" );
-    }
 }

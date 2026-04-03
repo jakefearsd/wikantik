@@ -395,6 +395,47 @@ class BlogResourceTest {
         assertTrue( obj.has( "contentHtml" ), "Response should include contentHtml when render=true" );
     }
 
+    // ----- Cache eviction: Blog.md rendered HTML must reflect new entries -----
+
+    @Test
+    void testBlogHomeRenderedHtmlUpdatesAfterNewEntry() throws Exception {
+        // Create blog and first entry
+        final BlogManager blogManager = engine.getManager( BlogManager.class );
+        blogManager.createBlog( mockSession );
+        blogManager.createEntry( mockSession, "AlphaPost", "Alpha content" );
+
+        // GET /api/blog/{username}?render=true — should contain "Alpha Post" via LatestArticle plugin
+        final String html1 = doGetBlogRendered( TEST_USER );
+        assertTrue( html1.contains( "Alpha Post" ),
+                "First render of Blog home should contain 'Alpha Post' from LatestArticle plugin, got: " + html1 );
+
+        // Create a second entry
+        blogManager.createEntry( mockSession, "BetaPost", "Beta content" );
+
+        // GET /api/blog/{username}?render=true again — cache should be evicted, showing "Beta Post"
+        final String html2 = doGetBlogRendered( TEST_USER );
+        assertTrue( html2.contains( "Beta Post" ),
+                "After new entry, Blog home should contain 'Beta Post' from LatestArticle plugin, got: " + html2 );
+    }
+
+    /**
+     * Performs a GET /api/blog/{username}?render=true and returns the contentHtml field.
+     */
+    private String doGetBlogRendered( final String username ) throws Exception {
+        final HttpServletRequest request = createRequest( username );
+        Mockito.doReturn( "true" ).when( request ).getParameter( "render" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.has( "contentHtml" ), "Response should include contentHtml when render=true" );
+        return obj.get( "contentHtml" ).getAsString();
+    }
+
     // ----- Bad path handling -----
 
     @Test

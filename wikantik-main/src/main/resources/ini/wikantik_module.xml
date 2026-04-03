@@ -52,4 +52,22 @@
       <minVersion>1.0</minVersion>
    </filter>
 
+   <plugin class="com.wikantik.plugin.BlogListing">
+      <author>Wikantik</author>
+      <minVersion>1.0</minVersion>
+      <alias>BlogListing</alias>
+   </plugin>
+
+   <plugin class="com.wikantik.plugin.LatestArticle">
+      <author>Wikantik</author>
+      <minVersion>1.0</minVersion>
+      <alias>LatestArticle</alias>
+   </plugin>
+
+   <plugin class="com.wikantik.plugin.ArticleListing">
+      <author>Wikantik</author>
+      <minVersion>1.0</minVersion>
+      <alias>ArticleListing</alias>
+   </plugin>
+
 </modules>

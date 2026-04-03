@@ -55,6 +55,12 @@ public interface UserProfile extends Serializable
     String getEmail();
 
     /**
+     * Returns the user's bio.
+     * @return the bio, or {@code null} if not set
+     */
+    String getBio();
+
+    /**
      * Returns the user's full name.
      * @return the full name
      */
@@ -137,6 +143,12 @@ public interface UserProfile extends Serializable
      * @param email the e-mail address
      */
     void setEmail( String email );
+
+    /**
+     * Sets the user's bio. Maximum 1000 characters.
+     * @param bio the bio text
+     */
+    void setBio( String bio );
 
     /**
      * Sets the user's full name. For example, "Janne Jalkanen."

@@ -41,6 +41,7 @@ public final class DefaultUserProfile implements UserProfile {
     private final Map< String, Serializable > attributes = new HashMap<>();
     private Date created;
     private String email;
+    private String bio;
     private String fullname;
     private Date lockExpiry;
     private String loginName;
@@ -100,6 +101,17 @@ public final class DefaultUserProfile implements UserProfile {
     public String getEmail()
     {
         return email;
+    }
+
+    /**
+     * Returns the user's bio.
+     *
+     * @return the bio, or {@code null} if not set
+     */
+    @Override
+    public String getBio()
+    {
+        return bio;
     }
 
     /**
@@ -190,6 +202,17 @@ public final class DefaultUserProfile implements UserProfile {
     public void setEmail( final String email )
     {
     	this.email = email;
+    }
+
+    /**
+     * Sets the user's bio. Maximum 1000 characters.
+     *
+     * @param bio the bio text
+     */
+    @Override
+    public void setBio( final String bio )
+    {
+        this.bio = bio;
     }
 
     /**

@@ -11,7 +11,7 @@ export default function NewBlogEntry() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  const isOwner = user?.authenticated && user.loginName?.toLowerCase() === username?.toLowerCase();
+  const isOwner = user?.authenticated && user.loginPrincipal?.toLowerCase() === username?.toLowerCase();
 
   async function handleSubmit(e) {
     e.preventDefault();

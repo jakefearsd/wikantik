@@ -14,7 +14,7 @@ export default function CreateBlog() {
     setError(null);
     try {
       await api.blog.create();
-      navigate(`/blog/${encodeURIComponent(user.loginName)}/Blog`);
+      navigate(`/blog/${encodeURIComponent(user.loginPrincipal)}/Blog`);
     } catch (err) {
       setError(err.body?.message || err.message || 'Failed to create blog');
       setCreating(false);
@@ -38,7 +38,7 @@ export default function CreateBlog() {
         Create Your Blog
       </h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: 'var(--space-lg)' }}>
-        This will create a personal blog for <strong>{user.loginName}</strong>.
+        This will create a personal blog for <strong>{user.loginPrincipal}</strong>.
       </p>
 
       {error && (

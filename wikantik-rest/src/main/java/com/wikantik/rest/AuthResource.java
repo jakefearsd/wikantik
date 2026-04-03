@@ -218,6 +218,17 @@ public class AuthResource extends RestServletBase {
                 profile.setEmail( email );
             }
 
+            // Update bio if provided
+            final String bio = getJsonString( body, "bio" );
+            if ( bio != null ) {
+                if ( bio.length() > 1000 ) {
+                    sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                            "Bio must be 1000 characters or fewer" );
+                    return;
+                }
+                profile.setBio( bio );
+            }
+
             // Handle password change if requested
             final String newPassword = getJsonString( body, "newPassword" );
             if ( newPassword != null && !newPassword.isBlank() ) {
@@ -396,6 +407,7 @@ public class AuthResource extends RestServletBase {
         map.put( "loginName", profile.getLoginName() );
         map.put( "fullName", profile.getFullname() );
         map.put( "email", profile.getEmail() );
+        map.put( "bio", profile.getBio() );
         map.put( "wikiName", profile.getWikiName() );
         map.put( "created", formatDate( profile.getCreated() ) );
         map.put( "lastModified", formatDate( profile.getLastModified() ) );

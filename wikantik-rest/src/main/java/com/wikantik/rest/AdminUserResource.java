@@ -169,6 +169,7 @@ public class AdminUserResource extends RestServletBase {
         final String loginName = getJsonString( body, "loginName" );
         final String fullName = getJsonString( body, "fullName" );
         final String email = getJsonString( body, "email" );
+        final String bio = getJsonString( body, "bio" );
         final String password = getJsonString( body, "password" );
 
         if ( loginName == null || loginName.isBlank() ) {
@@ -192,6 +193,14 @@ public class AdminUserResource extends RestServletBase {
             profile.setLoginName( loginName );
             if ( fullName != null ) profile.setFullname( fullName );
             if ( email != null ) profile.setEmail( email );
+            if ( bio != null ) {
+                if ( bio.length() > 1000 ) {
+                    sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                            "Bio must be 1000 characters or fewer" );
+                    return;
+                }
+                profile.setBio( bio );
+            }
             profile.setPassword( password );
             db.save( profile );
 
@@ -219,9 +228,18 @@ public class AdminUserResource extends RestServletBase {
             final String fullName = getJsonString( body, "fullName" );
             final String email = getJsonString( body, "email" );
             final String password = getJsonString( body, "password" );
+            final String bio = getJsonString( body, "bio" );
 
             if ( fullName != null ) profile.setFullname( fullName );
             if ( email != null ) profile.setEmail( email );
+            if ( bio != null ) {
+                if ( bio.length() > 1000 ) {
+                    sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                            "Bio must be 1000 characters or fewer" );
+                    return;
+                }
+                profile.setBio( bio );
+            }
             if ( password != null && !password.isBlank() ) {
                 final List<String> passwordErrors = PasswordValidator.validate( password, getEngine().getWikiProperties() );
                 if ( !passwordErrors.isEmpty() ) {
@@ -301,6 +319,7 @@ public class AdminUserResource extends RestServletBase {
         map.put( "loginName", profile.getLoginName() );
         map.put( "fullName", profile.getFullname() );
         map.put( "email", profile.getEmail() );
+        map.put( "bio", profile.getBio() );
         map.put( "wikiName", profile.getWikiName() );
         map.put( "created", formatDate( profile.getCreated() ) );
         map.put( "lastModified", formatDate( profile.getLastModified() ) );

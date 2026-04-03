@@ -181,4 +181,20 @@ class DefaultUserProfileCITest {
         // p2 email is null
         assertNotEquals( p1, p2 );
     }
+
+    @Test
+    void testBioGetterAndSetter() {
+        final UserProfile p = db.newProfile();
+        assertNull( p.getBio() );
+        p.setBio( "I am a wiki enthusiast." );
+        assertEquals( "I am a wiki enthusiast.", p.getBio() );
+    }
+
+    @Test
+    void testBioNullSetter() {
+        final UserProfile p = db.newProfile();
+        p.setBio( "Something" );
+        p.setBio( null );
+        assertNull( p.getBio() );
+    }
 }

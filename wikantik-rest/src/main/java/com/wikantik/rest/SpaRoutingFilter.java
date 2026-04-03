@@ -48,8 +48,8 @@ import java.util.regex.Pattern;
  */
 public class SpaRoutingFilter implements Filter {
 
-    private static final String[] SPA_PREFIXES = { "/wiki/", "/edit/", "/diff/", "/admin/" };
-    private static final String[] SPA_EXACT = { "/search", "/preferences", "/reset-password" };
+    private static final String[] SPA_PREFIXES = { "/wiki/", "/edit/", "/diff/", "/admin/", "/blog/" };
+    private static final String[] SPA_EXACT = { "/search", "/preferences", "/reset-password", "/blog" };
 
     /** Matches Vite-style content-hashed filenames, e.g. {@code index-BCNdZRMf.js}. */
     private static final Pattern HASHED_ASSET = Pattern.compile( "-[A-Za-z0-9]{6,}\\." );

@@ -131,7 +131,12 @@ export const api = {
   // Blog
   blog: {
     list: () => request('/api/blog'),
-    get: (username) => request(`/api/blog/${encodeURIComponent(username)}`),
+    get: (username, { render } = {}) => {
+      const params = new URLSearchParams();
+      if (render) params.set('render', 'true');
+      const qs = params.toString();
+      return request(`/api/blog/${encodeURIComponent(username)}${qs ? '?' + qs : ''}`);
+    },
     create: () => request('/api/blog', { method: 'POST', body: '{}' }),
     remove: (username) => request(`/api/blog/${encodeURIComponent(username)}`, { method: 'DELETE' }),
     listEntries: (username) => request(`/api/blog/${encodeURIComponent(username)}/entries`),

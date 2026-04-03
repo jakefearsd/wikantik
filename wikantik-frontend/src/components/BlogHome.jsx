@@ -7,9 +7,8 @@ import '../styles/article.css';
 export default function BlogHome() {
   const { username } = useParams();
   const { user } = useAuth();
-  const pageName = `blog/${username}/Blog`;
   const { data: page, loading, error } = useApi(
-    () => api.getPage(pageName, { render: true }),
+    () => api.blog.get(username, { render: true }),
     [username, user?.authenticated]
   );
 
@@ -48,7 +47,7 @@ export default function BlogHome() {
             <Link to={`/blog/${encodeURIComponent(username)}/new`} className="btn btn-primary">
               New Entry
             </Link>
-            <Link to={`/edit/${encodeURIComponent(pageName)}`} className="btn btn-ghost">
+            <Link to={`/edit/blog/${username}/Blog`} className="btn btn-ghost">
               Edit Blog Page
             </Link>
           </div>

@@ -142,7 +142,7 @@ public class BlogResource extends RestServletBase {
             handleListBlogs( response );
         } else if ( !blogPath.isEntries() ) {
             // GET /api/blog/{username}
-            handleGetBlog( response, blogPath.username() );
+            handleGetBlog( request, response, blogPath.username() );
         } else if ( blogPath.entryName() == null ) {
             // GET /api/blog/{username}/entries
             handleListEntries( response, blogPath.username() );
@@ -232,7 +232,8 @@ public class BlogResource extends RestServletBase {
     /**
      * Handles GET /api/blog/{username} — returns blog metadata.
      */
-    private void handleGetBlog( final HttpServletResponse response, final String username ) throws IOException {
+    private void handleGetBlog( final HttpServletRequest request, final HttpServletResponse response,
+                                final String username ) throws IOException {
         try {
             final BlogManager blogManager = getEngine().getManager( BlogManager.class );
 
@@ -262,9 +263,24 @@ public class BlogResource extends RestServletBase {
             result.put( "description", blogInfo.description() );
             result.put( "entryCount", blogInfo.entryCount() );
 
+            // If ?render=true, include Blog.md content and rendered HTML
+            if ( "true".equals( request.getParameter( "render" ) ) ) {
+                final Page blogPage = blogManager.getBlog( username );
+                if ( blogPage != null ) {
+                    final PageManager pm = getEngine().getManager( PageManager.class );
+                    final String rawText = pm.getPureText( blogPage.getName(), PageProvider.LATEST_VERSION );
+                    result.put( "content", rawText );
+
+                    final ParsedPage parsed = FrontmatterParser.parse( rawText );
+                    final Context ctx = Wiki.context().create( getEngine(), request, blogPage );
+                    final RenderingManager rm = getEngine().getManager( RenderingManager.class );
+                    result.put( "contentHtml", rm.textToHTML( ctx, parsed.body() ) );
+                }
+            }
+
             sendJson( response, result );
-        } catch ( final ProviderException e ) {
-            LOG.error( "Error getting blog for {}: {}", username, e.getMessage() );
+        } catch ( final Exception e ) {
+            LOG.warn( "Error getting blog for {}: {}", username, e.getMessage() );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Error getting blog: " + e.getMessage() );
         }

@@ -44,6 +44,18 @@ public interface BlogManager extends Initializable {
     String BLOG_HOME_PAGE = "Blog";
 
     /**
+     * Builds the wiki page path for a blog page: {@code blog/<username>/<slug>}.
+     * The username is lowercased for consistency.
+     *
+     * @param username the blog owner's login name
+     * @param slug     the page slug (e.g. "Blog" or "20260403MyPost")
+     * @return the full wiki page name
+     */
+    static String blogPagePath( final String username, final String slug ) {
+        return BLOG_DIR + "/" + username.toLowerCase() + "/" + slug;
+    }
+
+    /**
      * Creates a new blog for the authenticated user.
      *
      * <p>Derives the username from the session, lowercases it, creates the blog
@@ -123,6 +135,16 @@ public interface BlogManager extends Initializable {
      * @return {@code true} if the blog directory exists; {@code false} otherwise
      */
     boolean blogExists( String username );
+
+    /**
+     * Returns a {@link BlogInfo} snapshot for the given user's blog, or {@code null}
+     * if no blog exists.
+     *
+     * @param username the login name (lowercase) of the blog owner
+     * @return the blog info, or {@code null} if the user has no blog
+     * @throws ProviderException if the underlying page provider encounters an error
+     */
+    BlogInfo getBlogInfo( String username ) throws ProviderException;
 
     /**
      * Scans {@code pageDir/blog/<username>/Blog.md} for all users and returns a {@link BlogInfo} snapshot

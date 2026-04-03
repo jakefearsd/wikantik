@@ -193,19 +193,19 @@ public class RecentArticles implements Plugin {
         }
 
         final StringBuilder sb = new StringBuilder();
-        sb.append( "<div class=\"" ).append( escapeHtml( cssClass ) ).append( "\">\n" );
+        sb.append( "<div class=\"" ).append( TextUtil.escapeHtml( cssClass ) ).append( "\">\n" );
 
         for ( final ArticleSummary article : articles ) {
             sb.append( "  <div class=\"article-card\">\n" );
             sb.append( "    <h3 class=\"article-title\"><a href=\"" )
-              .append( escapeHtml( article.getUrl() ) )
+              .append( TextUtil.escapeHtml( article.getUrl() ) )
               .append( "\">" )
-              .append( escapeHtml( article.getTitle() ) )
+              .append( TextUtil.escapeHtml( article.getTitle() ) )
               .append( "</a></h3>\n" );
 
             sb.append( "    <p class=\"article-meta\">" );
             if ( article.getAuthor() != null ) {
-                sb.append( "<span class=\"author\">" ).append( escapeHtml( article.getAuthor() ) ).append( "</span>" );
+                sb.append( "<span class=\"author\">" ).append( TextUtil.escapeHtml( article.getAuthor() ) ).append( "</span>" );
             }
             if ( article.getLastModified() != null ) {
                 if ( article.getAuthor() != null ) {
@@ -217,13 +217,13 @@ public class RecentArticles implements Plugin {
 
             if ( article.getExcerpt() != null && !article.getExcerpt().isEmpty() ) {
                 sb.append( "    <p class=\"article-excerpt\">" )
-                  .append( escapeHtml( article.getExcerpt() ) )
+                  .append( TextUtil.escapeHtml( article.getExcerpt() ) )
                   .append( "</p>\n" );
             }
 
             if ( article.getChangeNote() != null && !article.getChangeNote().isEmpty() ) {
                 sb.append( "    <p class=\"article-changenote\"><em>" )
-                  .append( escapeHtml( article.getChangeNote() ) )
+                  .append( TextUtil.escapeHtml( article.getChangeNote() ) )
                   .append( "</em></p>\n" );
             }
 
@@ -234,17 +234,4 @@ public class RecentArticles implements Plugin {
         return sb.toString();
     }
 
-    /**
-     * Escapes HTML special characters.
-     */
-    private String escapeHtml( final String text ) {
-        if ( text == null ) {
-            return "";
-        }
-        return text
-            .replace( "&", "&amp;" )
-            .replace( "<", "&lt;" )
-            .replace( ">", "&gt;" )
-            .replace( "\"", "&quot;" );
-    }
 }

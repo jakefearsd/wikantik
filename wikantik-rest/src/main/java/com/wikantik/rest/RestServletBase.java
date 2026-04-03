@@ -39,8 +39,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.Map;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * Base class for all REST/JSON servlets. Provides JSON serialization,
@@ -227,6 +231,19 @@ public abstract class RestServletBase extends HttpServlet {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Reads and parses the JSON body from the request as a {@link JsonObject}.
+     *
+     * @param request the HTTP request
+     * @return the parsed JSON object
+     * @throws IOException if reading or parsing fails
+     */
+    protected JsonObject readJsonBody( final HttpServletRequest request ) throws IOException {
+        try ( final BufferedReader reader = request.getReader() ) {
+            return JsonParser.parseReader( reader ).getAsJsonObject();
+        }
     }
 
 }

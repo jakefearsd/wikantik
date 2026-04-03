@@ -686,6 +686,64 @@ public final class TextUtil {
     }
 
     /**
+     *  Escapes HTML special characters unconditionally. Every {@code &}, {@code <}, {@code >},
+     *  and {@code "} is escaped — even if it already appears inside an entity reference.
+     *
+     *  <p>This differs from {@link #escapeHTMLEntities(String)}, which preserves existing
+     *  XML entity references.
+     *
+     *  @param text String to be escaped; {@code null} is treated as empty.
+     *  @return the escaped string, never {@code null}
+     *  @since 3.0.8
+     */
+    public static String escapeHtml( final String text ) {
+        if ( text == null || text.isEmpty() ) {
+            return "";
+        }
+        return text
+            .replace( "&", "&amp;" )
+            .replace( "<", "&lt;" )
+            .replace( ">", "&gt;" )
+            .replace( "\"", "&quot;" );
+    }
+
+    /**
+     *  Truncates text to the specified maximum length, appending "..." if truncated.
+     *
+     *  @param text      the text to truncate
+     *  @param maxLength the maximum number of characters before truncation
+     *  @return the original text if within the limit, otherwise the first {@code maxLength} characters followed by "..."
+     *  @since 3.0.8
+     */
+    public static String truncate( final String text, final int maxLength ) {
+        if ( text.length() <= maxLength ) {
+            return text;
+        }
+        return text.substring( 0, maxLength ) + "...";
+    }
+
+    /**
+     *  Parses a string as a positive integer, returning the default if the value is
+     *  {@code null}, empty, non-positive, or not a valid integer.
+     *
+     *  @param value        the string to parse
+     *  @param defaultValue the value to return when parsing fails or the result is not positive
+     *  @return the parsed positive integer, or {@code defaultValue}
+     *  @since 3.0.8
+     */
+    public static int parsePositiveInt( final String value, final int defaultValue ) {
+        if ( value == null || value.isEmpty() ) {
+            return defaultValue;
+        }
+        try {
+            final int parsed = Integer.parseInt( value );
+            return parsed > 0 ? parsed : defaultValue;
+        } catch ( final NumberFormatException e ) {
+            return defaultValue;
+        }
+    }
+
+    /**
      *  Escapes XML entities in an HTML-compatible way (i.e. does not escape entities that are already escaped).
      *
      *  @param buf String to be escaped.

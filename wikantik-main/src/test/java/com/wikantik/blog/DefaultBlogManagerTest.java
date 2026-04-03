@@ -229,6 +229,24 @@ class DefaultBlogManagerTest {
     }
 
     @Test
+    void testGetBlogInfoReturnsNullForNonExistentBlog() throws Exception {
+        assertNull( blogManager.getBlogInfo( "nosuchuser" ) );
+    }
+
+    @Test
+    void testGetBlogInfoReturnsInfoForExistingBlog() throws Exception {
+        final Session session = engine.janneSession();
+        blogManager.createBlog( session );
+        final String username = session.getLoginPrincipal().getName().toLowerCase();
+
+        final BlogInfo info = blogManager.getBlogInfo( username );
+        assertNotNull( info, "getBlogInfo should return info for existing blog" );
+        assertEquals( username, info.username() );
+        assertNotNull( info.title() );
+        assertEquals( 0, info.entryCount(), "New blog should have no entries" );
+    }
+
+    @Test
     void testDeleteBlogByAdminForDifferentUser() throws Exception {
         // Create blog as janne
         final Session janneSession = engine.janneSession();

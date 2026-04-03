@@ -122,14 +122,14 @@ public class BlogListing implements Plugin {
         sb.append( "<ul>\n" );
 
         for ( final BlogInfo blog : blogs ) {
-            final String href = baseURL + "/blog/" + escapeHtml( blog.username() ) + "/Blog";
+            final String href = baseURL + "/blog/" + TextUtil.escapeHtml( blog.username() ) + "/Blog";
             sb.append( "  <li class=\"blog-item\">" );
             sb.append( "<a href=\"" ).append( href ).append( "\">" );
-            sb.append( escapeHtml( blog.title() ) );
+            sb.append( TextUtil.escapeHtml( blog.title() ) );
             sb.append( "</a>" );
 
             if ( blog.description() != null && !blog.description().isEmpty() ) {
-                sb.append( " &mdash; " ).append( escapeHtml( blog.description() ) );
+                sb.append( " &mdash; " ).append( TextUtil.escapeHtml( blog.description() ) );
             }
 
             sb.append( " <span class=\"entry-count\">(" ).append( blog.entryCount() );
@@ -144,17 +144,4 @@ public class BlogListing implements Plugin {
         return sb.toString();
     }
 
-    /**
-     * Escapes HTML special characters.
-     */
-    private String escapeHtml( final String text ) {
-        if ( text == null ) {
-            return "";
-        }
-        return text
-            .replace( "&", "&amp;" )
-            .replace( "<", "&lt;" )
-            .replace( ">", "&gt;" )
-            .replace( "\"", "&quot;" );
-    }
 }

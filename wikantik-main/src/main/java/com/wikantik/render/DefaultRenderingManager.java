@@ -543,21 +543,43 @@ public class DefaultRenderingManager implements RenderingManager {
         LOG.debug( "event received: {}", event.toString() );
         if( isBeginningAWikiPagePostSaveEventAndCacheIsEnabled( event ) ) {
             final String pageName = ( ( WikiPageEvent ) event ).getPageName();
-            cachingManager.remove( CachingManager.CACHE_DOCUMENTS, pageName );
-            cachingManager.remove( CachingManager.CACHE_HTML, pageName );
+            // Evict the saved page itself (text changed, so hash check would catch it,
+            // but explicit eviction is cleaner)
+            evictRenderCache( pageName );
+
             final Collection< String > referringPages = getReferenceManager().findReferrers( pageName );
 
             // Flush also those pages that refer to this page (if a nonexistent page
             // appears, we need to flush the HTML that refers to the now-existent page)
             for( final String page : referringPages ) {
-                LOG.debug( "Flushing latest version of {}", page );
-                // as there is a new version of the page expire both plugin and pluginless versions of the old page
-                for( final String cache : new String[]{ CachingManager.CACHE_DOCUMENTS, CachingManager.CACHE_HTML } ) {
-                    cachingManager.remove( cache, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + Boolean.FALSE );
-                    cachingManager.remove( cache, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + Boolean.TRUE );
-                    cachingManager.remove( cache, page + VERSION_DELIMITER + PageProvider.LATEST_VERSION  + VERSION_DELIMITER + null );
-                }
+                LOG.debug( "Flushing cache for referring page {}", page );
+                evictRenderCache( page );
             }
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void evictRenderCache( final String pageName ) {
+        final Page page = pageManager.getPage( pageName );
+        final int version = ( page != null ) ? page.getVersion() : PageProvider.LATEST_VERSION;
+        evictCacheKeysForVersion( pageName, version );
+        // Defensive: also try LATEST_VERSION sentinel in case cached under -1
+        if ( version != PageProvider.LATEST_VERSION ) {
+            evictCacheKeysForVersion( pageName, PageProvider.LATEST_VERSION );
+        }
+        LOG.debug( "Evicted render cache for {} (version={})", pageName, version );
+    }
+
+    /**
+     * Removes all plugin-variant cache entries for a given page name and version
+     * from both the document and HTML caches.
+     */
+    private void evictCacheKeysForVersion( final String pageName, final int version ) {
+        for ( final String cache : new String[]{ CachingManager.CACHE_DOCUMENTS, CachingManager.CACHE_HTML } ) {
+            cachingManager.remove( cache, pageName + VERSION_DELIMITER + version + VERSION_DELIMITER + Boolean.FALSE );
+            cachingManager.remove( cache, pageName + VERSION_DELIMITER + version + VERSION_DELIMITER + Boolean.TRUE );
+            cachingManager.remove( cache, pageName + VERSION_DELIMITER + version + VERSION_DELIMITER + null );
         }
     }
 

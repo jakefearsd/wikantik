@@ -18,6 +18,7 @@ import BlogHome from './components/BlogHome';
 import BlogEntry from './components/BlogEntry';
 import CreateBlog from './components/CreateBlog';
 import NewBlogEntry from './components/NewBlogEntry';
+import BlogEditor from './components/BlogEditor';
 import './styles/globals.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -29,6 +30,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/" element={<Navigate to="/wiki/Main" replace />} />
             <Route path="/wiki/:name" element={<PageView />} />
             <Route path="/wiki" element={<Navigate to="/wiki/Main" replace />} />
+            <Route path="/edit/blog/:username/:pageName" element={<BlogEditor />} />
             <Route path="/edit/:name" element={<PageEditor />} />
             <Route path="/diff/:name" element={<DiffViewer />} />
             <Route path="/search" element={<SearchResultsPage />} />

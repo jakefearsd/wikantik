@@ -138,6 +138,11 @@ export const api = {
       return request(`/api/blog/${encodeURIComponent(username)}${qs ? '?' + qs : ''}`);
     },
     create: () => request('/api/blog', { method: 'POST', body: '{}' }),
+    update: (username, content) =>
+      request(`/api/blog/${encodeURIComponent(username)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ content }),
+      }),
     remove: (username) => request(`/api/blog/${encodeURIComponent(username)}`, { method: 'DELETE' }),
     listEntries: (username) => request(`/api/blog/${encodeURIComponent(username)}/entries`),
     getEntry: (username, name, { render } = {}) => {

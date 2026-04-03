@@ -29,6 +29,9 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.UserManager;
+import com.wikantik.auth.user.UserProfile;
 import com.wikantik.pages.PageManager;
 import com.wikantik.providers.AbstractFileProvider;
 
@@ -74,6 +77,7 @@ public class DefaultBlogManager implements BlogManager {
 
     private Engine engine;
     private PageManager pageManager;
+    private UserManager userManager;
     private String pageDir;
 
     /** {@inheritDoc} */
@@ -81,6 +85,7 @@ public class DefaultBlogManager implements BlogManager {
     public void initialize( final Engine newEngine, final Properties props ) throws WikiException {
         this.engine = newEngine;
         this.pageManager = newEngine.getManager( PageManager.class );
+        this.userManager = newEngine.getManager( UserManager.class );
         this.pageDir = props.getProperty( AbstractFileProvider.PROP_PAGEDIR );
 
         if ( pageDir == null || pageDir.isBlank() ) {
@@ -159,6 +164,12 @@ public class DefaultBlogManager implements BlogManager {
     /** {@inheritDoc} */
     @Override
     public Page createEntry( final Session session, final String topicName ) throws WikiException {
+        return createEntry( session, topicName, null );
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public Page createEntry( final Session session, final String topicName, final String content ) throws WikiException {
         final String username = extractUsername( session );
 
         if ( !blogExists( username ) ) {
@@ -175,16 +186,21 @@ public class DefaultBlogManager implements BlogManager {
         final String date = LocalDate.now().format( FRONTMATTER_DATE_FORMAT );
         final String author = session.getLoginPrincipal().getName();
 
-        final String content = "---\n"
-            + "title: \"" + title + "\"\n"
-            + "date: " + date + "\n"
-            + "author: \"" + author + "\"\n"
-            + "---\n"
-            + "\n"
-            + "# " + title + "\n";
+        final StringBuilder sb = new StringBuilder();
+        sb.append( "---\n" )
+          .append( "title: \"" ).append( title ).append( "\"\n" )
+          .append( "date: " ).append( date ).append( "\n" )
+          .append( "author: \"" ).append( author ).append( "\"\n" )
+          .append( "---\n" )
+          .append( "\n" )
+          .append( "# " ).append( title ).append( "\n" );
+
+        if ( content != null && !content.isBlank() ) {
+            sb.append( "\n" ).append( content.strip() ).append( "\n" );
+        }
 
         final Page page = Wiki.contents().page( engine, pageName );
-        pageManager.putPageText( page, content );
+        pageManager.putPageText( page, sb.toString() );
 
         LOG.info( "Created blog entry '{}' for user '{}'", pageName, username );
         return pageManager.getPage( pageName );
@@ -306,7 +322,18 @@ public class DefaultBlogManager implements BlogManager {
             // Count entries (excluding Blog.md and .properties files)
             final int entryCount = countEntries( userDir );
 
-            blogs.add( new BlogInfo( username, title, description, entryCount ) );
+            // Look up author full name from user account
+            String authorFullName = username;
+            try {
+                final UserProfile profile = userManager.getUserDatabase().findByLoginName( username );
+                if ( profile.getFullname() != null && !profile.getFullname().isEmpty() ) {
+                    authorFullName = profile.getFullname();
+                }
+            } catch ( final NoSuchPrincipalException e ) {
+                LOG.debug( "No user profile found for blog owner {}", username );
+            }
+
+            blogs.add( new BlogInfo( username, title, description, entryCount, authorFullName ) );
         }
 
         return blogs;

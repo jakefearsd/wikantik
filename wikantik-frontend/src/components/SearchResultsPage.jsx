@@ -5,7 +5,7 @@ import { useApi } from '../hooks/useApi';
 export default function SearchResultsPage() {
   const [params] = useSearchParams();
   const query = params.get('q') || '';
-  const { data, loading, error } = useApi(() => api.search(query, 50), [query]);
+  const { data, loading, error } = useApi((signal) => api.search(query, 50, { signal }), [query]);
 
   if (!query) {
     return (

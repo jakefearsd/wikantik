@@ -2,6 +2,8 @@
 
 A curated collection of in-depth research articles, organized into topic clusters. Each cluster has a hub page that introduces the topic and links to detailed sub-articles. Articles are interlinked across clusters where topics overlap.
 
+You can read the [site blogs here]( ../blog/)
+
 ## Article Clusters
 
 ### Finance & Retirement

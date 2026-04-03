@@ -8,7 +8,7 @@ export default function BlogHome() {
   const { username } = useParams();
   const { user } = useAuth();
   const { data: page, loading, error } = useApi(
-    () => api.blog.get(username, { render: true }),
+    (signal) => api.blog.get(username, { render: true, signal }),
     [username, user?.authenticated]
   );
 

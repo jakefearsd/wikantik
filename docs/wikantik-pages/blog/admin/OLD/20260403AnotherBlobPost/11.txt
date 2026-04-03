@@ -1,0 +1,13 @@
+---
+synopsis: Go get fucked.
+---
+
+
+# Another Blog Post
+
+So, I maybe kind of got this thing unfucked, but we'll see after I do some more hands on testing.
+
+This is some additional text, to pressure test this thing a bit.
+
+### Now I'm using a heading!
+Becaue I want to rant and bitch and have people notice.

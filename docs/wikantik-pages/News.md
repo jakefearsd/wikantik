@@ -6,6 +6,14 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-02** — Widen editor layout to use available screen width
+
+**2026-04-02** — Fix inverted wiki heading level mapping in converter
+
+**2026-04-02** — Add bulk wiki-to-markdown conversion script
+
+**2026-04-02** — Add wiki-to-markdown converter, markup syntax detection, and SPA cache headers
+
 **2026-04-01** — Move URL routes into URL constructors and remove VAR_REACT_URL_BASE indirection
 
 **2026-04-01** — Add hourly news page refresh from GitHub with admin on-demand trigger

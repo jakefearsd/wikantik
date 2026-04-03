@@ -83,6 +83,20 @@ public interface BlogManager extends Initializable {
     Page createEntry( Session session, String topicName ) throws WikiException;
 
     /**
+     * Creates a new blog entry with optional initial body content.
+     *
+     * <p>Behaves identically to {@link #createEntry(Session, String)} but appends
+     * the given {@code content} after the auto-generated heading when non-blank.
+     *
+     * @param session   the current user session; must own the blog
+     * @param topicName the entry topic (will be prefixed with the current date)
+     * @param content   optional body text to include after the heading; may be {@code null}
+     * @return the newly created entry page
+     * @throws WikiException if the caller does not own a blog or creation fails
+     */
+    Page createEntry( Session session, String topicName, String content ) throws WikiException;
+
+    /**
      * Returns the {@code Blog.md} homepage page for the given user, or {@code null}
      * if the user has no blog.
      *

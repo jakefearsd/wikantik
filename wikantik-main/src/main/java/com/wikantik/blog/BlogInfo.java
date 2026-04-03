@@ -21,10 +21,11 @@ package com.wikantik.blog;
 /**
  * Immutable snapshot of blog metadata used for listing blogs across the wiki.
  *
- * @param username   the blog owner's login name (lowercase)
- * @param title      the blog title from Blog.md frontmatter
- * @param description the blog description from Blog.md frontmatter
- * @param entryCount number of blog entries (excluding Blog.md)
+ * @param username       the blog owner's login name (lowercase)
+ * @param title          the blog title from Blog.md frontmatter
+ * @param description    the blog description from Blog.md frontmatter
+ * @param entryCount     number of blog entries (excluding Blog.md)
+ * @param authorFullName the blog owner's full name from user account (falls back to username)
  */
-public record BlogInfo( String username, String title, String description, int entryCount ) {
+public record BlogInfo( String username, String title, String description, int entryCount, String authorFullName ) {
 }

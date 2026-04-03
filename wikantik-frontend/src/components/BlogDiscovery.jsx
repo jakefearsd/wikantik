@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 
 export default function BlogDiscovery() {
   const { user } = useAuth();
-  const { data, loading, error } = useApi(() => api.blog.list(), []);
+  const { data, loading, error } = useApi((signal) => api.blog.list({ signal }), []);
 
   if (loading) return <div className="loading">Loading…</div>;
   if (error) return <div className="error-banner">Failed to load blogs: {error.message}</div>;
@@ -33,6 +33,11 @@ export default function BlogDiscovery() {
               >
                 {blog.title || `${blog.username}'s Blog`}
               </Link>
+              {blog.authorFullName && (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 'var(--space-xs) 0 0' }}>
+                  by {blog.authorFullName}
+                </p>
+              )}
               {blog.description && (
                 <p style={{ color: 'var(--text-muted)', margin: 'var(--space-xs) 0 0' }}>{blog.description}</p>
               )}

@@ -1,10 +1,12 @@
 const BASE = '';
 
 async function request(path, options = {}) {
+  const { signal, ...rest } = options;
   const resp = await fetch(`${BASE}${path}`, {
     credentials: 'same-origin',
-    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', ...options.headers },
-    ...options,
+    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', ...rest.headers },
+    signal,
+    ...rest,
   });
   if (!resp.ok) {
     const body = await resp.json().catch(() => ({ message: resp.statusText }));
@@ -15,12 +17,12 @@ async function request(path, options = {}) {
 
 export const api = {
   // Pages
-  getPage: (name, { version, render } = {}) => {
+  getPage: (name, { version, render, signal } = {}) => {
     const params = new URLSearchParams();
     if (version) params.set('version', version);
     if (render) params.set('render', 'true');
     const qs = params.toString();
-    return request(`/api/pages/${encodeURIComponent(name)}${qs ? '?' + qs : ''}`);
+    return request(`/api/pages/${encodeURIComponent(name)}${qs ? '?' + qs : ''}`, { signal });
   },
 
   savePage: (name, { content, metadata, changeNote, author, expectedVersion, expectedContentHash, markupSyntax }) =>
@@ -68,8 +70,8 @@ export const api = {
     }),
 
   // Search
-  search: (query, limit = 20) =>
-    request(`/api/search?q=${encodeURIComponent(query)}&limit=${limit}`),
+  search: (query, limit = 20, { signal } = {}) =>
+    request(`/api/search?q=${encodeURIComponent(query)}&limit=${limit}`, { signal }),
 
   // History & Diff
   getHistory: (name) =>
@@ -130,12 +132,12 @@ export const api = {
 
   // Blog
   blog: {
-    list: () => request('/api/blog'),
-    get: (username, { render } = {}) => {
+    list: ({ signal } = {}) => request('/api/blog', { signal }),
+    get: (username, { render, signal } = {}) => {
       const params = new URLSearchParams();
       if (render) params.set('render', 'true');
       const qs = params.toString();
-      return request(`/api/blog/${encodeURIComponent(username)}${qs ? '?' + qs : ''}`);
+      return request(`/api/blog/${encodeURIComponent(username)}${qs ? '?' + qs : ''}`, { signal });
     },
     create: () => request('/api/blog', { method: 'POST', body: '{}' }),
     update: (username, content) =>
@@ -145,16 +147,16 @@ export const api = {
       }),
     remove: (username) => request(`/api/blog/${encodeURIComponent(username)}`, { method: 'DELETE' }),
     listEntries: (username) => request(`/api/blog/${encodeURIComponent(username)}/entries`),
-    getEntry: (username, name, { render } = {}) => {
+    getEntry: (username, name, { render, signal } = {}) => {
       const params = new URLSearchParams();
       if (render) params.set('render', 'true');
       const qs = params.toString();
-      return request(`/api/blog/${encodeURIComponent(username)}/entries/${encodeURIComponent(name)}${qs ? '?' + qs : ''}`);
+      return request(`/api/blog/${encodeURIComponent(username)}/entries/${encodeURIComponent(name)}${qs ? '?' + qs : ''}`, { signal });
     },
-    createEntry: (username, topic) =>
+    createEntry: (username, topic, content) =>
       request(`/api/blog/${encodeURIComponent(username)}/entries`, {
         method: 'POST',
-        body: JSON.stringify({ topic }),
+        body: JSON.stringify({ topic, ...(content ? { content } : {}) }),
       }),
     updateEntry: (username, name, content) =>
       request(`/api/blog/${encodeURIComponent(username)}/entries/${encodeURIComponent(name)}`, {

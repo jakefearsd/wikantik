@@ -1,0 +1,14 @@
+---
+title: "My Latest Blog Title!"
+date: 2026-04-03
+author: "admin"
+---
+
+# My Latest Blog Title!
+
+# Mark this down!
+
+So, now I have a side by side editor for Markdown for the blog as well.
+
+- You can see a list
+- now can't you?

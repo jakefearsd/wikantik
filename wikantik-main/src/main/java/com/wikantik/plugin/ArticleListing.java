@@ -47,6 +47,8 @@ import java.util.Map;
  *   <li><b>count</b> - maximum number of entries to show (default: 10)</li>
  *   <li><b>excerpt</b> - true/false, whether to show excerpts (default: true)</li>
  *   <li><b>excerptLength</b> - character limit for excerpts (default: 200)</li>
+ *   <li><b>skipLatest</b> - true/false, skip the most recent entry (default: false).
+ *       Useful when paired with {@link LatestArticle} on the same page to avoid duplication.</li>
  * </ul>
  *
  * @since 3.0.8
@@ -66,6 +68,9 @@ public class ArticleListing implements Plugin {
 
     /** Parameter name for excerpt length. */
     public static final String PARAM_EXCERPT_LENGTH = "excerptLength";
+
+    /** Parameter name for skipping the latest entry. */
+    public static final String PARAM_SKIP_LATEST = "skipLatest";
 
     /** Default number of entries to show. */
     static final int DEFAULT_COUNT = 10;
@@ -92,6 +97,13 @@ public class ArticleListing implements Plugin {
             }
 
             List< Page > entries = blogManager.listEntries( username );
+
+            // Skip the most recent entry when used alongside LatestArticle
+            final boolean skipLatest = "true".equalsIgnoreCase( params.get( PARAM_SKIP_LATEST ) );
+            if ( skipLatest && !entries.isEmpty() ) {
+                entries = entries.subList( 1, entries.size() );
+            }
+
             if ( entries.isEmpty() ) {
                 return "<p>No entries yet.</p>";
             }
@@ -129,33 +141,37 @@ public class ArticleListing implements Plugin {
             final ParsedPage parsed = FrontmatterParser.parse( content );
             final Map< String, Object > metadata = parsed.metadata();
 
-            final String title = metadata.getOrDefault( "title", entry.getName() ).toString();
-            final String date = metadata.containsKey( "date" ) ? metadata.get( "date" ).toString() : "";
+            final String title = metadata.containsKey( "title" )
+                    ? metadata.get( "title" ).toString()
+                    : LatestArticle.titleFromFilename( entry.getName() );
+            final String formattedDate = LatestArticle.formatDate( metadata.get( "date" ) );
             final String body = parsed.body().trim();
+            final String synopsis = metadata.containsKey( "synopsis" )
+                    ? metadata.get( "synopsis" ).toString() : null;
 
             // Build the link to the entry
             final String entrySlug = entry.getName().substring( entry.getName().lastIndexOf( '/' ) + 1 );
             final String href = baseURL + "/blog/" + escapeHtml( username ) + "/" + escapeHtml( entrySlug );
 
-            sb.append( "  <li class=\"entry-item\">\n" );
+            sb.append( "  <li class=\"entry-item\">" );
 
-            // Date
-            if ( !date.isEmpty() ) {
-                sb.append( "    <span class=\"entry-date\">" ).append( escapeHtml( date ) ).append( "</span>\n" );
-            }
-
-            // Title as link
-            sb.append( "    <a href=\"" ).append( href ).append( "\" class=\"entry-title\">" );
+            // Title with date as link: "Title - Fri Apr 03"
+            sb.append( "<a href=\"" ).append( href ).append( "\" class=\"entry-title\">" );
             sb.append( escapeHtml( title ) );
-            sb.append( "</a>\n" );
+            if ( !formattedDate.isEmpty() ) {
+                sb.append( " &mdash; " ).append( escapeHtml( formattedDate ) );
+            }
+            sb.append( "</a>" );
 
-            // Excerpt
+            // Excerpt: use synopsis from frontmatter if available, otherwise truncate body
             if ( showExcerpt && !body.isEmpty() ) {
-                final String excerpt = truncate( body, excerptLength );
-                sb.append( "    <p class=\"entry-excerpt\">" ).append( escapeHtml( excerpt ) ).append( "</p>\n" );
+                final String excerptText = synopsis != null
+                        ? synopsis
+                        : truncate( LatestArticle.stripMarkdown( body ), excerptLength );
+                sb.append( "\n    <p class=\"entry-excerpt\">" ).append( escapeHtml( excerptText ) ).append( "</p>" );
             }
 
-            sb.append( "  </li>\n" );
+            sb.append( "</li>\n" );
         }
 
         sb.append( "</ul>\n" );

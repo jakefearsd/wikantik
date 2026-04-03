@@ -251,6 +251,26 @@
   cursor: not-allowed;
 }
 
+.form-field textarea {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--duration) var(--ease);
+  box-sizing: border-box;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.form-field textarea:focus {
+  border-color: var(--accent);
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

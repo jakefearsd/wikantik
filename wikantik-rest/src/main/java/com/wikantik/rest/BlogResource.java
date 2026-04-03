@@ -191,7 +191,7 @@ public class BlogResource extends RestServletBase {
 
         if ( blogPath == null ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Blog username is required" );
-        } else if ( !blogPath.isEntries() && !"INVALID".equals( blogPath.entryName() ) ) {
+        } else if ( !blogPath.isEntries() && blogPath.entryName() == null ) {
             // DELETE /api/blog/{username}
             handleDeleteBlog( request, response, blogPath.username() );
         } else if ( blogPath.isEntries() && blogPath.entryName() != null ) {

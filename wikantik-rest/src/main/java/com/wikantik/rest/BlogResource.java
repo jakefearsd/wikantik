@@ -175,7 +175,10 @@ public class BlogResource extends RestServletBase {
 
         final BlogPath blogPath = parsePath( request );
 
-        if ( blogPath != null && blogPath.isEntries() && blogPath.entryName() != null ) {
+        if ( blogPath != null && !blogPath.isEntries() ) {
+            // PUT /api/blog/{username} — update Blog.md
+            handleUpdateBlogHome( request, response, blogPath.username() );
+        } else if ( blogPath != null && blogPath.isEntries() && blogPath.entryName() != null ) {
             // PUT /api/blog/{username}/entries/{name}
             handleUpdateEntry( request, response, blogPath.username(), blogPath.entryName() );
         } else {
@@ -263,14 +266,15 @@ public class BlogResource extends RestServletBase {
             result.put( "description", blogInfo.description() );
             result.put( "entryCount", blogInfo.entryCount() );
 
-            // If ?render=true, include Blog.md content and rendered HTML
-            if ( "true".equals( request.getParameter( "render" ) ) ) {
-                final Page blogPage = blogManager.getBlog( username );
-                if ( blogPage != null ) {
-                    final PageManager pm = getEngine().getManager( PageManager.class );
-                    final String rawText = pm.getPureText( blogPage.getName(), PageProvider.LATEST_VERSION );
-                    result.put( "content", rawText );
+            // Always include raw content (editor needs it); add rendered HTML when ?render=true
+            final Page blogPage = blogManager.getBlog( username );
+            if ( blogPage != null ) {
+                final PageManager pm = getEngine().getManager( PageManager.class );
+                final String rawText = pm.getPureText( blogPage.getName(), PageProvider.LATEST_VERSION );
+                result.put( "content", rawText );
+                result.put( "version", blogPage.getVersion() );
 
+                if ( "true".equals( request.getParameter( "render" ) ) ) {
                     final ParsedPage parsed = FrontmatterParser.parse( rawText );
                     final Context ctx = Wiki.context().create( getEngine(), request, blogPage );
                     final RenderingManager rm = getEngine().getManager( RenderingManager.class );
@@ -498,6 +502,55 @@ public class BlogResource extends RestServletBase {
             LOG.error( "Error creating entry for {}: {}", username, e.getMessage() );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Error creating entry: " + e.getMessage() );
+        }
+    }
+
+    /**
+     * Handles PUT /api/blog/{username} — updates Blog.md content.
+     */
+    private void handleUpdateBlogHome( final HttpServletRequest request, final HttpServletResponse response,
+                                        final String username ) throws IOException {
+        final Session session = resolveSession( request );
+
+        if ( !session.isAuthenticated() ) {
+            sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required" );
+            return;
+        }
+
+        final String pageName = BlogManager.BLOG_DIR + "/" + username.toLowerCase() + "/" + BlogManager.BLOG_HOME_PAGE;
+        final Engine engine = getEngine();
+        final PageManager pm = engine.getManager( PageManager.class );
+        final Page page = pm.getPage( pageName );
+
+        if ( page == null ) {
+            sendNotFound( response, "Blog not found for user: " + username );
+            return;
+        }
+
+        final JsonObject body;
+        try ( final BufferedReader reader = request.getReader() ) {
+            body = JsonParser.parseReader( reader ).getAsJsonObject();
+        } catch ( final Exception e ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + e.getMessage() );
+            return;
+        }
+
+        final String content = body.has( "content" ) ? body.get( "content" ).getAsString() : "";
+
+        try {
+            pm.putPageText( page, content );
+
+            final Map< String, Object > result = new LinkedHashMap<>();
+            result.put( "success", true );
+            result.put( "name", BlogManager.BLOG_HOME_PAGE );
+            result.put( "version", Math.max( page.getVersion(), 1 ) );
+
+            sendJson( response, result );
+
+        } catch ( final ProviderException e ) {
+            LOG.warn( "Error updating blog home for {}: {}", username, e.getMessage() );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Error updating blog: " + e.getMessage() );
         }
     }
 

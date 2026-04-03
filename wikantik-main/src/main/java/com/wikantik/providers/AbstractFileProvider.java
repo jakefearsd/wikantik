@@ -45,6 +45,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -187,6 +188,24 @@ public abstract class AbstractFileProvider implements PageProvider {
     /** The default encoding. */
     public static final String DEFAULT_ENCODING = StandardCharsets.ISO_8859_1.toString();
 
+    /** Prefix for blog page names that use subdirectory storage. */
+    private static final String BLOG_PREFIX = "blog/";
+
+    /**
+     *  Determines whether a page name represents a blog page.  Blog pages have names
+     *  of the form {@code blog/<username>/<slug>} — i.e. they start with {@code blog/}
+     *  and contain at least one additional slash after the prefix to separate the
+     *  username from the page slug.
+     *
+     *  @param pagename the page name to test (may be {@code null}).
+     *  @return {@code true} if the name matches the blog page naming convention.
+     */
+    static boolean isBlogPage( final String pagename ) {
+        return pagename != null
+            && pagename.startsWith( BLOG_PREFIX )
+            && pagename.indexOf( '/', BLOG_PREFIX.length() ) > 0;
+    }
+
     /**
      * Cache for page file extensions to avoid redundant filesystem existence checks.
      * Maps page name to file extension (".md" or ".txt").
@@ -247,6 +266,17 @@ public abstract class AbstractFileProvider implements PageProvider {
      *  @return The mangled name.
      */
     protected String mangleName( String pagename ) {
+        // Blog pages use real subdirectories: blog/<username>/<slug>
+        // The username segment is lowercased to provide case-insensitive lookup.
+        if( isBlogPage( pagename ) ) {
+            final int secondSlash = pagename.indexOf( '/', BLOG_PREFIX.length() );
+            final String username = pagename.substring( BLOG_PREFIX.length(), secondSlash ).toLowerCase();
+            final String slug = pagename.substring( secondSlash + 1 );
+            // URL-encode only the slug portion (username is already a simple directory name)
+            final String encodedSlug = TextUtil.urlEncode( slug, encoding );
+            return BLOG_PREFIX + username + "/" + encodedSlug;
+        }
+
         pagename = TextUtil.urlEncode( pagename, encoding );
         pagename = TextUtil.replaceString( pagename, "/", "%2F" );
 
@@ -286,8 +316,12 @@ public abstract class AbstractFileProvider implements PageProvider {
     protected File findPage( final String page ) {
         final String mangledName = mangleName( page );
 
+        // For blog pages, also normalise the cache key to lowercase username
+        // so that "blog/Jake/Blog" and "blog/jake/Blog" share one cache entry.
+        final String cacheKey = isBlogPage( page ) ? normaliseBlogName( page ) : page;
+
         // Check cache first to avoid filesystem calls
-        final String cachedExtension = fileExtensionCache.get( page );
+        final String cachedExtension = fileExtensionCache.get( cacheKey );
         if( cachedExtension != null ) {
             return new File( pageDirectory, mangledName + cachedExtension );
         }
@@ -295,18 +329,33 @@ public abstract class AbstractFileProvider implements PageProvider {
         // Cache miss - check filesystem and cache result
         final File mdFile = new File( pageDirectory, mangledName + MARKDOWN_EXT );
         if( mdFile.exists() ) {
-            fileExtensionCache.put( page, MARKDOWN_EXT );
+            fileExtensionCache.put( cacheKey, MARKDOWN_EXT );
             return mdFile;
         }
 
         // Check if .txt file exists - only cache if it does
         final File txtFile = new File( pageDirectory, mangledName + FILE_EXT );
         if( txtFile.exists() ) {
-            fileExtensionCache.put( page, FILE_EXT );
+            fileExtensionCache.put( cacheKey, FILE_EXT );
         }
 
         // Fall back to .txt extension (traditional wiki syntax)
         return txtFile;
+    }
+
+    /**
+     *  Normalises a blog page name by lowercasing the username segment.
+     *  This ensures that lookups for {@code blog/Jake/Blog} and {@code blog/jake/Blog}
+     *  resolve to the same cache entry and the same filesystem path.
+     *
+     *  @param pagename a page name that passes {@link #isBlogPage(String)}.
+     *  @return the normalised name with a lowercase username segment.
+     */
+    private static String normaliseBlogName( final String pagename ) {
+        final int secondSlash = pagename.indexOf( '/', BLOG_PREFIX.length() );
+        final String username = pagename.substring( BLOG_PREFIX.length(), secondSlash ).toLowerCase();
+        final String slug = pagename.substring( secondSlash + 1 );
+        return BLOG_PREFIX + username + "/" + slug;
     }
 
     /**
@@ -319,8 +368,10 @@ public abstract class AbstractFileProvider implements PageProvider {
      *  @return The file extension (".md" or ".txt"), or ".md" if neither exists (default for new pages).
      */
     protected String getPageFileExtension( final String page ) {
+        final String cacheKey = isBlogPage( page ) ? normaliseBlogName( page ) : page;
+
         // Check cache first
-        final String cachedExtension = fileExtensionCache.get( page );
+        final String cachedExtension = fileExtensionCache.get( cacheKey );
         if( cachedExtension != null ) {
             return cachedExtension;
         }
@@ -330,14 +381,14 @@ public abstract class AbstractFileProvider implements PageProvider {
         final File mdFile = new File( pageDirectory, mangledName + MARKDOWN_EXT );
 
         if( mdFile.exists() ) {
-            fileExtensionCache.put( page, MARKDOWN_EXT );
+            fileExtensionCache.put( cacheKey, MARKDOWN_EXT );
             return MARKDOWN_EXT;
         }
 
         // Check if .txt file exists - only cache if it does
         final File txtFile = new File( pageDirectory, mangledName + FILE_EXT );
         if( txtFile.exists() ) {
-            fileExtensionCache.put( page, FILE_EXT );
+            fileExtensionCache.put( cacheKey, FILE_EXT );
             return FILE_EXT;
         }
 
@@ -418,6 +469,18 @@ public abstract class AbstractFileProvider implements PageProvider {
      */
     @Override
     public void putPageText( final Page page, final String text ) throws ProviderException {
+        // For blog pages, verify the parent directory exists before writing.
+        // BlogManager is responsible for creating blog directories; the provider must not
+        // silently create them.
+        if( isBlogPage( page.getName() ) ) {
+            final Path target = Path.of( pageDirectory, mangleName( page.getName() ) + MARKDOWN_EXT );
+            final Path parentDir = target.getParent();
+            if( parentDir != null && !parentDir.equals( Path.of( pageDirectory ) ) && !Files.isDirectory( parentDir ) ) {
+                throw new ProviderException( "Blog directory does not exist: " + parentDir
+                    + ". BlogManager must create the directory before pages can be saved." );
+            }
+        }
+
         // Reuse the existing file if the page already exists, otherwise default to Markdown.
         File file = findPage( page.getName() );
         if( !file.exists() ) {
@@ -430,7 +493,8 @@ public abstract class AbstractFileProvider implements PageProvider {
                 if( file.renameTo( mdFile ) ) {
                     LOG.info( "Migrated page '{}' from {} to {}", page.getName(), FILE_EXT, MARKDOWN_EXT );
                     file = mdFile;
-                    fileExtensionCache.put( page.getName(), MARKDOWN_EXT );
+                    final String migCacheKey = isBlogPage( page.getName() ) ? normaliseBlogName( page.getName() ) : page.getName();
+                    fileExtensionCache.put( migCacheKey, MARKDOWN_EXT );
                 } else {
                     LOG.warn( "Failed to migrate page '{}' from {} to {}", page.getName(), FILE_EXT, MARKDOWN_EXT );
                 }
@@ -445,7 +509,8 @@ public abstract class AbstractFileProvider implements PageProvider {
 
         // Update cache with the extension used for this page
         final String actualExtension = file.getName().endsWith( MARKDOWN_EXT ) ? MARKDOWN_EXT : FILE_EXT;
-        fileExtensionCache.put( page.getName(), actualExtension );
+        final String cacheKey = isBlogPage( page.getName() ) ? normaliseBlogName( page.getName() ) : page.getName();
+        fileExtensionCache.put( cacheKey, actualExtension );
     }
 
     /**
@@ -488,6 +553,38 @@ public abstract class AbstractFileProvider implements PageProvider {
             }
 
             set.add( page );
+        }
+
+        // Recurse into blog/<username>/ subdirectories to discover blog pages.
+        final File blogRoot = new File( pageDirectory, "blog" );
+        if( blogRoot.isDirectory() ) {
+            final File[] userDirs = blogRoot.listFiles( File::isDirectory );
+            if( userDirs != null ) {
+                final WikiFileFilter wff = new WikiFileFilter();
+                for( final File userDir : userDirs ) {
+                    final File[] blogFiles = userDir.listFiles( wff );
+                    if( blogFiles != null ) {
+                        for( final File blogFile : blogFiles ) {
+                            final String fileName = blogFile.getName();
+                            int cutpoint;
+                            if( fileName.endsWith( MARKDOWN_EXT ) ) {
+                                cutpoint = fileName.lastIndexOf( MARKDOWN_EXT );
+                            } else {
+                                cutpoint = fileName.lastIndexOf( FILE_EXT );
+                            }
+                            final String slug = unmangleName( fileName.substring( 0, cutpoint ) );
+                            final String blogPageName = BLOG_PREFIX + userDir.getName() + "/" + slug;
+
+                            final Page page = getPageInfo( blogPageName, PageProvider.LATEST_VERSION );
+                            if( page == null ) {
+                                LOG.error( "Blog page {} was found on disk, but could not be located individually.", blogPageName );
+                                continue;
+                            }
+                            set.add( page );
+                        }
+                    }
+                }
+            }
         }
 
         return set;
@@ -667,7 +764,8 @@ public abstract class AbstractFileProvider implements PageProvider {
             final File f = findPage( pageName );
             f.delete();
             // Invalidate cache since the page file no longer exists
-            fileExtensionCache.remove( pageName );
+            final String cacheKey = isBlogPage( pageName ) ? normaliseBlogName( pageName ) : pageName;
+            fileExtensionCache.remove( cacheKey );
         }
     }
 
@@ -684,7 +782,8 @@ public abstract class AbstractFileProvider implements PageProvider {
         final File f = findPage( pageName );
         f.delete();
         // Invalidate cache since the page file no longer exists
-        fileExtensionCache.remove( pageName );
+        final String cacheKey = isBlogPage( pageName ) ? normaliseBlogName( pageName ) : pageName;
+        fileExtensionCache.remove( cacheKey );
     }
 
     /**
@@ -782,7 +881,8 @@ public abstract class AbstractFileProvider implements PageProvider {
      * @param pageName The name of the page to invalidate from the cache.
      */
     void invalidateFileExtensionCache( final String pageName ) {
-        fileExtensionCache.remove( pageName );
+        final String cacheKey = isBlogPage( pageName ) ? normaliseBlogName( pageName ) : pageName;
+        fileExtensionCache.remove( cacheKey );
     }
 
     /**

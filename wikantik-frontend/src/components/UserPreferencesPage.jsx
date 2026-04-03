@@ -10,6 +10,7 @@ export default function UserPreferencesPage() {
   const [profile, setProfile] = useState(null);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [bio, setBio] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -33,6 +34,7 @@ export default function UserPreferencesPage() {
       setProfile(data);
       setFullName(data.fullName || '');
       setEmail(data.email || '');
+      setBio(data.bio || '');
     } catch (err) {
       setError(err.message || 'Failed to load profile');
     } finally {
@@ -52,7 +54,7 @@ export default function UserPreferencesPage() {
 
     setSaving(true);
     try {
-      const data = { fullName, email };
+      const data = { fullName, email, bio };
       if (newPassword) {
         data.currentPassword = currentPassword;
         data.newPassword = newPassword;
@@ -206,6 +208,30 @@ export default function UserPreferencesPage() {
               onChange={e => setEmail(e.target.value)}
               style={inputStyle}
             />
+          </div>
+
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Bio</label>
+            <textarea
+              value={bio}
+              onChange={e => setBio(e.target.value)}
+              maxLength={1000}
+              rows={4}
+              style={{
+                ...inputStyle,
+                resize: 'vertical',
+                minHeight: '80px',
+              }}
+              placeholder="Tell others about yourself..."
+            />
+            <div style={{
+              fontSize: '0.75rem',
+              color: bio.length > 950 ? 'var(--color-danger, #ef4444)' : 'var(--text-muted)',
+              textAlign: 'right',
+              marginTop: 'var(--space-xs)',
+            }}>
+              {bio.length} / 1000
+            </div>
           </div>
         </fieldset>
 

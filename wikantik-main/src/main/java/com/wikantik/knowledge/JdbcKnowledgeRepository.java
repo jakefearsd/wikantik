@@ -77,7 +77,7 @@ public class JdbcKnowledgeRepository {
             ps.setString( 5, GSON.toJson( properties != null ? properties : Map.of() ) );
             ps.executeUpdate();
         } catch( final SQLException e ) {
-            LOG.error( "Failed to upsert node '{}': {}", name, e.getMessage(), e );
+            LOG.warn( "Failed to upsert node '{}': {}", name, e.getMessage(), e );
             throw new RuntimeException( "Failed to upsert node: " + e.getMessage(), e );
         }
         return getNodeByName( name );
@@ -98,7 +98,7 @@ public class JdbcKnowledgeRepository {
                 return rs.next() ? mapNode( rs ) : null;
             }
         } catch( final SQLException e ) {
-            LOG.error( "Failed to get node by id '{}': {}", id, e.getMessage(), e );
+            LOG.warn( "Failed to get node by id '{}': {}", id, e.getMessage(), e );
             throw new RuntimeException( e );
         }
     }
@@ -118,7 +118,7 @@ public class JdbcKnowledgeRepository {
                 return rs.next() ? mapNode( rs ) : null;
             }
         } catch( final SQLException e ) {
-            LOG.error( "Failed to get node by name '{}': {}", name, e.getMessage(), e );
+            LOG.warn( "Failed to get node by name '{}': {}", name, e.getMessage(), e );
             throw new RuntimeException( e );
         }
     }
@@ -135,7 +135,7 @@ public class JdbcKnowledgeRepository {
             ps.setObject( 1, id );
             ps.executeUpdate();
         } catch( final SQLException e ) {
-            LOG.error( "Failed to delete node '{}': {}", id, e.getMessage(), e );
+            LOG.warn( "Failed to delete node '{}': {}", id, e.getMessage(), e );
             throw new RuntimeException( "Failed to delete node: " + e.getMessage(), e );
         }
     }
@@ -197,7 +197,7 @@ public class JdbcKnowledgeRepository {
                 }
             }
         } catch( final SQLException e ) {
-            LOG.error( "Failed to query nodes: {}", e.getMessage(), e );
+            LOG.warn( "Failed to query nodes: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
         return results;
@@ -246,7 +246,7 @@ public class JdbcKnowledgeRepository {
                 }
             }
         } catch( final SQLException e ) {
-            LOG.error( "Failed to search nodes: {}", e.getMessage(), e );
+            LOG.warn( "Failed to search nodes: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
         return results;
@@ -278,7 +278,7 @@ public class JdbcKnowledgeRepository {
             ps.setString( 5, GSON.toJson( properties != null ? properties : Map.of() ) );
             ps.executeUpdate();
         } catch( final SQLException e ) {
-            LOG.error( "Failed to upsert edge {}->{} [{}]: {}", sourceId, targetId, relationshipType, e.getMessage(), e );
+            LOG.warn( "Failed to upsert edge {}->{} [{}]: {}", sourceId, targetId, relationshipType, e.getMessage(), e );
             throw new RuntimeException( "Failed to upsert edge: " + e.getMessage(), e );
         }
 
@@ -293,7 +293,7 @@ public class JdbcKnowledgeRepository {
                 return rs.next() ? mapEdge( rs ) : null;
             }
         } catch( final SQLException e ) {
-            LOG.error( "Failed to read back upserted edge: {}", e.getMessage(), e );
+            LOG.warn( "Failed to read back upserted edge: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
     }
@@ -310,7 +310,7 @@ public class JdbcKnowledgeRepository {
             ps.setObject( 1, id );
             ps.executeUpdate();
         } catch( final SQLException e ) {
-            LOG.error( "Failed to delete edge '{}': {}", id, e.getMessage(), e );
+            LOG.warn( "Failed to delete edge '{}': {}", id, e.getMessage(), e );
             throw new RuntimeException( "Failed to delete edge: " + e.getMessage(), e );
         }
     }
@@ -343,7 +343,7 @@ public class JdbcKnowledgeRepository {
                 }
             }
         } catch( final SQLException e ) {
-            LOG.error( "Failed to get edges for node '{}': {}", nodeId, e.getMessage(), e );
+            LOG.warn( "Failed to get edges for node '{}': {}", nodeId, e.getMessage(), e );
             throw new RuntimeException( e );
         }
         return results;
@@ -385,7 +385,7 @@ public class JdbcKnowledgeRepository {
                 deleteEdge( edgeId );
             }
         } catch( final SQLException e ) {
-            LOG.error( "Failed to diff and remove stale edges for node '{}': {}", sourceId, e.getMessage(), e );
+            LOG.warn( "Failed to diff and remove stale edges for node '{}': {}", sourceId, e.getMessage(), e );
             throw new RuntimeException( e );
         }
     }
@@ -422,7 +422,7 @@ public class JdbcKnowledgeRepository {
                 }
             }
         } catch( final SQLException e ) {
-            LOG.error( "Failed to insert proposal: {}", e.getMessage(), e );
+            LOG.warn( "Failed to insert proposal: {}", e.getMessage(), e );
             throw new RuntimeException( "Failed to insert proposal: " + e.getMessage(), e );
         }
         return null;
@@ -443,7 +443,7 @@ public class JdbcKnowledgeRepository {
                 return rs.next() ? mapProposal( rs ) : null;
             }
         } catch( final SQLException e ) {
-            LOG.error( "Failed to get proposal '{}': {}", id, e.getMessage(), e );
+            LOG.warn( "Failed to get proposal '{}': {}", id, e.getMessage(), e );
             throw new RuntimeException( e );
         }
     }
@@ -487,7 +487,7 @@ public class JdbcKnowledgeRepository {
                 }
             }
         } catch( final SQLException e ) {
-            LOG.error( "Failed to list proposals: {}", e.getMessage(), e );
+            LOG.warn( "Failed to list proposals: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
         return results;
@@ -509,7 +509,7 @@ public class JdbcKnowledgeRepository {
             ps.setObject( 3, id );
             ps.executeUpdate();
         } catch( final SQLException e ) {
-            LOG.error( "Failed to update proposal status '{}': {}", id, e.getMessage(), e );
+            LOG.warn( "Failed to update proposal status '{}': {}", id, e.getMessage(), e );
             throw new RuntimeException( "Failed to update proposal status: " + e.getMessage(), e );
         }
     }
@@ -540,7 +540,7 @@ public class JdbcKnowledgeRepository {
             ps.setString( 5, reason );
             ps.executeUpdate();
         } catch( final SQLException e ) {
-            LOG.error( "Failed to insert rejection: {}", e.getMessage(), e );
+            LOG.warn( "Failed to insert rejection: {}", e.getMessage(), e );
             throw new RuntimeException( "Failed to insert rejection: " + e.getMessage(), e );
         }
     }
@@ -566,7 +566,7 @@ public class JdbcKnowledgeRepository {
                 return rs.next() && rs.getInt( 1 ) > 0;
             }
         } catch( final SQLException e ) {
-            LOG.error( "Failed to check rejection: {}", e.getMessage(), e );
+            LOG.warn( "Failed to check rejection: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
     }
@@ -611,7 +611,7 @@ public class JdbcKnowledgeRepository {
                 }
             }
         } catch( final SQLException e ) {
-            LOG.error( "Failed to list rejections: {}", e.getMessage(), e );
+            LOG.warn( "Failed to list rejections: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
         return results;
@@ -740,7 +740,7 @@ public class JdbcKnowledgeRepository {
                 results.add( rs.getString( 1 ) );
             }
         } catch( final SQLException e ) {
-            LOG.error( "Failed to execute distinct query: {}", e.getMessage(), e );
+            LOG.warn( "Failed to execute distinct query: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
         return results;
@@ -752,7 +752,7 @@ public class JdbcKnowledgeRepository {
              final ResultSet rs = ps.executeQuery() ) {
             return rs.next() ? rs.getLong( 1 ) : 0;
         } catch( final SQLException e ) {
-            LOG.error( "Failed to execute count query: {}", e.getMessage(), e );
+            LOG.warn( "Failed to execute count query: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
     }

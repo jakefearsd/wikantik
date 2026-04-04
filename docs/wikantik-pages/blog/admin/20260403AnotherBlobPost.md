@@ -1,10 +1,7 @@
 ---
 synopsis: Go get another blog.
+title: Another Stupid Blog Post
 ---
-
-
-
-
 # Another Blog Post
 
 So, I maybe kind of got this thing unfucked, but we'll see after I do some more hands on testing.

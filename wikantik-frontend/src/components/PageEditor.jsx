@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
 import { reconstructContent } from '../utils/frontmatterUtils';
+import { remarkAttachments } from '../utils/remarkAttachments';
+import { useAttachments } from '../hooks/useAttachments';
+import { useEditorDrop } from '../hooks/useEditorDrop';
+import AttachmentPanel from './AttachmentPanel';
 import '../styles/article.css';
 import '../styles/admin.css';
 
@@ -21,6 +25,26 @@ export default function PageEditor() {
   const [markupSyntax, setMarkupSyntax] = useState('markdown');
   const [converting, setConverting] = useState(false);
   const [conversionWarnings, setConversionWarnings] = useState([]);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const textareaRef = useRef(null);
+  const attachments = useAttachments(name);
+
+  const handleInsert = useCallback((text, pos) => {
+    setContent(prev => prev.slice(0, pos) + text + prev.slice(pos));
+  }, []);
+
+  useEditorDrop(textareaRef, handleInsert);
+
+  const handleRename = useCallback(async (oldName, newName) => {
+    const result = await attachments.renameAttachment(oldName, newName);
+    setContent(prev => {
+      const escaped = oldName.replace(/\./g, '\\.');
+      return prev
+        .replace(new RegExp(`(!\\[[^\\]]*\\])\\(${escaped}\\)`, 'g'), `$1(${newName})`)
+        .replace(new RegExp(`(\\[[^\\]]*\\])\\(${escaped}\\)`, 'g'), `$1(${newName})`);
+    });
+    return result;
+  }, [attachments]);
 
   useEffect(() => {
     api.getPage(name).then(page => {
@@ -116,7 +140,7 @@ export default function PageEditor() {
   };
 
   return (
-    <div className="page-enter">
+    <div className={`page-enter${panelOpen ? ' editor-with-panel' : ''}`}>
       <div className="editor-toolbar">
         <div className="editor-toolbar-group">
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600 }}>
@@ -126,7 +150,7 @@ export default function PageEditor() {
         <div className="editor-toolbar-group">
           <input
             type="text"
-            placeholder="Change note…"
+            placeholder="Change note\u2026"
             value={changeNote}
             onChange={e => setChangeNote(e.target.value)}
             style={{
@@ -138,11 +162,16 @@ export default function PageEditor() {
               background: 'var(--bg)',
             }}
           />
+          <button className="btn btn-ghost" onClick={() => setPanelOpen(p => !p)}
+            style={{ fontSize: '1.1rem', padding: 'var(--space-xs) var(--space-sm)' }}
+            title="Attachments">
+            Attach
+          </button>
           <button className="btn btn-ghost" onClick={() => navigate(`/wiki/${name}`)}>
             Cancel
           </button>
           <button className="btn btn-primary" onClick={save} disabled={saving}>
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'Saving\u2026' : 'Save'}
           </button>
         </div>
       </div>
@@ -170,6 +199,7 @@ export default function PageEditor() {
       <div className="editor-container">
         <div className="editor-pane">
           <textarea
+            ref={textareaRef}
             className="editor-textarea"
             value={content}
             onChange={e => setContent(e.target.value)}
@@ -178,7 +208,10 @@ export default function PageEditor() {
         </div>
         <div className="editor-pane editor-preview">
           <article className="article-prose">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[
+              remarkGfm,
+              [remarkAttachments, { attachments: attachments.list, pageName: name }],
+            ]}>
               {content}
             </ReactMarkdown>
           </article>
@@ -219,6 +252,17 @@ export default function PageEditor() {
           </div>
         </div>
       )}
+
+      <AttachmentPanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        pageName={name}
+        attachments={attachments.list}
+        onUpload={attachments.uploadAttachment}
+        onRename={handleRename}
+        onDelete={attachments.deleteAttachment}
+        editorContent={content}
+      />
     </div>
   );
 }

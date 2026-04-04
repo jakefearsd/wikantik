@@ -18,14 +18,18 @@
  */
 package com.wikantik.markdown.extensions.wikilinks.postprocessor;
 
+import com.vladsch.flexmark.ast.Image;
 import com.vladsch.flexmark.ast.Link;
 import com.vladsch.flexmark.parser.PostProcessor;
 import com.vladsch.flexmark.parser.block.NodePostProcessor;
 import com.vladsch.flexmark.util.ast.Document;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.NodeTracker;
+import com.vladsch.flexmark.util.sequence.BasedSequence;
 import org.apache.commons.lang3.Strings;
 import com.wikantik.api.core.Context;
+import com.wikantik.api.core.ContextEnum;
+import com.wikantik.attachment.AttachmentManager;
 import com.wikantik.markdown.nodes.WikantikLink;
 import com.wikantik.parser.LinkParsingOperations;
 import com.wikantik.parser.MarkupParser;
@@ -68,7 +72,9 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
      */
     @Override
     public void process( final NodeTracker state, final Node node ) {
-        if( node instanceof Link linkNode ) {
+        if( node instanceof Image imageNode ) {
+            processImageNode( state, imageNode );
+        } else if( node instanceof Link linkNode ) {
             final WikantikLink link = replaceLinkWithWikantikLink( state, linkNode );
 
             final NodePostProcessorState< WikantikLink > linkPostProcessor;
@@ -96,6 +102,31 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
             if( linkPostProcessor != null ) {
                 linkPostProcessor.process( state, link );
             }
+        }
+    }
+
+    /**
+     * Handles standard Markdown image nodes ({@code ![alt](url)}). If the URL references
+     * an attachment on the current page, rewrites the src to the attachment servlet URL.
+     * External and absolute URLs are left untouched.
+     */
+    private void processImageNode( final NodeTracker state, final Image imageNode ) {
+        final String url = imageNode.getUrl().toString();
+
+        // Skip external URLs, absolute paths, and path traversal
+        if( linkOperations.isExternalLink( url ) || url.startsWith( "/" ) || url.contains( ".." ) ) {
+            return;
+        }
+
+        // Check if this is an attachment on the current page
+        final String attachment = context.getEngine()
+                .getManager( AttachmentManager.class )
+                .getAttachmentInfoName( context, url );
+
+        if( attachment != null ) {
+            // Use the full attachment name (e.g. "TestPage/image.jpg") for URL generation
+            final String attachUrl = context.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), attachment );
+            imageNode.setUrl( BasedSequence.of( attachUrl ) );
         }
     }
 

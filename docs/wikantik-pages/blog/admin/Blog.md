@@ -1,12 +1,13 @@
 ---
-description: Ima tell you what I think m'effas!  This is my system and if you don't like it, you can go fuck yourself!
 title: The Admin's Rants
+description: Ima tell you what I think m'effas!  This is my system and if you don't like it, you can go fuck yourself!
 ---
+
 
 
 # Welcome to my blog
 
-I'm testing this, and Claude keeps kind of going rouge on me at the moment, so I think this project may have reached a bit beyond what my setup is capable of doing well.
+I'm testing this, and Claude keeps kind of going rouge on me at the moment, so I think this project may have reached a bit beyond what my setup is capable of doing well. This is crap.
 
 I'm getting ready to throttle Claude at this point :-)
 

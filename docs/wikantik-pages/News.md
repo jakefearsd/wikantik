@@ -6,6 +6,56 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-03** — fix(cache): correct render cache eviction to use real page version in keys
+
+**2026-04-03** — feat(blog): add side-by-side editor with live preview for new blog entries, blog system enhancements, and wiki content updates
+
+**2026-04-03** — feat(user): add bio textarea to admin user form modal
+
+**2026-04-03** — feat(user): add bio textarea to user preferences page
+
+**2026-04-03** — feat(user): expose bio field in auth and admin REST endpoints
+
+**2026-04-03** — feat(user): map bio column in JDBCUserDatabase with round-trip test
+
+**2026-04-03** — feat(user): add bio field to UserProfile interface and DefaultUserProfile
+
+**2026-04-03** — feat(user): add bio column to users table DDL
+
+**2026-04-03** — fix(blog): use /blog/ prefix in plugin links instead of /wiki/blog/
+
+**2026-04-03** — feat(blog): add blog editor with dedicated route and API endpoint
+
+**2026-04-03** — fix(blog): use correct auth field loginPrincipal for owner checks
+
+**2026-04-03** — fix(blog): use blog API for BlogHome instead of generic page API
+
+**2026-04-03** — fix(blog): downgrade LOG.error to LOG.warn in blog plugins
+
+**2026-04-03** — feat(blog): add React frontend components and routes for blog feature
+
+**2026-04-03** — feat(blog): register BlogResource servlet and add /blog/ SPA routing
+
+**2026-04-03** — fix(blog): replace fragile INVALID sentinel check with null check in BlogResource doDelete
+
+**2026-04-03** — feat(blog): add BlogResource REST API for blog operations
+
+**2026-04-03** — feat(blog): add BlogListing, LatestArticle, and ArticleListing plugins
+
+**2026-04-03** — feat(blog): implement DefaultBlogManager with full lifecycle management
+
+**2026-04-03** — feat(blog): add blog template, classmapping, and WikiEngine registration
+
+**2026-04-03** — feat(blog): store version history inside blog user directories
+
+**2026-04-03** — feat(blog): add blog-aware name resolution to AbstractFileProvider
+
+**2026-04-03** — feat(blog): add BlogManager interface, BlogInfo record, and BlogAlreadyExistsException
+
+**2026-04-03** — Add blog feature implementation plan
+
+**2026-04-03** — Add blog feature design spec
+
 **2026-04-02** — Widen editor layout to use available screen width
 
 **2026-04-02** — Fix inverted wiki heading level mapping in converter

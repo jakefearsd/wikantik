@@ -498,6 +498,235 @@ input, textarea, select {
 }
 
 /* ============================================================
+   Attachment Panel (slide-in from right)
+   ============================================================ */
+
+.attachment-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 100vh;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform var(--duration-slow) var(--ease);
+}
+
+.attachment-panel.open {
+  transform: translateX(0);
+}
+
+.attachment-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.attachment-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-md) var(--space-lg);
+}
+
+.attachment-upload-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-md);
+  margin-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border);
+}
+
+.attachment-upload-form label {
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.attachment-name-input {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.attachment-name-input input {
+  flex: 1;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.attachment-name-input .ext-badge {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--bg-sidebar);
+  color: var(--text-muted);
+}
+
+.attachment-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-xs);
+  cursor: grab;
+  border-radius: var(--radius-sm);
+  transition: background var(--duration) var(--ease);
+}
+
+.attachment-row:hover {
+  background: var(--sage-light);
+}
+
+.attachment-row.dragging {
+  opacity: 0.5;
+}
+
+.attachment-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  border: 1px solid var(--border);
+}
+
+.attachment-file-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sidebar);
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.attachment-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.attachment-info .name {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-info .size {
+  font-family: var(--font-ui);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.attachment-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.attachment-actions button {
+  padding: 2px 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
+}
+
+.attachment-actions button:hover {
+  color: var(--text);
+  background: var(--border);
+}
+
+.attachment-actions button.delete:hover {
+  color: var(--error, #c0392b);
+}
+
+.attachment-validation-error {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--error, #c0392b);
+}
+
+.attachment-empty {
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-lg);
+}
+
+/* Broken attachment placeholder in preview */
+img[data-attachment-missing] {
+  display: inline-block;
+  border: 2px dashed var(--error, #c0392b);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--error, #c0392b);
+  background: rgba(192, 57, 43, 0.05);
+  min-width: 120px;
+  min-height: 40px;
+}
+
+a[data-attachment-missing] {
+  color: var(--error, #c0392b);
+  text-decoration-style: wavy;
+}
+
+/* Editor layout when attachment panel is open */
+.editor-with-panel {
+  margin-right: 320px;
+  transition: margin-right var(--duration-slow) var(--ease);
+}
+
+.attachment-rename-input {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 1px 4px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  outline: none;
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.attachment-panel-hint {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--space-sm);
+  border-top: 1px solid var(--border);
+}
+
+/* ============================================================
    Loading & Error States
    ============================================================ */
 

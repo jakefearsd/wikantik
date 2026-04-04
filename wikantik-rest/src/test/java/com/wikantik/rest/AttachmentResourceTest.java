@@ -311,6 +311,73 @@ class AttachmentResourceTest {
         }
     }
 
+    // ----- Path parsing tests -----
+
+    @Test
+    void testParseAttachmentPathListOnly() {
+        final String[] result = AttachmentResource.parseAttachmentPath( "RestAttachPage" );
+        assertEquals( "RestAttachPage", result[0] );
+        assertNull( result[1] );
+    }
+
+    @Test
+    void testParseAttachmentPathWithFile() {
+        final String[] result = AttachmentResource.parseAttachmentPath( "RestAttachPage/beach.jpg" );
+        assertEquals( "RestAttachPage", result[0] );
+        assertEquals( "beach.jpg", result[1] );
+    }
+
+    @Test
+    void testParseAttachmentPathHierarchicalPage() {
+        final String[] result = AttachmentResource.parseAttachmentPath( "blog/admin/20260403Post" );
+        assertEquals( "blog/admin/20260403Post", result[0] );
+        assertNull( result[1] );
+    }
+
+    @Test
+    void testParseAttachmentPathHierarchicalPageWithFile() {
+        final String[] result = AttachmentResource.parseAttachmentPath( "blog/admin/20260403Post/beach.jpg" );
+        assertEquals( "blog/admin/20260403Post", result[0] );
+        assertEquals( "beach.jpg", result[1] );
+    }
+
+    // ----- Rename tests -----
+
+    @Test
+    void testRenameRequiresPermission() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/attachments/RestAttachPage/old.txt" );
+        Mockito.doReturn( "/RestAttachPage/old.txt" ).when( request ).getPathInfo();
+        Mockito.doReturn( "application/json" ).when( request ).getContentType();
+        Mockito.doReturn( new java.io.BufferedReader( new java.io.StringReader( "{\"newName\":\"new.txt\"}" ) ) )
+                .when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPut( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 403, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testRenameMissingFileName() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/attachments/RestAttachPage" );
+        Mockito.doReturn( "/RestAttachPage" ).when( request ).getPathInfo();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPut( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String path ) throws Exception {

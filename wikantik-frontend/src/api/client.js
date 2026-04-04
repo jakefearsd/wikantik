@@ -95,14 +95,18 @@ export const api = {
   listAttachments: (page) =>
     request(`/api/attachments/${encodeURIComponent(page)}`),
 
-  uploadAttachment: async (page, file) => {
+  uploadAttachment: async (page, file, name) => {
     const form = new FormData();
     form.append('file', file);
+    if (name) form.append('name', name);
     const resp = await fetch(`/api/attachments/${encodeURIComponent(page)}`, {
       method: 'POST',
       body: form,
     });
-    if (!resp.ok) throw new Error('Upload failed');
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ message: 'Upload failed' }));
+      throw new Error(err.message || 'Upload failed');
+    }
     return resp.json();
   },
 
@@ -110,6 +114,22 @@ export const api = {
     request(`/api/attachments/${encodeURIComponent(page)}/${encodeURIComponent(filename)}`, {
       method: 'DELETE',
     }),
+
+  renameAttachment: async (page, oldName, newName) => {
+    const resp = await fetch(
+      `/api/attachments/${encodeURIComponent(page)}/${encodeURIComponent(oldName)}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newName }),
+      }
+    );
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ message: 'Rename failed' }));
+      throw new Error(err.message || 'Rename failed');
+    }
+    return resp.json();
+  },
 
   // Auth
   getUser: () => request('/api/auth/user'),

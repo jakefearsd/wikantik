@@ -74,7 +74,7 @@ public class JdbcKnowledgeRepository {
             ps.setString( 2, nodeType );
             ps.setString( 3, sourcePage );
             ps.setString( 4, provenance.value() );
-            ps.setString( 5, GSON.toJson( properties ) );
+            ps.setString( 5, GSON.toJson( properties != null ? properties : Map.of() ) );
             ps.executeUpdate();
         } catch( final SQLException e ) {
             LOG.error( "Failed to upsert node '{}': {}", name, e.getMessage(), e );
@@ -99,7 +99,7 @@ public class JdbcKnowledgeRepository {
             }
         } catch( final SQLException e ) {
             LOG.error( "Failed to get node by id '{}': {}", id, e.getMessage(), e );
-            return null;
+            throw new RuntimeException( e );
         }
     }
 
@@ -119,7 +119,7 @@ public class JdbcKnowledgeRepository {
             }
         } catch( final SQLException e ) {
             LOG.error( "Failed to get node by name '{}': {}", name, e.getMessage(), e );
-            return null;
+            throw new RuntimeException( e );
         }
     }
 
@@ -198,6 +198,7 @@ public class JdbcKnowledgeRepository {
             }
         } catch( final SQLException e ) {
             LOG.error( "Failed to query nodes: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
         }
         return results;
     }
@@ -246,6 +247,7 @@ public class JdbcKnowledgeRepository {
             }
         } catch( final SQLException e ) {
             LOG.error( "Failed to search nodes: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
         }
         return results;
     }
@@ -273,7 +275,7 @@ public class JdbcKnowledgeRepository {
             ps.setObject( 2, targetId );
             ps.setString( 3, relationshipType );
             ps.setString( 4, provenance.value() );
-            ps.setString( 5, GSON.toJson( properties ) );
+            ps.setString( 5, GSON.toJson( properties != null ? properties : Map.of() ) );
             ps.executeUpdate();
         } catch( final SQLException e ) {
             LOG.error( "Failed to upsert edge {}->{} [{}]: {}", sourceId, targetId, relationshipType, e.getMessage(), e );
@@ -292,7 +294,7 @@ public class JdbcKnowledgeRepository {
             }
         } catch( final SQLException e ) {
             LOG.error( "Failed to read back upserted edge: {}", e.getMessage(), e );
-            return null;
+            throw new RuntimeException( e );
         }
     }
 
@@ -324,7 +326,8 @@ public class JdbcKnowledgeRepository {
         final String sql = switch( direction ) {
             case "outbound" -> "SELECT * FROM kg_edges WHERE source_id = ?";
             case "inbound" -> "SELECT * FROM kg_edges WHERE target_id = ?";
-            default -> "SELECT * FROM kg_edges WHERE source_id = ? OR target_id = ?";
+            case "both" -> "SELECT * FROM kg_edges WHERE source_id = ? OR target_id = ?";
+            default -> throw new IllegalArgumentException( "Invalid direction: " + direction );
         };
 
         final List< KgEdge > results = new ArrayList<>();
@@ -341,6 +344,7 @@ public class JdbcKnowledgeRepository {
             }
         } catch( final SQLException e ) {
             LOG.error( "Failed to get edges for node '{}': {}", nodeId, e.getMessage(), e );
+            throw new RuntimeException( e );
         }
         return results;
     }
@@ -382,6 +386,7 @@ public class JdbcKnowledgeRepository {
             }
         } catch( final SQLException e ) {
             LOG.error( "Failed to diff and remove stale edges for node '{}': {}", sourceId, e.getMessage(), e );
+            throw new RuntimeException( e );
         }
     }
 
@@ -406,7 +411,7 @@ public class JdbcKnowledgeRepository {
              final PreparedStatement ps = conn.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
             ps.setString( 1, proposalType );
             ps.setString( 2, sourcePage );
-            ps.setString( 3, GSON.toJson( proposedData ) );
+            ps.setString( 3, GSON.toJson( proposedData != null ? proposedData : Map.of() ) );
             ps.setDouble( 4, confidence );
             ps.setString( 5, reasoning );
             ps.executeUpdate();
@@ -439,7 +444,7 @@ public class JdbcKnowledgeRepository {
             }
         } catch( final SQLException e ) {
             LOG.error( "Failed to get proposal '{}': {}", id, e.getMessage(), e );
-            return null;
+            throw new RuntimeException( e );
         }
     }
 
@@ -483,6 +488,7 @@ public class JdbcKnowledgeRepository {
             }
         } catch( final SQLException e ) {
             LOG.error( "Failed to list proposals: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
         }
         return results;
     }
@@ -561,7 +567,7 @@ public class JdbcKnowledgeRepository {
             }
         } catch( final SQLException e ) {
             LOG.error( "Failed to check rejection: {}", e.getMessage(), e );
-            return false;
+            throw new RuntimeException( e );
         }
     }
 
@@ -606,6 +612,7 @@ public class JdbcKnowledgeRepository {
             }
         } catch( final SQLException e ) {
             LOG.error( "Failed to list rejections: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
         }
         return results;
     }
@@ -734,6 +741,7 @@ public class JdbcKnowledgeRepository {
             }
         } catch( final SQLException e ) {
             LOG.error( "Failed to execute distinct query: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
         }
         return results;
     }
@@ -745,7 +753,7 @@ public class JdbcKnowledgeRepository {
             return rs.next() ? rs.getLong( 1 ) : 0;
         } catch( final SQLException e ) {
             LOG.error( "Failed to execute count query: {}", e.getMessage(), e );
-            return 0;
+            throw new RuntimeException( e );
         }
     }
 }

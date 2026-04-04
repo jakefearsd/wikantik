@@ -83,8 +83,8 @@ CREATE TABLE IF NOT EXISTS kg_rejections (
     UNIQUE(proposed_source, proposed_target, proposed_relationship)
 );
 
--- Grant permissions to wikantik application user
-GRANT SELECT, INSERT, UPDATE, DELETE ON kg_nodes TO wikantik;
-GRANT SELECT, INSERT, UPDATE, DELETE ON kg_edges TO wikantik;
-GRANT SELECT, INSERT, UPDATE, DELETE ON kg_proposals TO wikantik;
-GRANT SELECT, INSERT, UPDATE, DELETE ON kg_rejections TO wikantik;
+-- Grant permissions to application user (jspwiki)
+GRANT SELECT, INSERT, UPDATE, DELETE ON kg_nodes TO jspwiki;
+GRANT SELECT, INSERT, UPDATE, DELETE ON kg_edges TO jspwiki;
+GRANT SELECT, INSERT, UPDATE, DELETE ON kg_proposals TO jspwiki;
+GRANT SELECT, INSERT, UPDATE, DELETE ON kg_rejections TO jspwiki;

@@ -50,6 +50,10 @@ import com.wikantik.plugin.PluginManager;
 import com.wikantik.references.ReferenceManager;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.search.SearchManager;
+import com.wikantik.knowledge.DefaultKnowledgeGraphService;
+import com.wikantik.knowledge.GraphProjector;
+import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.ui.CommandResolver;
 import com.wikantik.ui.progress.ProgressManager;
 import com.wikantik.url.URLConstructor;
@@ -329,6 +333,9 @@ public class WikiEngine implements Engine {
             //  Hook the different manager routines into the system.
             getManager( FilterManager.class ).addPageFilter( getManager( ReferenceManager.class ), -1001 );
             getManager( FilterManager.class ).addPageFilter( getManager( SearchManager.class ), -1002 );
+
+            // Phase 9: Knowledge graph (optional — requires datasource configuration)
+            initKnowledgeGraph( props );
         } catch( final RuntimeException e ) {
             // RuntimeExceptions may occur here, even if they shouldn't.
             LOG.fatal( "Failed to start managers.", e );
@@ -498,6 +505,34 @@ public class WikiEngine implements Engine {
         }
     }
 
+    /**
+     * Initialises the knowledge-graph subsystem when a JNDI datasource is configured.
+     *
+     * @param props engine properties
+     */
+    private void initKnowledgeGraph( final Properties props ) {
+        final String datasource = props.getProperty( "wikantik.knowledge.datasource" );
+        if( datasource == null || datasource.isBlank() ) {
+            LOG.info( "Knowledge graph disabled (no wikantik.knowledge.datasource configured)" );
+            return;
+        }
+        try {
+            final javax.naming.Context initCtx = new javax.naming.InitialContext();
+            final javax.naming.Context ctx = ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
+            final javax.sql.DataSource ds = ( javax.sql.DataSource ) ctx.lookup( datasource );
+            final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( ds );
+            final DefaultKnowledgeGraphService service = new DefaultKnowledgeGraphService( repo );
+            managers.put( KnowledgeGraphService.class, service );
+
+            final GraphProjector projector = new GraphProjector( service );
+            managers.put( GraphProjector.class, projector );
+            getManager( FilterManager.class ).addPageFilter( projector, -1003 );
+
+            LOG.info( "Knowledge graph initialized with datasource '{}'", datasource );
+        } catch( final Exception e ) {
+            LOG.warn( "Knowledge graph initialization failed: {}", e.getMessage() );
+        }
+    }
 
     /** {@inheritDoc} */
     @Override

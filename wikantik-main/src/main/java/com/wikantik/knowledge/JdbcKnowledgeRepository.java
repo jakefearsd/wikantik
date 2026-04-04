@@ -46,15 +46,27 @@ public class JdbcKnowledgeRepository {
     private static final Type MAP_TYPE = new TypeToken< Map< String, Object > >() {}.getType();
 
     private final DataSource dataSource;
+    private final boolean isPostgreSQL;
 
     public JdbcKnowledgeRepository( final DataSource dataSource ) {
         this.dataSource = dataSource;
+        this.isPostgreSQL = detectPostgreSQL( dataSource );
+    }
+
+    private static boolean detectPostgreSQL( final DataSource ds ) {
+        try( final Connection conn = ds.getConnection() ) {
+            final String product = conn.getMetaData().getDatabaseProductName();
+            return "PostgreSQL".equalsIgnoreCase( product );
+        } catch( final SQLException e ) {
+            return false;
+        }
     }
 
     // ---- Node operations ----
 
     /**
-     * Creates or updates a knowledge graph node. Uses MERGE INTO for H2 compatibility.
+     * Creates or updates a knowledge graph node. Uses INSERT ... ON CONFLICT for PostgreSQL,
+     * MERGE INTO for H2.
      *
      * @param name       the unique node name
      * @param nodeType   the node type (e.g. "domain-model", "concept")
@@ -65,16 +77,23 @@ public class JdbcKnowledgeRepository {
      */
     public KgNode upsertNode( final String name, final String nodeType, final String sourcePage,
                               final Provenance provenance, final Map< String, Object > properties ) {
-        final String sql = "MERGE INTO kg_nodes ( name, node_type, source_page, provenance, properties, modified ) "
-                         + "KEY ( name ) "
-                         + "VALUES ( ?, ?, ?, ?, ?, CURRENT_TIMESTAMP )";
+        final String propsJson = GSON.toJson( properties != null ? properties : Map.of() );
+        final String sql = isPostgreSQL
+                ? "INSERT INTO kg_nodes ( name, node_type, source_page, provenance, properties, modified ) "
+                + "VALUES ( ?, ?, ?, ?, ?::jsonb, CURRENT_TIMESTAMP ) "
+                + "ON CONFLICT ( name ) DO UPDATE SET node_type = EXCLUDED.node_type, "
+                + "source_page = EXCLUDED.source_page, provenance = EXCLUDED.provenance, "
+                + "properties = EXCLUDED.properties, modified = CURRENT_TIMESTAMP"
+                : "MERGE INTO kg_nodes ( name, node_type, source_page, provenance, properties, modified ) "
+                + "KEY ( name ) "
+                + "VALUES ( ?, ?, ?, ?, ?, CURRENT_TIMESTAMP )";
         try( final Connection conn = dataSource.getConnection();
              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, name );
             ps.setString( 2, nodeType );
             ps.setString( 3, sourcePage );
             ps.setString( 4, provenance.value() );
-            ps.setString( 5, GSON.toJson( properties != null ? properties : Map.of() ) );
+            ps.setString( 5, propsJson );
             ps.executeUpdate();
         } catch( final SQLException e ) {
             LOG.warn( "Failed to upsert node '{}': {}", name, e.getMessage(), e );
@@ -213,8 +232,9 @@ public class JdbcKnowledgeRepository {
      */
     public List< KgNode > searchNodes( final String query, final Set< Provenance > provenanceFilter,
                                        final int limit ) {
+        final String propsCast = isPostgreSQL ? "properties::text" : "CAST( properties AS VARCHAR )";
         final StringBuilder sql = new StringBuilder(
-                "SELECT * FROM kg_nodes WHERE ( LOWER( name ) LIKE ? OR LOWER( CAST( properties AS VARCHAR ) ) LIKE ? )" );
+                "SELECT * FROM kg_nodes WHERE ( LOWER( name ) LIKE ? OR LOWER( " + propsCast + " ) LIKE ? )" );
         final List< Object > params = new ArrayList<>();
         final String pattern = "%" + query.toLowerCase() + "%";
         params.add( pattern );
@@ -255,7 +275,8 @@ public class JdbcKnowledgeRepository {
     // ---- Edge operations ----
 
     /**
-     * Creates or updates an edge between two nodes. Uses MERGE INTO for H2 compatibility.
+     * Creates or updates an edge between two nodes. Uses INSERT ... ON CONFLICT for PostgreSQL,
+     * MERGE INTO for H2.
      *
      * @param sourceId         the source node UUID
      * @param targetId         the target node UUID
@@ -266,16 +287,23 @@ public class JdbcKnowledgeRepository {
      */
     public KgEdge upsertEdge( final UUID sourceId, final UUID targetId, final String relationshipType,
                               final Provenance provenance, final Map< String, Object > properties ) {
-        final String sql = "MERGE INTO kg_edges ( source_id, target_id, relationship_type, provenance, properties, modified ) "
-                         + "KEY ( source_id, target_id, relationship_type ) "
-                         + "VALUES ( ?, ?, ?, ?, ?, CURRENT_TIMESTAMP )";
+        final String propsJson = GSON.toJson( properties != null ? properties : Map.of() );
+        final String sql = isPostgreSQL
+                ? "INSERT INTO kg_edges ( source_id, target_id, relationship_type, provenance, properties, modified ) "
+                + "VALUES ( ?, ?, ?, ?, ?::jsonb, CURRENT_TIMESTAMP ) "
+                + "ON CONFLICT ( source_id, target_id, relationship_type ) DO UPDATE SET "
+                + "provenance = EXCLUDED.provenance, properties = EXCLUDED.properties, "
+                + "modified = CURRENT_TIMESTAMP"
+                : "MERGE INTO kg_edges ( source_id, target_id, relationship_type, provenance, properties, modified ) "
+                + "KEY ( source_id, target_id, relationship_type ) "
+                + "VALUES ( ?, ?, ?, ?, ?, CURRENT_TIMESTAMP )";
         try( final Connection conn = dataSource.getConnection();
              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setObject( 1, sourceId );
             ps.setObject( 2, targetId );
             ps.setString( 3, relationshipType );
             ps.setString( 4, provenance.value() );
-            ps.setString( 5, GSON.toJson( properties != null ? properties : Map.of() ) );
+            ps.setString( 5, propsJson );
             ps.executeUpdate();
         } catch( final SQLException e ) {
             LOG.warn( "Failed to upsert edge {}->{} [{}]: {}", sourceId, targetId, relationshipType, e.getMessage(), e );
@@ -405,8 +433,11 @@ public class JdbcKnowledgeRepository {
     public KgProposal insertProposal( final String proposalType, final String sourcePage,
                                       final Map< String, Object > proposedData,
                                       final double confidence, final String reasoning ) {
-        final String sql = "INSERT INTO kg_proposals ( proposal_type, source_page, proposed_data, confidence, reasoning ) "
-                         + "VALUES ( ?, ?, ?, ?, ? )";
+        final String sql = isPostgreSQL
+                ? "INSERT INTO kg_proposals ( proposal_type, source_page, proposed_data, confidence, reasoning ) "
+                + "VALUES ( ?, ?, ?::jsonb, ?, ? )"
+                : "INSERT INTO kg_proposals ( proposal_type, source_page, proposed_data, confidence, reasoning ) "
+                + "VALUES ( ?, ?, ?, ?, ? )";
         try( final Connection conn = dataSource.getConnection();
              final PreparedStatement ps = conn.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
             ps.setString( 1, proposalType );
@@ -517,7 +548,8 @@ public class JdbcKnowledgeRepository {
     // ---- Rejection operations ----
 
     /**
-     * Inserts a rejection record to prevent re-proposals. Uses MERGE INTO for idempotency.
+     * Inserts a rejection record to prevent re-proposals. Uses INSERT ... ON CONFLICT for
+     * PostgreSQL, MERGE INTO for H2.
      *
      * @param proposedSource       the proposed source node name
      * @param proposedTarget       the proposed target node name
@@ -528,9 +560,14 @@ public class JdbcKnowledgeRepository {
     public void insertRejection( final String proposedSource, final String proposedTarget,
                                  final String proposedRelationship,
                                  final String rejectedBy, final String reason ) {
-        final String sql = "MERGE INTO kg_rejections ( proposed_source, proposed_target, proposed_relationship, rejected_by, reason ) "
-                         + "KEY ( proposed_source, proposed_target, proposed_relationship ) "
-                         + "VALUES ( ?, ?, ?, ?, ? )";
+        final String sql = isPostgreSQL
+                ? "INSERT INTO kg_rejections ( proposed_source, proposed_target, proposed_relationship, rejected_by, reason ) "
+                + "VALUES ( ?, ?, ?, ?, ? ) "
+                + "ON CONFLICT ( proposed_source, proposed_target, proposed_relationship ) DO UPDATE SET "
+                + "rejected_by = EXCLUDED.rejected_by, reason = EXCLUDED.reason"
+                : "MERGE INTO kg_rejections ( proposed_source, proposed_target, proposed_relationship, rejected_by, reason ) "
+                + "KEY ( proposed_source, proposed_target, proposed_relationship ) "
+                + "VALUES ( ?, ?, ?, ?, ? )";
         try( final Connection conn = dataSource.getConnection();
              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, proposedSource );

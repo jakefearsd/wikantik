@@ -254,6 +254,10 @@ public class AdminKnowledgeResource extends RestServletBase {
         switch ( action ) {
             case "approve" -> {
                 final KgProposal approved = service.approveProposal( proposalId, reviewedBy );
+                if ( approved == null ) {
+                    sendNotFound( response, "Proposal not found: " + proposalId );
+                    return;
+                }
                 writeFrontmatterIfEdge( approved );
                 sendJson( response, proposalToMap( approved ) );
             }
@@ -262,6 +266,10 @@ public class AdminKnowledgeResource extends RestServletBase {
                 if ( body == null ) return;
                 final String reason = body.has( "reason" ) ? body.get( "reason" ).getAsString() : null;
                 final KgProposal rejected = service.rejectProposal( proposalId, reviewedBy, reason );
+                if ( rejected == null ) {
+                    sendNotFound( response, "Proposal not found: " + proposalId );
+                    return;
+                }
                 sendJson( response, proposalToMap( rejected ) );
             }
             default -> sendError( response, HttpServletResponse.SC_BAD_REQUEST,

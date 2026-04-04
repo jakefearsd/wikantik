@@ -51,10 +51,11 @@ class CsrfProtectionFilterTest {
         assertFalse( CsrfProtectionFilter.isPost( request ) );
     }
 
-    @Test
-    void testIsMcpEndpointReturnsTrue() {
+    @ParameterizedTest
+    @ValueSource( strings = { "/mcp", "/knowledge-mcp" } )
+    void testIsMcpEndpointReturnsTrue( final String servletPath ) {
         final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
-        Mockito.doReturn( "/mcp" ).when( request ).getServletPath();
+        Mockito.doReturn( servletPath ).when( request ).getServletPath();
         assertTrue( CsrfProtectionFilter.isMcpEndpoint( request ) );
     }
 

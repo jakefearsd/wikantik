@@ -307,6 +307,10 @@
        <servlet-name>AdminPolicyResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminPolicyResource</servlet-class>
    </servlet>
+   <servlet>
+       <servlet-name>AdminKnowledgeResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminKnowledgeResource</servlet-class>
+   </servlet>
 
    <!-- Observability -->
    <servlet>
@@ -440,6 +444,14 @@
    <servlet-mapping>
        <servlet-name>AdminPolicyResource</servlet-name>
        <url-pattern>/admin/policy</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminKnowledgeResource</servlet-name>
+       <url-pattern>/admin/knowledge/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminKnowledgeResource</servlet-name>
+       <url-pattern>/admin/knowledge</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

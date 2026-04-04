@@ -62,13 +62,12 @@ public class LocalLinkNodePostProcessorState extends AbstractLinkState implement
         final String attachment = wikiContext().getEngine().getManager( AttachmentManager.class ).getAttachmentInfoName( wikiContext(), url );
         if( attachment != null  ) {
             if( !linkOperations().isImageLink( url, isImageInlining(), inlineImagePatterns() ) ) {
-                final String attlink = wikiContext().getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), url );
+                final String attlink = wikiContext().getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), attachment );
                 link.setUrl( CharSubSequence.of( attlink ) );
                 link.removeChildren();
                 final WikiHtmlInline content = WikiHtmlInline.of( link.getText().toString(), wikiContext() );
                 link.appendChild( content );
                 state.nodeAddedWithChildren( content );
-                addAttachmentLink( state, link );
             } else {
                 new ImageLinkNodePostProcessorState( wikiContext(), attachment, link.hasRef() ).process( state, link );
             }
@@ -96,14 +95,5 @@ public class LocalLinkNodePostProcessorState extends AbstractLinkState implement
         }
     }
 
-    void addAttachmentLink( final NodeTracker state, final WikantikLink link ) {
-        final String infolink = wikiContext().getURL( ContextEnum.PAGE_INFO.getRequestContext(), link.getWikiLink() );
-        final String imglink = wikiContext().getURL( ContextEnum.PAGE_NONE.getRequestContext(), "images/attachment_small.png" );
-        final WikiHtmlInline aimg = WikiHtmlInline.of( "<a href=\""+ infolink + "\" class=\"infolink\">" +
-                                                              "<img src=\""+ imglink + "\" border=\"0\" alt=\"(info)\" />" +
-                                                           "</a>" ) ;
-        link.insertAfter( aimg );
-        state.nodeAdded( aimg );
-    }
 
 }

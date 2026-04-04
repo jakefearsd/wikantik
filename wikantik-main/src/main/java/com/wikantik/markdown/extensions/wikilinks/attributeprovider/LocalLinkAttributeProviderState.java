@@ -59,7 +59,7 @@ public class LocalLinkAttributeProviderState extends AbstractLinkState implement
         if( attachment != null ) {
             if( !linkOperations().isImageLink( link.getUrl().toString(), isImageInlining(), inlineImagePatterns() ) ) {
                 attributes.replaceValue( "class", MarkupParser.CLASS_ATTACHMENT );
-                final String attlink = wikiContext().getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), link.getWikiLink() );
+                final String attlink = wikiContext().getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), attachment );
                 attributes.replaceValue( "href", attlink );
             } else {
                 new ImageLinkAttributeProviderState( wikiContext(), attachment, hasRef ).setAttributes( attributes, link );

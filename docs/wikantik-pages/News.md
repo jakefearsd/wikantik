@@ -6,6 +6,10 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-04** — feat(attachments): add attachment management UI with drag-and-drop, server-side image rendering, and robust filename validation
+
+**2026-04-03** — docs: add attachment management design spec
+
 **2026-04-03** — fix(cache): correct render cache eviction to use real page version in keys
 
 **2026-04-03** — feat(blog): add side-by-side editor with live preview for new blog entries, blog system enhancements, and wiki content updates

@@ -59,6 +59,13 @@
       <scope>provided</scope>
     </dependency>
 
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>wikantik-mcp</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- MCP SDK -->
     <dependency>
       <groupId>io.modelcontextprotocol.sdk</groupId>

@@ -4,7 +4,10 @@ tags:
 - uncategorized
 summary: This is a test page written in Markdown syntax.
 ---
+
+
 1. Heading 1 - Markdown Test
+![verysadday](verysadday.jpg)![poolside](poolside.jpg)
 
 This is a test page written in **Markdown syntax**.
 

@@ -46,15 +46,23 @@ public class LocalLinkNodePostProcessorState extends AbstractLinkState implement
     /**
      * {@inheritDoc}
      *
-     * @see NodePostProcessorState#process(NodeTracker, Node) 
+     * @see NodePostProcessorState#process(NodeTracker, Node)
      */
     @Override
     public void process( final NodeTracker state, final WikantikLink link ) {
-        final int hashMark = link.getUrl().toString().indexOf( '#' );
-        final String attachment = wikiContext().getEngine().getManager( AttachmentManager.class ).getAttachmentInfoName( wikiContext(), link.getUrl().toString() );
+        final String url = link.getUrl().toString();
+
+        // Guard: skip attachment lookup for path traversal attempts
+        if ( url.contains( ".." ) || url.startsWith( "/" ) ) {
+            processAsWikiLink( state, link, url );
+            return;
+        }
+
+        final int hashMark = url.indexOf( '#' );
+        final String attachment = wikiContext().getEngine().getManager( AttachmentManager.class ).getAttachmentInfoName( wikiContext(), url );
         if( attachment != null  ) {
-            if( !linkOperations().isImageLink( link.getUrl().toString(), isImageInlining(), inlineImagePatterns() ) ) {
-                final String attlink = wikiContext().getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), link.getUrl().toString() );
+            if( !linkOperations().isImageLink( url, isImageInlining(), inlineImagePatterns() ) ) {
+                final String attlink = wikiContext().getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), url );
                 link.setUrl( CharSubSequence.of( attlink ) );
                 link.removeChildren();
                 final WikiHtmlInline content = WikiHtmlInline.of( link.getText().toString(), wikiContext() );
@@ -65,8 +73,8 @@ public class LocalLinkNodePostProcessorState extends AbstractLinkState implement
                 new ImageLinkNodePostProcessorState( wikiContext(), attachment, link.hasRef() ).process( state, link );
             }
         } else if( hashMark != -1 ) { // It's an internal Wiki link, but to a named section
-            final String namedSection = link.getUrl().toString().substring( hashMark + 1 );
-            link.setUrl( CharSubSequence.of( link.getUrl().toString().substring( 0, hashMark ) ) );
+            final String namedSection = url.substring( hashMark + 1 );
+            link.setUrl( CharSubSequence.of( url.substring( 0, hashMark ) ) );
             final String matchedLink = linkOperations().linkIfExists( link.getUrl().toString() );
             if( matchedLink != null ) {
                 String sectref = "#section-" + wikiContext().getEngine().encodeName( matchedLink + "-" + MarkupParser.wikifyLink( namedSection ) );
@@ -76,11 +84,15 @@ public class LocalLinkNodePostProcessorState extends AbstractLinkState implement
                 link.setUrl( CharSubSequence.of( wikiContext().getURL( ContextEnum.PAGE_EDIT.getRequestContext(), link.getUrl().toString() ) ) );
             }
         } else {
-            if( linkOperations().linkExists( link.getUrl().toString() ) ) {
-                link.setUrl( CharSubSequence.of( wikiContext().getURL( ContextEnum.PAGE_VIEW.getRequestContext(), link.getUrl().toString() ) ) );
-            } else {
-                link.setUrl( CharSubSequence.of( wikiContext().getURL( ContextEnum.PAGE_EDIT.getRequestContext(), link.getUrl().toString() ) ) );
-            }
+            processAsWikiLink( state, link, url );
+        }
+    }
+
+    private void processAsWikiLink( final NodeTracker state, final WikantikLink link, final String url ) {
+        if( linkOperations().linkExists( url ) ) {
+            link.setUrl( CharSubSequence.of( wikiContext().getURL( ContextEnum.PAGE_VIEW.getRequestContext(), url ) ) );
+        } else {
+            link.setUrl( CharSubSequence.of( wikiContext().getURL( ContextEnum.PAGE_EDIT.getRequestContext(), url ) ) );
         }
     }
 

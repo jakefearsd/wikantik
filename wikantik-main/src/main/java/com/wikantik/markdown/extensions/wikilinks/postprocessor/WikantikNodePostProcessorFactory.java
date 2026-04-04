@@ -18,6 +18,7 @@
 */
 package com.wikantik.markdown.extensions.wikilinks.postprocessor;
 
+import com.vladsch.flexmark.ast.Image;
 import com.vladsch.flexmark.ast.Link;
 import com.vladsch.flexmark.parser.block.NodePostProcessor;
 import com.vladsch.flexmark.parser.block.NodePostProcessorFactory;
@@ -43,7 +44,7 @@ public class WikantikNodePostProcessorFactory extends NodePostProcessorFactory {
                                             final boolean isImageInlining,
                                             final List< Pattern > inlineImagePatterns ) {
         super( true );
-        addNodes( Link.class ); // needs to be called before create( Document )
+        addNodes( Link.class, Image.class ); // needs to be called before create( Document )
         this.context = context;
         this.isImageInlining = isImageInlining;
         this.inlineImagePatterns = inlineImagePatterns;

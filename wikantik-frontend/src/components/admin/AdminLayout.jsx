@@ -25,6 +25,9 @@ export default function AdminLayout() {
           <NavLink to="/admin/security" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
             Security
           </NavLink>
+          <NavLink to="/admin/knowledge" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
+            Knowledge
+          </NavLink>
         </nav>
       </div>
       <Outlet />

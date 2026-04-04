@@ -52,6 +52,12 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
+            <artifactId>wikantik-knowledge</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>wikantik-observability</artifactId>
             <version>${project.version}</version>
         </dependency>

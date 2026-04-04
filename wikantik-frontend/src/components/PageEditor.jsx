@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
-import { reconstructContent } from '../utils/frontmatterUtils';
+import { reconstructContent, stripFrontmatter } from '../utils/frontmatterUtils';
 import { remarkAttachments } from '../utils/remarkAttachments';
 import { useAttachments } from '../hooks/useAttachments';
 import { useEditorDrop } from '../hooks/useEditorDrop';
@@ -34,6 +34,9 @@ export default function PageEditor() {
   }, []);
 
   useEditorDrop(textareaRef, handleInsert);
+
+  // Strip frontmatter from preview — show only the body portion
+  const previewContent = useMemo(() => stripFrontmatter(content), [content]);
 
   const handleRename = useCallback(async (oldName, newName) => {
     const result = await attachments.renameAttachment(oldName, newName);
@@ -150,7 +153,7 @@ export default function PageEditor() {
         <div className="editor-toolbar-group">
           <input
             type="text"
-            placeholder="Change note\u2026"
+            placeholder="Change note…"
             value={changeNote}
             onChange={e => setChangeNote(e.target.value)}
             style={{
@@ -171,7 +174,7 @@ export default function PageEditor() {
             Cancel
           </button>
           <button className="btn btn-primary" onClick={save} disabled={saving}>
-            {saving ? 'Saving\u2026' : 'Save'}
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </div>
@@ -180,7 +183,7 @@ export default function PageEditor() {
         <div className="info-banner">
           <span>This page uses legacy wiki syntax. Convert to Markdown?</span>
           <button className="btn btn-primary btn-sm" onClick={handleConvert} disabled={converting}>
-            {converting ? 'Converting\u2026' : 'Convert to Markdown'}
+            {converting ? 'Converting…' : 'Convert to Markdown'}
           </button>
         </div>
       )}
@@ -212,7 +215,7 @@ export default function PageEditor() {
               remarkGfm,
               [remarkAttachments, { attachments: attachments.list, pageName: name }],
             ]}>
-              {content}
+              {previewContent}
             </ReactMarkdown>
           </article>
         </div>

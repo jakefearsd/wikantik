@@ -40,6 +40,10 @@ import java.util.stream.Collectors;
 /**
  * REST servlet for knowledge graph administration.
  * <p>
+ * Currently protected by {@link AdminAuthFilter} (requires Admin role).
+ * When a dedicated {@code knowledge-admin} role is needed for non-admin domain experts,
+ * add a {@code KnowledgeAdminFilter} that checks for either Admin or knowledge-admin role.
+ * <p>
  * Mapped to {@code /admin/knowledge/*}. Protected by {@link AdminAuthFilter}.
  * <ul>
  *   <li>{@code GET  /admin/knowledge/schema} — discover schema</li>

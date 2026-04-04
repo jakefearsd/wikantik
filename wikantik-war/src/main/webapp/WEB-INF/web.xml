@@ -197,6 +197,11 @@
        <listener-class>com.wikantik.mcp.McpServerInitializer</listener-class>
    </listener>
 
+   <!-- Knowledge MCP server bootstrap — must come after WikiBootstrapServletContextListener -->
+   <listener>
+       <listener-class>com.wikantik.knowledge.mcp.KnowledgeMcpInitializer</listener-class>
+   </listener>
+
 
    <!--
        Attachment exchange handler.

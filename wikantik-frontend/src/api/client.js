@@ -340,5 +340,8 @@ export const api = {
 
     deleteEdge: (id) =>
       request(`/admin/knowledge/edges/${id}`, { method: 'DELETE' }),
+
+    projectAll: () =>
+      request('/admin/knowledge/project-all', { method: 'POST' }),
   },
 };

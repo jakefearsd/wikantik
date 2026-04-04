@@ -10,22 +10,24 @@ export default function GraphExplorer() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [selectedNode, setSelectedNode] = useState(null);
+  const [projecting, setProjecting] = useState(false);
+  const [projectResult, setProjectResult] = useState(null);
+
+  const refreshData = async () => {
+    try {
+      const [schemaData, nodesData] = await Promise.all([
+        api.knowledge.getSchema(),
+        api.knowledge.queryNodes({ limit: 200 }),
+      ]);
+      setSchema(schemaData);
+      setNodes(nodesData.nodes || []);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [schemaData, nodesData] = await Promise.all([
-          api.knowledge.getSchema(),
-          api.knowledge.queryNodes({ limit: 200 }),
-        ]);
-        setSchema(schemaData);
-        setNodes(nodesData.nodes || []);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    refreshData().finally(() => setLoading(false));
   }, []);
 
   const filtered = useMemo(() => {
@@ -36,6 +38,20 @@ export default function GraphExplorer() {
       return true;
     });
   }, [nodes, search, typeFilter]);
+
+  const handleProjectAll = async () => {
+    setProjecting(true);
+    setProjectResult(null);
+    try {
+      const result = await api.knowledge.projectAll();
+      setProjectResult(result);
+      await refreshData();
+    } catch (err) {
+      setProjectResult({ error: err.message });
+    } finally {
+      setProjecting(false);
+    }
+  };
 
   const handleNodeClick = async (name) => {
     try {
@@ -65,6 +81,30 @@ export default function GraphExplorer() {
             </div>
             <div>
               <strong>Relationships:</strong> {(schema.relationshipTypes || schema.relationship_types || []).join(', ') || 'none'}
+            </div>
+            <div style={{ marginTop: '8px' }}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleProjectAll}
+                disabled={projecting}
+              >
+                {projecting ? 'Projecting...' : 'Project All Pages'}
+              </button>
+              {projectResult && !projectResult.error && (
+                <span style={{ marginLeft: '8px', fontSize: '0.85em' }}>
+                  Scanned {projectResult.scanned}, projected {projectResult.projected}
+                  {projectResult.errors?.length > 0 && (
+                    <span style={{ color: 'var(--warning)' }}>
+                      {' '}({projectResult.errors.length} errors)
+                    </span>
+                  )}
+                </span>
+              )}
+              {projectResult?.error && (
+                <span style={{ marginLeft: '8px', color: 'var(--danger)', fontSize: '0.85em' }}>
+                  Error: {projectResult.error}
+                </span>
+              )}
             </div>
           </div>
         )}

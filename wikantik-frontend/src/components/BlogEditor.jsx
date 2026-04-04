@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
-import { reconstructContent } from '../utils/frontmatterUtils';
+import { reconstructContent, stripFrontmatter } from '../utils/frontmatterUtils';
 import { remarkAttachments } from '../utils/remarkAttachments';
 import { useAttachments } from '../hooks/useAttachments';
 import { useEditorDrop } from '../hooks/useEditorDrop';
@@ -78,12 +78,9 @@ export default function BlogEditor() {
   };
 
   // Strip frontmatter from preview — show only the body portion
-  const previewContent = useMemo(() => {
-    const match = content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n([\s\S]*)$/);
-    return match ? match[1] : content;
-  }, [content]);
+  const previewContent = useMemo(() => stripFrontmatter(content), [content]);
 
-  if (loading) return <div className="loading">Loading\u2026</div>;
+  if (loading) return <div className="loading">Loading…</div>;
 
   return (
     <div className={`page-enter${panelOpen ? ' editor-with-panel' : ''}`}>
@@ -96,7 +93,7 @@ export default function BlogEditor() {
         <div className="editor-toolbar-group">
           <input
             type="text"
-            placeholder="Change note\u2026"
+            placeholder="Change note…"
             value={changeNote}
             onChange={e => setChangeNote(e.target.value)}
             style={{
@@ -120,7 +117,7 @@ export default function BlogEditor() {
             Cancel
           </Link>
           <button className="btn btn-primary" onClick={save} disabled={saving}>
-            {saving ? 'Saving\u2026' : 'Save'}
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </div>

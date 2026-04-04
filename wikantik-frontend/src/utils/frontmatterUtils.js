@@ -1,3 +1,5 @@
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?\r?\n)?---[ \t]*\r?\n\r?\n?/;
+
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const NEEDS_QUOTE_RE = /^['"#>|`*&!?{}[\],]|: /;
 
@@ -49,4 +51,13 @@ export function reconstructContent(metadata, body) {
   const yaml = metadataToYaml(metadata);
   if (!yaml) return body || '';
   return `---\n${yaml}\n---\n\n${body || ''}`;
+}
+
+/**
+ * Strips a YAML frontmatter block (--- delimited) from the start of content,
+ * returning only the body portion. Returns content unchanged if no frontmatter present.
+ */
+export function stripFrontmatter(content) {
+  if (!content) return content || '';
+  return content.replace(FRONTMATTER_RE, '');
 }

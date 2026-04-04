@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { metadataToYaml, reconstructContent } from './frontmatterUtils.js';
+import { metadataToYaml, reconstructContent, stripFrontmatter } from './frontmatterUtils.js';
 
 describe('metadataToYaml', () => {
   it('serializes a plain string value without quoting', () => {
@@ -96,5 +96,68 @@ describe('reconstructContent', () => {
   it('produces a frontmatter block with empty body after closing delimiter', () => {
     const result = reconstructContent({ type: 'article' }, '');
     expect(result).toBe('---\ntype: article\n---\n\n');
+  });
+});
+
+describe('stripFrontmatter', () => {
+  it('strips a simple frontmatter block and returns only the body', () => {
+    const input = '---\ntype: concept\ntags: [ai, wiki]\n---\n\nThis is the body.';
+    expect(stripFrontmatter(input)).toBe('This is the body.');
+  });
+
+  it('strips rich frontmatter like cluster, related lists, and summary', () => {
+    const input = [
+      '---',
+      'cluster: retirement-planning',
+      'related:',
+      '- SocialSecurityClaimingStrategy',
+      '- RothConversionStrategy',
+      'tags:',
+      '- retirement',
+      '- financial-planning',
+      'date: 2026-03-21T01:06:00Z',
+      'summary: Strategic decision frameworks for retirement planning',
+      'status: active',
+      'type: hub',
+      '---',
+      '',
+      '# Retirement Planning Guide',
+      '',
+      'Body content here.',
+    ].join('\n');
+
+    const result = stripFrontmatter(input);
+    expect(result).not.toContain('cluster:');
+    expect(result).not.toContain('SocialSecurityClaimingStrategy');
+    expect(result).not.toContain('status: active');
+    expect(result).toContain('# Retirement Planning Guide');
+    expect(result).toContain('Body content here.');
+  });
+
+  it('returns content as-is when there is no frontmatter', () => {
+    const input = 'Just a regular paragraph.';
+    expect(stripFrontmatter(input)).toBe('Just a regular paragraph.');
+  });
+
+  it('does not strip a horizontal rule in the body', () => {
+    const input = 'Some text\n\n---\n\nMore text.';
+    expect(stripFrontmatter(input)).toBe('Some text\n\n---\n\nMore text.');
+  });
+
+  it('handles empty frontmatter block', () => {
+    const input = '---\n---\n\nBody after empty frontmatter.';
+    expect(stripFrontmatter(input)).toBe('Body after empty frontmatter.');
+  });
+
+  it('handles CRLF line endings', () => {
+    const input = '---\r\ntype: article\r\n---\r\n\r\nBody text.';
+    expect(stripFrontmatter(input)).toBe('Body text.');
+  });
+
+  it('round-trips with reconstructContent', () => {
+    const metadata = { type: 'article', cluster: 'ai' };
+    const body = 'The body content.';
+    const reconstructed = reconstructContent(metadata, body);
+    expect(stripFrontmatter(reconstructed)).toBe(body);
   });
 });

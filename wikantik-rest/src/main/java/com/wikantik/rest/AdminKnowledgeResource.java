@@ -23,6 +23,14 @@ import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 import com.wikantik.api.knowledge.*;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.FrontmatterWriter;
+import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.pages.PageSaveHelper;
+import com.wikantik.api.pages.SaveOptions;
+import com.wikantik.api.exceptions.WikiException;
+import com.wikantik.api.providers.PageProvider;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -246,6 +254,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         switch ( action ) {
             case "approve" -> {
                 final KgProposal approved = service.approveProposal( proposalId, reviewedBy );
+                writeFrontmatterIfEdge( approved );
                 sendJson( response, proposalToMap( approved ) );
             }
             case "reject" -> {
@@ -320,6 +329,65 @@ public class AdminKnowledgeResource extends RestServletBase {
         if ( id == null ) return;
         service.deleteEdge( id );
         sendJson( response, Map.of( "deleted", true ) );
+    }
+
+    // --- Frontmatter write-back ---
+
+    /**
+     * After approving a {@code new-edge} proposal, writes the approved relationship
+     * back into the source page's frontmatter. The subsequent page save triggers the
+     * graph projector, which recognizes the edge at {@code ai-reviewed} provenance
+     * and skips duplication.
+     */
+    @SuppressWarnings( "unchecked" )
+    private void writeFrontmatterIfEdge( final KgProposal proposal ) {
+        if ( !"new-edge".equals( proposal.proposalType() ) || proposal.sourcePage() == null ) {
+            return;
+        }
+
+        final Map< String, Object > data = proposal.proposedData();
+        if ( data == null ) return;
+
+        final String target = ( String ) data.get( "target" );
+        final String relationship = ( String ) data.get( "relationship" );
+        if ( target == null || relationship == null ) return;
+
+        try {
+            final PageManager pm = getEngine().getManager( PageManager.class );
+            final String pageName = proposal.sourcePage().replace( ".md", "" );
+            final String pageText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
+            if ( pageText == null ) {
+                LOG.warn( "Cannot write-back to page '{}': page not found", pageName );
+                return;
+            }
+
+            final ParsedPage parsed = FrontmatterParser.parse( pageText );
+            final Map< String, Object > metadata = new LinkedHashMap<>( parsed.metadata() );
+
+            // Add the target to the relationship key (create if needed)
+            final Object existing = metadata.get( relationship );
+            if ( existing instanceof List ) {
+                final List< String > list = new ArrayList<>( ( List< String > ) existing );
+                if ( !list.contains( target ) ) {
+                    list.add( target );
+                    metadata.put( relationship, list );
+                }
+            } else {
+                metadata.put( relationship, new ArrayList<>( List.of( target ) ) );
+            }
+
+            final String updatedText = FrontmatterWriter.write( metadata, parsed.body() );
+            final PageSaveHelper saveHelper = new PageSaveHelper( getEngine() );
+            final SaveOptions options = SaveOptions.builder()
+                    .author( "Knowledge Admin" )
+                    .changeNote( "Approved knowledge proposal: " + relationship + " → " + target )
+                    .build();
+            saveHelper.saveText( pageName, updatedText, options );
+
+            LOG.info( "Frontmatter write-back: added {} → {} to page '{}'", relationship, target, pageName );
+        } catch ( final WikiException e ) {
+            LOG.error( "Failed to write-back frontmatter for proposal {}: {}", proposal.id(), e.getMessage(), e );
+        }
     }
 
     // --- Helpers ---

@@ -22,8 +22,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
+import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
@@ -66,6 +68,7 @@ import java.util.stream.Collectors;
  *   <li>{@code POST /admin/knowledge/nodes/merge} — merge two nodes (body: {sourceId, targetId})</li>
  *   <li>{@code POST /admin/knowledge/edges} — upsert edge (manual curation)</li>
  *   <li>{@code DELETE /admin/knowledge/edges/{id}} — delete an edge</li>
+ *   <li>{@code POST /admin/knowledge/project-all} — project all pages into knowledge graph</li>
  * </ul>
  */
 public class AdminKnowledgeResource extends RestServletBase {
@@ -133,6 +136,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             case "proposals" -> handlePostProposal( service, request, response, segments );
             case "nodes" -> handlePostNode( service, request, response, segments );
             case "edges" -> handlePostEdge( service, request, response );
+            case "project-all" -> handleProjectAll( response );
             default -> sendNotFound( response, "Unknown resource: " + resource );
         }
     }
@@ -317,6 +321,43 @@ public class AdminKnowledgeResource extends RestServletBase {
         final KgEdge edge = service.upsertEdge( sourceId, targetId, relType,
                 Provenance.HUMAN_AUTHORED, properties );
         sendJson( response, edgeToMap( edge ) );
+    }
+
+    private void handleProjectAll( final HttpServletResponse response ) throws IOException {
+        final PageManager pm = getEngine().getManager( PageManager.class );
+        final GraphProjector projector = getEngine().getManager( GraphProjector.class );
+        if ( projector == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    "GraphProjector is not available" );
+            return;
+        }
+
+        try {
+            final Collection< ? extends Page > allPages = pm.getAllPages();
+            int scanned = 0;
+            int projected = 0;
+            final List< String > errors = new ArrayList<>();
+            for ( final Page page : allPages ) {
+                scanned++;
+                try {
+                    final String text = pm.getPureText( page );
+                    final ParsedPage parsed = FrontmatterParser.parse( text );
+                    if ( !parsed.metadata().isEmpty() ) {
+                        projector.projectPage( page.getName(), parsed.metadata() );
+                        projected++;
+                    }
+                } catch ( final Exception e ) {
+                    errors.add( page.getName() + ": " + e.getMessage() );
+                }
+            }
+            LOG.info( "Projected {} of {} pages into knowledge graph ({} errors)",
+                    projected, scanned, errors.size() );
+            sendJson( response, Map.of( "scanned", scanned, "projected", projected, "errors", errors ) );
+        } catch ( final Exception e ) {
+            LOG.error( "Failed to project all pages", e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Projection failed: " + e.getMessage() );
+        }
     }
 
     // --- DELETE handlers ---

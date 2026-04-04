@@ -87,7 +87,7 @@ public class CsrfProtectionFilter implements Filter {
 
     static boolean isMcpEndpoint( final HttpServletRequest request ) {
         final String servletPath = request.getServletPath();
-        return "/mcp".equals( servletPath );
+        return "/mcp".equals( servletPath ) || "/knowledge-mcp".equals( servletPath );
     }
 
     /**

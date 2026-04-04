@@ -18,6 +18,10 @@
  */
 package com.wikantik.knowledge;
 
+import com.wikantik.api.core.Context;
+import com.wikantik.api.filters.BasePageFilter;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.knowledge.FrontmatterRelationshipDetector.DetectionResult;
 import org.apache.logging.log4j.LogManager;
@@ -26,11 +30,12 @@ import org.apache.logging.log4j.Logger;
 import java.util.*;
 
 /**
- * Projects wiki page frontmatter into the knowledge graph. Called on every page save
- * that includes frontmatter. Upserts the page's node, resolves relationships to edges,
+ * Projects wiki page frontmatter into the knowledge graph. Registered as a
+ * {@link com.wikantik.api.filters.PageFilter} so it fires on every page save.
+ * Upserts the page's node, resolves relationships to edges,
  * creates stub nodes for unresolved references, and diffs to remove stale edges.
  */
-public class GraphProjector {
+public class GraphProjector extends BasePageFilter {
 
     private static final Logger LOG = LogManager.getLogger( GraphProjector.class );
 
@@ -98,5 +103,22 @@ public class GraphProjector {
         service.diffAndRemoveStaleEdges( pageNode.id(), currentEdges );
 
         LOG.debug( "Projection complete for '{}': {} relationships", pageName, currentEdges.size() );
+    }
+
+    /**
+     * PageFilter callback — projects the saved page's frontmatter into the knowledge graph.
+     */
+    @Override
+    public void postSave( final Context context, final String content ) {
+        try {
+            final String pageName = context.getPage().getName();
+            final ParsedPage parsed = FrontmatterParser.parse( content );
+            if ( !parsed.metadata().isEmpty() ) {
+                projectPage( pageName, parsed.metadata() );
+            }
+        } catch ( final Exception e ) {
+            LOG.warn( "Knowledge graph projection failed for page '{}': {}",
+                    context.getPage().getName(), e.getMessage(), e );
+        }
     }
 }

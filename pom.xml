@@ -157,6 +157,7 @@
     <module>wikantik-http</module>
     <module>wikantik-main</module>
     <module>wikantik-mcp</module>
+    <module>wikantik-knowledge</module>
     <module>wikantik-observability</module>
     <module>wikantik-rest</module>
     <module>wikantik-war</module>

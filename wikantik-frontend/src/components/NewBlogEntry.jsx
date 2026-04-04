@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
+import { titleToSlug } from '../utils/slugUtils';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/article.css';
 import '../styles/admin.css';
@@ -20,9 +21,9 @@ export default function NewBlogEntry() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const strippedTopic = topic.replace(/\s+/g, '');
+    const strippedTopic = titleToSlug(topic);
     if (!strippedTopic) {
-      setError('Topic name cannot be blank');
+      setError('Topic name must contain at least one letter or digit');
       return;
     }
     setSubmitting(true);
@@ -84,7 +85,7 @@ export default function NewBlogEntry() {
             }}
           />
           <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: 'var(--space-xs)' }}>
-            Spaces will be removed to form the page name
+            Title will be converted to a CamelCase page name
           </p>
         </div>
 

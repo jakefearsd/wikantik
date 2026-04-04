@@ -247,6 +247,37 @@ class DefaultBlogManagerTest {
     }
 
     @Test
+    void testCreateEntryWithTrailingDotInTopicName() throws Exception {
+        final Session session = engine.janneSession();
+        blogManager.createBlog( session );
+
+        // A trailing dot in the topic name must NOT produce a double-dot filename (e.g. "Topic..md")
+        final Page entryPage = blogManager.createEntry( session, "ThisisaDamnMess." );
+
+        assertNotNull( entryPage, "createEntry should handle trailing dot in topic name" );
+        final String slug = entryPage.getName().substring( entryPage.getName().lastIndexOf( '/' ) + 1 );
+        assertFalse( slug.endsWith( "." ), "Entry slug should not end with a dot: " + slug );
+
+        final String topicPortion = slug.substring( 8 ); // strip YYYYMMDD prefix
+        assertTrue( topicPortion.matches( "[a-zA-Z0-9]+" ),
+            "Topic portion of slug should be alphanumeric only: " + topicPortion );
+    }
+
+    @Test
+    void testCreateEntryWithMultipleSpecialCharsInTopicName() throws Exception {
+        final Session session = engine.janneSession();
+        blogManager.createBlog( session );
+
+        final Page entryPage = blogManager.createEntry( session, "What!Is?This..." );
+
+        assertNotNull( entryPage );
+        final String slug = entryPage.getName().substring( entryPage.getName().lastIndexOf( '/' ) + 1 );
+        final String topicPortion = slug.substring( 8 );
+        assertTrue( topicPortion.matches( "[a-zA-Z0-9]+" ),
+            "Topic portion should be alphanumeric only after sanitization: " + topicPortion );
+    }
+
+    @Test
     void testDeleteBlogByAdminForDifferentUser() throws Exception {
         // Create blog as janne
         final Session janneSession = engine.janneSession();

@@ -148,6 +148,13 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
             >
               Security
             </Link>
+            <Link
+              to="/admin/knowledge"
+              className="sidebar-link"
+              onClick={onMobileClose}
+            >
+              Knowledge Graph
+            </Link>
           </div>
         )}
 

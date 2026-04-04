@@ -293,4 +293,52 @@ export const api = {
         method: 'DELETE',
       }),
   },
+
+  // Knowledge Graph Administration
+  knowledge: {
+    getSchema: () => request('/admin/knowledge/schema'),
+
+    queryNodes: ({ node_type, name, limit = 50, offset = 0 } = {}) => {
+      const params = new URLSearchParams({ limit, offset });
+      if (node_type) params.set('node_type', node_type);
+      if (name) params.set('name', name);
+      return request(`/admin/knowledge/nodes?${params}`);
+    },
+
+    getNode: (name) =>
+      request(`/admin/knowledge/nodes/${encodeURIComponent(name)}`),
+
+    getEdges: (nodeId, direction = 'both') =>
+      request(`/admin/knowledge/edges/${nodeId}?direction=${direction}`),
+
+    listProposals: (status = 'pending', limit = 50) =>
+      request(`/admin/knowledge/proposals?status=${status}&limit=${limit}`),
+
+    approveProposal: (id) =>
+      request(`/admin/knowledge/proposals/${id}/approve`, { method: 'POST' }),
+
+    rejectProposal: (id, reason) =>
+      request(`/admin/knowledge/proposals/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+
+    upsertNode: (data) =>
+      request('/admin/knowledge/nodes', { method: 'POST', body: JSON.stringify(data) }),
+
+    deleteNode: (id) =>
+      request(`/admin/knowledge/nodes/${id}`, { method: 'DELETE' }),
+
+    mergeNodes: (sourceId, targetId) =>
+      request('/admin/knowledge/nodes/merge', {
+        method: 'POST',
+        body: JSON.stringify({ sourceId, targetId }),
+      }),
+
+    upsertEdge: (data) =>
+      request('/admin/knowledge/edges', { method: 'POST', body: JSON.stringify(data) }),
+
+    deleteEdge: (id) =>
+      request(`/admin/knowledge/edges/${id}`, { method: 'DELETE' }),
+  },
 };

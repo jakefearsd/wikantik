@@ -19,6 +19,7 @@
 package com.wikantik.mcp;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.content.PageRenamer;
 import com.wikantik.api.managers.SystemPageRegistry;
@@ -28,6 +29,7 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.managers.ReferenceManager;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -98,14 +100,14 @@ public class McpToolRegistry {
         final AuditClusterTool auditCluster = new AuditClusterTool( pageManager, referenceManager );
         final AuditCrossClusterTool auditCrossCluster = new AuditCrossClusterTool( pageManager, referenceManager, systemPageRegistry );
 
-        readOnly = List.of(
+        final List< McpTool > readOnlyList = new ArrayList<>( List.of(
                 readPage, searchPages, listPages, getBacklinks, recentChanges,
                 getAttachments, queryMetadata, deletePage, getPageHistory, diffPage,
                 getOutboundLinks, getBrokenLinks, getOrphanedPages, getWikiStats,
                 listMetadataValues, unlockPage, readAttachment, deleteAttachment,
                 scanMarkdownLinks, verifyPages, previewStructuredData, pingSearchEngines,
                 getClusterMap, auditCluster, auditCrossCluster
-        );
+        ) );
 
         // --- Author-configurable tools (need author resolution from MCP exchange) ---
         final WritePageTool writePage = new WritePageTool( pageSaveHelper, systemPageRegistry );
@@ -120,11 +122,22 @@ public class McpToolRegistry {
         final PublishClusterTool publishCluster = new PublishClusterTool( pageSaveHelper, pageManager );
         final ExtendClusterTool extendCluster = new ExtendClusterTool( pageSaveHelper, pageManager );
 
-        authorConfigurable = List.of(
+        final List< McpTool > authorConfigurableList = new ArrayList<>( List.of(
                 writePage, batchWrite, renamePage, uploadAttachment,
                 patchPage, batchPatchPages, updateMetadata, batchUpdateMetadata,
                 applyAuditFixes, publishCluster, extendCluster
-        );
+        ) );
+
+        // --- Knowledge proposal tools (only if KnowledgeGraphService is available) ---
+        final KnowledgeGraphService kgService = engine.getManager( KnowledgeGraphService.class );
+        if ( kgService != null ) {
+            readOnlyList.add( new ListProposalsTool( kgService ) );
+            readOnlyList.add( new ListRejectionsTool( kgService ) );
+            authorConfigurableList.add( new ProposeKnowledgeTool( kgService ) );
+        }
+
+        readOnly = List.copyOf( readOnlyList );
+        authorConfigurable = List.copyOf( authorConfigurableList );
 
         // --- User-configurable tool (lock owner resolution) ---
         lockPage = new LockPageTool( pageManager );

@@ -177,13 +177,21 @@ public class DefaultBlogManager implements BlogManager {
             throw new WikiException( "No blog exists for user: " + username );
         }
 
+        // Sanitize topicName: keep only alphanumeric characters.  Dots survive URL encoding
+        // (TextUtil.urlEncode preserves '.') and cause double-dot filenames like "Topic..md"
+        // when AbstractFileProvider appends the ".md" extension.
+        final String sanitizedTopic = topicName.replaceAll( "[^a-zA-Z0-9]", "" );
+        if ( sanitizedTopic.isEmpty() ) {
+            throw new WikiException( "Topic name must contain at least one alphanumeric character" );
+        }
+
         // Build the entry page name with YYYYMMDD prefix
         final String datePrefix = LocalDate.now().format( DATE_PREFIX_FORMAT );
-        final String entrySlug = datePrefix + topicName;
+        final String entrySlug = datePrefix + sanitizedTopic;
         final String pageName = BlogManager.blogPagePath( username, entrySlug );
 
         // Build frontmatter content
-        final String title = camelCaseToSpaced( topicName );
+        final String title = camelCaseToSpaced( sanitizedTopic );
         final String date = LocalDate.now().format( FRONTMATTER_DATE_FORMAT );
         final String author = session.getLoginPrincipal().getName();
 

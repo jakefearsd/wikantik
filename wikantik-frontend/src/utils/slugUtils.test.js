@@ -49,6 +49,18 @@ describe('titleToSlug', () => {
   it('splits on underscores', () => {
     expect(titleToSlug('some_page_name')).toBe('SomePageName');
   });
+
+  it('strips trailing dots from a title', () => {
+    expect(titleToSlug('This is a Damn Mess.')).toBe('ThisIsADamnMess');
+  });
+
+  it('strips dots from within a title', () => {
+    expect(titleToSlug('hello.world')).toBe('Helloworld');
+  });
+
+  it('strips multiple trailing punctuation characters', () => {
+    expect(titleToSlug('What!Is?This...')).toBe('WhatIsThis');
+  });
 });
 
 describe('isValidSlug', () => {
@@ -94,5 +106,13 @@ describe('isValidSlug', () => {
 
   it('returns false for a slug containing special characters', () => {
     expect(isValidSlug('hello!')).toBe(false);
+  });
+
+  it('returns false for a slug with a trailing dot', () => {
+    expect(isValidSlug('HelloWorld.')).toBe(false);
+  });
+
+  it('returns false for a slug containing dots', () => {
+    expect(isValidSlug('Hello.World')).toBe(false);
   });
 });

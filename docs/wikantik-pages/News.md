@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-04** — docs: update wiki content — news log, blog entries, and page edits
+
 **2026-04-04** — fix(blog): sanitize topic names to prevent double-dot filenames
 
 **2026-04-04** — fix(editor): strip frontmatter from preview pane and fix literal \u2026 in UI

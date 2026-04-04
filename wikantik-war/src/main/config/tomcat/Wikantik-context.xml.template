@@ -56,4 +56,19 @@
               validationQuery="SELECT 1"
               testOnBorrow="true"/>
 
+    <!-- JNDI DataSource for Knowledge Graph (same database) -->
+    <Resource name="jdbc/KnowledgeDatabase"
+              auth="Container"
+              type="javax.sql.DataSource"
+              factory="org.apache.tomcat.dbcp.dbcp2.BasicDataSourceFactory"
+              driverClassName="org.postgresql.Driver"
+              url="jdbc:postgresql://localhost:5432/wikantik"
+              username="wikantik"
+              password="YOUR_SECURE_PASSWORD_HERE"
+              maxTotal="20"
+              maxIdle="10"
+              maxWaitMillis="10000"
+              validationQuery="SELECT 1"
+              testOnBorrow="true"/>
+
 </Context>

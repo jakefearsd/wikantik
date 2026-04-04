@@ -78,5 +78,8 @@ wikantik.policy.datasource = jdbc/GroupDatabase
 # Set this on first deployment, then remove once you have confirmed admin access works.
 # wikantik.admin.bootstrap = admin
 
+# Knowledge graph datasource (same JNDI DataSource, enables knowledge MCP server)
+wikantik.knowledge.datasource = jdbc/KnowledgeDatabase
+
 # Sitemap base URL for HTTPS behind proxy (e.g., cloudflared)
 #wikantik.sitemap.baseURL = https://example.com

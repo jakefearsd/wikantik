@@ -4,11 +4,9 @@ title: The Admin's Rants
 ---
 
 
-
-
 # Welcome to my blog
 
-I'm testing this, and Claude keeps kind of going rouge on me at the moment, so I think this project may have reached a bit beyond what my setup is capable of doing well. This is crap. Really really, crap.
+I'm testing this, and Claude keeps kind of going rouge on me at the moment, so I think this project may have reached a bit beyond what my setup is capable of doing well.
 
 I'm getting ready to throttle Claude at this point :-)
 

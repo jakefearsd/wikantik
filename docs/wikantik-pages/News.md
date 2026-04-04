@@ -6,6 +6,12 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-04** — fix(blog): sanitize topic names to prevent double-dot filenames
+
+**2026-04-04** — fix(editor): strip frontmatter from preview pane and fix literal \u2026 in UI
+
+**2026-04-04** — fix(attachments): use full attachment name for URL generation and remove legacy info icon
+
 **2026-04-04** — feat(attachments): add attachment management UI with drag-and-drop, server-side image rendering, and robust filename validation
 
 **2026-04-03** — docs: add attachment management design spec

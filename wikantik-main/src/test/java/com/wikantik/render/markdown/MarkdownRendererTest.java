@@ -101,7 +101,7 @@ public class MarkdownRendererTest {
     public void testAttachmentLink1() throws Exception {
         newPage( "Hyperlink" );
         // With allowHTML=true (the default), raw HTML in link text is preserved
-        final String expected = "<p>This should be a <a href=\"/test/attach/Link%20%3Cstrong%3Ebold%3C/strong%3E\" class=\"attachment\">Link <strong>bold</strong></a><a href=\"/test/PageInfo.jsp?page=Link%20%3Cstrong%3Ebold%3C/strong%3E\" class=\"infolink\"><img src=\"/test/images/attachment_small.png\" border=\"0\" alt=\"(info)\" /></a></p>\n";
+        final String expected = "<p>This should be a <a href=\"/test/attach/Link%20%3Cstrong%3Ebold%3C/strong%3E\" class=\"attachment\">Link <strong>bold</strong></a></p>\n";
         Assertions.assertEquals( expected, translate( "This should be a [Link <strong>bold</strong>]()" ) );
     }
 
@@ -324,11 +324,22 @@ public class MarkdownRendererTest {
         att.setAuthor( "FirstPost" );
         testEngine.getManager( AttachmentManager.class ).storeAttachment( att, testEngine.makeAttachmentFile() );
 
-        Assertions.assertEquals( "<p>This should be an <a href=\"/test/attach/Test/TestAtt.txt\" class=\"attachment\">attachment link</a>" +
-                                 "<a href=\"/test/PageInfo.jsp?page=Test/TestAtt.txt\" class=\"infolink\">" +
-                                   "<img src=\"/test/images/attachment_small.png\" border=\"0\" alt=\"(info)\" />" +
-                                 "</a></p>\n",
+        Assertions.assertEquals( "<p>This should be an <a href=\"/test/attach/Test/TestAtt.txt\" class=\"attachment\">attachment link</a></p>\n",
                                  translate( src ) );
+    }
+
+    @Test
+    public void testAttachmentLinkBareFilename() throws Exception {
+        final String src = "Download the [report](TestAtt.txt)";
+        newPage( "Test" );
+
+        final Attachment att = Wiki.contents().attachment( testEngine, "Test", "TestAtt.txt" );
+        att.setAuthor( "FirstPost" );
+        testEngine.getManager( AttachmentManager.class ).storeAttachment( att, testEngine.makeAttachmentFile() );
+
+        final Page p = Wiki.contents().page( testEngine, "Test" );
+        Assertions.assertEquals( "<p>Download the <a href=\"/test/attach/Test/TestAtt.txt\" class=\"attachment\">report</a></p>\n",
+                                 translate( p, src ) );
     }
 
     @Test

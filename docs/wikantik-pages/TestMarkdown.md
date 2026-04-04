@@ -1,9 +1,10 @@
 ---
 type: article
-tags:
-- uncategorized
+tags: uncategorized, stuff, bullshit
 summary: This is a test page written in Markdown syntax.
 ---
+
+[Example PDF download](paymenttosandiegogov.pdf)
 
 
 1. Heading 1 - Markdown Test

@@ -30,7 +30,7 @@ import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.auth.GroupPrincipal;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,17 +64,17 @@ class CommandResolverTest {
     void testFindStaticWikiAction() {
         // If we look for action with "edit" request context, we get EDIT action
         Command a = CommandResolver.findCommand( ContextEnum.PAGE_EDIT.getRequestContext() );
-        Assertions.assertEquals( PageCommand.EDIT, a );
+        Assertions.assertEquals( GenericCommand.PAGE_EDIT, a );
         Assertions.assertEquals( ContextEnum.PAGE_EDIT.getRequestContext(), a.getRequestContext() );
 
         // Ditto for prefs context
         a = CommandResolver.findCommand( ContextEnum.WIKI_PREFS.getRequestContext() );
-        Assertions.assertEquals( WikiCommand.PREFS, a );
+        Assertions.assertEquals( GenericCommand.WIKI_PREFS, a );
         Assertions.assertEquals( ContextEnum.WIKI_PREFS.getRequestContext(), a.getRequestContext() );
 
         // Ditto for group view context
         a = CommandResolver.findCommand( ContextEnum.GROUP_VIEW.getRequestContext() );
-        Assertions.assertEquals( GroupCommand.VIEW_GROUP, a );
+        Assertions.assertEquals( GenericCommand.GROUP_VIEW, a );
         Assertions.assertEquals( ContextEnum.GROUP_VIEW.getRequestContext(), a.getRequestContext() );
 
         // Looking for non-existent context; should result in exception
@@ -87,7 +87,7 @@ class CommandResolverTest {
 
         // Passing an EDIT request with no explicit page params means the EDIT action
         Command a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
-        Assertions.assertEquals( PageCommand.EDIT, a );
+        Assertions.assertEquals( GenericCommand.PAGE_EDIT, a );
         Assertions.assertEquals( "EditContent", a.getContentTemplate() );
         Assertions.assertEquals( "edit/", a.getRoutePath() );
         Assertions.assertEquals( "%uedit/%n", a.getURLPattern() );
@@ -95,12 +95,12 @@ class CommandResolverTest {
 
         // Ditto for prefs context
         a = resolver.findCommand( request, ContextEnum.WIKI_PREFS.getRequestContext() );
-        Assertions.assertEquals( WikiCommand.PREFS, a );
+        Assertions.assertEquals( GenericCommand.WIKI_PREFS, a );
         Assertions.assertNull( a.getTarget() );
 
         // Ditto for group view context
         a = resolver.findCommand( request, ContextEnum.GROUP_VIEW.getRequestContext() );
-        Assertions.assertEquals( GroupCommand.VIEW_GROUP, a );
+        Assertions.assertEquals( GenericCommand.GROUP_VIEW, a );
         Assertions.assertNull( a.getTarget() );
 
         Assertions.assertThrows( IllegalArgumentException.class, () -> resolver.findCommand( HttpMockFactory.createHttpRequest( "" ), "nonExistentContext" ) );
@@ -108,21 +108,21 @@ class CommandResolverTest {
         // Request for "/preferences" should resolve to PREFS action
         request = HttpMockFactory.createHttpRequest( "/preferences" );
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
-        Assertions.assertEquals( WikiCommand.PREFS, a );
+        Assertions.assertEquals( GenericCommand.WIKI_PREFS, a );
         Assertions.assertNull( a.getTarget() );
 
         // Request for "/new-group" should resolve to CREATE_GROUP action
         // but targeted at the wiki
         request = HttpMockFactory.createHttpRequest( "/new-group" );
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
-        Assertions.assertNotSame( WikiCommand.CREATE_GROUP, a );
-        Assertions.assertEquals( WikiCommand.CREATE_GROUP.getRequestContext(), a.getRequestContext() );
+        Assertions.assertNotSame( GenericCommand.WIKI_CREATE_GROUP, a );
+        Assertions.assertEquals( GenericCommand.WIKI_CREATE_GROUP.getRequestContext(), a.getRequestContext() );
         Assertions.assertEquals( m_engine.getApplicationName(), a.getTarget() );
 
         // But request for path not mapped to action should get default
         request = HttpMockFactory.createHttpRequest( "/nonexistent" );
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
-        Assertions.assertEquals( PageCommand.EDIT, a );
+        Assertions.assertEquals( GenericCommand.PAGE_EDIT, a );
         Assertions.assertNull( a.getTarget() );
     }
 
@@ -134,7 +134,7 @@ class CommandResolverTest {
         HttpServletRequest request = HttpMockFactory.createHttpRequest( "/edit/SinglePage" );
         Mockito.doReturn( "SinglePage" ).when( request ).getParameter( "page" );
         Command a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
-        Assertions.assertNotSame( PageCommand.EDIT, a );
+        Assertions.assertNotSame( GenericCommand.PAGE_EDIT, a );
         Assertions.assertEquals( "EditContent", a.getContentTemplate() );
         Assertions.assertEquals( "edit/", a.getRoutePath() );
         Assertions.assertEquals( "%uedit/%n", a.getURLPattern() );
@@ -144,7 +144,7 @@ class CommandResolverTest {
         request = HttpMockFactory.createHttpRequest( "/edit/Search" );
         Mockito.doReturn( "Search" ).when( request ).getParameter( "page" );
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
-        Assertions.assertEquals( WikiCommand.FIND, a );
+        Assertions.assertEquals( GenericCommand.WIKI_FIND, a );
         Assertions.assertEquals( "FindContent", a.getContentTemplate() );
         Assertions.assertEquals( "search", a.getRoutePath() );
         Assertions.assertEquals( "%usearch", a.getURLPattern() );
@@ -154,7 +154,7 @@ class CommandResolverTest {
         request = HttpMockFactory.createHttpRequest( "/group?group=Foo" );
         Mockito.doReturn( "Foo" ).when( request ).getParameter( "group" );
         a = resolver.findCommand( request, ContextEnum.GROUP_VIEW.getRequestContext() );
-        Assertions.assertNotSame( GroupCommand.VIEW_GROUP, a );
+        Assertions.assertNotSame( GenericCommand.GROUP_VIEW, a );
         Assertions.assertEquals( "GroupContent", a.getContentTemplate() );
         Assertions.assertEquals( "group", a.getRoutePath() );
         Assertions.assertEquals( "%ugroup?group=%n", a.getURLPattern() );
@@ -172,13 +172,13 @@ class CommandResolverTest {
         // Passing a request with group route path yields VIEW_GROUP
         request = HttpMockFactory.createHttpRequest( "/group" );
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
-        Assertions.assertEquals( GroupCommand.VIEW_GROUP, a );
+        Assertions.assertEquals( GenericCommand.GROUP_VIEW, a );
         Assertions.assertNull( a.getTarget() );
 
         // Passing a request with preferences route path yields PREFS
         request = HttpMockFactory.createHttpRequest( "/preferences" );
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
-        Assertions.assertEquals( WikiCommand.PREFS, a );
+        Assertions.assertEquals( GenericCommand.WIKI_PREFS, a );
         Assertions.assertNull( a.getTarget() );
     }
 

@@ -29,7 +29,7 @@ import com.wikantik.api.exceptions.FilterException;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.providers.PageProvider;
-import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.UserManager;
@@ -38,11 +38,11 @@ import com.wikantik.cache.CachingManager;
 import com.wikantik.event.WikiEngineEvent;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.filters.FilterManager;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.parser.WikiDocument;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.ui.CommandResolver;
-import com.wikantik.ui.PageCommand;
+import com.wikantik.ui.GenericCommand;
 import com.wikantik.variables.VariableManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -95,7 +95,7 @@ class DefaultRenderingManagerCITest {
         commandResolver = mock( CommandResolver.class );
 
         // CommandResolver must return a valid PageCommand so WikiContext construction works
-        when( commandResolver.findCommand( any(), anyString() ) ).thenReturn( PageCommand.VIEW );
+        when( commandResolver.findCommand( any(), anyString() ) ).thenReturn( GenericCommand.PAGE_VIEW );
 
         engine = MockEngineBuilder.engine()
                 .with( CachingManager.class, cachingManager )

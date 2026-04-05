@@ -24,7 +24,7 @@ import com.wikantik.api.core.Command;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,7 +73,7 @@ class DefaultCommandResolverTest {
     @Test
     void findCommandWithNullRequestReturnsStaticCommand() {
         final Command cmd = resolver.findCommand( null, ContextEnum.PAGE_EDIT.getRequestContext() );
-        assertEquals( PageCommand.EDIT, cmd );
+        assertEquals( GenericCommand.PAGE_EDIT, cmd );
     }
 
     @Test
@@ -221,7 +221,7 @@ class DefaultCommandResolverTest {
     }
 
     // -----------------------------------------------------------------------
-    // WikiCommand.CREATE_GROUP targeting
+    // GenericCommand.WIKI_CREATE_GROUP targeting
     // -----------------------------------------------------------------------
 
     @Test
@@ -229,7 +229,7 @@ class DefaultCommandResolverTest {
         final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/new-group" );
         final Command cmd = resolver.findCommand( req, ContextEnum.PAGE_EDIT.getRequestContext() );
         assertNotNull( cmd );
-        assertEquals( WikiCommand.CREATE_GROUP.getRequestContext(), cmd.getRequestContext() );
+        assertEquals( GenericCommand.WIKI_CREATE_GROUP.getRequestContext(), cmd.getRequestContext() );
         assertEquals( engine.getApplicationName(), cmd.getTarget() );
     }
 }

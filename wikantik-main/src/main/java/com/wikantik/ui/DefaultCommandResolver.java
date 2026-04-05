@@ -28,7 +28,7 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.GroupPrincipal;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.url.URLConstructor;
 import com.wikantik.util.TextUtil;
@@ -96,7 +96,7 @@ public class DefaultCommandResolver implements CommandResolver {
                     routePath = routePath.trim();
                     Command command = ROUTES.get( routePath );
                     if ( command == null ) {
-                        final Command redirect = RedirectCommand.REDIRECT;
+                        final Command redirect = GenericCommand.REDIRECT;
                         command = redirect.targetedCommand( routePath );
                     }
                     specialPages.put( specialPage, command );
@@ -142,7 +142,7 @@ public class DefaultCommandResolver implements CommandResolver {
         }
 
         // For PageCommand.VIEW, default to front page if a page wasn't supplied
-        if( PageCommand.VIEW.equals( command ) && pageName == null ) {
+        if( GenericCommand.PAGE_VIEW.equals( command ) && pageName == null ) {
             pageName = engine.getFrontPage();
         }
 
@@ -157,8 +157,8 @@ public class DefaultCommandResolver implements CommandResolver {
 
         // If "create group" command, target this wiki
         final String wiki = engine.getApplicationName();
-        if ( WikiCommand.CREATE_GROUP.equals( command ) ) {
-            return WikiCommand.CREATE_GROUP.targetedCommand( wiki );
+        if ( GenericCommand.WIKI_CREATE_GROUP.equals( command ) ) {
+            return GenericCommand.WIKI_CREATE_GROUP.targetedCommand( wiki );
         }
 
         // If group command, see if we were passed a group name

@@ -33,11 +33,9 @@ import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.user.UserDatabase;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.ui.CommandResolver;
 import com.wikantik.ui.GenericCommand;
-import com.wikantik.ui.PageCommand;
-import com.wikantik.ui.WikiCommand;
 import com.wikantik.util.TextUtil;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -225,7 +223,7 @@ public class WikiContext implements Context, Command {
         this.realPage = this.page;
 
         // Special case: retarget any empty 'view' PageCommands to the front page
-        if ( PageCommand.VIEW.equals( command ) && command.getTarget() == null ) {
+        if ( GenericCommand.PAGE_VIEW.equals( command ) && command.getTarget() == null ) {
             this.command = command.targetedCommand( this.page );
         }
 
@@ -692,7 +690,7 @@ public class WikiContext implements Context, Command {
     @Override
     public Permission requiredPermission() {
         // This is a filthy rotten hack -- absolutely putrid
-        if ( WikiCommand.INSTALL.equals( command ) ) {
+        if ( GenericCommand.WIKI_INSTALL.equals( command ) ) {
             // See if admin users exists
             try {
                 final UserManager userMgr = engine.getManager( UserManager.class );
@@ -803,7 +801,7 @@ public class WikiContext implements Context, Command {
      */
     protected void updateCommand( final String requestContext ) {
         if ( requestContext == null ) {
-            command = PageCommand.NONE;
+            command = GenericCommand.PAGE_NONE;
         } else {
             command = commandResolver.findCommand( request, requestContext );
         }

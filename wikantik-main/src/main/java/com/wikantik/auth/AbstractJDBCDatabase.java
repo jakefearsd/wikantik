@@ -41,6 +41,12 @@ import java.sql.SQLException;
  */
 public abstract class AbstractJDBCDatabase {
 
+    /** Property name for the single shared JNDI DataSource. */
+    public static final String PROP_DATASOURCE = "wikantik.datasource";
+
+    /** Default JNDI name for the shared DataSource. */
+    public static final String DEFAULT_DATASOURCE = "jdbc/WikiDatabase";
+
     private static final Logger LOG = LogManager.getLogger( AbstractJDBCDatabase.class );
 
     /** The JDBC DataSource obtained via JNDI. */

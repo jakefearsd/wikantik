@@ -269,7 +269,7 @@ public class TestEngine extends WikiEngine {
 
     public static Properties getTestProperties() {
         if( combinedProperties == null ) {
-            combinedProperties = PropertyReader.getCombinedProperties(PropertyReader.CUSTOM_JSPWIKI_CONFIG);
+            combinedProperties = PropertyReader.getCombinedProperties(PropertyReader.CUSTOM_WIKANTIK_CONFIG);
         }
         // better to make a copy via putAll instead of Properties(properties)
         // constructor, see http://stackoverflow.com/a/2004900

@@ -57,12 +57,12 @@ public final class PropertyReader {
      * Path to the base property file, {@value}, usually overridden by values provided in
      * a wikantik-custom.properties file.
      */
-    public static final String DEFAULT_JSPWIKI_CONFIG = "/ini/wikantik.properties";
+    public static final String DEFAULT_WIKANTIK_CONFIG = "/ini/wikantik.properties";
 
     /**
      * The servlet context parameter (from web.xml)  that defines where the config file is to be found. If it is not defined, checks
      * the Java System Property, if that is not defined either, uses the default as defined by DEFAULT_PROPERTYFILE.
-     * {@value #DEFAULT_JSPWIKI_CONFIG}
+     * {@value #DEFAULT_WIKANTIK_CONFIG}
      */
     public static final String PARAM_CUSTOMCONFIG = "wikantik.custom.config";
 
@@ -73,7 +73,7 @@ public final class PropertyReader {
      */
     public static final String PARAM_CUSTOMCONFIG_CASCADEPREFIX = "wikantik.custom.cascade.";
 
-    public static final String  CUSTOM_JSPWIKI_CONFIG = "/wikantik-custom.properties";
+    public static final String  CUSTOM_WIKANTIK_CONFIG = "/wikantik-custom.properties";
 
     private static final String PARAM_VAR_DECLARATION = "var.";
     private static final String PARAM_VAR_IDENTIFIER  = "$";
@@ -188,9 +188,9 @@ public final class PropertyReader {
     static InputStream loadCustomPropertiesFile( final ServletContext context, final String propertyFile ) throws IOException {
         final InputStream propertyStream;
         if( propertyFile == null ) {
-            LOG.debug( "No " + PARAM_CUSTOMCONFIG + " defined for this context, looking for custom properties file with default name of: " + CUSTOM_JSPWIKI_CONFIG );
+            LOG.debug( "No " + PARAM_CUSTOMCONFIG + " defined for this context, looking for custom properties file with default name of: " + CUSTOM_WIKANTIK_CONFIG );
             //  Use the custom property file at the default location
-            propertyStream =  locateClassPathResource(context, CUSTOM_JSPWIKI_CONFIG);
+            propertyStream =  locateClassPathResource(context, CUSTOM_WIKANTIK_CONFIG);
         } else {
             LOG.debug( PARAM_CUSTOMCONFIG + " defined, using " + propertyFile + " as the custom properties file." );
             propertyStream = Files.newInputStream( new File(propertyFile).toPath() );
@@ -206,12 +206,12 @@ public final class PropertyReader {
      */
     public static Properties getDefaultProperties() {
         final Properties props = new Properties();
-        try( final InputStream in = PropertyReader.class.getResourceAsStream( DEFAULT_JSPWIKI_CONFIG ) ) {
+        try( final InputStream in = PropertyReader.class.getResourceAsStream( DEFAULT_WIKANTIK_CONFIG ) ) {
             if( in != null ) {
                 props.load( in );
             }
         } catch( final IOException e ) {
-            LOG.error( "Unable to load default propertyfile '{}' {}", DEFAULT_JSPWIKI_CONFIG, e.getMessage(), e );
+            LOG.error( "Unable to load default propertyfile '{}' {}", DEFAULT_WIKANTIK_CONFIG, e.getMessage(), e );
         }
 
         return props;

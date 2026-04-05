@@ -43,7 +43,7 @@ class MailUtilTest  {
 
     @BeforeAll
     static void setUp() {
-        m_props = PropertyReader.getCombinedProperties( PropertyReader.CUSTOM_JSPWIKI_CONFIG );
+        m_props = PropertyReader.getCombinedProperties( PropertyReader.CUSTOM_WIKANTIK_CONFIG );
     }
 
     /**

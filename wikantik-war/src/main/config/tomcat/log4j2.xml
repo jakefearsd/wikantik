@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration status="WARN" name="JSPWiki-Production">
+<Configuration status="WARN" name="Wikantik-Production">
     <Properties>
-        <Property name="logDir">/var/log/jspwiki</Property>
+        <Property name="logDir">/var/log/wikantik</Property>
         <Property name="pattern">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
     </Properties>
 
@@ -12,7 +12,7 @@
         </Console>
 
         <!-- Main application log with daily rotation -->
-        <RollingFile name="AppLog" fileName="${logDir}/jspwiki.log" filePattern="${logDir}/jspwiki-%d{yyyy-MM-dd}-%i.log.gz">
+        <RollingFile name="AppLog" fileName="${logDir}/wikantik.log" filePattern="${logDir}/wikantik-%d{yyyy-MM-dd}-%i.log.gz">
             <PatternLayout pattern="${pattern}"/>
             <Policies>
                 <TimeBasedTriggeringPolicy interval="1"/>
@@ -40,7 +40,7 @@
     </Appenders>
 
     <Loggers>
-        <!-- JSPWiki core -->
+        <!-- Wikantik core -->
         <Logger name="com.wikantik" level="INFO" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="AppLog"/>

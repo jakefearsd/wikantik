@@ -39,9 +39,8 @@ wikantik.workDir                    = @@REPO_ROOT@@/tomcat/tomcat-11/data/workdi
 wikantik.userdatabase  = com.wikantik.auth.user.JDBCUserDatabase
 wikantik.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 
-# JNDI DataSource names (must match context.xml Resource names)
-wikantik.userdatabase.datasource = jdbc/UserDatabase
-wikantik.groupdatabase.datasource = jdbc/GroupDatabase
+# JNDI DataSource name (must match context.xml Resource name)
+wikantik.datasource = jdbc/WikiDatabase
 
 # User database table/column mappings (match postgresql.ddl)
 wikantik.userdatabase.table = users
@@ -68,18 +67,9 @@ wikantik.groupdatabase.member = member
 wikantik.groupdatabase.modified = modified
 wikantik.groupdatabase.modifier = modifier
 
-# Database-backed security policy (replaces wikantik.policy file)
-# Set this to use the same JNDI DataSource as the wiki database.
-# When set, policy grants are read from the policy_grants table.
-# When not set, the file-based wikantik.policy is used (legacy behavior).
-wikantik.policy.datasource = jdbc/GroupDatabase
-
 # Bootstrap admin override — ensures the named user always has AllPermission.
 # Set this on first deployment, then remove once you have confirmed admin access works.
 # wikantik.admin.bootstrap = admin
-
-# Knowledge graph datasource (same JNDI DataSource, enables knowledge MCP server)
-wikantik.knowledge.datasource = jdbc/KnowledgeDatabase
 
 # Sitemap base URL for HTTPS behind proxy (e.g., cloudflared)
 #wikantik.sitemap.baseURL = https://example.com

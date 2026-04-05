@@ -21,7 +21,7 @@ package com.wikantik.stress;
 import com.wikantik.TestEngine;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.providers.WikiProvider;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.util.TextUtil;
 import org.junit.jupiter.api.AfterEach;

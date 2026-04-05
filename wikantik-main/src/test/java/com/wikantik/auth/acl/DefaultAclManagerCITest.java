@@ -30,7 +30,7 @@ import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.permissions.PermissionFactory;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

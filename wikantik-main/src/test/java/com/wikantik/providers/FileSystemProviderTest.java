@@ -23,7 +23,7 @@ import com.wikantik.TestEngine;
 import com.wikantik.WikiPage;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.util.FileUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;

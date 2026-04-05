@@ -24,7 +24,7 @@ import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.modules.WikiModuleInfo;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

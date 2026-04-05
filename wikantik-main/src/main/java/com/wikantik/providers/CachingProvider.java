@@ -32,7 +32,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.cache.CacheInfo;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.content.NewsPageGenerator;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.util.ClassUtil;

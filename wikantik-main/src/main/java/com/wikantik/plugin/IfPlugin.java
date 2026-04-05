@@ -25,7 +25,7 @@ import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.auth.AuthorizationManager;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.util.HttpUtil;
 import com.wikantik.util.TextUtil;

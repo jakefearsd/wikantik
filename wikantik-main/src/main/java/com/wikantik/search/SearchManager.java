@@ -24,7 +24,7 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.filters.PageFilter;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.event.WikiEventListener;
-import com.wikantik.modules.InternalModule;
+import com.wikantik.api.modules.InternalModule;
 
 import java.io.IOException;
 import java.util.Collection;

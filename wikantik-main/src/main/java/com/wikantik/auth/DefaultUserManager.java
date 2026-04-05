@@ -40,7 +40,7 @@ import com.wikantik.filters.FilterManager;
 import com.wikantik.filters.SpamFilter;
 import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.api.core.ContextEnum;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.ui.InputValidator;
 import com.wikantik.util.ClassUtil;

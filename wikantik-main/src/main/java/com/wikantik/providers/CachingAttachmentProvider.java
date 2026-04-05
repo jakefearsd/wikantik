@@ -29,7 +29,7 @@ import com.wikantik.api.providers.AttachmentProvider;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.search.QueryItem;
-import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.cache.CacheInfo;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.util.ClassUtil;

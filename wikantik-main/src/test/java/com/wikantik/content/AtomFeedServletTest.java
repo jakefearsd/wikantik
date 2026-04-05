@@ -20,7 +20,7 @@ package com.wikantik.content;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

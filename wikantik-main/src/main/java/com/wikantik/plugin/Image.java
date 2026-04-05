@@ -25,7 +25,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.plugin.Plugin;
-import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.util.TextUtil;
 

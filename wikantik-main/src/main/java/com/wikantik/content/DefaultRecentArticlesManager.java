@@ -25,7 +25,8 @@ import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.attachment.Attachment;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.util.TextUtil;
 

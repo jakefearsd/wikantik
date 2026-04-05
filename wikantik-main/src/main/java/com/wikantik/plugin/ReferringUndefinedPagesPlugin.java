@@ -22,7 +22,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.preferences.Preferences;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.util.TextUtil;
 
 import java.text.MessageFormat;

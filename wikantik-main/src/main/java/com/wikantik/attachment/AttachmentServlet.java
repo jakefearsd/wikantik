@@ -38,6 +38,7 @@ import org.apache.commons.fileupload2.core.ProgressListener;
 import org.apache.commons.fileupload2.jakarta.servlet6.JakartaServletFileUpload;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;

@@ -24,8 +24,8 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.pages.PageManager;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 

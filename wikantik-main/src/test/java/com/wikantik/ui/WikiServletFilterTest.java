@@ -20,7 +20,7 @@ package com.wikantik.ui;
 
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Page;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.util.HttpUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;

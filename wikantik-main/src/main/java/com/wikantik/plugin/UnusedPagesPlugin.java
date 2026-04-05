@@ -20,7 +20,7 @@ package com.wikantik.plugin;
 
 import com.wikantik.api.core.Context;
 import com.wikantik.api.exceptions.PluginException;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.util.TextUtil;
 
 import java.util.Collection;

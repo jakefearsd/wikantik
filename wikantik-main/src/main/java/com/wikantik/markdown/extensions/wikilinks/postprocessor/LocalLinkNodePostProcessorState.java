@@ -23,7 +23,7 @@ import com.vladsch.flexmark.util.ast.NodeTracker;
 import com.vladsch.flexmark.util.sequence.CharSubSequence;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
-import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.markdown.extensions.wikilinks.AbstractLinkState;
 import com.wikantik.markdown.nodes.WikantikLink;
 import com.wikantik.parser.MarkupParser;

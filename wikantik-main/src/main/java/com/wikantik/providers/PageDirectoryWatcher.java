@@ -30,7 +30,7 @@ import com.wikantik.cache.CachingManager;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.filters.FilterManager;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.search.SearchManager;
 
 import java.io.File;

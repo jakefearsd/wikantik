@@ -19,7 +19,7 @@
 package com.wikantik.test;
 
 import com.wikantik.api.core.Engine;
-import com.wikantik.content.SystemPageRegistry;
+import com.wikantik.api.managers.SystemPageRegistry;
 
 import java.util.HashSet;
 import java.util.Properties;

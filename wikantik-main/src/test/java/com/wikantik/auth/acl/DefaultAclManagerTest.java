@@ -27,7 +27,7 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.permissions.PermissionFactory;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;

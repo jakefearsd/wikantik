@@ -22,7 +22,7 @@ import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;

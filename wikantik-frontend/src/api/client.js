@@ -1,5 +1,8 @@
 const BASE = '';
 
+/* global __BUILD_VERSION__ */
+let versionMismatchSignaled = false;
+
 async function request(path, options = {}) {
   const { signal, ...rest } = options;
   const resp = await fetch(`${BASE}${path}`, {
@@ -8,6 +11,16 @@ async function request(path, options = {}) {
     signal,
     ...rest,
   });
+
+  // Detect server redeployment via build version header
+  if (!versionMismatchSignaled && typeof __BUILD_VERSION__ !== 'undefined') {
+    const serverVersion = resp.headers.get('X-Build-Version');
+    if (serverVersion && serverVersion !== __BUILD_VERSION__) {
+      versionMismatchSignaled = true;
+      window.dispatchEvent(new CustomEvent('wikantik:version-mismatch', { detail: { serverVersion } }));
+    }
+  }
+
   if (!resp.ok) {
     const body = await resp.json().catch(() => ({ message: resp.statusText }));
     throw Object.assign(new Error(body.message || resp.statusText), { status: resp.status, body });

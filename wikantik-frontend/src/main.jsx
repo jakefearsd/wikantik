@@ -55,3 +55,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </AuthProvider>
   </React.StrictMode>
 );
+
+// App rendered successfully — clear the stale-asset reload flag so that
+// the next deploy can trigger a fresh reload if needed.
+sessionStorage.removeItem('__wikantik_reload');

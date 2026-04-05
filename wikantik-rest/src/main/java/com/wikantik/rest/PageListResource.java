@@ -115,24 +115,4 @@ public class PageListResource extends RestServletBase {
         sendJson( response, result );
     }
 
-    /**
-     * Parses an integer query parameter with a default value.
-     *
-     * @param request      the HTTP request
-     * @param paramName    the parameter name
-     * @param defaultValue the default value if the parameter is missing or invalid
-     * @return the parsed value or the default
-     */
-    private int parseIntParam( final HttpServletRequest request, final String paramName, final int defaultValue ) {
-        final String value = request.getParameter( paramName );
-        if ( value == null ) {
-            return defaultValue;
-        }
-        try {
-            return Integer.parseInt( value );
-        } catch ( final NumberFormatException e ) {
-            return defaultValue;
-        }
-    }
-
 }

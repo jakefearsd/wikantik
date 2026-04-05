@@ -57,15 +57,7 @@ public class RecentChangesResource extends RestServletBase {
 
         LOG.debug( "GET recent changes" );
 
-        int limit = DEFAULT_LIMIT;
-        final String limitParam = request.getParameter( "limit" );
-        if ( limitParam != null ) {
-            try {
-                limit = Integer.parseInt( limitParam );
-            } catch ( final NumberFormatException e ) {
-                // use default
-            }
-        }
+        int limit = parseIntParam( request, "limit", DEFAULT_LIMIT );
         limit = Math.min( limit, MAX_LIMIT );
         limit = Math.max( limit, 1 );
 

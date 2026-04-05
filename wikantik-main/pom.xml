@@ -392,6 +392,7 @@
                             <goal>run</goal>
                         </goals>
                         <configuration>
+                            <contextFolder>${project.basedir}/src/main/</contextFolder>
                             <extraConfigFile>${project.basedir}/src/main/javascript/wro.properties</extraConfigFile>
                             <jsDestinationFolder>${project.build.outputDirectory}/META-INF/resources/plain/
                             </jsDestinationFolder>

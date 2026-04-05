@@ -98,91 +98,6 @@
     <build>
         <finalName>Wikantik</finalName>
         <plugins>
-            <!-- wro4j Web Resource Optimizer for Java (http://http://code.google.com/p/wro4j/)
-              Merge and compress CSS and JS files using the WRO4J.
-              - use UglifyJS for JS compression
-              - use Less as advanced CSS preprocessor
-            -->
-            <plugin>
-                <groupId>ro.isdc.wro4j</groupId>
-                <artifactId>wro4j-maven-plugin</artifactId>
-                <executions>
-                    <!-- HADDOCK template -->
-                    <execution>
-                        <id>buildHaddockJsAndCss</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                        <configuration>
-                            <cssDestinationFolder>${project.build.directory}/generated-sources/wro/templates/default/
-                            </cssDestinationFolder>
-                            <wroFile>src/main/config/wro/wro-haddock.xml</wroFile>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- Compress certain CSS and JS files using the YUICompressor
-               (http://alchim.sourceforge.net/yuicompressor-maven-plugin/)
-            <plugin>
-              <groupId>net.alchim31.maven</groupId>
-              <artifactId>yuicompressor-maven-plugin</artifactId>
-              <executions>
-                <execution>
-                  <id>compressJSfiles</id>
-                  <goals>
-                    <goal>compress</goal>
-                  </goals>
-                </execution>
-              </executions>
-              <configuration>
-                <excludeResources>true</excludeResources>
-                <nosuffix>true</nosuffix>
-                <webappDirectory>${project.build.directory}/generated-sources/yuicompress</webappDirectory>
-                *** relying on jslint-maven-plugin instead, which allows
-                     better customization ***
-                <jswarn>false</jswarn>
-              </configuration>
-            </plugin>
-            -->
-
-            <!-- JSLint plugin removed: legacy scripts/ directory deleted with JSP UI
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>jslint-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>checkWikantikFiles</id>
-                        <goals>
-                            <goal>jslint</goal>
-                        </goals>
-                        <configuration>
-                            <sourceJsFolder>src/main/webapp/scripts</sourceJsFolder>
-                            <failOnIssues>false</failOnIssues>
-                            <excludes>
-                                <exclude>prettify.js</exclude>
-                            </excludes>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>checkThirdParty</id>
-                        <goals>
-                            <goal>jslint</goal>
-                        </goals>
-                        <configuration>
-                            <sourceJsFolder>src/main/webapp/scripts</sourceJsFolder>
-                            <failOnIssues>false</failOnIssues>
-                            <includes>
-                                <include>prettify.js</include>
-                            </includes>
-                            <allowOneVarStatementPerFunction>false</allowOneVarStatementPerFunction>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            -->
-
             <!-- Build React frontend (npm install + npm run build) -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -223,14 +138,6 @@
                 <artifactId>maven-war-plugin</artifactId>
                 <configuration>
                     <webResources>
-                        <!-- Output directory configured above with the YUICompressor Maven plugin
-                        <resource>
-                          <directory>${project.build.directory}/generated-sources/yuicompress</directory>
-                        </resource>
-                        -->
-                        <resource>
-                            <directory>${project.build.directory}/generated-sources/wro</directory>
-                        </resource>
                         <resource>
                             <directory>src/main/styles/static</directory>
                         </resource>

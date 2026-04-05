@@ -301,6 +301,23 @@ class AdminKnowledgeResourceTest {
         assertTrue( statuses.size() >= 2, "Should have at least 2 status values" );
     }
 
+    @Test
+    void testListNodesFiltersByStatus() throws Exception {
+        final KnowledgeGraphService service = engine.getManager( KnowledgeGraphService.class );
+        service.upsertNode( "DeployedPage", "article", "DeployedPage.md",
+                Provenance.HUMAN_AUTHORED, Map.of( "status", "deployed" ) );
+        service.upsertNode( "DesignedPage", "article", "DesignedPage.md",
+                Provenance.HUMAN_AUTHORED, Map.of( "status", "designed" ) );
+
+        final String json = doGetWithParams( "/nodes",
+                Map.of( "status", "deployed", "limit", "50" ) );
+        final JsonObject result = gson.fromJson( json, JsonObject.class );
+        assertFalse( result.has( "error" ), "Should not be an error: " + json );
+        final JsonArray nodes = result.getAsJsonArray( "nodes" );
+        assertEquals( 1, nodes.size(), "Should find only the deployed node" );
+        assertEquals( "DeployedPage", nodes.get( 0 ).getAsJsonObject().get( "name" ).getAsString() );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pathInfo ) throws Exception {

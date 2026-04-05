@@ -188,8 +188,9 @@ public class AdminKnowledgeResource extends RestServletBase {
                 sendNotFound( response, "Node not found: " + name );
             } else {
                 final Map< String, Object > result = nodeToMap( node );
-                result.put( "edges", service.getEdgesForNode( node.id(), "both" ).stream()
-                        .map( this::edgeToMap ).toList() );
+                final List< KgEdge > edges = service.getEdgesForNode( node.id(), "both" );
+                final Map< UUID, String > nameMap = resolveEdgeNames( service, edges );
+                result.put( "edges", edges.stream().map( e -> enrichEdge( e, nameMap ) ).toList() );
                 sendJson( response, result );
             }
         } else {
@@ -200,6 +201,9 @@ public class AdminKnowledgeResource extends RestServletBase {
             }
             if ( request.getParameter( "name" ) != null ) {
                 filters.put( "name", request.getParameter( "name" ) );
+            }
+            if ( request.getParameter( "status" ) != null ) {
+                filters.put( "status", request.getParameter( "status" ) );
             }
             final int limit = getIntParam( request, "limit", 50 );
             final int offset = getIntParam( request, "offset", 0 );
@@ -213,7 +217,12 @@ public class AdminKnowledgeResource extends RestServletBase {
                                  final HttpServletResponse response,
                                  final String[] segments ) throws IOException {
         if ( segments.length < 2 ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Node ID required" );
+            // GET /admin/knowledge/edges — list all edges (paginated, with names)
+            final String relType = request.getParameter( "relationship_type" );
+            final String search = request.getParameter( "search" );
+            final int limit = getIntParam( request, "limit", 50 );
+            final int offset = getIntParam( request, "offset", 0 );
+            sendJson( response, Map.of( "edges", service.queryEdges( relType, search, limit, offset ) ) );
             return;
         }
         final UUID nodeId = parseUuid( segments[1], response );
@@ -222,7 +231,8 @@ public class AdminKnowledgeResource extends RestServletBase {
         final String direction = request.getParameter( "direction" ) != null
                 ? request.getParameter( "direction" ) : "both";
         final List< KgEdge > edges = service.getEdgesForNode( nodeId, direction );
-        sendJson( response, Map.of( "edges", edges.stream().map( this::edgeToMap ).toList() ) );
+        final Map< UUID, String > nameMap = resolveEdgeNames( service, edges );
+        sendJson( response, Map.of( "edges", edges.stream().map( e -> enrichEdge( e, nameMap ) ).toList() ) );
     }
 
     private void handleGetProposals( final KnowledgeGraphService service,
@@ -243,10 +253,25 @@ public class AdminKnowledgeResource extends RestServletBase {
                                      final HttpServletRequest request,
                                      final HttpServletResponse response,
                                      final String[] segments ) throws IOException {
+        // POST /admin/knowledge/proposals — create a new proposal
+        if ( segments.length == 1 ) {
+            final JsonObject body = parseJsonBody( request, response );
+            if ( body == null ) return;
+            final String proposalType = body.get( "proposal_type" ).getAsString();
+            final String sourcePage = body.has( "source_page" ) ? body.get( "source_page" ).getAsString() : null;
+            final Map< String, Object > proposedData = body.has( "proposed_data" )
+                    ? GSON.fromJson( body.get( "proposed_data" ), MAP_TYPE ) : Map.of();
+            final double confidence = body.has( "confidence" ) ? body.get( "confidence" ).getAsDouble() : 0.5;
+            final String reasoning = body.has( "reasoning" ) ? body.get( "reasoning" ).getAsString() : null;
+            final KgProposal proposal = service.submitProposal( proposalType, sourcePage,
+                    proposedData, confidence, reasoning );
+            sendJson( response, proposalToMap( proposal ) );
+            return;
+        }
         // POST /admin/knowledge/proposals/{id}/approve or /reject
         if ( segments.length < 3 ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Expected: /proposals/{id}/approve or /proposals/{id}/reject" );
+                    "Expected: /proposals or /proposals/{id}/approve or /proposals/{id}/reject" );
             return;
         }
         final UUID proposalId = parseUuid( segments[1], response );
@@ -437,6 +462,25 @@ public class AdminKnowledgeResource extends RestServletBase {
         } catch ( final WikiException e ) {
             LOG.error( "Failed to write-back frontmatter for proposal {}: {}", proposal.id(), e.getMessage(), e );
         }
+    }
+
+    // --- Edge name resolution ---
+
+    private Map< UUID, String > resolveEdgeNames( final KnowledgeGraphService service,
+                                                   final List< KgEdge > edges ) {
+        final Set< UUID > ids = new HashSet<>();
+        for ( final KgEdge e : edges ) {
+            ids.add( e.sourceId() );
+            ids.add( e.targetId() );
+        }
+        return service.getNodeNames( ids );
+    }
+
+    private Map< String, Object > enrichEdge( final KgEdge edge, final Map< UUID, String > nameMap ) {
+        final Map< String, Object > m = edgeToMap( edge );
+        m.put( "source_name", nameMap.getOrDefault( edge.sourceId(), edge.sourceId().toString() ) );
+        m.put( "target_name", nameMap.getOrDefault( edge.targetId(), edge.targetId().toString() ) );
+        return m;
     }
 
     // --- Helpers ---

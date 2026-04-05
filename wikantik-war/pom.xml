@@ -86,22 +86,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <dependency>
-            <groupId>jakarta.servlet.jsp</groupId>
-            <artifactId>jakarta.servlet.jsp-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>jakarta.servlet.jsp.jstl</groupId>
-            <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.glassfish.web</groupId>
-            <artifactId>jakarta.servlet.jsp.jstl</artifactId>
-        </dependency>
-
         <!-- On classpath so SystemPageRegistry can discover system page names at startup -->
         <dependency>
             <groupId>com.wikantik.wikipages</groupId>
@@ -114,66 +98,6 @@
     <build>
         <finalName>Wikantik</finalName>
         <plugins>
-            <plugin>
-                <groupId>io.leonard.maven.plugins</groupId>
-                <artifactId>jspc-maven-plugin</artifactId>
-                <dependencies>
-                    <!-- Override to Tomcat 11 jasper to match deployment target and support Java 21 -->
-                    <dependency>
-                        <groupId>org.apache.tomcat</groupId>
-                        <artifactId>tomcat-jasper</artifactId>
-                        <version>11.0.14</version>
-                    </dependency>
-                    <dependency> <!-- so wikantik custom taglibs can be seen by the jsp compiler -->
-                        <groupId>${project.groupId}</groupId>
-                        <artifactId>wikantik-main</artifactId>
-                        <version>${project.version}</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>${project.groupId}</groupId>
-                        <artifactId>wikantik-api</artifactId>
-                        <version>${project.version}</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>${project.groupId}</groupId>
-                        <artifactId>wikantik-http</artifactId>
-                        <version>${project.version}</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>jakarta.servlet.jsp.jstl</groupId>
-                        <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
-                        <version>${jakarta-jstl-api.version}</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>org.glassfish.web</groupId>
-                        <artifactId>jakarta.servlet.jsp.jstl</artifactId>
-                        <version>${jakarta-jstl.version}</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>org.ehcache</groupId>
-                        <artifactId>ehcache</artifactId>
-                        <version>${ehcache.version}</version>
-                        <classifier>${ehcache.classifier}</classifier>
-                        <exclusions>
-                            <exclusion>
-                                <groupId>org.glassfish.jaxb</groupId>
-                                <artifactId>jaxb-runtime</artifactId>
-                            </exclusion>
-                        </exclusions>
-                    </dependency>
-                    <dependency>
-                        <groupId>jakarta.xml.bind</groupId>
-                        <artifactId>jakarta.xml.bind-api</artifactId>
-                        <version>4.0.5</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>org.glassfish.jaxb</groupId>
-                        <artifactId>jaxb-runtime</artifactId>
-                        <version>4.0.6</version>
-                    </dependency>
-                </dependencies>
-            </plugin>
-
             <!-- wro4j Web Resource Optimizer for Java (http://http://code.google.com/p/wro4j/)
               Merge and compress CSS and JS files using the WRO4J.
               - use UglifyJS for JS compression

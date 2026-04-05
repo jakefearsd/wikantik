@@ -61,9 +61,6 @@
     <hsqldb.version>2.7.4</hsqldb.version>
     <jakarta-activation.version>2.0.1</jakarta-activation.version>
     <jakarta-activation-api.version>2.1.3</jakarta-activation-api.version>
-    <jakarta-jsp-api.version>4.0.0</jakarta-jsp-api.version>
-    <jakarta-jstl.version>3.0.1</jakarta-jstl.version>
-    <jakarta-jstl-api.version>3.0.2</jakarta-jstl-api.version>
     <jakarta-mail.version>2.0.2</jakarta-mail.version>
     <jakarta-mail-api.version>2.1.5</jakarta-mail-api.version>
     <jakarta-servlet-api.version>6.0.0</jakarta-servlet-api.version>
@@ -111,7 +108,6 @@
     <plugin.surefire.junit5-tree-reporter.version>1.5.1</plugin.surefire.junit5-tree-reporter.version>
     <plugin.war.version>3.5.1</plugin.war.version>
     <plugin.inmemdb.version>1.4.3</plugin.inmemdb.version>
-    <plugin.jspc.version>5.0.0</plugin.jspc.version>
     <plugin.build-helper.version>3.6.1</plugin.build-helper.version>
     <plugin.checksum.version>1.11</plugin.checksum.version>
     <plugin.jslint.version>1.0.1</plugin.jslint.version>
@@ -313,18 +309,6 @@
       </dependency>
 
       <dependency>
-        <groupId>jakarta.servlet.jsp</groupId>
-        <artifactId>jakarta.servlet.jsp-api</artifactId>
-        <version>${jakarta-jsp-api.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>jakarta.servlet.jsp.jstl</groupId>
-        <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
-        <version>${jakarta-jstl-api.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>jaxen</groupId>
         <artifactId>jaxen</artifactId>
         <version>${jaxen.version}</version>
@@ -491,12 +475,6 @@
         <groupId>org.freshcookies</groupId>
         <artifactId>freshcookies-security</artifactId>
         <version>${freshcookies-security.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.glassfish.web</groupId>
-        <artifactId>jakarta.servlet.jsp.jstl</artifactId>
-        <version>${jakarta-jstl.version}</version>
       </dependency>
 
       <dependency>
@@ -864,26 +842,6 @@
         </plugin>
 
         <plugin>
-          <groupId>io.leonard.maven.plugins</groupId>
-          <artifactId>jspc-maven-plugin</artifactId>
-          <version>${plugin.jspc.version}</version>
-          <configuration>
-            <compilerVersion>${jdk.version}</compilerVersion>
-            <generatedClasses>${project.build.directory}/ignore</generatedClasses> <!-- only check JSPs are well-formed -->
-            <keepSources>true</keepSources>
-            <stopAtFirstError>false</stopAtFirstError>
-          </configuration>
-          <executions>
-            <execution>
-              <id>check-jsps-are-well-formed</id>
-              <goals>
-                <goal>compile</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-
-        <plugin>
           <groupId>net.nicoulaj.maven.plugins</groupId>
           <artifactId>checksum-maven-plugin</artifactId>
           <version>${plugin.checksum.version}</version>
@@ -1073,15 +1031,6 @@
           <configuration>
             <lifecycleMappingMetadata>
               <pluginExecutions>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>io.leonard.maven.plugins</groupId>
-                    <artifactId>jspc-maven-plugin</artifactId>
-                    <versionRange>[2.4.6,)</versionRange>
-                    <goals><goal>compile</goal></goals>
-                  </pluginExecutionFilter>
-                  <action><ignore /></action>
-                </pluginExecution>
                 <pluginExecution>
                   <pluginExecutionFilter>
                     <groupId>net.alchim31.maven</groupId>

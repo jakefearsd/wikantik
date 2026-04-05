@@ -273,3 +273,37 @@ mvn clean install -T 1C -DskipITs
 ```
 
 Test suite reliability is critical for this project's development workflow.
+
+## Token Efficiency Rules
+
+Claude Code sessions on this project are expensive. Follow these rules to minimize waste:
+
+### Reading Files
+- **Use targeted reads.** Pass `offset` and `limit` to read only the lines you need. Never read an entire 500-line file to check one method.
+- **Use Grep/Glob first, Read second.** Find the line numbers you need, then read just that range.
+- **Never re-read a file you already have in context** unless it was modified since you last read it.
+
+### Searching
+- **Use Grep/Glob directly** for simple, directed searches (specific class, function, import). Do NOT spawn an Agent for "find where X is imported."
+- **Reserve Agent/Explore for genuinely open-ended investigation** that will take 4+ queries to resolve.
+- **Search once, record the answer.** If you grep for all callers of a method, write down the file list. Don't grep again.
+
+### Tool Calls
+- **Batch independent operations** into a single message with parallel tool calls. Reading 3 files? One message, three Read calls.
+- **Use `mvn compile -pl <module> -q`** to check compilation of a single module instead of a full `mvn clean install` when you only changed one module.
+- **Use `mvn test -pl <module> -Dtest=ClassName`** to run a single relevant test class, not the entire suite, until you're ready for a final verification build.
+- **One full build at the end.** Don't run `mvn clean install -T 1C -DskipITs` after every single file edit. Compile-check the affected module, fix all issues, then do one final full build.
+
+### Subagents
+- **Don't use subagents for tasks you can do in 1-2 tool calls.** Creating a file, making an edit, running a grep — just do it directly.
+- **Don't duplicate work.** If you delegate research to a subagent, don't also run the same searches yourself.
+
+### Edits and Commits
+- **Accumulate related edits, then build once.** Don't: edit file → build → edit file → build → edit file → build. Do: edit all files → build.
+- **Stage specific files by name.** Never use `git add -A` — it picks up untracked junk. List the exact files.
+
+### Planning and Communication
+- **Don't narrate what you're about to do.** Just do it. "Let me read the file" followed by a Read call wastes tokens — just call Read.
+- **Don't echo back file contents** you just read. Summarize the key finding in one sentence if needed.
+- **Don't recap completed work** unless asked. The diff speaks for itself.
+- **Keep commit messages to 1-3 lines.** The code change is the documentation.

@@ -46,6 +46,13 @@ public interface KnowledgeGraphService {
 
     List< KgEdge > getEdgesForNode( UUID nodeId, String direction );
 
+    /** Query edges with resolved source/target names for display. */
+    List< Map< String, Object > > queryEdges( String relationshipType, String searchName,
+                                               int limit, int offset );
+
+    /** Resolve node UUIDs to names in bulk. */
+    Map< UUID, String > getNodeNames( Collection< UUID > ids );
+
     // --- Traversal ---
 
     TraversalResult traverse( String startNodeName, String direction,

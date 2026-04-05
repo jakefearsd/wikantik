@@ -1,11 +1,6 @@
 ---
-type: article
-cluster: technology
-status: active
-summary: The evolution of large language models from GPT-3 through modern frontier
-  models — scaling laws, RLHF, multimodal capabilities, the open-weight movement,
-  and what it means for practitioners
-date: 2026-03-17T00:00:00Z
+summary: The evolution of large language models from GPT-3 through modern frontier models — scaling laws, RLHF, multimodal capabilities, the open-weight movement, and what it means for practitioners
+date: 2026-03-17T01:00:00Z
 tags:
 - ai
 - llm
@@ -20,7 +15,11 @@ related:
 - GenerativeAiAdoptionGuide
 - RunningLocalLlms
 - DistributedComputingEvolution
+type: article
+cluster: technology
+status: active
 ---
+
 # LLMs Since 2020
 
 The story of large language models (LLMs) from 2020 to the present is a story of scaling, alignment, and democratization. In five years, LLMs went from a research curiosity to infrastructure — embedded in search engines, code editors, customer support systems, and scientific workflows. This article traces that arc.
@@ -165,3 +164,5 @@ Understanding these limitations is essential for using LLMs effectively. See [Pr
 - [The Future of Machine Learning](TheFutureOfMachineLearning) — Where the field is headed
 - [Generative AI Adoption Guide](GenerativeAiAdoptionGuide) — Practical guide for using these models
 - [Running Local LLMs](RunningLocalLlms) — Running models on your own hardware
+
+[{Relationships}]

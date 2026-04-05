@@ -149,6 +149,7 @@ export default function GraphExplorer() {
             <tr>
               <th>Name</th>
               <th>Type</th>
+              <th>Status</th>
               <th>Provenance</th>
               <th>Stub</th>
             </tr>
@@ -163,12 +164,13 @@ export default function GraphExplorer() {
               >
                 <td>{n.name}</td>
                 <td>{n.node_type || '-'}</td>
+                <td>{n.properties?.status || '-'}</td>
                 <td>{n.provenance}</td>
                 <td>{n.is_stub ? 'Yes' : ''}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={4} style={{ textAlign: 'center' }}>No nodes found.</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center' }}>No nodes found.</td></tr>
             )}
           </tbody>
         </table>

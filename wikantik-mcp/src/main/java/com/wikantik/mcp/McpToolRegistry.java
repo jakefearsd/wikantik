@@ -132,7 +132,7 @@ public class McpToolRegistry {
         final KnowledgeGraphService kgService = engine.getManager( KnowledgeGraphService.class );
         if ( kgService != null ) {
             readOnlyList.add( new ListProposalsTool( kgService ) );
-            readOnlyList.add( new ListRejectionsTool( kgService ) );
+
             authorConfigurableList.add( new ProposeKnowledgeTool( kgService ) );
         }
 

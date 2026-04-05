@@ -177,7 +177,6 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 - **wikantik-main**: Main implementation — rendering, providers, auth, search, references
 - **wikantik-event**: Event system for decoupled communication
 - **wikantik-util**: Utility classes and helpers
-- **wikantik-bootstrap**: Initialization and bootstrap
 - **wikantik-cache**: EhCache-based caching layer (1-hour TTL for render caches, 10K entry capacity)
 - **wikantik-cache-memcached**: Distributed cache adapter for Memcached
 - **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers

@@ -99,6 +99,7 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
             final InputStream in = new ByteArrayInputStream( out.toByteArray() );
             return new ConfigurationSource( in );
         } catch( final IOException ioe ) {
+            // LOG.error justified: logging framework misconfiguration is a startup-critical issue that should be visible to operators
             LOG.error( "Unable to load the properties file into Log4j2, default Log4J2 configuration will be applied.", ioe );
             return null;
         }

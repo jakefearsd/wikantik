@@ -45,12 +45,6 @@
 
       <dependency>
         <groupId>com.wikantik</groupId>
-        <artifactId>wikantik-bootstrap</artifactId>
-        <version>${jspwiki.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.wikantik</groupId>
         <artifactId>wikantik-cache</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>

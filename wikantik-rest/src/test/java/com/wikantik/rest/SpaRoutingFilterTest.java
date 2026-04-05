@@ -221,33 +221,6 @@ class SpaRoutingFilterTest {
         verify( response ).setHeader( "Cache-Control", "no-cache" );
     }
 
-    @Test
-    void testHashedAssetSetsImmutableCacheHeader() throws Exception {
-        final HttpServletRequest request = mockRequest( "/assets/index-BCNdZRMf.js" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( response ).setHeader( "Cache-Control", "public, max-age=31536000, immutable" );
-    }
-
-    @Test
-    void testHashedCssAssetSetsImmutableCacheHeader() throws Exception {
-        final HttpServletRequest request = mockRequest( "/assets/index-CCel3tKT.css" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( response ).setHeader( "Cache-Control", "public, max-age=31536000, immutable" );
-    }
-
-    @Test
-    void testNonHashedStaticAssetDoesNotSetImmutableCache() throws Exception {
-        final HttpServletRequest request = mockRequest( "/favicon.svg" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( response, never() ).setHeader( eq( "Cache-Control" ), anyString() );
-    }
-
     // ---- Passthrough tests (static assets) ----
 
     @Test

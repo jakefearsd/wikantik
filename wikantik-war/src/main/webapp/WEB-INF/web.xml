@@ -81,6 +81,17 @@
      <url-pattern>/admin/*</url-pattern>
    </filter-mapping>
 
+   <!-- Cache headers: immutable for hashed assets, no-cache for index.html -->
+   <filter>
+     <filter-name>CacheHeaderFilter</filter-name>
+     <filter-class>com.wikantik.http.filter.CacheHeaderFilter</filter-class>
+     <async-supported>true</async-supported>
+   </filter>
+   <filter-mapping>
+     <filter-name>CacheHeaderFilter</filter-name>
+     <url-pattern>/*</url-pattern>
+   </filter-mapping>
+
    <!-- React SPA routing: forwards known SPA paths to /index.html for client-side routing -->
    <filter>
      <filter-name>SpaRoutingFilter</filter-name>

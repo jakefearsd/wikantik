@@ -28,7 +28,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
-import java.util.regex.Pattern;
 
 /**
  * SPA routing filter for the React frontend served at the root context.
@@ -51,9 +50,6 @@ public class SpaRoutingFilter implements Filter {
     private static final String[] SPA_PREFIXES = { "/wiki/", "/edit/", "/diff/", "/admin/", "/blog/" };
     private static final String[] SPA_EXACT = { "/search", "/preferences", "/reset-password", "/blog" };
 
-    /** Matches Vite-style content-hashed filenames, e.g. {@code index-BCNdZRMf.js}. */
-    private static final Pattern HASHED_ASSET = Pattern.compile( "-[A-Za-z0-9]{6,}\\." );
-
     @Override
     public void init( final FilterConfig filterConfig ) throws ServletException {
     }
@@ -72,13 +68,9 @@ public class SpaRoutingFilter implements Filter {
             return;
         }
 
-        // Let static assets through (JS, CSS, images, fonts, favicon)
+        // Let static assets through (JS, CSS, images, fonts, favicon).
+        // Cache headers are set by CacheHeaderFilter.
         if ( path.contains( "." ) && !path.endsWith( ".html" ) ) {
-            // Hashed assets (e.g. /assets/index-BCNdZRMf.js) can be cached forever —
-            // the hash changes whenever the content changes.
-            if ( path.startsWith( "/assets/" ) && HASHED_ASSET.matcher( path ).find() ) {
-                resp.setHeader( "Cache-Control", "public, max-age=31536000, immutable" );
-            }
             chain.doFilter( request, response );
             return;
         }

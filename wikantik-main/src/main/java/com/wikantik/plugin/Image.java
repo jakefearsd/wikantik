@@ -95,7 +95,6 @@ public class Image implements Plugin {
      */
     @Override
     public String execute( final Context context, final Map<String, String> params ) throws PluginException {
-        final Engine engine  = context.getEngine();
         String src           = getCleanParameter( params, PARAM_SRC );
         final String align   = getCleanParameter( params, PARAM_ALIGN );
         final String ht      = getCleanParameter( params, PARAM_HEIGHT );
@@ -113,95 +112,25 @@ public class Image implements Plugin {
             throw new PluginException("Parameter 'src' is required for Image plugin");
         }
 
-        //if( cssclass == null ) cssclass = "imageplugin";
-
         if( target != null && !validTargetValue(target) ) {
-            target = null; // not a valid value so ignore
+            target = null;
         }
 
-        try {
-            final AttachmentManager mgr = engine.getManager( AttachmentManager.class );
-            final Attachment att = mgr.getAttachmentInfo( context, src );
-
-            if( att != null ) {
-                src = context.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), att.getName() );
-            }
-        } catch( final ProviderException e ) {
-            throw new PluginException( "Attachment info failed: " + e.getMessage() );
-        }
+        src = resolveAttachmentSrc( context, src );
 
         final StringBuilder result = new StringBuilder();
-
-        result.append( "<table border=\"0\" class=\"imageplugin\"" );
-
-        if( title != null ) {
-            result.append( " title=\"" ).append( title ).append( "\"" );
-        }
-
-        if( align != null ) {
-            if( align.equals( "center" ) ) {
-                result.append( " style=\"margin-left: auto; margin-right: auto; text-align:center; vertical-align:middle;\"" );
-            } else {
-                result.append( " style=\"float:" ).append( align ).append( ";\"" );
-            }
-        }
-
-        result.append( ">\n" );
+        buildTableOpen( result, title, align );
 
         if( caption != null ) {
             result.append( "<caption>" ).append( caption ).append( "</caption>\n" );
         }
 
-        // move css class and style to the container of the image, so it doesn't affect the caption
-        result.append( "<tr><td" );
+        buildCellOpen( result, cssclass, style );
+        buildLinkOpen( result, link, target );
 
-        if( cssclass != null ) {
-            result.append( " class=\"" ).append( cssclass ).append( "\"" );
-        }
+        src = sanitizeSrc( context, src );
+        buildImgTag( result, src, ht, wt, alt, border );
 
-        if( style != null ) {
-            result.append( " style=\"" ).append( style );
-
-            // Make sure that we add a ";" to the end of the style string
-            if( result.charAt( result.length()-1 ) != ';' ) {
-                result.append( ";" );
-            }
-
-            result.append("\"");
-        }
-
-        result.append( ">" );
-
-        if( link != null ) {
-            result.append( "<a href=\"" ).append( link ).append( "\"" );
-            if( target != null ) {
-                result.append( " target=\"" ).append( target ).append( "\"" );
-            }
-            result.append(">");
-        }
-
-        if( !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) ) {
-            if( src.startsWith( "data:" ) || src.startsWith( "javascript:" ) ) {
-                src = "http://invalid_url" + src;
-            }
-        }
-        result.append( "<img src=\"" ).append( src ).append( "\"" );
-
-        if( ht != null ) {
-            result.append( " height=\"" ).append( ht ).append( "\"" );
-        }
-        if( wt != null ) {
-            result.append( " width=\"" ).append( wt ).append( "\"" );
-        }
-        if( alt != null ) {
-            result.append( " alt=\"" ).append( alt ).append( "\"" );
-        }
-        if( border != null ) {
-            result.append( " border=\"" ).append( border ).append( "\"" );
-        }
-        // if( map != null )    result.append(" map=\""+map+"\"");
-
-        result.append(" />");
         if( link != null ) {
             result.append("</a>");
         }
@@ -209,6 +138,81 @@ public class Image implements Plugin {
         result.append("</table>\n");
 
         return result.toString();
+    }
+
+    private static String resolveAttachmentSrc( final Context context, final String src ) throws PluginException {
+        try {
+            final AttachmentManager mgr = context.getEngine().getManager( AttachmentManager.class );
+            final Attachment att = mgr.getAttachmentInfo( context, src );
+            if( att != null ) {
+                return context.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), att.getName() );
+            }
+            return src;
+        } catch( final ProviderException e ) {
+            throw new PluginException( "Attachment info failed: " + e.getMessage() );
+        }
+    }
+
+    private static String sanitizeSrc( final Context context, final String src ) {
+        if( !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) ) {
+            if( src.startsWith( "data:" ) || src.startsWith( "javascript:" ) ) {
+                return "http://invalid_url" + src;
+            }
+        }
+        return src;
+    }
+
+    private static void buildTableOpen( final StringBuilder sb, final String title, final String align ) {
+        sb.append( "<table border=\"0\" class=\"imageplugin\"" );
+        appendAttr( sb, "title", title );
+
+        if( align != null ) {
+            if( "center".equals( align ) ) {
+                sb.append( " style=\"margin-left: auto; margin-right: auto; text-align:center; vertical-align:middle;\"" );
+            } else {
+                sb.append( " style=\"float:" ).append( align ).append( ";\"" );
+            }
+        }
+        sb.append( ">\n" );
+    }
+
+    private static void buildCellOpen( final StringBuilder sb, final String cssclass, final String style ) {
+        sb.append( "<tr><td" );
+        appendAttr( sb, "class", cssclass );
+
+        if( style != null ) {
+            sb.append( " style=\"" ).append( style );
+            if( !style.endsWith( ";" ) ) {
+                sb.append( ";" );
+            }
+            sb.append( "\"" );
+        }
+        sb.append( ">" );
+    }
+
+    private static void buildLinkOpen( final StringBuilder sb, final String link, final String target ) {
+        if( link != null ) {
+            sb.append( "<a href=\"" ).append( link ).append( "\"" );
+            appendAttr( sb, "target", target );
+            sb.append( ">" );
+        }
+    }
+
+    private static void buildImgTag( final StringBuilder sb, final String src,
+                                      final String ht, final String wt,
+                                      final String alt, final String border ) {
+        sb.append( "<img src=\"" ).append( src ).append( "\"" );
+        appendAttr( sb, "height", ht );
+        appendAttr( sb, "width", wt );
+        appendAttr( sb, "alt", alt );
+        appendAttr( sb, "border", border );
+        sb.append( " />" );
+    }
+
+    private static void appendAttr( final StringBuilder sb, final String name, final String value ) {
+        if( value != null ) {
+            sb.append( " " ).append( name ).append( "=\"" ).append( value ).append( "\"" );
+        }
     }
 
     private boolean validTargetValue( final String s ) {

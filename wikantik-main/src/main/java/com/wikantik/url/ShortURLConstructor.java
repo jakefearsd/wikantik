@@ -27,7 +27,9 @@ import com.wikantik.util.TextUtil;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.Charset;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 
 /**
@@ -42,25 +44,57 @@ public class ShortURLConstructor extends DefaultURLConstructor {
     
     /** Contains the path part after the Wikantik base URL */
     protected String urlPrefix = "";
-    
+
+    /** Contexts where a null name returns the base URL instead of throwing. */
+    private static final Set< String > NULL_NAME_CONTEXTS = Set.of(
+            ContextEnum.PAGE_VIEW.getRequestContext(),
+            ContextEnum.PAGE_PREVIEW.getRequestContext()
+    );
+
+    /** Context → URL pattern, built during {@link #initialize}. */
+    private Map< String, String > urlPatterns;
+
     /**
      *  This corresponds to your WikiServlet path.  By default, it is assumed to be "wiki/", but you can set it to whatever you
      *  like - including an empty name.
      */
     public static final String PROP_PREFIX = "wikantik.shortURLConstructor.prefix";
-    
+
     /** {@inheritDoc} */
     @Override
     public void initialize( final Engine engine, final Properties properties ) {
         super.initialize( engine, properties );
-        
+
         urlPrefix = TextUtil.getStringProperty( properties, PROP_PREFIX, null );
-        
+
         if( urlPrefix == null ) {
             urlPrefix = DEFAULT_PREFIX;
         }
 
         LOG.info("Short URL prefix path={} (You can use {} to override this)", urlPrefix, PROP_PREFIX);
+
+        final String viewurl = "%p" + urlPrefix + "%n";
+        urlPatterns = Map.ofEntries(
+                Map.entry( ContextEnum.PAGE_VIEW.getRequestContext(),         viewurl ),
+                Map.entry( ContextEnum.PAGE_PREVIEW.getRequestContext(),      viewurl + "?do=Preview" ),
+                Map.entry( ContextEnum.PAGE_EDIT.getRequestContext(),         "%pedit/%n" ),
+                Map.entry( ContextEnum.PAGE_ATTACH.getRequestContext(),       "%uattach/%n" ),
+                Map.entry( ContextEnum.PAGE_INFO.getRequestContext(),         viewurl + "?do=PageInfo" ),
+                Map.entry( ContextEnum.PAGE_DIFF.getRequestContext(),         "%pdiff/%n" ),
+                Map.entry( ContextEnum.PAGE_NONE.getRequestContext(),         "%u%n" ),
+                Map.entry( ContextEnum.PAGE_UPLOAD.getRequestContext(),       viewurl + "?do=Upload" ),
+                Map.entry( ContextEnum.PAGE_COMMENT.getRequestContext(),      viewurl + "?do=Comment" ),
+                Map.entry( ContextEnum.WIKI_LOGIN.getRequestContext(),        "%plogin?redirect=%n" ),
+                Map.entry( ContextEnum.PAGE_DELETE.getRequestContext(),       viewurl + "?do=Delete" ),
+                Map.entry( ContextEnum.PAGE_CONFLICT.getRequestContext(),     viewurl + "?do=PageModified" ),
+                Map.entry( ContextEnum.WIKI_PREFS.getRequestContext(),        "%ppreferences" ),
+                Map.entry( ContextEnum.WIKI_FIND.getRequestContext(),         "%psearch" ),
+                Map.entry( ContextEnum.WIKI_ERROR.getRequestContext(),        "%uerror" ),
+                Map.entry( ContextEnum.WIKI_CREATE_GROUP.getRequestContext(), viewurl + "?do=NewGroup" ),
+                Map.entry( ContextEnum.GROUP_DELETE.getRequestContext(),      viewurl + "?do=DeleteGroup" ),
+                Map.entry( ContextEnum.GROUP_EDIT.getRequestContext(),        viewurl + "?do=EditGroup" ),
+                Map.entry( ContextEnum.GROUP_VIEW.getRequestContext(),        viewurl + "?do=Group&group=%n" )
+        );
     }
 
     /**
@@ -71,56 +105,14 @@ public class ShortURLConstructor extends DefaultURLConstructor {
      */
     @Override
     protected String makeBaseURL( final String context, final String name ) {
-        final String viewurl = "%p" + urlPrefix + "%n";
-
-        if( context.equals( ContextEnum.PAGE_VIEW.getRequestContext() ) ) {
-            if( name == null ) {
-                return doReplacement("%u","" );
-            }
-            return doReplacement( viewurl, name );
-        } else if( context.equals( ContextEnum.PAGE_PREVIEW.getRequestContext() ) ) {
-            if( name == null ) {
-                return doReplacement("%u","" );
-            }
-            return doReplacement( viewurl + "?do=Preview", name );
-        } else if( context.equals( ContextEnum.PAGE_EDIT.getRequestContext() ) ) {
-            return doReplacement( "%pedit/%n", name );
-        } else if( context.equals( ContextEnum.PAGE_ATTACH.getRequestContext() ) ) {
-            return doReplacement( "%uattach/%n", name );
-        } else if( context.equals( ContextEnum.PAGE_INFO.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=PageInfo", name );
-        } else if( context.equals( ContextEnum.PAGE_DIFF.getRequestContext() ) ) {
-            return doReplacement( "%pdiff/%n", name );
-        } else if( context.equals( ContextEnum.PAGE_NONE.getRequestContext() ) ) {
-            return doReplacement( "%u%n", name );
-        } else if( context.equals( ContextEnum.PAGE_UPLOAD.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=Upload", name );
-        } else if( context.equals( ContextEnum.PAGE_COMMENT.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=Comment", name );
-        } else if( context.equals( ContextEnum.WIKI_LOGIN.getRequestContext() ) ) {
-            final String loginUrl = "%plogin?redirect=%n";
-            return doReplacement( loginUrl, name );
-        } else if( context.equals( ContextEnum.PAGE_DELETE.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=Delete", name );
-        } else if( context.equals( ContextEnum.PAGE_CONFLICT.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=PageModified", name );
-        } else if( context.equals( ContextEnum.WIKI_PREFS.getRequestContext() ) ) {
-            return doReplacement( "%ppreferences", name );
-        } else if( context.equals( ContextEnum.WIKI_FIND.getRequestContext() ) ) {
-            return doReplacement( "%psearch", name );
-        } else if( context.equals( ContextEnum.WIKI_ERROR.getRequestContext() ) ) {
-            return doReplacement( "%uerror", name );
-        } else if( context.equals( ContextEnum.WIKI_CREATE_GROUP.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=NewGroup", name );
-        } else if( context.equals( ContextEnum.GROUP_DELETE.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=DeleteGroup", name );
-        } else if( context.equals( ContextEnum.GROUP_EDIT.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=EditGroup", name );
-        } else if( context.equals( ContextEnum.GROUP_VIEW.getRequestContext() ) ) {
-            return doReplacement( viewurl + "?do=Group&group=%n", name );
+        if( name == null && NULL_NAME_CONTEXTS.contains( context ) ) {
+            return doReplacement( "%u", "" );
         }
-
-        throw new InternalWikiException( "Requested unsupported context " + context );
+        final String pattern = urlPatterns.get( context );
+        if( pattern == null ) {
+            throw new InternalWikiException( "Requested unsupported context " + context );
+        }
+        return doReplacement( pattern, name );
     }
 
     /**

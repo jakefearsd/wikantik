@@ -19,7 +19,6 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiSecurityException;
@@ -34,7 +33,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.security.Principal;
 import java.text.ParseException;
@@ -333,25 +331,4 @@ public class AdminUserResource extends RestServletBase {
         return map;
     }
 
-    private String formatDate( final Date date ) {
-        if ( date == null ) return null;
-        return new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" ).format( date );
-    }
-
-    private JsonObject parseJsonBody( final HttpServletRequest request, final HttpServletResponse response )
-            throws IOException {
-        try ( final BufferedReader reader = request.getReader() ) {
-            return JsonParser.parseReader( reader ).getAsJsonObject();
-        } catch ( final Exception e ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body" );
-            return null;
-        }
-    }
-
-    private String getJsonString( final JsonObject obj, final String key ) {
-        if ( obj.has( key ) && !obj.get( key ).isJsonNull() ) {
-            return obj.get( key ).getAsString();
-        }
-        return null;
-    }
 }

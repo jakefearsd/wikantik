@@ -41,6 +41,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Map;
 
 import com.google.gson.JsonObject;
@@ -244,6 +246,45 @@ public abstract class RestServletBase extends HttpServlet {
         try ( final BufferedReader reader = request.getReader() ) {
             return JsonParser.parseReader( reader ).getAsJsonObject();
         }
+    }
+
+    /**
+     * Parses the JSON body from the request. On parse failure, sends a 400 error
+     * and returns {@code null}.
+     *
+     * @param request  the HTTP request
+     * @param response the HTTP response (used to send 400 on failure)
+     * @return the parsed {@link JsonObject}, or {@code null} if parsing failed
+     * @throws IOException if writing the error response fails
+     */
+    protected JsonObject parseJsonBody( final HttpServletRequest request, final HttpServletResponse response )
+            throws IOException {
+        try ( final BufferedReader reader = request.getReader() ) {
+            return JsonParser.parseReader( reader ).getAsJsonObject();
+        } catch ( final Exception e ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body" );
+            return null;
+        }
+    }
+
+    /**
+     * Returns a string value from a {@link JsonObject}, or {@code null} if the
+     * key is absent or the value is JSON null.
+     */
+    protected String getJsonString( final JsonObject obj, final String key ) {
+        if ( obj.has( key ) && !obj.get( key ).isJsonNull() ) {
+            return obj.get( key ).getAsString();
+        }
+        return null;
+    }
+
+    /**
+     * Formats a {@link Date} as an ISO 8601 string, or returns {@code null}
+     * if the date is null.
+     */
+    protected String formatDate( final Date date ) {
+        if ( date == null ) return null;
+        return new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" ).format( date );
     }
 
 }

@@ -90,19 +90,9 @@ public class AtomFeedServlet extends HttpServlet {
 
         LOG.debug( "Generating Atom feed" );
 
-        // Parse parameters
-        int count = DEFAULT_COUNT;
-        final String countParam = req.getParameter( "count" );
-        if ( countParam != null ) {
-            try {
-                count = Math.min( Math.max( 1, Integer.parseInt( countParam ) ), MAX_COUNT );
-            } catch ( final NumberFormatException e ) {
-                // ignore, use default
-            }
-        }
+        final int count = parseCount( req.getParameter( "count" ) );
         final String cluster = req.getParameter( "cluster" );
 
-        // Build query
         final RecentArticlesQuery query = new RecentArticlesQuery()
             .count( count )
             .sinceDays( FEED_SINCE_DAYS )
@@ -117,49 +107,23 @@ public class AtomFeedServlet extends HttpServlet {
 
         final List< ArticleSummary > articles = manager.getRecentArticles( context, query );
         final PageManager pageManager = engine.getManager( PageManager.class );
-
-        // Resolve base URL using shared 3-tier resolution
         final String baseUrl = BaseUrlResolver.resolve( engine, req, configuredBaseUrl );
-        final String appName = engine.getApplicationName();
 
-        // Determine feed-level updated time
         final SimpleDateFormat atomDate = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" );
         atomDate.setTimeZone( TimeZone.getTimeZone( "UTC" ) );
-
-        String feedUpdated = atomDate.format( new java.util.Date() );
-        if ( !articles.isEmpty() && articles.get( 0 ).getLastModified() != null ) {
-            feedUpdated = atomDate.format( articles.get( 0 ).getLastModified() );
-        }
+        final String feedUpdated = determineFeedUpdated( articles, atomDate );
 
         resp.setContentType( "application/atom+xml" );
         resp.setCharacterEncoding( "UTF-8" );
         resp.setHeader( "Cache-Control", "public, max-age=300" );
 
         final PrintWriter out = resp.getWriter();
-        out.println( "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" );
-        out.println( "<feed xmlns=\"http://www.w3.org/2005/Atom\">" );
-        out.println( "  <title>" + escapeXml( appName ) + ( cluster != null ? " - " + escapeXml( cluster ) : "" ) + "</title>" );
-        out.println( "  <link href=\"" + escapeXml( baseUrl ) + "\" rel=\"alternate\" />" );
-
-        final String feedSelf = baseUrl + "/feed.xml" + ( cluster != null ? "?cluster=" + escapeXml( cluster ) : "" );
-        out.println( "  <link href=\"" + escapeXml( feedSelf ) + "\" rel=\"self\" type=\"application/atom+xml\" />" );
-        out.println( "  <id>" + escapeXml( baseUrl ) + "/feed.xml</id>" );
-        out.println( "  <updated>" + feedUpdated + "</updated>" );
-        out.println( "  <generator>Wikantik</generator>" );
+        writeFeedHeader( out, baseUrl, engine.getApplicationName(), cluster, feedUpdated );
 
         int emitted = 0;
         for ( final ArticleSummary article : articles ) {
-            // Parse frontmatter for tags, summary, and cluster
-            Map< String, Object > metadata = Map.of();
-            if ( pageManager != null ) {
-                final String rawText = pageManager.getPureText( article.getName(), -1 );
-                if ( rawText != null && !rawText.isEmpty() ) {
-                    final ParsedPage parsed = FrontmatterParser.parse( rawText );
-                    metadata = parsed.metadata();
-                }
-            }
+            final Map< String, Object > metadata = resolveMetadata( pageManager, article );
 
-            // Filter by cluster if requested
             if ( cluster != null && !cluster.isEmpty() ) {
                 final Object articleCluster = metadata.get( "cluster" );
                 if ( articleCluster == null || !cluster.equals( articleCluster.toString() ) ) {
@@ -167,48 +131,99 @@ public class AtomFeedServlet extends HttpServlet {
                 }
             }
 
-            emitted++;
-            if ( emitted > count ) {
+            if ( ++emitted > count ) {
                 break;
             }
 
-            final String articleUrl = baseUrl + "/wiki/" + article.getName();
-            final String updated = article.getLastModified() != null
-                ? atomDate.format( article.getLastModified() )
-                : feedUpdated;
-
-            out.println( "  <entry>" );
-            out.println( "    <title>" + escapeXml( article.getTitle() ) + "</title>" );
-            out.println( "    <link href=\"" + escapeXml( articleUrl ) + "\" rel=\"alternate\" />" );
-            out.println( "    <id>" + escapeXml( articleUrl ) + "</id>" );
-            out.println( "    <updated>" + updated + "</updated>" );
-
-            if ( article.getAuthor() != null && !article.getAuthor().isEmpty() ) {
-                out.println( "    <author><name>" + escapeXml( article.getAuthor() ) + "</name></author>" );
-            }
-
-            // Summary from frontmatter
-            final Object summary = metadata.get( "summary" );
-            if ( summary != null && !summary.toString().isEmpty() ) {
-                out.println( "    <summary>" + escapeXml( summary.toString() ) + "</summary>" );
-            } else if ( article.getExcerpt() != null && !article.getExcerpt().isEmpty() ) {
-                out.println( "    <summary>" + escapeXml( article.getExcerpt() ) + "</summary>" );
-            }
-
-            // Category tags from frontmatter
-            final Object tags = metadata.get( "tags" );
-            if ( tags instanceof List< ? > tagList ) {
-                for ( final Object tag : tagList ) {
-                    out.println( "    <category term=\"" + escapeXml( tag.toString() ) + "\" />" );
-                }
-            }
-
-            out.println( "  </entry>" );
+            writeEntry( out, article, metadata, baseUrl, feedUpdated, atomDate );
         }
 
         out.println( "</feed>" );
-
         LOG.debug( "Atom feed generated with {} entries", emitted );
+    }
+
+    private static int parseCount( final String countParam ) {
+        if ( countParam != null ) {
+            try {
+                return Math.min( Math.max( 1, Integer.parseInt( countParam ) ), MAX_COUNT );
+            } catch ( final NumberFormatException e ) {
+                // ignore, use default
+            }
+        }
+        return DEFAULT_COUNT;
+    }
+
+    private static String determineFeedUpdated( final List< ArticleSummary > articles,
+                                                 final SimpleDateFormat atomDate ) {
+        if ( !articles.isEmpty() && articles.get( 0 ).getLastModified() != null ) {
+            return atomDate.format( articles.get( 0 ).getLastModified() );
+        }
+        return atomDate.format( new java.util.Date() );
+    }
+
+    private static Map< String, Object > resolveMetadata( final PageManager pageManager,
+                                                            final ArticleSummary article ) {
+        if ( pageManager == null ) {
+            return Map.of();
+        }
+        final String rawText = pageManager.getPureText( article.getName(), -1 );
+        if ( rawText == null || rawText.isEmpty() ) {
+            return Map.of();
+        }
+        return FrontmatterParser.parse( rawText ).metadata();
+    }
+
+    private static void writeFeedHeader( final PrintWriter out, final String baseUrl,
+                                          final String appName, final String cluster,
+                                          final String feedUpdated ) {
+        out.println( "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" );
+        out.println( "<feed xmlns=\"http://www.w3.org/2005/Atom\">" );
+        out.println( "  <title>" + escapeXml( appName )
+                + ( cluster != null ? " - " + escapeXml( cluster ) : "" ) + "</title>" );
+        out.println( "  <link href=\"" + escapeXml( baseUrl ) + "\" rel=\"alternate\" />" );
+
+        final String feedSelf = baseUrl + "/feed.xml"
+                + ( cluster != null ? "?cluster=" + escapeXml( cluster ) : "" );
+        out.println( "  <link href=\"" + escapeXml( feedSelf )
+                + "\" rel=\"self\" type=\"application/atom+xml\" />" );
+        out.println( "  <id>" + escapeXml( baseUrl ) + "/feed.xml</id>" );
+        out.println( "  <updated>" + feedUpdated + "</updated>" );
+        out.println( "  <generator>Wikantik</generator>" );
+    }
+
+    private static void writeEntry( final PrintWriter out, final ArticleSummary article,
+                                     final Map< String, Object > metadata, final String baseUrl,
+                                     final String feedUpdated, final SimpleDateFormat atomDate ) {
+        final String articleUrl = baseUrl + "/wiki/" + article.getName();
+        final String updated = article.getLastModified() != null
+                ? atomDate.format( article.getLastModified() )
+                : feedUpdated;
+
+        out.println( "  <entry>" );
+        out.println( "    <title>" + escapeXml( article.getTitle() ) + "</title>" );
+        out.println( "    <link href=\"" + escapeXml( articleUrl ) + "\" rel=\"alternate\" />" );
+        out.println( "    <id>" + escapeXml( articleUrl ) + "</id>" );
+        out.println( "    <updated>" + updated + "</updated>" );
+
+        if ( article.getAuthor() != null && !article.getAuthor().isEmpty() ) {
+            out.println( "    <author><name>" + escapeXml( article.getAuthor() ) + "</name></author>" );
+        }
+
+        final Object summary = metadata.get( "summary" );
+        if ( summary != null && !summary.toString().isEmpty() ) {
+            out.println( "    <summary>" + escapeXml( summary.toString() ) + "</summary>" );
+        } else if ( article.getExcerpt() != null && !article.getExcerpt().isEmpty() ) {
+            out.println( "    <summary>" + escapeXml( article.getExcerpt() ) + "</summary>" );
+        }
+
+        final Object tags = metadata.get( "tags" );
+        if ( tags instanceof List< ? > tagList ) {
+            for ( final Object tag : tagList ) {
+                out.println( "    <category term=\"" + escapeXml( tag.toString() ) + "\" />" );
+            }
+        }
+
+        out.println( "  </entry>" );
     }
 
     private static String escapeXml( final String input ) {

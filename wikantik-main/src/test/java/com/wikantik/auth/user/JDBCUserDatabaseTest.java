@@ -21,6 +21,7 @@ package com.wikantik.auth.user;
 import com.wikantik.HsqlDbUtils;
 import com.wikantik.TestJDBCDataSource;
 import com.wikantik.TestJNDIContext;
+import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.Users;
 import com.wikantik.auth.WikiSecurityException;
@@ -99,7 +100,7 @@ public class JDBCUserDatabaseTest {
         }
         final Context ctx = ( Context ) initCtx.lookup( "java:comp/env" );
         m_ds = new TestJDBCDataSource( new File( "target/test-classes/wikantik-custom.properties" ), m_hu.getDriverUrl() );
-        ctx.bind( JDBCUserDatabase.DEFAULT_DB_JNDI_NAME, m_ds );
+        ctx.bind( AbstractJDBCDatabase.DEFAULT_DATASOURCE, m_ds );
 
         m_db = new JDBCUserDatabase();
         m_db.initialize( null, new Properties() );

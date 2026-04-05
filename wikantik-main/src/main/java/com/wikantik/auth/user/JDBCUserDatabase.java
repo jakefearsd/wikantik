@@ -22,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
+import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
@@ -201,8 +202,6 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
 
     public static final String DEFAULT_DB_FULL_NAME = "full_name";
 
-    public static final String DEFAULT_DB_JNDI_NAME = "jdbc/UserDatabase";
-
     public static final String DEFAULT_DB_LOCK_EXPIRY = "lock_expiry";
 
     public static final String DEFAULT_DB_MODIFIED = "modified";
@@ -230,8 +229,6 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     public static final String PROP_DB_EMAIL = "wikantik.userdatabase.email";
 
     public static final String PROP_DB_FULL_NAME = "wikantik.userdatabase.fullName";
-
-    public static final String PROP_DB_DATASOURCE = "wikantik.userdatabase.datasource";
 
     public static final String PROP_DB_LOCK_EXPIRY = "wikantik.userdatabase.lockExpiry";
 
@@ -421,7 +418,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, WikiSecurityException {
-        final String jndiName = props.getProperty( PROP_DB_DATASOURCE, DEFAULT_DB_JNDI_NAME );
+        final String jndiName = props.getProperty( AbstractJDBCDatabase.PROP_DATASOURCE, AbstractJDBCDatabase.DEFAULT_DATASOURCE );
         try {
             final Context initCtx = new InitialContext();
             final Context ctx = (Context) initCtx.lookup( "java:comp/env" );
@@ -494,7 +491,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             renameRoles = "UPDATE " + roleTable + " SET " + loginName + "=? WHERE " + loginName + "=?";
         } catch( final NamingException e ) {
             LOG.error( "JDBCUserDatabase initialization error: {}", e.getMessage() );
-            throw new NoRequiredPropertyException( PROP_DB_DATASOURCE, "JDBCUserDatabase initialization error: " + e.getMessage() );
+            throw new NoRequiredPropertyException( AbstractJDBCDatabase.PROP_DATASOURCE, "JDBCUserDatabase initialization error: " + e.getMessage() );
         }
 
         // Test connection by doing a quickie select

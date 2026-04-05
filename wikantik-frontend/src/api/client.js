@@ -298,10 +298,11 @@ export const api = {
   knowledge: {
     getSchema: () => request('/admin/knowledge/schema'),
 
-    queryNodes: ({ node_type, name, limit = 50, offset = 0 } = {}) => {
+    queryNodes: ({ node_type, name, status, limit = 50, offset = 0 } = {}) => {
       const params = new URLSearchParams({ limit, offset });
       if (node_type) params.set('node_type', node_type);
       if (name) params.set('name', name);
+      if (status) params.set('status', status);
       return request(`/admin/knowledge/nodes?${params}`);
     },
 

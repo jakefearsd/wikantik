@@ -27,8 +27,8 @@ import java.nio.charset.Charset;
 
 
 /**
- *  Provides an interface through which JSPWiki constructs URLs. JSPWiki calls the methods of this interface whenever an URL
- *  that points to any JSPWiki internals is required.  For example, if you need to find an URL to the editor page for page
+ *  Provides an interface through which Wikantik constructs URLs. Wikantik calls the methods of this interface whenever a URL
+ *  that points to any Wikantik internals is required.  For example, if you need to find a URL to the editor page for page
  *  "TextFormattingRules", you would call makeURL( WikiContext.EDIT, "TextFormattingRules", false, null );
  *
  *  @since 2.2
@@ -39,7 +39,7 @@ public interface URLConstructor extends Initializable {
      *  Constructs the URL with a bunch of parameters.
      *
      *  @param context The request context (@see WikiContext) that you want the URL for
-     *  @param name The page name (or in case of WikiContext.NONE, the auxiliary JSP page
+     *  @param name The page name (or in case of WikiContext.NONE, the auxiliary page
      *              or resource you want to point at).  This must be URL encoded.  Null is NOT safe.
      *  @param parameters An URL parameter string (these must be URL-encoded, and separated with &amp;amp;)
      *  @return An URL pointing to the resource.  Must never return null - throw an InternalWikiException  if something goes wrong.

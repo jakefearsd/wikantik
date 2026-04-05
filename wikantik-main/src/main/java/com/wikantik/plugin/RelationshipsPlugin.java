@@ -102,7 +102,7 @@ public class RelationshipsPlugin implements Plugin {
 
         for( final Map.Entry< String, List< String > > entry : grouped.entrySet() ) {
             html.append( "<div class=\"relationship-group\">" );
-            html.append( "<em>" ).append( entry.getKey() ).append( ":</em> " );
+            html.append( "<em>" ).append( TextUtil.replaceEntities( entry.getKey() ) ).append( ":</em> " );
             html.append( entry.getValue().stream()
                     .map( name -> {
                         final String href = context.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), name );
@@ -122,7 +122,7 @@ public class RelationshipsPlugin implements Plugin {
      */
     static String formatLabel( final String relType ) {
         if( relType == null || relType.isEmpty() ) {
-            return relType;
+            return "";
         }
         final String spaced = relType.replace( '-', ' ' );
         return Character.toUpperCase( spaced.charAt( 0 ) ) + spaced.substring( 1 );

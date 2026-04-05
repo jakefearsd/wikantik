@@ -44,13 +44,13 @@ This guide focuses on using **PostgreSQL** as the relational database backend, w
 │         └──────────┬───────────────────┘                        │
 │                    │                                            │
 │              JNDI Lookup                                        │
-│          (java:comp/env/jdbc/*)                                 │
+│        (java:comp/env/jdbc/WikiDatabase)                        │
 └────────────────────┼────────────────────────────────────────────┘
                      │
 ┌────────────────────┼────────────────────────────────────────────┐
 │                    ▼                                            │
 │         Tomcat DataSource Pool                                  │
-│           (Connection Pooling)                                  │
+│           (jdbc/WikiDatabase)                                   │
 └────────────────────┼────────────────────────────────────────────┘
                      │
 ┌────────────────────┼────────────────────────────────────────────┐
@@ -460,9 +460,9 @@ Edit `$CATALINA_HOME/conf/context.xml`:
     <WatchedResource>WEB-INF/tomcat-web.xml</WatchedResource>
     <WatchedResource>${catalina.base}/conf/web.xml</WatchedResource>
 
-    <!-- Wikantik User Database DataSource -->
+    <!-- Wikantik Wiki Database DataSource (shared by all subsystems) -->
     <Resource
-        name="jdbc/UserDatabase"
+        name="jdbc/WikiDatabase"
         auth="Container"
         type="javax.sql.DataSource"
         driverClassName="org.postgresql.Driver"
@@ -471,39 +471,7 @@ Edit `$CATALINA_HOME/conf/context.xml`:
         password="your_secure_password_here"
 
         <!-- Connection Pool Settings -->
-        maxTotal="50"
-        maxIdle="10"
-        minIdle="5"
-        maxWaitMillis="10000"
-
-        <!-- Connection Validation -->
-        validationQuery="SELECT 1"
-        validationQueryTimeout="5"
-        testOnBorrow="true"
-        testOnReturn="false"
-        testWhileIdle="true"
-        timeBetweenEvictionRunsMillis="30000"
-        minEvictableIdleTimeMillis="60000"
-
-        <!-- Connection Settings -->
-        removeAbandonedOnBorrow="true"
-        removeAbandonedOnMaintenance="true"
-        removeAbandonedTimeout="300"
-        logAbandoned="true"
-    />
-
-    <!-- Wikantik Group Database DataSource -->
-    <Resource
-        name="jdbc/GroupDatabase"
-        auth="Container"
-        type="javax.sql.DataSource"
-        driverClassName="org.postgresql.Driver"
-        url="jdbc:postgresql://localhost:5432/jspwiki"
-        username="jspwiki"
-        password="your_secure_password_here"
-
-        <!-- Connection Pool Settings -->
-        maxTotal="50"
+        maxTotal="30"
         maxIdle="10"
         minIdle="5"
         maxWaitMillis="10000"
@@ -534,30 +502,14 @@ Create `$CATALINA_HOME/conf/Catalina/localhost/Wikantik.xml`:
 <?xml version="1.0" encoding="UTF-8"?>
 <Context docBase="/path/to/Wikantik.war" path="/Wikantik">
     <Resource
-        name="jdbc/UserDatabase"
+        name="jdbc/WikiDatabase"
         auth="Container"
         type="javax.sql.DataSource"
         driverClassName="org.postgresql.Driver"
         url="jdbc:postgresql://localhost:5432/jspwiki"
         username="jspwiki"
         password="your_secure_password_here"
-        maxTotal="50"
-        maxIdle="10"
-        minIdle="5"
-        maxWaitMillis="10000"
-        validationQuery="SELECT 1"
-        testOnBorrow="true"
-    />
-
-    <Resource
-        name="jdbc/GroupDatabase"
-        auth="Container"
-        type="javax.sql.DataSource"
-        driverClassName="org.postgresql.Driver"
-        url="jdbc:postgresql://localhost:5432/jspwiki"
-        username="jspwiki"
-        password="your_secure_password_here"
-        maxTotal="50"
+        maxTotal="30"
         maxIdle="10"
         minIdle="5"
         maxWaitMillis="10000"
@@ -600,11 +552,10 @@ jspwiki.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
 jspwiki.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 
 # ============================================================================
-# JNDI DataSource Names
-# These must match the Resource names in Tomcat's context.xml
+# JNDI DataSource Name
+# Must match the Resource name in Tomcat's context.xml
 # ============================================================================
-jspwiki.userdatabase.datasource = jdbc/UserDatabase
-jspwiki.groupdatabase.datasource = jdbc/GroupDatabase
+wikantik.datasource = jdbc/WikiDatabase
 
 # ============================================================================
 # User Database Table and Column Mappings
@@ -646,15 +597,8 @@ If using resource-ref declarations, ensure `WEB-INF/web.xml` includes:
 
 ```xml
 <resource-ref>
-    <description>User Database Connection</description>
-    <res-ref-name>jdbc/UserDatabase</res-ref-name>
-    <res-type>javax.sql.DataSource</res-type>
-    <res-auth>Container</res-auth>
-</resource-ref>
-
-<resource-ref>
-    <description>Group Database Connection</description>
-    <res-ref-name>jdbc/GroupDatabase</res-ref-name>
+    <description>Wiki Database Connection</description>
+    <res-ref-name>jdbc/WikiDatabase</res-ref-name>
     <res-type>javax.sql.DataSource</res-type>
     <res-auth>Container</res-auth>
 </resource-ref>
@@ -694,9 +638,9 @@ grep -E "(JDBCUserDatabase|JDBCGroupDatabase)" tomcat/tomcat-11/logs/catalina.ou
 
 Expected output:
 ```
-JDBCUserDatabase initialized from JNDI DataSource: jdbc/UserDatabase
+JDBCUserDatabase initialized from JNDI DataSource: jdbc/WikiDatabase
 JDBCUserDatabase supports transactions. Good; we will use them.
-JDBCGroupDatabase initialized from JNDI DataSource: jdbc/GroupDatabase
+JDBCGroupDatabase initialized from JNDI DataSource: jdbc/WikiDatabase
 JDBCGroupDatabase supports transactions. Good; we will use them.
 ```
 
@@ -872,7 +816,7 @@ For production workloads, tune the connection pool:
 
 ```xml
 <Resource
-    name="jdbc/UserDatabase"
+    name="jdbc/WikiDatabase"
     auth="Container"
     type="javax.sql.DataSource"
     driverClassName="org.postgresql.Driver"
@@ -992,7 +936,7 @@ WHERE schemaname = 'public';
 
 **Error: DataSource not found**
 ```
-javax.naming.NameNotFoundException: Name [jdbc/UserDatabase] is not bound
+javax.naming.NameNotFoundException: Name [jdbc/WikiDatabase] is not bound
 ```
 
 **Solution:**

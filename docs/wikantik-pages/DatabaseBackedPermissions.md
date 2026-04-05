@@ -25,7 +25,7 @@ The legacy JSPWiki security model used a flat XML file (`wikantik.policy`) to de
 
 ## Migration
 
-The `postgresql-permissions.ddl` script creates the `policy_grants` and `groups`/`group_members` tables. A property switch (`wikantik.policy.datasource`) controls whether the engine reads permissions from the database or falls back to the XML file.
+The `postgresql-permissions.ddl` script creates the `policy_grants` and `groups`/`group_members` tables. Policy is always database-backed when `wikantik.datasource` is configured (the default); there is no file-based fallback.
 
 ## Key Tables
 

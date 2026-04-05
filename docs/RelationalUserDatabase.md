@@ -31,14 +31,8 @@ To configure the JNDI `DataSource`, you'll need to add a `<Resource>` element to
 ```xml
 <Context>
   ...
-  <Resource name="jdbc/UserDatabase" auth="Container"
-            type="javax.sql.DataSource" maxTotal="100" maxIdle="30"
-            maxWaitMillis="10000" username="your_username" password="your_password"
-            driverClassName="com.mysql.cj.jdbc.Driver"
-            url="jdbc:mysql://localhost:3306/jspwiki?useSSL=false"/>
-
-  <Resource name="jdbc/GroupDatabase" auth="Container"
-            type="javax.sql.DataSource" maxTotal="100" maxIdle="30"
+  <Resource name="jdbc/WikiDatabase" auth="Container"
+            type="javax.sql.DataSource" maxTotal="30" maxIdle="30"
             maxWaitMillis="10000" username="your_username" password="your_password"
             driverClassName="com.mysql.cj.jdbc.Driver"
             url="jdbc:mysql://localhost:3306/jspwiki?useSSL=false"/>
@@ -51,14 +45,8 @@ To configure the JNDI `DataSource`, you'll need to add a `<Resource>` element to
 ```xml
 <Context>
   ...
-  <Resource name="jdbc/UserDatabase" auth="Container"
-            type="javax.sql.DataSource" maxTotal="100" maxIdle="30"
-            maxWaitMillis="10000" username="your_username" password="your_password"
-            driverClassName="org.postgresql.Driver"
-            url="jdbc:postgresql://localhost:5432/jspwiki"/>
-
-  <Resource name="jdbc/GroupDatabase" auth="Container"
-            type="javax.sql.DataSource" maxTotal="100" maxIdle="30"
+  <Resource name="jdbc/WikiDatabase" auth="Container"
+            type="javax.sql.DataSource" maxTotal="30" maxIdle="30"
             maxWaitMillis="10000" username="your_username" password="your_password"
             driverClassName="org.postgresql.Driver"
             url="jdbc:postgresql://localhost:5432/jspwiki"/>
@@ -80,9 +68,8 @@ Update your `wikantik-custom.properties` file to use the `JDBCUserDatabase` and 
 jspwiki.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
 jspwiki.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 
-# JNDI names for the databases
-jspwiki.jdbc.user.jndiname = jdbc/UserDatabase
-jspwiki.jdbc.group.jndiname = jdbc/GroupDatabase
+# Shared JNDI DataSource name
+wikantik.datasource = jdbc/WikiDatabase
 ```
 
 ### Step 4: Create the Database Tables
@@ -166,13 +153,12 @@ While the configuration is similar for both databases, there are a few key diffe
 
 In addition to users and groups, Wikantik supports storing authorization policy grants in the database via the `policy_grants` table. This replaces the file-based `wikantik.policy` with a database-backed equivalent.
 
-### Enabling Database-Backed Policy
+### Database-Backed Policy
 
-Set the following property in `wikantik-custom.properties`:
+Policy grants are always loaded from the database when `wikantik.datasource` is configured (the default). No additional property is required. Ensure `wikantik-custom.properties` contains:
 
 ```properties
-# Enable database-backed authorization policy (replaces file-based wikantik.policy)
-wikantik.policy.datasource = jdbc/UserDatabase
+wikantik.datasource = jdbc/WikiDatabase
 ```
 
 ### policy_grants Table

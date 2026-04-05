@@ -37,14 +37,8 @@ To configure the JNDI `DataSource`, you'll need to add a `<Resource>` element to
 ```xml
 <Context>
   ...
-  <Resource name="jdbc/UserDatabase" auth="Container"
-            type="javax.sql.DataSource" maxTotal="100" maxIdle="30"
-            maxWaitMillis="10000" username="your_username" password="your_password"
-            driverClassName="com.mysql.cj.jdbc.Driver"
-            url="jdbc:mysql://localhost:3306/jspwiki?useSSL=false"/>
-
-  <Resource name="jdbc/GroupDatabase" auth="Container"
-            type="javax.sql.DataSource" maxTotal="100" maxIdle="30"
+  <Resource name="jdbc/WikiDatabase" auth="Container"
+            type="javax.sql.DataSource" maxTotal="30" maxIdle="30"
             maxWaitMillis="10000" username="your_username" password="your_password"
             driverClassName="com.mysql.cj.jdbc.Driver"
             url="jdbc:mysql://localhost:3306/jspwiki?useSSL=false"/>
@@ -57,14 +51,8 @@ To configure the JNDI `DataSource`, you'll need to add a `<Resource>` element to
 ```xml
 <Context>
   ...
-  <Resource name="jdbc/UserDatabase" auth="Container"
-            type="javax.sql.DataSource" maxTotal="100" maxIdle="30"
-            maxWaitMillis="10000" username="your_username" password="your_password"
-            driverClassName="org.postgresql.Driver"
-            url="jdbc:postgresql://localhost:5432/jspwiki"/>
-
-  <Resource name="jdbc/GroupDatabase" auth="Container"
-            type="javax.sql.DataSource" maxTotal="100" maxIdle="30"
+  <Resource name="jdbc/WikiDatabase" auth="Container"
+            type="javax.sql.DataSource" maxTotal="30" maxIdle="30"
             maxWaitMillis="10000" username="your_username" password="your_password"
             driverClassName="org.postgresql.Driver"
             url="jdbc:postgresql://localhost:5432/jspwiki"/>
@@ -86,9 +74,8 @@ Update your `wikantik-custom.properties` file to use the `JDBCUserDatabase` and 
 jspwiki.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
 jspwiki.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 
-1. JNDI names for the databases
-jspwiki.jdbc.user.jndiname = jdbc/UserDatabase
-jspwiki.jdbc.group.jndiname = jdbc/GroupDatabase
+1. Shared JNDI DataSource name
+wikantik.datasource = jdbc/WikiDatabase
 ```
 
     1. Step 4: Create the Database Tables

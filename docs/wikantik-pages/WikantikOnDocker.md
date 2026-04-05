@@ -101,7 +101,7 @@ Then edit `.env` with your values:
 The `docker/entrypoint.sh` script runs every time the wikantik container starts. It generates three configuration files from environment variables:
 
 1. **`wikantik-custom.properties`** — Wiki settings: base URL, page directory, PostgreSQL JDBC database names, SMTP config, column mappings
-2. **`ROOT.xml`** — Tomcat context with two JNDI DataSources (`jdbc/UserDatabase` and `jdbc/GroupDatabase`) pointing to the PostgreSQL container
+2. **`ROOT.xml`** — Tomcat context with a single JNDI DataSource (`jdbc/WikiDatabase`) pointing to the PostgreSQL container
 3. **`wikantik-mcp.properties`** — MCP server rate limits and access keys
 
 This means you never edit config files inside the container. Change an environment variable, restart the container, and the new config takes effect.

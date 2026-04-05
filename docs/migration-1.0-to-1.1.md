@@ -12,12 +12,12 @@ Version 1.1 introduces a new `policy_grants` table that replaces the file-based 
 
 ### 2. New Properties Required
 
-The `wikantik-custom.properties` file needs a new property to enable database-backed policy:
+The `wikantik-custom.properties` file needs a datasource property configured:
 ```properties
-wikantik.policy.datasource = jdbc/GroupDatabase
+wikantik.datasource = jdbc/WikiDatabase
 ```
 
-Without this property, the wiki falls back to the file-based `wikantik.policy` (1.0 behavior).
+Database-backed policy is always active when `wikantik.datasource` is set; there is no file-based fallback.
 
 ### 3. Anonymous Users Restricted
 
@@ -86,11 +86,11 @@ grep "^jspwiki\." wikantik-custom.properties  # should return nothing
 grep "^wikantik\." wikantik-custom.properties  # should show all your properties
 ```
 
-Then add the new database-backed policy property:
+Then ensure the datasource property is set:
 
 ```properties
-# Enable database-backed authorization policy (replaces wikantik.policy file)
-wikantik.policy.datasource = jdbc/GroupDatabase
+# Configure the shared wiki datasource (enables database-backed authorization policy)
+wikantik.datasource = jdbc/WikiDatabase
 ```
 
 Optional — enable bootstrap admin override for initial deployment safety:

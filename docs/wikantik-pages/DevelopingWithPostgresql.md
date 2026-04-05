@@ -562,39 +562,6 @@ jspwiki.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 1. Must match the Resource name in Tomcat's context.xml
 1. ============================================================================
 wikantik.datasource = jdbc/WikiDatabase
-
-1. ============================================================================
-1. User Database Table and Column Mappings
-1. Default values match the schema in Section 4
-1. Only uncomment and modify if using a different schema
-1. ============================================================================
-jspwiki.userdatabase.table = users
-jspwiki.userdatabase.uid = uid
-jspwiki.userdatabase.email = email
-jspwiki.userdatabase.fullName = full_name
-jspwiki.userdatabase.loginName = login_name
-jspwiki.userdatabase.password = password
-jspwiki.userdatabase.wikiName = wiki_name
-jspwiki.userdatabase.created = created
-jspwiki.userdatabase.modified = modified
-jspwiki.userdatabase.lockExpiry = lock_expiry
-jspwiki.userdatabase.attributes = attributes
-jspwiki.userdatabase.roleTable = roles
-jspwiki.userdatabase.role = role
-
-1. ============================================================================
-1. Group Database Table and Column Mappings
-1. Default values match the schema in Section 4
-1. Only uncomment and modify if using a different schema
-1. ============================================================================
-jspwiki.groupdatabase.table = groups
-jspwiki.groupdatabase.membertable = group_members
-jspwiki.groupdatabase.created = created
-jspwiki.groupdatabase.creator = creator
-jspwiki.groupdatabase.name = name
-jspwiki.groupdatabase.member = member
-jspwiki.groupdatabase.modified = modified
-jspwiki.groupdatabase.modifier = modifier
 ```
 
     1. 7.2 Verify web.xml Resource References (Optional)

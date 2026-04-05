@@ -21,9 +21,6 @@ package com.wikantik.auth;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.ajax.AjaxUtil;
-import com.wikantik.ajax.WikiAjaxDispatcherServlet;
-import com.wikantik.ajax.WikiAjaxServlet;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
@@ -31,7 +28,6 @@ import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.filters.PageFilter;
 import com.wikantik.auth.validate.PasswordValidator;
-import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.auth.user.DummyUserDatabase;
 import com.wikantik.auth.user.DuplicateUserException;
@@ -54,10 +50,7 @@ import com.wikantik.util.TextUtil;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.AddressException;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.security.Permission;
 import java.security.Principal;
 import java.text.MessageFormat;
@@ -118,9 +111,6 @@ public class DefaultUserManager implements UserManager {
         // Attach the PageManager as a listener
         // TODO: it would be better if we did this in PageManager directly
         addWikiEventListener( engine.getManager( PageManager.class ) );
-
-        //TODO: Replace with custom annotations. See JSPWIKI-566
-        WikiAjaxDispatcherServlet.registerServlet( JSON_USERS, new JSONUserModule(this), new AllPermission(null));
     }
 
     /** {@inheritDoc} */
@@ -482,63 +472,6 @@ public class DefaultUserManager implements UserManager {
      */
     @Override public synchronized void removeWikiEventListener( final WikiEventListener listener ) {
         WikiEventManager.removeWikiEventListener( this, listener );
-    }
-
-    /**
-     *  Implements the JSON API for usermanager.
-     *  <p>
-     *  Even though this gets serialized whenever container shuts down/restarts, this gets reinstalled to the session when JSPWiki starts.
-     *  This means that it's not actually necessary to save anything.
-     */
-    public static final class JSONUserModule implements WikiAjaxServlet {
-
-		private final DefaultUserManager manager;
-
-        /**
-         *  Create a new JSONUserModule.
-         *  @param mgr Manager
-         */
-        public JSONUserModule( final DefaultUserManager mgr )
-        {
-            manager = mgr;
-        }
-
-        @Override
-        public String getServletMapping() {
-        	return JSON_USERS;
-        }
-
-        @Override
-        public void service( final HttpServletRequest req, final HttpServletResponse resp, final String actionName, final List<String> params) throws ServletException, IOException {
-        	try {
-            	if( params.isEmpty() ) {
-            		return;
-            	}
-        		final String uid = params.get(0);
-	        	LOG.debug("uid={}", uid);
-	        	if (StringUtils.isNotBlank(uid)) {
-		            final UserProfile prof = getUserInfo(uid);
-		            resp.getWriter().write(AjaxUtil.toJson(prof));
-	        	}
-        	} catch (final NoSuchPrincipalException e) {
-        		throw new ServletException(e);
-        	}
-        }
-
-        /**
-         *  Directly returns the UserProfile object attached to an uid.
-         *
-         *  @param uid The user id (e.g. WikiName)
-         *  @return A UserProfile object
-         *  @throws NoSuchPrincipalException If such a name does not exist.
-         */
-        public UserProfile getUserInfo( final String uid ) throws NoSuchPrincipalException {
-            if( manager != null ) {
-                return manager.getUserDatabase().find( uid );
-            }
-
-            throw new IllegalStateException( "The manager is offline." );
-        }
     }
 
 }

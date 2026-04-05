@@ -63,13 +63,6 @@
        <listener-class>com.wikantik.bootstrap.WikiBootstrapServletContextListener</listener-class>
    </listener>
 
-    <!-- WikiAjaxDispatcherServlet -->
-    <servlet>
-        <servlet-name>WikiAjaxDispatcherServlet</servlet-name>
-        <servlet-class>com.wikantik.ajax.WikiAjaxDispatcherServlet</servlet-class>
-        <load-on-startup>1</load-on-startup>
-    </servlet>
-
    <!--
        Attachment exchange handler.
      -->
@@ -82,12 +75,6 @@
    <servlet-mapping>
        <servlet-name>AttachmentServlet</servlet-name>
        <url-pattern>/attach/*</url-pattern>
-   </servlet-mapping>
-
-   <servlet-mapping>
-       <servlet-name>WikiAjaxDispatcherServlet</servlet-name>
-       <url-pattern>/ajax/*</url-pattern>
-       <url-pattern>/admin/ajax/*</url-pattern>
    </servlet-mapping>
 
    <welcome-file-list>

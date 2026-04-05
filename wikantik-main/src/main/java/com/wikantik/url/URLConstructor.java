@@ -60,14 +60,6 @@ public interface URLConstructor extends Initializable {
     String parsePage( String context, HttpServletRequest request, Charset encoding ) throws IOException;
 
     /**
-     *  Returns information which JSP page should continue handling this type of request.
-     *
-     * @param request The HTTP Request that was used to end up in this page.
-     * @return "Wiki.jsp", "PageInfo.jsp", etc.  Just return the name, JSPWiki will figure out the page.
-     */
-    String getForwardPage( HttpServletRequest request );
-
-    /**
      *  Takes the name of the page from the request URI. The initial slash is also removed.  If there is no page, returns null.
      *
      *  @param request The request to parse

@@ -147,16 +147,4 @@ public class ShortURLConstructor extends DefaultURLConstructor {
         return pagereq;
     }
 
-    /**
-     *  {@inheritDoc}
-     */
-    @Override
-    public String getForwardPage( final HttpServletRequest req ) {
-        String action = req.getParameter( "do" );
-        if( action == null ) {
-            action = "wiki";
-        }
-        return action;
-    }
-
 }

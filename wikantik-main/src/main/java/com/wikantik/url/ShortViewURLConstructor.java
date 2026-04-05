@@ -76,15 +76,5 @@ public class ShortViewURLConstructor extends ShortURLConstructor {
         }
         return makeURL( context, name ) + parameters;
     }
-    
-    /**
-     * @param request The HTTP Request that was used to end up in this page.
-     * @return always returns "wiki"
-     */
-    @Override
-    public String getForwardPage( final HttpServletRequest request )
-    {
-        return "wiki";
-    }
 
 }

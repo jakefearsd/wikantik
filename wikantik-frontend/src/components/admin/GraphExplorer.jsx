@@ -9,6 +9,7 @@ export default function GraphExplorer() {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [selectedNode, setSelectedNode] = useState(null);
   const [projecting, setProjecting] = useState(false);
   const [projectResult, setProjectResult] = useState(null);
@@ -34,10 +35,11 @@ export default function GraphExplorer() {
     const q = search.toLowerCase();
     return nodes.filter(n => {
       if (typeFilter && n.node_type !== typeFilter) return false;
+      if (statusFilter && n.properties?.status !== statusFilter) return false;
       if (q && !n.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [nodes, search, typeFilter]);
+  }, [nodes, search, typeFilter, statusFilter]);
 
   const handleProjectAll = async () => {
     setProjecting(true);
@@ -127,6 +129,17 @@ export default function GraphExplorer() {
             <option value="">All types</option>
             {(schema?.nodeTypes || schema?.node_types || []).map(t => (
               <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="form-input"
+            style={{ width: '180px' }}
+          >
+            <option value="">All statuses</option>
+            {(schema?.statusValues || schema?.status_values || []).map(s => (
+              <option key={s} value={s}>{s}</option>
             ))}
           </select>
         </div>

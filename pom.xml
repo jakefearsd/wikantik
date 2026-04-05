@@ -646,6 +646,22 @@
           </execution>
         </executions>
       </plugin>
+
+      <!-- Clean build output outside target/ so it is not scanned by tools -->
+      <plugin>
+        <artifactId>maven-clean-plugin</artifactId>
+        <inherited>false</inherited>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>${project.basedir}/wikantik-frontend/dist</directory>
+            </fileset>
+            <fileset>
+              <directory>${project.basedir}/wikantik-frontend/node_modules</directory>
+            </fileset>
+          </filesets>
+        </configuration>
+      </plugin>
     </plugins>
 
     <pluginManagement> <!-- defines what configuration is going to be used if, and only if, the plugin is used                          -->

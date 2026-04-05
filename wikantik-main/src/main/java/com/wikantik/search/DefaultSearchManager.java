@@ -24,7 +24,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.FilterException;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
-import com.wikantik.api.filters.BasePageFilter;
+import com.wikantik.api.filters.PageFilter;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
@@ -41,10 +41,11 @@ import java.util.Properties;
  *
  *  @since 2.2.21.
  */
-public class DefaultSearchManager extends BasePageFilter implements SearchManager {
+public class DefaultSearchManager implements PageFilter, SearchManager {
 
     private static final Logger LOG = LogManager.getLogger( DefaultSearchManager.class );
 
+    protected Engine engine;
     private SearchProvider searchProvider;
 
     /**

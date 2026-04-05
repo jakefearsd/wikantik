@@ -19,12 +19,12 @@
 package com.wikantik.filters;
 
 import com.wikantik.api.core.Engine;
-import com.wikantik.api.filters.BasePageFilter;
+import com.wikantik.api.filters.PageFilter;
 
 import java.util.Properties;
 
 
-public class TestFilter extends BasePageFilter {
+public class TestFilter implements PageFilter {
 	
     public Properties m_properties;
 

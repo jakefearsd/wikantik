@@ -27,7 +27,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
-import com.wikantik.api.filters.BasePageFilter;
+import com.wikantik.api.filters.PageFilter;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.spi.Wiki;
@@ -109,7 +109,9 @@ import java.util.stream.Collectors;
 // FIXME: The way that we save attributes is now a major booboo, and must be
 //        replaced forthwith.  However, this is a workaround for the great deal
 //        of problems that occur here...
-public class DefaultReferenceManager extends BasePageFilter implements com.wikantik.api.managers.ReferenceManager, Serializable {
+public class DefaultReferenceManager implements PageFilter, com.wikantik.api.managers.ReferenceManager, Serializable {
+
+    protected Engine engine;
 
     /**
      *  Maps page wikiname to a Collection of pages it refers to. The Collection must contain Strings. The Collection may contain

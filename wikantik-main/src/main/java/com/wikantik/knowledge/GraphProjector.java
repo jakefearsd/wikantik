@@ -19,7 +19,7 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.api.core.Context;
-import com.wikantik.api.filters.BasePageFilter;
+import com.wikantik.api.filters.PageFilter;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.knowledge.*;
@@ -35,7 +35,7 @@ import java.util.*;
  * Upserts the page's node, resolves relationships to edges,
  * creates stub nodes for unresolved references, and diffs to remove stale edges.
  */
-public class GraphProjector extends BasePageFilter {
+public class GraphProjector implements PageFilter {
 
     private static final Logger LOG = LogManager.getLogger( GraphProjector.class );
 

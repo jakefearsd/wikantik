@@ -540,7 +540,7 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
     @Override
     public boolean pageExists( final String pageName ) throws ProviderException {
         if (pageName == null || pageName.isEmpty()) {
-            throw new ProviderException("Illegal page name");
+            throw new ProviderException("Illegal page name: '" + pageName + "'");
         }
 
         return provider.pageExists(pageName);
@@ -553,7 +553,7 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
     @Override
     public boolean pageExists( final String pageName, final int version ) throws ProviderException {
         if( pageName == null || pageName.isEmpty() ) {
-            throw new ProviderException( "Illegal page name" );
+            throw new ProviderException( "Illegal page name: '" + pageName + "'" );
         }
 
         if( version == WikiProvider.LATEST_VERSION ) {

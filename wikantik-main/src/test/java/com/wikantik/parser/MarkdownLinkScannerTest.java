@@ -151,6 +151,14 @@ class MarkdownLinkScannerTest {
         assertTrue( MarkdownLinkScanner.findLocalLinks( text ).isEmpty() );
     }
 
+    @Test
+    void testFindLocalLinksCheckboxNotTreatedAsLink() {
+        // Markdown checkboxes like "- [ ]()" should NOT produce a page link
+        final String text = "- [ ]() Task one\n- [ ]() Task two\n- [x]() Done task";
+        final Set< String > locals = MarkdownLinkScanner.findLocalLinks( text );
+        assertTrue( locals.isEmpty(), "Checkbox syntax should not produce links, got: " + locals );
+    }
+
     // --- scanAll ---
 
     @Test

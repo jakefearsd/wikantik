@@ -1,13 +1,10 @@
 ---
-date: '2026-03-14'
-type: article
+part-of:
+- ConflictsAndEquityMarkets
+- RussiaUkraineWarOverview
+status: active
 summary: Energy weaponisation, unprecedented sanctions, European defence rearmament,
   and the return of geopolitical risk premiums
-related:
-- ConflictsAndEquityMarkets
-- WarOnTerrorMarkets
-- ColdWarMarkets
-- ConflictMarketPatterns
 tags:
 - finance
 - russia-ukraine-war
@@ -15,8 +12,14 @@ tags:
 - sanctions
 - energy-crisis
 - defence-rearmament
-status: active
+type: article
+related:
+- ConflictsAndEquityMarkets
+- WarOnTerrorMarkets
+- ColdWarMarkets
+- ConflictMarketPatterns
 cluster: conflicts-equity-markets
+date: '2026-03-14'
 ---
 # The Russia-Ukraine War and Equity Markets (2022–present)
 

@@ -1,21 +1,23 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: Introduction to shell scripting — turning command sequences into reusable
   scripts, variables, conditionals, loops, and automating tasks with cron
-related:
-- LinuxForWindowsUsers
-- LinuxCommandLineEssentials
-- LinuxSystemAdministration
-- LinuxFilesystemAndPermissions
+date: 2026-03-14T00:00:00Z
 tags:
 - linux
 - bash
 - scripting
 - automation
 - command-line
+related:
+- LinuxForWindowsUsers
+- LinuxCommandLineEssentials
+- LinuxSystemAdministration
+- LinuxFilesystemAndPermissions
 type: article
 cluster: linux-for-windows-users
+status: active
+part-of:
+- LinuxForWindowsUsers
 ---
 # Linux Shell Scripting Fundamentals
 

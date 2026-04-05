@@ -1,22 +1,24 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: The essential Linux commands every Windows convert needs — navigation, file
   operations, text processing, piping, and building command-line fluency
-related:
-- LinuxForWindowsUsers
-- LinuxFilesystemAndPermissions
-- LinuxShellScriptingFundamentals
-- LinuxCommands
-- WhyLearnLinuxDeeply
+date: 2026-03-14T00:00:00Z
 tags:
 - linux
 - command-line
 - bash
 - terminal
 - operating-systems
+related:
+- LinuxForWindowsUsers
+- LinuxFilesystemAndPermissions
+- LinuxShellScriptingFundamentals
+- LinuxCommands
+- WhyLearnLinuxDeeply
 type: article
 cluster: linux-for-windows-users
+status: active
+part-of:
+- LinuxForWindowsUsers
 ---
 # Linux Command Line Essentials
 

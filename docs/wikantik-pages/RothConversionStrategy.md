@@ -1,8 +1,12 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: Strategic framework for Roth conversions — when to convert, how much, tax
   bracket targeting, IRMAA implications, and the gap-years opportunity
+date: 2026-03-14T00:00:00Z
+tags:
+- personal-finance
+- retirement-planning
+- roth-conversion
+- tax-strategy
 related:
 - RetirementPlanningGuide
 - RothConversionLadder
@@ -10,13 +14,11 @@ related:
 - MedicarePlanningAndHealthcare
 - RetirementWithdrawalSequencing
 - AccountTypeStrategy
-tags:
-- personal-finance
-- retirement-planning
-- roth-conversion
-- tax-strategy
 type: article
 cluster: retirement-planning
+status: active
+part-of:
+- RetirementPlanningGuide
 ---
 # Roth Conversion Strategy
 

@@ -1,21 +1,23 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: How to choose your first Linux distribution — the major families, what differentiates
   them, and recommendations by use case
-related:
-- LinuxForWindowsUsers
-- WhyLearnLinuxDeeply
-- LinuxPackageManagement
-- LinuxCommandLineEssentials
+date: 2026-03-14T00:00:00Z
 tags:
 - linux
 - operating-systems
 - ubuntu
 - fedora
 - distributions
+related:
+- LinuxForWindowsUsers
+- WhyLearnLinuxDeeply
+- LinuxPackageManagement
+- LinuxCommandLineEssentials
 type: article
 cluster: linux-for-windows-users
+status: active
+part-of:
+- LinuxForWindowsUsers
 ---
 # Choosing a Linux Distribution
 

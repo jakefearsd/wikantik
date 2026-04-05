@@ -1,5 +1,7 @@
 ---
-type: article
+summary: How 3D printers create jigs, fixtures, workholding, and custom hardware that
+  make woodworking projects easier and more precise
+date: '2026-03-20'
 tags:
 - woodworking
 - 3d-printing
@@ -7,15 +9,15 @@ tags:
 - jigs
 - maker
 - digital-fabrication
-date: '2026-03-20'
-cluster: hobby-woodworking
-status: active
-summary: How 3D printers create jigs, fixtures, workholding, and custom hardware that
-  make woodworking projects easier and more precise
 related:
 - HobbyWoodworkingInTheTwentyFirstCentury
 - CncRoutersForTheHobbyWorkshop
 - DigitalDesignToolsForWoodworkers
+type: article
+cluster: hobby-woodworking
+status: active
+part-of:
+- HobbyWoodworkingInTheTwentyFirstCentury
 ---
 # 3D Printing Meets Woodworking
 

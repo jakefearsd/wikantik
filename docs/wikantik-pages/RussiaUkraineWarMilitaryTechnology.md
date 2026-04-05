@@ -1,4 +1,7 @@
 ---
+summary: How drone warfare and military technology innovation have transformed the
+  Russia-Ukraine conflict
+date: '2026-03-13'
 tags:
 - Russia
 - Ukraine
@@ -11,12 +14,11 @@ tags:
 related:
 - RussiaUkraineWarOverview
 - RussiaUkraineWarInternationalResponse
-summary: How drone warfare and military technology innovation have transformed the
-  Russia-Ukraine conflict
-status: active
-date: '2026-03-13'
 type: article
 cluster: russia-ukraine-war
+status: active
+part-of:
+- RussiaUkraineWarOverview
 ---
 # Drone Warfare and Military Technology Innovation
 

@@ -1,21 +1,23 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: How software installation works on Linux — package managers, repositories,
   updates, and why you rarely download installers from websites
-related:
-- LinuxForWindowsUsers
-- ChoosingALinuxDistribution
-- LinuxSystemAdministration
-- LinuxCommandLineEssentials
+date: 2026-03-14T00:00:00Z
 tags:
 - linux
 - package-management
 - apt
 - dnf
 - operating-systems
+related:
+- LinuxForWindowsUsers
+- ChoosingALinuxDistribution
+- LinuxSystemAdministration
+- LinuxCommandLineEssentials
 type: article
 cluster: linux-for-windows-users
+status: active
+part-of:
+- LinuxForWindowsUsers
 ---
 # Linux Package Management
 

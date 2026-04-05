@@ -1,11 +1,25 @@
 ---
+summary: Conveyor and sorting technology — the fixed transport networks that move
+  cartons and totes through fulfilment centres at high speed
+date: 2026-03-18T00:00:00Z
+tags:
+- warehouse
+- conveyor
+- sorter
+- automation
+- logistics
+- material-handling
+related:
+- WarehouseAutomationHub
+- WarehouseManagementSystems
+- AutomatedStorageAndRetrieval
+- WarehouseRobotics
+- WarehouseAutomationLimitations
 type: article
 cluster: warehouse-automation
-tags: [warehouse, conveyor, sorter, automation, logistics, material-handling]
-date: 2026-03-18
 status: active
-summary: Conveyor and sorting technology — the fixed transport networks that move cartons and totes through fulfilment centres at high speed
-related: [WarehouseAutomationHub, WarehouseManagementSystems, AutomatedStorageAndRetrieval, WarehouseRobotics, WarehouseAutomationLimitations]
+part-of:
+- WarehouseAutomationHub
 ---
 # Conveyor and Sorting Technology
 

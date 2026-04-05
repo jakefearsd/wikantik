@@ -1,20 +1,23 @@
 ---
+summary: How airlines, hotels, and other industries use OR to dynamically optimize
+  pricing and capacity allocation under uncertain demand
+date: 2026-03-17T00:00:00Z
+tags:
+- operations-research
+- revenue-management
+- dynamic-pricing
+- yield-management
+- airlines
+related:
+- OperationsResearchHub
+- StochasticModelsInOR
+- LinearProgrammingFoundations
+- IntegerAndCombinatorialOptimization
 type: article
 cluster: operations-research
-tags:
-  - operations-research
-  - revenue-management
-  - dynamic-pricing
-  - yield-management
-  - airlines
-date: 2026-03-17
-related:
-  - OperationsResearchHub
-  - StochasticModelsInOR
-  - LinearProgrammingFoundations
-  - IntegerAndCombinatorialOptimization
 status: active
-summary: How airlines, hotels, and other industries use OR to dynamically optimize pricing and capacity allocation under uncertain demand
+part-of:
+- OperationsResearchHub
 ---
 # Revenue Management with OR
 

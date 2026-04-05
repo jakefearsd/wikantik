@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-05** — feat: knowledge graph admin UI, MCP simplification, and wiki content updates
+
 **2026-04-05** — refactor: reduce duplication and cyclomatic complexity across REST and main modules
 
 **2026-04-05** — refactor: consolidate Command hierarchy into GenericCommand (~170 lines saved)

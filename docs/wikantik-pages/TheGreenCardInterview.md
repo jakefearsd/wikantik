@@ -1,14 +1,7 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: What to expect at the green card interview — preparation, common questions,
   evidence to bring, and how officers evaluate bona fide marriages
-related:
-- SpousalGreenCardGuide
-- FilingTheI130Petition
-- AdjustmentOfStatusProcess
-- ConsularProcessingPath
-- ConditionalResidenceAndI751
+date: 2026-03-14T00:00:00Z
 tags:
 - immigration
 - green-card
@@ -16,8 +9,17 @@ tags:
 - interview
 - uscis
 - embassy
+related:
+- SpousalGreenCardGuide
+- FilingTheI130Petition
+- AdjustmentOfStatusProcess
+- ConsularProcessingPath
+- ConditionalResidenceAndI751
 type: article
 cluster: spousal-green-card
+status: active
+part-of:
+- SpousalGreenCardGuide
 ---
 # The Green Card Interview
 

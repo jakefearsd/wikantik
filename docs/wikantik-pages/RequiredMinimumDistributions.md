@@ -1,12 +1,23 @@
 ---
-title: Required Minimum Distributions
-type: article
-tags: [retirement, taxes, RMD, IRA, 401k]
-date: 2026-03-15
 status: published
+summary: Complete guide to required minimum distributions from retirement accounts,
+  including age thresholds, calculation methods, and strategies to minimize tax impact.
+title: Required Minimum Distributions
+tags:
+- retirement
+- taxes
+- RMD
+- IRA
+- 401k
+type: article
 cluster: retirement-planning
-summary: Complete guide to required minimum distributions from retirement accounts, including age thresholds, calculation methods, and strategies to minimize tax impact.
-related: [RetirementAccountWithdrawalRules, TaxPlanningForRetirementAccountWithdrawals, RetirementWithdrawalSequencing]
+related:
+- RetirementAccountWithdrawalRules
+- TaxPlanningForRetirementAccountWithdrawals
+- RetirementWithdrawalSequencing
+date: 2026-03-15T00:00:00Z
+part-of:
+- RetirementPlanningGuide
 ---
 
 # Required Minimum Distributions

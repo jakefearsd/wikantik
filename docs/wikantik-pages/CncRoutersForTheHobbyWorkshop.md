@@ -1,5 +1,7 @@
 ---
-type: article
+summary: 'Desktop CNC routers for hobbyists: machines, software, capabilities, and
+  how they fit into a woodworking workflow'
+date: '2026-03-20'
 tags:
 - woodworking
 - CNC
@@ -7,16 +9,16 @@ tags:
 - digital-fabrication
 - tools
 - maker
-date: '2026-03-20'
-cluster: hobby-woodworking
-status: active
-summary: 'Desktop CNC routers for hobbyists: machines, software, capabilities, and
-  how they fit into a woodworking workflow'
 related:
 - HobbyWoodworkingInTheTwentyFirstCentury
 - DigitalDesignToolsForWoodworkers
 - LaserCuttersAndEngraversForWood
 - ThreeDeePrintingMeetsWoodworking
+type: article
+cluster: hobby-woodworking
+status: active
+part-of:
+- HobbyWoodworkingInTheTwentyFirstCentury
 ---
 # CNC Routers for the Hobby Workshop
 

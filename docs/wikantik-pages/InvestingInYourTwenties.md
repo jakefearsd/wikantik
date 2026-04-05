@@ -1,22 +1,24 @@
 ---
-type: article
+summary: Why investors in their 20s should strongly consider 100% equities, and how
+  risk tolerance changes as you age
+date: 2026-03-21T00:00:00Z
 tags:
 - finance
 - investing
 - index-funds
 - risk-tolerance
 - asset-allocation
-date: 2026-03-21
-status: active
 related:
 - IndexFundInvestingForEarlyRetirement
 - AssetAllocationGuide
 - CompoundingIntuition
 - IndexFundPortfolioConstruction
 - EarlyRetirementInvestmentPlan
-summary: Why investors in their 20s should strongly consider 100% equities, and how
-  risk tolerance changes as you age
+type: article
 cluster: index-fund-investing
+status: active
+part-of:
+- IndexFundInvestingForEarlyRetirement
 ---
 # Investing in Your Twenties: Why You Should Be All In on Stocks
 

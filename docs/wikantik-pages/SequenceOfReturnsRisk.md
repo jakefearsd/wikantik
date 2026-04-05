@@ -1,13 +1,13 @@
 ---
-type: article
+summary: Deep dive into sequence of returns risk — why the first 5-10 years of retirement
+  determine everything, and concrete strategies to protect yourself
+date: 2026-03-21T00:00:00Z
 tags:
 - finance
 - retirement
 - risk-management
 - withdrawal-strategy
 - asset-allocation
-date: 2026-03-21
-status: active
 related:
 - RetirementPlanningGuide
 - SafeWithdrawalRates
@@ -17,9 +17,11 @@ related:
 - InvestingInYourTwenties
 - AssetAllocationGuide
 - RothConversionStrategy
-summary: Deep dive into sequence of returns risk — why the first 5-10 years of retirement
-  determine everything, and concrete strategies to protect yourself
+type: article
 cluster: retirement-planning
+status: active
+part-of:
+- RetirementPlanningGuide
 ---
 # Sequence of Returns Risk: Protecting Your Early Retirement Years
 

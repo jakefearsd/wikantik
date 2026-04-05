@@ -1,4 +1,7 @@
 ---
+summary: Status of peace negotiations and diplomatic efforts to end the Russia-Ukraine
+  war as of March 2026
+date: '2026-03-13'
 tags:
 - Russia
 - Ukraine
@@ -10,12 +13,11 @@ tags:
 - ceasefire
 related:
 - RussiaUkraineWarOverview
-summary: Status of peace negotiations and diplomatic efforts to end the Russia-Ukraine
-  war as of March 2026
-status: active
-date: '2026-03-13'
 type: article
 cluster: russia-ukraine-war
+status: active
+part-of:
+- RussiaUkraineWarOverview
 ---
 # Peace Negotiations and Diplomatic Efforts
 

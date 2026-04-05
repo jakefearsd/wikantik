@@ -1,11 +1,25 @@
 ---
+summary: Adaptive retirement spending using Guyton-Klinger decision rules and Kitces-Pfau
+  ratcheting — start higher than 4% with lower risk of ruin
+date: 2026-03-21T00:00:00Z
+tags:
+- retirement
+- withdrawal-strategy
+- guardrails
+- spending-strategy
+- financial-planning
+related:
+- SafeWithdrawalRates
+- HistoryOfTheFourPercentRule
+- RetirementIncomeBlueprint
+- SocialSecurityClaimingStrategy
+- RetirementWithdrawalSequencing
+- RetirementPlanningGuide
 type: article
-tags: [retirement, withdrawal-strategy, guardrails, spending-strategy, financial-planning]
-date: 2026-03-21
-status: active
 cluster: retirement-planning
-summary: Adaptive retirement spending using Guyton-Klinger decision rules and Kitces-Pfau ratcheting — start higher than 4% with lower risk of ruin
-related: [SafeWithdrawalRates, HistoryOfTheFourPercentRule, RetirementIncomeBlueprint, SocialSecurityClaimingStrategy, RetirementWithdrawalSequencing, RetirementPlanningGuide]
+status: active
+part-of:
+- RetirementPlanningGuide
 ---
 # Guardrails Spending Strategy
 

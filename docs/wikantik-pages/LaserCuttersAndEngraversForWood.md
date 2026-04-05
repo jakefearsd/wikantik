@@ -1,5 +1,7 @@
 ---
-type: article
+summary: 'CO2 and diode lasers for hobby woodworking: cutting thin stock, engraving,
+  inlay preparation, and choosing between laser and CNC'
+date: '2026-03-20'
 tags:
 - woodworking
 - laser
@@ -7,15 +9,15 @@ tags:
 - engraving
 - digital-fabrication
 - tools
-date: '2026-03-20'
-cluster: hobby-woodworking
-status: active
-summary: 'CO2 and diode lasers for hobby woodworking: cutting thin stock, engraving,
-  inlay preparation, and choosing between laser and CNC'
 related:
 - HobbyWoodworkingInTheTwentyFirstCentury
 - CncRoutersForTheHobbyWorkshop
 - DigitalDesignToolsForWoodworkers
+type: article
+cluster: hobby-woodworking
+status: active
+part-of:
+- HobbyWoodworkingInTheTwentyFirstCentury
 ---
 # Laser Cutters and Engravers for Wood
 

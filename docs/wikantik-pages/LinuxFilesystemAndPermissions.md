@@ -1,21 +1,23 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: How the Linux filesystem works — the directory tree, everything-is-a-file
   philosophy, users and groups, and the permission model explained for Windows users
-related:
-- LinuxForWindowsUsers
-- LinuxCommandLineEssentials
-- LinuxSystemAdministration
-- LinuxCommands
+date: 2026-03-14T00:00:00Z
 tags:
 - linux
 - filesystem
 - permissions
 - operating-systems
 - security
+related:
+- LinuxForWindowsUsers
+- LinuxCommandLineEssentials
+- LinuxSystemAdministration
+- LinuxCommands
 type: article
 cluster: linux-for-windows-users
+status: active
+part-of:
+- LinuxForWindowsUsers
 ---
 # Linux Filesystem and Permissions
 

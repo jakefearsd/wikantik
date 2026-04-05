@@ -63,8 +63,8 @@ public class Wiki {
      *
      * @return {@link AclsSPI} operations.
      */
-    public static AclsDSL acls() {
-        return new AclsDSL( aclsSPI );
+    public static AclsSPI acls() {
+        return aclsSPI;
     }
 
     /**
@@ -72,8 +72,8 @@ public class Wiki {
      *
      * @return {@link ContentsSPI} operations.
      */
-    public static ContentsDSL contents() {
-        return new ContentsDSL( contentsSPI );
+    public static ContentsSPI contents() {
+        return contentsSPI;
     }
 
     /**
@@ -81,8 +81,8 @@ public class Wiki {
      *
      * @return {@link ContextSPI} operations.
      */
-    public static ContextDSL context() {
-        return new ContextDSL( contextSPI );
+    public static ContextSPI context() {
+        return contextSPI;
     }
 
     /**
@@ -90,8 +90,8 @@ public class Wiki {
      *
      * @return {@link EngineSPI} operations.
      */
-    public static EngineDSL engine() {
-        return new EngineDSL( engineSPI );
+    public static EngineSPI engine() {
+        return engineSPI;
     }
 
     /**
@@ -99,8 +99,8 @@ public class Wiki {
      *
      * @return {@link SessionSPI} operations.
      */
-    public static SessionDSL session() {
-        return new SessionDSL( sessionSPI );
+    public static SessionSPI session() {
+        return sessionSPI;
     }
 
     static < SPI > SPI getSPI( final Class< SPI > spi, final Properties props, final String prop, final String defValue ) {

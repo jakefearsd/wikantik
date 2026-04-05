@@ -52,9 +52,10 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         final List< String > nodeTypes = repo.getDistinctNodeTypes();
         final List< String > relTypes = repo.getDistinctRelationshipTypes();
 
-        // Scan all nodes to build property key stats
+        // Scan all nodes to build property key stats and collect distinct status values
         final Map< String, Long > propCounts = new LinkedHashMap<>();
         final Map< String, List< String > > propSamples = new LinkedHashMap<>();
+        final Set< String > statusSet = new TreeSet<>();
         final List< KgNode > allNodes = repo.queryNodes( null, null, Integer.MAX_VALUE, 0 );
         for( final KgNode node : allNodes ) {
             if( node.properties() != null ) {
@@ -64,6 +65,9 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                     final List< String > samples = propSamples.computeIfAbsent( key, k -> new ArrayList<>() );
                     if( samples.size() < 5 && entry.getValue() != null ) {
                         samples.add( entry.getValue().toString() );
+                    }
+                    if( "status".equals( key ) && entry.getValue() != null ) {
+                        statusSet.add( entry.getValue().toString() );
                     }
                 }
             }
@@ -84,6 +88,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         return new SchemaDescription(
                 nodeTypes,
                 relTypes,
+                new ArrayList<>( statusSet ),
                 propertyKeys,
                 new SchemaDescription.Stats( nodeCount, edgeCount, pendingCount )
         );
@@ -161,6 +166,17 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     @Override
     public List< KgEdge > getEdgesForNode( final UUID nodeId, final String direction ) {
         return repo.getEdgesForNode( nodeId, direction );
+    }
+
+    @Override
+    public List< Map< String, Object > > queryEdges( final String relationshipType, final String searchName,
+                                                      final int limit, final int offset ) {
+        return repo.queryEdgesWithNames( relationshipType, searchName, limit, offset );
+    }
+
+    @Override
+    public Map< UUID, String > getNodeNames( final Collection< UUID > ids ) {
+        return repo.getNodeNames( ids );
     }
 
     // --- Traversal ---

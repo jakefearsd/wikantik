@@ -6,6 +6,7 @@ import java.util.Map;
 public record SchemaDescription(
     List< String > nodeTypes,
     List< String > relationshipTypes,
+    List< String > statusValues,
     Map< String, PropertyInfo > propertyKeys,
     Stats stats
 ) {

@@ -25,6 +25,7 @@ import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
 import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
@@ -44,6 +45,7 @@ import javax.sql.DataSource;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.sql.Connection;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -215,6 +217,90 @@ class AdminKnowledgeResourceTest {
         try { pm.deletePage( "SourcePage" ); } catch ( final Exception e ) { /* ignore */ }
     }
 
+    @Test
+    void testGetNodeReturnsEdgesWithNames() throws Exception {
+        engine.saveText( "EdgeNameSrc",
+                "---\ntitle: Source\nrelated:\n  - EdgeNameTgt\n---\nBody." );
+        doPost( "/project-all" );
+
+        final String json = doGet( "/nodes/EdgeNameSrc" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        assertFalse( obj.has( "error" ), "Should succeed, got: " + json );
+
+        final JsonArray edges = obj.getAsJsonArray( "edges" );
+        assertTrue( edges.size() >= 1, "Should have at least 1 edge" );
+        final JsonObject edge = edges.get( 0 ).getAsJsonObject();
+        assertTrue( edge.has( "source_name" ), "Edge should have source_name" );
+        assertTrue( edge.has( "target_name" ), "Edge should have target_name" );
+        assertEquals( "EdgeNameSrc", edge.get( "source_name" ).getAsString() );
+        assertEquals( "EdgeNameTgt", edge.get( "target_name" ).getAsString() );
+
+        // Cleanup
+        final com.wikantik.pages.PageManager pm = engine.getManager( com.wikantik.pages.PageManager.class );
+        try { pm.deletePage( "EdgeNameSrc" ); } catch ( final Exception e ) { /* ignore */ }
+    }
+
+    @Test
+    void testListAllEdgesReturnsEdgesWithNames() throws Exception {
+        engine.saveText( "ListEdgeSrc",
+                "---\ntitle: Source\nrelated:\n  - ListEdgeTgt\n---\nBody." );
+        doPost( "/project-all" );
+
+        final String json = doGetWithParams( "/edges", Map.of( "limit", "50" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        assertFalse( obj.has( "error" ), "Should succeed, got: " + json );
+        assertTrue( obj.has( "edges" ), "Response should have edges array" );
+
+        final JsonArray edges = obj.getAsJsonArray( "edges" );
+        assertTrue( edges.size() >= 1, "Should have at least 1 edge" );
+        final JsonObject edge = edges.get( 0 ).getAsJsonObject();
+        assertTrue( edge.has( "source_name" ), "Edge should have source_name" );
+        assertTrue( edge.has( "target_name" ), "Edge should have target_name" );
+
+        // Cleanup
+        final com.wikantik.pages.PageManager pm = engine.getManager( com.wikantik.pages.PageManager.class );
+        try { pm.deletePage( "ListEdgeSrc" ); } catch ( final Exception e ) { /* ignore */ }
+    }
+
+    @Test
+    void testListAllEdgesFiltersByRelationshipType() throws Exception {
+        engine.saveText( "FilterSrc",
+                "---\ntitle: Source\nrelated:\n  - FilterTgtA\nmentions:\n  - FilterTgtB\n---\nBody." );
+        doPost( "/project-all" );
+
+        final String allJson = doGetWithParams( "/edges", Map.of( "limit", "100" ) );
+        final int allCount = gson.fromJson( allJson, JsonObject.class )
+                .getAsJsonArray( "edges" ).size();
+
+        final String filteredJson = doGetWithParams( "/edges",
+                Map.of( "relationship_type", "related", "limit", "100" ) );
+        final int filteredCount = gson.fromJson( filteredJson, JsonObject.class )
+                .getAsJsonArray( "edges" ).size();
+
+        assertTrue( filteredCount > 0, "Should find at least 1 'related' edge" );
+        assertTrue( filteredCount <= allCount, "Filtered count should be <= total" );
+
+        // Cleanup
+        final com.wikantik.pages.PageManager pm = engine.getManager( com.wikantik.pages.PageManager.class );
+        try { pm.deletePage( "FilterSrc" ); } catch ( final Exception e ) { /* ignore */ }
+    }
+
+    @Test
+    void testSchemaIncludesStatusValues() throws Exception {
+        final KnowledgeGraphService service = engine.getManager( KnowledgeGraphService.class );
+        service.upsertNode( "X", "article", null,
+                Provenance.HUMAN_AUTHORED, Map.of( "status", "deployed" ) );
+        service.upsertNode( "Y", "article", null,
+                Provenance.HUMAN_AUTHORED, Map.of( "status", "designed" ) );
+
+        final String json = doGet( "/schema" );
+        final JsonObject schema = gson.fromJson( json, JsonObject.class );
+        assertFalse( schema.has( "error" ), "Should not be an error: " + json );
+        final JsonArray statuses = schema.getAsJsonArray( "statusValues" );
+        assertNotNull( statuses, "Schema should have statusValues" );
+        assertTrue( statuses.size() >= 2, "Should have at least 2 status values" );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pathInfo ) throws Exception {
@@ -234,6 +320,19 @@ class AdminKnowledgeResourceTest {
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
 
         servlet.doPost( request, response );
+        return sw.toString();
+    }
+
+    private String doGetWithParams( final String pathInfo, final Map< String, String > params ) throws Exception {
+        final HttpServletRequest request = createRequest( pathInfo );
+        for ( final Map.Entry< String, String > entry : params.entrySet() ) {
+            Mockito.doReturn( entry.getValue() ).when( request ).getParameter( entry.getKey() );
+        }
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
         return sw.toString();
     }
 

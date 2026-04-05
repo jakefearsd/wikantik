@@ -27,6 +27,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.RedirectException;
+import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.ui.progress.ProgressManager;
 import jakarta.servlet.ServletContext;

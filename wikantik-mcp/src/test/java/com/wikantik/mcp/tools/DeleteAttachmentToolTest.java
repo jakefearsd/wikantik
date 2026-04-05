@@ -23,7 +23,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.api.managers.AttachmentManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

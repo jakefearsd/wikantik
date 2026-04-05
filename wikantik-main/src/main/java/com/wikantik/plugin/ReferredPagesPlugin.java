@@ -26,8 +26,8 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
-import com.wikantik.pages.PageManager;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.util.TextUtil;
 
 import java.util.ArrayList;

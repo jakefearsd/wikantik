@@ -18,7 +18,6 @@
  */
 package com.wikantik.search;
 
-import com.wikantik.WikiEngine;
 import com.wikantik.WikiPage;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
@@ -53,18 +52,6 @@ public class SearchMatcher {
         this.queries = queries != null ? queries.clone() : null;
     }
 
-    /**
-     * Creates a new SearchMatcher.
-     *
-     * @param engine The Engine
-     * @param queries A list of queries
-     * @deprecated kept for compatibility with page/attachment providers not using public API. Use {@code SearchMatcher(Engine, QueryItem)}
-     * instead.
-     */
-    @Deprecated
-    public SearchMatcher( final WikiEngine engine, final com.wikantik.search.QueryItem[] queries ) {
-        this( ( Engine )engine, queries );
-    }
 
     /**
      * Compares the page content, available through the given stream, to the query items of this matcher. Returns a search result
@@ -77,8 +64,7 @@ public class SearchMatcher {
      * @return A SearchResult item, or null, there are no queries
      * @throws IOException If reading page content fails
      */
-    @SuppressWarnings( "deprecation" )
-    public com.wikantik.search.SearchResult matchPageContent( final String wikiname, final String pageText ) throws IOException {
+    public com.wikantik.api.search.SearchResult matchPageContent( final String wikiname, final String pageText ) throws IOException {
         if( queries == null ) {
             return null;
         }
@@ -132,8 +118,7 @@ public class SearchMatcher {
     /**
      *  A local search result.
      */
-    @SuppressWarnings( "deprecation" )
-    public class SearchResultImpl implements com.wikantik.search.SearchResult {
+    public class SearchResultImpl implements com.wikantik.api.search.SearchResult {
 
         final int  score;
         final Page page;

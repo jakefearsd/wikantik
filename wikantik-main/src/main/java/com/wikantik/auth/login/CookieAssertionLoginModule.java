@@ -122,20 +122,6 @@ public class CookieAssertionLoginModule extends AbstractLoginModule {
     }
 
     /**
-     *  Sets the username cookie.The cookie value is URLEncoded in UTF-8.
-     *
-     *  @param response The Servlet response
-     *  @param name     The name to write into the cookie.
-     */
-    @Deprecated
-    public static void setUserCookie( final HttpServletResponse response, String name ) {
-        name = TextUtil.urlEncodeUTF8( name );
-        final Cookie userId = new Cookie( PREFS_COOKIE_NAME, name );
-        //FIXME this should be adjustable
-        userId.setMaxAge( 1001 * 24 * 60 * 60 ); // 1001 days is default.
-        response.addCookie( userId );
-    }
-    /**
      *  Removes the user cookie from the response. This makes the user appear again as an anonymous coward.
      *
      *  @param response The servlet response.

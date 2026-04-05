@@ -46,11 +46,11 @@ class AliasPluginTest {
     void testAliasSetsPageAttribute() throws Exception {
         engine.saveText( "AliasTestPage", "[{ALIAS TargetPage}]" );
 
-        final Page page = engine.getManager( com.wikantik.pages.PageManager.class ).getPage( "AliasTestPage" );
+        final Page page = engine.getManager( com.wikantik.api.managers.PageManager.class ).getPage( "AliasTestPage" );
         final WikiContext context = new WikiContext( engine, page );
 
         // Rendering the page should set the alias attribute
-        engine.getManager( com.wikantik.render.RenderingManager.class ).getHTML( context, engine.getManager( com.wikantik.pages.PageManager.class ).getPureText( page ) );
+        engine.getManager( com.wikantik.render.RenderingManager.class ).getHTML( context, engine.getManager( com.wikantik.api.managers.PageManager.class ).getPureText( page ) );
 
         assertEquals( "TargetPage", page.getAttribute( Page.ALIAS ) );
     }

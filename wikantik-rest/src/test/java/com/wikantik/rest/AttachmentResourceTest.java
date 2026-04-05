@@ -26,8 +26,8 @@ import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.attachment.AttachmentManager;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.AttachmentManager;
+import com.wikantik.api.managers.PageManager;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;

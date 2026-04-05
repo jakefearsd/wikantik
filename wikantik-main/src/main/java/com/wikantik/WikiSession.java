@@ -550,35 +550,4 @@ public final class WikiSession implements Session {
         return session;
     }
 
-    /**
-     * Returns the total number of active wiki sessions for a particular wiki. This method delegates to the wiki's
-     * {@link SessionMonitor#sessions()} method.
-     *
-     * @param engine the wiki session
-     * @return the number of sessions
-     * @deprecated use {@link SessionMonitor#sessions()} instead
-     * @see SessionMonitor#sessions()
-     */
-    @Deprecated
-    public static int sessions( final Engine engine ) {
-        final SessionMonitor monitor = SessionMonitor.getInstance( engine );
-        return monitor.sessions();
-    }
-
-    /**
-     * Returns Principals representing the current users known to a particular wiki. Each Principal will correspond to the
-     * value returned by each WikiSession's {@link #getUserPrincipal()} method. This method delegates to
-     * {@link SessionMonitor#userPrincipals()}.
-     *
-     * @param engine the wiki engine
-     * @return an array of Principal objects, sorted by name
-     * @deprecated use {@link SessionMonitor#userPrincipals()} instead
-     * @see SessionMonitor#userPrincipals()
-     */
-    @Deprecated
-    public static Principal[] userPrincipals( final Engine engine ) {
-        final SessionMonitor monitor = SessionMonitor.getInstance( engine );
-        return monitor.userPrincipals();
-    }
-
 }

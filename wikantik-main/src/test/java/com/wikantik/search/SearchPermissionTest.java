@@ -89,7 +89,7 @@ class SearchPermissionTest {
         final HttpServletRequest request = HttpMockFactory.createHttpRequest();
         request.getParameterMap().put( "page", new String[]{ "RestrictedSearchPage" } );
         final Context ctx = Wiki.context().create( engine, request, ContextEnum.PAGE_EDIT.getRequestContext() );
-        engine.getManager( com.wikantik.pages.PageManager.class ).saveText( ctx, txt );
+        engine.getManager( com.wikantik.api.managers.PageManager.class ).saveText( ctx, txt );
 
         // Wait for it to become searchable
         Awaitility.await( "waiting for page to be indexed" )
@@ -97,7 +97,7 @@ class SearchPermissionTest {
                 .until( findsResultsFor( "xyzzy9876" ) );
 
         // Update the page with ACL restricting view to Authenticated only
-        engine.getManager( com.wikantik.pages.PageManager.class ).saveText( ctx,
+        engine.getManager( com.wikantik.api.managers.PageManager.class ).saveText( ctx,
                 "[{ALLOW view Authenticated}] It was the xyzzy9876 age of mankind... page is blocked" );
 
         // Search again -- should NOT find the page since session is not authenticated

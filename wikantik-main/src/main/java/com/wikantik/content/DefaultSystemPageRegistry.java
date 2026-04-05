@@ -53,7 +53,7 @@ import java.util.regex.PatternSyntaxException;
  *
  * @since 3.0.7
  */
-public class DefaultSystemPageRegistry implements SystemPageRegistry {
+public class DefaultSystemPageRegistry implements com.wikantik.api.managers.SystemPageRegistry {
 
     private static final Logger LOG = LogManager.getLogger( DefaultSystemPageRegistry.class );
 

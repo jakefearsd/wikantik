@@ -24,7 +24,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.auth.acl.AclImpl;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 
 import java.util.Date;
 import java.util.Enumeration;

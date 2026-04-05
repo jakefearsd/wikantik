@@ -20,6 +20,7 @@ package com.wikantik.search;
 
 import com.wikantik.TestEngine;
 import com.wikantik.api.search.QueryItem;
+import com.wikantik.api.search.SearchResult;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

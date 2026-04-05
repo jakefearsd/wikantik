@@ -23,9 +23,9 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
-import com.wikantik.content.SystemPageRegistry;
+import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.attachment.Attachment;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.render.RenderingManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,7 +67,7 @@ class DefaultRecentArticlesManagerCITest {
         engine = MockEngineBuilder.engine()
                 .with( PageManager.class, pageManager )
                 .with( RenderingManager.class, renderingManager )
-                .with( com.wikantik.content.SystemPageRegistry.class, systemPageRegistry )
+                .with( SystemPageRegistry.class, systemPageRegistry )
                 .build();
 
         context = mock( Context.class );
@@ -1102,8 +1102,8 @@ class DefaultRecentArticlesManagerCITest {
         final DefaultRecentArticlesManager noArgMgr = new DefaultRecentArticlesManager();
         when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
         when( engine.getManager( RenderingManager.class ) ).thenReturn( renderingManager );
-        when( engine.getManager( com.wikantik.content.SystemPageRegistry.class ) ).thenReturn(
-                mock( com.wikantik.content.SystemPageRegistry.class ) );
+        when( engine.getManager( com.wikantik.api.managers.SystemPageRegistry.class ) ).thenReturn(
+                mock( com.wikantik.api.managers.SystemPageRegistry.class ) );
 
         noArgMgr.initialize( engine, new Properties() );
 

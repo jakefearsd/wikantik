@@ -130,7 +130,7 @@ class AdminKnowledgeResourceTest {
                 "Should have no errors" );
 
         // Cleanup
-        final com.wikantik.pages.PageManager pm = engine.getManager( com.wikantik.pages.PageManager.class );
+        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
         try { pm.deletePage( "ProjectTestA" ); } catch ( final Exception e ) { /* ignore */ }
         try { pm.deletePage( "ProjectTestB" ); } catch ( final Exception e ) { /* ignore */ }
     }
@@ -152,7 +152,7 @@ class AdminKnowledgeResourceTest {
                 "Plain page without frontmatter should not be projected" );
 
         // Cleanup
-        final com.wikantik.pages.PageManager pm = engine.getManager( com.wikantik.pages.PageManager.class );
+        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
         try { pm.deletePage( "PlainPage" ); } catch ( final Exception e ) { /* ignore */ }
     }
 
@@ -189,7 +189,7 @@ class AdminKnowledgeResourceTest {
                 "Edge count should not change after idempotent re-projection" );
 
         // Cleanup
-        final com.wikantik.pages.PageManager pm = engine.getManager( com.wikantik.pages.PageManager.class );
+        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
         try { pm.deletePage( "IdempotentPage" ); } catch ( final Exception e ) { /* ignore */ }
     }
 
@@ -213,7 +213,7 @@ class AdminKnowledgeResourceTest {
                 "SourcePage should have at least 2 edges (related → TargetA, TargetB)" );
 
         // Cleanup
-        final com.wikantik.pages.PageManager pm = engine.getManager( com.wikantik.pages.PageManager.class );
+        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
         try { pm.deletePage( "SourcePage" ); } catch ( final Exception e ) { /* ignore */ }
     }
 
@@ -236,7 +236,7 @@ class AdminKnowledgeResourceTest {
         assertEquals( "EdgeNameTgt", edge.get( "target_name" ).getAsString() );
 
         // Cleanup
-        final com.wikantik.pages.PageManager pm = engine.getManager( com.wikantik.pages.PageManager.class );
+        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
         try { pm.deletePage( "EdgeNameSrc" ); } catch ( final Exception e ) { /* ignore */ }
     }
 
@@ -258,7 +258,7 @@ class AdminKnowledgeResourceTest {
         assertTrue( edge.has( "target_name" ), "Edge should have target_name" );
 
         // Cleanup
-        final com.wikantik.pages.PageManager pm = engine.getManager( com.wikantik.pages.PageManager.class );
+        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
         try { pm.deletePage( "ListEdgeSrc" ); } catch ( final Exception e ) { /* ignore */ }
     }
 
@@ -281,7 +281,7 @@ class AdminKnowledgeResourceTest {
         assertTrue( filteredCount <= allCount, "Filtered count should be <= total" );
 
         // Cleanup
-        final com.wikantik.pages.PageManager pm = engine.getManager( com.wikantik.pages.PageManager.class );
+        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
         try { pm.deletePage( "FilterSrc" ); } catch ( final Exception e ) { /* ignore */ }
     }
 

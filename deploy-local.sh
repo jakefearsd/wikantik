@@ -161,6 +161,13 @@ if [[ -f "${TOMCAT_DIR}/bin/shutdown.sh" ]]; then
     sleep 2
 fi
 
+# Rotate catalina.out (keep one previous version)
+CATALINA_OUT="${TOMCAT_DIR}/logs/catalina.out"
+if [[ -f "${CATALINA_OUT}" ]]; then
+    mv "${CATALINA_OUT}" "${CATALINA_OUT}.old"
+    print_status "Rotated catalina.out → catalina.out.old"
+fi
+
 # Remove old deployment
 if [[ -d "${TOMCAT_DIR}/webapps/ROOT" ]]; then
     echo "Removing old Wikantik deployment..."

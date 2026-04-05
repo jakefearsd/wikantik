@@ -89,7 +89,7 @@ public interface Engine {
     String PROP_WORKDIR = "wikantik.workDir";
 
     /** The name of the cookie that gets stored to the user browser. */
-    String PREFS_COOKIE_NAME = "JSPWikiUserProfile";
+    String PREFS_COOKIE_NAME = "WikantikUserProfile";
 
     /** Property name for the "match english plurals" -hack. */
     String PROP_MATCHPLURALS = "wikantik.translatorReader.matchEnglishPlurals";

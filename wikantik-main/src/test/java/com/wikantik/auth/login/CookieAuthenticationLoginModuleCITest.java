@@ -61,7 +61,7 @@ class CookieAuthenticationLoginModuleCITest {
         subject = new Subject();
     }
 
-    // --- login() returns false when no JSPWikiUID cookie is present ---
+    // --- login() returns false when no WikantikUID cookie is present ---
 
     @Test
     void testLoginReturnsFalseWhenNoUidCookie() throws LoginException {
@@ -80,7 +80,7 @@ class CookieAuthenticationLoginModuleCITest {
     @Test
     void testLoginReturnsFalseWhenCookieFileAbsent() throws LoginException {
         final HttpServletRequest request = HttpMockFactory.createHttpRequest();
-        final Cookie cookie = new Cookie( "JSPWikiUID", "nonexistent-uid-that-has-no-file" );
+        final Cookie cookie = new Cookie( "WikantikUID", "nonexistent-uid-that-has-no-file" );
         Mockito.doReturn( new Cookie[]{ cookie } ).when( request ).getCookies();
 
         final CallbackHandler handler = new WebContainerCallbackHandler( engine, request );
@@ -110,7 +110,7 @@ class CookieAuthenticationLoginModuleCITest {
         assertFalse( uid.isEmpty() );
 
         final HttpServletRequest loginRequest = HttpMockFactory.createHttpRequest();
-        final Cookie uidCookie = new Cookie( "JSPWikiUID", uid );
+        final Cookie uidCookie = new Cookie( "WikantikUID", uid );
         Mockito.doReturn( new Cookie[]{ uidCookie } ).when( loginRequest ).getCookies();
 
         final CallbackHandler handler = new WebContainerCallbackHandler( engine, loginRequest );
@@ -139,7 +139,7 @@ class CookieAuthenticationLoginModuleCITest {
         final String uid = capturedCookie[0].getValue();
 
         final HttpServletRequest clearRequest = HttpMockFactory.createHttpRequest();
-        final Cookie uidCookie = new Cookie( "JSPWikiUID", uid );
+        final Cookie uidCookie = new Cookie( "WikantikUID", uid );
         Mockito.doReturn( new Cookie[]{ uidCookie } ).when( clearRequest ).getCookies();
 
         // Reset the captured cookie so we can see what clearLoginCookie sets
@@ -158,7 +158,7 @@ class CookieAuthenticationLoginModuleCITest {
 
         // Attempting to log in with the old UID should now fail
         final HttpServletRequest loginRequest = HttpMockFactory.createHttpRequest();
-        Mockito.doReturn( new Cookie[]{ new Cookie( "JSPWikiUID", uid ) } )
+        Mockito.doReturn( new Cookie[]{ new Cookie( "WikantikUID", uid ) } )
                .when( loginRequest ).getCookies();
 
         final CallbackHandler handler = new WebContainerCallbackHandler( engine, loginRequest );

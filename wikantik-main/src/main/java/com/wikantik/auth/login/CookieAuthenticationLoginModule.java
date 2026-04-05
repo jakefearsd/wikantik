@@ -76,7 +76,8 @@ import java.util.UUID;
 public class CookieAuthenticationLoginModule extends AbstractLoginModule {
 
     private static final Logger LOG = LogManager.getLogger( CookieAuthenticationLoginModule.class );
-    private static final String LOGIN_COOKIE_NAME = "JSPWikiUID";
+    private static final String LOGIN_COOKIE_NAME = "WikantikUID";
+    private static final String LEGACY_COOKIE_NAME = "JSPWikiUID";
 
     /** The directory name under which the cookies are stored.  The value is {@value}. */
     protected static final String COOKIE_DIR = "logincookies";
@@ -195,7 +196,11 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
      * @return The UID value from the cookie, or null, if no such cookie exists.
      */
     private static String getLoginCookie( final HttpServletRequest request ) {
-        return HttpUtil.retrieveCookieValue( request, LOGIN_COOKIE_NAME );
+        final String value = HttpUtil.retrieveCookieValue( request, LOGIN_COOKIE_NAME );
+        if( value != null ) {
+            return value;
+        }
+        return HttpUtil.retrieveCookieValue( request, LEGACY_COOKIE_NAME );
     }
 
     /**
@@ -236,6 +241,13 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
         final Cookie userId = getLoginCookie( "" );
         userId.setMaxAge( 0 );
         response.addCookie( userId );
+
+        // Also clear legacy cookie during transition
+        final Cookie legacyCookie = new Cookie( LEGACY_COOKIE_NAME, "" );
+        legacyCookie.setHttpOnly( true );
+        legacyCookie.setSecure( true );
+        legacyCookie.setMaxAge( 0 );
+        response.addCookie( legacyCookie );
         final String uid = getLoginCookie( request );
         if( uid != null ) {
             final File cf = getCookieFile( engine, uid );

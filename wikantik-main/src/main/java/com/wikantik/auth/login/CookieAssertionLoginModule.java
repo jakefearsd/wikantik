@@ -58,7 +58,8 @@ import java.io.IOException;
 public class CookieAssertionLoginModule extends AbstractLoginModule {
 
     /** The name of the cookie that gets stored to the user browser. */
-    public static final String PREFS_COOKIE_NAME = "JSPWikiAssertedName";
+    public static final String PREFS_COOKIE_NAME = "WikantikAssertedName";
+    private static final String LEGACY_PREFS_COOKIE_NAME = "JSPWikiAssertedName";
 
     private static final Logger LOG = LogManager.getLogger( CookieAssertionLoginModule.class );
 
@@ -110,7 +111,10 @@ public class CookieAssertionLoginModule extends AbstractLoginModule {
      *  @return the username, as retrieved from the cookie
      */
     public static String getUserCookie( final HttpServletRequest request ) {
-        final String cookie = HttpUtil.retrieveCookieValue( request, PREFS_COOKIE_NAME );
+        String cookie = HttpUtil.retrieveCookieValue( request, PREFS_COOKIE_NAME );
+        if( cookie == null ) {
+            cookie = HttpUtil.retrieveCookieValue( request, LEGACY_PREFS_COOKIE_NAME );
+        }
         final String usernameCookie = TextUtil.urlDecodeUTF8( cookie );
         return usernameCookie!= null && usernameCookie.contains( "-->" ) ?
                usernameCookie.substring( 0, usernameCookie.indexOf( "-->" ) ) :
@@ -138,6 +142,7 @@ public class CookieAssertionLoginModule extends AbstractLoginModule {
      */
     public static void clearUserCookie( final HttpServletResponse response ) {
         HttpUtil.clearCookie( response, PREFS_COOKIE_NAME );
+        HttpUtil.clearCookie( response, LEGACY_PREFS_COOKIE_NAME );
     }
 
 }

@@ -177,6 +177,7 @@ class CookieAssertionLoginModuleCITest {
     void testClearUserCookieCallsAddCookie() {
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         CookieAssertionLoginModule.clearUserCookie( response );
-        Mockito.verify( response, Mockito.times( 1 ) ).addCookie( Mockito.any( Cookie.class ) );
+        // Clears both new (WikantikAssertedName) and legacy (JSPWikiAssertedName) cookies
+        Mockito.verify( response, Mockito.times( 2 ) ).addCookie( Mockito.any( Cookie.class ) );
     }
 }

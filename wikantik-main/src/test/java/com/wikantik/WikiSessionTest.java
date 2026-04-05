@@ -161,7 +161,7 @@ public class WikiSessionTest {
         // (because cookie authentication is OFF).
         request = HttpMockFactory.createHttpRequest();
         Mockito.doReturn( null ).when( request ).getUserPrincipal();
-        Mockito.doReturn( new Cookie[] { new Cookie( "JSPWikiUID", uid ) } ).when( request ).getCookies();
+        Mockito.doReturn( new Cookie[] { new Cookie( "WikantikUID", uid ) } ).when( request ).getCookies();
         runSecurityFilter( m_engine, request );
         wikiSession = Wiki.session().find( m_engine, request );
         Assertions.assertTrue( wikiSession.isAnonymous());
@@ -192,7 +192,7 @@ public class WikiSessionTest {
         // Adding the magic "authentication cookie" should count as authenticated
         request = HttpMockFactory.createHttpRequest();
         Mockito.doReturn( null ).when( request ).getUserPrincipal();
-        Mockito.doReturn( new Cookie[] { new Cookie( "JSPWikiUID", uid ) } ).when( request ).getCookies();
+        Mockito.doReturn( new Cookie[] { new Cookie( "WikantikUID", uid ) } ).when( request ).getCookies();
         runSecurityFilter( m_engine, request );
         wikiSession = Wiki.session().find( m_engine, request );
         Assertions.assertFalse( wikiSession.isAnonymous() );

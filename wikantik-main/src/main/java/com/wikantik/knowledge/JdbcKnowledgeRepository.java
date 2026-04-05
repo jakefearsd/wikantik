@@ -162,7 +162,7 @@ public class JdbcKnowledgeRepository {
     /**
      * Queries nodes with optional filters.
      *
-     * @param filters          map of field names to filter values; supports "node_type", "source_page", "name" (LIKE)
+     * @param filters          map of field names to filter values; supports "node_type", "source_page", "name" (LIKE), "status" (JSON property match)
      * @param provenanceFilter set of acceptable provenance values, or empty for all
      * @param limit            maximum number of results
      * @param offset           number of results to skip
@@ -186,6 +186,17 @@ public class JdbcKnowledgeRepository {
             if( filters.containsKey( "name" ) ) {
                 sql.append( " AND LOWER( name ) LIKE ?" );
                 params.add( "%" + filters.get( "name" ).toString().toLowerCase() + "%" );
+            }
+            if( filters.containsKey( "status" ) ) {
+                if( isPostgreSQL ) {
+                    sql.append( " AND properties->>'status' = ?" );
+                    params.add( filters.get( "status" ) );
+                } else {
+                    // H2 stores properties as TEXT; match via LIKE on serialized JSON.
+                    // Assumes Gson default serialization (no spaces after colons).
+                    sql.append( " AND LOWER( CAST( properties AS VARCHAR ) ) LIKE ?" );
+                    params.add( "%\"status\":\"" + filters.get( "status" ).toString().toLowerCase() + "\"%" );
+                }
             }
         }
 
@@ -649,6 +660,103 @@ public class JdbcKnowledgeRepository {
             }
         } catch( final SQLException e ) {
             LOG.warn( "Failed to list rejections: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
+        return results;
+    }
+
+    // ---- Bulk name resolution ----
+
+    /**
+     * Resolves a collection of node UUIDs to their names in a single query.
+     *
+     * @param ids the UUIDs to resolve
+     * @return map of UUID to node name
+     */
+    public Map< UUID, String > getNodeNames( final Collection< UUID > ids ) {
+        if ( ids == null || ids.isEmpty() ) {
+            return Map.of();
+        }
+        final String placeholders = String.join( ", ", Collections.nCopies( ids.size(), "?" ) );
+        final String sql = "SELECT id, name FROM kg_nodes WHERE id IN ( " + placeholders + " )";
+        final Map< UUID, String > result = new HashMap<>();
+        try ( final Connection conn = dataSource.getConnection();
+              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            int idx = 1;
+            for ( final UUID id : ids ) {
+                ps.setObject( idx++, id );
+            }
+            try ( final ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) {
+                    result.put( rs.getObject( "id", UUID.class ), rs.getString( "name" ) );
+                }
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to resolve node names: {}", e.getMessage(), e );
+        }
+        return result;
+    }
+
+    /**
+     * Queries edges with JOINed source and target node names. Supports optional
+     * filtering by relationship type and name search, with pagination.
+     *
+     * @param relationshipType optional filter
+     * @param searchName       optional search term (matches source or target name, case-insensitive)
+     * @param limit            max results
+     * @param offset           pagination offset
+     * @return list of edge maps including source_name and target_name
+     */
+    public List< Map< String, Object > > queryEdgesWithNames( final String relationshipType,
+                                                               final String searchName,
+                                                               final int limit, final int offset ) {
+        final StringBuilder sql = new StringBuilder(
+                "SELECT e.*, sn.name AS source_name, tn.name AS target_name "
+              + "FROM kg_edges e "
+              + "JOIN kg_nodes sn ON e.source_id = sn.id "
+              + "JOIN kg_nodes tn ON e.target_id = tn.id WHERE 1=1" );
+        final List< Object > params = new ArrayList<>();
+
+        if ( relationshipType != null && !relationshipType.isBlank() ) {
+            sql.append( " AND e.relationship_type = ?" );
+            params.add( relationshipType );
+        }
+        if ( searchName != null && !searchName.isBlank() ) {
+            sql.append( " AND ( LOWER( sn.name ) LIKE ? OR LOWER( tn.name ) LIKE ? )" );
+            final String pattern = "%" + searchName.toLowerCase() + "%";
+            params.add( pattern );
+            params.add( pattern );
+        }
+        sql.append( " ORDER BY sn.name, e.relationship_type LIMIT ? OFFSET ?" );
+        params.add( limit );
+        params.add( offset );
+
+        final List< Map< String, Object > > results = new ArrayList<>();
+        try ( final Connection conn = dataSource.getConnection();
+              final PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+            for ( int i = 0; i < params.size(); i++ ) {
+                ps.setObject( i + 1, params.get( i ) );
+            }
+            try ( final ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) {
+                    final Map< String, Object > map = new LinkedHashMap<>();
+                    map.put( "id", rs.getObject( "id", UUID.class ).toString() );
+                    map.put( "source_id", rs.getObject( "source_id", UUID.class ).toString() );
+                    map.put( "target_id", rs.getObject( "target_id", UUID.class ).toString() );
+                    map.put( "source_name", rs.getString( "source_name" ) );
+                    map.put( "target_name", rs.getString( "target_name" ) );
+                    map.put( "relationship_type", rs.getString( "relationship_type" ) );
+                    map.put( "provenance", rs.getString( "provenance" ) );
+                    map.put( "properties", parseJson( rs.getString( "properties" ) ) );
+                    final Timestamp created = rs.getTimestamp( "created" );
+                    map.put( "created", created != null ? created.toInstant().toString() : null );
+                    final Timestamp modified = rs.getTimestamp( "modified" );
+                    map.put( "modified", modified != null ? modified.toInstant().toString() : null );
+                    results.add( map );
+                }
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to query edges with names: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }
         return results;

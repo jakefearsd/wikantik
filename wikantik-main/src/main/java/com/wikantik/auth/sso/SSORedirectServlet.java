@@ -91,7 +91,7 @@ public class SSORedirectServlet extends HttpServlet {
 
             if( clientOpt.isEmpty() ) {
                 LOG.error( "No SSO client found for name: {}", clientName );
-                response.sendRedirect( request.getContextPath() + "/Login.jsp?error=no_sso_client" );
+                response.sendRedirect( request.getContextPath() + "/login?error=no_sso_client" );
                 return;
             }
 
@@ -109,11 +109,11 @@ public class SSORedirectServlet extends HttpServlet {
                 response.setStatus( action.getCode() );
             } else {
                 LOG.error( "SSO client {} did not produce a redirection action", client.getName() );
-                response.sendRedirect( request.getContextPath() + "/Login.jsp?error=sso_redirect_failed" );
+                response.sendRedirect( request.getContextPath() + "/login?error=sso_redirect_failed" );
             }
         } catch( final Exception e ) {
             LOG.error( "Failed to initiate SSO redirect", e );
-            response.sendRedirect( request.getContextPath() + "/Login.jsp?error=sso_redirect_failed" );
+            response.sendRedirect( request.getContextPath() + "/login?error=sso_redirect_failed" );
         }
     }
 }

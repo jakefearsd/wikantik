@@ -82,7 +82,7 @@ public class SSOCallbackServlet extends HttpServlet {
             callbackLogic.perform( pac4jConfig, defaultUrl, false, null, frameworkParameters );
         } catch( final Exception e ) {
             LOG.error( "SSO callback processing failed", e );
-            response.sendRedirect( request.getContextPath() + "/Login.jsp?error=sso_callback_failed" );
+            response.sendRedirect( request.getContextPath() + "/login?error=sso_callback_failed" );
         }
     }
 }

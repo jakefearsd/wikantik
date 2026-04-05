@@ -126,7 +126,7 @@ class SSOCallbackServletTest {
         // to execute and send a redirect
         servlet.service( request, response );
 
-        verify( response ).sendRedirect( "/JSPWiki/Login.jsp?error=sso_callback_failed" );
+        verify( response ).sendRedirect( "/JSPWiki/login?error=sso_callback_failed" );
     }
 
     // ---- Helper: inject engine via reflection ----

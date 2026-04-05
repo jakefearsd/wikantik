@@ -106,7 +106,7 @@ class SSORedirectServletTest {
         verify( response ).sendError( HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "SSO configuration error." );
     }
 
-    // ---- SSO enabled, no client found for requested name → redirect to Login.jsp ----
+    // ---- SSO enabled, no client found for requested name → redirect to /login ----
 
     @Test
     void doGetRedirectsToLoginWhenClientNameNotFound() throws Exception {
@@ -124,10 +124,10 @@ class SSORedirectServletTest {
 
         servlet.doGet( request, response );
 
-        verify( response ).sendRedirect( "/JSPWiki/Login.jsp?error=no_sso_client" );
+        verify( response ).sendRedirect( "/JSPWiki/login?error=no_sso_client" );
     }
 
-    // ---- SSO enabled, no clients at all (no client_name param) → redirect to Login.jsp ----
+    // ---- SSO enabled, no clients at all (no client_name param) → redirect to /login ----
 
     @Test
     void doGetRedirectsToLoginWhenNoClientsConfigured() throws Exception {
@@ -145,7 +145,7 @@ class SSORedirectServletTest {
 
         servlet.doGet( request, response );
 
-        verify( response ).sendRedirect( "/JSPWiki/Login.jsp?error=no_sso_client" );
+        verify( response ).sendRedirect( "/JSPWiki/login?error=no_sso_client" );
     }
 
     // ---- SSO enabled, client found, redirect action with location ----
@@ -183,7 +183,7 @@ class SSORedirectServletTest {
         verify( response ).sendRedirect( "https://idp.example.com/auth" );
     }
 
-    // ---- SSO enabled, client throws exception → redirect to Login.jsp ----
+    // ---- SSO enabled, client throws exception → redirect to /login ----
 
     @Test
     @SuppressWarnings( "unchecked" )
@@ -212,10 +212,10 @@ class SSORedirectServletTest {
 
         servlet.doGet( request, response );
 
-        verify( response ).sendRedirect( "/JSPWiki/Login.jsp?error=sso_redirect_failed" );
+        verify( response ).sendRedirect( "/JSPWiki/login?error=sso_redirect_failed" );
     }
 
-    // ---- SSO enabled, client returns empty Optional → redirect to Login.jsp ----
+    // ---- SSO enabled, client returns empty Optional → redirect to /login ----
 
     @Test
     @SuppressWarnings( "unchecked" )
@@ -244,7 +244,7 @@ class SSORedirectServletTest {
 
         servlet.doGet( request, response );
 
-        verify( response ).sendRedirect( "/JSPWiki/Login.jsp?error=sso_redirect_failed" );
+        verify( response ).sendRedirect( "/JSPWiki/login?error=sso_redirect_failed" );
     }
 
     // ---- Helper: inject engine via reflection ----

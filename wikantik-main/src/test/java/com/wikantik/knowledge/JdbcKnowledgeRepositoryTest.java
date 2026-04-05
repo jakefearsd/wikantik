@@ -23,9 +23,7 @@ import org.junit.jupiter.api.*;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -182,5 +180,108 @@ class JdbcKnowledgeRepositoryTest {
         repo.insertRejection( "Order", "Inventory", "depends-on", "admin", "Not a real dependency" );
         assertTrue( repo.isRejected( "Order", "Inventory", "depends-on" ) );
         assertFalse( repo.isRejected( "Order", "Customer", "depends-on" ) );
+    }
+
+    // --- getNodeNames tests ---
+
+    @Test
+    void getNodeNames_resolvesUuidsToNames() {
+        final KgNode a = repo.upsertNode( "Alpha", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = repo.upsertNode( "Beta", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode c = repo.upsertNode( "Gamma", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final Map< UUID, String > names = repo.getNodeNames( List.of( a.id(), b.id(), c.id() ) );
+        assertEquals( 3, names.size() );
+        assertEquals( "Alpha", names.get( a.id() ) );
+        assertEquals( "Beta", names.get( b.id() ) );
+        assertEquals( "Gamma", names.get( c.id() ) );
+    }
+
+    @Test
+    void getNodeNames_handlesEmptySet() {
+        final Map< UUID, String > names = repo.getNodeNames( List.of() );
+        assertTrue( names.isEmpty() );
+    }
+
+    // --- Status filter tests ---
+
+    @Test
+    void queryNodes_filtersByStatus() {
+        repo.upsertNode( "DeployedFeature", "article", "DeployedFeature.md",
+                Provenance.HUMAN_AUTHORED, Map.of( "status", "deployed" ) );
+        repo.upsertNode( "DesignedFeature", "article", "DesignedFeature.md",
+                Provenance.HUMAN_AUTHORED, Map.of( "status", "designed" ) );
+        repo.upsertNode( "ActiveFeature", "article", "ActiveFeature.md",
+                Provenance.HUMAN_AUTHORED, Map.of( "status", "active" ) );
+
+        final Map< String, Object > filters = Map.of( "status", "deployed" );
+        final List< KgNode > results = repo.queryNodes( filters, null, 50, 0 );
+        assertEquals( 1, results.size() );
+        assertEquals( "DeployedFeature", results.get( 0 ).name() );
+    }
+
+    @Test
+    void queryNodes_statusFilterCombinesWithTypeFilter() {
+        repo.upsertNode( "A", "article", null,
+                Provenance.HUMAN_AUTHORED, Map.of( "status", "deployed" ) );
+        repo.upsertNode( "B", "hub", null,
+                Provenance.HUMAN_AUTHORED, Map.of( "status", "deployed" ) );
+        repo.upsertNode( "C", "article", null,
+                Provenance.HUMAN_AUTHORED, Map.of( "status", "designed" ) );
+
+        final Map< String, Object > filters = Map.of( "status", "deployed", "node_type", "article" );
+        final List< KgNode > results = repo.queryNodes( filters, null, 50, 0 );
+        assertEquals( 1, results.size() );
+        assertEquals( "A", results.get( 0 ).name() );
+    }
+
+    // --- queryEdgesWithNames tests ---
+
+    @Test
+    void queryEdgesWithNames_returnsEdgesWithNodeNames() {
+        final KgNode a = repo.upsertNode( "Customer", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = repo.upsertNode( "Order", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        repo.upsertEdge( a.id(), b.id(), "has-many", Provenance.HUMAN_AUTHORED, Map.of() );
+        final List< Map< String, Object > > edges = repo.queryEdgesWithNames( null, null, 50, 0 );
+        assertEquals( 1, edges.size() );
+        assertEquals( "Customer", edges.get( 0 ).get( "source_name" ) );
+        assertEquals( "Order", edges.get( 0 ).get( "target_name" ) );
+        assertEquals( "has-many", edges.get( 0 ).get( "relationship_type" ) );
+    }
+
+    @Test
+    void queryEdgesWithNames_filtersByRelationshipType() {
+        final KgNode a = repo.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = repo.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        repo.upsertEdge( a.id(), b.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
+        repo.upsertEdge( a.id(), b.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        final List< Map< String, Object > > filtered = repo.queryEdgesWithNames( "depends-on", null, 50, 0 );
+        assertEquals( 1, filtered.size() );
+        assertEquals( "depends-on", filtered.get( 0 ).get( "relationship_type" ) );
+    }
+
+    @Test
+    void queryEdgesWithNames_searchesByNodeName() {
+        final KgNode a = repo.upsertNode( "Customer", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = repo.upsertNode( "Order", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode c = repo.upsertNode( "Inventory", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        repo.upsertEdge( a.id(), b.id(), "has-many", Provenance.HUMAN_AUTHORED, Map.of() );
+        repo.upsertEdge( b.id(), c.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
+        final List< Map< String, Object > > results = repo.queryEdgesWithNames( null, "cust", 50, 0 );
+        assertEquals( 1, results.size() );
+        assertEquals( "Customer", results.get( 0 ).get( "source_name" ) );
+    }
+
+    @Test
+    void queryEdgesWithNames_paginates() {
+        final KgNode a = repo.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = repo.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode c = repo.upsertNode( "C", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        repo.upsertEdge( a.id(), b.id(), "r1", Provenance.HUMAN_AUTHORED, Map.of() );
+        repo.upsertEdge( a.id(), c.id(), "r2", Provenance.HUMAN_AUTHORED, Map.of() );
+        repo.upsertEdge( b.id(), c.id(), "r3", Provenance.HUMAN_AUTHORED, Map.of() );
+        final List< Map< String, Object > > page1 = repo.queryEdgesWithNames( null, null, 2, 0 );
+        final List< Map< String, Object > > page2 = repo.queryEdgesWithNames( null, null, 2, 2 );
+        assertEquals( 2, page1.size() );
+        assertEquals( 1, page2.size() );
     }
 }

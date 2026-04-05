@@ -25,8 +25,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.Properties;
 
 /**
- *  A specific URL constructor that returns easy-to-grok URLs for VIEW and ATTACH contexts, but goes through JSP pages otherwise.
- * 
+ *  A specific URL constructor that returns easy-to-grok URLs for VIEW and ATTACH contexts, but delegates to the default constructor otherwise.
+ *
  *  @since 2.2
  */
 public class ShortViewURLConstructor extends ShortURLConstructor {
@@ -78,15 +78,13 @@ public class ShortViewURLConstructor extends ShortURLConstructor {
     }
     
     /**
-     *   Since we're only called from WikiServlet, where we get the VIEW requests, we can safely return this.
-     *   
      * @param request The HTTP Request that was used to end up in this page.
-     * @return always returns "Wiki.jsp"
+     * @return always returns "wiki"
      */
     @Override
     public String getForwardPage( final HttpServletRequest request )
-    {        
-        return "Wiki.jsp";
+    {
+        return "wiki";
     }
 
 }

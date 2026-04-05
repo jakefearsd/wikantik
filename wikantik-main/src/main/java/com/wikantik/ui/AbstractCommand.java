@@ -71,12 +71,7 @@ public abstract class AbstractCommand implements Command {
             localRoutePath = removeSubstitutions(localRoutePath);
             this.routePath = localRoutePath;
 
-            // Calculate the "friendly name" for the route path
-            if ( localRoutePath.toUpperCase().endsWith( ".JSP" ) ) {
-                routeFriendlyName = TextUtil.beautifyString( localRoutePath.substring( 0, localRoutePath.length() - 4 ) );
-            } else {
-                routeFriendlyName = localRoutePath;
-            }
+            routeFriendlyName = localRoutePath;
         }
         this.urlPattern = urlPattern;
         this.contentTemplate = contentTemplate;
@@ -153,7 +148,7 @@ public abstract class AbstractCommand implements Command {
     }
 
     /**
-     * Returns the "friendly name" for this command's route path, namely a beautified version of the path's name without the .jsp suffix.
+     * Returns the "friendly name" for this command's route path.
      *
      * @return the friendly name
      */

@@ -75,7 +75,7 @@ class CsrfProtectionFilterTest {
     }
 
     @ParameterizedTest
-    @ValueSource( strings = { "/mcp", "/wiki/Main", "/Login.jsp", "/Edit.jsp" } )
+    @ValueSource( strings = { "/mcp", "/wiki/Main", "/login", "/edit/Main" } )
     void testIsRestApiEndpointReturnsFalseForOther( final String servletPath ) {
         final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
         Mockito.doReturn( servletPath ).when( request ).getServletPath();

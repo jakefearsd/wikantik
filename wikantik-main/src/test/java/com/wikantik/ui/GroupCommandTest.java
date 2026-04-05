@@ -48,26 +48,26 @@ public class GroupCommandTest
 
         a = GroupCommand.VIEW_GROUP;
         Assertions.assertEquals( "viewGroup", a.getRequestContext() );
-        Assertions.assertEquals( "Group.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uGroup.jsp?group=%n", a.getURLPattern() );
-        Assertions.assertEquals( "GroupContent.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "group", a.getRoutePath() );
+        Assertions.assertEquals( "%ugroup?group=%n", a.getURLPattern() );
+        Assertions.assertEquals( "GroupContent", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget());
         Assertions.assertNull( a.requiredPermission() );
         Assertions.assertEquals( a, GroupCommand.VIEW_GROUP );
 
         a = GroupCommand.EDIT_GROUP;
         Assertions.assertEquals( "editGroup", a.getRequestContext() );
-        Assertions.assertEquals( "EditGroup.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uEditGroup.jsp?group=%n", a.getURLPattern() );
-        Assertions.assertEquals( "EditGroupContent.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "edit-group", a.getRoutePath() );
+        Assertions.assertEquals( "%uedit-group?group=%n", a.getURLPattern() );
+        Assertions.assertEquals( "EditGroupContent", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget());
         Assertions.assertNull( a.requiredPermission() );
         Assertions.assertEquals( a, GroupCommand.EDIT_GROUP );
 
         a = GroupCommand.DELETE_GROUP;
         Assertions.assertEquals( "deleteGroup", a.getRequestContext() );
-        Assertions.assertEquals( "DeleteGroup.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uDeleteGroup.jsp?group=%n", a.getURLPattern() );
+        Assertions.assertEquals( "delete-group", a.getRoutePath() );
+        Assertions.assertEquals( "%udelete-group?group=%n", a.getURLPattern() );
         Assertions.assertNull( null );
         Assertions.assertNull( a.getTarget());
         Assertions.assertNull( a.requiredPermission() );

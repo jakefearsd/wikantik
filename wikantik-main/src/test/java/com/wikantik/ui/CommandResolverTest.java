@@ -88,9 +88,9 @@ class CommandResolverTest {
         // Passing an EDIT request with no explicit page params means the EDIT action
         Command a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertEquals( PageCommand.EDIT, a );
-        Assertions.assertEquals( "EditContent.jsp", a.getContentTemplate() );
-        Assertions.assertEquals( "Edit.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uEdit.jsp?page=%n", a.getURLPattern() );
+        Assertions.assertEquals( "EditContent", a.getContentTemplate() );
+        Assertions.assertEquals( "edit/", a.getRoutePath() );
+        Assertions.assertEquals( "%uedit/%n", a.getURLPattern() );
         Assertions.assertNull( a.getTarget() );
 
         // Ditto for prefs context
@@ -105,22 +105,22 @@ class CommandResolverTest {
 
         Assertions.assertThrows( IllegalArgumentException.class, () -> resolver.findCommand( HttpMockFactory.createHttpRequest( "" ), "nonExistentContext" ) );
 
-        // Request for "UserPreference.jsp" should resolve to PREFS action
-        request = HttpMockFactory.createHttpRequest( "/UserPreferences.jsp" );
+        // Request for "/preferences" should resolve to PREFS action
+        request = HttpMockFactory.createHttpRequest( "/preferences" );
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertEquals( WikiCommand.PREFS, a );
         Assertions.assertNull( a.getTarget() );
 
-        // Request for "NewGroup.jsp" should resolve to CREATE_GROUP action
+        // Request for "/new-group" should resolve to CREATE_GROUP action
         // but targeted at the wiki
-        request = HttpMockFactory.createHttpRequest( "/NewGroup.jsp" );
+        request = HttpMockFactory.createHttpRequest( "/new-group" );
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertNotSame( WikiCommand.CREATE_GROUP, a );
         Assertions.assertEquals( WikiCommand.CREATE_GROUP.getRequestContext(), a.getRequestContext() );
         Assertions.assertEquals( m_engine.getApplicationName(), a.getTarget() );
 
-        // But request for JSP not mapped to action should get default
-        request = HttpMockFactory.createHttpRequest( "/NonExistent.jsp" );
+        // But request for path not mapped to action should get default
+        request = HttpMockFactory.createHttpRequest( "/nonexistent" );
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertEquals( PageCommand.EDIT, a );
         Assertions.assertNull( a.getTarget() );
@@ -131,52 +131,52 @@ class CommandResolverTest {
         final Page page = m_engine.getManager( PageManager.class ).getPage( "SinglePage" );
 
         // Passing an EDIT request with page param yields a wrapped action
-        HttpServletRequest request = HttpMockFactory.createHttpRequest( "/Edit.jsp?page=SinglePage" );
+        HttpServletRequest request = HttpMockFactory.createHttpRequest( "/edit/SinglePage" );
         Mockito.doReturn( "SinglePage" ).when( request ).getParameter( "page" );
         Command a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertNotSame( PageCommand.EDIT, a );
-        Assertions.assertEquals( "EditContent.jsp", a.getContentTemplate() );
-        Assertions.assertEquals( "Edit.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uEdit.jsp?page=%n", a.getURLPattern() );
+        Assertions.assertEquals( "EditContent", a.getContentTemplate() );
+        Assertions.assertEquals( "edit/", a.getRoutePath() );
+        Assertions.assertEquals( "%uedit/%n", a.getURLPattern() );
         Assertions.assertEquals( page, a.getTarget() );
 
         // Passing an EDIT request with page=Search yields FIND action, *not* edit
-        request = HttpMockFactory.createHttpRequest( "/Edit.jsp?page=Search" );
+        request = HttpMockFactory.createHttpRequest( "/edit/Search" );
         Mockito.doReturn( "Search" ).when( request ).getParameter( "page" );
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertEquals( WikiCommand.FIND, a );
-        Assertions.assertEquals( "FindContent.jsp", a.getContentTemplate() );
-        Assertions.assertEquals( "Search.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uSearch.jsp", a.getURLPattern() );
+        Assertions.assertEquals( "FindContent", a.getContentTemplate() );
+        Assertions.assertEquals( "search", a.getRoutePath() );
+        Assertions.assertEquals( "%usearch", a.getURLPattern() );
         Assertions.assertNull( a.getTarget() );
 
         // Passing an EDIT request with group="Foo" yields wrapped VIEW_GROUP
-        request = HttpMockFactory.createHttpRequest( "/Group.jsp?group=Foo" );
+        request = HttpMockFactory.createHttpRequest( "/group?group=Foo" );
         Mockito.doReturn( "Foo" ).when( request ).getParameter( "group" );
-        a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        a = resolver.findCommand( request, ContextEnum.GROUP_VIEW.getRequestContext() );
         Assertions.assertNotSame( GroupCommand.VIEW_GROUP, a );
-        Assertions.assertEquals( "GroupContent.jsp", a.getContentTemplate() );
-        Assertions.assertEquals( "Group.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uGroup.jsp?group=%n", a.getURLPattern() );
+        Assertions.assertEquals( "GroupContent", a.getContentTemplate() );
+        Assertions.assertEquals( "group", a.getRoutePath() );
+        Assertions.assertEquals( "%ugroup?group=%n", a.getURLPattern() );
         Assertions.assertEquals( new GroupPrincipal( "Foo" ), a.getTarget() );
     }
 
     @Test
     void testFindWikiActionWithPath() {
-        // Passing an EDIT request with View JSP yields EDIT of the Front page
-        HttpServletRequest request = HttpMockFactory.createHttpRequest( "/Wiki.jsp" );
-        Command a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        // Passing a request with wiki/ route path yields VIEW of the Front page
+        HttpServletRequest request = HttpMockFactory.createHttpRequest( "/wiki/" );
+        Command a = resolver.findCommand( request, ContextEnum.PAGE_VIEW.getRequestContext() );
         Assertions.assertNotNull( a.getTarget() );
         Assertions.assertEquals( ((Page)a.getTarget()).getName(), m_engine.getFrontPage() );
 
-        // Passing an EDIT request with Group JSP yields VIEW_GROUP
-        request = HttpMockFactory.createHttpRequest( "/Group.jsp" );
+        // Passing a request with group route path yields VIEW_GROUP
+        request = HttpMockFactory.createHttpRequest( "/group" );
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertEquals( GroupCommand.VIEW_GROUP, a );
         Assertions.assertNull( a.getTarget() );
 
-        // Passing an EDIT request with UserPreferences JSP yields PREFS
-        request = HttpMockFactory.createHttpRequest( "/UserPreferences.jsp" );
+        // Passing a request with preferences route path yields PREFS
+        request = HttpMockFactory.createHttpRequest( "/preferences" );
         a = resolver.findCommand( request, ContextEnum.PAGE_EDIT.getRequestContext() );
         Assertions.assertEquals( WikiCommand.PREFS, a );
         Assertions.assertNull( a.getTarget() );
@@ -201,7 +201,7 @@ class CommandResolverTest {
     @Test
     void testSpecialPageReference() {
         String url = resolver.getSpecialPageReference( "RecentChanges" );
-        Assertions.assertEquals( "/test/RecentChanges.jsp", url );
+        Assertions.assertEquals( "/test/RecentChanges", url );
 
         url = resolver.getSpecialPageReference( "Search" );
         Assertions.assertEquals( "/test/search", url );

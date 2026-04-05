@@ -47,13 +47,13 @@ public class RedirectCommandTest
     {
         final Command a = RedirectCommand.REDIRECT;
 
-        // Test with local JSP
-        Command b = a.targetedCommand( "%uTestPage.jsp" );
+        // Test with local route
+        Command b = a.targetedCommand( "%utest-page" );
         Assertions.assertEquals( "", b.getRequestContext() );
-        Assertions.assertEquals( "TestPage.jsp", b.getRoutePath() );
-        Assertions.assertEquals( "%uTestPage.jsp", b.getURLPattern() );
+        Assertions.assertEquals( "test-page", b.getRoutePath() );
+        Assertions.assertEquals( "%utest-page", b.getURLPattern() );
         Assertions.assertNull( b.getContentTemplate() );
-        Assertions.assertEquals( "%uTestPage.jsp", b.getTarget() );
+        Assertions.assertEquals( "%utest-page", b.getTarget() );
         Assertions.assertNotSame( RedirectCommand.REDIRECT, b );
 
         // Test with non-local URL

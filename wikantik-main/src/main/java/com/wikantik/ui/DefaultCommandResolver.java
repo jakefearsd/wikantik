@@ -90,14 +90,14 @@ public class DefaultCommandResolver implements CommandResolver {
         for( final String key : properties.stringPropertyNames() ) {
             if ( key.startsWith( PROP_SPECIALPAGE ) ) {
                 String specialPage = key.substring( PROP_SPECIALPAGE.length() );
-                String jsp = properties.getProperty( key );
-                if ( jsp != null ) {
+                String routePath = properties.getProperty( key );
+                if ( routePath != null ) {
                     specialPage = specialPage.trim();
-                    jsp = jsp.trim();
-                    Command command = ROUTES.get( jsp );
+                    routePath = routePath.trim();
+                    Command command = ROUTES.get( routePath );
                     if ( command == null ) {
                         final Command redirect = RedirectCommand.REDIRECT;
-                        command = redirect.targetedCommand( jsp );
+                        command = redirect.targetedCommand( routePath );
                     }
                     specialPages.put( specialPage, command );
                 }
@@ -128,7 +128,7 @@ public class DefaultCommandResolver implements CommandResolver {
             command = specialPages.get( pageName );
         }
 
-        // If we haven't found a matching command yet, extract the JSP path and compare to our list of special pages
+        // If we haven't found a matching command yet, extract the route path and compare to our list of special pages
         if ( command == null ) {
             command = extractCommandFromPath( request );
 

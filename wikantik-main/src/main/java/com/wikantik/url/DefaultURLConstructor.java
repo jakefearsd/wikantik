@@ -31,8 +31,7 @@ import java.util.Properties;
 
 
 /**
- *  Implements the default URL constructor using links directly to the JSP pages.  This is what JSPWiki by default is using.  For example,
- *  WikiContext.VIEW points at "Wiki.jsp", etc.
+ *  Implements the default URL constructor using direct links to wiki route paths.
  *
  *  @since 2.2
  */
@@ -40,7 +39,7 @@ public class DefaultURLConstructor implements URLConstructor {
 
     protected Engine engine;
 
-    /** Contains the absolute path of the JSPWiki Web application without the actual servlet (which is the m_urlPrefix). */
+    /** Contains the absolute path of the Wikantik web application without the actual servlet (which is the m_urlPrefix). */
     protected String pathPrefix = "";
 
     /**
@@ -101,8 +100,8 @@ public class DefaultURLConstructor implements URLConstructor {
      */
     public static String getURLPattern( final String context, final String name ) throws IllegalArgumentException {
         if( context.equals( ContextEnum.PAGE_VIEW.getRequestContext() ) && name == null) {
-            // Special case: viewing with no page name defaults to Wiki.jsp
-            return "%uWiki.jsp";
+            // Special case: viewing with no page name defaults to wiki root
+            return "%uwiki/";
         }
 
         // Find the action matching our pattern (could throw exception)
@@ -176,11 +175,11 @@ public class DefaultURLConstructor implements URLConstructor {
      *  This method is not needed for the DefaultURLConstructor.
      *
      * @param request The HTTP Request that was used to end up in this page.
-     * @return "Wiki.jsp", "PageInfo.jsp", etc.  Just return the name, JSPWiki will figure out the page.
+     * @return the default forward action name
      */
     @Override
     public String getForwardPage( final HttpServletRequest request ) {
-        return "Wiki.jsp";
+        return "wiki";
     }
 
 }

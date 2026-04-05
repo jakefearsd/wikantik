@@ -10,6 +10,17 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
+    <script>
+      // Auto-recovery: if the JS or CSS bundle 404s after a deploy, reload once.
+      // Uses sessionStorage to prevent infinite reload loops.
+      window.addEventListener('error', function(e) {
+        var tag = e.target && e.target.tagName;
+        if ((tag === 'SCRIPT' || tag === 'LINK') && !sessionStorage.getItem('__wikantik_reload')) {
+          sessionStorage.setItem('__wikantik_reload', '1');
+          window.location.reload();
+        }
+      }, true);
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

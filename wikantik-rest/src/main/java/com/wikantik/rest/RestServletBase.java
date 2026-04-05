@@ -287,4 +287,25 @@ public abstract class RestServletBase extends HttpServlet {
         return new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" ).format( date );
     }
 
+    /**
+     * Parses an integer request parameter, returning a default if the parameter
+     * is absent or not a valid integer.
+     *
+     * @param request      the HTTP request
+     * @param paramName    the parameter name
+     * @param defaultValue the value to return if the parameter is missing or invalid
+     * @return the parsed integer or the default
+     */
+    protected int parseIntParam( final HttpServletRequest request, final String paramName, final int defaultValue ) {
+        final String value = request.getParameter( paramName );
+        if ( value == null ) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt( value );
+        } catch ( final NumberFormatException e ) {
+            return defaultValue;
+        }
+    }
+
 }

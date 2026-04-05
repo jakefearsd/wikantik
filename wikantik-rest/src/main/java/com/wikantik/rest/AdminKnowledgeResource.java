@@ -203,8 +203,8 @@ public class AdminKnowledgeResource extends RestServletBase {
             if ( request.getParameter( "status" ) != null ) {
                 filters.put( "status", request.getParameter( "status" ) );
             }
-            final int limit = getIntParam( request, "limit", 50 );
-            final int offset = getIntParam( request, "offset", 0 );
+            final int limit = parseIntParam( request, "limit", 50 );
+            final int offset = parseIntParam( request, "offset", 0 );
             final List< KgNode > nodes = service.queryNodes( filters, null, limit, offset );
             sendJson( response, Map.of( "nodes", nodes.stream().map( this::nodeToMap ).toList() ) );
         }
@@ -218,8 +218,8 @@ public class AdminKnowledgeResource extends RestServletBase {
             // GET /admin/knowledge/edges — list all edges (paginated, with names)
             final String relType = request.getParameter( "relationship_type" );
             final String search = request.getParameter( "search" );
-            final int limit = getIntParam( request, "limit", 50 );
-            final int offset = getIntParam( request, "offset", 0 );
+            final int limit = parseIntParam( request, "limit", 50 );
+            final int offset = parseIntParam( request, "offset", 0 );
             sendJson( response, Map.of( "edges", service.queryEdges( relType, search, limit, offset ) ) );
             return;
         }
@@ -238,8 +238,8 @@ public class AdminKnowledgeResource extends RestServletBase {
                                      final HttpServletResponse response ) throws IOException {
         final String status = request.getParameter( "status" );
         final String sourcePage = request.getParameter( "source_page" );
-        final int limit = getIntParam( request, "limit", 50 );
-        final int offset = getIntParam( request, "offset", 0 );
+        final int limit = parseIntParam( request, "limit", 50 );
+        final int offset = parseIntParam( request, "offset", 0 );
         final List< KgProposal > proposals = service.listProposals( status, sourcePage, limit, offset );
         sendJson( response, Map.of( "proposals", proposals.stream()
                 .map( this::proposalToMap ).toList() ) );
@@ -535,13 +535,4 @@ public class AdminKnowledgeResource extends RestServletBase {
         }
     }
 
-    private int getIntParam( final HttpServletRequest request, final String name, final int defaultVal ) {
-        final String val = request.getParameter( name );
-        if ( val == null ) return defaultVal;
-        try {
-            return Integer.parseInt( val );
-        } catch ( final NumberFormatException e ) {
-            return defaultVal;
-        }
-    }
 }

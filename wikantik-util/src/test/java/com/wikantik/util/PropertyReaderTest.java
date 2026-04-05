@@ -45,9 +45,9 @@ class PropertyReaderTest {
         Assertions.assertEquals( "/ini/wikantik.properties", PropertyReader.createResourceLocation( null, "/ini/wikantik.properties" ) );
         Assertions.assertEquals( "/wikantik-custom.properties", PropertyReader.createResourceLocation( null, "/wikantik-custom.properties" ) );
         Assertions.assertEquals( "/wikantik.custom.cascade.1.ini", PropertyReader.createResourceLocation( null, "wikantik.custom.cascade.1.ini" ) );
-        Assertions.assertEquals( "/WEB-INF/classes/wikantik-custom.properties", PropertyReader.createResourceLocation( "WEB-INF/classes", PropertyReader.CUSTOM_JSPWIKI_CONFIG ) );
-        Assertions.assertEquals( "/WEB-INF/classes/wikantik-custom.properties", PropertyReader.createResourceLocation( "/WEB-INF/classes", PropertyReader.CUSTOM_JSPWIKI_CONFIG ) );
-        Assertions.assertEquals( "/WEB-INF/classes/wikantik-custom.properties", PropertyReader.createResourceLocation( "/WEB-INF/classes/", PropertyReader.CUSTOM_JSPWIKI_CONFIG ) );
+        Assertions.assertEquals( "/WEB-INF/classes/wikantik-custom.properties", PropertyReader.createResourceLocation( "WEB-INF/classes", PropertyReader.CUSTOM_WIKANTIK_CONFIG ) );
+        Assertions.assertEquals( "/WEB-INF/classes/wikantik-custom.properties", PropertyReader.createResourceLocation( "/WEB-INF/classes", PropertyReader.CUSTOM_WIKANTIK_CONFIG ) );
+        Assertions.assertEquals( "/WEB-INF/classes/wikantik-custom.properties", PropertyReader.createResourceLocation( "/WEB-INF/classes/", PropertyReader.CUSTOM_WIKANTIK_CONFIG ) );
     }
 
     @Test

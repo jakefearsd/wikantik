@@ -187,19 +187,7 @@
                 <configuration>
                   <datasources>
                     <datasource>
-                      <jndiName>jdbc/GroupDatabase</jndiName>
-                      <driverClass>org.hsqldb.jdbc.JDBCDriver</driverClass>
-                      <url>jdbc:hsqldb:hsql://localhost/wikantik</url>
-                      <username>SA</username>
-                      <password />
-                      <connectionProperties>
-                        <maxTotal>10</maxTotal>
-                        <maxIdle>5</maxIdle>
-                        <maxWaitMillis>5000</maxWaitMillis>
-                      </connectionProperties>
-                    </datasource>
-                    <datasource>
-                      <jndiName>jdbc/UserDatabase</jndiName>
+                      <jndiName>jdbc/WikiDatabase</jndiName>
                       <driverClass>org.hsqldb.jdbc.JDBCDriver</driverClass>
                       <url>jdbc:hsqldb:hsql://localhost/wikantik</url>
                       <username>SA</username>

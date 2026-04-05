@@ -79,9 +79,6 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
     private static final Logger LOG = LogManager.getLogger( DefaultAuthorizationManager.class );
 
-    /** Property name for the JNDI DataSource used by DatabasePolicy. When set, the database-backed policy is used instead of file-based. */
-    public static final String PROP_POLICY_DATASOURCE = "wikantik.policy.datasource";
-
     /** Property name for the database table holding policy grants. */
     public static final String PROP_POLICY_TABLE = "wikantik.policy.table";
 
@@ -286,46 +283,19 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         authorizer = getAuthorizerImplementation( properties );
         authorizer.initialize( engine, properties );
 
-        // Initialize security policy — database or file-based
-        final String policyDatasource = properties.getProperty( PROP_POLICY_DATASOURCE );
-        if ( policyDatasource != null && !policyDatasource.isBlank() ) {
-            // Database-backed policy
-            try {
-                final String tableName = properties.getProperty( PROP_POLICY_TABLE, DEFAULT_POLICY_TABLE );
-                final javax.naming.Context initCtx = new javax.naming.InitialContext();
-                final javax.naming.Context ctx = (javax.naming.Context) initCtx.lookup( "java:comp/env" );
-                final DataSource policyDs = (DataSource) ctx.lookup( policyDatasource );
-                databasePolicy = new DatabasePolicy( policyDs, tableName );
-                LOG.info( "Initialized database-backed security policy from JNDI DataSource: {}", policyDatasource );
-            } catch ( final Exception e ) {
-                LOG.error( "Could not initialize database security policy: {}", e.getMessage() );  // Error justified: startup failure is fatal
-                throw new WikiException( "Could not initialize database security policy: " + e.getMessage(), e );
-            }
-        } else {
-            // File-based policy (existing behavior)
-            try {
-                final String policyFileName = properties.getProperty( POLICY, DEFAULT_POLICY );
-                final URL policyURL = engine.findConfigFile( policyFileName );
-                if (policyURL != null) {
-                    final File policyFile = new File( policyURL.toURI().getPath() );
-                    LOG.info("We found security policy URL: {} and transformed it to file {}", policyURL, policyFile.getAbsolutePath());
-                    final LocalPolicy newLocalPolicy = new LocalPolicy( policyFile, engine.getContentEncoding().displayName() );
-                    newLocalPolicy.refresh();
-                    localPolicy = newLocalPolicy;
-                    LOG.info( "Initialized default security policy: {} - anonymous access now permitted", policyFile.getAbsolutePath() );
-                } else {
-                    final String sb = "JSPWiki was unable to initialize the default security policy (WEB-INF/wikantik.policy) file. "
-                            + "Please ensure that the wikantik.policy file exists in the default location. "
-                            + "This file should exist regardless of the existance of a global policy file. "
-                            + "The global policy file is identified by the java.security.policy variable. ";
-                    final WikiSecurityException wse = new WikiSecurityException( sb );
-                    LOG.fatal( sb, wse );
-                    throw wse;
-                }
-            } catch ( final Exception e) {
-                LOG.error("Could not initialize local security policy: {}", e.getMessage() );  // Error justified: startup failure
-                throw new WikiException( "Could not initialize local security policy: " + e.getMessage(), e );
-            }
+        // Initialize database-backed security policy
+        final String datasource = properties.getProperty( AbstractJDBCDatabase.PROP_DATASOURCE,
+                AbstractJDBCDatabase.DEFAULT_DATASOURCE );
+        try {
+            final String tableName = properties.getProperty( PROP_POLICY_TABLE, DEFAULT_POLICY_TABLE );
+            final javax.naming.Context initCtx = new javax.naming.InitialContext();
+            final javax.naming.Context ctx = (javax.naming.Context) initCtx.lookup( "java:comp/env" );
+            final DataSource policyDs = (DataSource) ctx.lookup( datasource );
+            databasePolicy = new DatabasePolicy( policyDs, tableName );
+            LOG.info( "Initialized database-backed security policy from JNDI DataSource: {}", datasource );
+        } catch ( final Exception e ) {
+            LOG.error( "Could not initialize database security policy: {}", e.getMessage() );
+            throw new WikiException( "Could not initialize database security policy: " + e.getMessage(), e );
         }
 
         // Bootstrap admin override

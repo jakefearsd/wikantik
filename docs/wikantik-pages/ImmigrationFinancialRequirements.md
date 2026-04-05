@@ -1,13 +1,7 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: Understanding the I-864 Affidavit of Support — income thresholds, what counts
   as income, joint sponsors, and what to do when you fall short
-related:
-- SpousalGreenCardGuide
-- FilingTheI130Petition
-- AdjustmentOfStatusProcess
-- ConsularProcessingPath
+date: 2026-03-14T00:00:00Z
 tags:
 - immigration
 - green-card
@@ -15,8 +9,16 @@ tags:
 - i-864
 - affidavit-of-support
 - financial
+related:
+- SpousalGreenCardGuide
+- FilingTheI130Petition
+- AdjustmentOfStatusProcess
+- ConsularProcessingPath
 type: article
 cluster: spousal-green-card
+status: active
+part-of:
+- SpousalGreenCardGuide
 ---
 # Immigration Financial Requirements
 

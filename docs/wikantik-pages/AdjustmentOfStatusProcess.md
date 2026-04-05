@@ -1,14 +1,7 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: The adjustment of status pathway for spouses already in the United States
   — concurrent filing, work permits, travel authorization, and what to expect
-related:
-- SpousalGreenCardGuide
-- FilingTheI130Petition
-- ImmigrationFinancialRequirements
-- TheGreenCardInterview
-- ConditionalResidenceAndI751
+date: 2026-03-14T00:00:00Z
 tags:
 - immigration
 - green-card
@@ -16,8 +9,17 @@ tags:
 - adjustment-of-status
 - i-485
 - uscis
+related:
+- SpousalGreenCardGuide
+- FilingTheI130Petition
+- ImmigrationFinancialRequirements
+- TheGreenCardInterview
+- ConditionalResidenceAndI751
 type: article
 cluster: spousal-green-card
+status: active
+part-of:
+- SpousalGreenCardGuide
 ---
 # Adjustment of Status (I-485)
 

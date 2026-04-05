@@ -1,15 +1,7 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: Managing a Linux system — services, processes, logs, networking, SSH, and
   the operational knowledge that makes you self-sufficient
-related:
-- LinuxForWindowsUsers
-- LinuxCommandLineEssentials
-- LinuxFilesystemAndPermissions
-- LinuxPackageManagement
-- LinuxShellScriptingFundamentals
-- WhyLearnLinuxDeeply
+date: 2026-03-14T00:00:00Z
 tags:
 - linux
 - system-administration
@@ -17,8 +9,18 @@ tags:
 - ssh
 - services
 - operating-systems
+related:
+- LinuxForWindowsUsers
+- LinuxCommandLineEssentials
+- LinuxFilesystemAndPermissions
+- LinuxPackageManagement
+- LinuxShellScriptingFundamentals
+- WhyLearnLinuxDeeply
 type: article
 cluster: linux-for-windows-users
+status: active
+part-of:
+- LinuxForWindowsUsers
 ---
 # Linux System Administration
 

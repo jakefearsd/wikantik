@@ -1,4 +1,7 @@
 ---
+summary: The humanitarian impact of the Russia-Ukraine war including refugees, displacement,
+  and civilian suffering as of March 2026
+date: '2026-03-13'
 tags:
 - Russia
 - Ukraine
@@ -10,12 +13,11 @@ tags:
 related:
 - RussiaUkraineWarOverview
 - RussiaUkraineWarEnergyWar
-summary: The humanitarian impact of the Russia-Ukraine war including refugees, displacement,
-  and civilian suffering as of March 2026
-status: active
-date: '2026-03-13'
 type: article
 cluster: russia-ukraine-war
+status: active
+part-of:
+- RussiaUkraineWarOverview
 ---
 # The Humanitarian Crisis
 

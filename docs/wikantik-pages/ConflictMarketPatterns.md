@@ -1,8 +1,14 @@
 ---
-date: '2026-03-14'
-type: article
 summary: 'Cross-cutting analysis of recurring market patterns across all major conflicts:
   uncertainty premium, sector rotation, recovery speed, policy response importance'
+date: '2026-03-14'
+tags:
+- finance
+- equity-markets
+- conflict
+- patterns
+- sector-rotation
+- investment-lessons
 related:
 - ConflictsAndEquityMarkets
 - WorldWarOneMarkets
@@ -11,15 +17,11 @@ related:
 - GulfWarMarkets
 - WarOnTerrorMarkets
 - RussiaUkraineWarMarkets
-tags:
-- finance
-- equity-markets
-- conflict
-- patterns
-- sector-rotation
-- investment-lessons
-status: active
+type: article
 cluster: conflicts-equity-markets
+status: active
+part-of:
+- ConflictsAndEquityMarkets
 ---
 # Patterns Across Conflicts: What Markets Teach Us About War
 

@@ -1,11 +1,26 @@
 ---
+summary: Known limitations of warehouse automation — capital cost, inflexibility,
+  exception handling, SKU constraints, workforce impact, and technology gaps
+date: 2026-03-18T00:00:00Z
+tags:
+- warehouse
+- automation
+- limitations
+- robotics
+- risk
+- logistics
+related:
+- WarehouseAutomationHub
+- WarehouseManagementSystems
+- WarehouseRobotics
+- AutomatedStorageAndRetrieval
+- ConveyorAndSortingTechnology
+- WarehouseAiAndMl
 type: article
 cluster: warehouse-automation
-tags: [warehouse, automation, limitations, robotics, risk, logistics]
-date: 2026-03-18
 status: active
-summary: Known limitations of warehouse automation — capital cost, inflexibility, exception handling, SKU constraints, workforce impact, and technology gaps
-related: [WarehouseAutomationHub, WarehouseManagementSystems, WarehouseRobotics, AutomatedStorageAndRetrieval, ConveyorAndSortingTechnology, WarehouseAiAndMl]
+part-of:
+- WarehouseAutomationHub
 ---
 # Warehouse Automation Limitations
 

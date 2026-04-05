@@ -1,4 +1,7 @@
 ---
+summary: Russia's systematic campaign against Ukraine's energy infrastructure and
+  its devastating impact
+date: '2026-03-13'
 tags:
 - Russia
 - Ukraine
@@ -10,12 +13,11 @@ tags:
 related:
 - RussiaUkraineWarOverview
 - RussiaUkraineWarHumanitarianCrisis
-summary: Russia's systematic campaign against Ukraine's energy infrastructure and
-  its devastating impact
-status: active
-date: '2026-03-13'
 type: article
 cluster: russia-ukraine-war
+status: active
+part-of:
+- RussiaUkraineWarOverview
 ---
 # The Energy Infrastructure War
 

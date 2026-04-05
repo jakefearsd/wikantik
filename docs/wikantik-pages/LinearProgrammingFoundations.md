@@ -1,20 +1,23 @@
 ---
+summary: The mathematical foundations of linear programming — formulation, the simplex
+  method, duality theory, and why LP remains the workhorse of optimization
+date: 2026-03-17T00:00:00Z
+tags:
+- operations-research
+- linear-programming
+- optimization
+- mathematics
+- simplex
+related:
+- OperationsResearchHub
+- HistoryOfOperationsResearch
+- IntegerAndCombinatorialOptimization
+- MathematicalFoundationsOfMachineLearning
 type: article
 cluster: operations-research
-tags:
-  - operations-research
-  - linear-programming
-  - optimization
-  - mathematics
-  - simplex
-date: 2026-03-17
-related:
-  - OperationsResearchHub
-  - HistoryOfOperationsResearch
-  - IntegerAndCombinatorialOptimization
-  - MathematicalFoundationsOfMachineLearning
 status: active
-summary: The mathematical foundations of linear programming — formulation, the simplex method, duality theory, and why LP remains the workhorse of optimization
+part-of:
+- OperationsResearchHub
 ---
 # Linear Programming Foundations
 

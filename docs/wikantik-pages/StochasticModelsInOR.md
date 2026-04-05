@@ -1,11 +1,21 @@
 ---
+summary: How stochastic OR extends deterministic models to handle uncertainty through
+  queuing theory, Markov chains, and simulation
+date: 2026-03-21T00:00:00Z
+tags:
+- operations-research
+- stochastic-models
+- probability
+- queuing-theory
+- simulation
+related:
+- OperationsResearchHub
+- OperationsResearch
 type: article
-tags: [operations-research, stochastic-models, probability, queuing-theory, simulation]
-date: 2026-03-21
-status: active
 cluster: operations-research
-summary: How stochastic OR extends deterministic models to handle uncertainty through queuing theory, Markov chains, and simulation
-related: [OperationsResearchHub, OperationsResearch]
+status: active
+part-of:
+- OperationsResearchHub
 ---
 # Stochastic Models in Operations Research
 

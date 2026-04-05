@@ -1,20 +1,23 @@
 ---
-summary: Blog subsystem with date-prefixed directory storage, composable plugins, and split-view editor
+status: deployed
+depends-on:
+- JspToReactMigration
+summary: Blog subsystem with date-prefixed directory storage, composable plugins,
+  and split-view editor
 tags:
 - development
 - blog
 - content-management
 - ui
 type: article
-status: deployed
 cluster: wikantik-development
-date: '2026-04-03'
 related:
 - WikantikDevelopment
 - AttachmentManagement
 - JspToReactMigration
-depends-on:
-- JspToReactMigration
+date: '2026-04-03'
+documents:
+- About
 ---
 # Blog Feature
 

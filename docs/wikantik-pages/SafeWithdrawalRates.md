@@ -1,11 +1,26 @@
 ---
+summary: How much you can spend from your portfolio each year — the 4% rule, sequence
+  of returns risk, and modern dynamic strategies like guardrails and VPW
+date: 2026-03-21T00:00:00Z
+tags:
+- retirement
+- withdrawal-rates
+- four-percent-rule
+- financial-planning
+related:
+- RetirementPlanningGuide
+- HistoryOfTheFourPercentRule
+- GuardrailsSpendingStrategy
+- SequenceOfReturnsRisk
+- RetirementIncomeBlueprint
+- SocialSecurityClaimingStrategy
+- RetirementWithdrawalSequencing
+- FireMovement
 type: article
-tags: [retirement, withdrawal-rates, four-percent-rule, financial-planning]
-date: 2026-03-21
-status: active
 cluster: retirement-planning
-summary: How much you can spend from your portfolio each year — the 4% rule, sequence of returns risk, and modern dynamic strategies like guardrails and VPW
-related: [RetirementPlanningGuide, HistoryOfTheFourPercentRule, GuardrailsSpendingStrategy, SequenceOfReturnsRisk, RetirementIncomeBlueprint, SocialSecurityClaimingStrategy, RetirementWithdrawalSequencing, FireMovement]
+status: active
+part-of:
+- RetirementPlanningGuide
 ---
 # Safe Withdrawal Rates
 

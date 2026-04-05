@@ -1,5 +1,7 @@
 ---
-type: article
+summary: 'The revival of hand tool woodworking: premium toolmakers, online instruction,
+  and why hobbyists choose hand planes alongside CNC routers'
+date: '2026-03-20'
 tags:
 - woodworking
 - hand-tools
@@ -7,15 +9,15 @@ tags:
 - craftsmanship
 - planes
 - chisels
-date: '2026-03-20'
-cluster: hobby-woodworking
-status: active
-summary: 'The revival of hand tool woodworking: premium toolmakers, online instruction,
-  and why hobbyists choose hand planes alongside CNC routers'
 related:
 - HobbyWoodworkingInTheTwentyFirstCentury
 - EvolutionOfHobbyWoodworking
 - CncRoutersForTheHobbyWorkshop
+type: article
+cluster: hobby-woodworking
+status: active
+part-of:
+- HobbyWoodworkingInTheTwentyFirstCentury
 ---
 # The Modern Hand Tool Renaissance
 

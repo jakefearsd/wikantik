@@ -1,20 +1,23 @@
 ---
+summary: OR applied to supply chains — economic order quantity, transportation problems,
+  inventory theory, vehicle routing, and multi-echelon networks
+date: 2026-03-17T00:00:00Z
+tags:
+- operations-research
+- supply-chain
+- logistics
+- inventory
+- transportation
+related:
+- OperationsResearchHub
+- LinearProgrammingFoundations
+- IntegerAndCombinatorialOptimization
+- StochasticModelsInOR
 type: article
 cluster: operations-research
-tags:
-  - operations-research
-  - supply-chain
-  - logistics
-  - inventory
-  - transportation
-date: 2026-03-17
-related:
-  - OperationsResearchHub
-  - LinearProgrammingFoundations
-  - IntegerAndCombinatorialOptimization
-  - StochasticModelsInOR
 status: active
-summary: OR applied to supply chains — economic order quantity, transportation problems, inventory theory, vehicle routing, and multi-echelon networks
+part-of:
+- OperationsResearchHub
 ---
 # Supply Chain and Logistics Optimization
 

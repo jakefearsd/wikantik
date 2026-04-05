@@ -1,4 +1,7 @@
 ---
+summary: International military support and the European defense response to the Russia-Ukraine
+  war as of March 2026
+date: '2026-03-13'
 tags:
 - Russia
 - Ukraine
@@ -11,12 +14,11 @@ tags:
 related:
 - RussiaUkraineWarOverview
 - RussiaUkraineWarMilitaryTechnology
-summary: International military support and the European defense response to the Russia-Ukraine
-  war as of March 2026
-status: active
-date: '2026-03-13'
 type: article
 cluster: russia-ukraine-war
+status: active
+part-of:
+- RussiaUkraineWarOverview
 ---
 # International Response and Military Support
 

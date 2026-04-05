@@ -1,7 +1,7 @@
 ---
+summary: How Monte Carlo simulation stress-tests retirement spending strategies across
+  thousands of possible futures
 date: '2026-03-15T00:00:00Z'
-status: active
-cluster: retirement-planning
 tags:
 - personal-finance
 - retirement-planning
@@ -15,9 +15,11 @@ related:
 - SocialSecurityClaimingStrategy
 - RothConversionStrategy
 - RetirementWithdrawalSequencing
+cluster: retirement-planning
 type: article
-summary: How Monte Carlo simulation stress-tests retirement spending strategies across
-  thousands of possible futures
+status: active
+part-of:
+- RetirementPlanningGuide
 ---
 # Monte Carlo Simulation in Retirement Planning
 

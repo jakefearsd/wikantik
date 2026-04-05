@@ -1,8 +1,6 @@
 ---
-type: article
-cluster: index-fund-investing
-status: active
-summary: How historical conflict patterns inform index fund portfolio construction, asset allocation, and retirement withdrawal strategies during geopolitical crises
+summary: How historical conflict patterns inform index fund portfolio construction,
+  asset allocation, and retirement withdrawal strategies during geopolitical crises
 date: '2026-03-21'
 tags:
 - investing
@@ -18,6 +16,11 @@ related:
 - SafeWithdrawalRates
 - SequenceOfReturnsRisk
 - AssetAllocationGuide
+type: article
+cluster: index-fund-investing
+status: active
+part-of:
+- ConflictsAndEquityMarkets
 ---
 # Conflict-Resilient Portfolios
 

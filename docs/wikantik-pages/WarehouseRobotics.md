@@ -1,11 +1,27 @@
 ---
+summary: Warehouse robotics — AMRs, AGVs, robotic picking arms, and cobots that move,
+  store, pick, and pack goods inside fulfilment centres
+date: 2026-03-18T00:00:00Z
+tags:
+- warehouse
+- robotics
+- amr
+- agv
+- cobot
+- automation
+- logistics
+related:
+- WarehouseAutomationHub
+- WarehouseManagementSystems
+- AutomatedStorageAndRetrieval
+- ConveyorAndSortingTechnology
+- WarehouseAiAndMl
+- WarehouseAutomationLimitations
 type: article
 cluster: warehouse-automation
-tags: [warehouse, robotics, amr, agv, cobot, automation, logistics]
-date: 2026-03-18
 status: active
-summary: Warehouse robotics — AMRs, AGVs, robotic picking arms, and cobots that move, store, pick, and pack goods inside fulfilment centres
-related: [WarehouseAutomationHub, WarehouseManagementSystems, AutomatedStorageAndRetrieval, ConveyorAndSortingTechnology, WarehouseAiAndMl, WarehouseAutomationLimitations]
+part-of:
+- WarehouseAutomationHub
 ---
 # Warehouse Robotics
 

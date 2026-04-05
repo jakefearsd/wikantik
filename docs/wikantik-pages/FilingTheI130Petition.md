@@ -1,14 +1,7 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: How to file Form I-130 Petition for Alien Relative — the foundational step
   in every spousal green card case
-related:
-- SpousalGreenCardGuide
-- MarriageBasedImmigrationCategories
-- AdjustmentOfStatusProcess
-- ConsularProcessingPath
-- ImmigrationFinancialRequirements
+date: 2026-03-14T00:00:00Z
 tags:
 - immigration
 - green-card
@@ -16,8 +9,17 @@ tags:
 - i-130
 - uscis
 - forms
+related:
+- SpousalGreenCardGuide
+- MarriageBasedImmigrationCategories
+- AdjustmentOfStatusProcess
+- ConsularProcessingPath
+- ImmigrationFinancialRequirements
 type: article
 cluster: spousal-green-card
+status: active
+part-of:
+- SpousalGreenCardGuide
 ---
 # Filing the I-130 Petition
 

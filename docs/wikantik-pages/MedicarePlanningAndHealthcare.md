@@ -1,22 +1,24 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: Healthcare planning for retirement — the pre-Medicare ACA bridge, Medicare
   enrollment, IRMAA surcharges, and how healthcare costs connect to Roth conversion
   and income management decisions
+date: 2026-03-14T00:00:00Z
+tags:
+- personal-finance
+- retirement-planning
+- healthcare
+- medicare
 related:
 - RetirementPlanningGuide
 - RothConversionStrategy
 - SocialSecurityClaimingStrategy
 - RetirementWithdrawalSequencing
 - HealthSavingsAccounts
-tags:
-- personal-finance
-- retirement-planning
-- healthcare
-- medicare
 type: article
 cluster: retirement-planning
+status: active
+part-of:
+- RetirementPlanningGuide
 ---
 # Medicare Planning and Healthcare in Retirement
 

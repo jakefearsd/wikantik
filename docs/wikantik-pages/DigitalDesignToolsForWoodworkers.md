@@ -1,5 +1,7 @@
 ---
-type: article
+summary: 'CAD, CAM, and laser software for hobby woodworkers: Fusion 360, SketchUp,
+  VCarve Pro, LightBurn, and the design-to-cut workflow'
+date: '2026-03-20'
 tags:
 - woodworking
 - CAD
@@ -7,16 +9,16 @@ tags:
 - software
 - digital-fabrication
 - hobby
-date: '2026-03-20'
-cluster: hobby-woodworking
-status: active
-summary: 'CAD, CAM, and laser software for hobby woodworkers: Fusion 360, SketchUp,
-  VCarve Pro, LightBurn, and the design-to-cut workflow'
 related:
 - HobbyWoodworkingInTheTwentyFirstCentury
 - CncRoutersForTheHobbyWorkshop
 - LaserCuttersAndEngraversForWood
 - ThreeDeePrintingMeetsWoodworking
+type: article
+cluster: hobby-woodworking
+status: active
+part-of:
+- HobbyWoodworkingInTheTwentyFirstCentury
 ---
 # Digital Design Tools for Woodworkers
 

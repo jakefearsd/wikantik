@@ -1,14 +1,7 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: The consular processing pathway for spouses living abroad — from I-130 approval
   through the National Visa Center to the embassy interview and entry
-related:
-- SpousalGreenCardGuide
-- FilingTheI130Petition
-- ImmigrationFinancialRequirements
-- TheGreenCardInterview
-- AdjustmentOfStatusProcess
+date: 2026-03-14T00:00:00Z
 tags:
 - immigration
 - green-card
@@ -16,8 +9,17 @@ tags:
 - consular-processing
 - nvc
 - embassy
+related:
+- SpousalGreenCardGuide
+- FilingTheI130Petition
+- ImmigrationFinancialRequirements
+- TheGreenCardInterview
+- AdjustmentOfStatusProcess
 type: article
 cluster: spousal-green-card
+status: active
+part-of:
+- SpousalGreenCardGuide
 ---
 # Consular Processing
 

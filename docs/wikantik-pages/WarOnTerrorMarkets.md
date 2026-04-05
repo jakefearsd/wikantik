@@ -1,13 +1,7 @@
 ---
-date: '2026-03-14'
-type: article
 summary: The 9/11 market shock, two decades of war costs, and the transformation of
   the defence sector
-related:
-- ConflictsAndEquityMarkets
-- GulfWarMarkets
-- RussiaUkraineWarMarkets
-- ConflictMarketPatterns
+date: '2026-03-14'
 tags:
 - finance
 - war-on-terror
@@ -15,8 +9,16 @@ tags:
 - equity-markets
 - history
 - defence-sector
-status: active
+related:
+- ConflictsAndEquityMarkets
+- GulfWarMarkets
+- RussiaUkraineWarMarkets
+- ConflictMarketPatterns
+type: article
 cluster: conflicts-equity-markets
+status: active
+part-of:
+- ConflictsAndEquityMarkets
 ---
 # The War on Terror and Equity Markets (2001–2021)
 

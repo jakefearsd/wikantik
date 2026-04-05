@@ -1,6 +1,4 @@
 ---
-type: article
-status: active
 cluster: berlin-history
 tags:
 - history
@@ -8,6 +6,8 @@ tags:
 - prussia
 - hohenzollern
 - urbanization
+type: article
+status: active
 summary: Berlin's evolution from medieval twin towns to Prussian royal capital and
   eventually capital of the German Empire, tracing the Hohenzollern dynasty's role
   in the city's transformation
@@ -15,6 +15,8 @@ related:
 - Berlin
 - ReformationAndUrbanDevelopmentInBerlin
 - ReformationEraInBerlin
+part-of:
+- Berlin
 ---
 # Berlin's Transformation from Margraviate to Capital City
 

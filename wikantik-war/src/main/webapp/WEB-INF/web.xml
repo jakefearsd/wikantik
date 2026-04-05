@@ -92,6 +92,17 @@
      <url-pattern>/*</url-pattern>
    </filter-mapping>
 
+   <!-- Build version header: lets the SPA detect redeployments -->
+   <filter>
+     <filter-name>BuildVersionFilter</filter-name>
+     <filter-class>com.wikantik.rest.BuildVersionFilter</filter-class>
+   </filter>
+   <filter-mapping>
+     <filter-name>BuildVersionFilter</filter-name>
+     <url-pattern>/api/*</url-pattern>
+     <url-pattern>/admin/*</url-pattern>
+   </filter-mapping>
+
    <!-- React SPA routing: forwards known SPA paths to /index.html for client-side routing -->
    <filter>
      <filter-name>SpaRoutingFilter</filter-name>

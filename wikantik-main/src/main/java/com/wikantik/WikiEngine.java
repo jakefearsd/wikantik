@@ -28,6 +28,7 @@ import com.wikantik.api.engine.Initializable;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.UserManager;
@@ -511,11 +512,8 @@ public class WikiEngine implements Engine {
      * @param props engine properties
      */
     private void initKnowledgeGraph( final Properties props ) {
-        final String datasource = props.getProperty( "wikantik.knowledge.datasource" );
-        if( datasource == null || datasource.isBlank() ) {
-            LOG.info( "Knowledge graph disabled (no wikantik.knowledge.datasource configured)" );
-            return;
-        }
+        final String datasource = props.getProperty( AbstractJDBCDatabase.PROP_DATASOURCE,
+                AbstractJDBCDatabase.DEFAULT_DATASOURCE );
         try {
             final javax.naming.Context initCtx = new javax.naming.InitialContext();
             final javax.naming.Context ctx = ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );

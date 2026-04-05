@@ -110,22 +110,20 @@
     <plugin.inmemdb.version>1.4.3</plugin.inmemdb.version>
     <plugin.build-helper.version>3.6.1</plugin.build-helper.version>
     <plugin.checksum.version>1.11</plugin.checksum.version>
-    <plugin.jslint.version>1.0.1</plugin.jslint.version>
     <plugin.cargo.version>1.10.20</plugin.cargo.version>
     <plugin.pmd.version>3.28.0</plugin.pmd.version>
     <plugin.site.version>3.21.0</plugin.site.version>
     <plugin.spotbugs.version>4.9.4</plugin.spotbugs.version>
     <plugin.checkstyle.version>3.6.0</plugin.checkstyle.version>
     <plugin.clirr.version>2.8</plugin.clirr.version>
+    <plugin.wro4j.version>2.1.1</plugin.wro4j.version>
     <plugin.cobertura.version>2.7</plugin.cobertura.version>
     <plugin.cyclonedx.version>2.9.1</plugin.cyclonedx.version>
     <plugin.sonar.version>5.1.0.4751</plugin.sonar.version>
     <plugin.sonar-report.version>0.1</plugin.sonar-report.version>
-    <plugin.wro4j.version>2.1.1</plugin.wro4j.version>
     <plugin.eclipse-lifecycle-mapping.version>1.0.0</plugin.eclipse-lifecycle-mapping.version>
     <maven.compiler.source>${jdk.version}</maven.compiler.source> <!-- override values from parent pom -->
     <maven.compiler.target>${jdk.version}</maven.compiler.target>
-    <minimize>true</minimize> <!-- wro4j compression -->
   </properties>
 
   <scm>
@@ -859,22 +857,10 @@
           </configuration>
         </plugin>
 
-        <!-- wro4j Web Resource Optimizer for Java (http://http://code.google.com/p/wro4j/)
-          Merge and compress CSS and JS files using the WRO4J.
-          - use UglifyJS for JS compression
-          - use Less as advanced CSS preprocessor
-        -->
         <plugin>
           <groupId>ro.isdc.wro4j</groupId>
           <artifactId>wro4j-maven-plugin</artifactId>
           <version>${plugin.wro4j.version}</version>
-          <configuration>
-            <contextFolder>${project.basedir}/src/main/</contextFolder>
-            <extraConfigFile>${project.basedir}/src/main/config/wro/wro.properties</extraConfigFile>
-            <minimize>${minimize}</minimize>
-            <jsDestinationFolder>${project.build.directory}/generated-sources/wro/scripts</jsDestinationFolder>
-            <wroManagerFactory>ro.isdc.wro.maven.plugin.manager.factory.ConfigurableWroManagerFactory</wroManagerFactory>
-          </configuration>
           <dependencies><!-- https://github.com/wro4j/wro4j/issues/1039#issuecomment-382474533 -->
             <dependency>
               <groupId>org.mockito</groupId>
@@ -888,12 +874,6 @@
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
           <version>${plugin.build-helper.version}</version>
-        </plugin>
-
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>jslint-maven-plugin</artifactId>
-          <version>${plugin.jslint.version}</version>
         </plugin>
 
         <plugin>
@@ -923,14 +903,6 @@
               <exclude>**/src/main/config/wikipages/**</exclude>                <!-- Default wikipages -->
               <exclude>**/src/main/config/dev/OldChangeLog</exclude>            <!-- ChangeLog excluded by default, this is, well, an old ChangeLog -->
               <exclude>**/src/main/resources/META-INF/services/*</exclude>      <!-- Java SPI implementations files -->
-              <exclude>**/src/main/scripts/posteditor.js</exclude>              <!-- minified file -->
-              <exclude>**/src/main/scripts/moo-extend/Request.File.js</exclude> <!-- MIT licensed -->
-              <exclude>**/src/main/styles/haddock/fontjspwiki/**</exclude>      <!-- MIT/OFL licensed -->
-              <exclude>**/src/main/webapp/templates/haddock/fonts/FontJspwiki.*</exclude><!-- MIT/OFL licensed -->
-              <exclude>**/src/main/webapp/templates/reader/fonts/FontJspwiki.*</exclude> <!-- MIT/OFL licensed -->
-              <exclude>**/src/main/webapp/scripts/mooeditable/**</exclude>      <!-- MooEditable src, MIT licensed -->
-              <exclude>**/src/main/webapp/scripts/*.js</exclude>                <!-- minified files -->
-              <exclude>**/src/main/scripts/lib/*.js</exclude>                   <!-- 3rd party js files -->
               <exclude>**/src/test/resources/META-INF/services/*</exclude>      <!-- Java SPI implementations files -->
               <exclude>**/src/test/resources/TextFormattingRules.txt</exclude>  <!-- test input data -->
               <exclude>**/src/test/resources/test-repo/*.txt</exclude>          <!-- web tests input data -->
@@ -1046,15 +1018,6 @@
                     <artifactId>maven-antrun-plugin</artifactId>
                     <versionRange>[1.7,)</versionRange>
                     <goals><goal>run</goal></goals>
-                  </pluginExecutionFilter>
-                  <action><ignore /></action>
-                </pluginExecution>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>org.codehaus.mojo</groupId>
-                    <artifactId>jslint-maven-plugin</artifactId>
-                    <versionRange>[1.0.1,)</versionRange>
-                    <goals><goal>jslint</goal></goals>
                   </pluginExecutionFilter>
                   <action><ignore /></action>
                 </pluginExecution>

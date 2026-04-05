@@ -19,6 +19,7 @@
 package com.wikantik.content;
 
 import com.wikantik.TestEngine;
+import com.wikantik.api.managers.SystemPageRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

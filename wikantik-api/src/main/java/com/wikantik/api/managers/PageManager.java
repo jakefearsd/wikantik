@@ -23,6 +23,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.pages.PageLock;
+import com.wikantik.api.pages.PageSorter;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.event.WikiEventListener;
 
@@ -369,5 +370,12 @@ public interface PageManager extends WikiEventListener {
      * @throws ProviderException If the repository operation fails
      */
     void deletePage( Page page ) throws ProviderException;
+
+    /**
+     * Returns the configured {@link PageSorter}.
+     *
+     * @return the configured {@link PageSorter}.
+     */
+    PageSorter getPageSorter();
 
 }

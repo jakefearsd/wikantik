@@ -23,7 +23,7 @@ import java.util.Properties;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
-import com.wikantik.pages.PageSorter;
+import com.wikantik.api.pages.PageSorter;
 import com.wikantik.util.comparators.HumanComparator;
 import com.wikantik.util.comparators.LocaleComparator;
 

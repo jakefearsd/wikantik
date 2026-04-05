@@ -34,7 +34,8 @@ import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.api.managers.AttachmentManager;
+import com.wikantik.api.pages.PageSorter;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.acl.AclManager;
@@ -45,7 +46,7 @@ import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.event.WikiSecurityEvent;
 import com.wikantik.providers.RepositoryModifiedException;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.search.SearchManager;
 import com.wikantik.ui.CommandResolver;
@@ -75,7 +76,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @since 2.0
  */
-public class DefaultPageManager implements PageManager {
+public class DefaultPageManager implements com.wikantik.api.managers.PageManager {
 
     private static final Logger LOG = LogManager.getLogger( DefaultPageManager.class );
     private final PageProvider provider;
@@ -170,7 +171,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getProvider()
+     * @see com.wikantik.api.managers.PageManager#getProvider()
      */
     @Override
     public PageProvider getProvider() {
@@ -179,7 +180,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getAllPages()
+     * @see com.wikantik.api.managers.PageManager#getAllPages()
      */
     @Override
     public Collection< Page > getAllPages() throws ProviderException {
@@ -188,7 +189,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getPageText(java.lang.String, int)
+     * @see com.wikantik.api.managers.PageManager#getPageText(java.lang.String, int)
      */
     @Override
     public String getPageText( final String pageName, final int version ) throws ProviderException {
@@ -216,7 +217,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getPureText(String, int)
+     * @see com.wikantik.api.managers.PageManager#getPureText(String, int)
      */
     @Override
     public String getPureText( final String page, final int version ) {
@@ -235,7 +236,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getText(String, int)
+     * @see com.wikantik.api.managers.PageManager#getText(String, int)
      */
     @Override
     public String getText( final String page, final int version ) {
@@ -321,7 +322,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#putPageText(com.wikantik.api.core.Page, java.lang.String)
+     * @see com.wikantik.api.managers.PageManager#putPageText(com.wikantik.api.core.Page, java.lang.String)
      */
     @Override
     public void putPageText( final Page page, final String content ) throws ProviderException {
@@ -334,7 +335,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#lockPage(com.wikantik.api.core.Page, java.lang.String)
+     * @see com.wikantik.api.managers.PageManager#lockPage(com.wikantik.api.core.Page, java.lang.String)
      */
     @Override
     public com.wikantik.api.pages.PageLock lockPage( final Page page, final String user ) {
@@ -347,7 +348,7 @@ public class DefaultPageManager implements PageManager {
 
         fireEvent( WikiPageEvent.PAGE_LOCK, page.getName() );
         final Date lockTime = new Date();
-        final com.wikantik.api.pages.PageLock newLock = new PageLock( page, user, lockTime, new Date( lockTime.getTime() + expiryTime * 60 * 1000L ) );
+        final com.wikantik.api.pages.PageLock newLock = new com.wikantik.api.pages.PageLock( page, user, lockTime, new Date( lockTime.getTime() + expiryTime * 60 * 1000L ) );
         final com.wikantik.api.pages.PageLock existing = pageLocks.putIfAbsent( page.getName(), newLock );
 
         if( existing == null ) {
@@ -361,7 +362,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#unlockPage(com.wikantik.pages.PageLock)
+     * @see com.wikantik.api.managers.PageManager#unlockPage(com.wikantik.api.pages.PageLock)
      */
     @Override
     public void unlockPage( final com.wikantik.api.pages.PageLock lock ) {
@@ -377,7 +378,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getCurrentLock(com.wikantik.api.core.Page)
+     * @see com.wikantik.api.managers.PageManager#getCurrentLock(com.wikantik.api.core.Page)
      */
     @Override
     public com.wikantik.api.pages.PageLock getCurrentLock( final Page page ) {
@@ -386,7 +387,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getActiveLocks()
+     * @see com.wikantik.api.managers.PageManager#getActiveLocks()
      */
     @Override
     public List< com.wikantik.api.pages.PageLock > getActiveLocks() {
@@ -395,7 +396,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getPage(java.lang.String)
+     * @see com.wikantik.api.managers.PageManager#getPage(java.lang.String)
      */
     @Override
     public Page getPage( final String pagereq ) {
@@ -404,7 +405,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getPage(java.lang.String, int)
+     * @see com.wikantik.api.managers.PageManager#getPage(java.lang.String, int)
      */
     @Override
     public Page getPage( final String pagereq, final int version ) {
@@ -423,7 +424,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getPageInfo(java.lang.String, int)
+     * @see com.wikantik.api.managers.PageManager#getPageInfo(java.lang.String, int)
      */
     @Override
     public Page getPageInfo( final String pageName, final int version) throws ProviderException {
@@ -451,7 +452,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getVersionHistory(java.lang.String)
+     * @see com.wikantik.api.managers.PageManager#getVersionHistory(java.lang.String)
      */
     @Override @SuppressWarnings( "unchecked" )
     public < T extends Page > List< T > getVersionHistory( final String pageName ) {
@@ -474,7 +475,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getCurrentProvider()
+     * @see com.wikantik.api.managers.PageManager#getCurrentProvider()
      */
     @Override 
     public String getCurrentProvider() {
@@ -484,7 +485,7 @@ public class DefaultPageManager implements PageManager {
     /**
      * {@inheritDoc}
      *
-     * @see com.wikantik.pages.PageManager#getProviderDescription()
+     * @see com.wikantik.api.managers.PageManager#getProviderDescription()
      */
     @Override 
     public String getProviderDescription() {
@@ -493,7 +494,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getTotalPageCount()
+     * @see com.wikantik.api.managers.PageManager#getTotalPageCount()
      */
     @Override
     public int getTotalPageCount() {
@@ -507,7 +508,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getRecentChanges()
+     * @see com.wikantik.api.managers.PageManager#getRecentChanges()
      */
     @Override
     public Set< Page > getRecentChanges() {
@@ -516,7 +517,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getRecentChanges(Date)
+     * @see com.wikantik.api.managers.PageManager#getRecentChanges(Date)
      */
     @Override
     public Set< Page > getRecentChanges( final Date since ) {
@@ -534,7 +535,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#pageExists(java.lang.String)
+     * @see com.wikantik.api.managers.PageManager#pageExists(java.lang.String)
      */
     @Override
     public boolean pageExists( final String pageName ) throws ProviderException {
@@ -547,7 +548,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#pageExists(java.lang.String, int)
+     * @see com.wikantik.api.managers.PageManager#pageExists(java.lang.String, int)
      */
     @Override
     public boolean pageExists( final String pageName, final int version ) throws ProviderException {
@@ -564,7 +565,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#wikiPageExists(java.lang.String)
+     * @see com.wikantik.api.managers.PageManager#wikiPageExists(java.lang.String)
      */
     @Override
     public boolean wikiPageExists( final String page ) {
@@ -588,7 +589,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#wikiPageExists(java.lang.String, int)
+     * @see com.wikantik.api.managers.PageManager#wikiPageExists(java.lang.String, int)
      */
     @Override
     public boolean wikiPageExists( final String page, final int version ) throws ProviderException {
@@ -616,7 +617,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#deleteVersion(com.wikantik.api.core.Page)
+     * @see com.wikantik.api.managers.PageManager#deleteVersion(com.wikantik.api.core.Page)
      */
     @Override
     public void deleteVersion( final Page page ) throws ProviderException {
@@ -630,7 +631,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#deletePage(java.lang.String)
+     * @see com.wikantik.api.managers.PageManager#deletePage(java.lang.String)
      */
     @Override
     public void deletePage( final String pageName ) throws ProviderException {
@@ -657,7 +658,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#deletePage(com.wikantik.api.core.Page)
+     * @see com.wikantik.api.managers.PageManager#deletePage(com.wikantik.api.core.Page)
      */
     @Override
     public void deletePage( final Page page ) throws ProviderException {
@@ -804,7 +805,7 @@ public class DefaultPageManager implements PageManager {
 
     /**
      * {@inheritDoc}
-     * @see com.wikantik.pages.PageManager#getPageSorter()
+     * @see com.wikantik.api.managers.PageManager#getPageSorter()
      */
     @Override
     public PageSorter getPageSorter() {

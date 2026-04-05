@@ -26,8 +26,8 @@ import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.pages.PageLock;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.event.WikiEvent;
-import com.wikantik.pages.PageManager;
-import com.wikantik.pages.PageSorter;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.pages.PageSorter;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

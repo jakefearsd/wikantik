@@ -1,4 +1,4 @@
-/* 
+/*
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -14,10 +14,10 @@
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
-    under the License.  
+    under the License.
  */
 
-package com.wikantik.pages;
+package com.wikantik.api.pages;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,11 +36,11 @@ import java.util.Properties;
  * <b>Note</b> - this class is deliberately not null safe. Never call any of the methods with a null argument!
  */
 public class PageSorter implements Comparator< String > {
-    
+
     private static final Logger LOG = LogManager.getLogger( PageSorter.class );
 
-    // The name of the property that specifies the desired page name comparator
-    protected static final String PROP_PAGE_NAME_COMPARATOR = "wikantik.pageNameComparator.class";
+    /** The name of the property that specifies the desired page name comparator. */
+    public static final String PROP_PAGE_NAME_COMPARATOR = "wikantik.pageNameComparator.class";
 
     private Comparator< String > comparator;
 
@@ -51,7 +51,7 @@ public class PageSorter implements Comparator< String > {
 
     /**
      * Construct with a particular comparator.
-     * 
+     *
      * @param newComparator the Comparator to use
      */
     public PageSorter( final Comparator<String> newComparator ) {
@@ -60,7 +60,7 @@ public class PageSorter implements Comparator< String > {
 
     /**
      * Compare two page names (String version).
-     * 
+     *
      * @param pageName1 the first page name
      * @param pageName2 the second page name
      * @return see java.util.Comparator
@@ -90,7 +90,7 @@ public class PageSorter implements Comparator< String > {
     /**
      * Called by Engine to initialise this instance. Tries to use class given by the PROP_PAGE_NAME_COMPARATOR property as the page name
      * comparator. Uses a default comparator if this property is not set or there is any problem loading the specified class.
-     * 
+     *
      * @param props this Engine's properties.
      */
     public void initialize( final Properties props ) {
@@ -109,7 +109,7 @@ public class PageSorter implements Comparator< String > {
 
     /**
      * Sorts the specified list into ascending order based on the PageNameComparator. The actual sort is done using {@code List.sort()}.
-     * 
+     *
      * @param nameList the page names to be sorted
      */
     public void sort( final List< String > nameList ) {
@@ -118,7 +118,7 @@ public class PageSorter implements Comparator< String > {
 
     /**
      * Sorts the specified array into ascending order based on the PageNameComparator. The actual sort is done using {@code Arrays.sort()}.
-     * 
+     *
      * @param nameArray the page names to be sorted
      */
     public void sort( final String[] nameArray ) {

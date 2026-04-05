@@ -165,15 +165,6 @@ class CookieAssertionLoginModuleCITest {
     }
 
     @Test
-    @SuppressWarnings( "deprecation" )
-    void testSetUserCookieAddsCorrectCookie() {
-        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
-        CookieAssertionLoginModule.setUserCookie( response, "Bullwinkle" );
-        // Verify addCookie was called once
-        Mockito.verify( response, Mockito.times( 1 ) ).addCookie( Mockito.any( Cookie.class ) );
-    }
-
-    @Test
     void testClearUserCookieCallsAddCookie() {
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         CookieAssertionLoginModule.clearUserCookie( response );

@@ -20,6 +20,7 @@ package com.wikantik.pages;
 
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.pages.PageLock;
 import com.wikantik.api.spi.Wiki;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

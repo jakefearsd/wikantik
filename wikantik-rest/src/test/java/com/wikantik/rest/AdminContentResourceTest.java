@@ -128,7 +128,7 @@ class AdminContentResourceTest {
                 "Should have queued at least 2 pages for reindexing" );
 
         // Cleanup
-        final com.wikantik.pages.PageManager pm = engine.getManager( com.wikantik.pages.PageManager.class );
+        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
         try { pm.deletePage( "ReindexPage1" ); } catch ( final Exception e ) { /* ignore */ }
         try { pm.deletePage( "ReindexPage2" ); } catch ( final Exception e ) { /* ignore */ }
     }
@@ -137,7 +137,7 @@ class AdminContentResourceTest {
     void testCacheFlush() throws Exception {
         // Populate caches by loading pages
         engine.saveText( "CacheTestPage", "Content to cache." );
-        engine.getManager( com.wikantik.pages.PageManager.class ).getPureText( "CacheTestPage", -1 );
+        engine.getManager( com.wikantik.api.managers.PageManager.class ).getPureText( "CacheTestPage", -1 );
 
         final JsonObject body = new JsonObject();
 
@@ -151,7 +151,7 @@ class AdminContentResourceTest {
                 "Should report entries removed count" );
 
         // Cleanup
-        try { engine.getManager( com.wikantik.pages.PageManager.class ).deletePage( "CacheTestPage" ); }
+        try { engine.getManager( com.wikantik.api.managers.PageManager.class ).deletePage( "CacheTestPage" ); }
         catch ( final Exception e ) { /* ignore */ }
     }
 
@@ -228,7 +228,7 @@ class AdminContentResourceTest {
                 "No versions should be purged when only 1 exists" );
 
         // Cleanup
-        try { engine.getManager( com.wikantik.pages.PageManager.class ).deletePage( "PurgeTestPage" ); }
+        try { engine.getManager( com.wikantik.api.managers.PageManager.class ).deletePage( "PurgeTestPage" ); }
         catch ( final Exception e ) { /* ignore */ }
     }
 
@@ -300,7 +300,7 @@ class AdminContentResourceTest {
         }
 
         // Cleanup
-        try { engine.getManager( com.wikantik.pages.PageManager.class ).deletePage( "BrokenLinkSource" ); }
+        try { engine.getManager( com.wikantik.api.managers.PageManager.class ).deletePage( "BrokenLinkSource" ); }
         catch ( final Exception e ) { /* ignore */ }
     }
 

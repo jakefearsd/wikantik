@@ -22,7 +22,7 @@ import com.google.gson.Gson;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.TestEngine;
 import com.wikantik.diff.DifferenceManager;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -30,9 +30,9 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.providers.AttachmentProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.cache.CachingManager;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.parser.MarkupParser;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.search.SearchManager;
 import com.wikantik.util.ClassUtil;
 import com.wikantik.util.TextUtil;
@@ -54,7 +54,7 @@ import java.util.Properties;
  *
  *  @since 1.9.28
  */
-public class DefaultAttachmentManager implements AttachmentManager {
+public class DefaultAttachmentManager implements com.wikantik.api.managers.AttachmentManager {
 
     /** List of attachment types which are forced to be downloaded */
     private String[] forceDownloadPatterns;

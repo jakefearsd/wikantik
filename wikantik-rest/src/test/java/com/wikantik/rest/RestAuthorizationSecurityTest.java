@@ -23,7 +23,7 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;

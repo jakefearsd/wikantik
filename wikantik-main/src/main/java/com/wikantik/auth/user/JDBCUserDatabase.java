@@ -192,113 +192,22 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
 
     private static final String NOTHING = "";
 
-    public static final String DEFAULT_DB_ATTRIBUTES = "attributes";
-
-    public static final String DEFAULT_DB_BIO = "bio";
-
-    public static final String DEFAULT_DB_CREATED = "created";
-
-    public static final String DEFAULT_DB_EMAIL = "email";
-
-    public static final String DEFAULT_DB_FULL_NAME = "full_name";
-
-    public static final String DEFAULT_DB_LOCK_EXPIRY = "lock_expiry";
-
-    public static final String DEFAULT_DB_MODIFIED = "modified";
-
-    public static final String DEFAULT_DB_ROLE = "role";
-
-    public static final String DEFAULT_DB_ROLE_TABLE = "roles";
-
-    public static final String DEFAULT_DB_TABLE = "users";
-
-    public static final String DEFAULT_DB_LOGIN_NAME = "login_name";
-
-    public static final String DEFAULT_DB_PASSWORD = "password";
-
-    public static final String DEFAULT_DB_UID = "uid";
-
-    public static final String DEFAULT_DB_WIKI_NAME = "wiki_name";
-
-    public static final String PROP_DB_ATTRIBUTES = "wikantik.userdatabase.attributes";
-
-    public static final String PROP_DB_BIO = "wikantik.userdatabase.bio";
-
-    public static final String PROP_DB_CREATED = "wikantik.userdatabase.created";
-
-    public static final String PROP_DB_EMAIL = "wikantik.userdatabase.email";
-
-    public static final String PROP_DB_FULL_NAME = "wikantik.userdatabase.fullName";
-
-    public static final String PROP_DB_LOCK_EXPIRY = "wikantik.userdatabase.lockExpiry";
-
-    public static final String PROP_DB_LOGIN_NAME = "wikantik.userdatabase.loginName";
-
-    public static final String PROP_DB_MODIFIED = "wikantik.userdatabase.modified";
-
-    public static final String PROP_DB_PASSWORD = "wikantik.userdatabase.password";
-
-    public static final String PROP_DB_UID = "wikantik.userdatabase.uid";
-
-    public static final String PROP_DB_ROLE = "wikantik.userdatabase.role";
-
-    public static final String PROP_DB_ROLE_TABLE = "wikantik.userdatabase.roleTable";
-
-    public static final String PROP_DB_TABLE = "wikantik.userdatabase.table";
-
-    public static final String PROP_DB_WIKI_NAME = "wikantik.userdatabase.wikiName";
+    private static final String FIND_ALL = "SELECT * FROM users";
+    private static final String FIND_BY_EMAIL = "SELECT * FROM users WHERE email=?";
+    private static final String FIND_BY_FULL_NAME = "SELECT * FROM users WHERE full_name=?";
+    private static final String FIND_BY_LOGIN_NAME = "SELECT * FROM users WHERE login_name=?";
+    private static final String FIND_BY_UID = "SELECT * FROM users WHERE uid=?";
+    private static final String FIND_BY_WIKI_NAME = "SELECT * FROM users WHERE wiki_name=?";
+    private static final String INSERT_PROFILE = "INSERT INTO users (uid,email,full_name,password,wiki_name,modified,login_name,attributes,bio,created) VALUES (?,?,?,?,?,?,?,?,?,?)";
+    private static final String UPDATE_PROFILE = "UPDATE users SET uid=?,email=?,full_name=?,password=?,wiki_name=?,modified=?,login_name=?,attributes=?,bio=?,lock_expiry=? WHERE login_name=?";
+    private static final String INSERT_ROLE = "INSERT INTO roles (login_name,role) VALUES (?,?)";
+    private static final String FIND_ROLES = "SELECT * FROM roles WHERE login_name=?";
+    private static final String DELETE_USER = "DELETE FROM users WHERE login_name=?";
+    private static final String DELETE_ROLES = "DELETE FROM roles WHERE login_name=?";
+    private static final String RENAME_PROFILE = "UPDATE users SET login_name=?,modified=? WHERE login_name=?";
+    private static final String RENAME_ROLES = "UPDATE roles SET login_name=? WHERE login_name=?";
 
     private DataSource ds;
-
-    private String deleteUserByLoginName;
-
-    private String deleteRoleByLoginName;
-
-    private String findByEmail;
-
-    private String findByFullName;
-
-    private String findByLoginName;
-
-    private String findByUid;
-
-    private String findByWikiName;
-
-    private String renameProfile;
-
-    private String renameRoles;
-
-    private String updateProfile;
-
-    private String findAll;
-
-    private String findRoles;
-
-    private String insertProfile;
-
-    private String insertRole;
-
-    private String attributes;
-
-    private String email;
-
-    private String fullName;
-
-    private String lockExpiry;
-
-    private String loginName;
-
-    private String password;
-
-    private String uid;
-    
-    private String wikiName;
-
-    private String bio;
-
-    private String created;
-
-    private String modified;
 
     private boolean supportsCommits;
 
@@ -319,8 +228,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         findByLoginName( loginNameToDelete );
 
         try( final Connection conn = ds.getConnection() ;
-             final PreparedStatement ps1 = conn.prepareStatement( deleteUserByLoginName );
-             final PreparedStatement ps2 = conn.prepareStatement( deleteRoleByLoginName ) )
+             final PreparedStatement ps1 = conn.prepareStatement( DELETE_USER );
+             final PreparedStatement ps2 = conn.prepareStatement( DELETE_ROLES ) )
         {
             // Open the database connection
             if( supportsCommits ) {
@@ -349,7 +258,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public UserProfile findByEmail( final String index ) throws NoSuchPrincipalException {
-        return findByPreparedStatement( findByEmail, index );
+        return findByPreparedStatement( FIND_BY_EMAIL, index );
     }
 
     /**
@@ -357,7 +266,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public UserProfile findByFullName( final String index ) throws NoSuchPrincipalException {
-        return findByPreparedStatement( findByFullName, index );
+        return findByPreparedStatement( FIND_BY_FULL_NAME, index );
     }
 
     /**
@@ -365,7 +274,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public UserProfile findByLoginName( final String index ) throws NoSuchPrincipalException {
-        return findByPreparedStatement( findByLoginName, index );
+        return findByPreparedStatement( FIND_BY_LOGIN_NAME, index );
     }
 
     /**
@@ -373,7 +282,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public UserProfile findByUid( final String uidToFind ) throws NoSuchPrincipalException {
-        return findByPreparedStatement( findByUid, uidToFind );
+        return findByPreparedStatement( FIND_BY_UID, uidToFind );
     }
 
     /**
@@ -381,7 +290,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public UserProfile findByWikiName( final String index ) throws NoSuchPrincipalException {
-        return findByPreparedStatement( findByWikiName, index );
+        return findByPreparedStatement( FIND_BY_WIKI_NAME, index );
     }
 
     /**
@@ -395,12 +304,12 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     public Principal[] getWikiNames() throws WikiSecurityException {
         final Set<Principal> principals = new HashSet<>();
         try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( findAll );
+             final PreparedStatement ps = conn.prepareStatement( FIND_ALL );
              final ResultSet rs = ps.executeQuery() ) {
             while( rs.next() ) {
-                final String wikiNameValue = rs.getString( wikiName );
+                final String wikiNameValue = rs.getString( "wiki_name" );
                 if( StringUtils.isEmpty( wikiNameValue ) ) {
-                    LOG.warn( "Detected null or empty wiki name for {} in JDBCUserDataBase. Check your user database.", rs.getString( loginName ) );
+                    LOG.warn( "Detected null or empty wiki name for {} in JDBCUserDataBase. Check your user database.", rs.getString( "login_name" ) );
                 } else {
                     final Principal principal = new WikiPrincipal( wikiNameValue, WikiPrincipal.WIKI_NAME );
                     principals.add( principal );
@@ -423,79 +332,13 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             final Context initCtx = new InitialContext();
             final Context ctx = (Context) initCtx.lookup( "java:comp/env" );
             ds = (DataSource) ctx.lookup( jndiName );
-
-            // Prepare the SQL selectors
-            final String userTable = props.getProperty( PROP_DB_TABLE, DEFAULT_DB_TABLE );
-            email = props.getProperty( PROP_DB_EMAIL, DEFAULT_DB_EMAIL );
-            fullName = props.getProperty( PROP_DB_FULL_NAME, DEFAULT_DB_FULL_NAME );
-            lockExpiry = props.getProperty( PROP_DB_LOCK_EXPIRY, DEFAULT_DB_LOCK_EXPIRY );
-            loginName = props.getProperty( PROP_DB_LOGIN_NAME, DEFAULT_DB_LOGIN_NAME );
-            password = props.getProperty( PROP_DB_PASSWORD, DEFAULT_DB_PASSWORD );
-            uid = props.getProperty( PROP_DB_UID, DEFAULT_DB_UID );
-            wikiName = props.getProperty( PROP_DB_WIKI_NAME, DEFAULT_DB_WIKI_NAME );
-            created = props.getProperty( PROP_DB_CREATED, DEFAULT_DB_CREATED );
-            modified = props.getProperty( PROP_DB_MODIFIED, DEFAULT_DB_MODIFIED );
-            attributes = props.getProperty( PROP_DB_ATTRIBUTES, DEFAULT_DB_ATTRIBUTES );
-            bio = props.getProperty( PROP_DB_BIO, DEFAULT_DB_BIO );
-
-            findAll = "SELECT * FROM " + userTable;
-            findByEmail = "SELECT * FROM " + userTable + " WHERE " + email + "=?";
-            findByFullName = "SELECT * FROM " + userTable + " WHERE " + fullName + "=?";
-            findByLoginName = "SELECT * FROM " + userTable + " WHERE " + loginName + "=?";
-            findByUid = "SELECT * FROM " + userTable + " WHERE " + uid + "=?";
-            findByWikiName = "SELECT * FROM " + userTable + " WHERE " + wikiName + "=?";
-
-            // The user insert SQL prepared statement
-            insertProfile = "INSERT INTO " + userTable + " ("
-                              + uid + ","
-                              + email + ","
-                              + fullName + ","
-                              + password + ","
-                              + wikiName + ","
-                              + modified + ","
-                              + loginName + ","
-                              + attributes + ","
-                              + bio + ","
-                              + created
-                              + ") VALUES (?,?,?,?,?,?,?,?,?,?)";
-            
-            // The user update SQL prepared statement
-            updateProfile = "UPDATE " + userTable + " SET "
-                              + uid + "=?,"
-                              + email + "=?,"
-                              + fullName + "=?,"
-                              + password + "=?,"
-                              + wikiName + "=?,"
-                              + modified + "=?,"
-                              + loginName + "=?,"
-                              + attributes + "=?,"
-                              + bio + "=?,"
-                              + lockExpiry + "=? "
-                              + "WHERE " + loginName + "=?";
-
-            // Prepare the role insert SQL
-            final String roleTable = props.getProperty( PROP_DB_ROLE_TABLE, DEFAULT_DB_ROLE_TABLE );
-            final String role = props.getProperty( PROP_DB_ROLE, DEFAULT_DB_ROLE );
-            insertRole = "INSERT INTO " + roleTable + " (" + loginName + "," + role + ") VALUES (?,?)";
-            findRoles = "SELECT * FROM " + roleTable + " WHERE " + loginName + "=?";
-
-            // Prepare the user delete SQL
-            deleteUserByLoginName = "DELETE FROM " + userTable + " WHERE " + loginName + "=?";
-
-            // Prepare the role delete SQL
-            deleteRoleByLoginName = "DELETE FROM " + roleTable + " WHERE " + loginName + "=?";
-
-            // Prepare the rename user/roles SQL
-            renameProfile = "UPDATE " + userTable + " SET " + loginName + "=?," + modified + "=? WHERE " + loginName
-                              + "=?";
-            renameRoles = "UPDATE " + roleTable + " SET " + loginName + "=? WHERE " + loginName + "=?";
         } catch( final NamingException e ) {
             LOG.error( "JDBCUserDatabase initialization error: {}", e.getMessage() );
             throw new NoRequiredPropertyException( AbstractJDBCDatabase.PROP_DATASOURCE, "JDBCUserDatabase initialization error: " + e.getMessage() );
         }
 
         // Test connection by doing a quickie select
-        try( final Connection conn = ds.getConnection(); final PreparedStatement ps = conn.prepareStatement( findAll ) ) {
+        try( final Connection conn = ds.getConnection(); final PreparedStatement ps = conn.prepareStatement( FIND_ALL ) ) {
         } catch( final SQLException e ) {
             LOG.error( "DB connectivity error: {}", e.getMessage() );
             throw new WikiSecurityException("DB connectivity error: " + e.getMessage(), e );
@@ -534,8 +377,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         }
 
         try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps1 = conn.prepareStatement( renameProfile );
-             final PreparedStatement ps2 = conn.prepareStatement( renameRoles ) ) {
+             final PreparedStatement ps1 = conn.prepareStatement( RENAME_PROFILE );
+             final PreparedStatement ps2 = conn.prepareStatement( RENAME_ROLES ) ) {
             if( supportsCommits ) {
                 conn.setAutoCommit( false );
             }
@@ -601,10 +444,10 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         }
 
         try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps1 = conn.prepareStatement( insertProfile );
-             final PreparedStatement ps2 = conn.prepareStatement( findRoles );
-             final PreparedStatement ps3 = conn.prepareStatement( insertRole );
-             final PreparedStatement ps4 = conn.prepareStatement( updateProfile ) ) {
+             final PreparedStatement ps1 = conn.prepareStatement( INSERT_PROFILE );
+             final PreparedStatement ps2 = conn.prepareStatement( FIND_ROLES );
+             final PreparedStatement ps3 = conn.prepareStatement( INSERT_ROLE );
+             final PreparedStatement ps4 = conn.prepareStatement( UPDATE_PROFILE ) ) {
             if( supportsCommits ) {
                 conn.setAutoCommit( false );
             }
@@ -712,22 +555,22 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                     profile = newProfile();
                     
                     // Fetch the basic user attributes
-                    profile.setUid( rs.getString( uid ) );
+                    profile.setUid( rs.getString( "uid" ) );
                     if ( profile.getUid() == null ) {
                         profile.setUid( generateUid( this ) );
                     }
-                    profile.setCreated( rs.getTimestamp( created ) );
-                    profile.setEmail( rs.getString( email ) );
-                    profile.setFullname( rs.getString( fullName ) );
-                    profile.setLastModified( rs.getTimestamp( modified ) );
-                    final Date lockExpiryDate = rs.getDate( lockExpiry );
+                    profile.setCreated( rs.getTimestamp( "created" ) );
+                    profile.setEmail( rs.getString( "email" ) );
+                    profile.setFullname( rs.getString( "full_name" ) );
+                    profile.setLastModified( rs.getTimestamp( "modified" ) );
+                    final Date lockExpiryDate = rs.getDate( "lock_expiry" );
                     profile.setLockExpiry( rs.wasNull() ? null : lockExpiryDate );
-                    profile.setLoginName( rs.getString( loginName ) );
-                    profile.setPassword( rs.getString( password ) );
-                    profile.setBio( rs.getString( bio ) );
+                    profile.setLoginName( rs.getString( "login_name" ) );
+                    profile.setPassword( rs.getString( "password" ) );
+                    profile.setBio( rs.getString( "bio" ) );
 
                     // Fetch the user attributes
-                    final String rawAttributes = rs.getString( attributes );
+                    final String rawAttributes = rs.getString( "attributes" );
                     if ( rawAttributes != null ) {
                         try {
                             final Map<String,? extends Serializable> userAttributes = Serializer.deserializeFromBase64( rawAttributes );

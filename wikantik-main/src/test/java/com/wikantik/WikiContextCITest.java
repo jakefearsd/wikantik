@@ -31,10 +31,9 @@ import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.user.UserDatabase;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.ui.CommandResolver;
-import com.wikantik.ui.PageCommand;
-import com.wikantik.ui.WikiCommand;
+import com.wikantik.ui.GenericCommand;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -98,10 +97,10 @@ class WikiContextCITest {
     }
 
     /**
-     * Helper that creates a WikiContext via the package-private constructor with a PageCommand.
+     * Helper that creates a WikiContext via the package-private constructor with a page command.
      */
     private WikiContext createViewContext( final WikiPage page ) {
-        final Command cmd = PageCommand.VIEW.targetedCommand( page );
+        final Command cmd = GenericCommand.PAGE_VIEW.targetedCommand( page );
         return new WikiContext( engine, null, cmd, commandResolver );
     }
 
@@ -112,13 +111,13 @@ class WikiContextCITest {
     @Test
     void getContentTemplate_delegatesToCommand() {
         final WikiContext ctx = createViewContext( frontPage );
-        assertEquals( PageCommand.VIEW.getContentTemplate(), ctx.getContentTemplate() );
+        assertEquals( GenericCommand.PAGE_VIEW.getContentTemplate(), ctx.getContentTemplate() );
     }
 
     @Test
     void getRoutePath_delegatesToCommand() {
         final WikiContext ctx = createViewContext( frontPage );
-        assertEquals( PageCommand.VIEW.getRoutePath(), ctx.getRoutePath() );
+        assertEquals( GenericCommand.PAGE_VIEW.getRoutePath(), ctx.getRoutePath() );
     }
 
     // -----------------------------------------------------------------------
@@ -216,8 +215,8 @@ class WikiContextCITest {
 
     @Test
     void getName_forNonPageCommand_returnsCommandName() {
-        final WikiContext ctx = new WikiContext( engine, null, WikiCommand.FIND, commandResolver );
-        assertEquals( WikiCommand.FIND.getName(), ctx.getName() );
+        final WikiContext ctx = new WikiContext( engine, null, GenericCommand.WIKI_FIND, commandResolver );
+        assertEquals( GenericCommand.WIKI_FIND.getName(), ctx.getName() );
     }
 
     // -----------------------------------------------------------------------
@@ -240,7 +239,7 @@ class WikiContextCITest {
         try {
             realEngine.getWikiProperties().setProperty( "my.flag", "true" );
             final WikiPage page = new WikiPage( realEngine, "Main" );
-            final WikiContext ctx = new WikiContext( realEngine, null, PageCommand.VIEW.targetedCommand( page ) );
+            final WikiContext ctx = new WikiContext( realEngine, null, GenericCommand.PAGE_VIEW.targetedCommand( page ) );
             assertTrue( ctx.getBooleanWikiProperty( "my.flag", false ) );
         } finally {
             realEngine.stop();
@@ -252,7 +251,7 @@ class WikiContextCITest {
         final TestEngine realEngine = TestEngine.build();
         try {
             final WikiPage page = new WikiPage( realEngine, "Main" );
-            final WikiContext ctx = new WikiContext( realEngine, null, PageCommand.VIEW.targetedCommand( page ) );
+            final WikiContext ctx = new WikiContext( realEngine, null, GenericCommand.PAGE_VIEW.targetedCommand( page ) );
             assertFalse( ctx.getBooleanWikiProperty( "nonexistent.flag", false ) );
             assertTrue( ctx.getBooleanWikiProperty( "nonexistent.flag", true ) );
         } finally {
@@ -276,7 +275,7 @@ class WikiContextCITest {
         when( request.getParameter( "page" ) ).thenReturn( "TestPage" );
         when( request.getSession( false ) ).thenReturn( null );
 
-        final WikiContext ctx = new WikiContext( engine, request, PageCommand.VIEW.targetedCommand( frontPage ), commandResolver );
+        final WikiContext ctx = new WikiContext( engine, request, GenericCommand.PAGE_VIEW.targetedCommand( frontPage ), commandResolver );
         assertEquals( "TestPage", ctx.getHttpParameter( "page" ) );
     }
 
@@ -299,7 +298,7 @@ class WikiContextCITest {
 
     @Test
     void getCommand_returnsTheCommand() {
-        final Command cmd = PageCommand.VIEW.targetedCommand( frontPage );
+        final Command cmd = GenericCommand.PAGE_VIEW.targetedCommand( frontPage );
         final WikiContext ctx = new WikiContext( engine, null, cmd, commandResolver );
         assertSame( cmd, ctx.getCommand() );
     }
@@ -313,7 +312,7 @@ class WikiContextCITest {
     @Test
     void getURLPattern_delegatesToCommand() {
         final WikiContext ctx = createViewContext( frontPage );
-        assertEquals( PageCommand.VIEW.targetedCommand( frontPage ).getURLPattern(), ctx.getURLPattern() );
+        assertEquals( GenericCommand.PAGE_VIEW.targetedCommand( frontPage ).getURLPattern(), ctx.getURLPattern() );
     }
 
     // -----------------------------------------------------------------------
@@ -325,7 +324,7 @@ class WikiContextCITest {
         final TestEngine realEngine = TestEngine.build();
         try {
             final WikiPage page = new WikiPage( realEngine, "ClonePage" );
-            final WikiContext ctx = new WikiContext( realEngine, null, PageCommand.VIEW.targetedCommand( page ) );
+            final WikiContext ctx = new WikiContext( realEngine, null, GenericCommand.PAGE_VIEW.targetedCommand( page ) );
             ctx.setVariable( "key", "value" );
 
             final WikiContext clone = ctx.clone();
@@ -413,7 +412,7 @@ class WikiContextCITest {
         when( userManager.getUserDatabase() ).thenReturn( userDatabase );
         // admin user exists — findByLoginName returns normally (no exception)
 
-        final WikiContext ctx = new WikiContext( engine, null, WikiCommand.INSTALL, commandResolver );
+        final WikiContext ctx = new WikiContext( engine, null, GenericCommand.WIKI_INSTALL, commandResolver );
         final Permission perm = ctx.requiredPermission();
 
         assertInstanceOf( AllPermission.class, perm );
@@ -425,7 +424,7 @@ class WikiContextCITest {
         doThrow( new NoSuchPrincipalException( "no admin" ) )
                 .when( userDatabase ).findByLoginName( "admin" );
 
-        final WikiContext ctx = new WikiContext( engine, null, WikiCommand.INSTALL, commandResolver );
+        final WikiContext ctx = new WikiContext( engine, null, GenericCommand.WIKI_INSTALL, commandResolver );
         final Permission perm = ctx.requiredPermission();
 
         assertInstanceOf( PropertyPermission.class, perm );
@@ -433,8 +432,8 @@ class WikiContextCITest {
 
     @Test
     void requiredPermission_commandWithNullPermission_returnsDummyPermission() {
-        // WikiCommand.ERROR has null requiredPermission
-        final WikiContext ctx = new WikiContext( engine, null, WikiCommand.ERROR, commandResolver );
+        // GenericCommand.WIKI_ERROR has null requiredPermission
+        final WikiContext ctx = new WikiContext( engine, null, GenericCommand.WIKI_ERROR, commandResolver );
         final Permission perm = ctx.requiredPermission();
 
         assertInstanceOf( PropertyPermission.class, perm );
@@ -447,7 +446,7 @@ class WikiContextCITest {
     @Test
     void constructor_nullEngine_throws() {
         assertThrows( IllegalArgumentException.class,
-                () -> new WikiContext( null, null, PageCommand.VIEW, commandResolver ) );
+                () -> new WikiContext( null, null, GenericCommand.PAGE_VIEW, commandResolver ) );
     }
 
     @Test
@@ -462,7 +461,7 @@ class WikiContextCITest {
 
     @Test
     void targetedCommand_untargetedCommand_returnsTargeted() {
-        final WikiContext ctx = new WikiContext( engine, null, PageCommand.VIEW, commandResolver );
+        final WikiContext ctx = new WikiContext( engine, null, GenericCommand.PAGE_VIEW, commandResolver );
         final Command targeted = ctx.targetedCommand( frontPage );
         assertSame( frontPage, targeted.getTarget() );
     }
@@ -485,7 +484,7 @@ class WikiContextCITest {
         final TestEngine realEngine = TestEngine.build();
         try {
             final WikiPage page = new WikiPage( realEngine, "EnginePage" );
-            final WikiContext ctx = new WikiContext( realEngine, null, PageCommand.VIEW.targetedCommand( page ) );
+            final WikiContext ctx = new WikiContext( realEngine, null, GenericCommand.PAGE_VIEW.targetedCommand( page ) );
             assertSame( realEngine, ctx.getEngine() );
         } finally {
             realEngine.stop();

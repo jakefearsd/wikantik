@@ -42,30 +42,6 @@ wikantik.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 # JNDI DataSource name (must match context.xml Resource name)
 wikantik.datasource = jdbc/WikiDatabase
 
-# User database table/column mappings (match postgresql.ddl)
-wikantik.userdatabase.table = users
-wikantik.userdatabase.uid = uid
-wikantik.userdatabase.email = email
-wikantik.userdatabase.fullName = full_name
-wikantik.userdatabase.loginName = login_name
-wikantik.userdatabase.password = password
-wikantik.userdatabase.wikiName = wiki_name
-wikantik.userdatabase.created = created
-wikantik.userdatabase.modified = modified
-wikantik.userdatabase.lockExpiry = lock_expiry
-wikantik.userdatabase.attributes = attributes
-wikantik.userdatabase.roleTable = roles
-wikantik.userdatabase.role = role
-
-# Group database table/column mappings (match postgresql.ddl)
-wikantik.groupdatabase.table = groups
-wikantik.groupdatabase.membertable = group_members
-wikantik.groupdatabase.name = name
-wikantik.groupdatabase.created = created
-wikantik.groupdatabase.creator = creator
-wikantik.groupdatabase.member = member
-wikantik.groupdatabase.modified = modified
-wikantik.groupdatabase.modifier = modifier
 
 # Bootstrap admin override — ensures the named user always has AllPermission.
 # Set this on first deployment, then remove once you have confirmed admin access works.

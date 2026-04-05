@@ -22,7 +22,7 @@ package com.wikantik.filters;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.FilterException;
-import com.wikantik.api.filters.BasePageFilter;
+import com.wikantik.api.filters.PageFilter;
 import com.wikantik.event.WikiEventListener;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
@@ -48,14 +48,14 @@ import java.util.Properties;
   *
   * @see com.wikantik.event.WikiEventManager
   */
-public class PageEventFilter extends BasePageFilter {
+public class PageEventFilter implements PageFilter {
 
     /**
      * Called whenever a new PageFilter is instantiated and reset.
      */
     @Override
     public void initialize( final Engine engine, final Properties properties ) throws FilterException {
-        super.initialize( engine, properties );
+        // no-op: PageEventFilter does not need the engine reference
     }
 
     /**

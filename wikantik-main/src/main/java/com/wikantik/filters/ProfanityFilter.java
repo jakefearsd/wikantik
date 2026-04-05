@@ -21,7 +21,7 @@ package com.wikantik.filters;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Context;
-import com.wikantik.api.filters.BasePageFilter;
+import com.wikantik.api.filters.PageFilter;
 import com.wikantik.util.TextUtil;
 
 import java.io.BufferedReader;
@@ -37,7 +37,7 @@ import java.nio.charset.StandardCharsets;
  *  is case unsensitive.
  *
  */
-public class ProfanityFilter extends BasePageFilter {
+public class ProfanityFilter implements PageFilter {
 	
     private static final Logger LOG = LogManager.getLogger( ProfanityFilter.class );
     

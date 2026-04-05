@@ -30,7 +30,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.RedirectException;
-import com.wikantik.api.filters.BasePageFilter;
+import com.wikantik.api.filters.PageFilter;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.auth.user.UserProfile;
@@ -106,7 +106,7 @@ import net.thauvin.erik.akismet.AkismetComment;
  *
  *  @since 2.1.112
  */
-public class SpamFilter extends BasePageFilter {
+public class SpamFilter implements PageFilter {
 	
     private static final String ATTR_SPAMFILTER_SCORE = "spamfilter.score";
     private static final String REASON_REGEXP = "Regexp";

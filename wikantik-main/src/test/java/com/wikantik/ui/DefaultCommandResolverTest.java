@@ -174,22 +174,22 @@ class DefaultCommandResolverTest {
     @Test
     void extractCommandFromPathStripsHashFragment() {
         final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
-        Mockito.doReturn( "/Wiki.jsp#section" ).when( req ).getServletPath();
+        Mockito.doReturn( "/search#section" ).when( req ).getServletPath();
 
         final Command cmd = resolver.extractCommandFromPath( req );
-        // Wiki.jsp maps to PAGE_VIEW
+        // "search" maps to WIKI_FIND
         assertNotNull( cmd );
-        assertEquals( ContextEnum.PAGE_VIEW.getRequestContext(), cmd.getRequestContext() );
+        assertEquals( ContextEnum.WIKI_FIND.getRequestContext(), cmd.getRequestContext() );
     }
 
     @Test
     void extractCommandFromPathStripsQueryString() {
         final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
-        Mockito.doReturn( "/Wiki.jsp?page=Main" ).when( req ).getServletPath();
+        Mockito.doReturn( "/search?query=test" ).when( req ).getServletPath();
 
         final Command cmd = resolver.extractCommandFromPath( req );
         assertNotNull( cmd );
-        assertEquals( ContextEnum.PAGE_VIEW.getRequestContext(), cmd.getRequestContext() );
+        assertEquals( ContextEnum.WIKI_FIND.getRequestContext(), cmd.getRequestContext() );
     }
 
     @Test
@@ -226,7 +226,7 @@ class DefaultCommandResolverTest {
 
     @Test
     void findCommandCreateGroupIsTargetedAtWikiName() {
-        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/NewGroup.jsp" );
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/new-group" );
         final Command cmd = resolver.findCommand( req, ContextEnum.PAGE_EDIT.getRequestContext() );
         assertNotNull( cmd );
         assertEquals( WikiCommand.CREATE_GROUP.getRequestContext(), cmd.getRequestContext() );

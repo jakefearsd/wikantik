@@ -21,36 +21,36 @@ package com.wikantik.api.core;
 
 public enum ContextEnum {
 
-    GROUP_DELETE( "deleteGroup", "%uDeleteGroup.jsp?group=%n", null ),
-    GROUP_EDIT( "editGroup", "%uEditGroup.jsp?group=%n", "EditGroupContent.jsp" ),
-    GROUP_VIEW( "viewGroup", "%uGroup.jsp?group=%n", "GroupContent.jsp" ),
+    GROUP_DELETE( "deleteGroup", "%udelete-group?group=%n", null ),
+    GROUP_EDIT( "editGroup", "%uedit-group?group=%n", "EditGroupContent" ),
+    GROUP_VIEW( "viewGroup", "%ugroup?group=%n", "GroupContent" ),
 
     PAGE_ATTACH( "att", "%uattach/%n", null ),
-    PAGE_COMMENT( "comment", "%uComment.jsp?page=%n", "CommentContent.jsp" ),
-    PAGE_CONFLICT ( "conflict", "%uPageModified.jsp?page=%n", "ConflictContent.jsp" ),
-    PAGE_DELETE( "del", "%uDelete.jsp?page=%n", null ),
-    PAGE_DIFF( "diff", "%uDiff.jsp?page=%n", "DiffContent.jsp" ),
-    PAGE_EDIT( "edit", "%uEdit.jsp?page=%n", "EditContent.jsp" ),
-    PAGE_INFO( "info", "%uPageInfo.jsp?page=%n", "InfoContent.jsp" ),
+    PAGE_COMMENT( "comment", "%ucomment?page=%n", "CommentContent" ),
+    PAGE_CONFLICT ( "conflict", "%upage-modified?page=%n", "ConflictContent" ),
+    PAGE_DELETE( "del", "%udelete?page=%n", null ),
+    PAGE_DIFF( "diff", "%udiff/%n", "DiffContent" ),
+    PAGE_EDIT( "edit", "%uedit/%n", "EditContent" ),
+    PAGE_INFO( "info", "%uinfo?page=%n", "InfoContent" ),
     PAGE_NONE( "", "%u%n", null ),
-    PAGE_PREVIEW( "preview", "%uPreview.jsp?page=%n", "PreviewContent.jsp" ),
-    PAGE_RENAME( "rename", "%uRename.jsp?page=%n", "InfoContent.jsp" ),
-    PAGE_RSS( "rss", "%urss.jsp", null ),
-    PAGE_UPLOAD( "upload", "%uUpload.jsp?page=%n", null ),
-    PAGE_VIEW( "view", "%uWiki.jsp?page=%n", "PageContent.jsp" ),
+    PAGE_PREVIEW( "preview", "%upreview?page=%n", "PreviewContent" ),
+    PAGE_RENAME( "rename", "%urename?page=%n", "InfoContent" ),
+    PAGE_RSS( "rss", "%urss", null ),
+    PAGE_UPLOAD( "upload", "%uupload?page=%n", null ),
+    PAGE_VIEW( "view", "%uwiki/%n", "PageContent" ),
 
     REDIRECT( "", "%u%n", null ),
 
-    WIKI_ADMIN( "admin", "%uadmin/Admin.jsp", "AdminContent.jsp" ),
-    WIKI_CREATE_GROUP( "createGroup", "%uNewGroup.jsp", "NewGroupContent.jsp" ),
-    WIKI_ERROR( "error", "%uError.jsp", "DisplayMessage.jsp" ),
-    WIKI_FIND( "find", "%uSearch.jsp", "FindContent.jsp" ),
-    WIKI_INSTALL( "install", "%uInstall.jsp", null ),
-    WIKI_LOGIN( "login", "%uLogin.jsp?redirect=%n", "LoginContent.jsp" ),
-    WIKI_LOGOUT( "logout", "%uLogout.jsp", null ),
-    WIKI_MESSAGE( "message", "%uMessage.jsp", "DisplayMessage.jsp" ),
-    WIKI_PREFS( "prefs", "%uUserPreferences.jsp", "PreferencesContent.jsp" ),
-    WIKI_WORKFLOW( "workflow", "%uWorkflow.jsp", "WorkflowContent.jsp" );
+    WIKI_ADMIN( "admin", "%uadmin", "AdminContent" ),
+    WIKI_CREATE_GROUP( "createGroup", "%unew-group", "NewGroupContent" ),
+    WIKI_ERROR( "error", "%uerror", "DisplayMessage" ),
+    WIKI_FIND( "find", "%usearch", "FindContent" ),
+    WIKI_INSTALL( "install", "%uinstall", null ),
+    WIKI_LOGIN( "login", "%ulogin?redirect=%n", "LoginContent" ),
+    WIKI_LOGOUT( "logout", "%ulogout", null ),
+    WIKI_MESSAGE( "message", "%umessage", "DisplayMessage" ),
+    WIKI_PREFS( "prefs", "%upreferences", "PreferencesContent" ),
+    WIKI_WORKFLOW( "workflow", "%uworkflow", "WorkflowContent" );
 
     private final String contentTemplate;
     private final String requestContext;

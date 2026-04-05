@@ -49,35 +49,35 @@ public class WikiCommandTest
     {
         Command a = WikiCommand.CREATE_GROUP;
         Assertions.assertEquals( "createGroup", a.getRequestContext() );
-        Assertions.assertEquals( "NewGroup.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uNewGroup.jsp", a.getURLPattern() );
-        Assertions.assertEquals( "NewGroupContent.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "new-group", a.getRoutePath() );
+        Assertions.assertEquals( "%unew-group", a.getURLPattern() );
+        Assertions.assertEquals( "NewGroupContent", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
         Assertions.assertNull( a.requiredPermission() );
         Assertions.assertEquals( a, WikiCommand.CREATE_GROUP );
 
         a = WikiCommand.ERROR;
         Assertions.assertEquals( "error", a.getRequestContext() );
-        Assertions.assertEquals( "Error.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uError.jsp", a.getURLPattern() );
-        Assertions.assertEquals( "DisplayMessage.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "error", a.getRoutePath() );
+        Assertions.assertEquals( "%uerror", a.getURLPattern() );
+        Assertions.assertEquals( "DisplayMessage", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
         Assertions.assertNull( a.requiredPermission() );
         Assertions.assertEquals( a, WikiCommand.ERROR );
 
         a = WikiCommand.FIND;
         Assertions.assertEquals( "find", a.getRequestContext() );
-        Assertions.assertEquals( "Search.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uSearch.jsp", a.getURLPattern() );
-        Assertions.assertEquals( "FindContent.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "search", a.getRoutePath() );
+        Assertions.assertEquals( "%usearch", a.getURLPattern() );
+        Assertions.assertEquals( "FindContent", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
         Assertions.assertNull( a.requiredPermission() );
         Assertions.assertEquals( a, WikiCommand.FIND );
 
         a = WikiCommand.INSTALL;
         Assertions.assertEquals( "install", a.getRequestContext() );
-        Assertions.assertEquals( "Install.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uInstall.jsp", a.getURLPattern() );
+        Assertions.assertEquals( "install", a.getRoutePath() );
+        Assertions.assertEquals( "%uinstall", a.getURLPattern() );
         Assertions.assertNull( a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
         Assertions.assertNull( a.requiredPermission() );
@@ -85,17 +85,17 @@ public class WikiCommandTest
 
         a = WikiCommand.LOGIN;
         Assertions.assertEquals( "login", a.getRequestContext() );
-        Assertions.assertEquals( "Login.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uLogin.jsp?redirect=%n", a.getURLPattern() );
-        Assertions.assertEquals( "LoginContent.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "login", a.getRoutePath() );
+        Assertions.assertEquals( "%ulogin?redirect=%n", a.getURLPattern() );
+        Assertions.assertEquals( "LoginContent", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
         Assertions.assertNull( a.requiredPermission() );
         Assertions.assertEquals( a, WikiCommand.LOGIN );
 
         a = WikiCommand.LOGOUT;
         Assertions.assertEquals( "logout", a.getRequestContext() );
-        Assertions.assertEquals( "Logout.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uLogout.jsp", a.getURLPattern() );
+        Assertions.assertEquals( "logout", a.getRoutePath() );
+        Assertions.assertEquals( "%ulogout", a.getURLPattern() );
         Assertions.assertNull( a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
         Assertions.assertNull( a.requiredPermission() );
@@ -103,9 +103,9 @@ public class WikiCommandTest
 
         a = WikiCommand.PREFS;
         Assertions.assertEquals( "prefs", a.getRequestContext() );
-        Assertions.assertEquals( "UserPreferences.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uUserPreferences.jsp", a.getURLPattern() );
-        Assertions.assertEquals( "PreferencesContent.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "preferences", a.getRoutePath() );
+        Assertions.assertEquals( "%upreferences", a.getURLPattern() );
+        Assertions.assertEquals( "PreferencesContent", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget() );
         Assertions.assertNull( a.requiredPermission() );
         Assertions.assertEquals( a, WikiCommand.PREFS );

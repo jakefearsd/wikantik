@@ -36,27 +36,27 @@ public class PageCommandTest {
     public void testStaticCommand() {
         Command a = PageCommand.VIEW;
         Assertions.assertEquals( "view", a.getRequestContext() );
-        Assertions.assertEquals( "Wiki.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uWiki.jsp?page=%n", a.getURLPattern() );
-        Assertions.assertEquals( "PageContent.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "wiki/", a.getRoutePath() );
+        Assertions.assertEquals( "%uwiki/%n", a.getURLPattern() );
+        Assertions.assertEquals( "PageContent", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget());
         Assertions.assertNull( a.requiredPermission() );
         Assertions.assertEquals( a, PageCommand.VIEW );
 
         a = PageCommand.EDIT;
         Assertions.assertEquals( "edit", a.getRequestContext() );
-        Assertions.assertEquals( "Edit.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uEdit.jsp?page=%n", a.getURLPattern() );
-        Assertions.assertEquals( "EditContent.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "edit/", a.getRoutePath() );
+        Assertions.assertEquals( "%uedit/%n", a.getURLPattern() );
+        Assertions.assertEquals( "EditContent", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget());
         Assertions.assertNull( a.requiredPermission() );
         Assertions.assertEquals( a, PageCommand.EDIT );
 
         a = PageCommand.PREVIEW;
         Assertions.assertEquals( "preview", a.getRequestContext() );
-        Assertions.assertEquals( "Preview.jsp", a.getRoutePath() );
-        Assertions.assertEquals( "%uPreview.jsp?page=%n", a.getURLPattern() );
-        Assertions.assertEquals( "PreviewContent.jsp", a.getContentTemplate() );
+        Assertions.assertEquals( "preview", a.getRoutePath() );
+        Assertions.assertEquals( "%upreview?page=%n", a.getURLPattern() );
+        Assertions.assertEquals( "PreviewContent", a.getContentTemplate() );
         Assertions.assertNull( a.getTarget());
         Assertions.assertNull( a.requiredPermission() );
         Assertions.assertEquals( a, PageCommand.PREVIEW );

@@ -137,7 +137,7 @@ public class HttpMockFactory {
      * @return the new request
      */
     public static HttpServletRequest createHttpRequest() {
-        return createHttpRequest( "/JSPWiki", "/Wiki.jsp" );
+        return createHttpRequest( "/JSPWiki", "/wiki/" );
     }
 
     /**

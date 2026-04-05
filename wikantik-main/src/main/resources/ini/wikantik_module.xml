@@ -31,7 +31,7 @@
    -->
    <editor name="plain">
       <author>Janne Jalkanen</author>
-      <path>editors/plain.jsp</path>
+      <path>editors/plain</path>
       <minVersion>1.0</minVersion>
       <adminBean>com.wikantik.ui.admin.beans.PlainEditorAdminBean</adminBean>
    </editor>

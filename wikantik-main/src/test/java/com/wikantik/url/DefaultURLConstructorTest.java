@@ -56,7 +56,7 @@ public class DefaultURLConstructorTest
     {
         final URLConstructor c = getConstructor("wiki/" );
 
-        Assertions.assertEquals( "/test/Wiki.jsp?page=Main", c.makeURL( ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
+        Assertions.assertEquals( "/test/wiki/Main", c.makeURL( ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
     }
 
     @Test
@@ -65,7 +65,7 @@ public class DefaultURLConstructorTest
     {
         final URLConstructor c = getConstructor( null );
 
-        Assertions.assertEquals( "/test/Wiki.jsp?page=Main", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
+        Assertions.assertEquals( "/test/wiki/Main", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
     }
 
     @Test
@@ -74,7 +74,7 @@ public class DefaultURLConstructorTest
     {
         final URLConstructor c = getConstructor( null );
 
-        Assertions.assertEquals( "/test/Wiki.jsp?page=Main", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
+        Assertions.assertEquals( "/test/wiki/Main", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
     }
 
     @Test
@@ -83,7 +83,7 @@ public class DefaultURLConstructorTest
     {
         final URLConstructor c = getConstructor( null );
 
-        Assertions.assertEquals( "/test/Wiki.jsp?page=Main", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
+        Assertions.assertEquals( "/test/wiki/Main", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
     }
 
     @Test
@@ -92,7 +92,7 @@ public class DefaultURLConstructorTest
     {
         final URLConstructor c = getConstructor( "" );
 
-        Assertions.assertEquals( "/test/Wiki.jsp?page=Main", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
+        Assertions.assertEquals( "/test/wiki/Main", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
     }
 
     @Test
@@ -101,7 +101,7 @@ public class DefaultURLConstructorTest
     {
         final URLConstructor c = getConstructor( null );
 
-        Assertions.assertEquals( "/test/Wiki.jsp?page=Main", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
+        Assertions.assertEquals( "/test/wiki/Main", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
     }
 
     @Test
@@ -110,7 +110,7 @@ public class DefaultURLConstructorTest
     {
         final URLConstructor c = getConstructor( "view/" );
 
-        Assertions.assertEquals( "/test/Wiki.jsp?page=Main", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
+        Assertions.assertEquals( "/test/wiki/Main", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"Main",null) );
     }
 
     @Test
@@ -119,7 +119,7 @@ public class DefaultURLConstructorTest
     {
         final URLConstructor c = getConstructor( null );
 
-        Assertions.assertEquals( "/test/Edit.jsp?page=Main", c.makeURL(ContextEnum.PAGE_EDIT.getRequestContext(),"Main",null) );
+        Assertions.assertEquals( "/test/edit/Main", c.makeURL(ContextEnum.PAGE_EDIT.getRequestContext(),"Main",null) );
     }
 
     @Test
@@ -164,7 +164,7 @@ public class DefaultURLConstructorTest
     {
         final URLConstructor c = getConstructor( null );
 
-        Assertions.assertEquals( "/test/Wiki.jsp?page=", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"",null) );
+        Assertions.assertEquals( "/test/wiki/", c.makeURL(ContextEnum.PAGE_VIEW.getRequestContext(),"",null) );
     }
 
 }

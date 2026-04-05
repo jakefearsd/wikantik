@@ -29,8 +29,8 @@ public class ContextEnumTest {
         Assertions.assertEquals( 27, ContextEnum.values().length );
 
         Assertions.assertEquals( "view", ContextEnum.PAGE_VIEW.getRequestContext() );
-        Assertions.assertEquals( "%uWiki.jsp?page=%n", ContextEnum.PAGE_VIEW.getUrlPattern() );
-        Assertions.assertEquals( "PageContent.jsp", ContextEnum.PAGE_VIEW.getContentTemplate() );
+        Assertions.assertEquals( "%uwiki/%n", ContextEnum.PAGE_VIEW.getUrlPattern() );
+        Assertions.assertEquals( "PageContent", ContextEnum.PAGE_VIEW.getContentTemplate() );
     }
 
 }

@@ -125,7 +125,7 @@ public class ShortURLConstructorCITest {
     void testLoginURL() throws Exception {
         final URLConstructor c = getConstructor( "wiki/" );
         final String url = c.makeURL( ContextEnum.WIKI_LOGIN.getRequestContext(), "Main", null );
-        Assertions.assertTrue( url.contains( "Login.jsp" ), "Expected Login.jsp in URL: " + url );
+        Assertions.assertTrue( url.contains( "login" ), "Expected login in URL: " + url );
     }
 
     // -----------------------------------------------------------------------
@@ -184,7 +184,7 @@ public class ShortURLConstructorCITest {
     void testErrorURL() throws Exception {
         final URLConstructor c = getConstructor( "wiki/" );
         final String url = c.makeURL( ContextEnum.WIKI_ERROR.getRequestContext(), "Main", null );
-        Assertions.assertTrue( url.contains( "Error.jsp" ), "Expected Error.jsp in URL: " + url );
+        Assertions.assertTrue( url.contains( "error" ), "Expected error in URL: " + url );
     }
 
     // -----------------------------------------------------------------------
@@ -321,18 +321,18 @@ public class ShortURLConstructorCITest {
         final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
         Mockito.when( req.getParameter( "do" ) ).thenReturn( "Edit" );
 
-        Assertions.assertEquals( "Edit.jsp", c.getForwardPage( req ) );
+        Assertions.assertEquals( "Edit", c.getForwardPage( req ) );
     }
 
     @Test
-    void testGetForwardPage_noDoParam_returnsWikiJsp() throws Exception {
+    void testGetForwardPage_noDoParam_returnsWiki() throws Exception {
         final ShortURLConstructor c = new ShortURLConstructor();
         c.initialize( new TestEngine( props ), props );
 
         final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
         Mockito.when( req.getParameter( "do" ) ).thenReturn( null );
 
-        Assertions.assertEquals( "Wiki.jsp", c.getForwardPage( req ) );
+        Assertions.assertEquals( "wiki", c.getForwardPage( req ) );
     }
 
     // -----------------------------------------------------------------------

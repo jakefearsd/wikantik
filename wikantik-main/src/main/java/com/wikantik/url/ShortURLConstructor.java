@@ -40,7 +40,7 @@ public class ShortURLConstructor extends DefaultURLConstructor {
     private static final String DEFAULT_PREFIX = "wiki/";
     private static final Logger LOG = LogManager.getLogger( ShortURLConstructor.class );
     
-    /** Contains the path part after the JSPWiki base URL */
+    /** Contains the path part after the Wikantik base URL */
     protected String urlPrefix = "";
     
     /**
@@ -98,7 +98,7 @@ public class ShortURLConstructor extends DefaultURLConstructor {
         } else if( context.equals( ContextEnum.PAGE_COMMENT.getRequestContext() ) ) {
             return doReplacement( viewurl + "?do=Comment", name );
         } else if( context.equals( ContextEnum.WIKI_LOGIN.getRequestContext() ) ) {
-            final String loginUrl = "%pLogin.jsp?redirect=%n";
+            final String loginUrl = "%plogin?redirect=%n";
             return doReplacement( loginUrl, name );
         } else if( context.equals( ContextEnum.PAGE_DELETE.getRequestContext() ) ) {
             return doReplacement( viewurl + "?do=Delete", name );
@@ -109,7 +109,7 @@ public class ShortURLConstructor extends DefaultURLConstructor {
         } else if( context.equals( ContextEnum.WIKI_FIND.getRequestContext() ) ) {
             return doReplacement( "%psearch", name );
         } else if( context.equals( ContextEnum.WIKI_ERROR.getRequestContext() ) ) {
-            return doReplacement( "%uError.jsp", name );
+            return doReplacement( "%uerror", name );
         } else if( context.equals( ContextEnum.WIKI_CREATE_GROUP.getRequestContext() ) ) {
             return doReplacement( viewurl + "?do=NewGroup", name );
         } else if( context.equals( ContextEnum.GROUP_DELETE.getRequestContext() ) ) {
@@ -152,12 +152,11 @@ public class ShortURLConstructor extends DefaultURLConstructor {
      */
     @Override
     public String getForwardPage( final HttpServletRequest req ) {
-        String jspPage = req.getParameter( "do" );
-        if( jspPage == null ) {
-            jspPage = "Wiki";
+        String action = req.getParameter( "do" );
+        if( action == null ) {
+            action = "wiki";
         }
-    
-        return jspPage + ".jsp";
+        return action;
     }
 
 }

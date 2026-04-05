@@ -53,8 +53,8 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
 
     private static final Logger LOG = LogManager.getLogger( ObservabilityLifecycleExtension.class );
 
-    private static final String PROP_DB_DATASOURCE = "wikantik.userdatabase.datasource";
-    private static final String DEFAULT_DB_DATASOURCE = "jdbc/UserDatabase";
+    private static final String PROP_DB_DATASOURCE = "wikantik.datasource";
+    private static final String DEFAULT_DB_DATASOURCE = "jdbc/WikiDatabase";
 
     private PrometheusMeterRegistry registry;
     private JvmGcMetrics jvmGcMetrics;

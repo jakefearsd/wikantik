@@ -284,7 +284,7 @@ public class WikiContext implements Context, Command {
     @Override
     public String getRoutePath()
     {
-        return command.getContentTemplate();
+        return command.getRoutePath();
     }
 
     /**

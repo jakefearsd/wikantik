@@ -118,8 +118,7 @@ class WikiContextCITest {
     @Test
     void getRoutePath_delegatesToCommand() {
         final WikiContext ctx = createViewContext( frontPage );
-        // getRoutePath() currently returns command.getContentTemplate()
-        assertEquals( PageCommand.VIEW.getContentTemplate(), ctx.getRoutePath() );
+        assertEquals( PageCommand.VIEW.getRoutePath(), ctx.getRoutePath() );
     }
 
     // -----------------------------------------------------------------------

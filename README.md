@@ -131,7 +131,7 @@ Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeploymen
 - Page-level ACLs via inline `[{ALLOW view Admin}]` syntax in page content
 - REST API permission enforcement — all endpoints check ACLs and policy grants
 - NIST 800-63B password validation with common-password blocklist
-- CSRF protection (synchronizer token pattern for JSP forms, Content-Type protection for REST/admin endpoints)
+- CSRF protection (synchronizer token pattern for forms, Content-Type protection for REST/admin endpoints)
 - Deserialization filtering — ObjectInputFilter whitelists on all ObjectInputStream usage
 - Bootstrap admin override — `wikantik.admin.bootstrap` property guarantees admin access during initial setup
 

@@ -17,7 +17,7 @@
     under the License.
  */
 /* Inspired by:  https://medium.com/@mwichary/dark-theme-in-a-day-3518dde2955a.
-   Adapted for JSPWIKI,  as delta on top of haddock.css.
+   Adapted for Wikantik,  as delta on top of haddock.css.
 */
 
 html {
@@ -409,10 +409,10 @@ a.interwiki[href$="skin=raw"]::after,
 .interwiki-reader::after,
 a.interwiki[href$="skin=reader"]::after,
 .interwiki-edit::after,
-a.interwiki[href*="Edit.jsp?page="]::after,
+a.interwiki[href*="edit/"]::after,
 .interwiki-group::after,
-a.interwiki[href*="Group.jsp?group="]::after,
-a.interwiki[href^="rss.jsp"]::after {
+a.interwiki[href*="group?group="]::after,
+a.interwiki[href^="rss?"]::after {
     background-color:var(--background-lighter);
     color:var(--accent-color);
 }

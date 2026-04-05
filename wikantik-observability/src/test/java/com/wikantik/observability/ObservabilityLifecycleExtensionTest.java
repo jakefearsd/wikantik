@@ -72,7 +72,7 @@ class ObservabilityLifecycleExtensionTest {
         when( engine.getServletContext() ).thenReturn( servletContext );
 
         final Properties props = new Properties();
-        props.setProperty( "wikantik.userdatabase.datasource", "jdbc/CustomDB" );
+        props.setProperty( "wikantik.datasource", "jdbc/CustomDB" );
 
         final ObservabilityLifecycleExtension ext = new ObservabilityLifecycleExtension();
         ext.onStart( engine, props );

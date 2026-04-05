@@ -861,3 +861,43 @@ a[data-attachment-missing] {
     display: none !important;
   }
 }
+
+/* ---- Update toast ---- */
+.update-toast {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: var(--sage);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+}
+
+.update-toast button {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: #fff;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+}
+
+.update-toast button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.update-toast button:last-child {
+  border: none;
+  font-size: 1.1rem;
+  padding: 0.1rem 0.4rem;
+  line-height: 1;
+}

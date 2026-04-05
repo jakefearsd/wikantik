@@ -1,5 +1,5 @@
 ---
-summary: Hub page for Wikantik platform development — architecture decisions, feature implementations, and engineering history
+cluster: wikantik-development
 tags:
 - development
 - architecture
@@ -7,7 +7,7 @@ tags:
 - platform
 type: hub
 status: deployed
-cluster: wikantik-development
+summary: Hub page for Wikantik platform development — architecture decisions, feature implementations, and engineering history
 related:
 - About
 - JspToReactMigration
@@ -27,7 +27,9 @@ related:
 - WikiAuditSkill
 - McpAuditTools
 - BlogEditorSplitView
+- FullOAuth
 ---
+
 # Wikantik Development
 
 This cluster documents the development history of the Wikantik platform itself — the architecture decisions, feature implementations, and engineering patterns that have shaped the system over time.

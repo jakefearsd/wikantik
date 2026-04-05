@@ -1,9 +1,14 @@
 ---
 summary: Complete OAuth SSO Implementation Plan for Wikantik
+cluster: wikantik-development
 tags:
-- uncategorized
-type: article
+- system
+- authorization
+type: implementation-plan
 ---
+
+
+
 1. Complete OAuth SSO Implementation Plan for Wikantik
 
   1. Table of Contents

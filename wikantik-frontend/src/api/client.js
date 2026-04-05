@@ -312,6 +312,13 @@ export const api = {
     getEdges: (nodeId, direction = 'both') =>
       request(`/admin/knowledge/edges/${nodeId}?direction=${direction}`),
 
+    queryEdges: ({ relationship_type, search, limit = 50, offset = 0 } = {}) => {
+      const params = new URLSearchParams({ limit, offset });
+      if (relationship_type) params.set('relationship_type', relationship_type);
+      if (search) params.set('search', search);
+      return request(`/admin/knowledge/edges?${params}`);
+    },
+
     listProposals: (status = 'pending', limit = 50) =>
       request(`/admin/knowledge/proposals?status=${status}&limit=${limit}`),
 

@@ -19,6 +19,7 @@
 package com.wikantik.mcp.tools;
 
 import com.wikantik.api.knowledge.KgProposal;
+import com.wikantik.api.knowledge.KgRejection;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -76,8 +77,8 @@ public class ProposeKnowledgeTool implements McpTool, AuthorConfigurable {
                 .name( TOOL_NAME )
                 .description( "Submit a knowledge graph proposal for human review. " +
                         "Proposals are queued for approval by a knowledge administrator. " +
-                        "If the proposed relationship was previously rejected, the submission is declined. " +
-                        "Use list_rejections to check before proposing." )
+                        "If the proposed relationship was previously rejected, the submission is " +
+                        "declined with the rejection reason included in the error." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties,
                         List.of( "proposal_type", "proposed_data", "source_page", "confidence", "reasoning" ),
                         null, null, null ) )
@@ -108,10 +109,14 @@ public class ProposeKnowledgeTool implements McpTool, AuthorConfigurable {
                 final String relationship = ( String ) proposedData.get( "relationship" );
                 if ( source != null && target != null && relationship != null
                         && service.isRejected( source, target, relationship ) ) {
+                    final List< KgRejection > rejections =
+                            service.listRejections( source, target, relationship );
+                    final String reason = rejections.isEmpty() ? "no reason recorded"
+                            : rejections.get( 0 ).reason();
                     return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                             "This relationship was previously rejected: " + source + " --[" +
-                            relationship + "]--> " + target + ". Use list_rejections to see the reason.",
-                            "Check list_rejections for the rejection reason, or propose a different relationship." );
+                            relationship + "]--> " + target + ". Reason: " + reason,
+                            "Propose a different relationship, or adjust your reasoning." );
                 }
             }
 

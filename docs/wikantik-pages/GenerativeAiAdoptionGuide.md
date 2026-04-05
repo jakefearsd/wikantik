@@ -1,9 +1,11 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
-summary: Hub page for adopting generative AI as an individual contributor or at a
-  very small company — practical guidance on tools, workflows, local LLMs, and accelerating
-  your learning
+summary: Hub page for adopting generative AI as an individual contributor or at a very small company — practical guidance on tools, workflows, local LLMs, and accelerating your learning
+date: 2026-03-14T01:00:00Z
+tags:
+- generative-ai
+- productivity
+- individual-contributor
+- small-business
 related:
 - UnderstandingGenerativeAi
 - GenerativeAiToolsForIndividuals
@@ -12,14 +14,11 @@ related:
 - AiAugmentedWorkflows
 - AcceleratingAiLearning
 - WarehouseAiAndMl
-tags:
-- generative-ai
-- productivity
-- individual-contributor
-- small-business
 type: reference
 cluster: generative-ai
+status: active
 ---
+
 # Generative AI Adoption Guide
 
 Most generative AI adoption guides are written for enterprises with dedicated AI teams, six-figure budgets, and months-long evaluation cycles. This cluster is not that. It's for the individual contributor — the solo developer, the one-person consultancy, the three-person startup, the professional who sees colleagues using AI and wants to catch up — who needs to go from zero to productive without a committee.
@@ -74,3 +73,5 @@ Three principles guide every article in this cluster:
 - [Machine Learning](MachineLearning) — ML fundamentals
 - [AI Model Training](AIModelTraining) — Training basics
 - [Warehouse AI and Machine Learning](WarehouseAiAndMl) — Applied AI in logistics: demand forecasting, slotting optimisation, and computer vision
+
+[{Relationships}]

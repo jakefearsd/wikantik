@@ -1,9 +1,6 @@
 ---
-type: article
-cluster: technology
-status: active
-summary: "The mathematical foundations that underpin machine learning — linear algebra, calculus, probability, optimization, and information theory — with concrete examples of how each concept drives real ML techniques"
-date: "Mar 17, 2026, 1:00:00 AM"
+summary: The mathematical foundations that underpin machine learning — linear algebra, calculus, probability, optimization, and information theory — with concrete examples of how each concept drives real ML techniques
+date: Mar 17, 2026, 1:00:00 AM
 tags:
 - ai
 - machine-learning
@@ -18,7 +15,11 @@ related:
 - FoundationalAlgorithmsForComputerScientists
 - LlmsSinceTwentyTwenty
 - ArtificialIntelligence
+type: article
+cluster: technology
+status: active
 ---
+
 # Mathematical Foundations of Machine Learning
 
 [Machine learning](MachineLearning) is applied mathematics. Every model, every training algorithm, every evaluation metric rests on a small number of mathematical disciplines. You can use ML frameworks without understanding the math — many practitioners do — but you cannot debug a failing model, design a new architecture, or reason about why a technique works or fails without it.
@@ -281,3 +282,5 @@ You do not need a math degree. You need fluency with the specific concepts that 
 - [The Future of Machine Learning](TheFutureOfMachineLearning) — Emerging directions where new mathematical tools are needed
 - [Linear Programming Foundations](LinearProgrammingFoundations) — How convex optimization and LP duality connect OR to ML optimization theory
 - [Operations Research](OperationsResearchHub) — The applied discipline that uses convex and combinatorial optimization to solve real-world resource allocation problems
+
+[{Relationships}]

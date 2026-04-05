@@ -1,21 +1,5 @@
 import { api } from '../../api/client';
-
-function ProvenanceBadge({ value }) {
-  const colors = {
-    'human-authored': { bg: '#e8f5e9', color: '#2e7d32' },
-    'ai-reviewed': { bg: '#e3f2fd', color: '#1565c0' },
-    'ai-inferred': { bg: '#fff3e0', color: '#e65100' },
-  };
-  const style = colors[value] || { bg: '#f5f5f5', color: '#616161' };
-  return (
-    <span style={{
-      display: 'inline-block', padding: '2px 8px', borderRadius: '12px',
-      fontSize: '0.8em', fontWeight: 500, backgroundColor: style.bg, color: style.color,
-    }}>
-      {value}
-    </span>
-  );
-}
+import ProvenanceBadge from './ProvenanceBadge';
 
 export default function NodeDetail({ node, onNavigate }) {
   if (!node) return null;
@@ -75,8 +59,8 @@ export default function NodeDetail({ node, onNavigate }) {
                 <tr key={e.id}>
                   <td>{e.relationship_type}</td>
                   <td>
-                    <button className="btn-link" onClick={() => onNavigate && onNavigate(e.target_id)}>
-                      {e.target_id}
+                    <button className="btn-link" onClick={() => onNavigate && onNavigate(e.target_name)}>
+                      {e.target_name || e.target_id}
                     </button>
                   </td>
                   <td><ProvenanceBadge value={e.provenance} /></td>
@@ -98,8 +82,8 @@ export default function NodeDetail({ node, onNavigate }) {
               {inbound.map(e => (
                 <tr key={e.id}>
                   <td>
-                    <button className="btn-link" onClick={() => onNavigate && onNavigate(e.source_id)}>
-                      {e.source_id}
+                    <button className="btn-link" onClick={() => onNavigate && onNavigate(e.source_name)}>
+                      {e.source_name || e.source_id}
                     </button>
                   </td>
                   <td>{e.relationship_type}</td>

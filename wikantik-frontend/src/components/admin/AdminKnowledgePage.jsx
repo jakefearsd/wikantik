@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import ProposalReviewQueue from './ProposalReviewQueue';
 import GraphExplorer from './GraphExplorer';
+import EdgeExplorer from './EdgeExplorer';
 import '../../styles/admin.css';
+
+const TABS = [
+  { id: 'proposals', label: 'Proposals' },
+  { id: 'node-explorer', label: 'Node Explorer' },
+  { id: 'edge-explorer', label: 'Edge Explorer' },
+];
 
 export default function AdminKnowledgePage() {
   const [activeTab, setActiveTab] = useState('proposals');
@@ -10,19 +17,20 @@ export default function AdminKnowledgePage() {
     <div className="admin-knowledge page-enter">
       <div className="admin-toolbar">
         <div className="admin-tabs">
-          {['proposals', 'explorer'].map(tab => (
+          {TABS.map(tab => (
             <button
-              key={tab}
-              className={`admin-tab ${activeTab === tab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
+              key={tab.id}
+              className={`admin-tab ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab.label}
             </button>
           ))}
         </div>
       </div>
       {activeTab === 'proposals' && <ProposalReviewQueue />}
-      {activeTab === 'explorer' && <GraphExplorer />}
+      {activeTab === 'node-explorer' && <GraphExplorer />}
+      {activeTab === 'edge-explorer' && <EdgeExplorer />}
     </div>
   );
 }

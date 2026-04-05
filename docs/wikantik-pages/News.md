@@ -6,6 +6,106 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-05** — refactor: reduce duplication and cyclomatic complexity across REST and main modules
+
+**2026-04-05** — refactor: consolidate Command hierarchy into GenericCommand (~170 lines saved)
+
+**2026-04-05** — fix: WikiContext.getRoutePath() was returning contentTemplate instead of routePath
+
+**2026-04-05** — refactor: remove dead AJAX framework (~1600 lines)
+
+**2026-04-05** — docs: clean up JSP references in javadoc, comments, and CSS selectors
+
+**2026-04-05** — refactor: remove dead getForwardPage() from URLConstructor hierarchy
+
+**2026-04-05** — refactor: rename PropertyReader JSP constants and log4j2 config naming
+
+**2026-04-05** — refactor(auth): rename JSP cookie names with legacy fallback
+
+**2026-04-05** — chore: remove JSP artifacts from test web.xml and WebContainerAuthorizer
+
+**2026-04-05** — fix: replace Login.jsp redirects with /login in SSO servlets
+
+**2026-04-05** — refactor: replace JSP URL patterns with clean route paths in ContextEnum
+
+**2026-04-05** — chore: remove legacy JavaScript, wro4j Haddock build, and dead styles
+
+**2026-04-05** — chore: remove Jakarta JSP dependencies and jspc-maven-plugin
+
+**2026-04-05** — chore: delete dead JSP tag library descriptors and stale WEB-INF
+
+**2026-04-05** — fix(knowledge): harden RelationshipsPlugin output encoding
+
+**2026-04-05** — docs(knowledge): backfill 9 wiki pages for features with specs/plans but no wiki representation
+
+**2026-04-05** — docs(knowledge): update cluster pages with deployed status and richer relationships
+
+**2026-04-05** — docs(knowledge): decompose KnowledgeGraphCore into 5 focused sub-feature pages
+
+**2026-04-05** — feat(knowledge): add RelationshipsPlugin for in-page graph navigation
+
+**2026-04-05** — feat(knowledge): add status filter dropdown to Node Explorer
+
+**2026-04-05** — feat(knowledge): add status filter parameter to node list endpoint
+
+**2026-04-05** — feat(knowledge): add distinct status values to schema discovery
+
+**2026-04-05** — feat(knowledge): add status property filter to node queries
+
+**2026-04-05** — docs: add knowledge graph dogfooding implementation plan
+
+**2026-04-05** — docs: add KnowledgeGraphDogfooding wiki page for active design work
+
+**2026-04-05** — docs: add knowledge graph dogfooding design spec
+
+**2026-04-04** — feat(knowledge): add bulk project-all endpoint to seed graph from existing pages
+
+**2026-04-04** — fix(knowledge): integrate knowledge graph into WikiEngine and fix production issues
+
+**2026-04-04** — fix(knowledge): downgrade JdbcKnowledgeRepository LOG.error to LOG.warn
+
+**2026-04-04** — feat(knowledge): implement frontmatter write-back on proposal approval
+
+**2026-04-04** — feat(knowledge): add wikantik-knowledge to WAR packaging and deployment bootstrap
+
+**2026-04-04** — docs(knowledge): document knowledge-admin role plan in AdminKnowledgeResource
+
+**2026-04-04** — feat(knowledge): add graph explorer and node detail UI components
+
+**2026-04-04** — feat(knowledge): add admin knowledge page with proposal review queue
+
+**2026-04-04** — feat(knowledge): add admin knowledge API client and routing
+
+**2026-04-04** — feat(knowledge): add admin REST endpoints for knowledge graph management
+
+**2026-04-04** — feat(knowledge): add proposal tools to authoring MCP — propose, list proposals, list rejections
+
+**2026-04-04** — feat(knowledge): add KnowledgeMcpInitializer — separate MCP endpoint at /knowledge-mcp
+
+**2026-04-04** — feat(knowledge): add 5 consumption MCP tools — discover, query, traverse, get, search
+
+**2026-04-04** — feat(knowledge): add wikantik-knowledge module skeleton
+
+**2026-04-04** — feat(knowledge): add GraphProjector for frontmatter-to-graph synchronization
+
+**2026-04-04** — feat(knowledge): add DefaultKnowledgeGraphService with BFS traversal and proposal logic
+
+**2026-04-04** — feat(knowledge): add frontmatter relationship detector with convention-based rules
+
+**2026-04-04** — fix(knowledge): fix direction validation, null guard, and error handling in JdbcKnowledgeRepository
+
+**2026-04-04** — feat(knowledge): add JDBC repository for knowledge graph with full test coverage
+
+**2026-04-04** — feat(knowledge): add KnowledgeGraphService interface and supporting types
+
+**2026-04-04** — feat(knowledge): add data model records for knowledge graph
+
+**2026-04-04** — feat(knowledge): add PostgreSQL and H2 DDL for knowledge graph tables
+
+**2026-04-04** — docs: add knowledge core implementation plan — 19 tasks with TDD steps
+
+**2026-04-04** — docs: add knowledge core design spec
+
 **2026-04-04** — docs: update wiki content — news log, blog entries, and page edits
 
 **2026-04-04** — fix(blog): sanitize topic names to prevent double-dot filenames

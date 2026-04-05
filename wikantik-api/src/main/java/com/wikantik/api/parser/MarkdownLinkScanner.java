@@ -73,8 +73,9 @@ public final class MarkdownLinkScanner {
 
             // Wikantik convention: [PageName]() — empty target means the text IS the page name
             if ( target.isEmpty() ) {
-                // Skip plugin syntax [{...}]() and variable syntax [{$...}]()
-                if ( !linkText.isEmpty() && !linkText.startsWith( "{" ) ) {
+                // Skip plugin syntax [{...}](), variable syntax [{$...}](),
+                // Markdown checkboxes ([ ](), [x]()), and other single-char non-page matches
+                if ( linkText.length() > 1 && !linkText.startsWith( "{" ) ) {
                     locals.add( linkText );
                 }
                 continue;

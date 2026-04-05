@@ -35,3 +35,5 @@ Rich frontmatter relationships create a navigable graph that reduces the need fo
 ## Design Spec
 
 Full design: `docs/superpowers/specs/2026-04-05-kg-dogfooding-design.md`
+
+[{Relationships}]

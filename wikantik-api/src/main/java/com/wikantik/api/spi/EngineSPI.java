@@ -20,6 +20,7 @@ package com.wikantik.api.spi;
 
 import com.wikantik.api.core.Engine;
 
+import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import java.util.Properties;
 
@@ -37,5 +38,26 @@ public interface EngineSPI {
      * @return a configured {@link Engine} instance.
      */
     Engine find( ServletContext context, Properties props );
+
+    /**
+     * Locate, or build if necessary, a configured {@link Engine} instance.
+     *
+     * @param config servlet config holding the {@link Engine} instance.
+     * @return a configured {@link Engine} instance.
+     */
+    default Engine find( final ServletConfig config ) {
+        return find( config.getServletContext(), null );
+    }
+
+    /**
+     * Locate, or build if necessary, a configured {@link Engine} instance.
+     *
+     * @param config servlet config holding the {@link Engine} instance.
+     * @param props Engine configuration properties.
+     * @return a configured {@link Engine} instance.
+     */
+    default Engine find( final ServletConfig config, final Properties props ) {
+        return find( config.getServletContext(), props );
+    }
 
 }

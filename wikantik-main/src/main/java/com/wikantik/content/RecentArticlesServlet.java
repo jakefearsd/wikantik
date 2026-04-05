@@ -181,70 +181,47 @@ public class RecentArticlesServlet extends HttpServlet {
     private RecentArticlesQuery parseQuery( final HttpServletRequest request ) {
         final RecentArticlesQuery query = new RecentArticlesQuery();
 
-        // Parse count
-        final String countParam = request.getParameter( "count" );
-        if ( countParam != null ) {
-            try {
-                int count = Integer.parseInt( countParam );
-                if ( count <= 0 ) {
-                    throw new IllegalArgumentException( "count must be positive" );
-                }
-                if ( count > MAX_COUNT ) {
-                    count = MAX_COUNT;
-                }
-                query.count( count );
-            } catch ( final NumberFormatException e ) {
-                throw new IllegalArgumentException( "Invalid count parameter: " + countParam );
-            }
-        }
+        parsePositiveInt( request, "count" ).ifPresent( v -> query.count( Math.min( v, MAX_COUNT ) ) );
+        parsePositiveInt( request, "since" ).ifPresent( query::sinceDays );
+        parsePositiveInt( request, "excerptLength" ).ifPresent( query::excerptLength );
 
-        // Parse since
-        final String sinceParam = request.getParameter( "since" );
-        if ( sinceParam != null ) {
-            try {
-                final int since = Integer.parseInt( sinceParam );
-                if ( since <= 0 ) {
-                    throw new IllegalArgumentException( "since must be positive" );
-                }
-                query.sinceDays( since );
-            } catch ( final NumberFormatException e ) {
-                throw new IllegalArgumentException( "Invalid since parameter: " + sinceParam );
-            }
-        }
-
-        // Parse excerpt flag
         final String excerptParam = request.getParameter( "excerpt" );
         if ( excerptParam != null ) {
             query.includeExcerpt( Boolean.parseBoolean( excerptParam ) );
         }
 
-        // Parse excerpt length
-        final String excerptLengthParam = request.getParameter( "excerptLength" );
-        if ( excerptLengthParam != null ) {
-            try {
-                final int length = Integer.parseInt( excerptLengthParam );
-                if ( length <= 0 ) {
-                    throw new IllegalArgumentException( "excerptLength must be positive" );
-                }
-                query.excerptLength( length );
-            } catch ( final NumberFormatException e ) {
-                throw new IllegalArgumentException( "Invalid excerptLength parameter: " + excerptLengthParam );
-            }
-        }
-
-        // Parse exclude pattern
         final String excludeParam = request.getParameter( "exclude" );
         if ( excludeParam != null && !excludeParam.isEmpty() ) {
             query.excludePattern( excludeParam );
         }
 
-        // Parse include pattern
         final String includeParam = request.getParameter( "include" );
         if ( includeParam != null && !includeParam.isEmpty() ) {
             query.includePattern( includeParam );
         }
 
         return query;
+    }
+
+    /**
+     * Parses a required-positive integer parameter from the request.
+     * Returns empty if the parameter is absent; throws on invalid values.
+     */
+    private static java.util.OptionalInt parsePositiveInt( final HttpServletRequest request,
+                                                            final String name ) {
+        final String raw = request.getParameter( name );
+        if ( raw == null ) {
+            return java.util.OptionalInt.empty();
+        }
+        try {
+            final int value = Integer.parseInt( raw );
+            if ( value <= 0 ) {
+                throw new IllegalArgumentException( name + " must be positive" );
+            }
+            return java.util.OptionalInt.of( value );
+        } catch ( final NumberFormatException e ) {
+            throw new IllegalArgumentException( "Invalid " + name + " parameter: " + raw );
+        }
     }
 
     /**

@@ -45,9 +45,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.security.Principal;
-import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -412,28 +410,6 @@ public class AuthResource extends RestServletBase {
         map.put( "created", formatDate( profile.getCreated() ) );
         map.put( "lastModified", formatDate( profile.getLastModified() ) );
         return map;
-    }
-
-    private String formatDate( final Date date ) {
-        if ( date == null ) return null;
-        return new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" ).format( date );
-    }
-
-    private JsonObject parseJsonBody( final HttpServletRequest request, final HttpServletResponse response )
-            throws IOException {
-        try ( final BufferedReader reader = request.getReader() ) {
-            return JsonParser.parseReader( reader ).getAsJsonObject();
-        } catch ( final Exception e ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body" );
-            return null;
-        }
-    }
-
-    private String getJsonString( final JsonObject obj, final String key ) {
-        if ( obj.has( key ) && !obj.get( key ).isJsonNull() ) {
-            return obj.get( key ).getAsString();
-        }
-        return null;
     }
 
 }

@@ -19,7 +19,6 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.DatabasePolicy;
@@ -33,7 +32,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -139,7 +137,7 @@ public class AdminPolicyResource extends RestServletBase {
         if ( dbPolicy == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                     "Database policy is not configured. Policy grants are managed via file-based policy." );
-            return;
+            return;  // intentionally not using requireDatabasePolicy() — different error message
         }
 
         final DataSource ds = dbPolicy.getDataSource();
@@ -171,10 +169,17 @@ public class AdminPolicyResource extends RestServletBase {
         }
     }
 
-    private void handleCreateGrant( final HttpServletRequest request, final HttpServletResponse response )
+    private record GrantFields( String principalType, String principalName,
+                                 String permissionType, String target, String actions ) {}
+
+    /**
+     * Parses and validates the five grant fields from the request body.
+     * Sends an appropriate error response and returns {@code null} on failure.
+     */
+    private GrantFields parseGrantFields( final HttpServletRequest request, final HttpServletResponse response )
             throws IOException {
         final JsonObject body = parseJsonBody( request, response );
-        if ( body == null ) return;
+        if ( body == null ) return null;
 
         final String principalType = getJsonString( body, "principalType" );
         final String principalName = getJsonString( body, "principalName" );
@@ -182,19 +187,33 @@ public class AdminPolicyResource extends RestServletBase {
         final String target = getJsonString( body, "target" );
         final String actions = getJsonString( body, "actions" );
 
-        // Validate required fields
         final String validationError = validateGrantFields( principalType, principalName, permissionType, target, actions );
         if ( validationError != null ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, validationError );
-            return;
+            return null;
         }
+        return new GrantFields( principalType, principalName, permissionType, target, actions );
+    }
 
+    /**
+     * Returns the DatabasePolicy, or sends a 503 error and returns {@code null}.
+     */
+    private DatabasePolicy requireDatabasePolicy( final HttpServletResponse response ) throws IOException {
         final DatabasePolicy dbPolicy = getDatabasePolicy();
         if ( dbPolicy == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                     "Database policy is not configured." );
-            return;
         }
+        return dbPolicy;
+    }
+
+    private void handleCreateGrant( final HttpServletRequest request, final HttpServletResponse response )
+            throws IOException {
+        final GrantFields gf = parseGrantFields( request, response );
+        if ( gf == null ) return;
+
+        final DatabasePolicy dbPolicy = requireDatabasePolicy( response );
+        if ( dbPolicy == null ) return;
 
         final DataSource ds = dbPolicy.getDataSource();
         final String tableName = dbPolicy.getTableName();
@@ -204,11 +223,11 @@ public class AdminPolicyResource extends RestServletBase {
         try ( final Connection conn = ds.getConnection();
               final PreparedStatement ps = conn.prepareStatement( sql, PreparedStatement.RETURN_GENERATED_KEYS ) ) {
 
-            ps.setString( 1, principalType );
-            ps.setString( 2, principalName );
-            ps.setString( 3, permissionType );
-            ps.setString( 4, target );
-            ps.setString( 5, actions );
+            ps.setString( 1, gf.principalType );
+            ps.setString( 2, gf.principalName );
+            ps.setString( 3, gf.permissionType );
+            ps.setString( 4, gf.target );
+            ps.setString( 5, gf.actions );
             ps.executeUpdate();
 
             int generatedId = -1;
@@ -221,17 +240,17 @@ public class AdminPolicyResource extends RestServletBase {
             // Refresh the in-memory cache
             dbPolicy.refresh();
 
-            LOG.info( "Created policy grant: {} {} {} {} {}", principalType, principalName,
-                    permissionType, target, actions );
+            LOG.info( "Created policy grant: {} {} {} {} {}", gf.principalType, gf.principalName,
+                    gf.permissionType, gf.target, gf.actions );
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );
             result.put( "id", generatedId );
-            result.put( "principalType", principalType );
-            result.put( "principalName", principalName );
-            result.put( "permissionType", permissionType );
-            result.put( "target", target );
-            result.put( "actions", actions );
+            result.put( "principalType", gf.principalType );
+            result.put( "principalName", gf.principalName );
+            result.put( "permissionType", gf.permissionType );
+            result.put( "target", gf.target );
+            result.put( "actions", gf.actions );
 
             response.setStatus( HttpServletResponse.SC_CREATED );
             sendJson( response, result );
@@ -252,28 +271,11 @@ public class AdminPolicyResource extends RestServletBase {
             return;
         }
 
-        final JsonObject body = parseJsonBody( request, response );
-        if ( body == null ) return;
+        final GrantFields gf = parseGrantFields( request, response );
+        if ( gf == null ) return;
 
-        final String principalType = getJsonString( body, "principalType" );
-        final String principalName = getJsonString( body, "principalName" );
-        final String permissionType = getJsonString( body, "permissionType" );
-        final String target = getJsonString( body, "target" );
-        final String actions = getJsonString( body, "actions" );
-
-        // Validate required fields
-        final String validationError = validateGrantFields( principalType, principalName, permissionType, target, actions );
-        if ( validationError != null ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, validationError );
-            return;
-        }
-
-        final DatabasePolicy dbPolicy = getDatabasePolicy();
-        if ( dbPolicy == null ) {
-            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                    "Database policy is not configured." );
-            return;
-        }
+        final DatabasePolicy dbPolicy = requireDatabasePolicy( response );
+        if ( dbPolicy == null ) return;
 
         final DataSource ds = dbPolicy.getDataSource();
         final String tableName = dbPolicy.getTableName();
@@ -283,11 +285,11 @@ public class AdminPolicyResource extends RestServletBase {
         try ( final Connection conn = ds.getConnection();
               final PreparedStatement ps = conn.prepareStatement( sql ) ) {
 
-            ps.setString( 1, principalType );
-            ps.setString( 2, principalName );
-            ps.setString( 3, permissionType );
-            ps.setString( 4, target );
-            ps.setString( 5, actions );
+            ps.setString( 1, gf.principalType );
+            ps.setString( 2, gf.principalName );
+            ps.setString( 3, gf.permissionType );
+            ps.setString( 4, gf.target );
+            ps.setString( 5, gf.actions );
             ps.setInt( 6, id );
 
             final int rows = ps.executeUpdate();
@@ -299,17 +301,17 @@ public class AdminPolicyResource extends RestServletBase {
             // Refresh the in-memory cache
             dbPolicy.refresh();
 
-            LOG.info( "Updated policy grant {}: {} {} {} {} {}", id, principalType, principalName,
-                    permissionType, target, actions );
+            LOG.info( "Updated policy grant {}: {} {} {} {} {}", id, gf.principalType, gf.principalName,
+                    gf.permissionType, gf.target, gf.actions );
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );
             result.put( "id", id );
-            result.put( "principalType", principalType );
-            result.put( "principalName", principalName );
-            result.put( "permissionType", permissionType );
-            result.put( "target", target );
-            result.put( "actions", actions );
+            result.put( "principalType", gf.principalType );
+            result.put( "principalName", gf.principalName );
+            result.put( "permissionType", gf.permissionType );
+            result.put( "target", gf.target );
+            result.put( "actions", gf.actions );
 
             sendJson( response, result );
         } catch ( final SQLException e ) {
@@ -328,12 +330,8 @@ public class AdminPolicyResource extends RestServletBase {
             return;
         }
 
-        final DatabasePolicy dbPolicy = getDatabasePolicy();
-        if ( dbPolicy == null ) {
-            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                    "Database policy is not configured." );
-            return;
-        }
+        final DatabasePolicy dbPolicy = requireDatabasePolicy( response );
+        if ( dbPolicy == null ) return;
 
         final DataSource ds = dbPolicy.getDataSource();
         final String tableName = dbPolicy.getTableName();
@@ -425,20 +423,4 @@ public class AdminPolicyResource extends RestServletBase {
         return null;
     }
 
-    private JsonObject parseJsonBody( final HttpServletRequest request, final HttpServletResponse response )
-            throws IOException {
-        try ( final BufferedReader reader = request.getReader() ) {
-            return JsonParser.parseReader( reader ).getAsJsonObject();
-        } catch ( final Exception e ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body" );
-            return null;
-        }
-    }
-
-    private String getJsonString( final JsonObject obj, final String key ) {
-        if ( obj.has( key ) && !obj.get( key ).isJsonNull() ) {
-            return obj.get( key ).getAsString();
-        }
-        return null;
-    }
 }

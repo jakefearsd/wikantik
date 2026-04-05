@@ -106,11 +106,7 @@ public final class WikiToMarkdownConverter {
         boolean hasHeaderRow = false;
         State state = State.NORMAL;
 
-        final String[] lines = wikiText.split( "\n", -1 );
-
-        for( int i = 0; i < lines.length; i++ ) {
-            final String line = lines[i];
-
+        for( final String line : wikiText.split( "\n", -1 ) ) {
             // --- Code block handling ---
             if( state == State.CODE_BLOCK ) {
                 if( line.trim().equals( "}}}" ) ) {
@@ -123,14 +119,8 @@ public final class WikiToMarkdownConverter {
             }
 
             if( line.trim().startsWith( "{{{" ) ) {
-                // Flush any pending table
-                if( !tableBuffer.isEmpty() ) {
-                    flushTable( result, tableBuffer, hasHeaderRow );
-                    tableBuffer.clear();
-                    hasHeaderRow = false;
-                }
+                hasHeaderRow = flushTableIfNeeded( result, tableBuffer, hasHeaderRow );
                 result.append( "```\n" );
-                // If there's content after {{{ on the same line, include it
                 final String afterOpen = line.trim().substring( 3 ).trim();
                 if( !afterOpen.isEmpty() ) {
                     result.append( afterOpen ).append( '\n' );
@@ -140,101 +130,15 @@ public final class WikiToMarkdownConverter {
             }
 
             // --- Table row handling ---
-            final Matcher headerMatch = TABLE_HEADER.matcher( line );
-            final Matcher rowMatch = TABLE_ROW.matcher( line );
-
-            if( headerMatch.matches() ) {
-                final String[] cells = splitTableCells( headerMatch.group( 1 ), true );
-                tableBuffer.add( cells );
-                hasHeaderRow = true;
-                continue;
-            } else if( !tableBuffer.isEmpty() && rowMatch.matches() ) {
-                // Only treat as table row if we're already accumulating a table
-                final String[] cells = splitTableCells( rowMatch.group( 1 ), false );
-                tableBuffer.add( cells );
+            if( tryAccumulateTable( line, tableBuffer ) ) {
+                hasHeaderRow = hasHeaderRow || TABLE_HEADER.matcher( line ).matches();
                 continue;
             }
 
-            // If we had a table buffer and hit a non-table line, flush
-            if( !tableBuffer.isEmpty() ) {
-                flushTable( result, tableBuffer, hasHeaderRow );
-                tableBuffer.clear();
-                hasHeaderRow = false;
-            }
-
-            // Start of a new table with a data row (no header)
-            if( rowMatch.matches() && line.startsWith( "|" ) && !line.startsWith( "||" ) ) {
-                final String[] cells = splitTableCells( rowMatch.group( 1 ), false );
-                tableBuffer.add( cells );
-                continue;
-            }
+            hasHeaderRow = flushTableIfNeeded( result, tableBuffer, hasHeaderRow );
 
             // --- Line-by-line conversions ---
-            String converted = line;
-
-            // Headings (process longest match first; !!! = largest = h1, ! = smallest = h3)
-            Matcher m = HEADING3.matcher( converted );
-            if( m.matches() ) {
-                converted = "# " + convertInline( m.group( 1 ).trim() );
-                result.append( converted ).append( '\n' );
-                continue;
-            }
-            m = HEADING2.matcher( converted );
-            if( m.matches() ) {
-                converted = "## " + convertInline( m.group( 1 ).trim() );
-                result.append( converted ).append( '\n' );
-                continue;
-            }
-            m = HEADING1.matcher( converted );
-            if( m.matches() ) {
-                converted = "### " + convertInline( m.group( 1 ).trim() );
-                result.append( converted ).append( '\n' );
-                continue;
-            }
-
-            // Horizontal rule
-            if( HR.matcher( converted ).matches() ) {
-                result.append( "---\n" );
-                continue;
-            }
-
-            // Definition list
-            m = DEFINITION_LIST.matcher( converted );
-            if( m.matches() ) {
-                final String term = m.group( 1 ).trim();
-                final String definition = m.group( 2 ).trim();
-                if( term.isEmpty() ) {
-                    converted = ": " + convertInline( definition );
-                } else {
-                    converted = "**" + convertInline( term ) + "**: " + convertInline( definition );
-                }
-                result.append( converted ).append( '\n' );
-                continue;
-            }
-
-            // Unordered list
-            m = UNORDERED_LIST.matcher( converted );
-            if( m.matches() ) {
-                final int depth = m.group( 1 ).length();
-                final String indent = "  ".repeat( depth - 1 );
-                converted = indent + "* " + convertInline( m.group( 2 ) );
-                result.append( converted ).append( '\n' );
-                continue;
-            }
-
-            // Ordered list
-            m = ORDERED_LIST.matcher( converted );
-            if( m.matches() ) {
-                final int depth = m.group( 1 ).length();
-                final String indent = "   ".repeat( depth - 1 );
-                converted = indent + "1. " + convertInline( m.group( 2 ) );
-                result.append( converted ).append( '\n' );
-                continue;
-            }
-
-            // Apply inline conversions to normal lines
-            converted = convertInline( converted );
-            result.append( converted ).append( '\n' );
+            result.append( convertBlockLine( line ) ).append( '\n' );
         }
 
         // Flush any remaining table
@@ -255,6 +159,83 @@ public final class WikiToMarkdownConverter {
         }
 
         return new ConversionResult( markdown, warnings );
+    }
+
+    /**
+     * Tries to accumulate the line into the table buffer. Returns true if the line
+     * was consumed as a table row (header or data).
+     */
+    private static boolean tryAccumulateTable( final String line, final List<String[]> tableBuffer ) {
+        final Matcher headerMatch = TABLE_HEADER.matcher( line );
+        if( headerMatch.matches() ) {
+            tableBuffer.add( splitTableCells( headerMatch.group( 1 ), true ) );
+            return true;
+        }
+
+        final Matcher rowMatch = TABLE_ROW.matcher( line );
+        if( !tableBuffer.isEmpty() && rowMatch.matches() ) {
+            tableBuffer.add( splitTableCells( rowMatch.group( 1 ), false ) );
+            return true;
+        }
+
+        // Start of a new table with a data row (no header)
+        if( rowMatch.matches() && line.startsWith( "|" ) && !line.startsWith( "||" ) ) {
+            tableBuffer.add( splitTableCells( rowMatch.group( 1 ), false ) );
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Flushes the table buffer if non-empty. Returns the reset value for hasHeaderRow (always false).
+     */
+    private static boolean flushTableIfNeeded( final StringBuilder result,
+                                                final List<String[]> tableBuffer,
+                                                final boolean hasHeaderRow ) {
+        if( !tableBuffer.isEmpty() ) {
+            flushTable( result, tableBuffer, hasHeaderRow );
+            tableBuffer.clear();
+        }
+        return false;
+    }
+
+    /**
+     * Converts a single non-code, non-table line: headings, HR, definition lists,
+     * ordered/unordered lists, or plain inline text.
+     */
+    private static String convertBlockLine( final String line ) {
+        Matcher m = HEADING3.matcher( line );
+        if( m.matches() ) return "# " + convertInline( m.group( 1 ).trim() );
+
+        m = HEADING2.matcher( line );
+        if( m.matches() ) return "## " + convertInline( m.group( 1 ).trim() );
+
+        m = HEADING1.matcher( line );
+        if( m.matches() ) return "### " + convertInline( m.group( 1 ).trim() );
+
+        if( HR.matcher( line ).matches() ) return "---";
+
+        m = DEFINITION_LIST.matcher( line );
+        if( m.matches() ) {
+            final String term = m.group( 1 ).trim();
+            final String definition = m.group( 2 ).trim();
+            return term.isEmpty()
+                ? ": " + convertInline( definition )
+                : "**" + convertInline( term ) + "**: " + convertInline( definition );
+        }
+
+        m = UNORDERED_LIST.matcher( line );
+        if( m.matches() ) {
+            return "  ".repeat( m.group( 1 ).length() - 1 ) + "* " + convertInline( m.group( 2 ) );
+        }
+
+        m = ORDERED_LIST.matcher( line );
+        if( m.matches() ) {
+            return "   ".repeat( m.group( 1 ).length() - 1 ) + "1. " + convertInline( m.group( 2 ) );
+        }
+
+        return convertInline( line );
     }
 
     /**

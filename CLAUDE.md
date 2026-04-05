@@ -223,7 +223,7 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 - REST API permission enforcement — all `/api/*` endpoints check ACLs via `RestServletBase.checkPagePermission()`
 - Admin endpoints at `/admin/*` protected by `AdminAuthFilter` (requires `AllPermission`)
 - Bootstrap admin override — `wikantik.admin.bootstrap` property guarantees admin access during initial setup
-- Property-driven policy switch: set `wikantik.policy.datasource` to use database; omit to fall back to file-based `wikantik.policy`
+- Database-backed policy grants — always active when `wikantik.datasource` is configured (the default)
 - NIST 800-63B password validation with common-password blocklist
 - Deserialization filtering — `ObjectInputFilter` whitelists on all `ObjectInputStream` usage
 - Pluggable authentication (LDAP, database, container, SSO via pac4j)

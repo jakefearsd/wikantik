@@ -310,32 +310,6 @@ public class ShortURLConstructorCITest {
     }
 
     // -----------------------------------------------------------------------
-    // getForwardPage — respects 'do' parameter
-    // -----------------------------------------------------------------------
-
-    @Test
-    void testGetForwardPage_doParamPresent_returnsDoJsp() throws Exception {
-        final ShortURLConstructor c = new ShortURLConstructor();
-        c.initialize( new TestEngine( props ), props );
-
-        final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
-        Mockito.when( req.getParameter( "do" ) ).thenReturn( "Edit" );
-
-        Assertions.assertEquals( "Edit", c.getForwardPage( req ) );
-    }
-
-    @Test
-    void testGetForwardPage_noDoParam_returnsWiki() throws Exception {
-        final ShortURLConstructor c = new ShortURLConstructor();
-        c.initialize( new TestEngine( props ), props );
-
-        final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
-        Mockito.when( req.getParameter( "do" ) ).thenReturn( null );
-
-        Assertions.assertEquals( "wiki", c.getForwardPage( req ) );
-    }
-
-    // -----------------------------------------------------------------------
     // Custom prefix via PROP_PREFIX
     // -----------------------------------------------------------------------
 

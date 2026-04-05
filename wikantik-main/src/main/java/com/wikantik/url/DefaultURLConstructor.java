@@ -171,15 +171,4 @@ public class DefaultURLConstructor implements URLConstructor {
         return pagereq;
     }
 
-    /**
-     *  This method is not needed for the DefaultURLConstructor.
-     *
-     * @param request The HTTP Request that was used to end up in this page.
-     * @return the default forward action name
-     */
-    @Override
-    public String getForwardPage( final HttpServletRequest request ) {
-        return "wiki";
-    }
-
 }

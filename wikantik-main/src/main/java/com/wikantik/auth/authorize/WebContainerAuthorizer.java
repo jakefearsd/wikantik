@@ -102,13 +102,13 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
                 // Add the JEE schema namespace
                 webxml.getRootElement().setNamespace( Namespace.getNamespace( J2EE_SCHEMA_25_NAMESPACE ) );
 
-                containerAuthorized = isConstrained( "/Delete.jsp", Role.ALL ) && isConstrained( "/Login.jsp", Role.ALL );
+                containerAuthorized = isConstrained( "/delete", Role.ALL ) && isConstrained( "/login", Role.ALL );
             }
             if( containerAuthorized ) {
                 containerRoles = getRoles( webxml );
-                LOG.info( "JSPWiki is using container-managed authentication." );
+                LOG.info( "Wikantik is using container-managed authentication." );
             } else {
-                LOG.info( "JSPWiki is using custom authentication." );
+                LOG.info( "Wikantik is using custom authentication." );
             }
         } catch( final IOException e ) {
             LOG.error( "Initialization failed: ", e );
@@ -120,7 +120,7 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
 
         if( containerRoles.length > 0 ) {
             final String roles = Arrays.stream(containerRoles).map(containerRole -> containerRole + " ").collect(Collectors.joining());
-            LOG.info( " JSPWiki determined the web container manages these roles: {}", roles );
+            LOG.info( " Wikantik determined the web container manages these roles: {}", roles );
         }
         LOG.info( "Authorizer WebContainerAuthorizer initialized successfully." );
     }

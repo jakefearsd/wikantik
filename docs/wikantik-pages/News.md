@@ -6,6 +6,70 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-05** — fix: skip Markdown checkbox syntax in link scanner, improve pageExists error message
+
+**2026-04-05** — chore: rotate catalina.out on redeploy
+
+**2026-04-05** — refactor: remove 13 deprecated shims and dead code between wikantik-main and wikantik-api
+
+**2026-04-05** — fix: inline column names in JDBCUserDatabaseTest after constant removal
+
+**2026-04-05** — docs: remove column-mapping property examples
+
+**2026-04-05** — refactor: remove column-mapping properties from all config files
+
+**2026-04-05** — refactor: hardcode JDBCUserDatabase SQL, remove column-mapping properties
+
+**2026-04-05** — refactor: hardcode JDBCGroupDatabase SQL, remove column-mapping properties
+
+**2026-04-05** — plan: hardcode JDBC SQL implementation plan
+
+**2026-04-05** — spec: hardcode JDBC SQL statements, remove column-mapping properties
+
+**2026-04-05** — fix: keep file-based policy fallback for test environments without JNDI
+
+**2026-04-05** — docs: update all references to use single wikantik.datasource
+
+**2026-04-05** — refactor: test web.xml and IT pom use single jdbc/WikiDatabase
+
+**2026-04-05** — refactor: config templates use single jdbc/WikiDatabase datasource
+
+**2026-04-05** — refactor: properties files use single wikantik.datasource
+
+**2026-04-05** — refactor: DefaultAuthorizationManager always uses database policy via wikantik.datasource
+
+**2026-04-05** — refactor: WikiEngine.initKnowledgeGraph reads wikantik.datasource
+
+**2026-04-05** — refactor: ObservabilityLifecycleExtension reads wikantik.datasource
+
+**2026-04-05** — refactor: JDBCGroupDatabase uses shared wikantik.datasource property
+
+**2026-04-05** — refactor: JDBCUserDatabase uses shared wikantik.datasource property
+
+**2026-04-05** — feat: add PROP_DATASOURCE and DEFAULT_DATASOURCE to AbstractJDBCDatabase
+
+**2026-04-05** — plan: datasource consolidation implementation plan
+
+**2026-04-05** — docs: add datasource consolidation design spec
+
+**2026-04-05** — feat: add non-blocking toast banner for version mismatch on redeployment
+
+**2026-04-05** — feat: detect server version mismatch in API client and dispatch event
+
+**2026-04-05** — feat: add inline auto-recovery script for stale asset load failures
+
+**2026-04-05** — feat: add Vite build-version plugin — emits build-version.txt and __BUILD_VERSION__ constant
+
+**2026-04-05** — feat: add BuildVersionFilter to set X-Build-Version header on API responses
+
+**2026-04-05** — refactor: move asset cache headers to CacheHeaderFilter, remove dead code from SpaRoutingFilter
+
+**2026-04-05** — feat: add CacheHeaderFilter for immutable hashed assets and no-cache index.html
+
+**2026-04-05** — docs: add stale-asset protection implementation plan
+
+**2026-04-05** — docs: add stale-asset protection design spec
+
 **2026-04-05** — feat: knowledge graph admin UI, MCP simplification, and wiki content updates
 
 **2026-04-05** — refactor: reduce duplication and cyclomatic complexity across REST and main modules

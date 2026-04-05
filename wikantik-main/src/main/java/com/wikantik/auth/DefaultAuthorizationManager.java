@@ -42,7 +42,7 @@ import com.wikantik.event.WikiEventListener;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiSecurityEvent;
 import com.wikantik.i18n.InternationalizationManager;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.util.ClassUtil;
 import org.freshcookies.security.policy.LocalPolicy;

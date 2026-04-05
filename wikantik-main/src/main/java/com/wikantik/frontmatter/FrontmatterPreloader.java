@@ -24,7 +24,7 @@ import com.wikantik.WikiContext;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;

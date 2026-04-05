@@ -25,7 +25,7 @@ import com.wikantik.api.exceptions.FilterException;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.api.parser.MarkdownLinkScanner;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.ReferenceManager;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

@@ -20,7 +20,7 @@ package com.wikantik.plugin;
 
 import com.wikantik.TestEngine;
 import com.wikantik.api.exceptions.WikiException;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

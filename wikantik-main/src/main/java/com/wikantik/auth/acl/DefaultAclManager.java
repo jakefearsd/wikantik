@@ -32,7 +32,7 @@ import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.api.pages.PageLock;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.util.comparators.PrincipalComparator;
 
 import java.security.Permission;

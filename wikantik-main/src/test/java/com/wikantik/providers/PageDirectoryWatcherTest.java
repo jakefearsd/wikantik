@@ -21,7 +21,7 @@ package com.wikantik.providers;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Page;
 import com.wikantik.cache.CachingManager;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;

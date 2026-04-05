@@ -32,7 +32,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.user.UserProfile;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.providers.AbstractFileProvider;
 import com.wikantik.render.RenderingManager;
 

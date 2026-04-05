@@ -26,7 +26,7 @@ import com.wikantik.api.engine.Initializable;
 import com.wikantik.api.engine.RenderApi;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.event.WikiEventListener;
-import com.wikantik.modules.InternalModule;
+import com.wikantik.api.modules.InternalModule;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
 

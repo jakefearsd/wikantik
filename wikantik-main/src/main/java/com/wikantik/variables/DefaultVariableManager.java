@@ -27,11 +27,11 @@ import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.NoSuchVariableException;
 import com.wikantik.api.filters.PageFilter;
 import com.wikantik.api.providers.WikiProvider;
-import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.i18n.InternationalizationManager;
-import com.wikantik.modules.InternalModule;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.modules.InternalModule;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.preferences.Preferences;
 
 import jakarta.servlet.http.HttpServletRequest;

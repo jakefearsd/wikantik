@@ -27,7 +27,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.filters.FilterManager;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.parser.Heading;
 import com.wikantik.parser.HeadingListener;
 import com.wikantik.parser.MarkupParser;

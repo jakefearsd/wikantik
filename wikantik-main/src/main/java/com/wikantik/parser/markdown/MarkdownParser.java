@@ -24,7 +24,7 @@ import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.NodeVisitor;
 import com.vladsch.flexmark.util.ast.VisitHandler;
 import com.wikantik.api.core.Context;
-import com.wikantik.attachment.AttachmentManager;
+import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.UserManager;
 import com.wikantik.api.frontmatter.FrontmatterParser;

@@ -29,7 +29,7 @@ import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.auth.user.XMLUserDatabase;
 import com.wikantik.filters.FilterManager;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

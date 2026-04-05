@@ -25,7 +25,7 @@ import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.event.WikiPageEvent;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import jakarta.servlet.http.HttpServletRequest;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;

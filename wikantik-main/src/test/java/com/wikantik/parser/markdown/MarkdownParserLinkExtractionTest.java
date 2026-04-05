@@ -19,7 +19,7 @@
 package com.wikantik.parser.markdown;
 
 import com.wikantik.TestEngine;
-import com.wikantik.references.ReferenceManager;
+import com.wikantik.api.managers.ReferenceManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

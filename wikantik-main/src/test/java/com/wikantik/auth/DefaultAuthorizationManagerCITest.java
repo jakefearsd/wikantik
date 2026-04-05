@@ -31,7 +31,7 @@ import com.wikantik.auth.authorize.Role;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
-import com.wikantik.pages.PageManager;
+import com.wikantik.api.managers.PageManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

@@ -52,60 +52,10 @@ import java.util.Set;
  * overridden by adding settings in <code>wikantik.properties</code>.
  * </p>
  * <p>
- * Configurable properties are these:
+ * The only configurable property is the JNDI DataSource name
+ * ({@code wikantik.groupdatabase.datasource}). Table and column names are
+ * fixed to match the canonical schema in {@code postgresql.ddl}.
  * </p>
- * <table>
- * <tr> <thead>
- * <th>Property</th>
- * <th>Default</th>
- * <th>Definition</th>
- * <thead> </tr>
- * <tr>
- * <td><code>wikantik.groupdatabase.datasource</code></td>
- * <td><code>jdbc/GroupDatabase</code></td>
- * <td>The JNDI name of the DataSource</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.groupdatabase.table</code></td>
- * <td><code>groups</code></td>
- * <td>The table that stores the groups</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.groupdatabase.membertable</code></td>
- * <td><code>group_members</code></td>
- * <td>The table that stores the names of group members</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.groupdatabase.created</code></td>
- * <td><code>created</code></td>
- * <td>The column containing the group's creation timestamp</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.groupdatabase.creator</code></td>
- * <td><code>creator</code></td>
- * <td>The column containing the group creator's name</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.groupdatabase.name</code></td>
- * <td><code>name</code></td>
- * <td>The column containing the group's name</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.groupdatabase.member</code></td>
- * <td><code>member</code></td>
- * <td>The column containing the group member's name</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.groupdatabase.modified</code></td>
- * <td><code>modified</code></td>
- * <td>The column containing the group's last-modified timestamp</td>
- * </tr>
- * <tr>
- * <td><code>wikantik.groupdatabase.modifier</code></td>
- * <td><code>modifier</code></td>
- * <td>The column containing the name of the user who last modified the group</td>
- * </tr>
- * </table>
  * <p>
  * This class is typically used in conjunction with a web container's JNDI
  * resource factory. For example, Tomcat versions 4 and higher provide a basic
@@ -136,84 +86,17 @@ import java.util.Set;
  * @since 2.3
  */
 public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupDatabase {
-	
-    /** Default table name for the table that stores groups. */
-    public static final String DEFAULT_GROUPDB_TABLE = "groups";
 
-    /** Default column name that stores the names of group members. */
-    public static final String DEFAULT_GROUPDB_MEMBER_TABLE = "group_members";
-
-    /** Default column name that stores the the group creation timestamps. */
-    public static final String DEFAULT_GROUPDB_CREATED = "created";
-
-    /** Default column name that stores group creator names. */
-    public static final String DEFAULT_GROUPDB_CREATOR = "creator";
-
-    /** Default column name that stores the group names. */
-    public static final String DEFAULT_GROUPDB_NAME = "name";
-
-    /** Default column name that stores group member names. */
-    public static final String DEFAULT_GROUPDB_MEMBER = "member";
-
-    /** Default column name that stores group last-modified timestamps. */
-    public static final String DEFAULT_GROUPDB_MODIFIED = "modified";
-
-    /** Default column name that stores names of users who last modified groups. */
-    public static final String DEFAULT_GROUPDB_MODIFIER = "modifier";
-
-    /** The table that stores the groups. */
-    public static final String PROP_GROUPDB_TABLE = "wikantik.groupdatabase.table";
-
-    /** The table that stores the names of group members. */
-    public static final String PROP_GROUPDB_MEMBER_TABLE = "wikantik.groupdatabase.membertable";
-
-    /** The column containing the group's creation timestamp. */
-    public static final String PROP_GROUPDB_CREATED = "wikantik.groupdatabase.created";
-
-    /** The column containing the group creator's name. */
-    public static final String PROP_GROUPDB_CREATOR = "wikantik.groupdatabase.creator";
-
-    /** The column containing the group's name. */
-    public static final String PROP_GROUPDB_NAME = "wikantik.groupdatabase.name";
-
-    /** The column containing the group member's name. */
-    public static final String PROP_GROUPDB_MEMBER = "wikantik.groupdatabase.member";
-
-    /** The column containing the group's last-modified timestamp. */
-    public static final String PROP_GROUPDB_MODIFIED = "wikantik.groupdatabase.modified";
-
-    /** The column containing the name of the user who last modified the group. */
-    public static final String PROP_GROUPDB_MODIFIER = "wikantik.groupdatabase.modifier";
+    private static final String FIND_ALL = "SELECT DISTINCT * FROM groups";
+    private static final String FIND_GROUP = "SELECT DISTINCT * FROM groups WHERE name=?";
+    private static final String FIND_MEMBERS = "SELECT * FROM group_members WHERE name=?";
+    private static final String INSERT_GROUP = "INSERT INTO groups (name,modified,modifier,created,creator) VALUES (?,?,?,?,?)";
+    private static final String UPDATE_GROUP = "UPDATE groups SET modified=?,modifier=? WHERE name=?";
+    private static final String INSERT_MEMBERS = "INSERT INTO group_members (name,member) VALUES (?,?)";
+    private static final String DELETE_GROUP = "DELETE FROM groups WHERE name=?";
+    private static final String DELETE_MEMBERS = "DELETE FROM group_members WHERE name=?";
 
     protected static final Logger LOG = LogManager.getLogger( JDBCGroupDatabase.class );
-
-    private String created;
-
-    private String creator;
-
-    private String name;
-
-    private String member;
-
-    private String modified;
-
-    private String modifier;
-
-    private String findAll;
-
-    private String findGroup;
-
-    private String findMembers;
-
-    private String insertGroup;
-
-    private String insertGroupMembers;
-
-    private String updateGroup;
-
-    private String deleteGroup;
-
-    private String deleteGroupMembers;
 
     private Engine engine;
 
@@ -242,12 +125,12 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         final String groupName = group.getName();
         try {
             runInTransaction( conn -> {
-                try( final PreparedStatement ps1 = conn.prepareStatement( deleteGroup ) ) {
+                try( final PreparedStatement ps1 = conn.prepareStatement( DELETE_GROUP ) ) {
                     ps1.setString( 1, groupName );
                     ps1.execute();
                 }
 
-                try( final PreparedStatement ps2 = conn.prepareStatement( deleteGroupMembers ) ) {
+                try( final PreparedStatement ps2 = conn.prepareStatement( DELETE_MEMBERS ) ) {
                     ps2.setString( 1, groupName );
                     ps2.execute();
                 }
@@ -277,12 +160,12 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
     {
         final Set<Group> groups = new HashSet<>();
         try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( findAll );
+             final PreparedStatement ps = conn.prepareStatement( FIND_ALL );
              final ResultSet rs = ps.executeQuery() )
         {
             while ( rs.next() )
             {
-                final String groupName = rs.getString( name );
+                final String groupName = rs.getString( "name" );
                 if( groupName == null )
                 {
                     LOG.warn( "Detected null group name in JDBCGroupDataBase. Check your group database." );
@@ -290,10 +173,10 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
                 else
                 {
                     final Group group = new Group( groupName, engine.getApplicationName() );
-                    group.setCreated( rs.getTimestamp( created ) );
-                    group.setCreator( rs.getString( creator ) );
-                    group.setLastModified( rs.getTimestamp( modified ) );
-                    group.setModifier( rs.getString( modifier ) );
+                    group.setCreated( rs.getTimestamp( "created" ) );
+                    group.setCreator( rs.getString( "creator" ) );
+                    group.setLastModified( rs.getTimestamp( "modified" ) );
+                    group.setModifier( rs.getString( "modifier" ) );
                     populateGroup( group );
                     groups.add( group );
                 }
@@ -338,7 +221,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
             if( !exists )
             {
                 // Group is new: insert new group record
-                try( final PreparedStatement ps = conn.prepareStatement( insertGroup ) ) {
+                try( final PreparedStatement ps = conn.prepareStatement( INSERT_GROUP ) ) {
                     ps.setString( 1, group.getName() );
                     ps.setTimestamp( 2, ts );
                     ps.setString( 3, modifier.getName() );
@@ -354,7 +237,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
             else
             {
                 // Modify existing group record
-                try( final PreparedStatement ps = conn.prepareStatement( updateGroup ) ) {
+                try( final PreparedStatement ps = conn.prepareStatement( UPDATE_GROUP ) ) {
                     ps.setTimestamp( 1, ts );
                     ps.setString( 2, modifier.getName() );
                     ps.setString( 3, group.getName() );
@@ -368,13 +251,13 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
             // Now, update the group member list
 
             // First, delete all existing member records
-            try( final PreparedStatement ps = conn.prepareStatement( deleteGroupMembers ) ) {
+            try( final PreparedStatement ps = conn.prepareStatement( DELETE_MEMBERS ) ) {
                 ps.setString( 1, group.getName() );
                 ps.execute();
             }
 
             // Insert group member records
-            try( final PreparedStatement ps = conn.prepareStatement( insertGroupMembers ) ) {
+            try( final PreparedStatement ps = conn.prepareStatement( INSERT_MEMBERS ) ) {
                 final Principal[] members = group.members();
                 for( final Principal member : members ) {
                     ps.setString( 1, group.getName() );
@@ -397,9 +280,6 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
      */
     @Override public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, WikiSecurityException
     {
-        final String table;
-        final String memberTable;
-
         this.engine = engine;
 
         final String jndiName = props.getProperty( PROP_DATASOURCE, DEFAULT_DATASOURCE );
@@ -408,32 +288,6 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
             final Context initCtx = new InitialContext();
             final Context ctx = (Context) initCtx.lookup( "java:comp/env" );
             ds = (DataSource) ctx.lookup( jndiName );
-
-            // Prepare the SQL selectors
-            table = props.getProperty( PROP_GROUPDB_TABLE, DEFAULT_GROUPDB_TABLE );
-            memberTable = props.getProperty( PROP_GROUPDB_MEMBER_TABLE, DEFAULT_GROUPDB_MEMBER_TABLE );
-            name = props.getProperty( PROP_GROUPDB_NAME, DEFAULT_GROUPDB_NAME );
-            created = props.getProperty( PROP_GROUPDB_CREATED, DEFAULT_GROUPDB_CREATED );
-            creator = props.getProperty( PROP_GROUPDB_CREATOR, DEFAULT_GROUPDB_CREATOR );
-            modifier = props.getProperty( PROP_GROUPDB_MODIFIER, DEFAULT_GROUPDB_MODIFIER );
-            modified = props.getProperty( PROP_GROUPDB_MODIFIED, DEFAULT_GROUPDB_MODIFIED );
-            member = props.getProperty( PROP_GROUPDB_MEMBER, DEFAULT_GROUPDB_MEMBER );
-
-            findAll = "SELECT DISTINCT * FROM " + table;
-            findGroup = "SELECT DISTINCT * FROM " + table + " WHERE " + name + "=?";
-            findMembers = "SELECT * FROM " + memberTable + " WHERE " + name + "=?";
-
-            // Prepare the group insert/update SQL
-            insertGroup = "INSERT INTO " + table + " (" + name + "," + modified + "," + modifier + "," + created + ","
-                            + creator + ") VALUES (?,?,?,?,?)";
-            updateGroup = "UPDATE " + table + " SET " + modified + "=?," + modifier + "=? WHERE " + name + "=?";
-
-            // Prepare the group member insert SQL
-            insertGroupMembers = "INSERT INTO " + memberTable + " (" + name + "," + member + ") VALUES (?,?)";
-
-            // Prepare the group delete SQL
-            deleteGroup = "DELETE FROM " + table + " WHERE " + name + "=?";
-            deleteGroupMembers = "DELETE FROM " + memberTable + " WHERE " + name + "=?";
         }
         catch( final NamingException e )
         {
@@ -441,9 +295,9 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
             throw new NoRequiredPropertyException( PROP_DATASOURCE, "JDBCGroupDatabase initialization error: " + e);
         }
 
-        // Test connection by doing a quickie select
+        // Test connection
         try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( findAll ) )
+             final PreparedStatement ps = conn.prepareStatement( FIND_ALL ) )
         {
         }
         catch( final SQLException e )
@@ -466,7 +320,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         }
         catch( final SQLException e )
         {
-            LOG.warn( "JDBCGroupDatabase warning: user database doesn't seem to support transactions. Reason: {}", e.toString() );
+            LOG.warn( "JDBCGroupDatabase warning: group database doesn't seem to support transactions. Reason: {}", e.getMessage() );
         }
     }
 
@@ -505,7 +359,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         boolean found = false;
         boolean unique = true;
         try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( findGroup ) )
+             final PreparedStatement ps = conn.prepareStatement( FIND_GROUP ) )
         {
             ps.setString( 1, index );
             try( final ResultSet rs = ps.executeQuery() )
@@ -518,10 +372,10 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
                         break;
                     }
                     group = new Group( index, engine.getApplicationName() );
-                    group.setCreated( rs.getTimestamp( created ) );
-                    group.setCreator( rs.getString( creator ) );
-                    group.setLastModified( rs.getTimestamp( modified ) );
-                    group.setModifier( rs.getString( modifier ) );
+                    group.setCreated( rs.getTimestamp( "created" ) );
+                    group.setCreator( rs.getString( "creator" ) );
+                    group.setLastModified( rs.getTimestamp( "modified" ) );
+                    group.setModifier( rs.getString( "modifier" ) );
                     populateGroup( group );
                     found = true;
                 }
@@ -552,14 +406,14 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
     private Group populateGroup( final Group group )
     {
         try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( findMembers ) )
+             final PreparedStatement ps = conn.prepareStatement( FIND_MEMBERS ) )
         {
             ps.setString( 1, group.getName() );
             try( final ResultSet rs = ps.executeQuery() )
             {
                 while ( rs.next() )
                 {
-                    final String memberName = rs.getString( member );
+                    final String memberName = rs.getString( "member" );
                     if( memberName != null )
                     {
                         final WikiPrincipal principal = new WikiPrincipal( memberName, WikiPrincipal.UNSPECIFIED );

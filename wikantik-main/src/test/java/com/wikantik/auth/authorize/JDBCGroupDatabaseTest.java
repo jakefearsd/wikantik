@@ -18,6 +18,7 @@
  */
 package com.wikantik.auth.authorize;
 import com.wikantik.*;
+import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
@@ -74,7 +75,7 @@ public class JDBCGroupDatabaseTest
         }
         final Context ctx = (Context) initCtx.lookup( "java:comp/env" );
         m_ds = new TestJDBCDataSource( new File( "target/test-classes/wikantik-custom.properties" ), m_hu.getDriverUrl() );
-        ctx.bind( JDBCGroupDatabase.DEFAULT_GROUPDB_DATASOURCE, m_ds );
+        ctx.bind( AbstractJDBCDatabase.DEFAULT_DATASOURCE, m_ds );
 
         m_db = new JDBCGroupDatabase();
         m_db.initialize( m_engine, new Properties() );

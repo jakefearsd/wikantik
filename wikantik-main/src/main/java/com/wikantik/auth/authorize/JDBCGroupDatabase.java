@@ -137,9 +137,6 @@ import java.util.Set;
  */
 public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupDatabase {
 	
-    /** Default column name that stores the JNDI name of the DataSource. */
-    public static final String DEFAULT_GROUPDB_DATASOURCE = "jdbc/GroupDatabase";
-
     /** Default table name for the table that stores groups. */
     public static final String DEFAULT_GROUPDB_TABLE = "groups";
 
@@ -163,9 +160,6 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
 
     /** Default column name that stores names of users who last modified groups. */
     public static final String DEFAULT_GROUPDB_MODIFIER = "modifier";
-
-    /** The JNDI name of the DataSource. */
-    public static final String PROP_GROUPDB_DATASOURCE = "wikantik.groupdatabase.datasource";
 
     /** The table that stores the groups. */
     public static final String PROP_GROUPDB_TABLE = "wikantik.groupdatabase.table";
@@ -408,7 +402,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
 
         this.engine = engine;
 
-        final String jndiName = props.getProperty( PROP_GROUPDB_DATASOURCE, DEFAULT_GROUPDB_DATASOURCE );
+        final String jndiName = props.getProperty( PROP_DATASOURCE, DEFAULT_DATASOURCE );
         try
         {
             final Context initCtx = new InitialContext();
@@ -444,7 +438,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         catch( final NamingException e )
         {
             LOG.error( "JDBCGroupDatabase initialization error: {}", e.toString() );
-            throw new NoRequiredPropertyException( PROP_GROUPDB_DATASOURCE, "JDBCGroupDatabase initialization error: " + e);
+            throw new NoRequiredPropertyException( PROP_DATASOURCE, "JDBCGroupDatabase initialization error: " + e);
         }
 
         // Test connection by doing a quickie select

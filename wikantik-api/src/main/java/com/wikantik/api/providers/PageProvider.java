@@ -68,11 +68,8 @@ public interface PageProvider extends WikiProvider {
     boolean pageExists( String page, int version );
 
     /**
-     *  Finds pages based on the query.   Only applicable to providers which implement the FastSearch interface.  Otherwise Wikantik
-     *  will use its internal cache.
-     *  <p>
-     *  This method should really be a part of the FastSearch IF.
-     *  
+     *  Finds pages based on the query.
+     *
      *  @param query An array of QueryItems to match
      *  @return A Collection of WikiPages.
      */

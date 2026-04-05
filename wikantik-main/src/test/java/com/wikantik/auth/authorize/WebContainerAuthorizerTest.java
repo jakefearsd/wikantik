@@ -51,9 +51,9 @@ public class WebContainerAuthorizerTest
     @Test
     public void testConstraints() throws Exception
     {
-        Assertions.assertTrue( m_authorizer.isConstrained( "/Delete.jsp", new Role( "Admin" ) ) );
-        Assertions.assertTrue( m_authorizer.isConstrained( "/Login.jsp", Role.AUTHENTICATED ) );
-        Assertions.assertFalse( m_authorizer.isConstrained( "/UserPreferences.jsp", Role.AUTHENTICATED ) );
+        Assertions.assertTrue( m_authorizer.isConstrained( "/delete", new Role( "Admin" ) ) );
+        Assertions.assertTrue( m_authorizer.isConstrained( "/login", Role.AUTHENTICATED ) );
+        Assertions.assertFalse( m_authorizer.isConstrained( "/preferences", Role.AUTHENTICATED ) );
     }
 
     @Test

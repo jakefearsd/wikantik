@@ -52,14 +52,14 @@ public interface CommandResolver {
 
     /**
      * Attempts to locate a wiki command for a supplied request context. The resolution technique is simple: we examine the list of
-     * Commands returned by {@link AllCommands#get()} and return the one whose <code>requestContext</code> matches the
+     * Commands returned by {@link GenericCommand#allCommands()} and return the one whose <code>requestContext</code> matches the
      * supplied context. If the supplied context does not resolve to a known Command, this method throws an {@link IllegalArgumentException}.
      *
      * @param context the request context
      * @return the resolved context
      */
     static Command findCommand( final String context ) {
-        return Arrays.stream( AllCommands.get() )
+        return Arrays.stream( GenericCommand.allCommands() )
                      .filter( c -> c.getRequestContext().equals( context ) )
                      .findFirst()
                      .orElseThrow( () -> new IllegalArgumentException( "Unsupported wiki context: " + context + "." ) );
@@ -75,7 +75,7 @@ public interface CommandResolver {
      * <p>When the caller supplies a request context and HTTP request that specifies an actual wiki page (rather than a special page),
      * this method will return a "targeted" Command that includes the resolved WikiPage as the target. (See {@link #resolvePage(HttpServletRequest, String)}
      * for the resolution algorithm). Specifically, the Command will return a non-<code>null</code> value for
-     * its {@link AbstractCommand#getTarget()} method.</p>
+     * its {@link Command#getTarget()} method.</p>
      * <p><em>Note: if this method determines that the Command is the VIEW PageCommand, then the Command returned will always be targeted to
      * the front page.</em></p>
      *

@@ -1,4 +1,4 @@
-/* 
+/*
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -14,88 +14,24 @@
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
-    under the License.  
+    under the License.
  */
 package com.wikantik.ui;
 
 import com.wikantik.api.core.Command;
-import com.wikantik.api.core.ContextEnum;
-
-import java.security.Permission;
 
 /**
- * <p>Defines Commands for redirections to off-site special pages. RedirectCommands do not have associated permissions; the
- * {@link #requiredPermission()} method will always return <code>null</code>. When combined with a supplied String url,
- * the {@link #getTarget()} method will return a String, the {@link #getURLPattern()} method will return the supplied target URL,
- * and {@link #getRoutePath()} method will return the "cleansed" URL.</p>
+ * Backward-compatible facade — all constants delegate to {@link GenericCommand}.
  *
+ * @deprecated Use {@link GenericCommand} constants directly.
  * @since 2.4.22
  */
-public final class RedirectCommand extends AbstractCommand {
+@Deprecated
+public final class RedirectCommand {
 
-    public static final Command REDIRECT = new RedirectCommand( ContextEnum.REDIRECT, null );
+    public static final Command REDIRECT = GenericCommand.REDIRECT;
 
-    /**
-     * Constructs a new Command with a specified wiki context, URL pattern, type, and content template. The WikiPage for this action is
-     * initialized to <code>null</code>.
-     *
-     * @param currentContext the current context.
-     * @param target the target of the command
-     * @throws IllegalArgumentException if the request content, URL pattern, or type is <code>null</code>
-     */
-    private RedirectCommand( final ContextEnum currentContext, final String target ) {
-        this( currentContext.getRequestContext(), currentContext.getUrlPattern(), currentContext.getContentTemplate(), target );
-    }
-
-    /**
-     *
-     * @param requestContext the request context
-     * @param urlPattern the URL pattern
-     * @param contentTemplate the content template; may be <code>null</code>
-     * @param target the target of the command
-     * @throws IllegalArgumentException if the request content, URL pattern, or type is <code>null</code>
-     */
-    private RedirectCommand( final String requestContext, final String urlPattern, final String contentTemplate, final String target ) {
-        super( requestContext, urlPattern, contentTemplate, target );
-    }
-    
-    /**
-     * Creates and returns a targeted Command by combining a URL (as String) with this Command. The supplied <code>target</code>
-     * object must be non-<code>null</code> and of type String. The URL passed to the constructor is actually an URL pattern, but it
-     * will be converted to a JSP page if it is a partial URL. If it is a full URL (beginning with <code>http://</code> or
-     * <code>https://</code>), it will be "passed through" without conversion, and the URL pattern will be <code>null</code>.
-     *
-     * @param target the object to combine
-     * @throws IllegalArgumentException if the target is not of the correct type
-     */
-    @Override
-    public Command targetedCommand(final Object target ) {
-        if ( !( target instanceof String ) ) {
-            throw new IllegalArgumentException( "Target must non-null and of type String." );
-        }
-        return new RedirectCommand( getRequestContext(), ( String )target, getContentTemplate(), ( String )target );
-    }
-    
-    /**
-     * @see com.wikantik.api.core.Command#getName()
-     */
-    @Override
-    public String getName() {
-        final Object target = getTarget();
-        if ( target == null ) {
-            return getRouteFriendlyName();
-        }
-        return target.toString();
-    }
-
-    /**
-     * No-op; always returns <code>null</code>.
-     *
-     * @see com.wikantik.api.core.Command#requiredPermission()
-     */
-    @Override
-    public Permission requiredPermission() {
-        return null;
+    private RedirectCommand() {
     }
 
 }

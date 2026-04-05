@@ -57,7 +57,7 @@ public class DefaultCommandResolver implements CommandResolver {
     static {
         CONTEXTS = new HashMap<>();
         ROUTES = new HashMap<>();
-        final Command[] commands = AllCommands.get();
+        final Command[] commands = GenericCommand.allCommands();
         for( final Command command : commands ) {
             ROUTES.put( command.getRoutePath(), command );
             CONTEXTS.put( command.getRequestContext(), command );
@@ -149,10 +149,10 @@ public class DefaultCommandResolver implements CommandResolver {
         // These next blocks handle targeting requirements
 
         // If we were passed a page parameter, try to resolve it
-        if ( command instanceof PageCommand pageCommand && pageName != null ) {
+        if ( command instanceof GenericCommand gc && gc.isPageCommand() && pageName != null ) {
             // If there's a matching WikiPage, "wrap" the command
             final Page page = resolvePage( request, pageName );
-            return pageCommand.targetedCommand( page );
+            return gc.targetedCommand( page );
         }
 
         // If "create group" command, target this wiki
@@ -162,7 +162,7 @@ public class DefaultCommandResolver implements CommandResolver {
         }
 
         // If group command, see if we were passed a group name
-        if( command instanceof GroupCommand groupCommand ) {
+        if( command instanceof GenericCommand gc2 && gc2.isGroupCommand() ) {
             String groupName = request.getParameter( "group" );
             groupName = TextUtil.replaceEntities( groupName );
             if ( groupName != null && !groupName.isEmpty() ) {

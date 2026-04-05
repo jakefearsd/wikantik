@@ -18,42 +18,22 @@
  */
 package com.wikantik.search;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.time.StopWatch;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.ajax.AjaxUtil;
-import com.wikantik.ajax.WikiAjaxDispatcherServlet;
-import com.wikantik.ajax.WikiAjaxServlet;
-import com.wikantik.api.core.Context;
-import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.FilterException;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.api.filters.BasePageFilter;
-import com.wikantik.api.search.SearchResult;
-import com.wikantik.api.spi.Wiki;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.pages.PageManager;
-import com.wikantik.parser.MarkupParser;
-import com.wikantik.references.ReferenceManager;
 import com.wikantik.util.ClassUtil;
 import com.wikantik.util.TextUtil;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 
 /**
@@ -77,144 +57,6 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
     public DefaultSearchManager( final Engine engine, final Properties properties ) throws FilterException {
         initialize( engine, properties );
         WikiEventManager.addWikiEventListener( engine.getManager( PageManager.class ), this );
-
-        // TODO: Replace with custom annotations. See JSPWIKI-566
-        WikiAjaxDispatcherServlet.registerServlet( JSON_SEARCH, new JSONSearch() );
-    }
-
-    /**
-     *  Provides a JSON AJAX API to the JSPWiki Search Engine.
-     */
-    public class JSONSearch implements WikiAjaxServlet {
-
-        public static final String AJAX_ACTION_SUGGESTIONS = "suggestions";
-        public static final String AJAX_ACTION_PAGES = "pages";
-        public static final int DEFAULT_MAX_RESULTS = 20;
-        public int maxResults = DEFAULT_MAX_RESULTS;
-
-        /** {@inheritDoc} */
-        @Override
-        public String getServletMapping() {
-            return JSON_SEARCH;
-        }
-
-        /** {@inheritDoc} */
-        @Override
-        public void service( final HttpServletRequest req,
-                             final HttpServletResponse resp,
-                             final String actionName,
-                             final List< String > params ) throws IOException {
-            String result = "";
-            if( StringUtils.isNotBlank( actionName ) ) {
-                if( params.isEmpty() ) {
-                    return;
-                }
-                final String itemId = params.get( 0 );
-                LOG.debug( "itemId={}", itemId );
-                if( params.size() > 1 ) {
-                    final String maxResultsParam = params.get( 1 );
-                    LOG.debug( "maxResultsParam={}", maxResultsParam );
-                    if( StringUtils.isNotBlank( maxResultsParam ) && StringUtils.isNumeric( maxResultsParam ) ) {
-                        maxResults = Integer.parseInt( maxResultsParam );
-                    }
-                }
-
-                if( actionName.equals( AJAX_ACTION_SUGGESTIONS ) ) {
-                    LOG.debug( "Calling getSuggestions() START" );
-                    final List< String > callResults = getSuggestions( itemId, maxResults );
-                    LOG.debug( "Calling getSuggestions() DONE. {}", callResults.size() );
-                    result = AjaxUtil.toJson( callResults );
-                } else if( actionName.equals( AJAX_ACTION_PAGES ) ) {
-                    LOG.debug("Calling findPages() START");
-                    final Context wikiContext = Wiki.context().create( engine, req, ContextEnum.PAGE_VIEW.getRequestContext() );
-                    final List< Map< String, Object > > callResults = findPages( itemId, maxResults, wikiContext );
-                    LOG.debug( "Calling findPages() DONE. {}", callResults.size() );
-                    result = AjaxUtil.toJson( callResults );
-                }
-            }
-            LOG.debug( "result={}", result );
-            resp.getWriter().write( result );
-        }
-
-        /**
-         *  Provides a list of suggestions to use for a page name. Currently, the algorithm just looks into the value parameter,
-         *  and returns all page names from that.
-         *
-         *  @param wikiName the page name
-         *  @param maxLength maximum number of suggestions
-         *  @return the suggestions
-         */
-        public List< String > getSuggestions( String wikiName, final int maxLength ) {
-            final StopWatch sw = new StopWatch();
-            sw.start();
-            final List< String > list = new ArrayList<>( maxLength );
-            if( !wikiName.isEmpty() ) {
-                // split pagename and attachment filename
-                String filename = "";
-                final int pos = wikiName.indexOf("/");
-                if( pos >= 0 ) {
-                    filename = wikiName.substring( pos ).toLowerCase();
-                    wikiName = wikiName.substring( 0, pos );
-                }
-
-                final String cleanWikiName = MarkupParser.cleanLink(wikiName).toLowerCase() + filename;
-                final String oldStyleName = MarkupParser.wikifyLink(wikiName).toLowerCase() + filename;
-                final Set< String > allPages = engine.getManager( ReferenceManager.class ).findCreated();
-
-                int counter = 0;
-                for( final Iterator< String > i = allPages.iterator(); i.hasNext() && counter < maxLength; ) {
-                    final String candidatePage = i.next();
-                    final String lowerPageName = candidatePage.toLowerCase();
-                    if( lowerPageName.startsWith( cleanWikiName) || lowerPageName.startsWith( oldStyleName ) ) {
-                        list.add( candidatePage );
-                        counter++;
-                    }
-                }
-            }
-
-            sw.stop();
-            LOG.debug( "Suggestion request for {} done in {}", wikiName, sw );
-            return list;
-        }
-
-        /**
-         *  Performs a full search of pages.
-         *
-         *  @param searchString The query string
-         *  @param maxLength How many hits to return
-         *  @return the pages found
-         */
-        public List< Map< String, Object > > findPages( final String searchString, final int maxLength, final Context wikiContext ) {
-            final StopWatch sw = new StopWatch();
-            sw.start();
-
-            final List< Map< String, Object > > list = new ArrayList<>( maxLength );
-            if( !searchString.isEmpty() ) {
-                try {
-                    final Collection< SearchResult > c;
-                    if( searchProvider instanceof LuceneSearchProvider luceneProvider ) {
-                        c = luceneProvider.findPages( searchString, 0, wikiContext );
-                    } else {
-                        c = searchProvider.findPages( searchString, wikiContext );
-                    }
-
-                    int count = 0;
-                    for( final Iterator< SearchResult > i = c.iterator(); i.hasNext() && count < maxLength; count++ ) {
-                        final SearchResult sr = i.next();
-                        final var hm = new HashMap< String, Object >();
-                        hm.put( "page", sr.getPage().getName() );
-                        hm.put( "score", sr.getScore() );
-                        list.add( hm );
-                    }
-                } catch( final Exception e ) {
-                    LOG.info( "AJAX search failed; ", e );
-                }
-            }
-
-            sw.stop();
-            LOG.debug( "AJAX search complete in {}", sw );
-            return list;
-        }
     }
 
 

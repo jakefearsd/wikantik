@@ -30,18 +30,13 @@ import com.wikantik.auth.user.UserProfile;
 import com.wikantik.auth.user.XMLUserDatabase;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.pages.PageManager;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.security.Principal;
 import java.util.Collections;
-import java.util.List;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -54,8 +49,8 @@ import static org.mockito.Mockito.*;
  *
  * Sections:
  * <ul>
- *   <li>Pure mock-based: {@code getUserDatabase()} fallback to DummyUserDatabase,
- *       {@code getUserProfile()} caching, and {@code JSONUserModule} methods</li>
+ *   <li>Pure mock-based: {@code getUserDatabase()} fallback to DummyUserDatabase
+ *       and {@code getUserProfile()} caching</li>
  *   <li>TestEngine-based: {@code validateProfile()} branches that require a live
  *       i18n/filter/auth stack</li>
  * </ul>
@@ -69,7 +64,7 @@ class DefaultUserManagerCITest {
     private UserManager m_mgr;
     private UserDatabase m_db;
 
-    // --- Pure mock fields (for getUserDatabase / getUserProfile / JSONUserModule) ---
+    // --- Pure mock fields (for getUserDatabase / getUserProfile) ---
     private Engine mockEngine;
     private UserDatabase mockDatabase;
     private DefaultUserManager mockMgr;
@@ -273,124 +268,6 @@ class DefaultUserManagerCITest {
 
         // Cleanup
         m_db.deleteByLoginName( login );
-    }
-
-    // =========================================================================
-    //  JSONUserModule — getServletMapping
-    // =========================================================================
-
-    @Test
-    void jsonUserModuleGetServletMappingReturnsUsersAlias() {
-        final DefaultUserManager.JSONUserModule module =
-                new DefaultUserManager.JSONUserModule( mockMgr );
-        assertEquals( UserManager.JSON_USERS, module.getServletMapping() );
-    }
-
-    // =========================================================================
-    //  JSONUserModule — getUserInfo success
-    // =========================================================================
-
-    @Test
-    void jsonUserModuleGetUserInfoReturnsProfileFromDatabase() throws Exception {
-        injectField( mockMgr, "database", mockDatabase );
-
-        final UserProfile prof = mock( UserProfile.class );
-        when( mockDatabase.find( eq( "alice" ) ) ).thenReturn( prof );
-
-        final DefaultUserManager.JSONUserModule module =
-                new DefaultUserManager.JSONUserModule( mockMgr );
-        final UserProfile result = module.getUserInfo( "alice" );
-        assertSame( prof, result );
-    }
-
-    // =========================================================================
-    //  JSONUserModule — getUserInfo not found
-    // =========================================================================
-
-    @Test
-    void jsonUserModuleGetUserInfoThrowsForUnknownUser() throws Exception {
-        injectField( mockMgr, "database", mockDatabase );
-        when( mockDatabase.find( anyString() ) ).thenThrow(
-                new NoSuchPrincipalException( "no such user" ) );
-
-        final DefaultUserManager.JSONUserModule module =
-                new DefaultUserManager.JSONUserModule( mockMgr );
-        assertThrows( NoSuchPrincipalException.class,
-                () -> module.getUserInfo( "ghost" ) );
-    }
-
-    // =========================================================================
-    //  JSONUserModule — service() with empty params → no-op
-    // =========================================================================
-
-    @Test
-    void jsonUserModuleServiceDoesNothingForEmptyParams() throws Exception {
-        final HttpServletRequest req  = mock( HttpServletRequest.class );
-        final HttpServletResponse resp = mock( HttpServletResponse.class );
-
-        final DefaultUserManager.JSONUserModule module =
-                new DefaultUserManager.JSONUserModule( mockMgr );
-        module.service( req, resp, "GET", Collections.emptyList() );
-        verify( resp, never() ).getWriter();
-    }
-
-    // =========================================================================
-    //  JSONUserModule — service() with blank uid → no-op
-    // =========================================================================
-
-    @Test
-    void jsonUserModuleServiceDoesNothingForBlankUid() throws Exception {
-        final HttpServletRequest req  = mock( HttpServletRequest.class );
-        final HttpServletResponse resp = mock( HttpServletResponse.class );
-
-        final DefaultUserManager.JSONUserModule module =
-                new DefaultUserManager.JSONUserModule( mockMgr );
-        module.service( req, resp, "GET", List.of( "   " ) );
-        verify( resp, never() ).getWriter();
-    }
-
-    // =========================================================================
-    //  JSONUserModule — service() writes JSON for a valid uid
-    // =========================================================================
-
-    @Test
-    void jsonUserModuleServiceWritesJsonForKnownUser() throws Exception {
-        // Use the real XMLUserDatabase so Gson can serialise a concrete UserProfile
-        final UserDatabase realDb = m_mgr.getUserDatabase();
-        injectField( mockMgr, "database", realDb );
-
-        // Use "janne" — always present in the test XML database
-        final StringWriter sw  = new StringWriter();
-        final PrintWriter pw   = new PrintWriter( sw );
-        final HttpServletRequest req   = mock( HttpServletRequest.class );
-        final HttpServletResponse resp = mock( HttpServletResponse.class );
-        when( resp.getWriter() ).thenReturn( pw );
-
-        final DefaultUserManager.JSONUserModule module =
-                new DefaultUserManager.JSONUserModule( mockMgr );
-        module.service( req, resp, "GET", List.of( "janne" ) );
-
-        pw.flush();
-        assertFalse( sw.toString().isEmpty(), "Response should contain JSON for 'janne'" );
-    }
-
-    // =========================================================================
-    //  JSONUserModule — service() wraps NoSuchPrincipalException in ServletException
-    // =========================================================================
-
-    @Test
-    void jsonUserModuleServiceThrowsServletExceptionForUnknownUser() throws Exception {
-        injectField( mockMgr, "database", mockDatabase );
-        when( mockDatabase.find( anyString() ) ).thenThrow(
-                new NoSuchPrincipalException( "gone" ) );
-
-        final HttpServletRequest req  = mock( HttpServletRequest.class );
-        final HttpServletResponse resp = mock( HttpServletResponse.class );
-
-        final DefaultUserManager.JSONUserModule module =
-                new DefaultUserManager.JSONUserModule( mockMgr );
-        assertThrows( ServletException.class,
-                () -> module.service( req, resp, "GET", List.of( "ghost" ) ) );
     }
 
     // =========================================================================

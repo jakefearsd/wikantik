@@ -20,12 +20,9 @@
 package com.wikantik.plugin;
 
 import org.apache.commons.lang3.ClassUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.InternalWikiException;
-import com.wikantik.ajax.WikiAjaxDispatcherServlet;
-import com.wikantik.ajax.WikiAjaxServlet;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.PluginException;
@@ -42,7 +39,6 @@ import com.wikantik.util.XhtmlUtil;
 import com.wikantik.util.XmlUtil;
 import org.jdom2.Element;
 
-import jakarta.servlet.http.HttpServlet;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StreamTokenizer;
@@ -475,8 +471,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
         }
 
         /**
-         *  Initializes a plugin, if it has not yet been initialized. If the plugin extends {@link HttpServlet} it will automatically
-         *  register it as AJAX using {@link WikiAjaxDispatcherServlet#registerServlet(String, WikiAjaxServlet)}.
+         *  Initializes a plugin, if it has not yet been initialized.
          *
          *  @param engine The Engine
          *  @param searchPath A List of Strings, containing different package names.
@@ -491,13 +486,6 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
                     final Plugin plugin = newPluginInstance(searchPath, externalJars);
                     if( plugin instanceof InitializablePlugin ip ) {
                         ip.initialize( engine );
-                    }
-                    if( plugin instanceof WikiAjaxServlet ajaxServlet ) {
-                    	WikiAjaxDispatcherServlet.registerServlet( ajaxServlet );
-                    	final String ajaxAlias = info.getAjaxAlias();
-                    	if (StringUtils.isNotBlank(ajaxAlias)) {
-                    		WikiAjaxDispatcherServlet.registerServlet( info.getAjaxAlias(), ajaxServlet );
-                    	}
                     }
                 } catch( final Exception e ) {
                     LOG.debug( "Cannot initialize plugin {}: {}", className, e.getMessage() );

@@ -131,7 +131,6 @@ public class LogLevelEnforcementTest {
             "SitemapServlet.java",
             "DefaultCommandResolver.java",
             "AttachmentServlet.java",
-            "WikiAjaxDispatcherServlet.java",
             // Search manager
             "DefaultSearchManager.java",
             // Page manager — provider initialization and page operations

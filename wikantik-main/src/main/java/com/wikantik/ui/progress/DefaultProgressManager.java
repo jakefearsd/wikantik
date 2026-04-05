@@ -20,13 +20,6 @@ package com.wikantik.ui.progress;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.ajax.WikiAjaxDispatcherServlet;
-import com.wikantik.ajax.WikiAjaxServlet;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,8 +42,6 @@ public class DefaultProgressManager implements ProgressManager {
      *  Creates a new ProgressManager.
      */
     public DefaultProgressManager() {
-    	// TODO: Replace with custom annotations. See JSPWIKI-566
-        WikiAjaxDispatcherServlet.registerServlet( JSON_PROGRESSTRACKER, new JSONTracker() );
     }
 
     /**
@@ -106,51 +97,6 @@ public class DefaultProgressManager implements ProgressManager {
         }
 
         throw new IllegalArgumentException( "No such id was found" );
-    }
-
-    /**
-     *  Provides access to a progress indicator, assuming you know the ID. Progress of zero (0) means that the progress has just started,
-     *  and a progress of 100 means that it is complete.
-     */
-    public class JSONTracker implements WikiAjaxServlet {
-        /**
-         *  Returns upload progress in percents so far.
-         *
-         *  @param progressId The string representation of the progress ID that you want to know the progress of.
-         *  @return a value between 0 to 100 indicating the progress
-         */
-        public int getProgress( final String progressId )
-        {
-            return DefaultProgressManager.this.getProgress( progressId );
-        }
-
-        @Override
-        public String getServletMapping() {
-        	return JSON_PROGRESSTRACKER;
-        }
-
-        @Override
-        public void service( final HttpServletRequest req,
-                             final HttpServletResponse resp,
-                             final String actionName,
-                             final List< String > params ) throws IOException {
-        	LOG.debug( "ProgressManager.doGet() START" );
-        	if( params.isEmpty() ) {
-        		return;
-        	}
-        	final String progressId = params.get(0);
-        	LOG.debug( "progressId=" + progressId );
-        	String progressString = "";
-        	try {
-        		progressString = Integer.toString( getProgress( progressId ) );
-        	} catch( final IllegalArgumentException e ) { // ignore
-        		LOG.debug( "progressId " + progressId + " is no longer valid" );
-        	}
-        	LOG.debug( "progressString=" + progressString );
-        	resp.getWriter().write( progressString );
-        	LOG.debug( "ProgressManager.doGet() DONE" );
-        }
-
     }
 
 }

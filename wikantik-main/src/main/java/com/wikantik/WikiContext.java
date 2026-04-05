@@ -35,6 +35,7 @@ import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.pages.PageManager;
 import com.wikantik.ui.CommandResolver;
+import com.wikantik.ui.GenericCommand;
 import com.wikantik.ui.PageCommand;
 import com.wikantik.ui.WikiCommand;
 import com.wikantik.util.TextUtil;
@@ -207,8 +208,8 @@ public class WikiContext implements Context, Command {
         this.command = command;
 
         // If PageCommand, get the WikiPage
-        if( command instanceof PageCommand pageCommand ) {
-            this.page = ( WikiPage )pageCommand.getTarget();
+        if( command instanceof GenericCommand gc && gc.isPageCommand() ) {
+            this.page = ( WikiPage )gc.getTarget();
         }
 
         // If page not supplied, default to front page to avoid NPEs
@@ -522,7 +523,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public final String getName() {
-        if ( command instanceof PageCommand ) {
+        if ( command instanceof GenericCommand gc3 && gc3.isPageCommand() ) {
             return page != null ? page.getName() : "<no page>";
         }
         return command.getName();
@@ -787,7 +788,7 @@ public class WikiContext implements Context, Command {
     protected static Command findCommand( final Engine engine, final HttpServletRequest request, final Page page ) {
         final String defaultContext = ContextEnum.PAGE_VIEW.getRequestContext();
         Command command = engine.getManager( CommandResolver.class ).findCommand( request, defaultContext );
-        if ( command instanceof PageCommand && page != null ) {
+        if ( command instanceof GenericCommand gc4 && gc4.isPageCommand() && page != null ) {
             command = command.targetedCommand( page );
         }
         return command;
@@ -807,7 +808,7 @@ public class WikiContext implements Context, Command {
             command = commandResolver.findCommand( request, requestContext );
         }
 
-        if ( command instanceof PageCommand && page != null ) {
+        if ( command instanceof GenericCommand gc5 && gc5.isPageCommand() && page != null ) {
             command = command.targetedCommand( page );
         }
     }

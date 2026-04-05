@@ -1,4 +1,4 @@
-/* 
+/*
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -14,117 +14,37 @@
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
-    under the License.  
+    under the License.
  */
 package com.wikantik.ui;
 
 import com.wikantik.api.core.Command;
-import com.wikantik.api.core.ContextEnum;
-import com.wikantik.api.core.Page;
-import com.wikantik.auth.permissions.PagePermission;
-import com.wikantik.auth.permissions.PermissionFactory;
-
-import java.security.Permission;
 
 /**
- * <p>Defines Commands for editing, renaming, and viewing wiki pages. PageCommands can be combined with WikiPages to produce
- * targeted Commands.</p>
+ * Backward-compatible facade — all constants delegate to {@link GenericCommand}.
  *
+ * @deprecated Use {@link GenericCommand} constants directly.
  * @since 2.4.22
  */
-public final class PageCommand extends AbstractCommand {
+@Deprecated
+public final class PageCommand {
 
-    public static final Command ATTACH = new PageCommand( ContextEnum.PAGE_ATTACH, null, PagePermission.UPLOAD_ACTION );
-    public static final Command COMMENT = new PageCommand( ContextEnum.PAGE_COMMENT, null, PagePermission.COMMENT_ACTION );
-    public static final Command CONFLICT = new PageCommand( ContextEnum.PAGE_CONFLICT, null, PagePermission.VIEW_ACTION );
-    public static final Command DELETE = new PageCommand( ContextEnum.PAGE_DELETE, null, PagePermission.DELETE_ACTION );
-    public static final Command DIFF = new PageCommand( ContextEnum.PAGE_DIFF, null, PagePermission.VIEW_ACTION );
-    public static final Command EDIT = new PageCommand( ContextEnum.PAGE_EDIT, null, PagePermission.EDIT_ACTION );
-    public static final Command INFO = new PageCommand( ContextEnum.PAGE_INFO, null, PagePermission.VIEW_ACTION );
-    public static final Command PREVIEW = new PageCommand( ContextEnum.PAGE_PREVIEW, null, PagePermission.VIEW_ACTION );
-    public static final Command RENAME = new PageCommand( ContextEnum.PAGE_RENAME, null, PagePermission.RENAME_ACTION );
-    public static final Command RSS = new PageCommand( ContextEnum.PAGE_RSS, null, PagePermission.VIEW_ACTION );
-    public static final Command UPLOAD = new PageCommand( ContextEnum.PAGE_UPLOAD, null, PagePermission.UPLOAD_ACTION );
-    public static final Command VIEW = new PageCommand( ContextEnum.PAGE_VIEW, null, PagePermission.VIEW_ACTION );
-    public static final Command NONE = new PageCommand( ContextEnum.PAGE_NONE, null, null );
-    public static final Command OTHER = NONE;
+    public static final Command ATTACH   = GenericCommand.PAGE_ATTACH;
+    public static final Command COMMENT  = GenericCommand.PAGE_COMMENT;
+    public static final Command CONFLICT = GenericCommand.PAGE_CONFLICT;
+    public static final Command DELETE   = GenericCommand.PAGE_DELETE;
+    public static final Command DIFF     = GenericCommand.PAGE_DIFF;
+    public static final Command EDIT     = GenericCommand.PAGE_EDIT;
+    public static final Command INFO     = GenericCommand.PAGE_INFO;
+    public static final Command PREVIEW  = GenericCommand.PAGE_PREVIEW;
+    public static final Command RENAME   = GenericCommand.PAGE_RENAME;
+    public static final Command RSS      = GenericCommand.PAGE_RSS;
+    public static final Command UPLOAD   = GenericCommand.PAGE_UPLOAD;
+    public static final Command VIEW     = GenericCommand.PAGE_VIEW;
+    public static final Command NONE     = GenericCommand.PAGE_NONE;
+    public static final Command OTHER    = GenericCommand.PAGE_OTHER;
 
-    private final String action;
-    
-    private final Permission permission;
-
-    /**
-     * Constructs a new Command with a specified wiki context, URL pattern, type, and content template. The target for this command is
-     * initialized to <code>null</code>.
-     *
-     * @param currentContext the current context.
-     * @param target the target of the command (a WikiPage); may be <code>null</code>
-     * @param action the action used to construct a suitable PagePermission
-     * @throws IllegalArgumentException if the request content, URL pattern, or type is <code>null</code>
-     */
-    private PageCommand( final ContextEnum currentContext, final Page target, final String action ) {
-        this( currentContext.getRequestContext(), currentContext.getUrlPattern(), currentContext.getContentTemplate(), target, action );
-    }
-    
-    /**
-     * Constructs a new Command with a specified wiki context, URL pattern, type, and content template. The target for this command is
-     * initialized to <code>null</code>.
-     *
-     * @param requestContext the request context
-     * @param urlPattern the URL pattern
-     * @param target the target of the command (a WikiPage); may be <code>null</code>
-     * @param action the action used to construct a suitable PagePermission
-     * @param contentTemplate the content template; may be <code>null</code>
-     * @throws IllegalArgumentException if the request content, URL pattern, or type is <code>null</code>
-     */
-    private PageCommand( final String requestContext,
-                         final String urlPattern,
-                         final String contentTemplate,
-                         final Page target,
-                         final String action ) {
-        super( requestContext, urlPattern, contentTemplate, target );
-        this.action = action;
-        if( target == null || this.action == null ) {
-            permission = null;
-        } else {
-            permission = PermissionFactory.getPagePermission( target, action );
-        }
-    }
-
-    /**
-     * Creates and returns a targeted Command by combining a WikiPage with this Command. The supplied <code>target</code> object
-     * must be non-<code>null</code> and of type WikiPage.
-     *
-     * @param target the WikiPage to combine into the current Command
-     * @return the new targeted command
-     * @throws IllegalArgumentException if the target is not of the correct type
-     */
-    @Override
-    public Command targetedCommand(final Object target ) {
-        if( !( target instanceof Page ) ) {
-            throw new IllegalArgumentException( "Target must non-null and of type Page." );
-        }
-        return new PageCommand( getRequestContext(), getURLPattern(), getContentTemplate(), ( Page )target, action );
-    }
-
-    /**
-     * @see com.wikantik.api.core.Command#getName()
-     */
-    @Override
-    public String getName() {
-        final Object target = getTarget();
-        if( target == null ) {
-            return getRouteFriendlyName();
-        }
-        return ( ( Page )target ).getName();
-    }
-
-    /**
-     * @see com.wikantik.api.core.Command#requiredPermission()
-     */
-    @Override
-    public Permission requiredPermission() {
-        return permission;
+    private PageCommand() {
     }
 
 }

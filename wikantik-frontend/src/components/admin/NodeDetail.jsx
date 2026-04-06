@@ -1,7 +1,21 @@
+import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import ProvenanceBadge from './ProvenanceBadge';
 
 export default function NodeDetail({ node, onNavigate }) {
+  const [structural, setStructural] = useState([]);
+  const [content, setContent] = useState([]);
+
+  useEffect(() => {
+    if (!node?.name) { setStructural([]); setContent([]); return; }
+    api.knowledge.getSimilarNodes(node.name, 5, 'both')
+      .then(data => {
+        setStructural(data.structural || []);
+        setContent(data.content || []);
+      })
+      .catch(() => { setStructural([]); setContent([]); });
+  }, [node?.name]);
+
   if (!node) return null;
 
   const outbound = (node.edges || []).filter(e => e.source_id === node.id);
@@ -97,6 +111,54 @@ export default function NodeDetail({ node, onNavigate }) {
 
       {outbound.length === 0 && inbound.length === 0 && (
         <p className="admin-empty">No edges.</p>
+      )}
+
+      {structural.length > 0 && (
+        <div style={{ marginTop: 'var(--space-md)' }}>
+          <h4 style={{ fontSize: '0.9em', marginBottom: '2px' }}>Similar by Structure ({structural.length})</h4>
+          <div style={{ fontSize: '0.75em', color: 'var(--text-secondary)', marginBottom: '4px' }}>Nodes connected similarly in the graph</div>
+          <table className="admin-table" style={{ fontSize: '0.85em' }}>
+            <thead>
+              <tr><th>Name</th><th>Similarity</th></tr>
+            </thead>
+            <tbody>
+              {structural.map(s => (
+                <tr key={s.name}>
+                  <td>
+                    <button className="btn-link" onClick={() => onNavigate && onNavigate(s.name)}>
+                      {s.name}
+                    </button>
+                  </td>
+                  <td>{(s.similarity * 100).toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {content.length > 0 && (
+        <div style={{ marginTop: 'var(--space-md)' }}>
+          <h4 style={{ fontSize: '0.9em', marginBottom: '2px' }}>Similar by Content ({content.length})</h4>
+          <div style={{ fontSize: '0.75em', color: 'var(--text-secondary)', marginBottom: '4px' }}>Nodes with similar page content and metadata</div>
+          <table className="admin-table" style={{ fontSize: '0.85em' }}>
+            <thead>
+              <tr><th>Name</th><th>Similarity</th></tr>
+            </thead>
+            <tbody>
+              {content.map(s => (
+                <tr key={s.name}>
+                  <td>
+                    <button className="btn-link" onClick={() => onNavigate && onNavigate(s.name)}>
+                      {s.name}
+                    </button>
+                  </td>
+                  <td>{(s.similarity * 100).toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

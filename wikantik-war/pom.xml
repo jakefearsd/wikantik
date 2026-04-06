@@ -80,6 +80,14 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- PostgreSQL driver is provided by Tomcat's lib/ directory -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.3</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- On classpath so SystemPageRegistry can discover system page names at startup -->
         <dependency>
             <groupId>com.wikantik.wikipages</groupId>

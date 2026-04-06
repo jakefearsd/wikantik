@@ -18,11 +18,11 @@
  */
 package com.wikantik.mcp.resources;
 
-import com.google.gson.Gson;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.wikantik.mcp.tools.McpToolUtils;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
@@ -48,7 +48,6 @@ public class WikiResources {
     private final ReferenceManager referenceManager;
     private final AttachmentManager attachmentManager;
     private final SystemPageRegistry systemPageRegistry;
-    private final Gson gson = new Gson();
 
     public WikiResources( final PageManager pageManager,
                           final ReferenceManager referenceManager,
@@ -157,8 +156,7 @@ public class WikiResources {
                         .map( p -> {
                             final Map< String, Object > entry = new LinkedHashMap<>();
                             entry.put( "name", p.getName() );
-                            entry.put( "lastModified", p.getLastModified() != null
-                                    ? p.getLastModified().toInstant().toString() : null );
+                            entry.put( "lastModified", McpToolUtils.formatTimestamp( p.getLastModified() ) );
                             entry.put( "author", p.getAuthor() );
                             if ( systemPageRegistry != null ) {
                                 entry.put( "systemPage", systemPageRegistry.isSystemPage( p.getName() ) );
@@ -167,10 +165,10 @@ public class WikiResources {
                         } )
                         .collect( Collectors.toList() );
 
-                return textResource( "wiki://pages", gson.toJson( Map.of( "pages", pages ) ) );
+                return textResource( "wiki://pages", McpToolUtils.SHARED_GSON.toJson( Map.of( "pages", pages ) ) );
             } catch ( final Exception e ) {
                 LOG.error( "Failed to list pages: {}", e.getMessage(), e );
-                return textResource( "wiki://pages", gson.toJson( Map.of( "error", e.getMessage() ) ) );
+                return textResource( "wiki://pages", McpToolUtils.SHARED_GSON.toJson( Map.of( "error", e.getMessage() ) ) );
             }
         } );
     }
@@ -196,14 +194,13 @@ public class WikiResources {
                         final Map< String, Object > entry = new LinkedHashMap<>();
                         entry.put( "pageName", p.getName() );
                         entry.put( "author", p.getAuthor() );
-                        entry.put( "lastModified", p.getLastModified() != null
-                                ? p.getLastModified().toInstant().toString() : null );
+                        entry.put( "lastModified", McpToolUtils.formatTimestamp( p.getLastModified() ) );
                         entry.put( "changeNote", p.getAttribute( Page.CHANGENOTE ) );
                         return entry;
                     } )
                     .collect( Collectors.toList() );
 
-            return textResource( "wiki://recent-changes", gson.toJson( Map.of( "changes", changes ) ) );
+            return textResource( "wiki://recent-changes", McpToolUtils.SHARED_GSON.toJson( Map.of( "changes", changes ) ) );
         } );
     }
 
@@ -213,7 +210,7 @@ public class WikiResources {
         final Page page = pageManager.getPage( pageName, version );
         if ( page == null ) {
             return textResource( "wiki://pages/" + pageName,
-                    gson.toJson( Map.of( "exists", false, "pageName", pageName ) ) );
+                    McpToolUtils.SHARED_GSON.toJson( Map.of( "exists", false, "pageName", pageName ) ) );
         }
 
         final String rawText = pageManager.getPureText( pageName, version );
@@ -226,17 +223,16 @@ public class WikiResources {
         result.put( "metadata", parsed.metadata() );
         result.put( "version", Math.max( page.getVersion(), 1 ) );
         result.put( "author", page.getAuthor() );
-        result.put( "lastModified", page.getLastModified() != null
-                ? page.getLastModified().toInstant().toString() : null );
+        result.put( "lastModified", McpToolUtils.formatTimestamp( page.getLastModified() ) );
 
-        return textResource( "wiki://pages/" + pageName, gson.toJson( result ) );
+        return textResource( "wiki://pages/" + pageName, McpToolUtils.SHARED_GSON.toJson( result ) );
     }
 
     private McpSchema.ReadResourceResult readAttachments( final String pageName ) {
         final Page page = pageManager.getPage( pageName );
         if ( page == null ) {
             return textResource( "wiki://pages/" + pageName + "/attachments",
-                    gson.toJson( Map.of( "exists", false, "pageName", pageName, "attachments", List.of() ) ) );
+                    McpToolUtils.SHARED_GSON.toJson( Map.of( "exists", false, "pageName", pageName, "attachments", List.of() ) ) );
         }
 
         try {
@@ -246,18 +242,17 @@ public class WikiResources {
                         final Map< String, Object > entry = new LinkedHashMap<>();
                         entry.put( "name", att.getFileName() );
                         entry.put( "size", att.getSize() );
-                        entry.put( "lastModified", att.getLastModified() != null
-                                ? att.getLastModified().toInstant().toString() : null );
+                        entry.put( "lastModified", McpToolUtils.formatTimestamp( att.getLastModified() ) );
                         return entry;
                     } )
                     .collect( Collectors.toList() );
 
             return textResource( "wiki://pages/" + pageName + "/attachments",
-                    gson.toJson( Map.of( "exists", true, "pageName", pageName, "attachments", items ) ) );
+                    McpToolUtils.SHARED_GSON.toJson( Map.of( "exists", true, "pageName", pageName, "attachments", items ) ) );
         } catch ( final Exception e ) {
             LOG.error( "Failed to list attachments for {}: {}", pageName, e.getMessage(), e );
             return textResource( "wiki://pages/" + pageName + "/attachments",
-                    gson.toJson( Map.of( "error", e.getMessage() ) ) );
+                    McpToolUtils.SHARED_GSON.toJson( Map.of( "error", e.getMessage() ) ) );
         }
     }
 
@@ -267,7 +262,7 @@ public class WikiResources {
         Collections.sort( backlinks );
 
         return textResource( "wiki://pages/" + pageName + "/backlinks",
-                gson.toJson( Map.of( "pageName", pageName, "backlinks", backlinks ) ) );
+                McpToolUtils.SHARED_GSON.toJson( Map.of( "pageName", pageName, "backlinks", backlinks ) ) );
     }
 
     private static McpSchema.ReadResourceResult textResource( final String uri, final String text ) {

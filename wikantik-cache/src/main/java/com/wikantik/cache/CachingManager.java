@@ -29,13 +29,6 @@ import java.util.List;
  */
 public interface CachingManager {
 
-    /**
-     * The property value for setting the cache on/off.  Value is {@value}.
-     * This key is deprecated, use instead {@link #PROP_CACHE_ENABLE}.
-     */
-    @Deprecated
-    String PROP_USECACHE_DEPRECATED = "wikantik.usePageCache";
-
     /** The property value for setting the cache on/off.  Value is {@value}. */
     String PROP_CACHE_ENABLE = "wikantik.cache.enable";
 

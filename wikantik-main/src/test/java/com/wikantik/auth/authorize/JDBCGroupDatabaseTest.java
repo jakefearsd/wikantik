@@ -17,7 +17,10 @@
     under the License.
  */
 package com.wikantik.auth.authorize;
-import com.wikantik.*;
+import com.wikantik.PostgresTestContainer;
+import com.wikantik.TestEngine;
+import com.wikantik.TestJNDIContext;
+import com.wikantik.WikiEngine;
 import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.auth.NoSuchPrincipalException;
@@ -29,12 +32,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NameAlreadyBoundException;
 import javax.sql.DataSource;
-import java.io.File;
 import java.security.Principal;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -43,10 +46,10 @@ import java.util.Properties;
 
 /**
  */
+@Testcontainers( disabledWithoutDocker = true )
 @TestInstance( TestInstance.Lifecycle.PER_CLASS )
 public class JDBCGroupDatabaseTest
 {
-    private final HsqlDbUtils m_hu = new HsqlDbUtils();
     private DataSource        m_ds;
     private WikiEngine        m_engine;
 
@@ -57,7 +60,7 @@ public class JDBCGroupDatabaseTest
     @BeforeAll
     void startDatabase() throws Exception
     {
-        m_hu.setUp();
+        m_ds = PostgresTestContainer.createDataSource();
         final Properties props = TestEngine.getTestProperties();
         m_engine = new TestEngine( props );
         m_wiki = m_engine.getApplicationName();
@@ -74,7 +77,6 @@ public class JDBCGroupDatabaseTest
             // ignore
         }
         final Context ctx = (Context) initCtx.lookup( "java:comp/env" );
-        m_ds = new TestJDBCDataSource( new File( "target/test-classes/wikantik-custom.properties" ), m_hu.getDriverUrl() );
         ctx.bind( AbstractJDBCDatabase.DEFAULT_DATASOURCE, m_ds );
 
         m_db = new JDBCGroupDatabase();
@@ -110,9 +112,9 @@ public class JDBCGroupDatabaseTest
     }
 
     @AfterAll
-    void stopDatabase() throws Exception
+    void stopDatabase()
     {
-        m_hu.tearDown();
+        // Container is managed by PostgresTestContainer singleton
     }
 
     @Test

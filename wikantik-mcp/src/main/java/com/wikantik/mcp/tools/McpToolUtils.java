@@ -19,6 +19,7 @@
 package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
@@ -26,6 +27,7 @@ import com.wikantik.api.managers.PageManager;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Date;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,8 +39,8 @@ import java.util.Map;
  */
 public final class McpToolUtils {
 
-    /** Shared Gson instance for tools that don't need special serialization config. */
-    public static final Gson SHARED_GSON = new Gson();
+    /** Shared Gson instance — serializes nulls so JSON keys are always present. */
+    public static final Gson SHARED_GSON = new GsonBuilder().serializeNulls().create();
 
     private McpToolUtils() {
     }
@@ -82,6 +84,13 @@ public final class McpToolUtils {
      */
     public static int normalizeVersion( final int version ) {
         return Math.max( version, 1 );
+    }
+
+    /**
+     * Formats a {@link Date} as an ISO-8601 instant string, or returns {@code null} if the date is {@code null}.
+     */
+    public static String formatTimestamp( final Date date ) {
+        return date != null ? date.toInstant().toString() : null;
     }
 
     /**

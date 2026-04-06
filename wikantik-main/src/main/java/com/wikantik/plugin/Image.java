@@ -192,7 +192,7 @@ public class Image implements Plugin {
 
     private static void buildLinkOpen( final StringBuilder sb, final String link, final String target ) {
         if( link != null ) {
-            sb.append( "<a href=\"" ).append( link ).append( "\"" );
+            sb.append( "<a href=\"" ).append( TextUtil.replaceEntities( link ) ).append( "\"" );
             appendAttr( sb, "target", target );
             sb.append( ">" );
         }
@@ -201,7 +201,7 @@ public class Image implements Plugin {
     private static void buildImgTag( final StringBuilder sb, final String src,
                                       final String ht, final String wt,
                                       final String alt, final String border ) {
-        sb.append( "<img src=\"" ).append( src ).append( "\"" );
+        sb.append( "<img src=\"" ).append( TextUtil.replaceEntities( src ) ).append( "\"" );
         appendAttr( sb, "height", ht );
         appendAttr( sb, "width", wt );
         appendAttr( sb, "alt", alt );
@@ -211,7 +211,7 @@ public class Image implements Plugin {
 
     private static void appendAttr( final StringBuilder sb, final String name, final String value ) {
         if( value != null ) {
-            sb.append( " " ).append( name ).append( "=\"" ).append( value ).append( "\"" );
+            sb.append( " " ).append( name ).append( "=\"" ).append( TextUtil.replaceEntities( value ) ).append( "\"" );
         }
     }
 

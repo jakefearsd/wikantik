@@ -158,13 +158,13 @@ import java.util.Set;
  *  &nbsp;&nbsp;...<br/>
  *  &nbsp;&nbsp;&lt;Resource name="jdbc/UserDatabase" auth="Container"<br/>
  *  &nbsp;&nbsp;&nbsp;&nbsp;type="javax.sql.DataSource" username="dbusername" password="dbpassword"<br/>
- *  &nbsp;&nbsp;&nbsp;&nbsp;driverClassName="org.hsql.jdbcDriver" url="jdbc:HypersonicSQL:database"<br/>
+ *  &nbsp;&nbsp;&nbsp;&nbsp;driverClassName="org.postgresql.Driver" url="jdbc:postgresql://localhost:5432/wikantik"<br/>
  *  &nbsp;&nbsp;&nbsp;&nbsp;maxActive="8" maxIdle="4"/&gt;<br/>
  *  &nbsp;...<br/>
  * &lt;/Context&gt;</code></blockquote>
  * <p>
  * To configure JSPWiki to use JDBC support, first create a database 
- * with a structure similar to that provided by the HSQL and PostgreSQL 
+ * with a structure similar to that provided by the PostgreSQL
  * scripts in src/main/config/db.  If you have different table or column 
  * names you can either alias them with a database view and have JSPWiki
  * use the views, or alter the WEB-INF/wikantik.properties file: the 

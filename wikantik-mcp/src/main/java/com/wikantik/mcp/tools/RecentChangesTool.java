@@ -96,7 +96,7 @@ public class RecentChangesTool implements McpTool {
                         final Map< String, Object > entry = new LinkedHashMap<>();
                         entry.put( "pageName", p.getName() );
                         entry.put( "author", p.getAuthor() );
-                        entry.put( "lastModified", p.getLastModified() != null ? p.getLastModified().toInstant().toString() : null );
+                        entry.put( "lastModified", McpToolUtils.formatTimestamp( p.getLastModified() ) );
                         final String changeNote = p.getAttribute( Page.CHANGENOTE );
                         entry.put( "changeNote", changeNote );
                         if ( systemPageRegistry != null ) {

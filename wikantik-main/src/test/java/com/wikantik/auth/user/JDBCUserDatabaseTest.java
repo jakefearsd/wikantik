@@ -18,8 +18,7 @@
  */
 package com.wikantik.auth.user;
 
-import com.wikantik.HsqlDbUtils;
-import com.wikantik.TestJDBCDataSource;
+import com.wikantik.PostgresTestContainer;
 import com.wikantik.TestJNDIContext;
 import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.auth.NoSuchPrincipalException;
@@ -35,12 +34,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NameAlreadyBoundException;
 import javax.sql.DataSource;
-import java.io.File;
 import java.io.Serializable;
 import java.security.Principal;
 import java.sql.Connection;
@@ -53,9 +52,9 @@ import java.util.Properties;
 /**
  *
  */
+@Testcontainers( disabledWithoutDocker = true )
 @TestInstance( TestInstance.Lifecycle.PER_CLASS )
 public class JDBCUserDatabaseTest {
-    private final HsqlDbUtils m_hu = new HsqlDbUtils();
     private DataSource m_ds;
 
     private JDBCUserDatabase m_db;
@@ -78,7 +77,7 @@ public class JDBCUserDatabaseTest {
 
     @BeforeAll
     void startDatabase() throws Exception {
-        m_hu.setUp();
+        m_ds = PostgresTestContainer.createDataSource();
         // Set up the mock JNDI initial context
         TestJNDIContext.initialize();
         final Context initCtx = new InitialContext();
@@ -88,7 +87,6 @@ public class JDBCUserDatabaseTest {
             // ignore
         }
         final Context ctx = ( Context ) initCtx.lookup( "java:comp/env" );
-        m_ds = new TestJDBCDataSource( new File( "target/test-classes/wikantik-custom.properties" ), m_hu.getDriverUrl() );
         ctx.bind( AbstractJDBCDatabase.DEFAULT_DATASOURCE, m_ds );
 
         m_db = new JDBCUserDatabase();
@@ -109,8 +107,8 @@ public class JDBCUserDatabaseTest {
     }
 
     @AfterAll
-    void stopDatabase() throws Exception {
-        m_hu.tearDown();
+    void stopDatabase() {
+        // Container is managed by PostgresTestContainer singleton
     }
 
     @Test

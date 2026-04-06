@@ -18,6 +18,7 @@
  */
 package com.wikantik.plugin;
 
+import com.wikantik.PostgresTestContainer;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
@@ -26,6 +27,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import org.junit.jupiter.api.*;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -35,6 +37,7 @@ import java.util.UUID;
 import static com.wikantik.TestEngine.with;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Testcontainers( disabledWithoutDocker = true )
 class RelationshipsPluginTest {
 
     private static DataSource dataSource;
@@ -43,14 +46,7 @@ class RelationshipsPluginTest {
 
     @BeforeAll
     static void setUp() throws Exception {
-        final org.h2.jdbcx.JdbcDataSource ds = new org.h2.jdbcx.JdbcDataSource();
-        ds.setURL( "jdbc:h2:mem:relationships_plugin_test;DB_CLOSE_DELAY=-1" );
-        dataSource = ds;
-        try( final Connection conn = ds.getConnection() ) {
-            final String ddl = new String(
-                RelationshipsPluginTest.class.getResourceAsStream( "/knowledge-h2.sql" ).readAllBytes() );
-            conn.createStatement().execute( ddl );
-        }
+        dataSource = PostgresTestContainer.createDataSource();
 
         engine = TestEngine.build( with( "wikantik.cache.enable", "false" ) );
         final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( dataSource );
@@ -58,7 +54,7 @@ class RelationshipsPluginTest {
         engine.setManager( KnowledgeGraphService.class, service );
     }
 
-    @AfterEach
+    @BeforeEach
     void cleanUp() throws Exception {
         try( final Connection conn = dataSource.getConnection() ) {
             conn.createStatement().execute( "DELETE FROM kg_edges" );

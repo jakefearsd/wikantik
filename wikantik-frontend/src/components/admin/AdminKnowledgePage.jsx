@@ -2,12 +2,14 @@ import { useState } from 'react';
 import ProposalReviewQueue from './ProposalReviewQueue';
 import GraphExplorer from './GraphExplorer';
 import EdgeExplorer from './EdgeExplorer';
+import EmbeddingsTab from './EmbeddingsTab';
 import '../../styles/admin.css';
 
 const TABS = [
   { id: 'proposals', label: 'Proposals' },
   { id: 'node-explorer', label: 'Node Explorer' },
   { id: 'edge-explorer', label: 'Edge Explorer' },
+  { id: 'embeddings', label: 'Embeddings' },
 ];
 
 export default function AdminKnowledgePage() {
@@ -31,6 +33,7 @@ export default function AdminKnowledgePage() {
       {activeTab === 'proposals' && <ProposalReviewQueue />}
       {activeTab === 'node-explorer' && <GraphExplorer />}
       {activeTab === 'edge-explorer' && <EdgeExplorer />}
+      {activeTab === 'embeddings' && <EmbeddingsTab />}
     </div>
   );
 }

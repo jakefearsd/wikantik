@@ -39,12 +39,16 @@ import javax.naming.NamingException;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+
 
 /**
  * A plugin that executes SELECT SQL queries against a database and displays the results as an HTML table.
@@ -204,11 +208,26 @@ public class JDBCPlugin implements Plugin {
     private static final int DEFAULT_MAXRESULTS = 50;
     private static final boolean DEFAULT_HEADER = true;
 
+    /** JNDI source names must be simple identifiers (alphanumeric, hyphens, underscores). */
+    private static final Pattern SAFE_SOURCE_NAME = Pattern.compile( "^[a-zA-Z0-9_-]{1,64}$" );
+
+    /** SQL keywords that are forbidden in user-supplied queries to prevent data modification or information leakage. */
+    private static final Set< String > FORBIDDEN_SQL_KEYWORDS = Set.of(
+            "insert", "update", "delete", "drop", "alter", "create", "truncate",
+            "grant", "revoke", "exec", "execute", "call", "merge", "into",
+            "union", "information_schema", "pg_catalog", "sys.", "sysobjects"
+    );
+
     /**
      * {@inheritDoc}
      */
     @Override
     public String execute( final Context context, final Map< String, String > params ) throws PluginException {
+        // Require admin permission — arbitrary SQL execution is a privileged operation
+        if ( !context.hasAdminPermissions() ) {
+            throw new PluginException( "The JDBC plugin requires administrator privileges." );
+        }
+
         final Engine engine = context.getEngine();
         final Properties props = engine.getWikiProperties();
 
@@ -231,24 +250,39 @@ public class JDBCPlugin implements Plugin {
             final String tableHtml = executeQuery( context, config, sql, maxResults, showHeader );
             return "<div class='" + TextUtil.replaceEntities( cssClass ) + "'>" + tableHtml + "</div>";
         } catch ( final SQLException e ) {
-            LOG.warn( "Database error executing query: {}: {}", sql, e.getMessage() );
-            throw new PluginException( "Database error: " + e.getMessage(), e );
+            LOG.warn( "Database error executing query: {}", e.getMessage() );
+            throw new PluginException( "Database query failed.", e );
         }
     }
 
     /**
      * Validates the SQL parameter and returns a normalized query.
+     * Rejects queries containing DML/DDL keywords and multiple statements.
      */
-    private String validateAndGetSql( final String sqlParam ) throws PluginException {
+    String validateAndGetSql( final String sqlParam ) throws PluginException {
         final String sql = StringUtils.defaultIfBlank( sqlParam, DEFAULT_SQL ).trim();
+        final String lowerSql = sql.toLowerCase();
 
-        if ( !sql.toLowerCase().startsWith( "select" ) ) {
+        if ( !lowerSql.startsWith( "select" ) ) {
             throw new PluginException( "Only SELECT queries are allowed. Query must start with 'SELECT'." );
         }
 
-        // Basic SQL injection prevention - check for multiple statements
-        if ( sql.contains( ";" ) && !sql.trim().endsWith( ";" ) ) {
+        // Reject multiple statements (semicolons anywhere except trailing)
+        final String trimmed = sql.endsWith( ";" ) ? sql.substring( 0, sql.length() - 1 ) : sql;
+        if ( trimmed.contains( ";" ) ) {
             throw new PluginException( "Multiple SQL statements are not allowed." );
+        }
+
+        // Reject queries containing dangerous SQL keywords
+        for ( final String keyword : FORBIDDEN_SQL_KEYWORDS ) {
+            if ( lowerSql.contains( keyword ) ) {
+                throw new PluginException( "Query contains forbidden keyword: " + keyword );
+            }
+        }
+
+        // Reject comment sequences that could hide injected SQL
+        if ( lowerSql.contains( "--" ) || lowerSql.contains( "/*" ) ) {
+            throw new PluginException( "SQL comments are not allowed in queries." );
         }
 
         return sql;
@@ -313,31 +347,29 @@ public class JDBCPlugin implements Plugin {
 
     /**
      * Attempts to look up a JNDI DataSource.
+     * The source name must be a simple identifier (alphanumeric, hyphens, underscores)
+     * to prevent JNDI injection via crafted names like {@code rmi://attacker.com/Evil}.
      */
-    private DataSource lookupJndiDataSource( final String source ) {
+    private DataSource lookupJndiDataSource( final String source ) throws PluginException {
         if ( StringUtils.isBlank( source ) ) {
             return null;
         }
 
-        // Try various JNDI naming patterns
-        final String[] jndiPatterns = {
-            "java:/comp/env/jdbc/" + source,
-            "java:/comp/env/" + source,
-            "jdbc/" + source,
-            source
-        };
+        if ( !SAFE_SOURCE_NAME.matcher( source ).matches() ) {
+            throw new PluginException( "Invalid data source name: must contain only alphanumeric characters, hyphens, and underscores." );
+        }
 
-        for ( final String jndiName : jndiPatterns ) {
-            try {
-                final InitialContext ctx = new InitialContext();
-                final Object lookup = ctx.lookup( jndiName );
-                if ( lookup instanceof DataSource dataSource ) {
-                    LOG.debug( "Found JNDI DataSource at: {}", jndiName );
-                    return dataSource;
-                }
-            } catch ( final NamingException e ) {
-                LOG.trace( "JNDI lookup failed for {}: {}", jndiName, e.getMessage() );
+        // Only look up under the standard JNDI jdbc/ namespace
+        final String jndiName = "java:/comp/env/jdbc/" + source;
+        try {
+            final InitialContext ctx = new InitialContext();
+            final Object lookup = ctx.lookup( jndiName );
+            if ( lookup instanceof DataSource dataSource ) {
+                LOG.debug( "Found JNDI DataSource at: {}", jndiName );
+                return dataSource;
             }
+        } catch ( final NamingException e ) {
+            LOG.trace( "JNDI lookup failed for {}: {}", jndiName, e.getMessage() );
         }
 
         return null;
@@ -345,14 +377,15 @@ public class JDBCPlugin implements Plugin {
 
     /**
      * Executes the SQL query and returns HTML table markup.
+     * Uses PreparedStatement to prevent SQL injection through the query string.
      */
     private String executeQuery( final Context context, final ConnectionConfig config,
                                   final String sql, final int maxResults, final boolean showHeader ) throws SQLException, PluginException {
         final String limitedSql = addResultLimit( sql, config.getDatabaseType(), maxResults );
 
         try ( final Connection conn = config.getConnection();
-              final Statement stmt = conn.createStatement();
-              final ResultSet rs = stmt.executeQuery( limitedSql ) ) {
+              final PreparedStatement ps = conn.prepareStatement( limitedSql );
+              final ResultSet rs = ps.executeQuery() ) {
 
             return buildHtmlTable( rs, showHeader );
         }
@@ -375,7 +408,7 @@ public class JDBCPlugin implements Plugin {
 
         switch ( dbType.getLimitStyle() ) {
             case LIMIT:
-                if ( !lowerSql.contains( " limit " ) ) {
+                if ( !lowerSql.contains( " limit " ) && !lowerSql.contains( " fetch " ) ) {
                     return normalizedSql + " LIMIT " + maxResults;
                 }
                 break;

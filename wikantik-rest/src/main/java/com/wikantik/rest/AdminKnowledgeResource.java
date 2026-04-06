@@ -24,6 +24,7 @@ import com.google.gson.reflect.TypeToken;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.knowledge.EmbeddingService;
 import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.ParsedPage;
@@ -110,6 +111,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             case "nodes" -> handleGetNodes( service, request, response, segments );
             case "edges" -> handleGetEdges( service, request, response, segments );
             case "proposals" -> handleGetProposals( service, request, response );
+            case "embeddings" -> handleGetEmbeddings( request, response, segments );
             default -> sendNotFound( response, "Unknown resource: " + resource );
         }
     }
@@ -135,6 +137,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             case "nodes" -> handlePostNode( service, request, response, segments );
             case "edges" -> handlePostEdge( service, request, response );
             case "project-all" -> handleProjectAll( response );
+            case "embeddings" -> handlePostEmbeddings( response, segments );
             default -> sendNotFound( response, "Unknown resource: " + resource );
         }
     }
@@ -178,6 +181,16 @@ public class AdminKnowledgeResource extends RestServletBase {
                                  final HttpServletRequest request,
                                  final HttpServletResponse response,
                                  final String[] segments ) throws IOException {
+        if ( segments.length >= 3 && "similar".equals( segments[2] ) ) {
+            // GET /admin/knowledge/nodes/{name}/similar?limit=10
+            handleGetSimilarNodes( request, response, segments[1] );
+            return;
+        }
+        if ( segments.length >= 2 && "merge-candidates".equals( segments[1] ) ) {
+            // GET /admin/knowledge/nodes/merge-candidates?limit=10
+            handleGetMergeCandidates( request, response );
+            return;
+        }
         if ( segments.length >= 2 ) {
             // GET /admin/knowledge/nodes/{name}
             final String name = segments[1];
@@ -525,6 +538,160 @@ public class AdminKnowledgeResource extends RestServletBase {
         return map;
     }
 
+
+    // --- Embedding handlers ---
+
+    private EmbeddingService getEmbeddingService() {
+        return getEngine().getManager( EmbeddingService.class );
+    }
+
+    private void handleGetEmbeddings( final HttpServletRequest request,
+                                      final HttpServletResponse response,
+                                      final String[] segments ) throws IOException {
+        final EmbeddingService embSvc = getEmbeddingService();
+        if ( embSvc == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Embedding service not available" );
+            return;
+        }
+        if ( segments.length >= 2 && "status".equals( segments[1] ) ) {
+            // GET /admin/knowledge/embeddings/status
+            final var status = embSvc.getStatus();
+            final Map< String, Object > result = new LinkedHashMap<>();
+            result.put( "model_version", status.modelVersion() );
+            result.put( "dimension", status.dimension() );
+            result.put( "entity_count", status.entityCount() );
+            result.put( "relation_count", status.relationCount() );
+            result.put( "last_trained", status.lastTrained() != null ? status.lastTrained().toString() : null );
+            result.put( "training", status.training() );
+            result.put( "ready", embSvc.isReady() );
+            result.put( "content_ready", status.contentReady() );
+            result.put( "content_dimension", status.contentDimension() );
+            result.put( "content_entity_count", status.contentEntityCount() );
+            sendJson( response, result );
+        } else if ( segments.length >= 2 && "predicted".equals( segments[1] ) ) {
+            // GET /admin/knowledge/embeddings/predicted?limit=20
+            final int limit = parseIntParam( request, "limit", 20 );
+            sendJson( response, Map.of( "predictions", embSvc.predictMissingEdges( limit ) ) );
+        } else if ( segments.length >= 2 && "anomalous".equals( segments[1] ) ) {
+            // GET /admin/knowledge/embeddings/anomalous?limit=20
+            final int limit = parseIntParam( request, "limit", 20 );
+            sendJson( response, Map.of( "anomalous", embSvc.getAnomalousEdges( limit ) ) );
+        } else {
+            sendNotFound( response, "Unknown embeddings sub-resource" );
+        }
+    }
+
+    private void handlePostEmbeddings( final HttpServletResponse response,
+                                       final String[] segments ) throws IOException {
+        final EmbeddingService embSvc = getEmbeddingService();
+        if ( embSvc == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Embedding service not available" );
+            return;
+        }
+        if ( segments.length >= 2 && "retrain".equals( segments[1] ) ) {
+            // POST /admin/knowledge/embeddings/retrain
+            // If the graph is sparse, project all pages first so there's data to train on
+            final KnowledgeGraphService kgSvc = getKnowledgeService( response );
+            if ( kgSvc == null ) return;
+            final long nodeCount = kgSvc.queryNodes( null, null, 1, 0 ).size();
+            int projected = 0;
+            if ( nodeCount < 2 ) {
+                final PageManager pm = getEngine().getManager( PageManager.class );
+                final GraphProjector projector = getEngine().getManager( GraphProjector.class );
+                if ( pm != null && projector != null ) {
+                    try {
+                        for ( final Page page : pm.getAllPages() ) {
+                            try {
+                                final String text = pm.getPureText( page );
+                                final ParsedPage parsed = FrontmatterParser.parse( text );
+                                if ( !parsed.metadata().isEmpty() ) {
+                                    projector.projectPage( page.getName(), parsed.metadata() );
+                                    projected++;
+                                }
+                            } catch ( final Exception e ) {
+                                LOG.warn( "Failed to project page '{}': {}", page.getName(), e.getMessage() );
+                            }
+                        }
+                    } catch ( final Exception e ) {
+                        LOG.warn( "Auto-projection before KGE retrain failed: {}", e.getMessage() );
+                    }
+                    LOG.info( "Auto-projected {} pages before KGE retrain", projected );
+                }
+            }
+            embSvc.retrain();
+            final var status = embSvc.getStatus();
+            final Map< String, Object > result = new LinkedHashMap<>();
+            result.put( "message", "Retrained" );
+            result.put( "model_version", status.modelVersion() );
+            result.put( "entity_count", status.entityCount() );
+            result.put( "relation_count", status.relationCount() );
+            if ( projected > 0 ) result.put( "auto_projected", projected );
+            sendJson( response, result );
+        } else {
+            sendNotFound( response, "Unknown embeddings sub-resource" );
+        }
+    }
+
+    private void handleGetSimilarNodes( final HttpServletRequest request,
+                                        final HttpServletResponse response,
+                                        final String nodeName ) throws IOException {
+        final EmbeddingService embSvc = getEmbeddingService();
+        if ( embSvc == null || !embSvc.isReady() ) {
+            sendJson( response, Map.of( "structural", List.of(), "content", List.of() ) );
+            return;
+        }
+        final int limit = parseIntParam( request, "limit", 10 );
+        final String type = request.getParameter( "type" ) != null ? request.getParameter( "type" ) : "both";
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+
+        if ( "structural".equals( type ) || "both".equals( type ) ) {
+            final var structural = embSvc.getSimilarNodes( nodeName, limit );
+            result.put( "structural", structural.stream().map( p -> {
+                final Map< String, Object > m = new LinkedHashMap<>();
+                m.put( "name", p.entityName() );
+                m.put( "similarity", p.score() );
+                return m;
+            } ).toList() );
+        }
+
+        if ( "content".equals( type ) || "both".equals( type ) ) {
+            final var content = embSvc.getContentSimilarNodes( nodeName, limit );
+            result.put( "content", content.stream().map( cs -> {
+                final Map< String, Object > m = new LinkedHashMap<>();
+                m.put( "name", cs.name() );
+                m.put( "similarity", cs.similarity() );
+                return m;
+            } ).toList() );
+        }
+
+        // Backward compat: also include "similar" key for old clients
+        if ( "structural".equals( type ) ) {
+            result.put( "similar", result.get( "structural" ) );
+        }
+
+        sendJson( response, result );
+    }
+
+    private void handleGetMergeCandidates( final HttpServletRequest request,
+                                           final HttpServletResponse response ) throws IOException {
+        final EmbeddingService embSvc = getEmbeddingService();
+        if ( embSvc == null || !embSvc.isReady() ) {
+            sendJson( response, Map.of( "candidates", List.of() ) );
+            return;
+        }
+        final int limit = parseIntParam( request, "limit", 10 );
+        final var candidates = embSvc.getMergeCandidatesEnhanced( limit, 0.3 );
+        sendJson( response, Map.of( "candidates", candidates.stream().map( mc -> {
+            final Map< String, Object > m = new LinkedHashMap<>();
+            m.put( "name_a", mc.nameA() );
+            m.put( "name_b", mc.nameB() );
+            m.put( "structural", mc.structural() );
+            m.put( "content", mc.content() );
+            m.put( "combined", mc.combined() );
+            return m;
+        } ).toList() ) );
+    }
 
     private UUID parseUuid( final String str, final HttpServletResponse response ) throws IOException {
         try {

@@ -266,8 +266,9 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
      */
     private static Cookie getLoginCookie( final String value ) {
         final Cookie loginCookie = new Cookie( LOGIN_COOKIE_NAME, value );
-        loginCookie.setHttpOnly( true ); // no browser access
-        loginCookie.setSecure( true ); // only access via encrypted https allowed
+        loginCookie.setHttpOnly( true );
+        loginCookie.setSecure( true );
+        loginCookie.setAttribute( "SameSite", "Strict" );
         return loginCookie;
     }
 

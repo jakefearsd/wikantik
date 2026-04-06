@@ -82,8 +82,7 @@ public class GetPageHistoryTool implements McpTool {
                 final Map< String, Object > entry = new LinkedHashMap<>();
                 entry.put( "version", McpToolUtils.normalizeVersion( ver.getVersion() ) );
                 entry.put( "author", ver.getAuthor() );
-                entry.put( "lastModified", ver.getLastModified() != null
-                        ? ver.getLastModified().toInstant().toString() : null );
+                entry.put( "lastModified", McpToolUtils.formatTimestamp( ver.getLastModified() ) );
                 entry.put( "changeNote", ver.getAttribute( Page.CHANGENOTE ) );
                 versions.add( entry );
             }

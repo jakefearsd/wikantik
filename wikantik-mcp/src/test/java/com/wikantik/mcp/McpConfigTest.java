@@ -98,26 +98,26 @@ class McpConfigTest {
     }
 
     @Test
-    void testAccessKeyConfigured() {
+    void testAccessKeysConfigured() {
         final Properties props = new Properties();
-        props.setProperty( "mcp.access.key", "my-secret-key" );
+        props.setProperty( "mcp.access.keys", "my-secret-key" );
         final McpConfig config = new McpConfig( props );
-        assertEquals( "my-secret-key", config.accessKey() );
+        assertEquals( List.of( "my-secret-key" ), config.accessKeys() );
     }
 
     @Test
-    void testAccessKeyBlankReturnsNull() {
+    void testAccessKeysBlankReturnsEmpty() {
         final Properties props = new Properties();
-        props.setProperty( "mcp.access.key", "   " );
+        props.setProperty( "mcp.access.keys", "   " );
         final McpConfig config = new McpConfig( props );
-        assertNull( config.accessKey() );
+        assertTrue( config.accessKeys().isEmpty() );
     }
 
     @Test
-    void testAccessKeyAbsentReturnsNull() {
+    void testAccessKeysAbsentReturnsEmpty() {
         final Properties props = new Properties();
         final McpConfig config = new McpConfig( props );
-        assertNull( config.accessKey() );
+        assertTrue( config.accessKeys().isEmpty() );
     }
 
     @Test
@@ -151,23 +151,6 @@ class McpConfigTest {
         props.setProperty( "mcp.access.keys", "key1, key2, key3" );
         final McpConfig config = new McpConfig( props );
         assertEquals( List.of( "key1", "key2", "key3" ), config.accessKeys() );
-    }
-
-    @Test
-    void testAccessKeysLegacySingleKey() {
-        final Properties props = new Properties();
-        props.setProperty( "mcp.access.key", "legacy-key" );
-        final McpConfig config = new McpConfig( props );
-        assertEquals( List.of( "legacy-key" ), config.accessKeys() );
-    }
-
-    @Test
-    void testAccessKeysBothConfiguredPrefersPlural() {
-        final Properties props = new Properties();
-        props.setProperty( "mcp.access.keys", "new1, new2" );
-        props.setProperty( "mcp.access.key", "old-key" );
-        final McpConfig config = new McpConfig( props );
-        assertEquals( List.of( "new1", "new2" ), config.accessKeys() );
     }
 
     @Test

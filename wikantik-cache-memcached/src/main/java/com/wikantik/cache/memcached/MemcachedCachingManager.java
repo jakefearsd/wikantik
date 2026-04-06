@@ -95,8 +95,7 @@ public class MemcachedCachingManager implements CachingManager, Initializable {
     /** {@inheritDoc} */
     @Override
     public void initialize( final Engine engine, final Properties props ) throws WikiException {
-        final String cacheEnabled = props.getProperty( PROP_CACHE_ENABLE,
-                props.getProperty( "wikantik.usePageCache", "true" ) );
+        final String cacheEnabled = props.getProperty( PROP_CACHE_ENABLE, "true" );
         if( !"true".equalsIgnoreCase( cacheEnabled ) ) {
             return;
         }

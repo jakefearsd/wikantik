@@ -56,7 +56,7 @@ class SpaRoutingFilterTest {
         filter.doFilter( request, response, chain );
 
         verify( response ).sendRedirect( "/wiki/Main" );
-        verify( response ).setHeader( "Cache-Control", "no-cache" );
+        verify( response ).setHeader( "Cache-Control", "no-store" );
         verify( chain, never() ).doFilter( any(), any() );
     }
 
@@ -211,14 +211,14 @@ class SpaRoutingFilterTest {
     // ---- Cache-Control header tests ----
 
     @Test
-    void testSpaForwardSetsNoCacheHeader() throws Exception {
+    void testSpaForwardSetsNoStoreHeader() throws Exception {
         final HttpServletRequest request = mockRequest( "/wiki/SomePage" );
         final RequestDispatcher dispatcher = mock( RequestDispatcher.class );
         when( request.getRequestDispatcher( "/index.html" ) ).thenReturn( dispatcher );
 
         filter.doFilter( request, response, chain );
 
-        verify( response ).setHeader( "Cache-Control", "no-cache" );
+        verify( response ).setHeader( "Cache-Control", "no-store" );
     }
 
     // ---- Passthrough tests (static assets) ----

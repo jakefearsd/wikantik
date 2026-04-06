@@ -383,6 +383,12 @@ export const api = {
 
     getMergeCandidates: (limit = 10) =>
       request(`/admin/knowledge/nodes/merge-candidates?limit=${limit}`),
+
+    retrainContent: () =>
+      request('/admin/knowledge/embeddings/retrain-content', { method: 'POST' }),
+
+    getSimilarPagePairs: (limit = 50) =>
+      request(`/admin/knowledge/embeddings/similar-pages?limit=${limit}`),
   },
 
   // Public page similarity

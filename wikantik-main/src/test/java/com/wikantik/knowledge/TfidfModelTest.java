@@ -106,6 +106,48 @@ class TfidfModelTest {
     }
 
     @Test
+    void topSimilarPairsReturnsOrderedResults() {
+        final TfidfModel model = new TfidfModel();
+        model.build( List.of( "A", "B", "C", "D" ), List.of(
+            "machine learning algorithms for classification",
+            "machine learning models for prediction",
+            "chocolate cake recipe baking flour",
+            "baking recipes dessert cakes pastries"
+        ) );
+        final var pairs = model.topSimilarPairs( 3 );
+        assertEquals( 3, pairs.size() );
+        // Results should be sorted descending by score
+        for( int i = 0; i < pairs.size() - 1; i++ ) {
+            assertTrue( pairs.get( i ).score() >= pairs.get( i + 1 ).score(),
+                "Pairs should be sorted descending by score" );
+        }
+        // No self-pairs
+        for( final var pair : pairs ) {
+            assertNotEquals( pair.nameA(), pair.nameB() );
+        }
+    }
+
+    @Test
+    void topSimilarPairsWithFewerThanTwoEntitiesReturnsEmpty() {
+        final TfidfModel model = new TfidfModel();
+        model.build( List.of( "A" ), List.of( "hello world" ) );
+        assertTrue( model.topSimilarPairs( 10 ).isEmpty() );
+    }
+
+    @Test
+    void topSimilarPairsLimitIsRespected() {
+        final TfidfModel model = new TfidfModel();
+        model.build( List.of( "A", "B", "C" ), List.of(
+            "machine learning",
+            "deep learning",
+            "baking recipes"
+        ) );
+        // 3 entities → 3 possible pairs (A-B, A-C, B-C), ask for only 2
+        final var pairs = model.topSimilarPairs( 2 );
+        assertEquals( 2, pairs.size() );
+    }
+
+    @Test
     void stemmingReducesWordForms() {
         final TfidfModel model = new TfidfModel();
         model.build( List.of( "A", "B" ), List.of(

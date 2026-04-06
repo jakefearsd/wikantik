@@ -22,6 +22,8 @@ import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.knowledge.ComplExModel.Prediction;
 import com.wikantik.knowledge.EmbeddingService.*;
+import com.wikantik.knowledge.TfidfModel.SimilarPagePair;
+import com.wikantik.test.StubPageManager;
 import org.junit.jupiter.api.*;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -173,50 +175,107 @@ class EmbeddingServiceTest {
     }
 
     @Test
-    void retrainProducesContentModel() {
-        seedGraph();
-        service.retrain();
+    void retrainContentModelCoversAllPages() {
+        final StubPageManager pm = new StubPageManager();
+        pm.savePage( "MachineLearning", "# Machine Learning\nAlgorithms for classification and prediction" );
+        pm.savePage( "DeepLearning", "# Deep Learning\nNeural network architectures for ML" );
+        pm.savePage( "BakingRecipes", "# Baking\nCake recipes with flour and sugar" );
 
-        assertTrue( service.isContentReady() );
-        final var status = service.getStatus();
+        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm );
+        svcWithPages.retrainContentModel();
+
+        assertTrue( svcWithPages.isContentReady() );
+        final var status = svcWithPages.getStatus();
         assertTrue( status.contentReady() );
+        assertEquals( 3, status.contentEntityCount() );
         assertEquals( TfidfModel.DIMENSION, status.contentDimension() );
-        assertTrue( status.contentEntityCount() >= 6 );
+        assertNotNull( status.contentLastTrained() );
+    }
+
+    @Test
+    void topSimilarPagePairsReturnsOrderedResults() {
+        final StubPageManager pm = new StubPageManager();
+        pm.savePage( "MachineLearning", "Machine learning algorithms for classification and prediction" );
+        pm.savePage( "DeepLearning", "Deep learning neural network architectures for machine learning" );
+        pm.savePage( "BakingRecipes", "Cake recipes with flour sugar butter and baking powder" );
+        pm.savePage( "CookingBasics", "Basic cooking recipes kitchen techniques food preparation" );
+
+        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm );
+        svcWithPages.retrainContentModel();
+
+        final List< SimilarPagePair > pairs = svcWithPages.getTopSimilarPagePairs( 3 );
+        assertFalse( pairs.isEmpty() );
+        assertTrue( pairs.size() <= 3 );
+        // Descending by score
+        for( int i = 1; i < pairs.size(); i++ ) {
+            assertTrue( pairs.get( i ).score() <= pairs.get( i - 1 ).score() );
+        }
+    }
+
+    @Test
+    void topSimilarPagePairsReturnsEmptyWhenNoContentModel() {
+        assertTrue( service.getTopSimilarPagePairs( 10 ).isEmpty() );
+    }
+
+    @Test
+    void retrainContentModelWithNullPageManagerIsNoop() {
+        // service was created with pageManager=null
+        service.retrainContentModel();
+        assertFalse( service.isContentReady() );
     }
 
     @Test
     void contentSimilarNodesReturnResults() {
-        seedGraph();
-        service.retrain();
+        final StubPageManager pm = new StubPageManager();
+        pm.savePage( "ServiceA", "Service A handles user authentication and authorization" );
+        pm.savePage( "ServiceB", "Service B processes user requests and authentication" );
+        pm.savePage( "DatabaseX", "Database for storing transactional records" );
 
-        final List< ContentSimilarity > similar = service.getContentSimilarNodes( "ServiceA", 3 );
+        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm );
+        svcWithPages.retrainContentModel();
+
+        final List< ContentSimilarity > similar = svcWithPages.getContentSimilarNodes( "ServiceA", 2 );
         assertFalse( similar.isEmpty() );
-        assertTrue( similar.size() <= 3 );
+        assertTrue( similar.size() <= 2 );
+    }
+
+    @Test
+    void contentSimilarUnknownNodeReturnsEmpty() {
+        final StubPageManager pm = new StubPageManager();
+        pm.savePage( "TestPage", "Some content here" );
+
+        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm );
+        svcWithPages.retrainContentModel();
+        assertTrue( svcWithPages.getContentSimilarNodes( "NonExistent", 5 ).isEmpty() );
     }
 
     @Test
     void enhancedMergeCandidatesReturnBothScores() {
+        // Need both structural and content models — use pages that match graph nodes
+        final StubPageManager pm = new StubPageManager();
+        pm.savePage( "ServiceA", "Service A handles authentication" );
+        pm.savePage( "ServiceB", "Service B handles authentication" );
+        pm.savePage( "ServiceC", "Service C processes messages" );
+        pm.savePage( "ServiceD", "Service D processes messages" );
+        pm.savePage( "DatabaseX", "PostgreSQL database for storage" );
+        pm.savePage( "CacheY", "Redis cache layer" );
+        pm.savePage( "QueueZ", "Message queue system" );
+
+        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm );
         seedGraph();
-        service.retrain();
+        svcWithPages.retrain();
+        svcWithPages.retrainContentModel();
 
         final List< EnhancedMergeCandidate > candidates =
-            service.getMergeCandidatesEnhanced( 5, 0.0 );
+            svcWithPages.getMergeCandidatesEnhanced( 5, 0.0 );
         assertFalse( candidates.isEmpty() );
         for( final EnhancedMergeCandidate mc : candidates ) {
-            // Combined should be average of structural and content
             assertEquals( 0.5 * mc.structural() + 0.5 * mc.content(), mc.combined(), 1e-6 );
         }
         // Descending by combined
         for( int i = 1; i < candidates.size(); i++ ) {
             assertTrue( candidates.get( i ).combined() <= candidates.get( i - 1 ).combined() );
         }
-    }
-
-    @Test
-    void contentSimilarUnknownNodeReturnsEmpty() {
-        seedGraph();
-        service.retrain();
-        assertTrue( service.getContentSimilarNodes( "NonExistent", 5 ).isEmpty() );
     }
 
     // ---- Helper to populate the graph ----

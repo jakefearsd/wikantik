@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge;
 
+import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.managers.PageManager;
@@ -25,6 +26,7 @@ import com.wikantik.api.providers.PageProvider;
 import com.wikantik.knowledge.ComplExModel.Prediction;
 import com.wikantik.knowledge.ComplExModel.Triple;
 import com.wikantik.knowledge.TfidfModel.ScoredPair;
+import com.wikantik.knowledge.TfidfModel.SimilarPagePair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -64,10 +66,11 @@ public class EmbeddingService {
     public record EnhancedMergeCandidate( String nameA, String nameB,
                                            double structural, double content, double combined ) {}
 
-    /** Status of the structural embedding model. */
+    /** Status of the structural and content embedding models. */
     public record Status( int modelVersion, int dimension, int entityCount, int relationCount,
                           Instant lastTrained, boolean training,
-                          boolean contentReady, int contentDimension, int contentEntityCount ) {}
+                          boolean contentReady, int contentDimension, int contentEntityCount,
+                          Instant contentLastTrained, boolean contentTraining ) {}
 
     /** Content similarity result. */
     public record ContentSimilarity( String name, double similarity ) {}
@@ -79,9 +82,11 @@ public class EmbeddingService {
     private final AtomicReference< ComplExModel > currentModel = new AtomicReference<>();
     private final AtomicReference< TfidfModel > currentContentModel = new AtomicReference<>();
     private final AtomicReference< Instant > lastTrained = new AtomicReference<>();
+    private final AtomicReference< Instant > contentLastTrained = new AtomicReference<>();
     private volatile int modelVersion = 0;
     private volatile int contentModelVersion = 0;
     private volatile boolean training = false;
+    private volatile boolean contentTraining = false;
     private ScheduledExecutorService scheduler;
 
     // Hyperparameters (defaults, overridable via properties)
@@ -143,6 +148,11 @@ public class EmbeddingService {
                 retrain();
             } catch( final Exception e ) {
                 LOG.warn( "Scheduled KGE retrain failed", e );
+            }
+            try {
+                retrainContentModel();
+            } catch( final Exception e ) {
+                LOG.warn( "Scheduled content model retrain failed", e );
             }
         }, intervalMinutes, intervalMinutes, TimeUnit.MINUTES );
         LOG.info( "KGE periodic retraining scheduled every {} minutes", intervalMinutes );
@@ -231,9 +241,6 @@ public class EmbeddingService {
             final long complexElapsed = System.currentTimeMillis() - start;
             LOG.info( "ComplEx trained in {}ms: {} entities, {} relations, {} triples (version {})",
                 complexElapsed, entityNames.size(), relationNames.size(), triples.size(), modelVersion );
-
-            // Build TF-IDF content model
-            trainContentModel( nodes, entityNames );
         } finally {
             training = false;
         }
@@ -252,7 +259,9 @@ public class EmbeddingService {
             training,
             cm != null,
             cm != null ? cm.getDimension() : TfidfModel.DIMENSION,
-            cm != null ? cm.getEntityCount() : 0
+            cm != null ? cm.getEntityCount() : 0,
+            contentLastTrained.get(),
+            contentTraining
         );
     }
 
@@ -479,36 +488,79 @@ public class EmbeddingService {
 
     // ---- Content model training ----
 
-    private void trainContentModel( final List< KgNode > nodes, final List< String > entityNames ) {
+    /**
+     * Retrains the TF-IDF content model on ALL wiki pages (not just KG nodes).
+     * Each page's text is stripped of markdown and vectorized. Pages that are also
+     * KG nodes get their entity_id stored; others have null entity_id.
+     */
+    public synchronized void retrainContentModel() {
+        if( pageManager == null ) {
+            LOG.warn( "Cannot retrain content model: no PageManager available" );
+            return;
+        }
+        if( contentTraining ) return;
+        contentTraining = true;
         try {
             final long start = System.currentTimeMillis();
-            final List< String > documents = new ArrayList<>( nodes.size() );
-            for( final KgNode node : nodes ) {
-                String pageBody = null;
-                if( node.sourcePage() != null && pageManager != null ) {
-                    try {
-                        pageBody = pageManager.getPureText( node.sourcePage(), PageProvider.LATEST_VERSION );
-                    } catch( final Exception e ) {
-                        LOG.warn( "Failed to load page text for '{}': {}", node.sourcePage(), e.getMessage() );
+
+            final Collection< Page > allPages = pageManager.getAllPages();
+            final List< String > names = new ArrayList<>( allPages.size() );
+            final List< String > documents = new ArrayList<>( allPages.size() );
+
+            for( final Page page : allPages ) {
+                final String pageName = page.getName();
+                try {
+                    final String text = pageManager.getPureText( page );
+                    final String stripped = NodeTextAssembler.stripMarkdown( text != null ? text : "" );
+
+                    // Build document: page name boosted 3x + stripped body
+                    final StringBuilder doc = new StringBuilder();
+                    doc.append( pageName ).append( ' ' ).append( pageName ).append( ' ' ).append( pageName );
+                    if( !stripped.isBlank() ) {
+                        doc.append( ' ' ).append( stripped );
                     }
+
+                    names.add( pageName );
+                    documents.add( doc.toString() );
+                } catch( final Exception e ) {
+                    LOG.warn( "Failed to load page text for '{}': {}", pageName, e.getMessage() );
                 }
-                documents.add( NodeTextAssembler.assemble( node, pageBody ) );
+            }
+
+            if( names.isEmpty() ) {
+                LOG.info( "No pages found for content model training" );
+                return;
             }
 
             final TfidfModel contentModel = new TfidfModel();
-            contentModel.build( entityNames, documents );
+            contentModel.build( names, documents );
+
+            // Build entity UUID map — pages with KG nodes get their UUID, others get null
+            final Map< String, UUID > pageUuids = new HashMap<>( entityUuids );
 
             contentModelVersion++;
-            contentEmbeddingRepo.saveEmbeddings( contentModelVersion, contentModel, entityUuids );
+            contentEmbeddingRepo.saveEmbeddings( contentModelVersion, contentModel, pageUuids );
             contentEmbeddingRepo.deleteOldVersions( contentModelVersion );
             currentContentModel.set( contentModel );
+            contentLastTrained.set( Instant.now() );
 
             final long elapsed = System.currentTimeMillis() - start;
-            LOG.info( "TF-IDF content model trained in {}ms: {} entities, dim {} (version {})",
-                elapsed, entityNames.size(), TfidfModel.DIMENSION, contentModelVersion );
+            LOG.info( "TF-IDF content model trained in {}ms: {} pages, dim {} (version {})",
+                elapsed, names.size(), TfidfModel.DIMENSION, contentModelVersion );
         } catch( final Exception e ) {
             LOG.warn( "Content model training failed: {}", e.getMessage() );
+        } finally {
+            contentTraining = false;
         }
+    }
+
+    /**
+     * Returns the top-K most similar page pairs across the entire content corpus.
+     */
+    public List< SimilarPagePair > getTopSimilarPagePairs( final int limit ) {
+        final TfidfModel cm = currentContentModel.get();
+        if( cm == null ) return List.of();
+        return cm.topSimilarPairs( limit );
     }
 
     private static String tripleKey( final String src, final String rel, final String tgt ) {

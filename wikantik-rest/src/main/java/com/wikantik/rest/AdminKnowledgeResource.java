@@ -567,6 +567,8 @@ public class AdminKnowledgeResource extends RestServletBase {
             result.put( "content_ready", status.contentReady() );
             result.put( "content_dimension", status.contentDimension() );
             result.put( "content_entity_count", status.contentEntityCount() );
+            result.put( "content_last_trained", status.contentLastTrained() != null ? status.contentLastTrained().toString() : null );
+            result.put( "content_training", status.contentTraining() );
             sendJson( response, result );
         } else if ( segments.length >= 2 && "predicted".equals( segments[1] ) ) {
             // GET /admin/knowledge/embeddings/predicted?limit=20
@@ -576,6 +578,10 @@ public class AdminKnowledgeResource extends RestServletBase {
             // GET /admin/knowledge/embeddings/anomalous?limit=20
             final int limit = parseIntParam( request, "limit", 20 );
             sendJson( response, Map.of( "anomalous", embSvc.getAnomalousEdges( limit ) ) );
+        } else if ( segments.length >= 2 && "similar-pages".equals( segments[1] ) ) {
+            // GET /admin/knowledge/embeddings/similar-pages?limit=50
+            final int limit = parseIntParam( request, "limit", 50 );
+            sendJson( response, Map.of( "pairs", embSvc.getTopSimilarPagePairs( limit ) ) );
         } else {
             sendNotFound( response, "Unknown embeddings sub-resource" );
         }
@@ -627,6 +633,15 @@ public class AdminKnowledgeResource extends RestServletBase {
             result.put( "relation_count", status.relationCount() );
             if ( projected > 0 ) result.put( "auto_projected", projected );
             sendJson( response, result );
+        } else if ( segments.length >= 2 && "retrain-content".equals( segments[1] ) ) {
+            // POST /admin/knowledge/embeddings/retrain-content
+            embSvc.retrainContentModel();
+            final var cStatus = embSvc.getStatus();
+            final Map< String, Object > cResult = new LinkedHashMap<>();
+            cResult.put( "message", "Content model retrained" );
+            cResult.put( "content_entity_count", cStatus.contentEntityCount() );
+            cResult.put( "content_dimension", cStatus.contentDimension() );
+            sendJson( response, cResult );
         } else {
             sendNotFound( response, "Unknown embeddings sub-resource" );
         }

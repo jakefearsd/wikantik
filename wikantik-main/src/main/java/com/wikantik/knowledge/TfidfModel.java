@@ -44,6 +44,9 @@ public class TfidfModel {
     /** A scored entity pair from similarity search. */
     public record ScoredPair( String name, double score ) {}
 
+    /** A scored pair of entities from all-pairs similarity. */
+    public record SimilarPagePair( String nameA, String nameB, double score ) {}
+
     private List< String > entityNames;
     private Map< String, Integer > entityIndex;
     private float[][] vectors; // [entityCount][DIMENSION]
@@ -132,6 +135,30 @@ public class TfidfModel {
         }
         final List< ScoredPair > result = new ArrayList<>( pq );
         result.sort( Comparator.comparingDouble( ScoredPair::score ).reversed() );
+        return result;
+    }
+
+    /**
+     * Finds the top-K most similar page pairs across the entire corpus.
+     * Brute-force all-pairs comparison using cosine similarity (dot product on L2-normalized vectors).
+     */
+    public List< SimilarPagePair > topSimilarPairs( final int topK ) {
+        if( vectors == null || vectors.length < 2 ) return List.of();
+        final PriorityQueue< SimilarPagePair > pq = new PriorityQueue<>(
+            Comparator.comparingDouble( SimilarPagePair::score ) );
+        for( int i = 0; i < vectors.length; i++ ) {
+            for( int j = i + 1; j < vectors.length; j++ ) {
+                final double sim = similarity( i, j );
+                if( pq.size() < topK ) {
+                    pq.add( new SimilarPagePair( entityNames.get( i ), entityNames.get( j ), sim ) );
+                } else if( sim > pq.peek().score() ) {
+                    pq.poll();
+                    pq.add( new SimilarPagePair( entityNames.get( i ), entityNames.get( j ), sim ) );
+                }
+            }
+        }
+        final List< SimilarPagePair > result = new ArrayList<>( pq );
+        result.sort( Comparator.comparingDouble( SimilarPagePair::score ).reversed() );
         return result;
     }
 

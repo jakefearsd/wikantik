@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 
-export default function EmbeddingsTab() {
+export default function KgEmbeddingsTab() {
   const [status, setStatus] = useState(null);
   const [predictions, setPredictions] = useState([]);
   const [anomalous, setAnomalous] = useState([]);
@@ -95,13 +95,6 @@ export default function EmbeddingsTab() {
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
-          <span><strong>Content:</strong> {status?.content_ready ? 'Ready' : 'Not trained'}</span>
-          {status?.content_ready && (
-            <>
-              <span>{status.content_entity_count} entities</span>
-              <span>dim {status.content_dimension}</span>
-            </>
-          )}
           {status?.last_trained && (
             <span><strong>Trained:</strong> {new Date(status.last_trained).toLocaleString()}</span>
           )}

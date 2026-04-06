@@ -79,11 +79,8 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
     private static final Logger LOG = LogManager.getLogger( DefaultAuthorizationManager.class );
 
-    /** Property name for the database table holding policy grants. */
-    public static final String PROP_POLICY_TABLE = "wikantik.policy.table";
-
-    /** Default table name for database-backed policy grants. */
-    public static final String DEFAULT_POLICY_TABLE = "policy_grants";
+    /** Table name for database-backed policy grants — matches the DDL in postgresql-permissions.ddl. */
+    static final String POLICY_TABLE = "policy_grants";
 
     /** Property name for the bootstrap admin override. When set, the named user bypasses all policy checks. */
     public static final String PROP_BOOTSTRAP_ADMIN = "wikantik.admin.bootstrap";
@@ -287,11 +284,10 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         final String datasource = properties.getProperty( AbstractJDBCDatabase.PROP_DATASOURCE );
         if ( datasource != null && !datasource.isBlank() ) {
             try {
-                final String tableName = properties.getProperty( PROP_POLICY_TABLE, DEFAULT_POLICY_TABLE );
                 final javax.naming.Context initCtx = new javax.naming.InitialContext();
                 final javax.naming.Context ctx = (javax.naming.Context) initCtx.lookup( "java:comp/env" );
                 final DataSource policyDs = (DataSource) ctx.lookup( datasource );
-                databasePolicy = new DatabasePolicy( policyDs, tableName );
+                databasePolicy = new DatabasePolicy( policyDs, POLICY_TABLE );
                 LOG.info( "Initialized database-backed security policy from JNDI DataSource: {}", datasource );
             } catch ( final Exception e ) {
                 LOG.error( "Could not initialize database security policy: {}", e.getMessage() );

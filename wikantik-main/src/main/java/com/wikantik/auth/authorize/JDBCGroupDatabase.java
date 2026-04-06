@@ -67,7 +67,7 @@ import java.util.Set;
  *  &nbsp;&nbsp;...<br/>
  *  &nbsp;&nbsp;&lt;Resource name="jdbc/GroupDatabase" auth="Container"<br/>
  *  &nbsp;&nbsp;&nbsp;&nbsp;type="javax.sql.DataSource" username="dbusername" password="dbpassword"<br/>
- *  &nbsp;&nbsp;&nbsp;&nbsp;driverClassName="org.hsql.jdbcDriver" url="jdbc:HypersonicSQL:database"<br/>
+ *  &nbsp;&nbsp;&nbsp;&nbsp;driverClassName="org.postgresql.Driver" url="jdbc:postgresql://localhost:5432/wikantik"<br/>
  *  &nbsp;&nbsp;&nbsp;&nbsp;maxActive="8" maxIdle="4"/&gt;<br/>
  *  &nbsp;...<br/>
  * &lt;/Context&gt;</code></blockquote>

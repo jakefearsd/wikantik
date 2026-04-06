@@ -93,7 +93,7 @@ public class AttachmentServlet extends HttpServlet {
     private static final String HDR_VERSION = "version";
 
     /** The maximum size that an attachment can be. */
-    private int maxSize = Integer.MAX_VALUE;
+    private long maxSize = Integer.MAX_VALUE;
 
     /** List of attachment types which are allowed */
     private String[] allowedPatterns;
@@ -187,7 +187,7 @@ public class AttachmentServlet extends HttpServlet {
      *  Sets the allowed/forbidden extension patterns and max upload size.
      *  Package-private so unit tests can configure these without calling {@link #init}.
      */
-    void setUploadConstraints( final String[] allowedPatterns, final String[] forbiddenPatterns, final int maxSize ) {
+    void setUploadConstraints( final String[] allowedPatterns, final String[] forbiddenPatterns, final long maxSize ) {
         this.allowedPatterns = allowedPatterns != null ? allowedPatterns : new String[0];
         this.forbiddenPatterns = forbiddenPatterns != null ? forbiddenPatterns : new String[0];
         this.maxSize = maxSize;
@@ -461,7 +461,7 @@ public class AttachmentServlet extends HttpServlet {
             final JakartaServletFileUpload upload = new JakartaServletFileUpload( factory );
             upload.setHeaderCharset(StandardCharsets.UTF_8);
             if( !context.hasAdminPermissions() ) {
-                upload.setFileSizeMax( maxSize );
+                upload.setMaxFileSize( maxSize );
             }
             upload.setProgressListener( pl );
             final List<FileItem> items = upload.parseRequest( req );

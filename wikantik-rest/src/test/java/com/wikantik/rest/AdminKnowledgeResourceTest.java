@@ -23,6 +23,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
+import com.wikantik.PostgresTestContainer;
 import com.wikantik.TestEngine;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
@@ -40,6 +41,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.io.PrintWriter;
@@ -50,6 +52,7 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Testcontainers( disabledWithoutDocker = true )
 class AdminKnowledgeResourceTest {
 
     private static DataSource dataSource;
@@ -58,15 +61,8 @@ class AdminKnowledgeResourceTest {
     private final Gson gson = new Gson();
 
     @BeforeAll
-    static void initDataSource() throws Exception {
-        final org.h2.jdbcx.JdbcDataSource ds = new org.h2.jdbcx.JdbcDataSource();
-        ds.setURL( "jdbc:h2:mem:knowledge_rest_test;DB_CLOSE_DELAY=-1" );
-        dataSource = ds;
-        try ( final Connection conn = ds.getConnection() ) {
-            final String ddl = new String(
-                    AdminKnowledgeResourceTest.class.getResourceAsStream( "/knowledge-h2.sql" ).readAllBytes() );
-            conn.createStatement().execute( ddl );
-        }
+    static void initDataSource() {
+        dataSource = PostgresTestContainer.createDataSource();
     }
 
     @BeforeEach
@@ -98,13 +94,6 @@ class AdminKnowledgeResourceTest {
         }
         if ( engine != null ) {
             engine.stop();
-        }
-    }
-
-    @AfterAll
-    static void shutdownDataSource() throws Exception {
-        try ( final Connection conn = dataSource.getConnection() ) {
-            conn.createStatement().execute( "SHUTDOWN" );
         }
     }
 

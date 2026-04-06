@@ -245,7 +245,7 @@ public final class PageChecks {
                     if ( ctx.page() != null && ctx.page().getLastModified() != null ) {
                         yield Map.of( "action", "set_metadata",
                                 "field", "date",
-                                "proposedValue", ctx.page().getLastModified().toInstant().toString(),
+                                "proposedValue", McpToolUtils.formatTimestamp( ctx.page().getLastModified() ),
                                 "reason", "Missing date — using last modified date" );
                     }
                     yield null;

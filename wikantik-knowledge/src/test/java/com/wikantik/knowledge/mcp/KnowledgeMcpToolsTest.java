@@ -19,11 +19,13 @@
 package com.wikantik.knowledge.mcp;
 
 import com.google.gson.Gson;
+import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.*;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -32,21 +34,15 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Testcontainers( disabledWithoutDocker = true )
 class KnowledgeMcpToolsTest {
 
     private static DataSource dataSource;
     private KnowledgeGraphService service;
 
     @BeforeAll
-    static void initDataSource() throws Exception {
-        final org.h2.jdbcx.JdbcDataSource ds = new org.h2.jdbcx.JdbcDataSource();
-        ds.setURL( "jdbc:h2:mem:kg_mcp_test;DB_CLOSE_DELAY=-1" );
-        dataSource = ds;
-        try ( final Connection conn = ds.getConnection() ) {
-            final String ddl = new String(
-                KnowledgeMcpToolsTest.class.getResourceAsStream( "/knowledge-h2.sql" ).readAllBytes() );
-            conn.createStatement().execute( ddl );
-        }
+    static void initDataSource() {
+        dataSource = PostgresTestContainer.createDataSource();
     }
 
     @BeforeEach

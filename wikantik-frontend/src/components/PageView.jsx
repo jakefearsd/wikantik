@@ -5,6 +5,7 @@ import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
 import PageMeta from './PageMeta';
 import MetadataPanel from './MetadataPanel';
+import SimilarPagesPanel from './SimilarPagesPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
 import CommentsPanel from './CommentsPanel';
 import '../styles/article.css';
@@ -153,6 +154,7 @@ export default function PageView() {
         </div>
       )}
       <MetadataPanel metadata={page.metadata} />
+      <SimilarPagesPanel pageName={name} />
       <ChangeNotesPanel pageName={name} />
 
       <article

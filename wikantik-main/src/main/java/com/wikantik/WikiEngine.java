@@ -52,6 +52,9 @@ import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.search.SearchManager;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
+import com.wikantik.knowledge.ContentEmbeddingRepository;
+import com.wikantik.knowledge.EmbeddingRepository;
+import com.wikantik.knowledge.EmbeddingService;
 import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
@@ -525,6 +528,17 @@ public class WikiEngine implements Engine {
             final GraphProjector projector = new GraphProjector( service );
             managers.put( GraphProjector.class, projector );
             getManager( FilterManager.class ).addPageFilter( projector, -1003 );
+
+            // KGE + content embeddings for similarity, link prediction, and merge detection
+            final EmbeddingRepository embeddingRepo = new EmbeddingRepository( ds );
+            final ContentEmbeddingRepository contentEmbeddingRepo = new ContentEmbeddingRepository( ds );
+            final EmbeddingService embeddingService = new EmbeddingService(
+                repo, embeddingRepo, contentEmbeddingRepo, getManager( PageManager.class ) );
+            embeddingService.configure( props );
+            managers.put( EmbeddingService.class, embeddingService );
+            final long retrainMinutes = Long.parseLong(
+                props.getProperty( EmbeddingService.PROP_RETRAIN_MINUTES, "60" ) );
+            embeddingService.startPeriodicRetraining( retrainMinutes );
 
             LOG.info( "Knowledge graph initialized with datasource '{}'", datasource );
         } catch( final Exception e ) {

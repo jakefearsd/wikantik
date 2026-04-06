@@ -85,7 +85,7 @@ public class GetAttachmentsTool implements McpTool {
                         final Map< String, Object > entry = new LinkedHashMap<>();
                         entry.put( "name", att.getFileName() );
                         entry.put( "size", att.getSize() );
-                        entry.put( "lastModified", att.getLastModified() != null ? att.getLastModified().toInstant().toString() : null );
+                        entry.put( "lastModified", McpToolUtils.formatTimestamp( att.getLastModified() ) );
                         return entry;
                     } )
                     .collect( Collectors.toList() );

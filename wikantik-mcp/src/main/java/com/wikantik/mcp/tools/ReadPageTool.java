@@ -92,7 +92,7 @@ public class ReadPageTool implements McpTool {
         result.put( "version", McpToolUtils.normalizeVersion( page.getVersion() ) );
         result.put( "contentHash", McpToolUtils.computeContentHash( rawText ) );
         result.put( "author", page.getAuthor() );
-        result.put( "lastModified", page.getLastModified() != null ? page.getLastModified().toInstant().toString() : null );
+        result.put( "lastModified", McpToolUtils.formatTimestamp( page.getLastModified() ) );
         if ( systemPageRegistry != null ) {
             result.put( "systemPage", systemPageRegistry.isSystemPage( page.getName() ) );
         }

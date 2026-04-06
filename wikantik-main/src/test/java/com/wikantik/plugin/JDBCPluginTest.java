@@ -65,81 +65,84 @@ class JDBCPluginTest {
         return Wiki.context().create( engine, page );
     }
 
-    // ============== SQL Validation Tests ==============
+    // ============== Admin Permission Requirement ==============
 
     @Test
-    void testRejectInsertQuery() throws Exception {
+    void testRequiresAdminPermission() throws Exception {
         final Context context = createContext();
         final Map< String, String > params = new HashMap<>();
-        params.put( JDBCPlugin.PARAM_SQL, "INSERT INTO users VALUES (1, 'test')" );
+        params.put( JDBCPlugin.PARAM_SQL, "SELECT 1" );
 
         final PluginException ex = Assertions.assertThrows( PluginException.class, () ->
             plugin.execute( context, params )
+        );
+        Assertions.assertTrue( ex.getMessage().contains( "administrator" ),
+                "Should require admin privileges: " + ex.getMessage() );
+    }
+
+    // ============== SQL Validation Tests (call validateAndGetSql directly) ==============
+
+    @Test
+    void testRejectInsertQuery() {
+        final PluginException ex = Assertions.assertThrows( PluginException.class, () ->
+            plugin.validateAndGetSql( "INSERT INTO users VALUES (1, 'test')" )
         );
         Assertions.assertTrue( ex.getMessage().contains( "SELECT" ), "Should mention SELECT requirement" );
     }
 
     @Test
-    void testRejectUpdateQuery() throws Exception {
-        final Context context = createContext();
-        final Map< String, String > params = new HashMap<>();
-        params.put( JDBCPlugin.PARAM_SQL, "UPDATE users SET name='hack'" );
-
+    void testRejectUpdateQuery() {
         final PluginException ex = Assertions.assertThrows( PluginException.class, () ->
-            plugin.execute( context, params )
+            plugin.validateAndGetSql( "UPDATE users SET name='hack'" )
         );
         Assertions.assertTrue( ex.getMessage().contains( "SELECT" ), "Should mention SELECT requirement" );
     }
 
     @Test
-    void testRejectDeleteQuery() throws Exception {
-        final Context context = createContext();
-        final Map< String, String > params = new HashMap<>();
-        params.put( JDBCPlugin.PARAM_SQL, "DELETE FROM users" );
-
+    void testRejectDeleteQuery() {
         final PluginException ex = Assertions.assertThrows( PluginException.class, () ->
-            plugin.execute( context, params )
+            plugin.validateAndGetSql( "DELETE FROM users" )
         );
         Assertions.assertTrue( ex.getMessage().contains( "SELECT" ), "Should mention SELECT requirement" );
     }
 
     @Test
-    void testRejectDropQuery() throws Exception {
-        final Context context = createContext();
-        final Map< String, String > params = new HashMap<>();
-        params.put( JDBCPlugin.PARAM_SQL, "DROP TABLE users" );
-
+    void testRejectDropQuery() {
         final PluginException ex = Assertions.assertThrows( PluginException.class, () ->
-            plugin.execute( context, params )
+            plugin.validateAndGetSql( "DROP TABLE users" )
         );
         Assertions.assertTrue( ex.getMessage().contains( "SELECT" ), "Should mention SELECT requirement" );
     }
 
     @Test
-    void testRejectMultipleStatements() throws Exception {
-        final Context context = createContext();
-        final Map< String, String > params = new HashMap<>();
-        params.put( JDBCPlugin.PARAM_SQL, "SELECT 1; DROP TABLE users" );
-
+    void testRejectMultipleStatements() {
         final PluginException ex = Assertions.assertThrows( PluginException.class, () ->
-            plugin.execute( context, params )
+            plugin.validateAndGetSql( "SELECT 1; DROP TABLE users" )
         );
         Assertions.assertTrue( ex.getMessage().contains( "Multiple" ), "Should mention multiple statements" );
     }
 
     @Test
-    void testAcceptSelectWithTrailingSemicolon() throws Exception {
-        final Context context = createContext();
-        final Map< String, String > params = new HashMap<>();
-        params.put( JDBCPlugin.PARAM_SQL, "SELECT 1;" );
-
-        // Should fail due to missing database config, not SQL validation
+    void testRejectUnionInjection() {
         final PluginException ex = Assertions.assertThrows( PluginException.class, () ->
-            plugin.execute( context, params )
+            plugin.validateAndGetSql( "SELECT 1 UNION SELECT password FROM users" )
         );
-        Assertions.assertTrue( ex.getMessage().contains( "database configuration" ) ||
-                               ex.getMessage().contains( "jdbc.url" ),
-                "Should fail due to missing config, not SQL validation: " + ex.getMessage() );
+        Assertions.assertTrue( ex.getMessage().contains( "forbidden" ), "Should reject UNION: " + ex.getMessage() );
+    }
+
+    @Test
+    void testRejectSqlComments() {
+        final PluginException ex = Assertions.assertThrows( PluginException.class, () ->
+            plugin.validateAndGetSql( "SELECT 1 -- hidden payload" )
+        );
+        Assertions.assertTrue( ex.getMessage().contains( "comment" ), "Should reject SQL comments: " + ex.getMessage() );
+    }
+
+    @Test
+    void testAcceptSelectWithTrailingSemicolon() throws PluginException {
+        // Should pass SQL validation (trailing semicolons are allowed)
+        final String result = plugin.validateAndGetSql( "SELECT 1;" );
+        Assertions.assertEquals( "SELECT 1;", result );
     }
 
     // ============== Database Type Detection Tests ==============
@@ -197,35 +200,20 @@ class JDBCPluginTest {
 
     // ============== Configuration Error Tests ==============
 
+    // ============== Configuration Error Tests (require admin — tested via admin error) ==============
+
     @Test
     void testMissingDatabaseConfiguration() throws Exception {
         final Context context = createContext();
         final Map< String, String > params = new HashMap<>();
         params.put( JDBCPlugin.PARAM_SQL, "SELECT 1" );
 
-        // Without any database configuration, plugin should fail with helpful message
+        // Non-admin context should be blocked before reaching config check
         final PluginException ex = Assertions.assertThrows( PluginException.class, () ->
             plugin.execute( context, params )
         );
-        Assertions.assertTrue( ex.getMessage().contains( "database configuration" ) ||
-                               ex.getMessage().contains( "jdbc.url" ),
-                "Should provide helpful error about missing configuration: " + ex.getMessage() );
-    }
-
-    @Test
-    void testMissingNamedSourceConfiguration() throws Exception {
-        final Context context = createContext();
-        final Map< String, String > params = new HashMap<>();
-        params.put( JDBCPlugin.PARAM_SOURCE, "nonexistent" );
-        params.put( JDBCPlugin.PARAM_SQL, "SELECT 1" );
-
-        // Request a named source that doesn't exist
-        final PluginException ex = Assertions.assertThrows( PluginException.class, () ->
-            plugin.execute( context, params )
-        );
-        Assertions.assertTrue( ex.getMessage().contains( "database configuration" ) ||
-                               ex.getMessage().contains( "jdbc.url" ),
-                "Should fail with missing config error: " + ex.getMessage() );
+        Assertions.assertTrue( ex.getMessage().contains( "administrator" ),
+                "Non-admin should be blocked: " + ex.getMessage() );
     }
 
     // ============== Limit Style Tests ==============
@@ -261,35 +249,18 @@ class JDBCPluginTest {
     // ============== Parameter Parsing Tests ==============
 
     @Test
-    void testDefaultSqlIsUsed() throws Exception {
-        final Context context = createContext();
-        final Map< String, String > params = new HashMap<>();
-        // Don't provide SQL parameter - should use default "select 1"
-
-        // Should fail due to no DB, not due to missing SQL parameter
-        final PluginException ex = Assertions.assertThrows( PluginException.class, () ->
-            plugin.execute( context, params )
-        );
-        // Error should be about missing database config, not about SQL
-        Assertions.assertTrue( ex.getMessage().contains( "database" ) || ex.getMessage().contains( "jdbc" ),
-            "Default SQL should be used, error should be about database config: " + ex.getMessage() );
+    void testDefaultSqlIsUsed() throws PluginException {
+        // Default SQL should pass validation
+        final String result = plugin.validateAndGetSql( null );
+        Assertions.assertEquals( "select 1", result );
     }
 
     @Test
-    void testCaseInsensitiveSelect() throws Exception {
-        final Context context = createContext();
-
-        // "SELECT", "select", "Select" should all be valid
+    void testCaseInsensitiveSelect() throws PluginException {
+        // "SELECT", "select", "Select" should all pass validation
         for ( final String selectKeyword : new String[]{ "SELECT", "select", "Select", "sElEcT" } ) {
-            final Map< String, String > params = new HashMap<>();
-            params.put( JDBCPlugin.PARAM_SQL, selectKeyword + " 1" );
-
-            final PluginException ex = Assertions.assertThrows( PluginException.class, () ->
-                plugin.execute( context, params )
-            );
-            // Should fail due to missing config, not SELECT validation
-            Assertions.assertFalse( ex.getMessage().toLowerCase().contains( "must start with" ),
-                selectKeyword + " should be accepted as valid SELECT: " + ex.getMessage() );
+            final String result = plugin.validateAndGetSql( selectKeyword + " 1" );
+            Assertions.assertEquals( selectKeyword + " 1", result );
         }
     }
 

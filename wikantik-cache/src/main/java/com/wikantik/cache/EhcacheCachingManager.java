@@ -78,7 +78,7 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
     /** {@inheritDoc} */
     @Override
     public void initialize( final Engine engine, final Properties props ) throws WikiException {
-        final String cacheEnabled = TextUtil.getStringProperty( props, PROP_CACHE_ENABLE, "wikantik.usePageCache", "true" );
+        final String cacheEnabled = TextUtil.getStringProperty( props, PROP_CACHE_ENABLE, "true" );
         final boolean useCache = "true".equalsIgnoreCase( cacheEnabled );
         final String confLocation = "/" + TextUtil.getStringProperty( props, PROP_CACHE_CONF_FILE, "ehcache-wikantik.xml" );
         if( useCache ) {

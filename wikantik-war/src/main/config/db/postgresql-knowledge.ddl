@@ -83,8 +83,42 @@ CREATE TABLE IF NOT EXISTS kg_rejections (
     UNIQUE(proposed_source, proposed_target, proposed_relationship)
 );
 
+-- pgvector extension for vector similarity
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Embeddings: ComplEx KGE vectors for structural similarity and link prediction
+-- Real and imaginary components are concatenated into a single vector(100) (dim 50 * 2)
+CREATE TABLE IF NOT EXISTS kg_embeddings (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_id       UUID,
+    entity_type     VARCHAR(20) NOT NULL CHECK (entity_type IN ('node', 'relation')),
+    entity_name     VARCHAR(255) NOT NULL,
+    embedding       vector(100) NOT NULL,
+    model_version   INTEGER NOT NULL DEFAULT 0,
+    created         TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE(entity_name, entity_type, model_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_kg_embeddings_entity ON kg_embeddings(entity_id, entity_type);
+CREATE INDEX IF NOT EXISTS idx_kg_embeddings_version ON kg_embeddings(model_version);
+
+-- Content embeddings: TF-IDF vectors for text-based content similarity
+CREATE TABLE IF NOT EXISTS kg_content_embeddings (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_id       UUID,
+    entity_name     VARCHAR(255) NOT NULL,
+    embedding       vector(512) NOT NULL,
+    model_version   INTEGER NOT NULL DEFAULT 0,
+    created         TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE(entity_name, model_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_kg_content_embeddings_version ON kg_content_embeddings(model_version);
+
 -- Grant permissions to application user (jspwiki)
 GRANT SELECT, INSERT, UPDATE, DELETE ON kg_nodes TO jspwiki;
 GRANT SELECT, INSERT, UPDATE, DELETE ON kg_edges TO jspwiki;
 GRANT SELECT, INSERT, UPDATE, DELETE ON kg_proposals TO jspwiki;
 GRANT SELECT, INSERT, UPDATE, DELETE ON kg_rejections TO jspwiki;
+GRANT SELECT, INSERT, UPDATE, DELETE ON kg_embeddings TO jspwiki;
+GRANT SELECT, INSERT, UPDATE, DELETE ON kg_content_embeddings TO jspwiki;

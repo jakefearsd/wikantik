@@ -43,7 +43,7 @@ class McpAccessFilterTest {
     private McpAccessFilter createFilter( final String key, final String cidrs ) {
         final Properties props = new Properties();
         if ( key != null ) {
-            props.setProperty( "mcp.access.key", key );
+            props.setProperty( "mcp.access.keys", key );
         }
         if ( cidrs != null ) {
             props.setProperty( "mcp.access.allowedCidrs", cidrs );
@@ -65,7 +65,7 @@ class McpAccessFilterTest {
     private McpAccessFilter createFilterWithRateLimiter( final String key, final McpRateLimiter rateLimiter ) {
         final Properties props = new Properties();
         if ( key != null ) {
-            props.setProperty( "mcp.access.key", key );
+            props.setProperty( "mcp.access.keys", key );
         }
         return new McpAccessFilter( new McpConfig( props ), rateLimiter );
     }

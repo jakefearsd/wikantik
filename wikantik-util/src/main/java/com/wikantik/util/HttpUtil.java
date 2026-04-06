@@ -289,6 +289,9 @@ public final class HttpUtil {
     public static void clearCookie( final HttpServletResponse response, final String cookieName ) {
         final Cookie cookie = new Cookie( cookieName, "" );
         cookie.setMaxAge( 0 );
+        cookie.setHttpOnly( true );
+        cookie.setSecure( true );
+        cookie.setAttribute( "SameSite", "Strict" );
         response.addCookie( cookie );
     }
 

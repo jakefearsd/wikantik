@@ -158,7 +158,7 @@ if [[ -f "${TOMCAT_DIR}/bin/shutdown.sh" ]]; then
     echo ""
     echo "Stopping Tomcat (if running)..."
     "${TOMCAT_DIR}/bin/shutdown.sh" 2>/dev/null || true
-    sleep 2
+    sleep 1
 fi
 
 # Rotate catalina.out (keep one previous version)
@@ -234,7 +234,7 @@ echo "==========================================="
 echo "Deployment Complete!"
 echo "==========================================="
 echo ""
-echo "To start the wiki:"
-echo "  ${TOMCAT_DIR}/bin/startup.sh"
-echo "  then open http://localhost:8080/"
+echo "Starting Tomcat..."
+"${TOMCAT_DIR}/bin/startup.sh"
+print_status "Tomcat started — open http://localhost:8080/"
 echo ""

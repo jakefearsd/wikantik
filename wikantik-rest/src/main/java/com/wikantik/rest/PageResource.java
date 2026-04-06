@@ -36,6 +36,7 @@ import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.content.PageRenamer;
+import com.wikantik.knowledge.EmbeddingService;
 import com.wikantik.content.WikiToMarkdownConverter;
 import com.wikantik.render.RenderingManager;
 
@@ -49,6 +50,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -74,11 +76,21 @@ public class PageResource extends RestServletBase {
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
 
-        final String pageName = extractPathParam( request );
-        if ( pageName == null || pageName.isEmpty() ) {
+        final String pathParam = extractPathParam( request );
+        if ( pathParam == null || pathParam.isEmpty() ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
             return;
         }
+
+        // GET /api/pages/{name}/similar — similar pages by KGE embedding
+        if ( pathParam.endsWith( "/similar" ) ) {
+            final String pageName = pathParam.substring( 0, pathParam.length() - "/similar".length() );
+            if ( !checkPagePermission( request, response, pageName, "view" ) ) return;
+            handleGetSimilarPages( request, response, pageName );
+            return;
+        }
+
+        final String pageName = pathParam;
         if ( !checkPagePermission( request, response, pageName, "view" ) ) return;
 
         LOG.debug( "GET page: {}", pageName );
@@ -463,6 +475,28 @@ public class PageResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Error renaming page: " + e.getMessage() );
         }
+    }
+
+    /**
+     * Returns similar pages based on KGE embedding similarity.
+     * Degrades gracefully — returns empty list when the embedding model is unavailable.
+     */
+    private void handleGetSimilarPages( final HttpServletRequest request,
+                                        final HttpServletResponse response,
+                                        final String pageName ) throws IOException {
+        final EmbeddingService embSvc = getEngine().getManager( EmbeddingService.class );
+        if ( embSvc == null || !embSvc.isReady() ) {
+            sendJson( response, Map.of( "similar", List.of() ) );
+            return;
+        }
+        final int limit = parseIntParam( request, "limit", 5 );
+        final var similar = embSvc.getSimilarNodes( pageName, limit );
+        sendJson( response, Map.of( "similar", similar.stream().map( p -> {
+            final Map< String, Object > m = new LinkedHashMap<>();
+            m.put( "name", p.entityName() );
+            m.put( "similarity", p.score() );
+            return m;
+        } ).toList() ) );
     }
 
 }

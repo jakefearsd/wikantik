@@ -6,6 +6,28 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-06** — fix: use Cache-Control no-store for SPA entry point to fix stale reload
+
+**2026-04-05** — build: configure mvn clean to remove frontend build output
+
+**2026-04-05** — refactor: merge wikantik-bootstrap module into wikantik-main
+
+**2026-04-05** — refactor: extract parseIntParam to RestServletBase, remove duplication
+
+**2026-04-05** — refactor: remove DSL wrapper classes, expose SPI directly through Wiki
+
+**2026-04-05** — refactor: remove filter backward-compatibility layer (BasePageFilter, FilterSupportOperations)
+
+**2026-04-05** — fix: remove duplicate allowHTML property (conflicting values)
+
+**2026-04-05** — refactor: delete unused CustomXMLOutputProcessor and FastSearch
+
+**2026-04-05** — docs: update auto-generated News page
+
+**2026-04-05** — refactor: consolidate PageCommand, WikiCommand, GroupCommand, RedirectCommand into GenericCommand
+
+**2026-04-05** — refactor: migrate remaining deprecated imports to wikantik-api
+
 **2026-04-05** — fix: skip Markdown checkbox syntax in link scanner, improve pageExists error message
 
 **2026-04-05** — chore: rotate catalina.out on redeploy

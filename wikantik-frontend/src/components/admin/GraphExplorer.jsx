@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../api/client';
 import NodeDetail from './NodeDetail';
 
+const PAGE_SIZE = 50;
+
 export default function GraphExplorer() {
   const [schema, setSchema] = useState(null);
   const [nodes, setNodes] = useState([]);
@@ -13,6 +15,7 @@ export default function GraphExplorer() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [projecting, setProjecting] = useState(false);
   const [projectResult, setProjectResult] = useState(null);
+  const [page, setPage] = useState(0);
 
   const refreshData = async () => {
     try {
@@ -32,6 +35,7 @@ export default function GraphExplorer() {
   }, []);
 
   const filtered = useMemo(() => {
+    setPage(0);
     const q = search.toLowerCase();
     return nodes.filter(n => {
       if (typeFilter && n.node_type !== typeFilter) return false;
@@ -40,6 +44,10 @@ export default function GraphExplorer() {
       return true;
     });
   }, [nodes, search, typeFilter, statusFilter]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const pageStart = page * PAGE_SIZE;
+  const pageNodes = filtered.slice(pageStart, pageStart + PAGE_SIZE);
 
   const handleProjectAll = async () => {
     setProjecting(true);
@@ -155,7 +163,7 @@ export default function GraphExplorer() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map(n => (
+            {pageNodes.map(n => (
               <tr
                 key={n.id}
                 onClick={() => handleNodeClick(n.name)}
@@ -163,9 +171,9 @@ export default function GraphExplorer() {
                 className={selectedNode?.name === n.name ? 'admin-row-selected' : ''}
               >
                 <td>{n.name}</td>
-                <td>{n.node_type || '-'}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>{n.node_type || '-'}</td>
                 <td>{n.properties?.status || '-'}</td>
-                <td>{n.provenance}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>{n.provenance}</td>
                 <td>{n.is_stub ? 'Yes' : ''}</td>
               </tr>
             ))}
@@ -174,6 +182,16 @@ export default function GraphExplorer() {
             )}
           </tbody>
         </table>
+
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'var(--space-sm)', fontSize: '0.85em' }}>
+            <span>{filtered.length} nodes — page {page + 1} of {totalPages}</span>
+            <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
+              <button className="btn btn-sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Prev</button>
+              <button className="btn btn-sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={{ flex: '1 1 50%' }}>

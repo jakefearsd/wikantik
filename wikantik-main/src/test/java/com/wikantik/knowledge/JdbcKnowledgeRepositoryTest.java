@@ -18,8 +18,10 @@
  */
 package com.wikantik.knowledge;
 
+import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.*;
 import org.junit.jupiter.api.*;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -27,36 +29,26 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Testcontainers( disabledWithoutDocker = true )
 class JdbcKnowledgeRepositoryTest {
 
     private static DataSource dataSource;
     private JdbcKnowledgeRepository repo;
 
     @BeforeAll
-    static void initDataSource() throws Exception {
-        final org.h2.jdbcx.JdbcDataSource ds = new org.h2.jdbcx.JdbcDataSource();
-        ds.setURL( "jdbc:h2:mem:knowledge_test;DB_CLOSE_DELAY=-1" );
-        dataSource = ds;
-        try( final Connection conn = ds.getConnection() ) {
-            final String ddl = new String(
-                JdbcKnowledgeRepositoryTest.class.getResourceAsStream( "/knowledge-h2.sql" ).readAllBytes() );
-            conn.createStatement().execute( ddl );
-        }
+    static void initDataSource() {
+        dataSource = PostgresTestContainer.createDataSource();
     }
 
     @BeforeEach
-    void setUp() {
-        repo = new JdbcKnowledgeRepository( dataSource );
-    }
-
-    @AfterEach
-    void cleanUp() throws Exception {
+    void setUp() throws Exception {
         try( final Connection conn = dataSource.getConnection() ) {
             conn.createStatement().execute( "DELETE FROM kg_edges" );
             conn.createStatement().execute( "DELETE FROM kg_proposals" );
             conn.createStatement().execute( "DELETE FROM kg_rejections" );
             conn.createStatement().execute( "DELETE FROM kg_nodes" );
         }
+        repo = new JdbcKnowledgeRepository( dataSource );
     }
 
     // --- Node tests ---

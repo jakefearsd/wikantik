@@ -364,5 +364,28 @@ export const api = {
 
     projectAll: () =>
       request('/admin/knowledge/project-all', { method: 'POST' }),
+
+    // Embedding endpoints
+    getEmbeddingStatus: () =>
+      request('/admin/knowledge/embeddings/status'),
+
+    retrain: () =>
+      request('/admin/knowledge/embeddings/retrain', { method: 'POST' }),
+
+    getSimilarNodes: (name, limit = 10, type = 'both') =>
+      request(`/admin/knowledge/nodes/${encodeURIComponent(name)}/similar?limit=${limit}&type=${type}`),
+
+    getPredictedEdges: (limit = 20) =>
+      request(`/admin/knowledge/embeddings/predicted?limit=${limit}`),
+
+    getAnomalousEdges: (limit = 20) =>
+      request(`/admin/knowledge/embeddings/anomalous?limit=${limit}`),
+
+    getMergeCandidates: (limit = 10) =>
+      request(`/admin/knowledge/nodes/merge-candidates?limit=${limit}`),
   },
+
+  // Public page similarity
+  getSimilarPages: (name, limit = 5) =>
+    request(`/api/pages/${encodeURIComponent(name)}/similar?limit=${limit}`),
 };

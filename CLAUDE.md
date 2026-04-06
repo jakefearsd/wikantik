@@ -4,6 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The preferred development apppoach is test driven development, with putting tests in place to show
 defects before they are repaired, so that we know we have an effective test to detect the issue.
 
+- Sole developer on this repo — work directly on main, no feature branches or PRs.
+- Never swallow exceptions with empty catch blocks — always log at least a `LOG.warn()` with context and message.
+- Don't use plan mode for trivial tasks (git add, single commands) — just do them directly.
+
 ## Prerequisites
 
 | Tool | Version | Notes |

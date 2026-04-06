@@ -18,8 +18,6 @@
  */
 package com.wikantik.mcp.tools;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -45,7 +43,6 @@ public class ListPagesTool implements McpTool {
 
     private final PageManager pageManager;
     private final SystemPageRegistry systemPageRegistry;
-    private final Gson gson = new GsonBuilder().serializeNulls().create();
 
     public ListPagesTool( final PageManager pageManager, final SystemPageRegistry systemPageRegistry ) {
         this.pageManager = pageManager;
@@ -85,7 +82,7 @@ public class ListPagesTool implements McpTool {
                     .map( p -> {
                         final Map< String, Object > entry = new LinkedHashMap<>();
                         entry.put( "name", p.getName() );
-                        entry.put( "lastModified", p.getLastModified() != null ? p.getLastModified().toInstant().toString() : null );
+                        entry.put( "lastModified", McpToolUtils.formatTimestamp( p.getLastModified() ) );
                         entry.put( "author", p.getAuthor() );
                         entry.put( "size", p.getSize() );
                         if ( systemPageRegistry != null ) {
@@ -95,10 +92,10 @@ public class ListPagesTool implements McpTool {
                     } )
                     .collect( Collectors.toList() );
 
-            return McpToolUtils.jsonResult( gson, Map.of( "pages", pages ) );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, Map.of( "pages", pages ) );
         } catch ( final Exception e ) {
             LOG.error( "Failed to list pages: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( gson, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
     }
 }

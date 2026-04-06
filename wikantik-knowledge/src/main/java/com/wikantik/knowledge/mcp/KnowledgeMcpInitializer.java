@@ -33,7 +33,11 @@ import com.wikantik.api.Release;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.knowledge.EmbeddingService;
 import com.wikantik.mcp.tools.McpTool;
+
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -86,14 +90,21 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             registration.setAsyncSupported( true );
             registration.setLoadOnStartup( 3 );
 
-            // Create the five consumption tools
-            final McpTool[] tools = {
+            // Create consumption tools (5 core + optional embedding tools)
+            final List< McpTool > tools = new ArrayList<>( List.of(
                     new DiscoverSchemaTool( kgService ),
                     new QueryNodesTool( kgService ),
                     new GetNodeTool( kgService ),
                     new TraverseTool( kgService ),
                     new SearchKnowledgeTool( kgService )
-            };
+            ) );
+
+            // Add embedding tools if the service is available
+            final EmbeddingService embSvc = engine.getManager( EmbeddingService.class );
+            if ( embSvc != null ) {
+                tools.add( new FindSimilarTool( embSvc ) );
+                tools.add( new PredictEdgesTool( embSvc ) );
+            }
 
             final var serverImpl = new McpSchema.Implementation(
                     "wikantik-knowledge", "Wikantik Knowledge Graph", Release.getVersionString() );
@@ -107,7 +118,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                             .tools( true )
                             .build() );
 
-            // Register all five read-only tools
+            // Register all tools
             for ( final McpTool tool : tools ) {
                 builder.toolCall( tool.definition(), ( exchange, request ) ->
                         tool.execute( request.arguments() ) );
@@ -116,7 +127,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             mcpServer = builder.build();
 
             servletContext.setAttribute( ATTR_KNOWLEDGE_MCP_SERVER, mcpServer );
-            LOG.info( "Knowledge MCP server started successfully with {} tools at /knowledge-mcp", tools.length );
+            LOG.info( "Knowledge MCP server started successfully with {} tools at /knowledge-mcp", tools.size() );
 
         } catch ( final Exception e ) {
             LOG.error( "Failed to start Knowledge MCP server: {}", e.getMessage(), e );

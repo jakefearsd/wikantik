@@ -18,17 +18,24 @@
 */
 package com.wikantik.plugin;
 
+import com.wikantik.HttpMockFactory;
+import com.wikantik.PostgresTestContainer;
 import com.wikantik.TestEngine;
+import com.wikantik.WikiSession;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.PageManager;
-import org.junit.jupiter.api.AfterAll;
+import com.wikantik.auth.AuthenticationManager;
+import com.wikantik.auth.Users;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -52,46 +59,29 @@ import static org.junit.jupiter.api.Assertions.*;
  * duration of the test class; HSQLDB drops the in-memory DB when its last connection
  * is closed.</p>
  */
+@Testcontainers( disabledWithoutDocker = true )
 class JDBCPluginCITest {
 
-    // HSQLDB in-memory — kept alive via a static anchor connection.
-    // The URL without 'shutdown=true' lets HSQLDB keep the DB until the last connection closes.
-    private static final String HSQL_URL  = "jdbc:hsqldb:mem:jdbcplugintest";
-    private static final String HSQL_USER = "SA";
-    private static final String HSQL_PASS = "";
-
-    /** Keeps the in-memory database alive for all tests in this class. */
-    private static Connection anchorConnection;
+    private static String pgUrl;
+    private static String pgUser;
+    private static String pgPass;
 
     private TestEngine engine;
     private JDBCPlugin plugin;
 
     @BeforeAll
     static void setUpDatabase() throws Exception {
-        Class.forName( "org.hsqldb.jdbc.JDBCDriver" );
-        // Open and hold an anchor connection so the DB doesn't evaporate between tests
-        anchorConnection = DriverManager.getConnection( HSQL_URL, HSQL_USER, HSQL_PASS );
+        pgUrl = PostgresTestContainer.getJdbcUrl();
+        pgUser = PostgresTestContainer.getUsername();
+        pgPass = PostgresTestContainer.getPassword();
 
-        try ( final Statement stmt = anchorConnection.createStatement() ) {
-            stmt.execute( "CREATE TABLE IF NOT EXISTS employees (" +
-                          "  id INT PRIMARY KEY," +
-                          "  name VARCHAR(50)," +
-                          "  dept VARCHAR(50)" +
-                          ")" );
+        // employees table created by postgresql-test.sql; seed test data
+        try ( final Connection conn = DriverManager.getConnection( pgUrl, pgUser, pgPass );
+              final Statement stmt = conn.createStatement() ) {
             stmt.execute( "DELETE FROM employees" );
             stmt.execute( "INSERT INTO employees VALUES (1, 'Alice', 'Engineering')" );
             stmt.execute( "INSERT INTO employees VALUES (2, 'Bob', 'Marketing')" );
             stmt.execute( "INSERT INTO employees VALUES (3, 'Carol', NULL)" );
-        }
-    }
-
-    @AfterAll
-    static void tearDownDatabase() throws Exception {
-        if ( anchorConnection != null && !anchorConnection.isClosed() ) {
-            try ( final Statement stmt = anchorConnection.createStatement() ) {
-                stmt.execute( "DROP TABLE IF EXISTS employees" );
-            }
-            anchorConnection.close();
         }
     }
 
@@ -111,7 +101,10 @@ class JDBCPluginCITest {
 
     private Context createContext() throws Exception {
         final Page page = engine.getManager( PageManager.class ).getPage( "TestPage" );
-        return Wiki.context().create( engine, page );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        final Session session = WikiSession.getWikiSession( engine, request );
+        engine.getManager( AuthenticationManager.class ).login( session, request, Users.ADMIN, Users.ADMIN_PASS );
+        return Wiki.context().create( engine, request, page );
     }
 
     // ============== ConnectionConfig via property-based JDBC path ==============
@@ -122,9 +115,9 @@ class JDBCPluginCITest {
     @Test
     void testExecuteSelectReturnsHtmlTable() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
-        engineProps.setProperty( "jdbc.url",      HSQL_URL );
-        engineProps.setProperty( "jdbc.user",     HSQL_USER );
-        engineProps.setProperty( "jdbc.password", HSQL_PASS );
+        engineProps.setProperty( "jdbc.url",      pgUrl );
+        engineProps.setProperty( "jdbc.user",     pgUser );
+        engineProps.setProperty( "jdbc.password", pgPass );
 
         final Context ctx = createContext();
         final Map<String, String> params = new HashMap<>();
@@ -146,9 +139,9 @@ class JDBCPluginCITest {
     @Test
     void testHeaderFalseOmitsHeaderRow() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
-        engineProps.setProperty( "jdbc.url",      HSQL_URL );
-        engineProps.setProperty( "jdbc.user",     HSQL_USER );
-        engineProps.setProperty( "jdbc.password", HSQL_PASS );
+        engineProps.setProperty( "jdbc.url",      pgUrl );
+        engineProps.setProperty( "jdbc.user",     pgUser );
+        engineProps.setProperty( "jdbc.password", pgPass );
 
         final Context ctx = createContext();
         final Map<String, String> params = new HashMap<>();
@@ -167,9 +160,9 @@ class JDBCPluginCITest {
     @Test
     void testEmptyResultSetShowsNoResults() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
-        engineProps.setProperty( "jdbc.url",      HSQL_URL );
-        engineProps.setProperty( "jdbc.user",     HSQL_USER );
-        engineProps.setProperty( "jdbc.password", HSQL_PASS );
+        engineProps.setProperty( "jdbc.url",      pgUrl );
+        engineProps.setProperty( "jdbc.user",     pgUser );
+        engineProps.setProperty( "jdbc.password", pgPass );
 
         final Context ctx = createContext();
         final Map<String, String> params = new HashMap<>();
@@ -186,9 +179,9 @@ class JDBCPluginCITest {
     @Test
     void testNullColumnValueRenderedAsEmpty() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
-        engineProps.setProperty( "jdbc.url",      HSQL_URL );
-        engineProps.setProperty( "jdbc.user",     HSQL_USER );
-        engineProps.setProperty( "jdbc.password", HSQL_PASS );
+        engineProps.setProperty( "jdbc.url",      pgUrl );
+        engineProps.setProperty( "jdbc.user",     pgUser );
+        engineProps.setProperty( "jdbc.password", pgPass );
 
         final Context ctx = createContext();
         final Map<String, String> params = new HashMap<>();
@@ -208,9 +201,9 @@ class JDBCPluginCITest {
     @Test
     void testCustomCssClass() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
-        engineProps.setProperty( "jdbc.url",      HSQL_URL );
-        engineProps.setProperty( "jdbc.user",     HSQL_USER );
-        engineProps.setProperty( "jdbc.password", HSQL_PASS );
+        engineProps.setProperty( "jdbc.url",      pgUrl );
+        engineProps.setProperty( "jdbc.user",     pgUser );
+        engineProps.setProperty( "jdbc.password", pgPass );
 
         final Context ctx = createContext();
         final Map<String, String> params = new HashMap<>();
@@ -228,9 +221,9 @@ class JDBCPluginCITest {
     @Test
     void testDefaultCssClass() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
-        engineProps.setProperty( "jdbc.url",      HSQL_URL );
-        engineProps.setProperty( "jdbc.user",     HSQL_USER );
-        engineProps.setProperty( "jdbc.password", HSQL_PASS );
+        engineProps.setProperty( "jdbc.url",      pgUrl );
+        engineProps.setProperty( "jdbc.user",     pgUser );
+        engineProps.setProperty( "jdbc.password", pgPass );
 
         final Context ctx = createContext();
         final Map<String, String> params = new HashMap<>();
@@ -249,9 +242,9 @@ class JDBCPluginCITest {
     @Test
     void testNamedSourceReadsPropertyWithSuffix() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
-        engineProps.setProperty( "jdbc.url.mydb",      HSQL_URL );
-        engineProps.setProperty( "jdbc.user.mydb",     HSQL_USER );
-        engineProps.setProperty( "jdbc.password.mydb", HSQL_PASS );
+        engineProps.setProperty( "jdbc.url.mydb",      pgUrl );
+        engineProps.setProperty( "jdbc.user.mydb",     pgUser );
+        engineProps.setProperty( "jdbc.password.mydb", pgPass );
 
         final Context ctx = createContext();
         final Map<String, String> params = new HashMap<>();
@@ -273,9 +266,9 @@ class JDBCPluginCITest {
     void testUnknownDriverClassThrowsPluginException() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
         engineProps.setProperty( "jdbc.driver",   "com.nonexistent.Driver" );
-        engineProps.setProperty( "jdbc.url",      HSQL_URL );
-        engineProps.setProperty( "jdbc.user",     HSQL_USER );
-        engineProps.setProperty( "jdbc.password", HSQL_PASS );
+        engineProps.setProperty( "jdbc.url",      pgUrl );
+        engineProps.setProperty( "jdbc.user",     pgUser );
+        engineProps.setProperty( "jdbc.password", pgPass );
 
         final Context ctx = createContext();
         final Map<String, String> params = new HashMap<>();
@@ -293,9 +286,9 @@ class JDBCPluginCITest {
     @Test
     void testQueryAgainstMissingTableThrowsPluginException() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
-        engineProps.setProperty( "jdbc.url",      HSQL_URL );
-        engineProps.setProperty( "jdbc.user",     HSQL_USER );
-        engineProps.setProperty( "jdbc.password", HSQL_PASS );
+        engineProps.setProperty( "jdbc.url",      pgUrl );
+        engineProps.setProperty( "jdbc.user",     pgUser );
+        engineProps.setProperty( "jdbc.password", pgPass );
 
         final Context ctx = createContext();
         final Map<String, String> params = new HashMap<>();
@@ -316,9 +309,9 @@ class JDBCPluginCITest {
     @Test
     void testFetchFirstNotDoubled() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
-        engineProps.setProperty( "jdbc.url",      HSQL_URL );
-        engineProps.setProperty( "jdbc.user",     HSQL_USER );
-        engineProps.setProperty( "jdbc.password", HSQL_PASS );
+        engineProps.setProperty( "jdbc.url",      pgUrl );
+        engineProps.setProperty( "jdbc.user",     pgUser );
+        engineProps.setProperty( "jdbc.password", pgPass );
 
         final Context ctx = createContext();
         final Map<String, String> params = new HashMap<>();
@@ -336,9 +329,9 @@ class JDBCPluginCITest {
     @Test
     void testTrailingSemicolonStrippedBeforeFetchAppended() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
-        engineProps.setProperty( "jdbc.url",        HSQL_URL );
-        engineProps.setProperty( "jdbc.user",       HSQL_USER );
-        engineProps.setProperty( "jdbc.password",   HSQL_PASS );
+        engineProps.setProperty( "jdbc.url",        pgUrl );
+        engineProps.setProperty( "jdbc.user",       pgUser );
+        engineProps.setProperty( "jdbc.password",   pgPass );
         engineProps.setProperty( "jdbc.maxresults", "5" );
 
         final Context ctx = createContext();
@@ -358,9 +351,9 @@ class JDBCPluginCITest {
     @Test
     void testMaxResultsZeroDisablesLimit() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
-        engineProps.setProperty( "jdbc.url",        HSQL_URL );
-        engineProps.setProperty( "jdbc.user",       HSQL_USER );
-        engineProps.setProperty( "jdbc.password",   HSQL_PASS );
+        engineProps.setProperty( "jdbc.url",        pgUrl );
+        engineProps.setProperty( "jdbc.user",       pgUser );
+        engineProps.setProperty( "jdbc.password",   pgPass );
         engineProps.setProperty( "jdbc.maxresults", "0" );
 
         final Context ctx = createContext();
@@ -402,9 +395,9 @@ class JDBCPluginCITest {
     @Test
     void testHeaderParseBooleanOneAndYes() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
-        engineProps.setProperty( "jdbc.url",      HSQL_URL );
-        engineProps.setProperty( "jdbc.user",     HSQL_USER );
-        engineProps.setProperty( "jdbc.password", HSQL_PASS );
+        engineProps.setProperty( "jdbc.url",      pgUrl );
+        engineProps.setProperty( "jdbc.user",     pgUser );
+        engineProps.setProperty( "jdbc.password", pgPass );
 
         final Context ctx = createContext();
         final String baseSql = "SELECT id FROM employees FETCH FIRST 1 ROWS ONLY";
@@ -472,15 +465,15 @@ class JDBCPluginCITest {
     // ============== ConnectionConfig — no user/password uses simple DriverManager.getConnection ==============
 
     /**
-     * When user and password are both blank, the plugin must use the single-arg
-     * DriverManager.getConnection(url) path in ConnectionConfig.
-     * HSQLDB accepts SA with empty password by default.
+     * When user and password are both blank, the plugin uses the single-arg
+     * DriverManager.getConnection(url) path. PostgreSQL requires authentication,
+     * so this should fail with a PluginException.
      */
     @Test
-    void testConnectionWithoutCredentials() throws Exception {
+    void testConnectionWithoutCredentialsThrowsPluginException() throws Exception {
         final Properties engineProps = engine.getWikiProperties();
         // Set only the URL; no user or password
-        engineProps.setProperty( "jdbc.url", HSQL_URL );
+        engineProps.setProperty( "jdbc.url", pgUrl );
         engineProps.remove( "jdbc.user" );
         engineProps.remove( "jdbc.password" );
 
@@ -488,8 +481,6 @@ class JDBCPluginCITest {
         final Map<String, String> params = new HashMap<>();
         params.put( JDBCPlugin.PARAM_SQL, "SELECT id FROM employees FETCH FIRST 1 ROWS ONLY" );
 
-        final String result = plugin.execute( ctx, params );
-        assertNotNull( result );
-        assertTrue( result.contains( "<table" ) );
+        assertThrows( PluginException.class, () -> plugin.execute( ctx, params ) );
     }
 }

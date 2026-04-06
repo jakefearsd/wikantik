@@ -399,26 +399,6 @@ public final class TextUtil {
     }
 
     /**
-     * {@link #getStringProperty(Properties, String, String)} overload that handles deprecated keys, so that a key and its
-     * deprecated counterpart can coexist in a given version of JSPWiki.
-     *
-     * @param props The Properties to search through
-     * @param key The property key
-     * @param deprecatedKey the property key being superseeded by key
-     * @param defval A default value to return, if the property does not exist.
-     * @return The property value.
-     */
-    public static String getStringProperty( final Properties props, final String key, final String deprecatedKey, final String defval ) {
-        final String val = getStringProperty( props, deprecatedKey, null );
-        if( val != null ) {
-            LOG.warn( "{} is being deprecated and will be removed on a future version, please consider using {} instead " +
-                      "in your wikantik[-custom].properties file", deprecatedKey, key );
-            return val;
-        }
-        return getStringProperty( props, key, defval );
-    }
-
-    /**
      *  Throws an exception if a property is not found.
      *
      *  @param props A set of properties to search the key in.

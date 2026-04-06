@@ -117,14 +117,10 @@ public class McpConfig {
 
     /**
      * Returns the list of configured API keys for MCP access control.
-     * Reads from {@code mcp.access.keys} (comma-separated) first,
-     * falling back to the legacy {@code mcp.access.key} single-key property.
+     * Reads from {@code mcp.access.keys} (comma-separated).
      */
     public List< String > accessKeys() {
-        String raw = props.getProperty( "mcp.access.keys" );
-        if ( raw == null || raw.isBlank() ) {
-            raw = props.getProperty( "mcp.access.key" );
-        }
+        final String raw = props.getProperty( "mcp.access.keys" );
         if ( raw == null || raw.isBlank() ) {
             return List.of();
         }
@@ -132,15 +128,6 @@ public class McpConfig {
                 .map( String::strip )
                 .filter( s -> !s.isEmpty() )
                 .toList();
-    }
-
-    /**
-     * @deprecated Use {@link #accessKeys()} instead. Returns the first configured key, or {@code null}.
-     */
-    @Deprecated( forRemoval = true, since = "2.0" )
-    public String accessKey() {
-        final List< String > keys = accessKeys();
-        return keys.isEmpty() ? null : keys.get( 0 );
     }
 
     public int rateLimitGlobal() {

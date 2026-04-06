@@ -86,7 +86,7 @@ public class ReadAttachmentTool implements McpTool {
             result.put( "pageName", pageName );
             result.put( "fileName", fileName );
             result.put( "size", att.getSize() );
-            result.put( "lastModified", att.getLastModified() != null ? att.getLastModified().toInstant().toString() : null );
+            result.put( "lastModified", McpToolUtils.formatTimestamp( att.getLastModified() ) );
             result.put( "version", McpToolUtils.normalizeVersion( att.getVersion() ) );
 
             if ( att.getSize() > MAX_INLINE_BYTES ) {

@@ -81,7 +81,7 @@
      <url-pattern>/admin/*</url-pattern>
    </filter-mapping>
 
-   <!-- Cache headers: immutable for hashed assets, no-cache for index.html -->
+   <!-- Cache headers: immutable for hashed assets, no-store for index.html -->
    <filter>
      <filter-name>CacheHeaderFilter</filter-name>
      <filter-class>com.wikantik.http.filter.CacheHeaderFilter</filter-class>

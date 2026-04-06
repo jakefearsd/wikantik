@@ -63,7 +63,7 @@ public class SpaRoutingFilter implements Filter {
 
         // Redirect / and /wiki/ to /wiki/Main (server-side, independent of SPA)
         if ( "/".equals( path ) || "/wiki/".equals( path ) || "/wiki".equals( path ) ) {
-            resp.setHeader( "Cache-Control", "no-cache" );
+            resp.setHeader( "Cache-Control", "no-store" );
             resp.sendRedirect( "/wiki/Main" );
             return;
         }
@@ -83,16 +83,14 @@ public class SpaRoutingFilter implements Filter {
         if ( isBrowserNavigation ) {
             for ( final String prefix : SPA_PREFIXES ) {
                 if ( path.startsWith( prefix ) ) {
-                    // index.html must never be cached — it references hashed asset filenames
-                    // that change on each build.
-                    resp.setHeader( "Cache-Control", "no-cache" );
+                    resp.setHeader( "Cache-Control", "no-store" );
                     req.getRequestDispatcher( "/index.html" ).forward( request, response );
                     return;
                 }
             }
             for ( final String exact : SPA_EXACT ) {
                 if ( path.equals( exact ) || path.startsWith( exact + "?" ) ) {
-                    resp.setHeader( "Cache-Control", "no-cache" );
+                    resp.setHeader( "Cache-Control", "no-store" );
                     req.getRequestDispatcher( "/index.html" ).forward( request, response );
                     return;
                 }

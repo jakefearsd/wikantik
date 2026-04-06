@@ -34,8 +34,8 @@ import java.util.regex.Pattern;
  *   <li>{@code /assets/*} with a Vite content hash (6+ alphanumeric chars before the
  *       extension) receives {@code public, max-age=31536000, immutable} — safe because
  *       the hash changes whenever the file content changes.</li>
- *   <li>{@code /index.html} receives {@code no-cache} — forces the browser to revalidate
- *       on every request so it always gets the latest asset references.</li>
+ *   <li>{@code /index.html} receives {@code no-store} — prevents the browser from caching
+ *       the entry point so it always fetches the latest asset references.</li>
  *   <li>All other paths pass through without a {@code Cache-Control} header.</li>
  * </ul>
  */
@@ -60,7 +60,7 @@ public class CacheHeaderFilter implements Filter {
         if ( path.startsWith( "/assets/" ) && HASHED_ASSET.matcher( path ).find() ) {
             resp.setHeader( "Cache-Control", "public, max-age=31536000, immutable" );
         } else if ( "/index.html".equals( path ) ) {
-            resp.setHeader( "Cache-Control", "no-cache" );
+            resp.setHeader( "Cache-Control", "no-store" );
         }
 
         chain.doFilter( request, response );

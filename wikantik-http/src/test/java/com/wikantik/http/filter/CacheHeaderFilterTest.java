@@ -64,12 +64,12 @@ class CacheHeaderFilterTest {
     }
 
     @Test
-    void testIndexHtmlGetsNoCache() throws Exception {
+    void testIndexHtmlGetsNoStore() throws Exception {
         final HttpServletRequest request = mockRequest( "/index.html" );
 
         filter.doFilter( request, response, chain );
 
-        verify( response ).setHeader( "Cache-Control", "no-cache" );
+        verify( response ).setHeader( "Cache-Control", "no-store" );
         verify( chain ).doFilter( request, response );
     }
 

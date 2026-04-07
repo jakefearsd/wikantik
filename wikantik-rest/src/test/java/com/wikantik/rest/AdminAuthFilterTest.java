@@ -168,4 +168,33 @@ class AdminAuthFilterTest {
         verify( chain, never() ).doFilter( any(), any() );
         verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
     }
+
+    @Test
+    void testBrowserNavigationGetsForbiddenHtml() throws Exception {
+        final HttpSession anonSession = Mockito.mock( HttpSession.class );
+        Mockito.doReturn( "anon-html-test-" + System.nanoTime() ).when( anonSession ).getId();
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge" );
+        Mockito.doReturn( "GET" ).when( request ).getMethod();
+        Mockito.doReturn( "text/html,application/xhtml+xml" ).when( request ).getHeader( "Accept" );
+        Mockito.doReturn( anonSession ).when( request ).getSession();
+        Mockito.doReturn( anonSession ).when( request ).getSession( Mockito.anyBoolean() );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+        verify( response ).setContentType( "text/html" );
+
+        final String body = sw.toString();
+        assertTrue( body.contains( "<!doctype html>" ), "Should return HTML document" );
+        assertTrue( body.contains( "/wiki/Main" ), "Should contain home link" );
+        assertTrue( body.contains( "session has expired" ), "Should explain the situation" );
+        assertTrue( body.contains( "Playfair Display" ), "Should use wiki design system fonts" );
+    }
 }

@@ -81,4 +81,9 @@ public interface KnowledgeGraphService {
                                         String relationshipType );
 
     boolean isRejected( String sourceName, String targetName, String relationshipType );
+
+    // --- Bulk operations ---
+
+    /** Deletes all knowledge graph data: nodes, edges, proposals, rejections, and embeddings. */
+    void clearAll();
 }

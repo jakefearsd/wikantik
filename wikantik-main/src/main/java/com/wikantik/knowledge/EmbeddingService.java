@@ -22,6 +22,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.knowledge.ComplExModel.Prediction;
 import com.wikantik.knowledge.ComplExModel.Triple;
@@ -79,6 +80,7 @@ public class EmbeddingService {
     private final EmbeddingRepository embeddingRepo;
     private final ContentEmbeddingRepository contentEmbeddingRepo;
     private final PageManager pageManager;
+    private final SystemPageRegistry systemPageRegistry;
     private final AtomicReference< ComplExModel > currentModel = new AtomicReference<>();
     private final AtomicReference< TfidfModel > currentContentModel = new AtomicReference<>();
     private final AtomicReference< Instant > lastTrained = new AtomicReference<>();
@@ -105,11 +107,13 @@ public class EmbeddingService {
     public EmbeddingService( final JdbcKnowledgeRepository kgRepo,
                              final EmbeddingRepository embeddingRepo,
                              final ContentEmbeddingRepository contentEmbeddingRepo,
-                             final PageManager pageManager ) {
+                             final PageManager pageManager,
+                             final SystemPageRegistry systemPageRegistry ) {
         this.kgRepo = kgRepo;
         this.embeddingRepo = embeddingRepo;
         this.contentEmbeddingRepo = contentEmbeddingRepo;
         this.pageManager = pageManager;
+        this.systemPageRegistry = systemPageRegistry;
 
         // Try to load previously trained models
         final ComplExModel saved = embeddingRepo.loadLatestModel();
@@ -509,6 +513,9 @@ public class EmbeddingService {
 
             for( final Page page : allPages ) {
                 final String pageName = page.getName();
+                if( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
+                    continue;
+                }
                 try {
                     final String text = pageManager.getPureText( page );
                     final String stripped = NodeTextAssembler.stripMarkdown( text != null ? text : "" );
@@ -552,6 +559,21 @@ public class EmbeddingService {
         } finally {
             contentTraining = false;
         }
+    }
+
+    /**
+     * Resets all in-memory models. Called after clearing the underlying database tables.
+     */
+    public void reset() {
+        currentModel.set( null );
+        currentContentModel.set( null );
+        lastTrained.set( null );
+        contentLastTrained.set( null );
+        modelVersion = 0;
+        contentModelVersion = 0;
+        entityUuids.clear();
+        existingTriples.clear();
+        LOG.info( "Embedding models reset" );
     }
 
     /**

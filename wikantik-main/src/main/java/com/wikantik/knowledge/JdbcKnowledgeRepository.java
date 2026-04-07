@@ -885,4 +885,25 @@ public class JdbcKnowledgeRepository {
             throw new RuntimeException( e );
         }
     }
+
+    /**
+     * Deletes all knowledge graph data: embeddings, edges, proposals, rejections, and nodes.
+     * Tables are cleared in FK-safe order.
+     */
+    public void clearAll() {
+        final String[] tables = {
+            "kg_embeddings", "kg_content_embeddings",
+            "kg_edges", "kg_proposals", "kg_rejections", "kg_nodes"
+        };
+        try( final Connection conn = dataSource.getConnection();
+             final var stmt = conn.createStatement() ) {
+            for( final String table : tables ) {
+                stmt.execute( "DELETE FROM " + table );
+            }
+            LOG.info( "Cleared all knowledge graph data ({} tables)", tables.length );
+        } catch( final SQLException e ) {
+            LOG.warn( "Failed to clear knowledge graph data: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
+    }
 }

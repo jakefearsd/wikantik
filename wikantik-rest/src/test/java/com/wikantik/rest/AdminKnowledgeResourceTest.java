@@ -72,7 +72,7 @@ class AdminKnowledgeResourceTest {
 
         final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( dataSource );
         final DefaultKnowledgeGraphService service = new DefaultKnowledgeGraphService( repo );
-        final GraphProjector projector = new GraphProjector( service );
+        final GraphProjector projector = new GraphProjector( service, null );
 
         engine.setManager( KnowledgeGraphService.class, service );
         engine.setManager( GraphProjector.class, projector );
@@ -135,10 +135,9 @@ class AdminKnowledgeResourceTest {
         final int projected = obj.get( "projected" ).getAsInt();
 
         assertTrue( scanned >= 1, "Should have scanned at least the plain page" );
-        // PlainPage has no frontmatter, so projected count should be less than scanned
-        // (or equal if other test pages with frontmatter exist from engine default pages)
-        assertTrue( projected < scanned || projected == 0,
-                "Plain page without frontmatter should not be projected" );
+        // All pages are now projected (even without frontmatter) so projected == scanned
+        assertEquals( scanned, projected,
+                "All pages should be projected, including those without frontmatter" );
 
         // Cleanup
         final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );

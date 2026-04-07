@@ -4,14 +4,21 @@ import { api } from '../../api/client';
 export default function ContentEmbeddingsTab() {
   const [status, setStatus] = useState(null);
   const [pairs, setPairs] = useState([]);
+  const [noFmPages, setNoFmPages] = useState([]);
+  const [noFmTotal, setNoFmTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [retraining, setRetraining] = useState(false);
   const [error, setError] = useState(null);
 
   const loadData = async () => {
     try {
-      const s = await api.knowledge.getEmbeddingStatus();
+      const [s, fmResult] = await Promise.all([
+        api.knowledge.getEmbeddingStatus(),
+        api.knowledge.getPagesWithoutFrontmatter(100, 0),
+      ]);
       setStatus(s);
+      setNoFmPages(fmResult.pages || []);
+      setNoFmTotal(fmResult.total || 0);
       if (s.content_ready) {
         const result = await api.knowledge.getSimilarPagePairs(50);
         setPairs(result.pairs || []);
@@ -65,6 +72,38 @@ export default function ContentEmbeddingsTab() {
           </button>
         </div>
       </div>
+
+      {noFmTotal > 0 && (
+        <div style={{ marginBottom: 'var(--space-md)' }}>
+          <h4 style={{ fontSize: '0.95em', marginBottom: 'var(--space-sm)' }}>
+            Pages Without Frontmatter <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>({noFmTotal})</span>
+          </h4>
+          <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Page Name</th>
+                  <th>Last Modified</th>
+                </tr>
+              </thead>
+              <tbody>
+                {noFmPages.map((p, i) => (
+                  <tr key={p.name}>
+                    <td style={{ color: 'var(--text-muted)', width: '40px' }}>{i + 1}</td>
+                    <td>
+                      <a href={`/edit/${encodeURIComponent(p.name)}`}>{p.name}</a>
+                    </td>
+                    <td style={{ fontSize: '0.85em', color: 'var(--text-muted)' }}>
+                      {p.lastModified ? new Date(p.lastModified).toLocaleString() : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {!status?.content_ready && (
         <div className="admin-empty" style={{ padding: 'var(--space-lg)', textAlign: 'center' }}>

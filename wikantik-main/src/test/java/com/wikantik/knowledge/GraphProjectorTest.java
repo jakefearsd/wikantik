@@ -51,7 +51,7 @@ class GraphProjectorTest {
         }
         repo = new JdbcKnowledgeRepository( dataSource );
         service = new DefaultKnowledgeGraphService( repo );
-        projector = new GraphProjector( service );
+        projector = new GraphProjector( service, null );
     }
 
     @Test
@@ -62,7 +62,7 @@ class GraphProjectorTest {
             "depends-on", List.of( "Customer", "Product" ),
             "tags", List.of( "core" )
         );
-        projector.projectPage( "Order", frontmatter );
+        projector.projectPage( "Order", frontmatter, "" );
         final KgNode order = service.getNodeByName( "Order" );
         assertNotNull( order );
         assertEquals( "domain-model", order.nodeType() );
@@ -81,12 +81,12 @@ class GraphProjectorTest {
         projector.projectPage( "Order", Map.of(
             "type", "domain-model",
             "depends-on", List.of( "Customer", "Product" )
-        ) );
+        ), "" );
         // Second save: only depends on Customer now
         projector.projectPage( "Order", Map.of(
             "type", "domain-model",
             "depends-on", List.of( "Customer" )
-        ) );
+        ), "" );
         final KgNode order = service.getNodeByName( "Order" );
         final List< KgEdge > edges = service.getEdgesForNode( order.id(), "outbound" );
         assertEquals( 1, edges.size() );
@@ -95,30 +95,109 @@ class GraphProjectorTest {
 
     @Test
     void projectPage_preservesAiEdges() {
-        projector.projectPage( "Order", Map.of( "depends-on", List.of( "Customer" ) ) );
+        projector.projectPage( "Order", Map.of( "depends-on", List.of( "Customer" ) ), "" );
         // AI adds an edge
         final KgNode order = service.getNodeByName( "Order" );
         final KgNode inv = service.upsertNode( "Inventory", "service", null,
                 Provenance.AI_INFERRED, Map.of() );
         service.upsertEdge( order.id(), inv.id(), "calls", Provenance.AI_INFERRED, Map.of() );
         // Human re-saves — AI edge should survive
-        projector.projectPage( "Order", Map.of( "depends-on", List.of( "Customer" ) ) );
+        projector.projectPage( "Order", Map.of( "depends-on", List.of( "Customer" ) ), "" );
         final List< KgEdge > edges = service.getEdgesForNode( order.id(), "outbound" );
         assertEquals( 2, edges.size() );
     }
 
     @Test
     void projectPage_hydratesStubNode() {
-        projector.projectPage( "Order", Map.of( "depends-on", List.of( "Customer" ) ) );
+        projector.projectPage( "Order", Map.of( "depends-on", List.of( "Customer" ) ), "" );
         assertTrue( service.getNodeByName( "Customer" ).isStub() );
         // Now Customer gets its own page
         projector.projectPage( "Customer", Map.of(
             "type", "domain-model",
             "domain", "crm"
-        ) );
+        ), "" );
         final KgNode customer = service.getNodeByName( "Customer" );
         assertFalse( customer.isStub() );
         assertEquals( "domain-model", customer.nodeType() );
         assertEquals( "Customer", customer.sourcePage() );
+    }
+
+    @Test
+    void projectPage_createsLinksToEdgesFromBody() {
+        final String body = "See [Customer]() for details and also check [text](Product).";
+        projector.projectPage( "Order", Map.of(), body );
+
+        final KgNode order = service.getNodeByName( "Order" );
+        assertNotNull( order );
+        assertNotNull( service.getNodeByName( "Customer" ) );
+        assertNotNull( service.getNodeByName( "Product" ) );
+
+        final List< KgEdge > edges = service.getEdgesForNode( order.id(), "outbound" );
+        assertEquals( 2, edges.size() );
+        assertTrue( edges.stream().allMatch( e -> "links_to".equals( e.relationshipType() ) ) );
+    }
+
+    @Test
+    void projectPage_combinesFrontmatterAndBodyLinks() {
+        final Map< String, Object > fm = Map.of( "depends-on", List.of( "Customer" ) );
+        final String body = "Also see [Product]() for pricing.";
+        projector.projectPage( "Order", fm, body );
+
+        final KgNode order = service.getNodeByName( "Order" );
+        final List< KgEdge > edges = service.getEdgesForNode( order.id(), "outbound" );
+        assertEquals( 2, edges.size() );
+
+        final KgNode customer = service.getNodeByName( "Customer" );
+        final KgNode product = service.getNodeByName( "Product" );
+        assertTrue( edges.stream().anyMatch( e ->
+            e.targetId().equals( customer.id() ) && "depends-on".equals( e.relationshipType() ) ) );
+        assertTrue( edges.stream().anyMatch( e ->
+            e.targetId().equals( product.id() ) && "links_to".equals( e.relationshipType() ) ) );
+    }
+
+    @Test
+    void projectPage_removesStaleBodyLinks() {
+        projector.projectPage( "Order", Map.of(), "See [Customer]() and [Product]()." );
+        // Second save: only links to Customer now
+        projector.projectPage( "Order", Map.of(), "See [Customer]()." );
+
+        final KgNode order = service.getNodeByName( "Order" );
+        final List< KgEdge > edges = service.getEdgesForNode( order.id(), "outbound" );
+        assertEquals( 1, edges.size() );
+        assertEquals( service.getNodeByName( "Customer" ).id(), edges.get( 0 ).targetId() );
+    }
+
+    @Test
+    void projectPage_skipsSelfLinks() {
+        projector.projectPage( "Order", Map.of(), "See [Order]() for more." );
+
+        final KgNode order = service.getNodeByName( "Order" );
+        final List< KgEdge > edges = service.getEdgesForNode( order.id(), "outbound" );
+        assertTrue( edges.isEmpty() );
+    }
+
+    @Test
+    void projectPage_bodyLinkAndFrontmatterToSameTarget() {
+        final Map< String, Object > fm = Map.of( "depends-on", List.of( "Customer" ) );
+        final String body = "See also [Customer]() for details.";
+        projector.projectPage( "Order", fm, body );
+
+        final KgNode order = service.getNodeByName( "Order" );
+        final List< KgEdge > edges = service.getEdgesForNode( order.id(), "outbound" );
+        // Two distinct edges: depends-on and links_to, both targeting Customer
+        assertEquals( 2, edges.size() );
+        assertTrue( edges.stream().anyMatch( e -> "depends-on".equals( e.relationshipType() ) ) );
+        assertTrue( edges.stream().anyMatch( e -> "links_to".equals( e.relationshipType() ) ) );
+    }
+
+    @Test
+    void projectPage_noFrontmatterNoLinksCreatesNodeOnly() {
+        projector.projectPage( "LonelyPage", Map.of(), "" );
+
+        final KgNode node = service.getNodeByName( "LonelyPage" );
+        assertNotNull( node );
+        assertEquals( "LonelyPage", node.sourcePage() );
+        final List< KgEdge > edges = service.getEdgesForNode( node.id(), "outbound" );
+        assertTrue( edges.isEmpty() );
     }
 }

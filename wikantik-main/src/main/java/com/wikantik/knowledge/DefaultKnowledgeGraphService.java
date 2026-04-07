@@ -320,4 +320,9 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                                final String relationshipType ) {
         return repo.isRejected( sourceName, targetName, relationshipType );
     }
+
+    @Override
+    public void clearAll() {
+        repo.clearAll();
+    }
 }

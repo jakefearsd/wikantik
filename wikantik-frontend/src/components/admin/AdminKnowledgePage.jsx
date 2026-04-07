@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { api } from '../../api/client';
 import ProposalReviewQueue from './ProposalReviewQueue';
 import GraphExplorer from './GraphExplorer';
 import EdgeExplorer from './EdgeExplorer';
@@ -16,6 +17,20 @@ const TABS = [
 
 export default function AdminKnowledgePage() {
   const [activeTab, setActiveTab] = useState('proposals');
+  const [clearing, setClearing] = useState(false);
+
+  const handleClearAll = async () => {
+    if (!confirm('Delete ALL knowledge graph data? This removes all nodes, edges, proposals, and embeddings.')) return;
+    setClearing(true);
+    try {
+      await api.knowledge.clearAll();
+      window.location.reload();
+    } catch (err) {
+      alert('Clear failed: ' + err.message);
+    } finally {
+      setClearing(false);
+    }
+  };
 
   return (
     <div className="admin-knowledge page-enter">
@@ -31,6 +46,14 @@ export default function AdminKnowledgePage() {
             </button>
           ))}
         </div>
+        <button
+          className="btn btn-sm"
+          style={{ marginLeft: 'auto', color: 'var(--danger)' }}
+          onClick={handleClearAll}
+          disabled={clearing}
+        >
+          {clearing ? 'Clearing...' : 'Clear All'}
+        </button>
       </div>
       {activeTab === 'proposals' && <ProposalReviewQueue />}
       {activeTab === 'node-explorer' && <GraphExplorer />}

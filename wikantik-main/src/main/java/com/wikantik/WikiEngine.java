@@ -525,7 +525,8 @@ public class WikiEngine implements Engine {
             final DefaultKnowledgeGraphService service = new DefaultKnowledgeGraphService( repo );
             managers.put( KnowledgeGraphService.class, service );
 
-            final GraphProjector projector = new GraphProjector( service );
+            final SystemPageRegistry spr = getManager( SystemPageRegistry.class );
+            final GraphProjector projector = new GraphProjector( service, spr );
             managers.put( GraphProjector.class, projector );
             getManager( FilterManager.class ).addPageFilter( projector, -1003 );
 
@@ -533,7 +534,7 @@ public class WikiEngine implements Engine {
             final EmbeddingRepository embeddingRepo = new EmbeddingRepository( ds );
             final ContentEmbeddingRepository contentEmbeddingRepo = new ContentEmbeddingRepository( ds );
             final EmbeddingService embeddingService = new EmbeddingService(
-                repo, embeddingRepo, contentEmbeddingRepo, getManager( PageManager.class ) );
+                repo, embeddingRepo, contentEmbeddingRepo, getManager( PageManager.class ), spr );
             embeddingService.configure( props );
             managers.put( EmbeddingService.class, embeddingService );
             final long retrainMinutes = Long.parseLong(

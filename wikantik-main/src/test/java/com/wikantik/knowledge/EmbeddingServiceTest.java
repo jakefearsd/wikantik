@@ -63,7 +63,7 @@ class EmbeddingServiceTest {
         kgRepo = new JdbcKnowledgeRepository( dataSource );
         embeddingRepo = new EmbeddingRepository( dataSource );
         contentEmbeddingRepo = new ContentEmbeddingRepository( dataSource );
-        service = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, null );
+        service = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, null, null );
     }
 
     @Test
@@ -181,7 +181,7 @@ class EmbeddingServiceTest {
         pm.savePage( "DeepLearning", "# Deep Learning\nNeural network architectures for ML" );
         pm.savePage( "BakingRecipes", "# Baking\nCake recipes with flour and sugar" );
 
-        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm );
+        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm, null );
         svcWithPages.retrainContentModel();
 
         assertTrue( svcWithPages.isContentReady() );
@@ -200,7 +200,7 @@ class EmbeddingServiceTest {
         pm.savePage( "BakingRecipes", "Cake recipes with flour sugar butter and baking powder" );
         pm.savePage( "CookingBasics", "Basic cooking recipes kitchen techniques food preparation" );
 
-        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm );
+        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm, null );
         svcWithPages.retrainContentModel();
 
         final List< SimilarPagePair > pairs = svcWithPages.getTopSimilarPagePairs( 3 );
@@ -231,7 +231,7 @@ class EmbeddingServiceTest {
         pm.savePage( "ServiceB", "Service B processes user requests and authentication" );
         pm.savePage( "DatabaseX", "Database for storing transactional records" );
 
-        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm );
+        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm, null );
         svcWithPages.retrainContentModel();
 
         final List< ContentSimilarity > similar = svcWithPages.getContentSimilarNodes( "ServiceA", 2 );
@@ -244,7 +244,7 @@ class EmbeddingServiceTest {
         final StubPageManager pm = new StubPageManager();
         pm.savePage( "TestPage", "Some content here" );
 
-        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm );
+        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm, null );
         svcWithPages.retrainContentModel();
         assertTrue( svcWithPages.getContentSimilarNodes( "NonExistent", 5 ).isEmpty() );
     }
@@ -261,7 +261,7 @@ class EmbeddingServiceTest {
         pm.savePage( "CacheY", "Redis cache layer" );
         pm.savePage( "QueueZ", "Message queue system" );
 
-        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm );
+        final EmbeddingService svcWithPages = new EmbeddingService( kgRepo, embeddingRepo, contentEmbeddingRepo, pm, null );
         seedGraph();
         svcWithPages.retrain();
         svcWithPages.retrainContentModel();

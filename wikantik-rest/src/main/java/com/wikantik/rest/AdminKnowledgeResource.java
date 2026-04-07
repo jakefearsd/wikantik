@@ -29,6 +29,7 @@ import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.exceptions.WikiException;
@@ -112,6 +113,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             case "edges" -> handleGetEdges( service, request, response, segments );
             case "proposals" -> handleGetProposals( service, request, response );
             case "embeddings" -> handleGetEmbeddings( request, response, segments );
+            case "pages-without-frontmatter" -> handleGetPagesWithoutFrontmatter( request, response );
             default -> sendNotFound( response, "Unknown resource: " + resource );
         }
     }
@@ -137,6 +139,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             case "nodes" -> handlePostNode( service, request, response, segments );
             case "edges" -> handlePostEdge( service, request, response );
             case "project-all" -> handleProjectAll( response );
+            case "clear-all" -> handleClearAll( service, response );
             case "embeddings" -> handlePostEmbeddings( response, segments );
             default -> sendNotFound( response, "Unknown resource: " + resource );
         }
@@ -375,13 +378,14 @@ public class AdminKnowledgeResource extends RestServletBase {
             final List< String > errors = new ArrayList<>();
             for ( final Page page : allPages ) {
                 scanned++;
+                if ( projector.isSystemPage( page.getName() ) ) {
+                    continue;
+                }
                 try {
                     final String text = pm.getPureText( page );
                     final ParsedPage parsed = FrontmatterParser.parse( text );
-                    if ( !parsed.metadata().isEmpty() ) {
-                        projector.projectPage( page.getName(), parsed.metadata() );
-                        projected++;
-                    }
+                    projector.projectPage( page.getName(), parsed.metadata(), parsed.body() );
+                    projected++;
                 } catch ( final Exception e ) {
                     errors.add( page.getName() + ": " + e.getMessage() );
                 }
@@ -393,6 +397,22 @@ public class AdminKnowledgeResource extends RestServletBase {
             LOG.error( "Failed to project all pages", e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Projection failed: " + e.getMessage() );
+        }
+    }
+
+    private void handleClearAll( final KnowledgeGraphService service,
+                                 final HttpServletResponse response ) throws IOException {
+        try {
+            service.clearAll();
+            final EmbeddingService embSvc = getEmbeddingService();
+            if ( embSvc != null ) {
+                embSvc.reset();
+            }
+            sendJson( response, Map.of( "message", "All knowledge graph data cleared" ) );
+        } catch ( final Exception e ) {
+            LOG.error( "Failed to clear knowledge graph", e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Clear failed: " + e.getMessage() );
         }
     }
 
@@ -545,6 +565,44 @@ public class AdminKnowledgeResource extends RestServletBase {
         return getEngine().getManager( EmbeddingService.class );
     }
 
+    private void handleGetPagesWithoutFrontmatter( final HttpServletRequest request,
+                                                   final HttpServletResponse response ) throws IOException {
+        final PageManager pm = getEngine().getManager( PageManager.class );
+        if ( pm == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "PageManager not available" );
+            return;
+        }
+        final SystemPageRegistry spr = getEngine().getManager( SystemPageRegistry.class );
+        final int limit = parseIntParam( request, "limit", 100 );
+        final int offset = parseIntParam( request, "offset", 0 );
+        try {
+            final List< Map< String, Object > > pages = new ArrayList<>();
+            for ( final Page page : pm.getAllPages() ) {
+                if ( spr != null && spr.isSystemPage( page.getName() ) ) {
+                    continue;
+                }
+                final String text = pm.getPureText( page );
+                final ParsedPage parsed = FrontmatterParser.parse( text != null ? text : "" );
+                if ( parsed.metadata().isEmpty() ) {
+                    final Map< String, Object > entry = new LinkedHashMap<>();
+                    entry.put( "name", page.getName() );
+                    entry.put( "lastModified", page.getLastModified() != null
+                            ? page.getLastModified().toInstant().toString() : null );
+                    pages.add( entry );
+                }
+            }
+            pages.sort( Comparator.comparing( m -> ( String ) m.get( "name" ) ) );
+            final int total = pages.size();
+            final List< Map< String, Object > > paged = pages.subList(
+                    Math.min( offset, total ), Math.min( offset + limit, total ) );
+            sendJson( response, Map.of( "total", total, "pages", paged ) );
+        } catch ( final Exception e ) {
+            LOG.error( "Failed to list pages without frontmatter", e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Failed: " + e.getMessage() );
+        }
+    }
+
     private void handleGetEmbeddings( final HttpServletRequest request,
                                       final HttpServletResponse response,
                                       final String[] segments ) throws IOException {
@@ -607,13 +665,14 @@ public class AdminKnowledgeResource extends RestServletBase {
                 if ( pm != null && projector != null ) {
                     try {
                         for ( final Page page : pm.getAllPages() ) {
+                            if ( projector.isSystemPage( page.getName() ) ) {
+                                continue;
+                            }
                             try {
                                 final String text = pm.getPureText( page );
                                 final ParsedPage parsed = FrontmatterParser.parse( text );
-                                if ( !parsed.metadata().isEmpty() ) {
-                                    projector.projectPage( page.getName(), parsed.metadata() );
-                                    projected++;
-                                }
+                                projector.projectPage( page.getName(), parsed.metadata(), parsed.body() );
+                                projected++;
                             } catch ( final Exception e ) {
                                 LOG.warn( "Failed to project page '{}': {}", page.getName(), e.getMessage() );
                             }

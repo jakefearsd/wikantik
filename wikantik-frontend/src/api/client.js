@@ -365,6 +365,9 @@ export const api = {
     projectAll: () =>
       request('/admin/knowledge/project-all', { method: 'POST' }),
 
+    clearAll: () =>
+      request('/admin/knowledge/clear-all', { method: 'POST' }),
+
     // Embedding endpoints
     getEmbeddingStatus: () =>
       request('/admin/knowledge/embeddings/status'),
@@ -389,6 +392,9 @@ export const api = {
 
     getSimilarPagePairs: (limit = 50) =>
       request(`/admin/knowledge/embeddings/similar-pages?limit=${limit}`),
+
+    getPagesWithoutFrontmatter: (limit = 100, offset = 0) =>
+      request(`/admin/knowledge/pages-without-frontmatter?limit=${limit}&offset=${offset}`),
   },
 
   // Public page similarity

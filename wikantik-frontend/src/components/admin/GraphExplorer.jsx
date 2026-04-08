@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../../api/client';
 import NodeDetail from './NodeDetail';
 
-const PAGE_SIZE = 50;
+const LIMIT = 50;
 
 export default function GraphExplorer() {
   const [schema, setSchema] = useState(null);
@@ -15,39 +15,48 @@ export default function GraphExplorer() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [projecting, setProjecting] = useState(false);
   const [projectResult, setProjectResult] = useState(null);
-  const [page, setPage] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const debounceRef = useRef(null);
 
-  const refreshData = async () => {
+  const loadNodes = useCallback(async (currentOffset) => {
     try {
-      const [schemaData, nodesData] = await Promise.all([
-        api.knowledge.getSchema(),
-        api.knowledge.queryNodes({ limit: 200 }),
-      ]);
+      const data = await api.knowledge.queryNodes({
+        name: search || undefined,
+        node_type: typeFilter || undefined,
+        status: statusFilter || undefined,
+        limit: LIMIT,
+        offset: currentOffset,
+      });
+      setNodes(data.nodes || []);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  }, [search, typeFilter, statusFilter]);
+
+  const loadSchema = async () => {
+    try {
+      const schemaData = await api.knowledge.getSchema();
       setSchema(schemaData);
-      setNodes(nodesData.nodes || []);
     } catch (err) {
       setError(err.message);
     }
   };
 
   useEffect(() => {
-    refreshData().finally(() => setLoading(false));
+    loadSchema();
   }, []);
 
-  const filtered = useMemo(() => {
-    setPage(0);
-    const q = search.toLowerCase();
-    return nodes.filter(n => {
-      if (typeFilter && n.node_type !== typeFilter) return false;
-      if (statusFilter && n.properties?.status !== statusFilter) return false;
-      if (q && !n.name.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [nodes, search, typeFilter, statusFilter]);
+  useEffect(() => {
+    setOffset(0);
+    loadNodes(0).finally(() => setLoading(false));
+  }, [loadNodes]);
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const pageStart = page * PAGE_SIZE;
-  const pageNodes = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+  useEffect(() => {
+    if (offset > 0) {
+      loadNodes(offset);
+    }
+  }, [offset, loadNodes]);
 
   const handleProjectAll = async () => {
     setProjecting(true);
@@ -55,12 +64,18 @@ export default function GraphExplorer() {
     try {
       const result = await api.knowledge.projectAll();
       setProjectResult(result);
-      await refreshData();
+      await Promise.all([loadSchema(), loadNodes(offset)]);
     } catch (err) {
       setProjectResult({ error: err.message });
     } finally {
       setProjecting(false);
     }
+  };
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setSearch(value), 300);
   };
 
   const handleNodeClick = async (name) => {
@@ -123,8 +138,8 @@ export default function GraphExplorer() {
           <input
             type="text"
             placeholder="Search nodes..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            defaultValue={search}
+            onChange={handleSearchChange}
             className="form-input"
             style={{ flex: 1 }}
           />
@@ -163,7 +178,7 @@ export default function GraphExplorer() {
             </tr>
           </thead>
           <tbody>
-            {pageNodes.map(n => (
+            {nodes.map(n => (
               <tr
                 key={n.id}
                 onClick={() => handleNodeClick(n.name)}
@@ -177,21 +192,17 @@ export default function GraphExplorer() {
                 <td>{n.is_stub ? 'Yes' : ''}</td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {nodes.length === 0 && (
               <tr><td colSpan={5} style={{ textAlign: 'center' }}>No nodes found.</td></tr>
             )}
           </tbody>
         </table>
 
-        {totalPages > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'var(--space-sm)', fontSize: '0.85em' }}>
-            <span>{filtered.length} nodes — page {page + 1} of {totalPages}</span>
-            <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
-              <button className="btn btn-sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Prev</button>
-              <button className="btn btn-sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next</button>
-            </div>
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'var(--space-sm)', fontSize: '0.85em' }}>
+          <button className="btn btn-sm" onClick={() => setOffset(Math.max(0, offset - LIMIT))} disabled={offset === 0}>Prev</button>
+          <span>Showing {offset + 1}–{offset + nodes.length}</span>
+          <button className="btn btn-sm" onClick={() => setOffset(offset + LIMIT)} disabled={nodes.length < LIMIT}>Next</button>
+        </div>
       </div>
 
       <div style={{ flex: '1 1 50%' }}>

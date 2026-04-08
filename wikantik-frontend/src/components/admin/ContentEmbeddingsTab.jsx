@@ -1,24 +1,33 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 
+const NO_FM_LIMIT = 50;
+
 export default function ContentEmbeddingsTab() {
   const [status, setStatus] = useState(null);
   const [pairs, setPairs] = useState([]);
   const [noFmPages, setNoFmPages] = useState([]);
   const [noFmTotal, setNoFmTotal] = useState(0);
+  const [noFmOffset, setNoFmOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [retraining, setRetraining] = useState(false);
   const [error, setError] = useState(null);
 
-  const loadData = async () => {
+  const loadNoFmPages = async (currentOffset) => {
     try {
-      const [s, fmResult] = await Promise.all([
-        api.knowledge.getEmbeddingStatus(),
-        api.knowledge.getPagesWithoutFrontmatter(100, 0),
-      ]);
-      setStatus(s);
+      const fmResult = await api.knowledge.getPagesWithoutFrontmatter(NO_FM_LIMIT, currentOffset);
       setNoFmPages(fmResult.pages || []);
       setNoFmTotal(fmResult.total || 0);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const loadData = async () => {
+    try {
+      const s = await api.knowledge.getEmbeddingStatus();
+      setStatus(s);
+      await loadNoFmPages(0);
       if (s.content_ready) {
         const result = await api.knowledge.getSimilarPagePairs(50);
         setPairs(result.pairs || []);
@@ -31,6 +40,12 @@ export default function ContentEmbeddingsTab() {
   };
 
   useEffect(() => { loadData(); }, []);
+
+  useEffect(() => {
+    if (noFmOffset > 0) {
+      loadNoFmPages(noFmOffset);
+    }
+  }, [noFmOffset]);
 
   const handleRetrain = async () => {
     setRetraining(true);
@@ -90,7 +105,7 @@ export default function ContentEmbeddingsTab() {
               <tbody>
                 {noFmPages.map((p, i) => (
                   <tr key={p.name}>
-                    <td style={{ color: 'var(--text-muted)', width: '40px' }}>{i + 1}</td>
+                    <td style={{ color: 'var(--text-muted)', width: '40px' }}>{noFmOffset + i + 1}</td>
                     <td>
                       <a href={`/edit/${encodeURIComponent(p.name)}`}>{p.name}</a>
                     </td>
@@ -102,6 +117,13 @@ export default function ContentEmbeddingsTab() {
               </tbody>
             </table>
           </div>
+          {noFmTotal > NO_FM_LIMIT && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'var(--space-sm)', fontSize: '0.85em' }}>
+              <button className="btn btn-sm" onClick={() => setNoFmOffset(Math.max(0, noFmOffset - NO_FM_LIMIT))} disabled={noFmOffset === 0}>Prev</button>
+              <span>Showing {noFmOffset + 1}–{noFmOffset + noFmPages.length} of {noFmTotal}</span>
+              <button className="btn btn-sm" onClick={() => setNoFmOffset(noFmOffset + NO_FM_LIMIT)} disabled={noFmOffset + noFmPages.length >= noFmTotal}>Next</button>
+            </div>
+          )}
         </div>
       )}
 

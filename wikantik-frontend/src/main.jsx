@@ -59,3 +59,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 // App rendered successfully — clear the stale-asset reload flag so that
 // the next deploy can trigger a fresh reload if needed.
 sessionStorage.removeItem('__wikantik_reload');
+
+// Remove cache-bust param from URL bar so users see clean URLs
+if (window.location.search.includes('_cb=')) {
+  const url = new URL(window.location);
+  url.searchParams.delete('_cb');
+  window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+}

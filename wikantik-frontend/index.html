@@ -8,20 +8,132 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      /* Inline fallback styles — must not depend on external CSS */
+      #loading-fallback {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 80vh;
+        font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #6B6560;
+      }
+      #loading-fallback h1 {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 2rem;
+        color: #2D2D2D;
+        margin: 0 0 1.5rem 0;
+      }
+      #loading-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid #E8E4DC;
+        border-top-color: #7A8B6F;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      #loading-fallback p { margin: 1rem 0 0; font-size: 0.95rem; }
+      #loading-error {
+        opacity: 0;
+        visibility: hidden;
+        animation: fadeInError 0.5s ease-in 10s forwards;
+        text-align: center;
+        margin-top: 2rem;
+        padding: 1.5rem;
+        background: #FFF5F5;
+        border: 1px solid #E8CECE;
+        border-radius: 8px;
+        max-width: 420px;
+      }
+      @keyframes fadeInError { to { opacity: 1; visibility: visible; } }
+      #loading-error p { margin: 0.5rem 0; color: #6B6560; }
+      #loading-error a {
+        display: inline-block;
+        margin-top: 0.5rem;
+        padding: 0.5rem 1.25rem;
+        background: #7A8B6F;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 0.9rem;
+      }
+      #loading-error a:hover { background: #66785C; }
+    </style>
   </head>
   <body>
     <script>
-      // Auto-recovery: if the JS or CSS bundle 404s after a deploy, reload once.
-      // Uses sessionStorage to prevent infinite reload loops.
+      // Multi-attempt auto-recovery for stale cached assets after deploy.
+      // Layer 1: cache-busted redirect (defeats intermediary proxies).
+      // Layer 2: verify via build-version.txt, then redirect to /index.html directly.
+      // Layer 3: give up gracefully with a visible error message.
       window.addEventListener('error', function(e) {
         var tag = e.target && e.target.tagName;
-        if ((tag === 'SCRIPT' || tag === 'LINK') && !sessionStorage.getItem('__wikantik_reload')) {
-          sessionStorage.setItem('__wikantik_reload', '1');
-          window.location.reload();
+        if (tag !== 'SCRIPT' && tag !== 'LINK') return;
+
+        var raw = sessionStorage.getItem('__wikantik_reload');
+        var state = null;
+        try { state = raw ? JSON.parse(raw) : null; } catch (_) {}
+
+        if (!state) {
+          // Attempt 1: cache-busted redirect — appends ?_cb=<timestamp> to defeat proxy caches
+          sessionStorage.setItem('__wikantik_reload', JSON.stringify({ attempt: 1, ts: Date.now() }));
+          var loc = window.location;
+          var url = loc.pathname + (loc.search ? loc.search + '&' : '?') + '_cb=' + Date.now();
+          window.location.replace(url);
+          return;
         }
+
+        if (state.attempt === 1) {
+          // Attempt 2: verify staleness via build-version.txt, then redirect to /index.html
+          sessionStorage.setItem('__wikantik_reload', JSON.stringify({ attempt: 2, ts: Date.now() }));
+          fetch('/build-version.txt?_cb=' + Date.now())
+            .then(function(r) { return r.ok ? r.text() : null; })
+            .then(function(serverVer) {
+              var metaEl = document.querySelector('meta[name="build-version"]');
+              var myVer = metaEl ? metaEl.getAttribute('content') : '';
+              if (serverVer && serverVer.trim() !== myVer) {
+                window.location.replace('/index.html?_cb=' + Date.now());
+              } else {
+                showFallbackError();
+              }
+            })
+            .catch(function() { showFallbackError(); });
+          return;
+        }
+
+        // Attempts exhausted — show the fallback error
+        showFallbackError();
       }, true);
+
+      function showFallbackError() {
+        var el = document.getElementById('loading-error');
+        if (el) { el.style.opacity = '1'; el.style.visibility = 'visible'; el.style.animation = 'none'; }
+        var spinner = document.getElementById('loading-spinner');
+        if (spinner) spinner.style.display = 'none';
+        var msg = document.getElementById('loading-msg');
+        if (msg) msg.style.display = 'none';
+      }
     </script>
-    <div id="root"></div>
+    <div id="root">
+      <div id="loading-fallback">
+        <h1>Wikantik</h1>
+        <div id="loading-spinner"></div>
+        <p id="loading-msg">Loading&hellip;</p>
+        <div id="loading-error">
+          <p><strong>Unable to load the application.</strong></p>
+          <p>A newer version may be available. Please try reloading.</p>
+          <a href="javascript:void(0)" onclick="sessionStorage.removeItem('__wikantik_reload');window.location.replace('/?_cb='+Date.now())">Reload</a>
+        </div>
+      </div>
+    </div>
+    <noscript>
+      <div style="text-align:center;padding:4rem 2rem;font-family:'DM Sans',sans-serif;color:#2D2D2D">
+        <h1 style="font-family:'Playfair Display',Georgia,serif">Wikantik</h1>
+        <p>JavaScript is required to use Wikantik. Please enable JavaScript in your browser settings.</p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -74,6 +74,33 @@ class CacheHeaderFilterTest {
     }
 
     @Test
+    void testIndexHtmlGetsPragmaNoCache() throws Exception {
+        final HttpServletRequest request = mockRequest( "/index.html" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).setHeader( "Pragma", "no-cache" );
+    }
+
+    @Test
+    void testIndexHtmlGetsExpiresZero() throws Exception {
+        final HttpServletRequest request = mockRequest( "/index.html" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).setHeader( "Expires", "0" );
+    }
+
+    @Test
+    void testIndexHtmlGetsVaryStar() throws Exception {
+        final HttpServletRequest request = mockRequest( "/index.html" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).setHeader( "Vary", "*" );
+    }
+
+    @Test
     void testNonHashedAssetDoesNotSetCacheHeader() throws Exception {
         final HttpServletRequest request = mockRequest( "/favicon.svg" );
 

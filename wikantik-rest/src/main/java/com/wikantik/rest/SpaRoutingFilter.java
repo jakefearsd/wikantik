@@ -63,7 +63,7 @@ public class SpaRoutingFilter implements Filter {
 
         // Redirect / and /wiki/ to /wiki/Main (server-side, independent of SPA)
         if ( "/".equals( path ) || "/wiki/".equals( path ) || "/wiki".equals( path ) ) {
-            resp.setHeader( "Cache-Control", "no-store" );
+            setNoCacheHeaders( resp );
             resp.sendRedirect( "/wiki/Main" );
             return;
         }
@@ -83,14 +83,14 @@ public class SpaRoutingFilter implements Filter {
         if ( isBrowserNavigation ) {
             for ( final String prefix : SPA_PREFIXES ) {
                 if ( path.startsWith( prefix ) ) {
-                    resp.setHeader( "Cache-Control", "no-store" );
+                    setNoCacheHeaders( resp );
                     req.getRequestDispatcher( "/index.html" ).forward( request, response );
                     return;
                 }
             }
             for ( final String exact : SPA_EXACT ) {
                 if ( path.equals( exact ) || path.startsWith( exact + "?" ) ) {
-                    resp.setHeader( "Cache-Control", "no-store" );
+                    setNoCacheHeaders( resp );
                     req.getRequestDispatcher( "/index.html" ).forward( request, response );
                     return;
                 }
@@ -99,6 +99,13 @@ public class SpaRoutingFilter implements Filter {
 
         // Everything else passes through
         chain.doFilter( request, response );
+    }
+
+    private static void setNoCacheHeaders( final HttpServletResponse resp ) {
+        resp.setHeader( "Cache-Control", "no-store" );
+        resp.setHeader( "Pragma", "no-cache" );
+        resp.setHeader( "Expires", "0" );
+        resp.setHeader( "Vary", "*" );
     }
 
     @Override

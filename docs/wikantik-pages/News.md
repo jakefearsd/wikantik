@@ -6,6 +6,18 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-08** — fix: add detailed logging to content embeddings retrain flow
+
+**2026-04-07** — fix: return friendly HTML page for unauthorized admin browser navigation
+
+**2026-04-07** — feat: exclude system pages from KG, add Clear All for knowledge graph
+
+**2026-04-07** — feat: create links_to KG edges from body links, list pages without frontmatter
+
+**2026-04-06** — feat: split Embeddings tab into KG Embeddings and Content Embeddings
+
+**2026-04-06** — refactor: migrate all database tests to PostgreSQL Testcontainers, remove H2/HSQLDB
+
 **2026-04-06** — fix: use Cache-Control no-store for SPA entry point to fix stale reload
 
 **2026-04-05** — build: configure mvn clean to remove frontend build output

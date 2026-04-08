@@ -8,6 +8,12 @@ function buildVersionPlugin() {
     config() {
       return { define: { __BUILD_VERSION__: JSON.stringify(version) } };
     },
+    transformIndexHtml( html ) {
+      return html.replace(
+        '<meta charset="UTF-8" />',
+        '<meta charset="UTF-8" />\n    <meta name="build-version" content="' + version + '" />'
+      );
+    },
     generateBundle() {
       this.emitFile({
         type: 'asset',

@@ -330,8 +330,19 @@ public class AdminKnowledgeResource extends RestServletBase {
             if ( body == null ) return;
             final UUID sourceId = UUID.fromString( body.get( "sourceId" ).getAsString() );
             final UUID targetId = UUID.fromString( body.get( "targetId" ).getAsString() );
+
+            // Resolve names and update frontmatter BEFORE merge (edges are deleted during merge)
+            final KgNode sourceNode = service.getNode( sourceId );
+            final KgNode targetNode = service.getNode( targetId );
+            int pagesUpdated = 0;
+            if ( sourceNode != null && targetNode != null ) {
+                pagesUpdated = renameFrontmatterReferences(
+                        service, sourceNode.name(), targetNode.name(), sourceId );
+            }
+
             service.mergeNodes( sourceId, targetId );
-            sendJson( response, Map.of( "merged", true, "targetId", targetId.toString() ) );
+            sendJson( response, Map.of( "merged", true, "targetId", targetId.toString(),
+                    "pages_updated", pagesUpdated ) );
         } else {
             // POST /admin/knowledge/nodes — upsert
             final JsonObject body = parseJsonBody( request, response );
@@ -493,6 +504,74 @@ public class AdminKnowledgeResource extends RestServletBase {
         } catch ( final WikiException e ) {
             LOG.error( "Failed to write-back frontmatter for proposal {}: {}", proposal.id(), e.getMessage(), e );
         }
+    }
+
+    /**
+     * Renames all frontmatter references from {@code oldName} to {@code newName}
+     * across pages that have inbound edges to the given node.
+     *
+     * @return the number of pages whose frontmatter was updated
+     */
+    @SuppressWarnings( "unchecked" )
+    private int renameFrontmatterReferences( final KnowledgeGraphService service,
+                                             final String oldName, final String newName,
+                                             final UUID oldNodeId ) {
+        final PageManager pm = getEngine().getManager( PageManager.class );
+        final List< KgEdge > inbound = service.getEdgesForNode( oldNodeId, "inbound" );
+
+        // Collect unique source pages to update (multiple edges may come from the same page)
+        final Set< String > pagesToUpdate = new LinkedHashSet<>();
+        for ( final KgEdge edge : inbound ) {
+            final KgNode srcNode = service.getNode( edge.sourceId() );
+            if ( srcNode != null && srcNode.sourcePage() != null ) {
+                pagesToUpdate.add( srcNode.sourcePage().replace( ".md", "" ) );
+            }
+        }
+
+        int updated = 0;
+        for ( final String pageName : pagesToUpdate ) {
+            try {
+                final String pageText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
+                if ( pageText == null ) {
+                    continue;
+                }
+
+                final ParsedPage parsed = FrontmatterParser.parse( pageText );
+                final Map< String, Object > metadata = new LinkedHashMap<>( parsed.metadata() );
+                boolean changed = false;
+
+                for ( final Map.Entry< String, Object > entry : metadata.entrySet() ) {
+                    if ( entry.getValue() instanceof List ) {
+                        final List< String > list = new ArrayList<>( ( List< String > ) entry.getValue() );
+                        final int idx = list.indexOf( oldName );
+                        if ( idx >= 0 ) {
+                            list.set( idx, newName );
+                            // Remove duplicates if newName was already in the list
+                            final List< String > deduped = list.stream().distinct().collect( Collectors.toList() );
+                            metadata.put( entry.getKey(), deduped );
+                            changed = true;
+                        }
+                    }
+                }
+
+                if ( changed ) {
+                    final String updatedText = FrontmatterWriter.write( metadata, parsed.body() );
+                    final PageSaveHelper saveHelper = new PageSaveHelper( getEngine() );
+                    final SaveOptions options = SaveOptions.builder()
+                            .author( "Knowledge Admin" )
+                            .changeNote( "Merge: renamed " + oldName + " → " + newName )
+                            .build();
+                    saveHelper.saveText( pageName, updatedText, options );
+                    updated++;
+                    LOG.info( "Merge frontmatter update: renamed {} → {} in page '{}'",
+                            oldName, newName, pageName );
+                }
+            } catch ( final WikiException e ) {
+                LOG.error( "Failed to update frontmatter for merge in page '{}': {}",
+                        pageName, e.getMessage(), e );
+            }
+        }
+        return updated;
     }
 
     // --- Edge name resolution ---

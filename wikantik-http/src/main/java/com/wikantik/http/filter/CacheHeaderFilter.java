@@ -61,6 +61,9 @@ public class CacheHeaderFilter implements Filter {
             resp.setHeader( "Cache-Control", "public, max-age=31536000, immutable" );
         } else if ( "/index.html".equals( path ) ) {
             resp.setHeader( "Cache-Control", "no-store" );
+            resp.setHeader( "Pragma", "no-cache" );
+            resp.setHeader( "Expires", "0" );
+            resp.setHeader( "Vary", "*" );
         }
 
         chain.doFilter( request, response );

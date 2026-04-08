@@ -1,3 +1,8 @@
+---
+type: algorithm
+field: computer-science
+---
+
 # Graph Coloring as a Complexity Deep Dive: A Research Tutorial for Expert Engineers and Data Scientists
 
 If you approach graph coloring merely as a "fun puzzle" to color a map, you are fundamentally misunderstanding the depth of the mathematical and computational challenge before you. For the expert software engineer or data scientist operating at the frontier of research, graph coloring ($\chi(G)$) is not a single problem; it is a vast, multifaceted research domain that touches upon computational complexity theory, parameterized algorithms, distributed computing, and advanced machine learning representations.

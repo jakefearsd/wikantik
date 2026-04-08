@@ -44,7 +44,9 @@ import org.mockito.Mockito;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
+import java.io.BufferedReader;
 import java.io.PrintWriter;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.sql.Connection;
 import java.util.Map;
@@ -306,6 +308,125 @@ class AdminKnowledgeResourceTest {
         assertEquals( "DeployedPage", nodes.get( 0 ).getAsJsonObject().get( "name" ).getAsString() );
     }
 
+    // ----- Merge frontmatter update tests -----
+
+    @Test
+    void testMergeNodesUpdatesFrontmatter() throws Exception {
+        // Page references "OldNode" in its frontmatter
+        engine.saveText( "MergeSrcPage",
+                "---\ntitle: Source\nrelated:\n  - OldNode\n---\nBody." );
+        engine.saveText( "OldNode",
+                "---\ntitle: Old\n---\nOld content." );
+        engine.saveText( "NewNode",
+                "---\ntitle: New\n---\nNew content." );
+        doPost( "/project-all" );
+
+        // Get node UUIDs
+        final KnowledgeGraphService service = engine.getManager( KnowledgeGraphService.class );
+        final var oldNode = service.getNodeByName( "OldNode" );
+        final var newNode = service.getNodeByName( "NewNode" );
+        assertNotNull( oldNode, "OldNode should exist after projection" );
+        assertNotNull( newNode, "NewNode should exist after projection" );
+
+        // Merge OldNode into NewNode
+        final JsonObject mergeBody = new JsonObject();
+        mergeBody.addProperty( "sourceId", oldNode.id().toString() );
+        mergeBody.addProperty( "targetId", newNode.id().toString() );
+        final String result = doPostWithBody( "/nodes/merge", mergeBody );
+        final JsonObject obj = gson.fromJson( result, JsonObject.class );
+        assertTrue( obj.get( "merged" ).getAsBoolean(), "Merge should succeed" );
+
+        // Verify MergeSrcPage's frontmatter now references NewNode instead of OldNode
+        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
+        final String updatedText = pm.getPureText( "MergeSrcPage",
+                com.wikantik.api.providers.WikiProvider.LATEST_VERSION );
+        assertTrue( updatedText.contains( "NewNode" ),
+                "Frontmatter should reference NewNode after merge, got: " + updatedText );
+        assertFalse( updatedText.contains( "OldNode" ),
+                "Frontmatter should no longer reference OldNode after merge, got: " + updatedText );
+
+        // Verify response includes pages_updated count
+        assertTrue( obj.has( "pages_updated" ),
+                "Response should include pages_updated count" );
+        assertTrue( obj.get( "pages_updated" ).getAsInt() >= 1,
+                "At least 1 page should have been updated" );
+
+        // Cleanup
+        try { pm.deletePage( "MergeSrcPage" ); } catch ( final Exception e ) { /* ignore */ }
+        try { pm.deletePage( "OldNode" ); } catch ( final Exception e ) { /* ignore */ }
+        try { pm.deletePage( "NewNode" ); } catch ( final Exception e ) { /* ignore */ }
+    }
+
+    @Test
+    void testMergeNodesHandlesMultiplePages() throws Exception {
+        // Two pages reference OldTarget
+        engine.saveText( "MultiMergA",
+                "---\ntitle: A\nrelated:\n  - OldTarget\n---\nBody A." );
+        engine.saveText( "MultiMergB",
+                "---\ntitle: B\nmentions:\n  - OldTarget\n  - OtherNode\n---\nBody B." );
+        engine.saveText( "OldTarget",
+                "---\ntitle: Old Target\n---\nContent." );
+        engine.saveText( "NewTarget",
+                "---\ntitle: New Target\n---\nContent." );
+        doPost( "/project-all" );
+
+        final KnowledgeGraphService service = engine.getManager( KnowledgeGraphService.class );
+        final var oldNode = service.getNodeByName( "OldTarget" );
+        final var newNode = service.getNodeByName( "NewTarget" );
+
+        final JsonObject mergeBody = new JsonObject();
+        mergeBody.addProperty( "sourceId", oldNode.id().toString() );
+        mergeBody.addProperty( "targetId", newNode.id().toString() );
+        final String result = doPostWithBody( "/nodes/merge", mergeBody );
+        final JsonObject obj = gson.fromJson( result, JsonObject.class );
+        assertTrue( obj.get( "merged" ).getAsBoolean() );
+        assertTrue( obj.get( "pages_updated" ).getAsInt() >= 2,
+                "Both pages should have been updated" );
+
+        // Verify both pages updated
+        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
+        final String textA = pm.getPureText( "MultiMergA",
+                com.wikantik.api.providers.WikiProvider.LATEST_VERSION );
+        assertTrue( textA.contains( "NewTarget" ), "Page A should reference NewTarget" );
+        assertFalse( textA.contains( "OldTarget" ), "Page A should not reference OldTarget" );
+
+        final String textB = pm.getPureText( "MultiMergB",
+                com.wikantik.api.providers.WikiProvider.LATEST_VERSION );
+        assertTrue( textB.contains( "NewTarget" ), "Page B should reference NewTarget" );
+        assertFalse( textB.contains( "OldTarget" ), "Page B should not reference OldTarget" );
+        assertTrue( textB.contains( "OtherNode" ), "Page B should still reference OtherNode" );
+
+        // Cleanup
+        try { pm.deletePage( "MultiMergA" ); } catch ( final Exception e ) { /* ignore */ }
+        try { pm.deletePage( "MultiMergB" ); } catch ( final Exception e ) { /* ignore */ }
+        try { pm.deletePage( "OldTarget" ); } catch ( final Exception e ) { /* ignore */ }
+        try { pm.deletePage( "NewTarget" ); } catch ( final Exception e ) { /* ignore */ }
+    }
+
+    @Test
+    void testMergeNodesSkipsStubPages() throws Exception {
+        // Create nodes via API — source has edges from a stub (no wiki page)
+        final KnowledgeGraphService service = engine.getManager( KnowledgeGraphService.class );
+        final var stubNode = service.upsertNode( "StubReferrer", null, null,
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var oldNode = service.upsertNode( "StubOldNode", null, null,
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var newNode = service.upsertNode( "StubNewNode", null, null,
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( stubNode.id(), oldNode.id(), "related",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+
+        // Merge should succeed even though the referencing node has no sourcePage
+        final JsonObject mergeBody = new JsonObject();
+        mergeBody.addProperty( "sourceId", oldNode.id().toString() );
+        mergeBody.addProperty( "targetId", newNode.id().toString() );
+        final String result = doPostWithBody( "/nodes/merge", mergeBody );
+        final JsonObject obj = gson.fromJson( result, JsonObject.class );
+        assertTrue( obj.get( "merged" ).getAsBoolean(), "Merge should succeed" );
+        assertEquals( 0, obj.get( "pages_updated" ).getAsInt(),
+                "No pages should be updated for stub nodes" );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pathInfo ) throws Exception {
@@ -320,6 +441,17 @@ class AdminKnowledgeResourceTest {
 
     private String doPost( final String pathInfo ) throws Exception {
         final HttpServletRequest request = createRequest( pathInfo );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPost( request, response );
+        return sw.toString();
+    }
+
+    private String doPostWithBody( final String pathInfo, final JsonObject body ) throws Exception {
+        final HttpServletRequest request = createRequest( pathInfo );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         final StringWriter sw = new StringWriter();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();

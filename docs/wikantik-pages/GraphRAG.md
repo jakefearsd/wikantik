@@ -1,4 +1,4 @@
-# Knowledge Graphs and Retrieval Augmented Generation: A Deep Dive for Advanced Research
+# Knowledge Graphs and Retrieval Augmented Generation
 
 ## Introduction: The Limits of Context and the Promise of Structure
 
@@ -11,8 +11,6 @@ To ground these models in verifiable reality, **Retrieval Augmented Generation (
 This tutorial delves into the next evolutionary leap: the integration of **Knowledge Graphs (KGs)** with RAG, resulting in what is often termed **GraphRAG**. For the expert software engineer or data scientist conducting cutting-edge research, understanding this synergy is not merely about implementing a new pipeline; it is about fundamentally changing how knowledge is modeled, retrieved, and reasoned upon.
 
 We are moving beyond the mere retrieval of *text chunks* (the domain of traditional vector search) toward the retrieval of *structured relationships* and *inferential paths*. This document will serve as a comprehensive technical blueprint, exploring the theory, architecture, advanced implementation patterns, and critical edge cases associated with building robust, KG-powered RAG systems.
-
-***
 
 ## Part I: Foundational Theory—Deconstructing the Components
 
@@ -296,6 +294,3 @@ The future trajectory points toward:
 3.  **Causal Inference:** Moving beyond correlation (which the KG excels at) to modeling true causality, requiring the integration of probabilistic graphical models alongside the deterministic graph structure.
 
 Mastering this domain requires a deep fluency across NLP, Graph Theory, Information Retrieval, and formal logic. It is a demanding field, but one that promises to deliver AI systems that are not just knowledgeable, but demonstrably *wise*.
-
-***
-*(Word Count Estimate: This detailed structure, when fully elaborated with the depth expected by the target audience, comfortably exceeds the 3500-word minimum by providing exhaustive theoretical background, multiple algorithmic pseudocode examples, and deep dives into advanced edge cases.)*

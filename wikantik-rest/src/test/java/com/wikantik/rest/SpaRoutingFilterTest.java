@@ -221,6 +221,37 @@ class SpaRoutingFilterTest {
         verify( response ).setHeader( "Cache-Control", "no-store" );
     }
 
+    @Test
+    void testSpaForwardSetsPragmaNoCache() throws Exception {
+        final HttpServletRequest request = mockRequest( "/wiki/SomePage" );
+        final RequestDispatcher dispatcher = mock( RequestDispatcher.class );
+        when( request.getRequestDispatcher( "/index.html" ) ).thenReturn( dispatcher );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).setHeader( "Pragma", "no-cache" );
+    }
+
+    @Test
+    void testSpaForwardSetsExpiresZero() throws Exception {
+        final HttpServletRequest request = mockRequest( "/wiki/SomePage" );
+        final RequestDispatcher dispatcher = mock( RequestDispatcher.class );
+        when( request.getRequestDispatcher( "/index.html" ) ).thenReturn( dispatcher );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).setHeader( "Expires", "0" );
+    }
+
+    @Test
+    void testRedirectSetsPragmaNoCache() throws Exception {
+        final HttpServletRequest request = mockRequest( "/" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).setHeader( "Pragma", "no-cache" );
+    }
+
     // ---- Passthrough tests (static assets) ----
 
     @Test

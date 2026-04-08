@@ -27,7 +27,12 @@ import com.wikantik.test.StubPageSaveHelper;
 import com.wikantik.test.StubSystemPageRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,51 +40,55 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * End-to-end MCP test exercising write, read, and query round-trip with realistic
+ * End-to-end MCP test exercising import, read, and query round-trip with realistic
  * article content and YAML frontmatter metadata.
  */
 class FrontmatterRoundTripTest {
 
     private StubPageManager pm;
-    private WritePageTool writeTool;
+    private ImportContentTool importTool;
     private ReadPageTool readTool;
     private QueryMetadataTool queryTool;
     private final Gson gson = new Gson();
+
+    @TempDir
+    Path tempDir;
 
     @BeforeEach
     void setUp() {
         pm = new StubPageManager();
         final var spr = new StubSystemPageRegistry();
-        writeTool = new WritePageTool( new StubPageSaveHelper( pm ), spr );
+        importTool = new ImportContentTool( new StubPageSaveHelper( pm ), pm );
         readTool = new ReadPageTool( pm, spr );
         queryTool = new QueryMetadataTool( pm );
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    void testWriteArticleWithMetadataThenReadBack() {
-        final Map< String, Object > metadata = new HashMap<>();
-        metadata.put( "type", "intelligence-report" );
-        metadata.put( "title", "Iran Update Evening Special Report, March 12, 2026" );
-        metadata.put( "author", "Christopher Solomon" );
-        metadata.put( "source", "Institute for the Study of War" );
-        metadata.put( "date", "2026-03-12" );
-        metadata.put( "region", "Middle East" );
-        metadata.put( "tags", List.of( "Iran", "Mojtaba Khamenei", "supreme-leader", "geopolitics" ) );
+    void testImportArticleWithMetadataThenReadBack() throws IOException {
+        final String pageContent = """
+                ---
+                type: intelligence-report
+                title: "Iran Update Evening Special Report, March 12, 2026"
+                author: Christopher Solomon
+                source: Institute for the Study of War
+                date: "2026-03-12"
+                region: Middle East
+                tags:
+                - Iran
+                - Mojtaba Khamenei
+                - supreme-leader
+                - geopolitics
+                ---
+                Iranian Supreme Leader Mojtaba Khamenei issued his first public statement on \
+                March 12, 2026. This evening special report from ISW's Christopher Solomon analyzes \
+                the implications of the statement for regional stability and Iranian domestic politics.""";
 
-        final String body = "Iranian Supreme Leader Mojtaba Khamenei issued his first public statement on "
-                + "March 12, 2026. This evening special report from ISW's Christopher Solomon analyzes "
-                + "the implications of the statement for regional stability and Iranian domestic politics.";
+        Files.writeString( tempDir.resolve( "IranUpdateMarch2026.md" ), pageContent, StandardCharsets.UTF_8 );
 
-        final Map< String, Object > writeArgs = new HashMap<>();
-        writeArgs.put( "pageName", "IranUpdateMarch2026" );
-        writeArgs.put( "content", body );
-        writeArgs.put( "metadata", metadata );
-        writeArgs.put( "changeNote", "Initial article import via MCP" );
-
-        final McpSchema.CallToolResult writeResult = writeTool.execute( writeArgs );
-        final Map< String, Object > writeData = parseResult( writeResult );
-        assertEquals( true, writeData.get( "success" ) );
+        final McpSchema.CallToolResult importResult = importTool.execute(
+                Map.of( "directory", tempDir.toString(), "changeNote", "Initial article import via MCP" ) );
+        assertFalse( importResult.isError() );
 
         // Read the page back via ReadPageTool
         final McpSchema.CallToolResult readResult = readTool.execute( Map.of( "pageName", "IranUpdateMarch2026" ) );
@@ -138,17 +147,11 @@ class FrontmatterRoundTripTest {
     }
 
     @Test
-    void testStoredFrontmatterParsesCorrectly() {
-        final Map< String, Object > metadata = new HashMap<>();
-        metadata.put( "type", "intelligence-report" );
-        metadata.put( "tags", List.of( "Iran", "supreme-leader" ) );
+    void testStoredFrontmatterParsesCorrectly() throws IOException {
+        final String pageContent = "---\ntype: intelligence-report\ntags:\n- Iran\n- supreme-leader\n---\nReport body content.";
 
-        final Map< String, Object > writeArgs = new HashMap<>();
-        writeArgs.put( "pageName", "IranFmTest" );
-        writeArgs.put( "content", "Report body content." );
-        writeArgs.put( "metadata", metadata );
-
-        writeTool.execute( writeArgs );
+        Files.writeString( tempDir.resolve( "IranFmTest.md" ), pageContent, StandardCharsets.UTF_8 );
+        importTool.execute( Map.of( "directory", tempDir.toString() ) );
 
         // Verify the raw stored text has proper frontmatter structure
         final String stored = pm.getPureText( "IranFmTest", -1 );

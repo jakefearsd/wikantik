@@ -36,7 +36,6 @@ import java.util.*;
  *
  * @see PageCheck
  * @see PageCheckResult
- * @see AuditClusterTool
  * @see VerifyPagesTool
  */
 public final class PageChecks {

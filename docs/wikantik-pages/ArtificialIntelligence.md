@@ -1,9 +1,13 @@
 ---
-type: reference
+related:
+- LlmsSinceTwentyTwenty
+- TheFutureOfMachineLearning
+- FoundationalAlgorithmsForComputerScientists
+- MachineLearning
+- AIModelTraining
+summary: Comprehensive overview of artificial intelligence covering history, core techniques, current capabilities, major applications, ethical considerations, and key research organizations
 status: active
-summary: Comprehensive overview of artificial intelligence covering history, core
-  techniques, current capabilities, major applications, ethical considerations, and
-  key research organizations
+type: reference
 tags:
 - ai
 - machine-learning
@@ -11,13 +15,8 @@ tags:
 - technology
 - overview
 cluster: generative-ai
-related:
-- LlmsSinceTwentyTwenty
-- TheFutureOfMachineLearning
-- FoundationalAlgorithmsForComputerScientists
-- MachineLearning
-- AIModelTraining
 ---
+
 # Artificial Intelligence
 
 Artificial intelligence (AI) refers to the development of computer systems capable of performing tasks that typically require human intelligence. These tasks include learning from experience, understanding natural language, recognizing patterns, making decisions, and solving problems. As a field of computer science and engineering, AI encompasses a broad range of techniques, from rule-based expert systems to modern [machine learning](MachineLearning) approaches that learn directly from data.

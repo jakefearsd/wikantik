@@ -35,8 +35,7 @@ import java.util.*;
  * and SEO readiness.
  *
  * <p>SEO readiness checks use the Strategy pattern — composed {@link PageCheck}
- * instances from {@link PageChecks} — so validation rules are shared with
- * {@link AuditClusterTool} rather than duplicated.
+ * instances from {@link PageChecks} — so validation rules are reusable.
  */
 public class VerifyPagesTool implements McpTool {
 

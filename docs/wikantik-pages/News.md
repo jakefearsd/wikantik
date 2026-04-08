@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-08** — feat: multi-attempt stale-asset recovery, hardened no-cache headers, KG merge renames frontmatter
+
 **2026-04-08** — fix: add detailed logging to content embeddings retrain flow
 
 **2026-04-07** — fix: return friendly HTML page for unauthorized admin browser navigation

@@ -34,27 +34,24 @@ import java.util.List;
 
 /**
  * Factory that creates and categorises all MCP tools based on their registration
- * requirements. Tools fall into three groups:
+ * requirements. Tools fall into two groups:
  *
  * <ul>
  *   <li><strong>Read-only tools</strong> ({@link #readOnlyTools()}) &mdash; need no per-request
- *       author or user resolution; they are registered with a plain exchange handler.</li>
+ *       author resolution; they are registered with a plain exchange handler.</li>
  *   <li><strong>Author-configurable tools</strong> ({@link #authorConfigurableTools()}) &mdash;
  *       implement {@link AuthorConfigurable} and require the MCP client name to be
  *       injected as the default author before each invocation.</li>
- *   <li><strong>User-configurable tool</strong> ({@link #lockPageTool()}) &mdash; the
- *       {@link LockPageTool} requires a different kind of user resolution (lock owner)
- *       and is therefore handled separately.</li>
  * </ul>
  *
- * <p>This separation keeps {@link McpServerInitializer} focused on server setup and
- * registration while this class owns tool instantiation and categorisation.</p>
+ * <p>Content editing uses an export/import workflow: agents export pages as Markdown files,
+ * edit them with filesystem tools, then import changes back. This replaces the previous
+ * per-page CRUD tools (write_page, patch_page, etc.).</p>
  */
 public class McpToolRegistry {
 
     private final List< McpTool > readOnly;
     private final List< McpTool > authorConfigurable;
-    private final LockPageTool lockPage;
 
     /**
      * Creates every MCP tool, deriving all required managers from the given engine.
@@ -76,9 +73,7 @@ public class McpToolRegistry {
         final ListPagesTool listPages = new ListPagesTool( pageManager, systemPageRegistry );
         final GetBacklinksTool getBacklinks = new GetBacklinksTool( referenceManager );
         final RecentChangesTool recentChanges = new RecentChangesTool( pageManager, systemPageRegistry );
-        final GetAttachmentsTool getAttachments = new GetAttachmentsTool( pageManager, attachmentManager );
         final QueryMetadataTool queryMetadata = new QueryMetadataTool( pageManager );
-        final DeletePageTool deletePage = new DeletePageTool( pageManager, systemPageRegistry );
         final GetPageHistoryTool getPageHistory = new GetPageHistoryTool( pageManager );
         final DiffPageTool diffPage = new DiffPageTool( engine, pageManager, differenceManager );
         final GetOutboundLinksTool getOutboundLinks = new GetOutboundLinksTool( referenceManager );
@@ -86,64 +81,45 @@ public class McpToolRegistry {
         final GetOrphanedPagesTool getOrphanedPages = new GetOrphanedPagesTool( referenceManager, systemPageRegistry );
         final GetWikiStatsTool getWikiStats = new GetWikiStatsTool( pageManager, referenceManager );
         final ListMetadataValuesTool listMetadataValues = new ListMetadataValuesTool( pageManager );
-        final UnlockPageTool unlockPage = new UnlockPageTool( pageManager );
-        final ReadAttachmentTool readAttachment = new ReadAttachmentTool( attachmentManager );
-        final DeleteAttachmentTool deleteAttachment = new DeleteAttachmentTool( attachmentManager );
-        final ScanMarkdownLinksTool scanMarkdownLinks = new ScanMarkdownLinksTool( pageManager );
         final VerifyPagesTool verifyPages = new VerifyPagesTool( pageManager, referenceManager );
         final PreviewStructuredDataTool previewStructuredData = new PreviewStructuredDataTool(
                 pageManager, engine.getApplicationName(), engine.getBaseURL() );
         final String indexNowApiKey = engine.getWikiProperties().getProperty( "wikantik.indexnow.apiKey" );
         final PingSearchEnginesTool pingSearchEngines = new PingSearchEnginesTool(
                 engine.getBaseURL(), indexNowApiKey, java.net.http.HttpClient.newHttpClient() );
-        final GetClusterMapTool getClusterMap = new GetClusterMapTool( pageManager, systemPageRegistry );
-        final AuditClusterTool auditCluster = new AuditClusterTool( pageManager, referenceManager );
-        final AuditCrossClusterTool auditCrossCluster = new AuditCrossClusterTool( pageManager, referenceManager, systemPageRegistry );
+
+        // --- Export/import workflow tools (read-only) ---
+        final ExportContentTool exportContent = new ExportContentTool( pageManager, attachmentManager, systemPageRegistry );
+        final PreviewImportTool previewImport = new PreviewImportTool( pageManager );
 
         final List< McpTool > readOnlyList = new ArrayList<>( List.of(
                 readPage, searchPages, listPages, getBacklinks, recentChanges,
-                getAttachments, queryMetadata, deletePage, getPageHistory, diffPage,
+                queryMetadata, getPageHistory, diffPage,
                 getOutboundLinks, getBrokenLinks, getOrphanedPages, getWikiStats,
-                listMetadataValues, unlockPage, readAttachment, deleteAttachment,
-                scanMarkdownLinks, verifyPages, previewStructuredData, pingSearchEngines,
-                getClusterMap, auditCluster, auditCrossCluster
+                listMetadataValues, verifyPages, previewStructuredData, pingSearchEngines,
+                exportContent, previewImport
         ) );
 
         // --- Author-configurable tools (need author resolution from MCP exchange) ---
-        final WritePageTool writePage = new WritePageTool( pageSaveHelper, systemPageRegistry );
-        final BatchWritePagesTool batchWrite = new BatchWritePagesTool( pageSaveHelper );
         final RenamePageTool renamePage = new RenamePageTool( engine, pageManager, pageRenamer, systemPageRegistry );
-        final UploadAttachmentTool uploadAttachment = new UploadAttachmentTool( engine, pageManager, attachmentManager );
-        final PatchPageTool patchPage = new PatchPageTool( pageSaveHelper, pageManager );
-        final BatchPatchPagesTool batchPatchPages = new BatchPatchPagesTool( pageSaveHelper, pageManager );
-        final UpdateMetadataTool updateMetadata = new UpdateMetadataTool( pageSaveHelper, pageManager );
-        final BatchUpdateMetadataTool batchUpdateMetadata = new BatchUpdateMetadataTool( pageSaveHelper, pageManager );
-        final ApplyAuditFixesTool applyAuditFixes = new ApplyAuditFixesTool( pageSaveHelper, pageManager );
-        final PublishClusterTool publishCluster = new PublishClusterTool( pageSaveHelper, pageManager );
-        final ExtendClusterTool extendCluster = new ExtendClusterTool( pageSaveHelper, pageManager );
+        final ImportContentTool importContent = new ImportContentTool( pageSaveHelper, pageManager );
 
         final List< McpTool > authorConfigurableList = new ArrayList<>( List.of(
-                writePage, batchWrite, renamePage, uploadAttachment,
-                patchPage, batchPatchPages, updateMetadata, batchUpdateMetadata,
-                applyAuditFixes, publishCluster, extendCluster
+                renamePage, importContent
         ) );
 
         // --- Knowledge proposal tools (only if KnowledgeGraphService is available) ---
         final KnowledgeGraphService kgService = engine.getManager( KnowledgeGraphService.class );
         if ( kgService != null ) {
             readOnlyList.add( new ListProposalsTool( kgService ) );
-
             authorConfigurableList.add( new ProposeKnowledgeTool( kgService ) );
         }
 
         readOnly = List.copyOf( readOnlyList );
         authorConfigurable = List.copyOf( authorConfigurableList );
-
-        // --- User-configurable tool (lock owner resolution) ---
-        lockPage = new LockPageTool( pageManager );
     }
 
-    /** Returns tools that need no per-request author or user resolution. */
+    /** Returns tools that need no per-request author resolution. */
     public List< McpTool > readOnlyTools() {
         return readOnly;
     }
@@ -151,10 +127,5 @@ public class McpToolRegistry {
     /** Returns tools that implement {@link AuthorConfigurable} and need author injection. */
     public List< McpTool > authorConfigurableTools() {
         return authorConfigurable;
-    }
-
-    /** Returns the {@link LockPageTool} which needs special user (lock-owner) resolution. */
-    public LockPageTool lockPageTool() {
-        return lockPage;
     }
 }

@@ -1,22 +1,22 @@
 ---
-summary: How stochastic OR extends deterministic models to handle uncertainty through
-  queuing theory, Markov chains, and simulation
-date: 2026-03-21T00:00:00Z
+status: active
+part-of:
+- OperationsResearchHub
+date: 2026-03-21T01:00:00Z
+cluster: operations-research
+related:
+- OperationsResearchHub
+- OperationsResearch
+type: article
 tags:
 - operations-research
 - stochastic-models
 - probability
 - queuing-theory
 - simulation
-related:
-- OperationsResearchHub
-- OperationsResearch
-type: article
-cluster: operations-research
-status: active
-part-of:
-- OperationsResearchHub
+summary: How stochastic OR extends deterministic models to handle uncertainty through queuing theory, Markov chains, and simulation.
 ---
+
 # Stochastic Models in Operations Research
 
 Deterministic OR models assume all parameters — demand, costs, travel times, capacities — are known with certainty. In practice, uncertainty is pervasive: customer arrivals are random, demand fluctuates, machines fail, delivery times vary. **Stochastic OR** extends the deterministic toolkit to handle randomness explicitly, producing plans that are robust to uncertainty rather than optimized for a single scenario that may never occur.

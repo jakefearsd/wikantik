@@ -19,7 +19,6 @@
 package com.wikantik.mcp;
 
 import com.wikantik.TestEngine;
-import com.wikantik.mcp.tools.LockPageTool;
 import com.wikantik.mcp.tools.McpTool;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,19 +59,53 @@ class McpToolRegistryTest {
                 .map( McpTool::name )
                 .collect( Collectors.toSet() );
 
-        // Verify key read-only tools are registered
+        // Wiki intelligence tools
         assertTrue( names.contains( "read_page" ), "should contain read_page" );
         assertTrue( names.contains( "search_pages" ), "should contain search_pages" );
         assertTrue( names.contains( "list_pages" ), "should contain list_pages" );
         assertTrue( names.contains( "get_backlinks" ), "should contain get_backlinks" );
         assertTrue( names.contains( "recent_changes" ), "should contain recent_changes" );
-        assertTrue( names.contains( "get_attachments" ), "should contain get_attachments" );
         assertTrue( names.contains( "query_metadata" ), "should contain query_metadata" );
         assertTrue( names.contains( "diff_page" ), "should contain diff_page" );
         assertTrue( names.contains( "get_outbound_links" ), "should contain get_outbound_links" );
         assertTrue( names.contains( "get_broken_links" ), "should contain get_broken_links" );
         assertTrue( names.contains( "get_orphaned_pages" ), "should contain get_orphaned_pages" );
         assertTrue( names.contains( "get_wiki_stats" ), "should contain get_wiki_stats" );
+        assertTrue( names.contains( "verify_pages" ), "should contain verify_pages" );
+        assertTrue( names.contains( "preview_structured_data" ), "should contain preview_structured_data" );
+
+        // Export/import workflow
+        assertTrue( names.contains( "export_content" ), "should contain export_content" );
+        assertTrue( names.contains( "preview_import" ), "should contain preview_import" );
+    }
+
+    @Test
+    void testRemovedToolsAreGone() {
+        final Set< String > allNames = new java.util.HashSet<>();
+        registry.readOnlyTools().forEach( t -> allNames.add( t.name() ) );
+        registry.authorConfigurableTools().forEach( t -> allNames.add( t.name() ) );
+
+        // These tools were removed in favor of export/import workflow
+        assertFalse( allNames.contains( "write_page" ), "write_page should be removed" );
+        assertFalse( allNames.contains( "patch_page" ), "patch_page should be removed" );
+        assertFalse( allNames.contains( "batch_write_pages" ), "batch_write_pages should be removed" );
+        assertFalse( allNames.contains( "batch_patch_pages" ), "batch_patch_pages should be removed" );
+        assertFalse( allNames.contains( "update_metadata" ), "update_metadata should be removed" );
+        assertFalse( allNames.contains( "batch_update_metadata" ), "batch_update_metadata should be removed" );
+        assertFalse( allNames.contains( "lock_page" ), "lock_page should be removed" );
+        assertFalse( allNames.contains( "unlock_page" ), "unlock_page should be removed" );
+        assertFalse( allNames.contains( "upload_attachment" ), "upload_attachment should be removed" );
+        assertFalse( allNames.contains( "delete_attachment" ), "delete_attachment should be removed" );
+        assertFalse( allNames.contains( "read_attachment" ), "read_attachment should be removed" );
+        assertFalse( allNames.contains( "publish_cluster" ), "publish_cluster should be removed" );
+        assertFalse( allNames.contains( "extend_cluster" ), "extend_cluster should be removed" );
+        assertFalse( allNames.contains( "apply_audit_fixes" ), "apply_audit_fixes should be removed" );
+        assertFalse( allNames.contains( "delete_page" ), "delete_page should be removed" );
+        assertFalse( allNames.contains( "get_attachments" ), "get_attachments should be removed" );
+        assertFalse( allNames.contains( "scan_markdown_links" ), "scan_markdown_links should be removed" );
+        assertFalse( allNames.contains( "get_cluster_map" ), "get_cluster_map should be removed" );
+        assertFalse( allNames.contains( "audit_cluster" ), "audit_cluster should be removed" );
+        assertFalse( allNames.contains( "audit_cross_cluster" ), "audit_cross_cluster should be removed" );
     }
 
     @Test
@@ -88,18 +121,8 @@ class McpToolRegistryTest {
                 .map( McpTool::name )
                 .collect( Collectors.toSet() );
 
-        assertTrue( names.contains( "write_page" ), "should contain write_page" );
-        assertTrue( names.contains( "batch_write_pages" ), "should contain batch_write_pages" );
         assertTrue( names.contains( "rename_page" ), "should contain rename_page" );
-        assertTrue( names.contains( "patch_page" ), "should contain patch_page" );
-        assertTrue( names.contains( "update_metadata" ), "should contain update_metadata" );
-    }
-
-    @Test
-    void testLockPageToolPresent() {
-        final LockPageTool lockTool = registry.lockPageTool();
-        assertNotNull( lockTool );
-        assertEquals( "lock_page", lockTool.name() );
+        assertTrue( names.contains( "import_content" ), "should contain import_content" );
     }
 
     @Test
@@ -107,7 +130,6 @@ class McpToolRegistryTest {
         final List< String > allNames = new java.util.ArrayList<>();
         registry.readOnlyTools().forEach( t -> allNames.add( t.name() ) );
         registry.authorConfigurableTools().forEach( t -> allNames.add( t.name() ) );
-        allNames.add( registry.lockPageTool().name() );
 
         final Set< String > uniqueNames = new java.util.HashSet<>( allNames );
         assertEquals( allNames.size(), uniqueNames.size(), "Tool names must be unique" );
@@ -116,10 +138,9 @@ class McpToolRegistryTest {
     @Test
     void testTotalToolCount() {
         final int total = registry.readOnlyTools().size()
-                + registry.authorConfigurableTools().size()
-                + 1; // lockPageTool
-        // Ensure we have at least the expected minimum number of tools
-        assertTrue( total >= 35, "Expected at least 35 tools, found " + total );
+                + registry.authorConfigurableTools().size();
+        // 18 read-only + 2 author-configurable = 20 base (+ KG tools if available)
+        assertTrue( total >= 20, "Expected at least 20 tools, found " + total );
     }
 
     @Test
@@ -131,6 +152,5 @@ class McpToolRegistryTest {
         for ( final McpTool tool : registry.authorConfigurableTools() ) {
             assertNotNull( tool.definition(), "Tool " + tool.name() + " should have a definition" );
         }
-        assertNotNull( registry.lockPageTool().definition() );
     }
 }

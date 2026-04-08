@@ -40,7 +40,6 @@ import com.wikantik.mcp.prompts.WikiPrompts;
 import com.wikantik.mcp.resources.WikiEventSubscriptionBridge;
 import com.wikantik.mcp.resources.WikiResources;
 import com.wikantik.mcp.tools.AuthorConfigurable;
-import com.wikantik.mcp.tools.LockPageTool;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
@@ -148,13 +147,6 @@ public class McpServerInitializer implements ServletContextListener {
                 } );
             }
 
-            // Lock tool needs user resolution (different from author)
-            final LockPageTool lockPage = toolRegistry.lockPageTool();
-            builder.toolCall( lockPage.definition(), ( exchange, request ) -> {
-                resolveUser( exchange, lockPage );
-                return lockPage.execute( request.arguments() );
-            } );
-
             mcpServer = builder
                     // Register resources
                     .resources( wikiResources.staticResources() )
@@ -170,7 +162,8 @@ public class McpServerInitializer implements ServletContextListener {
             subscriptionBridge.register( pageManager );
 
             servletContext.setAttribute( ATTR_MCP_SERVER, mcpServer );
-            LOG.info( "MCP server started successfully with 37 tools, 6 resources, 8 prompts, and 3 completions at /mcp" );
+            final int totalTools = toolRegistry.readOnlyTools().size() + toolRegistry.authorConfigurableTools().size();
+            LOG.info( "MCP server started with {} tools, 6 resources, 8 prompts, and 3 completions at /mcp", totalTools );
 
         } catch ( final Exception e ) {
             LOG.error( "Failed to start MCP server: {}", e.getMessage(), e );
@@ -201,15 +194,4 @@ public class McpServerInitializer implements ServletContextListener {
         }
     }
 
-    private static void resolveUser( final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
-                                      final LockPageTool tool ) {
-        try {
-            final McpSchema.Implementation clientInfo = exchange.getClientInfo();
-            if ( clientInfo != null && clientInfo.name() != null && !clientInfo.name().isBlank() ) {
-                tool.setDefaultUser( clientInfo.name() );
-            }
-        } catch ( final Exception e ) {
-            // Ignore — fall back to default
-        }
-    }
 }

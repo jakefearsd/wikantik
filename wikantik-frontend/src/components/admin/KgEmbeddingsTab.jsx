@@ -49,9 +49,17 @@ export default function KgEmbeddingsTab() {
   const handlePropose = async (pred) => {
     setProposing(`${pred.sourceName}-${pred.targetName}`);
     try {
+      const [sourceNode, targetNode] = await Promise.all([
+        api.knowledge.getNode(pred.sourceName),
+        api.knowledge.getNode(pred.targetName),
+      ]);
+      if (!sourceNode?.id || !targetNode?.id) {
+        setError(`Could not resolve nodes: "${pred.sourceName}", "${pred.targetName}"`);
+        return;
+      }
       await api.knowledge.upsertEdge({
-        source_name: pred.sourceName,
-        target_name: pred.targetName,
+        source_id: sourceNode.id,
+        target_id: targetNode.id,
         relationship_type: pred.relationshipType,
       });
       setPredictions(p => p.filter(x => x !== pred));
@@ -138,7 +146,7 @@ export default function KgEmbeddingsTab() {
                     <td>{p.score?.toFixed(2)}</td>
                     <td>
                       <button
-                        className="btn btn-sm"
+                        className="btn btn-primary btn-sm"
                         disabled={proposing === `${p.sourceName}-${p.targetName}`}
                         onClick={() => handlePropose(p)}
                       >

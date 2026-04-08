@@ -26,7 +26,7 @@ import java.util.Map;
 
 /**
  * Provides MCP Prompts for common wiki workflows, guiding AI agents through
- * structured interactions with the wiki.
+ * structured interactions with the wiki using the export/import workflow.
  */
 public final class WikiPrompts {
 
@@ -34,8 +34,8 @@ public final class WikiPrompts {
     }
 
     public static List< McpServerFeatures.SyncPromptSpecification > all() {
-        return List.of( createArticle(), summarizeTopic(), auditLinks(), renamePage(), wikiHealthCheck(),
-                publishCluster(), extendCluster(), seoAudit() );
+        return List.of( createArticle(), summarizeTopic(), auditLinks(), renamePage(),
+                wikiHealthCheck(), publishCluster(), extendCluster(), seoAudit() );
     }
 
     private static McpServerFeatures.SyncPromptSpecification createArticle() {
@@ -58,24 +58,33 @@ public final class WikiPrompts {
 
                     Follow these steps:
 
-                    1. **Check for existing content**: Use `list_pages` with a relevant prefix, and `search_pages` for "%s" to find related pages.
+                    1. **Check for existing content**: Use `list_pages` with a relevant prefix, and `search_pages` \
+                    for "%s" to find related pages.
 
-                    2. **Choose a CamelCase page name**: Page names must be CamelCase with no spaces (e.g. SecurityPolicy, ProjectAlpha).
+                    2. **Choose a CamelCase page name**: Page names must be CamelCase with no spaces (e.g. SecurityPolicy).
 
-                    3. **Write the article** using `write_page` with:
-                       - `content`: The Markdown body of the article
-                       - `metadata`: Include at minimum:
-                         - `type: %s`
-                         - `tags: [relevant, tags]`
-                         - `date: %s` (today's date)
-                         - `summary: one-line description` (50-160 chars — this becomes the meta description in search results)
-                         - `related: [RelatedPageName]` (link to pages found in step 1)
-                       Include tags — these enable Google News Sitemap inclusion.
-                       - `changeNote`: "Initial creation"
+                    3. **Export a working directory**: Use `export_content` to get a working directory. \
+                    If related pages exist, include them so you can add cross-references.
 
-                    4. **Verify**: Use `read_page` to confirm the article was saved correctly.
+                    4. **Create the article file**: Create a new .md file (e.g. `PageName.md`) in the working directory \
+                    with YAML frontmatter:
+                       ```
+                       ---
+                       type: %s
+                       tags: [relevant, tags]
+                       date: %s
+                       summary: one-line description (50-160 chars for SEO)
+                       related: [RelatedPageName]
+                       status: active
+                       ---
+                       # Article Title
 
-                    5. **Cross-reference**: If related pages exist, consider updating them to link back to the new article.
+                       Body content in Markdown.
+                       ```
+
+                    5. **Preview and import**: Use `preview_import` to verify, then `import_content` to publish.
+
+                    6. **Cross-reference**: If related pages exist, edit their files to add links back to the new article.
 
                     Use Markdown `[link text](PageName)` syntax for internal links.""",
                     topic, topic, type, java.time.LocalDate.now().toString() );
@@ -110,7 +119,8 @@ public final class WikiPrompts {
 
                     2. **Check metadata**: Use `query_metadata` with relevant tags or types to find categorized content.
 
-                    3. **Read key pages**: Use `read_page` on each relevant result to understand the content.
+                    3. **Export relevant pages**: Use `export_content` with the page names you found \
+                    to get all content in a working directory where you can read and cross-reference easily.
 
                     4. **Follow links**: Check `get_backlinks` on key pages to discover related content you may have missed.
 
@@ -119,7 +129,9 @@ public final class WikiPrompts {
                        - Contradictions or gaps between pages
                        - Areas that need more content
 
-                    6. **Optionally create a summary page**: If the user wants, use `write_page` to create a synthesis page with type "summary" and links to all source pages in the `related` metadata field.""",
+                    6. **Optionally create a summary page**: Create a new .md file in the working directory \
+                    with type "summary" and links to all source pages in the `related` metadata field, \
+                    then use `import_content` to publish it.""",
                     topic, topic );
 
             return new McpSchema.GetPromptResult(
@@ -150,15 +162,20 @@ public final class WikiPrompts {
 
                         Follow these steps:
 
-                        1. **List all pages**: Use `list_pages` to get the full page inventory.
+                        1. **Get overview**: Use `get_wiki_stats` for a high-level view, then `get_broken_links` \
+                        and `get_orphaned_pages` to find structural issues.
 
-                        2. **For each page**: Use `read_page` to read the content and extract all internal links (Markdown `[text](PageName)` format).
+                        2. **Export for inspection**: Use `export_content` to export all pages. \
+                        Grep the exported files for internal links to cross-reference.
 
-                        3. **Verify targets exist**: For each linked page name, check if it exists using `read_page`. Note any broken links where `exists` is false.
+                        3. **Verify broken link targets**: For each broken link, check if it's a typo, \
+                        a renamed page, or content that should be created.
 
-                        4. **Check orphaned pages**: Use `get_backlinks` on each page. Pages with zero backlinks may be orphaned.
+                        4. **Fix issues**: Edit the exported files to fix broken links, add missing links to orphaned pages.
 
-                        5. **Report findings**:
+                        5. **Preview and import**: Use `preview_import` to review all changes, then `import_content` to apply.
+
+                        6. **Report findings**:
                            - Broken links (page references that don't exist)
                            - Orphaned pages (no incoming links)
                            - Pages with very few connections
@@ -172,16 +189,16 @@ public final class WikiPrompts {
 
                         1. **Read the page**: Use `read_page` for "%s" to get its content.
 
-                        2. **Extract links**: Find all internal links in the Markdown content (format: `[text](PageName)`).
+                        2. **Check links**: Use `get_outbound_links` and `get_backlinks` for "%s".
 
-                        3. **Verify each link target**: Use `read_page` for each linked page name. Note any where `exists` is false.
+                        3. **Check metadata links**: Look at the `related` field in the metadata. \
+                        Verify those pages exist too.
 
-                        4. **Check backlinks**: Use `get_backlinks` for "%s" to see what links TO this page.
+                        4. **Fix issues**: If fixes are needed, use `export_content` to export "%s" and related pages, \
+                        edit the files, then `import_content` to apply changes.
 
-                        5. **Check metadata links**: Look at the `related` field in the metadata. Verify those pages exist too.
-
-                        6. **Report**: List broken links, suggest fixes, and note any related pages that should link here but don't.""",
-                        pageName, pageName, pageName );
+                        5. **Report**: List broken links, suggest fixes, and note any related pages that should link here but don't.""",
+                        pageName, pageName, pageName, pageName );
             }
 
             return new McpSchema.GetPromptResult(
@@ -212,26 +229,24 @@ public final class WikiPrompts {
 
                     Follow these steps for a safe rename:
 
-                    1. **Verify the source page exists**: Use `read_page` for "%s" to confirm it exists and review its content.
+                    1. **Verify the source page exists**: Use `read_page` for "%s" to confirm it exists.
 
                     2. **Check the target name is available**: Use `read_page` for "%s" to confirm no page exists with that name.
 
-                    3. **Review incoming links**: Use `get_backlinks` for "%s" to see which pages link to it. These will be updated automatically if updateLinks=true.
+                    3. **Review incoming links**: Use `get_backlinks` for "%s" to see which pages link to it. \
+                    These will be updated automatically if updateLinks=true.
 
-                    4. **Review outbound links**: Use `get_outbound_links` for "%s" to understand what the page connects to.
-
-                    5. **Perform the rename**: Use `rename_page` with:
+                    4. **Perform the rename**: Use `rename_page` with:
                        - `oldName`: "%s"
                        - `newName`: "%s"
-                       - `updateLinks`: true (to update all referencing pages)
+                       - `updateLinks`: true
                        - `confirm`: true
 
-                    6. **Verify the result**: Use `read_page` for "%s" to confirm the page exists with correct content.
+                    5. **Verify**: Use `read_page` for "%s" to confirm the page exists with correct content. \
+                    Use `get_backlinks` for "%s" to verify referencing pages were updated.
 
-                    7. **Check links updated**: Use `get_backlinks` for "%s" to verify pages now reference the new name.
-
-                    Note: System pages cannot be renamed. The rename operation moves page content, attachments, and version history.""",
-                    oldName, newName, oldName, newName, oldName, oldName, oldName, newName, newName, newName );
+                    Note: System pages cannot be renamed. The rename operation moves content, attachments, and version history.""",
+                    oldName, newName, oldName, newName, oldName, oldName, newName, newName, newName );
 
             return new McpSchema.GetPromptResult(
                     "Guide for safely renaming a wiki page",
@@ -267,40 +282,46 @@ public final class WikiPrompts {
                     1. **Survey existing content**: Use `search_pages` with query "%s" and `list_metadata_values` \
                     to discover related pages and metadata conventions already in use.
 
-                    2. **Design the cluster**: Plan a hub page and %s sub-articles. All page names must be CamelCase. \
-                    %sDesign the inter-page link structure: hub links to all sub-articles, sub-articles link back to hub.
+                    2. **Create a working directory**: Use `export_content` to get a working directory. \
+                    Include any existing related pages for cross-referencing.
 
-                    3. **Publish pages**: Use `batch_write_pages` to create all pages. Write the hub page first. \
-                    Each page must include full metadata:
-                       - `type`: "hub" for the hub page, "article" for sub-articles
-                       - `tags`: relevant topic tags (consistent across all cluster pages)
-                       - `date`: %s
-                       - `related`: list of related CamelCase page names within the cluster
-                       - `cluster`: %s
-                       - `status`: "active"
-                       - `summary`: one-line description
-                       - `author`: set to a descriptive name, not "MCP"
-                       - `changeNote`: "Initial creation"
+                    3. **Create the files**: In the working directory, create %s .md files:
+                       - **Hub page** (e.g. `TopicOverview.md`):
+                         ```
+                         ---
+                         type: hub
+                         tags: [topic-tags]
+                         date: %s
+                         summary: overview of the cluster topic
+                         related: [SubArticle1, SubArticle2]
+                         cluster: %s
+                         status: active
+                         ---
+                         ```
+                       - **Sub-articles** (e.g. `SubArticle1.md`):
+                         ```
+                         ---
+                         type: article
+                         tags: [topic-tags]
+                         date: %s
+                         summary: one-line description
+                         related: [HubPage, OtherSubArticle]
+                         cluster: %s
+                         status: active
+                         ---
+                         ```
+                       Link hub → sub-articles and sub-articles → hub using `[text](PageName)`.
 
-                    4. **Set cross-references**: Use `batch_update_metadata` to set the `related` field across all cluster pages \
-                    so each page references its siblings and the hub.
+                    4. **Preview**: Use `preview_import` to verify all files look correct.
 
-                    5. **Verify integrity**: Use `verify_pages` on all cluster pages to confirm:
-                       - All pages exist
-                       - No broken links
-                       - All pages have backlinks
-                       - Metadata is complete
+                    5. **Import**: Use `import_content` to publish all pages at once.
 
-                    5b. **Verify SEO**: Use `preview_structured_data` on the hub and one sub-article to verify \
-                    JSON-LD, meta tags, and feed entries. Hub should show CollectionPage with hasPart.
-
-                    6. **Document**: Append cluster details to `docs/research_history.md` including topic, all pages created, and cross-links.
-
-                    Use Markdown `[link text](PageName)` syntax for internal links.""",
-                    topic, topic, pageCount,
-                    clusterSlug.isEmpty() ? "" : "Use cluster identifier: \"" + clusterSlug + "\". ",
+                    6. **Verify**: Use `verify_pages` on all cluster pages to confirm no broken links \
+                    and metadata is complete. Use `preview_structured_data` on the hub to verify JSON-LD.""",
+                    topic, topic, pageCount, today,
+                    clusterSlug.isEmpty() ? "a-kebab-case-slug" : clusterSlug,
                     today,
-                    clusterSlug.isEmpty() ? "a kebab-case slug derived from the topic" : "\"" + clusterSlug + "\"" );
+                    clusterSlug.isEmpty() ? "a-kebab-case-slug" : clusterSlug );
 
             return new McpSchema.GetPromptResult(
                     "Guide for creating an article cluster with hub and sub-articles",
@@ -330,44 +351,32 @@ public final class WikiPrompts {
 
                     Follow these steps:
 
-                    1. **Find cluster members**: Use `query_metadata` with field="cluster" and value="%s" \
-                    to find all existing pages in this cluster.
+                    1. **Find cluster members**: Use `query_metadata` with field="cluster" and value="%s".
 
-                    2. **Read the hub**: Identify the hub page (type="hub") and use `read_page` to understand \
-                    the cluster structure, naming conventions, and content style.
+                    2. **Export the cluster**: Use `export_content` with the cluster page names to get \
+                    a working directory with all existing cluster content.
 
-                    3. **Create the new article**: Use `write_page` for "%s" with:
-                       - `content`: the article body in Markdown
-                       - `metadata`: match the cluster's metadata schema:
-                         - `type`: "article"
-                         - `tags`: consistent with existing cluster tags
-                         - `date`: %s
-                         - `related`: include hub page and relevant sibling articles
-                         - `cluster`: "%s"
-                         - `status`: "active"
-                         - `summary`: one-line description
-                       - `author`: set to a descriptive name
-                       - `changeNote`: "Initial creation"
+                    3. **Create the new article**: Add a new file `%s.md` with matching metadata:
+                       ```
+                       ---
+                       type: article
+                       tags: [consistent-with-cluster]
+                       date: %s
+                       summary: one-line description
+                       related: [HubPage, RelevantSiblings]
+                       cluster: "%s"
+                       status: active
+                       ---
+                       ```
 
-                    4. **Update the hub**: Use `batch_patch_pages` to add a link to "%s" in the hub page's \
-                    article listing section.
+                    4. **Update existing files**: Edit the hub page to add a link to "%s". \
+                    Update `related` lists in relevant sibling articles.
 
-                    5. **Update cross-references**: Use `batch_update_metadata` to add "%s" to the `related` \
-                    lists of the hub page and relevant sibling articles.
+                    5. **Preview and import**: Use `preview_import` then `import_content` to publish.
 
-                    6. **Verify**: Use `verify_pages` on the new article, the hub, and any updated siblings \
-                    to confirm:
-                       - No broken links
-                       - Backlinks are correct
-                       - Metadata is complete
-
-                    7. **Verify SEO**: Use `preview_structured_data` on the new article to verify \
-                    BreadcrumbList, isPartOf, and cluster feed inclusion.
-
-                    Use Markdown `[link text](PageName)` syntax for internal links.""",
+                    6. **Verify**: Use `verify_pages` on the new article and updated pages.""",
                     newPageName, clusterSlug, clusterSlug, newPageName,
-                    java.time.LocalDate.now().toString(), clusterSlug,
-                    newPageName, newPageName );
+                    java.time.LocalDate.now().toString(), clusterSlug, newPageName );
 
             return new McpSchema.GetPromptResult(
                     "Guide for adding an article to an existing cluster",
@@ -390,27 +399,26 @@ public final class WikiPrompts {
 
                     Follow these steps:
 
-                    1. **Get an overview**: Use `get_wiki_stats` to get total pages, broken link count, orphaned page count, and recent activity.
+                    1. **Get an overview**: Use `get_wiki_stats` to get total pages, broken link count, \
+                    orphaned page count, and recent activity.
 
-                    2. **Review broken links**: Use `get_broken_links` to find all references to non-existent pages. For each broken link, note which pages reference it and consider:
+                    2. **Review broken links**: Use `get_broken_links` to find all references to non-existent pages. \
+                    For each broken link, consider:
                        - Should the missing page be created?
                        - Is the link a typo that should be corrected?
                        - Has the target page been renamed without updating references?
 
-                    3. **Find orphaned pages**: Use `get_orphaned_pages` to find pages with no incoming links. For each orphan, consider:
-                       - Should other pages link to it?
-                       - Is it outdated and should be deleted?
-                       - Does it need better metadata for discoverability?
+                    3. **Find orphaned pages**: Use `get_orphaned_pages` to find pages with no incoming links.
 
-                    4. **Check metadata quality**: Use `list_metadata_values` to review what metadata fields and values are in use. Look for:
+                    4. **Check metadata quality**: Use `list_metadata_values` to review metadata fields and values. Look for:
                        - Inconsistent tag naming (e.g. "security" vs "Security")
                        - Missing type classifications
                        - Pages without tags or summaries
 
-                    5. **Check SEO quality**: Use `verify_pages` with `checks=["seo_readiness"]` on a sample \
-                    of pages to assess SEO quality across the wiki. Look for missing summaries, tags, and dates.
+                    5. **Check SEO quality**: Use `verify_pages` with `checks=["seo_readiness"]` on a sample of pages.
 
-                    6. **Review recent activity**: Use `recent_changes` to check recent edits for any issues.
+                    6. **Fix issues**: Export affected pages with `export_content`, edit the files to fix \
+                    metadata, links, and content issues, then `import_content` to apply.
 
                     7. **Report findings**: Summarize the wiki health status with:
                        - Overall statistics
@@ -446,28 +454,25 @@ public final class WikiPrompts {
 
                     1. **Find pages in scope**: %s
 
-                    2. **Run SEO checks**: Use `verify_pages` with `checks=["seo_readiness"]` on all pages in scope. \
-                    Review the seoWarnings for each page and the seoIssues summary.
+                    2. **Run SEO checks**: Use `verify_pages` with `checks=["seo_readiness"]` on all pages in scope.
 
-                    3. **Preview impact**: For pages with warnings, use `preview_structured_data` to see the \
-                    exact meta tags, JSON-LD, feed entries, and News Sitemap eligibility they produce. \
-                    This shows the real-world impact of the issues.
+                    3. **Preview impact**: For pages with warnings, use `preview_structured_data` to see \
+                    meta tags, JSON-LD, feed entries, and News Sitemap eligibility.
 
-                    4. **Fix issues**: Use `update_metadata` or `batch_update_metadata` to fix metadata problems:
+                    4. **Fix issues**: Export affected pages with `export_content`, then edit frontmatter in the files:
                        - Add or improve summaries (aim for 50-160 characters)
                        - Add tags to enable News Sitemap inclusion
                        - Add date fields for JSON-LD datePublished
                        - Fix hub pages: ensure related lists reference existing pages
-                       - Set type on clustered pages that lack it
 
-                    5. **Re-verify**: Run `verify_pages` with `checks=["seo_readiness"]` again to confirm \
-                    all seoIssues are resolved.
+                    5. **Import and re-verify**: Use `import_content` to apply fixes, then run \
+                    `verify_pages` with `checks=["seo_readiness"]` again to confirm all issues are resolved.
 
                     6. **Report**: Summarize findings:
                        - Pages with good SEO (no warnings)
                        - Pages that needed attention and what was fixed
-                       - News-eligible page count (pages with tags modified recently)
-                       - Any remaining issues that need manual attention""",
+                       - News-eligible page count
+                       - Any remaining issues""",
                     cluster.isEmpty() ? " across the entire wiki" : " for cluster \"" + cluster + "\"",
                     cluster.isEmpty()
                             ? "Use `list_pages` to get all pages, or `query_metadata` to find pages by type."

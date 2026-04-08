@@ -25,9 +25,8 @@ import java.util.Map;
  * Strategy interface for page validation checks (Gang of Four: Strategy pattern).
  *
  * <p>Each implementation encapsulates a single validation concern — SEO readiness,
- * metadata completeness, structural integrity, etc.  Tools like {@link AuditClusterTool}
- * and {@link VerifyPagesTool} compose the checks they need, avoiding duplicated
- * validation logic.
+ * metadata completeness, structural integrity, etc.  {@link VerifyPagesTool} composes
+ * the checks it needs, avoiding duplicated validation logic.
  *
  * <p>Implementations must be stateless and thread-safe.  All mutable state lives in the
  * {@link PageCheckContext} passed to {@link #check}.

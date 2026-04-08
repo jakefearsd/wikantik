@@ -499,21 +499,30 @@ public class EmbeddingService {
      */
     public synchronized void retrainContentModel() {
         if( pageManager == null ) {
-            LOG.warn( "Cannot retrain content model: no PageManager available" );
+            LOG.warn( "Content retrain skipped: no PageManager available" );
             return;
         }
-        if( contentTraining ) return;
+        if( contentTraining ) {
+            LOG.info( "Content retrain skipped: already in progress" );
+            return;
+        }
         contentTraining = true;
+        LOG.info( "Content retrain started" );
         try {
             final long start = System.currentTimeMillis();
 
             final Collection< Page > allPages = pageManager.getAllPages();
+            LOG.info( "Content retrain: {} total pages returned by PageManager", allPages.size() );
+
             final List< String > names = new ArrayList<>( allPages.size() );
             final List< String > documents = new ArrayList<>( allPages.size() );
+            int skippedSystem = 0;
+            int skippedError = 0;
 
             for( final Page page : allPages ) {
                 final String pageName = page.getName();
                 if( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
+                    skippedSystem++;
                     continue;
                 }
                 try {
@@ -530,12 +539,16 @@ public class EmbeddingService {
                     names.add( pageName );
                     documents.add( doc.toString() );
                 } catch( final Exception e ) {
-                    LOG.warn( "Failed to load page text for '{}': {}", pageName, e.getMessage() );
+                    skippedError++;
+                    LOG.warn( "Content retrain: failed to load page '{}': {}", pageName, e.getMessage(), e );
                 }
             }
 
+            LOG.info( "Content retrain: {} pages to embed, {} system pages skipped, {} errors",
+                names.size(), skippedSystem, skippedError );
+
             if( names.isEmpty() ) {
-                LOG.info( "No pages found for content model training" );
+                LOG.info( "Content retrain finished: no pages to train on" );
                 return;
             }
 
@@ -552,10 +565,11 @@ public class EmbeddingService {
             contentLastTrained.set( Instant.now() );
 
             final long elapsed = System.currentTimeMillis() - start;
-            LOG.info( "TF-IDF content model trained in {}ms: {} pages, dim {} (version {})",
+            LOG.info( "Content retrain finished in {}ms: {} pages, dim {}, version {}",
                 elapsed, names.size(), TfidfModel.DIMENSION, contentModelVersion );
         } catch( final Exception e ) {
-            LOG.warn( "Content model training failed: {}", e.getMessage() );
+            // LOG.error justified: admin-triggered retrain failed unexpectedly, must be visible in logs
+            LOG.error( "Content retrain FAILED: {}", e.getMessage(), e );
         } finally {
             contentTraining = false;
         }

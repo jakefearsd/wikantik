@@ -694,13 +694,22 @@ public class AdminKnowledgeResource extends RestServletBase {
             sendJson( response, result );
         } else if ( segments.length >= 2 && "retrain-content".equals( segments[1] ) ) {
             // POST /admin/knowledge/embeddings/retrain-content
-            embSvc.retrainContentModel();
-            final var cStatus = embSvc.getStatus();
-            final Map< String, Object > cResult = new LinkedHashMap<>();
-            cResult.put( "message", "Content model retrained" );
-            cResult.put( "content_entity_count", cStatus.contentEntityCount() );
-            cResult.put( "content_dimension", cStatus.contentDimension() );
-            sendJson( response, cResult );
+            LOG.info( "Content retrain requested via REST" );
+            try {
+                embSvc.retrainContentModel();
+                final var cStatus = embSvc.getStatus();
+                final Map< String, Object > cResult = new LinkedHashMap<>();
+                cResult.put( "message", "Content model retrained" );
+                cResult.put( "content_entity_count", cStatus.contentEntityCount() );
+                cResult.put( "content_dimension", cStatus.contentDimension() );
+                cResult.put( "content_last_trained",
+                        cStatus.contentLastTrained() != null ? cStatus.contentLastTrained().toString() : null );
+                sendJson( response, cResult );
+            } catch ( final Exception e ) {
+                LOG.error( "Content retrain failed via REST: {}", e.getMessage(), e );
+                sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                        "Content retrain failed: " + e.getMessage() );
+            }
         } else {
             sendNotFound( response, "Unknown embeddings sub-resource" );
         }

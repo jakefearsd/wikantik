@@ -15,7 +15,7 @@ public class FrontmatterRelationshipDetector {
     /** Keys that are always treated as properties, never as relationships. */
     private static final Set< String > PROPERTY_ONLY_KEYS = Set.of(
         "tags", "keywords", "type", "summary", "date", "author", "cluster",
-        "status", "title", "description", "category", "language"
+        "status", "title", "description", "category", "language", "auto-generated"
     );
 
     public record DetectionResult(

@@ -433,6 +433,24 @@ export const api = {
         body: JSON.stringify({ threshold }),
       }),
 
+    // Hub Discovery (cluster-based)
+    listHubDiscoveryProposals: (limit = 50, offset = 0) => {
+      const params = new URLSearchParams({ limit, offset });
+      return request(`/admin/knowledge/hub-discovery/proposals?${params}`);
+    },
+
+    runHubDiscovery: () =>
+      request('/admin/knowledge/hub-discovery/run', { method: 'POST' }),
+
+    acceptHubDiscoveryProposal: (id, name, members) =>
+      request(`/admin/knowledge/hub-discovery/proposals/${id}/accept`, {
+        method: 'POST',
+        body: JSON.stringify({ name, members }),
+      }),
+
+    dismissHubDiscoveryProposal: (id) =>
+      request(`/admin/knowledge/hub-discovery/proposals/${id}/dismiss`, { method: 'POST' }),
+
     backfillFrontmatter: () =>
       request('/admin/knowledge/backfill-frontmatter', { method: 'POST' }),
 

@@ -58,6 +58,7 @@ import com.wikantik.knowledge.EmbeddingService;
 import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.knowledge.FrontmatterDefaultsFilter;
 import com.wikantik.knowledge.HubProposalRepository;
+import com.wikantik.knowledge.HubProposalService;
 import com.wikantik.knowledge.HubSyncFilter;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
@@ -579,9 +580,22 @@ public class WikiEngine implements Engine {
             final HubProposalRepository hubProposalRepo = new HubProposalRepository( ds );
             managers.put( HubProposalRepository.class, hubProposalRepo );
 
+            // Hub proposal service — uses a supplier so it always sees the latest
+            // content model after EmbeddingService retrains, rather than capturing
+            // a stale reference at construction time.
+            final HubProposalService hubProposalService = new HubProposalService(
+                repo, hubProposalRepo, contentEmbeddingRepo, props,
+                embeddingService::getCurrentContentModel );
+            managers.put( HubProposalService.class, hubProposalService );
+            LOG.info( "HubProposalService registered (reviewPercentile property='{}')",
+                props.getProperty( HubProposalService.PROP_REVIEW_PERCENTILE, "default" ) );
+
             LOG.info( "Knowledge graph initialized with datasource '{}'", datasource );
         } catch( final Exception e ) {
-            LOG.warn( "Knowledge graph initialization failed: {}", e.getMessage() );
+            // Log with the throwable so the stack trace is visible — partial init failures
+            // previously hid behind a one-line warn and caused downstream managers like
+            // HubProposalService to be silently null.
+            LOG.warn( "Knowledge graph initialization failed: {}", e.getMessage(), e );
         }
     }
 

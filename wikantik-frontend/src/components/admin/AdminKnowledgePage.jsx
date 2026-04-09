@@ -5,6 +5,7 @@ import GraphExplorer from './GraphExplorer';
 import EdgeExplorer from './EdgeExplorer';
 import KgEmbeddingsTab from './KgEmbeddingsTab';
 import ContentEmbeddingsTab from './ContentEmbeddingsTab';
+import HubProposalsTab from './HubProposalsTab';
 import '../../styles/admin.css';
 
 const TABS = [
@@ -13,6 +14,7 @@ const TABS = [
   { id: 'edge-explorer', label: 'Edge Explorer' },
   { id: 'kg-embeddings', label: 'KG Embeddings' },
   { id: 'content-embeddings', label: 'Content Embeddings' },
+  { id: 'hub-proposals', label: 'Hub Proposals' },
 ];
 
 export default function AdminKnowledgePage() {
@@ -60,6 +62,7 @@ export default function AdminKnowledgePage() {
       {activeTab === 'edge-explorer' && <EdgeExplorer />}
       {activeTab === 'kg-embeddings' && <KgEmbeddingsTab />}
       {activeTab === 'content-embeddings' && <ContentEmbeddingsTab />}
+      {activeTab === 'hub-proposals' && <HubProposalsTab />}
     </div>
   );
 }

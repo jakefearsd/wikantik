@@ -415,4 +415,20 @@ class HubDiscoveryServiceTest {
         assertThrows( HubDiscoveryException.class, () ->
             service.dismissProposal( 9999, "admin" ) );
     }
+
+    @Test
+    void acceptProposal_missingId_throws() {
+        final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final HubDiscoveryService service = HubDiscoveryService.builder()
+            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).contentRepo( contentRepo )
+            .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
+            .contentModel( new TfidfModel() )
+            .pageWriter( helper::saveText )
+            .pageExists( name -> false )
+            .build();
+
+        assertThrows( HubDiscoveryException.class, () ->
+            service.acceptProposal( 9999, "SomeHub", List.of( "A", "B" ), "admin" ) );
+    }
 }

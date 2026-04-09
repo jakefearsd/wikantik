@@ -197,8 +197,12 @@ public class HubDiscoveryService {
     /**
      * Accept a proposal: write a stub wiki page whose frontmatter triggers the save-pipeline
      * graph projection, then delete the proposal row. Concurrent accepts on the same id are
-     * safe — the first {@code delete} wins; the loser sees a 0-row delete followed by a
-     * 404 on its next call.
+     * benign but not strictly serialized — both threads may pass the initial {@code findById}
+     * check and both may call {@code pageWriter.write}. The first write creates the page; the
+     * second either collides (if {@code pageExists} is sticky) or silently overwrites. Both
+     * {@code delete} calls target the same row — the second is a no-op. The observable outcome
+     * is a single hub page and a single deleted proposal. If strict single-accept semantics
+     * become required, introduce an atomic {@code DELETE … RETURNING id} and abort on 0 rows.
      *
      * @throws HubDiscoveryException     if the proposal does not exist, or if fewer than 2
      *                                    members survive the page-exists filter.

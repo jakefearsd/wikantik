@@ -177,8 +177,8 @@ public class HubDiscoveryService {
 
                 discoveryRepo.insert( suggestedName, exemplar, memberNames, coherence );
                 created++;
-                LOG.info( "Hub discovery: wrote proposal '{}' with {} members, coherence={:.4f}",
-                    suggestedName, memberNames.size(), coherence );
+                LOG.info( "Hub discovery: wrote proposal '{}' with {} members, coherence={}",
+                    suggestedName, memberNames.size(), String.format( "%.4f", coherence ) );
             }
 
             final long duration = elapsed( start );

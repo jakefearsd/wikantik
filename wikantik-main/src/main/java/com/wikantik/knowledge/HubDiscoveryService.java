@@ -54,13 +54,13 @@ public class HubDiscoveryService {
 
     private static final Logger LOG = LogManager.getLogger( HubDiscoveryService.class );
 
-    public static final String PROP_MIN_CLUSTER_SIZE   = "wikantik.hubDiscovery.minClusterSize";
-    public static final String PROP_MIN_PTS            = "wikantik.hubDiscovery.minPts";
-    public static final String PROP_MIN_CANDIDATE_POOL = "wikantik.hubDiscovery.minCandidatePool";
+    public static final String PROP_MIN_CLUSTER_SIZE   = "wikantik.hub.discovery.minClusterSize";
+    public static final String PROP_MIN_PTS            = "wikantik.hub.discovery.minPts";
+    public static final String PROP_MIN_CANDIDATE_POOL = "wikantik.hub.discovery.minCandidatePool";
 
-    static final int DEFAULT_MIN_CLUSTER_SIZE   = 3;
-    static final int DEFAULT_MIN_PTS            = 3;
-    static final int DEFAULT_MIN_CANDIDATE_POOL = 6;
+    private static final int DEFAULT_MIN_CLUSTER_SIZE   = 3;
+    private static final int DEFAULT_MIN_PTS            = 3;
+    private static final int DEFAULT_MIN_CANDIDATE_POOL = 6;
 
     private final JdbcKnowledgeRepository kgRepo;
     private final HubDiscoveryRepository  discoveryRepo;

@@ -56,8 +56,12 @@ import com.wikantik.knowledge.ContentEmbeddingRepository;
 import com.wikantik.knowledge.EmbeddingRepository;
 import com.wikantik.knowledge.EmbeddingService;
 import com.wikantik.knowledge.GraphProjector;
+import com.wikantik.knowledge.FrontmatterDefaultsFilter;
+import com.wikantik.knowledge.HubSyncFilter;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.wikantik.api.pages.PageSaveHelper;
+import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.ui.CommandResolver;
 import com.wikantik.ui.progress.ProgressManager;
 import com.wikantik.url.URLConstructor;
@@ -529,6 +533,35 @@ public class WikiEngine implements Engine {
             final GraphProjector projector = new GraphProjector( service, spr );
             managers.put( GraphProjector.class, projector );
             getManager( FilterManager.class ).addPageFilter( projector, -1003 );
+
+            // FrontmatterDefaultsFilter: injects defaults for pages without frontmatter (preSave)
+            final FrontmatterDefaultsFilter fmDefaults = new FrontmatterDefaultsFilter(
+                name -> spr != null && spr.isSystemPage( name ), props );
+            getManager( FilterManager.class ).addPageFilter( fmDefaults, -1004 );
+
+            // HubSyncFilter: bidirectional Hub membership sync (postSave, after GraphProjector)
+            final PageManager pm = getManager( PageManager.class );
+            final PageSaveHelper saveHelper = new PageSaveHelper( this );
+            final HubSyncFilter hubSync = new HubSyncFilter(
+                name -> {
+                    try {
+                        final Page p = pm.getPage( name );
+                        return p != null ? pm.getPureText( p ) : null;
+                    } catch ( final Exception e ) {
+                        LOG.warn( "HubSyncFilter: failed to read page '{}': {}", name, e.getMessage() );
+                        return null;
+                    }
+                },
+                ( name, content ) -> {
+                    try {
+                        saveHelper.saveText( name, content,
+                            SaveOptions.builder().changeNote( "Hub membership sync" ).build() );
+                    } catch ( final Exception e ) {
+                        LOG.warn( "HubSyncFilter: failed to save page '{}': {}", name, e.getMessage() );
+                    }
+                }
+            );
+            getManager( FilterManager.class ).addPageFilter( hubSync, -999 );
 
             // KGE + content embeddings for similarity, link prediction, and merge detection
             final EmbeddingRepository embeddingRepo = new EmbeddingRepository( ds );

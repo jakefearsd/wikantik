@@ -105,16 +105,18 @@ Configuration files (gitignored; templates in `wikantik-war/src/main/config/tomc
 #### First-time setup (fresh clone)
 
 ```bash
-# 1. Create the wikantik PostgreSQL database (one time, as superuser)
-sudo -u postgres psql -c "CREATE DATABASE wikantik;"
-sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.ddl
-sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql-permissions.ddl
+# 1. Create the database, application role, and full schema in one step
+#    (idempotent — safe to re-run).
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
+    DB_APP_PASSWORD='ChangeMe123!' \
+    wikantik-war/src/main/config/db/install-fresh.sh
 
 # 2. Build the WAR (also builds the React frontend via npm automatically)
 mvn clean install -Dmaven.test.skip -T 1C
 
 # 3. Bootstrap — downloads Tomcat if absent, copies and patches config templates,
-#    removes stale files, deploys the WAR
+#    removes stale files, deploys the WAR. deploy-local.sh also runs migrate.sh
+#    so any pending migrations get applied on every redeploy.
 ./deploy-local.sh
 
 # 4. Set your PostgreSQL password in the context file (path shown by script output):
@@ -125,6 +127,30 @@ tomcat/tomcat-11/bin/startup.sh
 # Access at http://localhost:8080/ — default login: admin / admin
 # React SPA at http://localhost:8080/
 ```
+
+#### Applying database migrations manually
+
+`deploy-local.sh` runs `migrate.sh` automatically on every deploy. To run
+migrations by hand (e.g. against production):
+
+```bash
+DB_NAME=wikantik DB_APP_USER=jspwiki PGHOST=db.example.com PGUSER=postgres \
+    PGPASSWORD='…' wikantik-war/src/main/config/db/migrate.sh
+
+# Check what has been applied
+wikantik-war/src/main/config/db/migrate.sh --status
+```
+
+#### Adding a schema change
+
+**Every commit that changes the database schema MUST also add a numbered
+migration** under `wikantik-war/src/main/config/db/migrations/`. Pick the
+next `V<NNN>__description.sql`, write idempotent DDL (`CREATE TABLE IF NOT EXISTS`,
+`ADD COLUMN IF NOT EXISTS`, `INSERT … ON CONFLICT DO NOTHING`), use the
+`:app_user` psql variable for grants, and verify the migration is a no-op
+when re-applied. See `wikantik-war/src/main/config/db/migrations/README.md`
+for the full convention. Never edit a migration after it has been applied
+in production — fix mistakes with a follow-up migration.
 
 #### Routine redeploy (after first-time setup)
 

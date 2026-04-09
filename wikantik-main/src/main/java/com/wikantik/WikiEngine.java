@@ -583,9 +583,13 @@ public class WikiEngine implements Engine {
             // Hub proposal service — uses a supplier so it always sees the latest
             // content model after EmbeddingService retrains, rather than capturing
             // a stale reference at construction time.
-            final HubProposalService hubProposalService = new HubProposalService(
-                repo, hubProposalRepo, contentEmbeddingRepo, props,
-                embeddingService::getCurrentContentModel );
+            final HubProposalService hubProposalService = HubProposalService.builder()
+                .kgRepo( repo )
+                .proposalRepo( hubProposalRepo )
+                .contentRepo( contentEmbeddingRepo )
+                .reviewPercentileFromProperties( props )
+                .contentModelSupplier( embeddingService::getCurrentContentModel )
+                .build();
             managers.put( HubProposalService.class, hubProposalService );
             LOG.info( "HubProposalService registered (reviewPercentile property='{}')",
                 props.getProperty( HubProposalService.PROP_REVIEW_PERCENTILE, "default" ) );

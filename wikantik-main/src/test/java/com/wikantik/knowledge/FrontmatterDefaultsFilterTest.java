@@ -34,7 +34,9 @@ class FrontmatterDefaultsFilterTest {
         "You can extend it with custom filters, providers, and REST endpoints.";
 
     private FrontmatterDefaultsFilter filterWithDefaults() {
-        return new FrontmatterDefaultsFilter( name -> name.startsWith( "System/" ), new Properties() );
+        final Properties props = new Properties();
+        props.setProperty( FrontmatterDefaultsFilter.PROP_AUTO_DEFAULTS, "true" );
+        return new FrontmatterDefaultsFilter( name -> name.startsWith( "System/" ), props );
     }
 
     @Test
@@ -71,6 +73,7 @@ class FrontmatterDefaultsFilterTest {
     @Test
     void respectsConfiguredTagCount() {
         final Properties props = new Properties();
+        props.setProperty( FrontmatterDefaultsFilter.PROP_AUTO_DEFAULTS, "true" );
         props.setProperty( "wikantik.frontmatter.defaultTags", "1" );
         final FrontmatterDefaultsFilter filter = new FrontmatterDefaultsFilter( name -> false, props );
 

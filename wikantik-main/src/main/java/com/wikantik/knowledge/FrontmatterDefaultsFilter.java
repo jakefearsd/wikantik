@@ -49,11 +49,13 @@ public class FrontmatterDefaultsFilter implements PageFilter {
 
     private static final Logger LOG = LogManager.getLogger( FrontmatterDefaultsFilter.class );
 
+    public static final String PROP_AUTO_DEFAULTS = "wikantik.frontmatter.autoDefaults";
     private static final String PROP_DEFAULT_TAGS = "wikantik.frontmatter.defaultTags";
     private static final int DEFAULT_TAG_COUNT = 3;
 
     private final Predicate< String > isSystemPage;
     private final int tagCount;
+    private final boolean enabled;
 
     /**
      * Constructs a new FrontmatterDefaultsFilter.
@@ -64,6 +66,7 @@ public class FrontmatterDefaultsFilter implements PageFilter {
      */
     public FrontmatterDefaultsFilter( final Predicate< String > isSystemPage, final Properties props ) {
         this.isSystemPage = isSystemPage;
+        this.enabled = Boolean.parseBoolean( props.getProperty( PROP_AUTO_DEFAULTS, "false" ) );
         final String tagCountProp = props.getProperty( PROP_DEFAULT_TAGS );
         int count = DEFAULT_TAG_COUNT;
         if ( tagCountProp != null ) {
@@ -94,7 +97,7 @@ public class FrontmatterDefaultsFilter implements PageFilter {
      * @return the content, potentially prepended with a generated frontmatter block
      */
     public String applyDefaults( final String pageName, final String content ) {
-        if ( isSystemPage.test( pageName ) ) {
+        if ( !enabled || isSystemPage.test( pageName ) ) {
             return content;
         }
 

@@ -47,5 +47,11 @@ wikantik.datasource = jdbc/WikiDatabase
 # Set this on first deployment, then remove once you have confirmed admin access works.
 # wikantik.admin.bootstrap = admin
 
+# Auto-generate default frontmatter for pages saved without it (title, type, tags, summary)
+wikantik.frontmatter.autoDefaults = true
+
+# Hub membership proposal review threshold (percentile, 0-100)
+# wikantik.hub.reviewPercentile = 90
+
 # Sitemap base URL for HTTPS behind proxy (e.g., cloudflared)
 #wikantik.sitemap.baseURL = https://example.com

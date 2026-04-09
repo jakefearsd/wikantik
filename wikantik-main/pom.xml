@@ -227,15 +227,9 @@
         </dependency>
 
         <dependency>
-            <groupId>com.github.haifengl</groupId>
-            <artifactId>smile-core</artifactId>
-            <version>${smile.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-simple</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>org.tribuo</groupId>
+            <artifactId>tribuo-clustering-hdbscan</artifactId>
+            <version>${tribuo.version}</version>
         </dependency>
 
         <dependency>

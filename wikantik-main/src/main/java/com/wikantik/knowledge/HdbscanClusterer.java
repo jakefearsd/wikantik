@@ -68,9 +68,8 @@ public class HdbscanClusterer {
      *
      * @param vectors        L2-normalized float vectors, one per point; may be empty
      * @param minClusterSize minimum number of points required to form a cluster
-     * @param minPts         not used directly by HdbscanTrainer (which derives its own
-     *                       core-distance k from minClusterSize), but kept in the
-     *                       signature for API symmetry with the prior implementation
+     * @param minPts         HDBSCAN core-distance k parameter, forwarded directly to
+     *                       Tribuo's HdbscanTrainer as the k argument
      * @return per-point cluster labels in the same order as the input {@code vectors}
      *         array; noise points are labelled {@code -1}
      */
@@ -98,8 +97,17 @@ public class HdbscanClusterer {
             new ListDataSource<>( exampleList, factory, provenance );
         final MutableDataset<ClusterID> dataset = new MutableDataset<>( source );
 
-        final HdbscanTrainer trainer = new HdbscanTrainer( minClusterSize );
-        final HdbscanModel model = trainer.train( dataset );
+        final HdbscanTrainer trainer = new HdbscanTrainer(
+            minClusterSize, HdbscanTrainer.Distance.EUCLIDEAN, minPts, 1 );
+
+        final HdbscanModel model;
+        try {
+            model = trainer.train( dataset );
+        } catch ( final RuntimeException e ) {
+            LOG.error( "HDBSCAN training failed: {} vectors, dim={}, minClusterSize={}, minPts={}",
+                vectors.length, vectors[ 0 ].length, minClusterSize, minPts, e );
+            throw e;
+        }
 
         final List<Integer> rawLabels = model.getClusterLabels();
         return translateLabels( rawLabels );

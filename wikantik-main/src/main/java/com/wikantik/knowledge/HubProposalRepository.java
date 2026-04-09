@@ -46,8 +46,15 @@ public class HubProposalRepository {
         this.dataSource = dataSource;
     }
 
-    public void insertProposal( final String hubName, final String pageName,
-                                 final double rawSimilarity, final double percentileScore ) {
+    /**
+     * Inserts a proposal, or returns 0 if the pair already exists (ON CONFLICT DO NOTHING).
+     *
+     * @return the number of rows inserted (0 or 1)
+     * @throws RuntimeException wrapping the underlying {@link SQLException} on failure, so
+     *         batch callers can abort and surface the error instead of silently losing writes.
+     */
+    public int insertProposal( final String hubName, final String pageName,
+                                final double rawSimilarity, final double percentileScore ) {
         final String sql = "INSERT INTO hub_proposals (hub_name, page_name, raw_similarity, percentile_score) "
             + "VALUES (?, ?, ?, ?) ON CONFLICT (hub_name, page_name) DO NOTHING";
         try ( final Connection conn = dataSource.getConnection();
@@ -56,9 +63,10 @@ public class HubProposalRepository {
             ps.setString( 2, pageName );
             ps.setDouble( 3, rawSimilarity );
             ps.setDouble( 4, percentileScore );
-            ps.executeUpdate();
+            return ps.executeUpdate();
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to insert hub proposal [{} -> {}]: {}", hubName, pageName, e.getMessage() );
+            throw new RuntimeException( "Failed to insert hub proposal [" + hubName + " -> " + pageName + "]", e );
         }
     }
 
@@ -174,6 +182,7 @@ public class HubProposalRepository {
                 return rs.next();
             }
         } catch ( final SQLException e ) {
+            LOG.warn( "Failed to check existence for [{} -> {}]: {}", hubName, pageName, e.getMessage() );
             return false;
         }
     }
@@ -187,6 +196,7 @@ public class HubProposalRepository {
                 return rs.next() ? rs.getInt( 1 ) : 0;
             }
         } catch ( final SQLException e ) {
+            LOG.warn( "Failed to count proposals by status '{}': {}", status, e.getMessage() );
             return 0;
         }
     }

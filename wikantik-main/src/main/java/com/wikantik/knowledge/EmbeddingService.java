@@ -447,6 +447,16 @@ public class EmbeddingService {
     }
 
     /**
+     * Returns the current TF-IDF content model, or {@code null} if not yet trained.
+     * The returned reference is live — callers should capture it locally rather than
+     * holding it across long operations, since {@link #retrainContentModel()} swaps in
+     * a new instance atomically.
+     */
+    public TfidfModel getCurrentContentModel() {
+        return currentContentModel.get();
+    }
+
+    /**
      * Returns merge candidates with both structural and content similarity scores.
      * Sorted by combined score descending.
      */

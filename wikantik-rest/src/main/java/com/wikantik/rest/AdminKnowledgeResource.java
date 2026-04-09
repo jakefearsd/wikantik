@@ -30,6 +30,7 @@ import com.wikantik.knowledge.TagExtractor;
 import com.wikantik.knowledge.TitleDeriver;
 import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.knowledge.HubProposalRepository;
+import com.wikantik.knowledge.HubProposalService;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
@@ -646,6 +647,21 @@ public class AdminKnowledgeResource extends RestServletBase {
         return map;
     }
 
+    private Map< String, Object > hubProposalToMap( final HubProposalRepository.HubProposal p ) {
+        final Map< String, Object > map = new LinkedHashMap<>();
+        map.put( "id", p.id() );
+        map.put( "hub_name", p.hubName() );
+        map.put( "page_name", p.pageName() );
+        map.put( "raw_similarity", p.rawSimilarity() );
+        map.put( "percentile_score", p.percentileScore() );
+        map.put( "status", p.status() );
+        map.put( "reason", p.reason() );
+        map.put( "reviewed_by", p.reviewedBy() );
+        map.put( "reviewed_at", p.reviewedAt() != null ? p.reviewedAt().toString() : null );
+        map.put( "created", p.created() != null ? p.created().toString() : null );
+        return map;
+    }
+
 
     // --- Embedding handlers ---
 
@@ -900,7 +916,7 @@ public class AdminKnowledgeResource extends RestServletBase {
 
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "total", total );
-        result.put( "proposals", proposals );
+        result.put( "proposals", proposals.stream().map( this::hubProposalToMap ).toList() );
         sendJson( response, result );
     }
 
@@ -918,13 +934,41 @@ public class AdminKnowledgeResource extends RestServletBase {
 
         switch ( segments[1] ) {
             case "generate" -> {
+                LOG.info( "Hub proposals: generate endpoint invoked" );
                 final EmbeddingService emb = getEngine().getManager( EmbeddingService.class );
-                if ( emb == null || !emb.isContentReady() ) {
+                if ( emb == null ) {
+                    LOG.warn( "Hub proposals generate rejected: EmbeddingService not registered "
+                        + "(knowledge graph initialization likely failed — see earlier WARN)" );
+                    sendError( response, HttpServletResponse.SC_PRECONDITION_FAILED,
+                        "EmbeddingService not available — knowledge graph not initialized" );
+                    return;
+                }
+                if ( !emb.isContentReady() ) {
+                    LOG.warn( "Hub proposals generate rejected: content model not trained yet" );
                     sendError( response, HttpServletResponse.SC_PRECONDITION_FAILED,
                         "Content model must be trained before generating proposals" );
                     return;
                 }
-                sendJson( response, Map.of( "status", "ok", "message", "Hub proposals generated" ) );
+                final HubProposalService service = getEngine().getManager( HubProposalService.class );
+                if ( service == null ) {
+                    LOG.warn( "Hub proposals generate rejected: HubProposalService not registered "
+                        + "(knowledge graph initialization likely failed — see earlier WARN)" );
+                    sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                        "HubProposalService not available — knowledge graph not initialized" );
+                    return;
+                }
+                try {
+                    final int created = service.generateProposals();
+                    LOG.info( "Hub proposals generate: completed successfully, {} proposal(s) created", created );
+                    sendJson( response, Map.of(
+                        "status", "ok",
+                        "created", created,
+                        "message", "Hub proposals generated: " + created + " created" ) );
+                } catch ( final RuntimeException e ) {
+                    LOG.error( "Hub proposals generate failed", e );
+                    sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                        "Hub proposals generation failed: " + e.getMessage() );
+                }
             }
             case "bulk-approve" -> {
                 final JsonObject body = parseJsonBody( request, response );

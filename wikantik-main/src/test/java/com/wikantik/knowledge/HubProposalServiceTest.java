@@ -64,14 +64,20 @@ class HubProposalServiceTest {
 
     @Test
     void generateProposals_createsProposalsAboveThreshold() {
-        // Create a Hub node with 3 members
-        kgRepo.upsertNode( "TechHub", "hub", "TechHub", Provenance.HUMAN_AUTHORED,
-            Map.of( "type", "hub", "related", List.of( "Java", "Python", "Kotlin" ) ) );
-        kgRepo.upsertNode( "Java", "article", "Java", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertNode( "Python", "article", "Python", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertNode( "Kotlin", "article", "Kotlin", Provenance.HUMAN_AUTHORED, Map.of() );
+        // Create a Hub node with 3 members. Production stores membership as kg_edges
+        // of type 'related', not as a node property — see GraphProjector +
+        // FrontmatterRelationshipDetector. Mirror that data path here.
+        final var techHub = kgRepo.upsertNode( "TechHub", "hub", "TechHub", Provenance.HUMAN_AUTHORED,
+            Map.of( "type", "hub" ) );
+        final var java = kgRepo.upsertNode( "Java", "article", "Java", Provenance.HUMAN_AUTHORED, Map.of() );
+        final var python = kgRepo.upsertNode( "Python", "article", "Python", Provenance.HUMAN_AUTHORED, Map.of() );
+        final var kotlin = kgRepo.upsertNode( "Kotlin", "article", "Kotlin", Provenance.HUMAN_AUTHORED, Map.of() );
         kgRepo.upsertNode( "Rust", "article", "Rust", Provenance.HUMAN_AUTHORED, Map.of() );
         kgRepo.upsertNode( "Cooking", "article", "Cooking", Provenance.HUMAN_AUTHORED, Map.of() );
+
+        kgRepo.upsertEdge( techHub.id(), java.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgRepo.upsertEdge( techHub.id(), python.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgRepo.upsertEdge( techHub.id(), kotlin.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
 
         // Train a content model with similar docs for programming languages
         final var embService = new EmbeddingService( kgRepo, embeddingRepo, contentRepo, null, null );
@@ -107,11 +113,14 @@ class HubProposalServiceTest {
 
     @Test
     void generateProposals_skipsRejectedPairs() {
-        kgRepo.upsertNode( "TechHub", "hub", "TechHub", Provenance.HUMAN_AUTHORED,
-            Map.of( "type", "hub", "related", List.of( "Java", "Python" ) ) );
-        kgRepo.upsertNode( "Java", "article", "Java", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertNode( "Python", "article", "Python", Provenance.HUMAN_AUTHORED, Map.of() );
+        final var techHub = kgRepo.upsertNode( "TechHub", "hub", "TechHub", Provenance.HUMAN_AUTHORED,
+            Map.of( "type", "hub" ) );
+        final var java = kgRepo.upsertNode( "Java", "article", "Java", Provenance.HUMAN_AUTHORED, Map.of() );
+        final var python = kgRepo.upsertNode( "Python", "article", "Python", Provenance.HUMAN_AUTHORED, Map.of() );
         kgRepo.upsertNode( "Kotlin", "article", "Kotlin", Provenance.HUMAN_AUTHORED, Map.of() );
+
+        kgRepo.upsertEdge( techHub.id(), java.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgRepo.upsertEdge( techHub.id(), python.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
 
         final TfidfModel model = new TfidfModel();
         model.build(

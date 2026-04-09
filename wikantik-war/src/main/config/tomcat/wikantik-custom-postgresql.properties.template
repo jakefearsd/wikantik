@@ -50,8 +50,10 @@ wikantik.datasource = jdbc/WikiDatabase
 # Auto-generate default frontmatter for pages saved without it (title, type, tags, summary)
 wikantik.frontmatter.autoDefaults = true
 
-# Hub membership proposal review threshold (percentile, 0-100)
-# wikantik.hub.reviewPercentile = 90
+# Hub membership proposal review threshold (percentile, 0-100).
+# Default is 50 (wide open — top half of candidates). Raise this to cut
+# noise once the review queue is tuned.
+# wikantik.hub.reviewPercentile = 50
 
 # Sitemap base URL for HTTPS behind proxy (e.g., cloudflared)
 #wikantik.sitemap.baseURL = https://example.com

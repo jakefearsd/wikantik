@@ -1,3 +1,14 @@
+---
+title: Embeddings In Gen AI
+type: article
+tags:
+- embed
+- vector
+- model
+summary: An embedding is a low-dimensional, dense, continuous vector representation
+  of a discrete object (a word, a sentence, an image, or even an entire document).
+auto-generated: true
+---
 # The Geometry of Meaning: A Deep Dive into Embeddings in Generative AI Architectures
 
 ## Abstract

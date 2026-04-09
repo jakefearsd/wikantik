@@ -1,3 +1,13 @@
+---
+title: SPARQL
+type: article
+tags:
+- queri
+- data
+- graph
+summary: It seeks to encode not just data, but meaning.
+auto-generated: true
+---
 # SPARQL in the Semantic Web: A Comprehensive Guide for Expert Engineers and Data Scientists
 
 The Semantic Web, in its purest form, represents a paradigm shift away from the limitations of traditional data models. It seeks to encode not just *data*, but *meaning*. For the expert software engineer or the data scientist accustomed to the rigid structures of SQL or the flexibility (and ambiguity) of NoSQL document stores, the transition to querying knowledge graphs requires a fundamental shift in mindset.

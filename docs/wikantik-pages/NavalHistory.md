@@ -1,3 +1,14 @@
+---
+title: Naval History
+type: article
+tags:
+- histori
+- maritim
+- naval
+summary: NavalHistory NavalHistory refers to the study of Portugal's maritime activities,
+  naval conflicts, and shipbuilding advancements from the 13th to the 21st century.
+auto-generated: true
+---
 ### NavalHistory
 **NavalHistory** refers to the study of Portugal's maritime activities, naval conflicts, and shipbuilding advancements from the 13th to the 21st century. It highlights the nation's pivotal role in global exploration, trade, and colonial expansion through its powerful navy and innovative maritime technology.  
 

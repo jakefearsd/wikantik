@@ -1,3 +1,13 @@
+---
+title: Resource Description Framework
+type: article
+tags:
+- rdf
+- graph
+- data
+summary: At the heart of this transition lies the Resource Description Framework (RDF).
+auto-generated: true
+---
 # Mastering the Resource Description Framework (RDF): A Deep Dive into the Semantic Web Data Model
 
 ## Introduction: From the Web of Documents to the Web of Data

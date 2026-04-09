@@ -1,3 +1,15 @@
+---
+title: Web Ontology Language
+type: article
+tags:
+- owl
+- class
+- logic
+summary: At the heart of this transformation lies the Semantic Web, a vision pioneered
+  by Tim Berners-Lee, where data is not merely readable by humans but interpretable
+  by autonomous agents.
+auto-generated: true
+---
 # Mastering the Web Ontology Language (OWL): A Deep Dive into Formal Semantics, Logic, and Knowledge Representation
 
 ## Introduction

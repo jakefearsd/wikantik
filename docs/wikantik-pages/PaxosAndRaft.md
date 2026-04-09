@@ -1,3 +1,15 @@
+---
+title: Paxos And Raft
+type: article
+tags:
+- leader
+- propos
+- node
+summary: When multiple independent nodes must agree on a single sequence of operations,
+  even in the face of network partitions, node failures, or malicious actors, we enter
+  the realm of distributed consensus.
+auto-generated: true
+---
 # Consensus Algorithms for Distributed Systems: A Deep Dive into Paxos and Raft
 
 For expert software engineers and data scientists operating at the frontier of distributed systems research, understanding consensus is not merely a feature—it is the foundational prerequisite for building reliable, stateful services. When multiple independent nodes must agree on a single sequence of operations, even in the face of network partitions, node failures, or malicious actors, we enter the realm of distributed consensus.

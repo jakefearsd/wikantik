@@ -226,6 +226,33 @@ VALUES ('role', 'Admin', 'page', '*', '*') ON CONFLICT DO NOTHING;
 INSERT INTO policy_grants (principal_type, principal_name, permission_type, target, actions)
 VALUES ('role', 'Admin', 'wiki', '*', '*') ON CONFLICT DO NOTHING;
 
+-- Hub membership tables
+CREATE TABLE IF NOT EXISTS hub_centroids (
+    id              SERIAL PRIMARY KEY,
+    hub_name        VARCHAR(255) NOT NULL UNIQUE,
+    centroid        vector(512) NOT NULL,
+    model_version   INTEGER NOT NULL,
+    member_count    INTEGER NOT NULL,
+    created         TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS hub_proposals (
+    id               SERIAL PRIMARY KEY,
+    hub_name         VARCHAR(255) NOT NULL,
+    page_name        VARCHAR(255) NOT NULL,
+    raw_similarity   DOUBLE PRECISION NOT NULL,
+    percentile_score DOUBLE PRECISION NOT NULL,
+    status           VARCHAR(20) NOT NULL DEFAULT 'pending',
+    reason           TEXT,
+    reviewed_by      VARCHAR(255),
+    reviewed_at      TIMESTAMP,
+    created          TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (hub_name, page_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_hub_proposals_status ON hub_proposals(status);
+CREATE INDEX IF NOT EXISTS idx_hub_proposals_hub ON hub_proposals(hub_name);
+
 -- JDBCPlugin test table
 CREATE TABLE IF NOT EXISTS employees (
     id   SERIAL PRIMARY KEY,

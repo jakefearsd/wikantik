@@ -395,6 +395,52 @@ export const api = {
 
     getPagesWithoutFrontmatter: (limit = 100, offset = 0) =>
       request(`/admin/knowledge/pages-without-frontmatter?limit=${limit}&offset=${offset}`),
+
+    // Hub Proposals
+    listHubProposals: (status = 'pending', hub = null, limit = 50, offset = 0) => {
+      const params = new URLSearchParams({ status, limit, offset });
+      if (hub) params.set('hub', hub);
+      return request(`/admin/knowledge/hub-proposals?${params}`);
+    },
+
+    generateHubProposals: () =>
+      request('/admin/knowledge/hub-proposals/generate', { method: 'POST' }),
+
+    approveHubProposal: (id) =>
+      request(`/admin/knowledge/hub-proposals/${id}/approve`, { method: 'POST' }),
+
+    rejectHubProposal: (id, reason) =>
+      request(`/admin/knowledge/hub-proposals/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+
+    bulkApproveHubProposals: (ids) =>
+      request('/admin/knowledge/hub-proposals/bulk-approve', {
+        method: 'POST',
+        body: JSON.stringify({ ids }),
+      }),
+
+    bulkRejectHubProposals: (ids, reason) =>
+      request('/admin/knowledge/hub-proposals/bulk-reject', {
+        method: 'POST',
+        body: JSON.stringify({ ids, reason }),
+      }),
+
+    thresholdApproveHubProposals: (threshold) =>
+      request('/admin/knowledge/hub-proposals/threshold-approve', {
+        method: 'POST',
+        body: JSON.stringify({ threshold }),
+      }),
+
+    backfillFrontmatter: () =>
+      request('/admin/knowledge/backfill-frontmatter', { method: 'POST' }),
+
+    getBackfillStatus: () =>
+      request('/admin/knowledge/backfill-frontmatter'),
+
+    syncHubMemberships: () =>
+      request('/admin/knowledge/sync-hub-memberships', { method: 'POST' }),
   },
 
   // Public page similarity

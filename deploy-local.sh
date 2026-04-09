@@ -161,10 +161,12 @@ if [[ -f "${TOMCAT_DIR}/bin/shutdown.sh" ]]; then
     sleep 1
 fi
 
-# Rotate catalina.out (keep one previous version)
+# Rotate catalina.out (keep one previous version). Force-overwrite any
+# existing .old file and bypass shell aliases so nothing prompts.
 CATALINA_OUT="${TOMCAT_DIR}/logs/catalina.out"
 if [[ -f "${CATALINA_OUT}" ]]; then
-    mv "${CATALINA_OUT}" "${CATALINA_OUT}.old"
+    \rm -f "${CATALINA_OUT}.old"
+    \mv -f "${CATALINA_OUT}" "${CATALINA_OUT}.old"
     print_status "Rotated catalina.out → catalina.out.old"
 fi
 

@@ -123,7 +123,7 @@ export default function ContentEmbeddingsTab() {
             <h4 style={{ fontSize: '0.95em', margin: 0 }}>
               Pages Without Frontmatter <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>({noFmTotal})</span>
             </h4>
-            <button className="btn btn-sm" onClick={handleBackfill} disabled={backfilling || !status?.content_ready}
+            <button className="btn btn-primary btn-sm" onClick={handleBackfill} disabled={backfilling || !status?.content_ready}
               title={!status?.content_ready ? 'Content model must be trained first' : ''}>
               {backfilling ? `Backfilling... ${backfillStatus ? `(${backfillStatus.processed}/${backfillStatus.total})` : ''}` : 'Backfill Frontmatter'}
             </button>

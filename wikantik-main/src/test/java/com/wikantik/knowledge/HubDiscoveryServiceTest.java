@@ -139,4 +139,92 @@ class HubDiscoveryServiceTest {
             p.memberPages().containsAll( List.of( "Baking", "Roasting", "Grilling" ) ) );
         assertTrue( cookingFound, "Expected a cluster containing Baking, Roasting, Grilling" );
     }
+
+    @Test
+    void generateClusterProposals_emptyCorpus_noProposals() {
+        model = new TfidfModel();
+        model.build( List.of( "Nothing" ), List.of( "nothing here" ) );
+        contentRepo.saveEmbeddings( 1, model, Map.of() );
+
+        final HubDiscoveryService service = HubDiscoveryService.builder()
+            .kgRepo( kgRepo )
+            .discoveryRepo( discoveryRepo )
+            .contentRepo( contentRepo )
+            .minClusterSize( 3 )
+            .minPts( 3 )
+            .minCandidatePool( 6 )
+            .contentModel( model )
+            .build();
+
+        assertEquals( 0, service.generateClusterProposals() );
+        assertEquals( 0, discoveryRepo.count() );
+    }
+
+    @Test
+    void generateClusterProposals_tinyCorpus_noProposals() {
+        // Three article pages — below the default minCandidatePool=6.
+        for ( final String name : new String[]{ "A", "B", "C" } ) {
+            kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
+        }
+        model = new TfidfModel();
+        model.build(
+            List.of( "A", "B", "C" ),
+            List.of( "alpha beta", "alpha gamma", "beta gamma" ) );
+        contentRepo.saveEmbeddings( 1, model, Map.of() );
+
+        final HubDiscoveryService service = HubDiscoveryService.builder()
+            .kgRepo( kgRepo )
+            .discoveryRepo( discoveryRepo )
+            .contentRepo( contentRepo )
+            .minClusterSize( 3 )
+            .minPts( 3 )
+            .minCandidatePool( 6 )
+            .contentModel( model )
+            .build();
+
+        assertEquals( 0, service.generateClusterProposals() );
+        assertEquals( 0, discoveryRepo.count() );
+    }
+
+    @Test
+    void generateClusterProposals_exemplarIsClosestToCentroid() {
+        // Two tight clusters (cooking + sports) with very distinct vocabularies,
+        // mirroring the happy-path approach so HDBSCAN reliably finds at least one cluster.
+        final String[] members = { "Baking", "Roasting", "Grilling", "Soccer", "Basketball", "Tennis" };
+        for ( final String name : members ) {
+            kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
+        }
+        model = new TfidfModel();
+        model.build(
+            List.of( members ),
+            List.of(
+                "baking bread cake flour sugar butter oven recipe dough knead bake baking cookies pastry",
+                "roasting roast oven meat chicken beef pork temperature seasoning oven baking roast crispy",
+                "grilling grill barbecue charcoal meat chicken beef outdoor fire baking roasting cookout",
+                "soccer football pitch goal player team league kick score match field stadium tackle dribble",
+                "basketball hoop court player team league score dribble slam dunk match field stadium rebound",
+                "tennis court racquet player serve volley match score grand slam stadium league forehand backhand"
+            ) );
+        contentRepo.saveEmbeddings( 1, model, Map.of() );
+
+        final HubDiscoveryService service = HubDiscoveryService.builder()
+            .kgRepo( kgRepo )
+            .discoveryRepo( discoveryRepo )
+            .contentRepo( contentRepo )
+            .minClusterSize( 3 )
+            .minPts( 3 )
+            .minCandidatePool( 6 )
+            .contentModel( model )
+            .build();
+
+        service.generateClusterProposals();
+        final var proposals = discoveryRepo.list( 10, 0 );
+        assertFalse( proposals.isEmpty() );
+        // Exemplar must be one of the cluster members.
+        for ( final var p : proposals ) {
+            assertTrue( p.memberPages().contains( p.exemplarPage() ),
+                "Exemplar must be in its cluster's member list" );
+            assertTrue( p.coherenceScore() >= 0.0 && p.coherenceScore() <= 1.0 );
+        }
+    }
 }

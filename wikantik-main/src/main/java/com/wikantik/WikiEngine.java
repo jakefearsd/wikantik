@@ -591,10 +591,12 @@ public class WikiEngine implements Engine {
                 props.getProperty( HubProposalService.PROP_REVIEW_PERCENTILE, "default" ) );
 
             LOG.info( "Knowledge graph initialized with datasource '{}'", datasource );
-        } catch( final Exception e ) {
+        } catch ( final javax.naming.NamingException | RuntimeException e ) {
             // Log with the throwable so the stack trace is visible — partial init failures
             // previously hid behind a one-line warn and caused downstream managers like
-            // HubProposalService to be silently null.
+            // HubProposalService to be silently null. Checked JNDI NamingException + any
+            // runtime failure from service construction are both recoverable (the engine
+            // continues to start; only KG-dependent features go offline).
             LOG.warn( "Knowledge graph initialization failed: {}", e.getMessage(), e );
         }
     }

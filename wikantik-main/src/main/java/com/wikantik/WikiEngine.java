@@ -51,19 +51,13 @@ import com.wikantik.plugin.PluginManager;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.search.SearchManager;
-import com.wikantik.knowledge.DefaultKnowledgeGraphService;
-import com.wikantik.knowledge.ContentEmbeddingRepository;
-import com.wikantik.knowledge.EmbeddingRepository;
 import com.wikantik.knowledge.EmbeddingService;
 import com.wikantik.knowledge.GraphProjector;
-import com.wikantik.knowledge.FrontmatterDefaultsFilter;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
-import com.wikantik.knowledge.HubSyncFilter;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KnowledgeGraphServiceFactory;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.pages.PageSaveHelper;
-import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.ui.CommandResolver;
 import com.wikantik.ui.progress.ProgressManager;
 import com.wikantik.url.URLConstructor;
@@ -527,73 +521,33 @@ public class WikiEngine implements Engine {
             final javax.naming.Context initCtx = new javax.naming.InitialContext();
             final javax.naming.Context ctx = ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
             final javax.sql.DataSource ds = ( javax.sql.DataSource ) ctx.lookup( datasource );
-            final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( ds );
-            final DefaultKnowledgeGraphService service = new DefaultKnowledgeGraphService( repo );
-            managers.put( KnowledgeGraphService.class, service );
 
-            final SystemPageRegistry spr = getManager( SystemPageRegistry.class );
-            final GraphProjector projector = new GraphProjector( service, spr );
-            managers.put( GraphProjector.class, projector );
-            getManager( FilterManager.class ).addPageFilter( projector, -1003 );
+            final KnowledgeGraphServiceFactory.Services svcs = KnowledgeGraphServiceFactory.create(
+                ds, props,
+                getManager( SystemPageRegistry.class ),
+                getManager( PageManager.class ),
+                new PageSaveHelper( this ) );
 
-            // FrontmatterDefaultsFilter: injects defaults for pages without frontmatter (preSave)
-            final FrontmatterDefaultsFilter fmDefaults = new FrontmatterDefaultsFilter(
-                name -> spr != null && spr.isSystemPage( name ), props );
-            getManager( FilterManager.class ).addPageFilter( fmDefaults, -1004 );
+            // Register services with the engine's manager map.
+            managers.put( KnowledgeGraphService.class, svcs.kgService() );
+            managers.put( GraphProjector.class, svcs.graphProjector() );
+            managers.put( EmbeddingService.class, svcs.embeddingService() );
+            managers.put( HubProposalRepository.class, svcs.hubProposalRepo() );
+            managers.put( HubProposalService.class, svcs.hubProposalService() );
 
-            // HubSyncFilter: bidirectional Hub membership sync (postSave, after GraphProjector)
-            final PageManager pm = getManager( PageManager.class );
-            final PageSaveHelper saveHelper = new PageSaveHelper( this );
-            final HubSyncFilter hubSync = new HubSyncFilter(
-                name -> {
-                    try {
-                        final Page p = pm.getPage( name );
-                        return p != null ? pm.getPureText( p ) : null;
-                    } catch ( final Exception e ) {
-                        LOG.warn( "HubSyncFilter: failed to read page '{}': {}", name, e.getMessage() );
-                        return null;
-                    }
-                },
-                ( name, content ) -> {
-                    try {
-                        saveHelper.saveText( name, content,
-                            SaveOptions.builder().changeNote( "Hub membership sync" ).build() );
-                    } catch ( final Exception e ) {
-                        LOG.warn( "HubSyncFilter: failed to save page '{}': {}", name, e.getMessage() );
-                    }
-                }
-            );
-            getManager( FilterManager.class ).addPageFilter( hubSync, -999 );
+            // Register filters (priority order preserved from the original initializer).
+            final FilterManager filterManager = getManager( FilterManager.class );
+            filterManager.addPageFilter( svcs.graphProjector(), -1003 );
+            filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), -1004 );
+            filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );
 
-            // KGE + content embeddings for similarity, link prediction, and merge detection
-            final EmbeddingRepository embeddingRepo = new EmbeddingRepository( ds );
-            final ContentEmbeddingRepository contentEmbeddingRepo = new ContentEmbeddingRepository( ds );
-            final EmbeddingService embeddingService = new EmbeddingService(
-                repo, embeddingRepo, contentEmbeddingRepo, getManager( PageManager.class ), spr );
-            embeddingService.configure( props );
-            managers.put( EmbeddingService.class, embeddingService );
+            // Start background retraining only after managers are wired up.
             final long retrainMinutes = Long.parseLong(
                 props.getProperty( EmbeddingService.PROP_RETRAIN_MINUTES, "60" ) );
-            embeddingService.startPeriodicRetraining( retrainMinutes );
+            svcs.embeddingService().startPeriodicRetraining( retrainMinutes );
 
-            // Hub proposal repository for membership proposals and centroids
-            final HubProposalRepository hubProposalRepo = new HubProposalRepository( ds );
-            managers.put( HubProposalRepository.class, hubProposalRepo );
-
-            // Hub proposal service — uses a supplier so it always sees the latest
-            // content model after EmbeddingService retrains, rather than capturing
-            // a stale reference at construction time.
-            final HubProposalService hubProposalService = HubProposalService.builder()
-                .kgRepo( repo )
-                .proposalRepo( hubProposalRepo )
-                .contentRepo( contentEmbeddingRepo )
-                .reviewPercentileFromProperties( props )
-                .contentModelSupplier( embeddingService::getCurrentContentModel )
-                .build();
-            managers.put( HubProposalService.class, hubProposalService );
             LOG.info( "HubProposalService registered (reviewPercentile property='{}')",
                 props.getProperty( HubProposalService.PROP_REVIEW_PERCENTILE, "default" ) );
-
             LOG.info( "Knowledge graph initialized with datasource '{}'", datasource );
         } catch ( final javax.naming.NamingException | RuntimeException e ) {
             // Log with the throwable so the stack trace is visible — partial init failures

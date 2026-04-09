@@ -20,6 +20,8 @@ package com.wikantik.knowledge;
 
 import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.Provenance;
+import com.wikantik.knowledge.HubDiscoveryException;
+import com.wikantik.knowledge.HubNameCollisionException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -226,5 +228,191 @@ class HubDiscoveryServiceTest {
                 "Exemplar must be in its cluster's member list" );
             assertTrue( p.coherenceScore() >= 0.0 && p.coherenceScore() <= 1.0 );
         }
+    }
+
+    @Test
+    void acceptProposal_createsStubPageAndEdges() throws Exception {
+        final String[] members = { "Java", "Kotlin", "Scala" };
+        for ( final String name : members ) {
+            kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
+        }
+        model = new TfidfModel();
+        model.build( List.of( members ),
+            List.of( "java jvm oop", "kotlin jvm coroutines", "scala jvm fp" ) );
+        contentRepo.saveEmbeddings( 1, model, Map.of() );
+
+        final com.wikantik.knowledge.test.InMemoryPageManager pages =
+            new com.wikantik.knowledge.test.InMemoryPageManager();
+        // Pre-populate member pages so pageExists returns true for each member
+        for ( final String name : members ) {
+            pages.putText( name, "# " + name );
+        }
+        final com.wikantik.knowledge.test.InMemoryPageSaveHelper helper =
+            new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final HubDiscoveryService service = HubDiscoveryService.builder()
+            .kgRepo( kgRepo )
+            .discoveryRepo( discoveryRepo )
+            .contentRepo( contentRepo )
+            .minClusterSize( 3 )
+            .minPts( 3 )
+            .minCandidatePool( 3 )
+            .contentModel( model )
+            .pageWriter( helper::saveText )
+            .pageExists( pages::exists )
+            .build();
+
+        final int id = discoveryRepo.insert( "JavaHub", "Java",
+            List.of( "Java", "Kotlin", "Scala" ), 0.9 );
+
+        final HubDiscoveryService.AcceptResult result = service.acceptProposal(
+            id, "JavaHub", List.of( "Java", "Kotlin", "Scala" ), "admin" );
+
+        assertEquals( "JavaHub", result.createdPage() );
+        assertEquals( 3, result.memberCount() );
+        assertTrue( pages.exists( "JavaHub" ), "Stub page must be written" );
+        final String written = pages.getText( "JavaHub" );
+        assertTrue( written.contains( "type: hub" ), "Frontmatter must have type: hub" );
+        assertTrue( written.contains( "auto-generated: true" ) );
+        assertTrue( written.contains( "# JavaHub" ) );
+        assertTrue( written.contains( "<!-- TODO: describe this hub -->" ) );
+        assertTrue( written.contains( "- [Java](Java)" ) );
+
+        assertNull( discoveryRepo.findById( id ), "Proposal row must be deleted on accept" );
+        final var hubNode = kgRepo.queryNodes( Map.of( "name", "JavaHub" ), null, 1, 0 );
+        assertEquals( 1, hubNode.size() );
+        assertEquals( "hub", hubNode.get( 0 ).nodeType() );
+    }
+
+    @Test
+    void acceptProposal_collisionWithExistingPage_throwsAndKeepsRow() {
+        final com.wikantik.knowledge.test.InMemoryPageManager pages =
+            new com.wikantik.knowledge.test.InMemoryPageManager();
+        pages.putText( "JavaHub", "existing content" );
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final HubDiscoveryService service = HubDiscoveryService.builder()
+            .kgRepo( kgRepo )
+            .discoveryRepo( discoveryRepo )
+            .contentRepo( contentRepo )
+            .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
+            .contentModel( new TfidfModel() )
+            .pageWriter( helper::saveText )
+            .pageExists( pages::exists )
+            .build();
+
+        final int id = discoveryRepo.insert( "JavaHub", "Java",
+            List.of( "Java", "Kotlin", "Scala" ), 0.9 );
+        for ( final String m : List.of( "Java", "Kotlin", "Scala" ) ) {
+            kgRepo.upsertNode( m, "article", m, Provenance.HUMAN_AUTHORED, Map.of() );
+        }
+
+        assertThrows( HubNameCollisionException.class, () ->
+            service.acceptProposal( id, "JavaHub", List.of( "Java", "Kotlin", "Scala" ), "admin" ) );
+
+        assertNotNull( discoveryRepo.findById( id ) );
+        assertEquals( "existing content", pages.getText( "JavaHub" ), "Existing page untouched" );
+    }
+
+    @Test
+    void acceptProposal_memberNotInProposal_throwsIllegalArgument() {
+        final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final HubDiscoveryService service = HubDiscoveryService.builder()
+            .kgRepo( kgRepo )
+            .discoveryRepo( discoveryRepo )
+            .contentRepo( contentRepo )
+            .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
+            .contentModel( new TfidfModel() )
+            .pageWriter( helper::saveText )
+            .pageExists( pages::exists )
+            .build();
+
+        final int id = discoveryRepo.insert( "JavaHub", "Java",
+            List.of( "Java", "Kotlin", "Scala" ), 0.9 );
+
+        assertThrows( IllegalArgumentException.class, () ->
+            service.acceptProposal( id, "JavaHub",
+                List.of( "Java", "Kotlin", "Evil Injected Page" ), "admin" ) );
+
+        assertNotNull( discoveryRepo.findById( id ) );
+    }
+
+    @Test
+    void acceptProposal_missingMemberPagesDropped() throws Exception {
+        final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
+        for ( final String m : List.of( "Java", "Kotlin" ) ) {
+            kgRepo.upsertNode( m, "article", m, Provenance.HUMAN_AUTHORED, Map.of() );
+        }
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final HubDiscoveryService service = HubDiscoveryService.builder()
+            .kgRepo( kgRepo )
+            .discoveryRepo( discoveryRepo )
+            .contentRepo( contentRepo )
+            .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
+            .contentModel( new TfidfModel() )
+            .pageWriter( helper::saveText )
+            .pageExists( name -> kgRepo.queryNodes( Map.of( "name", name ), null, 1, 0 ).size() > 0 )
+            .build();
+
+        final int id = discoveryRepo.insert( "JavaHub", "Java",
+            List.of( "Java", "Kotlin", "Scala" ), 0.9 );
+
+        final var result = service.acceptProposal( id, "JavaHub",
+            List.of( "Java", "Kotlin", "Scala" ), "admin" );
+        assertEquals( 2, result.memberCount(), "Scala was missing and should be dropped" );
+        assertNull( discoveryRepo.findById( id ) );
+    }
+
+    @Test
+    void acceptProposal_allMembersMissing_throws() {
+        final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final HubDiscoveryService service = HubDiscoveryService.builder()
+            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).contentRepo( contentRepo )
+            .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
+            .contentModel( new TfidfModel() )
+            .pageWriter( helper::saveText )
+            .pageExists( name -> false )
+            .build();
+
+        final int id = discoveryRepo.insert( "JavaHub", "Java",
+            List.of( "Java", "Kotlin", "Scala" ), 0.9 );
+
+        assertThrows( HubDiscoveryException.class, () ->
+            service.acceptProposal( id, "JavaHub", List.of( "Java", "Kotlin", "Scala" ), "admin" ) );
+        assertNotNull( discoveryRepo.findById( id ) );
+    }
+
+    @Test
+    void dismissProposal_deletesRow() {
+        final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final HubDiscoveryService service = HubDiscoveryService.builder()
+            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).contentRepo( contentRepo )
+            .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
+            .contentModel( new TfidfModel() )
+            .pageWriter( helper::saveText )
+            .pageExists( name -> false )
+            .build();
+
+        final int id = discoveryRepo.insert( "JavaHub", "Java",
+            List.of( "Java", "Kotlin", "Scala" ), 0.9 );
+        service.dismissProposal( id, "admin" );
+        assertNull( discoveryRepo.findById( id ) );
+    }
+
+    @Test
+    void dismissProposal_missingId_throws() {
+        final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final HubDiscoveryService service = HubDiscoveryService.builder()
+            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).contentRepo( contentRepo )
+            .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
+            .contentModel( new TfidfModel() )
+            .pageWriter( helper::saveText )
+            .pageExists( name -> false )
+            .build();
+
+        assertThrows( HubDiscoveryException.class, () ->
+            service.dismissProposal( 9999, "admin" ) );
     }
 }

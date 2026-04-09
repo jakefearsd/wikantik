@@ -933,106 +933,125 @@ public class AdminKnowledgeResource extends RestServletBase {
         }
 
         switch ( segments[1] ) {
-            case "generate" -> {
-                LOG.info( "Hub proposals: generate endpoint invoked" );
-                final EmbeddingService emb = getEngine().getManager( EmbeddingService.class );
-                if ( emb == null ) {
-                    LOG.warn( "Hub proposals generate rejected: EmbeddingService not registered "
-                        + "(knowledge graph initialization likely failed — see earlier WARN)" );
-                    sendError( response, HttpServletResponse.SC_PRECONDITION_FAILED,
-                        "EmbeddingService not available — knowledge graph not initialized" );
-                    return;
-                }
-                if ( !emb.isContentReady() ) {
-                    LOG.warn( "Hub proposals generate rejected: content model not trained yet" );
-                    sendError( response, HttpServletResponse.SC_PRECONDITION_FAILED,
-                        "Content model must be trained before generating proposals" );
-                    return;
-                }
-                final HubProposalService service = getEngine().getManager( HubProposalService.class );
-                if ( service == null ) {
-                    LOG.warn( "Hub proposals generate rejected: HubProposalService not registered "
-                        + "(knowledge graph initialization likely failed — see earlier WARN)" );
-                    sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                        "HubProposalService not available — knowledge graph not initialized" );
-                    return;
-                }
-                try {
-                    final int created = service.generateProposals();
-                    LOG.info( "Hub proposals generate: completed successfully, {} proposal(s) created", created );
-                    sendJson( response, Map.of(
-                        "status", "ok",
-                        "created", created,
-                        "message", "Hub proposals generated: " + created + " created" ) );
-                } catch ( final RuntimeException e ) {
-                    LOG.error( "Hub proposals generate failed", e );
-                    sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                        "Hub proposals generation failed: " + e.getMessage() );
-                }
-            }
-            case "bulk-approve" -> {
-                final JsonObject body = parseJsonBody( request, response );
-                if ( body == null ) return;
-                final List< Integer > ids = GSON.fromJson( body.get( "ids" ),
-                    new TypeToken< List< Integer > >() {}.getType() );
-                final String reviewedBy = body.has( "reviewedBy" )
-                    ? body.get( "reviewedBy" ).getAsString() : "admin";
-                repo.bulkUpdateStatus( ids, "approved", reviewedBy, null );
-                sendJson( response, Map.of( "status", "ok" ) );
-            }
-            case "bulk-reject" -> {
-                final JsonObject body = parseJsonBody( request, response );
-                if ( body == null ) return;
-                final List< Integer > ids = GSON.fromJson( body.get( "ids" ),
-                    new TypeToken< List< Integer > >() {}.getType() );
-                final String reviewedBy = body.has( "reviewedBy" )
-                    ? body.get( "reviewedBy" ).getAsString() : "admin";
-                final String reason = body.has( "reason" )
-                    ? body.get( "reason" ).getAsString() : null;
-                repo.bulkUpdateStatus( ids, "rejected", reviewedBy, reason );
-                sendJson( response, Map.of( "status", "ok" ) );
-            }
-            case "threshold-approve" -> {
-                final JsonObject body = parseJsonBody( request, response );
-                if ( body == null ) return;
-                final double threshold = body.get( "threshold" ).getAsDouble();
-                final String reviewedBy = body.has( "reviewedBy" )
-                    ? body.get( "reviewedBy" ).getAsString() : "admin";
-                final var above = repo.listProposalsAboveThreshold( threshold );
-                final var ids = above.stream()
-                    .map( HubProposalRepository.HubProposal::id ).toList();
-                repo.bulkUpdateStatus( ids, "approved", reviewedBy, null );
-                sendJson( response, Map.of( "status", "ok", "approved", ids.size() ) );
-            }
-            default -> {
-                if ( segments.length >= 3 ) {
-                    final int id;
-                    try {
-                        id = Integer.parseInt( segments[1] );
-                    } catch ( final NumberFormatException e ) {
-                        sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                            "Invalid proposal ID" );
-                        return;
-                    }
-                    switch ( segments[2] ) {
-                        case "approve" -> {
-                            repo.updateStatus( id, "approved", "admin", null );
-                            sendJson( response, Map.of( "status", "ok" ) );
-                        }
-                        case "reject" -> {
-                            final JsonObject body = parseJsonBody( request, response );
-                            final String reason = body != null && body.has( "reason" )
-                                ? body.get( "reason" ).getAsString() : null;
-                            repo.updateStatus( id, "rejected", "admin", reason );
-                            sendJson( response, Map.of( "status", "ok" ) );
-                        }
-                        default -> sendNotFound( response, "Unknown action: " + segments[2] );
-                    }
-                } else {
-                    sendNotFound( response, "Unknown hub-proposals action" );
-                }
-            }
+            case "generate"          -> handleHubProposalsGenerate( response );
+            case "bulk-approve"      -> handleHubProposalsBulkApprove( request, response, repo );
+            case "bulk-reject"       -> handleHubProposalsBulkReject( request, response, repo );
+            case "threshold-approve" -> handleHubProposalsThresholdApprove( request, response, repo );
+            default                  -> handleHubProposalByIdAction( request, response, segments, repo );
         }
+    }
+
+    private void handleHubProposalsGenerate( final HttpServletResponse response ) throws IOException {
+        LOG.info( "Hub proposals: generate endpoint invoked" );
+        final EmbeddingService emb = getEngine().getManager( EmbeddingService.class );
+        if ( emb == null ) {
+            LOG.warn( "Hub proposals generate rejected: EmbeddingService not registered "
+                + "(knowledge graph initialization likely failed — see earlier WARN)" );
+            sendError( response, HttpServletResponse.SC_PRECONDITION_FAILED,
+                "EmbeddingService not available — knowledge graph not initialized" );
+            return;
+        }
+        if ( !emb.isContentReady() ) {
+            LOG.warn( "Hub proposals generate rejected: content model not trained yet" );
+            sendError( response, HttpServletResponse.SC_PRECONDITION_FAILED,
+                "Content model must be trained before generating proposals" );
+            return;
+        }
+        final HubProposalService service = getEngine().getManager( HubProposalService.class );
+        if ( service == null ) {
+            LOG.warn( "Hub proposals generate rejected: HubProposalService not registered "
+                + "(knowledge graph initialization likely failed — see earlier WARN)" );
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "HubProposalService not available — knowledge graph not initialized" );
+            return;
+        }
+        try {
+            final int created = service.generateProposals();
+            LOG.info( "Hub proposals generate: completed successfully, {} proposal(s) created", created );
+            sendJson( response, Map.of(
+                "status", "ok",
+                "created", created,
+                "message", "Hub proposals generated: " + created + " created" ) );
+        } catch ( final RuntimeException e ) {
+            LOG.error( "Hub proposals generate failed", e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                "Hub proposals generation failed: " + e.getMessage() );
+        }
+    }
+
+    private void handleHubProposalsBulkApprove( final HttpServletRequest request,
+                                                 final HttpServletResponse response,
+                                                 final HubProposalRepository repo ) throws IOException {
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;
+        final List< Integer > ids = GSON.fromJson( body.get( "ids" ),
+            new TypeToken< List< Integer > >() {}.getType() );
+        final String reviewedBy = optString( body, "reviewedBy", "admin" );
+        repo.bulkUpdateStatus( ids, "approved", reviewedBy, null );
+        sendJson( response, Map.of( "status", "ok" ) );
+    }
+
+    private void handleHubProposalsBulkReject( final HttpServletRequest request,
+                                                final HttpServletResponse response,
+                                                final HubProposalRepository repo ) throws IOException {
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;
+        final List< Integer > ids = GSON.fromJson( body.get( "ids" ),
+            new TypeToken< List< Integer > >() {}.getType() );
+        final String reviewedBy = optString( body, "reviewedBy", "admin" );
+        final String reason = optString( body, "reason", null );
+        repo.bulkUpdateStatus( ids, "rejected", reviewedBy, reason );
+        sendJson( response, Map.of( "status", "ok" ) );
+    }
+
+    private void handleHubProposalsThresholdApprove( final HttpServletRequest request,
+                                                      final HttpServletResponse response,
+                                                      final HubProposalRepository repo ) throws IOException {
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;
+        final double threshold = body.get( "threshold" ).getAsDouble();
+        final String reviewedBy = optString( body, "reviewedBy", "admin" );
+        final var ids = repo.listProposalsAboveThreshold( threshold ).stream()
+            .map( HubProposalRepository.HubProposal::id ).toList();
+        repo.bulkUpdateStatus( ids, "approved", reviewedBy, null );
+        sendJson( response, Map.of( "status", "ok", "approved", ids.size() ) );
+    }
+
+    private void handleHubProposalByIdAction( final HttpServletRequest request,
+                                                final HttpServletResponse response,
+                                                final String[] segments,
+                                                final HubProposalRepository repo ) throws IOException {
+        if ( segments.length < 3 ) {
+            sendNotFound( response, "Unknown hub-proposals action" );
+            return;
+        }
+        final int id;
+        try {
+            id = Integer.parseInt( segments[1] );
+        } catch ( final NumberFormatException e ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid proposal ID" );
+            return;
+        }
+        switch ( segments[2] ) {
+            case "approve" -> {
+                repo.updateStatus( id, "approved", "admin", null );
+                sendJson( response, Map.of( "status", "ok" ) );
+            }
+            case "reject" -> {
+                final JsonObject body = parseJsonBody( request, response );
+                final String reason = body != null && body.has( "reason" )
+                    ? body.get( "reason" ).getAsString() : null;
+                repo.updateStatus( id, "rejected", "admin", reason );
+                sendJson( response, Map.of( "status", "ok" ) );
+            }
+            default -> sendNotFound( response, "Unknown action: " + segments[2] );
+        }
+    }
+
+    /** Returns the string value of {@code key} if present and non-null, otherwise {@code defaultValue}. */
+    private static String optString( final JsonObject body, final String key, final String defaultValue ) {
+        return body.has( key ) && !body.get( key ).isJsonNull()
+            ? body.get( key ).getAsString() : defaultValue;
     }
 
     // --- Backfill ---

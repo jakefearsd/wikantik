@@ -18,12 +18,11 @@
  */
 package com.wikantik.knowledge;
 
-import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.pages.PageSaveHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -71,8 +70,8 @@ public class HubDiscoveryService {
     private final int                     minCandidatePool;
     private final Supplier< TfidfModel >  contentModelSupplier;
     // Optional — only required when acceptProposal / dismissProposal are called.
-    private final PageManager             pageManager;
-    private final PageSaveHelper          pageSaveHelper;
+    private final PageWriter              pageWriter;
+    private final Predicate< String >     pageExists;
 
     private HubDiscoveryService( final Builder b ) {
         this.kgRepo               = b.kgRepo;
@@ -83,8 +82,8 @@ public class HubDiscoveryService {
         this.minPts               = b.minPts           != null ? b.minPts           : DEFAULT_MIN_PTS;
         this.minCandidatePool     = b.minCandidatePool != null ? b.minCandidatePool : DEFAULT_MIN_CANDIDATE_POOL;
         this.contentModelSupplier = b.contentModelSupplier;
-        this.pageManager          = b.pageManager;
-        this.pageSaveHelper       = b.pageSaveHelper;
+        this.pageWriter           = b.pageWriter;
+        this.pageExists           = b.pageExists;
     }
 
     public static Builder builder() {
@@ -196,23 +195,98 @@ public class HubDiscoveryService {
     }
 
     /**
-     * Accept a cluster proposal and create a new Hub wiki page.
-     * <p><b>Not yet implemented — wired in Task 10.</b>
+     * Accept a proposal: write a stub wiki page whose frontmatter triggers the save-pipeline
+     * graph projection, then delete the proposal row. Concurrent accepts on the same id are
+     * safe — the first {@code delete} wins; the loser sees a 0-row delete followed by a
+     * 404 on its next call.
      *
-     * @throws UnsupportedOperationException always, until Task 10
+     * @throws HubDiscoveryException     if the proposal does not exist, or if fewer than 2
+     *                                    members survive the page-exists filter.
+     * @throws HubNameCollisionException if {@code editedName} matches an existing wiki page.
+     * @throws IllegalArgumentException  if a submitted member is not in the proposal's stored list.
      */
-    public AcceptResult acceptProposal( final int proposalId, final String hubName ) {
-        throw new UnsupportedOperationException( "implemented in Task 10" );
+    public AcceptResult acceptProposal( final int id, final String editedName,
+                                         final List< String > members, final String reviewedBy ) {
+        if ( pageWriter == null || pageExists == null ) {
+            throw new IllegalStateException( "HubDiscoveryService: pageWriter and pageExists "
+                + "are required for acceptProposal — wire them via the builder" );
+        }
+        final var proposal = discoveryRepo.findById( id );
+        if ( proposal == null ) {
+            throw new HubDiscoveryException( "Hub discovery proposal " + id + " not found", null );
+        }
+        final String name = editedName == null ? "" : editedName.trim();
+        if ( name.isEmpty() ) {
+            throw new IllegalArgumentException( "Edited hub name must not be empty" );
+        }
+        if ( pageExists.test( name ) ) {
+            throw new HubNameCollisionException( name );
+        }
+        final Set< String > allowed = new HashSet<>( proposal.memberPages() );
+        for ( final String m : members ) {
+            if ( !allowed.contains( m ) ) {
+                throw new IllegalArgumentException( "Member not in original proposal: " + m );
+            }
+        }
+        final List< String > surviving = new ArrayList<>();
+        for ( final String m : members ) {
+            if ( pageExists.test( m ) ) {
+                surviving.add( m );
+            } else {
+                LOG.info( "Hub discovery: dropping missing member '{}' from accepted proposal {}", m, id );
+            }
+        }
+        if ( surviving.size() < 2 ) {
+            throw new HubDiscoveryException(
+                "Hub discovery: too few surviving members for proposal " + id + "; dismiss instead", null );
+        }
+        Collections.sort( surviving );
+        final String markdown = renderStub( name, surviving );
+        try {
+            pageWriter.write( name, markdown );
+        } catch ( final Exception e ) {
+            throw new HubDiscoveryException(
+                "Hub discovery: failed to save stub page '" + name + "'", e );
+        }
+        discoveryRepo.delete( id );
+        LOG.info( "Hub discovery: accepted proposal {} as '{}' with {} members (reviewed by {})",
+            id, name, surviving.size(), reviewedBy );
+        return new AcceptResult( name, surviving.size() );
     }
 
     /**
      * Dismiss a cluster proposal (delete it from the review queue without creating a page).
-     * <p><b>Not yet implemented — wired in Task 10.</b>
      *
-     * @throws UnsupportedOperationException always, until Task 10
+     * @throws HubDiscoveryException if the proposal does not exist.
      */
-    public void dismissProposal( final int proposalId ) {
-        throw new UnsupportedOperationException( "implemented in Task 10" );
+    public void dismissProposal( final int id, final String reviewedBy ) {
+        final var proposal = discoveryRepo.findById( id );
+        if ( proposal == null ) {
+            throw new HubDiscoveryException( "Hub discovery proposal " + id + " not found", null );
+        }
+        discoveryRepo.delete( id );
+        LOG.info( "Hub discovery: dismissed proposal {} ('{}', {} members, reviewed by {})",
+            id, proposal.suggestedName(), proposal.memberPages().size(), reviewedBy );
+    }
+
+    static String renderStub( final String hubName, final List< String > members ) {
+        final StringBuilder sb = new StringBuilder();
+        sb.append( "---\n" );
+        sb.append( "title: " ).append( hubName ).append( '\n' );
+        sb.append( "type: hub\n" );
+        sb.append( "auto-generated: true\n" );
+        sb.append( "related:\n" );
+        for ( final String m : members ) {
+            sb.append( "  - " ).append( m ).append( '\n' );
+        }
+        sb.append( "---\n\n" );
+        sb.append( "# " ).append( hubName ).append( "\n\n" );
+        sb.append( "<!-- TODO: describe this hub -->\n\n" );
+        sb.append( "## Members\n\n" );
+        for ( final String m : members ) {
+            sb.append( "- [" ).append( m ).append( "](" ).append( m ).append( ")\n" );
+        }
+        return sb.toString();
     }
 
     // ---- Private helpers ----
@@ -342,6 +416,18 @@ public class HubDiscoveryService {
         return System.currentTimeMillis() - startMs;
     }
 
+    // ---- PageWriter functional interface ----
+
+    /**
+     * Two-argument page-writing abstraction the service depends on. Production wires this
+     * to {@code PageSaveHelper.saveText(name, content, SaveOptions)}; tests pass an
+     * in-memory fake that records writes and mirrors the frontmatter projection.
+     */
+    @FunctionalInterface
+    public interface PageWriter {
+        void write( String name, String content ) throws Exception;
+    }
+
     // ---- Builder ----
 
     /**
@@ -351,9 +437,9 @@ public class HubDiscoveryService {
      * (via {@link #contentModel(TfidfModel)} or {@link #contentModelSupplier(Supplier)}).
      *
      * <p>Optional: {@code clusterer}, {@code minClusterSize}, {@code minPts},
-     * {@code minCandidatePool}, {@code pageManager}, {@code pageSaveHelper}.
-     * {@code pageManager} and {@code pageSaveHelper} are only required when
-     * {@link HubDiscoveryService#acceptProposal(int, String)} is called (Task 10).
+     * {@code minCandidatePool}, {@code pageWriter}, {@code pageExists}.
+     * {@code pageWriter} and {@code pageExists} are only required when
+     * {@link HubDiscoveryService#acceptProposal(int, String, List, String)} is called.
      */
     public static final class Builder {
         private JdbcKnowledgeRepository  kgRepo;
@@ -364,8 +450,8 @@ public class HubDiscoveryService {
         private Integer                  minPts;
         private Integer                  minCandidatePool;
         private Supplier< TfidfModel >   contentModelSupplier;
-        private PageManager              pageManager;
-        private PageSaveHelper           pageSaveHelper;
+        private PageWriter               pageWriter;
+        private Predicate< String >      pageExists;
 
         private Builder() {}
 
@@ -398,12 +484,8 @@ public class HubDiscoveryService {
         public Builder contentModelSupplier( final Supplier< TfidfModel > supplier ) {
             this.contentModelSupplier = supplier; return this;
         }
-        public Builder pageManager( final PageManager pageManager ) {
-            this.pageManager = pageManager; return this;
-        }
-        public Builder pageSaveHelper( final PageSaveHelper pageSaveHelper ) {
-            this.pageSaveHelper = pageSaveHelper; return this;
-        }
+        public Builder pageWriter( final PageWriter v ) { this.pageWriter = v; return this; }
+        public Builder pageExists( final Predicate< String > v ) { this.pageExists = v; return this; }
         /** Reads known properties from {@code props}, falling back to defaults. */
         public Builder propsFrom( final Properties props ) {
             this.minClusterSize = Integer.parseInt(

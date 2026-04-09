@@ -139,18 +139,17 @@ public class HubProposalRepository {
     public void bulkUpdateStatus( final List< Integer > ids, final String status,
                                     final String reviewedBy, final String reason ) {
         if ( ids.isEmpty() ) return;
-        final String placeholders = String.join( ",", ids.stream().map( i -> "?" ).toList() );
+        // Constant SQL + a PostgreSQL integer array avoids building an "IN (?,?,?,...)" clause
+        // from ids.size() — that pattern trips SpotBugs SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING
+        // even though it was safe. = ANY(?) is the idiomatic Postgres equivalent.
         final String sql = "UPDATE hub_proposals SET status = ?, reviewed_by = ?, reason = ?, "
-            + "reviewed_at = NOW() WHERE id IN (" + placeholders + ")";
+            + "reviewed_at = NOW() WHERE id = ANY(?)";
         try ( final Connection conn = dataSource.getConnection();
               final PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, status );
             ps.setString( 2, reviewedBy );
             ps.setString( 3, reason );
-            int idx = 4;
-            for ( final int id : ids ) {
-                ps.setInt( idx++, id );
-            }
+            ps.setArray( 4, conn.createArrayOf( "integer", ids.toArray( new Integer[ 0 ] ) ) );
             ps.executeUpdate();
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to bulk update hub proposals: {}", e.getMessage() );

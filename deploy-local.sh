@@ -187,30 +187,17 @@ if [[ -f "${CONTEXT_DEST}" ]]; then
     [[ -n "${_db}" ]] && WIKI_DB="${_db}"
 fi
 
-# Run permissions migration (idempotent — uses IF NOT EXISTS and ON CONFLICT)
-PERMISSIONS_DDL="${SCRIPT_DIR}/wikantik-war/src/main/config/db/postgresql-permissions.ddl"
+# Run database migrations (tracked in schema_migrations, idempotent)
+MIGRATE_SH="${SCRIPT_DIR}/wikantik-war/src/main/config/db/migrate.sh"
 echo ""
-echo "Running permissions migration..."
-if psql -d "${WIKI_DB}" -f "${PERMISSIONS_DDL}" -q 2>/dev/null; then
-    print_status "Permissions migration complete (policy_grants table)"
-elif psql -U postgres -d "${WIKI_DB}" -f "${PERMISSIONS_DDL}" -q 2>/dev/null; then
-    print_status "Permissions migration complete (policy_grants table)"
+echo "Running database migrations..."
+if DB_NAME="${WIKI_DB}" "${MIGRATE_SH}"; then
+    print_status "Database migrations applied"
+elif DB_NAME="${WIKI_DB}" PGUSER=postgres "${MIGRATE_SH}"; then
+    print_status "Database migrations applied (as postgres)"
 else
-    print_warning "Could not run permissions migration automatically."
-    echo "         Run manually: psql -d ${WIKI_DB} -f ${PERMISSIONS_DDL}"
-fi
-
-# Run knowledge graph migration (idempotent — uses IF NOT EXISTS)
-KNOWLEDGE_DDL="${SCRIPT_DIR}/wikantik-war/src/main/config/db/postgresql-knowledge.ddl"
-echo ""
-echo "Running knowledge graph migration..."
-if psql -d "${WIKI_DB}" -f "${KNOWLEDGE_DDL}" -q 2>/dev/null; then
-    print_status "Knowledge graph migration complete (kg_* tables)"
-elif psql -U postgres -d "${WIKI_DB}" -f "${KNOWLEDGE_DDL}" -q 2>/dev/null; then
-    print_status "Knowledge graph migration complete (kg_* tables)"
-else
-    print_warning "Could not run knowledge graph migration automatically."
-    echo "         Run manually: psql -d ${WIKI_DB} -f ${KNOWLEDGE_DDL}"
+    print_warning "Could not run database migrations automatically."
+    echo "         Run manually: DB_NAME=${WIKI_DB} ${MIGRATE_SH}"
 fi
 
 # Seed dev user accounts (idempotent upsert — safe to run every deploy)

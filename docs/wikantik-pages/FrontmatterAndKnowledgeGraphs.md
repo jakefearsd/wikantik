@@ -1,3 +1,13 @@
+---
+title: Frontmatter And Knowledge Graphs
+type: article
+tags:
+- graph
+- file
+- frontmatt
+summary: We are drowning in unstructured Markdown, PDFs, and logs.
+auto-generated: true
+---
 # The Semantic Anchor: Leveraging Frontmatter for Knowledge Graphs and Advanced Knowledge Management
 
 ## Introduction: The Semantic Gap in Unstructured Data

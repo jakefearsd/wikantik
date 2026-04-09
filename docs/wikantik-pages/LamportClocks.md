@@ -1,3 +1,15 @@
+---
+title: Lamport Clocks
+type: article
+tags:
+- clock
+- event
+- order
+summary: In a system spanning multiple nodes, network latency, clock drift, and asynchronous
+  communication render physical wall-clock time unreliable for determining the sequence
+  of events.
+auto-generated: true
+---
 # Mastering Distributed Time: A Deep Dive into Lamport Clocks and Causal Ordering
 
 ## Abstract

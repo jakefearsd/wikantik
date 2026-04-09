@@ -1,3 +1,13 @@
+---
+title: Avatar
+type: article
+tags:
+- just
+- make
+- new
+summary: Avatar This is just to test the deployment of a new page.
+auto-generated: true
+---
 # Avatar
 
 This is just to test the deployment of a new page.  I was making sure the new ReactJS UI could handle the editing of a previously non-existent page without error.

@@ -1,3 +1,14 @@
+---
+title: Resource Description Framework Schema
+type: article
+tags:
+- rdf
+- properti
+- data
+summary: While relational databases excel at structured, closed-world transactions,
+  they struggle with the "Open World Assumption" (OWA) required by the Web.
+auto-generated: true
+---
 # Mastering RDF Schema (RDFS): A Deep Dive into Semantic Modeling for Engineers and Data Scientists
 
 ## Introduction

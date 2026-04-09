@@ -1,3 +1,14 @@
+---
+title: Industrial Knowledge Graph Use Cases
+type: article
+tags:
+- graph
+- kg
+- data
+summary: 'Prerequisites: Solid understanding of graph theory, semantic web technologies
+  (RDF/OWL), and modern machine learning pipelines.'
+auto-generated: true
+---
 # A Deep Dive into Industrial Knowledge Graphs: Architecting Intelligence from Interconnected Data
 
 **Target Audience:** Expert Software Engineers and Data Scientists engaged in advanced research and enterprise architecture.

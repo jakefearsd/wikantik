@@ -1,3 +1,15 @@
+---
+title: Invention Of Knowledge Graph
+type: article
+tags:
+- graph
+- knowledg
+- text
+summary: The invention of the Knowledge Graph introduced a formal, structural, and
+  semantic layer to data, allowing machines to perform reasoning, disambiguation,
+  and relational discovery.
+auto-generated: true
+---
 # The Genealogy of Meaning: A Technical Treatise on the Invention and Evolution of Knowledge Graphs
 
 ## Abstract

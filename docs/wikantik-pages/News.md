@@ -1,3 +1,14 @@
+---
+title: News
+type: article
+tags:
+- '2026'
+- '03'
+- '2025'
+summary: JSPWiki Development News A log of recent development activity on the JSPWiki
+  project.
+auto-generated: true
+---
 # JSPWiki Development News
 
 A log of recent development activity on the JSPWiki project.
@@ -5,6 +16,10 @@ A log of recent development activity on the JSPWiki project.
 ---
 
 ## April 2026
+
+**2026-04-08** — feat: server-side pagination for admin embeddings and graph explorer
+
+**2026-04-08** — feat: replace MCP content CRUD with export/import workflow
 
 **2026-04-08** — feat: multi-attempt stale-asset recovery, hardened no-cache headers, KG merge renames frontmatter
 

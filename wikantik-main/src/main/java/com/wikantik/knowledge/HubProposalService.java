@@ -49,39 +49,17 @@ public class HubProposalService {
     private final int reviewPercentile;
     private final Supplier< TfidfModel > contentModelSupplier;
 
-    public HubProposalService( final JdbcKnowledgeRepository kgRepo,
-                                final HubProposalRepository proposalRepo,
-                                final ContentEmbeddingRepository contentRepo,
-                                final int reviewPercentile,
-                                final TfidfModel contentModel ) {
-        this.kgRepo = kgRepo;
-        this.proposalRepo = proposalRepo;
-        this.contentRepo = contentRepo;
-        this.reviewPercentile = reviewPercentile;
-        this.contentModelSupplier = () -> contentModel;
-    }
-
-    public HubProposalService( final JdbcKnowledgeRepository kgRepo,
-                                final HubProposalRepository proposalRepo,
-                                final ContentEmbeddingRepository contentRepo,
-                                final Properties props,
-                                final TfidfModel contentModel ) {
-        this( kgRepo, proposalRepo, contentRepo,
-            Integer.parseInt( props.getProperty( PROP_REVIEW_PERCENTILE,
-                String.valueOf( DEFAULT_REVIEW_PERCENTILE ) ) ),
-            contentModel );
-    }
-
     /**
-     * Production constructor — the content model supplier is invoked fresh on every
-     * call to {@link #generateProposals()} so the service always uses the latest
-     * trained model without needing to be re-registered after retrains.
+     * Use {@link #builder()} to construct. The content-model supplier is invoked fresh
+     * on every call to {@link #generateProposals()} so production callers that pass
+     * {@code EmbeddingService::getCurrentContentModel} always see the latest trained
+     * model without needing to re-register the service after a retrain.
      */
-    public HubProposalService( final JdbcKnowledgeRepository kgRepo,
-                                final HubProposalRepository proposalRepo,
-                                final ContentEmbeddingRepository contentRepo,
-                                final int reviewPercentile,
-                                final Supplier< TfidfModel > contentModelSupplier ) {
+    private HubProposalService( final JdbcKnowledgeRepository kgRepo,
+                                 final HubProposalRepository proposalRepo,
+                                 final ContentEmbeddingRepository contentRepo,
+                                 final int reviewPercentile,
+                                 final Supplier< TfidfModel > contentModelSupplier ) {
         this.kgRepo = kgRepo;
         this.proposalRepo = proposalRepo;
         this.contentRepo = contentRepo;
@@ -89,15 +67,64 @@ public class HubProposalService {
         this.contentModelSupplier = contentModelSupplier;
     }
 
-    public HubProposalService( final JdbcKnowledgeRepository kgRepo,
-                                final HubProposalRepository proposalRepo,
-                                final ContentEmbeddingRepository contentRepo,
-                                final Properties props,
-                                final Supplier< TfidfModel > contentModelSupplier ) {
-        this( kgRepo, proposalRepo, contentRepo,
-            Integer.parseInt( props.getProperty( PROP_REVIEW_PERCENTILE,
-                String.valueOf( DEFAULT_REVIEW_PERCENTILE ) ) ),
-            contentModelSupplier );
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Fluent builder for {@link HubProposalService}. Required parameters
+     * ({@code kgRepo}, {@code proposalRepo}, {@code contentRepo}, and a content model
+     * either via {@link #contentModel(TfidfModel)} or {@link #contentModelSupplier(Supplier)})
+     * are validated in {@link #build()}.
+     */
+    public static final class Builder {
+        private JdbcKnowledgeRepository kgRepo;
+        private HubProposalRepository proposalRepo;
+        private ContentEmbeddingRepository contentRepo;
+        private Integer reviewPercentile;
+        private Supplier< TfidfModel > contentModelSupplier;
+
+        private Builder() {}
+
+        public Builder kgRepo( final JdbcKnowledgeRepository kgRepo ) {
+            this.kgRepo = kgRepo; return this;
+        }
+        public Builder proposalRepo( final HubProposalRepository proposalRepo ) {
+            this.proposalRepo = proposalRepo; return this;
+        }
+        public Builder contentRepo( final ContentEmbeddingRepository contentRepo ) {
+            this.contentRepo = contentRepo; return this;
+        }
+        public Builder reviewPercentile( final int reviewPercentile ) {
+            this.reviewPercentile = reviewPercentile; return this;
+        }
+        /** Reads {@link #PROP_REVIEW_PERCENTILE} from props, falling back to the default. */
+        public Builder reviewPercentileFromProperties( final Properties props ) {
+            this.reviewPercentile = Integer.parseInt( props.getProperty( PROP_REVIEW_PERCENTILE,
+                String.valueOf( DEFAULT_REVIEW_PERCENTILE ) ) );
+            return this;
+        }
+        /** Wraps a fixed model in a constant supplier — useful for tests. */
+        public Builder contentModel( final TfidfModel contentModel ) {
+            this.contentModelSupplier = () -> contentModel; return this;
+        }
+        /** Production use — called fresh each generation so retrains are picked up. */
+        public Builder contentModelSupplier( final Supplier< TfidfModel > supplier ) {
+            this.contentModelSupplier = supplier; return this;
+        }
+
+        public HubProposalService build() {
+            if ( kgRepo == null || proposalRepo == null
+                || contentRepo == null || contentModelSupplier == null ) {
+                throw new IllegalStateException( "HubProposalService.Builder: kgRepo, "
+                    + "proposalRepo, contentRepo, and a content model (contentModel or "
+                    + "contentModelSupplier) are all required" );
+            }
+            final int percentile = reviewPercentile != null
+                ? reviewPercentile : DEFAULT_REVIEW_PERCENTILE;
+            return new HubProposalService( kgRepo, proposalRepo, contentRepo,
+                percentile, contentModelSupplier );
+        }
     }
 
     /**

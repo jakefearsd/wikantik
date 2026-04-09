@@ -97,7 +97,13 @@ class HubProposalServiceTest {
 
         // With only 2 candidates (Rust and Cooking), Rust scores at the 50th percentile;
         // use a threshold of 49 so it passes
-        service = new HubProposalService( kgRepo, proposalRepo, contentRepo, 49, model );
+        service = HubProposalService.builder()
+            .kgRepo( kgRepo )
+            .proposalRepo( proposalRepo )
+            .contentRepo( contentRepo )
+            .reviewPercentile( 49 )
+            .contentModel( model )
+            .build();
         service.generateProposals();
 
         // Should have at least one proposal (Rust is similar to programming Hubs)
@@ -134,7 +140,13 @@ class HubProposalServiceTest {
         final var pending = proposalRepo.listProposals( "pending", null, 50, 0 );
         proposalRepo.updateStatus( pending.get( 0 ).id(), "rejected", "admin", "Not relevant" );
 
-        service = new HubProposalService( kgRepo, proposalRepo, contentRepo, 0, model );
+        service = HubProposalService.builder()
+            .kgRepo( kgRepo )
+            .proposalRepo( proposalRepo )
+            .contentRepo( contentRepo )
+            .reviewPercentile( 0 )
+            .contentModel( model )
+            .build();
         service.generateProposals();
 
         // Should not have a new pending proposal for Kotlin

@@ -59,7 +59,9 @@ public final class KnowledgeGraphServiceFactory {
         HubSyncFilter hubSyncFilter,
         EmbeddingService embeddingService,
         HubProposalRepository hubProposalRepo,
-        HubProposalService hubProposalService
+        HubProposalService hubProposalService,
+        HubDiscoveryRepository hubDiscoveryRepo,
+        HubDiscoveryService hubDiscoveryService
     ) {}
 
     private KnowledgeGraphServiceFactory() {}
@@ -123,7 +125,29 @@ public final class KnowledgeGraphServiceFactory {
             .contentModelSupplier( embeddingService::getCurrentContentModel )
             .build();
 
+        final HubDiscoveryRepository hubDiscoveryRepo = new HubDiscoveryRepository( dataSource );
+        final HubDiscoveryService hubDiscoveryService = HubDiscoveryService.builder()
+            .kgRepo( repo )
+            .discoveryRepo( hubDiscoveryRepo )
+            .contentRepo( contentEmbeddingRepo )
+            .propsFrom( props )
+            .contentModelSupplier( embeddingService::getCurrentContentModel )
+            .pageWriter( ( name, content ) -> saveHelper.saveText( name, content,
+                SaveOptions.builder().changeNote( "Hub discovery: stub created" ).build() ) )
+            .pageExists( name -> {
+                try {
+                    final Page p = pageManager.getPage( name );
+                    return p != null;
+                } catch ( final Exception e ) {
+                    LOG.warn( "HubDiscoveryService pageExists: failed to check '{}': {}",
+                        name, e.getMessage() );
+                    return false;
+                }
+            } )
+            .build();
+
         return new Services( kgService, projector, fmDefaults, hubSync,
-            embeddingService, hubProposalRepo, hubProposalService );
+            embeddingService, hubProposalRepo, hubProposalService,
+            hubDiscoveryRepo, hubDiscoveryService );
     }
 }

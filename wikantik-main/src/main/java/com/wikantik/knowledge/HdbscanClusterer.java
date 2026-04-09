@@ -104,6 +104,9 @@ public class HdbscanClusterer {
         try {
             model = trainer.train( dataset );
         } catch ( final RuntimeException e ) {
+            // Training failures must surface a full stack trace so an operator can diagnose
+            // a Tribuo bug or unexpected input; the caller rethrows so no silent swallowing.
+            // LOG.error justified: unexpected Tribuo training failure, diagnostics required
             LOG.error( "HDBSCAN training failed: {} vectors, dim={}, minClusterSize={}, minPts={}",
                 vectors.length, vectors[ 0 ].length, minClusterSize, minPts, e );
             throw e;

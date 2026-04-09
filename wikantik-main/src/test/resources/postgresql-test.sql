@@ -253,6 +253,18 @@ CREATE TABLE IF NOT EXISTS hub_proposals (
 CREATE INDEX IF NOT EXISTS idx_hub_proposals_status ON hub_proposals(status);
 CREATE INDEX IF NOT EXISTS idx_hub_proposals_hub ON hub_proposals(hub_name);
 
+CREATE TABLE IF NOT EXISTS hub_discovery_proposals (
+    id              SERIAL PRIMARY KEY,
+    suggested_name  TEXT             NOT NULL,
+    exemplar_page   TEXT             NOT NULL,
+    member_pages    JSONB            NOT NULL,
+    coherence_score DOUBLE PRECISION NOT NULL,
+    created         TIMESTAMPTZ      NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_hub_discovery_proposals_created
+    ON hub_discovery_proposals ( created DESC );
+
 -- JDBCPlugin test table
 CREATE TABLE IF NOT EXISTS employees (
     id   SERIAL PRIMARY KEY,

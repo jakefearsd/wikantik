@@ -53,6 +53,8 @@ import com.wikantik.render.RenderingManager;
 import com.wikantik.search.SearchManager;
 import com.wikantik.knowledge.EmbeddingService;
 import com.wikantik.knowledge.GraphProjector;
+import com.wikantik.knowledge.HubDiscoveryRepository;
+import com.wikantik.knowledge.HubDiscoveryService;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
 import com.wikantik.knowledge.KnowledgeGraphServiceFactory;
@@ -534,6 +536,8 @@ public class WikiEngine implements Engine {
             managers.put( EmbeddingService.class, svcs.embeddingService() );
             managers.put( HubProposalRepository.class, svcs.hubProposalRepo() );
             managers.put( HubProposalService.class, svcs.hubProposalService() );
+            managers.put( HubDiscoveryRepository.class, svcs.hubDiscoveryRepo() );
+            managers.put( HubDiscoveryService.class, svcs.hubDiscoveryService() );
 
             // Register filters (priority order preserved from the original initializer).
             final FilterManager filterManager = getManager( FilterManager.class );
@@ -548,6 +552,9 @@ public class WikiEngine implements Engine {
 
             LOG.info( "HubProposalService registered (reviewPercentile property='{}')",
                 props.getProperty( HubProposalService.PROP_REVIEW_PERCENTILE, "default" ) );
+            LOG.info( "HubDiscoveryService registered (minClusterSize property='{}', minPts='{}')",
+                props.getProperty( HubDiscoveryService.PROP_MIN_CLUSTER_SIZE, "default" ),
+                props.getProperty( HubDiscoveryService.PROP_MIN_PTS, "default" ) );
             LOG.info( "Knowledge graph initialized with datasource '{}'", datasource );
         } catch ( final javax.naming.NamingException | RuntimeException e ) {
             // Log with the throwable so the stack trace is visible — partial init failures

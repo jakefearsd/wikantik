@@ -186,8 +186,9 @@ public class HubDiscoveryService {
             return new RunSummary( created, candidates.size(), noiseCount, duration );
 
         } catch ( final RuntimeException e ) {
-            // LOG.error justified: admin-triggered batch failure — stack trace must land in the
-            // server log because the REST caller only sees a 500 message.
+            // Admin-triggered batch failure — the REST caller only sees a 500, so the full
+            // stack trace must land in the server log for diagnosis.
+            // LOG.error justified: unexpected runtime failure in admin-triggered discovery batch
             LOG.error( "Hub discovery generation failed with exception (minClusterSize={}, minPts={})",
                 minClusterSize, minPts, e );
             throw new HubDiscoveryException( "Hub discovery generation failed: " + e.getMessage(), e );

@@ -57,6 +57,7 @@ import com.wikantik.knowledge.EmbeddingRepository;
 import com.wikantik.knowledge.EmbeddingService;
 import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.knowledge.FrontmatterDefaultsFilter;
+import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubSyncFilter;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
@@ -573,6 +574,10 @@ public class WikiEngine implements Engine {
             final long retrainMinutes = Long.parseLong(
                 props.getProperty( EmbeddingService.PROP_RETRAIN_MINUTES, "60" ) );
             embeddingService.startPeriodicRetraining( retrainMinutes );
+
+            // Hub proposal repository for membership proposals and centroids
+            final HubProposalRepository hubProposalRepo = new HubProposalRepository( ds );
+            managers.put( HubProposalRepository.class, hubProposalRepo );
 
             LOG.info( "Knowledge graph initialized with datasource '{}'", datasource );
         } catch( final Exception e ) {

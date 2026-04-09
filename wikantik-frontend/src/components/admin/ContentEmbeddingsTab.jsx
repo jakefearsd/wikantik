@@ -11,6 +11,8 @@ export default function ContentEmbeddingsTab() {
   const [noFmOffset, setNoFmOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [retraining, setRetraining] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillStatus, setBackfillStatus] = useState(null);
   const [error, setError] = useState(null);
 
   const loadNoFmPages = async (currentOffset) => {
@@ -60,6 +62,33 @@ export default function ContentEmbeddingsTab() {
     }
   };
 
+  const handleBackfill = async () => {
+    if (!confirm('This will generate default frontmatter for all pages that lack it. Continue?')) return;
+    setBackfilling(true);
+    setError(null);
+    try {
+      await api.knowledge.backfillFrontmatter();
+      const poll = setInterval(async () => {
+        try {
+          const st = await api.knowledge.getBackfillStatus();
+          setBackfillStatus(st);
+          if (!st.running) {
+            clearInterval(poll);
+            setBackfilling(false);
+            await loadData();
+          }
+        } catch (err) {
+          clearInterval(poll);
+          setBackfilling(false);
+          setError(err.message);
+        }
+      }, 2000);
+    } catch (err) {
+      setBackfilling(false);
+      setError(err.message);
+    }
+  };
+
   if (loading) return <div className="admin-loading">Loading content embeddings...</div>;
   if (error) return <div className="admin-error">{error}</div>;
 
@@ -90,9 +119,15 @@ export default function ContentEmbeddingsTab() {
 
       {noFmTotal > 0 && (
         <div style={{ marginBottom: 'var(--space-md)' }}>
-          <h4 style={{ fontSize: '0.95em', marginBottom: 'var(--space-sm)' }}>
-            Pages Without Frontmatter <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>({noFmTotal})</span>
-          </h4>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-sm)' }}>
+            <h4 style={{ fontSize: '0.95em', margin: 0 }}>
+              Pages Without Frontmatter <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>({noFmTotal})</span>
+            </h4>
+            <button className="btn btn-sm" onClick={handleBackfill} disabled={backfilling || !status?.content_ready}
+              title={!status?.content_ready ? 'Content model must be trained first' : ''}>
+              {backfilling ? `Backfilling... ${backfillStatus ? `(${backfillStatus.processed}/${backfillStatus.total})` : ''}` : 'Backfill Frontmatter'}
+            </button>
+          </div>
           <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
             <table className="admin-table">
               <thead>

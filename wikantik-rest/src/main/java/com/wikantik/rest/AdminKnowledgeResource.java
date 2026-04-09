@@ -25,7 +25,9 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.knowledge.EmbeddingService;
-import com.wikantik.knowledge.FrontmatterDefaultsFilter;
+import com.wikantik.knowledge.SummaryExtractor;
+import com.wikantik.knowledge.TagExtractor;
+import com.wikantik.knowledge.TitleDeriver;
 import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
@@ -1027,25 +1029,32 @@ public class AdminKnowledgeResource extends RestServletBase {
             final var allPages = pm.getAllPages();
             backfillTotal = allPages.size();
 
-            final Properties props = getEngine().getWikiProperties();
-            final FrontmatterDefaultsFilter filter = new FrontmatterDefaultsFilter(
-                name -> spr != null && spr.isSystemPage( name ), props );
             final PageSaveHelper saveHelper = new PageSaveHelper( getEngine() );
 
             for ( final Page page : allPages ) {
                 try {
+                    if ( spr != null && spr.isSystemPage( page.getName() ) ) {
+                        backfillProcessed++;
+                        continue;
+                    }
                     final String content = pm.getPureText( page );
                     final ParsedPage parsed = FrontmatterParser.parse( content != null ? content : "" );
                     if ( !parsed.metadata().isEmpty() ) {
                         backfillProcessed++;
                         continue;
                     }
-                    if ( spr != null && spr.isSystemPage( page.getName() ) ) {
-                        backfillProcessed++;
-                        continue;
-                    }
-                    final String updated = filter.applyDefaults( page.getName(), content );
-                    saveHelper.saveText( page.getName(), updated, SaveOptions.builder().build() );
+
+                    final String body = parsed.body();
+                    final Map< String, Object > metadata = new LinkedHashMap<>();
+                    metadata.put( "title", TitleDeriver.derive( page.getName() ) );
+                    metadata.put( "type", "article" );
+                    metadata.put( "tags", TagExtractor.extract( body, 3 ) );
+                    metadata.put( "summary", SummaryExtractor.extract( body ) );
+                    metadata.put( "auto-generated", Boolean.TRUE );
+
+                    final String updated = FrontmatterWriter.write( metadata, body );
+                    saveHelper.saveText( page.getName(), updated,
+                        SaveOptions.builder().changeNote( "Backfill default frontmatter" ).build() );
                     backfillProcessed++;
                 } catch ( final Exception e ) {
                     backfillErrors++;

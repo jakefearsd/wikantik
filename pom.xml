@@ -86,6 +86,7 @@
     <xstream.version>1.4.21</xstream.version>
     <mcp-sdk.version>1.1.0</mcp-sdk.version>
     <snakeyaml.version>2.4</snakeyaml.version>
+    <smile.version>4.3.0</smile.version>
     <xmemcached.version>2.4.8</xmemcached.version>
     <micrometer.version>1.14.6</micrometer.version>
     <testcontainers.version>1.20.4</testcontainers.version>

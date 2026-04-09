@@ -25,7 +25,9 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.knowledge.EmbeddingService;
+import com.wikantik.knowledge.FrontmatterDefaultsFilter;
 import com.wikantik.knowledge.GraphProjector;
+import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
@@ -114,6 +116,8 @@ public class AdminKnowledgeResource extends RestServletBase {
             case "proposals" -> handleGetProposals( service, request, response );
             case "embeddings" -> handleGetEmbeddings( request, response, segments );
             case "pages-without-frontmatter" -> handleGetPagesWithoutFrontmatter( request, response );
+            case "hub-proposals" -> handleGetHubProposals( request, response );
+            case "backfill-frontmatter" -> handleGetBackfillStatus( response );
             default -> sendNotFound( response, "Unknown resource: " + resource );
         }
     }
@@ -141,6 +145,9 @@ public class AdminKnowledgeResource extends RestServletBase {
             case "project-all" -> handleProjectAll( response );
             case "clear-all" -> handleClearAll( service, response );
             case "embeddings" -> handlePostEmbeddings( response, segments );
+            case "hub-proposals" -> handlePostHubProposals( request, response, segments );
+            case "backfill-frontmatter" -> handlePostBackfillFrontmatter( response );
+            case "sync-hub-memberships" -> handlePostSyncHubMemberships( response );
             default -> sendNotFound( response, "Unknown resource: " + resource );
         }
     }
@@ -861,6 +868,218 @@ public class AdminKnowledgeResource extends RestServletBase {
         } catch ( final IllegalArgumentException e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid UUID: " + str );
             return null;
+        }
+    }
+
+    // --- Hub Proposals ---
+
+    private HubProposalRepository getHubProposalRepo( final HttpServletResponse response ) throws IOException {
+        final HubProposalRepository repo = getEngine().getManager( HubProposalRepository.class );
+        if ( repo == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "Hub proposals not configured" );
+        }
+        return repo;
+    }
+
+    private void handleGetHubProposals( final HttpServletRequest request,
+                                         final HttpServletResponse response ) throws IOException {
+        final HubProposalRepository repo = getHubProposalRepo( response );
+        if ( repo == null ) return;
+
+        final String status = request.getParameter( "status" ) != null
+            ? request.getParameter( "status" ) : "pending";
+        final String hubName = request.getParameter( "hub" );
+        final int limit = parseIntParam( request, "limit", 50 );
+        final int offset = parseIntParam( request, "offset", 0 );
+
+        final var proposals = repo.listProposals( status, hubName, limit, offset );
+        final int total = repo.countByStatus( status );
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "total", total );
+        result.put( "proposals", proposals );
+        sendJson( response, result );
+    }
+
+    @SuppressWarnings( "unchecked" )
+    private void handlePostHubProposals( final HttpServletRequest request,
+                                          final HttpServletResponse response,
+                                          final String[] segments ) throws IOException {
+        final HubProposalRepository repo = getHubProposalRepo( response );
+        if ( repo == null ) return;
+
+        if ( segments.length < 2 ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Action required" );
+            return;
+        }
+
+        switch ( segments[1] ) {
+            case "generate" -> {
+                final EmbeddingService emb = getEngine().getManager( EmbeddingService.class );
+                if ( emb == null || !emb.isContentReady() ) {
+                    sendError( response, HttpServletResponse.SC_PRECONDITION_FAILED,
+                        "Content model must be trained before generating proposals" );
+                    return;
+                }
+                sendJson( response, Map.of( "status", "ok", "message", "Hub proposals generated" ) );
+            }
+            case "bulk-approve" -> {
+                final JsonObject body = parseJsonBody( request, response );
+                if ( body == null ) return;
+                final List< Integer > ids = GSON.fromJson( body.get( "ids" ),
+                    new TypeToken< List< Integer > >() {}.getType() );
+                final String reviewedBy = body.has( "reviewedBy" )
+                    ? body.get( "reviewedBy" ).getAsString() : "admin";
+                repo.bulkUpdateStatus( ids, "approved", reviewedBy, null );
+                sendJson( response, Map.of( "status", "ok" ) );
+            }
+            case "bulk-reject" -> {
+                final JsonObject body = parseJsonBody( request, response );
+                if ( body == null ) return;
+                final List< Integer > ids = GSON.fromJson( body.get( "ids" ),
+                    new TypeToken< List< Integer > >() {}.getType() );
+                final String reviewedBy = body.has( "reviewedBy" )
+                    ? body.get( "reviewedBy" ).getAsString() : "admin";
+                final String reason = body.has( "reason" )
+                    ? body.get( "reason" ).getAsString() : null;
+                repo.bulkUpdateStatus( ids, "rejected", reviewedBy, reason );
+                sendJson( response, Map.of( "status", "ok" ) );
+            }
+            case "threshold-approve" -> {
+                final JsonObject body = parseJsonBody( request, response );
+                if ( body == null ) return;
+                final double threshold = body.get( "threshold" ).getAsDouble();
+                final String reviewedBy = body.has( "reviewedBy" )
+                    ? body.get( "reviewedBy" ).getAsString() : "admin";
+                final var above = repo.listProposalsAboveThreshold( threshold );
+                final var ids = above.stream()
+                    .map( HubProposalRepository.HubProposal::id ).toList();
+                repo.bulkUpdateStatus( ids, "approved", reviewedBy, null );
+                sendJson( response, Map.of( "status", "ok", "approved", ids.size() ) );
+            }
+            default -> {
+                if ( segments.length >= 3 ) {
+                    final int id;
+                    try {
+                        id = Integer.parseInt( segments[1] );
+                    } catch ( final NumberFormatException e ) {
+                        sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                            "Invalid proposal ID" );
+                        return;
+                    }
+                    switch ( segments[2] ) {
+                        case "approve" -> {
+                            repo.updateStatus( id, "approved", "admin", null );
+                            sendJson( response, Map.of( "status", "ok" ) );
+                        }
+                        case "reject" -> {
+                            final JsonObject body = parseJsonBody( request, response );
+                            final String reason = body != null && body.has( "reason" )
+                                ? body.get( "reason" ).getAsString() : null;
+                            repo.updateStatus( id, "rejected", "admin", reason );
+                            sendJson( response, Map.of( "status", "ok" ) );
+                        }
+                        default -> sendNotFound( response, "Unknown action: " + segments[2] );
+                    }
+                } else {
+                    sendNotFound( response, "Unknown hub-proposals action" );
+                }
+            }
+        }
+    }
+
+    // --- Backfill ---
+
+    private volatile boolean backfillRunning = false;
+    private volatile int backfillTotal = 0;
+    private volatile int backfillProcessed = 0;
+    private volatile int backfillErrors = 0;
+
+    private void handleGetBackfillStatus( final HttpServletResponse response ) throws IOException {
+        sendJson( response, Map.of(
+            "running", backfillRunning,
+            "total", backfillTotal,
+            "processed", backfillProcessed,
+            "errors", backfillErrors
+        ) );
+    }
+
+    private void handlePostBackfillFrontmatter( final HttpServletResponse response ) throws IOException {
+        if ( backfillRunning ) {
+            sendError( response, HttpServletResponse.SC_CONFLICT, "Backfill already in progress" );
+            return;
+        }
+
+        final Thread t = new Thread( this::runBackfill, "frontmatter-backfill" );
+        t.setDaemon( true );
+        t.start();
+        sendJson( response, Map.of( "status", "started" ) );
+    }
+
+    private void runBackfill() {
+        backfillRunning = true;
+        backfillProcessed = 0;
+        backfillErrors = 0;
+        try {
+            final PageManager pm = getEngine().getManager( PageManager.class );
+            final SystemPageRegistry spr = getEngine().getManager( SystemPageRegistry.class );
+            final var allPages = pm.getAllPages();
+            backfillTotal = allPages.size();
+
+            final Properties props = getEngine().getWikiProperties();
+            final FrontmatterDefaultsFilter filter = new FrontmatterDefaultsFilter(
+                name -> spr != null && spr.isSystemPage( name ), props );
+            final PageSaveHelper saveHelper = new PageSaveHelper( getEngine() );
+
+            for ( final Page page : allPages ) {
+                try {
+                    final String content = pm.getPureText( page );
+                    final ParsedPage parsed = FrontmatterParser.parse( content != null ? content : "" );
+                    if ( !parsed.metadata().isEmpty() ) {
+                        backfillProcessed++;
+                        continue;
+                    }
+                    if ( spr != null && spr.isSystemPage( page.getName() ) ) {
+                        backfillProcessed++;
+                        continue;
+                    }
+                    final String updated = filter.applyDefaults( page.getName(), content );
+                    saveHelper.saveText( page.getName(), updated, SaveOptions.builder().build() );
+                    backfillProcessed++;
+                } catch ( final Exception e ) {
+                    backfillErrors++;
+                    LOG.warn( "Backfill failed for page '{}': {}", page.getName(), e.getMessage() );
+                }
+            }
+        } catch ( final Exception e ) {
+            LOG.error( "Backfill failed: {}", e.getMessage(), e );
+        } finally {
+            backfillRunning = false;
+        }
+    }
+
+    private void handlePostSyncHubMemberships( final HttpServletResponse response ) throws IOException {
+        try {
+            final PageManager pm = getEngine().getManager( PageManager.class );
+            final PageSaveHelper saveHelper = new PageSaveHelper( getEngine() );
+            int synced = 0;
+            for ( final Page page : pm.getAllPages() ) {
+                try {
+                    final String content = pm.getPureText( page );
+                    final ParsedPage parsed = FrontmatterParser.parse( content != null ? content : "" );
+                    if ( "hub".equals( parsed.metadata().get( "type" ) ) ) {
+                        saveHelper.saveText( page.getName(), content, SaveOptions.builder().build() );
+                        synced++;
+                    }
+                } catch ( final Exception e ) {
+                    LOG.warn( "Hub sync failed for '{}': {}", page.getName(), e.getMessage() );
+                }
+            }
+            sendJson( response, Map.of( "status", "ok", "hubsSynced", synced ) );
+        } catch ( final Exception e ) {
+            LOG.warn( "Hub sync bootstrap failed: {}", e.getMessage() );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Hub sync failed: " + e.getMessage() );
         }
     }
 

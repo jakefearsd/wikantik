@@ -43,6 +43,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.queries.mlt.MoreLikeThis;
 import org.apache.lucene.search.highlight.Highlighter;
 import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
 import org.apache.lucene.search.highlight.QueryScorer;
@@ -766,6 +767,71 @@ public class LuceneSearchProvider implements SearchProvider {
         }
 
         return list;
+    }
+
+    /** Lucene MoreLikeThis hit returned by {@link #moreLikeThis(String, int, Set)}. */
+    public record MoreLikeThisHit( String name, float score ) {}
+
+    /**
+     * Returns up to {@code maxResults} documents similar to {@code seedDocName} based on the
+     * {@code contents} field, excluding any document whose {@code id} is in {@code excludeNames}.
+     *
+     * <p>Thin wrapper around Lucene's {@link MoreLikeThis} query builder. Used by
+     * {@code HubOverviewService} to surface a "second opinion" alongside its TF-IDF
+     * near-miss list. Returns an empty list if the seed document is not in the index
+     * or the index has not yet been built.
+     *
+     * @param seedDocName the {@link #LUCENE_ID} value of the seed document
+     * @param maxResults  upper bound on returned hits (after exclusions)
+     * @param excludeNames document ids to filter out of the result list
+     * @return list of similar-document hits, ordered by Lucene relevance score (best first)
+     * @throws IOException if the Lucene index cannot be opened or queried
+     */
+    public java.util.List< MoreLikeThisHit > moreLikeThis( final String seedDocName,
+                                                            final int maxResults,
+                                                            final java.util.Set< String > excludeNames )
+            throws IOException {
+        if ( seedDocName == null || seedDocName.isEmpty() || maxResults <= 0 ) {
+            return java.util.Collections.emptyList();
+        }
+        final java.util.Set< String > excludes = excludeNames == null
+            ? java.util.Collections.emptySet() : excludeNames;
+        try ( final Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
+              final IndexReader reader = DirectoryReader.open( luceneDir ) ) {
+            final IndexSearcher searcher = new IndexSearcher( reader, searchExecutor );
+            // Locate the seed document by id.
+            final TopDocs seedHits = searcher.search(
+                new TermQuery( new Term( LUCENE_ID, seedDocName ) ), 1 );
+            if ( seedHits.scoreDocs.length == 0 ) {
+                return java.util.Collections.emptyList();
+            }
+            final int seedDocId = seedHits.scoreDocs[ 0 ].doc;
+
+            final MoreLikeThis mlt = new MoreLikeThis( reader );
+            mlt.setAnalyzer( getLuceneAnalyzer() );
+            mlt.setFieldNames( new String[] { LUCENE_PAGE_CONTENTS } );
+            mlt.setMinTermFreq( 1 );
+            mlt.setMinDocFreq( 1 );
+            // Build the MLT query from the indexed seed doc; query reader allows
+            // weights derived from indexed term vectors / field statistics.
+            final Query mltQuery = mlt.like( seedDocId );
+
+            // Pull a buffer larger than maxResults so we have room to filter excludes.
+            final int fetch = Math.min( 1024, maxResults + excludes.size() + 10 );
+            final TopDocs hits = searcher.search( mltQuery, fetch );
+            final StoredFields storedFields = reader.storedFields();
+
+            final java.util.List< MoreLikeThisHit > out = new java.util.ArrayList<>();
+            for ( final ScoreDoc sd : hits.scoreDocs ) {
+                if ( out.size() >= maxResults ) break;
+                final Document doc = storedFields.document( sd.doc );
+                final String name = doc.get( LUCENE_ID );
+                if ( name == null || name.equals( seedDocName ) ) continue;
+                if ( excludes.contains( name ) ) continue;
+                out.add( new MoreLikeThisHit( name, sd.score ) );
+            }
+            return out;
+        }
     }
 
     /** {@inheritDoc} */

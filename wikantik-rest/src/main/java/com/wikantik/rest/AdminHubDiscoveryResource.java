@@ -373,10 +373,62 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         }
     }
 
-    /** Stub — implemented in the next task. */
     private void handleHubDrilldown( final String path, final HttpServletResponse response )
             throws IOException {
-        sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
+        // path = "/hubs/{encodedName}"
+        final String encoded = path.substring( "/hubs/".length() );
+        if ( encoded.isEmpty() || encoded.contains( "/" ) ) {
+            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
+            return;
+        }
+        final String hubName = java.net.URLDecoder.decode( encoded, java.nio.charset.StandardCharsets.UTF_8 );
+
+        final com.wikantik.knowledge.HubOverviewService svc =
+            getEngine().getManager( com.wikantik.knowledge.HubOverviewService.class );
+        if ( svc == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "HubOverviewService is not available" );
+            return;
+        }
+
+        try {
+            final var d = svc.loadDrilldown( hubName );
+            if ( d == null ) {
+                sendError( response, HttpServletResponse.SC_NOT_FOUND,
+                    "Hub '" + hubName + "' not found" );
+                return;
+            }
+            final Map< String, Object > result = new LinkedHashMap<>();
+            result.put( "name", d.name() );
+            result.put( "hasBackingPage", d.hasBackingPage() );
+            result.put( "coherence", Double.isNaN( d.coherence() ) ? null : d.coherence() );
+            result.put( "members", d.members().stream().map( m -> {
+                final Map< String, Object > x = new LinkedHashMap<>();
+                x.put( "name", m.name() );
+                x.put( "cosineToCentroid", Double.isNaN( m.cosineToCentroid() ) ? null : m.cosineToCentroid() );
+                x.put( "hasPage", m.hasPage() );
+                return x;
+            } ).toList() );
+            result.put( "stubMembers", d.stubMembers().stream().map( s ->
+                Map.of( "name", s.name() ) ).toList() );
+            result.put( "nearMissTfidf", d.nearMissTfidf().stream().map( n ->
+                Map.of( "name", n.name(), "cosineToCentroid", n.cosineToCentroid() ) ).toList() );
+            result.put( "moreLikeThisLucene", d.moreLikeThisLucene().stream().map( m ->
+                Map.of( "name", m.name(), "luceneScore", m.luceneScore() ) ).toList() );
+            result.put( "overlapHubs", d.overlapHubs().stream().map( o -> {
+                final Map< String, Object > x = new LinkedHashMap<>();
+                x.put( "name", o.name() );
+                x.put( "centroidCosine", o.centroidCosine() );
+                x.put( "sharedMemberCount", o.sharedMemberCount() );
+                return x;
+            } ).toList() );
+            sendJson( response, result );
+        } catch ( final RuntimeException e ) {
+            // LOG.error justified: admin-triggered drilldown failure must surface stack trace
+            LOG.error( "Hub overview drilldown failed for '{}'", hubName, e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                "Hub drilldown failed: " + e.getMessage() );
+        }
     }
 
     // ---- helpers ----

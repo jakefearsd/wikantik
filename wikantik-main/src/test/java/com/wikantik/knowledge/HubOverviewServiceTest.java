@@ -332,6 +332,16 @@ class HubOverviewServiceTest {
         assertTrue( d.overlapHubs().isEmpty() );
     }
 
+    @Test
+    void loadDrilldown_unknownHub_returnsNull() {
+        // No hub seeded.
+        model = new TfidfModel();
+        model.build( List.of( "Baking" ), List.of( "baking bread cake" ) );
+
+        final HubOverviewService svc = serviceBuilder().contentModel( model ).build();
+        assertNull( svc.loadDrilldown( "DoesNotExist" ) );
+    }
+
     // ---- helpers ----
 
     /**

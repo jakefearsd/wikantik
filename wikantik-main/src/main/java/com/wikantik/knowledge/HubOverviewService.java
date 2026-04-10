@@ -284,7 +284,140 @@ public class HubOverviewService {
 
     /** See spec section "loadDrilldown algorithm". Returns null if hub not found. */
     public HubDrilldown loadDrilldown( final String hubName ) {
-        throw new UnsupportedOperationException( "implemented in a later task" );
+        if ( hubName == null || hubName.isBlank() ) return null;
+        final long start = System.currentTimeMillis();
+
+        // 1. Verify the hub node exists. queryNodes with the "name" filter does a
+        //    substring LIKE, not an exact match — so we filter by node_type only and
+        //    look up the exact name in Java to avoid matching neighboring hubs that
+        //    happen to share a substring.
+        final List< com.wikantik.api.knowledge.KgNode > hubNodes =
+            kgRepo.queryNodes( Map.of( "node_type", "hub" ), null, 100_000, 0 );
+        boolean found = false;
+        for ( final var n : hubNodes ) {
+            if ( hubName.equals( n.name() ) ) { found = true; break; }
+        }
+        if ( !found ) return null;
+
+        final TfidfModel resolved = resolveModel();
+        final boolean modelAvailable = resolved != null;
+
+        // 2. Load this hub's members from KG.
+        final Map< String, Set< String > > allHubMembers = loadAllHubMembers();
+        final Set< String > rawMembers = allHubMembers.getOrDefault( hubName, Set.of() );
+        final List< String > sortedMembers = new ArrayList<>( rawMembers );
+        Collections.sort( sortedMembers );
+
+        // 3. Partition into existing pages and stubs.
+        final List< String > existing = new ArrayList<>();
+        final List< StubMember > stubs = new ArrayList<>();
+        for ( final String m : sortedMembers ) {
+            if ( pageExists( m ) ) existing.add( m );
+            else stubs.add( new StubMember( m ) );
+        }
+
+        // 4. Compute hub centroid from model-backed existing+stub members alike.
+        float[] centroid = null;
+        double coherence = Double.NaN;
+        if ( modelAvailable && rawMembers.size() >= 2 ) {
+            final List< float[] > vecs = vectorsFor( resolved, rawMembers );
+            if ( vecs.size() >= 2 ) {
+                final float[][] arr = vecs.toArray( new float[ 0 ][] );
+                centroid = HubDiscoveryService.normalizedCentroid( arr );
+                coherence = HubDiscoveryService.meanDot( arr, centroid );
+            }
+        }
+
+        // 5. Per-member cosine to centroid (ascending).
+        final List< MemberDetail > memberDetails = new ArrayList<>();
+        for ( final String m : existing ) {
+            final double cos;
+            if ( centroid != null && modelAvailable ) {
+                final int eid = resolved.entityId( m );
+                cos = eid >= 0 ? cosine( resolved.getVector( eid ), centroid ) : Double.NaN;
+            } else {
+                cos = Double.NaN;
+            }
+            memberDetails.add( new MemberDetail( m, cos, true ) );
+        }
+        memberDetails.sort( ( a, b ) -> {
+            final boolean an = Double.isNaN( a.cosineToCentroid() );
+            final boolean bn = Double.isNaN( b.cosineToCentroid() );
+            if ( an && bn ) return a.name().compareTo( b.name() );
+            if ( an ) return 1;
+            if ( bn ) return -1;
+            return Double.compare( a.cosineToCentroid(), b.cosineToCentroid() );
+        } );
+
+        // 6. Near-miss TF-IDF list (top-N non-member non-hub by cosine descending).
+        final List< NearMissTfidf > nearMissList = new ArrayList<>();
+        if ( centroid != null && modelAvailable ) {
+            final Set< String > allHubNames = allHubMembers.keySet();
+            final List< NearMissTfidf > scored = new ArrayList<>();
+            for ( final String entityName : resolved.getEntityNames() ) {
+                if ( allHubNames.contains( entityName ) ) continue;
+                if ( rawMembers.contains( entityName ) ) continue;
+                final int eid = resolved.entityId( entityName );
+                if ( eid < 0 ) continue;
+                final double cos = cosine( resolved.getVector( eid ), centroid );
+                if ( cos >= nearMissThreshold ) {
+                    scored.add( new NearMissTfidf( entityName, cos ) );
+                }
+            }
+            scored.sort( ( a, b ) -> Double.compare( b.cosineToCentroid(), a.cosineToCentroid() ) );
+            for ( int i = 0; i < scored.size() && i < nearMissMaxResults; i++ ) {
+                nearMissList.add( scored.get( i ) );
+            }
+        }
+
+        // 7. Overlap hubs (other hubs whose centroid cosine ≥ overlapThreshold).
+        final List< OverlapHub > overlapHubs = new ArrayList<>();
+        if ( centroid != null && modelAvailable ) {
+            for ( final var entry : allHubMembers.entrySet() ) {
+                final String otherHub = entry.getKey();
+                if ( otherHub.equals( hubName ) ) continue;
+                final List< float[] > otherVecs = vectorsFor( resolved, entry.getValue() );
+                if ( otherVecs.size() < 2 ) continue;
+                final float[][] arr = otherVecs.toArray( new float[ 0 ][] );
+                final float[] otherCentroid = HubDiscoveryService.normalizedCentroid( arr );
+                final double cos = cosine( centroid, otherCentroid );
+                if ( cos < overlapThreshold ) continue;
+                final Set< String > shared = new HashSet<>( rawMembers );
+                shared.retainAll( entry.getValue() );
+                overlapHubs.add( new OverlapHub( otherHub, cos, shared.size() ) );
+            }
+            overlapHubs.sort( ( a, b ) -> Double.compare( b.centroidCosine(), a.centroidCosine() ) );
+        }
+
+        // 8. Lucene MoreLikeThis (with empty fallback on any failure).
+        final List< MoreLikeThisLucene > mltList = new ArrayList<>();
+        try {
+            // Seed = hub itself if it has a backing page; otherwise the highest-cosine
+            // member (the "exemplar"). Falls back to first sorted member if no centroid.
+            final boolean hasBacking = pageExists( hubName );
+            String seed = hasBacking ? hubName : null;
+            if ( seed == null && !memberDetails.isEmpty() ) {
+                seed = memberDetails.get( memberDetails.size() - 1 ).name();
+            }
+            if ( seed != null ) {
+                final Set< String > excludes = new HashSet<>( rawMembers );
+                excludes.add( hubName );
+                final List< MoreLikeThisLucene > raw =
+                    luceneMlt.findSimilar( seed, mltMaxResults, excludes );
+                if ( raw != null ) mltList.addAll( raw );
+            }
+        } catch ( final Exception e ) {
+            LOG.warn( "Hub overview drilldown: Lucene MoreLikeThis failed for hub '{}': {}",
+                hubName, e.getMessage() );
+        }
+
+        final boolean hasBackingPage = pageExists( hubName );
+        LOG.info( "Hub overview drilldown: hub='{}' members={} nearMiss={} overlap={} {}ms",
+            hubName, memberDetails.size(), nearMissList.size(), overlapHubs.size(),
+            System.currentTimeMillis() - start );
+        return new HubDrilldown(
+            hubName, hasBackingPage, coherence,
+            memberDetails, stubs, nearMissList, mltList, overlapHubs );
     }
 
     /** See spec section "removeMember algorithm". */

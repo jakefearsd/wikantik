@@ -255,6 +255,83 @@ class HubOverviewServiceTest {
             "Pasta should count as a near-miss; Soccer should not" );
     }
 
+    // ---- loadDrilldown ----
+
+    @Test
+    void loadDrilldown_happyPath_populatesAllSections() throws Exception {
+        // Two hubs: CookingHub (3 cooking members + 1 stub member) and GardeningHub
+        // (2 gardening members). Pasta is a non-member near-miss for cooking. The
+        // two hubs share zero members (sharedMemberCount=0) but their centroids are
+        // distant — overlap section will be empty unless we drop the overlap threshold.
+        seedHub( "CookingHub", List.of( "Baking", "Roasting", "Grilling", "GhostMember" ) );
+        seedHub( "GardeningHub", List.of( "Tomatoes", "Lettuce" ) );
+        pageStore.put( "CookingHub", "stub" );
+        pageStore.put( "GardeningHub", "stub" );
+        // Mark "GhostMember" as missing — pageStore does NOT contain it,
+        // so pageManager.pageExists returns false → drilldown classifies as stub.
+        pageStore.put( "Baking", "..." );
+        pageStore.put( "Roasting", "..." );
+        pageStore.put( "Grilling", "..." );
+        pageStore.put( "Tomatoes", "..." );
+        pageStore.put( "Lettuce", "..." );
+
+        kgRepo.upsertNode( "Pasta", "article", "Pasta",
+            Provenance.HUMAN_AUTHORED, Map.of() );
+        pageStore.put( "Pasta", "..." );
+
+        model = new TfidfModel();
+        model.build(
+            List.of( "Baking", "Roasting", "Grilling", "Tomatoes", "Lettuce", "Pasta" ),
+            List.of(
+                "baking bread cake flour sugar oven recipe dough baking",
+                "roasting meat oven temperature seasoning baking",
+                "grilling charcoal meat barbecue outdoor fire baking",
+                "tomatoes garden vegetable plant water sun soil",
+                "lettuce garden vegetable plant water leaf soil",
+                "pasta sauce flour sugar oven dough baking roast"
+            ) );
+
+        // Stub LuceneMlt: returns one fixed hit, only when seed is "CookingHub".
+        final HubOverviewService.LuceneMlt mlt = ( seed, max, excludes ) -> {
+            if ( "CookingHub".equals( seed ) && !excludes.contains( "Pasta" ) ) {
+                return List.of( new HubOverviewService.MoreLikeThisLucene( "Pasta", 4.2 ) );
+            }
+            return List.of();
+        };
+
+        final HubOverviewService svc = serviceBuilder()
+            .contentModel( model )
+            .luceneMlt( mlt )
+            .nearMissThreshold( 0.10 )
+            .overlapThreshold( 0.99 ) // effectively disable overlap section
+            .build();
+
+        final HubOverviewService.HubDrilldown d = svc.loadDrilldown( "CookingHub" );
+        assertNotNull( d );
+        assertEquals( "CookingHub", d.name() );
+        assertTrue( d.hasBackingPage() );
+
+        // Members: Baking + Roasting + Grilling are real, GhostMember is stub.
+        assertEquals( 3, d.members().size() );
+        // Members sorted ascending by cosine — verify ordering invariant.
+        for ( int i = 1; i < d.members().size(); i++ ) {
+            assertTrue( d.members().get( i - 1 ).cosineToCentroid()
+                <= d.members().get( i ).cosineToCentroid(),
+                "Members must be sorted ascending by cosine" );
+        }
+        assertEquals( 1, d.stubMembers().size() );
+        assertEquals( "GhostMember", d.stubMembers().get( 0 ).name() );
+
+        // Near-miss TF-IDF should include Pasta (cooking-vocab non-member).
+        assertTrue( d.nearMissTfidf().stream().anyMatch( h -> "Pasta".equals( h.name() ) ),
+            "Pasta should appear in near-miss TF-IDF list" );
+        // MLT list contains the stubbed Pasta hit.
+        assertEquals( 1, d.moreLikeThisLucene().size() );
+        assertEquals( "Pasta", d.moreLikeThisLucene().get( 0 ).name() );
+        // Overlap section empty (we set the threshold to 0.99).
+        assertTrue( d.overlapHubs().isEmpty() );
+    }
+
     // ---- helpers ----
 
     /**

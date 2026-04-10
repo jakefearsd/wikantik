@@ -1,12 +1,23 @@
 ---
+date: 2026-03-15T00:00:00Z
+summary: Detailed analysis of how fund expense ratios compound against investors over
+  time, with specific dollar-cost examples and strategies for minimizing fee drag.
+cluster: index-fund-investing
+related:
+- LowCostIndexFundInvesting
+- BasicsOfCompoundInterest
+- ExpenseRatioDeepDive
 title: Expense Ratios and Their Effect on Compounding
 type: article
-tags: [investing, expense-ratios, fees, compounding, index-funds]
-date: 2026-03-15
 status: published
-cluster: index-fund-investing
-summary: Detailed analysis of how fund expense ratios compound against investors over time, with specific dollar-cost examples and strategies for minimizing fee drag.
-related: [LowCostIndexFundInvesting, BasicsOfCompoundInterest, ExpenseRatioDeepDive]
+tags:
+- investing
+- expense-ratios
+- fees
+- compounding
+- index-funds
+hubs:
+- LowCostIndexFundInvesting Hub
 ---
 
 # Expense Ratios and Their Effect on Compounding

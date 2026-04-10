@@ -1,15 +1,18 @@
 ---
-title: Java Memory Management
+summary: 'The Managed Heap: The Labyrinth of Object Graphs The Heap is the primary
+  area where all dynamically allocated objects reside.'
 type: article
+title: Java Memory Management
+auto-generated: true
 tags:
 - memori
 - gc
 - heap
-summary: 'The Managed Heap: The Labyrinth of Object Graphs The Heap is the primary
-  area where all dynamically allocated objects reside.'
-auto-generated: true
+hubs:
+- JavaMemoryManagement Hub
 ---
-# The Deep Dive: Advanced Analysis of Java Memory Management, Heap, Stack, and Garbage Collection for Research Engineers
+
+# The Deep Dive: Advanced Analysis of Java Memory Management, Heap, Stack, and Garbage Collection
 
 For those of us who have moved past the introductory "what is the heap, what is the stack" phase, the standard textbook descriptions of Java memory management feel less like documentation and more like a quaint historical artifact. We are not merely concerned with *if* memory is managed, but *how* the management system fails, *where* the performance bottlenecks hide when the GC is doing its best, and *how* we can architect around its inherent unpredictability.
 
@@ -17,7 +20,7 @@ This tutorial is not a refresher. It is a deep, technical excavation into the me
 
 ---
 
-## I. The Tripartite Memory Model: Heap, Stack, and the Native Frontier
+## I. Memory Model: Heap, Stack, and the Native Frontier
 
 To understand modern memory engineering in Java, one must first discard the notion of a single, monolithic "Java memory space." The reality is a complex, segmented resource pool governed by distinct allocation rules and lifecycle policies.
 

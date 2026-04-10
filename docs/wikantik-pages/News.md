@@ -1,14 +1,3 @@
----
-title: News
-type: article
-tags:
-- '2026'
-- '03'
-- '2025'
-summary: JSPWiki Development News A log of recent development activity on the JSPWiki
-  project.
-auto-generated: true
----
 # JSPWiki Development News
 
 A log of recent development activity on the JSPWiki project.
@@ -16,6 +5,106 @@ A log of recent development activity on the JSPWiki project.
 ---
 
 ## April 2026
+
+**2026-04-10** — fix: knowledge-graph admin page links
+
+**2026-04-10** — test: selenide its for hub discovery admin ui
+
+**2026-04-10** — test: RestSeedHelper for selenide its
+
+**2026-04-10** — test: HubDiscoveryAdminPage selenide page object
+
+**2026-04-10** — feat: hub discovery admin tab
+
+**2026-04-10** — feat: HubDiscoveryCard react component
+
+**2026-04-10** — feat: hub-discovery api client methods
+
+**2026-04-10** — feat: wire AdminHubDiscoveryResource servlet mapping
+
+**2026-04-10** — feat: AdminHubDiscoveryResource with DTO-based accept endpoint
+
+**2026-04-10** — feat: hub discovery default properties
+
+**2026-04-10** — feat: wire HubDiscoveryService through KnowledgeGraphServiceFactory
+
+**2026-04-09** — fix: correct accept concurrency doc comment and add missing-id accept test
+
+**2026-04-09** — feat: HubDiscoveryService accept/dismiss with test doubles
+
+**2026-04-09** — test: empty/tiny/exemplar edge cases for hub discovery
+
+**2026-04-09** — fix: use printf format for coherence value in hub discovery log
+
+**2026-04-09** — fix: correct HubDiscoveryService property names and constant visibility
+
+**2026-04-09** — feat: HubDiscoveryService.generateClusterProposals
+
+**2026-04-09** — feat: exception types for hub discovery
+
+**2026-04-09** — feat: HubDiscoveryRepository with Testcontainers coverage
+
+**2026-04-09** — fix: wire minPts through to Tribuo HDBSCAN and log training errors
+
+**2026-04-09** — fix: replace Smile DBSCAN approximation with Tribuo HDBSCAN
+
+**2026-04-09** — feat: SmileHdbscanClusterer wrapper with unit tests
+
+**2026-04-09** — feat: V006 hub_discovery_proposals schema
+
+**2026-04-09** — build: add smile-core dependency for HDBSCAN clustering
+
+**2026-04-09** — docs: add hub discovery (cluster-based) design spec
+
+**2026-04-09** — refactor: extract KnowledgeGraphServiceFactory from WikiEngine
+
+**2026-04-09** — refactor: replace HubProposalService constructors with a Builder
+
+**2026-04-09** — refactor: address SpotBugs findings in recent hub-proposal code
+
+**2026-04-09** — refactor: split HubProposalService + AdminKnowledgeResource by step
+
+**2026-04-09** — fix: prevent deploy-local.sh from prompting on catalina.out rotation
+
+**2026-04-09** — fix: make hub proposals actually generate and display
+
+**2026-04-09** — content: backfill default frontmatter on existing wiki pages
+
+**2026-04-09** — feat: versioned database migration system
+
+**2026-04-09** — fix: make Backfill Frontmatter admin action actually work
+
+**2026-04-09** — fix: gate FrontmatterDefaultsFilter with wikantik.frontmatter.autoDefaults property
+
+**2026-04-09** — feat: add HubProposalService with centroid + percentile algorithm
+
+**2026-04-09** — feat: add Hub Proposals tab, backfill button, and register HubProposalRepository
+
+**2026-04-09** — feat: add REST endpoints and API client for hub proposals, backfill, and sync
+
+**2026-04-09** — feat: add HubSetPlugin for rendering Hub member lists
+
+**2026-04-09** — feat: add HubProposalRepository for hub proposals and centroids
+
+**2026-04-09** — feat: register FrontmatterDefaultsFilter and HubSyncFilter in WikiEngine
+
+**2026-04-09** — feat: add HubSyncFilter for bidirectional Hub membership sync
+
+**2026-04-09** — feat: add FrontmatterDefaultsFilter for auto-generating defaults on save
+
+**2026-04-09** — feat: add auto-generated to PROPERTY_ONLY_KEYS, verify hubs becomes relationship
+
+**2026-04-09** — feat: add SummaryExtractor for heuristic sentence selection
+
+**2026-04-09** — feat: add TagExtractor for TF-IDF keyword extraction
+
+**2026-04-09** — feat: add TitleDeriver for page name to human title conversion
+
+**2026-04-09** — feat: add DDL for hub_centroids and hub_proposals tables
+
+**2026-04-09** — docs: add Hub membership and default frontmatter implementation plan
+
+**2026-04-09** — docs: add Hub membership and default frontmatter design spec
 
 **2026-04-08** — feat: server-side pagination for admin embeddings and graph explorer
 

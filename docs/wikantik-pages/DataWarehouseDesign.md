@@ -1,12 +1,14 @@
 ---
-title: Data Warehouse Design
+summary: We are not merely storing data; we are engineering knowledge.
 type: article
+title: Data Warehouse Design
+auto-generated: true
 tags:
 - tabl
 - schema
 - snowflak
-summary: We are not merely storing data; we are engineering knowledge.
-auto-generated: true
+hubs:
+- DimensionalModeling Hub
 ---
 # The Architectural Calculus of Dimensional Modeling: A Deep Dive into Star and Snowflake Schema Design for Advanced Practitioners
 

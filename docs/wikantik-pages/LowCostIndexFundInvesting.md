@@ -1,13 +1,25 @@
 ---
+date: 2026-03-15T01:00:00Z
+summary: Why low-cost index funds consistently outperform actively managed funds,
+  how to select them, and how to build a simple, effective portfolio.
+cluster: index-fund-investing
+related:
+- IndexFundPortfolioConstruction
+- ExpenseRatioDeepDive
+- IntroductionToIndexFundsAndETFs
 title: Low-Cost Index Fund Investing
 type: article
-tags: [investing, index-funds, ETFs, passive-investing, expense-ratios]
-date: 2026-03-15
 status: published
-cluster: index-fund-investing
-summary: Why low-cost index funds consistently outperform actively managed funds, how to select them, and how to build a simple, effective portfolio.
-related: [IndexFundPortfolioConstruction, ExpenseRatioDeepDive, IntroductionToIndexFundsAndETFs]
+tags:
+- investing
+- index-funds
+- ETFs
+- passive-investing
+- expense-ratios
+hubs:
+- LowCostIndexFundInvesting Hub
 ---
+
 
 # Low-Cost Index Fund Investing
 

@@ -1,13 +1,15 @@
 ---
-title: Jvm Tuning
+summary: 'JVM Tuning Garbage Collection Flags: An Expert Deep Dive for Advanced Research
+  Welcome.'
 type: article
+title: Jvm Tuning
+auto-generated: true
 tags:
 - gc
 - heap
 - collector
-summary: 'JVM Tuning Garbage Collection Flags: An Expert Deep Dive for Advanced Research
-  Welcome.'
-auto-generated: true
+hubs:
+- JavaMemoryManagement Hub
 ---
 # JVM Tuning Garbage Collection Flags: An Expert Deep Dive for Advanced Research
 

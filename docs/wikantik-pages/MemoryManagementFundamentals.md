@@ -1,12 +1,14 @@
 ---
-title: Memory Management Fundamentals
+summary: This tutorial is not a refresher for undergraduates.
 type: article
+title: Memory Management Fundamentals
+auto-generated: true
 tags:
 - memori
 - object
 - pointer
-summary: This tutorial is not a refresher for undergraduates.
-auto-generated: true
+hubs:
+- JavaMemoryManagement Hub
 ---
 # A Deep Dive into Memory Management Paradigms: From Explicit Control to Automated Reclamation
 

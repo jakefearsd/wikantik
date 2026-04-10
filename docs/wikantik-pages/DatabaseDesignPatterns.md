@@ -1,13 +1,15 @@
 ---
-title: Database Design Patterns
+summary: 'Database Design Normalization Schema Patterns: An Advanced Deep Dive for
+  Research Experts Welcome.'
 type: article
+title: Database Design Patterns
+auto-generated: true
 tags:
 - tabl
 - depend
 - normal
-summary: 'Database Design Normalization Schema Patterns: An Advanced Deep Dive for
-  Research Experts Welcome.'
-auto-generated: true
+hubs:
+- DimensionalModeling Hub
 ---
 # Database Design Normalization Schema Patterns: An Advanced Deep Dive for Research Experts
 

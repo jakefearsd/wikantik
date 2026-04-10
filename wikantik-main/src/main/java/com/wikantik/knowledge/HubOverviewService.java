@@ -19,6 +19,9 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.FrontmatterWriter;
+import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
 import org.apache.logging.log4j.LogManager;
@@ -424,7 +427,74 @@ public class HubOverviewService {
     public RemoveMemberResult removeMember( final String hubName,
                                               final String member,
                                               final String reviewedBy ) {
-        throw new UnsupportedOperationException( "implemented in a later task" );
+        if ( hubName == null || hubName.isBlank() ) {
+            throw new IllegalArgumentException( "hubName must not be empty" );
+        }
+        if ( member == null || member.isBlank() ) {
+            throw new IllegalArgumentException( "member must not be empty" );
+        }
+        if ( pageWriter == null ) {
+            throw new IllegalStateException(
+                "HubOverviewService: pageWriter is required for removeMember" );
+        }
+
+        // 1. Read existing page text — 404 if missing.
+        final String text;
+        try {
+            text = pageManager.getPageText( hubName, PageProvider.LATEST_VERSION );
+        } catch ( final ProviderException e ) {
+            throw new HubOverviewException( "Failed to read hub page '" + hubName + "'", e );
+        }
+        if ( text == null ) {
+            throw new HubOverviewException( "Hub page '" + hubName + "' not found", null );
+        }
+
+        // 2. Parse frontmatter and assert type=hub.
+        final ParsedPage parsed = FrontmatterParser.parse( text );
+        final Map< String, Object > metadata = new LinkedHashMap<>( parsed.metadata() );
+        if ( !"hub".equals( metadata.get( "type" ) ) ) {
+            throw new IllegalArgumentException(
+                "Page '" + hubName + "' is not a hub page (type != 'hub')" );
+        }
+
+        // 3. Pull related list and validate member is present.
+        final Object rawRelated = metadata.get( "related" );
+        if ( !( rawRelated instanceof List< ? > rawList ) ) {
+            throw new IllegalArgumentException(
+                "Hub page '" + hubName + "' has no 'related' list in frontmatter" );
+        }
+        final List< String > related = new ArrayList<>();
+        for ( final Object o : rawList ) {
+            if ( o != null ) related.add( o.toString() );
+        }
+        if ( !related.contains( member ) ) {
+            throw new IllegalArgumentException(
+                "Member '" + member + "' is not in hub '" + hubName + "'" );
+        }
+
+        // 4. Remove preserving order.
+        related.remove( member );
+
+        // 5. 2-member-minimum guard.
+        if ( related.size() < 2 ) {
+            throw new HubOverviewException(
+                "Removing '" + member + "' would leave hub '" + hubName
+                    + "' with fewer than 2 members; delete the hub instead", null );
+        }
+
+        // 6. Re-serialize and save.
+        metadata.put( "related", related );
+        final String newText = FrontmatterWriter.write( metadata, parsed.body() );
+        try {
+            pageWriter.write( hubName, newText );
+        } catch ( final Exception e ) {
+            throw new HubOverviewException(
+                "Failed to save updated hub page '" + hubName + "'", e );
+        }
+
+        LOG.info( "Hub overview: removed member '{}' from '{}', remaining {} (reviewed by {})",
+            member, hubName, related.size(), reviewedBy );
+        return new RemoveMemberResult( member, related.size() );
     }
 
     // ---- LuceneMlt narrow collaborator (testable seam) ----

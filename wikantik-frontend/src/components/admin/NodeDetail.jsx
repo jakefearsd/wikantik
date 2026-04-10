@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import ProvenanceBadge from './ProvenanceBadge';
+import PageLink from './PageLink';
 
 export default function NodeDetail({ node, onNavigate }) {
   const [structural, setStructural] = useState([]);
@@ -39,7 +40,7 @@ export default function NodeDetail({ node, onNavigate }) {
         <div><strong>Provenance:</strong> <ProvenanceBadge value={node.provenance} /></div>
         {node.source_page && (
           <div><strong>Source page:</strong>{' '}
-            <a href={`/wiki/${node.source_page.replace('.md', '')}`}>{node.source_page}</a>
+            <PageLink name={node.source_page} />
           </div>
         )}
         {node.is_stub && <div style={{ color: 'var(--warning)', fontStyle: 'italic' }}>Stub node (no wiki page yet)</div>}

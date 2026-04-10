@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
+import PageLink from './PageLink';
 
 const PAGE_SIZE = 50;
 
@@ -205,8 +206,8 @@ export default function HubProposalsTab() {
           {proposals.map(p => (
             <tr key={p.id}>
               <td><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} /></td>
-              <td><a href={`/${encodeURIComponent(p.hub_name)}`}>{p.hub_name}</a></td>
-              <td><a href={`/${encodeURIComponent(p.page_name)}`}>{p.page_name}</a></td>
+              <td><PageLink name={p.hub_name} /></td>
+              <td><PageLink name={p.page_name} /></td>
               <td>{p.percentile_score.toFixed(1)}%</td>
               <td>{(p.raw_similarity * 100).toFixed(1)}%</td>
               <td style={{ fontSize: '0.85em', color: 'var(--text-muted)' }}>

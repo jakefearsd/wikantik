@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
+import PageLink from './PageLink';
+import PageEditLink from './PageEditLink';
 
 const NO_FM_LIMIT = 50;
 
@@ -142,7 +144,7 @@ export default function ContentEmbeddingsTab() {
                   <tr key={p.name}>
                     <td style={{ color: 'var(--text-muted)', width: '40px' }}>{noFmOffset + i + 1}</td>
                     <td>
-                      <a href={`/edit/${encodeURIComponent(p.name)}`}>{p.name}</a>
+                      <PageEditLink name={p.name} />
                     </td>
                     <td style={{ fontSize: '0.85em', color: 'var(--text-muted)' }}>
                       {p.lastModified ? new Date(p.lastModified).toLocaleString() : '—'}
@@ -187,10 +189,10 @@ export default function ContentEmbeddingsTab() {
                 <tr key={i}>
                   <td style={{ color: 'var(--text-muted)', width: '40px' }}>{i + 1}</td>
                   <td>
-                    <a href={`/edit/${encodeURIComponent(p.nameA)}`}>{p.nameA}</a>
+                    <PageLink name={p.nameA} />
                   </td>
                   <td>
-                    <a href={`/edit/${encodeURIComponent(p.nameB)}`}>{p.nameB}</a>
+                    <PageLink name={p.nameB} />
                   </td>
                   <td>{(p.score * 100).toFixed(1)}%</td>
                 </tr>

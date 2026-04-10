@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
+import PageLink from './PageLink';
 
 export default function ProposalReviewQueue() {
   const [proposals, setProposals] = useState([]);
@@ -54,7 +55,7 @@ export default function ProposalReviewQueue() {
             {proposals.map(p => (
               <tr key={p.id}>
                 <td>{p.proposal_type}</td>
-                <td>{p.source_page}</td>
+                <td><PageLink name={p.source_page} /></td>
                 <td><pre style={{ fontSize: '0.8em', maxWidth: '300px', overflow: 'auto' }}>
                   {JSON.stringify(p.proposed_data, null, 2)}
                 </pre></td>

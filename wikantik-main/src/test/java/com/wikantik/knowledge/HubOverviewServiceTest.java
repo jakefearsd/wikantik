@@ -220,6 +220,41 @@ class HubOverviewServiceTest {
             "Should count Newsletter + FoodBlog only (not CookingHub itself, not Roasting)" );
     }
 
+    @Test
+    void listHubOverviews_nearMissCount_thresholdInclusive() {
+        // Build a hub of 2 cooking pages and one near-miss "Pasta" article that
+        // shares enough vocabulary to clear the 0.50 threshold but is not a member.
+        seedHub( "CookingHub", List.of( "Baking", "Roasting" ) );
+        kgRepo.upsertNode( "Pasta", "article", "Pasta",
+            Provenance.HUMAN_AUTHORED, Map.of() );
+        kgRepo.upsertNode( "Soccer", "article", "Soccer",
+            Provenance.HUMAN_AUTHORED, Map.of() );
+        pageStore.put( "CookingHub", "stub" );
+
+        model = new TfidfModel();
+        model.build(
+            List.of( "Baking", "Roasting", "Pasta", "Soccer" ),
+            List.of(
+                "baking bread cake flour sugar oven recipe dough oven baking baking",
+                "roasting meat oven temperature seasoning baking oven roast",
+                // Pasta shares lots of cooking vocab with both members.
+                "pasta sauce flour sugar oven dough recipe baking roast meat",
+                // Soccer shares nothing.
+                "soccer football pitch goal player team league kick stadium"
+            ) );
+
+        // Threshold of 0.10 — very generous so Pasta clears it but Soccer does not.
+        final HubOverviewService svc = serviceBuilder()
+            .contentModel( model )
+            .nearMissThreshold( 0.10 )
+            .build();
+
+        final var out = svc.listHubOverviews();
+        assertEquals( 1, out.size() );
+        assertEquals( 1, out.get( 0 ).nearMissCount(),
+            "Pasta should count as a near-miss; Soccer should not" );
+    }
+
     // ---- helpers ----
 
     /**

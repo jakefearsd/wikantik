@@ -787,15 +787,15 @@ public class LuceneSearchProvider implements SearchProvider {
      * @return list of similar-document hits, ordered by Lucene relevance score (best first)
      * @throws IOException if the Lucene index cannot be opened or queried
      */
-    public java.util.List< MoreLikeThisHit > moreLikeThis( final String seedDocName,
-                                                            final int maxResults,
-                                                            final java.util.Set< String > excludeNames )
+    public List< MoreLikeThisHit > moreLikeThis( final String seedDocName,
+                                                   final int maxResults,
+                                                   final Set< String > excludeNames )
             throws IOException {
         if ( seedDocName == null || seedDocName.isEmpty() || maxResults <= 0 ) {
-            return java.util.Collections.emptyList();
+            return Collections.emptyList();
         }
-        final java.util.Set< String > excludes = excludeNames == null
-            ? java.util.Collections.emptySet() : excludeNames;
+        final Set< String > excludes = excludeNames == null
+            ? Collections.emptySet() : excludeNames;
         try ( final Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
               final IndexReader reader = DirectoryReader.open( luceneDir ) ) {
             final IndexSearcher searcher = new IndexSearcher( reader, searchExecutor );
@@ -803,7 +803,7 @@ public class LuceneSearchProvider implements SearchProvider {
             final TopDocs seedHits = searcher.search(
                 new TermQuery( new Term( LUCENE_ID, seedDocName ) ), 1 );
             if ( seedHits.scoreDocs.length == 0 ) {
-                return java.util.Collections.emptyList();
+                return Collections.emptyList();
             }
             final int seedDocId = seedHits.scoreDocs[ 0 ].doc;
 
@@ -821,7 +821,7 @@ public class LuceneSearchProvider implements SearchProvider {
             final TopDocs hits = searcher.search( mltQuery, fetch );
             final StoredFields storedFields = reader.storedFields();
 
-            final java.util.List< MoreLikeThisHit > out = new java.util.ArrayList<>();
+            final List< MoreLikeThisHit > out = new ArrayList<>();
             for ( final ScoreDoc sd : hits.scoreDocs ) {
                 if ( out.size() >= maxResults ) break;
                 final Document doc = storedFields.document( sd.doc );

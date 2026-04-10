@@ -333,6 +333,38 @@ class HubOverviewServiceTest {
     }
 
     @Test
+    void loadDrilldown_luceneThrows_returnsEmptyMltAndContinues() throws Exception {
+        seedHub( "CookingHub", List.of( "Baking", "Roasting" ) );
+        pageStore.put( "CookingHub", "stub" );
+        pageStore.put( "Baking", "..." );
+        pageStore.put( "Roasting", "..." );
+
+        model = new TfidfModel();
+        model.build(
+            List.of( "Baking", "Roasting" ),
+            List.of(
+                "baking bread cake flour sugar oven",
+                "roasting meat oven temperature seasoning baking"
+            ) );
+
+        final HubOverviewService.LuceneMlt failingMlt = ( seed, max, excludes ) -> {
+            throw new java.io.IOException( "lucene index unavailable" );
+        };
+
+        final HubOverviewService svc = serviceBuilder()
+            .contentModel( model )
+            .luceneMlt( failingMlt )
+            .build();
+
+        final HubOverviewService.HubDrilldown d = svc.loadDrilldown( "CookingHub" );
+        assertNotNull( d );
+        assertTrue( d.moreLikeThisLucene().isEmpty(),
+            "MLT list must be empty when Lucene throws" );
+        // Other sections still populated.
+        assertEquals( 2, d.members().size() );
+    }
+
+    @Test
     void loadDrilldown_orphanedHub_populatesFromKgOnly() throws Exception {
         seedHub( "OrphanHub", List.of( "Baking", "Roasting" ) );
         // Crucially, no pageStore entry for "OrphanHub" — it has no backing wiki page.

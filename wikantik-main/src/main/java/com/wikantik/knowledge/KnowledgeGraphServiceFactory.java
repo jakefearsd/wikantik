@@ -61,25 +61,42 @@ public final class KnowledgeGraphServiceFactory {
         HubProposalRepository hubProposalRepo,
         HubProposalService hubProposalService,
         HubDiscoveryRepository hubDiscoveryRepo,
-        HubDiscoveryService hubDiscoveryService
+        HubDiscoveryService hubDiscoveryService,
+        HubOverviewService hubOverviewService
     ) {}
 
     private KnowledgeGraphServiceFactory() {}
 
+    /** Backwards-compatible overload — passes a no-op Lucene MLT. */
+    public static Services create( final DataSource dataSource,
+                                    final Properties props,
+                                    final SystemPageRegistry spr,
+                                    final PageManager pageManager,
+                                    final PageSaveHelper saveHelper ) {
+        return create( dataSource, props, spr, pageManager, saveHelper, null );
+    }
+
     /**
      * Builds the complete knowledge-graph service graph.
+     *
+     * <p>The optional {@code luceneMlt} seam is used by {@link HubOverviewService}
+     * for its MoreLikeThis drilldown section; pass {@code null} (or use the 5-arg
+     * overload) when Lucene is unavailable, and the service will fall back to an
+     * empty MLT list.
      *
      * @param dataSource JNDI-resolved wiki database
      * @param props      engine properties (used for retrain interval, review percentile, etc.)
      * @param spr        system-page registry (may be null — HubSyncFilter tolerates it)
      * @param pageManager page manager used by HubSyncFilter to fetch current page text
      * @param saveHelper save helper used by HubSyncFilter to write updated hub pages
+     * @param luceneMlt  optional Lucene MoreLikeThis seam for hub overview drilldown
      */
     public static Services create( final DataSource dataSource,
                                     final Properties props,
                                     final SystemPageRegistry spr,
                                     final PageManager pageManager,
-                                    final PageSaveHelper saveHelper ) {
+                                    final PageSaveHelper saveHelper,
+                                    final HubOverviewService.LuceneMlt luceneMlt ) {
         final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( dataSource );
         final DefaultKnowledgeGraphService kgService = new DefaultKnowledgeGraphService( repo );
         final GraphProjector projector = new GraphProjector( kgService, spr );
@@ -146,8 +163,18 @@ public final class KnowledgeGraphServiceFactory {
             } )
             .build();
 
+        final HubOverviewService hubOverviewService = HubOverviewService.builder()
+            .kgRepo( repo )
+            .contentModelSupplier( embeddingService::getCurrentContentModel )
+            .pageManager( pageManager )
+            .pageWriter( ( name, content ) -> saveHelper.saveText( name, content,
+                SaveOptions.builder().changeNote( "Hub overview: member removed" ).build() ) )
+            .luceneMlt( luceneMlt ) // null → builder uses no-op default
+            .propsFrom( props )
+            .build();
+
         return new Services( kgService, projector, fmDefaults, hubSync,
             embeddingService, hubProposalRepo, hubProposalService,
-            hubDiscoveryRepo, hubDiscoveryService );
+            hubDiscoveryRepo, hubDiscoveryService, hubOverviewService );
     }
 }

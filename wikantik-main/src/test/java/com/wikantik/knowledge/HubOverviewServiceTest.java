@@ -175,6 +175,51 @@ class HubOverviewServiceTest {
             "GhostHub coherence should be NaN" );
     }
 
+    @Test
+    void listHubOverviews_inboundLinks_excludeHubAndSameHubMembers() {
+        // CookingHub has members Baking + Roasting.
+        // External pages "Newsletter" and "FoodBlog" both link to Baking.
+        // Roasting also links to Baking — should NOT count (same-hub member).
+        // CookingHub itself links to Baking — should NOT count (the hub itself).
+        seedHub( "CookingHub", List.of( "Baking", "Roasting" ) );
+        pageStore.put( "CookingHub", "stub" );
+
+        // Add the link sources as KG nodes and the links_to edges. We re-upsert the
+        // existing Baking/Roasting/CookingHub nodes (idempotent — returns the same row)
+        // to capture their ids without going through queryNodes (whose "name" filter is
+        // a LIKE, not an exact match).
+        final var newsletter = kgRepo.upsertNode( "Newsletter", "article", "Newsletter",
+            Provenance.HUMAN_AUTHORED, Map.of() );
+        final var foodBlog = kgRepo.upsertNode( "FoodBlog", "article", "FoodBlog",
+            Provenance.HUMAN_AUTHORED, Map.of() );
+        final var bakingNode = kgRepo.upsertNode( "Baking", "article", "Baking",
+            Provenance.HUMAN_AUTHORED, Map.of() );
+        final var roastingNode = kgRepo.upsertNode( "Roasting", "article", "Roasting",
+            Provenance.HUMAN_AUTHORED, Map.of() );
+        final var hubNode = kgRepo.upsertNode( "CookingHub", "hub", "CookingHub",
+            Provenance.HUMAN_AUTHORED, Map.of( "type", "hub" ) );
+
+        kgRepo.upsertEdge( newsletter.id(), bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgRepo.upsertEdge( foodBlog.id(), bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgRepo.upsertEdge( roastingNode.id(), bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgRepo.upsertEdge( hubNode.id(), bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
+
+        model = new TfidfModel();
+        model.build(
+            List.of( "Baking", "Roasting" ),
+            List.of(
+                "baking bread cake flour sugar oven",
+                "roasting meat oven temperature seasoning"
+            ) );
+
+        final HubOverviewService svc = serviceBuilder().contentModel( model ).build();
+        final List< HubOverviewService.HubOverviewSummary > out = svc.listHubOverviews();
+
+        assertEquals( 1, out.size() );
+        assertEquals( 2, out.get( 0 ).inboundLinkCount(),
+            "Should count Newsletter + FoodBlog only (not CookingHub itself, not Roasting)" );
+    }
+
     // ---- helpers ----
 
     /**

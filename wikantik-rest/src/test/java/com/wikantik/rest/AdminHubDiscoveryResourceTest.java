@@ -434,4 +434,59 @@ class AdminHubDiscoveryResourceTest {
 
         verify( resp ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
     }
+
+    @Test
+    void getHubDrilldown_happyPath_returnsAllSections() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/hubs/CookingHub" );
+
+        final HubOverviewService overview = mock( HubOverviewService.class );
+        when( engine.getManager( HubOverviewService.class ) ).thenReturn( overview );
+        when( overview.loadDrilldown( "CookingHub" ) ).thenReturn(
+            new HubOverviewService.HubDrilldown(
+                "CookingHub", true, 0.42,
+                List.of( new HubOverviewService.MemberDetail( "Baking", 0.31, true ) ),
+                List.of( new HubOverviewService.StubMember( "Phantom" ) ),
+                List.of( new HubOverviewService.NearMissTfidf( "Pasta", 0.68 ) ),
+                List.of( new HubOverviewService.MoreLikeThisLucene( "Pasta", 4.21 ) ),
+                List.of( new HubOverviewService.OverlapHub( "AnotherHub", 0.74, 1 ) )
+            ) );
+
+        resource.doGet( req, resp );
+
+        final String body = respBody.toString();
+        assertTrue( body.contains( "CookingHub" ) );
+        assertTrue( body.contains( "Baking" ) );
+        assertTrue( body.contains( "Phantom" ) );
+        assertTrue( body.contains( "AnotherHub" ) );
+    }
+
+    @Test
+    void getHubDrilldown_unknownHub_returns404() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/hubs/Missing" );
+
+        final HubOverviewService overview = mock( HubOverviewService.class );
+        when( engine.getManager( HubOverviewService.class ) ).thenReturn( overview );
+        when( overview.loadDrilldown( "Missing" ) ).thenReturn( null );
+
+        resource.doGet( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+    }
+
+    @Test
+    void getHubDrilldown_decodesPlusInName() throws Exception {
+        // %2B is the URL-encoded +. Hub names use the "Foo+Hub" convention.
+        when( req.getPathInfo() ).thenReturn( "/hubs/Cooking%2BHub" );
+
+        final HubOverviewService overview = mock( HubOverviewService.class );
+        when( engine.getManager( HubOverviewService.class ) ).thenReturn( overview );
+        when( overview.loadDrilldown( "Cooking+Hub" ) ).thenReturn(
+            new HubOverviewService.HubDrilldown(
+                "Cooking+Hub", true, 0.5,
+                List.of(), List.of(), List.of(), List.of(), List.of() ) );
+
+        resource.doGet( req, resp );
+
+        verify( overview ).loadDrilldown( "Cooking+Hub" );
+    }
 }

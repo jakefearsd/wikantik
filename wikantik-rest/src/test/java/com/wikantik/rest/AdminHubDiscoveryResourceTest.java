@@ -29,6 +29,7 @@ import com.wikantik.knowledge.HubDiscoveryService.RunSummary;
 import com.wikantik.knowledge.HubNameCollisionException;
 import com.wikantik.knowledge.HubOverviewService;
 import com.wikantik.knowledge.HubOverviewException;
+import com.wikantik.rest.dto.RemoveHubMemberRequest;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -488,5 +489,98 @@ class AdminHubDiscoveryResourceTest {
         resource.doGet( req, resp );
 
         verify( overview ).loadDrilldown( "Cooking+Hub" );
+    }
+
+    @Test
+    void postRemoveMember_happyPath_returnsResult() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/hubs/CookingHub/remove-member" );
+        when( req.getReader() ).thenReturn( new BufferedReader(
+            new StringReader( "{\"member\":\"Roasting\"}" ) ) );
+
+        final HubOverviewService overview = mock( HubOverviewService.class );
+        when( engine.getManager( HubOverviewService.class ) ).thenReturn( overview );
+        when( overview.removeMember( eq( "CookingHub" ), eq( "Roasting" ), anyString() ) )
+            .thenReturn( new HubOverviewService.RemoveMemberResult( "Roasting", 4 ) );
+
+        resource.doPost( req, resp );
+
+        final String body = respBody.toString();
+        assertTrue( body.contains( "\"removed\"" ) && body.contains( "Roasting" ) );
+        assertTrue( body.contains( "\"remainingMemberCount\"" ) && body.contains( "4" ) );
+    }
+
+    @Test
+    void postRemoveMember_missingMemberField_returns400() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/hubs/CookingHub/remove-member" );
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( "{}" ) ) );
+
+        final HubOverviewService overview = mock( HubOverviewService.class );
+        when( engine.getManager( HubOverviewService.class ) ).thenReturn( overview );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+    }
+
+    @Test
+    void postRemoveMember_invalidJson_returns400() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/hubs/CookingHub/remove-member" );
+        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( "not json" ) ) );
+
+        final HubOverviewService overview = mock( HubOverviewService.class );
+        when( engine.getManager( HubOverviewService.class ) ).thenReturn( overview );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+    }
+
+    @Test
+    void postRemoveMember_serviceIllegalArgument_returns400() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/hubs/CookingHub/remove-member" );
+        when( req.getReader() ).thenReturn( new BufferedReader(
+            new StringReader( "{\"member\":\"NotInHub\"}" ) ) );
+
+        final HubOverviewService overview = mock( HubOverviewService.class );
+        when( engine.getManager( HubOverviewService.class ) ).thenReturn( overview );
+        when( overview.removeMember( anyString(), anyString(), anyString() ) )
+            .thenThrow( new IllegalArgumentException( "Member 'NotInHub' is not in hub 'CookingHub'" ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+    }
+
+    @Test
+    void postRemoveMember_serviceNotFound_returns404() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/hubs/Missing/remove-member" );
+        when( req.getReader() ).thenReturn( new BufferedReader(
+            new StringReader( "{\"member\":\"Anything\"}" ) ) );
+
+        final HubOverviewService overview = mock( HubOverviewService.class );
+        when( engine.getManager( HubOverviewService.class ) ).thenReturn( overview );
+        when( overview.removeMember( anyString(), anyString(), anyString() ) )
+            .thenThrow( new HubOverviewException( "Hub page 'Missing' not found", null ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+    }
+
+    @Test
+    void postRemoveMember_twoMemberMinimum_returns409() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/hubs/TinyHub/remove-member" );
+        when( req.getReader() ).thenReturn( new BufferedReader(
+            new StringReader( "{\"member\":\"Last\"}" ) ) );
+
+        final HubOverviewService overview = mock( HubOverviewService.class );
+        when( engine.getManager( HubOverviewService.class ) ).thenReturn( overview );
+        when( overview.removeMember( anyString(), anyString(), anyString() ) )
+            .thenThrow( new HubOverviewException(
+                "Removing 'Last' would leave hub 'TinyHub' with fewer than 2 members", null ) );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( HttpServletResponse.SC_CONFLICT );
     }
 }

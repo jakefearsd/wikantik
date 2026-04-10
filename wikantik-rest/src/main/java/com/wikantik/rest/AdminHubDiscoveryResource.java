@@ -102,6 +102,8 @@ public class AdminHubDiscoveryResource extends RestServletBase {
             handleDismiss( id, request, response );
         } else if ( "/proposals/dismissed/bulk-delete".equals( path ) ) {
             handleBulkDeleteDismissed( request, response );
+        } else if ( path.startsWith( "/hubs/" ) && path.endsWith( "/remove-member" ) ) {
+            handleRemoveMember( path, request, response );
         } else {
             sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
         }
@@ -428,6 +430,60 @@ public class AdminHubDiscoveryResource extends RestServletBase {
             LOG.error( "Hub overview drilldown failed for '{}'", hubName, e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                 "Hub drilldown failed: " + e.getMessage() );
+        }
+    }
+
+    private void handleRemoveMember( final String path,
+                                       final HttpServletRequest request,
+                                       final HttpServletResponse response ) throws IOException {
+        // path = /hubs/{encodedName}/remove-member
+        final String prefix = "/hubs/";
+        final String suffix = "/remove-member";
+        final String encoded = path.substring( prefix.length(), path.length() - suffix.length() );
+        if ( encoded.isEmpty() || encoded.contains( "/" ) ) {
+            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
+            return;
+        }
+        final String hubName = java.net.URLDecoder.decode( encoded, java.nio.charset.StandardCharsets.UTF_8 );
+
+        final com.wikantik.knowledge.HubOverviewService svc =
+            getEngine().getManager( com.wikantik.knowledge.HubOverviewService.class );
+        if ( svc == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "HubOverviewService is not available" );
+            return;
+        }
+
+        final com.wikantik.rest.dto.RemoveHubMemberRequest body;
+        try ( final BufferedReader reader = request.getReader() ) {
+            body = GSON.fromJson( reader, com.wikantik.rest.dto.RemoveHubMemberRequest.class );
+        } catch ( final Exception e ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body" );
+            return;
+        }
+        if ( body == null || body.member == null || body.member.isBlank() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "member must not be empty" );
+            return;
+        }
+
+        final String reviewer = resolveReviewer( request );
+        try {
+            final var result = svc.removeMember( hubName, body.member, reviewer );
+            sendJson( response, Map.of(
+                "removed", result.removed(),
+                "remainingMemberCount", result.remainingMemberCount() ) );
+        } catch ( final IllegalArgumentException e ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, e.getMessage() );
+        } catch ( final com.wikantik.knowledge.HubOverviewException e ) {
+            final String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            if ( msg.contains( "not found" ) ) {
+                sendError( response, HttpServletResponse.SC_NOT_FOUND, e.getMessage() );
+            } else if ( msg.contains( "fewer than 2" ) ) {
+                sendError( response, HttpServletResponse.SC_CONFLICT, e.getMessage() );
+            } else {
+                LOG.error( "Hub overview remove-member failed for '{}'", hubName, e );
+                sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage() );
+            }
         }
     }
 

@@ -1,12 +1,14 @@
 ---
-title: Normalization And Denormalization
+summary: 'The Architectural Calculus: A Deep Dive into the Normalization vs.'
 type: article
+title: Normalization And Denormalization
+auto-generated: true
 tags:
 - data
 - denorm
 - normal
-summary: 'The Architectural Calculus: A Deep Dive into the Normalization vs.'
-auto-generated: true
+hubs:
+- DimensionalModeling Hub
 ---
 # The Architectural Calculus: A Deep Dive into the Normalization vs. Denormalization Trade-Off for Advanced Database Systems
 

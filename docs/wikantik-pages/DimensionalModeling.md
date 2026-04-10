@@ -1,13 +1,15 @@
 ---
-title: Dimensional Modeling
+summary: 'The Architecture of Insight: A Deep Dive into Dimensional Modeling, Fact,
+  and Dimension Structures for Advanced Practitioners Welcome.'
 type: article
+title: Dimensional Modeling
+auto-generated: true
 tags:
 - dimens
 - tabl
 - fact
-summary: 'The Architecture of Insight: A Deep Dive into Dimensional Modeling, Fact,
-  and Dimension Structures for Advanced Practitioners Welcome.'
-auto-generated: true
+hubs:
+- DimensionalModeling Hub
 ---
 # The Architecture of Insight: A Deep Dive into Dimensional Modeling, Fact, and Dimension Structures for Advanced Practitioners
 

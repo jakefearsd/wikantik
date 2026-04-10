@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../../api/client';
 import ProvenanceBadge from './ProvenanceBadge';
+import PageLink from './PageLink';
 
 const LIMIT = 50;
 
@@ -28,7 +29,7 @@ function EdgeDetail({ edge, sourceNode, targetNode, loading, onNavigateNode }) {
         {node.source_page && (
           <div style={{ fontSize: '0.85em', marginTop: '2px' }}>
             <strong>Source page:</strong>{' '}
-            <a href={`/wiki/${node.source_page.replace('.md', '')}`}>{node.source_page}</a>
+            <PageLink name={node.source_page} />
           </div>
         )}
         {node.properties && Object.keys(node.properties).filter(k => k !== 'status').length > 0 && (

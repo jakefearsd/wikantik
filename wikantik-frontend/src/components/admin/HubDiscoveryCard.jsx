@@ -18,6 +18,7 @@
  */
 import { useState } from 'react';
 import { api } from '../../api/client';
+import PageLink from './PageLink';
 
 export default function HubDiscoveryCard({ proposal, onRemoved, onError }) {
   const [name, setName] = useState(proposal.suggestedName);
@@ -73,23 +74,23 @@ export default function HubDiscoveryCard({ proposal, onRemoved, onError }) {
           data-testid={`hub-discovery-name-${proposal.id}`}
         />
         <div className="hub-discovery-card-meta">
-          <span>exemplar: <strong>{proposal.exemplarPage}</strong></span>
+          <span>exemplar: <strong><PageLink name={proposal.exemplarPage} /></strong></span>
           <span>coherence: {proposal.coherenceScore.toFixed(2)}</span>
         </div>
       </div>
       <ul className="hub-discovery-members">
         {proposal.memberPages.map((m) => (
-          <li key={m}>
-            <label>
-              <input
-                type="checkbox"
-                checked={checked.has(m)}
-                onChange={() => toggle(m)}
-                disabled={busy}
-                data-testid={`hub-discovery-member-${proposal.id}-${m}`}
-              />
-              {m}
-            </label>
+          <li key={m} className="hub-discovery-member">
+            <input
+              type="checkbox"
+              checked={checked.has(m)}
+              onChange={() => toggle(m)}
+              disabled={busy}
+              data-testid={`hub-discovery-member-${proposal.id}-${m}`}
+              aria-label={`Include ${m}`}
+            />
+            {' '}
+            <PageLink name={m} />
           </li>
         ))}
       </ul>

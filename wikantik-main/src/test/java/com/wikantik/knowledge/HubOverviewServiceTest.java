@@ -134,6 +134,18 @@ class HubOverviewServiceTest {
         }
     }
 
+    @Test
+    void listHubOverviews_emptyContentModel_returnsEmptyList() {
+        // Seed a hub but pass an empty model — service should short-circuit.
+        seedHub( "TechHub", List.of( "Java", "Python" ) );
+        model = new TfidfModel(); // unbuilt; entityCount == 0
+
+        final HubOverviewService svc = serviceBuilder().contentModel( model ).build();
+        final List< HubOverviewService.HubOverviewSummary > out = svc.listHubOverviews();
+
+        assertTrue( out.isEmpty(), "Expected empty list when content model has 0 entities" );
+    }
+
     // ---- helpers ----
 
     /**

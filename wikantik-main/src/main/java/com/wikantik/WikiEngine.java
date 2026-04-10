@@ -50,11 +50,14 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.plugin.PluginManager;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.render.RenderingManager;
+import com.wikantik.search.LuceneSearchProvider;
 import com.wikantik.search.SearchManager;
+import com.wikantik.search.SearchProvider;
 import com.wikantik.knowledge.EmbeddingService;
 import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubDiscoveryService;
+import com.wikantik.knowledge.HubOverviewService;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
 import com.wikantik.knowledge.KnowledgeGraphServiceFactory;
@@ -524,11 +527,32 @@ public class WikiEngine implements Engine {
             final javax.naming.Context ctx = ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
             final javax.sql.DataSource ds = ( javax.sql.DataSource ) ctx.lookup( datasource );
 
+            // Resolve the Lucene MoreLikeThis seam if SearchManager is using a Lucene
+            // provider. Otherwise the factory falls back to a no-op MLT and the
+            // hub-overview drilldown's MLT section stays empty.
+            HubOverviewService.LuceneMlt luceneMlt = null;
+            final SearchManager searchMgr = getManager( SearchManager.class );
+            if ( searchMgr != null ) {
+                final SearchProvider sp = searchMgr.getSearchEngine();
+                if ( sp instanceof LuceneSearchProvider lsp ) {
+                    luceneMlt = ( seed, max, excludes ) -> {
+                        final var hits = lsp.moreLikeThis( seed, max, excludes );
+                        final java.util.List< HubOverviewService.MoreLikeThisLucene > out =
+                            new java.util.ArrayList<>( hits.size() );
+                        for ( final var h : hits ) {
+                            out.add( new HubOverviewService.MoreLikeThisLucene( h.name(), h.score() ) );
+                        }
+                        return out;
+                    };
+                }
+            }
+
             final KnowledgeGraphServiceFactory.Services svcs = KnowledgeGraphServiceFactory.create(
                 ds, props,
                 getManager( SystemPageRegistry.class ),
                 getManager( PageManager.class ),
-                new PageSaveHelper( this ) );
+                new PageSaveHelper( this ),
+                luceneMlt );
 
             // Register services with the engine's manager map.
             managers.put( KnowledgeGraphService.class, svcs.kgService() );
@@ -538,6 +562,7 @@ public class WikiEngine implements Engine {
             managers.put( HubProposalService.class, svcs.hubProposalService() );
             managers.put( HubDiscoveryRepository.class, svcs.hubDiscoveryRepo() );
             managers.put( HubDiscoveryService.class, svcs.hubDiscoveryService() );
+            managers.put( HubOverviewService.class, svcs.hubOverviewService() );
 
             // Register filters (priority order preserved from the original initializer).
             final FilterManager filterManager = getManager( FilterManager.class );

@@ -35,6 +35,9 @@ import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.api.managers.PageManager;
 import org.apache.lucene.analysis.classic.ClassicAnalyzer;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.StringField;
+import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.store.Directory;
@@ -62,6 +65,7 @@ import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -803,6 +807,44 @@ class LuceneSearchProviderCITest {
             }
             dir.delete();
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // moreLikeThis
+    // -----------------------------------------------------------------------
+
+    @Test
+    void moreLikeThisReturnsSimilarDocsExcludingExcludeNames() throws Exception {
+        // Index three docs: two cooking, one sports.
+        try ( final org.apache.lucene.store.Directory dir =
+                  new org.apache.lucene.store.NIOFSDirectory( luceneDir.toPath() );
+              final IndexWriter writer = provider.getIndexWriter( dir ) ) {
+            writer.addDocument( makeDoc( "Baking",
+                "baking bread cake flour sugar oven recipe dough" ) );
+            writer.addDocument( makeDoc( "Roasting",
+                "roasting meat oven temperature seasoning recipe baking" ) );
+            writer.addDocument( makeDoc( "Soccer",
+                "soccer football pitch goal player team league kick" ) );
+            writer.commit();
+        }
+
+        final java.util.List< LuceneSearchProvider.MoreLikeThisHit > hits =
+            provider.moreLikeThis( "Baking", 5, Set.of( "Baking" ) );
+
+        // Roasting should be the closest non-excluded match. Soccer should not appear,
+        // and Baking itself must be excluded.
+        assertFalse( hits.isEmpty(), "Expected at least one similar doc" );
+        assertEquals( "Roasting", hits.get( 0 ).name() );
+        for ( final LuceneSearchProvider.MoreLikeThisHit hit : hits ) {
+            assertNotEquals( "Baking", hit.name(), "Excluded name must not appear" );
+        }
+    }
+
+    private static Document makeDoc( final String id, final String contents ) {
+        final Document d = new Document();
+        d.add( new Field( LuceneSearchProvider.LUCENE_ID, id, StringField.TYPE_STORED ) );
+        d.add( new Field( LuceneSearchProvider.LUCENE_PAGE_CONTENTS, contents, TextField.TYPE_STORED ) );
+        return d;
     }
 
 }

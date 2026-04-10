@@ -399,6 +399,126 @@ class HubOverviewServiceTest {
         assertNull( svc.loadDrilldown( "DoesNotExist" ) );
     }
 
+    // ---- removeMember ----
+
+    private static final String SAMPLE_HUB_BODY =
+        "# CookingHub\n\nA hand-curated description of cooking techniques.\n";
+
+    private static String hubPageText( final List< String > members ) {
+        final StringBuilder sb = new StringBuilder();
+        sb.append( "---\n" );
+        sb.append( "title: CookingHub\n" );
+        sb.append( "type: hub\n" );
+        sb.append( "related:\n" );
+        for ( final String m : members ) sb.append( "- " ).append( m ).append( "\n" );
+        sb.append( "---\n" );
+        sb.append( SAMPLE_HUB_BODY );
+        return sb.toString();
+    }
+
+    @Test
+    void removeMember_happyPath_writesUpdatedFrontmatterAndPreservesBody() throws Exception {
+        seedHub( "CookingHub", List.of( "Baking", "Roasting", "Grilling" ) );
+        pageStore.put( "CookingHub", hubPageText( List.of( "Baking", "Roasting", "Grilling" ) ) );
+
+        model = new TfidfModel();
+        model.build( List.of( "Baking" ), List.of( "baking bread" ) );
+
+        final HubOverviewService svc = serviceBuilder().contentModel( model ).build();
+        final HubOverviewService.RemoveMemberResult result =
+            svc.removeMember( "CookingHub", "Roasting", "alice" );
+
+        assertEquals( "Roasting", result.removed() );
+        assertEquals( 2, result.remainingMemberCount() );
+        assertEquals( 1, pageWrites.size() );
+
+        final String written = pageWrites.get( 0 )[ 1 ];
+        assertTrue( written.contains( "Baking" ) );
+        assertTrue( written.contains( "Grilling" ) );
+        assertFalse( written.contains( "- Roasting" ),
+            "Roasting should no longer appear as a list item" );
+        assertTrue( written.contains( SAMPLE_HUB_BODY ),
+            "Original body must be preserved byte-for-byte" );
+    }
+
+    @Test
+    void removeMember_blankMember_throwsIllegalArgument() throws Exception {
+        seedHub( "CookingHub", List.of( "Baking", "Roasting" ) );
+        pageStore.put( "CookingHub", hubPageText( List.of( "Baking", "Roasting" ) ) );
+        model = new TfidfModel();
+        model.build( List.of( "Baking" ), List.of( "baking bread" ) );
+
+        final HubOverviewService svc = serviceBuilder().contentModel( model ).build();
+        assertThrows( IllegalArgumentException.class,
+            () -> svc.removeMember( "CookingHub", "  ", "alice" ) );
+        assertEquals( 0, pageWrites.size(), "No write should have happened" );
+    }
+
+    @Test
+    void removeMember_memberNotInRelated_throwsIllegalArgument() throws Exception {
+        seedHub( "CookingHub", List.of( "Baking", "Roasting" ) );
+        pageStore.put( "CookingHub", hubPageText( List.of( "Baking", "Roasting" ) ) );
+        model = new TfidfModel();
+        model.build( List.of( "Baking" ), List.of( "baking bread" ) );
+
+        final HubOverviewService svc = serviceBuilder().contentModel( model ).build();
+        assertThrows( IllegalArgumentException.class,
+            () -> svc.removeMember( "CookingHub", "DoesNotExist", "alice" ) );
+        assertEquals( 0, pageWrites.size() );
+    }
+
+    @Test
+    void removeMember_pageNotHubType_throwsIllegalArgument() throws Exception {
+        // Seed an article-typed page with a 'related' list — the service must refuse
+        // to mutate it because type != "hub".
+        kgRepo.upsertNode( "RegularPage", "article", "RegularPage",
+            Provenance.HUMAN_AUTHORED, Map.of() );
+        pageStore.put( "RegularPage",
+            "---\ntitle: RegularPage\ntype: article\nrelated:\n- Other\n- More\n---\n# body\n" );
+        model = new TfidfModel();
+        model.build( List.of( "RegularPage" ), List.of( "content" ) );
+
+        final HubOverviewService svc = serviceBuilder().contentModel( model ).build();
+        assertThrows( IllegalArgumentException.class,
+            () -> svc.removeMember( "RegularPage", "Other", "alice" ) );
+        assertEquals( 0, pageWrites.size() );
+    }
+
+    @Test
+    void removeMember_wouldLeaveFewerThanTwo_throwsHubOverviewException() throws Exception {
+        seedHub( "TinyHub", List.of( "Baking", "Roasting" ) );
+        pageStore.put( "TinyHub", hubPageText( List.of( "Baking", "Roasting" ) )
+            .replace( "title: CookingHub", "title: TinyHub" ) );
+        model = new TfidfModel();
+        model.build( List.of( "Baking" ), List.of( "baking bread" ) );
+
+        final HubOverviewService svc = serviceBuilder().contentModel( model ).build();
+        assertThrows( HubOverviewException.class,
+            () -> svc.removeMember( "TinyHub", "Roasting", "alice" ) );
+        assertEquals( 0, pageWrites.size(),
+            "No write should occur when removal would leave fewer than 2 members" );
+    }
+
+    @Test
+    void removeMember_saveThrows_wrapsInHubOverviewException() throws Exception {
+        seedHub( "CookingHub", List.of( "Baking", "Roasting", "Grilling" ) );
+        pageStore.put( "CookingHub", hubPageText( List.of( "Baking", "Roasting", "Grilling" ) ) );
+        model = new TfidfModel();
+        model.build( List.of( "Baking" ), List.of( "baking bread" ) );
+
+        final HubDiscoveryService.PageWriter throwingWriter = ( name, content ) -> {
+            throw new java.io.IOException( "disk full" );
+        };
+
+        final HubOverviewService svc = serviceBuilder()
+            .contentModel( model )
+            .pageWriter( throwingWriter )
+            .build();
+
+        assertThrows( HubOverviewException.class,
+            () -> svc.removeMember( "CookingHub", "Roasting", "alice" ) );
+    }
+
     // ---- helpers ----
 
     /**

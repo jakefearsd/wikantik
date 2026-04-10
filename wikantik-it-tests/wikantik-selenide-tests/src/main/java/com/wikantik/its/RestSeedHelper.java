@@ -63,6 +63,17 @@ public final class RestSeedHelper {
         }
     }
 
+    /**
+     * Writes a page whose content already includes a YAML frontmatter block.
+     * Used by hub-overview tests to seed hub pages without going through the
+     * normal create-then-add-frontmatter flow. {@link #writePage} passes the
+     * raw markdown body through unchanged, so this is a thin alias that
+     * documents intent at the call site.
+     */
+    public static void writePageWithFrontmatter( final String name, final String content ) throws Exception {
+        writePage( name, content );
+    }
+
     /** POST /admin/knowledge/hub-discovery/run; returns the raw JSON body. */
     public static String runDiscovery() throws Exception {
         return post( "/admin/knowledge/hub-discovery/run", "" );

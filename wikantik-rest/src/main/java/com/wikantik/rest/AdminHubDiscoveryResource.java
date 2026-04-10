@@ -20,9 +20,11 @@ package com.wikantik.rest;
 
 import com.wikantik.knowledge.HubDiscoveryException;
 import com.wikantik.knowledge.HubDiscoveryRepository;
+import com.wikantik.knowledge.HubDiscoveryRepository.DismissedProposal;
 import com.wikantik.knowledge.HubDiscoveryService;
 import com.wikantik.knowledge.HubNameCollisionException;
 import com.wikantik.rest.dto.AcceptProposalRequest;
+import com.wikantik.rest.dto.BulkDeleteDismissedRequest;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -43,10 +45,13 @@ import java.util.Map;
  * <p>Mapped to {@code /admin/knowledge/hub-discovery/*}.
  *
  * <ul>
- *   <li>{@code POST /run} — trigger a discovery run</li>
- *   <li>{@code GET  /proposals} — list pending proposals (paged)</li>
- *   <li>{@code POST /proposals/{id}/accept} — accept a proposal</li>
- *   <li>{@code POST /proposals/{id}/dismiss} — dismiss a proposal</li>
+ *   <li>{@code POST   /run} — trigger a discovery run</li>
+ *   <li>{@code GET    /proposals} — list pending proposals (paged)</li>
+ *   <li>{@code POST   /proposals/{id}/accept} — accept a proposal</li>
+ *   <li>{@code POST   /proposals/{id}/dismiss} — dismiss a proposal</li>
+ *   <li>{@code GET    /proposals/dismissed} — list dismissed proposals (paged)</li>
+ *   <li>{@code DELETE /proposals/dismissed/{id}} — hard-delete a single dismissed row</li>
+ *   <li>{@code POST   /proposals/dismissed/bulk-delete} — bulk hard-delete dismissed rows</li>
  * </ul>
  */
 public class AdminHubDiscoveryResource extends RestServletBase {
@@ -55,6 +60,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
 
     private static final int MAX_LIMIT = 200;
+    private static final int MAX_BULK_DELETE_IDS = 500;
 
     @Override
     protected boolean isCrossOriginAllowed() {
@@ -67,6 +73,12 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         final String path = request.getPathInfo();
         if ( "/proposals".equals( path ) ) {
             handleListProposals( request, response );
+        } else if ( "/proposals/dismissed".equals( path ) ) {
+            handleListDismissed( request, response );
+        } else if ( "/hubs".equals( path ) ) {
+            handleListHubs( request, response );
+        } else if ( path != null && path.startsWith( "/hubs/" ) ) {
+            handleHubDrilldown( path, response );
         } else {
             sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
         }
@@ -88,6 +100,20 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         } else if ( path.matches( "/proposals/\\d+/dismiss" ) ) {
             final int id = extractId( path );
             handleDismiss( id, request, response );
+        } else if ( "/proposals/dismissed/bulk-delete".equals( path ) ) {
+            handleBulkDeleteDismissed( request, response );
+        } else {
+            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
+        }
+    }
+
+    @Override
+    protected void doDelete( final HttpServletRequest request,
+                             final HttpServletResponse response ) throws IOException {
+        final String path = request.getPathInfo();
+        if ( path != null && path.matches( "/proposals/dismissed/\\d+" ) ) {
+            final int id = Integer.parseInt( path.substring( path.lastIndexOf( '/' ) + 1 ) );
+            handleDeleteDismissed( id, response );
         } else {
             sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
         }
@@ -221,6 +247,136 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         } catch ( final HubDiscoveryException e ) {
             sendError( response, HttpServletResponse.SC_NOT_FOUND, e.getMessage() );
         }
+    }
+
+    private void handleListDismissed( final HttpServletRequest request,
+                                       final HttpServletResponse response ) throws IOException {
+        final HubDiscoveryRepository repo = getEngine().getManager( HubDiscoveryRepository.class );
+        if ( repo == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "HubDiscoveryRepository is not available" );
+            return;
+        }
+        int limit = parseIntParam( request, "limit", 50 );
+        if ( limit > MAX_LIMIT ) {
+            limit = MAX_LIMIT;
+        }
+        if ( limit < 1 ) {
+            limit = 1;
+        }
+        final int offset = Math.max( 0, parseIntParam( request, "offset", 0 ) );
+
+        final List< DismissedProposal > rows = repo.listDismissed( limit, offset );
+        final int total = repo.countDismissed();
+
+        final List< Map< String, Object > > serializable = new ArrayList<>();
+        for ( final DismissedProposal p : rows ) {
+            final Map< String, Object > m = new LinkedHashMap<>();
+            m.put( "id", p.id() );
+            m.put( "suggestedName", p.suggestedName() );
+            m.put( "exemplarPage", p.exemplarPage() );
+            m.put( "memberPages", p.memberPages() );
+            m.put( "coherenceScore", p.coherenceScore() );
+            m.put( "created", p.created() != null ? p.created().toString() : null );
+            m.put( "reviewedBy", p.reviewedBy() );
+            m.put( "reviewedAt", p.reviewedAt() != null ? p.reviewedAt().toString() : null );
+            serializable.add( m );
+        }
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "total", total );
+        result.put( "limit", limit );
+        result.put( "offset", offset );
+        result.put( "proposals", serializable );
+        sendJson( response, result );
+    }
+
+    private void handleDeleteDismissed( final int id, final HttpServletResponse response )
+            throws IOException {
+        final HubDiscoveryRepository repo = getEngine().getManager( HubDiscoveryRepository.class );
+        if ( repo == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "HubDiscoveryRepository is not available" );
+            return;
+        }
+        if ( repo.deleteDismissed( id ) ) {
+            response.setStatus( HttpServletResponse.SC_NO_CONTENT );
+        } else {
+            sendError( response, HttpServletResponse.SC_NOT_FOUND,
+                "Dismissed hub discovery proposal " + id + " not found" );
+        }
+    }
+
+    private void handleBulkDeleteDismissed( final HttpServletRequest request,
+                                             final HttpServletResponse response ) throws IOException {
+        final HubDiscoveryRepository repo = getEngine().getManager( HubDiscoveryRepository.class );
+        if ( repo == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "HubDiscoveryRepository is not available" );
+            return;
+        }
+
+        final BulkDeleteDismissedRequest body;
+        try ( final BufferedReader reader = request.getReader() ) {
+            body = GSON.fromJson( reader, BulkDeleteDismissedRequest.class );
+        } catch ( final Exception e ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body" );
+            return;
+        }
+
+        if ( body == null || body.ids == null || body.ids.isEmpty() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "ids must not be empty" );
+            return;
+        }
+        if ( body.ids.size() > MAX_BULK_DELETE_IDS ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                "ids exceeds maximum of " + MAX_BULK_DELETE_IDS );
+            return;
+        }
+
+        final int deleted = repo.deleteDismissedBulk( body.ids );
+        sendJson( response, Map.of( "deleted", deleted ) );
+    }
+
+    private void handleListHubs( final HttpServletRequest request,
+                                  final HttpServletResponse response ) throws IOException {
+        final com.wikantik.knowledge.HubOverviewService svc =
+            getEngine().getManager( com.wikantik.knowledge.HubOverviewService.class );
+        if ( svc == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "HubOverviewService is not available" );
+            return;
+        }
+        try {
+            final List< com.wikantik.knowledge.HubOverviewService.HubOverviewSummary > hubs =
+                svc.listHubOverviews();
+            final List< Map< String, Object > > serializable = new ArrayList<>( hubs.size() );
+            for ( final var h : hubs ) {
+                final Map< String, Object > m = new LinkedHashMap<>();
+                m.put( "name", h.name() );
+                m.put( "memberCount", h.memberCount() );
+                m.put( "inboundLinkCount", h.inboundLinkCount() );
+                m.put( "nearMissCount", h.nearMissCount() );
+                m.put( "coherence", Double.isNaN( h.coherence() ) ? null : h.coherence() );
+                m.put( "hasBackingPage", h.hasBackingPage() );
+                serializable.add( m );
+            }
+            final Map< String, Object > result = new LinkedHashMap<>();
+            result.put( "total", hubs.size() );
+            result.put( "hubs", serializable );
+            sendJson( response, result );
+        } catch ( final RuntimeException e ) {
+            // LOG.error justified: admin-triggered list failure must surface stack trace
+            LOG.error( "Hub overview list failed", e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                "Hub overview list failed: " + e.getMessage() );
+        }
+    }
+
+    /** Stub — implemented in the next task. */
+    private void handleHubDrilldown( final String path, final HttpServletResponse response )
+            throws IOException {
+        sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown path: " + path );
     }
 
     // ---- helpers ----

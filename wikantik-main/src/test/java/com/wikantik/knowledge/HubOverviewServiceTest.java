@@ -146,6 +146,35 @@ class HubOverviewServiceTest {
         assertTrue( out.isEmpty(), "Expected empty list when content model has 0 entities" );
     }
 
+    @Test
+    void listHubOverviews_hubWithAllNonModelMembers_hasNaNCoherenceSortsLast() {
+        // CookingHub has 2 model-backed members (will compute coherence).
+        // GhostHub has 2 members that are NOT in the model — coherence should be NaN.
+        seedHub( "CookingHub", List.of( "Baking", "Roasting" ) );
+        seedHub( "GhostHub", List.of( "Phantom1", "Phantom2" ) );
+        pageStore.put( "CookingHub", "stub" );
+        pageStore.put( "GhostHub", "stub" );
+
+        model = new TfidfModel();
+        model.build(
+            List.of( "Baking", "Roasting" ),
+            List.of(
+                "baking bread cake flour sugar oven recipe dough",
+                "roasting meat oven temperature seasoning baking"
+            ) );
+
+        final HubOverviewService svc = serviceBuilder().contentModel( model ).build();
+        final List< HubOverviewService.HubOverviewSummary > out = svc.listHubOverviews();
+
+        assertEquals( 2, out.size() );
+        assertEquals( "CookingHub", out.get( 0 ).name(),
+            "Cooking should sort first (finite coherence)" );
+        assertEquals( "GhostHub", out.get( 1 ).name(),
+            "GhostHub should sort last (NaN coherence)" );
+        assertTrue( Double.isNaN( out.get( 1 ).coherence() ),
+            "GhostHub coherence should be NaN" );
+    }
+
     // ---- helpers ----
 
     /**

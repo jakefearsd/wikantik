@@ -451,6 +451,33 @@ export const api = {
     dismissHubDiscoveryProposal: (id) =>
       request(`/admin/knowledge/hub-discovery/proposals/${id}/dismiss`, { method: 'POST' }),
 
+    listDismissedHubDiscoveryProposals: (limit = 50, offset = 0) => {
+      const params = new URLSearchParams({ limit, offset });
+      return request(`/admin/knowledge/hub-discovery/proposals/dismissed?${params}`);
+    },
+
+    deleteDismissedHubDiscoveryProposal: (id) =>
+      request(`/admin/knowledge/hub-discovery/proposals/dismissed/${id}`, { method: 'DELETE' }),
+
+    bulkDeleteDismissedHubDiscoveryProposals: (ids) =>
+      request('/admin/knowledge/hub-discovery/proposals/dismissed/bulk-delete', {
+        method: 'POST',
+        body: JSON.stringify({ ids }),
+      }),
+
+    // Existing Hubs (read + remove-member)
+    listExistingHubs: () =>
+      request('/admin/knowledge/hub-discovery/hubs'),
+
+    getHubDrilldown: (hubName) =>
+      request(`/admin/knowledge/hub-discovery/hubs/${encodeURIComponent(hubName)}`),
+
+    removeHubMember: (hubName, member) =>
+      request(`/admin/knowledge/hub-discovery/hubs/${encodeURIComponent(hubName)}/remove-member`, {
+        method: 'POST',
+        body: JSON.stringify({ member }),
+      }),
+
     backfillFrontmatter: () =>
       request('/admin/knowledge/backfill-frontmatter', { method: 'POST' }),
 

@@ -333,6 +333,31 @@ class HubOverviewServiceTest {
     }
 
     @Test
+    void loadDrilldown_orphanedHub_populatesFromKgOnly() throws Exception {
+        seedHub( "OrphanHub", List.of( "Baking", "Roasting" ) );
+        // Crucially, no pageStore entry for "OrphanHub" — it has no backing wiki page.
+        pageStore.put( "Baking", "..." );
+        pageStore.put( "Roasting", "..." );
+
+        model = new TfidfModel();
+        model.build(
+            List.of( "Baking", "Roasting" ),
+            List.of(
+                "baking bread cake flour sugar oven",
+                "roasting meat oven temperature seasoning baking"
+            ) );
+
+        final HubOverviewService svc = serviceBuilder().contentModel( model ).build();
+        final HubOverviewService.HubDrilldown d = svc.loadDrilldown( "OrphanHub" );
+
+        assertNotNull( d );
+        assertEquals( "OrphanHub", d.name() );
+        assertFalse( d.hasBackingPage(), "Orphan hub must report hasBackingPage=false" );
+        assertEquals( 2, d.members().size() );
+        assertTrue( d.stubMembers().isEmpty() );
+    }
+
+    @Test
     void loadDrilldown_unknownHub_returnsNull() {
         // No hub seeded.
         model = new TfidfModel();

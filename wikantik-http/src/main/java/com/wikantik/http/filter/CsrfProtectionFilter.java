@@ -117,13 +117,24 @@ public class CsrfProtectionFilter implements Filter {
     }
 
     /**
-     * True when the request either has no {@code Origin} header (non-browser client)
-     * or its {@code Origin} matches one of the comma-separated values in
-     * {@code allowedOrigins}. An empty whitelist rejects any browser-origin request.
+     * True when the request is safe to accept as a state-changing request:
+     * <ul>
+     *   <li>No {@code Origin} header — non-browser client (curl, server-to-server).</li>
+     *   <li>{@code Origin} equals the request's own scheme+host — same-origin, which
+     *       browsers send on POST/PUT/DELETE/PATCH since Chrome 76 / Firefox 71.
+     *       Same-origin can never be a CSRF attack, so it's always allowed, even
+     *       when the whitelist is empty.</li>
+     *   <li>{@code Origin} matches one of the comma-separated entries in
+     *       {@code allowedOrigins}.</li>
+     * </ul>
+     * Any other browser-origin is rejected. An empty whitelist rejects cross-origin.
      */
     static boolean isOriginAllowed( final HttpServletRequest request, final String allowedOrigins ) {
         final String origin = request.getHeader( "Origin" );
         if( origin == null || origin.isEmpty() ) {
+            return true;
+        }
+        if( isSameOrigin( request, origin ) ) {
             return true;
         }
         if( allowedOrigins == null || allowedOrigins.isEmpty() ) {
@@ -135,6 +146,26 @@ public class CsrfProtectionFilter implements Filter {
             }
         }
         return false;
+    }
+
+    /**
+     * True when {@code origin} exactly equals the request's own {@code scheme://host[:port]}.
+     * Uses the {@code Host} header (which browsers always include with the port for
+     * non-default ports) plus {@code request.getScheme()}. Comparison is exact and
+     * case-insensitive — no prefix matching, so {@code http://localhost:8080.evil.com}
+     * does not masquerade as same-origin when the server is {@code http://localhost:8080}.
+     */
+    static boolean isSameOrigin( final HttpServletRequest request, final String origin ) {
+        final String host = request.getHeader( "Host" );
+        if( host == null || host.isEmpty() ) {
+            return false;
+        }
+        final String scheme = request.getScheme();
+        if( scheme == null ) {
+            return false;
+        }
+        final String expected = scheme + "://" + host;
+        return expected.equalsIgnoreCase( origin );
     }
 
     static boolean isMcpEndpoint( final HttpServletRequest request ) {

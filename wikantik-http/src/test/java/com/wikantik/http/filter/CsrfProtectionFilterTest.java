@@ -96,7 +96,48 @@ class CsrfProtectionFilterTest {
         // No whitelist configured — any browser-originating request is suspicious.
         final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
         Mockito.doReturn( "https://evil.example.com" ).when( request ).getHeader( "Origin" );
+        Mockito.doReturn( "https" ).when( request ).getScheme();
+        Mockito.doReturn( "wiki.example.com" ).when( request ).getHeader( "Host" );
         assertFalse( CsrfProtectionFilter.isOriginAllowed( request, "" ) );
+    }
+
+    @Test
+    void testIsOriginAllowedForSameOriginLocalhost() {
+        // Regression for "Rejected state-changing request from Origin 'http://localhost:8080'":
+        // browsers send Origin on same-origin state-changing requests, and same-origin must
+        // always be allowed regardless of the whitelist (even when the whitelist is empty).
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "http://localhost:8080" ).when( request ).getHeader( "Origin" );
+        Mockito.doReturn( "http" ).when( request ).getScheme();
+        Mockito.doReturn( "localhost:8080" ).when( request ).getHeader( "Host" );
+
+        assertTrue( CsrfProtectionFilter.isOriginAllowed( request, "" ),
+                "Same-origin request must be allowed even with an empty whitelist" );
+    }
+
+    @Test
+    void testIsOriginAllowedForSameOriginProductionHost() {
+        // Same-origin over HTTPS against the public host with a non-empty whitelist
+        // that does NOT mention the public host: must still be allowed.
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "https://wiki.example.com" ).when( request ).getHeader( "Origin" );
+        Mockito.doReturn( "https" ).when( request ).getScheme();
+        Mockito.doReturn( "wiki.example.com" ).when( request ).getHeader( "Host" );
+
+        assertTrue( CsrfProtectionFilter.isOriginAllowed( request, "https://other.example.com" ) );
+    }
+
+    @Test
+    void testIsOriginAllowedRejectsCrossOriginMatchingHostPrefix() {
+        // Naive substring / prefix matching would allow https://localhost:8080.evil.com —
+        // verify the same-origin path uses exact scheme+host comparison.
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "http://localhost:8080.evil.com" ).when( request ).getHeader( "Origin" );
+        Mockito.doReturn( "http" ).when( request ).getScheme();
+        Mockito.doReturn( "localhost:8080" ).when( request ).getHeader( "Host" );
+
+        assertFalse( CsrfProtectionFilter.isOriginAllowed( request, "" ),
+                "Host prefix that happens to start with the server host must not be treated as same-origin" );
     }
 
     @ParameterizedTest

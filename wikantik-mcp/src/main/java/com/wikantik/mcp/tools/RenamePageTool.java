@@ -128,6 +128,8 @@ public class RenamePageTool implements McpTool, AuthorConfigurable {
 
             final String finalName = pageRenamer.renamePage( context, oldName, newName, updateLinks );
 
+            McpAudit.logWrite( TOOL_NAME, "renamed", oldName + "->" + finalName, null );
+
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );
             result.put( "oldName", oldName );

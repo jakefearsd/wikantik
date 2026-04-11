@@ -183,6 +183,7 @@ public class ImportContentTool implements McpTool, AuthorConfigurable {
                                     .replaceMetadata( true )   // file content is authoritative
                                     .build() );
 
+                    McpAudit.logWrite( TOOL_NAME, action, pageName, effectiveAuthor );
                     results.add( Map.of( "pageName", pageName, "action", action, "success", true ) );
                     if ( "created".equals( action ) ) {
                         added++;
@@ -207,6 +208,7 @@ public class ImportContentTool implements McpTool, AuthorConfigurable {
                     if ( !mdFiles.containsKey( pageName ) && pageManager.pageExists( pageName ) ) {
                         try {
                             pageManager.deletePage( pageName );
+                            McpAudit.logWrite( TOOL_NAME, "deleted", pageName, effectiveAuthor );
                             results.add( Map.of( "pageName", pageName, "action", "deleted", "success", true ) );
                             deleted++;
                         } catch ( final Exception e ) {

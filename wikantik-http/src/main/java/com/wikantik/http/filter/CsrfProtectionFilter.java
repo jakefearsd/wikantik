@@ -46,6 +46,9 @@ public class CsrfProtectionFilter implements Filter {
 
     public static final String ANTICSRF_PARAM = "X-XSRF-TOKEN";
 
+    /** Property listing comma-separated browser origins that are allowed to submit state-changing requests. */
+    public static final String PROP_ALLOWED_ORIGINS = "wikantik.cors.allowedOrigins";
+
     /** {@inheritDoc} */
     @Override
     public void init( final FilterConfig filterConfig ) {
@@ -55,14 +58,26 @@ public class CsrfProtectionFilter implements Filter {
     @Override
     public void doFilter( final ServletRequest request, final ServletResponse response, final FilterChain chain ) throws IOException, ServletException {
         final HttpServletRequest httpRequest = ( HttpServletRequest ) request;
-        if( isPost( httpRequest ) && !isMcpEndpoint( httpRequest ) && !isRestApiEndpoint( httpRequest ) ) {
+        if( isStateChanging( httpRequest ) && !isMcpEndpoint( httpRequest ) ) {
             final Engine engine = Wiki.engine().find( request.getServletContext(), null );
-            final Session session = Wiki.session().find( engine, httpRequest );
-            if( !requestContainsValidCsrfToken( request, session ) ) {
-                LOG.error( "Incorrect {} param with value '{}' received for {}",
-                           ANTICSRF_PARAM, request.getParameter( ANTICSRF_PARAM ), httpRequest.getPathInfo() );
-                ( ( HttpServletResponse ) response ).sendRedirect( "/error/Forbidden.html" );
-                return;
+            final String allowedOrigins = engine.getWikiProperties().getProperty( PROP_ALLOWED_ORIGINS, "" );
+
+            if( isRestApiEndpoint( httpRequest ) ) {
+                // REST endpoints use JSON and rely on Origin validation, not on the CSRF token.
+                if( !isOriginAllowed( httpRequest, allowedOrigins ) ) {
+                    LOG.error( "Rejected state-changing request from Origin '{}' for {}",
+                               httpRequest.getHeader( "Origin" ), httpRequest.getPathInfo() );
+                    ( ( HttpServletResponse ) response ).sendError( HttpServletResponse.SC_FORBIDDEN, "Cross-origin request refused" );
+                    return;
+                }
+            } else {
+                final Session session = Wiki.session().find( engine, httpRequest );
+                if( !requestContainsValidCsrfToken( request, session ) ) {
+                    LOG.error( "Incorrect {} param with value '{}' received for {}",
+                               ANTICSRF_PARAM, request.getParameter( ANTICSRF_PARAM ), httpRequest.getPathInfo() );
+                    ( ( HttpServletResponse ) response ).sendRedirect( "/error/Forbidden.html" );
+                    return;
+                }
             }
         }
         chain.doFilter( request, response );
@@ -83,6 +98,43 @@ public class CsrfProtectionFilter implements Filter {
 
     static boolean isPost( final HttpServletRequest request ) {
         return "POST".equalsIgnoreCase( request.getMethod() );
+    }
+
+    /**
+     * State-changing HTTP methods that need CSRF / origin protection: POST, PUT, DELETE, PATCH.
+     * Safe methods (GET/HEAD/OPTIONS) must not be included — they are idempotent by RFC and
+     * adding checks to them would break static-resource fetches.
+     */
+    static boolean isStateChanging( final HttpServletRequest request ) {
+        final String method = request.getMethod();
+        if( method == null ) {
+            return false;
+        }
+        return "POST".equalsIgnoreCase( method )
+                || "PUT".equalsIgnoreCase( method )
+                || "DELETE".equalsIgnoreCase( method )
+                || "PATCH".equalsIgnoreCase( method );
+    }
+
+    /**
+     * True when the request either has no {@code Origin} header (non-browser client)
+     * or its {@code Origin} matches one of the comma-separated values in
+     * {@code allowedOrigins}. An empty whitelist rejects any browser-origin request.
+     */
+    static boolean isOriginAllowed( final HttpServletRequest request, final String allowedOrigins ) {
+        final String origin = request.getHeader( "Origin" );
+        if( origin == null || origin.isEmpty() ) {
+            return true;
+        }
+        if( allowedOrigins == null || allowedOrigins.isEmpty() ) {
+            return false;
+        }
+        for( final String candidate : allowedOrigins.split( "," ) ) {
+            if( origin.equalsIgnoreCase( candidate.trim() ) ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static boolean isMcpEndpoint( final HttpServletRequest request ) {

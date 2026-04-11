@@ -201,6 +201,19 @@
 
    <session-config>
        <session-timeout>60</session-timeout>
+       <!--
+         Harden the JSESSIONID cookie:
+           * http-only    - never readable from JS, so an XSS cannot exfiltrate it.
+           * secure       - only sent over HTTPS. Modern browsers treat http://localhost
+                            as a secure context, so local dev keeps working.
+           * tracking-mode COOKIE - no URL rewriting fallback (would leak session IDs
+                            into logs and referrers).
+       -->
+       <cookie-config>
+           <http-only>true</http-only>
+           <secure>true</secure>
+       </cookie-config>
+       <tracking-mode>COOKIE</tracking-mode>
    </session-config>
    <!--
        HttpSessionListener used for managing WikiSession's.

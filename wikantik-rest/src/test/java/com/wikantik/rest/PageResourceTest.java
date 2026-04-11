@@ -171,29 +171,58 @@ class PageResourceTest {
     }
 
     @Test
-    void testCorsHeaders() throws Exception {
+    void testCorsHeadersEchoAllowedOrigin() throws Exception {
         engine.saveText( "RestTestPage", "CORS test." );
+        engine.getWikiProperties().setProperty( "wikantik.cors.allowedOrigins",
+                "https://wiki.example.com" );
 
         final HttpServletRequest request = createRequest( "RestTestPage" );
+        Mockito.doReturn( "GET" ).when( request ).getMethod();
+        Mockito.doReturn( "https://wiki.example.com" ).when( request ).getHeader( "Origin" );
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         final StringWriter sw = new StringWriter();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
 
-        servlet.doGet( request, response );
+        servlet.service( request, response );
 
-        Mockito.verify( response ).setHeader( "Access-Control-Allow-Origin", "*" );
+        Mockito.verify( response ).setHeader( "Access-Control-Allow-Origin", "https://wiki.example.com" );
+        Mockito.verify( response ).setHeader( "Vary", "Origin" );
         Mockito.verify( response ).setHeader( "Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS" );
         Mockito.verify( response ).setHeader( "Access-Control-Allow-Headers", "Content-Type, Authorization" );
     }
 
     @Test
+    void testCorsHeadersOmittedForDisallowedOrigin() throws Exception {
+        engine.saveText( "RestTestPage", "CORS test." );
+        engine.getWikiProperties().setProperty( "wikantik.cors.allowedOrigins",
+                "https://wiki.example.com" );
+
+        final HttpServletRequest request = createRequest( "RestTestPage" );
+        Mockito.doReturn( "GET" ).when( request ).getMethod();
+        Mockito.doReturn( "https://evil.example.com" ).when( request ).getHeader( "Origin" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.service( request, response );
+
+        Mockito.verify( response, Mockito.never() )
+                .setHeader( Mockito.eq( "Access-Control-Allow-Origin" ), Mockito.anyString() );
+    }
+
+    @Test
     void testOptionsPreflightReturnsCors() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.cors.allowedOrigins",
+                "https://wiki.example.com" );
+
         final HttpServletRequest request = createRequest( "AnyPage" );
+        Mockito.doReturn( "OPTIONS" ).when( request ).getMethod();
+        Mockito.doReturn( "https://wiki.example.com" ).when( request ).getHeader( "Origin" );
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
 
-        servlet.doOptions( request, response );
+        servlet.service( request, response );
 
-        Mockito.verify( response ).setHeader( "Access-Control-Allow-Origin", "*" );
+        Mockito.verify( response ).setHeader( "Access-Control-Allow-Origin", "https://wiki.example.com" );
         Mockito.verify( response ).setStatus( HttpServletResponse.SC_OK );
     }
 

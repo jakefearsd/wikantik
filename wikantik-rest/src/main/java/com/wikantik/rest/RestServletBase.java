@@ -101,26 +101,63 @@ public abstract class RestServletBase extends HttpServlet {
         return true;
     }
 
+    public static final String PROP_ALLOWED_ORIGINS = "wikantik.cors.allowedOrigins";
+
     /**
-     * Sets CORS headers on the response, unless {@link #isCrossOriginAllowed()} returns false.
+     * Sets CORS headers on the response when {@link #isCrossOriginAllowed()} is true.
+     * Echoes the request's {@code Origin} header only when it matches one of the
+     * comma-separated values in the {@code wikantik.cors.allowedOrigins} property,
+     * and always sets {@code Vary: Origin} so caches don't reuse responses across
+     * different origins. Never sets {@code Access-Control-Allow-Credentials}: the
+     * wiki's session cookie must not be exposed to arbitrary cross-origin JS.
      *
+     * @param request  the HTTP request (used to read the {@code Origin} header)
      * @param response the HTTP response
      */
-    protected void setCorsHeaders( final HttpServletResponse response ) {
-        if ( isCrossOriginAllowed() ) {
-            response.setHeader( "Access-Control-Allow-Origin", "*" );
-            response.setHeader( "Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS" );
-            response.setHeader( "Access-Control-Allow-Headers", "Content-Type, Authorization" );
+    protected void setCorsHeaders( final HttpServletRequest request, final HttpServletResponse response ) {
+        if ( !isCrossOriginAllowed() ) {
+            return;
+        }
+        response.setHeader( "Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS" );
+        response.setHeader( "Access-Control-Allow-Headers", "Content-Type, Authorization" );
+        final String origin = request.getHeader( "Origin" );
+        if ( origin == null || origin.isEmpty() ) {
+            return;
+        }
+        response.setHeader( "Vary", "Origin" );
+        final Engine eng = getEngine();
+        final String allowed = ( eng != null )
+                ? eng.getWikiProperties().getProperty( PROP_ALLOWED_ORIGINS, "" )
+                : "";
+        for ( final String candidate : allowed.split( "," ) ) {
+            if ( origin.equalsIgnoreCase( candidate.trim() ) ) {
+                response.setHeader( "Access-Control-Allow-Origin", origin );
+                return;
+            }
         }
     }
 
     /**
-     * Handles CORS preflight requests.
+     * Applies CORS headers once per request, before dispatching to
+     * {@code doGet/doPost/...}. This keeps existing {@code sendJson}/
+     * {@code sendError} callers unchanged — they don't need to know
+     * about the request to emit a correct {@code Access-Control-Allow-Origin}
+     * header.
+     */
+    @Override
+    protected void service( final HttpServletRequest request, final HttpServletResponse response )
+            throws ServletException, IOException {
+        setCorsHeaders( request, response );
+        super.service( request, response );
+    }
+
+    /**
+     * Handles CORS preflight requests. (CORS headers are already applied by
+     * {@link #service(HttpServletRequest, HttpServletResponse)}.)
      */
     @Override
     protected void doOptions( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-        setCorsHeaders( response );
         response.setStatus( HttpServletResponse.SC_OK );
     }
 
@@ -132,7 +169,6 @@ public abstract class RestServletBase extends HttpServlet {
      * @throws IOException if writing fails
      */
     protected void sendJson( final HttpServletResponse response, final Object object ) throws IOException {
-        setCorsHeaders( response );
         response.setContentType( "application/json" );
         response.setCharacterEncoding( "UTF-8" );
         response.getWriter().write( GSON.toJson( object ) );
@@ -148,7 +184,6 @@ public abstract class RestServletBase extends HttpServlet {
      */
     protected void sendError( final HttpServletResponse response, final int status, final String message )
             throws IOException {
-        setCorsHeaders( response );
         response.setStatus( status );
         response.setContentType( "application/json" );
         response.setCharacterEncoding( "UTF-8" );

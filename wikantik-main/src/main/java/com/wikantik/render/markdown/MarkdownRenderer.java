@@ -24,6 +24,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
 import com.wikantik.parser.markdown.MarkdownDocument;
+import com.wikantik.parser.markdown.WikantikHtmlSanitizer;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.render.WikiRenderer;
 
@@ -38,6 +39,7 @@ import java.util.regex.Pattern;
 public class MarkdownRenderer extends WikiRenderer {
 
 	private final HtmlRenderer renderer;
+	private final boolean allowHtml;
 
 	public MarkdownRenderer( final Context context, final WikiDocument doc ) {
 		super( context, doc );
@@ -46,6 +48,7 @@ public class MarkdownRenderer extends WikiRenderer {
 				                       .getParser( context, StringUtils.defaultString( doc.getPageData() ) );
 		final boolean isImageInlining = mp.isImageInlining();
 		final List< Pattern > inlineImagePatterns = mp.getInlineImagePatterns();
+		this.allowHtml = context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false );
 		renderer = HtmlRenderer.builder( MarkdownDocument.options( context, isImageInlining, inlineImagePatterns ) ).build();
 	}
 
@@ -56,7 +59,13 @@ public class MarkdownRenderer extends WikiRenderer {
 	public String getString() throws IOException {
 		document.setContext( context );
 		if( document instanceof MarkdownDocument markdownDoc ) {
-			return renderer.render( markdownDoc.getMarkdownNode() );
+			final String rendered = renderer.render( markdownDoc.getMarkdownNode() );
+			// When raw HTML is allowed in the source, any <script>, <iframe>, or event-handler
+			// attribute the user typed is about to reach the browser verbatim. Run it through
+			// the OWASP sanitizer to strip dangerous constructs. When allowHTML is false,
+			// Flexmark's ESCAPE_HTML has already neutralized raw markup, so we skip the extra
+			// work.
+			return allowHtml ? WikantikHtmlSanitizer.sanitize( rendered ) : rendered;
 		} else {
 			throw new IOException( "MarkdownRenderer requires to be used with MarkdownParser" );
 		}

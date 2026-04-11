@@ -25,6 +25,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.markdown.extensions.wikilinks.attributeprovider.WikantikLinkAttributeProviderFactory;
 import com.wikantik.markdown.extensions.wikilinks.postprocessor.WikantikNodePostProcessorFactory;
 import com.wikantik.markdown.renderer.WikantikNodeRendererFactory;
+import com.wikantik.parser.markdown.SafeLinkAttributeProvider;
 
 import java.util.List;
 import java.util.regex.Pattern;
@@ -68,6 +69,7 @@ public class MarkdownForWikantikExtension implements Parser.ParserExtension, Htm
 	public void extend( final HtmlRenderer.Builder rendererBuilder, final String rendererType ) {
 	    rendererBuilder.nodeRendererFactory( new WikantikNodeRendererFactory( context ) );
         rendererBuilder.attributeProviderFactory( new WikantikLinkAttributeProviderFactory( context, isImageInlining, inlineImagePatterns ) );
+        rendererBuilder.attributeProviderFactory( SafeLinkAttributeProvider.Factory.create() );
 	}
 
     /**

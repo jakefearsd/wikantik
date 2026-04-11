@@ -72,7 +72,7 @@ public class MarkdownRendererTest {
     public void testMarkupExtensionSelfEditLink() throws Exception {
         final String src = "This should be a [self<->link]()";
 
-        Assertions.assertEquals( "<p>This should be a <a href=\"/test/edit/self%3C-%3Elink\" title=\"Create &quot;self&lt;-&gt;link&quot;\" class=\"createpage\">self&lt;-&gt;link</a></p>\n",
+        Assertions.assertEquals( "<p>This should be a <a href=\"/test/edit/self%3C-%3Elink\" title=\"Create &#34;self&lt;-&gt;link&#34;\" class=\"createpage\">self&lt;-&gt;link</a></p>\n",
                                  translate( src ) );
     }
 
@@ -108,7 +108,7 @@ public class MarkdownRendererTest {
     @Test
     public void testMarkupExtensionHtmlAllowsMDInsideLinks() throws Exception {
         newPage( "Hyperlink" );
-        final String expected = "<p>This should be a <a href=\"/test/edit/Link%20**bold**\" title=\"Create &quot;Link **bold**&quot;\" class=\"createpage\">Link <strong>bold</strong></a></p>\n";
+        final String expected = "<p>This should be a <a href=\"/test/edit/Link%20**bold**\" title=\"Create &#34;Link **bold**&#34;\" class=\"createpage\">Link <strong>bold</strong></a></p>\n";
         Assertions.assertEquals( expected, translate( "This should be a [Link **bold**]()" ) );
     }
 
@@ -123,7 +123,7 @@ public class MarkdownRendererTest {
     public void testMarkupExtensionInterWikiLink() throws Exception {
         final String src = "This should be an [interwiki link](Wikantik:About)";
 
-        Assertions.assertEquals( "<p>This should be an <a href=\"http://wiki.wikantik.com/Wiki.jsp?page=About\" class=\"interwiki\">interwiki link</a></p>\n",
+        Assertions.assertEquals( "<p>This should be an <a href=\"http://wiki.wikantik.com/Wiki.jsp?page&#61;About\" class=\"interwiki\">interwiki link</a></p>\n",
                                  translate( src ) );
     }
 
@@ -131,7 +131,7 @@ public class MarkdownRendererTest {
     public void testMarkupExtensionWrongInterWikiLink() throws Exception {
         final String src = "This should be an [interwiki link](JSPWiko:About)";
 
-        Assertions.assertEquals( "<p>This should be an <span class=\"error\">No InterWiki reference defined in properties for Wiki called \"JSPWiko\"!</span></p>\n",
+        Assertions.assertEquals( "<p>This should be an <span class=\"error\">No InterWiki reference defined in properties for Wiki called &#34;JSPWiko&#34;!</span></p>\n",
                                  translate( src ) );
     }
 
@@ -139,7 +139,7 @@ public class MarkdownRendererTest {
     public void testMarkupLinkWithCustomAttributes() throws Exception {
         final String src = "This should be a [link with custom attributes](http://google.com){target=blank}";
 
-        Assertions.assertEquals( "<p>This should be a <a href=\"http://google.com\" class=\"external\" target=\"blank\">link with custom attributes</a></p>\n", translate( src ) );
+        Assertions.assertEquals( "<p>This should be a <a href=\"http://google.com\" class=\"external\" target=\"blank\" rel=\"noopener noreferrer\">link with custom attributes</a></p>\n", translate( src ) );
     }
 
     @Test
@@ -170,9 +170,9 @@ public class MarkdownRendererTest {
                            "| d   | e   | f   \n" +
                            "||| g, h and f ";
 
-        Assertions.assertEquals( "<table>\n<thead>\n<tr><th align=\"left\">a</th><th align=\"center\">b</th><th>c</th></tr>\n</thead>\n" +
-                                 "<tbody>\n<tr><td align=\"left\">d</td><td align=\"center\">e</td><td>f</td></tr>\n" +
-                                 "<tr><td align=\"left\" colspan=\"2\"></td><td>g, h and f</td></tr>\n</tbody>\n</table>\n", translate( src ) );
+        Assertions.assertEquals( "<table><thead><tr><th align=\"left\">a</th><th align=\"center\">b</th><th>c</th></tr></thead>" +
+                                 "<tbody><tr><td align=\"left\">d</td><td align=\"center\">e</td><td>f</td></tr>" +
+                                 "<tr><td align=\"left\" colspan=\"2\"></td><td>g, h and f</td></tr></tbody></table>\n", translate( src ) );
     }
 
     @Test
@@ -254,20 +254,14 @@ public class MarkdownRendererTest {
                            "# Header 1\n" +
                            "## Header 2\n" +
                            "## Header 2\n";
-        Assertions.assertEquals( "<p><div class=\"toc\">\n" +
+        Assertions.assertEquals( "<p></p><div class=\"toc\">\n" +
                                  "<div class=\"collapsebox\">\n" +
                                  "<h4 id=\"section-TOC\">Table of Contents</h4>\n" +
-                                 "<ul>\n" +
-                                 "<li><a href=\"#header-1\">Header 1</a>\n" +
-                                 "<ul>\n" +
-                                 "<li><a href=\"#header-2\">Header 2</a></li>\n" +
-                                 "<li><a href=\"#header-2-1\">Header 2</a></li>\n" +
-                                 "</ul>\n" +
-                                 "</li>\n" +
-                                 "</ul>\n" +
+                                 "<ul><li><a href=\"#header-1\">Header 1</a>\n" +
+                                 "<ul><li><a href=\"#header-2\">Header 2</a></li><li><a href=\"#header-2-1\">Header 2</a></li></ul>\n" +
+                                 "</li></ul>\n" +
                                  "</div>\n" +
-                                 "</div>\n" +
-                                 "</p>\n" +
+                                 "</div>\n\n" +
                                  "<h1 id=\"header-1\">Header 1</h1>\n" +
                                  "<h2 id=\"header-2\">Header 2</h2>\n" +
                                 "<h2 id=\"header-2-1\">Header 2</h2>\n", translate( src ) );
@@ -305,13 +299,11 @@ public class MarkdownRendererTest {
         Assertions.assertEquals( "<p>text <sup id=\"fnref-1\"><a class=\"footnoteref\" href=\"#fn-1\">1</a></sup> embedded.</p>\n" +
         		                 "<div class=\"footnotes\">\n" +
         		                 "<hr />\n" +
-        		                 "<ol>\n" +
-        		                 "<li id=\"fn-1\">\n" +
+        		                 "<ol><li id=\"fn-1\">\n" +
         		                 "<p>footnote text\n" +
         		                 "with continuation</p>\n" +
-        		                 "<a href=\"#fnref-1\" class=\"footnote-backref\">&#8617;</a>\n" +
-        		                 "</li>\n" +
-        		                 "</ol>\n" +
+        		                 "<a href=\"#fnref-1\" class=\"footnote-backref\">↩</a>\n" +
+        		                 "</li></ol>\n" +
         		                 "</div>\n", translate( src ) );
     }
 

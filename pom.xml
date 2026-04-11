@@ -76,6 +76,7 @@
     <lucene.version>10.4.0</lucene.version>
     <mockito.version>5.23.0</mockito.version>
     <nekohtml.version>3.0.3</nekohtml.version>
+    <owasp-html-sanitizer.version>20240325.1</owasp-html-sanitizer.version>
     <pac4j.version>6.3.3</pac4j.version>
     <rome.version>2.1.0</rome.version>
     <selenide.version>7.15.1</selenide.version>
@@ -263,6 +264,12 @@
         <groupId>com.vladsch.flexmark</groupId>
         <artifactId>flexmark-util-sequence</artifactId>
         <version>${flexmark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.googlecode.owasp-java-html-sanitizer</groupId>
+        <artifactId>owasp-java-html-sanitizer</artifactId>
+        <version>${owasp-html-sanitizer.version}</version>
       </dependency>
 
       <dependency>

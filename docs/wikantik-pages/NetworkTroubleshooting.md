@@ -1,14 +1,4 @@
----
-title: Network Troubleshooting
-type: article
-tags:
-- packet
-- tcpdump
-- layer
-summary: This tutorial assumes a high level of proficiency.
-auto-generated: true
----
-# Advanced Network Diagnostics: A Deep Dive into `tcpdump` and `ping` for the Research-Grade Practitioner
+# Advanced Network Diagnostics
 
 For those of us who treat network diagnostics not as a checklist of commands, but as a forensic science, the tools provided in the standard Linux toolkit are merely the initial evidence collection kits. We are not here to confirm basic connectivity; we are here to dissect the failure modes, analyze the subtle deviations from the expected protocol state, and understand *why* the packet arrived—or, more critically, *why* it failed to arrive.
 
@@ -52,7 +42,7 @@ BPF is not merely a filtering mechanism; it is a highly optimized, state-machine
 
 Understanding BPF means understanding that you are defining a set of logical predicates that the kernel must evaluate for every incoming frame.
 
-### B. Syntax Deep Dive: Beyond Simple Filters
+### B. Beyond Simple Filters
 
 A basic filter might look like `host 192.168.1.1`. An expert filter must combine multiple criteria across different layers simultaneously.
 

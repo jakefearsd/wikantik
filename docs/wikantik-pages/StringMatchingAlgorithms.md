@@ -1,16 +1,4 @@
----
-title: String Matching Algorithms
-type: article
-tags:
-- hash
-- match
-- kmp
-summary: Given a large text $T$ of length $N$, and a pattern $P$ of length $M$, the
-  objective is to find all occurrences of $P$ within $T$ with optimal time and space
-  complexity.
-auto-generated: true
----
-# A Deep Dive into String Matching Algorithms: KMP and Rabin-Karp for Advanced Research
+# KMP and Rabin-Karp for Advanced Research
 
 For those of us who spend our careers wrestling with sequences of characters—be it genomic data, network packet headers, or complex textual corpora—the problem of string matching is not merely an academic exercise; it is the bedrock upon which much of modern computation rests. Given a large text $T$ of length $N$, and a pattern $P$ of length $M$, the objective is to find all occurrences of $P$ within $T$ with optimal time and space complexity.
 

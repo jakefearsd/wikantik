@@ -1,14 +1,3 @@
----
-title: Nuclear Deterrence And Stability
-type: article
-tags:
-- deterr
-- nuclear
-- model
-summary: 'Scope: A comprehensive, multi-layered analysis synthesizing classical deterrence
-  theory with contemporary technological, cognitive, and geopolitical realities.'
-auto-generated: true
----
 # The Calculus of Catastrophe: Advanced Modeling of Nuclear Deterrence and Geopolitical Stability in the 21st Century
 
 ***
@@ -28,7 +17,7 @@ This tutorial is not a review of the Cold War playbook; such material is, frankl
 
 The core challenge facing contemporary strategists is this: How do we model stability when the primary stabilizing mechanism is inherently destabilizing, and when the actors involved are increasingly willing to operate in the "gray zone"—the space *below* the nuclear threshold, where conventional escalation risks are high, but the catastrophic payoff is not yet guaranteed?
 
-## I. Deconstructing the Classical Model: Inherent Flaws and Historical Failures
+## I. Inherent Flaws and Historical Failures
 
 Before we can propose new models, we must first acknowledge the spectacular failures of the existing framework. Deterrence theory, in its classical iterations, often suffers from an overreliance on rationality and a profound underestimation of human, political, and systemic irrationality.
 

@@ -1,15 +1,4 @@
----
-title: Concurrency Patterns
-type: article
-tags:
-- lock
-- thread
-- read
-summary: 'Concurrency Patterns and Thread Safety Locks: An Expert Deep Dive for Advanced
-  Research Welcome.'
-auto-generated: true
----
-# Concurrency Patterns and Thread Safety Locks: An Expert Deep Dive for Advanced Research
+# Concurrency Patterns and Thread Safety Locks
 
 Welcome. If you are reading this, you are presumably past the point of merely using `synchronized` blocks and are now wrestling with the subtle, often invisible, complexities of shared mutable state across multiple execution threads. Good. Because understanding concurrency is less about knowing the syntax and more about mastering the underlying mathematical and hardware guarantees of memory visibility and ordering.
 
@@ -266,7 +255,7 @@ When multiple threads contend for a lock, they often fail the CAS operation or f
 
 ---
 
-## V. Deep Dives into Language-Specific Implementations
+## V. Language-Specific Implementations
 
 The "best" pattern is entirely dependent on the language's memory model and available primitives.
 

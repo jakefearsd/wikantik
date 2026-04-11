@@ -1,16 +1,4 @@
----
-title: Server Sent Events Patterns
-type: article
-tags:
-- server
-- client
-- data
-summary: We will dissect Long Polling, Server-Sent Events (SSE), and WebSockets, not
-  just as alternatives, but as fundamentally different paradigms for establishing
-  persistent, asynchronous data streams.
-auto-generated: true
----
-# A Deep Dive into Real-Time Push Mechanisms: Long Polling, Server-Sent Events, and WebSockets for Expert Systems Design
+# Long Polling, Server-Sent Events, and WebSockets for Expert Systems Design
 
 For those of us who spend our professional lives wrestling with the ephemeral nature of network communication, the concept of "real-time" is less a feature and more a persistent, frustrating architectural challenge. When the client needs data from the server *as it happens*, the traditional request-response cycle of HTTP feels less like a reliable communication method and more like a series of polite, yet ultimately insufficient, suggestions.
 
@@ -76,7 +64,7 @@ WebSockets (defined in RFC 6455) represent a paradigm shift. They do not merely 
 
 ---
 
-## ⚙️ Section 2: Deep Dive Analysis - Long Polling (The Algorithmic Approach)
+## ⚙️ Section 2: Long Polling (The Algorithmic Approach)
 
 For the expert, understanding Long Polling requires understanding its failure points, not just its function. It is the baseline against which the others are measured.
 
@@ -128,7 +116,7 @@ This retry logic is brittle, complex to manage across different network conditio
 
 ---
 
-## 🌊 Section 3: Deep Dive Analysis - Server-Sent Events (SSE) (The Stream Paradigm)
+## 🌊 Section 3: Server-Sent Events (SSE) (The Stream Paradigm)
 
 SSE is arguably the most elegant solution for *unidirectional* real-time data pushing because it leverages the existing, highly optimized HTTP stack while adding a structured streaming layer.
 
@@ -171,7 +159,7 @@ While powerful, SSE is not a silver bullet:
 
 ---
 
-## 🔌 Section 4: Deep Dive Analysis - WebSockets (The Full-Duplex Standard)
+## 🔌 Section 4: WebSockets (The Full-Duplex Standard)
 
 WebSockets are the gold standard when *true* bi-directional, low-latency communication is the primary requirement. They bypass the HTTP request/response model entirely after the initial handshake.
 
@@ -252,7 +240,7 @@ As experts, we should approach this as a decision tree:
     *   **YES $\implies$ Server-Sent Events (SSE).** (The simplest, most robust choice for feeds).
     *   **NO $\implies$ Long Polling.** (Only if the target environment cannot support `text/event-stream`).
 
-### 5.2. Deep Dive: Backpressure Management (The Performance Bottleneck)
+### 5.2. Backpressure Management (The Performance Bottleneck)
 
 Backpressure is the rate-limiting mechanism that prevents a fast producer (the server) from overwhelming a slow consumer (the client). This is where the protocols diverge significantly in their inherent support.
 

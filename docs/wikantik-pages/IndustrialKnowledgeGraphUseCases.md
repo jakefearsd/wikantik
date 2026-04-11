@@ -1,15 +1,4 @@
----
-title: Industrial Knowledge Graph Use Cases
-type: article
-tags:
-- graph
-- kg
-- data
-summary: 'Prerequisites: Solid understanding of graph theory, semantic web technologies
-  (RDF/OWL), and modern machine learning pipelines.'
-auto-generated: true
----
-# A Deep Dive into Industrial Knowledge Graphs: Architecting Intelligence from Interconnected Data
+# Architecting Intelligence from Interconnected Data
 
 **Target Audience:** Expert Software Engineers and Data Scientists engaged in advanced research and enterprise architecture.
 **Prerequisites:** Solid understanding of graph theory, semantic web technologies (RDF/OWL), and modern machine learning pipelines.
@@ -141,7 +130,7 @@ def graph_rag_pipeline(user_query: str, knowledge_graph: KG):
 
 ---
 
-## Part III: Industrial Deep Dives – Where KGs Deliver ROI
+## Where KGs Deliver ROI
 
 The true value proposition of KGs is demonstrated by their ability to model the complexity of highly regulated, interconnected domains. Below, we explore several critical sectors, detailing the specific modeling challenges and the resulting intelligence gains.
 

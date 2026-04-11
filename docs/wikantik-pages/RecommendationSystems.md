@@ -1,15 +1,4 @@
----
-title: Recommendation Systems
-type: article
-tags:
-- item
-- user
-- model
-summary: One must understand its mathematical limitations, its historical evolution,
-  and the specific failure modes that modern techniques aim to correct.
-auto-generated: true
----
-# Collaborative Filtering: A Deep Dive for Advanced Research in Recommendation Systems
+# Collaborative Filtering
 
 The field of recommender systems (RS) is, frankly, a sprawling mess of statistical models, graph algorithms, and deep neural networks. While the commercial success of platforms like Netflix and Amazon often obscures the underlying mathematical complexity, the core engine driving much of this magic remains **Collaborative Filtering (CF)**.
 
@@ -74,7 +63,7 @@ This formulation transforms the complex, high-dimensional, sparse prediction tas
 
 ---
 
-## II. Algorithmic Deep Dive: The Evolution of CF Techniques
+## II. The Evolution of CF Techniques
 
 We categorize the methodologies into three distinct evolutionary stages: Neighborhood-Based, Model-Based (Linear), and Deep Learning.
 

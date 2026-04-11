@@ -1,16 +1,4 @@
----
-title: Full Text Search In Postgresql
-type: article
-tags:
-- index
-- search
-- token
-summary: Such methods are fundamentally flawed for modern information retrieval systems
-  because they ignore semantics, linguistic context, and the inherent structure of
-  human language.
-auto-generated: true
----
-# The Architecture of Semantic Retrieval: A Deep Dive into PostgreSQL Full-Text Search with `tsvector` and GIN Indexing
+# Semantic Retrieval
 
 For those of us who treat relational databases as mere repositories of structured data, the concept of "search" often remains a naive, string-matching exercise, typically relegated to the inefficient `LIKE '%query%'` construct. Such methods are fundamentally flawed for modern information retrieval systems because they ignore semantics, linguistic context, and the inherent structure of human language.
 
@@ -253,7 +241,7 @@ REFRESH MATERIALIZED VIEW mv_search_index;
 
 When dealing with millions of documents, the difference between a theoretically correct query and a practically fast query is measured in milliseconds, and the difference between a good index and a perfect index is measured in microseconds.
 
-### A. Deconstructing `EXPLAIN ANALYZE` Output
+### A. `EXPLAIN ANALYZE` Output
 
 Never trust the query planner's estimate alone. Always use `EXPLAIN ANALYZE` to see the *actual* execution time.
 
@@ -284,7 +272,7 @@ However, it is vital to note that these external systems are *specialized tools*
 
 ---
 
-## VI. Conclusion: Mastering the Search Paradigm
+## VI. Conclusion
 
 Full-Text Search in PostgreSQL, powered by `tsvector` and indexed by GIN, is not merely a feature; it is a sophisticated, multi-layered information retrieval subsystem.
 

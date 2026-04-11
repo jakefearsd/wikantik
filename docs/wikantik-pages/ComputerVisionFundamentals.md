@@ -1,15 +1,4 @@
----
-title: Computer Vision Fundamentals
-type: article
-tags:
-- object
-- segment
-- mask
-summary: A Comprehensive Tutorial on Computer Vision Object Detection and Segmentation
-  for Advanced Researchers Welcome.
-auto-generated: true
----
-# A Comprehensive Tutorial on Computer Vision Object Detection and Segmentation for Advanced Researchers
+# Computer Vision Object Detection and Segmentation
 
 Welcome. If you are reading this, you are likely already familiar with the basic tenets of Convolutional Neural Networks (CNNs) and the general workflow of deep learning applied to visual data. Therefore, we shall dispense with the hand-holding regarding backpropagation and gradient descent.
 
@@ -112,7 +101,7 @@ This is a subtle but profound theoretical divide.
 
 ---
 
-## 3. Deep Dive into Segmentation Architectures
+## 3. Segmentation Architectures
 
 Segmentation requires specialized handling because the output is not a set of points or boxes, but a continuous, high-resolution map.
 

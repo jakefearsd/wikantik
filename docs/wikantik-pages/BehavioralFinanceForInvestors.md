@@ -1,15 +1,4 @@
----
-title: Behavioral Finance For Investors
-type: article
-tags:
-- model
-- system
-- behavior
-summary: 'Prerequisite Knowledge: Solid understanding of Modern Portfolio Theory (MPT),
-  efficient market hypotheses, and basic statistical modeling.'
-auto-generated: true
----
-# A Deep Dive into Behavioral Finance: Cognitive Architectures, Biases, and Advanced Modeling for Next-Generation Investment Strategies
+# Cognitive Architectures, Biases, and Advanced Modeling for Next-Generation Investment Strategies
 
 **Target Audience:** Quantitative Researchers, Behavioral Economists, and Advanced Portfolio Strategists.
 **Prerequisite Knowledge:** Solid understanding of Modern Portfolio Theory (MPT), efficient market hypotheses, and basic statistical modeling.
@@ -61,7 +50,7 @@ For the researcher, understanding this relationship is key: **Biases are not fai
 
 ***
 
-## II. Deep Dive into Core Cognitive Biases
+## II. Core Cognitive Biases
 
 We must move beyond the superficial listing of biases and analyze their structural impact on portfolio construction and asset allocation decisions.
 

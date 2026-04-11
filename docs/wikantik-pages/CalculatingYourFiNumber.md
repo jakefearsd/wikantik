@@ -1,15 +1,4 @@
----
-title: Calculating Your Fi Number
-type: article
-tags:
-- text
-- withdraw
-- fi
-summary: This tutorial is not designed for the novice seeking a simple calculator
-  input.
-auto-generated: true
----
-# The Financial Independence Number: A Deep Dive for Advanced Practitioners in Retirement Modeling
+# The Financial Independence Number
 
 The concept of Financial Independence (FI) has, in recent years, transitioned from niche financial planning jargon to a mainstream movement. For those of us who spend our professional lives modeling stochastic processes, optimizing utility functions, and stress-testing asset allocations, the "Financial Independence Number" (FI Number) is less a definitive answer and more a highly sophisticated, context-dependent *proxy* for achieving a desired state of financial freedom.
 
@@ -110,7 +99,7 @@ The goal here is to find the optimal $\mathbf{w}$ that maximizes the Sharpe Rati
 
 ---
 
-## IV. Deconstructing the Levers: Optimizing the Inputs
+## IV. Optimizing the Inputs
 
 Since the FI Number is a function of multiple variables, optimizing the inputs is equivalent to optimizing the entire system.
 

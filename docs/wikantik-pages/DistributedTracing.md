@@ -1,15 +1,4 @@
----
-title: Distributed Tracing
-type: article
-tags:
-- span
-- text
-- trace
-summary: 'Distributed Tracing Request Correlation Spans: An Expert Deep Dive into
-  Observability Mechanics Welcome.'
-auto-generated: true
----
-# Distributed Tracing Request Correlation Spans: An Expert Deep Dive into Observability Mechanics
+# Distributed Tracing Request Correlation Spans
 
 Welcome. If you've reached this document, you're likely past the point of simply reading "What is distributed tracing?" You are here because you understand that the textbook definitions are insufficient for the messy reality of modern, highly distributed, asynchronous microservice architectures.
 
@@ -191,7 +180,7 @@ A more sophisticated approach involves using the context itself to guide samplin
 
 ---
 
-## Ⅴ. Technical Deep Dives: Implementation Details and Pitfalls
+## Ⅴ. Implementation Details and Pitfalls
 
 To truly master this topic, one must understand the failure modes—the places where the correlation breaks down.
 

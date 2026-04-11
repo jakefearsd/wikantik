@@ -1,15 +1,4 @@
----
-title: Domain Driven Design
-type: article
-tags:
-- aggreg
-- bc
-- model
-summary: We are not merely writing code; we are attempting to model the reality of
-  a business process within the constraints of a computational system.
-auto-generated: true
----
-# Mastering the Boundaries: A Deep Dive into Bounded Contexts and Aggregates in Advanced Domain Modeling
+# The Boundaries
 
 For those of us who spend our professional lives wrestling with the inherent chaos of complex business domains, Domain-Driven Design (DDD) is less a set of guidelines and more a necessary cognitive framework. We are not merely writing code; we are attempting to model the *reality* of a business process within the constraints of a computational system.
 

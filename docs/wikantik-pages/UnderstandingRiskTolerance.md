@@ -9,7 +9,7 @@ summary: How to assess your true risk tolerance, the difference between risk cap
 related: [AssetAllocation, IndexFundPortfolioConstruction, SequenceOfReturnsRisk]
 ---
 
-# Understanding Risk Tolerance
+# Risk Tolerance
 
 Risk tolerance is your ability and willingness to endure declines in your investment portfolio. It is the single most personal factor in investment planning, and getting it wrong leads to the most common—and costly—investor mistake: selling in a panic at the bottom.
 

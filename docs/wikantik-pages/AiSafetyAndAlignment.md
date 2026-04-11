@@ -1,15 +1,4 @@
----
-title: Ai Safety And Alignment
-type: article
-tags:
-- safeti
-- guardrail
-- model
-summary: While this capability promises unprecedented productivity gains, it simultaneously
-  exposes a profound and escalating set of systemic risks.
-auto-generated: true
----
-# AI Safety Alignment Guardrails: A Deep Dive for Research Experts
+# AI Safety Alignment Guardrails
 
 The rapid ascent of Generative AI, particularly Large Language Models (LLMs), has transitioned artificial intelligence from a specialized computational tool into a general-purpose cognitive layer. While this capability promises unprecedented productivity gains, it simultaneously exposes a profound and escalating set of systemic risks. The core challenge facing the field is not merely *capability*, but *control*.
 
@@ -52,7 +41,7 @@ As noted by McKinsey and others, guardrails act as protective barriers—the "sa
 
 ---
 
-## II. The Architecture of Guardrails: From Simple Filters to Deep Adapters
+## II. From Simple Filters to Deep Adapters
 
 The evolution of guardrails reflects a move from simple, brittle pattern matching to complex, computationally integrated safety modules.
 

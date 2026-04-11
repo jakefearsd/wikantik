@@ -1,14 +1,4 @@
----
-title: Monorepo Vs Polyrepo
-type: article
-tags:
-- build
-- monorepo
-- depend
-summary: This document is not a "which one is better" guide for junior developers.
-auto-generated: true
----
-# Monorepo vs. Polyrepo: An Expert Deep Dive into Code Organization Paradigms
+# Monorepo vs. Polyrepo
 
 For those of us who spend our professional lives wrestling with the sheer entropy of large-scale software systems, the question of repository structure—Monorepo versus Polyrepo—is not merely an organizational preference; it is a fundamental architectural decision that dictates build times, dependency resolution complexity, deployment velocity, and, ultimately, the cognitive load placed upon the engineering team.
 
@@ -41,7 +31,7 @@ In a Polyrepo setup, if you have three services, $S_A$, $S_B$, and $S_C$, they r
 2.  **Versioning Contract:** The system relies heavily on **Semantic Versioning (SemVer)**. A change in $L$ from $1.2.3$ to $1.2.4$ implies a patch fix; a change to $1.3.0$ implies an incompatible API change. This versioning contract is the *glue* that holds the system together.
 3.  **Build & CI/CD Flow:** The CI pipeline for $S_A$ is entirely isolated. It checks out `repo-A`, resolves its dependencies from the artifact store, and builds/tests against that fixed set of external versions.
 
-### B. Deep Dive: The Cost of Isolation (The Expert Critique)
+### B. The Cost of Isolation (The Expert Critique)
 
 While autonomy is the stated goal, the reality of Polyrepos introduces significant systemic overheads that scale poorly with complexity.
 
@@ -85,7 +75,7 @@ In a Monorepo, all components ($S_A, S_B, S_C$) and shared libraries ($L$) resid
 2.  **Versioning Contract:** The concept of "versioning" shifts from external publication to **internal commit history**. A change is atomic: a single commit can update $L$, $S_A$, and $S_B$ simultaneously, ensuring that the state committed is *guaranteed* to be buildable together.
 3.  **Build & CI/CD Flow:** The CI pipeline must evolve from "Build $S_A$ in isolation" to "Analyze the entire graph, determine the minimal set of affected components, and only build/test those." This is where specialized tooling becomes absolutely critical.
 
-### B. Deep Dive: The Theoretical Power of Cohesion
+### B. The Theoretical Power of Cohesion
 
 The primary advantage of the Monorepo is the ability to treat the entire codebase as a single, cohesive unit for development and refactoring.
 
@@ -205,7 +195,7 @@ In a Monorepo, the build system *becomes* the primary governance mechanism, whic
 
 ---
 
-## V. Deep Dive into Build System Theory (For the Research Edge)
+## V. Build System Theory (For the Research Edge)
 
 For those researching next-generation techniques, the focus must shift from *what* the structure is, to *how* the build graph is traversed and optimized.
 

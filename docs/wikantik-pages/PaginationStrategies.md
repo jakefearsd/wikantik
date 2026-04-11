@@ -1,16 +1,4 @@
----
-title: Pagination Strategies
-type: article
-tags:
-- pagin
-- index
-- record
-summary: When designing an API endpoint that must handle potentially petabytes of
-  records, the naive approach to limiting results is a recipe for catastrophic performance
-  degradation.
-auto-generated: true
----
-# The Triad of Data Retrieval: A Comprehensive Deep Dive into Pagination Strategies—Offset, Cursor, and Keyset
+# The Triad of Data Retrieval
 
 For those of us who spend our professional lives wrestling with the mechanics of data access layers, pagination is not merely a UI concern; it is a fundamental architectural constraint that dictates scalability, performance characteristics, and the very integrity of the data contract between the service and the client. When designing an API endpoint that must handle potentially petabytes of records, the naive approach to limiting results is a recipe for catastrophic performance degradation.
 
@@ -171,7 +159,7 @@ When the database planner sees this structure, and assuming the composite index 
 
 ***
 
-## 5. Comparative Analysis: A Technical Deep Dive
+## 5. Comparative Analysis
 
 To solidify the understanding, we must compare these strategies across several critical dimensions. This comparison is where the true architectural decision-making occurs.
 

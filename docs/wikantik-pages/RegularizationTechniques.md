@@ -1,15 +1,4 @@
----
-title: Regularization Techniques
-type: article
-tags:
-- regular
-- mathbf
-- weight
-summary: 'A Deep Dive into Model Regularization: Overfitting, Dropout, L1, and L2
-  for Advanced Research Welcome.'
-auto-generated: true
----
-# A Deep Dive into Model Regularization: Overfitting, Dropout, L1, and L2 for Advanced Research
+# Overfitting, Dropout, L1, and L2 for Advanced Research
 
 Welcome. If you’ve reached this document, you likely already understand that model performance metrics are not merely academic exercises; they are the gatekeepers to deployable intelligence. You are not here to learn what overfitting *is*—that concept is foundational, bordering on remedial. You are here to dissect the mechanisms by which we force complex, high-capacity models to exhibit generalization capabilities that mimic, rather than merely parrot, the training distribution.
 

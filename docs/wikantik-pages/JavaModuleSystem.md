@@ -1,15 +1,4 @@
----
-title: Java Module System
-type: article
-tags:
-- modul
-- requir
-- depend
-summary: This tutorial assumes a high level of familiarity with Java's internal workings,
-  bytecode manipulation, and dependency resolution theory.
-auto-generated: true
----
-# Mastering the Art of Isolation: A Deep Dive into Java Platform Module System (JPMS) Encapsulation for Advanced Researchers
+# Mastering the Art of Isolation
 
 The evolution of Java's module system, formalized by the Java Platform Module System (JPMS) in Java 9 (and subsequently refined through subsequent JEPs), represents one of the most significant architectural shifts in the language's history. For seasoned developers and researchers accustomed to the historical flexibility—and inherent chaos—of the traditional classpath model, JPMS is not merely an organizational tool; it is a fundamental paradigm shift in how dependencies, visibility, and runtime contracts are enforced.
 
@@ -44,7 +33,7 @@ This shift moves dependency management from a *runtime discovery* problem (class
 
 ---
 
-## II. The Mechanics of Encapsulation: `module-info.java` Deep Dive
+## II. The Mechanics of Encapsulation: `module-info.java`
 
 The heart of JPMS encapsulation lies within the `module-info.java` file. This file is the module's manifest, the declarative source of truth for its boundaries. Understanding its directives is paramount for advanced usage.
 
@@ -162,7 +151,7 @@ In a modular plugin system, you must define three distinct roles:
 
 This structure ensures that the Host module only ever sees the *interface* defined in the API module, never the internal implementation details of the JWT provider.
 
-### Module Layers: The Next Frontier in Isolation
+### Module Layers
 
 For systems requiring extreme isolation, the concept of **Module Layers** (as referenced in advanced plugin contexts) represents a refinement of JPMS. While standard modules define a single, cohesive unit, a Module Layer allows a single logical unit of code to be composed of multiple, potentially disparate, underlying modules.
 

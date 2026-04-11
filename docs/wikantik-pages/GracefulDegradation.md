@@ -1,15 +1,4 @@
----
-title: Graceful Degradation
-type: article
-tags:
-- failur
-- servic
-- system
-summary: Systems built at scale are, by definition, complex, and complexity guarantees
-  failure.
-auto-generated: true
----
-# Mastering the Art of Failure: A Comprehensive Tutorial on Graceful Degradation and Fallback Resilience for Advanced Systems Architects
+# Mastering the Art of Failure
 
 ## Abstract
 

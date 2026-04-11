@@ -1,15 +1,4 @@
----
-title: Queueing Theory
-type: article
-tags:
-- system
-- time
-- servic
-summary: A Comprehensive Tutorial on Queueing Theory Waiting Line Analysis for Advanced
-  Researchers Welcome.
-auto-generated: true
----
-# A Comprehensive Tutorial on Queueing Theory Waiting Line Analysis for Advanced Researchers
+# Queueing Theory Waiting Line Analysis
 
 Welcome. If you are reading this, you are not looking for the basic definition of Little's Law or the derivation of the M/M/1 waiting time. You are here because the standard textbook treatments feel insufficient, because the real-world systems you are modeling exhibit complexities that render simple exponential distributions laughably inadequate.
 

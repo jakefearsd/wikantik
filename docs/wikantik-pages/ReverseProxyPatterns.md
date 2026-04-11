@@ -1,15 +1,4 @@
----
-title: Reverse Proxy Patterns
-type: article
-tags:
-- proxi
-- haproxi
-- nginx
-summary: When architecting microservices, the reverse proxy is the gatekeeper, the
-  traffic cop, and occasionally, the primary point of failure.
-auto-generated: true
----
-# The Ingress Nexus: A Deep Dive into Reverse Proxy Architectures with Nginx and HAProxy for Advanced Routing
+# The Ingress Nexus
 
 For those of us who spend our careers wrestling with the invisible plumbing of modern distributed systems, the concept of the "Ingress Point" is not merely a feature—it is the central nervous system. When architecting microservices, the reverse proxy is the gatekeeper, the traffic cop, and occasionally, the primary point of failure.
 
@@ -64,7 +53,7 @@ Load balancing is the core function, but the *policy* matters immensely.
 
 ---
 
-## ⚙️ Section 2: Nginx Deep Dive – The Versatile Workhorse
+## ⚙️ Section 2: The Versatile Workhorse
 
 Nginx, built on an asynchronous, event-driven architecture, is renowned for its exceptional performance in handling a massive number of concurrent, low-bandwidth connections (the C10k problem). Its strength lies in its *flexibility* and its mature, highly readable configuration syntax for HTTP-centric tasks.
 
@@ -148,7 +137,7 @@ Nginx handles TLS termination gracefully. By placing the SSL certificate handlin
 
 ---
 
-## 🚀 Section 3: HAProxy Deep Dive – The Load Balancing Specialist
+## 🚀 Section 3: The Load Balancing Specialist
 
 If Nginx is the Swiss Army Knife, HAProxy is the highly specialized, industrial-grade hydraulic press. It was purpose-built for high-availability load balancing and connection management, giving it inherent advantages in stateful, high-throughput scenarios.
 
@@ -206,7 +195,7 @@ This comparison must be framed not as a "winner," but as a "tool selection matri
 | **Configuration Style** | Directive-based, highly readable for web engineers. | Scripting/State-machine based, requires deeper networking knowledge. | Nginx has a lower barrier to entry for web developers; HAProxy requires a dedicated infrastructure expert. |
 | **Performance Bottleneck** | CPU utilization during complex regex matching or excessive header manipulation. | Memory usage due to maintaining state tables for thousands of connections. | Both are fast, but the *type* of bottleneck differs. |
 
-### 4.1 Deep Dive: Handling Request Bodies (The Edge Case)
+### 4.1 Handling Request Bodies (The Edge Case)
 
 Source [4] highlights routing based on the POST body. This is a significant differentiator.
 

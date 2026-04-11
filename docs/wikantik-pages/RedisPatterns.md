@@ -1,13 +1,3 @@
----
-title: Redis Patterns
-type: article
-tags:
-- cach
-- redi
-- data
-summary: This tutorial is not for the novice looking for a simple SET key value tutorial.
-auto-generated: true
----
 # Redis Patterns: Architecting Hyper-Scalable Systems with Caching, Session Management, and Pub/Sub
 
 For those of us who have spent enough time wrestling with distributed systems, the term "state management" is less a feature and more a philosophical battle. We are constantly fighting the entropy of scale, the inevitable race conditions, and the sheer headache of ensuring that what one service thinks is true, all other services also agree upon—and do so *instantly*.
@@ -119,7 +109,7 @@ This area is fraught with security pitfalls that cannot be overstated:
 
 ---
 
-## 📡 Section 3: Mastering Real-Time Communication with Pub/Sub
+## 📡 Section 3
 
 If caching is about *state* and sessions are about *identity*, Pub/Sub is about *action*. It is the mechanism for broadcasting events without knowing, or caring, who is listening.
 
@@ -177,7 +167,7 @@ Let's model a complex, real-world scenario: **User Profile Update and Cache Inva
     *   The Notification Service might use this event to invalidate any cached "last seen" status for that user.
     *   The Recommendation Service might trigger a re-indexing job for the user's profile data.
 
-### 4.2 Deep Dive: The Role of Event Sourcing Principles
+### 4.2 The Role of Event Sourcing Principles
 
 What we just described is a lightweight implementation of **Event Sourcing**. Instead of just updating the current state (the "current profile"), we are treating the *change itself* (the event) as the primary artifact.
 

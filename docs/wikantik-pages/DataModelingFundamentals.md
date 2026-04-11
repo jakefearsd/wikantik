@@ -1,16 +1,4 @@
----
-title: Data Modeling Fundamentals
-type: article
-tags:
-- model
-- relationship
-- entiti
-summary: We are not here to review the basics of drawing boxes and connecting lines;
-  that knowledge, frankly, should have been absorbed during the undergraduate phase
-  of database theory.
-auto-generated: true
----
-# The Conceptual Apex: A Deep Dive into Entity-Relationship Modeling for Advanced Data Architects
+# The Conceptual Apex
 
 For those of us who have spent enough time staring at database schemas, the term "conceptual data modeling" often elicits a sigh—a mixture of weary familiarity and grudging respect. We are not here to review the basics of drawing boxes and connecting lines; that knowledge, frankly, should have been absorbed during the undergraduate phase of database theory.
 

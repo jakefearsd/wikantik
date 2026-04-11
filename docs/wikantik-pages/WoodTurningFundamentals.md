@@ -1,16 +1,4 @@
----
-title: Wood Turning Fundamentals
-type: article
-tags:
-- tool
-- chuck
-- must
-summary: The depth of coverage assumes familiarity with basic lathe operation, material
-  properties of hardwoods, and mechanical principles such as torque, stress distribution,
-  and rotational kinematics.
-auto-generated: true
----
-# The Kinematics and Craft: A Comprehensive Technical Tutorial on Wood Turning Lathe Bowl Spindles for Advanced Researchers
+# The Kinematics and Craft
 
 **Disclaimer:** This document is intended for highly experienced woodturning artisans, mechanical engineers specializing in rotational dynamics, and materials scientists researching advanced wood utilization techniques. The depth of coverage assumes familiarity with basic lathe operation, material properties of hardwoods, and mechanical principles such as torque, stress distribution, and rotational kinematics.
 
@@ -65,7 +53,7 @@ A bowl is a complex, non-uniform stress body. When carving, the forces exerted b
 
 ---
 
-## II. The Spindle Mounting Interface: Chuck Technology Deep Dive
+## II. The Spindle Mounting Interface: Chuck Technology
 
 The chuck is the mechanical linchpin of the entire operation. It must provide near-perfect concentricity, withstand extreme torque fluctuations, and maintain a secure grip across varying diameters. The context provided highlights 4-jaw chucks and direct-thread chucks. An expert analysis requires comparing these systems against theoretical ideals.
 
@@ -101,7 +89,7 @@ For research into next-generation systems, two alternatives warrant consideratio
 
 ---
 
-## III. Tooling Deep Dive: The Bowl Gouge and Tool Geometry
+## III. The Bowl Gouge and Tool Geometry
 
 The gouge is the primary interface between the artisan's intent and the wood's physical resistance. It is not merely a scoop; it is a highly specialized, profiled cutting instrument whose geometry dictates the final aesthetic and structural integrity of the bowl.
 
@@ -153,7 +141,7 @@ FUNCTION Generate_Tool_Path(Target_Surface_Mesh, Current_Tool_Profile, Material_
 
 Moving beyond simple roughing and finishing, advanced techniques involve integrating multiple processes—profiling, joinery, and surface modification—into a single, optimized workflow.
 
-### A. The Art of Compound Curvature Profiling
+### A. Compound Curvature Profiling
 
 A true bowl is not a simple revolution of a 2D curve; it is a complex, three-dimensional surface defined by multiple intersecting curves (the rim profile, the shoulder, the base curve).
 

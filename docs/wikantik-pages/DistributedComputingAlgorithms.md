@@ -1,15 +1,4 @@
----
-title: Distributed Computing Algorithms
-type: article
-tags:
-- model
-- algorithm
-- comput
-summary: The algorithms designed to solve these problems are often more complex than
-  the algorithms they are meant to accelerate.
-auto-generated: true
----
-# A Comprehensive Tutorial on Distributed Computing Algorithms for Algorithm Researchers
+# Distributed Computing Algorithms for Algorithm Researchers
 
 This document serves as an exhaustive technical deep dive into the theory, models, and practical implementations of distributed computing algorithms. Given the target audience—expert software engineers engaged in algorithm research—we will bypass introductory concepts and focus immediately on the formalisms, inherent complexities, failure models, and the subtle trade-offs that define modern distributed systems research.
 

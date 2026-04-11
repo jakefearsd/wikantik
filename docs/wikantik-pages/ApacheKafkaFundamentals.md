@@ -1,16 +1,4 @@
----
-title: Apache Kafka Fundamentals
-type: article
-tags:
-- kafka
-- stream
-- consum
-summary: We are treating Kafka not merely as a message broker, but as the central
-  nervous system—the immutable, ordered, and highly scalable log upon which modern,
-  real-time data architectures must be built.
-auto-generated: true
----
-# Apache Kafka: An Architectural Deep Dive into Event Streaming as the Data Fabric Backbone
+# Apache Kafka
 
 For those of us who have moved past the quaint notion of a "message queue" and into the realm of true, high-throughput, durable, and ordered event streams, Apache Kafka represents less of a component and more of a foundational architectural primitive. This tutorial is not intended for those who need to know what a topic is; we assume you are already wrestling with distributed consensus, backpressure mechanisms, and the subtle nuances between event time and processing time.
 
@@ -118,7 +106,7 @@ When the processing requirements exceed the capabilities or desired operational 
 *   **Flink:** Often preferred for its true stream-first, low-latency, and robust state management capabilities, especially when dealing with complex event time semantics.
 *   **Spark Structured Streaming:** Excellent for integrating Kafka into existing Spark ETL pipelines, particularly when the data source is already heavily processed by Spark jobs.
 
-### B. Mastering Time Semantics: The Crux of Stream Processing
+### B. The Crux of Stream Processing
 This is arguably the most common point of failure for engineers new to stream processing. Time is not a single concept; it is a spectrum.
 
 1.  **Event Time ($T_{event}$):** The time the event *actually occurred* at the source. This is the ground truth and the time dimension you must process against.
@@ -159,7 +147,7 @@ As data schemas inevitably change, the system must not break. This requires a ro
 
 **Compatibility Modes:** The Schema Registry enforces compatibility rules (e.g., `BACKWARD`, `FORWARD`, `FULL`). An expert must understand that choosing the wrong compatibility mode can lead to silent data corruption or runtime deserialization failures when a producer updates its schema.
 
-### C. Security Deep Dive
+### C. Security
 Security must be layered, addressing transit, storage, and access control.
 
 1.  **Encryption in Transit (TLS/SSL):** All communication between Producers, Consumers, and Brokers *must* be encrypted using TLS. This prevents man-in-the-middle attacks on the network fabric.

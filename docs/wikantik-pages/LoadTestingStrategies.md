@@ -1,14 +1,4 @@
----
-title: Load Testing Strategies
-type: article
-tags:
-- test
-- load
-- system
-summary: This, naturally, is a source of profound professional irritation.
-auto-generated: true
----
-# The Triad of Resilience: A Comprehensive Technical Deep Dive into Load, Stress, and Benchmark Testing for Advanced Performance Engineering
+# The Triad of Resilience
 
 For those of us who spend our careers wrestling with the ephemeral nature of system performance, the terms "Load Testing," "Stress Testing," and "Benchmarking" are often used interchangeably in casual conversation. This, naturally, is a source of profound professional irritation. To the novice, they are mere synonyms; to the seasoned practitioner, they represent distinct, mathematically defined methodologies, each probing a different facet of a system's operational envelope.
 
@@ -129,7 +119,7 @@ Under low load, connection acquisition is near-instantaneous. As load increases,
 
 ---
 
-## IV. Deep Dive into Test Execution Paradigms
+## IV. Test Execution Paradigms
 
 To achieve the required depth, we must move beyond "run a script" and discuss the *architecture* of the test execution itself.
 

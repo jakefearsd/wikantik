@@ -1,11 +1,9 @@
 ---
-summary: Hub page for adopting generative AI as an individual contributor or at a very small company — practical guidance on tools, workflows, local LLMs, and accelerating your learning
+summary: Hub page for adopting generative AI as an individual contributor or at a
+  very small company — practical guidance on tools, workflows, local LLMs, and accelerating
+  your learning
 date: 2026-03-14T01:00:00Z
-tags:
-- generative-ai
-- productivity
-- individual-contributor
-- small-business
+cluster: generative-ai
 related:
 - UnderstandingGenerativeAi
 - GenerativeAiToolsForIndividuals
@@ -15,8 +13,14 @@ related:
 - AcceleratingAiLearning
 - WarehouseAiAndMl
 type: reference
-cluster: generative-ai
 status: active
+tags:
+- generative-ai
+- productivity
+- individual-contributor
+- small-business
+hubs:
+- MlModelDeployment Hub
 ---
 
 # Generative AI Adoption Guide

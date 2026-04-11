@@ -1,15 +1,4 @@
----
-title: Code Review Practices
-type: article
-tags:
-- review
-- must
-- code
-summary: When researching new techniques in software development, one cannot afford
-  to treat code review as a mere checklist exercise.
-auto-generated: true
----
-# The Art and Science of Critique: Advanced Code Review Practices for High-Velocity, Expert Engineering Teams
+# The Art and Science of Critique
 
 ## Introduction: The Pull Request as a Cultural Artifact
 
@@ -59,7 +48,7 @@ This is where the "soft skills" become the hardest technical skill. A review mus
 
 ---
 
-## II. Deep Dive into Review Criteria: The Expert Checklist
+## II. The Expert Checklist
 
 The general best practices list (security, readability, structure) is insufficient for experts. We must categorize these criteria into orthogonal dimensions of system quality.
 

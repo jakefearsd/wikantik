@@ -1,15 +1,4 @@
----
-title: Robo Advisor Comparison
-type: article
-tags:
-- risk
-- text
-- model
-summary: For the seasoned researcher, the term "robo-advisor" should not evoke images
-  of simplistic, one-size-fits-all digital portfolios.
-auto-generated: true
----
-# A Deep Dive into Robo-Advisor Comparison for Automated Investing: A Technical Review for Advanced Practitioners
+# Robo-Advisor Comparison for Automated Investing
 
 The landscape of personal finance technology has undergone a seismic shift with the maturation of robo-advisory services. What began as a simple digital wrapper around index fund allocations has evolved into a complex, algorithmically driven ecosystem attempting to model, predict, and manage human capital risk with mathematical precision.
 

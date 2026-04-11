@@ -1,15 +1,4 @@
----
-title: Transformer Architecture
-type: article
-tags:
-- mathbf
-- attent
-- text
-summary: This tutorial is not intended for the graduate student who just read the
-  "Attention Is All You Need" paper and thinks they understand it.
-auto-generated: true
----
-# The Mechanics of Contextual Understanding: A Deep Dive into the Transformer Attention Mechanism
+# The Mechanics of Contextual Understanding
 
 For those of us who spend our days wrestling with the nuances of sequence modeling, the Transformer architecture is less a model and more a philosophical paradigm shift. It was the moment we collectively realized that the sequential, recursive constraints of RNNs and the local receptive field limitations of CNNs were not fundamental bottlenecks, but rather architectural limitations imposed by our own historical biases. The true engine of this revolution, the component that elevates the Transformer from a mere stack of layers to a powerhouse of contextual understanding, is the **Attention Mechanism**, specifically the self-attention formulation.
 
@@ -170,7 +159,7 @@ The structure differs critically between the Encoder and the Decoder, particular
 
 ---
 
-## V. Advanced Theoretical Deep Dives: Beyond Standard Attention
+## V. Beyond Standard Attention
 
 For researchers pushing the boundaries, the $O(N^2)$ complexity is not a minor inconvenience; it is a hard computational barrier that limits the maximum sequence length $N$ we can practically train on. The entire field of "Efficient Transformers" is dedicated to circumventing this quadratic dependency.
 

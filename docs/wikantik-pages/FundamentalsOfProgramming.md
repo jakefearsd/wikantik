@@ -77,7 +77,7 @@ In the agentic development model, you will spend more time *reading and evaluati
 
 This is where [Linux command-line skills](LinuxCommandLineEssentials) and understanding [how systems actually work](LinuxSystemAdministration) pay off directly. When a deployment fails, the person who can read logs, trace processes, and understand filesystem permissions does not need to wait for an AI to diagnose the problem.
 
-### 3. Understanding State and Side Effects
+### 3. State and Side Effects
 
 The hardest bugs in software are not syntax errors (which AI eliminates). They are **state management bugs** — situations where the system is in a state that nobody anticipated:
 

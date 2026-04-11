@@ -1,15 +1,4 @@
----
-title: Database Partitioning
-type: article
-tags:
-- partit
-- hash
-- rang
-summary: When data volumes swell into the petabyte realm, the monolithic database
-  structure becomes a performance bottleneck, a digital choke point.
-auto-generated: true
----
-# The Architecture of Data Distribution: A Comprehensive Tutorial on Range-List-Hash Database Partitioning
+# Data Distribution
 
 For those of us who spend our professional lives wrestling with the sheer, unbridled volume of modern data, the concept of data partitioning is not merely an optimization—it is a fundamental prerequisite for system viability. When data volumes swell into the petabyte realm, the monolithic database structure becomes a performance bottleneck, a digital choke point. Partitioning, in essence, is the art and science of preemptively dividing a logical dataset into smaller, manageable physical segments, thereby allowing query engines to operate on subsets of data, dramatically reducing I/O, and improving concurrency.
 
@@ -114,7 +103,7 @@ Why resort to this level of complexity? Because the data access pattern exhibits
 *   **List:** The transactions are fundamentally segmented by the originating Business Unit (BU) (e.g., BU\_Retail, BU\_Corporate, BU\_Investment).
 *   **Hash:** Within the 'Q1 2025' data for 'BU\_Retail', the transaction volume is immense. If we only used Range-List, all transactions for that quarter/BU would land in one logical partition, leading to I/O saturation. By applying Hash on `TransactionID`, we distribute the load across, say, 64 physical sub-partitions, ensuring that no single physical disk array is overwhelmed by the volume of retail transactions in Q1 2025.
 
-### 3.2. Algorithmic Deep Dive: The Role of the Hash Function
+### 3.2. The Role of the Hash Function
 
 The success of the Range-List-Hash scheme hinges critically on the quality and implementation of the hash function used in the final layer.
 

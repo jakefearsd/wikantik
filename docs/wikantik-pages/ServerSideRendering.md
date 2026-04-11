@@ -1,15 +1,4 @@
----
-title: Server Side Rendering
-type: article
-tags:
-- server
-- compon
-- client
-summary: 'The Architecture of Illusion: A Deep Dive into Server-Side Rendering and
-  Hydration in Next.js for Advanced Practitioners Welcome.'
-auto-generated: true
----
-# The Architecture of Illusion: A Deep Dive into Server-Side Rendering and Hydration in Next.js for Advanced Practitioners
+# The Architecture of Illusion
 
 Welcome. If you've reached this document, you likely view web performance not as a feature, but as a non-negotiable architectural requirement. You understand that the difference between a fast, resilient application and a sluggish, SEO-graveyard is often measured in milliseconds—or, more accurately, in the precise synchronization of runtime environments.
 
@@ -51,7 +40,7 @@ When the browser receives this HTML, it displays it immediately (the "illusion")
 
 ---
 
-## ⚙️ Part II: The Next.js Rendering Pipeline Deep Dive
+## ⚙️ Part II: The Next.js Rendering Pipeline
 
 Next.js abstracts away much of the complexity, but understanding *how* it orchestrates the flow is critical for debugging and optimization. We will focus primarily on the modern App Router paradigm, as it represents the current state-of-the-art in React/Next.js architecture.
 

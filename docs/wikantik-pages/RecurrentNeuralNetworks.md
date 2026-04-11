@@ -1,15 +1,4 @@
----
-title: Recurrent Neural Networks
-type: article
-tags:
-- mathbf
-- state
-- model
-summary: 'Recurrent Neural Network Sequence Modeling: A Deep Dive for Advanced Researchers
-  Welcome.'
-auto-generated: true
----
-# Recurrent Neural Network Sequence Modeling: A Deep Dive for Advanced Researchers
+# Recurrent Neural Network Sequence Modeling
 
 Welcome. If you've reached this document, you are likely past the point of needing a high-school overview of backpropagation. You are here to dissect the mechanisms, understand the theoretical bottlenecks, and explore the bleeding edge of sequence modeling.
 
@@ -260,7 +249,7 @@ This moves the model from pure pattern recognition to knowledge-grounded reasoni
 
 ---
 
-## Ⅶ. Comprehensive Application Deep Dive
+## Ⅶ. Comprehensive Application
 
 To solidify the understanding, let's categorize the application domains and the *best-suited* architectural approach, acknowledging that the "best" answer is often context-dependent.
 

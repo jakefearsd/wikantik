@@ -1,16 +1,4 @@
----
-title: Target Date Funds
-type: article
-tags:
-- text
-- risk
-- path
-summary: It represents an explicit assumption about the relationship between time
-  horizon, investor risk tolerance, and the optimal risk-return profile required to
-  meet a future liability stream.
-auto-generated: true
----
-# The Calculus of Time: A Deep Dive into Target Date Fund Lifecycle Glide Path Mechanics for Advanced Practitioners
+# The Calculus of Time
 
 ## Introduction: Deconstructing the Time-Based Investment Mandate
 

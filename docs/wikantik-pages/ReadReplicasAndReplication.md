@@ -1,15 +1,4 @@
----
-title: Read Replicas And Replication
-type: article
-tags:
-- read
-- replica
-- primari
-summary: This tutorial is not for the DBA who just needs to point a load balancer
-  at a secondary endpoint.
-auto-generated: true
----
-# The Art of Resilience: Advanced Techniques in Read Replica Replication for High Availability Systems
+# Advanced Techniques in Read Replica Replication for High Availability Systems
 
 For those of us who spend our careers optimizing the data plane, the concept of "read scaling" is often treated as a mere afterthought—a simple feature toggle. However, for systems operating at global scale, handling petabytes of data, or demanding near-perfect uptime, the read replica is not just a performance booster; it is a critical component of the overall High Availability (HA) architecture.
 
@@ -154,7 +143,7 @@ When the primary fails, a designated replica must be promoted. This transition i
 
 ---
 
-## IV. Deep Dive into Consistency Models and Lag Management
+## IV. Consistency Models and Lag Management
 
 For researchers, the most interesting area is quantifying and managing the *gap* between the primary and the replicas.
 

@@ -1,15 +1,4 @@
----
-title: Static Site Generation
-type: article
-tags:
-- compon
-- astro
-- build
-summary: 'The Architectural Deep Dive: Mastering Static Site Generation with Astro
-  vs.'
-auto-generated: true
----
-# The Architectural Deep Dive: Mastering Static Site Generation with Astro vs. The Legacy of Hugo
+# The Architectural
 
 For the researcher, the architect, or the seasoned developer perpetually chasing the bleeding edge of web performance, the choice of tooling is rarely about mere syntax; it is fundamentally an architectural decision. We are moving beyond the era where "fast" was measured by build time alone. Today, performance is measured by runtime efficiency, bundle size, and the intelligent management of JavaScript execution boundaries.
 
@@ -66,7 +55,7 @@ This architectural difference is not merely a feature upgrade; it is a paradigm 
 
 ---
 
-## ⚙️ Section 2: Deep Dive into the Hugo Workflow (The Established Powerhouse)
+## ⚙️ Section 2: The Hugo Workflow (The Established Powerhouse)
 
 For those coming from a background steeped in Hugo, the learning curve for Astro might seem steep, but understanding Hugo's strengths illuminates Astro's value proposition.
 
@@ -94,7 +83,7 @@ While Hugo is exceptional at generating static HTML from structured content, its
 
 Astro is not just another SSG; it is a *rendering strategy* built around component isolation. To truly master it, one must internalize the concept of the Island.
 
-### 3.1 The Islands Architecture: A Deep Dive
+### 3.1 The Islands Architecture
 
 The Islands Architecture is the conceptual breakthrough. Imagine your webpage as a series of islands floating on a vast ocean of pure HTML.
 
@@ -107,7 +96,7 @@ When Astro builds the site, it performs a sophisticated analysis:
 2.  **Client Directive Analysis:** For components that need interactivity, the developer explicitly marks them using directives (e.g., `client:load`, `client:visible`).
 3.  **Scoped Hydration:** Astro then generates the minimal necessary JavaScript *only* for those marked components. It hydrates them in isolation, preventing the entire page from needing a monolithic JavaScript bundle.
 
-#### Understanding Hydration Directives (The Control Mechanism)
+#### Hydration Directives (The Control Mechanism)
 
 This is where the expert control comes into play. Astro provides granular control over *when* and *how* hydration occurs:
 
@@ -216,7 +205,7 @@ This granular control over the JavaScript payload is the single greatest perform
 
 For experts, the build process is only half the battle. Optimization, deployment, and handling edge cases are where true mastery is demonstrated.
 
-### 5.1 Performance Benchmarking Deep Dive
+### 5.1 Performance Benchmarking
 
 When comparing the two, performance must be measured across three vectors:
 

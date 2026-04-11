@@ -1,15 +1,4 @@
----
-title: Type Systems Comparison
-type: article
-tags:
-- type
-- system
-- static
-summary: The choice of type system dictates the contract between the programmer, the
-  compiler/interpreter, and the runtime environment.
-auto-generated: true
----
-# The Type Spectrum: A Deep Dive into Static, Dynamic, and Gradual Type Systems for Advanced Research
+# The Type Spectrum
 
 For those of us perpetually wrestling with the theoretical underpinnings of computation, the concept of "type" is less a mere feature of a language and more a fundamental constraint on the very structure of valid computation. The choice of type system dictates the contract between the programmer, the compiler/interpreter, and the runtime environment. Understanding the spectrum—from rigidly enforced compile-time guarantees to maximally flexible runtime interpretation—is not just academic; it is crucial for designing robust, scalable, and maintainable systems, especially when researching novel language constructs or domain-specific languages (DSLs).
 

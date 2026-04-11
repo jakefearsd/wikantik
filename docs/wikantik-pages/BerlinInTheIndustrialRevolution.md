@@ -1,15 +1,4 @@
----
-title: Berlin In The Industrial Revolution
-type: article
-tags:
-- industri
-- berlin
-- system
-summary: This tutorial aims to synthesize the major epochs of Berlin’s manufacturing
-  evolution, providing a framework for analyzing the underlying structural shifts.
-auto-generated: true
----
-# A Deep Dive into the Industrial Metabolism of Berlin: From Craft Guilds to Digital Prototyping
+# From Craft Guilds to Digital Prototyping
 
 **A Comprehensive Tutorial for Advanced Researchers in Industrial History and Technological Transition**
 

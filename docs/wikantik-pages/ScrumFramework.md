@@ -1,16 +1,4 @@
----
-title: Scrum Framework
-type: article
-tags:
-- sprint
-- team
-- must
-summary: It transforms into a sophisticated, self-regulating, empirical system—a highly
-  optimized feedback loop designed to manage complexity and uncertainty in knowledge
-  work.
-auto-generated: true
----
-# Deconstructing the Engine: A Comprehensive Analysis of Scrum Roles, Ceremonies, and Artifacts for Advanced Practitioners
+# The Engine
 
 For those of us who have moved beyond the introductory glossaries of Agile methodologies, the Scrum framework ceases to be a mere process checklist. It transforms into a sophisticated, self-regulating, empirical system—a highly optimized feedback loop designed to manage complexity and uncertainty in knowledge work.
 

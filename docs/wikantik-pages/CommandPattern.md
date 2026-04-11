@@ -1,14 +1,3 @@
----
-title: Command Pattern
-type: article
-tags:
-- command
-- state
-- undo
-summary: This tutorial is not intended for those who merely need to implement a basic
-  "Undo" button.
-auto-generated: true
----
 # The Command Pattern: Advanced Action Encapsulation, Undo Semantics, and Transactional State Management
 
 For those of us who have spent enough time wrestling with mutable state in complex, interactive systems, the concept of managing causality—the ability to reliably step backward through a sequence of operations—is not merely a feature; it is a fundamental requirement for building robust, user-facing software. The Command Pattern, when properly understood and extended, transcends its textbook definition to become a powerful architectural primitive for achieving transactional integrity within application logic.
@@ -87,7 +76,7 @@ The Invoker is the client interface (e.g., a GUI button, a menu item, or a macro
 
 ---
 
-## Ⅲ. Deep Dive into Undo Semantics: State Capture Strategies
+## Ⅲ. State Capture Strategies
 
 The `undo()` method is the Achilles' heel of the pattern, and thus, the area requiring the most rigorous academic scrutiny. Simply calling `undo()` is not enough; we must ensure *semantic* reversal, not just syntactic reversal.
 

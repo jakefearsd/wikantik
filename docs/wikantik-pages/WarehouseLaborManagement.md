@@ -1,14 +1,4 @@
----
-title: Warehouse Labor Management
-type: article
-tags:
-- text
-- time
-- optim
-summary: It is, fundamentally, a complex, dynamic, stochastic optimization problem.
-auto-generated: true
----
-# The Algorithmic Choreography: A Comprehensive Tutorial on Advanced Warehouse Labor Management and Workforce Planning for Research Experts
+# The Algorithmic Choreography
 
 ## Introduction: Beyond Headcount Counting
 

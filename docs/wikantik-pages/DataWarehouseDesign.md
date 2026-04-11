@@ -1,16 +1,4 @@
----
-summary: We are not merely storing data; we are engineering knowledge.
-type: article
-title: Data Warehouse Design
-auto-generated: true
-tags:
-- tabl
-- schema
-- snowflak
-hubs:
-- DimensionalModeling Hub
----
-# The Architectural Calculus of Dimensional Modeling: A Deep Dive into Star and Snowflake Schema Design for Advanced Practitioners
+# The Architectural Calculus of Dimensional Modeling
 
 For those of us who spend our careers wrestling with the sheer, glorious mess of enterprise data, the concept of a "data warehouse" often feels less like an architectural pattern and more like a necessary act of digital triage. We are not merely storing data; we are engineering *knowledge*. The structure we impose upon this chaos—the schema—is arguably the most critical, yet most frequently misunderstood, component of the entire data pipeline.
 
@@ -24,7 +12,7 @@ We will move beyond simple comparisons of "fast" versus "normalized." We will de
 
 Before dissecting the two primary models, we must establish the theoretical ground upon which they rest. Data warehousing, at its core, is a specialized form of Online Analytical Processing (OLAP) database design, fundamentally diverging from Online Transaction Processing (OLTP).
 
-### A. OLTP vs. OLAP: A Paradigm Shift in Data Access Patterns
+### A. OLTP vs. OLAP
 
 In an OLTP system (e.g., an operational CRM or ERP), the primary goal is **data integrity and transactional atomicity (ACID properties)**. Writes are frequent, small, and highly constrained. The schema is typically highly normalized (3NF or higher) to eliminate update anomalies and ensure that every piece of data is stored exactly once. The query patterns are narrow: "Fetch the current record for Customer X."
 
@@ -201,7 +189,7 @@ Slowly Changing Dimensions (SCDs) are not just ETL tasks; they are architectural
 
 ---
 
-## VI. Performance Tuning and Implementation Deep Dive
+## VI. Performance Tuning and Implementation
 
 For the expert researching new techniques, the discussion must pivot from *structure* to *execution*. The schema choice dictates the optimization strategy.
 

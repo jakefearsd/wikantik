@@ -1,15 +1,4 @@
----
-title: Servlet Architecture Deep Dive
-type: article
-tags:
-- filter
-- request
-- context
-summary: This tutorial is not for the novice who merely needs to wrap a try-catch
-  block around a request.
-auto-generated: true
----
-# The Anatomy of Interception: A Deep Dive into the Servlet Filter Lifecycle for Advanced Practitioners
+# The Anatomy of Interception
 
 For those of us who spend our careers wrestling with the intricacies of enterprise Java web services, the Servlet Filter mechanism is not merely a feature; it is a foundational architectural pattern for managing cross-cutting concerns. It represents the elegant, yet often misunderstood, interception layer that allows developers to weave logic—be it security enforcement, request transformation, or metrics collection—around the core business logic of a Servlet, without polluting the service layer itself.
 
@@ -88,7 +77,7 @@ Filters are powerful because they allow manipulation at two distinct points:
 
 ---
 
-## III. The Lifecycle Deep Dive: Initialization, Execution, and Teardown
+## III. Initialization, Execution, and Teardown
 
 The term "Filter Lifecycle" implies a sequence of managed states. While the `doFilter()` method defines the *runtime* lifecycle, the container manages the *setup* and *teardown* lifecycle.
 
@@ -238,7 +227,7 @@ This demonstrates that the filter is not just about HTTP manipulation; it is abo
 
 ---
 
-## VII. Conclusion: Mastering the Interception Point
+## VII. Conclusion
 
 The Servlet Filter remains an indispensable, low-level tool in the Java web ecosystem. It provides the necessary hook into the raw transport layer that higher-level abstractions often abstract away or handle imperfectly.
 

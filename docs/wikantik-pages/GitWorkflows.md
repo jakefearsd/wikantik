@@ -1,15 +1,4 @@
----
-title: Git Workflows
-type: article
-tags:
-- branch
-- featur
-- tbd
-summary: However, as projects scale, the architectural decisions made regarding branching—the
-  very mechanism by which collaboration is managed—become critical failure points.
-auto-generated: true
----
-# Mastering the Stream: A Deep Dive into Trunk-Based Development for Advanced Engineering Teams
+# The Stream
 
 ## Introduction: The Crisis of Branching Complexity
 

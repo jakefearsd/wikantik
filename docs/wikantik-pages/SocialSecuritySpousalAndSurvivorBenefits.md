@@ -1,13 +1,3 @@
----
-title: Social Security Spousal And Survivor Benefits
-type: article
-tags:
-- benefit
-- text
-- claim
-summary: 'Discipline: Social Security Benefit Modeling and Retirement Income Sequencing.'
-auto-generated: true
----
 # A Comprehensive Technical Review of Social Security Spousal and Survivor Benefit Optimization Strategies
 
 **Target Audience:** Financial Planners, Actuaries, Estate Attorneys, and Advanced Retirement Researchers.

@@ -1,16 +1,4 @@
----
-title: Inflation Protection Strategies
-type: article
-tags:
-- tip
-- inflat
-- real
-summary: Retirement planning, by its very nature, is a multi-decade endeavor, exposing
-  the principal and the resultant income stream to the full spectrum of macroeconomic
-  volatility.
-auto-generated: true
----
-# A Deep Dive into Inflation-Protected TIPS Integration within Advanced Retirement Portfolio Construction
+# Inflation-Protected TIPS Integration within Advanced Retirement Portfolio Construction
 
 **A Technical Monograph for Quantitative Researchers and Portfolio Strategists**
 
@@ -30,7 +18,7 @@ However, for an expert audience researching *new techniques*, viewing TIPS merel
 
 ---
 
-## I. Theoretical Mechanics of TIPS: Beyond the Surface Level
+## I. Theoretical Mechanics of TIPS
 
 To properly model TIPS, one must understand the underlying mechanics of the indexation process. The perceived simplicity of "adjusting with inflation" masks a complex interaction between the CPI calculation, the Treasury's issuance mechanism, and the resulting cash flow structure.
 

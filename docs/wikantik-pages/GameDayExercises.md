@@ -1,15 +1,4 @@
----
-title: Game Day Exercises
-type: article
-tags:
-- failur
-- servic
-- system
-summary: 'Chaos Monkey Game Day Failure Injection: A Deep Dive for Resilience Architects
-  Welcome.'
-auto-generated: true
----
-# Chaos Monkey Game Day Failure Injection: A Deep Dive for Resilience Architects
+# Chaos Monkey Game Day Failure Injection
 
 Welcome. If you are reading this, you are likely already familiar with the buzzwords surrounding resilience engineering—terms like "Chaos Engineering," "Blast Radius," and "Mean Time To Recovery (MTTR)." You understand that simply having redundancy is no longer sufficient; you must prove that redundancy works when the underlying assumptions of your system break down.
 
@@ -64,7 +53,7 @@ If the system fails to meet $[Z]$ under the conditions of $[X]$, the hypothesis 
 
 ---
 
-## Ⅱ. Deconstructing Chaos Monkey: From Novelty to Necessity
+## Ⅱ. From Novelty to Necessity
 
 The original concept, often associated with Netflix, was brilliant in its simplicity and its ability to shock a complacent organization into action. It was the perfect catalyst. However, relying solely on random termination is insufficient for modern, complex architectures.
 

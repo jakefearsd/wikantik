@@ -1,17 +1,4 @@
----
-summary: 'The Architecture of Insight: A Deep Dive into Dimensional Modeling, Fact,
-  and Dimension Structures for Advanced Practitioners Welcome.'
-type: article
-title: Dimensional Modeling
-auto-generated: true
-tags:
-- dimens
-- tabl
-- fact
-hubs:
-- DimensionalModeling Hub
----
-# The Architecture of Insight: A Deep Dive into Dimensional Modeling, Fact, and Dimension Structures for Advanced Practitioners
+# Dimensional Modeling
 
 Welcome. If you are reading this, you are presumably beyond the introductory phase of data warehousing. You understand that a star schema is *a* pattern, not *the* pattern, and that the difference between a functional model and a performant model often lies in the subtle nuances of key management, temporal logic, and the underlying assumptions of the query engine.
 
@@ -21,11 +8,11 @@ We will dissect the theoretical underpinnings, the practical pitfalls, and the a
 
 ---
 
-## I. Re-Establishing the Core Tenets: Beyond the Diagram
+## I. Core Tenets
 
 Before we tackle the advanced permutations, we must establish a shared, rigorous understanding of the foundational components. For the expert, these definitions are not mere guidelines; they are mathematical constraints on data structure.
 
-### A. The Fact Table: The Atomic Record of Observation
+### A. The Fact Table
 
 The fact table is the heart of the analytical model. It is fundamentally a ledger of quantifiable events or measurements.
 
@@ -68,7 +55,7 @@ A dimension table should ideally contain attributes that are *descriptive* and *
 
 ---
 
-## II. Mastering Temporal Logic: Slowly Changing Dimensions (SCDs)
+## II. Slowly Changing Dimensions (SCDs)
 
 If the dimension is the context, time is the most volatile context. Managing how descriptive attributes change over time is arguably the most complex aspect of dimensional modeling. We must move beyond simply knowing the names (Type 1, 2, 3) and understand the *trade-offs* associated with each choice.
 

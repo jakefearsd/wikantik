@@ -1,16 +1,4 @@
----
-title: State Management Patterns
-type: article
-tags:
-- state
-- context
-- redux
-summary: When an application grows beyond a trivial component tree, the simple local
-  state management provided by useState quickly buckles under the weight of cross-cutting
-  concerns.
-auto-generated: true
----
-# Mastering React State Management: A Deep Dive into Redux, Context, and Architectural Synthesis
+# React State Management
 
 For seasoned React developers, state management is not merely a feature; it is the central, defining architectural challenge of building scalable, maintainable, and performant user interfaces. When an application grows beyond a trivial component tree, the simple local state management provided by `useState` quickly buckles under the weight of cross-cutting concerns.
 
@@ -41,7 +29,7 @@ When state is managed locally within a component, it is inherently coupled to th
 
 The React Context API (`React.createContext`) was introduced precisely to solve the prop-drilling problem by providing a mechanism to pass data through the component tree without explicitly passing props at every level.
 
-### A. Mechanism Deep Dive: Provider and Consumer
+### A. Provider and Consumer
 At its core, Context establishes a value that can be consumed by any descendant component.
 
 1.  **The Provider:** The component wrapping the subtree that holds the state value. It dictates the *current* value available to all children.
@@ -241,7 +229,7 @@ These libraries often adopt an "atomic" model: state is broken down into small, 
 
 **Expert Takeaway:** If your primary goal is to minimize boilerplate while maximizing performance isolation, investigating Zustand or Jotai is often a more fruitful research path than wrestling with the limitations of raw Context or the boilerplate of older Redux patterns.
 
-### C. Deep Dive into Performance: The Cost of Immutability
+### C. The Cost of Immutability
 Whether using Redux or Context, the underlying principle of **immutability** is non-negotiable for predictable state management.
 
 When updating state, you must *never* mutate the existing state object directly.

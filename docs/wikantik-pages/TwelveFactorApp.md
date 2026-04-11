@@ -1,16 +1,4 @@
----
-title: Twelve Factor App
-type: article
-tags:
-- must
-- factor
-- servic
-summary: This tutorial assumes a high level of familiarity with distributed systems,
-  containerization (Docker/OCI), orchestration (Kubernetes), CI/CD pipelines, and
-  modern microservices patterns.
-auto-generated: true
----
-# The Twelve-Factor App Methodology: A Deep Dive into Cloud-Native Architectural Principles for Advanced Practitioners
+# The Twelve-Factor App Methodology
 
 The concept of the "Twelve-Factor App" has evolved from a set of guidelines established within the context of Platform as a Service (PaaS) offerings to a foundational, philosophical blueprint for designing resilient, portable, and scalable cloud-native applications. For experts researching cutting-edge techniques, understanding this methodology is not about checking boxes; it is about internalizing a set of architectural constraints that force developers to build systems that are inherently decoupled, ephemeral, and observable.
 
@@ -35,7 +23,7 @@ At its heart, the methodology enforces two critical concepts:
 
 ---
 
-## II. Deep Dive: Deconstructing the Twelve Factors
+## II. Deconstructing the Twelve Factors
 
 We will examine each factor sequentially, moving beyond simple definitions to discuss advanced implementation patterns, trade-offs, and modern tooling implications.
 

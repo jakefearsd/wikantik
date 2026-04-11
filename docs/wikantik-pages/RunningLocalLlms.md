@@ -116,7 +116,7 @@ ollama run llama3.1
 
 That's it. You're running an LLM locally.
 
-### Exploring Different Models
+### Different Models
 
 ```bash
 # Try a smaller, faster model

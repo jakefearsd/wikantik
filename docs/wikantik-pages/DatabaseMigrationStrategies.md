@@ -1,14 +1,4 @@
----
-title: Database Migration Strategies
-type: article
-tags:
-- migrat
-- tool
-- schema
-summary: 'The Grand Schema Evolution Debate: A Deep Dive into Flyway vs.'
-auto-generated: true
----
-# The Grand Schema Evolution Debate: A Deep Dive into Flyway vs. Liquibase for Expert Practitioners
+# The Grand Schema Evolution Debate
 
 The management of database schema evolution is arguably one of the most persistent, yet least glamorous, challenges in modern software engineering. A database schema is not a static artifact; it is a living contract between the application code and the persistent state. When that contract must change—when a column is renamed, an index is added, or an entire data model is refactored—the process of migration becomes mission-critical. Failure here doesn't just mean a bug; it means catastrophic data loss or application downtime.
 
@@ -200,7 +190,7 @@ Some advanced systems require that the schema change only be visible to certain 
 
 ---
 
-## 6. Deep Dive into Technical Nuances: The Expert's Toolkit
+## 6. The Expert's Toolkit
 
 To reach the required depth, we must address the underlying technical decisions that separate competent users from true experts.
 

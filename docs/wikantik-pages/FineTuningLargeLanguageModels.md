@@ -1,16 +1,4 @@
----
-title: Fine Tuning Large Language Models
-type: article
-tags:
-- model
-- fine
-- tune
-summary: We are moving far beyond the era of mere prompt engineering, where clever
-  phrasing was sufficient to coax desired behavior from a general-purpose foundation
-  model.
-auto-generated: true
----
-# The Architect's Guide: Mastering Fine-Tuning for Custom LLM Model Training
+# The Architect's Guide
 
 For those of us who treat Large Language Models (LLMs) not as mere APIs, but as malleable computational substrates, the concept of "fine-tuning" is less a tutorial topic and more a fundamental engineering discipline. We are moving far beyond the era of mere prompt engineering, where clever phrasing was sufficient to coax desired behavior from a general-purpose foundation model. Today, the frontier demands surgical precision: the ability to imbue a massive, pre-trained model with the specific, nuanced knowledge, tone, and reasoning patterns of a highly specialized domain.
 
@@ -65,7 +53,7 @@ $$\Theta_{new} = \Theta_{base} + \Delta\Theta$$
 
 ---
 
-## II. Deep Dive into Parameter-Efficient Fine-Tuning (PEFT) Techniques
+## II. Parameter-Efficient Fine-Tuning (PEFT) Techniques
 
 PEFT techniques are the cornerstone of modern LLM customization. They are not merely optimizations; they represent a sophisticated understanding of the transformer architecture's redundancy and modularity.
 
@@ -112,7 +100,7 @@ While LoRA/QLoRA dominate the current landscape, an expert must be aware of alte
 
 ---
 
-## III. The Art of Data Curation: The True Bottleneck
+## III. The True Bottleneck
 
 If the model architecture is the engine, and PEFT is the transmission, the dataset $D_{task}$ is the fuel. In the context of expert research, the quality of $D_{task}$ is orders of magnitude more important than the choice between LoRA and QLoRA. A poorly curated dataset will lead to overfitting on artifacts, not generalization.
 

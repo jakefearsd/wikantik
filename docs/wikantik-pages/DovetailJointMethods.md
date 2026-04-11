@@ -1,15 +1,4 @@
----
-title: Dovetail Joint Methods
-type: article
-tags:
-- cut
-- joint
-- materi
-summary: While introductory texts often confine the discussion to a binary choice—hand-cut
-  versus machine-cut—this treatise aims to transcend this simplistic dichotomy.
-auto-generated: true
----
-# Advanced Kinematics and Material Removal: A Comprehensive Tutorial on Dovetail Joint Cutting Methodologies
+# Advanced Kinematics and Material Removal
 
 **For Research Practitioners in Advanced Joinery and Woodworking Technology**
 

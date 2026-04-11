@@ -1,15 +1,4 @@
----
-title: Name Of Article
-type: article
-tags:
-- search
-- text
-- queri
-summary: We are not here to explain what an LLM is, nor are we here to explain what
-  cosine similarity means.
-auto-generated: true
----
-# The Art of Retrieval: Advanced Search Term Engineering for State-of-the-Art RAG Systems
+# Advanced Search Term Engineering for State-of-the-Art RAG Systems
 
 ***
 
@@ -191,7 +180,7 @@ This is the pinnacle of query engineering. Instead of treating the search as a s
 
 ***
 
-## 🧱 Part III: The Technical Deep Dive – Implementing the Search Term Strategy
+## 🧱 Implementing the Search Term Strategy
 
 To achieve the strategies above, you must master the underlying search mechanisms. This section details the technical levers you pull when engineering the search term.
 
@@ -199,7 +188,7 @@ To achieve the strategies above, you must master the underlying search mechanism
 
 The foundation of modern RAG is the embedding model and the resulting vector space.
 
-#### A. Understanding Cosine Similarity vs. Dot Product
+#### A. Cosine Similarity vs. Dot Product
 While Cosine Similarity ($\text{CosSim}$) is the industry standard for text embeddings, understanding its mathematical basis is crucial for debugging poor retrieval.
 
 $$\text{CosSim}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathbf{B}\|}$$

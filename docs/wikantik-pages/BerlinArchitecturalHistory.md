@@ -1,15 +1,4 @@
----
-title: Berlin Architectural History
-type: article
-tags:
-- bauhau
-- structur
-- materi
-summary: 'Abstract: This monograph moves beyond the superficial categorization of
-  "Bauhaus Style" as a mere aesthetic veneer.'
-auto-generated: true
----
-# A Technical Monograph on the Bauhaus Continuum in Berlin: From Utopian Theory to Adaptive Materiality
+# From Utopian Theory to Adaptive Materiality
 
 **Target Audience:** Architectural Researchers, Structural Engineers, Design Theorists specializing in 20th-Century Modernism.
 
@@ -121,7 +110,7 @@ The most valuable research lies in category 2, where the principles survive the 
 
 ***
 
-## 4. Technical Deep Dive: Materiality, Structure, and the Curtain Wall System
+## 4. Materiality, Structure, and the Curtain Wall System
 
 For an expert audience, the discussion must pivot to the engineering and material science that allowed the Bauhaus vision to materialize, and where it subsequently failed or adapted.
 

@@ -1,15 +1,3 @@
----
-title: Llm Evaluation Metrics
-type: article
-tags:
-- text
-- roug
-- bleu
-summary: The evaluation process for LLMs is not a monolithic task; it is a multi-faceted
-  discipline requiring a spectrum of tools—from simple lexical overlap counts to complex
-  human cognitive assessments.
-auto-generated: true
----
 # The Evaluation Triad: Deconstructing BLEU, ROUGE, and Human Preference for State-of-the-Art LLM Research
 
 ## Introduction: The Crisis of Evaluation in Generative AI

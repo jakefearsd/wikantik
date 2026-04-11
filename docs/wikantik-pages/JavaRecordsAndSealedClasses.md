@@ -1,16 +1,4 @@
----
-title: Java Records And Sealed Classes
-type: article
-tags:
-- type
-- record
-- pattern
-summary: This tutorial is intended for the seasoned practitioner, the architect, and
-  the researcher who understands the nuances of the Java Memory Model, generics, and
-  type erasure.
-auto-generated: true
----
-# Mastering the Modern Java Type System: A Deep Dive into Records, Sealed Classes, and Pattern Matching
+# The Modern Java Type System
 
 For those of us who have spent years wrestling with Java's object-oriented paradigms—the boilerplate, the defensive copying, the verbose `instanceof` chains, and the constant battle against mutable state—the introduction of Records, Sealed Classes, and Pattern Matching represents less of an incremental improvement and more of a fundamental architectural shift. These features, collectively, are not merely syntactic sugar; they are the tools that allow Java to finally write code that feels less like an enterprise framework bolted onto an academic language, and more like a modern, expressive language designed for data flow.
 
@@ -200,7 +188,7 @@ This structure is mathematically sound, type-safe, and guarantees that the logic
 
 ---
 
-## V. Deep Dive: Synergy, Edge Cases, and Architectural Patterns
+## V. Synergy, Edge Cases, and Architectural Patterns
 
 To approach the required depth, we must move beyond simple examples and analyze the interactions at a deeper level, considering performance, limitations, and advanced design patterns.
 

@@ -1,15 +1,4 @@
----
-title: Monitoring And Alerting
-type: article
-tags:
-- observ
-- trace
-- must
-summary: 'Prerequisites: Deep understanding of microservices architecture, cloud-native
-  patterns (Kubernetes), and distributed tracing concepts.'
-auto-generated: true
----
-# The Architecture of Insight: A Comprehensive Tutorial on Monitoring, Alerting, and Observability in Modern Production Systems
+# The Architecture of Insight
 
 **Target Audience:** Senior Engineers, Site Reliability Engineers (SREs), Platform Architects, and Researchers in Distributed Systems.
 **Prerequisites:** Deep understanding of microservices architecture, cloud-native patterns (Kubernetes), and distributed tracing concepts.
@@ -46,7 +35,7 @@ True observability is not achieved by implementing one tool; it is achieved by m
 
 Metrics are numerical measurements aggregated over time. They are the backbone of trend analysis, capacity planning, and high-level SLO adherence. They answer questions like: "How many requests per second are we handling?" or "What is the 99th percentile latency over the last hour?"
 
-#### Technical Deep Dive: Types and Collection Models
+#### Types and Collection Models
 
 For experts, understanding the *type* of metric and the *collection mechanism* is paramount.
 

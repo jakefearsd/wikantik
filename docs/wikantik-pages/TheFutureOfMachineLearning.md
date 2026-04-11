@@ -1,18 +1,9 @@
 ---
-type: article
-cluster: technology
-status: active
 summary: Where machine learning is headed — foundation models, data efficiency, edge
   AI, AI safety, neurosymbolic approaches, and the engineering challenges of deploying
   ML at scale
 date: 2026-03-17T00:00:00Z
-tags:
-- ai
-- machine-learning
-- deep-learning
-- research
-- technology
-- future
+cluster: technology
 related:
 - MachineLearning
 - ArtificialIntelligence
@@ -20,6 +11,17 @@ related:
 - FoundationalAlgorithmsForComputerScientists
 - EmbeddedAiOnLimitedHardware
 - DistributedComputingEvolution
+type: article
+status: active
+tags:
+- ai
+- machine-learning
+- deep-learning
+- research
+- technology
+- future
+hubs:
+- MlModelDeployment Hub
 ---
 # The Future of Machine Learning
 

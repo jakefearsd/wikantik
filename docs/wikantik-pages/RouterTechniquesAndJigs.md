@@ -1,15 +1,4 @@
----
-title: Router Techniques And Jigs
-type: article
-tags:
-- jig
-- system
-- materi
-summary: The basic tutorials—the ones showing you how to cut a simple dado or profile
-  a basic edge using scraps—are merely introductory primers.
-auto-generated: true
----
-# The Art of Constraint: Advanced Router Techniques, Jigs, and Fixtures for the Research-Grade Woodworker
+# Advanced Router Techniques, Jigs, and Fixtures for the Research-Grade Woodworker
 
 For those of us who treat the router not merely as a tool, but as a highly controllable, high-speed material removal system, the concept of a "simple jig" is an insult to our collective experience. The basic tutorials—the ones showing you how to cut a simple dado or profile a basic edge using scraps—are merely introductory primers. They teach the novice how to *make* a cut; they do not teach the expert how to *control* the cut under non-ideal, high-stress, or geometrically complex conditions.
 
@@ -119,7 +108,7 @@ If you are profiling a piece that transitions from a sharp corner to a large rad
 
 ---
 
-## III. Specialized Router Applications: Beyond the Basics
+## III. Specialized Router Applications
 
 For the expert, the router is not just a cutter; it is a precision material removal tool capable of executing functions that mimic industrial machinery.
 

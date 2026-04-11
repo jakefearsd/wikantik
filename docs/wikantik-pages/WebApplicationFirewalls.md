@@ -1,16 +1,4 @@
----
-title: Web Application Firewalls
-type: article
-tags:
-- waf
-- model
-- applic
-summary: This tutorial assumes a deep familiarity with HTTP/S protocols, application
-  architecture (REST, GraphQL, SOAP), and common vulnerability classes (OWASP Top
-  10).
-auto-generated: true
----
-# Web Application Firewall Protection: An Advanced Technical Deep Dive for Security Researchers
+# Web Application Firewall Protection
 
 The concept of the Web Application Firewall (WAF) has matured from a simple packet filter into a complex, multi-layered security enforcement point. For security researchers operating at the bleeding edge, understanding a WAF is not merely knowing what it blocks (SQLi, XSS); it requires understanding *how* it fails, *where* its assumptions break down, and *what* the next generation of defense mechanisms must look like.
 

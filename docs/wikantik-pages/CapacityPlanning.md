@@ -1,16 +1,4 @@
----
-title: Capacity Planning
-type: article
-tags:
-- resourc
-- model
-- project
-summary: For experts researching novel techniques, the goal is to move far beyond
-  the rudimentary Gantt chart analysis—the simple comparison of allocated hours versus
-  estimated hours.
-auto-generated: true
----
-# Capacity Planning Resource Forecasting: A Deep Dive for Research Experts
+# Capacity Planning Resource Forecasting
 
 Resource capacity planning and forecasting is, frankly, one of the most persistently difficult problems in applied operations research and project management. It is not merely an administrative task of checking calendars; it is a complex, multi-variable, stochastic optimization problem that sits at the intersection of organizational theory, predictive statistics, and resource economics.
 

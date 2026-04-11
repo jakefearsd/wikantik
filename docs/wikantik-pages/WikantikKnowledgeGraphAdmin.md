@@ -12,7 +12,7 @@ related: [ArtificialIntelligence, AiAugmentedWorkflows]
 
 The Wikantik knowledge graph is a structured layer that sits on top of the wiki's content, capturing entities, relationships, and properties extracted from page frontmatter and body links. When properly maintained, it enables AI agents to traverse contextual relationships between topics, discover connections that would otherwise require reading dozens of pages, and propose new knowledge for human review. This guide walks through every aspect of administering the knowledge graph to keep it accurate, complete, and valuable.
 
-## Understanding the Knowledge Graph Architecture
+## The Knowledge Graph Architecture
 
 Before diving into operations, it helps to understand how the knowledge graph is built and maintained.
 
@@ -161,7 +161,7 @@ Both models support periodic automatic retraining via the `wikantik.kge.retrainM
 
 AI agents that interact with the wiki via the MCP server can submit knowledge graph proposals using the `propose_knowledge` tool. These proposals appear in the **Proposals** tab for human review.
 
-### 3.1 Understanding Proposals
+### 3.1 Proposals
 
 Each proposal includes:
 

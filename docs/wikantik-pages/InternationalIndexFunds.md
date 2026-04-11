@@ -1,15 +1,4 @@
----
-title: International Index Funds
-type: article
-tags:
-- index
-- global
-- risk
-summary: This tutorial moves beyond the introductory consensus that "global diversification
-  is good" (a point often reiterated by sources [1], [2], [6]).
-auto-generated: true
----
-# International Index Funds and Global Diversification: A Deep Dive for Advanced Portfolio Researchers
+# International Index Funds and Global Diversification
 
 The pursuit of optimal portfolio construction has always been a Sisyphean task, a continuous negotiation between expected returns, acceptable risk profiles, and the inherent limitations of predictive modeling. For decades, the prevailing wisdom—and indeed, the foundational assumption underpinning much of modern financial theory—has been that diversification across uncorrelated assets is the primary mechanism for risk mitigation and enhanced risk-adjusted returns.
 

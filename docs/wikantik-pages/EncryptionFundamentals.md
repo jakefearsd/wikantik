@@ -1,15 +1,4 @@
----
-title: Encryption Fundamentals
-type: article
-tags:
-- kei
-- encrypt
-- us
-summary: The foundational dichotomy—symmetric versus asymmetric—is merely the entry
-  point.
-auto-generated: true
----
-# Encryption Fundamentals: A Deep Dive for Cryptographic Researchers
+# Encryption Fundamentals
 
 If you've managed to arrive here, you likely already understand that "encryption" is not a monolithic concept, but rather a collection of mathematical primitives designed to solve specific, often orthogonal, security problems. The foundational dichotomy—symmetric versus asymmetric—is merely the entry point. For those researching novel techniques, the true frontier lies in the *interaction* between these primitives, their implementation vulnerabilities, and the mathematical assumptions underpinning their security.
 
@@ -63,7 +52,7 @@ Crucially, there is no defined inverse function $H^{-1}(h) \rightarrow M$. The s
 
 ---
 
-## II. Deep Dive: Symmetric Ciphers (The Bulk Data Workhorse)
+## II. Symmetric Ciphers (The Bulk Data Workhorse)
 
 Symmetric ciphers are optimized for speed and throughput, making them the undisputed choice for encrypting large volumes of data (data at rest, bulk payload transfer). Modern ciphers are rarely used in their raw block form; they are always employed with a robust **Mode of Operation (MoO)**.
 
@@ -121,7 +110,7 @@ $$
 
 ---
 
-## III. Deep Dive: Asymmetric Ciphers (The Key Exchange Mechanism)
+## III. Asymmetric Ciphers (The Key Exchange Mechanism)
 
 Asymmetric cryptography solves the key distribution problem. It is computationally expensive, making it unsuitable for bulk data, but indispensable for establishing shared secrets and verifying identity.
 

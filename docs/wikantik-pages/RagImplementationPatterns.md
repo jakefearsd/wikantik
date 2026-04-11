@@ -1,16 +1,4 @@
----
-title: Rag Implementation Patterns
-type: article
-tags:
-- queri
-- retriev
-- chunk
-summary: For researchers and engineers operating at the bleeding edge of generative
-  AI, understanding RAG requires moving far beyond the simple "retrieve, then prompt"
-  paradigm.
-auto-generated: true
----
-# The Architect's Guide to RAG: Mastering Retrieval-Augmented Generation for Expert Systems
+# The Architect's Guide to RAG
 
 Retrieval-Augmented Generation (RAG) is no longer a novel academic concept; it is the de facto standard for grounding Large Language Models (LLMs) in proprietary, verifiable knowledge bases. For researchers and engineers operating at the bleeding edge of generative AI, understanding RAG requires moving far beyond the simple "retrieve, then prompt" paradigm. It demands a deep, systemic understanding of information retrieval theory, vector mathematics, prompt engineering, and production-grade system architecture.
 
@@ -128,7 +116,7 @@ If the retrieved context is too large (exceeding the LLM's context window limit,
 
 ---
 
-## III. Deep Dive into Advanced RAG Patterns and Edge Cases
+## III. Advanced RAG Patterns and Edge Cases
 
 For experts, the goal is not just to implement RAG, but to implement the *right* RAG for the specific failure modes of the domain.
 

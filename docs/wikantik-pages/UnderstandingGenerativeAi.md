@@ -1,22 +1,24 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: What generative AI actually is, how it works at a useful level of abstraction,
   what it's genuinely good and bad at, and the mental models that prevent expensive
   mistakes
+date: 2026-03-14T00:00:00Z
+cluster: generative-ai
 related:
 - GenerativeAiAdoptionGuide
 - PracticalPromptEngineering
 - RunningLocalLlms
 - GenerativeAiToolsForIndividuals
+type: article
+status: active
 tags:
 - generative-ai
 - productivity
 - beginners
-type: article
-cluster: generative-ai
+hubs:
+- MlModelDeployment Hub
 ---
-# Understanding Generative AI
+# Generative AI
 
 Generative AI is software that creates new content — text, images, code, audio, video — based on patterns learned from enormous amounts of existing content. The "generative" part means it produces new output rather than classifying or analysing existing data. The "AI" part means it learned to do this from data rather than being explicitly programmed with rules.
 

@@ -1,15 +1,4 @@
----
-title: Blameless Post Mortems
-type: article
-tags:
-- system
-- failur
-- must
-summary: For the seasoned practitioner—the architect, the principal engineer, the
-  reliability expert—the mere act of surviving an incident is insufficient.
-auto-generated: true
----
-# The Architecture of Resilience: A Comprehensive Tutorial on Post-Mortem Blameless Incident Review for Advanced Practitioners
+# The Architecture of Resilience
 
 ---
 

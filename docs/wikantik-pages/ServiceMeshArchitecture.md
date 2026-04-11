@@ -1,15 +1,4 @@
----
-title: Service Mesh Architecture
-type: article
-tags:
-- sidecar
-- envoi
-- servic
-summary: Specifically, the ubiquitous, yet profoundly complex, mechanism by which
-  Istio achieves its magic—the Envoy proxy deployed as a sidecar container.
-auto-generated: true
----
-# The Envoy Sidecar in Istio: A Deep Dive for Advanced Research
+# The Envoy Sidecar in Istio
 
 For those of us who have moved past the initial "what is a service mesh?" phase, the discussion inevitably narrows down to the plumbing: the data plane. Specifically, the ubiquitous, yet profoundly complex, mechanism by which Istio achieves its magic—the Envoy proxy deployed as a sidecar container.
 
@@ -77,7 +66,7 @@ The core xDS services that an expert must master are:
 
 ---
 
-## 3. Core Functionality Deep Dive: Security, Observability, and Resilience
+## 3. Security, Observability, and Resilience
 
 The primary value proposition of the sidecar is abstracting cross-cutting concerns away from the application code. Let's examine the implementation details of the most critical concerns.
 

@@ -1,16 +1,4 @@
----
-title: Progressive Web Apps
-type: article
-tags:
-- cach
-- sw
-- network
-summary: Progressive Web Apps (PWAs) represent the zenith of this ambition, promising
-  the reliability of native applications without the restrictive sandboxes or platform
-  dependencies.
-auto-generated: true
----
-# The Architecture of Resilience: A Deep Dive into Progressive Web App Offline Service Workers
+# The Architecture of Resilience
 
 For those of us who have spent enough time wrestling with the ephemeral nature of the browser network, the concept of a truly "offline-first" web application is less a feature and more a fundamental requirement for modern digital experiences. Progressive Web Apps (PWAs) represent the zenith of this ambition, promising the reliability of native applications without the restrictive sandboxes or platform dependencies.
 
@@ -45,7 +33,7 @@ This distinction is crucial: the SW manages the *network interception*, while In
 
 ---
 
-## II. The Service Worker Lifecycle: A State Machine Deep Dive
+## II. The Service Worker Lifecycle: A State Machine
 
 Understanding the lifecycle is understanding the points of failure and the necessary synchronization points.
 

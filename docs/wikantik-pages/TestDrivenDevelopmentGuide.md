@@ -1,16 +1,4 @@
----
-title: Test Driven Development Guide
-type: article
-tags:
-- test
-- must
-- refactor
-summary: 'The mantra, "Red, Green, Refactor," is frequently reduced in introductory
-  materials to a mere checklist: write a failing test, write the minimum code to pass
-  it, clean up.'
-auto-generated: true
----
-# The Triad of Engineering Discipline: A Deep Dive into Test-Driven Development's Red-Green-Refactor Cycle for Advanced Research
+# The Triad of Engineering Discipline
 
 For those of us operating at the bleeding edge of software engineering—those who view established methodologies not as immutable laws, but as highly optimized hypotheses—the concept of Test-Driven Development (TDD) often appears quaintly simple. The mantra, "Red, Green, Refactor," is frequently reduced in introductory materials to a mere checklist: write a failing test, write the minimum code to pass it, clean up.
 
@@ -38,7 +26,7 @@ While the concept has roots in structured programming methodologies, the formali
 
 The core philosophical contribution of TDD is the enforcement of **Testability by Design**. If a piece of code cannot be easily tested in isolation, the TDD process immediately flags that component as an architectural liability, forcing the developer to refactor the *design* before writing a single line of production code.
 
-### C. The Mechanics of the Cycle: A Formal Definition
+### C. The Mechanics of the Cycle
 
 The R-G-R cycle is not a linear process; it is a continuous, self-correcting feedback loop. We can model it as a state machine transition:
 
@@ -50,7 +38,7 @@ The transition between states is governed by strict adherence to the constraints
 
 ---
 
-## II. Deconstructing the Phases: Engineering Disciplines in R-G-R
+## II. Engineering Disciplines in R-G-R
 
 For an expert audience, we must treat Red, Green, and Refactor not as sequential steps, but as three distinct, specialized engineering tasks, each requiring a different mindset and set of tools.
 

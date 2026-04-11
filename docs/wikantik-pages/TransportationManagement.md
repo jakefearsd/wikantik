@@ -1,15 +1,4 @@
----
-title: Transportation Management
-type: article
-tags:
-- time
-- must
-- rout
-summary: 'The Algorithmic Nexus: A Comprehensive Tutorial on Transportation Management
-  Routing and Fleet Optimization for Advanced Research Welcome.'
-auto-generated: true
----
-# The Algorithmic Nexus: A Comprehensive Tutorial on Transportation Management Routing and Fleet Optimization for Advanced Research
+# The Algorithmic Nexus
 
 Welcome. If you are reading this, you are not looking for a vendor's brochure promising "seamless efficiency." You are researching the mathematical, computational, and systemic frontiers of logistics. This tutorial assumes a deep familiarity with graph theory, combinatorial optimization, and distributed systems.
 
@@ -163,7 +152,7 @@ The system must allow the dispatcher to weight these conflicting objectives dyna
 
 ---
 
-## V. Advanced Research Vectors: The Next Frontier
+## V. Advanced Research Vectors
 
 To truly push the boundaries, research must move beyond optimizing the *current* trip and focus on optimizing the *entire network* and the *system itself*.
 

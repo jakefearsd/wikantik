@@ -1,15 +1,4 @@
----
-title: User Story Writing
-type: article
-tags:
-- ac
-- must
-- user
-summary: If the User Story is the intent—the high-level narrative of value—then the
-  Acceptance Criteria (AC) are the contract.
-auto-generated: true
----
-# The Rigor of Specification: A Comprehensive Guide to User Story Acceptance Criteria for Advanced Practitioners
+# The Rigor of Specification
 
 For those of us who have spent enough time in the trenches of software development—the trenches where vague requirements meet the unforgiving reality of compiled code—the concept of "writing acceptance criteria" often shifts from being a helpful suggestion to being the absolute linchpin of project success.
 
@@ -69,7 +58,7 @@ The structure is inherently logical and executable:
 2.  **`When` (The Trigger/Action):** Describes the specific action taken by the user or the system. This is the event that causes the system to react.
 3.  **`Then` (The Outcome/Assertion):** States the verifiable result. This must be an assertion against the system's observable state.
 
-#### Deep Dive into `Given` Context Management
+#### `Given` Context Management
 
 For experts, the weakness of Gherkin often lies in the management of complex, interdependent `Given` states. A poorly defined `Given` leads to brittle tests.
 

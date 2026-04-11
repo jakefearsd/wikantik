@@ -6,6 +6,112 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-11** — refactor(util): simplify escapeHTMLEntities with switch + helpers
+
+**2026-04-11** — refactor(rest): collapse JSON/page preamble boilerplate
+
+**2026-04-11** — refactor(plugin): flatten InsertPage.execute with guard clauses
+
+**2026-04-11** — refactor(hub): extract algorithmic steps in HubOverviewService
+
+**2026-04-11** — test(war): guard robots.txt Sitemap: directive against regressions
+
+**2026-04-11** — test(sitemap): assert <lastmod> equals Page.getLastModified() date
+
+**2026-04-11** — feat(seo): emit dateModified in page JSON-LD from Page.getLastModified
+
+**2026-04-11** — fix(rest): encode URLs and handle errors in ChangesResource
+
+**2026-04-11** — feat(rest): add /api/changes?since= feed for OpenWebUI sync script
+
+**2026-04-11** — fix(rest): harden WikiPageFormatFilter date parsing and image links
+
+**2026-04-11** — feat(rest): serve /wiki/{slug}?format=md|json for RAG and SEO indexing
+
+**2026-04-11** — security(csrf): allow same-origin requests regardless of whitelist
+
+**2026-04-11** — security(web): set HttpOnly/Secure on session cookie (L3)
+
+**2026-04-11** — security(rest): attachment rename requires edit permission (L2)
+
+**2026-04-11** — security(auth): bootstrap admin override must expire and log ERROR (L1)
+
+**2026-04-11** — security(rest): whitelist CORS origins instead of sending wildcard
+
+**2026-04-11** — security(csrf): extend protection to PUT/DELETE/PATCH with Origin check
+
+**2026-04-11** — security(mcp): restrict PingSearchEnginesTool URLs to configured base
+
+**2026-04-11** — security(auth): constant-time compare for legacy {SHA} password path
+
+**2026-04-11** — security(markdown): sanitize HTML output and block javascript: URIs
+
+**2026-04-11** — security(attach): block active-content uploads and force safe disposition
+
+**2026-04-11** — security(mcp): audit-log every write operation
+
+**2026-04-11** — security(mcp): fail closed when no keys or CIDRs configured
+
+**2026-04-11** — test: fix integration test suite auth gaps
+
+**2026-04-10** — test: HubOverviewAdminIT selenide flow
+
+**2026-04-10** — test: HubOverviewAdminPage selenide page object
+
+**2026-04-10** — feat: mount ExistingHubsPanel in HubDiscoveryTab
+
+**2026-04-10** — feat: ExistingHubsPanel container component
+
+**2026-04-10** — feat: ExistingHubDrilldown presentational component
+
+**2026-04-10** — feat: api.knowledge methods for existing hubs panel
+
+**2026-04-10** — feat: POST /admin/knowledge/hub-discovery/hubs/{name}/remove-member
+
+**2026-04-10** — feat: GET /admin/knowledge/hub-discovery/hubs/{name} drilldown
+
+**2026-04-10** — feat: GET /admin/knowledge/hub-discovery/hubs
+
+**2026-04-10** — feat: RemoveHubMemberRequest DTO
+
+**2026-04-10** — feat: register HubOverviewService with Lucene MLT seam
+
+**2026-04-10** — feat: wire HubOverviewService in KnowledgeGraphServiceFactory
+
+**2026-04-10** — feat: HubOverviewService.removeMember happy path
+
+**2026-04-10** — test: Lucene exception falls back to empty MLT list
+
+**2026-04-10** — test: orphan hub drilldown reads from KG only
+
+**2026-04-10** — test: loadDrilldown returns null for unknown hub
+
+**2026-04-10** — feat: HubOverviewService.loadDrilldown happy path
+
+**2026-04-10** — test: near-miss threshold counting
+
+**2026-04-10** — test: inbound link counting excludes hub and same-hub members
+
+**2026-04-10** — test: NaN coherence hubs sort last
+
+**2026-04-10** — test: HubOverviewService empty model returns empty list
+
+**2026-04-10** — feat: HubOverviewService.listHubOverviews happy path
+
+**2026-04-10** — feat: HubOverviewService skeleton with records and builder
+
+**2026-04-10** — style: use short type names in LuceneSearchProvider.moreLikeThis
+
+**2026-04-10** — feat: LuceneSearchProvider.moreLikeThis adapter for hub overview
+
+**2026-04-10** — feat: hub overview config properties
+
+**2026-04-10** — feat: HubOverviewException for hub-overview service failures
+
+**2026-04-10** — docs: existing-hubs-panel design spec
+
+**2026-04-10** — content: hub discovery pages and member backrefs
+
 **2026-04-10** — fix: knowledge-graph admin page links
 
 **2026-04-10** — test: selenide its for hub discovery admin ui

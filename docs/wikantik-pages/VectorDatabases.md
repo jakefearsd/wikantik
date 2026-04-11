@@ -1,15 +1,4 @@
----
-title: Vector Databases
-type: article
-tags:
-- vector
-- search
-- databas
-summary: 'Prerequisite Knowledge: Solid understanding of embeddings, cosine similarity,
-  and basic database indexing concepts.'
-auto-generated: true
----
-# The Vector Database Triad: A Deep Dive Comparison of Pinecone, Chroma, and Weaviate for Advanced Retrieval-Augmented Generation (RAG) Systems
+# The Vector Database Triad
 
 **Target Audience:** AI/ML Engineers, Research Scientists, and Architects designing production-grade LLM applications.
 **Prerequisite Knowledge:** Solid understanding of embeddings, cosine similarity, and basic database indexing concepts.
@@ -155,7 +144,7 @@ It would be academically negligent to discuss this triad without dedicating sign
 
 ---
 
-## IV. Advanced Architectural Deep Dives: Beyond Simple Similarity Search
+## IV. Beyond Simple Similarity Search
 
 For experts researching new techniques, the comparison cannot stop at "which one is faster." We must analyze *how* they handle advanced retrieval patterns.
 
@@ -216,7 +205,7 @@ Use this mental model before committing to a vendor:
 4.  **Is the primary requirement integrating semantic search with complex, explicit, structured relationships (Knowledge Graph modeling) and hybrid search capabilities?**
     *   **YES $\rightarrow$** Weaviate. (Prioritizing architectural flexibility and data modeling).
 
-### B. Deep Dive into Cost and Operational Overhead
+### B. Cost and Operational Overhead
 
 For the expert researcher, the TCO (Total Cost of Ownership) is rarely just the API call cost.
 

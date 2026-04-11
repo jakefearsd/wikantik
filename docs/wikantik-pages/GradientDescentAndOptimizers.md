@@ -1,16 +1,4 @@
----
-title: Gradient Descent And Optimizers
-type: article
-tags:
-- mathbf
-- learn
-- rate
-summary: To treat it as a mere "tuning knob" is to fundamentally misunderstand the
-  delicate interplay between optimization theory, stochastic approximation, and the
-  geometry of the loss surface.
-auto-generated: true
----
-# The Art and Science of Descent: A Comprehensive Tutorial on Learning Rate Optimization in Advanced Machine Learning Research
+# The Art and Science of Descent
 
 For those of us who spend our days wrestling with the optimization landscape—the treacherous, high-dimensional valleys of loss functions—the learning rate ($\eta$) is not merely a hyperparameter; it is the fundamental control variable that dictates the very feasibility of convergence. To treat it as a mere "tuning knob" is to fundamentally misunderstand the delicate interplay between optimization theory, stochastic approximation, and the geometry of the loss surface.
 

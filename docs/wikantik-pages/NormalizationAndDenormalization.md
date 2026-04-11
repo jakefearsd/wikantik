@@ -1,16 +1,4 @@
----
-summary: 'The Architectural Calculus: A Deep Dive into the Normalization vs.'
-type: article
-title: Normalization And Denormalization
-auto-generated: true
-tags:
-- data
-- denorm
-- normal
-hubs:
-- DimensionalModeling Hub
----
-# The Architectural Calculus: A Deep Dive into the Normalization vs. Denormalization Trade-Off for Advanced Database Systems
+# The Architectural Calculus
 
 For those of us who spend our days wrestling with the persistent, beautiful, and often infuriating dance between data integrity and query performance, the concepts of normalization and denormalization are not mere academic checkboxes; they are fundamental architectural decisions that dictate the very viability of a system at scale.
 

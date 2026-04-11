@@ -1,16 +1,4 @@
----
-title: Network Security Fundamentals
-type: article
-tags:
-- ip
-- firewal
-- id
-summary: We are not merely discussing security tools; we are discussing layers of
-  computational logic designed to enforce policy, detect deviation, and, ideally,
-  prevent catastrophic failure.
-auto-generated: true
----
-# The Triad of Network Defense: A Comprehensive Technical Deep Dive into Firewalls, IDS, and IPS for Advanced Research
+# The Triad of Network Defense
 
 For those of us who spend our professional lives staring into the abyss of network packet captures, the concepts of perimeter defense often feel less like a solid wall and more like a highly sophisticated, constantly evolving game of cat and mouse. We are not merely discussing security tools; we are discussing layers of computational logic designed to enforce policy, detect deviation, and, ideally, prevent catastrophic failure.
 

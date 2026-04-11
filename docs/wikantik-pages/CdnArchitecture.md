@@ -1,16 +1,4 @@
----
-title: Cdn Architecture
-type: article
-tags:
-- cach
-- origin
-- edg
-summary: It is the necessary abstraction that allows applications to scale globally
-  without requiring the architectural overhaul that traditional monolithic deployments
-  would mandate.
-auto-generated: true
----
-# The Anatomy of Scale: A Deep Dive into CDN Architecture, Edge Caching, and Origin Interaction
+# The Anatomy of Scale
 
 For those of us who spend our professional lives wrestling with latency, throughput, and the capricious nature of the HTTP protocol, the Content Delivery Network (CDN) is less a service and more a fundamental, often invisible, layer of modern internet infrastructure. It is the necessary abstraction that allows applications to scale globally without requiring the architectural overhaul that traditional monolithic deployments would mandate.
 

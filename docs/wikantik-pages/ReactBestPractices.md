@@ -1,15 +1,4 @@
----
-title: React Best Practices
-type: article
-tags:
-- hook
-- composit
-- state
-summary: 'React Best Practices: The Art and Science of Hooks Composition for Advanced
-  Practitioners Welcome.'
-auto-generated: true
----
-# React Best Practices: The Art and Science of Hooks Composition for Advanced Practitioners
+# React Best Practices: The Art and Science of Hooks Composition
 
 Welcome. If you've reached this document, you're not here for the boilerplate tutorials explaining `useState` or the basic structure of `useEffect`. You understand the fundamental contract of React Hooks: they are functions that let you "hook into" React state and lifecycle features from functional components. You know that custom hooks are the primary mechanism for extracting and reusing stateful logic, thereby achieving true separation of concerns.
 

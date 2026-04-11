@@ -1,15 +1,4 @@
----
-title: Supply Chain Security
-type: article
-tags:
-- sbom
-- compon
-- graph
-summary: We rarely write monolithic applications; rather, we orchestrate complex compositions
-  of open-source libraries, vendor APIs, and third-party commercial components.
-auto-generated: true
----
-# The Architecture of Trust: A Deep Dive into Supply Chain Security, SBOMs, and Dependency Graph Analysis for Advanced Research
+# The Architecture of Trust
 
 The modern software development lifecycle (SDLC) is less a linear assembly line and more a sprawling, interconnected ecosystem of borrowed code. We rarely write monolithic applications; rather, we orchestrate complex compositions of open-source libraries, vendor APIs, and third-party commercial components. This reality, while enabling unprecedented levels of innovation, has simultaneously constructed an unprecedented attack surface.
 

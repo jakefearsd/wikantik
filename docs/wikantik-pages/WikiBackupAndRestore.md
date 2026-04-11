@@ -1,15 +1,4 @@
----
-title: Wiki Backup And Restore
-type: article
-tags:
-- backup
-- restor
-- data
-summary: We are not merely concerned with copying bits from Disk A to Disk B; we are
-  engineering temporal resilience.
-auto-generated: true
----
-# The Architect's Guide to Wiki Backup, Restore, and Disaster Recovery: Advanced Techniques for the Modern Data Steward
+# Advanced Techniques for the Modern Data Steward
 
 For those of us who spend our careers wrestling with the ephemeral nature of digital information, the concept of "backup" often feels less like a technical procedure and more like a philosophical necessity. We are not merely concerned with copying bits from Disk A to Disk B; we are engineering temporal resilience. We are building insurance policies against the inevitable entropy of data, the malice of human error, and the sheer unpredictability of catastrophic failure.
 

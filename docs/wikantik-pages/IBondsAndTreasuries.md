@@ -1,15 +1,4 @@
----
-title: I Bonds And Treasuries
-type: article
-tags:
-- bond
-- inflat
-- adjust
-summary: 'Prerequisites: Solid understanding of inflation indices (CPI, PCE), bond
-  mathematics, and stochastic calculus.'
-auto-generated: true
----
-# A Deep Dive into Treasury Inflation-Protected Securities (Series I Bonds): Advanced Modeling and Comparative Analysis for Quantitative Researchers
+# Advanced Modeling and Comparative Analysis for Quantitative Researchers
 
 **Target Audience:** Financial Engineers, Quantitative Analysts, Econometricians, and Advanced Fixed Income Researchers.
 **Prerequisites:** Solid understanding of inflation indices (CPI, PCE), bond mathematics, and stochastic calculus.
@@ -66,7 +55,7 @@ For the expert researcher, the distinction between the I Bond and the Treasury I
 
 ***
 
-## II. Deconstructing the I Bond Mechanics: The Mathematical Core
+## II. The Mathematical Core
 
 The I Bond's structure is governed by two primary, interconnected components: the **Principal Adjustment** and the **Coupon Calculation**.
 

@@ -1,16 +1,4 @@
----
-title: Incident Management
-type: article
-tags:
-- call
-- alert
-- must
-summary: We will move beyond basic alerting workflows to explore the theoretical underpinnings,
-  advanced automation paradigms, and human factors required to build truly resilient
-  on-call frameworks.
-auto-generated: true
----
-# The Art and Science of Incident Management On-Call Response: A Deep Dive for Research Experts
+# The Art and Science of Incident Management On-Call Response
 
 Incident management, particularly the on-call response mechanism, has evolved from a simple "who gets woken up at 3 AM" checklist into a complex, multi-layered operational discipline. For experts researching next-generation reliability engineering, the goal is no longer merely *reacting* to failures, but architecting systems that *prevent* the need for stressful, high-stakes human intervention.
 
@@ -135,7 +123,7 @@ The principle of treating infrastructure as code must extend to the *response pr
 
 No amount of tooling can compensate for a poorly trained, stressed, or siloed team. This section addresses the socio-technical aspects of on-call duty.
 
-### A. Mastering the Art of the Postmortem (Blameless Culture)
+### A. The Postmortem (Blameless Culture)
 
 The postmortem (or incident review) is the single most important feedback loop. If this loop is broken, the entire system degrades.
 

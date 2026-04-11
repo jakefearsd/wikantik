@@ -1,15 +1,4 @@
----
-title: Graph RAG
-type: article
-tags:
-- text
-- graph
-- queri
-summary: They are, in essence, sophisticated pattern matchers trained on colossal
-  corpora of human text.
-auto-generated: true
----
-# Knowledge Graphs and Retrieval Augmented Generation: A Deep Dive for Advanced Research
+# Knowledge Graphs and Retrieval Augmented Generation
 
 ## Introduction: The Limits of Context and the Promise of Structure
 
@@ -222,7 +211,7 @@ A robust system must anticipate failure.
 
 ***
 
-## Part IV: Advanced Research Topics and Edge Cases
+## Part IV
 
 To satisfy the depth required for expert researchers, we must move beyond the standard "how-to" guide and address the theoretical and practical bottlenecks.
 

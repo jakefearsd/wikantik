@@ -1,15 +1,3 @@
----
-title: Oauth And Oidc Deep Dive
-type: article
-tags:
-- token
-- client
-- text
-summary: It is intended for the seasoned researcher, the architect designing the next
-  generation of identity fabric, or the security engineer tasked with auditing the
-  subtle failure modes of established flows.
-auto-generated: true
----
 # The Deep Dive into OAuth 2.0 and OpenID Connect Token Flows: A Guide for Protocol Researchers
 
 For those of us who spend our professional lives wrestling with the nuances of delegated authorization and identity federation, the term "OAuth/OIDC" often elicits a mixture of weary familiarity and profound technical challenge. We are not merely discussing a set of endpoints; we are dissecting a complex, multi-layered protocol stack designed to solve the fundamental problem of "Who are you, and what are you allowed to touch?"
@@ -18,7 +6,7 @@ This tutorial is not for the onboarding engineer who needs to know which button 
 
 ---
 
-## 🛡️ I. Deconstructing the Foundation: OAuth 2.0 vs. OpenID Connect
+## 🛡️ I. OAuth 2.0 vs. OpenID Connect
 
 Before we can deep dive into the flows, we must establish a crystal-clear demarcation line between the two protocols. This is perhaps the most persistent source of confusion in the industry, and frankly, it’s a source of unnecessary architectural debt.
 
@@ -115,7 +103,7 @@ PKCE introduces two new, ephemeral parameters: `code_verifier` and `code_challen
 
 A token flow is only as secure as its lifecycle management. We must treat tokens not as static credentials, but as ephemeral, stateful resources requiring meticulous handling.
 
-### A. The Refresh Token Deep Dive
+### A. The Refresh Token
 
 The Refresh Token is the mechanism that allows for "silent" re-authentication, vastly improving user experience by avoiding constant logins. However, it is the single largest security liability if mishandled.
 
@@ -151,7 +139,7 @@ Relying on expiration is a "best effort" security measure. True security require
 
 For researchers pushing the boundaries, the focus shifts from *flow mechanics* to *token integrity* and *binding*.
 
-### A. JWT Structure and Claims Deep Dive
+### A. JWT Structure and Claims
 
 A JWT is not just a string; it is a structured, signed data container. Understanding its components is non-negotiable.
 

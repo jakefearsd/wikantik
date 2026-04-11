@@ -1,15 +1,4 @@
----
-title: Byzantine Fault Tolerance
-type: article
-tags:
-- node
-- adversari
-- system
-summary: 'Prerequisites: A solid understanding of distributed systems theory, state
-  machine replication, Byzantine agreement, and basic cryptography.'
-auto-generated: true
----
-# A Deep Dive into Byzantine Fault Tolerance: Consensus Mechanisms for Adversarial Distributed Systems
+# Consensus Mechanisms for Adversarial Distributed Systems
 
 **Target Audience:** Researchers and Engineers specializing in Distributed Systems, Consensus Algorithms, and Cryptography.
 

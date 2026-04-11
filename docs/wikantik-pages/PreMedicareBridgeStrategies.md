@@ -1,15 +1,4 @@
----
-title: Pre Medicare Bridge Strategies
-type: article
-tags:
-- cost
-- model
-- premium
-summary: This analysis is intended for researchers, actuaries, and advanced policy
-  analysts seeking to refine predictive models for retirement healthcare expenditure.
-auto-generated: true
----
-# A Deep Dive into the Retirement Healthcare ACA Marketplace Bridge: Advanced Modeling and Policy Implications
+# Advanced Modeling and Policy Implications
 
 ## Abstract
 

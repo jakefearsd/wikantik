@@ -1,15 +1,4 @@
----
-title: Prompt Caching Strategies
-type: article
-tags:
-- cach
-- context
-- text
-summary: The primary cost driver, and the chief source of unpredictable latency spikes,
-  is the repeated processing of context—the prompt itself.
-auto-generated: true
----
-# Prompt Caching and Context Optimization in Large Language Models: A Deep Dive for Research Experts
+# Prompt Caching and Context Optimization in Large Language Models
 
 The operationalization of Large Language Models (LLMs) has transitioned rapidly from academic curiosity to mission-critical enterprise infrastructure. While the raw generative power of models like GPT-4, Gemini 1.5, and Claude 3 is undeniable, the economic and latency profiles associated with running these models at scale present a significant engineering bottleneck. The primary cost driver, and the chief source of unpredictable latency spikes, is the repeated processing of context—the prompt itself.
 
@@ -89,7 +78,7 @@ This refers to caching the entire input sequence $(P_{sys}, P_{hist}, P_{tool}, 
 
 ---
 
-## III. Architectural Deep Dive: Building the Caching Infrastructure
+## III. Building the Caching Infrastructure
 
 A conceptual understanding is insufficient for an expert audience. We must discuss the engineering stack required to make this robust.
 

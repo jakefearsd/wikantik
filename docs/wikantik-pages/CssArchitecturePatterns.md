@@ -1,15 +1,4 @@
----
-title: Css Architecture Patterns
-type: article
-tags:
-- bem
-- css
-- compon
-summary: 'CSS Architecture: BEM Modules-in-JS – A Deep Dive for Advanced Practitioners
-  The landscape of front-end styling is, frankly, a battlefield.'
-auto-generated: true
----
-# CSS Architecture: BEM Modules-in-JS – A Deep Dive for Advanced Practitioners
+# CSS Architecture: BEM Modules-in-JS
 
 The landscape of front-end styling is, frankly, a battlefield. For years, developers have wrestled with the fundamental tension between the declarative nature of CSS—a language designed for presentation—and the imperative, encapsulated nature of modern component-based JavaScript frameworks. We have seen methodologies rise and fall: from the rigid structures of SMACSS to the explicit naming conventions of BEM, and now, the fluid, scope-managing power of CSS-in-JS.
 
@@ -203,7 +192,7 @@ In this CSS-in-JS context, BEM is internalized. The component hierarchy *is* the
 
 ---
 
-## IV. Deep Dive: Edge Cases and Advanced Considerations
+## IV. Edge Cases and Advanced Considerations
 
 For experts, the simple "use X with Y" advice is insufficient. We must address the failure modes and the complex interactions.
 
@@ -301,7 +290,7 @@ BEM is often seen as a *way to implement* the "Module" category of SMACSS.
 
 ---
 
-## VI. Advanced Implementation Patterns and Tooling Deep Dive
+## VI. Advanced Implementation Patterns and Tooling
 
 To reach the required depth, we must examine the tooling implications of combining these concepts.
 

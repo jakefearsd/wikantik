@@ -1,15 +1,4 @@
----
-title: Two Phase Commit Protocol
-type: article
-tags:
-- commit
-- coordin
-- particip
-summary: The Two-Phase Commit (2PC) protocol stands as the canonical, textbook solution
-  to this problem.
-auto-generated: true
----
-# The Anatomy of Atomic Commitment: A Deep Dive into Two-Phase Commit (2PC) for Advanced Distributed Systems Research
+# The Anatomy of Atomic Commitment
 
 For those of us who spend our days wrestling with the inherent chaos of distributed state—where network latency is a feature, not a bug, and failure is the primary operational mode—the concept of maintaining transactional integrity across multiple, independent nodes is not merely an academic exercise; it is the bedrock of reliable computation. When we speak of distributed transactions, we are fundamentally grappling with the challenge of achieving **atomicity** in an environment where the concept of a single, shared memory space is a quaint historical artifact.
 
@@ -130,7 +119,7 @@ This is where the academic discussion must pivot from "how it works" to "when it
 
 The primary weakness of 2PC is its **blocking nature**. If the Coordinator fails *after* sending the `PREPARE` message but *before* sending the final `COMMIT` or `ABORT` message, the Participants are left in the prepared state, holding locks indefinitely, waiting for a decision that may never arrive.
 
-### A. Failure Scenarios Deep Dive
+### A. Failure Scenarios
 
 #### 1. Coordinator Failure During Phase 1 (Before Decision)
 If the Coordinator fails before collecting all votes, the transaction simply times out and aborts naturally, assuming the Coordinator's failure implies failure for the whole system. No participant is permanently blocked, as no decision has been logged.
@@ -162,7 +151,7 @@ In $S_{ind}$, the system cannot prove global consistency without external interv
 
 ---
 
-## IV. Implementation Deep Dive: Logging, Recovery, and Standards
+## IV. Logging, Recovery, and Standards
 
 For experts, the protocol is less about the messages and more about the underlying guarantees provided by the resource managers.
 

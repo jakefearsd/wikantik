@@ -1,16 +1,4 @@
----
-title: Sprint Planning
-type: article
-tags:
-- text
-- veloc
-- point
-summary: It promises predictability, offering a seemingly objective, quantitative
-  anchor point against the chaotic, inherently ambiguous nature of building complex
-  software.
-auto-generated: true
----
-# The Algorithmic Illusion: A Deep Dive into Sprint Planning, Estimation, and the Fallacy of Velocity
+# The Algorithmic Illusion
 
 For those of us who have spent enough time in the trenches of iterative development—the ones who treat story points like volatile commodities and sprint reviews like high-stakes academic defenses—the concept of "velocity" is both the most comforting metric and the most insidious trap. It promises predictability, offering a seemingly objective, quantitative anchor point against the chaotic, inherently ambiguous nature of building complex software.
 
@@ -20,7 +8,7 @@ Prepare to treat velocity not as a destination, but as a highly volatile, contex
 
 ---
 
-## I. Deconstructing the Core Concept: What Velocity *Is* (and What It Isn't)
+## I. What Velocity *Is* (and What It Isn't)
 
 At its most basic, Sprint Velocity ($\text{V}$) is defined as the average measure of work completed by a development team during a fixed iteration period (the Sprint). Sources [5] and [2] correctly identify this: it is the average number of story points completed per sprint.
 

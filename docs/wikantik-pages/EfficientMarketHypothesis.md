@@ -1,15 +1,4 @@
----
-title: Efficient Market Hypothesis
-type: article
-tags:
-- mean
-- market
-- model
-summary: It posits a beautiful, clean world where asset prices instantaneously and
-  perfectly reflect all available information.
-auto-generated: true
----
-# Mean Reversion Market Efficiency Hypothesis: A Deep Dive for Advanced Quantitative Researchers
+# Mean Reversion Market Efficiency Hypothesis
 
 The Efficient Market Hypothesis (EMH) stands as one of the most foundational, and perhaps most stubbornly debated, pillars of modern financial economics. It posits a beautiful, clean world where asset prices instantaneously and perfectly reflect all available information. For decades, this theory served as the intellectual bedrock for much of quantitative finance, suggesting that consistent, risk-adjusted alpha generation through fundamental analysis or technical pattern recognition is, by definition, impossible.
 
@@ -19,7 +8,7 @@ This tutorial is not intended to be a gentle primer. It is designed for expertsâ
 
 ---
 
-## I. Deconstructing the Efficient Market Hypothesis (EMH): The Theoretical Starting Point
+## I. The Theoretical Starting Point
 
 Before we can effectively challenge the EMH with mean reversion, we must first understand the fortress we are attacking. The EMH, in its various forms, is a statement about the *speed* and *completeness* of information incorporation into asset prices.
 
@@ -78,7 +67,7 @@ Mean reversion is the concept that the price of an asset, or the spread between 
 
 ---
 
-## III. Theoretical Deep Dive: Mean Reversion as a Stochastic Process
+## III. Mean Reversion as a Stochastic Process
 
 For the quantitative researcher, treating mean reversion as a mere "idea" is insufficient. It must be modeled using the language of stochastic calculus. The core assumption is that the process $X_t$ governing the asset price or spread is *stationary* around a mean $\mu$.
 

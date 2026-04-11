@@ -1,16 +1,4 @@
----
-title: Multimodal Embeddings
-type: article
-tags:
-- text
-- search
-- embed
-summary: 'A Deep Dive into Multimodal Embeddings for Image and Text Search: An Expert
-  Technical Tutorial The field of Information Retrieval (IR) has undergone a seismic
-  shift in the last decade.'
-auto-generated: true
----
-# A Deep Dive into Multimodal Embeddings for Image and Text Search: An Expert Technical Tutorial
+# Multimodal Embeddings for Image and Text Search
 
 The field of Information Retrieval (IR) has undergone a seismic shift in the last decade. We have moved from keyword matching—a brittle, lexical approach—to semantic understanding. However, the most recent frontier, one that promises to redefine the very concept of "search," is the integration of multiple data modalities: text, images, audio, video, and structured documents.
 

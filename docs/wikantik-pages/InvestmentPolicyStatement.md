@@ -1,15 +1,4 @@
----
-title: Investment Policy Statement
-type: article
-tags:
-- risk
-- ip
-- model
-summary: To treat the IPS as a mere compliance checklist is to fundamentally misunderstand
-  its role.
-auto-generated: true
----
-# The Architecture of Prudence: A Comprehensive Tutorial on Investment Policy Statement Goals and Constraints for Advanced Research Practitioners
+# The Architecture of Prudence
 
 For those of us who spend our professional lives wrestling with the inherent uncertainty of capital markets, the Investment Policy Statement (IPS) is not merely a document; it is the foundational covenant—the intellectual scaffolding upon which all subsequent investment decisions must rest. To treat the IPS as a mere compliance checklist is to fundamentally misunderstand its role. It is, in fact, a sophisticated, multi-dimensional optimization problem statement, a formalized articulation of the client's *utility function* under conditions of extreme uncertainty.
 
@@ -40,7 +29,7 @@ The challenge, and where most research efforts are focused, is that the inputs t
 
 ***
 
-## II. Deconstructing Investment Goals: The Utility Function Frontier
+## II. The Utility Function Frontier
 
 The goals section of the IPS is where the investor articulates their desired outcome. In advanced quantitative modeling, this is not a simple list of desired returns; it is the definition of the investor's **Utility Function**, $U(W_T)$, where $W_T$ is the wealth at time $T$.
 
@@ -105,7 +94,7 @@ The challenge here is that $\lambda_i$ are not objective constants; they are the
 
 ***
 
-## III. Deconstructing Constraints: The Boundaries of Feasibility
+## III. The Boundaries of Feasibility
 
 If goals define the *aspiration*, constraints define the *reality*. Constraints are the non-negotiable boundaries imposed by law, psychology, liquidity, or the very nature of the assets available. Failing to model a constraint is not just an oversight; it is a systemic failure of the IPS.
 

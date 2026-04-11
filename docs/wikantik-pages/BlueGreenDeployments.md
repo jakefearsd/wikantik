@@ -1,15 +1,4 @@
----
-title: Blue Green Deployments
-type: article
-tags:
-- green
-- blue
-- traffic
-summary: 'Blue/Green Deployment for Zero Downtime: An Advanced Technical Deep Dive
-  for Research Practitioners Welcome.'
-auto-generated: true
----
-# Blue/Green Deployment for Zero Downtime: An Advanced Technical Deep Dive for Research Practitioners
+# Blue/Green Deployment for Zero Downtime
 
 Welcome. If you are reading this, you are likely already familiar with the basic concept of Blue/Green deployment—the idea of running two identical, parallel environments (Blue and Green) to facilitate seamless transitions. Frankly, if you only know that much, you are wasting my time.
 
@@ -23,7 +12,7 @@ Consider this a deep dive into the operational art of continuous delivery, where
 
 Before we dive into the mechanics, we must establish a rigorous definition. In the context of modern, highly available systems, "zero downtime" is not a binary state; it is a spectrum of acceptable service degradation.
 
-### A. Deconstructing the Goal
+### A. The Goal
 When we claim "zero downtime," we are typically making three distinct, and often conflicting, promises:
 
 1.  **Availability (Uptime):** The service must remain accessible (HTTP 200 OK) to all users at all times. This is the easiest part to achieve with Blue/Green.
@@ -46,7 +35,7 @@ For researchers, understanding *why* Blue/Green is chosen over alternatives is c
 
 ---
 
-## 🏗️ II. Architectural Deep Dive: The Components of Resilience
+## 🏗️ II. The Components of Resilience
 
 A Blue/Green deployment is not just about spinning up two identical sets of containers. It requires a robust, highly configurable infrastructure layer to manage the transition safely.
 

@@ -1,15 +1,4 @@
----
-title: Multi Objective Optimization
-type: article
-tags:
-- mathbf
-- object
-- optim
-summary: 'The Art of Compromise: A Comprehensive Tutorial on Multi-Objective Optimization
-  and the Pareto Frontier for Advanced Researchers Welcome.'
-auto-generated: true
----
-# The Art of Compromise: A Comprehensive Tutorial on Multi-Objective Optimization and the Pareto Frontier for Advanced Researchers
+# The Art of Compromise
 
 Welcome. If you find yourself researching optimization techniques, you have likely encountered the frustrating reality that the "best" solution rarely exists. Instead, you are faced with a constellation of conflicting goals—minimize cost while maximizing performance, or reduce emissions while maintaining structural integrity. This is the domain of Multi-Objective Optimization (MOO).
 
@@ -52,7 +41,7 @@ For experts, understanding the distinction is crucial: $\mathcal{P}$ lives in th
 
 ---
 
-## I. Theoretical Deep Dive: Characterizing Optimality
+## I. Characterizing Optimality
 
 Before diving into algorithms, we must rigorously define the types of optimality, as the choice of definition dictates the required computational machinery.
 
@@ -274,7 +263,7 @@ By treating constraint violation as a differentiable, weighted objective, the en
 
 ---
 
-## Conclusion: Mastering the Art of Compromise
+## Conclusion
 
 Multi-objective optimization and the Pareto frontier are not merely academic curiosities; they are the mathematical language used to formalize necessary compromises in engineering, finance, biology, and beyond.
 

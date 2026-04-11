@@ -1,15 +1,4 @@
----
-title: Workshop Layout And Dust Collection
-type: article
-tags:
-- dust
-- system
-- text
-summary: Dust collection, when engineered correctly, is not a mitigation strategy;
-  it is an integral, dynamic component of the woodworking process itself.
-auto-generated: true
----
-# The Aerodynamics of Craft: A Comprehensive Treatise on Advanced Dust Collection System Design for Expert Woodworking Environments
+# The Aerodynamics of Craft
 
 ## Introduction: Beyond the Vacuum Hanger
 
@@ -118,7 +107,7 @@ FUNCTION Calculate_Zonal_Flow(Zone_Machines):
 
 ---
 
-## III. Component Deep Dive: Engineering the Hardware
+## III. Engineering the Hardware
 
 The system is only as strong as its weakest link. We must analyze the primary components with an engineering lens, moving beyond simple brand recommendations.
 

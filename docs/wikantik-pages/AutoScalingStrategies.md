@@ -1,15 +1,4 @@
----
-title: Auto Scaling Strategies
-type: article
-tags:
-- scale
-- load
-- text
-summary: 'Mastering Cloud Auto-Scaling Elasticity Load: A Deep Dive for Advanced Research
-  Welcome.'
-auto-generated: true
----
-# Mastering Cloud Auto-Scaling Elasticity Load: A Deep Dive for Advanced Research
+# Cloud Auto-Scaling Elasticity Load
 
 Welcome. If you are reading this, you are likely past the point of simply configuring a basic Auto Scaling Group (ASG) and attaching a basic Load Balancer (LB). You are researching the *limits* of elasticity, the theoretical boundaries where mere reactive scaling fails, and the advanced control loops required to manage modern, highly variable, and mission-critical workloads.
 
@@ -56,7 +45,7 @@ $$\text{True Elasticity} = \text{Load Balancing} \left( \text{Traffic Distributi
 
 ---
 
-## Ⅱ. Deep Dive into Scaling Triggers and Metrics
+## Ⅱ. Scaling Triggers and Metrics
 
 The efficacy of an auto-scaling implementation hinges entirely on the metrics chosen for triggering scale events. Relying solely on CPU utilization is akin to judging a car's speed based only on its engine temperature—it's necessary, but insufficient.
 

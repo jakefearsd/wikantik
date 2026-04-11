@@ -1,15 +1,4 @@
----
-title: Open Source Contribution
-type: article
-tags:
-- govern
-- model
-- must
-summary: 'Open Source Contribution Project Governance: A Deep Dive for Advanced Researchers
-  The modern technological landscape is inextricably linked to the open-source ecosystem.'
-auto-generated: true
----
-# Open Source Contribution Project Governance: A Deep Dive for Advanced Researchers
+# Open Source Contribution Project Governance
 
 The modern technological landscape is inextricably linked to the open-source ecosystem. Open Source Software (OSS) has moved far beyond being a mere development methodology; it is a complex socio-technical system, a global utility, and a critical component of modern digital infrastructure. For experts researching novel techniques, understanding the *governance* of these systems is arguably more challenging—and more valuable—than understanding the underlying code itself.
 

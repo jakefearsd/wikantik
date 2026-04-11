@@ -1,15 +1,4 @@
----
-title: Tcp Ip Fundamentals
-type: article
-tags:
-- layer
-- protocol
-- tcp
-summary: Consider this a refresher course for the highly caffeinated, deeply knowledgeable
-  expert.
-auto-generated: true
----
-# A Deep Dive into the TCP/IP Protocol Stack: Architectural Nuances for Advanced Research
+# Architectural Nuances for Advanced Research
 
 For those of us who have spent enough time staring at packet captures to recognize the subtle art of the TCP header flags, the concept of the network stack is less a "tutorial" and more a deeply ingrained, often frustratingly complex, set of established rules. Since you are researching new techniques, we will bypass the hand-holding analogies—the "seven layers" of the OSI model, for instance—and instead focus on the operational, stateful, and sometimes messy reality of the TCP/IP model.
 
@@ -42,7 +31,7 @@ The TCP/IP model effectively collapses several OSI layers into single, robust fu
 
 ***
 
-## II. Layer-by-Layer Deep Dive: The Operational Stack
+## II. The Operational Stack
 
 We will analyze the stack from the top (Application) down to the bottom (Physical), detailing the protocols, mechanisms, and the critical data units (PDUs) at each boundary.
 

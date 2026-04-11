@@ -1,15 +1,4 @@
----
-title: Support Vector Machines
-type: article
-tags:
-- mathbf
-- kernel
-- data
-summary: This tutorial is not intended for those merely seeking to implement a basic
-  SVC() call.
-auto-generated: true
----
-# A Deep Dive into Support Vector Machine Kernel Classification: Theory, Advanced Extensions, and Research Frontiers
+# Theory, Advanced Extensions, and Research Frontiers
 
 For those of us who have spent enough time wrestling with classification boundaries, the Support Vector Machine (SVM) remains a foundational, yet perpetually evolving, pillar of machine learning theory. While introductory texts often treat SVM as a black-box classifier, for researchers pushing the boundaries of technique, it is a rich mathematical framework whose power lies entirely in its ability to implicitly map data into high-dimensional feature spaces.
 

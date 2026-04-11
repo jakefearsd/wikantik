@@ -1,16 +1,4 @@
----
-title: Wiki Plugin Development
-type: article
-tags:
-- extens
-- plugin
-- point
-summary: 'The Architecture of Adaptability: A Deep Dive into Wiki Plugin Development
-  Extension Points For the seasoned researcher, the mere act of "developing a plugin"
-  is often an oversimplification.'
-auto-generated: true
----
-# The Architecture of Adaptability: A Deep Dive into Wiki Plugin Development Extension Points
+# The Architecture of Adaptability
 
 For the seasoned researcher, the mere act of "developing a plugin" is often an oversimplification. True system mastery lies not in writing the feature itself, but in understanding the *scaffolding* that permits the feature to exist without rewriting the core. This document serves as a comprehensive, expert-level tutorial on the concept, implementation, and advanced architectural considerations surrounding **Extension Points** within the context of wiki and knowledge management systems.
 
@@ -49,7 +37,7 @@ For an expert, the primary concern is not *if* the point exists, but the **compl
 
 ---
 
-## II. Deep Dive: Architectural Case Studies in Extension Points
+## II. Architectural Case Studies in Extension Points
 
 To illustrate these concepts, we must analyze the diverse implementations found across the provided research context. These examples demonstrate that "wiki plugin" is an umbrella term covering vastly different underlying technologies.
 

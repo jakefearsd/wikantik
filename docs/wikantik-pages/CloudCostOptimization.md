@@ -1,16 +1,4 @@
----
-title: Cloud Cost Optimization
-type: article
-tags:
-- text
-- cost
-- commit
-summary: This tutorial is designed for experts—those who have moved past the basic
-  comparison charts and are now researching the bleeding edge of FinOps, capacity
-  planning, and workload elasticity.
-auto-generated: true
----
-# Cloud Cost Optimization: Mastering the Synergy of Reserved and Spot Savings for Advanced FinOps Research
+# Cloud Cost Optimization
 
 For the seasoned practitioner, cloud cost management is less an accounting exercise and more a complex, stochastic optimization problem. We are no longer in the era of simply "choosing a pricing model"; we are in the domain of architecting a dynamic, multi-layered financial strategy that treats compute capacity not as a fixed resource, but as a spectrum of risk-adjusted cost profiles.
 
@@ -34,7 +22,7 @@ The goal of advanced optimization is to maximize the utilization of the deepest 
 
 ***
 
-## Ⅱ. Deep Dive: Reserved Instances (RIs) vs. Savings Plans (SPs)
+## Ⅱ. Reserved Instances (RIs) vs. Savings Plans (SPs)
 
 For many years, the discussion was dominated by RIs. While RIs remain a valid, powerful tool, modern cloud architecture demands an understanding of their successor: Savings Plans. For experts, understanding *why* SPs superseded RIs in flexibility is crucial.
 
@@ -68,7 +56,7 @@ The goal is to structure $C_{committed}$ such that the $\text{Min}$ term is maxi
 
 ***
 
-## Ⅲ. The Volatility Frontier: Mastering Spot Instance Economics
+## Ⅲ. The Volatility Frontier
 
 Spot Instances are not merely "cheaper compute"; they represent a sophisticated form of **capacity arbitrage**. You are essentially participating in a real-time, highly discounted secondary market for unused cloud resources.
 

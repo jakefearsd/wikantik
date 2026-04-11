@@ -1,15 +1,4 @@
----
-title: Cloud Monitoring
-type: article
-tags:
-- cloudwatch
-- metric
-- data
-summary: 'CloudWatch Observability: A Deep Dive for the Research-Grade Practitioner
-  Welcome.'
-auto-generated: true
----
-# CloudWatch Observability: A Deep Dive for the Research-Grade Practitioner
+# CloudWatch Observability
 
 Welcome. If you've reached this guide, you likely already understand that monitoring is not merely about setting thresholds on CPU utilization. You are here because you are researching the bleeding edge—the point where mere *monitoring* dissolves into true *observability*.
 

@@ -1,14 +1,3 @@
----
-title: Real Estate Investing Basics
-type: article
-tags:
-- must
-- model
-- text
-summary: 'Advanced Synthesis: Deconstructing the Mechanics of High-Yield Rental Property
-  Investment for Research-Grade Analysis Welcome.'
-auto-generated: true
----
 # Advanced Synthesis: Deconstructing the Mechanics of High-Yield Rental Property Investment for Research-Grade Analysis
 
 Welcome. If you are reading this, you are not looking for a primer on "what a Cap Rate is." You are here to dissect the underlying mechanics, stress-test the assumptions, and identify the next vectors of alpha generation within the residential and commercial real estate investment spectrum.
@@ -124,7 +113,7 @@ Exploring non-traditional debt sources that offer tax benefits or lower capital 
 
 A single-asset approach is a recipe for catastrophic failure when macro-economic variables shift. Portfolio construction must be viewed through the lens of uncorrelated risk mitigation.
 
-### A. Deep Dive into Property Archetypes
+### A. Property Archetypes
 
 The term "rental property" is too broad. Experts must categorize assets by their revenue stream predictability and required management intensity.
 

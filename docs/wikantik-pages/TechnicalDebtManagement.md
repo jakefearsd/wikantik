@@ -1,15 +1,4 @@
----
-title: Technical Debt Management
-type: article
-tags:
-- debt
-- text
-- must
-summary: 'Technical Debt: A Comprehensive Tutorial on Identification, Measurement,
-  and Repayment for Advanced Practitioners Welcome.'
-auto-generated: true
----
-# Technical Debt: A Comprehensive Tutorial on Identification, Measurement, and Repayment for Advanced Practitioners
+# Technical Debt
 
 Welcome. If you are reading this, you are likely already aware that "technical debt" is not merely a buzzword used by architects to justify budget cuts, nor is it simply synonymous with "bad code." For those of us operating at the research frontier, technical debt represents a complex, multi-dimensional liability—a form of accrued, systemic entropy within a software system.
 

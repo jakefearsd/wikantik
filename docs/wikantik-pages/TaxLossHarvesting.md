@@ -1,15 +1,4 @@
----
-title: Tax Loss Harvesting
-type: article
-tags:
-- tax
-- loss
-- text
-summary: On the surface, it is merely the act of selling underperforming assets to
-  offset realized gains.
-auto-generated: true
----
-# The Algorithmic Art of Tax Mitigation: A Deep Dive into Tax-Loss Harvesting for Capital Gains Offset
+# The Algorithmic Art of Tax Mitigation
 
 For the seasoned quantitative researcher, the concept of Tax-Loss Harvesting (TLH) often appears deceptively simple. On the surface, it is merely the act of selling underperforming assets to offset realized gains. However, for those operating at the frontier of tax-efficient investing, TLH is not a mere tactic; it is a sophisticated, multi-variable optimization problem rooted deeply in the mechanics of the Internal Revenue Code (IRC).
 

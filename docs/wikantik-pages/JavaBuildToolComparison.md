@@ -1,14 +1,4 @@
----
-title: Java Build Tool Comparison
-type: article
-tags:
-- build
-- gradl
-- maven
-summary: 'A Deep Dive into Build System Architectures: Maven vs.'
-auto-generated: true
----
-# A Deep Dive into Build System Architectures: Maven vs. Gradle for Advanced Research
+# Maven vs. Gradle for Advanced Research
 
 For the seasoned practitioner researching the bleeding edge of software engineering infrastructure, the choice of build tool is rarely a trivial decision. It is, in fact, a foundational architectural commitment that dictates developer velocity, build resilience, and the long-term maintainability of the entire software artifact. While both Apache Maven and Gradle have dominated the Java build landscape for over a decade, they represent fundamentally different philosophical approaches to automating the build lifecycle.
 
@@ -75,7 +65,7 @@ This programmatic nature is where Gradle shines for advanced research. If you ne
 
 ---
 
-## ⚙️ Section 2: Configuration Language Deep Dive – XML vs. DSL
+## ⚙️ Section 2: XML vs. DSL
 
 The choice between XML and a modern DSL (Domain Specific Language) is not merely aesthetic; it dictates the complexity ceiling of the build logic you can implement.
 

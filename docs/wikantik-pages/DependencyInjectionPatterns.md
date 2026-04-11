@@ -1,15 +1,4 @@
----
-title: Dependency Injection Patterns
-type: article
-tags:
-- contain
-- depend
-- manag
-summary: This tutorial is not intended for the novice who merely needs to register
-  a service.
-auto-generated: true
----
-# Dependency Injection and IoC Container Wiring: A Deep Dive for Advanced Practitioners
+# Dependency Injection and IoC Container Wiring
 
 For those of us who spend enough time wrestling with the seams of modern application architecture, the concepts of Dependency Injection (DI), Inversion of Control (IoC), and the Container itself often blur into a single, somewhat magical, black box. We treat the container as an oracle that simply *knows* how to build everything, and while this convenience is undeniable, understanding the underlying mechanics—the *wiring*—is crucial for moving beyond mere usage and into true architectural mastery.
 
@@ -17,7 +6,7 @@ This tutorial is not intended for the novice who merely needs to register a serv
 
 ---
 
-## I. Theoretical Foundations: Deconstructing the Buzzwords
+## I. Theoretical Foundations
 
 Before we can discuss *how* to wire things, we must achieve absolute clarity on *what* we are actually implementing. The terms IoC, DI, and Container are often used interchangeably, which is a semantic hazard that can lead to brittle, poorly understood systems.
 
@@ -81,13 +70,13 @@ The IoC Container (or DI Container) is the **runtime infrastructure** that autom
 
 ---
 
-## II. The Mechanics of Wiring: How the Container "Knows"
+## II. The Mechanics of Wiring
 
 The most complex part of the system is the binding mechanism. How does the container, upon seeing `ServiceA(ILogger, IRepository)`, know that `ILogger` maps to `FileLogger` and `IRepository` maps to `SqlRepository`?
 
 The answer lies in the **Binding Configuration** and the **Resolution Strategy**.
 
-### A. Binding Strategies: The Contract
+### A. Binding Strategies
 
 Binding is the act of telling the container: "When someone asks for Interface $X$, give them Instance $Y$."
 
@@ -126,7 +115,7 @@ The container must manage the lifetime of the instantiated objects. This is argu
 
 ---
 
-## III. Advanced Wiring Patterns and Architectural Deep Dives
+## III. Advanced Wiring Patterns
 
 For researchers looking beyond the basic `Bind<I>().To<>()` syntax, we must explore how the container interacts with complex domain models and cross-cutting concerns.
 
@@ -219,7 +208,7 @@ This pattern allows the graph to be resolved incrementally, avoiding the deadloc
 
 ---
 
-## IV. Architectural Pitfalls and Advanced Considerations
+## IV. Architectural Pitfalls and Considerations
 
 This section addresses the "gotchas"—the areas where even experienced developers can write code that *works* but is fundamentally flawed from a design perspective.
 
@@ -265,7 +254,7 @@ For simple, read-only data transfer objects (DTOs) or simple value objects, lett
 2.  **Repositories/Contexts:** Must be registered and managed by the container (they manage state boundaries).
 3.  **Entities/DTOs:** Should generally be passed *into* the service methods, or instantiated manually/via a dedicated factory, treating them as immutable data payloads.
 
-### C. Advanced Binding: Interceptors and Decorators
+### C. Interceptors and Decorators
 
 To achieve maximum flexibility without polluting the core class, advanced wiring involves wrapping dependencies using the Decorator pattern, managed by the container.
 
@@ -282,7 +271,7 @@ The container must be sophisticated enough to handle this chain resolution, ensu
 
 ---
 
-## V. Synthesis and Future Trajectories
+## V. Synthesis
 
 We have covered the theoretical underpinnings, the mechanical implementation details (Reflection, Scoping), the necessary architectural patterns (Factory, Decorator), and the common pitfalls (Service Locator, Entity Management).
 
@@ -293,7 +282,7 @@ The trajectory of IoC containers is moving away from runtime reflection toward *
 *   **Historical (Pre-Source Generators):** Heavy reliance on runtime reflection $\rightarrow$ Slow startup, runtime errors.
 *   **Modern (Source Generators/Metadata):** The compiler reads the binding configuration and generates specialized, highly optimized factory code *at build time*. The container then executes this generated code, achieving the *developer experience* of runtime magic with the *performance* of direct method calls. This is the current state-of-the-art for high-performance enterprise systems.
 
-### B. Final Summary of Best Practices for Experts
+### B. Final Summary of Best Practices
 
 1.  **Prefer Constructor Injection:** Always. It enforces explicit contracts and guarantees initialization integrity.
 2.  **Use Factories for Construction Logic:** Isolate complex object assembly logic into dedicated Factory classes, keeping services clean.

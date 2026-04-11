@@ -1,15 +1,4 @@
----
-title: Cloud Compliance Frameworks
-type: article
-tags:
-- complianc
-- must
-- data
-summary: It is no longer a final audit hurdle; it is a continuous, baked-in requirement
-  woven into the very fabric of the CI/CD pipeline.
-auto-generated: true
----
-# Mastering the Compliance Stack: An Expert Deep Dive into Cloud Governance (SOC 2, HIPAA, PCI, and Beyond)
+# The Compliance Stack
 
 For those of us who spend our careers wrestling with the intersection of bleeding-edge cloud architecture and ancient, often labyrinthine, regulatory mandates, the term "compliance" has evolved from a mere checklist into a core engineering discipline. It is no longer a final audit hurdle; it is a continuous, baked-in requirement woven into the very fabric of the CI/CD pipeline.
 
@@ -66,7 +55,7 @@ SOC 2 is the most abstract, yet arguably the most comprehensive, of the three fo
 
 The traditional model of compliance relied on building a strong perimeter (firewalls, VPNs, physical locks) and then documenting that the perimeter was never breached. In the cloud, the perimeter is porous, ephemeral, and defined by API calls. Therefore, compliance must shift from **Perimeter Defense** to **Policy-as-Code Enforcement**.
 
-### A. Mastering the Shared Responsibility Model (SRM)
+### A. The Shared Responsibility Model (SRM)
 
 The SRM is the most frequently misunderstood concept in cloud security, and misunderstanding it is the single greatest source of compliance failure.
 
@@ -118,7 +107,7 @@ If any gate fails, the pipeline must halt, and the failure must generate a high-
 
 ***
 
-## III. Advanced Technical Deep Dives: Edge Cases and Resilience
+## III. Edge Cases and Resilience
 
 To truly operate at an expert level, one must anticipate failure modes and design for compliance resilience, not just compliance existence.
 

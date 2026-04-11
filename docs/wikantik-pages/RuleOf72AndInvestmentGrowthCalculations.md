@@ -55,7 +55,7 @@ At 3% inflation, the purchasing power of money halves every 24 years (72 ÷ 3).
 
 This is why even conservative retirees need growth investments.
 
-### Understanding Debt
+### Debt
 
 Credit card debt at 20% APR doubles every 3.6 years (72 ÷ 20). A $5,000 balance becomes $10,000 in under 4 years if unpaid. This illustrates why paying off high-interest debt is the highest-return "investment" available.
 

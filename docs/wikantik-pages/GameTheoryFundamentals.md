@@ -1,15 +1,4 @@
----
-title: Game Theory Fundamentals
-type: article
-tags:
-- player
-- game
-- equilibrium
-summary: This tutorial is not intended for the undergraduate who is first encountering
-  the Prisoner's Dilemma.
-auto-generated: true
----
-# A Deep Dive into Strategic Equilibrium: Advanced Analysis of Nash Concepts for Research Practitioners
+# Advanced Analysis of Nash Concepts for Research Practitioners
 
 For those of us who have spent enough time staring at payoff matrices to develop a sixth sense for suboptimal decision-making, the concept of "game theory" often feels less like a field of study and more like a necessary, if occasionally tedious, mathematical framework for modeling human—or algorithmic—interaction.
 

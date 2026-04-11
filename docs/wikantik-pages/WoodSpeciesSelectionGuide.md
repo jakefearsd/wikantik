@@ -1,15 +1,4 @@
----
-title: Wood Species Selection Guide
-type: article
-tags:
-- text
-- wood
-- speci
-summary: To treat wood selection as a mere aesthetic choice is to fundamentally misunderstand
-  the material science underpinning its utility.
-auto-generated: true
----
-# The Arborist's Algorithm: A Comprehensive Guide to Wood Species Selection Properties for Advanced Research
+# The Arborist's Algorithm
 
 For those of us who have moved past the superficial considerations of "color" and "feel" when selecting a structural or decorative wood species, the selection process is less an art and more a complex, multi-variable engineering challenge. To treat wood selection as a mere aesthetic choice is to fundamentally misunderstand the material science underpinning its utility.
 
@@ -25,7 +14,7 @@ The inherent variability within a single species—influenced by growth rate, me
 
 Our goal here is to synthesize the knowledge base, moving from basic physical characterization to predictive, multi-physics modeling required for novel applications, such as advanced composite structures, bio-integrated materials, or extreme environmental cladding.
 
-### Defining the Scope: Beyond the Surface Level
+### Defining the Scope
 
 When we discuss "hardwood," we are generally referring to species derived from deciduous trees, contrasting them with the softwood category (conifers). However, the functional distinction is far more critical than the botanical one. We must analyze wood based on its **structural architecture** (e.g., ring-porous vs. diffuse-porous) and its **chemical composition** (e.g., tannin profile, extractives content).
 

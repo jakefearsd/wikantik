@@ -1,14 +1,4 @@
----
-title: Spring Boot Fundamentals
-type: article
-tags:
-- configur
-- auto
-- spring
-summary: At the heart of this perceived magic lies Auto-configuration.
-auto-generated: true
----
-# The Mechanics of Magic: A Deep Dive into Spring Boot Auto-Configuration for Advanced Practitioners
+# The Mechanics of Magic
 
 For those of us who have spent enough time wrestling with the boilerplate of traditional Spring XML configurations, the arrival of Spring Boot felt less like an evolution and more like a benevolent, highly competent overlord taking over the build process. At the heart of this perceived magic lies **Auto-configuration**.
 
@@ -102,7 +92,7 @@ This layered, cumulative checking system is what makes Spring Boot feel like it 
 
 ***
 
-## 3. Mastering the Control Plane: Overriding and Excluding Defaults
+## 3. Overriding and Excluding Defaults
 
 For the expert, the goal is not to *use* auto-configuration, but to *control* it. When the defaults are wrong, or when the default configuration conflicts with a novel architectural pattern, we must intervene.
 
@@ -221,7 +211,7 @@ Failing to do this results in the dreaded "Configuration class found, but depend
 
 ***
 
-## 5. Theoretical Deep Dive: Performance, Reflection, and Trade-offs
+## 5. Performance, Reflection, and Trade-offs
 
 For experts, the discussion must move beyond "how to use it" to "what does it cost?"
 

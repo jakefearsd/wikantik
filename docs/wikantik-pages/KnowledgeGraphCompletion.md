@@ -1,15 +1,4 @@
----
-title: Knowledge Graph Completion
-type: article
-tags:
-- predict
-- embed
-- relat
-summary: They move beyond simple relational databases by explicitly modeling entities
-  (nodes) and the relationships (edges or triples) that connect them.
-auto-generated: true
----
-# Knowledge Graph Completion Prediction: A Comprehensive Tutorial for Advanced Researchers
+# Knowledge Graph Completion Prediction
 
 Knowledge Graphs (KGs) have become the de facto standard for structuring vast amounts of interconnected, real-world knowledge. They move beyond simple relational databases by explicitly modeling entities (nodes) and the relationships (edges or triples) that connect them. However, the reality of knowledge acquisition is that these graphs are inherently incomplete. The task of inferring the missing facts—the missing triples—is not merely an academic exercise; it is a critical bottleneck in deploying AI systems that require comprehensive world knowledge.
 
@@ -193,7 +182,7 @@ Advanced techniques must integrate these sources:
 
 ***
 
-## 4. Deep Dive into Methodological Nuances and Edge Cases
+## 4. Methodological Nuances and Edge Cases
 
 For researchers pushing the boundaries, understanding the limitations and the mathematical trade-offs between methodologies is more valuable than knowing the latest benchmark score.
 

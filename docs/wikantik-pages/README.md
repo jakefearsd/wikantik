@@ -1,14 +1,3 @@
----
-title: README
-type: article
-tags:
-- gener
-- model
-- default
-summary: GenAI Tools A collection of Python tools for content generation and document
-  management using local LLMs via Ollama.
-auto-generated: true
----
 # GenAI Tools
 
 A collection of Python tools for content generation and document management using local LLMs via Ollama.

@@ -1,15 +1,4 @@
----
-title: Part Time Work In Retirement
-type: article
-tags:
-- withdraw
-- pt
-- fire
-summary: This document is not a motivational piece for the novice seeking to quit
-  their job after a few years of aggressive saving.
-auto-generated: true
----
-# The Optimized Semi-Retirement Trajectory: A Comprehensive Technical Analysis of Barista FIRE for Advanced Practitioners
+# The Optimized Semi-Retirement Trajectory
 
 For those of us who have moved beyond the rudimentary understanding of "early retirement," the concept of simply stopping work and relying solely on a pre-calculated withdrawal rate feels, frankly, quaint. The traditional Financial Independence, Retire Early (FIRE) movement, while revolutionary in its initial premise, often overlooks the inherent volatility of long-term capital drawdowns and the non-linear nature of modern living expenses.
 

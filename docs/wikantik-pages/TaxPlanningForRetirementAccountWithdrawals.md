@@ -1,12 +1,24 @@
 ---
+date: 2026-03-15T00:00:00Z
+summary: Advanced strategies for minimizing lifetime taxes on retirement account withdrawals,
+  including bracket management, Roth conversions, and coordination with Social Security.
+cluster: retirement-planning
+related:
+- RequiredMinimumDistributions
+- RetirementWithdrawalSequencing
+- RothConversionStrategy
+- SocialSecurityClaimingStrategy
 title: Tax Planning for Retirement Account Withdrawals
 type: article
-tags: [retirement, taxes, withdrawals, tax-planning, Roth-conversion]
-date: 2026-03-15
 status: published
-cluster: retirement-planning
-summary: Advanced strategies for minimizing lifetime taxes on retirement account withdrawals, including bracket management, Roth conversions, and coordination with Social Security.
-related: [RequiredMinimumDistributions, RetirementWithdrawalSequencing, RothConversionStrategy, SocialSecurityClaimingStrategy]
+tags:
+- retirement
+- taxes
+- withdrawals
+- tax-planning
+- Roth-conversion
+hubs:
+- TypesofInvestmentAccountsTutorial Hub
 ---
 
 # Tax Planning for Retirement Account Withdrawals

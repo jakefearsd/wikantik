@@ -1,15 +1,4 @@
----
-title: Last Mile Delivery Optimization
-type: article
-tags:
-- time
-- must
-- vehicl
-summary: 'The Algorithmic Frontier: A Comprehensive Tutorial on Last Mile Delivery
-  Logistics Fulfillment for Advanced Researchers The last mile.'
-auto-generated: true
----
-# The Algorithmic Frontier: A Comprehensive Tutorial on Last Mile Delivery Logistics Fulfillment for Advanced Researchers
+# The Algorithmic Frontier
 
 The last mile. It is the Achilles' heel of global e-commerce, the operational chokepoint where the promise of digital commerce collides violently with the messy, unpredictable reality of physical geography. For those of us researching the next generation of supply chain optimization, the last mile is not merely a segment of the journey; it is a complex, multi-variable, stochastic optimization problem that demands a paradigm shift away from traditional linear planning models.
 
@@ -54,7 +43,7 @@ To research new techniques, one must first master the limitations of the current
     *   **Travel Time Uncertainty ($\tau_{ij}$):** Travel time between $i$ and $j$ is not fixed but follows a probability distribution, $\tau_{ij} \sim \mathcal{D}(\mu, \sigma)$.
     *   **Demand Uncertainty:** The actual service time or the number of required stops might change mid-route (e.g., a customer needing an unscheduled inspection).
 
-### 2.2 Mathematical Formulation Deep Dive: Incorporating Uncertainty
+### 2.2 Incorporating Uncertainty
 
 A robust model must transition from deterministic minimization to **Expected Value Minimization** or **Chance-Constrained Programming**.
 

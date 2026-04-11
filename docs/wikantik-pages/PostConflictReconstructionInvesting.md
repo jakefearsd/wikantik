@@ -1,15 +1,4 @@
----
-title: Post Conflict Reconstruction Investing
-type: article
-tags:
-- invest
-- risk
-- conflict
-summary: 'Prerequisite Knowledge: Familiarity with blended finance mechanisms, institutional
-  economics, and conflict cycle management.'
-auto-generated: true
----
-# A Technical Deep Dive into Post-Conflict Reconstruction Investment: Advanced Methodologies and Emerging Paradigms
+# Post-Conflict Reconstruction Investment: Advanced Methodologies and Emerging Paradigms
 
 **Target Audience:** Experts, Researchers, and Practitioners in Development Economics, International Finance, and Conflict Studies.
 **Prerequisite Knowledge:** Familiarity with blended finance mechanisms, institutional economics, and conflict cycle management.
@@ -142,7 +131,7 @@ Infrastructure in PCR is not just roads and power grids. It is a composite syste
 
 ---
 
-## IV. Sectoral Deep Dives: Addressing Specific Pillars of Recovery
+## IV. Addressing Specific Pillars of Recovery
 
 A comprehensive analysis requires segmenting the investment problem by sector, as the required expertise and risk profile differ wildly.
 

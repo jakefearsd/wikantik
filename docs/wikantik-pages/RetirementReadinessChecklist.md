@@ -1,15 +1,4 @@
----
-title: Retirement Readiness Checklist
-type: article
-tags:
-- text
-- retir
-- must
-summary: To treat retirement readiness as a mere sequence of completed tasks is to
-  misunderstand the problem entirely.
-auto-generated: true
----
-# The Chronometric Calculus of Retirement Readiness: A Comprehensive Timeline for Advanced Financial Modeling
+# The Chronometric Calculus of Retirement Readiness
 
 For the seasoned financial analyst, the concept of "retirement planning" often devolves into a series of simplistic, linear checklists—a pedagogical oversimplification that fails to capture the stochastic nature of long-term wealth accumulation and depletion. To treat retirement readiness as a mere sequence of completed tasks is to misunderstand the problem entirely. Retirement is not a destination marked by a single date; it is the successful navigation of a complex, multi-variable optimization problem under conditions of profound uncertainty.
 

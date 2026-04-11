@@ -1,15 +1,4 @@
----
-title: State Machine Pattern
-type: article
-tags:
-- state
-- transit
-- event
-summary: It is the formal mechanism by which we tame the inherent chaos of time-dependent,
-  event-driven systems.
-auto-generated: true
----
-# The Architecture of Flow: A Deep Dive into State Machine Pattern Workflow Transition for Advanced Systems Design
+# The Architecture of Flow
 
 For those of us who spend our careers wrestling with complex business logic—the kind that doesn't fit neatly into a single function call—the State Machine Pattern (SMP) is not merely a pattern; it is a fundamental architectural necessity. It is the formal mechanism by which we tame the inherent chaos of time-dependent, event-driven systems.
 
@@ -236,7 +225,7 @@ This pattern allows you to reuse complex, validated logic (the sub-workflow) wit
 
 ---
 
-## V. Deep Dive: The Role of Event Sourcing in State Machine Persistence
+## V. The Role of Event Sourcing in State Machine Persistence
 
 For the most advanced research into state management, one must consider **Event Sourcing (ES)**. ES fundamentally changes how we think about "state."
 

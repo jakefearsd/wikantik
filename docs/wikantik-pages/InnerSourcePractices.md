@@ -1,15 +1,4 @@
----
-title: Inner Source Practices
-type: article
-tags:
-- must
-- contribut
-- sourc
-summary: We are no longer in an era where proprietary code, locked within the corporate
-  firewall, was the default assumption of value.
-auto-generated: true
----
-# The Symbiotic Nexus: Mastering Inner Source and Enterprise Open Source Practices for Advanced Software Development
+# The Symbiotic Nexus
 
 ## Introduction: Navigating the Modern Software Development Paradigm
 

@@ -1,15 +1,4 @@
----
-title: System Design Principles
-type: article
-tags:
-- consist
-- system
-- data
-summary: 'The Architect''s Crucible: A Deep Dive into Distributed Systems Design for
-  Research-Grade Expertise Welcome.'
-auto-generated: true
----
-# The Architect's Crucible: A Deep Dive into Distributed Systems Design for Research-Grade Expertise
+# The Architect's Crucible
 
 Welcome. If you’ve reached this guide, you likely already understand the basic vocabulary: consensus, replication, partitioning, and latency. If you think mastering the CAP theorem is sufficient preparation for a high-stakes system design discussion, I suggest you take a long, leisurely stroll through a major cloud provider's outage report.
 

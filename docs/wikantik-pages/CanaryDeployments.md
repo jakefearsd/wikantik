@@ -1,15 +1,4 @@
----
-title: Canary Deployments
-type: article
-tags:
-- text
-- canari
-- rollout
-summary: Releasing a major feature or an infrastructure update to the entire user
-  base simultaneously is an unacceptable gamble.
-auto-generated: true
----
-# The Art of Gradual Ascent: A Deep Dive into Canary Deployment Gradual Rollout for Advanced Practitioners
+# Gradual Ascent
 
 ## Introduction: Mitigating the Blast Radius in Modern Microservices Architectures
 

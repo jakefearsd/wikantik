@@ -1,15 +1,4 @@
----
-title: The Case Against Market Timing
-type: article
-tags:
-- return
-- model
-- time
-summary: 'Prerequisite Knowledge: Solid understanding of stochastic calculus, time-series
-  analysis, compounding interest, and modern portfolio theory (MPT).'
-auto-generated: true
----
-# The Asymptotic Cost of Inaction: A Comprehensive Technical Analysis of Market Timing Evidence and the Opportunity Cost of Missing Peak Performance Periods
+# The Asymptotic Cost of Inaction
 
 **Target Audience:** Quantitative Researchers, Advanced Portfolio Strategists, Financial Engineers.
 **Prerequisite Knowledge:** Solid understanding of stochastic calculus, time-series analysis, compounding interest, and modern portfolio theory (MPT).

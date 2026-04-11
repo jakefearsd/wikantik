@@ -1,15 +1,4 @@
----
-title: Wills And Trusts
-type: article
-tags:
-- trust
-- asset
-- estat
-summary: The common understanding, gleaned from introductory materials, suggests that
-  one simply drafts a Will, perhaps funds a Trust, and submits the paperwork.
-auto-generated: true
----
-# Deconstructing the Estate Apparatus: A Technical Deep Dive into Wills, Trusts, and Probate Documentation for Advanced Practitioners
+# The Estate Apparatus
 
 For those of us who spend our professional lives navigating the intricate, often emotionally charged, intersection of law, finance, and human mortality, the documentation surrounding estate planning—wills, trusts, and probate filings—is less a set of guidelines and more a complex, multi-layered engineering problem.
 

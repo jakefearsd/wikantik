@@ -1,16 +1,4 @@
----
-title: Ontology Design Patterns
-type: article
-tags:
-- pattern
-- must
-- odp
-summary: If you find the basic definitions of owl:Class and owl:ObjectProperty quaint,
-  this deep dive into Ontology Design Patterns (ODPs) and their application in the
-  Upper Domain is for you.
-auto-generated: true
----
-# Ontology Design Patterns for the Upper Domain: A Comprehensive Guide for Advanced Researchers
+# Ontology Design Patterns for the Upper Domain
 
 This tutorial is intended for seasoned researchers, knowledge engineers, and computational modelers who are not merely *using* ontologies but are actively engaged in designing the meta-architectures that govern knowledge representation across disparate domains. If you find the basic definitions of `owl:Class` and `owl:ObjectProperty` quaint, this deep dive into Ontology Design Patterns (ODPs) and their application in the Upper Domain is for you.
 

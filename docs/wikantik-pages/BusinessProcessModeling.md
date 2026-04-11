@@ -1,16 +1,4 @@
----
-title: Business Process Modeling
-type: article
-tags:
-- model
-- process
-- bpmn
-summary: Business Process Model and Notation (BPMN) was developed precisely to tame
-  this beast—to provide a standardized, unambiguous, and graphically intuitive language
-  for describing the flow of work.
-auto-generated: true
----
-# A Deep Dive into Business Process Model and Notation (BPMN) Workflows: A Technical Review for Advanced Process Researchers
+# Business Process Model and Notation (BPMN) Workflows
 
 For those of us who spend our professional lives wrestling with the inherent messiness of human organizational structures, the concept of "process" is both our greatest tool and our most persistent headache. Business Process Model and Notation (BPMN) was developed precisely to tame this beast—to provide a standardized, unambiguous, and graphically intuitive language for describing the flow of work.
 
@@ -20,7 +8,7 @@ This tutorial will treat BPMN not merely as a drawing standard, but as a formal,
 
 ---
 
-## I. The Theoretical Underpinnings of BPMN: Beyond the Diagram
+## I. Beyond the Diagram
 
 Before we dissect the elements, we must establish the theoretical context. BPMN is not inherently a formal language in the strictest sense (like $\lambda$-calculus or pure Petri Nets), but rather a *notation* designed to bridge the gap between the high-level business stakeholder (who speaks in terms of outcomes and policies) and the low-level systems engineer (who speaks in terms of APIs, state machines, and transaction boundaries).
 
@@ -44,7 +32,7 @@ A sophisticated researcher must understand where BPMN fits relative to other est
 
 ---
 
-## II. Deconstructing the Core Elements: Semantics and Edge Cases
+## II. Semantics and Edge Cases
 
 We must move beyond "what it is" to "what it *means* under specific conditions."
 

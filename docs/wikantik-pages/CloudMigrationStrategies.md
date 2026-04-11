@@ -1,15 +1,4 @@
----
-title: Cloud Migration Strategies
-type: article
-tags:
-- refactor
-- cloud
-- manag
-summary: For seasoned practitioners researching next-generation deployment patterns,
-  the choice between migrating an application is rarely a simple binary decision.
-auto-generated: true
----
-# The Migration Continuum: A Deep Dive into Lift, Shift, and Refactor for Expert Architects
+# The Migration Continuum
 
 Cloud migration is no longer a singular, monolithic project; it is, rather, a complex, multi-dimensional architectural evolution. For seasoned practitioners researching next-generation deployment patterns, the choice between migrating an application is rarely a simple binary decision. It exists on a spectrum, a continuum of effort, risk, and potential reward.
 
@@ -95,7 +84,7 @@ Refactoring here means addressing the *constraints* of the legacy architecture, 
 3.  **Communication Patterns:** Moving away from synchronous, request-response calls (which create cascading failure risks) toward **asynchronous, event-driven architectures (EDA)**.
 4.  **Statelessness:** Every service component must be designed to be stateless. This allows any instance of the service to handle any request, enabling true horizontal scaling managed by orchestrators like Kubernetes.
 
-### 2.2 The Technical Deep Dive: Event-Driven Architecture (EDA)
+### 2.2 Event-Driven Architecture (EDA)
 
 For experts, the shift to EDA is the hallmark of successful refactoring. Instead of Service A calling Service B directly, Service A publishes an *event* (e.g., `OrderPlacedEvent`) to a central message broker (like Kafka or AWS EventBridge).
 

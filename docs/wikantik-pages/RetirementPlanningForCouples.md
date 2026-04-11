@@ -1,14 +1,3 @@
----
-title: Retirement Planning For Couples
-type: article
-tags:
-- benefit
-- model
-- text
-summary: 'For single individuals, the planning horizon is relatively linear: accumulate
-  assets, and then draw down assets while managing longevity risk.'
-auto-generated: true
----
 # Advanced Modeling and Optimization of Spousal Social Security Benefits for Retirement Cohorts
 
 **A Comprehensive Tutorial for Research Experts**

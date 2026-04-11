@@ -1,16 +1,4 @@
----
-title: Java Security Model
-type: article
-tags:
-- jaa
-- permiss
-- secur
-summary: 'Mastering the Mechanics: A Deep Dive into Java Security JAAS Principals
-  and Permissions for Advanced Researchers The Java platform has always been a sprawling
-  beast when it comes to security.'
-auto-generated: true
----
-# Mastering the Mechanics: A Deep Dive into Java Security JAAS Principals and Permissions for Advanced Researchers
+# The Mechanics
 
 The Java platform has always been a sprawling beast when it comes to security. From the initial sandbox model to the complex interplay of `java.security` packages, understanding how authorization is enforced is less about knowing a single API call and more about understanding the underlying security contract. Among the historical pillars of this ecosystem is the Java Authentication and Authorization Service (JAAS).
 
@@ -48,7 +36,7 @@ While they work together—JAAS populates the identity, and the Security Manager
 
 ---
 
-## II. Deep Dive into Core Components: Subject, Principal, and Permission
+## II. Subject, Principal, and Permission
 
 The heart of the JAAS model lies in the triad of Subject, Principal, and Permission. Mastering these three is non-negotiable for advanced work.
 

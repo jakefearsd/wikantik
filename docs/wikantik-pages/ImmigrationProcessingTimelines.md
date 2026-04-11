@@ -1,16 +1,4 @@
----
-title: Immigration Processing Timelines
-type: article
-tags:
-- text
-- data
-- time
-summary: For the average applicant, the journey from filing a petition to receiving
-  final approval is often characterized by periods of agonizing silence punctuated
-  by sudden, unpredictable status changes.
-auto-generated: true
----
-# The Algorithmic Cartography of Bureaucracy: A Comprehensive Tutorial on Immigration Timeline Processing Time Trackers for Advanced Researchers
+# The Algorithmic Cartography of Bureaucracy
 
 ## Introduction: Mapping the Unmappable Flow
 
@@ -22,7 +10,7 @@ Our target audience—researchers in data science, computational social science,
 
 ***
 
-## I. Deconstructing the Data Landscape: Sources, Authority, and Bias
+## I. Sources, Authority, and Bias
 
 Before any algorithm can function, it must ingest data. The primary challenge in this domain is that the data sources are not homogenous; they possess vastly different levels of authority, granularity, and temporal consistency. A researcher must first build a taxonomy of these sources.
 
@@ -53,7 +41,7 @@ These trackers (e.g., those aggregating multiple data points) are the most usefu
 
 ***
 
-## II. Methodological Deep Dive: Building the Tracker Engine
+## II. Building the Tracker Engine
 
 For a researcher, the tracker is not a dashboard; it is a sophisticated data pipeline. We must break down the architecture into three core components: Ingestion, Normalization, and Modeling.
 

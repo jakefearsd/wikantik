@@ -1,14 +1,4 @@
----
-title: Capacity Modeling
-type: article
-tags:
-- model
-- forecast
-- capac
-summary: 'Capacity Modeling Growth Forecasting: A Deep Dive for Research Experts Welcome.'
-auto-generated: true
----
-# Capacity Modeling Growth Forecasting: A Deep Dive for Research Experts
+# Capacity Modeling Growth Forecasting
 
 Welcome. If you are reading this, you are not looking for a simple "how-to" guide that assumes linear growth and ignores the messy reality of organizational inertia. You are here because you understand that capacity modeling is not merely an exercise in extrapolation; it is a complex, multi-variate system dynamics problem that requires integrating historical performance, anticipated strategic initiatives, and inherent market volatility.
 
@@ -20,7 +10,7 @@ This tutorial is designed for experts—researchers, quantitative analysts, and 
 
 Before we can forecast growth, we must rigorously define the components of the system we are modeling. Capacity modeling, at its core, is the quantitative assessment of the relationship between **Demand** (the required work or throughput) and **Supply** (the available resources or processing power), constrained by **Constraints** (bottlenecks, regulatory limits, or resource dependencies).
 
-### A. Deconstructing the Core Components
+### A. The Core Components
 
 A robust capacity model requires defining these elements with extreme precision:
 

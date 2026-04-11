@@ -1,15 +1,4 @@
----
-title: Engineering Decision Frameworks
-type: article
-tags:
-- decis
-- framework
-- must
-summary: 'Decision Making Frameworks and Engineering Tradeoffs: A Deep Dive for Advanced
-  Practitioners Welcome.'
-auto-generated: true
----
-# Decision Making Frameworks and Engineering Tradeoffs: A Deep Dive for Advanced Practitioners
+# Decision Making Frameworks and Engineering Tradeoffs
 
 Welcome. If you've reached this document, you likely understand that "making a decision" is rarely the hard part; understanding *how* to structure the decision space, manage the inherent uncertainties, and rigorously evaluate the resulting compromises is where the actual intellectual heavy lifting occurs.
 
@@ -129,7 +118,7 @@ At the highest level, the primary constraints are **Time** and **Cognitive Load*
 
 This is the heart of the matter. When we move from "Should we build a new product line?" (Strategic) to "Should we use Protocol A or Protocol B?" (Technical), the decision space becomes multidimensional, and the tools must become mathematical and systemic.
 
-### 1. Deconstructing the Tradeoff Space (Source [8])
+### 1. The Tradeoff Space (Source [8])
 
 A tradeoff is not a simple choice between A and B. It is the necessary acceptance of a loss in one dimension to gain an advantage in another.
 
@@ -255,7 +244,7 @@ A critical pitfall when using ML models for decision support is confusing correl
 *   **The Trap:** An ML model might show that "When we used Technology X, Feature Y was adopted." This is a correlation.
 *   **The Expert Correction:** A causal inference framework (like Do-Calculus or structural causal models) is required to ask: "If we *force* the adoption of Technology X, *and* we hold all other variables constant, what is the causal impact on Feature Y adoption?" This moves the decision from descriptive statistics to prescriptive action.
 
-### 3. Edge Case Deep Dive: The "Unknown Unknowns"
+### 3. The "Unknown Unknowns"
 
 The greatest failure point for any framework is the "Unknown Unknown"—the variable or risk that was not conceived of during the initial modeling phase.
 

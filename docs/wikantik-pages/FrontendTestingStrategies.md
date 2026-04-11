@@ -1,15 +1,4 @@
----
-title: Frontend Testing Strategies
-type: article
-tags:
-- test
-- compon
-- playwright
-summary: We are no longer satisfied with mere smoke tests; we demand rigorous validation
-  across every layer of abstraction.
-auto-generated: true
----
-# Mastering the Triad: A Comprehensive Guide to Jest, Playwright, and Component Testing in Modern Frontend Architectures
+# The Triad
 
 For those of us who spend our professional lives wrestling with the ephemeral nature of user interfaces, the testing suite is less a set of safety nets and more a philosophical statement about the perceived stability of our code. We are no longer satisfied with mere smoke tests; we demand rigorous validation across every layer of abstraction.
 
@@ -96,7 +85,7 @@ For a large-scale, modern application (e.g., built with Next.js, as suggested by
     *   **Tool:** Playwright.
     *   **Goal:** The final confirmation. If this passes, the application is likely functional. If it fails, the root cause is usually a gap in the lower layers.
 
-### 2.2. Deep Dive: Bridging Jest and Playwright Component Testing
+### 2.2. Bridging Jest and Playwright Component Testing
 
 The context suggests a desire to use both Jest and Playwright. This implies a need for a "bridge" or a clear demarcation of responsibility.
 

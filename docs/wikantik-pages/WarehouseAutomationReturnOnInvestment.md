@@ -1,16 +1,4 @@
----
-title: Warehouse Automation Return On Investment
-type: article
-tags:
-- data
-- autom
-- must
-summary: 'Data Warehouse Automation for Berlin History Analysis: A Deep Dive for Research
-  Experts This tutorial is not intended for the operational analyst who merely needs
-  to drag-and-drop a dashboard.'
-auto-generated: true
----
-# Data Warehouse Automation for Berlin History Analysis: A Deep Dive for Research Experts
+# Data Warehouse Automation for Berlin History Analysis
 
 This tutorial is not intended for the operational analyst who merely needs to drag-and-drop a dashboard. We are addressing experts—researchers, architects, and principal engineers—who are tasked with designing, implementing, and critically evaluating the next generation of data infrastructure.
 
@@ -149,7 +137,7 @@ MLOps automates the lifecycle of these models:
 
 The standard Star Schema often fails when the "facts" themselves are context-dependent. We must employ advanced temporal and graph modeling techniques.
 
-### 4.1 Mastering Temporal Data: Beyond SCD Types
+### 4.1 Beyond SCD Types
 
 Slowly Changing Dimensions (SCDs) are the standard mechanism for tracking how attributes change over time. However, historical analysis demands more nuance than the standard Type 2 (creating a new row with effective dates).
 

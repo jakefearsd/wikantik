@@ -1,14 +1,4 @@
----
-title: Berlin During The Cold War
-type: article
-tags:
-- system
-- state
-- model
-summary: This tutorial moves beyond mere historical recitation.
-auto-generated: true
----
-# A Comprehensive Technical Analysis of Systemic Collapse and State Reintegration: The Berlin Wall and German Reunification (1961–1990)
+# The Berlin Wall and German Reunification (1961–1990)
 
 **Target Audience:** Experts in System Dynamics, Geopolitical Modeling, Conflict Resolution Engineering, and Post-Conflict Reconstruction.
 
@@ -33,7 +23,7 @@ We anticipate that the sheer complexity of the required harmonization—the merg
 
 ***
 
-## I. The Architecture of Division: Modeling the Bipartite System (1945–1961)
+## I. Modeling the Bipartite System (1945–1961)
 
 The initial post-war period established a geopolitical framework that was inherently unstable. The division of Germany was not a singular event but a gradual, escalating process of systemic partitioning, culminating in the physical manifestation of the Wall.
 

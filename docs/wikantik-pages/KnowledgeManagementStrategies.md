@@ -1,15 +1,4 @@
----
-title: Knowledge Management Strategies
-type: article
-tags:
-- knowledg
-- km
-- must
-summary: It is not merely about building a repository; it is about engineering the
-  cognitive metabolism of an enterprise.
-auto-generated: true
----
-# The Architecture of Organizational Intelligence: A Comprehensive Tutorial on Advanced Knowledge Management Strategy
+# Organizational Intelligence
 
 For those of us operating at the frontier of organizational science, "Knowledge Management Strategy" (KMS) is less a checklist and more a complex, adaptive system design problem. It is not merely about building a repository; it is about engineering the cognitive metabolism of an enterprise. Given your expertise, we will bypass the introductory platitudes—the "why knowledge is important" segments—and dive directly into the rigorous, multi-layered frameworks required to architect a KMS that doesn't just *exist*, but actively *drives* strategic advantage, navigates systemic organizational change, and anticipates future knowledge gaps.
 
@@ -17,7 +6,7 @@ This tutorial is structured to move from foundational theoretical alignment to c
 
 ---
 
-## I. Deconstructing the Core Concept: KMS as a Strategic Imperative
+## I. KMS as a Strategic Imperative
 
 At its most fundamental level, a KMS is the formal mechanism by which an organization seeks to capture, structure, disseminate, and apply its collective intellectual assets to achieve its stated strategic objectives. Source [1] correctly identifies the primary goal: **alignment**. However, for an expert audience, alignment must be understood not as a linear mapping, but as a dynamic, feedback-driven resonance between knowledge flow and market opportunity.
 

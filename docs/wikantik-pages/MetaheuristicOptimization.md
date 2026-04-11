@@ -1,15 +1,4 @@
----
-title: Metaheuristic Optimization
-type: article
-tags:
-- sa
-- ga
-- mathbf
-summary: The Necessity of Metaheuristics in Modern Optimization Before dissecting
-  the algorithms themselves, one must appreciate the landscape they navigate.
-auto-generated: true
----
-# A Deep Dive into Metaheuristics: Genetic Algorithms and Simulated Annealing for Advanced Optimization Research
+# Genetic Algorithms and Simulated Annealing for Advanced Optimization Research
 
 For researchers operating at the cutting edge of computational science, optimization problems rarely present themselves in the neat, convex forms solvable by classical calculus-based methods. The real-world challenges—be they reconstructing complex phylogenetic trees, optimizing massive logistical networks, or synchronizing intricate timetables—are characterized by high dimensionality, non-linearity, and rugged, multi-modal fitness landscapes.
 

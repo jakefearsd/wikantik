@@ -1,16 +1,4 @@
----
-title: Woodworking Joinery Techniques
-type: article
-tags:
-- joint
-- tenon
-- mortis
-summary: It is the foundational handshake of carpentry, a joint so ubiquitous that
-  its mechanics are often taught to novices with the same breathless reverence usually
-  reserved for discovering fire.
-auto-generated: true
----
-# The Mortise and Tenon Joint: A Deep Dive for Advanced Joinery Researchers
+# The Mortise and Tenon Joint
 
 For those of us who have spent enough time staring at dovetails until our retinas ache, the mortise and tenon joint might appear, at first glance, almost insultingly straightforward. It is the foundational handshake of carpentry, a joint so ubiquitous that its mechanics are often taught to novices with the same breathless reverence usually reserved for discovering fire.
 

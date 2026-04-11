@@ -1,15 +1,4 @@
----
-title: Taxonomy Design Principles
-type: article
-tags:
-- text
-- taxonomi
-- rightarrow
-summary: A Comprehensive Tutorial on Taxonomy Classification Hierarchy Organization
-  for Advanced Researchers Welcome.
-auto-generated: true
----
-# A Comprehensive Tutorial on Taxonomy Classification Hierarchy Organization for Advanced Researchers
+# Taxonomy Classification Hierarchy Organization
 
 Welcome. If you are reading this, you are not interested in the introductory material found in undergraduate biology texts, nor are you merely looking to structure a corporate filing system. You are researching the frontiers where information science, computational biology, and formal knowledge representation intersect. You are interested in the *mechanics* of classification—the underlying mathematical, logical, and structural principles that allow us to impose order on the overwhelming chaos of data, whether that data describes the phylogenetic relationships of life or the interconnected semantics of a global knowledge graph.
 

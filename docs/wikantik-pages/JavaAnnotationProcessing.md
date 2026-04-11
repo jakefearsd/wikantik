@@ -1,15 +1,4 @@
----
-title: Java Annotation Processing
-type: article
-tags:
-- annot
-- compil
-- processor
-summary: 'Mastering the Meta-Layer: A Comprehensive Deep Dive into Java Annotation
-  Processing Custom Annotations for Research Experts Welcome.'
-auto-generated: true
----
-# Mastering the Meta-Layer: A Comprehensive Deep Dive into Java Annotation Processing Custom Annotations for Research Experts
+# The Meta-Layer
 
 Welcome. If you are reading this, you are not looking for a simple "Hello World" tutorial on `@interface`. You are researching the limits of compile-time metaprogramming, seeking to understand the architectural patterns that allow Java to bend its own rules—or, more accurately, to *augment* them—at the deepest levels of the build lifecycle.
 
@@ -59,7 +48,7 @@ When you implement an annotation processor, you are essentially writing a specia
 
 ---
 
-## II. Deep Dive into the Annotation Processor API (APT)
+## II. The Annotation Processor API (APT)
 
 To write a processor, one must master the lifecycle provided by `javax.annotation.processing.Processor`.
 

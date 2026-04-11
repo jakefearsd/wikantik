@@ -1,14 +1,4 @@
----
-title: Maven Multi Module Projects
-type: article
-tags:
-- modul
-- depend
-- version
-summary: This tutorial is not a "how-to" guide for junior developers.
-auto-generated: true
----
-# The Architecture of Scale: A Deep Dive into Maven Multi-Module Project Structures for Advanced Practitioners
+# The Architecture of Scale
 
 For those of us who spend our professional lives wrestling with build systems, the concept of the multi-module project is less a feature and more a necessary evil—a structural compromise required when an application’s complexity exceeds the scope of a single, monolithic artifact. If you are researching advanced techniques, you already understand that the goal is not merely to *build* multiple JARs, but to manage a complex, evolving *system* of interconnected components with predictable build semantics, robust dependency resolution, and maintainable release cycles.
 
@@ -54,7 +44,7 @@ We categorize modules based on their functional role:
 
 For experts, the build process is not a linear sequence; it is a graph traversal problem. Understanding how Maven executes this graph is key to optimizing build times and managing complex release scenarios.
 
-### 2.1 Understanding the Maven Reactor Execution
+### 2.1 The Maven Reactor Execution
 
 When you run `mvn clean install`, Maven does not simply compile everything. It builds the dependency graph and executes the lifecycle phases in the correct order.
 
@@ -257,7 +247,7 @@ A Buildpack (e.g., Spring Boot Buildpacks, Cloud Native Buildpacks) takes a set 
 
 This decoupling is the zenith of modern architectural design for large systems, as it separates the concerns of **Compilation/Packaging** (Maven/Gradle) from **Runtime Environment Provisioning** (Container Orchestration).
 
-### 5.3 Advanced Dependency Resolution: Maven Enforcer Plugin Deep Dive
+### 5.3 Advanced Dependency Resolution: Maven Enforcer Plugin
 
 For the expert who needs absolute control, the `maven-enforcer-plugin` is indispensable. It allows you to write custom rules that fail the build based on structural violations, not just compilation errors.
 

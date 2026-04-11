@@ -1,15 +1,4 @@
----
-title: Software Architecture Patterns
-type: article
-tags:
-- us
-- layer
-- architectur
-summary: As systems grow in complexity, the initial elegance of a design often degrades
-  into brittle, tangled spaghetti code.
-auto-generated: true
----
-# The Architecture of Resilience: A Deep Dive into Hexagonal, Onion, and Clean Design Patterns
+# The Architecture of Resilience
 
 For seasoned software architects and researchers, the pursuit of the "perfect" architecture is less about finding a single silver bullet and more about mastering the art of managing inevitable change. As systems grow in complexity, the initial elegance of a design often degrades into brittle, tangled spaghetti code. The challenge is not merely to build a system that works today, but to build a system that can absorb the shocks of tomorrow—new business rules, changing persistence technologies, or evolving UI paradigms—with minimal refactoring effort.
 
@@ -47,7 +36,7 @@ The goal is to create a system where a change in the database technology (e.g., 
 
 ---
 
-## II. Deep Dive: Hexagonal Architecture (Ports and Adapters)
+## II. Hexagonal Architecture (Ports and Adapters)
 
 The Hexagonal Architecture, popularized by Alistair Cockburn, is perhaps the most explicit articulation of the dependency inversion concept. It is fundamentally a pattern focused on **decoupling the application core from the outside world.**
 
@@ -90,7 +79,7 @@ The core business logic (the use cases) only knows about the `IUserRepository` i
 
 ---
 
-## III. Deep Dive: Onion Architecture
+## III. Onion Architecture
 
 The Onion Architecture, often associated with the concept of concentric layers, takes the principles of Ports and Adapters and overlays them with a more explicit, layered organizational structure, heavily influenced by Domain-Driven Design (DDD).
 
@@ -132,7 +121,7 @@ The Application Service acts as the primary orchestrator, calling methods on the
 
 ---
 
-## IV. Deep Dive: Clean Architecture
+## IV. Clean Architecture
 
 Clean Architecture, formalized by Robert C. Martin (Uncle Bob), is often the most abstract and sometimes the most intimidating of the three. It is less a pattern and more a **set of guiding principles** derived from the lessons learned by observing the successes and failures of Hexagonal and Onion approaches.
 

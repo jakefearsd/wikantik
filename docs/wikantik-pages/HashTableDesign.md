@@ -1,15 +1,4 @@
----
-title: Hash Table Design
-type: article
-tags:
-- hash
-- probe
-- alpha
-summary: 'The Art and Science of Collision Resolution in Hash Tables: A Deep Dive
-  for Research Experts Welcome.'
-auto-generated: true
----
-# The Art and Science of Collision Resolution in Hash Tables: A Deep Dive for Research Experts
+# Hash Table Design
 
 Welcome. If you are reading this, you are presumably well past the point of needing a simple definition of a hash map. You understand that the theoretical ideal—$O(1)$ average time complexity for insertion, deletion, and retrieval—is a beautiful mathematical construct, but the physical implementation is where the rubber meets the road, and where collisions inevitably introduce fascinating, and often infuriating, computational wrinkles.
 
@@ -19,7 +8,7 @@ Consider this a comprehensive survey of the state-of-the-art, suitable for those
 
 ---
 
-## I. Theoretical Foundations: The Collision Problem Space
+## I. The Collision Problem Space
 
 Before diving into solutions, we must rigorously define the problem. A hash table, $H$, maps a key space $\mathcal{K}$ (the set of all possible keys) to a fixed, finite index space $\{0, 1, \dots, M-1\}$, where $M$ is the size of the underlying array (the table size). The core function is the hash function, $h: \mathcal{K} \to \{0, 1, \dots, M-1\}$.
 
@@ -41,7 +30,7 @@ The primary goal of any collision resolution technique is to manage the *cluster
 
 ---
 
-## II. Open Addressing Schemes: Probing the Void
+## II. Open Addressing Schemes
 
 Open addressing (or closed hashing) techniques mandate that all key-value pairs reside directly within the primary hash table array. When a collision occurs, instead of pointing to an external structure, the algorithm probes subsequent, unoccupied slots within the table itself until an empty slot is found.
 
@@ -99,7 +88,7 @@ By incorporating the key itself into the step calculation, the probe sequence be
 
 ---
 
-## III. Separate Chaining: The Linked List Approach
+## III. Separate Chaining
 
 Separate chaining abandons the constraint of keeping all elements within the primary array slots. Instead, each slot (or "bucket") in the hash table array $T$ stores a pointer to the head of a secondary data structure—typically a linked list, but increasingly, a more sophisticated structure.
 
@@ -119,7 +108,7 @@ This is the textbook implementation.
 *   **Advantages:** It handles $\alpha > 1$ gracefully. The table can theoretically hold more elements than it has slots, which is a massive practical advantage over open addressing schemes.
 *   **Disadvantages:** High memory overhead due to the pointer structure of the linked list nodes. Furthermore, the worst-case scenario (all $N$ keys hash to the same bucket) forces the search time to $O(N)$, which is unavoidable without structural modification.
 
-### B. Advanced Chaining Structures: Beyond the Linked List
+### B. Advanced Chaining Structures
 
 For expert research, relying solely on a standard linked list is often deemed insufficient because the worst-case $O(N)$ search time is too slow for high-performance systems. The solution is to replace the simple linked list with a self-balancing binary search tree (BST) or a similar structure.
 
@@ -243,7 +232,7 @@ The choice of $h$ is often the most complex engineering problem.
 
 ---
 
-## VI. Conclusion: Choosing the Right Tool for the Job
+## VI. Conclusion
 
 There is no single "best" collision resolution technique. The optimal choice is a function of the operational constraints:
 

@@ -1,23 +1,25 @@
 ---
+date: '2026-03-14'
 summary: How WWII markets stayed open unlike WWI, the 1942 turning point, and the
   post-war Bretton Woods bull market
-date: '2026-03-14'
+cluster: conflicts-equity-markets
+related:
+- ConflictsAndEquityMarkets
+- WorldWarOneMarkets
+- ColdWarMarkets
+- ConflictMarketPatterns
+part-of:
+- ConflictsAndEquityMarkets
+type: article
+status: active
 tags:
 - finance
 - world-war-two
 - equity-markets
 - history
 - bretton-woods
-related:
-- ConflictsAndEquityMarkets
-- WorldWarOneMarkets
-- ColdWarMarkets
-- ConflictMarketPatterns
-type: article
-cluster: conflicts-equity-markets
-status: active
-part-of:
-- ConflictsAndEquityMarkets
+hubs:
+- ConflictMarketPatterns Hub
 ---
 # World War II and Global Equity Markets (1939–1945)
 

@@ -1,15 +1,4 @@
----
-title: Markov Chain Fundamentals
-type: article
-tags:
-- mathbf
-- state
-- time
-summary: A Comprehensive Tutorial on Markov Chains and Stochastic Process Transitions
-  for Advanced Researchers Welcome.
-auto-generated: true
----
-# A Comprehensive Tutorial on Markov Chains and Stochastic Process Transitions for Advanced Researchers
+# Markov Chains and Stochastic Process Transitions
 
 Welcome. If you are reading this, you are likely already familiar with the basic definition of a stochastic process—a collection of random variables indexed by time. You are not here for the undergraduate review of "the next state depends only on the current state." You are here because you are researching novel techniques, and you require a deep, mathematically rigorous, and comprehensive understanding of the machinery that Markov Chains provide.
 

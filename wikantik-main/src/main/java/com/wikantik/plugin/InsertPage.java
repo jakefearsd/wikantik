@@ -82,130 +82,139 @@ public class InsertPage implements Plugin {
     /**
      *  {@inheritDoc}
      */
-    @Override @SuppressWarnings("unchecked")
+    @Override
     public String execute( final Context context, final Map<String, String> params ) throws PluginException {
+        final String includedPage = TextUtil.replaceEntities( params.get( PARAM_PAGENAME ) );
+        if ( includedPage == null ) {
+            return errorSpan( "You have to define a page!" );
+        }
+
         final Engine engine = context.getEngine();
+        final Page page;
+        try {
+            page = resolvePage( engine, includedPage );
+        } catch ( final ProviderException e ) {
+            return errorSpan( "Page could not be found by the page provider." );
+        }
+
+        if ( page == null ) {
+            return missingPageMarkup( context, includedPage, params.get( PARAM_DEFAULT ) );
+        }
+
+        final List< String > recursionStack = currentRecursionStack( context );
+        if ( recursionStack.contains( page.getName() ) ) {
+            return errorSpan( "Error: Circular reference - you can't include a page in itself!" );
+        }
+
+        if ( !hasViewPermission( engine, context, page ) ) {
+            return errorSpan( "You do not have permission to view this included page." );
+        }
+
+        final boolean showOnce = "once".equals( params.get( PARAM_SHOW ) );
+        final String cookieName = showOnce ? showOnceCookieName( page ) : "";
+        if ( showOnce && HttpUtil.retrieveCookieValue( context.getHttpRequest(), cookieName ) != null ) {
+            return "";  // silent exit
+        }
+
+        pushRecursionMarker( context, recursionStack, page );
+        final String rendered = renderIncludedPage( engine, context, page, params, includedPage, showOnce, cookieName );
+        popRecursionMarker( context, recursionStack, page );
+        return rendered;
+    }
+
+    // ---- Guards and lookup helpers ----
+
+    private static String errorSpan( final String message ) {
+        return "<span class=\"error\">" + message + "</span>";
+    }
+
+    private static Page resolvePage( final Engine engine, final String includedPage ) throws ProviderException {
+        final String pageName = engine.getFinalPageName( includedPage );
+        return engine.getManager( PageManager.class ).getPage(
+            Objects.requireNonNullElse( pageName, includedPage ) );
+    }
+
+    private static boolean hasViewPermission( final Engine engine, final Context context, final Page page ) {
+        final AuthorizationManager mgr = engine.getManager( AuthorizationManager.class );
+        return mgr.checkPermission( context.getWikiSession(), PermissionFactory.getPagePermission( page, "view" ) );
+    }
+
+    private static String showOnceCookieName( final Page page ) {
+        return ONCE_COOKIE + TextUtil.urlEncodeUTF8( page.getName() ).replaceAll( "\\+", "%20" );
+    }
+
+    private static String missingPageMarkup( final Context context, final String includedPage, final String defaultstr ) {
+        if ( defaultstr != null ) return defaultstr;
+        final String editUrl = context.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), includedPage );
+        return "There is no page called '" + includedPage + "'.  Would you like to "
+             + "<a href=\"" + editUrl + "\">create it?</a>";
+    }
+
+    // ---- Recursion stack management ----
+
+    @SuppressWarnings( "unchecked" )
+    private static List< String > currentRecursionStack( final Context context ) {
+        final List< String > prior = context.getVariable( ATTR_RECURSE );
+        return prior != null ? prior : new ArrayList<>();
+    }
+
+    private static void pushRecursionMarker( final Context context, final List< String > stack, final Page page ) {
+        stack.add( page.getName() );
+        context.setVariable( ATTR_RECURSE, stack );
+    }
+
+    private static void popRecursionMarker( final Context context, final List< String > stack, final Page page ) {
+        stack.remove( page.getName() );
+        context.setVariable( ATTR_RECURSE, stack );
+    }
+
+    // ---- Render ----
+
+    private static String renderIncludedPage(
+            final Engine engine,
+            final Context context,
+            final Page page,
+            final Map< String, String > params,
+            final String includedPage,
+            final boolean showOnce,
+            final String cookieName ) throws PluginException {
+        final ResourceBundle rb = Preferences.getBundle( context, Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
+        final String clazz = TextUtil.replaceEntities( params.get( PARAM_CLASS ) );
+        final String styleParam = TextUtil.replaceEntities( params.get( PARAM_STYLE ) );
+        final String style = styleParam != null ? styleParam : DEFAULT_STYLE;
+        final int section = TextUtil.parseIntParameter( params.get( PARAM_SECTION ), -1 );
+        final int maxlenParam = TextUtil.parseIntParameter( params.get( PARAM_MAXLENGTH ), -1 );
+        final int maxlen = maxlenParam == -1 ? Integer.MAX_VALUE : maxlenParam;
+
+        final Context includedContext = context.clone();
+        includedContext.setPage( page );
+
+        String pageData = engine.getManager( PageManager.class ).getPureText( page );
+        if ( section != -1 ) {
+            try {
+                pageData = TextUtil.getSection( pageData, section );
+            } catch ( final IllegalArgumentException e ) {
+                throw new PluginException( e.getMessage() );
+            }
+        }
+
+        String moreLink = "";
+        if ( pageData.length() > maxlen ) {
+            pageData = pageData.substring( 0, maxlen ) + " ...";
+            moreLink = "<p><a href=\""
+                + context.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), includedPage )
+                + "\">" + rb.getString( "insertpage.more" ) + "</a></p>";
+        }
 
         final StringBuilder res = new StringBuilder();
-
-        final String clazz        = TextUtil.replaceEntities(params.get( PARAM_CLASS ));
-        final String includedPage = TextUtil.replaceEntities(params.get( PARAM_PAGENAME ));
-        String style              = TextUtil.replaceEntities(params.get( PARAM_STYLE ));
-        final boolean showOnce    = "once".equals( params.get( PARAM_SHOW ) );
-        final String defaultstr   = params.get( PARAM_DEFAULT );
-        final int section         = TextUtil.parseIntParameter(params.get( PARAM_SECTION ), -1 );
-        int maxlen                = TextUtil.parseIntParameter(params.get( PARAM_MAXLENGTH ), -1 );
-
-        final ResourceBundle rb = Preferences.getBundle( context, Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
-
-        if( style == null ) {
-            style = DEFAULT_STYLE;
-        }
-
-        if( maxlen == -1 ) {
-            maxlen = Integer.MAX_VALUE;
-        }
-
-        if( includedPage != null ) {
-            final Page page;
-            try {
-                final String pageName = engine.getFinalPageName( includedPage );
-                page = engine.getManager(PageManager.class).getPage(Objects.requireNonNullElse(pageName, includedPage));
-            } catch( final ProviderException e ) {
-                res.append( "<span class=\"error\">Page could not be found by the page provider.</span>" );
-                return res.toString();
-            }
-
-            if( page != null ) {
-                //  Check for recursivity
-                List<String> previousIncludes = context.getVariable( ATTR_RECURSE );
-
-                if( previousIncludes != null ) {
-                    if( previousIncludes.contains( page.getName() ) ) {
-                        return "<span class=\"error\">Error: Circular reference - you can't include a page in itself!</span>";
-                    }
-                } else {
-                    previousIncludes = new ArrayList<>();
-                }
-
-                // Check for permissions
-                final AuthorizationManager mgr = engine.getManager( AuthorizationManager.class );
-
-                if( !mgr.checkPermission( context.getWikiSession(), PermissionFactory.getPagePermission( page, "view") ) ) {
-                    res.append("<span class=\"error\">You do not have permission to view this included page.</span>");
-                    return res.toString();
-                }
-
-                // Show Once
-                // Check for page-cookie, only include page if cookie is not yet set
-                String cookieName = "";
-
-                if( showOnce ) {
-                    cookieName = ONCE_COOKIE + TextUtil.urlEncodeUTF8( page.getName() ).replaceAll( "\\+", "%20" );
-
-                    if( HttpUtil.retrieveCookieValue( context.getHttpRequest(), cookieName ) != null ) {
-                        return "";  //silent exit
-                    }
-
-                }
-
-                // move here, after premature exit points (permissions, page-cookie)
-                previousIncludes.add( page.getName() );
-                context.setVariable( ATTR_RECURSE, previousIncludes );
-
-                /**
-                 *  We want inclusion to occur within the context of
-                 *  its own page, because we need the links to be correct.
-                 */
-
-                final Context includedContext = context.clone();
-                includedContext.setPage( page );
-
-                String pageData = engine.getManager( PageManager.class ).getPureText( page );
-                String moreLink = "";
-
-                if( section != -1 ) {
-                    try {
-                        pageData = TextUtil.getSection( pageData, section );
-                    } catch( final IllegalArgumentException e ) {
-                        throw new PluginException( e.getMessage() );
-                    }
-                }
-
-                if( pageData.length() > maxlen ) {
-                    pageData = pageData.substring( 0, maxlen )+" ...";
-                    moreLink = "<p><a href=\""+context.getURL( ContextEnum.PAGE_VIEW.getRequestContext(),includedPage)+"\">"+rb.getString("insertpage.more")+"</a></p>";
-                }
-
-                res.append("<div class=\"inserted-page ");
-                if( clazz != null ) res.append( clazz );
-                if( !style.equals(DEFAULT_STYLE) ) res.append( "\" style=\"" ).append( style );
-                if( showOnce ) res.append( "\" data-once=\"" ).append( cookieName );
-                res.append("\" >");
-
-                res.append( engine.getManager( RenderingManager.class ).textToHTML( includedContext, pageData ) );
-                res.append( moreLink );
-
-                res.append("</div>");
-
-                //
-                //  Remove the name from the stack; we're now done with this.
-                //
-                previousIncludes.remove( page.getName() );
-                context.setVariable( ATTR_RECURSE, previousIncludes );
-            } else {
-                if( defaultstr != null ) {
-                    res.append( defaultstr );
-                } else {
-                    res.append( "There is no page called '" ).append( includedPage ).append( "'.  Would you like to " );
-                    res.append( "<a href=\"" ).append( context.getURL( ContextEnum.PAGE_EDIT.getRequestContext(), includedPage ) ).append( "\">create it?</a>" );
-                }
-            }
-        } else {
-            res.append( "<span class=\"error\">" );
-            res.append( "You have to define a page!" );
-            res.append( "</span>" );
-        }
+        res.append( "<div class=\"inserted-page " );
+        if ( clazz != null ) res.append( clazz );
+        if ( !style.equals( DEFAULT_STYLE ) ) res.append( "\" style=\"" ).append( style );
+        if ( showOnce ) res.append( "\" data-once=\"" ).append( cookieName );
+        res.append( "\" >" );
+        res.append( engine.getManager( RenderingManager.class ).textToHTML( includedContext, pageData ) );
+        res.append( moreLink );
+        res.append( "</div>" );
         return res.toString();
     }
 

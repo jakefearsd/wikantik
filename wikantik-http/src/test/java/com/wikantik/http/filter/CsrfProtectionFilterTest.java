@@ -52,6 +52,54 @@ class CsrfProtectionFilterTest {
     }
 
     @ParameterizedTest
+    @ValueSource( strings = { "POST", "PUT", "DELETE", "PATCH", "post", "put", "delete", "patch" } )
+    void testIsStateChangingRecognizesAllMutatingMethods( final String method ) {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( method ).when( request ).getMethod();
+        assertTrue( CsrfProtectionFilter.isStateChanging( request ),
+                    method + " must be treated as a state-changing method" );
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "GET", "HEAD", "OPTIONS", "TRACE" } )
+    void testIsStateChangingRejectsSafeMethods( final String method ) {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( method ).when( request ).getMethod();
+        assertFalse( CsrfProtectionFilter.isStateChanging( request ),
+                     method + " must not be treated as state-changing" );
+    }
+
+    @Test
+    void testIsOriginAllowedWhenHeaderAbsent() {
+        // Server-to-server / curl has no Origin header — allow through.
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( null ).when( request ).getHeader( "Origin" );
+        assertTrue( CsrfProtectionFilter.isOriginAllowed( request, "https://wiki.example.com" ) );
+    }
+
+    @Test
+    void testIsOriginAllowedWhenHeaderMatches() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "https://wiki.example.com" ).when( request ).getHeader( "Origin" );
+        assertTrue( CsrfProtectionFilter.isOriginAllowed( request, "https://wiki.example.com,https://other.example.com" ) );
+    }
+
+    @Test
+    void testIsOriginAllowedWhenHeaderMismatches() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "https://evil.example.com" ).when( request ).getHeader( "Origin" );
+        assertFalse( CsrfProtectionFilter.isOriginAllowed( request, "https://wiki.example.com" ) );
+    }
+
+    @Test
+    void testIsOriginAllowedWithEmptyWhitelistRejectsCrossOrigin() {
+        // No whitelist configured — any browser-originating request is suspicious.
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "https://evil.example.com" ).when( request ).getHeader( "Origin" );
+        assertFalse( CsrfProtectionFilter.isOriginAllowed( request, "" ) );
+    }
+
+    @ParameterizedTest
     @ValueSource( strings = { "/mcp", "/knowledge-mcp" } )
     void testIsMcpEndpointReturnsTrue( final String servletPath ) {
         final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );

@@ -144,6 +144,16 @@ public class PingSearchEnginesTool implements McpTool {
         try {
             final List< String > submitUrls;
             if ( urls != null && !urls.isEmpty() ) {
+                // Restrict to the configured baseUrl to prevent SSRF / arbitrary pings.
+                // Any URL outside the wiki we're notifying about makes no sense for
+                // IndexNow anyway — the spec requires host match.
+                for ( final String url : urls ) {
+                    if ( !isWithinBase( url ) ) {
+                        entry.put( "success", false );
+                        entry.put( "error", "Rejected URL outside configured baseUrl: " + url );
+                        return entry;
+                    }
+                }
                 submitUrls = urls;
             } else {
                 submitUrls = List.of( baseUrl + "/sitemap.xml" );
@@ -179,6 +189,27 @@ public class PingSearchEnginesTool implements McpTool {
         }
 
         return entry;
+    }
+
+    private boolean isWithinBase( final String url ) {
+        if ( baseUrl == null || url == null ) {
+            return false;
+        }
+        try {
+            final URI base = URI.create( baseUrl );
+            final URI candidate = URI.create( url );
+            if ( base.getScheme() == null || candidate.getScheme() == null
+                    || !base.getScheme().equalsIgnoreCase( candidate.getScheme() ) ) {
+                return false;
+            }
+            if ( base.getHost() == null || candidate.getHost() == null
+                    || !base.getHost().equalsIgnoreCase( candidate.getHost() ) ) {
+                return false;
+            }
+            return base.getPort() == candidate.getPort();
+        } catch ( final IllegalArgumentException e ) {
+            return false;
+        }
     }
 
     private static String extractHost( final String url ) {

@@ -131,6 +131,28 @@ class PingSearchEnginesToolTest {
     }
 
     @Test
+    @SuppressWarnings( "unchecked" )
+    void testIndexNow_rejectsUrlOutsideConfiguredBase() {
+        final PingSearchEnginesTool tool = new PingSearchEnginesTool(
+                "http://wiki.example.com", "my-api-key-123", stubClient( 200 ) );
+
+        final Map< String, Object > args = new HashMap<>();
+        args.put( "service", "indexnow" );
+        args.put( "urls", List.of( "http://169.254.169.254/meta-data",
+                                   "http://wiki.example.com/wiki/PageA" ) );
+
+        final Map< String, Object > data = executeAndParse( tool, args );
+        final List< Map< String, Object > > results = ( List< Map< String, Object > > ) data.get( "results" );
+        assertEquals( 1, results.size() );
+        final Map< String, Object > indexNow = results.get( 0 );
+        // Must not silently submit the hostile URL; the tool should reject the request.
+        assertEquals( false, indexNow.get( "success" ) );
+        assertNotNull( indexNow.get( "error" ) );
+        assertTrue( indexNow.get( "error" ).toString().toLowerCase().contains( "url" ),
+                    "error should mention rejected URL, was: " + indexNow.get( "error" ) );
+    }
+
+    @Test
     void testToolDefinition() {
         final PingSearchEnginesTool tool = new PingSearchEnginesTool(
                 "http://wiki.example.com", null, stubClient( 200 ) );

@@ -18,38 +18,36 @@ drop table groups if exists cascade;
 drop table group_members if exists cascade;
 
 create table users (
-  uid varchar(100),
-  email varchar_ignorecase(100),
-  full_name varchar(100),
-  login_name varchar(100) not null,
-  password varchar(100),
-  wiki_name varchar(100),
-  created timestamp,
-  modified timestamp,
+  uid         varchar(100),
+  email       varchar(100),
+  full_name   varchar(100),
+  login_name  varchar(100) not null primary key,
+  password    varchar(100),
+  wiki_name   varchar(100),
+  created     timestamp,
+  modified    timestamp,
   lock_expiry timestamp,
-  attributes longvarchar,
-  constraint users primary key (uid)
+  bio         varchar(1000),
+  attributes  longvarchar
 );
 
 create table roles (
   login_name varchar(100) not null,
-  role varchar(100) not null
+  role       varchar(100) not null
 );
 
 create table groups (
-  name varchar(100) not null,
-  creator varchar(100),
-  created timestamp,
+  name     varchar(100) not null primary key,
+  creator  varchar(100),
+  created  timestamp,
   modifier varchar(100),
-  modified timestamp,
-  constraint groups primary key (name)
+  modified timestamp
 );
 
 create table group_members (
-  name varchar(100) not null,
+  name   varchar(100) not null,
   member varchar(100) not null,
-  constraint group_members primary key
-    (name,member)
+  constraint group_members_pk primary key (name, member)
 );
 
 insert into users (
@@ -89,7 +87,7 @@ insert into users (
 insert into roles (
   login_name,
   role
-) values (  
+) values (
   'janne',
   'Authenticated'
 );
@@ -192,6 +190,19 @@ insert into group_members (
 ) values (
   'Admin',
   'Administrator'
+);
+
+-- Janne (wiki name JanneJalkanen) is granted Admin group membership in the IT
+-- environment so tests that exercise admin-gated features (e.g. JDBCPlugin) can
+-- authenticate as the standard test user rather than maintaining a separate
+-- admin credential. GroupManager.isUserInRole matches by principal name, and
+-- after login the session carries the wiki-name WikiPrincipal.
+insert into group_members (
+  name,
+  member
+) values (
+  'Admin',
+  'JanneJalkanen'
 );
 
 -- =============================================================

@@ -85,7 +85,8 @@ mvn test -Dtest=MarkdownRendererTest#testMarkupSimpleMarkdown
 mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug
 
 # Run integration tests (MUST run without parallelism - see critical note below)
-# Always use -fae (fail at end) so all 5 IT modules run even if one has failures
+# Always use -fae (fail at end) so all 3 IT modules run even if one has failures
+# (wikantik-it-test-custom, wikantik-it-test-custom-jdbc, wikantik-it-test-rest)
 mvn clean install -Pintegration-tests -fae
 
 # Run memory profiling test (from wikantik-main module)

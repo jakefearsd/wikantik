@@ -36,6 +36,7 @@ import java.nio.file.Files;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 
 /**
@@ -296,6 +297,17 @@ public interface AttachmentManager {
      *  @return A validated name with annoying characters replaced.
      *  @throws WikiException If the filename is not legal (e.g. empty)
      */
+    /**
+     *  Extensions that are forbidden on upload because they can execute
+     *  server-side (JSP variants) or render as active content in a browser
+     *  (HTML/SVG/XML), which would enable stored XSS against other wiki users.
+     */
+    Set< String > BLOCKED_UPLOAD_EXTENSIONS = Set.of(
+            "jsp", "jspf", "jspx",
+            "jhtml", "phtml", "shtml",
+            "html", "htm", "xhtml", "svg"
+    );
+
     static String validateFileName( String filename ) throws WikiException {
         if( filename == null || filename.isBlank() ) {
             LogManager.getLogger( AttachmentManager.class ).error( "Empty file name given." );
@@ -309,17 +321,28 @@ public interface AttachmentManager {
         final String[] splitpath = filename.split( "[/\\\\]" );
         filename = splitpath[splitpath.length-1];
 
-        // Should help with IE 5.22 on OSX
+        // Should help with IE 5.22 on OSX, and strip trailing dots that would
+        // otherwise hide the real extension from our blocklist check.
         filename = filename.trim();
+        while ( filename.endsWith( "." ) ) {
+            filename = filename.substring( 0, filename.length() - 1 ).trim();
+        }
+        if ( filename.isEmpty() ) {
+            throw new WikiException( "attach.empty.file" );
+        }
 
-        // If file name ends with .jsp or .jspf, the user is being naughty!
-        if( filename.toLowerCase().endsWith( ".jsp" ) || filename.toLowerCase().endsWith( ".jspf" ) ) {
-            LogManager.getLogger( AttachmentManager.class )
-                      .info( "Attempt to upload a file with a .jsp/.jspf extension.  In certain cases this " +
-                             "can trigger unwanted security side effects, so we're preventing it." );
+        final int dot = filename.lastIndexOf( '.' );
+        if ( dot >= 0 && dot < filename.length() - 1 ) {
+            final String ext = filename.substring( dot + 1 ).toLowerCase();
+            if ( BLOCKED_UPLOAD_EXTENSIONS.contains( ext ) ) {
+                LogManager.getLogger( AttachmentManager.class )
+                          .info( "Attempt to upload a file with a blocked active-content extension '.{}'. " +
+                                 "Such files can trigger stored XSS or server-side execution and are rejected.",
+                                 ext );
 
-            // the caller should catch the exception and use the exception text as an i18n key
-            throw new WikiException(  "attach.unwanted.file"  );
+                // the caller should catch the exception and use the exception text as an i18n key
+                throw new WikiException(  "attach.unwanted.file"  );
+            }
         }
 
         //  Remove any characters that might be a problem. Most importantly - characters that might stop processing of the URL.

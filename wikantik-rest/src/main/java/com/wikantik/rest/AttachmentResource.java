@@ -297,7 +297,10 @@ public class AttachmentResource extends RestServletBase {
             return;
         }
 
-        if ( !checkPagePermission( request, response, pageName, "upload" ) ) return;
+        // Rename is a content mutation (the old name disappears), so it requires
+        // "edit" rather than "upload" — a user who can add new files but not alter
+        // existing content must not be able to replace attachments.
+        if ( !checkPagePermission( request, response, pageName, "edit" ) ) return;
 
         LOG.debug( "PUT attachment rename: {}/{}", pageName, oldName );
 

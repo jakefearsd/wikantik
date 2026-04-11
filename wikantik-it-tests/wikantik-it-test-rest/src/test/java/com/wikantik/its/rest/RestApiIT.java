@@ -122,6 +122,30 @@ public class RestApiIT {
         return GSON.fromJson( body, MAP_TYPE );
     }
 
+    /**
+     * Authenticates as janne (who is a member of the {@code Admin} group in
+     * the XML group database bundled with the IT tests) so subsequent requests
+     * from this {@link #client} carry an admin-level session cookie. Required
+     * for endpoints gated behind {@code delete} or other admin-only
+     * permissions. The CookieManager configured in {@link #setUp()} persists
+     * the session cookie across calls.
+     */
+    private void loginAsAdmin() throws IOException, InterruptedException {
+        final String loginBody = GSON.toJson( Map.of( "username", "janne", "password", "myP@5sw0rd" ) );
+        final HttpResponse< String > resp = post( "/api/auth/login", loginBody );
+        assertEquals( 200, resp.statusCode(), "Login should succeed: " + resp.body() );
+    }
+
+    /**
+     * Invalidates the current session cookie so subsequent requests on this
+     * client appear anonymous again. Pair with {@link #loginAsAdmin()} to
+     * avoid leaking authentication into later tests that share the cookie jar.
+     */
+    private void logoutAdmin() throws IOException, InterruptedException {
+        final HttpResponse< String > resp = post( "/api/auth/logout", "{}" );
+        assertEquals( 200, resp.statusCode(), "Logout should succeed: " + resp.body() );
+    }
+
     // ---- Page CRUD tests ----
 
     @Test
@@ -177,20 +201,29 @@ public class RestApiIT {
         final String pageName = "RestDeleteTestPage";
         final String body = GSON.toJson( Map.of( "content", "Page to be deleted" ) );
 
-        // Create
+        // Create (anon has edit rights in the default test policy)
         final HttpResponse< String > putResp = put( "/api/pages/" + pageName, body );
         assertEquals( 200, putResp.statusCode(), "PUT should return 200 on create" );
 
-        // Delete
-        final HttpResponse< String > delResp = delete( "/api/pages/" + pageName );
-        assertEquals( 200, delResp.statusCode(), "DELETE should return 200" );
+        // Delete requires the `delete` PagePermission, which the test policy grants
+        // only to the Admin group. Authenticate as janne (member of Admin group) so
+        // the session picks up AllPermission via the admin policy grant.
+        try {
+            loginAsAdmin();
 
-        final Map< String, Object > delJson = parseJson( delResp.body() );
-        assertTrue( ( Boolean ) delJson.get( "success" ), "DELETE should report success" );
+            final HttpResponse< String > delResp = delete( "/api/pages/" + pageName );
+            assertEquals( 200, delResp.statusCode(), "DELETE should return 200" );
 
-        // Verify it is gone
-        final HttpResponse< String > getResp = get( "/api/pages/" + pageName );
-        assertEquals( 404, getResp.statusCode(), "Deleted page should return 404" );
+            final Map< String, Object > delJson = parseJson( delResp.body() );
+            assertTrue( ( Boolean ) delJson.get( "success" ), "DELETE should report success" );
+
+            // Verify it is gone
+            final HttpResponse< String > getResp = get( "/api/pages/" + pageName );
+            assertEquals( 404, getResp.statusCode(), "Deleted page should return 404" );
+        } finally {
+            // Restore anonymous state for subsequent tests that share this client's cookie jar.
+            logoutAdmin();
+        }
     }
 
     @Test

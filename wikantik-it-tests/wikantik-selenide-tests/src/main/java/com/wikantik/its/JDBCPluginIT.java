@@ -22,6 +22,7 @@ import com.codeborne.selenide.ElementsCollection;
 import com.codeborne.selenide.SelenideElement;
 import com.wikantik.pages.haddock.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -36,8 +37,23 @@ import static com.codeborne.selenide.Selenide.$$;
  * Integration tests for the JDBCPlugin.
  * Tests that the plugin can execute SQL queries against an HSQLDB database
  * and render the results as HTML tables.
+ *
+ * <p>The JDBC plugin requires {@code AllPermission} (admin) to run arbitrary
+ * SQL, so the suite authenticates as janne once per class — the HSQL seed
+ * grants {@code JanneJalkanen} membership in the {@code Admin} group in the
+ * IT test environment, which in turn grants {@code AllPermission} via the
+ * default {@code wikantik.policy}. Logging in per-test would fail because the
+ * React SPA preserves the auth cookie across tests in the same class.
  */
 public class JDBCPluginIT extends WithIntegrationTestSetup {
+
+    @BeforeAll
+    @DisabledOnOs( OS.WINDOWS )
+    static void loginAsAdmin() {
+        // Parent @BeforeAll already called closeWebDriver(); the next Selenide.open()
+        // spins up a fresh, anonymous browser for us to authenticate in.
+        ViewWikiPage.open( "Main" ).clickOnLogin().performLogin();
+    }
 
     /**
      * Tests that the JDBCPlugin renders a table with all products from the database.

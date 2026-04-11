@@ -153,8 +153,27 @@ class McpAccessFilterTest {
     }
 
     @Test
-    void testBothUnconfiguredAllowsAllTraffic() throws Exception {
+    void testBothUnconfiguredFailsClosed() throws Exception {
         final McpAccessFilter filter = createFilter( null, null );
+        when( request.getRemoteAddr() ).thenReturn( "1.2.3.4" );
+        final StringWriter body = new StringWriter();
+        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( request, response );
+        verify( response ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+        verify( response ).setContentType( "application/json" );
+        assertTrue( body.toString().contains( "MCP not configured" ),
+                "Expected error body to mention MCP not configured, got: " + body );
+    }
+
+    @Test
+    void testUnrestrictedModeAllowedWithExplicitOptIn() throws Exception {
+        final Properties props = new Properties();
+        props.setProperty( "mcp.access.allowUnrestricted", "true" );
+        final McpAccessFilter filter = new McpAccessFilter(
+                new McpConfig( props ), new McpRateLimiter( 0, 0 ) );
         when( request.getRemoteAddr() ).thenReturn( "1.2.3.4" );
 
         filter.doFilter( request, response, chain );
@@ -270,8 +289,9 @@ class McpAccessFilterTest {
         final McpRateLimiter mockLimiter = mock( McpRateLimiter.class );
         when( mockLimiter.tryAcquire( anyString() ) ).thenReturn( false );
 
-        // Unrestricted mode — no auth needed, just rate limit
+        // Unrestricted mode (explicitly opted-in) — no auth needed, just rate limit
         final Properties props = new Properties();
+        props.setProperty( "mcp.access.allowUnrestricted", "true" );
         final McpAccessFilter filter = new McpAccessFilter( new McpConfig( props ), mockLimiter );
         when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
         final StringWriter body = new StringWriter();
@@ -302,8 +322,9 @@ class McpAccessFilterTest {
         final McpRateLimiter mockLimiter = mock( McpRateLimiter.class );
         when( mockLimiter.tryAcquire( anyString() ) ).thenReturn( false );
 
-        // No key, no CIDR → unrestricted, but rate limiter still applies
+        // No key, no CIDR, explicit unrestricted opt-in → allowed, but rate limiter still applies
         final Properties props = new Properties();
+        props.setProperty( "mcp.access.allowUnrestricted", "true" );
         final McpAccessFilter filter = new McpAccessFilter( new McpConfig( props ), mockLimiter );
         when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
         final StringWriter body = new StringWriter();

@@ -318,6 +318,10 @@
        <servlet-class>com.wikantik.rest.RecentChangesResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>ChangesResource</servlet-name>
+       <servlet-class>com.wikantik.rest.ChangesResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>OutboundLinksResource</servlet-name>
        <servlet-class>com.wikantik.rest.OutboundLinksResource</servlet-class>
    </servlet>
@@ -446,6 +450,10 @@
    <servlet-mapping>
        <servlet-name>RecentChangesResource</servlet-name>
        <url-pattern>/api/recent-changes</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>ChangesResource</servlet-name>
+       <url-pattern>/api/changes</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>OutboundLinksResource</servlet-name>

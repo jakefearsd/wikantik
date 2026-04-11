@@ -344,11 +344,19 @@ class AttachmentResourceTest {
     // ----- Rename tests -----
 
     @Test
-    void testRenameRequiresPermission() throws Exception {
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/attachments/RestAttachPage/old.txt" );
-        Mockito.doReturn( "/RestAttachPage/old.txt" ).when( request ).getPathInfo();
+    void testRenameUsesEditPermission() throws Exception {
+        // The test security policy grants anonymous "edit" but NOT "upload".
+        // Previously rename required "upload" and anonymous got 403; now it requires
+        // "edit" so anonymous passes the permission gate and the rename succeeds.
+        final AttachmentManager am = engine.getManager( AttachmentManager.class );
+        am.storeAttachment(
+                Wiki.contents().attachment( engine, "RestAttachPage", "toRename.txt" ),
+                new ByteArrayInputStream( "content".getBytes( StandardCharsets.UTF_8 ) ) );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/attachments/RestAttachPage/toRename.txt" );
+        Mockito.doReturn( "/RestAttachPage/toRename.txt" ).when( request ).getPathInfo();
         Mockito.doReturn( "application/json" ).when( request ).getContentType();
-        Mockito.doReturn( new java.io.BufferedReader( new java.io.StringReader( "{\"newName\":\"new.txt\"}" ) ) )
+        Mockito.doReturn( new java.io.BufferedReader( new java.io.StringReader( "{\"newName\":\"renamed.txt\"}" ) ) )
                 .when( request ).getReader();
 
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
@@ -357,9 +365,12 @@ class AttachmentResourceTest {
 
         servlet.doPut( request, response );
 
-        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
-        assertTrue( obj.get( "error" ).getAsBoolean() );
-        assertEquals( 403, obj.get( "status" ).getAsInt() );
+        final String body = sw.toString();
+        final JsonObject obj = gson.fromJson( body, JsonObject.class );
+        assertFalse( obj.has( "error" ) && obj.get( "error" ).getAsBoolean(),
+                "Anonymous rename should pass the edit-based permission check but got: " + body );
+        assertTrue( obj.get( "success" ).getAsBoolean(), "Rename should succeed" );
+        assertEquals( "renamed.txt", obj.get( "fileName" ).getAsString() );
     }
 
     @Test

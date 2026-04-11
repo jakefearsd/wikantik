@@ -88,6 +88,7 @@ class SitemapServletTest {
             pm.deletePage( "TitleBox" );
             pm.deletePage( "CSSStyles" );
             pm.deletePage( "About" );
+            try { pm.deletePage( "SitemapLastmodPage" ); } catch ( final Exception ignored ) {}
             m_engine.stop();
         }
     }
@@ -865,6 +866,36 @@ class SitemapServletTest {
             "Sitemap should contain TestPage1" );
         Assertions.assertFalse( sitemap.contains( "<news:title>TestPage1</news:title>" ),
             "Sitemap should NOT contain news:title for page without frontmatter" );
+    }
+
+    @Test
+    void testLastmodMatchesPageModificationTime() throws Exception {
+        // Save a fresh page and capture its server-recorded modification time.
+        m_engine.saveText( "SitemapLastmodPage", "Body for lastmod check." );
+        final com.wikantik.api.core.Page page =
+                m_engine.getManager( PageManager.class ).getPage( "SitemapLastmodPage" );
+        Assertions.assertNotNull( page );
+        Assertions.assertNotNull( page.getLastModified() );
+        final String expectedDate = new java.text.SimpleDateFormat( "yyyy-MM-dd" )
+                .format( page.getLastModified() );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/sitemap.xml" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter stringWriter = new StringWriter();
+        final PrintWriter printWriter = new PrintWriter( stringWriter );
+        Mockito.when( response.getWriter() ).thenReturn( printWriter );
+
+        servlet.doGet( request, response );
+
+        final String sitemap = stringWriter.toString();
+
+        // The sitemap must list the page and its <lastmod> must match the date
+        // component of Page.getLastModified() (not the deploy date).
+        Assertions.assertTrue( sitemap.contains( "SitemapLastmodPage" ),
+                "Sitemap should list the newly saved page" );
+        Assertions.assertTrue(
+                sitemap.contains( "<lastmod>" + expectedDate + "</lastmod>" ),
+                "Sitemap must contain <lastmod>" + expectedDate + "</lastmod>; was: " + sitemap );
     }
 
 }

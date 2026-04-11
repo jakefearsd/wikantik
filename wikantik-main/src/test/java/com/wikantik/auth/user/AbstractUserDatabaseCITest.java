@@ -169,6 +169,40 @@ class AbstractUserDatabaseCITest {
                     "Legacy {SHA} password should validate correctly" );
     }
 
+    // --- validatePassword() with legacy {SHA} rejects wrong password ---
+
+    @Test
+    void testValidatePasswordWithLegacyShaPrefixRejectsWrongPassword() throws Exception {
+        final String shaHash = computeSha1Hex( "legacypass" );
+        final java.io.File dbFile = java.io.File.createTempFile( "sha-legacy-bad-", ".xml" );
+        dbFile.deleteOnExit();
+
+        final String xml =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+            "<users>\n" +
+            "  <user loginName=\"legacybaduser\" fullName=\"Legacy Bad User\" wikiName=\"LegacyBadUser\"\n" +
+            "        email=\"legacybad@example.com\" password=\"{SHA}" + shaHash + "\" uid=\"uid-legacy-2\"\n" +
+            "        created=\"2020.01.01 at 00:00:00:000 UTC\"\n" +
+            "        lastModified=\"2020.01.01 at 00:00:00:000 UTC\"\n" +
+            "        lockExpiry=\"\" />\n" +
+            "</users>";
+
+        try ( final java.io.FileWriter fw = new java.io.FileWriter( dbFile ) ) {
+            fw.write( xml );
+        }
+
+        final Properties legacyProps = TestEngine.getTestProperties();
+        legacyProps.put( XMLUserDatabase.PROP_USERDATABASE, dbFile.getAbsolutePath() );
+        final TestEngine legacyEngine = new TestEngine( legacyProps );
+        final XMLUserDatabase legacyDb = new XMLUserDatabase();
+        legacyDb.initialize( legacyEngine, legacyProps );
+
+        assertFalse( legacyDb.validatePassword( "legacybaduser", "wrongpass" ),
+                     "Legacy {SHA} validation must reject a completely different password" );
+        assertFalse( legacyDb.validatePassword( "legacybaduser", "legacypasx" ),
+                     "Legacy {SHA} validation must reject a single-character-mutated password" );
+    }
+
     // --- newProfile() returns a profile with a non-null uid ---
 
     @Test

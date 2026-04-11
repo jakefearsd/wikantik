@@ -204,7 +204,8 @@ public abstract class AbstractUserDatabase implements UserDatabase {
             if( storedPassword.startsWith( SHA_PREFIX ) ) {
                 storedPassword = storedPassword.substring( SHA_PREFIX.length() );
                 hashedPassword = getShaHash( password );
-                verified = hashedPassword.equals( storedPassword );
+                verified = MessageDigest.isEqual( hashedPassword.getBytes( StandardCharsets.UTF_8 ),
+                                                  storedPassword.getBytes( StandardCharsets.UTF_8 ) );
             }
 
             // If in the old format and password verified, upgrade the hash to SSHA

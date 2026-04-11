@@ -33,6 +33,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -73,53 +75,76 @@ public class ChangesResource extends RestServletBase {
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
 
-        Date since = null;
-        final String sinceParam = request.getParameter( "since" );
-        if ( sinceParam != null && !sinceParam.isBlank() ) {
-            try {
-                since = parseIso8601( sinceParam );
-            } catch ( final ParseException e ) {
-                LOG.warn( "Rejected /api/changes request with invalid 'since' parameter: {}", sinceParam );
-                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                        "Invalid 'since' parameter (expected ISO 8601): " + sinceParam );
-                return;
+        try {
+            Date since = null;
+            final String sinceParam = request.getParameter( "since" );
+            if ( sinceParam != null && !sinceParam.isBlank() ) {
+                try {
+                    since = parseIso8601( sinceParam );
+                } catch ( final ParseException e ) {
+                    LOG.warn( "Rejected /api/changes request with invalid 'since' parameter: {}", sinceParam );
+                    sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                            "Invalid 'since' parameter (expected ISO 8601): " + sinceParam );
+                    return;
+                }
             }
-        }
 
-        final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+            final Engine engine = getEngine();
+            final PageManager pm = engine.getManager( PageManager.class );
 
-        final Set< Page > pages = ( since != null )
-                ? pm.getRecentChanges( since )
-                : pm.getRecentChanges();
+            final Set< Page > pages = ( since != null )
+                    ? pm.getRecentChanges( since )
+                    : pm.getRecentChanges();
 
-        final String baseUrl = BaseUrlResolver.resolve( engine, request, null );
-        final String baseNoSlash = baseUrl.endsWith( "/" )
-                ? baseUrl.substring( 0, baseUrl.length() - 1 )
-                : baseUrl;
+            final String baseUrl = BaseUrlResolver.resolve( engine, request, null );
 
-        final List< Map< String, Object > > out = new ArrayList<>( pages.size() );
-        for ( final Page p : pages ) {
-            if ( since != null && p.getLastModified() != null
-                    && p.getLastModified().before( since ) ) {
-                continue;
+            final List< Map< String, Object > > out = new ArrayList<>( pages.size() );
+            for ( final Page p : pages ) {
+                if ( shouldSkipStale( p, since ) ) {
+                    continue;
+                }
+                final Map< String, Object > entry = new LinkedHashMap<>();
+                entry.put( "slug", p.getName() );
+                entry.put( "modified_at", p.getLastModified() );
+                entry.put( "url", baseUrl + "/wiki/" + encodePathSegment( p.getName() ) );
+                out.add( entry );
             }
-            final Map< String, Object > entry = new LinkedHashMap<>();
-            entry.put( "slug", p.getName() );
-            entry.put( "modified_at", p.getLastModified() );
-            entry.put( "url", baseNoSlash + "/wiki/" + p.getName() );
-            out.add( entry );
+
+            final Map< String, Object > result = new LinkedHashMap<>();
+            result.put( "since", since );
+            result.put( "generated_at", new Date() );
+            result.put( "pages", out );
+
+            LOG.debug( "GET /api/changes since={} returned {} pages", since, out.size() );
+            response.setContentType( "application/json" );
+            response.setCharacterEncoding( "UTF-8" );
+            response.getWriter().write( NULL_SAFE_GSON.toJson( result ) );
+        } catch ( final RuntimeException e ) {
+            LOG.error( "Error handling /api/changes: {}", e.getMessage(), e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal error" );
         }
+    }
 
-        final Map< String, Object > result = new LinkedHashMap<>();
-        result.put( "since", since );
-        result.put( "generated_at", new Date() );
-        result.put( "pages", out );
+    /**
+     * Percent-encodes a page name for use in a URL path segment. Uses
+     * form-encoding then rewrites {@code +} to {@code %20} because
+     * {@code +} means literal plus in a path segment, not a space.
+     */
+    static String encodePathSegment( final String name ) {
+        return URLEncoder.encode( name, StandardCharsets.UTF_8 )
+                .replace( "+", "%20" );
+    }
 
-        LOG.debug( "GET /api/changes since={} returned {} pages", since, out.size() );
-        response.setContentType( "application/json" );
-        response.setCharacterEncoding( "UTF-8" );
-        response.getWriter().write( NULL_SAFE_GSON.toJson( result ) );
+    /**
+     * Belt-and-braces filter for {@code since} &mdash; some {@link PageManager}
+     * implementations may ignore the timestamp argument, so we re-check
+     * here. A page with a null {@code lastModified} is kept (we have no
+     * basis to drop it).
+     */
+    static boolean shouldSkipStale( final Page page, final Date since ) {
+        if ( since == null ) return false;
+        final Date lastMod = page.getLastModified();
+        return lastMod != null && lastMod.before( since );
     }
 
     /**

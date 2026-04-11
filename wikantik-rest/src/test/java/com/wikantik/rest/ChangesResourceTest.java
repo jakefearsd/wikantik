@@ -23,6 +23,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 
 import jakarta.servlet.ServletConfig;
@@ -119,6 +120,42 @@ class ChangesResourceTest {
     void testParseIso8601DateOnly() throws ParseException {
         final Date d = ChangesResource.parseIso8601( "2026-04-11" );
         assertNotNull( d );
+    }
+
+    @Test
+    void testEncodePathSegmentSpaces() {
+        assertEquals( "Cold%20War%20Markets",
+                ChangesResource.encodePathSegment( "Cold War Markets" ) );
+    }
+
+    @Test
+    void testEncodePathSegmentSpecialChars() {
+        // & becomes %26; spaces become %20
+        assertEquals( "Cold%20War%20%26%20Markets",
+                ChangesResource.encodePathSegment( "Cold War & Markets" ) );
+    }
+
+    @Test
+    void testShouldSkipStaleDropsOldPages() {
+        final Page stale = Mockito.mock( Page.class );
+        Mockito.when( stale.getLastModified() ).thenReturn( new Date( 1_000_000L ) );
+        final Date since = new Date( 2_000_000_000_000L );
+        assertTrue( ChangesResource.shouldSkipStale( stale, since ) );
+    }
+
+    @Test
+    void testShouldSkipStaleKeepsFreshPages() {
+        final Page fresh = Mockito.mock( Page.class );
+        Mockito.when( fresh.getLastModified() ).thenReturn( new Date( 3_000_000_000_000L ) );
+        final Date since = new Date( 2_000_000_000_000L );
+        assertFalse( ChangesResource.shouldSkipStale( fresh, since ) );
+    }
+
+    @Test
+    void testShouldSkipStaleKeepsPagesWithNullLastModified() {
+        final Page noTime = Mockito.mock( Page.class );
+        Mockito.when( noTime.getLastModified() ).thenReturn( null );
+        assertFalse( ChangesResource.shouldSkipStale( noTime, new Date() ) );
     }
 
     // ----- helpers -----

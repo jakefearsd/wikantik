@@ -184,7 +184,6 @@ public class AttachmentResource extends RestServletBase {
                 contentType = "application/octet-stream";
             }
 
-            setCorsHeaders( response );
             response.setContentType( contentType );
             response.setHeader( "Content-Disposition", "attachment; filename=\"" + fileName + "\"" );
 

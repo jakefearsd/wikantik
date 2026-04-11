@@ -361,4 +361,22 @@ public class AttachmentManagerTest {
 
     }
 
+    @Test
+    public void testValidateFileNameRejectsActiveContentExtensions() {
+        final String[] blocked = {
+                "evil.jsp", "evil.jspf", "evil.jspx",
+                "evil.jhtml", "evil.phtml", "evil.shtml",
+                "evil.html", "evil.htm", "evil.xhtml", "evil.svg",
+                "EVIL.SVG", "Evil.Html", "evil.JsPx"
+        };
+        for ( final String name : blocked ) {
+            final WikiException thrown = Assertions.assertThrows(
+                    WikiException.class,
+                    () -> AttachmentManager.validateFileName( name ),
+                    "expected rejection for: " + name );
+            Assertions.assertTrue( thrown.getMessage().contains( "attach.unwanted.file" ),
+                    "wrong i18n key for " + name + ": " + thrown.getMessage() );
+        }
+    }
+
 }

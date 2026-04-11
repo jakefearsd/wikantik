@@ -269,6 +269,44 @@ class AttachmentServletTest {
     }
 
     @Test
+    void testGetContentDispositionForcesAttachmentForActiveContentTypes() {
+        final String[] activeContent = { "evil.html", "evil.htm", "evil.xhtml", "evil.svg", "evil.xml",
+                "EVIL.HTML", "Evil.Svg" };
+        for ( final String name : activeContent ) {
+            final Attachment att = mock( Attachment.class );
+            when( att.getFileName() ).thenReturn( name );
+            // forceDownload NOT configured -- must still be forced by the servlet
+            when( attachmentManager.forceDownload( name ) ).thenReturn( false );
+
+            final String disposition = servlet.getContentDisposition( att );
+
+            assertTrue( disposition.startsWith( "attachment" ),
+                    "active content should force attachment disposition: " + name + " -> " + disposition );
+            assertTrue( disposition.contains( name ), "disposition missing filename: " + disposition );
+        }
+    }
+
+    @Test
+    void testGetSetsNoSniffHeader() throws Exception {
+        final byte[] content = "x".getBytes( StandardCharsets.UTF_8 );
+        final Attachment att = createMockAttachment( "TestPage/test.png", "test.png", new Date() );
+        when( att.isCacheable() ).thenReturn( true );
+        when( att.getSize() ).thenReturn( (long) content.length );
+
+        when( attachmentManager.getAttachmentInfo( eq( "TestPage/test.png" ), anyInt() ) ).thenReturn( att );
+        when( attachmentManager.getAttachmentStream( any( Context.class ), eq( att ) ) )
+                .thenReturn( new ByteArrayInputStream( content ) );
+        when( attachmentManager.forceDownload( "test.png" ) ).thenReturn( false );
+        when( authorizationManager.checkPermission( eq( session ), any( Permission.class ) ) ).thenReturn( true );
+        when( request.getDateHeader( "If-Modified-Since" ) ).thenReturn( -1L );
+
+        captureOutput();
+        servlet.doGet( request, response );
+
+        verify( response ).setHeader( "X-Content-Type-Options", "nosniff" );
+    }
+
+    @Test
     void testGetContentDispositionAttachmentForForcedDownload() {
         final Attachment att = mock( Attachment.class );
         when( att.getFileName() ).thenReturn( "malware.exe" );

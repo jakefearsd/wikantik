@@ -247,6 +247,11 @@ public class AttachmentServlet extends HttpServlet {
             return;
         }
 
+        // Defence in depth: instruct browsers never to MIME-sniff attachment payloads.
+        // Combined with the forced 'attachment' disposition on active-content types in
+        // getContentDisposition(), this blocks stored-XSS via uploaded HTML/SVG/XML.
+        res.setHeader( "X-Content-Type-Options", "nosniff" );
+
         try( final OutputStream out = res.getOutputStream() ) {
             LOG.debug("Attempting to download att {}, version {}", page, version);
             if( version != null ) {
@@ -346,11 +351,26 @@ public class AttachmentServlet extends HttpServlet {
         // We use 'inline' instead of 'attachment' so that user agents can try to automatically open the file,
         // except those cases in which we want to enforce the file download.
         String contentDisposition = "inline; filename=\"";
-        if( attachmentManager.forceDownload( att.getFileName() ) ) {
+        if( attachmentManager.forceDownload( att.getFileName() ) || isActiveContent( att.getFileName() ) ) {
             contentDisposition = "attachment; filename=\"";
         }
         contentDisposition += att.getFileName() + "\";";
         return contentDisposition;
+    }
+
+    /**
+     * Returns true if the filename extension can be rendered as active content
+     * in a browser (HTML, SVG, XML). These must always be served as
+     * {@code attachment} rather than {@code inline} to prevent stored XSS.
+     */
+    private static boolean isActiveContent( final String fileName ) {
+        if ( fileName == null ) {
+            return false;
+        }
+        final String lower = fileName.toLowerCase();
+        return lower.endsWith( ".html" ) || lower.endsWith( ".htm" )
+                || lower.endsWith( ".xhtml" ) || lower.endsWith( ".svg" )
+                || lower.endsWith( ".xml" );
     }
 
     void sendError( final HttpServletResponse res, final String message ) throws IOException {

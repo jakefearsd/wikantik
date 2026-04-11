@@ -451,6 +451,23 @@ public class TextUtilTest {
         assertEquals( "&amp;", TextUtil.escapeHTMLEntities( "&" ) );
     }
 
+    @Test
+    public void testEscapeHTMLEntitiesEntityLikeWithoutTerminator() {
+        // "&amp" — looks like an entity but is missing the trailing semicolon,
+        // so it must be treated as a bare ampersand followed by plain text.
+        assertEquals( "&amp;amp", TextUtil.escapeHTMLEntities( "&amp" ) );
+    }
+
+    @Test
+    public void testEscapeHTMLEntitiesMultipleBareAmpersands() {
+        assertEquals( "a &amp; b &amp; c", TextUtil.escapeHTMLEntities( "a & b & c" ) );
+    }
+
+    @Test
+    public void testEscapeHTMLEntitiesAllSpecialsTogether() {
+        assertEquals( "&lt;&gt;&amp;&quot;", TextUtil.escapeHTMLEntities( "<>&\"" ) );
+    }
+
     // --- urlEncode / urlDecode tests ---
 
     @Test

@@ -730,47 +730,59 @@ public final class TextUtil {
      *  @return An escaped string.
      */
     public static String escapeHTMLEntities( final String buf ) {
-        final StringBuilder tmpBuf = new StringBuilder( buf.length() + 20 );
+        final StringBuilder out = new StringBuilder( buf.length() + 20 );
         for( int i = 0; i < buf.length(); i++ ) {
-            final char ch = buf.charAt(i);
-            if( ch == '<' ) {
-                tmpBuf.append("&lt;");
-            } else if( ch == '>' ) {
-                tmpBuf.append("&gt;");
-            } else if( ch == '\"' ) {
-                tmpBuf.append("&quot;");
-            } else if( ch == '&' ) {
-                // If the following is an XML entity reference (&#.*;) we'll leave it as it is; otherwise we'll replace it with an &amp;
-                boolean isEntity = false;
-                final StringBuilder entityBuf = new StringBuilder();
-                if( i < buf.length() -1 ) {
-                    for( int j = i; j < buf.length(); j++ ) {
-                        final char ch2 = buf.charAt( j );
-                        if( Character.isLetterOrDigit( ch2 ) || (ch2 == '#' && j == i+1) || ch2 == ';' || ch2 == '&' ) {
-                            entityBuf.append(ch2);
-                            if( ch2 == ';' ) {
-                                isEntity = true;
-                                break;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                }
-
-                if( isEntity ) {
-                    tmpBuf.append( entityBuf );
-                    i = i + entityBuf.length() - 1;
-                } else {
-                    tmpBuf.append( "&amp;" );
-                }
-
-            } else {
-                tmpBuf.append( ch );
+            final char ch = buf.charAt( i );
+            switch( ch ) {
+                case '<'  -> out.append( "&lt;" );
+                case '>'  -> out.append( "&gt;" );
+                case '\"' -> out.append( "&quot;" );
+                case '&'  -> i = escapeAmpersand( buf, i, out );
+                default   -> out.append( ch );
             }
         }
+        return out.toString();
+    }
 
-        return tmpBuf.toString();
+    /**
+     * Handles a {@code &} at position {@code start}. If the characters immediately
+     * following form an existing entity reference (e.g. {@code &amp;}, {@code &#39;}),
+     * the entity is copied verbatim and the index of its terminating {@code ;} is
+     * returned so the outer loop advances past it. Otherwise {@code &amp;} is appended
+     * and the original index is returned.
+     */
+    private static int escapeAmpersand( final String buf, final int start, final StringBuilder out ) {
+        final int entityEnd = findExistingEntityEnd( buf, start );
+        if( entityEnd < 0 ) {
+            out.append( "&amp;" );
+            return start;
+        }
+        out.append( buf, start, entityEnd + 1 );
+        return entityEnd;
+    }
+
+    /**
+     * Scans forward from an {@code &} at {@code ampIdx} looking for a well-formed
+     * entity reference. Returns the index of the terminating {@code ;} if one is
+     * found before any disallowed character, or {@code -1} if the ampersand is bare.
+     */
+    private static int findExistingEntityEnd( final String buf, final int ampIdx ) {
+        if( ampIdx >= buf.length() - 1 ) {
+            return -1;
+        }
+        for( int j = ampIdx; j < buf.length(); j++ ) {
+            final char c = buf.charAt( j );
+            if( c == ';' ) {
+                return j;
+            }
+            final boolean isEntityChar = Character.isLetterOrDigit( c )
+                    || ( c == '#' && j == ampIdx + 1 )
+                    || c == '&';
+            if( !isEntityChar ) {
+                return -1;
+            }
+        }
+        return -1;
     }
 
     /**

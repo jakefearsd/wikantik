@@ -286,6 +286,69 @@ class DefaultAuthorizationManagerCITest {
         assertFalse( mgr.hasRoleOrPrincipal( session, bob ) );
     }
 
+    // ==================== Bootstrap admin override expiry ====================
+
+    @Test
+    void bootstrapAdminAllowsPermissionBeforeExpiry() {
+        final long[] now = { 1_000_000L };
+        mgr.setClock( () -> now[ 0 ] );
+        mgr.configureBootstrap( "alice", 60L );
+
+        final Session session = mockSession( true, new WikiPrincipal( "alice" ) );
+        final PagePermission perm = new PagePermission( "test:SomePage", "view" );
+
+        assertTrue( mgr.checkPermission( session, perm ) );
+    }
+
+    @Test
+    void bootstrapAdminDeniesPermissionAfterExpiry() {
+        final long[] now = { 1_000_000L };
+
+        final DefaultAuthorizationManager spy = spy( mgr );
+        spy.setClock( () -> now[ 0 ] );
+        spy.configureBootstrap( "alice", 60L );
+        // Advance beyond the configured window
+        now[ 0 ] += 61_000L;
+
+        // Without the bootstrap override active, fall through to the policy check.
+        doReturn( false ).when( spy ).checkStaticPermission( any(), any() );
+
+        final Session session = mockSession( true, new WikiPrincipal( "alice" ) );
+        final PagePermission perm = new PagePermission( "test:SomePage", "view" );
+
+        assertFalse( spy.checkPermission( session, perm ) );
+    }
+
+    @Test
+    void bootstrapAdminDoesNotApplyToOtherUsers() {
+        final long[] now = { 1_000_000L };
+        mgr.setClock( () -> now[ 0 ] );
+        mgr.configureBootstrap( "alice", 60L );
+
+        // A different user must not inherit the override.
+        final DefaultAuthorizationManager spy = spy( mgr );
+        doReturn( false ).when( spy ).checkStaticPermission( any(), any() );
+
+        final Session session = mockSession( true, new WikiPrincipal( "bob" ) );
+        final PagePermission perm = new PagePermission( "test:SomePage", "view" );
+
+        assertFalse( spy.checkPermission( session, perm ) );
+    }
+
+    @Test
+    void configureBootstrapWithBlankAdminClearsOverride() {
+        mgr.configureBootstrap( "alice", 60L );
+        mgr.configureBootstrap( "  ", 60L );
+
+        final DefaultAuthorizationManager spy = spy( mgr );
+        doReturn( false ).when( spy ).checkStaticPermission( any(), any() );
+
+        final Session session = mockSession( true, new WikiPrincipal( "alice" ) );
+        final PagePermission perm = new PagePermission( "test:SomePage", "view" );
+
+        assertFalse( spy.checkPermission( session, perm ) );
+    }
+
     // ==================== Helpers ====================
 
     /**

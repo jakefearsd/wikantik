@@ -64,6 +64,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.WeakHashMap;
+import java.util.function.LongSupplier;
 
 
 /**
@@ -85,6 +86,12 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     /** Property name for the bootstrap admin override. When set, the named user bypasses all policy checks. */
     public static final String PROP_BOOTSTRAP_ADMIN = "wikantik.admin.bootstrap";
 
+    /** Property name for the bootstrap admin override TTL in seconds. Default: 24 hours. */
+    public static final String PROP_BOOTSTRAP_MAX_AGE = "wikantik.admin.bootstrap.maxAgeSeconds";
+
+    /** Default lifetime for the bootstrap admin override — 24 hours. */
+    public static final long DEFAULT_BOOTSTRAP_MAX_AGE_SECONDS = 86400L;
+
     private Authorizer authorizer;
 
     /** Cache for storing ProtectionDomains used to evaluate the local policy. */
@@ -96,6 +103,8 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
     private DatabasePolicy databasePolicy;
     private String bootstrapAdmin;
+    private long bootstrapExpiresAt;
+    private LongSupplier clock = System::currentTimeMillis;
 
     // Manager dependencies — populated in initialize() (production) or via test constructor
     private PageManager pageManager;
@@ -135,8 +144,10 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             return false;
         }
 
-        // Bootstrap admin override — bypasses all policy checks for the configured user
-        if ( bootstrapAdmin != null ) {
+        // Bootstrap admin override — bypasses all policy checks for the configured user,
+        // but only inside the configured TTL window. Once expired, the override is ignored
+        // even if the property is still set; operators must restart after removing it.
+        if ( bootstrapAdmin != null && clock.getAsLong() < bootstrapExpiresAt ) {
             for ( final Principal p : session.getPrincipals() ) {
                 if ( bootstrapAdmin.equals( p.getName() ) ) {
                     fireEvent( WikiSecurityEvent.ACCESS_ALLOWED, session.getLoginPrincipal(), permission );
@@ -321,14 +332,50 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         }
 
         // Bootstrap admin override
-        bootstrapAdmin = properties.getProperty( PROP_BOOTSTRAP_ADMIN );
-        if ( bootstrapAdmin != null && !bootstrapAdmin.isBlank() ) {
-            LOG.warn( "BOOTSTRAP ADMIN OVERRIDE IS ACTIVE — user '{}' has AllPermission regardless of "
-                    + "database grants. Remove the wikantik.admin.bootstrap property for production use.",
-                    bootstrapAdmin );
+        final String adminProp = properties.getProperty( PROP_BOOTSTRAP_ADMIN );
+        if ( adminProp != null && !adminProp.isBlank() ) {
+            long maxAgeSeconds = DEFAULT_BOOTSTRAP_MAX_AGE_SECONDS;
+            final String maxAgeStr = properties.getProperty( PROP_BOOTSTRAP_MAX_AGE );
+            if ( maxAgeStr != null ) {
+                try {
+                    maxAgeSeconds = Long.parseLong( maxAgeStr.trim() );
+                } catch ( final NumberFormatException e ) {
+                    LOG.warn( "Invalid {} value '{}', using default {}",
+                            PROP_BOOTSTRAP_MAX_AGE, maxAgeStr, DEFAULT_BOOTSTRAP_MAX_AGE_SECONDS );
+                }
+            }
+            configureBootstrap( adminProp, maxAgeSeconds );
         } else {
             bootstrapAdmin = null;  // normalize blank to null
         }
+    }
+
+    /**
+     * Activates the bootstrap admin override for {@code admin} for the next
+     * {@code maxAgeSeconds}. A blank or null {@code admin} clears the override.
+     * Package-private so tests can configure it without going through
+     * {@link #initialize(Engine, Properties)}.
+     */
+    void configureBootstrap( final String admin, final long maxAgeSeconds ) {
+        if ( admin == null || admin.isBlank() ) {
+            this.bootstrapAdmin = null;
+            this.bootstrapExpiresAt = 0L;
+            return;
+        }
+        this.bootstrapAdmin = admin;
+        this.bootstrapExpiresAt = clock.getAsLong() + maxAgeSeconds * 1000L;
+        LOG.error( "CRITICAL: BOOTSTRAP ADMIN OVERRIDE IS ACTIVE — user '{}' has AllPermission "
+                + "regardless of database grants. Override expires in {} seconds. "
+                + "Remove the {} property for production use.",
+                admin, maxAgeSeconds, PROP_BOOTSTRAP_ADMIN );
+    }
+
+    /**
+     * Installs a custom clock source for deterministic tests of the bootstrap
+     * override expiry. Package-private by design.
+     */
+    void setClock( final LongSupplier clock ) {
+        this.clock = clock;
     }
 
     /**

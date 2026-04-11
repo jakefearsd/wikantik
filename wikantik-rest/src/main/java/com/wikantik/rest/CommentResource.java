@@ -19,7 +19,6 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
@@ -38,7 +37,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -122,32 +120,19 @@ public class CommentResource extends RestServletBase {
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
 
-        final String pageName = extractPathParam( request );
-        if ( pageName == null || pageName.isEmpty() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
-            return;
-        }
+        final String pageName = requirePathParam( request, response );
+        if ( pageName == null ) return;
         if ( !checkPagePermission( request, response, pageName, "comment" ) ) return;
 
         LOG.debug( "POST comment: {}", pageName );
 
         final Engine engine = getEngine();
         final PageManager pm = engine.getManager( PageManager.class );
+        final Page page = requirePage( request, response, pageName );
+        if ( page == null ) return;
 
-        final Page page = pm.getPage( pageName );
-        if ( page == null ) {
-            sendNotFound( response, "Page not found: " + pageName );
-            return;
-        }
-
-        // Parse JSON body
-        final JsonObject body;
-        try ( final BufferedReader reader = request.getReader() ) {
-            body = JsonParser.parseReader( reader ).getAsJsonObject();
-        } catch ( final Exception e ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + e.getMessage() );
-            return;
-        }
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;
 
         if ( !body.has( "text" ) || body.get( "text" ).getAsString().isBlank() ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "text is required and must not be blank" );

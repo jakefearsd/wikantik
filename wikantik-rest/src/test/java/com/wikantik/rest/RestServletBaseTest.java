@@ -18,14 +18,26 @@
  */
 package com.wikantik.rest;
 
+import com.google.gson.JsonObject;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Page;
+import com.wikantik.api.managers.PageManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.util.Properties;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 
 /**
@@ -42,6 +54,15 @@ class RestServletBaseTest {
         // Expose the package-private helper for tests.
         void applyCors( final HttpServletRequest req, final HttpServletResponse resp ) {
             setCorsHeaders( req, resp );
+        }
+        String callRequirePathParam( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
+            return requirePathParam( req, resp );
+        }
+        Page callRequirePage( final HttpServletRequest req, final HttpServletResponse resp, final String name ) throws IOException {
+            return requirePage( req, resp, name );
+        }
+        JsonObject callParseJsonBody( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
+            return parseJsonBody( req, resp );
         }
     }
 
@@ -106,5 +127,112 @@ class RestServletBaseTest {
 
         Mockito.verify( resp, Mockito.never() )
                 .setHeader( Mockito.eq( "Access-Control-Allow-Credentials" ), Mockito.anyString() );
+    }
+
+    // ---- New helper tests ----
+
+    @Test
+    void requirePathParam_nullPath_sends400AndReturnsNull() throws Exception {
+        final TestRestServlet servlet = new TestRestServlet( engine );
+        final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
+        final HttpServletResponse resp = Mockito.mock( HttpServletResponse.class );
+        final StringWriter body = new StringWriter();
+        Mockito.when( resp.getWriter() ).thenReturn( new PrintWriter( body ) );
+        Mockito.when( req.getPathInfo() ).thenReturn( null );
+
+        final String result = servlet.callRequirePathParam( req, resp );
+
+        assertNull( result );
+        Mockito.verify( resp ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+    }
+
+    @Test
+    void requirePathParam_emptyPath_sends400AndReturnsNull() throws Exception {
+        final TestRestServlet servlet = new TestRestServlet( engine );
+        final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
+        final HttpServletResponse resp = Mockito.mock( HttpServletResponse.class );
+        Mockito.when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+        Mockito.when( req.getPathInfo() ).thenReturn( "/" );
+
+        final String result = servlet.callRequirePathParam( req, resp );
+
+        assertNull( result );
+        Mockito.verify( resp ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+    }
+
+    @Test
+    void requirePathParam_validPath_returnsValueWithoutSendingStatus() throws Exception {
+        final TestRestServlet servlet = new TestRestServlet( engine );
+        final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
+        final HttpServletResponse resp = Mockito.mock( HttpServletResponse.class );
+        Mockito.when( req.getPathInfo() ).thenReturn( "/Main" );
+
+        final String result = servlet.callRequirePathParam( req, resp );
+
+        assertEquals( "Main", result );
+        Mockito.verify( resp, Mockito.never() ).setStatus( Mockito.anyInt() );
+    }
+
+    @Test
+    void requirePage_missing_sends404AndReturnsNull() throws Exception {
+        final PageManager pm = Mockito.mock( PageManager.class );
+        Mockito.when( engine.getManager( PageManager.class ) ).thenReturn( pm );
+        Mockito.when( pm.getPage( "Ghost" ) ).thenReturn( null );
+
+        final TestRestServlet servlet = new TestRestServlet( engine );
+        final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
+        final HttpServletResponse resp = Mockito.mock( HttpServletResponse.class );
+        Mockito.when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        final Page result = servlet.callRequirePage( req, resp, "Ghost" );
+
+        assertNull( result );
+        Mockito.verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+    }
+
+    @Test
+    void requirePage_present_returnsPage() throws Exception {
+        final Page page = Mockito.mock( Page.class );
+        final PageManager pm = Mockito.mock( PageManager.class );
+        Mockito.when( engine.getManager( PageManager.class ) ).thenReturn( pm );
+        Mockito.when( pm.getPage( "Main" ) ).thenReturn( page );
+
+        final TestRestServlet servlet = new TestRestServlet( engine );
+        final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
+        final HttpServletResponse resp = Mockito.mock( HttpServletResponse.class );
+
+        final Page result = servlet.callRequirePage( req, resp, "Main" );
+
+        assertNotNull( result );
+        Mockito.verify( resp, Mockito.never() ).setStatus( Mockito.anyInt() );
+    }
+
+    @Test
+    void parseJsonBody_malformed_sends400WithExceptionDetail() throws Exception {
+        final TestRestServlet servlet = new TestRestServlet( engine );
+        final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
+        final HttpServletResponse resp = Mockito.mock( HttpServletResponse.class );
+        final StringWriter body = new StringWriter();
+        Mockito.when( resp.getWriter() ).thenReturn( new PrintWriter( body ) );
+        Mockito.when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( "{bad json" ) ) );
+
+        final JsonObject result = servlet.callParseJsonBody( req, resp );
+
+        assertNull( result );
+        Mockito.verify( resp ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+    }
+
+    @Test
+    void parseJsonBody_valid_returnsObject() throws Exception {
+        final TestRestServlet servlet = new TestRestServlet( engine );
+        final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
+        final HttpServletResponse resp = Mockito.mock( HttpServletResponse.class );
+        Mockito.when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( "{\"x\":1}" ) ) );
+
+        final JsonObject result = servlet.callParseJsonBody( req, resp );
+
+        assertNotNull( result );
+        assertEquals( 1, result.get( "x" ).getAsInt() );
+        Mockito.verify( resp, Mockito.never() ).setStatus( Mockito.anyInt() );
     }
 }

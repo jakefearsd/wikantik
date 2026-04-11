@@ -23,6 +23,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.api.core.Page;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 
 import jakarta.servlet.FilterChain;
@@ -41,6 +44,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -200,5 +207,83 @@ class WikiPageFormatFilterTest {
         final String body = "# Format Page\n\nBody line.\n";
         final String stripped = WikiPageFormatFilter.stripLeadingH1( body, "Format Page" );
         assertEquals( "Body line.\n", stripped );
+    }
+
+    @Test
+    void testStripLeadingH1NoOpWhenBodyDoesNotStartWithH1() {
+        final String body = "Body without heading.\n";
+        assertEquals( body, WikiPageFormatFilter.stripLeadingH1( body, "Title" ) );
+    }
+
+    @Test
+    void testStripLeadingH1NoOpWhenFirstLineIsDifferentTitle() {
+        final String body = "# Other\n\nBody.\n";
+        assertEquals( body, WikiPageFormatFilter.stripLeadingH1( body, "Title" ) );
+    }
+
+    @Test
+    void testExtractSummaryFallsBackToDescription() {
+        final String raw =
+            "---\n" +
+            "description: This is the description fallback.\n" +
+            "---\n" +
+            "Body content.\n";
+        final ParsedPage parsed = FrontmatterParser.parse( raw );
+        assertEquals( "This is the description fallback.",
+                WikiPageFormatFilter.extractSummary( parsed ) );
+    }
+
+    @Test
+    void testExtractSummaryFallsBackToFirstParagraph() {
+        final String raw =
+            "---\n" +
+            "title: No Summary\n" +
+            "---\n" +
+            "# Heading\n\nFirst paragraph here.\n\nSecond paragraph.";
+        final ParsedPage parsed = FrontmatterParser.parse( raw );
+        assertEquals( "First paragraph here.",
+                WikiPageFormatFilter.extractSummary( parsed ) );
+    }
+
+    @Test
+    void testExtractCreatedFallsBackToPageLastModified() {
+        final ParsedPage parsed = new ParsedPage( Map.of(), "Body." );
+        final Date lastModified = new Date( 1_700_000_000_000L );
+        final Page page = Mockito.mock( Page.class );
+        when( page.getName() ).thenReturn( "SomePage" );
+        when( page.getLastModified() ).thenReturn( lastModified );
+        assertEquals( lastModified,
+                WikiPageFormatFilter.extractCreated( parsed.metadata(), page ) );
+    }
+
+    @Test
+    void testExtractCreatedInvalidStringFallsBackToPageLastModified() {
+        final Map< String, Object > meta = new HashMap<>();
+        meta.put( "created", "not-a-date" );
+        final ParsedPage parsed = new ParsedPage( meta, "Body." );
+        final Date lastModified = new Date( 1_700_000_000_000L );
+        final Page page = Mockito.mock( Page.class );
+        when( page.getName() ).thenReturn( "SomePage" );
+        when( page.getLastModified() ).thenReturn( lastModified );
+        assertEquals( lastModified,
+                WikiPageFormatFilter.extractCreated( parsed.metadata(), page ) );
+    }
+
+    @Test
+    void testExtractTagsHandlesCsvString() {
+        final Map< String, Object > meta = new HashMap<>();
+        meta.put( "tags", "alpha, beta, gamma" );
+        final List< String > tags = WikiPageFormatFilter.extractTags( meta );
+        assertEquals( List.of( "alpha", "beta", "gamma" ), tags );
+    }
+
+    @Test
+    void testRewriteInternalLinksDoesNotRewriteImages() {
+        assertEquals( "![alt](verysadday.jpg)",
+                WikiPageFormatFilter.rewriteInternalLinks(
+                        "![alt](verysadday.jpg)", "https://wiki.example.com" ) );
+        assertEquals( "![a](one.png)![b](two.png)",
+                WikiPageFormatFilter.rewriteInternalLinks(
+                        "![a](one.png)![b](two.png)", "https://wiki.example.com" ) );
     }
 }

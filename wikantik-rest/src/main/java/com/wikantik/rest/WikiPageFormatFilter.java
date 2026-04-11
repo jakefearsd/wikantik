@@ -43,7 +43,9 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -271,9 +273,11 @@ public class WikiPageFormatFilter implements Filter {
         }
         if ( created != null && !created.toString().isBlank() ) {
             try {
-                return new SimpleDateFormat( "yyyy-MM-dd" ).parse( created.toString() );
-            } catch ( final Exception ignored ) {
-                // fall through
+                final LocalDate ld = LocalDate.parse( created.toString() );
+                return Date.from( ld.atStartOfDay( ZoneOffset.UTC ).toInstant() );
+            } catch ( final DateTimeParseException ex ) {
+                LOG.warn( "WikiPageFormatFilter: unparseable 'created' frontmatter '{}': {}",
+                        created, ex.getMessage() );
             }
         }
         final Object date = meta.get( "date" );
@@ -317,7 +321,8 @@ public class WikiPageFormatFilter implements Filter {
             }
             out.append( body, i, open + 2 );
             final String target = body.substring( open + 2, close );
-            if ( isInternalTarget( target ) ) {
+            final boolean isImage = isImageLink( body, open );
+            if ( !isImage && isInternalTarget( target ) ) {
                 out.append( base ).append( "/wiki/" ).append( target );
             } else {
                 out.append( target );
@@ -326,6 +331,25 @@ public class WikiPageFormatFilter implements Filter {
             i = close + 1;
         }
         return out.toString();
+    }
+
+    /**
+     * Returns true when the <code>](</code> at position <code>close</code>
+     * belongs to an image link (<code>![alt](target)</code>). Walks backward
+     * from <code>close</code> looking for the opening <code>[</code> and
+     * checks whether it is preceded by a <code>!</code>.
+     */
+    private static boolean isImageLink( final String body, final int close ) {
+        for ( int k = close - 1; k >= 0; k-- ) {
+            final char c = body.charAt( k );
+            if ( c == '[' ) {
+                return k > 0 && body.charAt( k - 1 ) == '!';
+            }
+            if ( c == ']' ) {
+                return false;
+            }
+        }
+        return false;
     }
 
     private static boolean isInternalTarget( final String t ) {

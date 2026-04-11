@@ -1,16 +1,4 @@
----
-title: Siem Fundamentals
-type: article
-tags:
-- data
-- log
-- siem
-summary: 'Prerequisite Knowledge: Deep understanding of network protocols (TCP/IP,
-  Syslog, WMI), data streaming architectures (Kafka, Kinesis), and basic statistical
-  modeling.'
-auto-generated: true
----
-# A Deep Dive into Security Information and Event Management (SIEM): Architectures, Advanced Detection Paradigms, and the Frontier of Security Analytics
+# Architectures, Advanced Detection Paradigms, and the Frontier of Security Analytics
 
 **Target Audience:** Security Architects, Threat Hunters, Data Scientists, and Security Researchers.
 **Prerequisite Knowledge:** Deep understanding of network protocols (TCP/IP, Syslog, WMI), data streaming architectures (Kafka, Kinesis), and basic statistical modeling.

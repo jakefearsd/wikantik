@@ -1,15 +1,4 @@
----
-title: Reit Index Funds
-type: article
-tags:
-- text
-- index
-- risk
-summary: It assumes a deep understanding of modern portfolio theory (MPT), fixed-income
-  derivatives, structured finance, and advanced risk modeling techniques.
-auto-generated: true
----
-# REIT Index Funds and Real Estate Exposure: An Advanced Technical Deep Dive for Quantitative Researchers
+# REIT Index Funds and Real Estate Exposure
 
 **Disclaimer:** This document is written for an expert audience—quantitative researchers, sophisticated portfolio managers, and academic financial modelers. It assumes a deep understanding of modern portfolio theory (MPT), fixed-income derivatives, structured finance, and advanced risk modeling techniques. The goal is not merely to explain REITs, but to dissect the methodologies, limitations, and frontier techniques associated with indexing real estate exposure.
 

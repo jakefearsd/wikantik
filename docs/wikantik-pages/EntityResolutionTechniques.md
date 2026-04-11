@@ -1,15 +1,4 @@
----
-title: Entity Resolution Techniques
-type: article
-tags:
-- match
-- record
-- data
-summary: When disparate datasets, collected from varied sources, siloed systems, and
-  human input, are brought together, they rarely speak the same language.
-auto-generated: true
----
-# Entity Resolution, Deduplication, and Matching: A Comprehensive Technical Deep Dive for Advanced Researchers
+# Entity Resolution, Deduplication, and Matching
 
 The pursuit of a unified, accurate view of the real world—a "Golden Record"—is arguably one of the most persistent and challenging problems in modern data science. When disparate datasets, collected from varied sources, siloed systems, and human input, are brought together, they rarely speak the same language. They contain the same underlying entities—the same person, the same corporation, the same physical asset—but these entities are represented by slightly different, noisy, and incomplete records.
 

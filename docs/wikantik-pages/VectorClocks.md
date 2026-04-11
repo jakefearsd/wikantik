@@ -1,15 +1,4 @@
----
-title: Vector Clocks
-type: article
-tags:
-- clock
-- vc
-- causal
-summary: 'Vector Clocks in Distributed Systems: A Deep Dive for Research Engineers
-  Welcome.'
-auto-generated: true
----
-# Vector Clocks in Distributed Systems: A Deep Dive for Research Engineers
+# Vector Clocks in Distributed Systems
 
 Welcome. If you've spent any significant time wrestling with distributed systems, you've quickly learned that the concept of "time" is a philosophical minefield, not a simple function call. Relying on `System.currentTimeMillis()` across nodes separated by network jitter and clock drift is not merely poor engineering; it's a recipe for catastrophic, non-reproducible bugs.
 

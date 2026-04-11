@@ -1,21 +1,23 @@
 ---
-date: 2026-03-14T00:00:00Z
-status: active
 summary: Strategies for rapidly building generative AI competence through deliberate
   practice, community engagement, and structured experimentation
+date: 2026-03-14T00:00:00Z
+cluster: generative-ai
 related:
 - GenerativeAiAdoptionGuide
 - UnderstandingGenerativeAi
 - PracticalPromptEngineering
 - RunningLocalLlms
 - AiAugmentedWorkflows
+type: article
+status: active
 tags:
 - generative-ai
 - learning
 - professional-development
 - ai-adoption
-type: article
-cluster: generative-ai
+hubs:
+- MlModelDeployment Hub
 ---
 # Accelerating Your AI Learning
 

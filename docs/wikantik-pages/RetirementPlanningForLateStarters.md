@@ -1,14 +1,4 @@
----
-title: Retirement Planning For Late Starters
-type: article
-tags:
-- text
-- must
-- requir
-summary: This tutorial is not designed for the novice seeking simple budgeting tips.
-auto-generated: true
----
-# The Optimization Problem of Time: A Comprehensive Technical Tutorial on Catch-Up Retirement Planning for Late Starters
+# The Optimization Problem of Time
 
 For the seasoned financial architect, the concept of "late starting" in retirement planning is not a failure of willpower, but rather a complex, multi-variable optimization problem constrained by the non-negotiable resource of time. While the general public often treats this topic with platitudes—"It's never too late!"—the expert researcher understands that "never too late" translates mathematically into a significantly higher required Rate of Return ($\text{RoR}$) and a dramatically increased required Savings Rate ($\text{SR}$) compared to an optimally timed trajectory.
 

@@ -1,15 +1,4 @@
----
-title: Data Versioning
-type: article
-tags:
-- data
-- dvc
-- version
-summary: It is a concept so vital that its failure can lead to catastrophic, yet entirely
-  invisible, research errors.
-auto-generated: true
----
-# Mastering Data Versioning and Reproducibility with DVC: A Deep Dive for Advanced Research Practitioners
+# Data Versioning and Reproducibility with DVC
 
 The pursuit of scientific rigor, particularly in the rapidly evolving domain of Machine Learning (ML) and advanced data analytics, has collided head-on with a fundamental engineering challenge: **reproducibility**. It is a concept so vital that its failure can lead to catastrophic, yet entirely invisible, research errors.
 

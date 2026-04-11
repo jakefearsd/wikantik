@@ -1,15 +1,4 @@
----
-title: Dividend Vs Total Return Investing
-type: article
-tags:
-- dividend
-- text
-- return
-summary: The distinction between focusing solely on dividend yield and optimizing
-  for total return is often glossed over in popular literature.
-auto-generated: true
----
-# Dividend Investing vs. Total Return Strategy: A Deep Dive for Advanced Portfolio Theorists
+# Dividend Investing vs. Total Return Strategy
 
 This tutorial is designed for quantitative researchers, quantitative analysts, and advanced portfolio managers who are moving beyond introductory financial concepts. We are not merely comparing two investment styles; we are dissecting two fundamentally different approaches to wealth accumulation and income generation, analyzing their mathematical underpinnings, their performance characteristics across various market regimes, and the subtle behavioral biases that influence their adoption.
 
@@ -55,7 +44,7 @@ For the expert researcher, understanding that $\text{TR}$ is the superior metric
 
 ***
 
-## II. Deep Dive: The Mechanics of Dividend-Centric Investing
+## II. The Mechanics of Dividend-Centric Investing
 
 Dividend investing, when executed rigorously, is not merely "buying dividend stocks." It is a specialized strategy that requires deep analysis of payout sustainability, dividend growth history, and the underlying corporate cash flow generation capacity.
 
@@ -101,7 +90,7 @@ The goal is to build a portfolio where the weighted average $\text{FCF}$ coverag
 
 ***
 
-## III. Deep Dive: The Mechanics of Total Return Investing
+## III. The Mechanics of Total Return Investing
 
 Total Return investing treats the equity as a single, monolithic asset class whose value is derived from the sum of capital gains and dividends. It is the methodology underpinning most modern quantitative factor models.
 

@@ -1,15 +1,4 @@
----
-title: Retrospective Practices
-type: article
-tags:
-- team
-- must
-- feedback
-summary: It has become a sort of corporate incantation, whispered in boardrooms and
-  plastered on internal wikis.
-auto-generated: true
----
-# The Architecture of Perpetual Refinement: A Deep Dive into Retrospective Improvement and Continuous Feedback Systems for Advanced Practitioners
+# Perpetual Refinement
 
 The concept of "continuous improvement" (CI) is, frankly, one of the most overused buzzwords in modern organizational theory. It has become a sort of corporate incantation, whispered in boardrooms and plastered on internal wikis. For those of us who actually live within the mechanisms of iterative development, however, we understand that CI is not a destination; it is a highly disciplined, often uncomfortable, and fundamentally psychological process of self-correction.
 
@@ -61,7 +50,7 @@ Amateur retrospectives operate on a binary feedback model: positive reinforcemen
 
 ---
 
-## II. Deconstructing the Feedback Mechanism: Elicitation and Analysis
+## II. Elicitation and Analysis
 
 This section moves from theory to the mechanics of data gathering. Since the goal is deep research, we must treat the feedback session as a data science exercise.
 

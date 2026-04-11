@@ -1,15 +1,4 @@
----
-title: Small Cap Value Premium
-type: article
-tags:
-- factor
-- premium
-- small
-summary: It is not merely a factor; it is a confluence of size, value, and often,
-  a degree of market neglect.
-auto-generated: true
----
-# The Small Cap Value Premium: A Deep Dive for Advanced Factor Research
+# The Small Cap Value Premium
 
 For those of us who spend our professional lives wrestling with the ghosts of academic anomalies and the stubborn persistence of market inefficiencies, the "Small Cap Value Premium" remains one of the most persistently debated, yet potentially lucrative, frontiers in quantitative finance. It is not merely a factor; it is a confluence of size, value, and often, a degree of market neglect.
 
@@ -23,7 +12,7 @@ We will dissect the theoretical underpinnings, critique the methodologies, explo
 
 The concept of factor investing posits that asset returns are not solely explained by systematic market risk ($\beta$), but by exposure to several measurable, persistent risk premia (e.g., size, value, momentum, quality). The Small Cap Value Premium (SCVP) suggests that a specific combination of characteristics—being small *and* being undervalued relative to its fundamentals—tends to generate excess returns ($\alpha$) over a risk-adjusted benchmark.
 
-### A. Deconstructing the Components
+### A. The Components
 
 To treat this factor with the necessary academic rigor, we must first isolate its constituent parts:
 
@@ -78,7 +67,7 @@ A successful factor model must determine which component dominates the observed 
 
 ***
 
-## III. Methodological Deep Dive: Quantifying the Premium
+## III. Quantifying the Premium
 
 Moving from theory to practice requires selecting the appropriate econometric framework. The choice of model dictates the resulting factor exposure and, critically, the resulting risk profile.
 

@@ -1,15 +1,4 @@
----
-title: Retirement Relocation Analysis
-type: article
-tags:
-- text
-- tax
-- cost
-summary: 'Abstract: The decision to relocate for retirement is frequently oversimplified
-  into a comparison of median housing costs.'
-auto-generated: true
----
-# The Optimization Frontier: A Comprehensive Analysis of Retirement Relocation Cost, Cost of Living Indexing, and State Tax Arbitrage for Advanced Financial Modeling
+# The Optimization Frontier
 
 **Target Audience:** Experts in Financial Modeling, Quantitative Analysis, Retirement Planning, and Tax Law Research.
 
@@ -34,7 +23,7 @@ This tutorial will systematically deconstruct these three pillars, providing the
 
 ***
 
-## 2. Deconstructing the Cost of Living Index ($\text{COLI}$): Beyond the Basket of Goods
+## 2. Beyond the Basket of Goods
 
 The concept of "Cost of Living" is notoriously subjective. A simple comparison of housing costs (e.g., median home price) fails to capture the true economic friction experienced by a retiree. For experts, we must model $\text{COLI}$ as a weighted average of expenditure categories, adjusted for local market elasticity.
 

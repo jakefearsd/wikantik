@@ -1,14 +1,4 @@
----
-title: Functional Programming Principles
-type: article
-tags:
-- immut
-- structur
-- function
-summary: At the heart of this correction lies immutability.
-auto-generated: true
----
-# The Unshakeable Foundation: A Deep Dive into Immutability as a Core Tenet of Functional Programming for Advanced Research
+# The Unshakeable Foundation
 
 For those of us who spend our days wrestling with the capricious nature of mutable state—the kind of state that seems to change its mind between function calls—functional programming (FP) offers not merely an alternative paradigm, but a fundamental philosophical correction. At the heart of this correction lies **immutability**.
 

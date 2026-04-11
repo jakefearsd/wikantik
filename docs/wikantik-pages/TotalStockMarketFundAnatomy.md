@@ -1,15 +1,4 @@
----
-title: Total Stock Market Fund Anatomy
-type: article
-tags:
-- sector
-- factor
-- model
-summary: This tutorial is designed for experts who view TSMFs not as endpoints, but
-  as complex, dynamic data streams requiring rigorous decomposition.
-auto-generated: true
----
-# A Deep Dive into Total Stock Market Fund Composition: Advanced Sectoral Decomposition and Factor Modeling for Quantitative Research
+# Advanced Sectoral Decomposition and Factor Modeling for Quantitative Research
 
 For the quantitative researcher operating at the frontier of asset allocation, the concept of a "Total Stock Market Fund" (TSMF) is often treated as a monolithic, passive benchmark. While funds like the Vanguard Total Stock Market ETF (VTI) provide unparalleled breadth by capturing the entire investable equity universe—from micro-caps to mega-caps—relying solely on its reported sector weightings is akin to accepting a pre-digested narrative.
 
@@ -69,7 +58,7 @@ The sector composition is not an inherent property of the market; it is a *class
 
 ***
 
-## II. Deconstructing Sectoral Weighting Dynamics
+## II. Sectoral Weighting Dynamics
 
 The core of the analysis involves understanding *why* the weights shift. This is not random noise; it is driven by structural economic shifts, technological adoption curves, and capital flows.
 

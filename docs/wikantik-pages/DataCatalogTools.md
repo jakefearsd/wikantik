@@ -1,15 +1,4 @@
----
-title: Data Catalog Tools
-type: article
-tags:
-- data
-- metadata
-- catalog
-summary: 'Data Catalog Discovery Metadata Management: A Deep Dive for Advanced Practitioners
-  Welcome.'
-auto-generated: true
----
-# Data Catalog Discovery Metadata Management: A Deep Dive for Advanced Practitioners
+# Data Catalog Discovery Metadata Management
 
 Welcome. If you've reached this document, you likely already understand that "data governance" is not merely a compliance checklist to be ticked off by legal counsel. You are here because you are researching the *mechanisms*—the technical, architectural, and theoretical underpinnings—that allow organizations to move from possessing data assets to actually *leveraging* them.
 
@@ -67,7 +56,7 @@ The Data Catalog is the **manifestation** of the metadata management strategy. I
 
 ---
 
-## 2. The Architecture of Discovery: From Silos to Graph
+## 2. From Silos to Graph
 
 The sheer volume and heterogeneity of modern data sources (structured RDBMS, semi-structured JSON/XML in data lakes, streaming Kafka topics, unstructured documents in S3) render traditional, siloed metadata approaches obsolete. The solution demands a unified, graph-based architecture.
 

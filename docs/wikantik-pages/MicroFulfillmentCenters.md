@@ -1,15 +1,4 @@
----
-title: Micro Fulfillment Centers
-type: article
-tags:
-- text
-- cost
-- must
-summary: 'Prerequisites: A foundational understanding of last-mile logistics, warehouse
-  management systems (WMS), and urban planning constraints.'
-auto-generated: true
----
-# The Hyper-Local Nexus: A Comprehensive Technical Tutorial on Micro-Fulfillment Dark Stores in Urban Logistics Networks
+# Micro-Fulfillment Dark Stores in Urban Logistics Networks
 
 **Target Audience:** Supply Chain Architects, Logistics Researchers, E-commerce Operations Directors, and Advanced Automation Engineers.
 
@@ -17,7 +6,7 @@ auto-generated: true
 
 ***
 
-## Introduction: The Crisis of Last-Mile Latency and the Emergence of Hyper-Local Fulfillment
+## Introduction: Last-Mile Latency and Hyper-Local Fulfillment
 
 The modern e-commerce landscape has fundamentally broken the traditional linear model of supply chain fulfillment. The consumer expectation—epitomized by the "15-minute delivery" promise—is not merely a marketing slogan; it represents a critical, non-negotiable service level agreement (SLA) that dictates operational viability. Traditional distribution centers (DCs), optimized for high-volume, bulk throughput over long haul routes, are inherently ill-suited for the granular, time-sensitive demands of dense urban cores.
 
@@ -29,7 +18,7 @@ This tutorial aims to provide an exhaustive, expert-level deep dive into the arc
 
 ***
 
-## Section 1: Deconstructing the Taxonomy – MFC vs. Dark Store vs. Traditional DC
+## Section 1: MFC vs. Dark Store vs. Traditional DC
 
 For researchers entering this field, the initial confusion regarding terminology is predictable. While the industry often conflates these terms, a rigorous technical understanding requires precise differentiation. Misclassifying the facility type leads to catastrophic modeling errors in network design.
 
@@ -71,7 +60,7 @@ The modern, cutting-edge implementation is the **Urban Micro-Fulfillment Dark St
 
 ***
 
-## Section 2: Architectural Deep Dive – Designing the UMFDS Ecosystem
+## Section 2: Designing the UMFDS Ecosystem
 
 Designing a UMFDS requires treating the facility not as a static box, but as a dynamic, interconnected node within a larger, resilient network graph.
 
@@ -135,7 +124,7 @@ The objective of the picking process is to minimize the total distance traveled 
 
 ***
 
-## Section 3: Technological Pillars – Automation and Intelligence Integration
+## Section 3: Automation and Intelligence Integration
 
 The UMFDS cannot function effectively on manual labor alone; its viability hinges on the seamless integration of advanced automation and predictive intelligence.
 

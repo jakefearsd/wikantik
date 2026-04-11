@@ -1,15 +1,4 @@
----
-title: Software Engineering Career Growth
-type: article
-tags:
-- you
-- engin
-- technic
-summary: 'The Architecture of Ascent: A Comprehensive Guide to Software Engineering
-  Career Growth and Promotion for the Expert Practitioner Welcome.'
-auto-generated: true
----
-# The Architecture of Ascent: A Comprehensive Guide to Software Engineering Career Growth and Promotion for the Expert Practitioner
+# The Architecture of Ascent
 
 Welcome. If you are reading this, you are not a junior engineer who thinks a promotion is simply a function of lines of code written or tickets closed. You are an expert. You are someone who has wrestled with distributed consensus, optimized database sharding strategies until 3 AM, and likely understands the subtle, agonizing difference between *technical competence* and *systemic influence*.
 
@@ -19,7 +8,7 @@ This tutorial is not a "how-to" guide in the pedestrian sense. It is a deep dive
 
 ---
 
-## I. Deconstructing the Promotion Mythos: Beyond the Codebase
+## I. Beyond the Codebase
 
 Before we discuss *how* to get promoted, we must first dismantle the flawed premise that technical output is the primary metric. The sources you’ve likely skimmed—and I won't insult your intelligence by dwelling on the basics—all point to the same conclusion: technical skill is the *baseline*, not the differentiator.
 
@@ -157,7 +146,7 @@ Mentoring at the expert level is not pair-programming. It is about building a re
 *   **The Anti-Mentor Trap:** The novice mentor gives answers. The expert mentor asks questions that force the mentee to build the necessary connections themselves.
 *   **The "Why Not" Question:** Instead of saying, "Use Kafka because it's robust," ask, "If we used RabbitMQ, what specific failure mode would we introduce that Kafka prevents?" This forces the mentee to understand the *boundaries* of the technology, which is the true measure of expertise.
 
-### C. Navigating Organizational Politics as Graph Theory
+### C. Organizational Politics as Graph Theory
 
 This is the most distasteful, yet most necessary, section. Organizational politics is simply the study of power dynamics within a graph structure.
 

@@ -1,15 +1,4 @@
----
-title: No Sql Database Types
-type: article
-tags:
-- data
-- store
-- kei
-summary: 'Prerequisites: Solid understanding of relational algebra, ACID properties,
-  and distributed computing concepts (e.g., CAP Theorem).'
-auto-generated: true
----
-# A Deep Dive into Non-Relational Data Models: Document, Graph, Key-Value, and Wide-Column Architectures
+# Document, Graph, Key-Value, and Wide-Column Architectures
 
 **Target Audience:** Database Architects, Data Scientists, and Software Engineers specializing in high-scale, distributed systems research.
 **Prerequisites:** Solid understanding of relational algebra, ACID properties, and distributed computing concepts (e.g., CAP Theorem).
@@ -52,7 +41,7 @@ Understanding when eventual consistency is acceptable (e.g., viewing a social me
 
 ---
 
-## III. Deep Dive: Key-Value Stores (The Atomic Map)
+## III. Key-Value Stores (The Atomic Map)
 
 Key-Value (KV) stores represent the most abstract and simplest form of data persistence. They are the purest realization of the "lookup" operation.
 
@@ -85,7 +74,7 @@ The defining characteristic of a well-implemented KV store is its near-constant 
 
 ---
 
-## IV. Deep Dive: Document Databases (The Self-Contained Unit)
+## IV. Document Databases (The Self-Contained Unit)
 
 Document databases emerged to solve the rigidity problem of RDBMS while providing more structure and query capability than pure KV stores. They are the most common entry point into NoSQL for developers familiar with JSON/BSON structures.
 
@@ -115,7 +104,7 @@ The key differentiator from KV is the ability to **embed** related data. Instead
 
 ---
 
-## V. Deep Dive: Graph Databases (The Relationship Engine)
+## V. Graph Databases (The Relationship Engine)
 
 Graph databases represent a paradigm shift away from modeling *data* to modeling *relationships*. They are not optimized for storing large volumes of unstructured data; they are optimized for traversing complex, interconnected relationships.
 
@@ -149,7 +138,7 @@ The performance advantage of graph databases is fundamentally rooted in the math
 
 ---
 
-## VI. Deep Dive: Wide-Column Stores (The Scale Master)
+## VI. Wide-Column Stores (The Scale Master)
 
 Wide-Column stores (often exemplified by systems like Cassandra or HBase) represent a sophisticated evolution of the key-value model, designed specifically to handle massive datasets characterized by extreme sparsity and high write throughput across vast clusters.
 
@@ -224,7 +213,7 @@ A user views a product page.
 
 This decomposition ensures that each component is optimized for its specific, high-frequency access pattern, maximizing overall system throughput and resilience.
 
-### C. Deep Dive into Transaction Management in Polyglot Systems
+### C. Transaction Management in Polyglot Systems
 
 The biggest challenge in polyglot persistence is maintaining data consistency across disparate models. Since true, distributed ACID transactions spanning multiple database types are notoriously difficult, architects must rely on compensating transactions and eventual consistency patterns:
 

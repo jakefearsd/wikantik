@@ -1,15 +1,4 @@
----
-title: Neural Network Architectures
-type: article
-tags:
-- text
-- mathbf
-- activ
-summary: This tutorial is not for the novice who needs to know that a neural network
-  passes data forward.
-auto-generated: true
----
-# The Calculus of Computation: A Deep Dive into Neural Network Architecture Layers and Activation Functions for Advanced Research
+# The Calculus of Computation
 
 For those of us who spend our days wrestling with gradient descent, optimizing loss landscapes, and arguing over the precise mathematical definition of "sufficiently non-linear," the interplay between architectural layers and activation functions is not merely a set of best practices—it is the fundamental physics of modern deep learning.
 

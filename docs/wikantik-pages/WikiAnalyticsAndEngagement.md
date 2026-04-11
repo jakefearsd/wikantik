@@ -1,15 +1,4 @@
----
-title: Wiki Analytics And Engagement
-type: article
-tags:
-- text
-- page
-- user
-summary: 'Prerequisites: A robust understanding of web architecture, statistical modeling,
-  and the limitations of standard web telemetry.'
-auto-generated: true
----
-# The Architecture of Insight: Advanced Wiki Analytics for Measuring Page View Engagement in Knowledge Ecosystems
+# Advanced Wiki Analytics for Measuring Page View Engagement in Knowledge Ecosystems
 
 **Target Audience:** Research Scientists, Data Architects, Digital Humanities Scholars, and Advanced Web Analytics Practitioners.
 

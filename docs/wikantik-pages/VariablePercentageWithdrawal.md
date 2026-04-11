@@ -1,15 +1,4 @@
----
-title: Variable Percentage Withdrawal
-type: article
-tags:
-- withdraw
-- vpw
-- rt
-summary: This tutorial provides a comprehensive, advanced technical examination of
-  the Variable Percentage Withdrawal (VPW) strategy.
-auto-generated: true
----
-# Variable Percentage Withdrawal (VPW): A Deep Dive for Advanced Retirement Modeling
+# Variable Percentage Withdrawal (VPW)
 
 The field of retirement income planning has, for decades, been dominated by relatively simple, often linear, withdrawal models. The Safe Withdrawal Rate (SWR), popularized by the 4% rule, remains the industry standard—a necessary heuristic, perhaps, but increasingly insufficient for the nuanced reality of modern financial longevity planning. For the expert researcher, the limitations of fixed-rate withdrawals become glaringly apparent, particularly when confronting non-normal return distributions, significant sequence of returns risk (SORR), and the inherent variability of human spending patterns.
 

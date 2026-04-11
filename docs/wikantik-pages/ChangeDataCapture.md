@@ -1,14 +1,4 @@
----
-title: Change Data Capture
-type: article
-tags:
-- data
-- cdc
-- stream
-summary: We no longer merely move snapshots; we must capture the moment of change.
-auto-generated: true
----
-# The Art of the Delta: A Comprehensive Deep Dive into Change Data Capture (CDC) Streaming Replication for Advanced Practitioners
+# The Delta
 
 For those of us who have spent enough time wrestling with data pipelines, the concept of "moving data" has evolved far beyond the quaint notion of nightly batch ETL jobs. We no longer merely move snapshots; we must capture the *moment* of change. Change Data Capture (CDC) is not just a feature; it is a fundamental paradigm shift in data integration, transforming data movement from a bulk operation into a continuous, event-driven stream.
 
@@ -205,7 +195,7 @@ FUNCTION process_record(record):
 ```
 This transactional wrapper around the sink is non-negotiable for critical data paths.
 
-### 2. Handling Schema Evolution: The Schema Registry Deep Dive
+### 2. Handling Schema Evolution: The Schema Registry
 
 Schema evolution is where most CDC pipelines fail in production. The source schema changes, but the consumer code (or the downstream system) hasn't been updated yet.
 

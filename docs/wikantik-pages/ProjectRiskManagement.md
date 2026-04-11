@@ -1,14 +1,3 @@
----
-title: Project Risk Management
-type: article
-tags:
-- risk
-- failur
-- model
-summary: It is, fundamentally, the intellectual scaffolding that supports the entire
-  endeavor.
-auto-generated: true
----
 # Project Risk Management: Advanced Identification and Mitigation Frameworks for Research-Intensive Disciplines
 
 ## Introduction: Beyond the Checklist Mentality

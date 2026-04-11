@@ -1,14 +1,4 @@
----
-title: Travel During Immigration Process
-type: article
-tags:
-- applic
-- travel
-- u.
-summary: Citizenship and Immigration Services (USCIS).
-auto-generated: true
----
-# Navigating the Nexus: A Comprehensive Technical Analysis of International Travel While Pending Adjustment of Status (I-485)
+# The Nexus
 
 **Target Audience:** Immigration Law Practitioners, Advanced Researchers, and Policy Analysts.
 **Scope:** This tutorial moves beyond basic procedural advice to analyze the underlying statutory frameworks, risk modeling, and advanced strategic considerations associated with international travel while an Adjustment of Status (AOS) application (Form I-485) remains pending with U.S. Citizenship and Immigration Services (USCIS).
@@ -60,7 +50,7 @@ The primary legal risk associated with international travel without proper autho
 
 ***
 
-## II. Procedural Deep Dive: The Mechanics of Travel Authorization
+## II. The Mechanics of Travel Authorization
 
 For the researcher, the process must be broken down into discrete, actionable, and legally verifiable steps.
 

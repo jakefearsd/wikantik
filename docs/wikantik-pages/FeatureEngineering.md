@@ -1,15 +1,4 @@
----
-title: Feature Engineering
-type: article
-tags:
-- featur
-- model
-- mathbf
-summary: It is where the art of domain expertise collides violently—and hopefully
-  productively—with the cold, hard mathematics of statistical modeling.
-auto-generated: true
----
-# The Triad of Predictive Power: A Comprehensive Guide to Feature Engineering, Selection, and Transformation for Advanced Research
+# The Triad of Predictive Power
 
 For those of us who spend our days wrestling with the messy, high-dimensional reality of raw data, the process of preparing features is less a mere preprocessing step and more the central, defining act of the entire machine learning endeavor. It is where the art of domain expertise collides violently—and hopefully productively—with the cold, hard mathematics of statistical modeling.
 
@@ -51,7 +40,7 @@ The critical insight for the expert researcher is that these processes are **not
 
 ---
 
-## II. Deep Dive into Feature Engineering (FE): Beyond Simple Munging
+## II. Beyond Simple Munging
 
 Since FE is the most domain-dependent, we must categorize techniques by the data type they address, moving far beyond basic one-hot encoding.
 

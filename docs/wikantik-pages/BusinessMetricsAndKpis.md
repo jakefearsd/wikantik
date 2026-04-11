@@ -1,15 +1,4 @@
----
-title: Business Metrics And Kpis
-type: article
-tags:
-- data
-- dashboard
-- kpi
-summary: 'The Architecture of Insight: A Comprehensive Tutorial on Business Metrics
-  KPI Dashboard Measurement for Advanced Practitioners Welcome.'
-auto-generated: true
----
-# The Architecture of Insight: A Comprehensive Tutorial on Business Metrics KPI Dashboard Measurement for Advanced Practitioners
+# The Architecture of Insight
 
 Welcome. If you are reading this, you are not looking for a beginner's guide on what a KPI dashboard is. You already know that a KPI dashboard is a visual reporting tool designed to track, measure, and analyze key performance indicators in real time, helping businesses make data-driven decisions (as noted by dashboardbuilder.net [4] and Tableau [5]).
 
@@ -19,7 +8,7 @@ Consider this a deep dive into the methodology—the science of turning raw, noi
 
 ---
 
-## I. Deconstructing the Metric: From Business Objective to Quantifiable Signal
+## I. From Business Objective to Quantifiable Signal
 
 The most common failure point in enterprise analytics is not the dashboarding tool, but the initial definition of the metric itself. A poorly defined KPI is merely a sophisticated way of tracking vanity metrics. For experts, the focus must shift from *measurement* to *measurement validity*.
 

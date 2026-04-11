@@ -1,15 +1,4 @@
----
-title: Wiki Content Management Workflow
-type: article
-tags:
-- workflow
-- must
-- content
-summary: We are moving beyond simple status transitions and into the realm of process
-  orchestration, semantic governance, and resilient state management.
-auto-generated: true
----
-# The Architecture of Authority: A Comprehensive Tutorial on Wiki Content Management Editorial Workflows for Advanced Practitioners
+# The Architecture of Authority
 
 For those of us who spend our professional lives wrestling with the digital equivalent of institutional memory—the vast, sprawling, and often contradictory knowledge base that is the wiki—the concept of a "workflow" is not a mere suggestion; it is a critical, non-negotiable architectural requirement. A wiki, by its very nature, champions decentralized contribution, which, while democratizing knowledge, simultaneously introduces the most volatile element into any digital publishing stack: unmanaged entropy.
 
@@ -19,7 +8,7 @@ If you treat your workflow as a linear checklist, you are already behind. We wil
 
 ---
 
-## I. Deconstructing the Ecosystem: From CMS to ECM to Knowledge Graph
+## I. From CMS to ECM to Knowledge Graph
 
 Before we can optimize the *process*, we must first rigorously define the *container*. The terms Content Management System (CMS), Enterprise Content Management (ECM), and Wiki are often used interchangeably by those who have never had to debug a permission conflict at 3 AM. For an expert audience, these distinctions are paramount.
 
@@ -53,7 +42,7 @@ The core challenge here is **contextual integrity**. In a wiki, a change in Conc
 
 ---
 
-## II. The Multi-Stage Editorial Workflow Model: A State Machine Deep Dive
+## II. The Multi-Stage Editorial Workflow Model: A State Machine
 
 We model the ideal workflow as a sophisticated, multi-dimensional state machine. The state of any piece of content ($C$) is defined not by a single status string, but by a tuple of attributes: $State(C) = \langle \text{Status}, \text{Version}, \text{Approvals}, \text{Visibility} \rangle$.
 

@@ -56,7 +56,7 @@ Linux uses a single unified file system tree rooted at `/`, unlike Windows with 
 | `chown` | Change file ownership | `chown alice:developers file.txt` |
 | `ln -s` | Create a symbolic link | `ln -s /usr/bin/python3 /usr/bin/python` |
 
-### Understanding Permissions
+### Permissions
 
 Linux file permissions use three groups (owner, group, others) and three types (read, write, execute):
 

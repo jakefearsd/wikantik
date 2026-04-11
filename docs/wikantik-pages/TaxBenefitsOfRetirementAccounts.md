@@ -1,12 +1,16 @@
 ---
-status: published
 date: 2026-03-15T01:00:00Z
+summary: How different retirement account types provide tax advantages through deductions,
+  tax-deferred growth, and tax-free withdrawals, with strategies for maximizing lifetime
+  tax savings.
+cluster: retirement-planning
 related:
 - TypesofInvestmentAccountsTutorial
 - MaximizingRetirementAccountContributions
 - TaxPlanningForRetirementAccountWithdrawals
-cluster: retirement-planning
+title: Tax Benefits of Retirement Accounts
 type: article
+status: published
 tags:
 - retirement
 - taxes
@@ -14,8 +18,8 @@ tags:
 - 401k
 - Roth
 - tax-planning
-title: Tax Benefits of Retirement Accounts
-summary: How different retirement account types provide tax advantages through deductions, tax-deferred growth, and tax-free withdrawals, with strategies for maximizing lifetime tax savings.
+hubs:
+- TypesofInvestmentAccountsTutorial Hub
 ---
 
 

@@ -1,15 +1,4 @@
----
-title: Query Optimization
-type: article
-tags:
-- optim
-- plan
-- index
-summary: 'The Oracle''s Eye: A Deep Dive into SQL Query Optimization Execution Plan
-  Analysis for Advanced Researchers Welcome.'
-auto-generated: true
----
-# The Oracle's Eye: A Deep Dive into SQL Query Optimization Execution Plan Analysis for Advanced Researchers
+# The Oracle's Eye
 
 Welcome. If you are reading this, you are likely past the stage of simply running `EXPLAIN` because your query is slow. You understand that the execution plan is not merely a diagnostic tool; it is a window into the very operational philosophy of the database engine itself. You are here to understand *why* the optimizer chose the path it did, and more importantly, how to convince it—through superior data modeling and statistical manipulation—to choose the path you *know* is correct.
 
@@ -89,7 +78,7 @@ An execution plan is a Directed Acyclic Graph (DAG). The operations are executed
 
 For the expert researcher, optimization is not about adding an index; it's about *guiding* the optimizer's cost function toward the mathematically optimal path, even if the default path is suboptimal.
 
-### A. The Art of Index Design: Covering and Composite Structures
+### A. Covering and Composite Structures
 
 The relationship between indexes and query plans is often misunderstood.
 
@@ -182,7 +171,7 @@ $$\text{Query Logic} + \text{Data Distribution} + \text{Statistics} \xrightarrow
 
 The query logic (the SQL) is fixed by the business requirement. The data distribution and statistics are the levers you pull.
 
-### B. Edge Case Deep Dive: Non-Deterministic Functions
+### B. Non-Deterministic Functions
 
 Be acutely aware of any function used in the `WHERE` clause that is non-deterministic (e.g., `GETUTCDATE()`, `NEWID()`, or complex mathematical functions).
 

@@ -1,15 +1,4 @@
----
-title: Reactive Programming
-type: article
-tags:
-- request
-- backpressur
-- stream
-summary: 'Reactive Programming Streams Backpressure: A Deep Dive for Advanced Researchers
-  Welcome.'
-auto-generated: true
----
-# Reactive Programming Streams Backpressure: A Deep Dive for Advanced Researchers
+# Reactive Programming Streams Backpressure
 
 Welcome. If you are reading this, you are likely already familiar with the basic concepts of asynchronous data streams—the idea that data flows over time, and that managing that flow is non-trivial. You understand that simply subscribing to a source is not enough; you need control.
 

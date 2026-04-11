@@ -1,15 +1,4 @@
----
-title: Graph Database Fundamentals
-type: article
-tags:
-- properti
-- relationship
-- graph
-summary: This tutorial is not intended for those who merely need to know how to write
-  a basic MATCH (a)-[:KNOWS]->(b) query.
-auto-generated: true
----
-# The Architecture of Connectivity: A Deep Dive into the Neo4j Property Graph Model for Advanced Research
+# The Architecture of Connectivity
 
 For those of us who have spent enough time wrestling with the limitations of tabular data structures, the concept of the Property Graph Model (PGM) is less a novelty and more a necessary paradigm shift. This tutorial is not intended for those who merely need to know how to write a basic `MATCH (a)-[:KNOWS]->(b)` query. We are addressing experts—researchers, architects, and advanced practitioners—who require a deep, almost visceral understanding of the model's theoretical underpinnings, its physical implementation nuances within Neo4j, and the advanced patterns required to push its boundaries in cutting-edge research domains.
 
@@ -55,7 +44,7 @@ In Neo4j's physical implementation, the relationship pointers are stored *direct
 
 ---
 
-## II. Deconstructing the Property Graph Model Components
+## II. The Property Graph Model Components
 
 The PGM is defined by three primary, interconnected components. Mastery requires understanding their distinct roles and how they interact at the query level.
 

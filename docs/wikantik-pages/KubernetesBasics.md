@@ -1,16 +1,4 @@
----
-title: Kubernetes Basics
-type: article
-tags:
-- pod
-- servic
-- manag
-summary: This tutorial assumes a deep familiarity with container runtimes (Docker/containerd),
-  networking fundamentals (IP addressing, load balancing), and declarative infrastructure
-  management principles.
-auto-generated: true
----
-# Kubernetes Primitives Deep Dive: Pods, Services, and Deployments for the Advanced Researcher
+# Pods, Services, and Deployments for the Advanced Researcher
 
 For those of us who have spent enough time wrestling with container orchestration, the initial documentation on Kubernetes often feels like reading a highly polished, yet fundamentally incomplete, primer. We are not here to learn *what* a Pod is; we are here to dissect *why* the Pod abstraction exists, *how* the Service layer solves the inherent instability of ephemeral IPs, and *under what failure modes* the Deployment controller gracefully manages the desired state.
 
@@ -153,7 +141,7 @@ When a Service is created, Kubernetes performs several critical background tasks
 2.  **Virtual IP Assignment:** The Service is assigned a stable `ClusterIP`. This IP is *not* routed directly to any single Pod; it is a virtual address managed by the cluster networking layer.
 3.  **Traffic Interception (kube-proxy):** This is the mechanical core. Every Node in the cluster runs `kube-proxy`. `kube-proxy` watches the Service and Endpoints objects and programs the Node's networking rules (typically using **iptables** or **IPVS**) to intercept any traffic destined for the Service's `ClusterIP` and redirect it to one of the healthy, available Pod IPs backing that Service.
 
-#### 3.2.1 Deep Dive: iptables vs. IPVS
+#### 3.2.1 iptables vs. IPVS
 
 For the expert researcher, knowing the underlying implementation detail is vital for performance tuning:
 

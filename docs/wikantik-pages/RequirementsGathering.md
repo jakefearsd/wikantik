@@ -1,15 +1,4 @@
----
-title: Requirements Gathering
-type: article
-tags:
-- requir
-- system
-- must
-summary: 'We are tasked with extracting crystallized, actionable knowledge from a
-  messy, often contradictory, source: the stakeholders themselves.'
-auto-generated: true
----
-# A Deep Dive into Requirements Elicitation and Analysis: A Guide for Advanced Research in System Definition
+# A Guide for Advanced Research in System Definition
 
 For those of us who spend our professional lives wrestling with the inherent ambiguity of human intent, the process of defining *what* a system must do—the requirements—is less an engineering task and more an act of applied epistemology. We are tasked with extracting crystallized, actionable knowledge from a messy, often contradictory, source: the stakeholders themselves.
 
@@ -152,7 +141,7 @@ A requirements specification is useless if you cannot prove that every line item
 
 ---
 
-## Ⅳ. Advanced Topics and Edge Cases for Research Experts
+## Ⅳ. Advanced Topics and Edge Cases
 
 To truly push the boundaries, we must address the areas where traditional methods break down—the socio-technical, the ethical, and the computationally complex.
 

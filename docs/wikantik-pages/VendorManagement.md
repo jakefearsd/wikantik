@@ -1,14 +1,4 @@
----
-title: Vendor Management
-type: article
-tags:
-- vendor
-- score
-- must
-summary: We write a Request for Proposal (RFP), compare glossy decks, and sign a contract.
-auto-generated: true
----
-# The Algorithmic Art of Selection: A Comprehensive Tutorial on Advanced Vendor Management Evaluation Methodologies
+# The Algorithmic Art of Selection
 
 For those of us who spend our careers optimizing processes, the act of selecting a vendor—a critical external partner—often feels deceptively simple. We write a Request for Proposal (RFP), compare glossy decks, and sign a contract. This superficial process, however, is where most organizations fall into what I like to call "The Vendor Selection Trap." It’s a trap of cognitive bias, insufficient due diligence, and, frankly, over-reliance on the most polished PowerPoint presentation rather than rigorous, multi-dimensional quantitative analysis.
 
@@ -97,7 +87,7 @@ FUNCTION Calculate_Weights(Pairwise_Comparison_Matrix M):
     RETURN Normalize(W)
 ```
 
-### B. Deep Dive into Ranking Models
+### B. Ranking Models
 
 Once the weights ($\mathbf{W}$) are established, we use the vendor scores ($\mathbf{S}$) to generate the final ranking. We will analyze three foundational, yet distinct, models.
 

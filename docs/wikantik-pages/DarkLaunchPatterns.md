@@ -1,15 +1,4 @@
----
-title: Dark Launch Patterns
-type: article
-tags:
-- shadow
-- test
-- traffic
-summary: In the modern, hyper-distributed microservices landscape, the velocity of
-  change is breathtaking, but the cost of failure remains stubbornly high.
-auto-generated: true
----
-# Dark Launch Shadow Traffic Testing: A Comprehensive Guide for Advanced Reliability Engineering
+# Dark Launch Shadow Traffic Testing
 
 For those of us who have spent enough time wrestling with production deployments, the phrase "it worked on my machine" has become less a quaint anecdote and more a professional curse. In the modern, hyper-distributed microservices landscape, the velocity of change is breathtaking, but the cost of failure remains stubbornly high. We are no longer in an era where a simple rollback is a guaranteed panacea; the blast radius of a subtle, emergent bug can now encompass entire revenue streams.
 

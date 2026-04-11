@@ -1,15 +1,3 @@
----
-title: Lean Manufacturing Principles
-type: article
-tags:
-- wast
-- process
-- system
-summary: The initial principles, derived from the Toyota Production System (TPS),
-  provided a robust framework for identifying obvious sources of waste—the classic
-  seven (or eight) forms.
-auto-generated: true
----
 # The Pursuit of Zero: Advanced Methodologies for Waste Elimination in Modern Manufacturing Systems
 
 ## Introduction: Redefining "Waste" in the Context of System Optimization
@@ -26,7 +14,7 @@ This tutorial is designed not to reiterate the basics—you already know that el
 
 The traditional categorization of waste (often remembered by the acronyms DOWNTIME or TIM WOODS) serves as an excellent heuristic tool for initial auditing. However, for advanced research, we must treat these wastes not as discrete categories, but as *symptoms* of underlying systemic failures in information flow, physical constraints, or human cognitive load.
 
-### A. Deep Dive into the Core Wastes (Muda)
+### A. The Core Wastes (Muda)
 
 We must elevate the discussion of each waste from a mere operational inefficiency to a quantifiable loss function ($\mathcal{L}$).
 

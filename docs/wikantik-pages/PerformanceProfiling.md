@@ -1,15 +1,4 @@
----
-title: Performance Profiling
-type: article
-tags:
-- profil
-- bottleneck
-- you
-summary: 'The Art and Science of Performance Profiling: A Deep Dive into Bottleneck
-  Analysis for Advanced Research Welcome.'
-auto-generated: true
----
-# The Art and Science of Performance Profiling: A Deep Dive into Bottleneck Analysis for Advanced Research
+# The Art and Science of Performance Profiling
 
 Welcome. If you've reached this document, you likely already understand that "it runs slow" is a complaint, not a diagnosis. You are not here to learn what a profiler *is*; you are here to master the methodology of extracting actionable, statistically significant performance insights from complex, high-throughput systems.
 
@@ -82,7 +71,7 @@ These are highly specialized tools built for specific ecosystems (e.g., Drupal, 
 
 For the expert researcher, simply knowing *where* the time is spent is insufficient. We must know *why* that time is spent and how to mathematically prove that an alternative approach yields a superior asymptotic bound.
 
-### A. Deep Dive into Memory Profiling
+### A. Memory Profiling
 CPU profiling tells you about computation; memory profiling tells you about data movement. These are often conflated but are fundamentally different bottlenecks.
 
 1.  **Allocation Hotspots:** Identifying functions that allocate massive amounts of temporary objects, leading to excessive Garbage Collection (GC) pressure (e.g., in Java or Python). The bottleneck here is not the computation, but the **overhead of memory management**.

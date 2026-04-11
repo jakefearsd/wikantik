@@ -1,15 +1,4 @@
----
-title: Cloud Networking
-type: article
-tags:
-- rout
-- vpc
-- network
-summary: 'The Architecture of Digital Plumbing: A Deep Dive into Cloud Networking
-  VPC Subnet Routing for Advanced Practitioners Welcome.'
-auto-generated: true
----
-# The Architecture of Digital Plumbing: A Deep Dive into Cloud Networking VPC Subnet Routing for Advanced Practitioners
+# Digital Plumbing
 
 Welcome. If you are reading this, you are likely past the stage of simply deploying a basic three-tier web application. You are in the trenches, wrestling with cross-region failovers, implementing micro-segmentation policies that must survive a major geopolitical incident, or perhaps just trying to figure out why your egress traffic suddenly incurred a 300% cost increase due to an unexpected NAT traversal path.
 

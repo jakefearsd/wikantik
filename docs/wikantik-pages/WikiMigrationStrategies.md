@@ -1,15 +1,4 @@
----
-title: Wiki Migration Strategies
-type: article
-tags:
-- data
-- content
-- migrat
-summary: 'The Art and Science of Digital Archaeology: A Comprehensive Guide to Wiki
-  Migration Content Import/Export for Research Experts Welcome.'
-auto-generated: true
----
-# The Art and Science of Digital Archaeology: A Comprehensive Guide to Wiki Migration Content Import/Export for Research Experts
+# The Art and Science of Digital Archaeology
 
 Welcome. If you are reading this, you are not looking for a simple "how-to" guide for a junior administrator. You are a researcher, an architect, or a data scientist tasked with the monumental, often messy, process of migrating knowledge bases built on the volatile substrate of wiki software. You understand that "migration" is rarely a single transaction; it is a complex, multi-stage process of digital archaeology, requiring deep knowledge of data modeling, schema transformation, and the inherent entropy of collaborative text.
 

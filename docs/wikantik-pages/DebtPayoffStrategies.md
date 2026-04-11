@@ -1,15 +1,4 @@
----
-title: Debt Payoff Strategies
-type: article
-tags:
-- debt
-- text
-- interest
-summary: We are not merely discussing budgeting tips; we are analyzing two distinct
-  optimization heuristics applied to a constrained financial system.
-auto-generated: true
----
-# A Deep Dive into Debt Amortization Optimization: A Comparative Analysis of the Avalanche and Snowball Methodologies
+# A Comparative Analysis of the Avalanche and Snowball Methodologies
 
 ## Introduction: Framing Debt Repayment as an Optimization Problem
 

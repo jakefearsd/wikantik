@@ -1,15 +1,4 @@
----
-title: Procurement Strategies
-type: article
-tags:
-- sourc
-- supplier
-- cost
-summary: To treat it as a mere administrative function—the act of purchasing—is not
-  just outdated; it is professionally negligent.
-auto-generated: true
----
-# The Architecture of Value Extraction: A Deep Dive into Advanced Procurement Strategy, Sourcing, and Purchasing Methodologies
+# Value Extraction
 
 For those of us who have spent enough time in the trenches of supply chain management, the term "procurement" often evokes images of endless spreadsheets, endless RFPs, and the faint, lingering scent of stale conference room coffee. To treat it as a mere administrative function—the act of *purchasing*—is not just outdated; it is professionally negligent.
 
@@ -59,7 +48,7 @@ Strategic Sourcing is the culmination—it is the *philosophy* that dictates the
 
 ---
 
-## II. The Advanced Strategic Sourcing Lifecycle: A Deep Dive into Process Optimization
+## II. The Advanced Strategic Sourcing Lifecycle
 
 While many guides offer a "7-Step Process," an expert view requires understanding these steps not as linear tasks, but as iterative, feedback-driven loops governed by continuous data ingestion. We must treat the process itself as a system requiring optimization.
 

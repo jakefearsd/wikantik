@@ -1,15 +1,4 @@
----
-title: Database Indexing Strategies
-type: article
-tags:
-- index
-- tree
-- data
-summary: When researching novel query execution plans or designing next-generation
-  storage engines, a superficial understanding of indexing is simply insufficient.
-auto-generated: true
----
-# A Deep Dive into Database Indexing Architectures: B-Tree, Hash, and the Power of Covering Structures
+# B-Tree, Hash, and the Power of Covering Structures
 
 For those of us who spend our careers wrestling with the abyssal depths of data retrieval, the concept of the index is less a mere optimization feature and more the fundamental principle separating a functional database from an expensive, slow-moving data swamp. When researching novel query execution plans or designing next-generation storage engines, a superficial understanding of indexing is simply insufficient. We must dissect the underlying mathematical structures, analyze their I/O characteristics at the page level, and understand the precise conditions under which they fail or excel.
 
@@ -39,7 +28,7 @@ The choice between B-Tree and Hash index is fundamentally a trade-off between **
 
 The B-Tree (or B+ Tree, which is the more common variant in modern DBMS) is the industry standard for a reason: it is a robust, self-balancing, multi-way search tree explicitly designed to minimize disk I/O.
 
-### A. Structural Deep Dive: Why B+ Trees Dominate
+### A. Why B+ Trees Dominate
 
 While the general B-Tree structure allows keys and data pointers in both internal and leaf nodes, most commercial systems (like PostgreSQL and MySQL's InnoDB) utilize the **B+ Tree** variant. Understanding this distinction is paramount for an expert.
 

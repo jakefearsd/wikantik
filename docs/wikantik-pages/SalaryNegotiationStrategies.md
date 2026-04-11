@@ -1,15 +1,4 @@
----
-title: Salary Negotiation Strategies
-type: article
-tags:
-- negoti
-- you
-- your
-summary: 'When discussing salary, the novice focuses on the single, easily quantifiable
-  variable: the base salary.'
-auto-generated: true
----
-# The Architect's Guide to Total Compensation Negotiation: Mastering the Full Spectrum of Value Exchange
+# The Architect's Guide to Total Compensation Negotiation
 
 For the expert researcher, the negotiation process is not merely a conversation; it is a complex, multi-variable optimization problem. When discussing salary, the novice focuses on the single, easily quantifiable variable: the base salary. The seasoned professional, however, understands that the true measure of compensation—the **Total Compensation Package (TCP)**—is a sophisticated, multi-dimensional construct.
 
@@ -82,7 +71,7 @@ Market data is not a single number; it is a *range* influenced by geography, com
 2.  **The "Expert Premium" Adjustment:** As an expert researching new techniques, you are not paid for your current job; you are paid for your *potential to solve problems the company hasn't realized it has yet*. You must factor in a premium multiplier (e.g., 15% to 30% above the median for the role) based on your unique, cutting-edge expertise.
 3.  **Geographic and Economic Indexing:** Understand how inflation, cost of living (CoL), and local tech market saturation affect the *real* purchasing power of the offer. A $200k salary in San Francisco has a different real value than $200k in a lower CoL area, even if the nominal number is the same.
 
-### C. Understanding the Employer's Internal Constraints (The Leverage Play)
+### C. The Employer's Internal Constraints (The Leverage Play)
 
 This is the most advanced, and often most difficult, area. You must deduce the company's internal pay bands and budget flexibility.
 
@@ -107,7 +96,7 @@ Anchoring is a cognitive bias where the first piece of information presented dis
     *   *Scenario:* Company offers $180k base.
     *   *Response:* "I appreciate the base salary figure. To bring this into alignment with the market rate for this level of specialized expertise, I'd like to pivot the discussion to the equity component. Given the projected growth trajectory, a grant of X RSUs, coupled with a base closer to $210k, would create a much more compelling total package."
 
-### B. The Art of Trade-Off Negotiation (The "If/Then" Structure)
+### B. Trade-Off Negotiation (The "If/Then" Structure)
 
 Never negotiate one variable in isolation. Always structure your requests as conditional trade-offs. This demonstrates that you are a strategic partner, not just a demanding employee.
 
@@ -142,11 +131,11 @@ Timing is everything, as noted in industry best practices.
 
 ***
 
-## IV. Deep Dive into Specific Compensation Vectors (Edge Cases & Mastery)
+## IV. Specific Compensation Vectors (Edge Cases & Mastery)
 
 To achieve the necessary depth, we must dissect the mechanics of the most complex components.
 
-### A. Mastering Equity Valuation and Dilution
+### A. Equity Valuation and Dilution
 
 For experts, understanding the math behind equity is non-negotiable.
 

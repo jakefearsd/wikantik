@@ -1,15 +1,4 @@
----
-title: Sorting Algorithms Comparison
-type: article
-tags:
-- sort
-- stabil
-- kei
-summary: Among these properties, stability stands out as a deceptively simple concept
-  with profound theoretical and practical implications.
-auto-generated: true
----
-# A Deep Dive into the Theoretical and Practical Nuances of Sorting Algorithm Stability: A Comparative Analysis for Advanced Researchers
+# A Comparative Analysis
 
 The study of sorting algorithms is often treated as a collection of discrete, solvable problems: given an array, find the sorted version. While the asymptotic time complexity ($\mathcal{O}(N \log N)$) provides a useful, high-level metric for performance comparison, it frequently obscures critical, low-level behavioral properties that dictate correctness in real-world, multi-criteria data processing pipelines. Among these properties, **stability** stands out as a deceptively simple concept with profound theoretical and practical implications.
 

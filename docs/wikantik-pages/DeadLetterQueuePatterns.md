@@ -1,14 +1,4 @@
----
-title: Dead Letter Queue Patterns
-type: article
-tags:
-- messag
-- dlq
-- failur
-summary: It guarantees delivery, or at least, the attempt at delivery.
-auto-generated: true
----
-# The Art of Failure Containment: A Deep Dive into Dead Letter Queues, Retry Logic, and Poison Message Remediation
+# Failure Containment
 
 For those of us who spend our careers building resilient, event-driven architectures, the concept of failure is not an exception; it is the primary operational constant. We design systems assuming that things *will* break—network partitions, malformed payloads, external service degradation, and, most notoriously, the insidious "poison message."
 
@@ -120,7 +110,7 @@ If the failure rate for a specific downstream service (Service B) exceeds a defi
 
 ---
 
-## IV. Deep Dive into Poison Message Analysis and Remediation
+## IV. Poison Message Analysis and Remediation
 
 Once a message lands in the DLQ, the system's job shifts entirely from *processing* to *diagnosing*. This requires a structured, multi-stage remediation pipeline.
 

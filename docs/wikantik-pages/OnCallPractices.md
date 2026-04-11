@@ -1,15 +1,4 @@
----
-title: On Call Practices
-type: article
-tags:
-- runbook
-- must
-- system
-summary: 'The Operational Crucible: A Deep Dive into On-Call Rotation Runbook Operations
-  for Advanced SRE Practitioners Welcome.'
-auto-generated: true
----
-# The Operational Crucible: A Deep Dive into On-Call Rotation Runbook Operations for Advanced SRE Practitioners
+# The Operational Crucible
 
 Welcome. If you are reading this, you are likely past the stage of simply "having" an on-call rotation. You are in the realm of optimizing the operational feedback loop—the place where documentation, human fatigue, and distributed systems meet in a high-stakes, low-tolerance environment.
 
@@ -203,7 +192,7 @@ For high-severity incidents, the technical execution must be separated from the 
 
 This is where most organizations fail. They treat the post-mortem as a bureaucratic hurdle rather than the most valuable engineering activity of the entire cycle.
 
-### 5.1 The Post-Mortem Deep Dive: Beyond Blame
+### 5.1 Beyond Blame
 
 The goal of the post-mortem is **Systemic Improvement**, not **Personnel Accountability**. The culture must be rigorously blameless.
 

@@ -1,15 +1,4 @@
----
-title: Inventory Theory
-type: article
-tags:
-- cost
-- model
-- demand
-summary: This tutorial is not intended for the undergraduate student who merely needs
-  to plug values into a textbook formula.
-auto-generated: true
----
-# A Deep Dive into Inventory Optimization: Bridging the Deterministic Certainty of EOQ with the Stochastic Reality of the Newsvendor Model
+# Bridging the Deterministic Certainty of EOQ with the Stochastic Reality of the Newsvendor Model
 
 For those of us who spend our professional lives wrestling with the inherent tension between supply chain efficiency and unpredictable consumer behavior, inventory theory is less a field of study and more a necessary framework for survival. We are tasked with optimizing the placement of capital—the physical stock of goods—in a system where the inputs (demand) are inherently noisy, and the costs (holding, ordering, obsolescence) are rarely linear.
 

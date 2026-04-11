@@ -1,15 +1,4 @@
----
-title: Work Authorization And Ead
-type: article
-tags:
-- ead
-- statu
-- author
-summary: For experts researching novel techniques or systemic vulnerabilities, the
-  EAD represents a critical node in the U.S.
-auto-generated: true
----
-# The Employment Authorization Document (EAD): A Deep Dive into Systemic Mechanics, Legal Nuances, and Advanced Adjudication Pathways
+# The Employment Authorization Document (EAD)
 
 **Target Audience:** Immigration Law Experts, Policy Researchers, Advanced Compliance Officers, and Technical Practitioners researching immigration system architecture.
 
@@ -119,7 +108,7 @@ The OPT system provides a textbook example of EAD integration.
 
 ---
 
-## III. Deep Dive into Procedural Mechanics and System Vulnerabilities
+## III. Procedural Mechanics and System Vulnerabilities
 
 For the expert researcher, the process is less about the paper trail and more about the *data flow* and *jurisdictional handoffs*.
 

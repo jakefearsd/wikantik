@@ -1,15 +1,3 @@
----
-title: Deep Learning Fundamentals
-type: article
-tags:
-- mathbf
-- gradient
-- partial
-summary: The neural network, parameterized by a set of weights $\mathbf{W}$ and biases
-  $\mathbf{b}$, serves as our hypothesis function $\hat{y} = \text{NN}(\mathbf{x};
-  \mathbf{W}, \mathbf{b})$.
-auto-generated: true
----
 # Backpropagation: A Deep Dive into the Calculus and Computational Machinery Driving Modern Deep Learning
 
 For those of us who spend our days wrestling with the intricacies of high-dimensional manifolds and the subtle gradients that dictate the fate of billion-parameter models, the term "Backpropagation" often elicits a sigh—a mix of reverence for its foundational importance and mild exasperation at its perceived oversimplification in introductory texts.

@@ -1,15 +1,4 @@
----
-title: Legacy Code Modernization
-type: article
-tags:
-- new
-- legaci
-- servic
-summary: The "Big Bang Rewrite" is the industry's most romanticized, yet statistically
-  riskiest, endeavor.
-auto-generated: true
----
-# The Art of Gradual Decay: A Comprehensive Deep Dive into the Strangler Fig Pattern for Legacy Code Modernization
+# Gradual Decay
 
 For those of us who spend our careers wrestling with the ghosts in the machine—the monolithic applications built on decades of accumulated business logic, arcane frameworks, and the sheer inertia of institutional knowledge—the prospect of "rewriting" is less a technical challenge and more a professional hazard. The "Big Bang Rewrite" is the industry's most romanticized, yet statistically riskiest, endeavor. It promises a clean slate but often delivers a delayed, over-budget, and fundamentally misunderstood replacement.
 

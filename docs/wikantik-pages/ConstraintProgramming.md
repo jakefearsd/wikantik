@@ -1,15 +1,4 @@
----
-title: Constraint Programming
-type: article
-tags:
-- constraint
-- solver
-- sat
-summary: This tutorial is intended for researchers operating at the cutting edge of
-  Artificial Intelligence, formal methods, and combinatorial optimization.
-auto-generated: true
----
-# The Architecture of Inference: A Deep Dive into Constraint Programming Satisfiability Solvers for Advanced Research
+# The Architecture of Inference
 
 For those of us who spend our days wrestling with the intractable nature of combinatorial problems, the concept of a "solver" is less a piece of software and more a philosophical tool—a formal mechanism for imposing structure upon chaos. When we discuss Constraint Programming Satisfiability Solvers (CP-SAT), we are not merely discussing an extension of Boolean satisfiability; we are discussing a fundamentally different, yet deeply related, paradigm of automated reasoning.
 

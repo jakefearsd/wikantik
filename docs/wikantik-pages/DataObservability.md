@@ -1,15 +1,4 @@
----
-title: Data Observability
-type: article
-tags:
-- data
-- monitor
-- must
-summary: 'Data Observability Pipeline Monitoring Quality: A Deep Dive for Research
-  Experts Welcome.'
-auto-generated: true
----
-# Data Observability Pipeline Monitoring Quality: A Deep Dive for Research Experts
+# Data Observability Pipeline Monitoring Quality
 
 Welcome. If you’ve reached this document, you likely already understand that "monitoring" is a quaint, almost historical term in the context of modern data infrastructure. To merely check if a pipeline succeeded or failed—a binary pass/fail state—is akin to checking if a car engine is on or off. It tells you nothing about the quality of the journey, the structural integrity of the fuel, or the efficiency of the combustion cycle.
 

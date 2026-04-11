@@ -1,14 +1,4 @@
----
-title: Process Improvement Methodologies
-type: article
-tags:
-- process
-- kaizen
-- time
-summary: This tutorial assumes a high baseline of knowledge.
-auto-generated: true
----
-# The Architecture of Perpetual Refinement: A Deep Dive into Continuous Kaizen and Lean Methodologies for Advanced Practitioners
+# Perpetual Refinement
 
 For those of us who have spent enough time staring at process flowcharts to develop a sixth sense for waste, the term "Continuous Improvement" often feels less like a corporate buzzword and more like a fundamental law of thermodynamics applied to organizational entropy. We are not here to learn *what* Kaizen is; we are here to dissect its operational architecture, understand its theoretical underpinnings, and map out the advanced techniques required to move it from a commendable initiative to an ingrained, self-correcting organizational metabolism.
 

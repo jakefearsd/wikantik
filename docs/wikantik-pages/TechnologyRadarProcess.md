@@ -1,16 +1,4 @@
----
-title: Technology Radar Process
-type: article
-tags:
-- technolog
-- radar
-- tech
-summary: Every week, a new framework emerges, a novel database paradigm is proposed,
-  and a "revolutionary" language promises to solve problems that didn't exist until
-  yesterday.
-auto-generated: true
----
-# The Art of Knowing What Not to Build: A Comprehensive Guide to Tech Radar Technology Evaluation and Adoption Governance
+# Knowing What Not to Build
 
 For the seasoned engineer, the modern technology landscape is less a navigable map and more a hyper-dimensional, constantly shifting nebula. Every week, a new framework emerges, a novel database paradigm is proposed, and a "revolutionary" language promises to solve problems that didn't exist until yesterday. This deluge of potential tooling—what we might charitably call "innovation"—is the single greatest threat to engineering velocity. It breeds decision paralysis, technical debt by committee, and, worst of all, the dreaded "Shiny Object Syndrome."
 

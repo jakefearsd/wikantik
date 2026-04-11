@@ -1,15 +1,4 @@
----
-title: Java Reflection And Proxies
-type: article
-tags:
-- method
-- proxi
-- methodhandl
-summary: This tutorial is not for the novice attempting to wrap a simple service layer
-  method.
-auto-generated: true
----
-# The Art of Interception: A Deep Dive into Java Reflection, Dynamic Proxies, and Method Handles for Advanced Runtime Manipulation
+# The Art of Interception
 
 For those of us who spend enough time wrestling with the JVM's introspection capabilities, the concepts of reflection, proxies, and method handles often feel less like features and more like necessary evils—powerful tools that grant god-like access to the runtime state of a program, but at the cost of predictable performance and type safety.
 
@@ -177,7 +166,7 @@ If the target object is `T`, and the proxy is `P`, the handler must ensure that 
 
 ***
 
-## IV. Deep Dive into Edge Cases and Advanced Scenarios
+## IV. Edge Cases and Advanced Scenarios
 
 For an expert audience, merely knowing the API calls is insufficient. We must discuss the failure modes, the performance nuances, and the architectural decisions required when these tools break down.
 

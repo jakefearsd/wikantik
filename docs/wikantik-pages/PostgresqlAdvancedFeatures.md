@@ -1,15 +1,4 @@
----
-title: Postgresql Advanced Features
-type: article
-tags:
-- row
-- window
-- function
-summary: If you think you understand GROUP BY, you haven't truly grasped the power
-  of the OVER() clause.
-auto-generated: true
----
-# PostgreSQL Window Functions: An Expert Deep Dive into Advanced Analytical SQL
+# PostgreSQL Window Functions
 
 For those of us who spend too much time staring at query plans, window functions are less a "feature" and more a fundamental paradigm shift in how we approach relational data analysis. If you think you understand `GROUP BY`, you haven't truly grasped the power of the `OVER()` clause.
 
@@ -230,7 +219,7 @@ A window function is not inherently slow, but its complexity can expose underlyi
 
 ---
 
-## 🧪 Deep Dive: Advanced Use Case Walkthroughs
+## 🧪 Advanced Use Case Walkthroughs
 
 To solidify this knowledge, let's explore three highly specialized, expert-level use cases.
 
@@ -295,7 +284,7 @@ This demonstrates that the window function is not just for calculation; it's a p
 
 ---
 
-## 📝 Conclusion: Mastering the Analytical Mindset
+## 📝 Conclusion
 
 Window functions are not merely an addition to the SQL toolkit; they represent a shift toward procedural, stateful data analysis within a declarative language. They allow the database engine to maintain complex state (running totals, previous values, relative rankings) across large datasets without the performance penalty or structural rigidity of explicit self-joins or the data loss inherent in `GROUP BY`.
 

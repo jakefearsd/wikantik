@@ -1,16 +1,4 @@
----
-title: Operational Excellence
-type: article
-tags:
-- throughput
-- text
-- effici
-summary: 'Operational Excellence, Efficiency, and Throughput: A Deep Dive for Advanced
-  Practitioners Operational Excellence (OpEx) is no longer a mere buzzword relegated
-  to the annual strategy retreat.'
-auto-generated: true
----
-# Operational Excellence, Efficiency, and Throughput: A Deep Dive for Advanced Practitioners
+# Operational Excellence, Efficiency, and Throughput
 
 Operational Excellence (OpEx) is no longer a mere buzzword relegated to the annual strategy retreat. For those of us who actually build, measure, and optimize systems—the researchers, the architects, the true practitioners—it represents a fundamental paradigm shift in how value is created, sustained, and measured.
 
@@ -20,7 +8,7 @@ We will dissect the relationship between Operational Excellence, Efficiency, and
 
 ---
 
-## I. Deconstructing the Triad: Definitions Beyond the Textbook
+## I. Definitions Beyond the Textbook
 
 To treat OpEx, Efficiency, and Throughput as interchangeable synonyms is, frankly, a rookie error. They are related, yes, but they describe distinct dimensions of system performance. Misunderstanding this separation leads to optimization efforts that are either meaningless or, worse, actively detrimental.
 

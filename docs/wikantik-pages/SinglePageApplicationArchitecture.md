@@ -1,15 +1,4 @@
----
-title: Single Page Application Architecture
-type: article
-tags:
-- rout
-- compon
-- state
-summary: We are moving far beyond the simple link that once signaled a full page request
-  to the server.
-auto-generated: true
----
-# Single Page Application Routing Navigation: An Expert Deep Dive into Client-Side State Management
+# Single Page Application Routing Navigation
 
 For those of us who have spent enough time wrestling with the nuances of modern web architecture, the concept of "routing" in a Single Page Application (SPA) often feels less like a feature and more like a fundamental, yet deceptively complex, piece of plumbing. We are moving far beyond the simple `<a href="/about">` link that once signaled a full page request to the server. Today, routing is an intricate dance between the client's JavaScript execution context, the browser's native History API, and the expectations of the backend infrastructure.
 
@@ -92,7 +81,7 @@ A framework router is not just a URL parser; it is a **State Machine** that mana
 
 The router's job is to ensure that when the URL changes, the application state and the view component are updated *coherently* and *atomically*.
 
-### B. Deep Dive: Angular's Approach (Declarative Mapping)
+### B. Angular's Approach (Declarative Mapping)
 
 Angular's routing system exemplifies a highly declarative approach. You map a path segment to a component class, and the framework handles the lifecycle plumbing.
 
@@ -100,7 +89,7 @@ Angular's routing system exemplifies a highly declarative approach. You map a pa
 *   **Mechanism:** When navigating, Angular intercepts the link, reads the target path, finds the corresponding route definition in the manifest, and then executes a sequence of lifecycle hooks (e.g., `CanActivate`, `Resolve`) before finally swapping out the component instance within the `<router-outlet>`.
 *   **Advantage:** The separation of concerns is excellent. The developer declares *what* the route is, and the framework handles *how* to transition between it.
 
-### C. Deep Dive: React Router (Component Composition)
+### C. React Router (Component Composition)
 
 React Router (and similar libraries) often lean heavily into component composition and context providers.
 

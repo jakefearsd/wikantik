@@ -1,16 +1,4 @@
----
-title: Esg Investing
-type: article
-tags:
-- esg
-- text
-- risk
-summary: 'A Deep Dive into ESG Investing: Methodological Frontiers for Advanced Research
-  Target Audience: Quantitative Researchers, Sustainable Finance Model Developers,
-  Corporate Governance Experts.'
-auto-generated: true
----
-# A Deep Dive into ESG Investing: Methodological Frontiers for Advanced Research
+# Methodological Frontiers for Advanced Research
 
 **Target Audience:** Quantitative Researchers, Sustainable Finance Model Developers, Corporate Governance Experts.
 **Scope:** This tutorial moves beyond foundational definitions of Environmental, Social, and Governance (ESG) investing. It is structured as a comprehensive review of the current state-of-the-art methodologies, inherent data limitations, econometric challenges, and emerging quantitative techniques required for rigorous academic and industrial application in sustainable finance.

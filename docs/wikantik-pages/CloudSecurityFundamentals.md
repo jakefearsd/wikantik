@@ -1,15 +1,4 @@
----
-title: Cloud Security Fundamentals
-type: article
-tags:
-- polici
-- network
-- iam
-summary: This tutorial is not intended for the practitioner who needs to know how
-  to attach a basic s3:GetObject permission.
-auto-generated: true
----
-# Cloud Security IAM Policies and the Network Plane: An Advanced Deep Dive for Research Engineers
+# Cloud Security IAM Policies and the Network Plane
 
 The intersection of Identity and Access Management (IAM) policies with network security controls represents one of the most complex, rapidly evolving, and critically important domains in modern cloud architecture. For those of us who have spent enough time in this field, the concept of "security" often devolves into a battle against entropy—the entropy of configuration drift, the entropy of multi-cloud abstraction, and the entropy of human error.
 
@@ -67,7 +56,7 @@ The complexity, and the source of much industry confusion (as noted in discussio
 
 ---
 
-## III. IAM Policies Governing the Network Plane: Implementation Deep Dive
+## III. IAM Policies Governing the Network Plane: Implementation
 
 How do we translate the abstract logic of ABAC into concrete network rules? We must look at how major cloud providers have engineered this integration.
 

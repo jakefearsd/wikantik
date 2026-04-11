@@ -1,15 +1,4 @@
----
-title: Wiki Search Optimization
-type: article
-tags:
-- text
-- link
-- mathbf
-summary: 'Wiki Search Optimization Relevance Ranking: A Deep Dive for Advanced Researchers
-  Welcome.'
-auto-generated: true
----
-# Wiki Search Optimization Relevance Ranking: A Deep Dive for Advanced Researchers
+# Wiki Search Optimization Relevance Ranking
 
 Welcome. If you are reading this, you are presumably beyond the rudimentary understanding of "on-page SEO" or the simplistic notion that "more links equals better ranking." You are here because you are researching the bleeding edge—the intersection where classical Information Retrieval (IR) theory collides with the massive, semi-structured, and inherently authoritative corpus that is Wikipedia.
 

@@ -1,15 +1,4 @@
----
-title: Dynamic Programming Patterns
-type: article
-tags:
-- optim
-- dp
-- text
-summary: It allows us to tame problems that, in their naive recursive form, exhibit
-  an exponential explosion of redundant computation.
-auto-generated: true
----
-# The Architecture of Optimal Solutions: A Deep Dive into Optimal Substructure for Advanced Algorithmic Research
+# Optimal Solutions
 
 For those of us who spend our professional lives wrestling with the intractable complexity of optimization problems, Dynamic Programming (DP) is less a technique and more a fundamental paradigm shift in how we approach computation. It allows us to tame problems that, in their naive recursive form, exhibit an exponential explosion of redundant computation.
 

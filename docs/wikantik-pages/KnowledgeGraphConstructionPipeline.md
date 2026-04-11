@@ -1,16 +1,4 @@
----
-title: Knowledge Graph Construction Pipeline
-type: article
-tags:
-- text
-- pipelin
-- ner
-summary: While large language models (LLMs) have demonstrated remarkable fluency in
-  generating human-like text, their utility in structuring that knowledge remains
-  a complex, multi-stage engineering challenge.
-auto-generated: true
----
-# The Architecture of Structured Knowledge: A Comprehensive Tutorial on Knowledge Graph Construction Pipelines Centered on Named Entity Recognition (NER) for Advanced Research
+# Structured Knowledge
 
 ## Introduction: The Imperative of Structure in the Age of Unstructured Data
 
@@ -157,7 +145,7 @@ Real-world knowledge is rarely static.
 
 ---
 
-## IV. Implementation Deep Dive: Technical Considerations and Edge Cases
+## IV. Technical Considerations and Edge Cases
 
 For the expert researcher, the theoretical elegance must yield to practical, messy implementation details.
 

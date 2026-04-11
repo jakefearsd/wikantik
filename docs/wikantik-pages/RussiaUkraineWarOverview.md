@@ -20,7 +20,7 @@ date: '2026-03-13'
 type: hub
 cluster: russia-ukraine-war
 ---
-# The Russia-Ukraine War: A Comprehensive Overview (March 2026)
+# The Russia-Ukraine War
 
 Four years after Russia launched its full-scale invasion of Ukraine on February 24, 2022, the conflict has become the largest land war in Europe since World War II. As of March 13, 2026 — day 1,478 of the full-scale invasion — the war continues with no end in sight, despite extensive diplomatic efforts.
 

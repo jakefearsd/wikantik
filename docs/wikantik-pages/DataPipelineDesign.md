@@ -1,14 +1,4 @@
----
-title: Data Pipeline Design
-type: article
-tags:
-- data
-- pipelin
-- transform
-summary: This tutorial assumes a high level of expertise.
-auto-generated: true
----
-# The Art and Science of Data Pipeline Design: Advanced ETL Orchestration for Research-Grade Systems
+# Advanced ETL Orchestration for Research-Grade Systems
 
 ## Introduction: Navigating the Data Gravity Well
 
@@ -147,7 +137,7 @@ This is where most "basic" implementations fail, and where expert design must fo
 
 ---
 
-## Part III: The Next Frontier – Beyond the DAG Structure
+## Part III
 
 While Airflow is masterful at managing *dependencies*, its structure—the rigid, Python-defined DAG—can become a significant impedance mismatch when dealing with highly dynamic, iterative, or graph-based logic. This is where modern research is pushing boundaries.
 

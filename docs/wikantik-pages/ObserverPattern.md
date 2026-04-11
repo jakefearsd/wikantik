@@ -1,15 +1,4 @@
----
-title: Observer Pattern
-type: article
-tags:
-- event
-- observ
-- broker
-summary: When components need to communicate without knowing the identity, location,
-  or even the existence of their consumers, we turn to patterns of indirect communication.
-auto-generated: true
----
-# The Triad of Decoupling: A Deep Dive into Observer, Event Listener, and Publish-Subscribe Architectures for Advanced Systems Design
+# The Triad of Decoupling
 
 For researchers and architects operating at the bleeding edge of distributed and reactive systems, managing dependencies is less a matter of coding practice and more a fundamental constraint on system scalability and maintainability. When components need to communicate without knowing the identity, location, or even the existence of their consumers, we turn to patterns of indirect communication.
 

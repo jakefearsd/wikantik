@@ -1,15 +1,4 @@
----
-title: Warehouse Slotting Optimization
-type: article
-tags:
-- slot
-- sku
-- optim
-summary: It represents the critical intersection where inventory science, combinatorial
-  mathematics, and real-time operational data converge.
-auto-generated: true
----
-# The Algorithmic Art of Placement: A Comprehensive Tutorial on Advanced Warehouse Slotting Optimization
+# The Algorithmic Art of Placement
 
 For the seasoned researcher, the operational expert, or the data scientist tasked with squeezing the last few percentage points of efficiency from a sprawling material handling network, warehouse slotting optimization is not merely a "best practice"—it is a complex, multi-variable, NP-hard optimization problem. It represents the critical intersection where inventory science, combinatorial mathematics, and real-time operational data converge.
 
@@ -80,7 +69,7 @@ The best slotting solutions seek to maximize the correlation between high flow p
 
 The quality of the output is inextricably linked to the quality and dimensionality of the input data. Relying solely on "Top 10 Bestsellers" is a relic of pre-digital logistics planning. Modern slotting requires a holistic data ingestion pipeline.
 
-### 2.1 Core Metrics Deep Dive
+### 2.1 Core Metrics
 
 We must move beyond simple **Velocity** (units sold per period) and incorporate several derived metrics:
 

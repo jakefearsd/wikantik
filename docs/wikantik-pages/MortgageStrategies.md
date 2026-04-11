@@ -1,16 +1,4 @@
----
-title: Mortgage Strategies
-type: article
-tags:
-- rate
-- text
-- comparison
-summary: It is a deep-dive technical manual designed for experts researching novel
-  techniques in mortgage structuring, rate arbitrage, and comprehensive cost-of-capital
-  modeling.
-auto-generated: true
----
-# Advanced Comparative Analysis: Mastering Mortgage Rate Strategies for Expert Practitioners
+# Advanced Comparative Analysis
 
 ## Introduction: Beyond the Headline Rate
 
@@ -120,7 +108,7 @@ A crucial element often overlooked is the sensitivity of the final TCC to small 
 
 ---
 
-## III. Deconstructing the Rate Structure: The Anatomy of the Offer
+## III. The Anatomy of the Offer
 
 The "rate" is a composite product of several negotiable and non-negotiable components. An expert comparison must treat these components as separate variables in a multi-objective optimization problem.
 

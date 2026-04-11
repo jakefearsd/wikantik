@@ -1,16 +1,6 @@
----
-title: Api Rate Limiting Algorithms
-type: article
-tags:
-- rate
-- bucket
-- token
-summary: 'API Rate Limiting: A Deep Dive into Token Bucket vs.'
-auto-generated: true
----
-# API Rate Limiting: A Deep Dive into Token Bucket vs. Leaky Bucket for Advanced Systems Design
+# API Rate Limiting
 
-## Introduction: The Necessity of Flow Control in Modern Distributed Systems
+## Introduction
 
 In the contemporary landscape of microservices, distributed APIs, and high-throughput data pipelines, the concept of "rate limiting" has evolved from a mere defensive measure into a core pillar of robust system architecture. An API, by definition, is a contract governing resource access. When this contract is violated—either through malicious abuse, accidental runaway clients, or internal service misbehavior—the consequences can range from degraded user experience (latency spikes, timeouts) to catastrophic cascading failures (denial of service, resource exhaustion).
 
@@ -22,7 +12,7 @@ This tutorial aims to move beyond the introductory "what is it" level. We will c
 
 ---
 
-## I. Foundational Concepts: Rate Limiting Paradigms
+## I. Rate Limiting Paradigms
 
 Before dissecting the two primary models, it is crucial to establish a shared vocabulary and understand the spectrum of rate-limiting strategies.
 
@@ -48,7 +38,7 @@ The choice between Token Bucket and Leaky Bucket often boils down to whether the
 
 ---
 
-## II. Deep Dive: The Token Bucket Algorithm
+## II. The Token Bucket Algorithm
 
 The Token Bucket algorithm is perhaps the most widely adopted default for general-purpose API rate limiting because it elegantly handles the concept of **burst capacity**.
 
@@ -137,7 +127,7 @@ end
 
 ---
 
-## III. Deep Dive: The Leaky Bucket Algorithm
+## III. The Leaky Bucket Algorithm
 
 If the Token Bucket models *permission* (tokens), the Leaky Bucket models *physical flow* (water draining from a container). This distinction is crucial for understanding its intended use cases.
 
@@ -178,7 +168,7 @@ The Leaky Bucket acts as a **shock absorber**. It accepts the burst (up to $C$) 
 
 ---
 
-## IV. Comparative Analysis: Token Bucket vs. Leaky Bucket
+## IV. Token Bucket vs. Leaky Bucket
 
 This section synthesizes the differences, moving from conceptual understanding to actionable architectural decisions.
 
@@ -267,7 +257,7 @@ While not strictly a replacement for TB or LB, understanding the decay function 
 
 ---
 
-## VI. Implementation Deep Dive: Practical Considerations
+## VI. Implementation: Practical Considerations
 
 To finalize this technical overview, we must address the practical engineering decisions surrounding implementation.
 
@@ -305,7 +295,7 @@ The key used in the rate limiter store must be granular enough to enforce the po
 
 ---
 
-## VII. Conclusion: Selecting the Right Flow Control Paradigm
+## VII. Conclusion
 
 The distinction between Token Bucket and Leaky Bucket is not one of superiority, but of **modeling fidelity**. They are tools for different jobs.
 

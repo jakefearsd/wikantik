@@ -1,16 +1,4 @@
----
-title: Wood Finishing Guide
-type: article
-tags:
-- solvent
-- text
-- cure
-summary: The common vernacular—stain, varnish, lacquer—is a gross oversimplification
-  of materials that, at their core, represent distinct chemical families designed
-  to achieve specific surface energy profiles.
-auto-generated: true
----
-# The Advanced Material Science of Wood Finishing: A Deep Dive into Stains, Varnishes, and Lacquers for Research-Grade Application
+# The Advanced Material Science of Wood Finishing
 
 For those of us who have moved past the rudimentary "wipe on and wait" methodology of amateur finishing, the selection and application of a protective coating is less an art and more a complex interplay of polymer chemistry, solvent dynamics, and substrate physics. The common vernacular—stain, varnish, lacquer—is a gross oversimplification of materials that, at their core, represent distinct chemical families designed to achieve specific surface energy profiles.
 
@@ -18,7 +6,7 @@ This tutorial is not for the novice seeking to protect a mantelpiece from a casu
 
 ---
 
-## I. Deconstructing the Finish Spectrum: A Chemical Taxonomy
+## I. A Chemical Taxonomy
 
 Before comparing, we must establish a rigorous taxonomy. The terms "stain," "varnish," and "lacquer" describe *function* or *composition*, not a single chemical class.
 
@@ -77,7 +65,7 @@ Lacquer solvents (historically ethyl acetate, butyl acetate, or specialized keto
 *   **Intercoat Adhesion:** This is the hallmark of lacquer. When the new coat is applied, the solvent penetrates the microscopic pores and weak boundary layers of the previous coat, effectively "re-wetting" the surface at a molecular level. This chemical interaction ensures a seamless transition, minimizing the need for aggressive mechanical sanding between coats (a process that inevitably introduces micro-scratches).
 *   **The "Dissolving" Effect:** This is not true chemical dissolution (which would compromise the substrate), but rather a temporary plasticization of the polymer chains at the interface, allowing the new polymer matrix to interlock seamlessly.
 
-#### 2. Lacquer Chemistry Deep Dive
+#### 2. Lacquer Chemistry
 Lacquers are typically nitrocellulose or acrylic resins dissolved in highly volatile solvents.
 
 *   **Nitrocellulose:** Historically common. It offers excellent leveling and a beautiful, deep sheen. However, its sensitivity to heat and its tendency to yellow over decades necessitates careful formulation control.
@@ -98,7 +86,7 @@ To truly master finishing, one must move beyond "which is better" and instead as
 | **Sanding Requirement** | N/A (Pre-sealer recommended) | Mandatory (Between coats, depending on resin) | Minimal (Light scuffing only) |
 | **Key Weakness** | Blotching, Uneven Penetration | Yellowing (Alkyd), Brittleness (PU), Chemical Resistance (Epoxy) | Solvent Sensitivity, Potential for "Bloom" |
 
-### A. The Kinetics of Curing: A Mathematical Perspective
+### A. The Kinetics of Curing
 
 For the expert, the difference between "drying" and "curing" is paramount.
 
@@ -119,7 +107,7 @@ The wood substrate is never inert. It is a complex, heterogeneous composite mate
 
 ---
 
-## III. Advanced Application Protocols: Beyond the Basics
+## III. Advanced Application Protocols
 
 For the researcher, the goal is not just to apply a finish, but to *engineer* the interface between the finish and the wood.
 

@@ -1,15 +1,4 @@
----
-title: Cold War Technology Race
-type: article
-tags:
-- comput
-- system
-- modern
-summary: For the expert researcher, the narrative must transcend the simplistic "Man
-  in a Tin Can" mythology.
-auto-generated: true
----
-# A Deep Dive into the Crucible: Cold War Technology, the Space Race, and the Genesis of Modern Computing
+# Cold War Technology, the Space Race, and the Genesis of Modern Computing
 
 **For Advanced Researchers in Computational History and Systems Engineering**
 

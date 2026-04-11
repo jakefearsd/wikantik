@@ -1,15 +1,4 @@
----
-title: Market Cap Vs Equal Weight Indexing
-type: article
-tags:
-- weight
-- cap
-- market
-summary: 'A Deep Dive into Index Construction Methodologies: Market Capitalization
-  Weighting vs.'
-auto-generated: true
----
-# A Deep Dive into Index Construction Methodologies: Market Capitalization Weighting vs. Equal Weighting for Advanced Quantitative Research
+# Market Capitalization Weighting vs. Equal Weighting for Advanced Quantitative Research
 
 This tutorial is designed for quantitative researchers, portfolio strategists, and quantitative analysts who are moving beyond introductory concepts and require a rigorous, comprehensive comparison of the two dominant index weighting methodologies: Market Capitalization Weighting (Mkt-Cap) and Equal Weighting (EW).
 

@@ -1,16 +1,4 @@
----
-title: Berlin Tech Scene
-type: article
-tags:
-- berlin
-- research
-- model
-summary: We will dissect the confluence of governmental support (State of Berlin initiatives),
-  deep-tech specialization (AI, Cleantech, Biotech), and the unique cultural capital
-  that attracts global talent.
-auto-generated: true
----
-# The Berlin Nexus: A Deep Dive into the Architecture of a Frontier Innovation Hub
+# The Berlin Nexus
 
 **For Advanced Researchers and Technical Strategists**
 
@@ -98,7 +86,7 @@ This is particularly visible in the Green Tech and HealthTech sectors. The found
 
 ***
 
-## III. Sectoral Deep Dives: Where the Next Breakthroughs Are Brewing
+## III. Where the Next Breakthroughs Are Brewing
 
 The sheer breadth of Berlin’s activity is overwhelming. To provide actionable intelligence for researchers, we must segment the analysis into the most technologically advanced and rapidly funding sectors.
 
@@ -158,7 +146,7 @@ Understanding the typical funding trajectory is crucial for resource allocation:
 #### 2. The Role of "Smart Money"
 The most valuable capital in Berlin is not just the cash; it is the **networked expertise** accompanying the investment. VCs who are deeply embedded in specific technical verticals (e.g., a VC with a background in semiconductor physics) provide technical mentorship that far outweighs the capital injection. Researchers must actively seek out these "smart money" partners.
 
-### B. Accelerators vs. Incubators: A Technical Distinction
+### B. Accelerators vs. Incubators
 
 These terms are often conflated, but for an expert audience, the difference is structural:
 

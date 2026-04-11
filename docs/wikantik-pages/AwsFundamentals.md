@@ -1,15 +1,4 @@
----
-title: Aws Fundamentals
-type: article
-tags:
-- servic
-- aw
-- data
-summary: Frankly, if you are researching new techniques, you are already beyond the
-  point of needing a primer on what a virtual machine is.
-auto-generated: true
----
-# AWS Cloud Fundamentals Services Overview: An Advanced Architectural Deep Dive
+# AWS Cloud Fundamentals Services Overview
 
 For those of us who have spent enough time in the trenches of distributed systems, the term "AWS Fundamentals" often evokes images of introductory material—the basic definitions of EC2, S3, and RDS. Frankly, if you are researching *new techniques*, you are already beyond the point of needing a primer on what a virtual machine is.
 
@@ -99,7 +88,7 @@ S3 is not merely "cloud storage"; it is the foundation of the modern data lake a
 *   **Availability:** High, but dependent on the chosen **Storage Class**.
 *   **Latency:** Varies wildly.
 
-#### 2. Deep Dive into Storage Classes
+#### 2. Storage Classes
 Understanding the access pattern is non-negotiable for cost control:
 
 *   **S3 Standard:** High availability, low latency. Use for active, frequently accessed data.

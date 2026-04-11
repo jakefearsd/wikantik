@@ -1,15 +1,4 @@
----
-title: Document Clustering Approaches
-type: article
-tags:
-- mathbf
-- cluster
-- text
-summary: 'Document Clustering Approaches with K-Means: A Deep Dive for Research Engineers
-  Welcome.'
-auto-generated: true
----
-# Document Clustering Approaches with K-Means: A Deep Dive for Research Engineers
+# Document Clustering Approaches with K-Means
 
 Welcome. If you are reading this, you are likely already familiar with the basic concepts of Natural Language Processing (NLP) and unsupervised machine learning. You understand that raw text is inherently messy, high-dimensional, and context-dependent. The goal of document clustering is not merely to group documents; it is to impose a mathematically rigorous structure onto the amorphous chaos of human communication, allowing us to discover latent themes, topical boundaries, and underlying semantic relationships within a corpus.
 
@@ -97,7 +86,7 @@ If a document is processed through a pre-trained BERT model, the output for ever
 
 ---
 
-## Ⅲ. Deep Dive into K-Means Mechanics and Optimization
+## Ⅲ. K-Means Mechanics and Optimization
 
 Since the vectorization step provides the input $\mathbf{X}$, we now focus on the mechanics of the clustering algorithm itself.
 

@@ -1,15 +1,4 @@
----
-title: Dbt And Analytics Engineering
-type: article
-tags:
-- data
-- dbt
-- model
-summary: We are no longer merely querying data; we are engineering reliable, governed,
-  and performant data products.
-auto-generated: true
----
-# The Architect's Guide: Mastering dbt for Advanced Data Transformation and Analytics Engineering
+# The Architect's Guide
 
 For those of us who have spent enough time staring at SQL queries to develop a sixth sense for JOIN syntax, the concept of data transformation has evolved far beyond simple `SELECT * FROM table WHERE condition`. We are no longer merely querying data; we are engineering reliable, governed, and performant data products.
 
@@ -66,7 +55,7 @@ A standard dbt project structure enforces separation of concerns, mirroring best
 4.  **`tests/`:** For defining data quality assertions (the guardrails).
 5.  **`profiles.yml`:** Configuration linking dbt to your specific data warehouse credentials.
 
-### B. Mastering Materialization Strategies
+### B. Materialization Strategies
 
 This is where many practitioners get bogged down. Understanding *how* dbt physically creates the resulting table is paramount to performance tuning and cost management.
 
@@ -76,7 +65,7 @@ This is where many practitioners get bogged down. Understanding *how* dbt physic
 | **Table** | Creates a physical, persistent table in the warehouse. The entire result set is computed and stored. | For stable, complex, or high-volume aggregations where re-computation is expensive. The standard default for most core marts. | **High Write Cost, Low Query Cost:** Computation happens once; subsequent reads are fast. |
 | **Incremental** | Only processes and appends/merges data that has changed since the last successful run. | **The workhorse for large fact tables.** Essential for handling time-series data (e.g., event logs, daily sales). | **Optimized Write Cost:** Dramatically reduces compute time and cost by avoiding full table scans. Requires careful source key management. |
 
-#### Deep Dive: Incremental Models and State Management
+#### Incremental Models and State Management
 
 Writing a robust incremental model is an advanced task that requires anticipating data drift and managing state.
 

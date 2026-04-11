@@ -1,15 +1,4 @@
----
-title: Consistent Hashing
-type: article
-tags:
-- node
-- hash
-- kei
-summary: We are constantly battling entropy—the inevitable decay of perfect state
-  management as nodes fail, scale up, or are simply decommissioned.
-auto-generated: true
----
-# The Architecture of Distribution: A Deep Dive into Consistent Hashing for Distributed Cache Rings
+# The Architecture of Distribution
 
 For those of us who spend our careers wrestling with the sheer, glorious chaos of scale, the concept of distributing state across a volatile, ever-changing cluster of commodity hardware is less an engineering problem and more a philosophical quandary. We are constantly battling entropy—the inevitable decay of perfect state management as nodes fail, scale up, or are simply decommissioned.
 

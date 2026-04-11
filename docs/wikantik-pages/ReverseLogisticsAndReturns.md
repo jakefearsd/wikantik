@@ -1,15 +1,4 @@
----
-title: Reverse Logistics And Returns
-type: article
-tags:
-- return
-- valu
-- process
-summary: We are no longer merely managing returns; we are managing the re-entry of
-  value.
-auto-generated: true
----
-# The Architecture of Value Recovery: A Comprehensive Tutorial on Advanced Returns Processing and Reverse Logistics for Research Experts
+# Value Recovery
 
 ## Introduction: Beyond the Transactional Handoff
 

@@ -1,15 +1,4 @@
----
-title: Time Series Forecasting
-type: article
-tags:
-- model
-- mathbf
-- time
-summary: The superficial understanding, often gleaned from introductory sources, suggests
-  that time series forecasting is merely "predicting the future" [6].
-auto-generated: true
----
-# The Architecture of Prediction: A Deep Dive into Time Series Forecasting, Trend Extraction, and Advanced Modeling Paradigms
+# The Architecture of Prediction
 
 Time series forecasting, at its core, is the art and science of extrapolating observed temporal patterns—trends, seasonality, and residual noise—to estimate future states. For the expert researcher, this field is less a collection of plug-and-play algorithms and more a complex interplay between statistical assumptions, computational architecture, and domain-specific knowledge.
 

@@ -1,16 +1,4 @@
----
-title: Container Orchestration
-type: article
-tags:
-- servic
-- pod
-- control
-summary: This tutorial assumes a high level of familiarity with Linux internals, distributed
-  systems theory, networking stacks (TCP/IP, iptables/IPVS), and the general concepts
-  of control theory.
-auto-generated: true
----
-# Container Orchestration: A Deep Dive into Docker and Kubernetes Mechanics for Advanced Researchers
+# Container Orchestration
 
 For those of us who have moved past the introductory tutorials—the ones that explain what a container *is* and how to run `docker run hello-world`—the discussion around container orchestration is less about *usage* and more about *mechanics*, *failure modes*, and the underlying *declarative state machine* that makes it all function.
 
@@ -65,7 +53,7 @@ Container orchestration is not merely "scheduling." It is the implementation of 
 
 This continuous, self-correcting mechanism is the single most important concept to grasp. It abstracts away the imperative commands (`start this`, `restart that`) into a declarative contract.
 
-### B. Architectural Deep Dive: The Kubernetes Control Plane
+### B. The Kubernetes Control Plane
 
 The control plane is the brain. It is responsible for maintaining the cluster's desired state and making the necessary decisions.
 
@@ -196,7 +184,7 @@ Instead of relying on a Deployment rollout, you define:
 
 This level of granular, traffic-shifting control is impossible to achieve reliably using only native Kubernetes Service objects.
 
-### C. Observability Deep Dive: Metrics and Tracing
+### C. Metrics and Tracing
 
 Modern observability requires more than just checking if a Pod is "Running."
 
@@ -235,7 +223,7 @@ Understanding QoS is critical for performance tuning and failure prediction. Kub
 
 **Tuning Insight:** If your application is mission-critical and cannot tolerate eviction, you *must* set `requests` equal to `limits` for all critical containers to achieve the Guaranteed QoS class.
 
-### C. Security Deep Dive: Admission Control and Policy Enforcement
+### C. Admission Control and Policy Enforcement
 
 Security in K8s is not a single feature; it's a layered defense system enforced at multiple points.
 

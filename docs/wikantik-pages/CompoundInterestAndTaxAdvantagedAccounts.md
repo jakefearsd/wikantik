@@ -1,12 +1,24 @@
 ---
+date: 2026-03-15T00:00:00Z
+summary: How tax-advantaged accounts amplify the power of compound interest by eliminating
+  annual tax drag, with quantitative comparisons across account types.
+cluster: index-fund-investing
+related:
+- BasicsOfCompoundInterest
+- TaxBenefitsOfRetirementAccounts
+- LowCostIndexFundInvesting
 title: Compound Interest and Tax-Advantaged Accounts
 type: article
-tags: [investing, compound-interest, taxes, IRA, 401k, tax-advantaged]
-date: 2026-03-15
 status: published
-cluster: index-fund-investing
-summary: How tax-advantaged accounts amplify the power of compound interest by eliminating annual tax drag, with quantitative comparisons across account types.
-related: [BasicsOfCompoundInterest, TaxBenefitsOfRetirementAccounts, LowCostIndexFundInvesting]
+tags:
+- investing
+- compound-interest
+- taxes
+- IRA
+- 401k
+- tax-advantaged
+hubs:
+- TypesofInvestmentAccountsTutorial Hub
 ---
 
 # Compound Interest and Tax-Advantaged Accounts

@@ -1,16 +1,4 @@
----
-title: Property Graph Model
-type: article
-tags:
-- properti
-- relationship
-- model
-summary: As data complexity increases—moving beyond simple tabular records into intricate,
-  interconnected systems—the limitations of the Relational Model (RDBMS) become acutely
-  apparent.
-auto-generated: true
----
-# The Labeled Property Graph Model: A Deep Dive for Advanced Research
+# The Labeled Property Graph Model
 
 ## Introduction: The Necessity of Graph Structures in Modern Data Science
 
@@ -179,7 +167,7 @@ In research environments, data sources are notoriously heterogeneous. The LPG mo
 
 ---
 
-## V. Implementation Paradigms and Query Language Deep Dive
+## V. Implementation Paradigms and Query Language
 
 The choice of query language dictates the mental model required to interact with the graph. For an expert, understanding the *semantics* of the query language is more important than memorizing syntax.
 

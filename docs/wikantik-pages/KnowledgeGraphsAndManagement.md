@@ -1,16 +1,4 @@
----
-title: Knowledge Graphs And Management
-type: article
-tags:
-- knowledg
-- graph
-- e.g
-summary: While traditional relational databases excel at storing structured transactions,
-  they fail to capture the nuanced, interconnected, and semantic nature of human expertise
-  and complex domain logic.
-auto-generated: true
----
-# Architecting Intelligence: A Comprehensive Guide to Knowledge Management and Knowledge Graphs
+# Architecting Intelligence
 
 ## Abstract
 
@@ -32,7 +20,7 @@ Knowledge Management (KM) is the discipline of capturing, distributing, and effe
 
 ---
 
-## 2. The Foundations of Knowledge Management (KM)
+## 2. Knowledge Management (KM)
 
 To build effective systems, one must understand the core challenges of KM that KGs are designed to solve.
 

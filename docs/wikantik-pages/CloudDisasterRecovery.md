@@ -1,15 +1,4 @@
----
-title: Cloud Disaster Recovery
-type: article
-tags:
-- region
-- data
-- replic
-summary: 'The Art of Persistence: A Comprehensive Tutorial on Cloud Disaster Recovery
-  Backup Regions for Advanced Practitioners Welcome.'
-auto-generated: true
----
-# The Art of Persistence: A Comprehensive Tutorial on Cloud Disaster Recovery Backup Regions for Advanced Practitioners
+# The Art of Persistence
 
 Welcome. If you are reading this, you are likely past the point of simply "having a backup." You are in the realm of resilience engineering, where the failure of a single Availability Zone (AZ) is considered a minor inconvenience, and the loss of an entire geographic Region is merely a scheduled maintenance window.
 
@@ -102,7 +91,7 @@ This represents the highest level of resilience and the highest operational expe
 
 ---
 
-## Ⅲ. Deep Dive into Data Replication Strategies
+## Ⅲ. Data Replication Strategies
 
 The application layer is only as resilient as its data layer. The method of moving data across regions is where the most sophisticated engineering occurs.
 

@@ -1,15 +1,4 @@
----
-title: Remote Team Management
-type: article
-tags:
-- must
-- time
-- distribut
-summary: You understand that the transition to distributed work is not merely a logistical
-  challenge—it is a fundamental, systemic overhaul of organizational topology.
-auto-generated: true
----
-# The Architecture of Absence: A Comprehensive Guide to Governing Hyper-Distributed Workforces
+# The Architecture of Absence
 
 **For Researching Experts in Organizational Topology and Advanced Workflow Engineering**
 
@@ -40,7 +29,7 @@ Instead of asking, "Who is working on Feature X?", the expert question is, "What
 
 If the dependency map reveals a single point of failure (e.g., one key subject matter expert, or SME, who only works during a specific time window), the system is brittle, regardless of how many Slack channels exist.
 
-### B. Understanding Organizational Latency
+### B. Organizational Latency
 
 In a co-located setting, communication latency is near zero (a quick desk tap, an overheard conversation). In a distributed setting, latency is a quantifiable variable that must be modeled.
 
@@ -111,7 +100,7 @@ Time Zone Debt ($\text{TZD}$) is the accumulated cognitive load and missed conte
 **Mitigation Strategy: The "Golden Window" Protocol:**
 Instead of scheduling meetings for the "best time for everyone," identify the *minimum necessary overlap window* (e.g., 2 hours). All non-critical, non-decision-making communication must be scheduled *outside* this window and documented for asynchronous consumption.
 
-### B. Mastering Asynchronous Communication Protocols (ACP)
+### B. Asynchronous Communication Protocols (ACP)
 
 ACP dictates *how* information is transferred when real-time presence is impossible. This is where most distributed teams fail, defaulting to email chains or endless chat threads.
 

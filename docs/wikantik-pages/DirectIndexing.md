@@ -1,15 +1,4 @@
----
-title: Direct Indexing
-type: article
-tags:
-- tax
-- must
-- optim
-summary: 'Direct Indexing Custom Tax Optimization: A Deep Dive for Advanced Practitioners
-  Welcome.'
-auto-generated: true
----
-# Direct Indexing Custom Tax Optimization: A Deep Dive for Advanced Practitioners
+# Direct Indexing Custom Tax Optimization
 
 Welcome. If you are reading this, you are likely already familiar with the basic mechanics of index tracking, the inherent limitations of pooled investment vehicles, and the general concept of tax-loss harvesting. Therefore, we will not waste time on introductory material. This tutorial is designed for the seasoned quantitative analyst, the sophisticated wealth manager, and the tax architect who views portfolio construction not merely as an allocation problem, but as a complex, multi-jurisdictional optimization challenge.
 
@@ -140,7 +129,7 @@ This pseudocode illustrates that the system is not merely executing trades; it i
 
 ***
 
-## IV. Deep Dive: Advanced Tax Optimization Techniques
+## IV. Advanced Tax Optimization Techniques
 
 To meet the depth required, we must dissect the specific techniques that move DI from a mere "tax-aware rebalancing tool" to a "tax optimization engine."
 

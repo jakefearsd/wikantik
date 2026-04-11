@@ -1,15 +1,4 @@
----
-title: Amortized Analysis
-type: article
-tags:
-- cost
-- amort
-- we
-summary: 'The Necessity of Amortization: Beyond Worst-Case Scenarios Before dissecting
-  the accounting method, we must establish why it exists.'
-auto-generated: true
----
-# Amortized Analysis Complexity Accounting: A Deep Dive for Advanced Researchers
+# Amortized Analysis Complexity Accounting
 
 Amortized analysis is not merely an alternative way to calculate time complexity; it represents a fundamental shift in how we model the performance guarantees of data structures and algorithms. For those of us deep in the trenches of theoretical computer science, where the difference between $O(n)$ and $O(n \log n)$ dictates the feasibility of an entire research direction, understanding the nuances of amortized cost is paramount.
 
@@ -97,7 +86,7 @@ This framework is powerful because it forces the researcher to *overestimate* th
 
 ***
 
-## III. Deep Dive Example: Dynamic Array Resizing (Revisited)
+## III. Dynamic Array Resizing (Revisited)
 
 To solidify the understanding, let's revisit the dynamic array using the accounting method, focusing on the *overpayment* mechanism.
 

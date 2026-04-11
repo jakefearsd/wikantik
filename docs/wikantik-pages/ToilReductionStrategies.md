@@ -1,16 +1,4 @@
----
-title: Toil Reduction Strategies
-type: article
-tags:
-- toil
-- system
-- autom
-summary: The modern software lifecycle, while enabling unprecedented levels of complexity
-  and velocity, simultaneously generates an insidious, persistent tax on human cognitive
-  resources.
-auto-generated: true
----
-# The Tripartite Mandate: A Comprehensive Tutorial on Toil Reduction, Automation, and Elimination for Advanced Systems Research
+# The Tripartite Mandate
 
 To the researchers, the architects, and the engineers who find themselves staring down the barrel of operational debt: you are not merely optimizing processes; you are engaged in a fundamental battle against entropy. The modern software lifecycle, while enabling unprecedented levels of complexity and velocity, simultaneously generates an insidious, persistent tax on human cognitive resources. This tax is what we term **toil**.
 

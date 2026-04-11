@@ -1,15 +1,4 @@
----
-title: Cross Validation And Model Evaluation
-type: article
-tags:
-- text
-- metric
-- model
-summary: 'The Rigor of Assessment: A Comprehensive Tutorial on Cross-Validation Model
-  Evaluation Metrics for Advanced Researchers Welcome.'
-auto-generated: true
----
-# The Rigor of Assessment: A Comprehensive Tutorial on Cross-Validation Model Evaluation Metrics for Advanced Researchers
+# The Rigor of Assessment
 
 Welcome. If you've reached this guide, you are presumably well past the stage of simply running `model.fit(X_train, y_train)` and declaring victory based on a single test set score. You understand, perhaps intuitively, that model performance is not a static measurement; it is a function of the evaluation methodology itself.
 
@@ -121,7 +110,7 @@ This method respects causality and is the *only* appropriate CV strategy for for
 
 ***
 
-## 📊 Section 3: The Metrics Arsenal—Classification Deep Dive
+## 📊 Section 3: The Metrics Arsenal—Classification
 
 When the output space is discrete (a class label), the evaluation metrics move beyond simple accuracy and must account for the *cost* associated with different types of errors.
 
@@ -181,7 +170,7 @@ For highly imbalanced datasets, the PR Curve is statistically superior to the RO
 
 ***
 
-## 📈 Section 4: The Metrics Arsenal—Regression Deep Dive
+## 📈 Section 4: The Metrics Arsenal—Regression
 
 When the output space is continuous (a real number), the evaluation shifts from counting errors to quantifying the magnitude of those errors.
 
@@ -287,7 +276,7 @@ In multi-label classification, a single instance can belong to multiple classes 
 
 The theoretical knowledge is useless without robust implementation practices. We must discuss how these metrics are integrated into the machine learning workflow, particularly using the machinery provided by libraries like scikit-learn.
 
-### 6.1 Mastering `cross_validate` vs. `cross_val_score`
+### 6.1 `cross_validate` vs. `cross_val_score`
 
 The context provided by scikit-learn highlights a critical distinction that experts must master:
 

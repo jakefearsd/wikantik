@@ -1,15 +1,4 @@
----
-title: Cloud Native Application Design
-type: article
-tags:
-- servic
-- must
-- system
-summary: 'The Architect''s Playbook: A Deep Dive into Cloud-Native Application Design
-  Principles for Research Experts Welcome.'
-auto-generated: true
----
-# The Architect's Playbook: A Deep Dive into Cloud-Native Application Design Principles for Research Experts
+# The Architect's Playbook
 
 Welcome. If you are reading this, you are not looking for a beginner's guide to Docker or a simple checklist of best practices. You are researching the bleeding edge—the architectural paradigms that allow systems to achieve unprecedented levels of resilience, scale, and velocity in ephemeral cloud environments.
 
@@ -52,7 +41,7 @@ This is arguably the most critical, yet often overlooked, pillar. A system canno
 
 The Twelve-Factor App methodology (as detailed in [2]) is not merely a suggestion; it is a set of *operational constraints* that force developers to write code that is inherently cloud-friendly. For experts, understanding these factors means understanding the *trade-offs* of adhering to them.
 
-### A. Twelve-Factor Deep Dive: Beyond the Checklist
+### A. Beyond the Checklist
 
 We must analyze each factor not as a goal, but as a constraint that dictates architectural choices.
 

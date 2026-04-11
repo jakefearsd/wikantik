@@ -1,16 +1,4 @@
----
-title: Refugee Crisis Economic Impact
-type: article
-tags:
-- econom
-- displac
-- model
-summary: '** Introduction: The Economics of Unsettled Populations The global displacement
-  crisis represents one of the most profound and complex socioeconomic challenges
-  of the 21st century.'
-auto-generated: true
----
-# A Comprehensive Tutorial on the Economic Impact of Refugee Crisis and Forced Displacement: Methodological Frontiers for Advanced Research
+# Methodological Frontiers for Advanced Research
 
 **Target Audience:** Experts in Development Economics, Migration Studies, Humanitarian Finance, and Applied Geoinformatics.
 **Objective:** To synthesize current knowledge regarding the economic repercussions of forced displacement, critically evaluate existing analytical frameworks, and delineate advanced, cutting-edge methodologies required for robust impact assessment in protracted crises.

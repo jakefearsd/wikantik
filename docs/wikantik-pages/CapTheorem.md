@@ -1,14 +1,4 @@
----
-title: Cap Theorem
-type: article
-tags:
-- system
-- text
-- consist
-summary: This tutorial aims to move beyond the textbook simplification.
-auto-generated: true
----
-# The CAP Theorem: A Deep Dive into Consistency, Availability, and Partition Tolerance for Advanced Distributed Systems Research
+# The CAP Theorem
 
 The CAP theorem, often cited in introductory texts as a simple "pick two" dilemma, is in reality a foundational concept whose implications are far more nuanced and complex when viewed through the lens of modern, large-scale, fault-tolerant systems. For researchers and architects designing the next generation of distributed infrastructure, understanding CAP is not about choosing a side; it is about understanding the *boundaries* of impossibility and mastering the *art of the trade-off* across multiple, interacting consistency models.
 
@@ -30,7 +20,7 @@ We will proceed by first rigorously defining the terms, then expanding the model
 
 ---
 
-## II. Deconstructing the Pillars: Formal Definitions
+## II. Formal Definitions
 
 To discuss the trade-offs intelligently, we must first establish mathematically rigorous definitions for the three components.
 
@@ -214,7 +204,7 @@ If $R + W \le N$, it is possible for a read quorum ($R$) and a write quorum ($W$
 *   **High Consistency (CP):** Requires $R$ and $W$ to be large (close to $N$). This means that if even a few nodes are unreachable, the quorum cannot be formed, and the system becomes unavailable.
 *   **High Availability (AP):** Allows $R$ and $W$ to be small (e.g., $R=1, W=1$). This maximizes uptime but sacrifices the guarantee that the read/write operation saw the absolute latest state.
 
-### B. BASE vs. ACID: A Paradigm Shift
+### B. BASE vs. ACID
 
 For researchers comparing modern NoSQL systems, it is vital to understand the philosophical shift from ACID to BASE.
 
@@ -262,7 +252,7 @@ This requires the application developer to become intimately familiar with the u
 
 ---
 
-## VII. Synthesis and Conclusion: Mastering the Trade-Off Space
+## VII. Synthesis and Conclusion
 
 To summarize for the advanced researcher:
 

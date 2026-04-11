@@ -1,16 +1,4 @@
----
-title: Stream Processing
-type: article
-tags:
-- data
-- state
-- stream
-summary: '--- Introduction: The Imperative of Real-Time Intelligence In the modern
-  data landscape, the concept of "batch processing" is rapidly receding into the annals
-  of historical curiosity.'
-auto-generated: true
----
-# The Definitive Guide to Stream Processing: Mastering Real-Time Data Pipelines with Kafka and Apache Flink
+# The Definitive Guide to Stream Processing
 
 **Target Audience:** Senior Data Engineers, Distributed Systems Architects, and Researchers specializing in high-throughput, low-latency data processing.
 
@@ -100,7 +88,7 @@ For connecting external systems to Kafka without writing boilerplate producer/co
 
 ---
 
-## III. Apache Flink: The Computational Engine Deep Dive
+## III. Apache Flink: The Computational Engine
 
 Flink is not just a framework; it is a sophisticated runtime environment designed from the ground up for streaming semantics. Its architecture is built around the concept of a Directed Acyclic Graph (DAG) of operators, which are executed across a distributed cluster (YARN, Kubernetes, or standalone).
 

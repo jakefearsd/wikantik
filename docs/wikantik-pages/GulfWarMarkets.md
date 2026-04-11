@@ -1,7 +1,17 @@
 ---
+date: '2026-03-14'
 summary: How the Gulf War established the buy-the-invasion pattern and the oil-price
   transmission mechanism
-date: '2026-03-14'
+cluster: conflicts-equity-markets
+related:
+- ConflictsAndEquityMarkets
+- ColdWarMarkets
+- WarOnTerrorMarkets
+- ConflictMarketPatterns
+part-of:
+- ConflictsAndEquityMarkets
+type: article
+status: active
 tags:
 - finance
 - gulf-war
@@ -9,16 +19,8 @@ tags:
 - history
 - oil-prices
 - buy-the-invasion
-related:
-- ConflictsAndEquityMarkets
-- ColdWarMarkets
-- WarOnTerrorMarkets
-- ConflictMarketPatterns
-type: article
-cluster: conflicts-equity-markets
-status: active
-part-of:
-- ConflictsAndEquityMarkets
+hubs:
+- ConflictMarketPatterns Hub
 ---
 # The Gulf War and Equity Markets (1990–1991)
 

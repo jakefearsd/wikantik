@@ -1,16 +1,4 @@
----
-title: Python Deployment
-type: article
-tags:
-- pipx
-- system
-- pip
-summary: Poor deployment choices don’t just slow down releases; they directly fracture
-  production systems, triggering outages, security vulnerabilities, and developer
-  frustration.
-auto-generated: true
----
-# Mastering Python Deployment: Pip, Pipx, and Production-Ready Strategies for Linux
+# Pip, Pipx, and Production-Ready Strategies for Linux
 
 
 ## Why Deployment Matters: The Python Engineer's Reality

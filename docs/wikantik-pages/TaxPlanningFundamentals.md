@@ -1,15 +1,4 @@
----
-title: Tax Planning Fundamentals
-type: article
-tags:
-- tax
-- credit
-- deduct
-summary: This tutorial is not designed for the undergraduate student reviewing basic
-  tax concepts.
-auto-generated: true
----
-# Mastering the Calculus of Tax Mitigation: A Deep Dive into Deductions, Credits, and Advanced Planning Methodologies
+# The Calculus of Tax Mitigation
 
 For those of us who spend our professional lives navigating the labyrinthine corridors of tax code interpretation, the terms "deduction" and "credit" are not mere synonyms for "tax break." They represent fundamentally different mathematical operations applied to the tax equation, and misunderstanding their interplay is the hallmark of a practitioner who hasn't spent enough time staring at tax forms until the numbers blur.
 
@@ -60,7 +49,7 @@ The difference is stark. The credit provides a guaranteed, non-rate-dependent be
 
 ---
 
-## II. Deep Dive into Deductions: Mechanics, Limitations, and Optimization
+## II. Mechanics, Limitations, and Optimization
 
 Since deductions are the most voluminous area of tax law, we must dissect them into their functional categories and the advanced concepts surrounding their utilization.
 
@@ -116,7 +105,7 @@ The management of these suspended amounts across tax years is a critical, often 
 
 ---
 
-## III. Deep Dive into Credits: Mechanics, Limitations, and Maximization
+## III. Mechanics, Limitations, and Maximization
 
 If deductions are about reducing the *input* (income), credits are about reducing the *output* (tax bill). Their complexity stems from their diverse nature and the rules governing their utilization.
 

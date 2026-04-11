@@ -1,15 +1,4 @@
----
-title: Infrastructure As Code
-type: article
-tags:
-- pulumi
-- state
-- resourc
-summary: We have moved past the era of manual click-ops and into a realm where infrastructure
-  provisioning is treated with the same rigor as application development.
-auto-generated: true
----
-# The Convergence of Control: A Deep Dive into Terraform and Pulumi for Advanced Infrastructure Engineering
+# The Convergence of Control
 
 For those of us who have spent enough time wrestling with cloud APIs, the concept of Infrastructure as Code (IaC) has moved from a novel best practice to a fundamental pillar of modern DevOps architecture. We have moved past the era of manual click-ops and into a realm where infrastructure provisioning is treated with the same rigor as application development.
 
@@ -141,7 +130,7 @@ In expert research, the goal is rarely single-cloud mastery. It is managing the 
 
 ---
 
-## IV. Deep Dive into Advanced Concepts and Edge Cases
+## IV. Advanced Concepts and Edge Cases
 
 To satisfy the requirement for comprehensive depth, we must examine areas where the tooling choices have profound, non-obvious consequences.
 

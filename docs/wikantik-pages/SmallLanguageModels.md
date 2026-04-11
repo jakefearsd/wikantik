@@ -1,16 +1,4 @@
----
-title: Small Language Models
-type: article
-tags:
-- model
-- edg
-- e.g
-summary: Frontier models, boasting hundreds of billions or even trillions of parameters,
-  have demonstrated unprecedented capabilities in reasoning, generation, and complex
-  task completion.
-auto-generated: true
----
-# The Frontier of Local Intelligence: A Comprehensive Tutorial on Small Language Models for Edge Device Deployment
+# The Frontier of Local Intelligence
 
 ## Introduction: The Great Migration of Intelligence
 
@@ -71,7 +59,7 @@ Quantization is arguably the most critical technique. It involves reducing the n
 *   **Quantization-Aware Training (QAT):** This is the gold standard. The quantization process is simulated *during* the fine-tuning phase. The model learns to compensate for the expected quantization noise, resulting in significantly better accuracy retention at low bit-widths.
 *   **Advanced Low-Bit Formats (e.g., 4-bit, 3-bit):** Modern research pushes into 4-bit quantization (e.g., $\text{NF4}$ used in QLoRA). By carefully analyzing the distribution of weights (often using techniques derived from Singular Value Decomposition or Hessian analysis), researchers can map the necessary information into fewer bits without catastrophic loss.
 
-#### B. Technical Deep Dive: Mixed Precision and Weight Tying
+#### B. Mixed Precision and Weight Tying
 
 For optimal performance, a *mixed-precision* approach is often employed. The most critical components (e.g., the attention mechanism's key/query projections, or the final output layer) might retain $\text{FP16}$ or $\text{BF16}$ precision, while the bulk of the embedding layers and feed-forward networks are aggressively quantized to $\text{INT4}$ or $\text{INT8}$.
 
@@ -211,7 +199,7 @@ FUNCTION EdgeAgent_Run(UserQuery, ToolDefinitions, ContextCache):
 
 ***
 
-## Part V: Advanced Research Vectors and Edge Cases
+## Part V
 
 For researchers pushing the boundaries, the focus must shift from *if* it can run, to *how* it can run better, faster, and more reliably under adverse conditions.
 

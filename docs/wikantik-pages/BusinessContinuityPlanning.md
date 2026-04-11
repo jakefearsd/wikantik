@@ -1,16 +1,4 @@
----
-title: Business Continuity Planning
-type: article
-tags:
-- must
-- data
-- resili
-summary: This tutorial is designed for the expert practitioner, the research scientist,
-  and the architect tasked with designing systems that don't just recover, but that
-  thrive under duress.
-auto-generated: true
----
-# Business Continuity Planning and Disaster Recovery: A Deep Dive for Resilience Architects
+# Business Continuity Planning and Disaster Recovery
 
 For those of us who spend our professional lives navigating the theoretical abyss between "it works" and "it catastrophically fails," the concepts of Business Continuity Planning (BCP) and Disaster Recovery (DR) are less like checklists and more like fundamental axioms of modern enterprise architecture.
 
@@ -151,7 +139,7 @@ This requires:
 
 ***
 
-## Ⅳ. Emerging Techniques: The Next Frontier in Resilience Research
+## Ⅳ. Emerging Techniques
 
 For the researcher, the current state-of-the-art is rapidly being challenged by new paradigms. These techniques move beyond mere "recovery" into proactive "anti-fragility."
 

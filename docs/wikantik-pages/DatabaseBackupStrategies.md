@@ -1,15 +1,4 @@
----
-title: Database Backup Strategies
-type: article
-tags:
-- log
-- recoveri
-- data
-summary: This document serves as an exhaustive technical deep-dive into Point-In-Time
-  Recovery (PITR).
-auto-generated: true
----
-# Mastering the Art of Temporal Data Recovery: A Comprehensive Guide to Database Point-In-Time Recovery (PITR)
+# Temporal Data Recovery
 
 For the seasoned database architect or the researcher delving into the bleeding edge of data resilience, the concept of "backup" often feels laughably simplistic. A simple file copy, while adequate for historical archiving, fails spectacularly when the requirement is surgical precision: restoring the database to the exact state it held at $T_{target}$, moments before a catastrophic user error, a malicious injection, or a subtle application bug manifested.
 
@@ -44,7 +33,7 @@ PITR leverages this same logging mechanism, but instead of stopping at the point
 
 ---
 
-## 2. Architectural Deep Dive: The Mechanics of Log-Based Recovery
+## 2. The Mechanics of Log-Based Recovery
 
 To truly understand PITR, one must understand the mechanics of the logs themselves. The implementation details vary wildly between vendors, but the underlying principle of sequential, immutable record-keeping remains constant.
 

@@ -1,16 +1,4 @@
----
-title: Java Streams And Functional Programming
-type: article
-tags:
-- stream
-- function
-- us
-summary: Java, historically a bastion of explicit, object-oriented imperative programming,
-  found itself increasingly challenged by the demands of modern, concurrent, and data-intensive
-  applications.
-auto-generated: true
----
-# Mastering the Functional Paradigm in Java: A Deep Dive into Streams, Lambdas, and Advanced Techniques
+# The Functional Paradigm in Java
 
 For the seasoned engineer, the introduction of Java 8's functional features—Lambda Expressions, the Stream API, and the associated paradigm shift—was less of an enhancement and more of a necessary paradigm correction. Java, historically a bastion of explicit, object-oriented imperative programming, found itself increasingly challenged by the demands of modern, concurrent, and data-intensive applications.
 
@@ -286,7 +274,7 @@ List<String> ids = list.stream()
 ids.forEach(id -> logger.logProcessing(id)); 
 ```
 
-### C. Deep Dive into `Optional` and Null Safety
+### C. `Optional` and Null Safety
 
 The `Optional<T>` container is Java's primary tool for managing the potential absence of a value, directly addressing the historical problem of `NullPointerException` (NPE).
 

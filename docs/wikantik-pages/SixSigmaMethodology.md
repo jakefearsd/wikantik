@@ -1,15 +1,4 @@
----
-title: Six Sigma Methodology
-type: article
-tags:
-- process
-- measur
-- defect
-summary: 'Six Sigma DMAIC for Defect Reduction: A Deep Dive for Advanced Practitioners
-  Welcome.'
-auto-generated: true
----
-# Six Sigma DMAIC for Defect Reduction: A Deep Dive for Advanced Practitioners
+# Six Sigma DMAIC for Defect Reduction
 
 Welcome. If you are reading this, you are likely not a Yellow Belt who just finished a weekend seminar. You are an expert, a researcher, or an engineer tasked with optimizing processes where the cost of failure is measured in millions, not mere man-hours. You understand that "process improvement" is a nebulous concept until it is quantified, statistically modeled, and rigorously controlled.
 
@@ -21,7 +10,7 @@ This tutorial is not a refresher course. It is an exhaustive, deep-dive examinat
 
 Before dissecting the five phases, one must appreciate the philosophical underpinning. Six Sigma is not merely a collection of tools; it is a disciplined, statistical paradigm shift. It mandates that improvement efforts must be **data-driven**, **variation-focused**, and **customer-centric**.
 
-### A. Understanding Variation and Sigma Levels
+### A. Variation and Sigma Levels
 
 At the heart of Six Sigma lies the concept of **variation**. Every process—be it manufacturing, transactional, or service-oriented—is inherently variable. The goal is not to eliminate variation (which is often impossible or undesirable, as some variation is necessary for robustness), but to *reduce* variation to a statistically insignificant level relative to the customer's tolerance limits.
 
@@ -51,7 +40,7 @@ For an expert audience, simply stating "we improved the process" is insufficient
 
 ---
 
-## II. The DMAIC Framework: A Deep Dive into Each Phase
+## II. The DMAIC Framework
 
 We will now dissect each phase, treating it not as a sequential step, but as a distinct, self-contained analytical discipline requiring specialized toolkits.
 

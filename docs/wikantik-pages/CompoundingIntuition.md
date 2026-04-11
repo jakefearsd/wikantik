@@ -1,12 +1,8 @@
 ---
-type: article
-tags:
-- personal-finance
-- retirement-planning
-- compound-interest
-- investing
-- beginners
-date: 2026-03-14
+summary: A layperson's guide to compound interest — how it works, why it feels counterintuitive,
+  the Rule of 72 and other mental shortcuts for estimating growth, and why starting
+  early matters more than investing well
+date: 2026-03-14T00:00:00Z
 cluster: index-fund-investing
 related:
 - RetirementPlanningGuide
@@ -19,8 +15,16 @@ related:
 - BasicsOfCompoundInterest
 - RuleOf72AndInvestmentGrowthCalculations
 - CompoundInterestAndTaxAdvantagedAccounts
+type: article
+tags:
+- personal-finance
+- retirement-planning
+- compound-interest
+- investing
+- beginners
 status: active
-summary: A layperson's guide to compound interest — how it works, why it feels counterintuitive, the Rule of 72 and other mental shortcuts for estimating growth, and why starting early matters more than investing well
+hubs:
+- TypesofInvestmentAccountsTutorial Hub
 ---
 # Compounding Intuition
 

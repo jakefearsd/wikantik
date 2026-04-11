@@ -1,13 +1,3 @@
----
-title: Repository Pattern
-type: article
-tags:
-- repositori
-- domain
-- data
-summary: 'Conceptual Foundations: What is Abstraction, Really?'
-auto-generated: true
----
 # The Repository Pattern: Data Access Abstraction as a Cornerstone of Enterprise Architecture
 
 For those of us who spend our professional lives wrestling with the messy intersection of business logic and the stubborn, often archaic, realities of data persistence, the Repository Pattern isn't merely a suggestion—it's a necessary prophylactic against architectural rot. If you are researching advanced techniques, you must understand that this pattern is not a silver bullet, but rather a sophisticated *contract* that dictates how your application speaks to its memory store, regardless of whether that store speaks SQL, JSON, or GraphQL.

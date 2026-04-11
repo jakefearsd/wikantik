@@ -1,15 +1,4 @@
----
-title: Burnout Prevention In Tech
-type: article
-tags:
-- must
-- system
-- work
-summary: We are not here to suggest better time management; we are here to redesign
-  the system that necessitates the unsustainable pace in the first place.
-auto-generated: true
----
-# Engineering Endurance: A Comprehensive Tutorial on Burnout Prevention and Sustainable Pace Development for Advanced Research Practitioners
+# Engineering Endurance
 
 Burnout, in its contemporary understanding, is not merely the unfortunate byproduct of a demanding career; it is a predictable, systemic failure mode of organizational design, workflow architecture, and cultural expectation. For experts researching novel mitigation techniques, the challenge lies in moving beyond the palliative measures—the "self-care workshops" and the "take a vacation" platitudes—and instead treating sustainable pace as a core, measurable engineering discipline.
 
@@ -21,7 +10,7 @@ This tutorial synthesizes current best practices, advanced psychological models,
 
 Before proposing solutions, we must establish a rigorous, non-pathologizing definition of the problem. The prevailing narrative often frames burnout as an individual failing—a deficit of grit, resilience, or time management skills. This framing is intellectually lazy and clinically inaccurate.
 
-### A. Deconstructing the Burnout Construct
+### A. The Burnout Construct
 
 Burnout, as defined by the World Health Organization (WHO) and supported by decades of occupational health research, is characterized by three dimensions:
 1. **Exhaustion:** Profound physical and emotional depletion.

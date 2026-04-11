@@ -1,15 +1,4 @@
----
-title: Retirement Spending Patterns
-type: article
-tags:
-- spend
-- go
-- text
-summary: For the expert researcher, this assumption is not merely suboptimal; it is
-  an analytical straitjacket.
-auto-generated: true
----
-# Deconstructing the Retirement Spending Smile: A Technical Deep Dive into Go-Go, Slow-Go, and No-Go Expenditure Modeling
+# The Retirement Spending Smile
 
 **Target Audience:** Financial Modelers, Behavioral Economists, Actuaries, and Quantitative Researchers in Private Wealth Management.
 

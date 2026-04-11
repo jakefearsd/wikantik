@@ -1,17 +1,23 @@
 ---
+summary: 'How AI models are trained: the full pipeline from data preparation through
+  pre-training, fine-tuning, and RLHF, including hardware requirements and scaling
+  laws'
+cluster: generative-ai
+related:
+- ArtificialIntelligence
+- MachineLearning
+- LlmsSinceTwentyTwenty
+- TheFutureOfMachineLearning
 type: article
 status: active
-cluster: generative-ai
 tags:
 - ai
 - model-training
 - deep-learning
 - fine-tuning
 - rlhf
-summary: 'How AI models are trained: the full pipeline from data preparation through
-  pre-training, fine-tuning, and RLHF, including hardware requirements and scaling
-  laws'
-related: [ArtificialIntelligence, MachineLearning, LlmsSinceTwentyTwenty, TheFutureOfMachineLearning]
+hubs:
+- MlModelDeployment Hub
 ---
 # AI Model Training
 

@@ -1,16 +1,4 @@
----
-title: Content Negotiation
-type: article
-tags:
-- accept
-- header
-- server
-summary: It is the mechanism that allows a single, canonical Uniform Resource Identifier
-  (URI) to serve multiple, contextually appropriate representations of the same underlying
-  resource.
-auto-generated: true
----
-# The Art of the Request: A Deep Dive into Content Negotiation and the `Accept` Header Format
+# The Request
 
 For those of us who spend our days wrestling with the intricacies of the HTTP protocol, content negotiation is less a feature and more a fundamental pillar of modern, robust API design. It is the mechanism that allows a single, canonical Uniform Resource Identifier (URI) to serve multiple, contextually appropriate representations of the same underlying resource.
 
@@ -150,7 +138,7 @@ The `Accept` header does not operate in a vacuum. Its effectiveness is amplified
 
 For experts building middleware, API gateways, or custom HTTP clients, understanding the *implementation* of the matching algorithm is more valuable than knowing the syntax.
 
-### 3.1 The Matching Algorithm: A Formal View
+### 3.1 The Matching Algorithm
 
 The process can be modeled as a weighted filtering system. Given a set of supported representations $S = \{s_1, s_2, \dots, s_n\}$ and a client request $R$ containing the `Accept` header, the server must calculate a score $Score(s_i, R)$ for every $s_i \in S$.
 

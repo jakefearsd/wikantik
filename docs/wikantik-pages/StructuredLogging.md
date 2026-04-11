@@ -1,15 +1,4 @@
----
-title: Structured Logging
-type: article
-tags:
-- log
-- field
-- index
-summary: 'The Architecture of Insight: A Comprehensive Guide to Structured JSON Logging
-  and Centralized Search for Advanced Practitioners Welcome.'
-auto-generated: true
----
-# The Architecture of Insight: A Comprehensive Guide to Structured JSON Logging and Centralized Search for Advanced Practitioners
+# The Architecture of Insight
 
 Welcome. If you are reading this, you are likely past the point of simply appending stack traces to a file and hoping for the best. You understand that data, in its raw, unstructured form, is merely noise—a high-entropy signal requiring sophisticated processing to yield actionable intelligence.
 
@@ -159,7 +148,7 @@ This transforms the log from a mere record of an event into a rich, cross-refere
 
 ---
 
-## 4. Centralized Storage and Indexing: The Search Engine Deep Dive
+## 4. Centralized Storage and Indexing: The Search Engine
 
 The choice of the backend search engine (Elasticsearch, Solr, OpenSearch) dictates the final capabilities. For this advanced discussion, we assume the Elastic Stack paradigm, as it provides the most granular control over indexing and querying.
 

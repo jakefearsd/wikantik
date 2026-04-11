@@ -1,15 +1,4 @@
----
-title: Business Intelligence Fundamentals
-type: article
-tags:
-- data
-- model
-- analyt
-summary: 'Business Intelligence Reporting Analytics: A Deep Dive for Researching Experts
-  Welcome.'
-auto-generated: true
----
-# Business Intelligence Reporting Analytics: A Deep Dive for Researching Experts
+# Business Intelligence Reporting Analytics
 
 Welcome. If you’ve reached this guide, you likely find the standard definitions of "BI" and "Analytics" quaint—the kind of concepts taught in introductory MBA courses that treat data science as little more than advanced Excel modeling. This tutorial is not a refresher on creating a basic KPI dashboard; it is a comprehensive deep dive into the architectural, statistical, and cognitive frontiers of data intelligence.
 

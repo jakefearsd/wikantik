@@ -1,16 +1,4 @@
----
-title: Wiki Permission Model Guide
-type: article
-tags:
-- polici
-- user
-- wiki
-summary: 'The Conceptual Foundation: Deconstructing Authorization Before we can discuss
-  granular control, we must first establish a rigorous understanding of the underlying
-  security primitives.'
-auto-generated: true
----
-# Wiki Permission Model Granular Access Control: An Expert Deep Dive into Authorization Architectures
+# Wiki Permission Model Granular Access Control
 
 The modern wiki, once conceived as the ultimate repository of collective, open knowledge, has evolved into a complex, multi-faceted enterprise asset. It is no longer sufficient to merely ask, "Is the user logged in?" or "Does this user belong to the 'Editors' group?" For organizations managing proprietary intellectual property, regulated data, or highly segmented customer knowledge bases, the default, coarse-grained permission models of legacy wiki platforms are woefully inadequate.
 
@@ -103,7 +91,7 @@ The Stack Overflow discussion regarding MediaWiki whitelisting highlights a comm
 
 ---
 
-## Ⅲ. Deep Dive into Advanced Authorization Architectures
+## Ⅲ. Advanced Authorization Architectures
 
 For experts researching next-generation techniques, the focus must shift from *which model* to *how the policy is evaluated and enforced*.
 

@@ -1,14 +1,3 @@
----
-title: Runbook Automation
-type: article
-tags:
-- runbook
-- must
-- failur
-summary: It is the necessary process of extracting undocumented operational expertise
-  and encoding it into deterministic, version-controlled, and executable artifacts.
-auto-generated: true
----
 # The Definitive Guide to Runbook Automation Operational Procedure: Engineering Resilience from Tribal Knowledge
 
 For those of us who have spent enough time wrestling with "tribal knowledge"—the undocumented, context-dependent wisdom held by the most senior engineer who happens to be available at 3 AM—the concept of Runbook Automation is less a mere best practice and more a fundamental engineering requirement. It is the necessary process of extracting undocumented operational expertise and encoding it into deterministic, version-controlled, and executable artifacts.

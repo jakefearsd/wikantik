@@ -1,15 +1,4 @@
----
-title: Database Performance Monitoring
-type: article
-tags:
-- queri
-- index
-- data
-summary: When an application slows down, the initial, knee-jerk reaction is often
-  to check the CPU utilization or the disk I/O.
-auto-generated: true
----
-# The Art and Science of Latency Mitigation: A Comprehensive Tutorial on Advanced Database Monitoring for Slow Queries
+# The Art and Science of Latency Mitigation
 
 For the seasoned practitioner, database performance tuning is less an art and more a rigorous, multi-dimensional science. When an application slows down, the initial, knee-jerk reaction is often to check the CPU utilization or the disk I/O. While these metrics are necessary, they are merely symptoms. The true locus of investigation—the needle in the haystack—is almost invariably the inefficient, poorly structured, or unexpectedly high-volume query.
 
@@ -118,7 +107,7 @@ This is where many performance investigations fail because they ignore concurren
 
 MongoDB shifts the performance conversation from ACID compliance and relational joins to **data modeling and query pattern adherence**.
 
-#### A. The Aggregation Pipeline Deep Dive
+#### A. The Aggregation Pipeline
 
 The aggregation framework (`$match`, `$group`, `$lookup`, etc.) is the equivalent of complex joins and transformations. Performance issues here are rarely due to "slow queries" in the traditional sense, but rather due to inefficient pipeline construction.
 

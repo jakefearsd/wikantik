@@ -1,15 +1,4 @@
----
-title: Service Level Agreements
-type: article
-tags:
-- sla
-- servic
-- must
-summary: This tutorial is not intended for the junior engineer who needs a simple
-  definition.
-auto-generated: true
----
-# The Architecture of Assurance: A Comprehensive Tutorial on Service Level Agreement (SLA) Definition for Advanced Research Practitioners
+# The Architecture of Assurance
 
 For those of us who spend our days wrestling with distributed systems, microservices architectures, and the ephemeral nature of digital uptime, the concept of a Service Level Agreement (SLA) often feels less like a contractual guarantee and more like a necessary, yet perpetually insufficient, piece of bureaucratic theater.
 

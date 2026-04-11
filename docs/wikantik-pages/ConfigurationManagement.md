@@ -1,15 +1,4 @@
----
-title: Configuration Management
-type: article
-tags:
-- secret
-- vault
-- servic
-summary: It is the point where the theoretical elegance of microservices architecture
-  collides violently with the messy, unpredictable reality of operational deployment.
-auto-generated: true
----
-# The Architecture of Trust: Advanced Patterns for Configuration Management and Environment Secrets in Modern Distributed Systems
+# Advanced Patterns for Configuration Management and Environment Secrets in Modern Distributed Systems
 
 The management of configuration parameters and sensitive secrets is arguably the most persistent, yet least glamorous, challenge in modern software engineering. It is the point where the theoretical elegance of microservices architecture collides violently with the messy, unpredictable reality of operational deployment. For those of us who spend our careers building systems that *should* just work, the configuration layer is the primary source of existential dread.
 
@@ -66,7 +55,7 @@ They enforce a strict separation: the configuration system manages *what* the ap
 
 ---
 
-## 3. Deep Dive into Secret Vault Architectures
+## 3. Secret Vault Architectures
 
 For experts, the choice of secret vault is less about *if* you use one, and more about *how* you integrate it into the application's trust model.
 
@@ -154,7 +143,7 @@ Every system needs *one* secret to start the process of fetching all other secre
 
 ---
 
-## 5. Architectural Deep Dives: Edge Cases and Failure Modes
+## 5. Edge Cases and Failure Modes
 
 To truly master this domain, one must anticipate failure.
 

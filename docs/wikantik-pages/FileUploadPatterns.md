@@ -1,15 +1,4 @@
----
-title: File Upload Patterns
-type: article
-tags:
-- stream
-- boundari
-- process
-summary: This tutorial is not for the backend developer who just needs to make the
-  endpoint work.
-auto-generated: true
----
-# Mastering the Stream: A Deep Dive into File Upload Streaming Multipart Processing
+# The Stream
 
 For those of us who have spent any significant amount of time wrestling with network I/O, the concept of "uploading a file" often feels like a deceptively simple feature request that masks an architectural minefield. When dealing with large payloads, unreliable networks, or high-throughput services, the naive approach—buffering the entire request body into memory—is not merely inefficient; it is an invitation to an OutOfMemoryError, a performance bottleneck, and a fundamental violation of scalable design principles.
 
@@ -93,7 +82,7 @@ The expert's job is not to reinvent the FSM, but to correctly utilize the framew
 
 ---
 
-## III. Ecosystem Deep Dive: Comparative Implementation Paradigms
+## III. Comparative Implementation Paradigms
 
 Since the implementation details are highly language and framework-dependent, we must analyze the leading paradigms to provide a comprehensive view.
 

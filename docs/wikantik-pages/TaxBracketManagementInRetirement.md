@@ -1,18 +1,6 @@
----
-title: Tax Bracket Management In Retirement
-type: article
-tags:
-- tax
-- convers
-- rate
-summary: The traditional narrative surrounding Roth conversions—that one simply converts
-  assets when tax rates are low—is, frankly, an oversimplification suitable for introductory
-  seminars.
-auto-generated: true
----
-# The Art of Tax Arbitrage in Retirement: A Deep Dive into Roth Conversion Bracket Management for Advanced Practitioners
+# Tax Arbitrage in Retirement
 
-## Introduction: Beyond the Basics of Tax Deferral
+## Introduction
 
 For the seasoned financial architect, retirement planning is not merely an exercise in asset accumulation; it is a sophisticated, multi-decade endeavor in **tax liability curve management**. The traditional narrative surrounding Roth conversions—that one simply converts assets when tax rates are low—is, frankly, an oversimplification suitable for introductory seminars. For those of us who operate at the frontier of tax-efficient wealth transfer, the process demands a rigorous, quantitative approach, treating the tax code not as a set of guidelines, but as a complex, malleable system ripe for arbitrage.
 

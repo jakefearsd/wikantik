@@ -1,15 +1,4 @@
----
-title: Web Accessibility Guide
-type: article
-tags:
-- aria
-- must
-- access
-summary: Accessibility is not a feature to be bolted on; it is the fundamental contract
-  between the digital artifact and the user's cognitive model.
-auto-generated: true
----
-# The Interoperability Abyss: A Deep Dive into WCAG, ARIA, and Screen Reader Semantics for Advanced Practitioners
+# The Interoperability Abyss
 
 For those of us who spend our professional lives navigating the semantic chasm between theoretical standards and messy, real-world DOM implementations, the conversation around web accessibility often devolves into a recitation of checklist items. We know better. Accessibility is not a feature to be bolted on; it is the fundamental contract between the digital artifact and the user's cognitive model.
 
@@ -44,7 +33,7 @@ Most discussions stop at WCAG 2.1 AA conformance. For those researching new tech
 
 ---
 
-## II. The Semantic Augmentation Layer: Mastering ARIA
+## II. The Semantic Augmentation Layer
 
 ARIA (Accessible Rich Internet Applications) is not a replacement for semantics; it is a vocabulary of attributes designed to bridge the gap between the structural limitations of HTML and the complex, interactive requirements of modern JavaScript frameworks.
 

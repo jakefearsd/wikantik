@@ -1,15 +1,4 @@
----
-title: Domain And Integration Events
-type: article
-tags:
-- event
-- servic
-- system
-summary: When building modern, scalable, microservice-based applications, we are constantly
-  dealing with state changes that must propagate across service boundaries.
-auto-generated: true
----
-# Domain Events vs. Integration Events: A Deep Dive for Advanced System Architects
+# Domain Events vs. Integration Events
 
 For those of us who spend our professional lives wrestling with the inherent chaos of distributed systems, the concept of "events" is both our greatest tool and our most persistent source of architectural anxiety. When building modern, scalable, microservice-based applications, we are constantly dealing with state changes that must propagate across service boundaries. The naive approach—treating every state change as a simple broadcast—leads to brittle, tightly coupled spaghetti code that collapses under the slightest load spike.
 
@@ -208,7 +197,7 @@ The most advanced research area involves recognizing when a DE is *too* importan
 
 ---
 
-## 6. Deep Dive into Messaging Infrastructure Choices
+## 6. Messaging Infrastructure Choices
 
 The choice of transport layer dictates the reliability, complexity, and scalability ceiling of your system.
 

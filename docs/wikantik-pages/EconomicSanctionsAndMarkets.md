@@ -1,15 +1,4 @@
----
-title: Economic Sanctions And Markets
-type: article
-tags:
-- sanction
-- financi
-- target
-summary: To treat sanctions merely as a "ban on trade" (as some introductory texts
-  might suggest) is to fundamentally misunderstand the depth of modern economic warfare.
-auto-generated: true
----
-# Sanctions, Economic Warfare, and the Architecture of Financial Impact: A Deep Dive for Advanced Research
+# Sanctions, Economic Warfare, and the Architecture of Financial Impact
 
 ## Introduction: Defining the Instrument of Coercion
 
@@ -137,7 +126,7 @@ These controls are designed to prevent capital flight during periods of economic
 
 ---
 
-## III. Sectoral Deep Dives: Weaponizing Specific Commodities and Technologies
+## III. Weaponizing Specific Commodities and Technologies
 
 Sanctions are rarely blunt instruments; they are surgically precise, targeting the economic sinews of the target state.
 

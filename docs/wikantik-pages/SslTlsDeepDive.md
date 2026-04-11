@@ -1,15 +1,4 @@
----
-title: Ssl Tls Deep Dive
-type: article
-tags:
-- kei
-- certif
-- client
-summary: To treat this process as a simple sequence of messages is to fundamentally
-  misunderstand the depth of the security guarantees provided.
-auto-generated: true
----
-# The Cryptographic Dance: A Deep Dive into the SSL/TLS Handshake and Certificate Chain Validation for Advanced Research
+# The Cryptographic Dance
 
 For those of us who spend our days wrestling with the intricacies of secure transport layers, the TLS handshake and the underlying Public Key Infrastructure (PKI) are not merely "steps"; they are a meticulously choreographed, multi-stage cryptographic negotiation. To treat this process as a simple sequence of messages is to fundamentally misunderstand the depth of the security guarantees provided.
 

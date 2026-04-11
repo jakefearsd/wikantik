@@ -1,15 +1,4 @@
----
-title: Cloud Databases
-type: article
-tags:
-- aurora
-- dynamodb
-- data
-summary: Modern, high-throughput, globally distributed applications demand a nuanced
-  understanding of data persistence—a discipline known as Polyglot Persistence.
-auto-generated: true
----
-# Mastering Polyglot Persistence: A Deep Dive into Amazon Aurora, DynamoDB, and Managed Cloud Database Architectures
+# Polyglot Persistence
 
 For the seasoned engineer or architect researching the bleeding edge of distributed systems, the concept of a single, monolithic database solution is an artifact of a bygone era. Modern, high-throughput, globally distributed applications demand a nuanced understanding of data persistence—a discipline known as **Polyglot Persistence**.
 
@@ -39,7 +28,7 @@ The decision to use all three (or more) is rarely arbitrary. It is a direct resp
 
 ---
 
-## 🏛️ Deep Dive I: Amazon Aurora – The Resilient Relational Core
+## 🏛️ Amazon Aurora – The Resilient Relational Core
 
 Aurora’s primary selling point is its ability to deliver the reliability and feature set of traditional RDBMS while achieving the scalability and resilience often associated with NoSQL systems.
 
@@ -75,7 +64,7 @@ When modeling data for Aurora, the primary consideration must be **write path op
 
 ---
 
-## ⚡ Deep Dive II: Amazon DynamoDB – The Hyper-Scale NoSQL Paradigm
+## ⚡ Amazon DynamoDB – The Hyper-Scale NoSQL Paradigm
 
 DynamoDB is not a general-purpose database; it is a purpose-built, highly optimized key-value store designed for massive scale and predictable latency. Understanding its constraints is more important than understanding its features.
 
@@ -103,7 +92,7 @@ The most common failure point for DynamoDB implementations is the assumption tha
 
 ---
 
-## 🔗 Deep Dive III: The Interoperability Layer – Bridging Relational and Non-Relational Worlds
+## 🔗 The Interoperability Layer – Bridging Relational and Non-Relational Worlds
 
 This is the most complex and critical area. How do you maintain data integrity and consistency when your primary source of truth (Aurora) speaks SQL, and your high-speed cache/lookup layer (DynamoDB) speaks key-value?
 
@@ -166,14 +155,14 @@ FUNCTION process_aurora_change(record):
         put_item(TableName="UserProfiles", Item=dynamo_attributes)
 ```
 
-### 3.4 Edge Case Deep Dive: Handling Deletes and Updates
+### 3.4 Handling Deletes and Updates
 
 *   **Deletes:** When a record is deleted in Aurora, the CDC stream must emit a `DELETE` event. The consumer must interpret this and issue a corresponding `DeleteItem` call in DynamoDB. Failure to handle deletes results in "stale" data in the NoSQL store.
 *   **Updates:** If an update only changes one field (e.g., email), the consumer must issue an `UpdateItem` operation in DynamoDB, rather than overwriting the entire record, to maintain data integrity and minimize write capacity usage.
 
 ---
 
-## 🌐 Deep Dive IV: Advanced Architectural Patterns and Trade-offs
+## 🌐 Advanced Architectural Patterns and Trade-offs
 
 To truly master this stack, one must move beyond simple synchronization and adopt complex architectural patterns that leverage the strengths of each database.
 

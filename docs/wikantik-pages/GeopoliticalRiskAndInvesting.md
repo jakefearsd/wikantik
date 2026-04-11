@@ -1,15 +1,4 @@
----
-title: Geopolitical Risk And Investing
-type: article
-tags:
-- model
-- mathbf
-- risk
-summary: 'Prerequisites: Deep understanding of time-series econometrics, derivatives
-  pricing, macro-financial linkages, and international relations theory.'
-auto-generated: true
----
-# Navigating the Abyss: Advanced Methodologies for Quantifying and Managing Conflict Markets Geopolitical Investment Risk
+# Advanced Methodologies for Quantifying and Managing Conflict Markets Geopolitical Investment Risk
 
 **Target Audience:** Quantitative Researchers, Advanced Portfolio Managers, Geopolitical Economists.
 **Prerequisites:** Deep understanding of time-series econometrics, derivatives pricing, macro-financial linkages, and international relations theory.

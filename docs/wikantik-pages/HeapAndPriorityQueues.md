@@ -1,14 +1,3 @@
----
-title: Heap And Priority Queues
-type: article
-tags:
-- heap
-- pq
-- structur
-summary: When multiple tasks, events, or data packets arrive concurrently, the system
-  must deterministically decide which item receives immediate attention.
-auto-generated: true
----
 # A Comprehensive Review of Heap-Based Priority Queue Scheduling for Advanced Research Systems
 
 **Target Audience:** Experts in Computer Science, Operating Systems Theory, Real-Time Systems, and High-Performance Computing.
@@ -134,7 +123,7 @@ This requires the PQ to interact heavily with a separate dependency tracking mec
 
 ---
 
-## III. Implementation Deep Dive: Beyond Standard Binary Heaps
+## III. Beyond Standard Binary Heaps
 
 For researchers pushing the boundaries, the standard binary heap implementation, while robust, might represent a bottleneck in specific theoretical models. We must examine alternatives based on the required operational profile.
 

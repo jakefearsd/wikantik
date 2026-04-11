@@ -156,6 +156,18 @@ public class McpConfig {
         return cidrs != null && !cidrs.isBlank() ? cidrs.strip() : null;
     }
 
+    /**
+     * Returns whether the MCP endpoint is allowed to run without any authentication
+     * gate. Defaults to {@code false} — operators must explicitly set
+     * {@code mcp.access.allowUnrestricted=true} to disable both API-key and CIDR
+     * checks. When neither is configured and this flag is {@code false}, the filter
+     * responds {@code 503 Service Unavailable} on every request.
+     */
+    public boolean allowUnrestricted() {
+        final String raw = props.getProperty( "mcp.access.allowUnrestricted" );
+        return raw != null && Boolean.parseBoolean( raw.strip() );
+    }
+
     private String loadTextResource( final String resourceName ) {
         // Try thread-context classloader first (picks up external overrides), then our own
         final ClassLoader tccl = Thread.currentThread().getContextClassLoader();

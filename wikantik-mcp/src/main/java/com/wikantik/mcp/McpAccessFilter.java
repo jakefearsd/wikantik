@@ -62,6 +62,7 @@ public class McpAccessFilter implements Filter {
     private final List< byte[] > apiKeyList;
     private final List< CidrEntry > cidrEntries;
     private final boolean unrestricted;
+    private final boolean failClosed;
     private final McpRateLimiter rateLimiter;
 
     record CidrEntry( byte[] network, int prefixLen ) { }
@@ -72,11 +73,19 @@ public class McpAccessFilter implements Filter {
                 .map( k -> k.getBytes( StandardCharsets.UTF_8 ) )
                 .toList();
         this.cidrEntries = parseCidrs( config.allowedCidrs() );
-        this.unrestricted = apiKeyList.isEmpty() && cidrEntries.isEmpty();
+        final boolean noGate = apiKeyList.isEmpty() && cidrEntries.isEmpty();
+        this.unrestricted = noGate && config.allowUnrestricted();
+        this.failClosed = noGate && !config.allowUnrestricted();
         this.rateLimiter = rateLimiter;
 
-        if ( unrestricted ) {
-            LOG.info( "MCP access filter: unrestricted (no key or CIDR configured)" );
+        if ( failClosed ) {
+            LOG.error( "CRITICAL: MCP access filter has no API keys, no CIDR allowlist, and "
+                    + "mcp.access.allowUnrestricted is not set — all MCP requests will be rejected "
+                    + "with 503. Configure mcp.access.keys, mcp.access.allowedCidrs, or explicitly "
+                    + "set mcp.access.allowUnrestricted=true to acknowledge." );
+        } else if ( unrestricted ) {
+            LOG.warn( "MCP access filter: unrestricted mode active (mcp.access.allowUnrestricted=true). "
+                    + "Every MCP request is treated as a superuser call. Only use this in trusted environments." );
         } else {
             LOG.info( "MCP access filter: keys={}, CIDRs={}",
                     apiKeyList.size(), cidrEntries.size() );
@@ -89,6 +98,14 @@ public class McpAccessFilter implements Filter {
         final HttpServletRequest httpReq = ( HttpServletRequest ) request;
         final HttpServletResponse httpResp = ( HttpServletResponse ) response;
         final String remoteAddr = httpReq.getRemoteAddr();
+
+        if ( failClosed ) {
+            SECURITY.warn( "MCP request rejected: filter fail-closed (no auth configured), ip={}", remoteAddr );
+            httpResp.setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+            httpResp.setContentType( "application/json" );
+            httpResp.getWriter().write( "{\"error\":\"MCP not configured\"}" );
+            return;
+        }
 
         // Determine client identity and auth status
         final String clientId;

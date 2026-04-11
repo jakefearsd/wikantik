@@ -123,6 +123,8 @@ public class ProposeKnowledgeTool implements McpTool, AuthorConfigurable {
             final KgProposal proposal = service.submitProposal(
                     proposalType, sourcePage, proposedData, confidence, reasoning );
 
+            McpAudit.logWrite( TOOL_NAME, "proposed-" + proposalType, sourcePage, defaultAuthor );
+
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "id", proposal.id().toString() );
             result.put( "proposal_type", proposal.proposalType() );

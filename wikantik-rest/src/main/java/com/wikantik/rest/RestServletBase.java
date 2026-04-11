@@ -221,6 +221,38 @@ public abstract class RestServletBase extends HttpServlet {
     }
 
     /**
+     * Like {@link #extractPathParam} but sends a 400 error and returns {@code null}
+     * if the path is absent or empty. Handlers use this when the path segment is
+     * mandatory, to collapse the usual four-line boilerplate into one.
+     */
+    protected String requirePathParam( final HttpServletRequest request, final HttpServletResponse response )
+            throws IOException {
+        final String value = extractPathParam( request );
+        if ( value == null || value.isEmpty() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
+            return null;
+        }
+        return value;
+    }
+
+    /**
+     * Loads a page by name and sends a 404 response if it doesn't exist. Returns
+     * the {@link Page} or {@code null} if the error response was sent. Callers
+     * typically pair this with {@link #requirePathParam} and
+     * {@link #checkPagePermission}.
+     */
+    protected Page requirePage( final HttpServletRequest request,
+                                 final HttpServletResponse response,
+                                 final String pageName ) throws IOException {
+        final Page page = getEngine().getManager( PageManager.class ).getPage( pageName );
+        if ( page == null ) {
+            sendNotFound( response, "Page not found: " + pageName );
+            return null;
+        }
+        return page;
+    }
+
+    /**
      * Checks whether the current user has the specified permission for the given page.
      * If the page exists, its ACL is evaluated via {@link PermissionFactory#getPagePermission(Page, String)}.
      * If the user lacks permission, a 403 JSON error is sent and this method returns {@code false}.
@@ -285,7 +317,8 @@ public abstract class RestServletBase extends HttpServlet {
 
     /**
      * Parses the JSON body from the request. On parse failure, sends a 400 error
-     * and returns {@code null}.
+     * (including the parser exception message so clients can debug malformed
+     * payloads) and returns {@code null}.
      *
      * @param request  the HTTP request
      * @param response the HTTP response (used to send 400 on failure)
@@ -297,7 +330,7 @@ public abstract class RestServletBase extends HttpServlet {
         try ( final BufferedReader reader = request.getReader() ) {
             return JsonParser.parseReader( reader ).getAsJsonObject();
         } catch ( final Exception e ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body" );
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + e.getMessage() );
             return null;
         }
     }

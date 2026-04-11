@@ -19,7 +19,6 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
@@ -47,7 +46,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -182,23 +180,14 @@ public class PageResource extends RestServletBase {
     protected void doPut( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
 
-        final String pageName = extractPathParam( request );
-        if ( pageName == null || pageName.isEmpty() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
-            return;
-        }
+        final String pageName = requirePathParam( request, response );
+        if ( pageName == null ) return;
         if ( !checkPagePermission( request, response, pageName, "edit" ) ) return;
 
         LOG.debug( "PUT page: {}", pageName );
 
-        // Parse JSON body
-        final JsonObject body;
-        try ( final BufferedReader reader = request.getReader() ) {
-            body = JsonParser.parseReader( reader ).getAsJsonObject();
-        } catch ( final Exception e ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + e.getMessage() );
-            return;
-        }
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;
 
         final String content = body.has( "content" ) ? body.get( "content" ).getAsString() : "";
         final String changeNote = body.has( "changeNote" ) ? body.get( "changeNote" ).getAsString() : null;
@@ -264,11 +253,8 @@ public class PageResource extends RestServletBase {
     protected void doDelete( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
 
-        final String pageName = extractPathParam( request );
-        if ( pageName == null || pageName.isEmpty() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
-            return;
-        }
+        final String pageName = requirePathParam( request, response );
+        if ( pageName == null ) return;
         if ( !checkPagePermission( request, response, pageName, "delete" ) ) return;
 
         LOG.debug( "DELETE page: {}", pageName );
@@ -318,32 +304,19 @@ public class PageResource extends RestServletBase {
     protected void doPatch( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
 
-        final String pageName = extractPathParam( request );
-        if ( pageName == null || pageName.isEmpty() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
-            return;
-        }
+        final String pageName = requirePathParam( request, response );
+        if ( pageName == null ) return;
         if ( !checkPagePermission( request, response, pageName, "edit" ) ) return;
 
         LOG.debug( "PATCH page: {}", pageName );
 
         final Engine engine = getEngine();
         final PageManager pm = engine.getManager( PageManager.class );
-        final Page page = pm.getPage( pageName );
+        final Page page = requirePage( request, response, pageName );
+        if ( page == null ) return;
 
-        if ( page == null ) {
-            sendNotFound( response, "Page not found: " + pageName );
-            return;
-        }
-
-        // Parse JSON body
-        final JsonObject body;
-        try ( final BufferedReader reader = request.getReader() ) {
-            body = JsonParser.parseReader( reader ).getAsJsonObject();
-        } catch ( final Exception e ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + e.getMessage() );
-            return;
-        }
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;
 
         if ( !body.has( "metadata" ) ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "metadata field is required" );
@@ -424,14 +397,8 @@ public class PageResource extends RestServletBase {
 
         LOG.debug( "POST rename page: {} ", pageName );
 
-        // Parse JSON body
-        final JsonObject body;
-        try ( final BufferedReader reader = request.getReader() ) {
-            body = JsonParser.parseReader( reader ).getAsJsonObject();
-        } catch ( final Exception e ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + e.getMessage() );
-            return;
-        }
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;
 
         // Validate newName
         if ( !body.has( "newName" ) || body.get( "newName" ).getAsString().isBlank() ) {
@@ -446,11 +413,8 @@ public class PageResource extends RestServletBase {
         final PageManager pm = engine.getManager( PageManager.class );
 
         // Source page must exist
-        final Page page = pm.getPage( pageName );
-        if ( page == null ) {
-            sendNotFound( response, "Page not found: " + pageName );
-            return;
-        }
+        final Page page = requirePage( request, response, pageName );
+        if ( page == null ) return;
 
         // Target page must not already exist
         if ( pm.getPage( newName ) != null ) {

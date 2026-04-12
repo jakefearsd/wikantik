@@ -1,3 +1,14 @@
+---
+title: Road Friendships
+type: article
+tags:
+- text
+- node
+- you
+summary: 'Prerequisite Knowledge: A foundational understanding of network theory,
+  transient community dynamics, and resource-constrained living environments.'
+auto-generated: true
+---
 # Advanced Techniques for Building Sustainable Road Friendships
 
 ***

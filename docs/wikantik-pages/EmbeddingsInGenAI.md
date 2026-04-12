@@ -1,3 +1,14 @@
+---
+title: Embeddings In Gen AI
+type: article
+tags:
+- embed
+- vector
+- model
+summary: An embedding is a low-dimensional, dense, continuous vector representation
+  of a discrete object (a word, a sentence, an image, or even an entire document).
+auto-generated: true
+---
 # The Geometry of Meaning
 
 ## Abstract
@@ -8,7 +19,7 @@ In the era of Large Language Models (LLMs) and Generational AI, the concept of "
 
 ## 1. Introduction: The Semantic Manifold
 
-At its core, the challenge of Natural Language Processing (NLP) is the "symbol grounding problem"—how to map arbitrary symbols (words, tokens) to a space that captures their underlying semantic relationships. 
+At its core, the challenge of [Natural Language Processing](NaturalLanguageProcessing) (NLP) is the "symbol grounding problem"—how to map arbitrary symbols (words, tokens) to a space that captures their underlying semantic relationships. 
 
 An **embedding** is a low-dimensional, dense, continuous vector representation of a discrete object (a word, a sentence, an image, or even an entire document). Unlike one-hot encoding, which suffers from the "curable sparsity" problem and lacks any notion of relationship, embeddings map items into a high-dimensional latent space $\mathbb{R}^d$. In this space, the geometric distance (e.g., Cosine similarity or Euclidean distance) between two vectors correlates with their semantic proximity.
 
@@ -50,7 +61,7 @@ Early models like **Word2Vec** (Skip-gram/CBOW) and **GloVe** (Global Vectors) l
 *   **Limitation:** The word "bank" would have the same vector whether the context was "river bank" or "investment bank." This lack of polysemy handling is the primary failure mode of static embeddings.
 
 ### 3.2 Contextualized Embeddings (The Transformer Revolution)
-The introduction of the Transformer architecture (Vaswani et al., 2017) changed the paradigm. Models like **BERT (Bidirectional Encoder Representations from Transformers)** and its derivatives (RoBERTa, ALBERT) generate embeddings dynamically based on the surrounding tokens.
+The introduction of the [Transformer architecture](TransformerArchitecture) (Vaswani et al., 2017) changed the paradigm. Models like **BERT (Bidirectional Encoder Representations from Transformers)** and its derivatives (RoBERTa, ALBERT) generate embeddings dynamically based on the surrounding tokens.
 
 *   **Mechanism:** Through the **Self-Attention mechanism**, each token's representation is updated by aggregating information from all other tokens in the sequence.
 *   **Sentence-BERT (SBERT):** Standard BERT is not optimized for calculating sentence-level similarities (it requires a cross-encoder pass, which is $O(n^2)$). SBERT uses a Siamese network structure to produce fixed-size sentence embeddings that can be compared via cosine similarity, making it the industry standard for semantic search.

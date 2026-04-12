@@ -1,3 +1,14 @@
+---
+title: Economic Sanctions And Markets
+type: article
+tags:
+- sanction
+- financi
+- target
+summary: To treat sanctions merely as a "ban on trade" (as some introductory texts
+  might suggest) is to fundamentally misunderstand the depth of modern economic warfare.
+auto-generated: true
+---
 # Sanctions, Economic Warfare, and the Architecture of Financial Impact
 
 ## Introduction: Defining the Instrument of Coercion
@@ -190,14 +201,14 @@ If one were to build a research agenda on this topic today, the focus must pivot
 
 ### A. Quantum-Resistant Financial Modeling
 
-As financial systems become more digitized, the threat of quantum computing breaking current encryption standards (like RSA) presents a future vulnerability. Future sanctions enforcement must account for the need to secure transaction data against quantum decryption, potentially requiring the adoption of quantum-resistant cryptographic standards in cross-border payment messaging.
+As financial systems become more digitized, the threat of [quantum computing](QuantumComputing) breaking current encryption standards (like RSA) presents a future vulnerability. Future sanctions enforcement must account for the need to secure transaction data against quantum decryption, potentially requiring the adoption of quantum-resistant cryptographic standards in cross-border payment messaging.
 
 ### B. AI-Driven Sanction Evasion Detection (The Arms Race)
 
 The next frontier in enforcement is the use of AI to detect evasion patterns in real-time. This involves:
 
 1.  **Graph Database Analysis:** Mapping complex relationships between entities (companies, individuals, vessels) to identify hidden connections that suggest illicit trade flows.
-2.  **Natural Language Processing (NLP):** Analyzing unstructured data—news reports, private emails (if legally obtained), and shipping manifests—to detect coded language or euphemisms used to mask sanctioned goods.
+2.  **[Natural Language Processing](NaturalLanguageProcessing) (NLP):** Analyzing unstructured data—news reports, private emails (if legally obtained), and shipping manifests—to detect coded language or euphemisms used to mask sanctioned goods.
 
 ### C. The Legal and Normative Challenge: Jurisdiction and Sovereignty
 

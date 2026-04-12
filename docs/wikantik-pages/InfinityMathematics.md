@@ -1,3 +1,14 @@
+---
+title: Infinity Mathematics
+type: article
+tags:
+- set
+- cardin
+- mathbb
+summary: Cardinality is not merely a measure; it is the bedrock upon which modern
+  set theory, advanced topology, and much of theoretical computer science are built.
+auto-generated: true
+---
 # The Nature of Infinity: Cardinality
 
 To the researchers delving into the deepest recesses of mathematical structure: If you find the concept of "infinity" merely a philosophical curiosity, you are likely operating at a level of abstraction insufficient for the problems you claim to be solving. Cardinality is not merely a measure; it is the bedrock upon which modern set theory, advanced topology, and much of theoretical computer science are built.
@@ -242,7 +253,7 @@ Since the standard axioms (ZFC) are insufficient to pin down the size of $\mathf
 Examples include:
 
 *   **Inaccessible Cardinals:** A cardinal $\kappa$ is inaccessible if it is regular (meaning no set of size less than $\kappa$ can co-limit to $\kappa$) and if every smaller cardinal $\lambda < \kappa$ has its power set $|\mathcal{P}(\lambda)| < \kappa$. These cardinals are necessary to build the structure required for many advanced mathematical theories.
-*   **Measurable Cardinals:** These are even larger and relate to measure theory on the set of real numbers. Their existence implies deep structural properties about the underlying model of set theory.
+*   **Measurable Cardinals:** These are even larger and relate to [measure theory](MeasureTheory) on the set of real numbers. Their existence implies deep structural properties about the underlying model of set theory.
 
 For a researcher working on novel techniques, understanding which large cardinal axioms are *necessary* for the techniques to function (e.g., assuming the existence of a measurable cardinal to guarantee certain types of ultrafilters) is crucial for establishing the scope and limitations of the resulting theory.
 

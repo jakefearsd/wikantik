@@ -1,3 +1,15 @@
+---
+title: Local RAG
+type: article
+tags:
+- text
+- retriev
+- chunk
+summary: Building Retrieval-Augmented Generation Systems Locally Retrieval-Augmented
+  Generation (RAG) has rapidly transitioned from a novel academic concept to a cornerstone
+  of enterprise AI deployment.
+auto-generated: true
+---
 # Building Retrieval-Augmented Generation Systems Locally
 
 Retrieval-Augmented Generation (RAG) has rapidly transitioned from a novel academic concept to a cornerstone of enterprise AI deployment. It represents a necessary architectural evolution beyond the limitations of monolithic Large Language Models (LLMs). While the initial implementations often showcased impressive "wow" factors, the true challenge—and the focus for researchers today—is building these systems robustly, reliably, and, critically, *locally*.
@@ -85,7 +97,7 @@ This is the gold standard. Instead of relying on fixed delimiters, semantic chun
 
 The embedding model ($\text{Embed}: \text{Text} \rightarrow \mathbb{R}^d$) is the translator that converts human language into a mathematical space where semantic proximity implies functional relatedness.
 
-**Local Considerations:** Since we are operating locally, model selection is constrained by VRAM/RAM and inference speed.
+**Local Considerations:** Since we are operating locally, [model selection](ModelSelection) is constrained by VRAM/RAM and inference speed.
 
 1.  **Model Selection:** Models like BGE (BAAI General Embedding) or specialized models fine-tuned for domain-specific tasks (e.g., legal, medical) are preferred over general-purpose models.
 2.  **Quantization:** To run these models efficiently on consumer hardware, quantization (e.g., 8-bit or 4-bit loading via libraries like `bitsandbytes` or specialized inference engines) is mandatory.
@@ -137,7 +149,7 @@ The top $k$ results returned by the vector store are *candidates*. They are not 
 
 The LLM has a finite context window ($W$). If the retrieval step returns 10 chunks, and the total text exceeds $W$, the system fails or truncates critical information.
 
-*   **Contextual Filtering:** Instead of passing the raw text of the top $k$ chunks, we can use a smaller LLM (or even a specialized extractive model) to *summarize* the retrieved chunks down to the most salient sentences *before* passing them to the main generator LLM. This is context compression.
+*   **Contextual Filtering:** Instead of passing the raw text of the top $k$ chunks, we can use a smaller LLM (or even a specialized extractive model) to *summarize* the retrieved chunks down to the most salient sentences *before* passing them to the main generator LLM. This is [context compression](ContextCompression).
 *   **Metadata Filtering:** If the user query implies a constraint (e.g., "Only policies from the HR department"), the vector store query must be augmented with a pre-filter on the metadata index, drastically reducing the search space before vector comparison even begins.
 
 ---

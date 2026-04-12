@@ -1,3 +1,13 @@
+---
+title: Java Logging Best Practices
+type: article
+tags:
+- log
+- you
+- slf4j
+summary: If you are reading this, you are not a novice.
+auto-generated: true
+---
 # The Abyss
 
 Welcome. If you are reading this, you are not a novice. You have likely wrestled with logging frameworks before—perhaps wrestling with the arcane dependency graphs of a legacy enterprise application, or maybe you’ve just spent an afternoon debugging a `NoClassDefFoundError` that only manifested under specific load profiles.

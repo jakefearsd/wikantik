@@ -1,3 +1,14 @@
+---
+title: Storing Belongings For Airbnb
+type: article
+tags:
+- text
+- must
+- storag
+summary: This tutorial moves beyond rudimentary "storage tips" by establishing a rigorous,
+  multi-modal framework for asset containment.
+auto-generated: true
+---
 # Storing Personal Belongings in Transient Residential Commercialization (The Airbnb Paradigm)
 
 ## Abstract

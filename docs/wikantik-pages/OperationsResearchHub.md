@@ -21,7 +21,7 @@ summary: Hub page for the Operations Research cluster — history, mathematical 
 ---
 # Operations Research
 
-Operations Research (OR) is the discipline of applying advanced analytical methods to help make better decisions. It uses mathematical modeling, statistical analysis, and algorithms to find optimal or near-optimal solutions to complex problems — problems where resources are limited, objectives conflict, and consequences are uncertain.
+[Operations Research](OperationsResearch) (OR) is the discipline of applying advanced analytical methods to help make better decisions. It uses mathematical modeling, statistical analysis, and algorithms to find optimal or near-optimal solutions to complex problems — problems where resources are limited, objectives conflict, and consequences are uncertain.
 
 OR emerged from World War II military logistics and has since become an invisible backbone of modern industry. Every time an airline prices a seat, a package arrives at your door, a hospital assigns staff to shifts, or a chip factory schedules its machines, OR is almost certainly involved.
 
@@ -33,7 +33,7 @@ At its core, OR frames real-world decisions as mathematical optimization problem
 - **Objective function** — what to maximize or minimize (profit, cost, time, risk)
 - **Constraints** — limits on resources, policy requirements, physical laws
 
-The discipline draws from linear algebra, calculus, probability theory, graph theory, and computer science. Its practitioners are called operations researchers, management scientists, or industrial engineers depending on the context.
+The discipline draws from [linear algebra](LinearAlgebra), calculus, [probability theory](ProbabilityTheory), graph theory, and computer science. Its practitioners are called operations researchers, management scientists, or industrial engineers depending on the context.
 
 ## Cluster Articles
 

@@ -1,3 +1,14 @@
+---
+title: Health Check Patterns
+type: article
+tags:
+- probe
+- failur
+- live
+summary: Health Check Patterns For those of us who spend our days wrestling with distributed
+  systems, the concept of "health" is rarely a binary state.
+auto-generated: true
+---
 # Health Check Patterns
 
 For those of us who spend our days wrestling with distributed systems, the concept of "health" is rarely a binary state. It is a complex, temporal, and often contradictory measurement. When deploying modern microservices architectures orchestrated by Kubernetes, the simple act of ensuring an application is "up" is insufficient. We must prove that it is not merely *running*, but that it is *functionally capable* of handling production load, and that it can recover gracefully when its internal state inevitably degrades.
@@ -8,7 +19,7 @@ This tutorial is not for the novice who merely needs to know which YAML field to
 
 ## 🚀 Introduction
 
-In the early days of container orchestration, the assumption was often that if a container started, it remained healthy. This assumption is, frankly, laughably naive in the context of modern, high-concurrency, stateful applications. A container can be technically "alive"—its process ID is active, and it consumes CPU cycles—while simultaneously being functionally deadlocked, starved of resources, or stuck in an infinite retry loop waiting for a dependency that will never respond.
+In the early days of [container orchestration](ContainerOrchestration), the assumption was often that if a container started, it remained healthy. This assumption is, frankly, laughably naive in the context of modern, high-concurrency, stateful applications. A container can be technically "alive"—its process ID is active, and it consumes CPU cycles—while simultaneously being functionally deadlocked, starved of resources, or stuck in an infinite retry loop waiting for a dependency that will never respond.
 
 Kubernetes probes—Liveness, Readiness, and Startup—are the formalized contract between the application developer and the orchestrator. They are not mere monitoring endpoints; they are **active control mechanisms** that dictate the lifecycle management of the container. Misunderstanding their interplay can lead to catastrophic cascading failures, where the orchestrator, believing the application is healthy because the probe endpoint returns a 200 OK, in fact routes traffic to a system that is functionally incapable of processing requests.
 
@@ -41,7 +52,7 @@ This is arguably the most frequently misused probe. Many developers mistakenly e
 **The Critical Implication:** Failure of the Readiness Probe does **not** trigger a restart. Instead, Kubernetes simply **removes the Pod's IP address from the Service endpoint list**. The traffic manager (Service/Ingress) routes traffic *away* from the failing replica until the probe starts succeeding again.
 
 *   **What it detects:** Initialization delays, dependency unavailability (e.g., waiting for a cache cluster to become available), or degraded performance under load (if the probe itself is designed to measure latency).
-*   **Expert Insight:** The Readiness Probe is the primary mechanism for implementing **graceful degradation**. It allows the system to maintain quorum and service availability even when individual replicas are temporarily impaired.
+*   **Expert Insight:** The Readiness Probe is the primary mechanism for implementing **[graceful degradation](GracefulDegradation)**. It allows the system to maintain quorum and service availability even when individual replicas are temporarily impaired.
 
 ### 1.3. Startup Probe
 

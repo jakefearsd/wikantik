@@ -1,3 +1,15 @@
+---
+title: Van Toilet Comparison
+type: article
+tags:
+- text
+- system
+- wast
+summary: The available technologies—conventional flush toilets, cassette systems,
+  and composting units—represent fundamentally different approaches to waste neutralization
+  and containment.
+auto-generated: true
+---
 # A Comparative Engineering Analysis of Off-Grid Sanitation Systems for Mobile Habitation: Composting, Cassette, and Conventional Flush Toilets
 
 ## Introduction: The Imperative of Sustainable Waste Management in Mobile Environments

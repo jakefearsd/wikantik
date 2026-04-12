@@ -1,3 +1,14 @@
+---
+title: Factor Investing
+type: article
+tags:
+- factor
+- text
+- risk
+summary: Factor Investing Factor investing represents one of the most significant
+  paradigm shifts in modern quantitative finance.
+auto-generated: true
+---
 # Factor Investing
 
 Factor investing represents one of the most significant paradigm shifts in modern quantitative finance. It moves beyond the simplistic assumption that asset returns are solely dictated by systematic market risk ($\beta$). Instead, it posits that persistent, quantifiable characteristics—or "factors"—explain a measurable portion of the cross-section and time-series returns of asset classes.
@@ -150,7 +161,7 @@ The true alpha may come from the *interaction* of factors. For example, a "High 
 A more complex model might incorporate interaction terms ($\text{Interaction}_{V,M}$):
 $$\text{Portfolio Score}_i = w_V \cdot \text{Score}_V(i) + w_M \cdot \text{Score}_M(i) + w_Q \cdot \text{Score}_Q(i) + w_{VM} \cdot (\text{Score}_V(i) \cdot \text{Score}_M(i)) + \dots$$
 
-The determination of the optimal weights ($w_V, w_M, w_Q, w_{VM}, \dots$) becomes a massive, non-convex optimization problem requiring advanced techniques like machine learning or robust econometric modeling.
+The determination of the optimal weights ($w_V, w_M, w_Q, w_{VM}, \dots$) becomes a massive, non-convex optimization problem requiring advanced techniques like [machine learning](MachineLearning) or robust econometric modeling.
 
 ### C. Pseudocode Example: Factor Ranking and Selection
 

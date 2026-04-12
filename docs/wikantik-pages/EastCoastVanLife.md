@@ -1,3 +1,14 @@
+---
+title: East Coast Van Life
+type: article
+tags:
+- model
+- must
+- text
+summary: 'Disclaimer: This document synthesizes general travel data into a highly
+  technical framework.'
+auto-generated: true
+---
 # Coastal Van Life From Maine to the Florida Keys
 
 **Target Audience Profile:** Field researchers, systems engineers, advanced logistical planners, and academic practitioners specializing in mobile habitation, sustainable infrastructure deployment, and complex route optimization.
@@ -276,7 +287,7 @@ We have established that successful execution requires the integration of:
 
 For the researcher aiming to advance the field, the next vectors of investigation should focus on:
 
-*   **Predictive AI Integration:** Developing machine learning models that can ingest real-time, unstructured data (e.g., local police reports, micro-weather radar) to dynamically adjust the $R_{Friction}$ index in real-time, moving beyond pre-calculated static weights.
+*   **Predictive AI Integration:** Developing [machine learning](MachineLearning) models that can ingest real-time, unstructured data (e.g., local police reports, micro-weather radar) to dynamically adjust the $R_{Friction}$ index in real-time, moving beyond pre-calculated static weights.
 *   **Swarm Robotics Integration:** Modeling the use of autonomous ground vehicles (AGVs) for resource scouting (e.g., locating compliant dump stations or assessing campsite viability) to reduce the human cognitive load factor.
 *   **Energy Harvesting Optimization:** Developing predictive algorithms that can dynamically adjust the vehicle's operational profile (e.g., slightly lowering HVAC set points or delaying non-essential appliance use) based on a 72-hour forecasted energy surplus/deficit curve.
 

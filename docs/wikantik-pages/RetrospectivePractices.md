@@ -1,3 +1,14 @@
+---
+title: Retrospective Practices
+type: article
+tags:
+- team
+- must
+- feedback
+summary: Perpetual Refinement The concept of "continuous improvement" (CI) is, frankly,
+  one of the most overused buzzwords in modern organizational theory.
+auto-generated: true
+---
 # Perpetual Refinement
 
 The concept of "continuous improvement" (CI) is, frankly, one of the most overused buzzwords in modern organizational theory. It has become a sort of corporate incantation, whispered in boardrooms and plastered on internal wikis. For those of us who actually live within the mechanisms of iterative development, however, we understand that CI is not a destination; it is a highly disciplined, often uncomfortable, and fundamentally psychological process of self-correction.

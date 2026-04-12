@@ -1,3 +1,15 @@
+---
+title: String Matching Algorithms
+type: article
+tags:
+- hash
+- match
+- kmp
+summary: Given a large text $T$ of length $N$, and a pattern $P$ of length $M$, the
+  objective is to find all occurrences of $P$ within $T$ with optimal time and space
+  complexity.
+auto-generated: true
+---
 # KMP and Rabin-Karp for Advanced Research
 
 For those of us who spend our careers wrestling with sequences of characters—be it genomic data, network packet headers, or complex textual corpora—the problem of string matching is not merely an academic exercise; it is the bedrock upon which much of modern computation rests. Given a large text $T$ of length $N$, and a pattern $P$ of length $M$, the objective is to find all occurrences of $P$ within $T$ with optimal time and space complexity.
@@ -200,7 +212,7 @@ RK shines when the problem structure naturally lends itself to hashing or when y
 
 1.  **Multiple Pattern Matching:** If you need to search for $k$ patterns $\{P_1, P_2, \dots, P_k\}$ simultaneously, RK can be adapted. You calculate $k$ target hashes and check the rolling hash against all $k$ values.
 2.  **Longest Repeated Substring (LRS):** This is a canonical application where RK excels. By using binary search on the potential length $L$, you can check if a hash collision exists for a substring of length $L$ across the entire text in $O(N)$ time per check, leading to an overall complexity of $O(N \log N)$. KMP is not as naturally suited for this generalized search.
-3.  **Data Stream Processing:** When the text $T$ arrives as a continuous stream, the $O(1)$ rolling update of RK is incredibly natural and efficient.
+3.  **Data [Stream Processing](StreamProcessing):** When the text $T$ arrives as a continuous stream, the $O(1)$ rolling update of RK is incredibly natural and efficient.
 
 ### 4.3 The Synergy: Combining Techniques
 The most sophisticated approaches often combine the strengths of both.
@@ -249,4 +261,4 @@ To summarize this deep dive for the expert researcher:
 
 String matching algorithms are not monolithic solutions; they are specialized tools. Mastery requires not just knowing the pseudocode, but understanding the underlying mathematical trade-offs—the deterministic safety of KMP versus the probabilistic efficiency and structural flexibility of Rabin-Karp.
 
-The continued evolution of these techniques continues to be driven by the need to handle ever-larger, more complex data structures, ensuring that the $O(N+M)$ complexity remains the gold standard for linear time string processing. If you find yourself needing to search for patterns in a context where $N$ or $M$ approaches the limits of computational feasibility, revisit the failure functions and the modulo arithmetic; that is where the true depth of the problem lies.
+The continued evolution of these techniques continues to be driven by the need to handle ever-larger, more complex [data structures](DataStructures), ensuring that the $O(N+M)$ complexity remains the gold standard for linear time string processing. If you find yourself needing to search for patterns in a context where $N$ or $M$ approaches the limits of computational feasibility, revisit the failure functions and the modulo arithmetic; that is where the true depth of the problem lies.

@@ -1,3 +1,13 @@
+---
+title: Threat Modeling
+type: article
+tags:
+- attack
+- model
+- threat
+summary: This tutorial is not for the junior analyst who needs a simple checklist.
+auto-generated: true
+---
 # Threat Modeling STRIDE: Deconstructing the Attack Surface for Advanced Systems Research
 
 For those of us who spend our professional lives staring into the abyss of potential failure modes, threat modeling is less a methodology and more a necessary form of intellectual self-flagellation. We are not merely documenting risks; we are engaging in a highly structured, adversarial thought experiment designed to force the system's architects to confront the inherent fragility of their own designs.
@@ -199,7 +209,7 @@ AI systems introduce entirely new vectors that challenge traditional STRIDE mapp
 
 ### B. Threat Modeling for Distributed Microservices (The Inter-Service Surface)
 
-In a microservices architecture, the attack surface explodes. Instead of one perimeter, you have $N \times (N-1)$ potential communication paths, each requiring its own security validation.
+In a [microservices architecture](MicroservicesArchitecture), the attack surface explodes. Instead of one perimeter, you have $N \times (N-1)$ potential communication paths, each requiring its own security validation.
 
 **1. Spoofing & Elevation of Privilege:**
 The primary risk is **Service Mesh Misconfiguration**. If Service A calls Service B, the system must verify that Service A is *authorized* to call Service B *with the specific scope* required. If the service mesh policy is too permissive (e.g., allowing all traffic on port 8080), an attacker compromising Service A can pivot laterally to any other service listening on that port, regardless of its intended function.

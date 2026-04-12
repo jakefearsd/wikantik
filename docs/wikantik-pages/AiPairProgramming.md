@@ -1,3 +1,14 @@
+---
+title: Ai Pair Programming
+type: article
+tags:
+- ai
+- code
+- copilot
+summary: 'The Algorithmic Co-Pilot Target Audience: Expert Software Engineers, AI
+  Researchers, and Development Methodologists.'
+auto-generated: true
+---
 # The Algorithmic Co-Pilot
 
 **Target Audience:** Expert Software Engineers, AI Researchers, and Development Methodologists.

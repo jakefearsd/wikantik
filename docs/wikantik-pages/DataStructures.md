@@ -1,3 +1,13 @@
+---
+title: Data Structures
+type: article
+tags:
+- algorithm
+- structur
+- data
+summary: Data Structures and Algorithm Design Welcome.
+auto-generated: true
+---
 # Data Structures and Algorithm Design
 
 Welcome. If you are reading this, you are not looking for a refresher on Big O notation or a basic implementation guide for a linked list. You are a researcher, an architect, or a practitioner operating at the frontier of computational theory. You are interested not merely in *using* existing structures, but in understanding their inherent limitations, designing novel abstractions to overcome them, and mastering the theoretical underpinnings that govern computational efficiency.
@@ -62,7 +72,7 @@ The ideal hash map provides $O(1)$ average time complexity. In research, we must
 
 1.  **Universal Hashing:** Instead of relying on a single, potentially weak hash function, research focuses on families of hash functions (universal hashing) to guarantee collision resistance regardless of the input set, provided the function family is chosen correctly.
 2.  **Cuckoo Hashing:** This technique achieves worst-case $O(1)$ lookups by using multiple hash functions and placing an item in one of several possible locations. The complexity shifts to managing the potential "cuckoo cycle" during insertion, which requires careful analysis of load factor thresholds.
-3.  **Bloom Filters and Counting Bloom Filters:** These are not data *storage* structures but *membership testing* structures. They are essential for space-constrained environments (like network routers or distributed caches) where false positives are tolerable, but false negatives are catastrophic. The research here involves optimizing the trade-off between false positive rate ($p$) and required space ($m/n$).
+3.  **[Bloom Filters](BloomFilters) and Counting Bloom Filters:** These are not data *storage* structures but *membership testing* structures. They are essential for space-constrained environments (like network routers or distributed caches) where false positives are tolerable, but false negatives are catastrophic. The research here involves optimizing the trade-off between false positive rate ($p$) and required space ($m/n$).
 
 ### C. Sequence and String Data Structures
 
@@ -174,7 +184,7 @@ When approaching a novel problem, the methodology must follow this rigorous sequ
 
 1.  **Formalization:** Define the input space, the output space, and the constraints (memory, time, parallelism, I/O).
 2.  **Complexity Mapping:** Determine the theoretical lower bound. Is the problem solvable in $O(N \log N)$? Is it NP-hard? If it's NP-hard, what is the best known approximation ratio $\rho$?
-3.  **Model Selection:** Choose the appropriate computational model (Turing Machine, PRAM, Streaming Model, etc.).
+3.  **[Model Selection](ModelSelection):** Choose the appropriate computational model (Turing Machine, PRAM, Streaming Model, etc.).
 4.  **Structure Selection:** Select the data structure whose inherent properties best match the required access patterns (e.g., use a B+ Tree if I/O is the bottleneck; use a Skip List if concurrency is the bottleneck).
 5.  **Algorithm Refinement:** Apply the most advanced paradigm (e.g., parameterized search, randomized sampling, or message passing) to the chosen structure.
 

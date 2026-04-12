@@ -1,3 +1,14 @@
+---
+title: Real Analysis
+type: article
+tags:
+- limit
+- converg
+- delta
+summary: It is a profound axiomatic structure, a necessary scaffolding upon which
+  the entire edifice of modern analysis rests.
+auto-generated: true
+---
 # Real Analysis: Foundations of Calculus and Limits for Advanced Research
 
 For those of us who have moved beyond the undergraduate survey courses—the ones where limits are merely a tool to calculate the slope of a tangent line—the concept of the "limit" is not a computational shortcut. It is a profound axiomatic structure, a necessary scaffolding upon which the entire edifice of modern analysis rests.
@@ -124,13 +135,13 @@ To restore the necessary rigor for advanced calculations, we rely on powerful th
 
 1.  **The Weierstrass M-Test:** This is the workhorse for proving uniform convergence of series of functions. If we have a series $\sum_{n=1}^{\infty} f_n(x)$ on $S$, and we can find a sequence of positive constants $M_n$ such that $|f_n(x)| \le M_n$ for all $x \in S$, and $\sum M_n$ converges (as a series of constants), then the series converges uniformly on $S$.
 
-2.  **The Arzelà-Ascoli Theorem:** This theorem provides necessary and sufficient conditions for a set of continuous functions to be *equicontinuous* and *uniformly bounded*—conditions that, when met, guarantee the existence of a uniformly convergent subsequence. This is fundamental in functional analysis when dealing with function spaces.
+2.  **The Arzelà-Ascoli Theorem:** This theorem provides necessary and sufficient conditions for a set of continuous functions to be *equicontinuous* and *uniformly bounded*—conditions that, when met, guarantee the existence of a uniformly convergent subsequence. This is fundamental in [functional analysis](FunctionalAnalysis) when dealing with function spaces.
 
 ---
 
 ## V. Limits in Higher Dimensions and Abstract Spaces
 
-When researchers move beyond $\mathbb{R}^n$ into functional analysis or measure theory, the concept of the limit must be generalized beyond simple Euclidean distance.
+When researchers move beyond $\mathbb{R}^n$ into functional analysis or [measure theory](MeasureTheory), the concept of the limit must be generalized beyond simple Euclidean distance.
 
 ### A. Metric Spaces and Generalization
 

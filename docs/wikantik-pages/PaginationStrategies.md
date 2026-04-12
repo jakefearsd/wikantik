@@ -1,3 +1,15 @@
+---
+title: Pagination Strategies
+type: article
+tags:
+- pagin
+- index
+- record
+summary: When designing an API endpoint that must handle potentially petabytes of
+  records, the naive approach to limiting results is a recipe for catastrophic performance
+  degradation.
+auto-generated: true
+---
 # The Triad of Data Retrieval
 
 For those of us who spend our professional lives wrestling with the mechanics of data access layers, pagination is not merely a UI concern; it is a fundamental architectural constraint that dictates scalability, performance characteristics, and the very integrity of the data contract between the service and the client. When designing an API endpoint that must handle potentially petabytes of records, the naive approach to limiting results is a recipe for catastrophic performance degradation.

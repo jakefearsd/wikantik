@@ -1,3 +1,13 @@
+---
+title: Code Documentation Best Practices
+type: article
+tags:
+- document
+- javadoc
+- tool
+summary: It is the formalized agreement between the implementer and the consumer.
+auto-generated: true
+---
 # The Art and Science of API Contract Definition
 
 For those of us who spend our careers wrestling with complex systems—the kind of systems where a misplaced semicolon can trigger a cascade failure across microservices—documentation is not a luxury; it is a fundamental component of the system's contract. It is the formalized agreement between the implementer and the consumer.

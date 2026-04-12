@@ -1,6 +1,18 @@
+---
+title: Bayesian Reasoning
+type: article
+tags:
+- theta
+- mathcal
+- model
+summary: For researchers already versed in statistical modeling, we will proceed at
+  a high level, assuming familiarity with probability theory, measure theory, and
+  advanced mathematical concepts.
+auto-generated: true
+---
 # Bayesian Reasoning and Probabilistic Inference
 
-This tutorial is designed not merely as a refresher, but as a deep dive into the theoretical underpinnings, computational frontiers, and philosophical implications of Bayesian methods. For researchers already versed in statistical modeling, we will proceed at a high level, assuming familiarity with probability theory, measure theory, and advanced mathematical concepts. Our goal is to synthesize the mathematical formalism with the cutting-edge applications in neuroscience, machine learning, and complex systems modeling.
+This tutorial is designed not merely as a refresher, but as a deep dive into the theoretical underpinnings, computational frontiers, and philosophical implications of Bayesian methods. For researchers already versed in statistical modeling, we will proceed at a high level, assuming familiarity with [probability theory](ProbabilityTheory), [measure theory](MeasureTheory), and advanced mathematical concepts. Our goal is to synthesize the mathematical formalism with the cutting-edge applications in neuroscience, [machine learning](MachineLearning), and complex systems modeling.
 
 ***
 
@@ -196,7 +208,7 @@ $$
 P(\text{Prediction} | \mathcal{D}) = \sum_{k=1}^{K} P(\text{Prediction} | \mathcal{D}, \mathcal{M}_k) P(\mathcal{M}_k | \mathcal{D})
 $$
 
-This inherently accounts for model uncertainty, which is a major source of error in frequentist model selection procedures.
+This inherently accounts for model uncertainty, which is a major source of error in frequentist [model selection](ModelSelection) procedures.
 
 ### 4.2 Sequential and Adaptive Inference
 

@@ -1,8 +1,20 @@
+---
+title: Numerical Methods
+type: article
+tags:
+- mathbf
+- method
+- delta
+summary: We are not merely solving equations; we are engineering the process by which
+  reality, modeled by continuous mathematics, is translated into discrete, finite-precision
+  arithmetic.
+auto-generated: true
+---
 # A Detailed Survey of Scientific Numerical Methods for Advanced Research
 
 For the researcher operating at the frontier of computational science, the term "numerical method" is less a collection of algorithms and more a vast, multi-dimensional landscape of approximations, trade-offs, and computational paradigms. We are not merely solving equations; we are engineering the *process* by which reality, modeled by continuous mathematics, is translated into discrete, finite-precision arithmetic.
 
-This tutorial serves as a comprehensive survey, intended not as a textbook recitation, but as a deep dive into the theoretical underpinnings, practical limitations, and cutting-edge extensions of the techniques required to push the boundaries of scientific simulation. Given the target audience—experts researching novel techniques—we must assume fluency in advanced calculus, linear algebra, and the fundamental concepts of convergence and stability.
+This tutorial serves as a comprehensive survey, intended not as a textbook recitation, but as a deep dive into the theoretical underpinnings, practical limitations, and cutting-edge extensions of the techniques required to push the boundaries of scientific simulation. Given the target audience—experts researching novel techniques—we must assume fluency in advanced calculus, [linear algebra](LinearAlgebra), and the fundamental concepts of convergence and stability.
 
 ---
 
@@ -151,7 +163,7 @@ When multiple physical phenomena interact (e.g., fluid-structure interaction, co
 
 ## IV. The Modern Computational Ecosystem: Scaling and Intelligence
 
-The theoretical rigor of NA must now confront the practical realities of exascale computing and the integration of machine learning.
+The theoretical rigor of NA must now confront the practical realities of exascale computing and the integration of [machine learning](MachineLearning).
 
 ### A. High-Performance Computing (HPC) Architectures
 

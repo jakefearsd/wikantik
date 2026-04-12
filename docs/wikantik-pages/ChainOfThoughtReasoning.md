@@ -1,6 +1,16 @@
+---
+title: Chain Of Thought Reasoning
+type: article
+tags:
+- cot
+- reason
+- model
+summary: Therefore, we will dispense with the hand-holding.
+auto-generated: true
+---
 # Chain of Thought Reasoning
 
-If you are reading this, you are presumably already familiar with the basic mechanics of Large Language Models (LLMs)—the transformer architecture, the attention mechanism, and the general concept of prompt engineering. Therefore, we will dispense with the hand-holding. This tutorial assumes a deep understanding of natural language processing, computational linguistics, and the current state-of-the-art in generative AI.
+If you are reading this, you are presumably already familiar with the basic mechanics of Large Language Models (LLMs)—the [transformer architecture](TransformerArchitecture), the attention mechanism, and the general concept of prompt engineering. Therefore, we will dispense with the hand-holding. This tutorial assumes a deep understanding of [natural language processing](NaturalLanguageProcessing), computational linguistics, and the current state-of-the-art in generative AI.
 
 Our focus here is not merely *what* Chain of Thought (CoT) is, but rather a comprehensive, deep-dive analysis of its theoretical underpinnings, its practical taxonomy, its advanced architectural extensions, and the subtle pitfalls that often trip up researchers who treat it as a mere prompt trick rather than a genuine shift in inference methodology.
 

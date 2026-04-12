@@ -50,7 +50,7 @@ Generative AI enhances Monte Carlo analysis in several ways:
 
 **Connecting Monte Carlo outputs to action.** The gap between "your success rate is 82%" and "here is what you should change" is where most retirement planning tools fall short. AI can bridge this gap: "Reducing your withdrawal rate from 4.2% to 3.8% increases your success rate to 91%. Alternatively, delaying Social Security from 62 to 67 achieves a similar improvement while allowing you to maintain your current spending level."
 
-**Sensitivity analysis in natural language.** Which assumptions matter most? AI can run the Monte Carlo engine with systematically varied inputs and report: "Your plan is most sensitive to inflation assumptions. A 1% increase in assumed inflation reduces your success rate by 9 percentage points. It is relatively insensitive to equity return assumptions — a 1% decrease in assumed returns reduces success by only 4 points." This kind of sensitivity analysis is standard in operations research but rarely surfaced in consumer retirement tools.
+**Sensitivity analysis in natural language.** Which assumptions matter most? AI can run the Monte Carlo engine with systematically varied inputs and report: "Your plan is most sensitive to inflation assumptions. A 1% increase in assumed inflation reduces your success rate by 9 percentage points. It is relatively insensitive to equity return assumptions — a 1% decrease in assumed returns reduces success by only 4 points." This kind of sensitivity analysis is standard in [operations research](OperationsResearch) but rarely surfaced in consumer retirement tools.
 
 ## Prompt Engineering for Tax Optimization Questions
 
@@ -68,7 +68,7 @@ The key to getting useful output, as documented in [Practical Prompt Engineering
 
 ### RMD Timing and Tax Bracket Management
 
-Required Minimum Distributions force withdrawals from traditional retirement accounts starting at age 73 (under current law). The tax planning question is whether to take distributions beyond the minimum in low-income years to reduce future RMDs that might push the retiree into higher brackets.
+[Required Minimum Distributions](RequiredMinimumDistributions) force withdrawals from traditional retirement accounts starting at age 73 (under current law). The tax planning question is whether to take distributions beyond the minimum in low-income years to reduce future RMDs that might push the retiree into higher brackets.
 
 AI tools can model the multi-year tax bracket trajectory: "Given my current traditional IRA balance and expected growth rate, what will my RMDs be at 73, 78, and 83? At what age will RMDs alone push me into the 24% bracket? How much should I withdraw above the minimum now, while in the 12% bracket, to reduce that future bracket creep?"
 

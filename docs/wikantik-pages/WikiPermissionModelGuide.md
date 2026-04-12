@@ -1,3 +1,15 @@
+---
+title: Wiki Permission Model Guide
+type: article
+tags:
+- polici
+- user
+- wiki
+summary: Wiki Permission Model Granular Access Control The modern wiki, once conceived
+  as the ultimate repository of collective, open knowledge, has evolved into a complex,
+  multi-faceted enterprise asset.
+auto-generated: true
+---
 # Wiki Permission Model Granular Access Control
 
 The modern wiki, once conceived as the ultimate repository of collective, open knowledge, has evolved into a complex, multi-faceted enterprise asset. It is no longer sufficient to merely ask, "Is the user logged in?" or "Does this user belong to the 'Editors' group?" For organizations managing proprietary intellectual property, regulated data, or highly segmented customer knowledge bases, the default, coarse-grained permission models of legacy wiki platforms are woefully inadequate.

@@ -1,3 +1,15 @@
+---
+title: Employment Based Green Cards
+type: article
+tags:
+- eb
+- requir
+- applic
+summary: The Architecture of Permanence For those of us who view immigration law not
+  as a set of bureaucratic hurdles, but as a complex, multi-stage optimization problem,
+  the U.S.
+auto-generated: true
+---
 # The Architecture of Permanence
 
 For those of us who view immigration law not as a set of bureaucratic hurdles, but as a complex, multi-stage optimization problem, the U.S. employment-based Green Card system represents a fascinating confluence of economic policy, labor law, and administrative procedure. This tutorial is not designed for the casual applicant seeking a simple checklist; it is intended for experts—researchers, policy analysts, and highly specialized professionals—who require a deep, granular understanding of the underlying mechanics, strategic pathways, and critical edge cases within the EB visa framework.

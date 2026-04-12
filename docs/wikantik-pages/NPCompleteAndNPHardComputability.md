@@ -1,3 +1,14 @@
+---
+title: NP Complete And NP Hard Computability
+type: article
+tags:
+- np
+- problem
+- mathbf
+summary: You know the difference between an $O(n^2)$ solution and an $O(n \log n)$
+  solution—the difference between a weekend project and a career-defining breakthrough.
+auto-generated: true
+---
 # NP-Completeness, NP-Hardness, and the Limits of Computation
 
 **For Expert Software Engineers and Data Scientists Conducting Research**

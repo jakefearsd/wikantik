@@ -1,8 +1,18 @@
+---
+title: Skill Documentation
+type: article
+tags:
+- skill
+- user
+- document
+summary: 'Skill Documentation and User Experience Best Practices: A Guide Welcome.'
+auto-generated: true
+---
 # Skill Documentation and User Experience Best Practices: A Guide
 
 Welcome. If you are reading this, you are not looking for a beginner's guide on prompt engineering. You are an expert—a researcher, an architect, a builder—who operates at the intersection of advanced AI agentic workflows, complex system design, and high-fidelity user interaction.
 
-The modern paradigm of AI capability is shifting from monolithic, single-prompt interactions to composable, specialized *skills*. These skills are the building blocks of sophisticated agents, much like microservices in a modern software architecture. However, the mere existence of a technically sound skill is insufficient. A brilliant, perfectly documented skill that no one can find, or worse, one that confuses the end-user, is functionally useless.
+The modern paradigm of AI capability is shifting from monolithic, single-prompt interactions to composable, specialized *skills*. These skills are the building blocks of sophisticated agents, much like microservices in a modern [software architecture](SoftwareArchitecture). However, the mere existence of a technically sound skill is insufficient. A brilliant, perfectly documented skill that no one can find, or worse, one that confuses the end-user, is functionally useless.
 
 This tutorial synthesizes best practices from software architecture, formal specification languages, cognitive psychology, and advanced UX design to create a comprehensive framework. We are not just documenting *how* to write a skill; we are documenting *how to make the skill discoverable, reliable, and seamlessly integrated* into a complex user workflow.
 

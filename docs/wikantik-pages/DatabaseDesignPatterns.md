@@ -1,3 +1,13 @@
+---
+title: Database Design Patterns
+type: article
+tags:
+- tabl
+- depend
+- normal
+summary: Database Design Normalization Schema Patterns Welcome.
+auto-generated: true
+---
 # Database Design Normalization Schema Patterns
 
 Welcome. If you are reading this, you are not merely looking for a "how-to" guide on creating a basic `Users` table. You are researching the theoretical limits of data integrity, the performance bottlenecks inherent in relational modeling, and the architectural compromises required when scaling systems beyond textbook examples.
@@ -10,7 +20,7 @@ Our goal is to provide a comprehensive, exhaustive treatment of normalization th
 
 ## I. The Theoretical Imperative: Understanding Data Anomalies
 
-At its core, database design is an exercise in managing constraints. A poorly designed schema allows the physical structure of the data to violate the logical rules governing the business domain. The primary mechanism for detecting and correcting these violations is **Normalization**.
+At its core, [database design](DatabaseDesign) is an exercise in managing constraints. A poorly designed schema allows the physical structure of the data to violate the logical rules governing the business domain. The primary mechanism for detecting and correcting these violations is **Normalization**.
 
 ### A. The Problem Space: Redundancy and Anomalies
 
@@ -239,7 +249,7 @@ When a system is read-heavy (e.g., a reporting dashboard, a public-facing catalo
     *   *Example:* Instead of joining `Fact_Sales` to `Dim_Product` to get the `ProductCategory`, we add `ProductCategory` directly to `Fact_Sales`.
     *   **Trade-off:** We sacrifice 3NF compliance for faster `SELECT` statements. We must now implement triggers or ETL processes to ensure that when `ProductCategory` changes in `Dim_Product`, all historical records in `Fact_Sales` are updated (or, more commonly, we accept that historical facts reflect the category *at the time of the transaction*).
 
-2.  **Pre-Joining/Materialized Views (The ETL Approach):** Creating a derived, redundant table that pre-calculates and stores the result of complex joins.
+2.  **Pre-Joining/[Materialized Views](MaterializedViews) (The ETL Approach):** Creating a derived, redundant table that pre-calculates and stores the result of complex joins.
     *   *Mechanism:* In SQL, this is often implemented using `MATERIALIZED VIEW`.
     *   *Process:* The ETL pipeline runs nightly (or near real-time), joining `Fact_Sales` $\text{JOIN}$ `Dim_Product` $\text{JOIN}$ `Dim_Date` and writing the flattened result set to `Reporting_Sales_Summary`.
     *   **Benefit:** The end-user queries only the `Reporting_Sales_Summary` table, which is flat and fast.
@@ -258,7 +268,7 @@ The decision to denormalize is fundamentally a decision about which operation is
 | **Metadata/CMS** | Schema Agility | Low (EAV/Graph) | EAV or Graph | Flexibility |
 
 **Advanced Consideration: Temporal Data Modeling**
-When dealing with data that changes over time (e.g., an employee's title changes), pure normalization struggles because the primary key implies a single, current state. Advanced systems use **Temporal Tables** (or Slowly Changing Dimensions - SCDs).
+When dealing with data that changes over time (e.g., an employee's title changes), pure normalization struggles because the primary key implies a single, current state. Advanced systems use **[Temporal Tables](TemporalTables)** (or Slowly Changing Dimensions - SCDs).
 
 *   **SCD Type 2:** The most common technique. Instead of overwriting a row, a new row is inserted with the old row marked as `EndDate = CurrentDate - 1 day` and the new row marked with `StartDate = CurrentDate`. This preserves the historical context required for accurate reporting, effectively managing time-based redundancy.
 

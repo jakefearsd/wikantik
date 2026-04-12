@@ -1,3 +1,14 @@
+---
+title: Plant Proteins
+type: article
+tags:
+- protein
+- acid
+- amino
+summary: Within this landscape, legumes—a diverse group of plants including beans,
+  lentils, chickpeas, and soy—stand out as foundational pillars.
+auto-generated: true
+---
 # Plant-Based Protein: Legumes and Amino Acid Profiles
 
 The field of alternative protein sources is undergoing a renaissance, driven by sustainability imperatives, shifting consumer demographics, and the necessity to reduce the environmental footprint associated with conventional animal agriculture. Within this landscape, legumes—a diverse group of plants including beans, lentils, chickpeas, and soy—stand out as foundational pillars. However, for researchers moving beyond basic nutritional guidelines and into advanced formulation science, understanding the nuances of legume protein quality requires a deep dive into biochemistry, quantitative amino acid profiling, and advanced blending methodologies.

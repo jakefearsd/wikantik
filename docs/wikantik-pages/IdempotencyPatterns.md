@@ -1,3 +1,14 @@
+---
+title: Idempotency Patterns
+type: article
+tags:
+- kei
+- idempot
+- must
+summary: This tutorial is not for the junior developer who just needs to know to add
+  a UUID to the request header.
+auto-generated: true
+---
 # Idempotency in Distributed Systems: Engineering Bulletproof, Retry-Safe API Operations
 
 For those of us who spend our careers wrestling with the inherent chaos of distributed computing—where network partitions, transient hardware failures, and the capricious nature of time are not mere footnotes but core architectural constraints—the concept of "failure" is less an exception and more a fundamental constant. When designing mission-critical APIs, particularly those handling financial transactions, state mutations, or resource provisioning, the primary goal shifts from merely achieving functionality to guaranteeing *correctness* under duress.

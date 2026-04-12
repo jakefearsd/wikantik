@@ -1,3 +1,13 @@
+---
+title: Internationalization And Localization
+type: article
+tags:
+- text
+- charact
+- local
+summary: Internationalization and Localization Welcome.
+auto-generated: true
+---
 # Internationalization and Localization
 
 Welcome. If you are reading this, you are not merely looking for a checklist of `gettext` directives or a guide on setting locale variables. You are researching the frontiers of global software design—the intersection where linguistics, computational theory, and user experience collide.
@@ -213,7 +223,7 @@ The cloud model assumes a central, powerful localization service. Modern archite
 **Research Focus: Localized Fallbacks and Delta Updates:**
 
 1.  **Client-Side Resource Bundling:** Instead of downloading a massive JSON bundle for all languages, the client should only download the necessary language *deltas* or the core resource bundle, with localized assets (images, complex UI components) fetched on demand.
-2.  **Offline Contextualization:** Implementing lightweight, embedded NLP models (e.g., using ONNX runtimes) on the client device to handle basic grammar checks, date formatting, and basic text directionality *without* an internet connection. This requires aggressive model quantization and pruning.
+2.  **Offline Contextualization:** Implementing lightweight, embedded NLP models (e.g., using ONNX runtimes) on the client device to handle basic grammar checks, date formatting, and basic text directionality *without* an internet connection. This requires aggressive [model quantization](ModelQuantization) and pruning.
 
 ---
 

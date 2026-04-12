@@ -1,3 +1,13 @@
+---
+title: Hand Plane Setup And Sharpening
+type: article
+tags:
+- plane
+- edg
+- cut
+summary: Hand Plane Setup and Sharpening Welcome.
+auto-generated: true
+---
 # Hand Plane Setup and Sharpening
 
 Welcome. If you are reading this, you are not a novice who believes that applying water and rubbing a piece of steel on a stone constitutes "sharpening." You are an expert, a researcher, someone who understands that a hand plane is not merely a tool; it is a complex, highly calibrated mechanical system whose performance is dictated by the precise interplay between metallurgy, tribology, and geometry.

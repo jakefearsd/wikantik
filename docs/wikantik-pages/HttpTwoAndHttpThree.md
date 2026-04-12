@@ -1,3 +1,15 @@
+---
+title: Http Two And Http Three
+type: article
+tags:
+- stream
+- quic
+- http
+summary: The Architecture of Speed This tutorial assumes a deep familiarity with TCP
+  congestion control, TLS handshakes, HTTP/2 framing, and the general mechanics of
+  application-layer protocols.
+auto-generated: true
+---
 # The Architecture of Speed
 
 This tutorial assumes a deep familiarity with TCP congestion control, TLS handshakes, HTTP/2 framing, and the general mechanics of application-layer protocols. We are not here to explain what a packet is, nor are we going to waste time detailing the OSI model layers—we are dissecting the fundamental architectural shifts that define the transition from the established, yet fundamentally constrained, HTTP/2 stack to the modern, UDP-based QUIC/HTTP/3 paradigm.

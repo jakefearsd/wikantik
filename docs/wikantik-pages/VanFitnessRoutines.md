@@ -1,3 +1,14 @@
+---
+title: Van Fitness Routines
+type: article
+tags:
+- train
+- van
+- resist
+summary: This tutorial transcends basic calisthenics recommendations derived from
+  general lifestyle guides.
+auto-generated: true
+---
 # The Mobile Biomechanics Lab: Advanced Fitness Protocols for Van-Based Training Paradigms
 
 **A Comprehensive Technical Review for Research Practitioners**

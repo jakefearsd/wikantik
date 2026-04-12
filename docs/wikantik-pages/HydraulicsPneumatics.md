@@ -1,3 +1,14 @@
+---
+title: Hydraulics Pneumatics
+type: article
+tags:
+- text
+- fluid
+- control
+summary: 'Hydraulics and Pneumatics: Fluid Power Systems This tutorial is not intended
+  for those merely learning the difference between air and oil.'
+auto-generated: true
+---
 # Hydraulics and Pneumatics: Fluid Power Systems
 
 This tutorial is not intended for those merely learning the difference between air and oil. For the expert researcher, the field of fluid power—encompassing hydraulics and pneumatics—is a dynamic intersection of thermodynamics, fluid mechanics, control theory, and materials science. We assume a foundational understanding of fluid statics, basic circuit analysis, and the principles of energy conversion. Our focus here is on the cutting edge: optimization, integration, advanced modeling, and the next generation of fluid power architectures.
@@ -202,7 +213,7 @@ The concept of the "Digital Twin" is transforming fluid power. Instead of relyin
 
 1.  **Model Fidelity:** These models must integrate fluid dynamics (CFD), thermal transfer (Heat Transfer), and mechanical dynamics (FEA) into a single, coupled simulation environment.
 2.  **Real-Time Optimization:** The Digital Twin allows for "what-if" scenario testing—simulating the effect of a 10% increase in ambient temperature or a 5% reduction in fluid viscosity *before* the physical prototype is built or deployed.
-3.  **AI/ML for Anomaly Detection:** Machine learning models are trained on vast datasets of operational sensor readings (pressure ripple, temperature gradients, flow harmonics). They can detect subtle deviations—such as the initial onset of bearing wear or minor seal degradation—long before traditional threshold alarms are tripped, enabling **Predictive Maintenance (PdM)**.
+3.  **AI/ML for Anomaly Detection:** [Machine learning](MachineLearning) models are trained on vast datasets of operational sensor readings (pressure ripple, temperature gradients, flow harmonics). They can detect subtle deviations—such as the initial onset of bearing wear or minor seal degradation—long before traditional threshold alarms are tripped, enabling **[Predictive Maintenance](PredictiveMaintenance) (PdM)**.
 
 ### B. Miniaturization and Microfluidics
 

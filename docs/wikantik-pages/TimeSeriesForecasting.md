@@ -1,3 +1,14 @@
+---
+title: Time Series Forecasting
+type: article
+tags:
+- model
+- mathbf
+- time
+summary: The superficial understanding, often gleaned from introductory sources, suggests
+  that time series forecasting is merely "predicting the future" [6].
+auto-generated: true
+---
 # The Architecture of Prediction
 
 Time series forecasting, at its core, is the art and science of extrapolating observed temporal patterns—trends, seasonality, and residual noise—to estimate future states. For the expert researcher, this field is less a collection of plug-and-play algorithms and more a complex interplay between statistical assumptions, computational architecture, and domain-specific knowledge.
@@ -100,7 +111,7 @@ Here, $\alpha, \beta, \gamma$ are smoothing parameters, which are often optimize
 
 ## III. The Machine Learning Paradigm Shift: From Assumptions to Patterns
 
-The rise of machine learning (ML) marked a philosophical shift: instead of forcing the data into a pre-defined statistical structure (like linearity or Gaussian noise), ML models treat time series forecasting as a complex **pattern recognition problem** over a feature space.
+The rise of [machine learning](MachineLearning) (ML) marked a philosophical shift: instead of forcing the data into a pre-defined statistical structure (like linearity or Gaussian noise), ML models treat time series forecasting as a complex **pattern recognition problem** over a feature space.
 
 ### A. Feature Engineering: Transforming Time into Predictors
 
@@ -122,7 +133,7 @@ GBMs are exceptionally powerful for structured data and are often used successfu
 
 ### C. Deep Learning Architectures: Modeling Memory and Sequence
 
-Deep learning models are designed to process sequences natively, overcoming the need for manual feature engineering of lags. They build internal representations of temporal dependencies.
+Deep learning models are designed to process sequences natively, overcoming the need for manual [feature engineering](FeatureEngineering) of lags. They build internal representations of temporal dependencies.
 
 #### 1. Recurrent Neural Networks (RNNs)
 The basic RNN structure processes data sequentially, maintaining a hidden state $\mathbf{h}_t$ that theoretically summarizes all information seen up to time $t$.
@@ -153,7 +164,7 @@ GRUs are a simplification of LSTMs, achieving comparable performance with fewer 
 
 ### D. The Attention Mechanism and Transformers (The Current Apex)
 
-The Transformer architecture, originally developed for machine translation, has proven to be the most significant breakthrough in sequence modeling for time series. It fundamentally abandons recurrence entirely, relying instead on the **Self-Attention Mechanism**.
+The [Transformer architecture](TransformerArchitecture), originally developed for machine translation, has proven to be the most significant breakthrough in sequence modeling for time series. It fundamentally abandons recurrence entirely, relying instead on the **Self-Attention Mechanism**.
 
 **The Core Concept:** Instead of processing $t$ sequentially, the Transformer processes all time steps $\{t-k, \dots, t\}$ *in parallel*. It calculates the relationship (or "attention weight") between *every* pair of time steps simultaneously.
 

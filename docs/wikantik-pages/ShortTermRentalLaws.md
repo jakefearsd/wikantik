@@ -1,3 +1,14 @@
+---
+title: Short Term Rental Laws
+type: article
+tags:
+- local
+- tax
+- law
+summary: The assumption that a single, universal compliance checklist exists is, frankly,
+  a rookie error.
+auto-generated: true
+---
 # Local Regulations and Short Term Rental Laws
 
 For those of us operating at the frontier of real estate technology, hospitality modeling, or regulatory compliance research, the short-term rental (STR) market presents a fascinating, yet profoundly frustrating, case study in regulatory fragmentation. The assumption that a single, universal compliance checklist exists is, frankly, a rookie error. The legal landscape governing STRs is not a cohesive body of law; it is a sprawling, accretive patchwork quilt woven from municipal ordinances, county zoning codes, state enabling legislation, private homeowner association (HOA) covenants, and the ever-shifting sands of local tax policy.

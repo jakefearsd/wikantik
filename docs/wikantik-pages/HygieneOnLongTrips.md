@@ -1,3 +1,14 @@
+---
+title: Hygiene On Long Trips
+type: article
+tags:
+- text
+- water
+- chemic
+summary: 'Disclaimer: This document assumes a high baseline understanding of fluid
+  dynamics, biochemistry, waste stream management, and portable power systems.'
+auto-generated: true
+---
 # Mobile Sanitation Engineering: Laundry, Showers, and Hygiene Protocols for Extended Overland Operations
 
 **Target Audience:** Research Scientists, Environmental Engineers, Wilderness Survival Specialists, and Advanced Expedition Planners.

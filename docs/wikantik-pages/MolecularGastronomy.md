@@ -1,3 +1,15 @@
+---
+title: Molecular Gastronomy
+type: article
+tags:
+- engin
+- process
+- model
+summary: This tutorial is structured not as a mere review of popular techniques—the
+  kind one might find summarized on a Pinterest board—but as a comprehensive technical
+  deep dive.
+auto-generated: true
+---
 # Molecular Gastronomy and Food Engineering
 
 The intersection of culinary arts and rigorous physical chemistry has given rise to a field often—and perhaps inaccurately—termed "Molecular Gastronomy." For the seasoned researcher, however, the distinction is far more nuanced. We are not merely discussing novel plating techniques; we are engaging with the fundamental principles of **Food Engineering** applied to the complex, non-Newtonian, and highly variable matrices that constitute food.
@@ -215,4 +227,4 @@ The next generation of breakthroughs will not come from simply finding a new gel
 
 This level of integration—where the art of the chef is guided by the predictive power of the engineer—is the true frontier. The sarcastic truth, if I may be so bold, is that the hype surrounding the *novelty* of the technique often overshadows the profound *engineering rigor* required to make it reliable, scalable, and reproducible outside of a pristine academic lab.
 
-For the expert researcher, the mandate is clear: treat the plate not as a collection of ingredients, but as a meticulously engineered, transient, multi-phase chemical system. Only by mastering the underlying physics and chemistry can we move beyond mere "edible innovation" toward genuine, sustainable, and predictable food science advancement.
+For the expert researcher, the mandate is clear: treat the plate not as a collection of ingredients, but as a meticulously engineered, transient, multi-phase chemical system. Only by mastering the underlying physics and chemistry can we move beyond mere "edible innovation" toward genuine, sustainable, and predictable [food science](FoodScience) advancement.

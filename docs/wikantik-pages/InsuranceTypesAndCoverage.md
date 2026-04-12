@@ -1,3 +1,14 @@
+---
+title: Insurance Types And Coverage
+type: article
+tags:
+- polici
+- liabil
+- insur
+summary: To treat these policies as mere consumer products is to fundamentally misunderstand
+  their actuarial and legal underpinnings.
+auto-generated: true
+---
 # Layered Risk Mitigation
 
 For those of us who spend our professional lives dissecting risk transfer mechanisms, the seemingly straightforward triad of Home, Auto, and Umbrella insurance represents a fascinating, multi-layered system of contingent liability management. To treat these policies as mere consumer products is to fundamentally misunderstand their actuarial and legal underpinnings. These instruments are not simply "coverage"; they are sophisticated, interlocking contractual agreements designed to manage tail risk exposure in the face of unpredictable tort liability.

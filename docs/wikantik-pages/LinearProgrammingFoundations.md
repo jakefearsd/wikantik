@@ -21,7 +21,7 @@ part-of:
 ---
 # Linear Programming Foundations
 
-Linear programming (LP) is the foundational tool of operations research. It addresses the problem of optimizing (maximizing or minimizing) a linear function of several variables subject to linear equality and inequality constraints. The technique is both mathematically elegant and practically powerful — it underlies supply chain optimization, airline scheduling, portfolio management, and hundreds of other applications.
+Linear programming (LP) is the foundational tool of [operations research](OperationsResearch). It addresses the problem of optimizing (maximizing or minimizing) a linear function of several variables subject to linear equality and inequality constraints. The technique is both mathematically elegant and practically powerful — it underlies supply chain optimization, airline scheduling, portfolio management, and hundreds of other applications.
 
 ## What Is Linear Programming?
 

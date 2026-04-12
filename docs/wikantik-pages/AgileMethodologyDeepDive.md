@@ -1,3 +1,14 @@
+---
+title: Agile Methodology Deep Dive
+type: article
+tags:
+- agil
+- team
+- expert
+summary: This tutorial is not intended as a remedial guide for project managers new
+  to the concept.
+auto-generated: true
+---
 # Agile Methodology
 
 For those of us who spend our professional lives dissecting the seams of complex systems—whether those systems are software architectures, organizational workflows, or theoretical models—the concept of "Agile" can often feel less like a methodology and more like a necessary, adaptive immune response to the inherent unpredictability of large-scale engineering endeavors.
@@ -122,7 +133,7 @@ Scrum is the most widely adopted framework, providing a lightweight structure fo
 
 ### B. Kanban
 
-Kanban is fundamentally different because it is **pull-based**, not time-boxed. It is a direct descendant of Lean manufacturing principles (Toyota Production System) and focuses obsessively on optimizing the *flow* of value.
+Kanban is fundamentally different because it is **pull-based**, not time-boxed. It is a direct descendant of [Lean manufacturing principles](LeanManufacturingPrinciples) (Toyota Production System) and focuses obsessively on optimizing the *flow* of value.
 
 **Core Mechanics:**
 1.  **Visualization:** The Kanban Board is the single source of truth, mapping the workflow stages (e.g., To Do $\rightarrow$ Analysis $\rightarrow$ Development $\rightarrow$ Testing $\rightarrow$ Done).

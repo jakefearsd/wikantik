@@ -1,3 +1,15 @@
+---
+title: Java Streams And Functional Programming
+type: article
+tags:
+- stream
+- function
+- us
+summary: Java, historically a bastion of explicit, object-oriented imperative programming,
+  found itself increasingly challenged by the demands of modern, concurrent, and data-intensive
+  applications.
+auto-generated: true
+---
 # The Functional Paradigm in Java
 
 For the seasoned engineer, the introduction of Java 8's functional features—Lambda Expressions, the Stream API, and the associated paradigm shift—was less of an enhancement and more of a necessary paradigm correction. Java, historically a bastion of explicit, object-oriented imperative programming, found itself increasingly challenged by the demands of modern, concurrent, and data-intensive applications.

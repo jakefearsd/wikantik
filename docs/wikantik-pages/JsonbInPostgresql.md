@@ -1,3 +1,14 @@
+---
+title: Jsonb In Postgresql
+type: article
+tags:
+- index
+- jsonb
+- data
+summary: Enter the document store paradigm, and with it, the necessity of flexible
+  schema management.
+auto-generated: true
+---
 # JSONB in PostgreSQL
 
 For those of us who have spent any significant amount of time wrestling with data models, the concept of rigid, predefined schemas has often felt less like a structural guarantee and more like a self-imposed straitjacket. While the relational model, the bedrock of SQL, remains undeniably powerful for enforcing transactional integrity and managing highly normalized data, it frequently buckles when confronted with the messy, evolving reality of modern application data—the kind of data that arrives from third-party APIs, user-generated content, or complex telemetry streams.

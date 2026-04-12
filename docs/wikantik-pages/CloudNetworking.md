@@ -1,3 +1,14 @@
+---
+title: Cloud Networking
+type: article
+tags:
+- rout
+- vpc
+- network
+summary: If you are reading this, you are likely past the stage of simply deploying
+  a basic three-tier web application.
+auto-generated: true
+---
 # Digital Plumbing
 
 Welcome. If you are reading this, you are likely past the stage of simply deploying a basic three-tier web application. You are in the trenches, wrestling with cross-region failovers, implementing micro-segmentation policies that must survive a major geopolitical incident, or perhaps just trying to figure out why your egress traffic suddenly incurred a 300% cost increase due to an unexpected NAT traversal path.
@@ -246,10 +257,10 @@ We have traversed the foundational concepts—from the simple subnet carving to 
 
 The takeaway for the expert researcher is this: **Network configuration is no longer a manual process; it is a state machine that must be defined, version-controlled, and validated.**
 
-Any system relying on manual console configuration for routing tables, peering connections, or gateway rules is inherently brittle. The only way to manage the complexity of a multi-region, hybrid, micro-segmented environment is to treat the entire network topology—the VPC definitions, the subnet assignments, the route table entries, the BGP attributes, and the security policies—as **Infrastructure as Code (IaC)**.
+Any system relying on manual console configuration for routing tables, peering connections, or gateway rules is inherently brittle. The only way to manage the complexity of a multi-region, hybrid, micro-segmented environment is to treat the entire network topology—the VPC definitions, the subnet assignments, the route table entries, the BGP attributes, and the security policies—as **[Infrastructure as Code](InfrastructureAsCode) (IaC)**.
 
 Mastering VPC subnet routing is not about knowing the names of the services (IGW, NAT GW, TGW); it is about mastering the *declarative logic* that dictates the flow of bits across a highly abstracted, multi-layered, and vendor-specific plumbing system.
 
-If you can model your entire network topology, including all failure paths, failover mechanisms, and policy enforcement points, using a tool like Terraform or Pulumi, you are operating at the expert level. Anything less is merely configuration management, not true network architecture.
+If you can model your entire network topology, including all failure paths, failover mechanisms, and policy enforcement points, using a tool like Terraform or Pulumi, you are operating at the expert level. Anything less is merely [configuration management](ConfigurationManagement), not true network architecture.
 
 Now, go build something that can withstand a major failure event. You'll need the knowledge to prove it.

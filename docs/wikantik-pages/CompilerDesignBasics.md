@@ -1,3 +1,13 @@
+---
+title: Compiler Design Basics
+type: article
+tags:
+- gener
+- grammar
+- code
+summary: It is the ultimate act of structured interpretation.
+auto-generated: true
+---
 # The Architecture of Understanding
 
 For those of us who spend our professional lives wrestling with the formalisms of computation, the compiler pipeline—the sequence of transforming a sequence of characters into executable machine instructions—is less a process and more a fundamental pillar of computer science. It is the ultimate act of structured interpretation.

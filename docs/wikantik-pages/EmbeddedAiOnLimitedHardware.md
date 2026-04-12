@@ -143,7 +143,7 @@ Purpose-built architectures for constrained devices:
 - **EfficientNet:** Compound scaling of depth, width, and resolution. EfficientNet-Lite variants are optimized for mobile deployment.
 - **SqueezeNet:** Achieves AlexNet-level accuracy in under 0.5 MB through aggressive use of 1×1 convolutions.
 - **TinyBERT / DistilBERT:** Compressed language models for on-device NLP tasks like sentiment analysis and intent classification.
-- **Phi-3 Mini / Gemma 2B:** Small language models (2–3.8B parameters) that run on phones and laptops for basic text generation and understanding.
+- **Phi-3 Mini / Gemma 2B:** [Small language models](SmallLanguageModels) (2–3.8B parameters) that run on phones and laptops for basic text generation and understanding.
 
 ### TinyML: ML on Microcontrollers
 

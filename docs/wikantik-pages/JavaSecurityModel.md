@@ -1,6 +1,17 @@
+---
+title: Java Security Model
+type: article
+tags:
+- jaa
+- permiss
+- secur
+summary: The Mechanics The Java platform has always been a sprawling beast when it
+  comes to security.
+auto-generated: true
+---
 # The Mechanics
 
-The Java platform has always been a sprawling beast when it comes to security. From the initial sandbox model to the complex interplay of `java.security` packages, understanding how authorization is enforced is less about knowing a single API call and more about understanding the underlying security contract. Among the historical pillars of this ecosystem is the Java Authentication and Authorization Service (JAAS).
+The Java platform has always been a sprawling beast when it comes to security. From the initial sandbox model to the complex interplay of `java.security` packages, understanding how authorization is enforced is less about knowing a single API call and more about understanding the underlying security contract. Among the historical pillars of this ecosystem is the Java [Authentication and Authorization](AuthenticationAndAuthorization) Service (JAAS).
 
 For experts researching novel security techniques, JAAS is not merely a historical footnote; it is a foundational mechanism whose nuances—particularly concerning `Principals` and `Permissions`—reveal deep insights into Java's security architecture. This tutorial aims to move beyond the introductory "how-to-login" guides and instead dissect the mechanics, limitations, and advanced integration points of JAAS, assuming a high degree of familiarity with Java concurrency, reflection, and the Java Security Manager.
 

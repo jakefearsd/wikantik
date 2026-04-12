@@ -1,3 +1,14 @@
+---
+title: Postgresql Advanced Features
+type: article
+tags:
+- row
+- window
+- function
+summary: If you think you understand GROUP BY, you haven't truly grasped the power
+  of the OVER() clause.
+auto-generated: true
+---
 # PostgreSQL Window Functions
 
 For those of us who spend too much time staring at query plans, window functions are less a "feature" and more a fundamental paradigm shift in how we approach relational data analysis. If you think you understand `GROUP BY`, you haven't truly grasped the power of the `OVER()` clause.

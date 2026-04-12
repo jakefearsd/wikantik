@@ -1,3 +1,15 @@
+---
+title: Winter Preparedness
+type: article
+tags:
+- text
+- heat
+- must
+summary: 'Advanced Protocols for Cold Weather Resilience Target Audience: Research
+  Scientists, Disaster Mitigation Engineers, Emergency Response Planners, and High-Level
+  Technical Specialists.'
+auto-generated: true
+---
 # Advanced Protocols for Cold Weather Resilience
 
 **Target Audience:** Research Scientists, Disaster Mitigation Engineers, Emergency Response Planners, and High-Level Technical Specialists.

@@ -1,10 +1,22 @@
+---
+title: Efficient Context
+type: article
+tags:
+- context
+- agent
+- system
+summary: 'The current frontier of AI research—agentic systems, complex reasoning chains,
+  and long-term memory—is fundamentally constrained by one physical reality: the finite
+  attention budget.'
+auto-generated: true
+---
 # Efficient Context
 
 ## Introduction: The Context Bottleneck in Modern AI Architectures
 
 If you are reading this, you are likely already aware that Large Language Models (LLMs) are not mere black boxes; they are complex, context-dependent inference engines. The current frontier of AI research—agentic systems, complex reasoning chains, and long-term memory—is fundamentally constrained by one physical reality: **the finite attention budget.**
 
-The initial promise of LLMs suggested that simply feeding more data into the prompt would equate to better performance. This naive approach, however, quickly collided with the physical limitations of the Transformer architecture. The quadratic complexity of the self-attention mechanism, $\mathcal{O}(N^2)$, where $N$ is the sequence length, means that context length is not merely a matter of memory, but of computational feasibility and signal degradation.
+The initial promise of LLMs suggested that simply feeding more data into the prompt would equate to better performance. This naive approach, however, quickly collided with the physical limitations of the [Transformer architecture](TransformerArchitecture). The quadratic complexity of the self-attention mechanism, $\mathcal{O}(N^2)$, where $N$ is the sequence length, means that context length is not merely a matter of memory, but of computational feasibility and signal degradation.
 
 For the expert researcher, the challenge is no longer *if* the model can process information, but *how* to curate, compress, and architecturally manage the flow of information such that the most salient, actionable knowledge is presented to the model at the precise moment it is required, without overwhelming the attention mechanism or suffering from context drift.
 
@@ -178,7 +190,7 @@ In the context of knowledge tracing (KT) or state tracking, this is revolutionar
 
 $$\mathbf{s}_t = \text{SSM\_Update}(\mathbf{s}_{t-1}, t_t)$$
 
-The model's ability to encode context into this compact state vector $\mathbf{s}_t$ means that the *effective* context length for the subsequent attention layers is no longer $N$, but rather the dimensionality of $\mathbf{s}_t$, which is constant and small. This is the ultimate form of context compression.
+The model's ability to encode context into this compact state vector $\mathbf{s}_t$ means that the *effective* context length for the subsequent attention layers is no longer $N$, but rather the dimensionality of $\mathbf{s}_t$, which is constant and small. This is the ultimate form of [context compression](ContextCompression).
 
 ### B. Multi-Agent Context Scoping and Orchestration
 

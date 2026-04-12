@@ -1,8 +1,19 @@
+---
+title: Neural Network Architectures
+type: article
+tags:
+- text
+- mathbf
+- activ
+summary: This tutorial is not for the novice who needs to know that a neural network
+  passes data forward.
+auto-generated: true
+---
 # The Calculus of Computation
 
 For those of us who spend our days wrestling with gradient descent, optimizing loss landscapes, and arguing over the precise mathematical definition of "sufficiently non-linear," the interplay between architectural layers and activation functions is not merely a set of best practices—it is the fundamental physics of modern deep learning.
 
-This tutorial is not for the novice who needs to know that a neural network passes data forward. We assume a working knowledge of linear algebra, calculus (specifically multivariable differentiation), and the mechanics of stochastic gradient descent. Our focus here is on the *theoretical underpinnings*, the *optimization implications*, and the *cutting-edge research frontiers* concerning how these components interact to define the expressive power and stability of deep models.
+This tutorial is not for the novice who needs to know that a neural network passes data forward. We assume a working knowledge of [linear algebra](LinearAlgebra), calculus (specifically multivariable differentiation), and the mechanics of stochastic gradient descent. Our focus here is on the *theoretical underpinnings*, the *optimization implications*, and the *cutting-edge research frontiers* concerning how these components interact to define the expressive power and stability of deep models.
 
 ---
 
@@ -110,7 +121,7 @@ $$
 \text{GELU}(z) = z \cdot \Phi(z) = z \cdot \frac{1}{\sqrt{2\pi}} \int_{-\infty}^{z} e^{-t^2/2} dt
 $$
 Where $\Phi(z)$ is the Cumulative Distribution Function (CDF) of the standard normal distribution.
-*   **Significance:** GELU is arguably the most impactful recent development, particularly in the Transformer architecture. Its mathematical derivation links the activation directly to the Gaussian distribution, which is theoretically appealing.
+*   **Significance:** GELU is arguably the most impactful recent development, particularly in the [Transformer architecture](TransformerArchitecture). Its mathematical derivation links the activation directly to the Gaussian distribution, which is theoretically appealing.
 *   **Gradient Flow:** GELU is smooth and has been empirically shown to stabilize training and improve performance in sequence modeling tasks compared to ReLU, especially when the model depth is extreme.
 
 | Activation Function | Formula (Conceptual) | Range | Key Advantage | Primary Drawback | Best Use Case |
@@ -164,7 +175,7 @@ The output of this attention mechanism is then passed through a feedforward netw
 
 ## 4. Advanced Stabilization Techniques: Normalization and Regularization
 
-A truly expert-level understanding requires acknowledging that the activation function is rarely used in isolation. It is almost always paired with normalization and regularization techniques that modify the input distribution to the activation.
+A truly expert-level understanding requires acknowledging that the activation function is rarely used in isolation. It is almost always paired with normalization and [regularization techniques](RegularizationTechniques) that modify the input distribution to the activation.
 
 ### 4.1 Normalization Layers: Stabilizing the Input Manifold
 

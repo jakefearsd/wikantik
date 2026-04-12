@@ -1,3 +1,15 @@
+---
+title: Agent Testing
+type: article
+tags:
+- agent
+- test
+- must
+summary: Agent Testing The advent of sophisticated AI agents—systems capable of complex,
+  multi-step reasoning, tool utilization, and autonomous goal pursuit—represents a
+  paradigm shift in software engineering.
+auto-generated: true
+---
 # Agent Testing
 
 The advent of sophisticated AI agents—systems capable of complex, multi-step reasoning, tool utilization, and autonomous goal pursuit—represents a paradigm shift in software engineering. We have moved far beyond the era of deterministic, linear workflows where a single input yields a predictable output. Modern agents operate in a stochastic, high-dimensional state space, making traditional Quality Assurance (QA) methodologies woefully inadequate.
@@ -72,7 +84,7 @@ This is the most critical area for advanced research. We must probe the boundari
 
 ### 2.3 Performance (Efficiency and Resource Management)
 
-Performance evaluation moves beyond mere correctness to assess *efficiency*. An agent that works but takes three hours and costs $\$100$ in API calls is not performant.
+[Performance evaluation](PerformanceEvaluation) moves beyond mere correctness to assess *efficiency*. An agent that works but takes three hours and costs $\$100$ in API calls is not performant.
 
 #### A. Computational Efficiency Metrics
 *   **Latency:** The time taken from receiving the initial prompt to delivering the final, actionable output. This must be measured across different network conditions (simulated latency).
@@ -144,7 +156,7 @@ We must move beyond simple accuracy ($\text{Accuracy} = \frac{TP+TN}{Total}$).
 For the most advanced research, the distinction between these two approaches is crucial:
 
 *   **Empirical Testing (The Current State):** Testing by running thousands of samples and observing the distribution of outcomes. It provides high confidence *within the tested distribution* but offers no guarantee outside it. This is what most industry tools rely on.
-*   **Formal Verification (The Ideal State):** Using mathematical proofs to prove that the agent's policy $\pi$ adheres to a set of formal specifications (e.g., "The agent will *never* execute an action that modifies the user's financial records without explicit confirmation"). This requires modeling the agent's logic using formal methods (e.g., temporal logic, automata theory).
+*   **Formal Verification (The Ideal State):** Using mathematical proofs to prove that the agent's policy $\pi$ adheres to a set of formal specifications (e.g., "The agent will *never* execute an action that modifies the user's financial records without explicit confirmation"). This requires modeling the agent's logic using formal methods (e.g., [temporal logic](TemporalLogic), automata theory).
 
 **The Research Frontier:** The goal is to build **Hybrid Verification Systems** that use formal methods to prove safety invariants for critical subsystems (e.g., the tool-calling parser) while using empirical testing for the high-variance, creative reasoning components (the LLM prompt).
 

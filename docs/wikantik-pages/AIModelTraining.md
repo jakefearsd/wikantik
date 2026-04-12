@@ -48,7 +48,7 @@ The architecture defines the model's structure — how information flows through
 - **Context length:** The maximum sequence length the model can process at once
 - **Attention mechanism:** Standard multi-head attention, grouped-query attention, or other variants that trade off capability against efficiency
 
-Most modern language models use the decoder-only Transformer architecture, following the approach pioneered by the GPT series.
+Most modern language models use the decoder-only [Transformer architecture](TransformerArchitecture), following the approach pioneered by the GPT series.
 
 ### The Training Loop
 

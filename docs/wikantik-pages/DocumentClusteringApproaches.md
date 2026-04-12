@@ -1,6 +1,16 @@
+---
+title: Document Clustering Approaches
+type: article
+tags:
+- mathbf
+- cluster
+- text
+summary: Document Clustering Approaches with K-Means Welcome.
+auto-generated: true
+---
 # Document Clustering Approaches with K-Means
 
-Welcome. If you are reading this, you are likely already familiar with the basic concepts of Natural Language Processing (NLP) and unsupervised machine learning. You understand that raw text is inherently messy, high-dimensional, and context-dependent. The goal of document clustering is not merely to group documents; it is to impose a mathematically rigorous structure onto the amorphous chaos of human communication, allowing us to discover latent themes, topical boundaries, and underlying semantic relationships within a corpus.
+Welcome. If you are reading this, you are likely already familiar with the basic concepts of [Natural Language Processing](NaturalLanguageProcessing) (NLP) and unsupervised [machine learning](MachineLearning). You understand that raw text is inherently messy, high-dimensional, and context-dependent. The goal of document clustering is not merely to group documents; it is to impose a mathematically rigorous structure onto the amorphous chaos of human communication, allowing us to discover latent themes, topical boundaries, and underlying semantic relationships within a corpus.
 
 This tutorial is not a "how-to" guide for a junior data analyst. It is a comprehensive, deeply technical exploration of the methodology, mathematical underpinnings, practical pitfalls, and advanced extensions of using K-Means clustering on textual data, suitable for expert software engineers and data scientists engaged in serious research.
 
@@ -157,7 +167,7 @@ We apply linear dimensionality reduction techniques:
 1.  **Principal Component Analysis (PCA):** A linear technique that finds the directions (principal components) in the data that maximize variance.
     $$ \mathbf{X}_{\text{reduced}} = \mathbf{X} \cdot \mathbf{W} $$
     Where $\mathbf{W}$ contains the top $d$ eigenvectors corresponding to the largest eigenvalues.
-2.  **Truncated Singular Value Decomposition (Truncated SVD):** This is the preferred method when dealing with **sparse, count-based matrices** (like TF-IDF). SVD is mathematically equivalent to PCA when applied to the covariance matrix, but it is optimized for sparse data structures.
+2.  **Truncated Singular Value Decomposition (Truncated SVD):** This is the preferred method when dealing with **sparse, count-based matrices** (like TF-IDF). SVD is mathematically equivalent to PCA when applied to the covariance matrix, but it is optimized for sparse [data structures](DataStructures).
 
 The output $\mathbf{X}_{\text{final}}$ is the $N \times d$ matrix, where $d \ll D$.
 

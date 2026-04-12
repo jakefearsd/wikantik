@@ -1,8 +1,19 @@
+---
+title: Aws Fundamentals
+type: article
+tags:
+- servic
+- aw
+- data
+summary: Frankly, if you are researching new techniques, you are already beyond the
+  point of needing a primer on what a virtual machine is.
+auto-generated: true
+---
 # AWS Cloud Fundamentals Services Overview
 
 For those of us who have spent enough time in the trenches of distributed systems, the term "AWS Fundamentals" often evokes images of introductory material—the basic definitions of EC2, S3, and RDS. Frankly, if you are researching *new techniques*, you are already beyond the point of needing a primer on what a virtual machine is.
 
-This document is not a "getting started" guide. It is a comprehensive, highly technical deep dive into the architectural implications, operational trade-offs, and advanced integration patterns of the core AWS service portfolio. We assume fluency in distributed computing concepts, CAP theorem implications, eventual consistency models, and the nuances of modern microservices orchestration.
+This document is not a "getting started" guide. It is a comprehensive, highly technical deep dive into the architectural implications, operational trade-offs, and advanced integration patterns of the core AWS service portfolio. We assume fluency in distributed computing concepts, [CAP theorem](CapTheorem) implications, [eventual consistency](EventualConsistency) models, and the nuances of modern microservices orchestration.
 
 Our goal here is not merely to list services, but to map the *solution space*—to understand which combination of these fundamental building blocks yields the optimal balance of cost, latency, durability, and operational complexity for cutting-edge workloads.
 
@@ -135,7 +146,7 @@ Global Secondary Indexes (GSIs) are powerful but introduce complexity. A GSI is 
 
 Caching is not a single service; it is a pattern. ElastiCache provides two primary engines, each suited for different needs.
 
-*   **Redis (Recommended Default):** Offers rich data structures (Lists, Sets, Sorted Sets, Hashes) and persistence options. Its atomic operations (e.g., `INCR` for counters, `SADD` for unique tracking) make it vastly superior for complex session management and rate limiting.
+*   **Redis (Recommended Default):** Offers rich [data structures](DataStructures) (Lists, Sets, Sorted Sets, Hashes) and persistence options. Its atomic operations (e.g., `INCR` for counters, `SADD` for unique tracking) make it vastly superior for complex session management and rate limiting.
 *   **Memcached:** Simpler, faster, and purely in-memory. It is best suited for simple key-value lookups where complex data structures are not needed, and persistence is irrelevant.
 
 ---
@@ -146,7 +157,7 @@ The Virtual Private Cloud (VPC) is the logical boundary of your entire deploymen
 
 ### A. Security Boundaries: Security Groups vs. NACLs
 
-This distinction is often blurred by newcomers, but for experts, it is fundamental to network segmentation.
+This distinction is often blurred by newcomers, but for experts, it is fundamental to [network segmentation](NetworkSegmentation).
 
 1.  **Security Groups (SG):** **Stateful, Instance-Level Firewall.** They operate at the *instance* level. If you allow outbound traffic on port 80, the return inbound traffic is *automatically* allowed, regardless of explicit rules. They are the primary, recommended defense mechanism.
 2.  **Network Access Control Lists (NACLs):** **Stateless, Subnet-Level Firewall.** They operate at the *subnet* boundary. Because they are stateless, you must explicitly define rules for *both* the inbound traffic *and* the corresponding outbound return traffic. This stateless nature makes them powerful for defense-in-depth but requires meticulous rule management.
@@ -228,7 +239,7 @@ IAM is the control plane for *who* can do *what* to *which* resource.
 Hardcoding secrets is an immediate failure state.
 
 *   **AWS Secrets Manager:** Use this for credentials that require **automatic rotation** (e.g., database passwords). It integrates directly with RDS and other services to manage the rotation lifecycle, drastically reducing operational toil and risk.
-*   **AWS Parameter Store (SSM):** Ideal for non-secret configuration parameters (e.g., API endpoints, feature flags). It supports encryption via KMS, but Secrets Manager is superior when rotation is a requirement.
+*   **AWS Parameter Store (SSM):** Ideal for non-secret configuration parameters (e.g., API endpoints, [feature flags](FeatureFlags)). It supports encryption via KMS, but Secrets Manager is superior when rotation is a requirement.
 *   **AWS KMS (Key Management Service):** This is the root of trust for encryption. You do not encrypt data *with* KMS; you use KMS to *manage the keys* that encrypt the data in S3, RDS, or DynamoDB. Understanding the difference between **Customer Managed Keys (CMKs)** and AWS-managed keys is vital, as CMKs allow you to enforce key rotation policies and audit key usage via CloudTrail.
 
 ### C. Governance and Guardrails: AWS Organizations & SCPs

@@ -1,8 +1,19 @@
+---
+title: Database Partitioning
+type: article
+tags:
+- partit
+- hash
+- rang
+summary: When data volumes swell into the petabyte realm, the monolithic database
+  structure becomes a performance bottleneck, a digital choke point.
+auto-generated: true
+---
 # Data Distribution
 
 For those of us who spend our professional lives wrestling with the sheer, unbridled volume of modern data, the concept of data partitioning is not merely an optimization—it is a fundamental prerequisite for system viability. When data volumes swell into the petabyte realm, the monolithic database structure becomes a performance bottleneck, a digital choke point. Partitioning, in essence, is the art and science of preemptively dividing a logical dataset into smaller, manageable physical segments, thereby allowing query engines to operate on subsets of data, dramatically reducing I/O, and improving concurrency.
 
-This tutorial is not for the DBA who merely needs to execute a `CREATE TABLE ... PARTITION BY...` statement. We are addressing the advanced researcher, the architect designing the next generation of distributed data stores, and the engineer grappling with the theoretical limits of data locality and query optimization. Our focus today is on the apex of composite partitioning complexity: the **Range-List-Hash** scheme.
+This tutorial is not for the DBA who merely needs to execute a `CREATE TABLE ... PARTITION BY...` statement. We are addressing the advanced researcher, the architect designing the next generation of distributed data stores, and the engineer grappling with the theoretical limits of data locality and [query optimization](QueryOptimization). Our focus today is on the apex of composite partitioning complexity: the **Range-List-Hash** scheme.
 
 We will dissect this technique, exploring its theoretical underpinnings, its practical implementation nuances across various database paradigms, its inherent trade-offs, and the sophisticated edge cases that demand expert consideration.
 
@@ -170,7 +181,7 @@ These maintenance operations are computationally intensive and often require sig
 
 ### 4.3. Comparison with Consistent Hashing (The Theoretical Overlap)
 
-The Wikipedia context notes that Consistent Hashing can be viewed as a composite of hash and list partitioning. This is a crucial point of differentiation.
+The Wikipedia context notes that [Consistent Hashing](ConsistentHashing) can be viewed as a composite of hash and list partitioning. This is a crucial point of differentiation.
 
 | Feature | Range-List-Hash | Consistent Hashing (e.g., Dynamo/Cassandra) |
 | :--- | :--- | :--- |

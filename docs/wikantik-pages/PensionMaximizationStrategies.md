@@ -1,3 +1,14 @@
+---
+title: Pension Maximization Strategies
+type: article
+tags:
+- text
+- model
+- withdraw
+summary: 'Pension Maximization Target Audience: Quantitative Researchers, Actuaries,
+  Financial Engineers, and Advanced Retirement Planners.'
+auto-generated: true
+---
 # Pension Maximization
 
 **Target Audience:** Quantitative Researchers, Actuaries, Financial Engineers, and Advanced Retirement Planners.
@@ -81,7 +92,7 @@ Where:
 *   $U(w_t)$ is the utility derived from the withdrawal at time $t$.
 *   $E[V_{t+1}(\cdot)]$ is the expected value of the utility at the next period, conditional on the current state.
 
-**Practical Implementation Note:** Solving this analytically is intractable due to the continuous state space ($W_t$). Therefore, numerical methods like Value Function Iteration (VFI) or Policy Function Approximation (PFA) are required.
+**Practical Implementation Note:** Solving this analytically is intractable due to the continuous state space ($W_t$). Therefore, [numerical methods](NumericalMethods) like Value Function Iteration (VFI) or Policy Function Approximation (PFA) are required.
 
 ### C. Incorporating Investment Constraints and Behavioral Biases
 
@@ -226,7 +237,7 @@ Advanced research must therefore develop **Behaviorally Constrained Optimization
 When comparing $L$ vs. $A$, the perceived inflation protection is often the deciding factor.
 
 *   **Annuity:** The inflation protection is *contractually defined* and subject to the insurer's solvency and indexation rules.
-*   **Lump Sum:** The inflation protection is *self-managed* via asset allocation (e.g., TIPS, commodities, real assets).
+*   **Lump Sum:** The inflation protection is *self-managed* via [asset allocation](AssetAllocation) (e.g., TIPS, commodities, real assets).
 
 A quantitative analysis should calculate the **Inflation Hedge Premium (IHP)**:
 $$\text{IHP} = \text{Expected Real Return}_{\text{Portfolio}} - \text{Expected Real Return}_{\text{Annuity Index}}$$

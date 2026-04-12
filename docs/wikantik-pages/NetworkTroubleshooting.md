@@ -1,3 +1,13 @@
+---
+title: Network Troubleshooting
+type: article
+tags:
+- packet
+- tcpdump
+- layer
+summary: This tutorial assumes a high level of proficiency.
+auto-generated: true
+---
 # Advanced Network Diagnostics
 
 For those of us who treat network diagnostics not as a checklist of commands, but as a forensic science, the tools provided in the standard Linux toolkit are merely the initial evidence collection kits. We are not here to confirm basic connectivity; we are here to dissect the failure modes, analyze the subtle deviations from the expected protocol state, and understand *why* the packet arrived—or, more critically, *why* it failed to arrive.

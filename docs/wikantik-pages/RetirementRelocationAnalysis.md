@@ -1,3 +1,14 @@
+---
+title: Retirement Relocation Analysis
+type: article
+tags:
+- text
+- tax
+- cost
+summary: 'The Optimization Frontier Target Audience: Experts in Financial Modeling,
+  Quantitative Analysis, Retirement Planning, and Tax Law Research.'
+auto-generated: true
+---
 # The Optimization Frontier
 
 **Target Audience:** Experts in Financial Modeling, Quantitative Analysis, Retirement Planning, and Tax Law Research.

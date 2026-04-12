@@ -1,3 +1,14 @@
+---
+title: Sanitation Emergencies
+type: article
+tags:
+- text
+- wast
+- system
+summary: This tutorial is designed for experts, researchers, and engineers operating
+  at the forefront of WASH (Water, Sanitation, and Hygiene) technology.
+auto-generated: true
+---
 # Sanitation Systems and Waste Management in Emergencies
 
 The management of human waste and refuse in the aftermath of a disaster—be it natural catastrophe, conflict, or epidemic outbreak—is not merely a logistical challenge; it is a critical determinant of public health outcomes. When established municipal infrastructure collapses, the failure to implement robust, context-appropriate sanitation and waste management protocols rapidly transforms a humanitarian crisis into a full-blown epidemiological catastrophe.

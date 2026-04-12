@@ -1,3 +1,15 @@
+---
+title: Berlin Immigration And Diversity
+type: article
+tags:
+- cultur
+- berlin
+- multicultur
+summary: 'Berlin''s Immigration, Multiculturalism, and Diversity Target Audience:
+  Experts in Sociology, Urban Studies, Migration Theory, Cultural Anthropology, and
+  Policy Research.'
+auto-generated: true
+---
 # Berlin's Immigration, Multiculturalism, and Diversity
 
 **Target Audience:** Experts in Sociology, Urban Studies, Migration Theory, Cultural Anthropology, and Policy Research.

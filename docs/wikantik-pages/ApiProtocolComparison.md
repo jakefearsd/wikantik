@@ -1,3 +1,15 @@
+---
+title: Api Protocol Comparison
+type: article
+tags:
+- client
+- data
+- graphql
+summary: We are not merely selecting a protocol; we are defining the very contract,
+  the cognitive model, and the operational constraints under which our entire service
+  ecosystem will function.
+auto-generated: true
+---
 # Comparison of REST, GraphQL, and gRPC
 
 For those of us who spend our professional lives wrestling with the plumbing of distributed systems, the question of "how should we expose our data?" is less a question and more a philosophical battleground. We are not merely selecting a protocol; we are defining the very contract, the cognitive model, and the operational constraints under which our entire service ecosystem will function.

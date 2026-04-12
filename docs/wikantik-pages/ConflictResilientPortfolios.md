@@ -38,7 +38,7 @@ The distinction between holding a broad index fund and holding a handful of indi
 
 During the Gulf War (1990-1991), the S&P 500 dropped approximately 16% from its July peak but recovered fully within six months of the ground campaign's conclusion. Individual oil stocks, defense contractors, and airlines experienced far more volatile paths, with some airline stocks losing 40-60% and taking years to approach their pre-crisis prices.
 
-The 2022 Russia-Ukraine conflict provides a more recent example. Broad international index funds (MSCI ACWI ex-Russia) absorbed the shock of Russian market isolation with modest drawdowns. Investors holding individual Russian ADRs or European energy stocks faced catastrophic, unrecoverable losses. The lesson from [Conflicts and Equity Markets](ConflictsAndEquityMarkets) applies directly: systemic risk is manageable through diversification, but idiosyncratic risk in conflict-exposed sectors is not.
+The 2022 Russia-Ukraine conflict provides a more recent example. Broad [international index funds](InternationalIndexFunds) (MSCI ACWI ex-Russia) absorbed the shock of Russian market isolation with modest drawdowns. Investors holding individual Russian ADRs or European energy stocks faced catastrophic, unrecoverable losses. The lesson from [Conflicts and Equity Markets](ConflictsAndEquityMarkets) applies directly: systemic risk is manageable through diversification, but idiosyncratic risk in conflict-exposed sectors is not.
 
 The 1973 Arab-Israeli War and subsequent oil embargo produced one of the sharpest sector divergences in market history. Energy stocks soared while the broader market fell roughly 45% over the following year. An investor holding only energy stocks would have felt brilliant for six months and then watched those gains evaporate as the economy adjusted. A total market index holder endured the downturn but participated fully in the recovery.
 
@@ -56,7 +56,7 @@ For the index fund investor following the principles in [Index Fund Portfolio Co
 
 ### International Diversification During Conflict Periods
 
-Geographic diversification is the most direct defense against region-specific geopolitical risk. A portfolio concentrated entirely in U.S. equities would have been badly exposed during a hypothetical direct conflict involving U.S. territory or trade routes, just as a portfolio concentrated in European equities suffered disproportionately during the 2022 energy crisis.
+Geographic diversification is the most direct defense against region-specific geopolitical risk. A portfolio concentrated entirely in U.S. equities would have been badly exposed during a hypothetical direct conflict involving U.S. territory or [trade routes](TradeRoutes), just as a portfolio concentrated in European equities suffered disproportionately during the 2022 energy crisis.
 
 The practical approach from [Asset Allocation Guide](AssetAllocationGuide) applies with additional conflict-era nuance:
 
@@ -93,6 +93,6 @@ A retiree who begins withdrawals just as a major conflict triggers a 25-30% equi
 
 ## The Behavioral Challenge
 
-The hardest part of conflict-resilient portfolio management is not the asset allocation math. It is the discipline to follow through when the news is genuinely frightening. The historical record, documented across [Conflict Market Patterns](ConflictMarketPatterns), shows that markets price in geopolitical risk faster than individual investors can react. By the time a retail investor reads about a conflict and decides to sell, the decline has largely occurred. By the time they feel safe enough to re-enter, the recovery is well underway.
+The hardest part of conflict-resilient portfolio management is not the [asset allocation](AssetAllocation) math. It is the discipline to follow through when the news is genuinely frightening. The historical record, documented across [Conflict Market Patterns](ConflictMarketPatterns), shows that markets price in geopolitical risk faster than individual investors can react. By the time a retail investor reads about a conflict and decides to sell, the decline has largely occurred. By the time they feel safe enough to re-enter, the recovery is well underway.
 
 For index fund investors, the prescription is unglamorous but effective: build a diversified portfolio that matches your risk tolerance, maintain adequate cash reserves for near-term spending, rebalance systematically, and treat geopolitical headlines as noise rather than signal. The portfolio that survives conflicts is the one that was built to survive conflicts before they began.

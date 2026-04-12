@@ -1,6 +1,17 @@
+---
+title: Cloud Security Fundamentals
+type: article
+tags:
+- polici
+- network
+- iam
+summary: This tutorial is not intended for the practitioner who needs to know how
+  to attach a basic s3:GetObject permission.
+auto-generated: true
+---
 # Cloud Security IAM Policies and the Network Plane
 
-The intersection of Identity and Access Management (IAM) policies with network security controls represents one of the most complex, rapidly evolving, and critically important domains in modern cloud architecture. For those of us who have spent enough time in this field, the concept of "security" often devolves into a battle against entropy—the entropy of configuration drift, the entropy of multi-cloud abstraction, and the entropy of human error.
+The intersection of [Identity and Access Management](IdentityAndAccessManagement) (IAM) policies with network security controls represents one of the most complex, rapidly evolving, and critically important domains in modern cloud architecture. For those of us who have spent enough time in this field, the concept of "security" often devolves into a battle against entropy—the entropy of configuration drift, the entropy of multi-cloud abstraction, and the entropy of human error.
 
 This tutorial is not intended for the practitioner who needs to know how to attach a basic `s3:GetObject` permission. We are addressing the research engineer, the security architect designing the next generation of policy enforcement points, and the researcher grappling with the theoretical limits of declarative security models. We will dissect the mechanisms, explore the theoretical shortcomings, and map out the bleeding edge of securing the network plane using identity primitives.
 
@@ -10,7 +21,7 @@ This tutorial is not intended for the practitioner who needs to know how to atta
 
 Historically, network security was modeled around the **Perimeter Defense Model**. The network boundary—the firewall, the VPN gateway—was the primary control plane. Access was granted based on source IP, destination IP, and port (Layer 3/4). This model, while foundational, proved laughably brittle in the age of microservices, ephemeral containers, and remote work. The perimeter dissolved.
 
-The modern paradigm, which we are forced to adopt, is the **Zero Trust Architecture (ZTA)**. In ZTA, the network is inherently untrusted. Trust must be established, continuously verified, and scoped down to the absolute minimum required for a specific transaction.
+The modern paradigm, which we are forced to adopt, is the **[Zero Trust Architecture](ZeroTrustArchitecture) (ZTA)**. In ZTA, the network is inherently untrusted. Trust must be established, continuously verified, and scoped down to the absolute minimum required for a specific transaction.
 
 This shift mandates that the primary control plane moves *from* the network packet headers *to* the identity context of the request. This is where IAM policies become indispensable, transforming them from mere resource permission lists into the fundamental governance layer for network flow.
 

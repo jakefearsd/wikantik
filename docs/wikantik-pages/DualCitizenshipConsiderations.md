@@ -1,3 +1,14 @@
+---
+title: Dual Citizenship Considerations
+type: article
+tags:
+- citizenship
+- dual
+- legal
+summary: 'The Jurisdictional Nexus Target Audience: Experts in International Law,
+  Global Policy, Cross-Border Finance, and Advanced Research Techniques.'
+auto-generated: true
+---
 # The Jurisdictional Nexus
 
 **Target Audience:** Experts in International Law, Global Policy, Cross-Border Finance, and Advanced Research Techniques.

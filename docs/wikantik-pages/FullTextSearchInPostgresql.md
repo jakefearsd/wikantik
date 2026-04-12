@@ -1,3 +1,15 @@
+---
+title: Full Text Search In Postgresql
+type: article
+tags:
+- index
+- token
+- search
+summary: Such methods are fundamentally flawed for modern information retrieval systems
+  because they ignore semantics, linguistic context, and the inherent structure of
+  human language.
+auto-generated: true
+---
 # Semantic Retrieval
 
 For those of us who treat relational databases as mere repositories of structured data, the concept of "search" often remains a naive, string-matching exercise, typically relegated to the inefficient `LIKE '%query%'` construct. Such methods are fundamentally flawed for modern information retrieval systems because they ignore semantics, linguistic context, and the inherent structure of human language.
@@ -282,7 +294,7 @@ To summarize the mastery required:
 2.  **Index Correctly:** Use GIN indexes on the pre-computed `tsvector` column for optimal read performance.
 3.  **Query Intentionally:** Use `tsquery` to enforce boolean logic (`&`, `|`, `!`) and structural constraints (colon operator `:`) to move beyond simple keyword matching.
 4.  **Score Accurately:** Never rely solely on boolean matching; always incorporate `ts_rank` and structure your vector creation to reflect business importance via `setweight`.
-5.  **Manage the Write Path:** Choose between the immediate consistency of Triggers or the superior read performance of Materialized Views based on your workload profile.
+5.  **Manage the Write Path:** Choose between the immediate consistency of Triggers or the superior read performance of [Materialized Views](MaterializedViews) based on your workload profile.
 
 By mastering these components, you move from simply *querying* data to *retrieving knowledge* from it. The system is robust, highly tunable, and, when understood at this depth, represents one of the most powerful search primitives available in the open-source database landscape.
 

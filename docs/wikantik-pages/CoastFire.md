@@ -189,7 +189,7 @@ See [Medicare Planning and Healthcare](MedicarePlanningAndHealthcare) for the he
 
 CoastFIRE assumes you'll continue working in some capacity for 25-35 more years. Health problems, disability, caregiving responsibilities, involuntary job loss, or industry disruption could eliminate your ability to earn. Unlike full FIRE (where the portfolio covers everything), CoastFIRE requires ongoing income for current expenses.
 
-**Mitigation**: Maintain disability insurance during the coast phase. Keep marketable skills current. Build an emergency fund beyond the retirement portfolio.
+**Mitigation**: Maintain [disability insurance](DisabilityInsurance) during the coast phase. Keep marketable skills current. Build an emergency fund beyond the retirement portfolio.
 
 ### Criticism 5: Social Security Is Reduced
 

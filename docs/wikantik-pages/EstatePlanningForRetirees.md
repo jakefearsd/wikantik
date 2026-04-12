@@ -1,3 +1,13 @@
+---
+title: Estate Planning For Retirees
+type: article
+tags:
+- trust
+- asset
+- tax
+summary: We move beyond the introductory "Will vs.
+auto-generated: true
+---
 # Advanced Synthesis in Wealth Transfer
 
 This tutorial is designed for seasoned professionals—estate planning attorneys, financial advisors, wealth managers, and sophisticated researchers—who require an advanced synthesis of modern estate planning instruments. We move beyond the introductory "Will vs. Trust" comparisons to explore the intricate interplay between Revocable Living Trusts, Pour-Over Wills, and specialized trust vehicles necessary for comprehensive retirement and asset protection strategies.

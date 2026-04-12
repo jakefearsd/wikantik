@@ -1,3 +1,14 @@
+---
+title: Jdbc Best Practices
+type: article
+tags:
+- connect
+- you
+- databas
+summary: If you are reading this, you are likely past the point of merely needing
+  to know how to execute a query.
+auto-generated: true
+---
 # JDBC Best Practices
 
 Welcome. If you are reading this, you are likely past the point of merely needing to know *how* to execute a query. You are researching the *optimal* way to execute a query—the way that scales, remains secure against novel attack vectors, and minimizes the overhead of the underlying network and database protocol stack.

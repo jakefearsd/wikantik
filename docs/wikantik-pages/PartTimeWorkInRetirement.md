@@ -1,3 +1,14 @@
+---
+title: Part Time Work In Retirement
+type: article
+tags:
+- withdraw
+- pt
+- model
+summary: This document is not a motivational piece for the novice seeking to quit
+  their job after a few years of aggressive saving.
+auto-generated: true
+---
 # The Optimized Semi-Retirement Trajectory
 
 For those of us who have moved beyond the rudimentary understanding of "early retirement," the concept of simply stopping work and relying solely on a pre-calculated withdrawal rate feels, frankly, quaint. The traditional Financial Independence, Retire Early (FIRE) movement, while revolutionary in its initial premise, often overlooks the inherent volatility of long-term capital drawdowns and the non-linear nature of modern living expenses.
@@ -62,7 +73,7 @@ For the expert researcher, understanding where Barista FIRE sits relative to oth
 | **Barista FIRE** | $W$ + $I_{PT}$ | Income Diversification & Stress Reduction | Medium (Reduced $W_{Adj}$) | High (Requires continuous income management) |
 
 **The Technical Advantage of Barista FIRE:**
-The primary technical advantage is the **decoupling of the withdrawal rate from the total expenditure.** By introducing $I_{PT}$, we are effectively creating a "quasi-guaranteed" income floor that acts as a buffer against poor market performance during the initial withdrawal years (Sequence of Returns Risk). This is a superior risk management technique compared to relying solely on the portfolio's ability to weather a downturn.
+The primary technical advantage is the **decoupling of the withdrawal rate from the total expenditure.** By introducing $I_{PT}$, we are effectively creating a "quasi-guaranteed" income floor that acts as a buffer against poor market performance during the initial withdrawal years ([Sequence of Returns Risk](SequenceOfReturnsRisk)). This is a superior risk management technique compared to relying solely on the portfolio's ability to weather a downturn.
 
 ### C. Mathematical Modeling: The Impact on Portfolio Duration
 
@@ -140,7 +151,7 @@ The "low-stress" element is a behavioral constraint, but it has quantifiable fin
 This pillar addresses the mechanics of the capital base ($C$) and ensuring the entire structure is tax-optimized.
 
 #### 1. Asset Allocation Under Dual Income Streams
-The presence of $I_{PT}$ alters the optimal asset allocation. Since $I_{PT}$ provides a stable, non-market-correlated cash flow, the portfolio can afford to take on slightly more systematic risk in the early years, as the immediate cash needs are buffered.
+The presence of $I_{PT}$ alters the optimal [asset allocation](AssetAllocation). Since $I_{PT}$ provides a stable, non-market-correlated cash flow, the portfolio can afford to take on slightly more systematic risk in the early years, as the immediate cash needs are buffered.
 
 *   **The Glide Path Modification:** The traditional glide path (de-risking over time) can be modified. Instead of simply shifting from equities to fixed income, the shift should be calibrated based on the *expected decline* of $I_{PT}$. If $I_{PT}$ is projected to decline sharply after Year 15, the portfolio must de-risk *before* that decline, not just based on age.
 

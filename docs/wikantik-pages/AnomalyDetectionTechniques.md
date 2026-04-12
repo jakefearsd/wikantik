@@ -1,3 +1,13 @@
+---
+title: Anomaly Detection Techniques
+type: article
+tags:
+- mathbf
+- data
+- text
+summary: Anomaly Detection Outlier Unsupervised Welcome.
+auto-generated: true
+---
 # Anomaly Detection Outlier Unsupervised
 
 Welcome. If you find yourself researching anomaly detection, you are likely already aware that the holy grail—a perfectly labeled dataset where every deviation is marked—is a statistical myth in real-world data streams. We are, by necessity, relegated to the realm of inference, educated guesswork, and robust assumptions.

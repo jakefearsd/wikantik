@@ -1,3 +1,14 @@
+---
+title: Eastern Philosophy
+type: article
+tags:
+- text
+- model
+- self
+summary: The Eastern philosophical landscape is notoriously rich, often characterized
+  by a profound skepticism toward rigid dualisms.
+auto-generated: true
+---
 # Comparative Epistemologies of Buddhism and Taoism for Advanced Research
 
 This tutorial is designed for scholars, computational theorists, cognitive scientists, and researchers operating at the intersection of philosophy, consciousness studies, and complex systems modeling. We are moving beyond introductory summaries; the goal here is to dissect the underlying *mechanisms* of Buddhist and Taoist thought—the operational principles that govern their respective paths to understanding reality—to identify potential frameworks for novel research techniques.

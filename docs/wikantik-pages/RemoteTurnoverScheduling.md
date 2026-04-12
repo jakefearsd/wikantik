@@ -1,3 +1,14 @@
+---
+title: Remote Turnover Scheduling
+type: article
+tags:
+- schedul
+- task
+- must
+summary: The scope assumes a deep understanding of resource flow modeling, preventative
+  maintenance theory, and advanced scheduling algorithms.
+auto-generated: true
+---
 # Scheduling Cleanings and Turnovers in Resource-Constrained, Off-Grid Environments
 
 ***
@@ -157,7 +168,7 @@ This moves beyond simple shift planning [1] into **Task-Skill-Fatigue Optimizati
 
 ### C. The Role of Automation in Maintaining "Zero Chaos"
 
-The concept of automating turnovers [7] is highly relevant, but in an off-grid setting, "automation" must be defined as **Automated Monitoring and Alerting**, not just automated execution.
+The concept of automating turnovers [7] is highly relevant, but in an off-grid setting, "automation" must be defined as **Automated [Monitoring and Alerting](MonitoringAndAlerting)**, not just automated execution.
 
 *   **Automated Monitoring:** Sensors (IoT) constantly feed data back into the $\mathbf{S(t)}$ vector. The system doesn't wait for a human to check the water level; it *knows* the water level is dropping and automatically adjusts the next day's schedule to include a mandatory "Water Conservation Protocol Review" task.
 *   **Alerting Hierarchy:** Alerts must be tiered:

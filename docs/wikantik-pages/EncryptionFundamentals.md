@@ -1,3 +1,14 @@
+---
+title: Encryption Fundamentals
+type: article
+tags:
+- kei
+- encrypt
+- us
+summary: The foundational dichotomy—symmetric versus asymmetric—is merely the entry
+  point.
+auto-generated: true
+---
 # Encryption Fundamentals
 
 If you've managed to arrive here, you likely already understand that "encryption" is not a monolithic concept, but rather a collection of mathematical primitives designed to solve specific, often orthogonal, security problems. The foundational dichotomy—symmetric versus asymmetric—is merely the entry point. For those researching novel techniques, the true frontier lies in the *interaction* between these primitives, their implementation vulnerabilities, and the mathematical assumptions underpinning their security.
@@ -8,7 +19,7 @@ This tutorial assumes a high level of familiarity with abstract algebra, finite 
 
 ## I. The Mathematical Bedrock: Defining the Primitives
 
-At the most fundamental level, cryptography is applied number theory and abstract algebra. The distinction between symmetric and asymmetric systems boils down entirely to the mathematical structure governing the key space and the associated trapdoor functions.
+At the most fundamental level, cryptography is applied [number theory](NumberTheory) and abstract algebra. The distinction between symmetric and asymmetric systems boils down entirely to the mathematical structure governing the key space and the associated trapdoor functions.
 
 ### A. Symmetric Cryptography: The Shared Secret Domain
 

@@ -1,3 +1,14 @@
+---
+title: Existentialism
+type: article
+tags:
+- existenti
+- subject
+- be
+summary: Existentialism This document is intended for scholars, computational philosophers,
+  and researchers operating at the vanguard of theoretical inquiry.
+auto-generated: true
+---
 # Existentialism
 
 This document is intended for scholars, computational philosophers, and researchers operating at the vanguard of theoretical inquiry. We are not here to review undergraduate summaries of Sartre or Camus; we are here to dissect the underlying ontological machinery, trace the historical contingency of its emergence, and, most critically, map its residual influence onto contemporary technical and systemic paradigms.

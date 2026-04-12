@@ -1,6 +1,18 @@
+---
+title: NLP Overview
+type: article
+tags:
+- model
+- text
+- e.g
+summary: This document is intended not as an introductory primer—we assume you are
+  already intimately familiar with the basic definitions of tokenization, embeddings,
+  and sequence modeling.
+auto-generated: true
+---
 # A State-of-the-Art Review
 
-Natural Language Processing (NLP) is not merely a field; it is a crucible where the most abstract concepts of human cognition—semantics, pragmatics, syntax, and common sense—are forced into the rigid, discrete structures of computation. For those of us who spend our days wrestling with the ambiguities inherent in human language, the field is less a collection of algorithms and more a perpetual, frustrating negotiation with the sheer, glorious messiness of language itself.
+[Natural Language Processing](NaturalLanguageProcessing) (NLP) is not merely a field; it is a crucible where the most abstract concepts of human cognition—semantics, pragmatics, syntax, and common sense—are forced into the rigid, discrete structures of computation. For those of us who spend our days wrestling with the ambiguities inherent in human language, the field is less a collection of algorithms and more a perpetual, frustrating negotiation with the sheer, glorious messiness of language itself.
 
 This document is intended not as an introductory primer—we assume you are already intimately familiar with the basic definitions of tokenization, embeddings, and sequence modeling. Instead, we aim to function as a comprehensive, highly technical review, mapping the current state-of-the-art, dissecting the architectural paradigms that underpin modern systems, and, crucially, highlighting the persistent, unsolved theoretical bottlenecks that define the frontier of research.
 
@@ -24,7 +36,7 @@ The shift arrived with the advent of computational power and the availability of
 
 **Core Mechanism:** Hidden Markov Models (HMMs), Conditional Random Fields (CRFs), and early Maximum Entropy models. These systems treated language as a sequence of probabilistic events.
 **Advancement:** They allowed for robust handling of noisy, real-world data. For instance, sequence labeling tasks (like Part-of-Speech tagging or Named Entity Recognition) became tractable by maximizing the conditional probability $P(Y|X)$, where $X$ is the input sequence and $Y$ is the label sequence.
-**Limitation:** Feature engineering became the bottleneck. Performance was critically dependent on the quality and completeness of manually designed features (e.g., "Is the preceding word capitalized?", "Does the word end in '-ing'?").
+**Limitation:** [Feature engineering](FeatureEngineering) became the bottleneck. Performance was critically dependent on the quality and completeness of manually designed features (e.g., "Is the preceding word capitalized?", "Does the word end in '-ing'?").
 
 ### C. The Neural Era (Distributed Representations)
 The current paradigm shift, driven by deep learning, fundamentally changed the representation of language. Instead of relying on discrete symbols or sparse feature vectors, we now operate in continuous, dense vector spaces.

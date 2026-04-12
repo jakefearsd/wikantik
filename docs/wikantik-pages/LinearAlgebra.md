@@ -1,8 +1,20 @@
+---
+title: Linear Algebra
+type: article
+tags:
+- mathbf
+- space
+- vector
+summary: We learn to solve systems of equations, to perform Gaussian elimination,
+  and to calculate determinants—all operations beautifully encapsulated by the rectangular
+  array of numbers.
+auto-generated: true
+---
 # Linear Algebra Beyond Matrices: Vector Spaces and Transformations
 
 For those of us who have spent any significant amount of time wrestling with the mechanics of linear algebra, the initial comfort zone is undeniably the matrix. We learn to solve systems of equations, to perform Gaussian elimination, and to calculate determinants—all operations beautifully encapsulated by the rectangular array of numbers. Matrices provide the indispensable, concrete machinery that allows us to manipulate finite-dimensional vector spaces ($\mathbb{R}^n$ or $\mathbb{C}^n$) with tangible results.
 
-However, to treat matrices as the *essence* of linear algebra is to mistake the highly efficient *representation* for the underlying *structure*. As researchers pushing the boundaries of computational science, theoretical physics, or advanced machine learning algorithms, you must master the abstraction. The true power, the conceptual bedrock that allows us to generalize concepts from $\mathbb{R}^2$ to the space of continuous functions, lies in the abstract definitions of **Vector Spaces** and **Linear Transformations**.
+However, to treat matrices as the *essence* of linear algebra is to mistake the highly efficient *representation* for the underlying *structure*. As researchers pushing the boundaries of computational science, theoretical physics, or advanced [machine learning](MachineLearning) algorithms, you must master the abstraction. The true power, the conceptual bedrock that allows us to generalize concepts from $\mathbb{R}^2$ to the space of continuous functions, lies in the abstract definitions of **Vector Spaces** and **Linear Transformations**.
 
 This tutorial is designed not as a refresher, but as a deep dive—a rigorous exploration of the conceptual framework that allows us to treat the matrix formalism as merely a coordinate-dependent artifact of a much richer mathematical reality. If you are researching novel techniques, understanding this abstraction is non-negotiable.
 
@@ -185,7 +197,7 @@ This theorem guarantees that the complex, abstract action of $T$ can be perfectl
 
 ## VI. Beyond Finite Dimensions: Function Spaces and Hilbert Spaces
 
-This is where the "Beyond Matrices" mandate truly takes effect. When the dimension $n$ is infinite, the concept of a finite basis breaks down, and the tools of finite linear algebra must be replaced by the machinery of Functional Analysis.
+This is where the "Beyond Matrices" mandate truly takes effect. When the dimension $n$ is infinite, the concept of a finite basis breaks down, and the tools of finite linear algebra must be replaced by the machinery of [Functional Analysis](FunctionalAnalysis).
 
 ### A. The Need for Completeness
 

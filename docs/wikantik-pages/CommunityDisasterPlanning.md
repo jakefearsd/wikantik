@@ -1,3 +1,14 @@
+---
+title: Community Disaster Planning
+type: article
+tags:
+- commun
+- must
+- plan
+summary: When major disasters—be they seismic, meteorological, or anthropogenic—overwhelm
+  regional infrastructure, the system fails at the edges.
+auto-generated: true
+---
 # Community Disaster Planning and Neighborhood Networks
 
 ***

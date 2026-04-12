@@ -21,7 +21,7 @@ part-of:
 ---
 # Supply Chain and Logistics Optimization
 
-Supply chains are optimization problems made physical. Raw materials move to factories; factories ship to distribution centers; distribution centers deliver to retailers or customers. Every flow, every inventory decision, every routing choice involves tradeoffs that operations research has been formalizing since the 1950s. The aggregate value of supply chain OR is estimated in the hundreds of billions of dollars annually.
+Supply chains are optimization problems made physical. Raw materials move to factories; factories ship to distribution centers; distribution centers deliver to retailers or customers. Every flow, every inventory decision, every routing choice involves tradeoffs that [operations research](OperationsResearch) has been formalizing since the 1950s. The aggregate value of supply chain OR is estimated in the hundreds of billions of dollars annually.
 
 ## Inventory Theory
 
@@ -117,7 +117,7 @@ Real supply chains are networks with multiple echelons: supplier → regional di
 
 ## Vehicle Routing Problems
 
-The **vehicle routing problem (VRP)** asks: given a depot and a set of customers with known demands and locations, find the minimum-cost set of routes for a fleet of vehicles such that each customer is visited exactly once and vehicle capacities are not exceeded.
+The **[vehicle routing problem](VehicleRoutingProblem) (VRP)** asks: given a depot and a set of customers with known demands and locations, find the minimum-cost set of routes for a fleet of vehicles such that each customer is visited exactly once and vehicle capacities are not exceeded.
 
 VRP is NP-hard and generalizes the TSP. It is the core problem behind package delivery, grocery delivery, school bus routing, and service technician dispatch.
 

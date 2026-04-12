@@ -1,3 +1,14 @@
+---
+title: Advanced Skill Patterns
+type: article
+tags:
+- state
+- text
+- logic
+summary: If you are reading this, you are not merely looking for a "how-to" guide
+  on setting up an IF/THEN statement.
+auto-generated: true
+---
 # Advanced Skill Patterns
 
 Welcome. If you are reading this, you are not merely looking for a "how-to" guide on setting up an `IF/THEN` statement. You are researching the underlying computational patterns that govern decision-making in complex, adaptive systems—be they conversational agents, dynamic user interfaces, or multi-stage automated workflows.
@@ -39,7 +50,7 @@ The most common point of confusion, even among seasoned practitioners, is the co
 
 For advanced research, assuming perfect Boolean inputs is naive. Real-world data is messy. Therefore, we must consider extensions to classical logic.
 
-1.  **Fuzzy Logic:**
+1.  **[Fuzzy Logic](FuzzyLogic):**
     *   **Concept:** Instead of a binary True/False, Fuzzy Logic allows variables to exist on a continuum, represented by a degree of membership (a value between 0.0 and 1.0).
     *   **Application:** Ideal for subjective inputs, such as sentiment analysis ("How *very* positive is the user review?") or risk assessment ("How *moderately* high is the failure probability?").
     *   **Mechanism:** Fuzzy operators (like $\text{MIN}$ for $\text{AND}$ and $\text{MAX}$ for $\text{OR}$) replace the strict Boolean conjunctions.

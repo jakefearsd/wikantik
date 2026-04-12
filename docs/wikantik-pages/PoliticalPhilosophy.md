@@ -1,3 +1,15 @@
+---
+title: Political Philosophy
+type: article
+tags:
+- contract
+- right
+- state
+summary: Political Philosophy and Social Contracts The concept of the social contract
+  stands as one of the most enduring, yet perpetually contested, pillars of Western
+  political thought.
+auto-generated: true
+---
 # Political Philosophy and Social Contracts
 
 The concept of the social contract stands as one of the most enduring, yet perpetually contested, pillars of Western political thought. It is not merely a historical narrative of how governments began; rather, it is a sophisticated philosophical apparatus—a model for understanding the *ontological* status of political obligation, the *epistemological* grounding of legitimacy, and the *teleological* justification for the surrender of individual autonomy.
@@ -120,7 +132,7 @@ The application of "social contract" thinking has expanded far beyond the realm 
 
 When designing financial instruments, digital protocols, or even complex organizational workflows, one is essentially designing a *micro-contract*.
 
-Consider the design of state-backed digital currency or data governance. The "contract" is not written in parchment, but in code and terms of service.
+Consider the design of state-backed digital currency or [data governance](DataGovernance). The "contract" is not written in parchment, but in code and [terms of service](TermsOfService).
 
 **Pseudo-Code Example: Data Usage Contract**
 

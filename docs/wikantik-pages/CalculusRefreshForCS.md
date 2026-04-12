@@ -1,3 +1,14 @@
+---
+title: Calculus Refresh For CS
+type: article
+tags:
+- mathbf
+- partial
+- comput
+summary: 'Calculus Refresher for Computer Scientists: Bridging the Continuous and
+  the Algorithmic Welcome.'
+auto-generated: true
+---
 # Calculus Refresher for Computer Scientists: Bridging the Continuous and the Algorithmic
 
 Welcome. If you are reading this, you are likely an expert in computer science—someone whose daily bread is discrete mathematics, graph theory, complexity analysis, and the elegant certainty of Boolean logic. You are comfortable with the countable, the finite, and the provably bounded.
@@ -28,7 +39,7 @@ The concept of the limit ($\lim_{x \to a} f(x) = L$) is the bedrock. Intuitively
 
 In a computational context, we never reach the limit; we only approximate it.
 
-1.  **Approximation vs. Limit:** When we use numerical methods (like Newton's method or numerical integration), we are performing a sequence of finite steps. We are generating a sequence $\{x_k\}$ that *converges* to the true solution $x^*$. The limit $L$ is the theoretical destination; the sequence $\{x_k\}$ is the algorithm's output.
+1.  **Approximation vs. Limit:** When we use [numerical methods](NumericalMethods) (like Newton's method or numerical integration), we are performing a sequence of finite steps. We are generating a sequence $\{x_k\}$ that *converges* to the true solution $x^*$. The limit $L$ is the theoretical destination; the sequence $\{x_k\}$ is the algorithm's output.
 2.  **Convergence Criteria:** For a sequence $\{a_n\}$ to converge to $L$, the definition requires that for every $\epsilon > 0$, there exists an integer $N$ such that for all $n > N$, $|a_n - L| < \epsilon$.
     *   **Computational Implication:** This is the formal definition of *stopping criteria*. In practice, we set $\epsilon$ (our desired tolerance) and run the algorithm until the error falls below it. The challenge is determining the *a priori* bound on $N$ (the required number of iterations) without knowing $L$. This leads directly into error analysis.
 
@@ -96,7 +107,7 @@ The second derivative, $f''(x) = \frac{d^2f}{dx^2}$, measures the rate of change
 
 **Computational Relevance:**
 1.  **Optimization:** The second derivative is the core component of the **Hessian Matrix** (discussed later). It determines whether a critical point found by setting the first derivative to zero is a local minimum ($H > 0$), a local maximum ($H < 0$), or a saddle point ($H$ is indefinite).
-2.  **Physics/Graphics:** Curvature is essential for calculating forces, stress, and how light reflects off surfaces (e.g., Gaussian curvature in differential geometry).
+2.  **Physics/Graphics:** Curvature is essential for calculating forces, stress, and how light reflects off surfaces (e.g., Gaussian curvature in [differential geometry](DifferentialGeometry)).
 
 ---
 
@@ -203,7 +214,7 @@ $$b_n = \frac{2}{T} \int_0^T f(t) \sin\left(\frac{2\pi n t}{T}\right) dt$$
 **Applications in CS Research:**
 1.  **Signal Processing/Image Compression:** Analyzing the frequency content of signals (audio, sensor data).
 2.  **Solving PDEs:** Many partial differential equations (like the Heat Equation or Wave Equation) are solved by decomposing the initial conditions into a Fourier basis.
-3.  **Machine Learning:** Understanding spectral properties of data distributions.
+3.  **[Machine Learning](MachineLearning):** Understanding spectral properties of data distributions.
 
 ---
 

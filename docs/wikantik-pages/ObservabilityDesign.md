@@ -885,7 +885,7 @@ With this design, you can answer:
 
   1. Future Enhancements
 
-1. **Distributed Tracing**: Add Jaeger or Tempo for request tracing
+1. **[Distributed Tracing](DistributedTracing)**: Add Jaeger or Tempo for request tracing
 2. **JMX Metrics**: Add jmx_exporter for JVM metrics
 3. **Synthetic Monitoring**: Add blackbox_exporter for uptime monitoring
 4. **Alertmanager**: Configure alert routing (email, Slack, PagerDuty)

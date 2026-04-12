@@ -1,3 +1,13 @@
+---
+title: Engineering Decision Frameworks
+type: article
+tags:
+- decis
+- framework
+- must
+summary: Decision Making Frameworks and Engineering Tradeoffs Welcome.
+auto-generated: true
+---
 # Decision Making Frameworks and Engineering Tradeoffs
 
 Welcome. If you've reached this document, you likely understand that "making a decision" is rarely the hard part; understanding *how* to structure the decision space, manage the inherent uncertainties, and rigorously evaluate the resulting compromises is where the actual intellectual heavy lifting occurs.
@@ -176,7 +186,7 @@ FUNCTION Score_Build_Vs_Buy(Component, Context):
 For advanced research, we must move beyond the linear axes and consider **Non-Linear Tradeoffs** and **Emergent Properties**.
 
 #### A. Latency vs. Consistency (The CAP Theorem Context)
-This is the classic distributed systems tradeoff. While the CAP theorem (Consistency, Availability, Partition Tolerance) is foundational, modern systems often operate in the *eventual consistency* space, which requires a different framework: **Consistency Models**.
+This is the classic distributed systems tradeoff. While the [CAP theorem](CapTheorem) (Consistency, Availability, Partition Tolerance) is foundational, modern systems often operate in the *[eventual consistency](EventualConsistency)* space, which requires a different framework: **Consistency Models**.
 
 *   **Framework Focus:** Instead of asking "Can we have C, A, and P?", the question becomes: "What is the acceptable *window* of inconsistency, and what mechanism (e.g., Conflict-free Replicated Data Types - CRDTs) can guarantee convergence within that window?"
 *   **Advanced Tool:** Modeling the *Convergence Time* ($\tau$) as the primary metric, rather than just the state (Consistent/Inconsistent).
@@ -230,7 +240,7 @@ The ultimate meta-framework is **Meta-Modeling**. This involves building a syste
 
 ### 2. Incorporating Machine Learning into Decision Loops
 
-The most advanced frontier involves treating the decision-making process itself as a machine learning problem.
+The most advanced frontier involves treating the decision-making process itself as a [machine learning](MachineLearning) problem.
 
 #### A. Reinforcement Learning (RL) for Policy Generation
 RL agents are trained not on correct answers, but on maximizing a cumulative reward signal within a simulated environment.

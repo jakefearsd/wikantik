@@ -1,3 +1,15 @@
+---
+title: Knowledge Graphs And Management
+type: article
+tags:
+- knowledg
+- graph
+- e.g
+summary: Architecting Intelligence Abstract In the era of Big Data and Generative
+  AI, the fundamental challenge of the enterprise has shifted from data acquisition
+  to knowledge synthesis.
+auto-generated: true
+---
 # Architecting Intelligence
 
 ## Abstract
@@ -43,7 +55,7 @@ Knowledge Graphs address these by providing a **controlled vocabulary** and a **
 A Knowledge Graph is more than just a graph database; it is a structured representation of a domain where entities and their relationships are explicitly defined via a schema or ontology.
 
 ### 3.1 The Triple Model (RDF)
-At the most granular level, much of the semantic web relies on the **Resource Description Framework (String/RDF)**. The fundamental unit is the **Triple**:
+At the most granular level, much of the semantic web relies on the **[Resource Description Framework](ResourceDescriptionFramework) (String/RDF)**. The fundamental unit is the **Triple**:
 $$\langle \text{Subject}, \text{Predicate}, \text{Object} \rangle$$
 
 *   **Subject:** The resource being described (e.g., `Entity:Einstein`).
@@ -59,7 +71,7 @@ An ontology is the formal specification of a conceptualization. While a schema d
 *   **Constraints/Axioms:** e.g., "Every `SoftwareProject` must have at least one `Developer`."
 *   **Subsumption Hierarchies:** e.g., `ConvolutionalNeuralNetwork` is a subclass of `NeuralNetwork`.
 
-Ontologies provide the **formal semantics** necessary for machines to perform automated reasoning (inference).
+Ontologies provide the **[formal semantics](FormalSemantics)** necessary for machines to perform automated reasoning (inference).
 
 ### 3.3 Property Graphs vs. RDF
 Engineers must choose between two primary modeling paradigms:

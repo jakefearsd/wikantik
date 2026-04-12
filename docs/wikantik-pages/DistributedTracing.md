@@ -1,3 +1,13 @@
+---
+title: Distributed Tracing
+type: article
+tags:
+- span
+- text
+- trace
+summary: Distributed Tracing Request Correlation Spans Welcome.
+auto-generated: true
+---
 # Distributed Tracing Request Correlation Spans
 
 Welcome. If you've reached this document, you're likely past the point of simply reading "What is distributed tracing?" You are here because you understand that the textbook definitions are insufficient for the messy reality of modern, highly distributed, asynchronous microservice architectures.
@@ -229,7 +239,7 @@ A common conceptual error among junior practitioners is viewing tracing, metrics
 
 Distributed tracing, particularly the management of correlation spans, has evolved from a niche debugging tool into a foundational requirement for any system claiming to be "modern" or "scalable."
 
-The journey from simple request logging to managing context across asynchronous message queues, service meshes, and multi-protocol boundaries is a testament to the increasing complexity of modern software architecture.
+The journey from simple request logging to managing context across asynchronous message queues, service meshes, and multi-protocol boundaries is a testament to the increasing complexity of modern [software architecture](SoftwareArchitecture).
 
 For the researching expert, the focus must shift from *implementing* context propagation (which standards like W3C are solving) to *optimizing* the consumption and interpretation of that context:
 

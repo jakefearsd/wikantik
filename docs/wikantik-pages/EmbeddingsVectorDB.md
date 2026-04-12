@@ -1,8 +1,20 @@
+---
+title: Embeddings Vector DB
+type: article
+tags:
+- vector
+- model
+- text
+summary: Retrieval-Augmented Generation (RAG) has proven to be the most robust pattern
+  for grounding Large Language Models (LLMs) in proprietary, up-to-date, or highly
+  sensitive knowledge bases.
+auto-generated: true
+---
 # Embedding Models and Vector Databases for Local Retrieval-Augmented Generation (RAG)
 
 For those of us who have spent enough time wrestling with cloud APIs and the inevitable data egress concerns, the concept of "local AI" has moved from a niche academic curiosity to a critical operational necessity. Retrieval-Augmented Generation (RAG) has proven to be the most robust pattern for grounding Large Language Models (LLMs) in proprietary, up-to-date, or highly sensitive knowledge bases. However, when the data—and the model inference—must remain within the organizational perimeter, the entire stack must be re-architected.
 
-This tutorial is not for the beginner who just needs to run a basic `pip install` sequence. We are addressing the advanced practitioner, the researcher, and the MLOps engineer who needs to understand the deep technical trade-offs, performance bottlenecks, and architectural nuances of building a truly private, high-performance, local RAG pipeline. We will dissect the roles of embedding models and vector databases, moving beyond simple component integration to a deep dive into optimization, scalability, and the mathematical underpinnings of semantic retrieval.
+This tutorial is not for the beginner who just needs to run a basic `pip install` sequence. We are addressing the advanced practitioner, the researcher, and the MLOps engineer who needs to understand the deep technical trade-offs, performance bottlenecks, and architectural nuances of building a truly private, high-performance, local RAG pipeline. We will dissect the roles of embedding models and [vector databases](VectorDatabases), moving beyond simple component integration to a deep dive into optimization, scalability, and the mathematical underpinnings of semantic retrieval.
 
 ---
 
@@ -93,7 +105,7 @@ The market offers several architectural patterns for vector storage, each with d
 These systems are purpose-built for vector indexing and similarity search. They offer highly optimized, scalable implementations of algorithms like HNSW, often supporting advanced features like metadata filtering and hybrid search (combining vector similarity with traditional SQL filtering).
 
 *   **Pros:** Peak performance, built-in scalability, advanced indexing features.
-*   **Cons:** Can introduce external dependencies, and for *truly* local deployments, they might require complex container orchestration (Docker Compose, Kubernetes).
+*   **Cons:** Can introduce external dependencies, and for *truly* local deployments, they might require complex [container orchestration](ContainerOrchestration) (Docker Compose, Kubernetes).
 
 #### 2. Vector Extensions for Relational Databases (e.g., PostgreSQL with `pgvector`)
 This approach treats the vector store as an extension within a robust, ACID-compliant relational database. The vector $\mathbf{v}$ is stored as a specialized data type alongside traditional metadata (document ID, source file, chunk text).
@@ -170,7 +182,7 @@ $$\text{Total Memory} \approx \text{LLM VRAM} + \text{Embedding Model VRAM} + \t
 Quantization should ideally be applied consistently across the stack:
 
 1.  **LLM Quantization:** Using GGUF format (as utilized by `llama.cpp`/Ollama) is standard practice for CPU/GPU efficiency.
-2.  **Embedding Model Quantization:** If the embedding model is large, quantizing its weights (e.g., to INT8) is necessary. This requires ensuring the chosen library supports the quantized format while maintaining the required distance metric accuracy.
+2.  **Embedding [Model Quantization](ModelQuantization):** If the embedding model is large, quantizing its weights (e.g., to INT8) is necessary. This requires ensuring the chosen library supports the quantized format while maintaining the required distance metric accuracy.
 
 ### C. Handling Data Drift and Index Maintenance
 A local RAG system is not static. The source documents change, and the knowledge base drifts.

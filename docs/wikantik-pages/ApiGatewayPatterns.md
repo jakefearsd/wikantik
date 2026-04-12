@@ -1,3 +1,14 @@
+---
+title: Api Gateway Patterns
+type: article
+tags:
+- gatewai
+- servic
+- must
+summary: When building microservices, the temptation is always to let the client talk
+  directly to the service that seems most convenient.
+auto-generated: true
+---
 # API Gateway Patterns
 
 For those of us who have spent enough time wrestling with the inherent chaos of distributed systems, the concept of the API Gateway is less a pattern and more a necessary prophylactic against architectural entropy. When building microservices, the temptation is always to let the client talk directly to the service that *seems* most convenient. This, of course, is a recipe for security holes, inconsistent client experiences, and an operational nightmare.
@@ -38,7 +49,7 @@ Routing is the most fundamental function, yet the simplest to over-engineer. A b
 Simple path matching (`/users/profile`) is insufficient when the routing decision depends on request metadata that isn't part of the URI structure.
 
 #### 1. Header-Based Routing (The Feature Flag Approach)
-This is critical for A/B testing and canary deployments. Instead of relying on versioning in the URI (e.g., `/v2/users`), the Gateway inspects a custom header.
+This is critical for A/B testing and [canary deployments](CanaryDeployments). Instead of relying on versioning in the URI (e.g., `/v2/users`), the Gateway inspects a custom header.
 
 *   **Scenario:** Routing traffic for a new payment processor integration.
 *   **Mechanism:** If the request contains `X-Client-Version: Beta`, route to `payment-service-v2`. Otherwise, route to `payment-service-v1`.
@@ -71,7 +82,7 @@ Every route definition must be accompanied by explicit timeout parameters. Furth
 
 ## III. Authentication and Authorization
 
-If routing is the map, Authentication and Authorization are the border guards. Centralizing these functions is non-negotiable, as demonstrated by the risk of "Authentication Bypass via Direct Service Access" [1].
+If routing is the map, [Authentication and Authorization](AuthenticationAndAuthorization) are the border guards. Centralizing these functions is non-negotiable, as demonstrated by the risk of "Authentication Bypass via Direct Service Access" [1].
 
 ### A. The Authentication Flow: From Token to Trust
 

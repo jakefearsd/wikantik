@@ -1,3 +1,14 @@
+---
+title: Multi Cloud Strategies
+type: article
+tags:
+- cloud
+- servic
+- abstract
+summary: The prevailing wisdom suggests that multi-cloud adoption is the panacea for
+  vendor lock-in.
+auto-generated: true
+---
 # The Architecture of Escape
 
 Welcome. If you are reading this, you are likely already aware that the siren song of "best-of-breed" services from hyperscalers—AWS, Azure, GCP, and their increasingly aggressive niche competitors—is fundamentally incompatible with the long-term architectural goals of any truly resilient enterprise. The prevailing wisdom suggests that multi-cloud adoption is the panacea for vendor lock-in. While this is conceptually true, the reality is far more nuanced, fraught with emergent complexity, and requires a deep, almost adversarial understanding of distributed systems theory.
@@ -179,7 +190,7 @@ This is a rapidly emerging threat. When an application becomes dependent on a sp
 *   **Mitigation Strategy:** Abstract the *functionality* (e.g., "perform matrix multiplication of size $N \times M$ with precision $P$") rather than the *implementation* (e.g., "use the Inferentia API"). Use standardized ML frameworks (like ONNX Runtime) that can target multiple backends.
 
 ### B. Networking Complexity and Interconnect Lock-in
-While the application layer can be abstracted, the network layer is notoriously difficult. Cross-cloud networking often forces reliance on complex VPN tunnels or dedicated interconnects (AWS Direct Connect, Azure ExpressRoute).
+While the application layer can be abstracted, the network layer is notoriously difficult. Cross-[cloud networking](CloudNetworking) often forces reliance on complex VPN tunnels or dedicated interconnects (AWS Direct Connect, Azure ExpressRoute).
 
 *   **The Problem:** These connections are managed services that require deep, provider-specific IAM roles and networking configurations.
 *   **Advanced Consideration:** For true portability, the architecture should aim for **Edge Compute Federation**. Utilizing technologies like Cloudflare Workers or Fastly Compute@Edge allows the application logic to run on a globally distributed, vendor-agnostic edge network, effectively bypassing the need to manage complex, back-end VPC peering agreements between multiple cloud providers.

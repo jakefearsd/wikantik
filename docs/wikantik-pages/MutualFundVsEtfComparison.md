@@ -1,3 +1,13 @@
+---
+title: Mutual Fund Vs Etf Comparison
+type: article
+tags:
+- text
+- fund
+- etf
+summary: This assessment, however, is fundamentally flawed.
+auto-generated: true
+---
 # Mutual Fund vs. ETF Structure Comparison
 
 For those of us who spend our days wrestling with alpha generation, optimizing portfolio construction, and dissecting the microstructure of asset pricing, the choice between a traditional mutual fund and an Exchange-Traded Fund (ETF) is often treated as a mere operational preference—a matter of *how* to execute a trade. This assessment, however, is fundamentally flawed. The difference is not merely cosmetic; it resides in the underlying legal architecture, the mechanics of liquidity provision, the tax treatment derived from those mechanics, and the resulting cost profile.

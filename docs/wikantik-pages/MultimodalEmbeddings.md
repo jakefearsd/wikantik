@@ -1,3 +1,14 @@
+---
+title: Multimodal Embeddings
+type: article
+tags:
+- text
+- search
+- embed
+summary: Multimodal Embeddings for Image and Text Search The field of Information
+  Retrieval (IR) has undergone a seismic shift in the last decade.
+auto-generated: true
+---
 # Multimodal Embeddings for Image and Text Search
 
 The field of Information Retrieval (IR) has undergone a seismic shift in the last decade. We have moved from keyword matching—a brittle, lexical approach—to semantic understanding. However, the most recent frontier, one that promises to redefine the very concept of "search," is the integration of multiple data modalities: text, images, audio, video, and structured documents.
@@ -64,7 +75,7 @@ The shift from conceptual understanding to practical implementation requires exa
 
 ### 2.1 The Transformer Backbone Adaptation
 
-Modern multimodal embeddings are almost universally built upon the Transformer architecture, but they require significant modifications to handle heterogeneous inputs.
+Modern multimodal embeddings are almost universally built upon the [Transformer architecture](TransformerArchitecture), but they require significant modifications to handle heterogeneous inputs.
 
 1.  **Text Encoding:** Standard tokenization and positional encoding are used.
 2.  **Image Encoding:** Vision Transformers (ViT) are typically employed. The image is broken down into fixed-size patches (e.g., $16 \times 16$ pixels), which are treated as "visual tokens." These tokens are then passed through a standard Transformer encoder block.
@@ -272,7 +283,7 @@ Multimodal embeddings represent a paradigm shift from information retrieval to *
 
 For the expert researcher, the key takeaways are not merely *which* API to use, but *how* to architect the surrounding system:
 
-1.  **Model Selection:** Prioritize models proven to be *natively* multimodal (e.g., Gemini's stated capability) over those that merely concatenate encoders.
+1.  **[Model Selection](ModelSelection):** Prioritize models proven to be *natively* multimodal (e.g., Gemini's stated capability) over those that merely concatenate encoders.
 2.  **Pipeline Rigor:** Treat the embedding generation step as a critical, rate-limited, and highly optimized ETL process, not a simple function call.
 3.  **Search Sophistication:** Never rely solely on vector distance. Implement **Hybrid Search** (Vector + Keyword) and utilize **Re-ranking** to bridge the gap between mathematical proximity and human relevance.
 4.  **Future Proofing:** Design the architecture to support **M-RAG**, ensuring the retrieved context is structured for LLM consumption, not just display.

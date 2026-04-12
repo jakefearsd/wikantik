@@ -1,3 +1,14 @@
+---
+title: Css Architecture Patterns
+type: article
+tags:
+- bem
+- css
+- compon
+summary: 'CSS Architecture: BEM Modules-in-JS The landscape of front-end styling is,
+  frankly, a battlefield.'
+auto-generated: true
+---
 # CSS Architecture: BEM Modules-in-JS
 
 The landscape of front-end styling is, frankly, a battlefield. For years, developers have wrestled with the fundamental tension between the declarative nature of CSS—a language designed for presentation—and the imperative, encapsulated nature of modern component-based JavaScript frameworks. We have seen methodologies rise and fall: from the rigid structures of SMACSS to the explicit naming conventions of BEM, and now, the fluid, scope-managing power of CSS-in-JS.

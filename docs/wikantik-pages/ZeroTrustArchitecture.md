@@ -1,8 +1,19 @@
+---
+title: Zero Trust Architecture
+type: article
+tags:
+- polici
+- text
+- trust
+summary: Zero Trust Architecture The phrase "Never Trust, Always Verify" has become
+  the ubiquitous mantra of modern cybersecurity.
+auto-generated: true
+---
 # Zero Trust Architecture
 
 The phrase "Never Trust, Always Verify" has become the ubiquitous mantra of modern cybersecurity. For those of us operating at the research frontier, however, recognizing a buzzword is insufficient; we must dissect the underlying mathematical, architectural, and operational mechanics that transform this principle into a robust, scalable, and defensible security posture.
 
-This tutorial is not a primer. We assume a deep familiarity with network segmentation, identity management protocols (SAML, OAuth 2.0, OIDC), cryptographic primitives, and the inherent vulnerabilities of perimeter-based security models. Our goal is to move beyond the conceptual understanding of Zero Trust Architecture (ZTA) and delve into the complex, multi-layered engineering required to operationalize it against sophisticated, persistent threats.
+This tutorial is not a primer. We assume a deep familiarity with [network segmentation](NetworkSegmentation), identity management protocols (SAML, OAuth 2.0, OIDC), cryptographic primitives, and the inherent vulnerabilities of perimeter-based security models. Our goal is to move beyond the conceptual understanding of Zero Trust Architecture (ZTA) and delve into the complex, multi-layered engineering required to operationalize it against sophisticated, persistent threats.
 
 ---
 
@@ -207,7 +218,7 @@ Policies should be defined, stored, and managed using declarative languages (lik
 
 ### C. Quantum Resistance in Trust Anchors
 
-While still speculative for immediate deployment, the eventual threat of quantum computing necessitates rethinking the cryptographic foundations of ZTA.
+While still speculative for immediate deployment, the eventual threat of [quantum computing](QuantumComputing) necessitates rethinking the cryptographic foundations of ZTA.
 
 *   **The Threat:** Quantum computers threaten the underlying public-key cryptography (RSA, ECC) used for digital signatures, TLS handshakes, and certificate validation—the very mechanisms that establish trust anchors.
 *   **The Research Focus:** Integrating Post-Quantum Cryptography (PQC) algorithms (e.g., lattice-based cryptography like CRYSTALS-Dilithium) into the Certificate Authority (CA) infrastructure and the mTLS handshake process. ZTA must be designed with cryptographic agility, allowing the rapid swapping of cryptographic primitives as standards evolve.

@@ -1,3 +1,14 @@
+---
+title: Cloud Compliance Frameworks
+type: article
+tags:
+- complianc
+- must
+- data
+summary: It is no longer a final audit hurdle; it is a continuous, baked-in requirement
+  woven into the very fabric of the CI/CD pipeline.
+auto-generated: true
+---
 # The Compliance Stack
 
 For those of us who spend our careers wrestling with the intersection of bleeding-edge cloud architecture and ancient, often labyrinthine, regulatory mandates, the term "compliance" has evolved from a mere checklist into a core engineering discipline. It is no longer a final audit hurdle; it is a continuous, baked-in requirement woven into the very fabric of the CI/CD pipeline.
@@ -17,7 +28,7 @@ Before discussing implementation, we must establish a granular understanding of 
 PCI DSS is perhaps the most narrowly scoped but technically demanding standard. Its focus is laser-sharp: protecting the Cardholder Data Environment (CDE). For experts, the key takeaway is **scope reduction and segmentation**.
 
 1.  **Segmentation as a Primary Control:** The foundational principle is minimizing the CDE footprint. If a system component does not touch, process, store, or transmit cardholder data (CHD), it should architecturally be isolated from the CDE.
-    *   **Technical Implication:** This necessitates rigorous network segmentation, often achieved via Virtual Private Clouds (VPCs), subnets, and strict Network Access Control Lists (NACLs) or Security Groups. Firewalls must operate at L7 inspection, not just L3/L4 packet filtering.
+    *   **Technical Implication:** This necessitates rigorous [network segmentation](NetworkSegmentation), often achieved via Virtual Private Clouds (VPCs), subnets, and strict Network Access Control Lists (NACLs) or Security Groups. Firewalls must operate at L7 inspection, not just L3/L4 packet filtering.
     *   **Advanced Technique:** Implementing micro-segmentation using service mesh technologies (like Istio or Linkerd) allows policy enforcement between individual microservices, effectively creating a "zero-trust perimeter" *within* the supposed secure zone.
 
 2.  **Data Handling Lifecycle:** PCI mandates controls across the entire data lifecycle:
@@ -27,7 +38,7 @@ PCI DSS is perhaps the most narrowly scoped but technically demanding standard. 
 
 ### B. Health Insurance Portability and Accountability Act (HIPAA)
 
-HIPAA, specifically the Security Rule, is less about the *technology* and more about the *handling of Protected Health Information (PHI)*. It is a risk-management framework applied to data governance.
+HIPAA, specifically the Security Rule, is less about the *technology* and more about the *handling of Protected Health Information (PHI)*. It is a risk-management framework applied to [data governance](DataGovernance).
 
 1.  **The Technical Safeguards Focus:** While the rules are broad, the technical enforcement centers on:
     *   **Access Control:** Implementing granular Role-Based Access Control (RBAC) down to the field level. A user should only see the minimum necessary PHI required for their job function (Minimum Necessary Rule).

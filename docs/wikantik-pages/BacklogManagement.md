@@ -1,3 +1,14 @@
+---
+title: Backlog Management
+type: article
+tags:
+- valu
+- text
+- must
+summary: If you are reading this, you are not looking for the basic "what is backlog
+  grooming" overview that passes for a beginner's workshop.
+auto-generated: true
+---
 # Backlog Management
 
 Welcome. If you are reading this, you are not looking for the basic "what is backlog grooming" overview that passes for a beginner's workshop. You are here because you understand that the term itself—"grooming"—is an embarrassingly quaint metaphor for a process that is, in reality, a highly complex, multi-dimensional optimization problem rooted in organizational economics, risk management, and predictive modeling.

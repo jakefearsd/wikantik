@@ -1,3 +1,13 @@
+---
+title: Choosing An Immigration Attorney
+type: article
+tags:
+- attornei
+- case
+- legal
+summary: This tutorial moves beyond rudimentary consumer guides.
+auto-generated: true
+---
 # Choosing an Immigration Attorney
 
 The selection of legal representation in immigration law is frequently presented in popular discourse as a matter of due diligence—a simple checklist of credentials, reviews, and initial consultations. For the expert researcher, however, this process is far more akin to a high-stakes, multi-variable risk assessment problem requiring the integration of quantitative performance metrics, qualitative jurisprudential analysis, and predictive modeling of systemic legal outcomes.
@@ -175,7 +185,7 @@ The ideal candidate here is not just an immigration lawyer, but one with a demon
 
 ### B. The Integration of Emerging Technology in Legal Practice
 
-The field is rapidly adopting AI and Machine Learning (ML) tools. An expert researcher must evaluate the attorney's *readiness* to integrate these tools ethically and effectively.
+The field is rapidly adopting AI and [Machine Learning](MachineLearning) (ML) tools. An expert researcher must evaluate the attorney's *readiness* to integrate these tools ethically and effectively.
 
 **1. AI in Legal Research (The "Knowledge Retrieval Augmentation"):**
 Modern research involves querying vast, unstructured datasets (e.g., thousands of unpublished BIA decisions). An attorney who relies solely on manual database searching is operating with a significant technological handicap.

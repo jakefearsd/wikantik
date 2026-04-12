@@ -1,3 +1,14 @@
+---
+title: Reverse Logistics And Returns
+type: article
+tags:
+- return
+- valu
+- process
+summary: We are no longer merely managing returns; we are managing the re-entry of
+  value.
+auto-generated: true
+---
 # Value Recovery
 
 ## Introduction: Beyond the Transactional Handoff
@@ -121,7 +132,7 @@ This section moves into the bleeding edge—the research areas that promise expo
 
 ### 3.1 Predictive Modeling for Disposition Routing
 
-Instead of reacting to the return, the system must *predict* the optimal path. This requires integrating machine learning models trained on historical return datasets that correlate return characteristics with final disposition outcomes.
+Instead of reacting to the return, the system must *predict* the optimal path. This requires integrating [machine learning](MachineLearning) models trained on historical return datasets that correlate return characteristics with final disposition outcomes.
 
 **Technique Focus: Reinforcement Learning (RL)**
 RL is ideally suited here because the "optimal action" (disposition) depends on the *state* of the system (inventory levels, market demand, current repair capacity).
@@ -211,7 +222,7 @@ The ideal system is not a collection of modules, but a unified **Digital Supply 
 
 ### 5.2 Advanced Inventory Management in Reverse Flow
 
-Traditional Warehouse Management Systems (WMS) are optimized for *inbound* flow (receiving raw materials or finished goods). Reverse logistics requires a specialized **Reverse Warehouse Management System (RWMS)**.
+Traditional [Warehouse Management Systems](WarehouseManagementSystems) (WMS) are optimized for *inbound* flow (receiving raw materials or finished goods). Reverse logistics requires a specialized **Reverse Warehouse Management System (RWMS)**.
 
 The RWMS must manage inventory not just by SKU, but by **Recoverable Value Potential (RVP)**.
 

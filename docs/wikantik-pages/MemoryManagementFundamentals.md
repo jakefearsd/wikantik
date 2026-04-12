@@ -1,3 +1,13 @@
+---
+title: Memory Management Fundamentals
+type: article
+tags:
+- memori
+- object
+- pointer
+summary: This tutorial is not a refresher for undergraduates.
+auto-generated: true
+---
 # From Explicit Control to Automated Reclamation
 
 For those of us who spend enough time wrestling with the machine's most fundamental resource—memory—the concepts of allocation, deallocation, and reclamation are not mere programming details; they are the very bedrock upon which system stability, performance predictability, and correctness are built. When researching novel techniques, one quickly realizes that the choice of memory management strategy is often the single most defining architectural decision, capable of determining whether a system is a robust, low-latency powerhouse or a frustrating, unpredictable mess of leaks and dangling pointers.
@@ -16,7 +26,7 @@ The spectrum of solutions ranges from the programmer wielding raw pointers and `
 
 The difficulty stems from the inherent complexity of tracking *reachability* in a dynamic, multi-threaded environment.
 
-1.  **Temporal Locality and Lifetime:** An object's lifetime is not statically known. It depends on the execution path, the sequence of function calls, and the state of global data structures.
+1.  **Temporal Locality and Lifetime:** An object's lifetime is not statically known. It depends on the execution path, the sequence of function calls, and the state of global [data structures](DataStructures).
 2.  **Aliasing and Indirection:** Pointers introduce indirection. Determining if a piece of memory is "used" requires traversing a graph structure (the object graph), which is computationally expensive.
 3.  **Concurrency:** In multi-threaded contexts, the state of reachability can change asynchronously. A thread might read a pointer that another thread is in the process of invalidating, leading to data races or, worse, silent memory corruption.
 

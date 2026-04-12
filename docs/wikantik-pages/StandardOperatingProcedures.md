@@ -1,3 +1,14 @@
+---
+title: Standard Operating Procedures
+type: article
+tags:
+- sop
+- must
+- document
+summary: We assume a deep understanding of scientific rigor, process engineering,
+  and the inherent ambiguities found at the frontier of knowledge.
+auto-generated: true
+---
 # The Architectonics of Knowledge Transfer
 
 ***

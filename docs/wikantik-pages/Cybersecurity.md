@@ -1,3 +1,13 @@
+---
+title: Cybersecurity
+type: article
+tags:
+- kei
+- protocol
+- secur
+summary: Cybersecurity and Cryptographic Protocols Welcome.
+auto-generated: true
+---
 # Cybersecurity and Cryptographic Protocols
 
 Welcome. If you are reading this, you are not looking for a refresher on what encryption *is*. You are here because the established paradigms are insufficient, because the threat landscape has evolved beyond mere brute-force attacks, and because the next breakthrough requires a deep, almost architectural understanding of the protocols that underpin digital trust.
@@ -182,7 +192,7 @@ The concept of **Cryptographic Agility** is paramount for long-term system desig
 
 ### C. Threat Modeling as a Protocol Requirement
 
-A comprehensive protocol design must be preceded by exhaustive threat modeling, moving beyond simple vulnerability scanning.
+A comprehensive protocol design must be preceded by exhaustive [threat modeling](ThreatModeling), moving beyond simple vulnerability scanning.
 
 1.  **STRIDE Model Extension:** While STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege) is standard, protocol researchers must extend it to include:
     *   **Timing Attacks:** Can an attacker measure the time taken for a cryptographic operation (e.g., signature verification) to leak information about the secret key? (Requires constant-time implementation).
@@ -194,7 +204,7 @@ A comprehensive protocol design must be preceded by exhaustive threat modeling, 
 
 To summarize this sprawling landscape for a research audience:
 
-The evolution of cryptographic protocols is not a linear progression toward "perfection." It is a dynamic, reactive, and often contradictory arms race dictated by advances in computational theory (quantum computing), hardware capability (TPMs, PUFs), and attacker ingenuity (side-channel analysis, sophisticated state manipulation).
+The evolution of cryptographic protocols is not a linear progression toward "perfection." It is a dynamic, reactive, and often contradictory arms race dictated by advances in computational theory ([quantum computing](QuantumComputing)), hardware capability (TPMs, PUFs), and attacker ingenuity (side-channel analysis, sophisticated state manipulation).
 
 **Key Takeaways for the Researcher:**
 

@@ -1,3 +1,14 @@
+---
+title: Heap And Priority Queues
+type: article
+tags:
+- heap
+- pq
+- structur
+summary: When multiple tasks, events, or data packets arrive concurrently, the system
+  must deterministically decide which item receives immediate attention.
+auto-generated: true
+---
 # A Comprehensive Review of Heap-Based Priority Queue Scheduling for Advanced Research Systems
 
 **Target Audience:** Experts in Computer Science, Operating Systems Theory, Real-Time Systems, and High-Performance Computing.
@@ -195,7 +206,7 @@ In multi-core processors, multiple threads may attempt to insert or extract elem
 
 1.  **Locking Mechanisms:** The simplest approach is coarse-grained locking (a single mutex protecting the entire heap). This serializes all PQ access, effectively reducing the system to single-threaded performance, negating the benefits of parallelism.
 2.  **Fine-Grained Locking:** A more advanced technique involves locking only the specific nodes or sub-trees being modified. However, managing the lock granularity across the entire heap structure is incredibly complex, especially during the `Heapify` process, which involves cascading changes.
-3.  **Lock-Free Data Structures:** The gold standard for high-performance concurrency is the use of lock-free algorithms, typically employing **Compare-And-Swap (CAS)** atomic instructions.
+3.  **Lock-Free [Data Structures](DataStructures):** The gold standard for high-performance concurrency is the use of lock-free algorithms, typically employing **Compare-And-Swap (CAS)** atomic instructions.
     *   A lock-free heap implementation attempts to modify the structure by reading the current state, calculating the desired new state, and then atomically swapping the state *only if* the current state has not been modified by another thread since the read.
     *   This is significantly more difficult than standard heap implementation, requiring deep knowledge of memory models (e.g., C++ `std::atomic` or Java's `AtomicReference`).
 

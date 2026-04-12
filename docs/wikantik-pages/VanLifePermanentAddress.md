@@ -1,3 +1,14 @@
+---
+title: Van Life Permanent Address
+type: article
+tags:
+- legal
+- jurisdict
+- physic
+summary: 'The Paradox of Permanence Target Audience: Experts in Mobility Studies,
+  Legal Technology, Digital Nomad Infrastructure, and Jurisdictional Compliance.'
+auto-generated: true
+---
 # The Paradox of Permanence
 
 **Target Audience:** Experts in Mobility Studies, Legal Technology, Digital Nomad Infrastructure, and Jurisdictional Compliance.

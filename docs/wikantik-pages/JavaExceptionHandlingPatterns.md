@@ -1,3 +1,14 @@
+---
+title: Java Exception Handling Patterns
+type: article
+tags:
+- except
+- failur
+- check
+summary: It touches upon the very nature of compile-time guarantees versus runtime
+  reality.
+auto-generated: true
+---
 # Java Exception Handling
 
 For those of us who spend enough time wrestling with Java's type system and runtime contracts, the distinction between checked and unchecked exceptions is less a matter of mere syntax and more a profound architectural debate. It touches upon the very nature of compile-time guarantees versus runtime reality.

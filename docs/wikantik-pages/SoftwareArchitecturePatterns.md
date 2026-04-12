@@ -1,3 +1,14 @@
+---
+title: Software Architecture Patterns
+type: article
+tags:
+- us
+- layer
+- architectur
+summary: As systems grow in complexity, the initial elegance of a design often degrades
+  into brittle, tangled spaghetti code.
+auto-generated: true
+---
 # The Architecture of Resilience
 
 For seasoned software architects and researchers, the pursuit of the "perfect" architecture is less about finding a single silver bullet and more about mastering the art of managing inevitable change. As systems grow in complexity, the initial elegance of a design often degrades into brittle, tangled spaghetti code. The challenge is not merely to build a system that works today, but to build a system that can absorb the shocks of tomorrow—new business rules, changing persistence technologies, or evolving UI paradigms—with minimal refactoring effort.

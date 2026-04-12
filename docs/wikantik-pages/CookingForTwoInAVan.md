@@ -1,3 +1,15 @@
+---
+title: Cooking For Two In A Van
+type: article
+tags:
+- cook
+- heat
+- requir
+summary: 'Cooking for Two in a Van Target Audience: Culinary Engineers, Bushcraft
+  Survivalists, Advanced Vanlife Practitioners, and Researchers in Constrained Environment
+  Food Systems.'
+auto-generated: true
+---
 # Cooking for Two in a Van
 
 **Target Audience:** Culinary Engineers, Bushcraft Survivalists, Advanced Vanlife Practitioners, and Researchers in Constrained Environment Food Systems.
@@ -113,7 +125,7 @@ Instead of cooking components separately (e.g., boiling rice, then searing chick
 
 **Example: Deconstructed Curry System**
 1.  **Base Layer (Aromatics):** Bloom spices and aromatics (ginger, garlic, onion) in a small amount of fat ($\text{Fat}_1$). This process, *blooming*, is non-negotiable for depth.
-2.  **Protein Integration:** Sear the protein in the residual fat ($\text{Fat}_1$). The Maillard reaction occurs here, building foundational savory notes.
+2.  **Protein Integration:** Sear the protein in the residual fat ($\text{Fat}_1$). The [Maillard reaction](MaillardReaction) occurs here, building foundational savory notes.
 3.  **Liquid/Bulk Addition:** Introduce the liquid base (coconut milk, broth). The protein absorbs the flavor profile of the liquid.
 4.  **Vegetable Staging:** Add vegetables in stages based on their required cook time. Harder vegetables (potatoes, carrots) go in first, followed by quicker items (spinach, bell peppers).
 

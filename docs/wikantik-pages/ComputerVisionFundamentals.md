@@ -1,6 +1,16 @@
+---
+title: Computer Vision Fundamentals
+type: article
+tags:
+- object
+- segment
+- mask
+summary: Computer Vision Object Detection and Segmentation Welcome.
+auto-generated: true
+---
 # Computer Vision Object Detection and Segmentation
 
-Welcome. If you are reading this, you are likely already familiar with the basic tenets of Convolutional Neural Networks (CNNs) and the general workflow of deep learning applied to visual data. Therefore, we shall dispense with the hand-holding regarding backpropagation and gradient descent.
+Welcome. If you are reading this, you are likely already familiar with the basic tenets of [Convolutional Neural Networks](ConvolutionalNeuralNetworks) (CNNs) and the general workflow of deep learning applied to visual data. Therefore, we shall dispense with the hand-holding regarding backpropagation and gradient descent.
 
 This document is not a refresher course; it is a deep dive into the architectural, theoretical, and frontier challenges at the intersection of object detection and image segmentation. We aim to provide a comprehensive survey of the methodologies, critically analyzing the trade-offs, limitations, and emerging research vectors necessary for those pushing the boundaries of what machines can "see."
 
@@ -154,7 +164,7 @@ The mask head typically uses a small Fully Convolutional Network (FCN) applied t
 
 ### 4.2. The Transformer Revolution: DETR and Set Prediction
 
-The Transformer architecture, initially dominant in NLP, has proven remarkably effective in vision tasks by framing object detection as a **set prediction problem**.
+The [Transformer architecture](TransformerArchitecture), initially dominant in NLP, has proven remarkably effective in vision tasks by framing object detection as a **set prediction problem**.
 
 **DETR (Detection Transformer):**
 DETR fundamentally changes the objective. Instead of relying on NMS or complex anchor management, it uses a Transformer Encoder-Decoder structure.

@@ -1,3 +1,15 @@
+---
+title: Temporal Logic
+type: article
+tags:
+- mathbf
+- phi
+- state
+summary: Temporal Logic and Reasoning About Time The formalization of time is, perhaps,
+  one of the most persistent and stubbornly difficult challenges in the philosophy
+  and computer science of logic.
+auto-generated: true
+---
 # Temporal Logic and Reasoning About Time
 
 The formalization of time is, perhaps, one of the most persistent and stubbornly difficult challenges in the philosophy and computer science of logic. Time, unlike truth values, is inherently relational, dynamic, and often context-dependent. To reason about it requires moving beyond the static snapshot of classical propositional or first-order logic and adopting systems where the passage of time itself is a primary variable.
@@ -266,7 +278,7 @@ For the advanced researcher, the takeaway is not to master one logic, but to mas
 1.  **If the system behavior is deterministic and must follow one single path (e.g., a simple sequential protocol):** LTL is likely sufficient and computationally efficient.
 2.  **If the system involves non-determinism and we must guarantee properties regardless of choices (e.g., safety verification):** CTL is the natural choice, as it cleanly separates possibility ($\mathbf{E}$) from necessity ($\mathbf{A}$).
 3.  **If the system behavior is complex, mixing possibilities and necessities, or if the path structure itself must be reasoned about:** CTL* is required, but be prepared for the associated computational overhead.
-4.  **If physical duration or continuous change is paramount:** MTL or specialized Hybrid Automata logics are mandatory, demanding a shift from automata theory to differential geometry in the background.
+4.  **If physical duration or continuous change is paramount:** MTL or specialized Hybrid Automata logics are mandatory, demanding a shift from automata theory to [differential geometry](DifferentialGeometry) in the background.
 
 The field continues to evolve, driven by the need to model increasingly complex systems—from quantum computation to biological processes. The next frontier likely involves seamlessly integrating the inherent uncertainty of probabilistic reasoning (Probabilistic Temporal Logic) with the structural rigor of MTL, all while maintaining decidability guarantees.
 

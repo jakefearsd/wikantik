@@ -1,3 +1,14 @@
+---
+title: Esg Investing
+type: article
+tags:
+- esg
+- text
+- risk
+summary: 'Methodological Frontiers for Advanced Research Target Audience: Quantitative
+  Researchers, Sustainable Finance Model Developers, Corporate Governance Experts.'
+auto-generated: true
+---
 # Methodological Frontiers for Advanced Research
 
 **Target Audience:** Quantitative Researchers, Sustainable Finance Model Developers, Corporate Governance Experts.
@@ -103,13 +114,13 @@ This is the simplest form: either the company passes a minimum threshold on a cr
 
 ### 2. Advanced Integration: Machine Learning for Non-Linearity
 
-For the expert researcher, the limitations of linear models necessitate the adoption of machine learning techniques capable of modeling complex, non-linear interactions.
+For the expert researcher, the limitations of linear models necessitate the adoption of [machine learning](MachineLearning) techniques capable of modeling complex, non-linear interactions.
 
 **A. Gradient Boosting Machines (GBM) and Random Forests:**
 These ensemble methods are excellent for predicting outcomes (e.g., future volatility, credit default probability) based on a large, heterogeneous set of inputs (E, S, G metrics, financial ratios). They inherently handle non-linear relationships and can provide **Feature Importance Scores**, which are invaluable for determining which ESG pillar (E, S, or G) is the *most predictive* of future firm performance for a given sector.
 
 **B. Deep Learning (RNNs/LSTMs):**
-When ESG data is treated as a *time series* of evolving risk profiles, Recurrent Neural Networks (RNNs) or Long Short-Term Memory (LSTMs) are superior. They are designed to remember dependencies over long sequences, making them ideal for modeling how a gradual deterioration in governance (G) over five years might precede a major financial event, something standard regression struggles to capture.
+When ESG data is treated as a *time series* of evolving risk profiles, [Recurrent Neural Networks](RecurrentNeuralNetworks) (RNNs) or Long Short-Term Memory (LSTMs) are superior. They are designed to remember dependencies over long sequences, making them ideal for modeling how a gradual deterioration in governance (G) over five years might precede a major financial event, something standard regression struggles to capture.
 
 **Pseudocode Example (Conceptual Feature Importance):**
 If predicting $\text{Future Volatility}$:
@@ -146,7 +157,7 @@ A robust research pipeline cannot rely on a single standard. It must employ **Ha
 
 Greenwashing—the act of misleadingly presenting a company's environmental or social record—is the primary systemic risk in the ESG data space. Detecting it requires moving beyond structured data points and into the unstructured text corpus.
 
-**Natural Language Processing (NLP) Techniques:**
+**[Natural Language Processing](NaturalLanguageProcessing) (NLP) Techniques:**
 
 1.  **Sentiment Analysis:** Applying advanced sentiment models (e.g., BERT-based models fine-tuned on corporate sustainability reports) to gauge the *tone* of the disclosure. A high volume of positive, yet vague, language ("We are committed to...") paired with low quantitative metrics can signal potential exaggeration.
 2.  **Entity Recognition and Relation Extraction:** Identifying specific claims (entities) and the relationships between them. For example, extracting the claim: "Company X reduced Scope 1 emissions by 15% *due to* investment in renewable energy." The model must then verify the *causal link* implied by the text against external data.

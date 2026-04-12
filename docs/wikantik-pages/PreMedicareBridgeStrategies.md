@@ -1,3 +1,14 @@
+---
+title: Pre Medicare Bridge Strategies
+type: article
+tags:
+- cost
+- model
+- premium
+summary: This analysis is intended for researchers, actuaries, and advanced policy
+  analysts seeking to refine predictive models for retirement healthcare expenditure.
+auto-generated: true
+---
 # Advanced Modeling and Policy Implications
 
 ## Abstract
@@ -220,7 +231,7 @@ We have established that a robust model for the Bridge must move beyond simple p
 
 For researchers aiming to push the boundaries of this field, we suggest focusing on the following areas:
 
-*   **Machine Learning for Predictive Gap Filling:** Developing deep learning models trained on longitudinal claims data to predict the optimal *mix* of coverage (e.g., recommending a specific PPO/HDHP combination based on predicted utilization patterns rather than just cost).
+*   **[Machine Learning](MachineLearning) for Predictive Gap Filling:** Developing deep learning models trained on longitudinal claims data to predict the optimal *mix* of coverage (e.g., recommending a specific PPO/HDHP combination based on predicted utilization patterns rather than just cost).
 *   **Policy Intervention Simulation:** Creating a sandbox environment to simulate the impact of hypothetical policy changes (e.g., universal Medicare expansion, elimination of the ACA subsidy cliff) on the overall cost distribution curve.
 *   **Behavioral Economics Integration:** Quantifying the "cost of complexity." How does the sheer difficulty of navigating the system lead to suboptimal choices (e.g., choosing the cheapest plan that results in the highest utilization cost)?
 

@@ -1,3 +1,14 @@
+---
+title: Project Estimation Techniques
+type: article
+tags:
+- estim
+- team
+- point
+summary: We are tasked with predicting the effort required to transform an abstract
+  concept—a user story, a feature, a capability—into tangible, working software.
+auto-generated: true
+---
 # Planning Poker
 
 ## Introduction: The Intractable Problem of Estimation Uncertainty

@@ -1,8 +1,18 @@
+---
+title: Machine Learning
+type: article
+tags:
+- mathbf
+- learn
+- model
+summary: Machine Learning Fundamentals and Neural Networks Welcome.
+auto-generated: true
+---
 # Machine Learning Fundamentals and Neural Networks
 
 Welcome. If you are reading this, you are not looking for a primer on what a neural network *is*. You are here because you are wrestling with the limitations of current architectures, exploring the nuances of optimization landscapes, or perhaps trying to derive a novel attention mechanism that surpasses the current state-of-the-art.
 
-This tutorial assumes a profound familiarity with linear algebra, multivariable calculus, probability theory, and the general principles of computational graph theory. We will not waste time defining what a dataset is, nor will we spend cycles differentiating between AI, ML, and DL—though we will rigorously delineate the boundaries where these fields intersect and diverge in modern research practice.
+This tutorial assumes a profound familiarity with [linear algebra](LinearAlgebra), multivariable calculus, [probability theory](ProbabilityTheory), and the general principles of computational graph theory. We will not waste time defining what a dataset is, nor will we spend cycles differentiating between AI, ML, and DL—though we will rigorously delineate the boundaries where these fields intersect and diverge in modern research practice.
 
 Consider this a comprehensive, highly technical review designed to solidify the foundational mathematics and architectural principles necessary to push the boundaries of empirical research.
 
@@ -36,7 +46,7 @@ If a shallow network learns simple correlations (e.g., linear separation), a dee
 The synergy between DL and Big Data is not merely correlational; it is mathematically necessary for current performance levels.
 
 1.  **Big Data ($\mathcal{D}$):** Refers to datasets whose volume, velocity, or variety exceeds the capacity of traditional data processing tools. In the context of DL, "big" often implies sufficient data diversity and volume to prevent the model from overfitting to spurious correlations present in smaller, biased samples.
-2.  **Automated Machine Learning (AutoML):** This is the meta-optimization layer. It aims to automate the tedious, expert-intensive parts of the ML pipeline: feature engineering, hyperparameter tuning (learning rate schedules, regularization strength, network depth), and model selection. For researchers, AutoML is less about *building* the model and more about *efficiently searching* the vast hyperparameter space $\Theta$.
+2.  **Automated Machine Learning (AutoML):** This is the meta-optimization layer. It aims to automate the tedious, expert-intensive parts of the ML pipeline: [feature engineering](FeatureEngineering), hyperparameter tuning (learning rate schedules, regularization strength, network depth), and [model selection](ModelSelection). For researchers, AutoML is less about *building* the model and more about *efficiently searching* the vast hyperparameter space $\Theta$.
 
 ***
 
@@ -53,7 +63,7 @@ $$\hat{y} = f(x; \theta)$$
 Where $\theta$ represents the network weights and biases. The learning process is fundamentally an **optimization problem**: minimizing the expected risk $\mathbb{E}[\mathcal{L}(y, f(x))]$.
 
 **Advanced Considerations:**
-*   **Bias-Variance Tradeoff:** This is not a static concept; it is a function of model complexity relative to the data manifold. High bias (underfitting) suggests the model class is too restrictive; high variance (overfitting) suggests the model is too complex for the available data structure. Regularization techniques (discussed later) are direct attempts to constrain the effective model complexity.
+*   **Bias-Variance Tradeoff:** This is not a static concept; it is a function of model complexity relative to the data manifold. High bias (underfitting) suggests the model class is too restrictive; high variance (overfitting) suggests the model is too complex for the available data structure. [Regularization techniques](RegularizationTechniques) (discussed later) are direct attempts to constrain the effective model complexity.
 *   **Semi-Supervised Learning:** Utilizing a small amount of labeled data combined with a large amount of unlabeled data. Techniques often involve consistency regularization, assuming that the model's output should remain stable under minor perturbations of the input data manifold.
 
 ### B. Unsupervised Learning (The Structure Discovery Problem)
@@ -240,7 +250,7 @@ The $*$ denotes the convolution operation.
     $$\mathbf{H}(x) = \mathcal{F}(x) + x$$
     This allows the network to learn the *residual* $\mathcal{F}(x)$ rather than the entire mapping $\mathbf{H}(x)$. If the optimal mapping is the identity function, the network only needs to drive $\mathcal{F}(x) \rightarrow 0$, which is significantly easier for gradient descent than forcing the entire block to learn the identity mapping.
 
-*   **Vision Transformers (ViT):** This represents a paradigm shift. Instead of relying on convolutions to enforce locality, ViT treats image patches as sequential "tokens" and processes them using the Transformer architecture (discussed next). It proves that the self-attention mechanism can implicitly learn spatial relationships as effectively, if not more powerfully, than handcrafted convolutional filters.
+*   **Vision Transformers (ViT):** This represents a paradigm shift. Instead of relying on convolutions to enforce locality, ViT treats image patches as sequential "tokens" and processes them using the [Transformer architecture](TransformerArchitecture) (discussed next). It proves that the self-attention mechanism can implicitly learn spatial relationships as effectively, if not more powerfully, than handcrafted convolutional filters.
 
 ### B. Recurrent Neural Networks (RNNs) and Sequence Modeling
 

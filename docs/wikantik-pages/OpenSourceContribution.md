@@ -1,3 +1,14 @@
+---
+title: Open Source Contribution
+type: article
+tags:
+- govern
+- model
+- must
+summary: Open Source Contribution Project Governance The modern technological landscape
+  is inextricably linked to the open-source ecosystem.
+auto-generated: true
+---
 # Open Source Contribution Project Governance
 
 The modern technological landscape is inextricably linked to the open-source ecosystem. Open Source Software (OSS) has moved far beyond being a mere development methodology; it is a complex socio-technical system, a global utility, and a critical component of modern digital infrastructure. For experts researching novel techniques, understanding the *governance* of these systems is arguably more challenging—and more valuable—than understanding the underlying code itself.
@@ -202,7 +213,7 @@ In this model, the rules (voting weight, proposal submission, treasury managemen
 
 ### 5.2. AI-Assisted Governance and Automated Arbitration
 
-Artificial Intelligence presents the most immediate opportunity to mitigate human cognitive limitations in governance.
+[Artificial Intelligence](ArtificialIntelligence) presents the most immediate opportunity to mitigate human cognitive limitations in governance.
 
 **Potential Applications:**
 

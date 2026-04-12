@@ -1,3 +1,13 @@
+---
+title: Cloud Computing
+type: article
+tags:
+- architectur
+- servic
+- cloud
+summary: However, the term "architecture" in this context is misleadingly broad.
+auto-generated: true
+---
 # Cloud Computing Architecture and Deployment
 
 The landscape of cloud computing has evolved far beyond simple discussions of "renting servers." For experts researching cutting-edge techniques, the challenge is no longer merely *if* to move to the cloud, but *how* to architect, deploy, and govern highly complex, distributed systems that meet stringent requirements for latency, compliance, resilience, and cost efficiency across heterogeneous environments.
@@ -94,9 +104,9 @@ MSA is the dominant pattern for building resilient, scalable enterprise applicat
 3.  **Data Management:** Each service ideally owns its own data store (Database-per-Service pattern). This prevents tight coupling at the data layer, which is a major architectural win but complicates cross-service transactions.
 
 **The Challenge of Distributed Transactions:**
-When a business process requires updating data across three different services (e.g., Order $\rightarrow$ Inventory $\rightarrow$ Payment), traditional ACID transactions are impossible across service boundaries. Experts must implement **Saga Patterns** or **Eventual Consistency** models.
+When a business process requires updating data across three different services (e.g., Order $\rightarrow$ Inventory $\rightarrow$ Payment), traditional ACID transactions are impossible across service boundaries. Experts must implement **Saga Patterns** or **[Eventual Consistency](EventualConsistency)** models.
 
-*   **Saga Pattern:** A sequence of local transactions. If one step fails, compensating transactions are executed to undo the preceding work.
+*   **[Saga Pattern](SagaPattern):** A sequence of local transactions. If one step fails, compensating transactions are executed to undo the preceding work.
 
 **Pseudocode Example (Conceptual Saga Orchestration):**
 ```pseudocode
@@ -166,13 +176,13 @@ The sidecars handle the complexity, allowing the application code to remain clea
 An architecture is only as good as its ability to be deployed, secured, and maintained at scale. For experts, this section moves from "what it is" to "how to make it robust."
 
 ### 4.1 Zero Trust Networking and Security Primitives
-The traditional perimeter-based security model (the castle-and-moat) is obsolete in cloud environments. We must adopt **Zero Trust Architecture (ZTA)**: *Never trust, always verify.*
+The traditional perimeter-based security model (the castle-and-moat) is obsolete in cloud environments. We must adopt **[Zero Trust Architecture](ZeroTrustArchitecture) (ZTA)**: *Never trust, always verify.*
 
 **Key Implementation Pillars:**
 
 1.  **Micro-segmentation:** Network policies must be applied at the workload level, not just the subnet level. A service should only be able to communicate with the exact endpoints and ports it requires, and nothing else.
 2.  **Identity as the Perimeter:** Access control must pivot entirely around verifiable identity (Workload Identity, JWTs) rather than IP addresses.
-3.  **Secrets Management:** Hardcoding credentials is an architectural sin. Secrets must be injected at runtime from dedicated vaults (e.g., HashiCorp Vault, AWS Secrets Manager), utilizing short-lived, dynamically generated credentials.
+3.  **[Secrets Management](SecretsManagement):** Hardcoding credentials is an architectural sin. Secrets must be injected at runtime from dedicated vaults (e.g., HashiCorp Vault, AWS Secrets Manager), utilizing short-lived, dynamically generated credentials.
 
 **Mathematical Consideration: Trust Boundary Definition:**
 In a ZTA model, the trust boundary $\mathcal{T}$ for any communication path $P$ between service $S_A$ and $S_B$ must satisfy:
@@ -190,7 +200,7 @@ While Virtual Private Clouds (VPCs) provide the necessary isolation boundary, th
 ### 4.3 Resilience Engineering: Modeling Failure
 Resilience is not about preventing failure; it is about *managing* failure gracefully. Experts must move beyond simple failover mechanisms.
 
-*   **Chaos Engineering:** This is the proactive discipline of injecting controlled failures into the production environment to test the system's resilience assumptions. Tools like Chaos Mesh or Gremlin are used to simulate network latency spikes, node failures, or resource exhaustion.
+*   **[Chaos Engineering](ChaosEngineering):** This is the proactive discipline of injecting controlled failures into the production environment to test the system's resilience assumptions. Tools like Chaos Mesh or Gremlin are used to simulate network latency spikes, node failures, or resource exhaustion.
 *   **RTO/RPO Modeling:**
     *   **Recovery Time Objective (RTO):** The maximum tolerable duration for system downtime.
     *   **Recovery Point Objective (RPO):** The maximum tolerable amount of data loss (measured in time).
@@ -232,10 +242,10 @@ Modern AI/ML workloads fundamentally change the architectural requirements. They
 
 *   **Accelerator Dependency:** The architecture must explicitly account for specialized hardware accelerators (GPUs, TPUs, FPGAs). The deployment model must support workload placement based on hardware availability and utilization metrics.
 *   **Data Pipeline Complexity:** Training ML models requires massive, high-throughput data pipelines (Data Lake $\rightarrow$ Feature Store $\rightarrow$ Training Cluster). The architecture must treat the Feature Store as a critical, versioned, and highly available service layer.
-*   **MLOps (Machine Learning Operations):** This is the specialized CI/CD pipeline for ML. It requires versioning not just the *code*, but also the *data* and the *model artifact* itself. A change in the training data distribution (data drift) requires an automated retraining and redeployment loop, which is a significant architectural overhead compared to traditional software deployment.
+*   **MLOps ([Machine Learning](MachineLearning) Operations):** This is the specialized CI/CD pipeline for ML. It requires versioning not just the *code*, but also the *data* and the *model artifact* itself. A change in the training data distribution (data drift) requires an automated retraining and redeployment loop, which is a significant architectural overhead compared to traditional software deployment.
 
 ### 5.3 Quantum Resistance and Future Proofing
-While speculative, any comprehensive architectural guide for experts must acknowledge future threats. The eventual threat of quantum computing breaking current public-key cryptography (RSA, ECC) necessitates planning for **Post-Quantum Cryptography (PQC)** migration.
+While speculative, any comprehensive architectural guide for experts must acknowledge future threats. The eventual threat of [quantum computing](QuantumComputing) breaking current public-key cryptography (RSA, ECC) necessitates planning for **Post-Quantum Cryptography (PQC)** migration.
 
 Architects must adopt a "crypto-agility" mindset, designing systems where cryptographic primitives can be swapped out (e.g., replacing ECC with CRYSTALS-Dilithium) with minimal disruption to the application logic or service mesh configuration.
 

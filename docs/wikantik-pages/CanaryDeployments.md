@@ -1,3 +1,14 @@
+---
+title: Canary Deployments
+type: article
+tags:
+- text
+- canari
+- rollout
+summary: Releasing a major feature or an infrastructure update to the entire user
+  base simultaneously is an unacceptable gamble.
+auto-generated: true
+---
 # Gradual Ascent
 
 ## Introduction: Mitigating the Blast Radius in Modern Microservices Architectures
@@ -62,7 +73,7 @@ A critical architectural pattern for advanced rollouts is the decoupling of *dep
 *   **Deployment:** The act of pushing $\text{V}_{\text{new}}$ artifacts onto the infrastructure (making it *available*).
 *   **Release:** The act of making the functionality of $\text{V}_{\text{new}}$ visible to users (controlling *access*).
 
-Feature flags (or toggles) are the mechanism that enables this separation. A service can be deployed with the new code path present but dormant. The gradual rollout then becomes a controlled activation of the feature flag for increasing percentages of users, rather than solely relying on network traffic routing.
+[Feature flags](FeatureFlags) (or toggles) are the mechanism that enables this separation. A service can be deployed with the new code path present but dormant. The gradual rollout then becomes a controlled activation of the feature flag for increasing percentages of users, rather than solely relying on network traffic routing.
 
 **Pseudocode Concept (Conceptual Flow):**
 
@@ -264,7 +275,7 @@ For those researching Kubernetes-native solutions, tools like Argo Rollouts are 
 
 ## Conclusion: The Continuous Pursuit of Zero Downtime
 
-Canary deployment gradual rollout is not a single technique; it is an entire **observability-driven, risk-managed deployment methodology**. It represents the maturation of DevOps practices into Site Reliability Engineering (SRE) principles.
+Canary deployment gradual rollout is not a single technique; it is an entire **observability-driven, risk-managed deployment methodology**. It represents the maturation of DevOps practices into [Site Reliability Engineering](SiteReliabilityEngineering) (SRE) principles.
 
 For the expert researcher, the takeaway is that the focus must shift from *how* to route traffic (which is increasingly solved by Service Meshes) to *how to prove* that the new version is safe, and *how to automate the decision-making process* based on real-time, multi-dimensional telemetry.
 

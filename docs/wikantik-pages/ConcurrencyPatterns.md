@@ -1,3 +1,13 @@
+---
+title: Concurrency Patterns
+type: article
+tags:
+- lock
+- thread
+- read
+summary: Concurrency Patterns and Thread Safety Locks Welcome.
+auto-generated: true
+---
 # Concurrency Patterns and Thread Safety Locks
 
 Welcome. If you are reading this, you are presumably past the point of merely using `synchronized` blocks and are now wrestling with the subtle, often invisible, complexities of shared mutable state across multiple execution threads. Good. Because understanding concurrency is less about knowing the syntax and more about mastering the underlying mathematical and hardware guarantees of memory visibility and ordering.
@@ -353,7 +363,7 @@ The evolution of concurrency primitives reflects a constant battle against the i
 
 *   We moved from simple mutual exclusion (Mutexes) to optimizing access patterns (Read-Write Locks).
 *   We moved from blocking mechanisms (Locks) to non-blocking, hardware-assisted guarantees (CAS/Atomics).
-*   We are now incorporating architectural patterns (Strategy Pattern) to make the choice of synchronization mechanism itself pluggable and testable.
+*   We are now incorporating architectural patterns ([Strategy Pattern](StrategyPattern)) to make the choice of synchronization mechanism itself pluggable and testable.
 
 For the researcher, the frontier remains in:
 1.  **Formal Verification:** Using tools to mathematically prove that a concurrent system is deadlock-free and starvation-free across all possible interleavings.

@@ -1,3 +1,14 @@
+---
+title: Sauce Making
+type: article
+tags:
+- stabil
+- phase
+- sauc
+summary: We will dissect the physical chemistry, rheological principles, and kinetic
+  stability governing the creation of stable, complex, and novel food matrices.
+auto-generated: true
+---
 # Sauce Making and Emulsion Theory
 
 This tutorial is designed for researchers, food scientists, and advanced culinary technologists who require a deep, mechanistic understanding of sauce formulation, moving far beyond mere recipe replication. We will dissect the physical chemistry, rheological principles, and kinetic stability governing the creation of stable, complex, and novel food matrices.
@@ -232,7 +243,7 @@ The current state-of-the-art requires researchers to treat the sauce as a **mult
     *   *Tertiary:* $\text{pH}$/Ionic control to optimize electrostatic repulsion.
 3.  **Modeling Complexity:** Future work must integrate computational fluid dynamics ($\text{CFD}$) with molecular dynamics simulations to predict the behavior of complex, structured fluids under dynamic, non-uniform shear fields (i.e., simulating the sauce coating a piece of meat).
 
-The journey from a simple vinaigrette to a shelf-stable, texturally perfect sauce is a masterclass in applied physical chemistry. The next frontier involves designing *smart* stabilizers—polymers or proteins that respond dynamically to environmental cues (temperature shifts, $\text{pH}$ fluctuations) to actively maintain structural integrity, thereby revolutionizing food preservation and culinary experience.
+The journey from a simple vinaigrette to a shelf-stable, texturally perfect sauce is a masterclass in applied physical chemistry. The next frontier involves designing *smart* stabilizers—polymers or proteins that respond dynamically to environmental cues (temperature shifts, $\text{pH}$ fluctuations) to actively maintain structural integrity, thereby revolutionizing [food preservation](FoodPreservation) and culinary experience.
 
 ***
 

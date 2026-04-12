@@ -1,3 +1,14 @@
+---
+title: Dev Ops Fundamentals
+type: article
+tags:
+- must
+- autom
+- e.g
+summary: 'DevOps Fundamentals DevOps, in its most superficial interpretation, is a
+  collection of tools: Jenkins pipelines, Docker containers, and Terraform scripts.'
+auto-generated: true
+---
 # DevOps Fundamentals
 
 DevOps, in its most superficial interpretation, is a collection of tools: Jenkins pipelines, Docker containers, and Terraform scripts. To treat it as such is to misunderstand the fundamental nature of the discipline. For experts researching cutting-edge techniques, DevOps is not a toolchain; it is a **socio-technical operating model**. It is the systemic alignment of organizational culture, process engineering, and automated infrastructure management required to achieve continuous, reliable, and rapid value delivery.
@@ -51,7 +62,7 @@ CI is often misunderstood as merely running unit tests upon a `git push`. For ex
 
 CD/CD is the mechanism by which validated artifacts reach production safely. The modern paradigm demands treating deployment not as a *process*, but as a *reconciliation loop*.
 
-**1. Infrastructure as Code (IaC) and State Management:**
+**1. [Infrastructure as Code](InfrastructureAsCode) (IaC) and State Management:**
 IaC (using tools like Terraform, Pulumi, or CloudFormation) is foundational. However, the complexity lies in managing the *state* of the infrastructure.
 
 *   **Principle of Immutability:** Never patch a running server or resource manually. If a change is needed, a new, fully configured resource must be provisioned, and the old one decommissioned. This guarantees repeatability.
@@ -73,10 +84,10 @@ Monitoring tells you *if* something is broken (e.g., CPU > 90%). Observability t
 1.  **Metrics:** Numerical measurements over time (e.g., request rate, latency percentiles). Experts must focus on **Service Level Objectives (SLOs)** and **Service Level Indicators (SLIs)** rather than raw metrics.
     *   *Example:* Instead of "CPU utilization," track the SLI: "99% of API requests must complete in under 300ms for the last 7 days."
 2.  **Logging:** Structured, searchable records of events. Logs must be standardized (e.g., JSON format) and enriched with correlation IDs (Trace IDs) that span across microservices boundaries.
-3.  **Tracing:** The ability to follow a single user request as it traverses multiple services. Distributed tracing (using standards like OpenTelemetry) is crucial for diagnosing latency bottlenecks in complex microservice meshes.
+3.  **Tracing:** The ability to follow a single user request as it traverses multiple services. [Distributed tracing](DistributedTracing) (using standards like OpenTelemetry) is crucial for diagnosing latency bottlenecks in complex microservice meshes.
 
 **Advanced Application: Anomaly Detection:**
-The cutting edge involves moving from threshold-based alerting (which generates noise) to **behavioral anomaly detection**. Machine learning models analyze historical traffic patterns (e.g., "Traffic usually spikes by 15% every Tuesday at 10 AM") and alert only when the deviation falls outside the statistically predicted confidence interval.
+The cutting edge involves moving from threshold-based alerting (which generates noise) to **behavioral anomaly detection**. [Machine learning](MachineLearning) models analyze historical traffic patterns (e.g., "Traffic usually spikes by 15% every Tuesday at 10 AM") and alert only when the deviation falls outside the statistically predicted confidence interval.
 
 ---
 
@@ -92,7 +103,7 @@ This is arguably the most significant architectural shift in modern DevOps. The 
 
 **The IDP Solution:** The Platform Team builds a self-service portal (the IDP) that abstracts away the underlying complexity.
 
-*   **Developer Experience (DevEx) Focus:** The IDP must provide "paved roads"—pre-approved, fully compliant, and highly optimized paths for building and deploying services. A developer should interact with the IDP via a simple UI or a single CLI command, not by writing complex YAML files for Jenkins or Kubernetes manifests.
+*   **[Developer Experience](DeveloperExperience) (DevEx) Focus:** The IDP must provide "paved roads"—pre-approved, fully compliant, and highly optimized paths for building and deploying services. A developer should interact with the IDP via a simple UI or a single CLI command, not by writing complex YAML files for Jenkins or Kubernetes manifests.
 *   **Golden Paths:** The Platform Team defines "Golden Paths" for common use cases (e.g., "Build a standard REST API service"). When a developer selects this path, the IDP automatically provisions the required boilerplate: the correct service mesh sidecar, the necessary observability hooks, the standard CI/CD pipeline template, and the required security scanning hooks.
 *   **Abstraction Layer:** The IDP acts as a sophisticated abstraction layer over the underlying complexity (Kubernetes, Istio, Vault, etc.). The developer consumes the *capability* (e.g., "I need a highly available, authenticated endpoint") without needing to know the *implementation details* (e.g., "I need to configure a specific ingress controller rule and a corresponding HPA").
 
@@ -106,12 +117,12 @@ DevSecOps is not merely adding a SAST scanner to the pipeline; it is embedding s
     *   *Kubernetes Admission Control:* "No container can run as root."
     *   *IaC Validation:* "All S3 buckets must enforce encryption at rest."
     *   *Deployment Gate:* "This service cannot be deployed to production if it hasn't passed penetration testing in the last 30 days."
-2.  **Secrets Management at Scale:** Secrets (API keys, database credentials) must never be hardcoded or passed as environment variables in plaintext. Solutions must integrate with dedicated vaults (HashiCorp Vault, AWS Secrets Manager) and utilize dynamic secret injection, where the application requests a temporary credential from the vault at runtime, which expires automatically.
-3.  **Threat Modeling Integration:** Threat modeling (identifying potential attack vectors *before* coding begins) must be a mandatory, automated checkpoint in the design phase, feeding its findings directly into the backlog as high-priority security stories.
+2.  **[Secrets Management](SecretsManagement) at Scale:** Secrets (API keys, database credentials) must never be hardcoded or passed as environment variables in plaintext. Solutions must integrate with dedicated vaults (HashiCorp Vault, AWS Secrets Manager) and utilize dynamic secret injection, where the application requests a temporary credential from the vault at runtime, which expires automatically.
+3.  **[Threat Modeling](ThreatModeling) Integration:** Threat modeling (identifying potential attack vectors *before* coding begins) must be a mandatory, automated checkpoint in the design phase, feeding its findings directly into the backlog as high-priority security stories.
 
 ### C. Chaos Engineering
 
-If observability is about *knowing* what is broken, Chaos Engineering is about *proving* that you can survive when things break in ways you didn't anticipate. It is the systematic, controlled injection of failure into a production-like environment.
+If observability is about *knowing* what is broken, [Chaos Engineering](ChaosEngineering) is about *proving* that you can survive when things break in ways you didn't anticipate. It is the systematic, controlled injection of failure into a production-like environment.
 
 **Methodology (The Scientific Approach):**
 

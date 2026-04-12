@@ -1,3 +1,13 @@
+---
+title: Penetration Testing Methodology
+type: article
+tags:
+- methodolog
+- test
+- e.g
+summary: We are not merely cataloging steps; we are architecting deception.
+auto-generated: true
+---
 # The Architectonics of Deception
 
 For those of us who spend our professional lives navigating the labyrinthine corridors of digital vulnerabilities, the term "methodology" often elicits a sigh—a mixture of weary familiarity and intellectual challenge. We are not merely cataloging steps; we are architecting deception. A penetration testing methodology, at its core, is not a checklist; it is a *strategic framework for controlled failure*. It dictates the narrative of the attack, ensuring that the resulting findings are not a random assortment of CVE IDs, but a cohesive, risk-prioritized narrative that speaks directly to the business impact.
@@ -49,7 +59,7 @@ OWASP has rightly become the de facto standard for web application security. Its
 
 **Core Strength:** Depth in the application layer. It moves beyond simple vulnerability listing (like the old Top 10) to provide detailed attack vectors, proof-of-concept logic, and remediation advice for modern web architectures (APIs, microservices, SPA frameworks).
 
-**Critique for Advanced Use:** Its inherent bias toward the HTTP/Web stack is its Achilles' heel. When assessing non-web components—such as embedded systems, proprietary industrial control protocols (ICS/SCADA), or pure backend message queues (e.g., Kafka topics)—the OWASP methodology provides little guidance beyond "assume it's an API endpoint."
+**Critique for Advanced Use:** Its inherent bias toward the HTTP/Web stack is its Achilles' heel. When assessing non-[web components](WebComponents)—such as embedded systems, proprietary industrial control protocols (ICS/SCADA), or pure backend message queues (e.g., Kafka topics)—the OWASP methodology provides little guidance beyond "assume it's an API endpoint."
 
 **Advanced Application:** Treat OWASP as the *minimum viable test suite* for any web-facing component. When testing APIs, the methodology must be augmented by considering OAuth/OIDC flows, BOLA (Broken Object Level Authorization), and rate-limiting bypasses, which are often treated as adjacent topics rather than core methodology components.
 
@@ -96,7 +106,7 @@ This approach forces the tester to think like an intelligence analyst first, and
 ### C. The Concept of "Methodological Drift"
 A critical edge case for experts is recognizing when the established methodology *fails* because the environment has changed faster than the standard documentation. This is methodological drift.
 
-*   **Example:** Traditional methodologies heavily focus on network segmentation (Layer 3/4). In a modern, containerized, service mesh environment (like Kubernetes), the primary attack surface shifts to the *Service Mesh Policy* and the *Container Orchestration Plane* itself. A methodology relying solely on port scanning will fail to identify the critical vulnerability in the admission controller or the service account token management.
+*   **Example:** Traditional methodologies heavily focus on [network segmentation](NetworkSegmentation) (Layer 3/4). In a modern, containerized, service mesh environment (like Kubernetes), the primary attack surface shifts to the *Service Mesh Policy* and the *[Container Orchestration](ContainerOrchestration) Plane* itself. A methodology relying solely on port scanning will fail to identify the critical vulnerability in the admission controller or the service account token management.
 
 **The Expert Mandate:** The methodology must be fluid. It must be defined by the *threat model* of the target, not by the *history* of the testing standards.
 
@@ -182,8 +192,8 @@ To truly satisfy the requirement for researching new techniques, we must address
 Traditional methodologies assume a defined perimeter. Cloud environments (AWS, Azure, GCP) are defined by *Identity* and *Configuration*, not physical walls.
 
 **The Cloud-Native Methodology Shift:**
-1.  **Identity as the Perimeter:** The primary focus shifts from network ingress/egress points to the IAM (Identity and Access Management) plane. The assessment must simulate an attacker who has compromised *one* low-privilege identity and attempts to escalate privileges across the entire cloud account boundary.
-2.  **Infrastructure as Code (IaC) Review:** The methodology must incorporate static analysis of IaC templates (Terraform, CloudFormation). The goal is to find misconfigurations *before* deployment (Shift Left Security).
+1.  **Identity as the Perimeter:** The primary focus shifts from network ingress/egress points to the IAM ([Identity and Access Management](IdentityAndAccessManagement)) plane. The assessment must simulate an attacker who has compromised *one* low-privilege identity and attempts to escalate privileges across the entire cloud account boundary.
+2.  **[Infrastructure as Code](InfrastructureAsCode) (IaC) Review:** The methodology must incorporate static analysis of IaC templates (Terraform, CloudFormation). The goal is to find misconfigurations *before* deployment (Shift Left Security).
     *   *Example:* Scanning for S3 buckets configured with `PublicRead` access, or IAM policies granting `*` permissions to external accounts.
 3.  **Serverless Function Analysis:** Functions (Lambda, Azure Functions) are ephemeral and often lack traditional network boundaries. The methodology must focus on:
     *   **Event Source Misconfiguration:** Can an attacker trigger a function via an unexpected event source (e.g., a message queue topic they shouldn't access)?
@@ -207,7 +217,7 @@ These environments operate under different constraints (real-time requirements, 
 ### D. AI/ML Driven Attack Surface Analysis
 As AI becomes integral to both defense and offense, the methodology must adapt to test the *AI itself*.
 
-*   **Adversarial ML Testing:** Instead of testing the application logic, the methodology tests the *model's decision boundary*. This involves generating adversarial examples—inputs that are imperceptibly altered to fool a machine learning classifier (e.g., adding noise to an image to bypass an anti-malware signature).
+*   **Adversarial ML Testing:** Instead of testing the application logic, the methodology tests the *model's decision boundary*. This involves generating adversarial examples—inputs that are imperceptibly altered to fool a [machine learning](MachineLearning) classifier (e.g., adding noise to an image to bypass an anti-malware signature).
 *   **Data Poisoning Simulation:** If the organization uses ML for threat detection, the methodology must simulate an attacker poisoning the training data pipeline to teach the model to ignore future malicious activity.
 
 ---

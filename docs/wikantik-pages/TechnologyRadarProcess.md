@@ -1,3 +1,15 @@
+---
+title: Technology Radar Process
+type: article
+tags:
+- technolog
+- radar
+- tech
+summary: Knowing What Not to Build For the seasoned engineer, the modern technology
+  landscape is less a navigable map and more a hyper-dimensional, constantly shifting
+  nebula.
+auto-generated: true
+---
 # Knowing What Not to Build
 
 For the seasoned engineer, the modern technology landscape is less a navigable map and more a hyper-dimensional, constantly shifting nebula. Every week, a new framework emerges, a novel database paradigm is proposed, and a "revolutionary" language promises to solve problems that didn't exist until yesterday. This deluge of potential tooling—what we might charitably call "innovation"—is the single greatest threat to engineering velocity. It breeds decision paralysis, technical debt by committee, and, worst of all, the dreaded "Shiny Object Syndrome."
@@ -61,7 +73,7 @@ This is where most corporate implementations fail. Technology adoption is not a 
 
 As highlighted by contemporary discussions (e.g., concerning AI integration), the resistance to new tech often stems from:
 
-1.  **Process Friction:** "We can't adopt this because our CI/CD pipeline isn't designed for asynchronous event sourcing."
+1.  **Process Friction:** "We can't adopt this because our CI/CD pipeline isn't designed for asynchronous [event sourcing](EventSourcing)."
 2.  **Skill Gap Anxiety:** "We don't have enough people who know this, and training them will halt Feature X."
 3.  **Cultural Resistance:** "We've always done it this way, and it works *enough*."
 

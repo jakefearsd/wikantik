@@ -1,3 +1,15 @@
+---
+title: Woodworking Project Planning
+type: article
+tags:
+- must
+- plan
+- materi
+summary: The Architectonics of Craft For the seasoned practitioner, the act of "planning"
+  a woodworking project is rarely a mere exercise in sketching dimensions onto graph
+  paper.
+auto-generated: true
+---
 # The Architectonics of Craft
 
 For the seasoned practitioner, the act of "planning" a woodworking project is rarely a mere exercise in sketching dimensions onto graph paper. It is, in reality, a multi-disciplinary engineering simulation, a confluence of material science, structural mechanics, computational geometry, and predictive failure analysis. To treat project planning as simply compiling a "materials list" is to fundamentally misunderstand the rigor required to move from concept to a durable, aesthetically perfect artifact.

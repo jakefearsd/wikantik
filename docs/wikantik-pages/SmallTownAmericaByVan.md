@@ -1,3 +1,14 @@
+---
+title: Small Town America By Van
+type: article
+tags:
+- research
+- town
+- text
+summary: 'Abstract: This comprehensive tutorial transcends the conventional "travel
+  guide" format.'
+auto-generated: true
+---
 # A Methodological Framework for Longitudinal Socio-Cultural Field Research
 
 **Target Audience:** Researchers, Urban Planners, Anthropologists, and Data Scientists specializing in localized socio-economic modeling and cultural geography.

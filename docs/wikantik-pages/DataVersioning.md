@@ -1,6 +1,17 @@
+---
+title: Data Versioning
+type: article
+tags:
+- data
+- dvc
+- version
+summary: It is a concept so vital that its failure can lead to catastrophic, yet entirely
+  invisible, research errors.
+auto-generated: true
+---
 # Data Versioning and Reproducibility with DVC
 
-The pursuit of scientific rigor, particularly in the rapidly evolving domain of Machine Learning (ML) and advanced data analytics, has collided head-on with a fundamental engineering challenge: **reproducibility**. It is a concept so vital that its failure can lead to catastrophic, yet entirely invisible, research errors.
+The pursuit of scientific rigor, particularly in the rapidly evolving domain of [Machine Learning](MachineLearning) (ML) and advanced data analytics, has collided head-on with a fundamental engineering challenge: **reproducibility**. It is a concept so vital that its failure can lead to catastrophic, yet entirely invisible, research errors.
 
 For those of us operating at the frontier—designing novel architectures, training bespoke models on petabyte-scale datasets, or developing techniques that rely on subtle data shifts—relying on ad-hoc scripts, shared network drives, or even standard Git commits is not merely suboptimal; it is professionally negligent. The standard toolset, while excellent for code versioning, fundamentally breaks down when confronted with the sheer volume, velocity, and complexity of modern data assets.
 

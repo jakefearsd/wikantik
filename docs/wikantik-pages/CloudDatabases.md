@@ -1,8 +1,20 @@
+---
+title: Cloud Databases
+type: article
+tags:
+- aurora
+- dynamodb
+- data
+summary: Polyglot Persistence For the seasoned engineer or architect researching the
+  bleeding edge of distributed systems, the concept of a single, monolithic database
+  solution is an artifact of a bygone era.
+auto-generated: true
+---
 # Polyglot Persistence
 
 For the seasoned engineer or architect researching the bleeding edge of distributed systems, the concept of a single, monolithic database solution is an artifact of a bygone era. Modern, high-throughput, globally distributed applications demand a nuanced understanding of data persistence—a discipline known as **Polyglot Persistence**.
 
-This tutorial is not a "how-to-pick-a-database" guide. It is a deep, technical exploration of the architectural patterns, trade-offs, and advanced integration techniques required when orchestrating data flow between Amazon Aurora (the relational workhorse), DynamoDB (the hyper-scale NoSQL engine), and the surrounding AWS managed ecosystem. We assume a baseline understanding of distributed transactions, eventual consistency, and database indexing theory.
+This tutorial is not a "how-to-pick-a-database" guide. It is a deep, technical exploration of the architectural patterns, trade-offs, and advanced integration techniques required when orchestrating data flow between Amazon Aurora (the relational workhorse), DynamoDB (the hyper-scale NoSQL engine), and the surrounding AWS managed ecosystem. We assume a baseline understanding of distributed transactions, [eventual consistency](EventualConsistency), and database indexing theory.
 
 ---
 
@@ -82,7 +94,7 @@ The most common failure point for DynamoDB implementations is the assumption tha
 
 *   **Throttling:** If the rate of read or write requests to a specific partition exceeds the provisioned or burst capacity (Read Capacity Units/Write Capacity Units), DynamoDB will throttle the request, resulting in service errors.
 *   **Mitigation Strategies (Expert Level):**
-    *   **Write Sharding (Write Spreading):** Instead of writing all updates for a single entity to `PK: UserID#123`, you write them to multiple logical keys (e.g., `PK: UserID#123-A`, `PK: UserID#123-B`, etc.) and use an application-level mechanism (like a consistent hashing ring) to distribute the load across multiple partitions.
+    *   **Write Sharding (Write Spreading):** Instead of writing all updates for a single entity to `PK: UserID#123`, you write them to multiple logical keys (e.g., `PK: UserID#123-A`, `PK: UserID#123-B`, etc.) and use an application-level mechanism (like a [consistent hashing](ConsistentHashing) ring) to distribute the load across multiple partitions.
     *   **Predictive Scaling:** For predictable, high-volume workloads, **Provisioned Capacity Mode** with careful monitoring is superior to On-Demand mode, as it allows precise cost and performance modeling.
 
 ### 2.3 Advanced DynamoDB Patterns
@@ -96,7 +108,7 @@ The most common failure point for DynamoDB implementations is the assumption tha
 
 This is the most complex and critical area. How do you maintain data integrity and consistency when your primary source of truth (Aurora) speaks SQL, and your high-speed cache/lookup layer (DynamoDB) speaks key-value?
 
-The answer lies in **Change Data Capture (CDC)** and **Event-Driven Architecture (EDA)**.
+The answer lies in **[Change Data Capture](ChangeDataCapture) (CDC)** and **Event-Driven Architecture (EDA)**.
 
 ### 3.1 The Problem of Consistency Models
 

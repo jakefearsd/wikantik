@@ -1,3 +1,15 @@
+---
+title: Trunk Based Development
+type: article
+tags:
+- branch
+- featur
+- must
+summary: We've seen the grand, complex, and ultimately brittle structures of Git Flow,
+  the bureaucratic overhead of release branches, and the sheer nightmare of long-lived
+  feature isolation.
+auto-generated: true
+---
 # The Architecture of Velocity
 
 For those of us who have spent enough time wrestling with version control systems to understand the sheer entropy of poorly managed codebases, the concept of "branching strategy" often feels less like an architectural choice and more like a philosophical battleground. We've seen the grand, complex, and ultimately brittle structures of Git Flow, the bureaucratic overhead of release branches, and the sheer nightmare of long-lived feature isolation.

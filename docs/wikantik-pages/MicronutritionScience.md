@@ -1,3 +1,13 @@
+---
+title: Micronutrition Science
+type: article
+tags:
+- text
+- vitamin
+- miner
+summary: The Nutrition Science of Micronutrients Welcome.
+auto-generated: true
+---
 # The Nutrition Science of Micronutrients
 
 Welcome. If you are reading this, you are not looking for a pamphlet on eating your vegetables. You are a researcher, a biochemist, or a clinician operating at the intersection of molecular biology and human physiology. You understand that "nutrition" is not a monolithic concept, and that the difference between a deficiency and a functional insufficiency is often a matter of kinetics, stoichiometry, or the specific bioavailability of a single ion.

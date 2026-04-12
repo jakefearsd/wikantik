@@ -1,6 +1,18 @@
+---
+title: Multi Agent Orchestration
+type: article
+tags:
+- agent
+- orchestr
+- state
+summary: Multi-Agent Orchestration and Communication Patterns The field of Artificial
+  Intelligence is rapidly transitioning from monolithic, single-model applications
+  to complex, distributed systems.
+auto-generated: true
+---
 # Multi-Agent Orchestration and Communication Patterns
 
-The field of Artificial Intelligence is rapidly transitioning from monolithic, single-model applications to complex, distributed systems. At the vanguard of this shift are Multi-Agent Systems (MAS). While the concept of specialized agents collaborating is not novel—human teams have been doing it since the dawn of civilization—the computational realization of this collaboration, particularly when leveraging Large Language Models (LLMs) as cognitive substrates, presents a set of profound engineering and theoretical challenges.
+The field of [Artificial Intelligence](ArtificialIntelligence) is rapidly transitioning from monolithic, single-model applications to complex, distributed systems. At the vanguard of this shift are Multi-Agent Systems (MAS). While the concept of specialized agents collaborating is not novel—human teams have been doing it since the dawn of civilization—the computational realization of this collaboration, particularly when leveraging Large Language Models (LLMs) as cognitive substrates, presents a set of profound engineering and theoretical challenges.
 
 For the expert researcher, the challenge is no longer merely *building* agents; it is mastering the **Orchestration**—the meta-level control plane—and defining the **Communication Patterns** that allow these specialized entities to achieve emergent, robust, and verifiable global goals.
 
@@ -124,7 +136,7 @@ $$\text{Protocol} = \{ \text{InitialState}, \text{Transitions}, \text{Guards}, \
 
 ### B. Integrating Formal Logic for Diagnosis and Control
 
-For the highest level of reliability, the orchestration layer must be grounded in formal logic, moving beyond statistical correlation to verifiable deduction. This is where research into **Differentiable Modal Logic** becomes critical [3].
+For the highest level of reliability, the orchestration layer must be grounded in formal logic, moving beyond statistical correlation to verifiable deduction. This is where research into **Differentiable [Modal Logic](ModalLogic)** becomes critical [3].
 
 **The Problem with LLMs:** LLMs are probabilistic. They generate plausible text, not necessarily *logically sound* steps.
 **The Solution:** Overlaying a formal logic layer.

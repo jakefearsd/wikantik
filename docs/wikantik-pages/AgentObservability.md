@@ -1,3 +1,15 @@
+---
+title: Agent Observability
+type: article
+tags:
+- log
+- agent
+- must
+summary: 'Agent Observability Introduction If you are reading this, you are likely
+  already familiar with the basic tenets of distributed systems monitoring: logs,
+  metrics, and traces.'
+auto-generated: true
+---
 # Agent Observability
 
 ## Introduction
@@ -81,7 +93,7 @@ Tools are the agent's hands. Logging them requires capturing the full lifecycle 
 
 ### C. Memory and State Management Logging
 
-Agents often maintain a working memory (short-term context) or interact with long-term memory stores (vector databases, knowledge graphs).
+Agents often maintain a working memory (short-term context) or interact with long-term memory stores ([vector databases](VectorDatabases), knowledge graphs).
 
 *   **Memory Write/Read:** Log the specific memory key/ID, the content written, and the retrieval query used.
 *   **State Delta:** Instead of logging the entire state object, log the *difference* ($\Delta$) between the state before and after the operation. This drastically reduces log volume while retaining forensic utility.

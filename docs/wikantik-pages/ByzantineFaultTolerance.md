@@ -1,3 +1,15 @@
+---
+title: Byzantine Fault Tolerance
+type: article
+tags:
+- node
+- adversari
+- system
+summary: 'Consensus Mechanisms for Adversarial Distributed Systems Target Audience:
+  Researchers and Engineers specializing in Distributed Systems, Consensus Algorithms,
+  and Cryptography.'
+auto-generated: true
+---
 # Consensus Mechanisms for Adversarial Distributed Systems
 
 **Target Audience:** Researchers and Engineers specializing in Distributed Systems, Consensus Algorithms, and Cryptography.

@@ -56,7 +56,7 @@ The assurance vie is a life insurance contract that functions as France's primar
 - **Before 8 years:** 30% flat tax (PFU) on gains portion of withdrawals
 - **After 8 years:** EUR 4,600 (single) / EUR 9,200 (couple) annual allowance on gains; above the allowance, 24.7% on premiums up to EUR 150,000
 - **No contribution limit**
-- **Estate planning:** EUR 152,500 per beneficiary tax-free for premiums paid before age 70 — far more generous than US inherited IRA rules
+- **Estate planning:** EUR 152,500 per beneficiary tax-free for premiums paid before age 70 — far more generous than US [inherited IRA rules](InheritedIraRules)
 
 The assurance vie was explicitly excluded from the 2026 CSG increase, keeping its PFU at 30%.
 

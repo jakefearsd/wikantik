@@ -1,3 +1,15 @@
+---
+title: Temporal Tables
+type: article
+tags:
+- tabl
+- time
+- tempor
+summary: 'We are constantly tasked with answering questions that the primary operational
+  data model was never designed to answer: What did this record look like last Tuesday
+  at 3:15 PM?'
+auto-generated: true
+---
 # Temporal Tables, History Auditing, and Versioning
 
 For those of us who have spent enough time wrestling with relational databases, the concept of "history" is not merely a feature; it is a fundamental, often agonizing, architectural challenge. We are constantly tasked with answering questions that the primary operational data model was never designed to answer: *What did this record look like last Tuesday at 3:15 PM? Who changed it, and why?*
@@ -311,7 +323,7 @@ For the expert researcher, the key takeaways are not the syntax, but the *unders
 
 1.  **Time Semantics are Paramount:** Always differentiate between **Valid Time** (business reality) and **Transaction Time** (system reality).
 2.  **The Cost of Perfection:** Perfect auditability comes at the cost of write amplification and requires disciplined lifecycle management (archiving).
-3.  **Contextual Choice:** Understand when SVTT is sufficient (state tracking) versus when Event Sourcing is necessary (behavioral logging).
+3.  **Contextual Choice:** Understand when SVTT is sufficient (state tracking) versus when [Event Sourcing](EventSourcing) is necessary (behavioral logging).
 4.  **Querying is Logic:** The engine manages the storage; the architect must master the window functions and temporal arithmetic to extract meaningful insights.
 
 By mastering the mechanics of bitemporality and understanding where temporal tables fit within the broader landscape of CDC and Event Sourcing, one moves from merely *using* a feature to truly *mastering* the discipline of temporal data modeling. It's a deep subject, and frankly, it's one of the most intellectually satisfying areas of modern database architecture. Now, go build something that can withstand the scrutiny of time itself.

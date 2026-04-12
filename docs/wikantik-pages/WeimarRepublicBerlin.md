@@ -1,3 +1,14 @@
+---
+title: Weimar Republic Berlin
+type: article
+tags:
+- cultur
+- critiqu
+- polit
+summary: 'Prerequisite Knowledge: Familiarity with early 20th-century European intellectual
+  currents (e.g., Futurism, Dada, Formalism).'
+auto-generated: true
+---
 # A Technical Deconstruction of the Weimar Berlin Cultural Apparatus: Methodologies of Modernity and Crisis
 
 **Target Audience:** Experts in Cultural Studies, Media Theory, Performance Studies, and Interdisciplinary Art History.

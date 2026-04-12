@@ -1,3 +1,14 @@
+---
+title: Dual Life Insurance
+type: article
+tags:
+- risk
+- insur
+- van
+summary: 'Introduction: Defining the Operational Conflict Space The traditional insurance
+  model operates on the premise of stability and predictability.'
+auto-generated: true
+---
 # Insurance Considerations for Dual Van Life and Airbnb Hosts
 
 The confluence of the short-term rental market (Airbnb) and the burgeoning culture of mobile, van-based living represents a fascinating, yet legally and actuarially precarious, nexus of modern habitation. For the seasoned professional, the challenge is not merely understanding *what* insurance is required, but rather modeling the *interaction* of multiple, often conflicting, risk profiles under a single operational umbrella.

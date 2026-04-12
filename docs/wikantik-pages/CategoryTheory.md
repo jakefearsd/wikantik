@@ -1,3 +1,13 @@
+---
+title: Category Theory
+type: article
+tags:
+- categori
+- text
+- structur
+summary: 'Category Theory: Bridging Disparate Mathematical Structures Welcome.'
+auto-generated: true
+---
 # Category Theory: Bridging Disparate Mathematical Structures
 
 Welcome. If you are reading this, you are likely already familiar with the basic machinery of category theory—the definition of a category $\mathcal{C}$, the role of objects, and the necessity of morphisms. If you think that understanding a functor $F: \mathcal{C} \to \mathcal{D}$ is the peak of the conceptual mountain, I suggest you adjust your expectations.

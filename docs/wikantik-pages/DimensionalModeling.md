@@ -1,8 +1,19 @@
+---
+title: Dimensional Modeling
+type: article
+tags:
+- dimens
+- tabl
+- fact
+summary: If you are reading this, you are presumably beyond the introductory phase
+  of data warehousing.
+auto-generated: true
+---
 # Dimensional Modeling
 
-Welcome. If you are reading this, you are presumably beyond the introductory phase of data warehousing. You understand that a star schema is *a* pattern, not *the* pattern, and that the difference between a functional model and a performant model often lies in the subtle nuances of key management, temporal logic, and the underlying assumptions of the query engine.
+Welcome. If you are reading this, you are presumably beyond the introductory phase of data warehousing. You understand that a star schema is *a* pattern, not *the* pattern, and that the difference between a functional model and a performant model often lies in the subtle nuances of key management, [temporal logic](TemporalLogic), and the underlying assumptions of the query engine.
 
-This tutorial is not a refresher on what a fact table is, nor is it a gentle introduction to the concept of surrounding a central metric table with descriptive attributes. We are operating at the level of architectural decision-making—the point where the textbook definitions meet the messy, high-volume reality of petabyte-scale data lakes and the unforgiving constraints of query optimization.
+This tutorial is not a refresher on what a fact table is, nor is it a gentle introduction to the concept of surrounding a central metric table with descriptive attributes. We are operating at the level of architectural decision-making—the point where the textbook definitions meet the messy, high-volume reality of petabyte-scale data lakes and the unforgiving constraints of [query optimization](QueryOptimization).
 
 We will dissect the theoretical underpinnings, the practical pitfalls, and the advanced patterns required to master the dimensional model, focusing intensely on the interplay between the Fact table (the *what* and *how much*) and the Dimension tables (the *who, what, where, and when*).
 

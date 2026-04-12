@@ -1,3 +1,13 @@
+---
+title: Concurrency Distributed
+type: article
+tags:
+- distribut
+- state
+- consist
+summary: This tutorial is not a refresher course.
+auto-generated: true
+---
 # Concurrency and Distributed Systems
 
 The management of state, ordering, and coordination across multiple, independent computational units is arguably the most complex and least understood problem in modern computer science. As systems scale from monolithic applications to global, geo-distributed microservices architectures, the challenges inherent in **Concurrency** (managing simultaneous operations) and **Distribution** (managing physical separation and unreliability) do not merely compound—they fundamentally redefine the boundaries of what is computable and provably correct.
@@ -64,7 +74,7 @@ Sequential Consistency (SC) is slightly weaker than linearizability but much eas
 
 ### C. The Reality: Eventual Consistency (BASE)
 
-Eventual Consistency is the cornerstone of highly available, partition-tolerant systems (the BASE paradigm). It guarantees that *if no new updates are made to a given data item, eventually all accesses to that item will return the last updated value*.
+[Eventual Consistency](EventualConsistency) is the cornerstone of highly available, partition-tolerant systems (the BASE paradigm). It guarantees that *if no new updates are made to a given data item, eventually all accesses to that item will return the last updated value*.
 
 **The Danger Zone:** The period *before* eventual consistency is achieved is the "inconsistent window." During this window, different replicas can return different, stale, or conflicting data.
 
@@ -134,7 +144,7 @@ When multiple operations must succeed or fail together (Atomicity), we enter the
 **The Research Frontier: Three-Phase Commit (3PC):**
 3PC attempts to solve the blocking problem by adding a `PRE-COMMIT` phase. However, 3PC is only non-blocking if the network *never* experiences partitions. If a partition occurs during the transition between phases, 3PC can still fail to guarantee safety or liveness, leading many experts to conclude that true non-blocking, synchronous distributed transactions are impossible under general network failure models.
 
-**The Modern Alternative: The Saga Pattern:**
+**The Modern Alternative: The [Saga Pattern](SagaPattern):**
 For microservices architectures, the Saga pattern is preferred over 2PC. A Saga is a sequence of local transactions, where each transaction updates the state and publishes an event. If a step fails, the Saga executes a compensating transaction for all preceding steps.
 
 *   **Advantage:** It embraces eventual consistency and avoids global locks.
@@ -148,7 +158,7 @@ The limitations of synchronous consensus (Paxos/Raft) and the blocking nature of
 
 ### A. Conflict-Free Replicated Data Types (CRDTs)
 
-CRDTs are mathematical data structures designed specifically to be replicated across multiple nodes that can operate independently (even during partitions) and then merge their states mathematically, guaranteeing convergence to the same final state without requiring coordination or conflict resolution logic by the application developer.
+CRDTs are mathematical [data structures](DataStructures) designed specifically to be replicated across multiple nodes that can operate independently (even during partitions) and then merge their states mathematically, guaranteeing convergence to the same final state without requiring coordination or conflict resolution logic by the application developer.
 
 **The Core Principle:** The merge function ($\text{merge}(S_A, S_B)$) must be commutative, associative, and idempotent.
 
@@ -161,7 +171,7 @@ These structures are defined by their state representation. Merging two replicas
 #### 2. Operation-Based CRDTs (CmRDTs)
 These structures are defined by the operations themselves. When an operation is sent, it must be applied idempotently. This is often used for text editing.
 
-*   **Example: Text Editing:** Instead of sending "Set character at index 5 to 'X'", which fails if another node inserted a character at index 5, an Op-based CRDT sends an operation like "Insert 'X' *after* the character previously inserted by Node A at position $P$." This requires tracking causality (often using Lamport timestamps or vector clocks embedded in the operation metadata).
+*   **Example: Text Editing:** Instead of sending "Set character at index 5 to 'X'", which fails if another node inserted a character at index 5, an Op-based CRDT sends an operation like "Insert 'X' *after* the character previously inserted by Node A at position $P$." This requires tracking causality (often using Lamport timestamps or [vector clocks](VectorClocks) embedded in the operation metadata).
 
 **Research Focus:** The current frontier involves developing CRDTs for complex, non-commutative structures, such as graph databases or complex financial ledger entries, while maintaining strong convergence guarantees.
 
@@ -193,7 +203,7 @@ These mechanisms are used to establish a partial ordering of events, which is we
     *   **Receiving:** Upon receiving a message with timestamp $L'$, update local clock: $L = \max(L+1, L' + 1)$.
     *   **Ordering:** If $L_A < L_B$, event $A$ happened before event $B$.
 
-    **Limitation:** Lamport clocks only establish a *happened-before* relationship ($\rightarrow$). If $L_A < L_B$, we know $A \rightarrow B$, but if $L_A$ and $L_B$ are incomparable, we only know they are concurrent ($\parallel$). They cannot distinguish between true concurrency and mere temporal separation due to clock drift.
+    **Limitation:** [Lamport clocks](LamportClocks) only establish a *happened-before* relationship ($\rightarrow$). If $L_A < L_B$, we know $A \rightarrow B$, but if $L_A$ and $L_B$ are incomparable, we only know they are concurrent ($\parallel$). They cannot distinguish between true concurrency and mere temporal separation due to clock drift.
 
 2.  **Vector Clocks:** A vector clock $V$ is a map $\{NodeID \rightarrow Counter\}$. It tracks the last known event count from *every* node in the system.
     *   **Sending:** Increment the counter for the local node ID in $V$.
@@ -229,7 +239,7 @@ How does Node A know that Node B has failed, versus Node B being merely slow?
 
 ### B. Byzantine Fault Tolerance (BFT)
 
-When nodes are not assumed to fail benignly (i.e., they might actively lie, send contradictory information, or collude), the system enters the realm of Byzantine Fault Tolerance.
+When nodes are not assumed to fail benignly (i.e., they might actively lie, send contradictory information, or collude), the system enters the realm of [Byzantine Fault Tolerance](ByzantineFaultTolerance).
 
 *   **The Problem:** A Byzantine node can send message $M_1$ to Node A and $M_2$ to Node B, where $M_1 \neq M_2$.
 *   **The Solution:** BFT protocols (e.g., PBFT - Practical Byzantine Fault Tolerance) require a significantly higher level of redundancy and communication overhead than crash-tolerant protocols (like Raft). They typically require $N > 3f$, where $N$ is the total number of nodes and $f$ is the maximum number of faulty nodes, to guarantee safety.

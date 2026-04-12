@@ -1,3 +1,14 @@
+---
+title: Airbnb Tax Implications
+type: article
+tags:
+- tax
+- us
+- must
+summary: Renting out a portion of one's primary dwelling, particularly via platforms
+  like Airbnb, transforms a personal asset into a quasi-commercial revenue stream.
+auto-generated: true
+---
 # The Tax Implications of Monetizing Habitation
 
 ## Introduction: The Intersection of Personal Asset Use and Commercial Enterprise

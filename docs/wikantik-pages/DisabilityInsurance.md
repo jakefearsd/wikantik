@@ -1,3 +1,15 @@
+---
+title: Disability Insurance
+type: article
+tags:
+- benefit
+- insur
+- disabl
+summary: Disability Insurance Income Protection (DIIP) represents a specialized form
+  of risk transfer designed to mitigate the catastrophic financial fallout resulting
+  from the loss of earning capacity.
+auto-generated: true
+---
 # Advanced Modeling, Emerging Techniques, and Frontier Risk Management
 
 ## Introduction: The Economic Imperative of Income Continuity
@@ -186,7 +198,7 @@ The true test of any insurance product is its performance under extreme, non-sta
 This is a persistent point of contention.
 
 *   **Medical Impairment:** The body fails (e.g., a spinal cord injury). The loss of income is relatively predictable based on physical limitations.
-*   **Vocational Decline:** The individual is physically capable but their industry or skill set becomes economically irrelevant (e.g., a highly specialized mainframe programmer whose entire industry shifts to cloud computing).
+*   **Vocational Decline:** The individual is physically capable but their industry or skill set becomes economically irrelevant (e.g., a highly specialized mainframe programmer whose entire industry shifts to [cloud computing](CloudComputing)).
 
 **The Challenge:** Most policies are strongest against medical impairment. When the loss is purely vocational, the policy must rely heavily on the "Own Occupation" definition, which requires the underwriter to prove that the *specific* duties of the job are impossible to perform, even if the body is functional. Research must focus on developing metrics for "economic obsolescence" that are legally defensible.
 

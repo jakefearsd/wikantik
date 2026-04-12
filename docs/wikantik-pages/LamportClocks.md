@@ -1,3 +1,15 @@
+---
+title: Lamport Clocks
+type: article
+tags:
+- clock
+- event
+- order
+summary: Distributed Time Abstract In the realm of distributed systems, the concept
+  of "time" is fundamentally decoupled from the physical progression of seconds and
+  minutes.
+auto-generated: true
+---
 # Distributed Time
 
 ## Abstract
@@ -36,7 +48,7 @@ For any two events $a$ and $b$ in a distributed system:
 ### 2.2 Concurrency and the Limits of Causality
 Two events $a$ and $b$ are **concurrent** ($a \parallel b$) if $a \not\to b$ and $b \not\to a$. In a distributed system, concurrency is the default state for any events that do not share a communication path. 
 
-A critical distinction for researchers: **Lamport timestamps do not capture concurrency.** They can provide a total order, but they cannot tell you if two events are independent. They can only tell you that if $L(a) < L(b)$, it *might* be that $a \to b$, but it is also possible that $a \parallel b$. This limitation is what eventually necessitates the move toward Vector Clocks.
+A critical distinction for researchers: **Lamport timestamps do not capture concurrency.** They can provide a total order, but they cannot tell you if two events are independent. They can only tell you that if $L(a) < L(b)$, it *might* be that $a \to b$, but it is also possible that $a \parallel b$. This limitation is what eventually necessitates the move toward [Vector Clocks](VectorClocks).
 
 ---
 
@@ -181,7 +193,7 @@ A Vector Clock $V(a)$ is an array of clocks, one for each process. An event $a$ 
 In modern cloud-native environments (Kubernetes, Serverless), nodes are ephemeral. If you use a system that relies on a fixed set of IDs for timestamps (like Vector Clocks or even augmented Lamport Clocks), the "identity" of the nodes becomes a bottleneck. If a new pod is spun up, how does the existing system incorporate its ID into the ordering logic without a global reconfiguration?
 
 ### 7.2 Network Partitions and "Ghost" Causality
-During a network partition (the 'P' in CAP theorem), two partitions may continue to increment their Lamport clocks independently. When the partition heals, the timestamps will be much higher than the actual physical time. While the logical order remains valid, the "gap" between the logical time and physical time can lead to issues in systems that attempt to bridge logical and physical time (like Google's Spanner, which uses TrueTime).
+During a network partition (the 'P' in [CAP theorem](CapTheorem)), two partitions may continue to increment their Lamport clocks independently. When the partition heals, the timestamps will be much higher than the actual physical time. While the logical order remains valid, the "gap" between the logical time and physical time can lead to issues in systems that attempt to bridge logical and physical time (like Google's Spanner, which uses TrueTime).
 
 ### 7.3 The Impact of Large Message Payloads
 While the algorithm itself is $O(1)$, the overhead of attaching timestamps to every single RPC (Remote Procedure Call) can add up in high-throughput, low-latency systems (e.g., High-Frequency Trading or real-time telemetry). Engineers must balance the granularity of the clock with the network overhead.

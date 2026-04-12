@@ -1,3 +1,14 @@
+---
+title: Query Optimization
+type: article
+tags:
+- optim
+- plan
+- index
+summary: If you are reading this, you are likely past the stage of simply running
+  EXPLAIN because your query is slow.
+auto-generated: true
+---
 # The Oracle's Eye
 
 Welcome. If you are reading this, you are likely past the stage of simply running `EXPLAIN` because your query is slow. You understand that the execution plan is not merely a diagnostic tool; it is a window into the very operational philosophy of the database engine itself. You are here to understand *why* the optimizer chose the path it did, and more importantly, how to convince it—through superior data modeling and statistical manipulation—to choose the path you *know* is correct.

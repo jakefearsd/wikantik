@@ -1,3 +1,14 @@
+---
+title: Data Governance
+type: article
+tags:
+- data
+- govern
+- lineag
+summary: We are past the point where simply having data is an asset; we are in the
+  era where trust in the data is the sole determinant of business velocity.
+auto-generated: true
+---
 # The Triad of Trust
 
 For those of us who spend our days wrestling with petabytes of semi-structured chaos, the concept of "data governance" often feels less like a strategic initiative and more like a necessary, bureaucratic exorcism. We are past the point where simply having data is an asset; we are in the era where *trust* in the data is the sole determinant of business velocity.

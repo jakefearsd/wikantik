@@ -1,3 +1,14 @@
+---
+title: Van Life Cooking
+type: article
+tags:
+- must
+- system
+- cook
+summary: For the expert researcher, the issue is not one of ambiance; it is a problem
+  of integrated systems engineering.
+auto-generated: true
+---
 # The Culinary Calculus of Mobility
 
 ## Introduction: Beyond the Pit Stop—A Systems Engineering Approach to Mobile Gastronomy

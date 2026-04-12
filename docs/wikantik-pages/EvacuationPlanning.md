@@ -1,3 +1,15 @@
+---
+title: Evacuation Planning
+type: article
+tags:
+- must
+- e.g
+- requir
+summary: While it synthesizes best practices from established governmental and academic
+  sources, it does not replace localized, professional risk assessments or official
+  emergency directives.
+auto-generated: true
+---
 # Evacuation Planning and Go-Bag Essentials
 
 ***

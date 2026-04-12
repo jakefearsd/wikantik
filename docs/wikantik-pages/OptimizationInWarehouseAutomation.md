@@ -25,7 +25,7 @@ related:
 
 Modern automated warehouses are among the most computationally intensive environments in logistics. Behind every robotic arm that picks a product, every conveyor that routes a package, and every inventory decision that positions goods closer to shipping docks, there is an optimization problem — and most of those problems have been studied for decades under the umbrella of [operations research](OperationsResearchHub). What has changed is that warehouse automation hardware has finally caught up with the theory, creating environments where OR techniques can be applied at scale and in real time.
 
-This article explores how the foundational techniques from operations research — [linear programming](LinearProgrammingFoundations), [scheduling algorithms](ProductionSchedulingAndOR), and stochastic modeling — are applied in practice within modern warehouse automation systems.
+This article explores how the foundational techniques from [operations research](OperationsResearch) — [linear programming](LinearProgrammingFoundations), [scheduling algorithms](ProductionSchedulingAndOR), and stochastic modeling — are applied in practice within modern warehouse automation systems.
 
 ## Slotting Optimization: The Assignment Problem at Scale
 
@@ -49,7 +49,7 @@ The warehouse version of TSP has structure that pure TSP lacks, and this structu
 
 Classical heuristics from [supply chain and logistics optimization](SupplyChainAndLogisticsOptimization) work well here. The S-shape heuristic (traverse each aisle containing a pick from end to end) is simple and produces routes within 10-15% of optimal for most warehouse layouts. The largest-gap heuristic (enter an aisle from the end nearest the first pick, travel to the last pick, and return) performs better when picks are clustered within aisles. Optimal algorithms based on dynamic programming can solve the warehouse TSP exactly for moderate order sizes (up to 20-30 picks) in milliseconds — fast enough for real-time routing.
 
-Batch picking — combining multiple orders into a single picking route — transforms the problem into a vehicle routing problem with capacity constraints. The picker (or robot) has a finite cart capacity and must fulfill multiple orders in a single trip. The optimization now includes both the assignment of orders to batches and the routing within each batch. Modern systems use two-phase approaches: first, cluster orders into batches using similarity metrics (how much overlap in pick locations), then optimize the route for each batch independently.
+Batch picking — combining multiple orders into a single picking route — transforms the problem into a [vehicle routing problem](VehicleRoutingProblem) with capacity constraints. The picker (or robot) has a finite cart capacity and must fulfill multiple orders in a single trip. The optimization now includes both the assignment of orders to batches and the routing within each batch. Modern systems use two-phase approaches: first, cluster orders into batches using similarity metrics (how much overlap in pick locations), then optimize the route for each batch independently.
 
 For [warehouse robotics](WarehouseRobotics) systems like goods-to-person configurations, the picking route problem inverts entirely. Instead of routing a picker to products, the system routes products (on mobile shelving units) to a stationary picker. The optimization becomes a scheduling problem: in what sequence should robotic units deliver shelving pods to the pick station to minimize picker idle time?
 

@@ -1,3 +1,14 @@
+---
+title: Immigration Policy Overview
+type: article
+tags:
+- polici
+- daca
+- tp
+summary: 'DACA and TPS for Advanced Research Target Audience: Experts in Immigration
+  Law, Public Policy Modeling, and Socio-Economic Research.'
+auto-generated: true
+---
 # DACA and TPS for Advanced Research
 
 **Target Audience:** Experts in Immigration Law, Public Policy Modeling, and Socio-Economic Research.
@@ -165,7 +176,7 @@ Reform must address the jurisdictional overlap between federal, state, and local
 The current system is notoriously opaque and prone to data silos.
 
 *   **Blockchain/Distributed Ledger Technology (DLT):** For identity verification and status tracking, a permissioned DLT could create an immutable, auditable record of an individual’s status changes, employment history, and compliance milestones. This drastically reduces the risk of fraud and the administrative burden of record-keeping across multiple federal agencies (DHS, USCIS, SSA).
-*   **Predictive Modeling of Compliance:** Machine learning models could be trained on historical data (e.g., renewal rates, compliance with reporting requirements) to predict which cohorts are most likely to fall out of compliance *before* they do, allowing for proactive, targeted intervention rather than reactive enforcement.
+*   **Predictive Modeling of Compliance:** [Machine learning](MachineLearning) models could be trained on historical data (e.g., renewal rates, compliance with reporting requirements) to predict which cohorts are most likely to fall out of compliance *before* they do, allowing for proactive, targeted intervention rather than reactive enforcement.
 
 ***
 

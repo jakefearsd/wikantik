@@ -1,3 +1,15 @@
+---
+title: Java Records And Sealed Classes
+type: article
+tags:
+- type
+- record
+- pattern
+summary: This tutorial is intended for the seasoned practitioner, the architect, and
+  the researcher who understands the nuances of the Java Memory Model, generics, and
+  type erasure.
+auto-generated: true
+---
 # The Modern Java Type System
 
 For those of us who have spent years wrestling with Java's object-oriented paradigms—the boilerplate, the defensive copying, the verbose `instanceof` chains, and the constant battle against mutable state—the introduction of Records, Sealed Classes, and Pattern Matching represents less of an incremental improvement and more of a fundamental architectural shift. These features, collectively, are not merely syntactic sugar; they are the tools that allow Java to finally write code that feels less like an enterprise framework bolted onto an academic language, and more like a modern, expressive language designed for data flow.
@@ -297,4 +309,4 @@ For the expert researcher, the takeaway is that these three elements, when used 
 2.  **Safe:** The compiler guarantees that all possible states have been handled, eliminating entire classes of runtime errors associated with polymorphism.
 3.  **Expressive:** The resulting code reads like a formal specification of the domain logic, making maintenance and reasoning significantly easier.
 
-Mastering this trio is no longer about learning new keywords; it is about adopting a new mindset—a mindset that treats data structures as mathematical constructs whose boundaries and possible states are known and verifiable at compile time. If you are building complex, state-driven, or data-intensive systems in Java today, understanding this synergy is not optional; it is foundational to writing truly modern, robust, and maintainable code.
+Mastering this trio is no longer about learning new keywords; it is about adopting a new mindset—a mindset that treats [data structures](DataStructures) as mathematical constructs whose boundaries and possible states are known and verifiable at compile time. If you are building complex, state-driven, or data-intensive systems in Java today, understanding this synergy is not optional; it is foundational to writing truly modern, robust, and maintainable code.

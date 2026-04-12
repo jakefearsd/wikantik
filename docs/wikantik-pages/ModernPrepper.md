@@ -1,3 +1,14 @@
+---
+title: Modern Prepper
+type: article
+tags:
+- must
+- requir
+- prepper
+summary: 'The Prepper Archetype Target Audience: Experts in Risk Management, Disaster
+  Resilience Engineering, and Non-Conventional Survival Methodologies.'
+auto-generated: true
+---
 # The Prepper Archetype
 
 **Target Audience:** Experts in Risk Management, Disaster Resilience Engineering, and Non-Conventional Survival Methodologies.

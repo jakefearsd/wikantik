@@ -1,3 +1,14 @@
+---
+title: Design Systems
+type: article
+tags:
+- token
+- compon
+- must
+summary: We are not merely building UIs; we are engineering scalable, predictable
+  digital experiences.
+auto-generated: true
+---
 # Design Systems
 
 For those of us who have spent enough time wrestling with CSS specificity wars and the sheer entropy of undocumented design decisions, the concept of the Design System is less a luxury and more a fundamental requirement for sanity. We are not merely building UIs; we are engineering scalable, predictable digital experiences.
@@ -28,7 +39,7 @@ The token acts as a contract. When a developer consumes `color.brand.primary`, t
 
 To manage this complexity, we must delineate the relationship between the three core artifacts:
 
-1.  **Design Tokens (The Data Layer):** The raw, abstract, single source of truth (SSOT). They are platform-agnostic data structures (e.g., JSON, YAML).
+1.  **Design Tokens (The Data Layer):** The raw, abstract, single source of truth (SSOT). They are platform-agnostic [data structures](DataStructures) (e.g., JSON, YAML).
 2.  **Components (The Structure Layer):** The reusable, encapsulated UI elements (e.g., `<Button>`, `<Card>`). They consume tokens to define their appearance.
 3.  **Documentation (The Governance Layer):** The living contract that explains *how* and *why* the tokens and components can be used.
 

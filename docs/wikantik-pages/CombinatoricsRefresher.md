@@ -1,3 +1,14 @@
+---
+title: Combinatorics Refresher
+type: article
+tags:
+- count
+- structur
+- set
+summary: If you are reading this, you are not looking for a high school review of
+  $P(n, k)$ versus $\binom{n}{k}$.
+auto-generated: true
+---
 # A Refresher
 
 Welcome. If you are reading this, you are not looking for a high school review of $P(n, k)$ versus $\binom{n}{k}$. You are a researcher, someone whose current work requires a deep, nuanced understanding of enumeration, structural counting, and the mathematical machinery that underpins modern combinatorial theory.
@@ -188,7 +199,7 @@ If the generating function $A(x)$ has a singularity (a pole or branch point) at 
 
 If $A(x) = \sum a_n x^n$ and $A(x)$ has a singularity at $x=R$, then $a_n \sim C \cdot R^{-n} \cdot n^{\alpha} \cdot \rho^n$.
 
-The Saddle Point Method, derived from complex analysis (Cauchy's Integral Formula), provides a highly accurate estimate for $a_n$ by deforming the integration contour around the singularity to a point where the integrand is minimized (the saddle point). This is indispensable in statistical mechanics and random matrix theory.
+The Saddle Point Method, derived from [complex analysis](ComplexAnalysis) (Cauchy's Integral Formula), provides a highly accurate estimate for $a_n$ by deforming the integration contour around the singularity to a point where the integrand is minimized (the saddle point). This is indispensable in statistical mechanics and random matrix theory.
 
 ---
 
@@ -216,7 +227,7 @@ The Euler characteristic is remarkably robust; it remains constant even if the c
 
 Matroids generalize the concept of linear independence from vector spaces over a field. They capture the essence of "independence" regardless of the underlying field structure.
 
-A matroid $M = (E, \mathcal{I})$ is defined by a set $E$ (the ground set) and a collection $\mathcal{I}$ of independent subsets of $E$. The axioms ensure that the concept of independence behaves exactly as it does in linear algebra.
+A matroid $M = (E, \mathcal{I})$ is defined by a set $E$ (the ground set) and a collection $\mathcal{I}$ of independent subsets of $E$. The axioms ensure that the concept of independence behaves exactly as it does in [linear algebra](LinearAlgebra).
 
 **Significance:** Matroids unify concepts from graph theory (the cycle space of a graph forms a graphic matroid) and linear algebra. Many optimization problems that are hard in general graphs become polynomial-time solvable when restricted to matroids.
 

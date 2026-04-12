@@ -1,3 +1,14 @@
+---
+title: Tax Loss Harvesting
+type: article
+tags:
+- tax
+- loss
+- text
+summary: The Algorithmic Art of Tax Mitigation For the seasoned quantitative researcher,
+  the concept of Tax-Loss Harvesting (TLH) often appears deceptively simple.
+auto-generated: true
+---
 # The Algorithmic Art of Tax Mitigation
 
 For the seasoned quantitative researcher, the concept of Tax-Loss Harvesting (TLH) often appears deceptively simple. On the surface, it is merely the act of selling underperforming assets to offset realized gains. However, for those operating at the frontier of tax-efficient investing, TLH is not a mere tactic; it is a sophisticated, multi-variable optimization problem rooted deeply in the mechanics of the Internal Revenue Code (IRC).
@@ -201,7 +212,7 @@ For high-net-worth individuals, the tax implications of foreign assets are a mas
 The future of TLH lies in moving from rule-based systems to predictive, adaptive models.
 
 1.  **Predictive Loss Generation:** Instead of waiting for a loss, advanced models use time-series analysis (e.g., ARIMA models) on asset classes known to exhibit cyclical downturns. The model predicts *when* a high probability of loss exists, allowing the investor to execute the sale *before* the market panic, thus optimizing the timing beyond simple year-end heuristics.
-2.  **Optimal Hedge Ratio Determination:** A machine learning approach can analyze the correlation ($\rho$) between the portfolio's expected gains and the expected losses. The model then calculates the optimal hedge ratio ($\beta_{\text{optimal}}$) required to generate the maximum tax-adjusted offset for a given level of portfolio risk tolerance ($\sigma$).
+2.  **Optimal Hedge Ratio Determination:** A [machine learning](MachineLearning) approach can analyze the correlation ($\rho$) between the portfolio's expected gains and the expected losses. The model then calculates the optimal hedge ratio ($\beta_{\text{optimal}}$) required to generate the maximum tax-adjusted offset for a given level of portfolio risk tolerance ($\sigma$).
 
 $$\text{Optimal Hedge Ratio} \approx \frac{\text{Target Tax Offset}}{\text{Expected Loss Magnitude}}$$
 

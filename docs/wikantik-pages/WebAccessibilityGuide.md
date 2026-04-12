@@ -1,3 +1,14 @@
+---
+title: Web Accessibility Guide
+type: article
+tags:
+- aria
+- must
+- access
+summary: Accessibility is not a feature to be bolted on; it is the fundamental contract
+  between the digital artifact and the user's cognitive model.
+auto-generated: true
+---
 # The Interoperability Abyss
 
 For those of us who spend our professional lives navigating the semantic chasm between theoretical standards and messy, real-world DOM implementations, the conversation around web accessibility often devolves into a recitation of checklist items. We know better. Accessibility is not a feature to be bolted on; it is the fundamental contract between the digital artifact and the user's cognitive model.

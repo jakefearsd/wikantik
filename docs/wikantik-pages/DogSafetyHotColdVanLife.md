@@ -1,3 +1,14 @@
+---
+title: Dog Safety Hot Cold Van Life
+type: article
+tags:
+- text
+- heat
+- dog
+summary: This tutorial is not intended as a mere checklist of tips—those are for the
+  novice.
+auto-generated: true
+---
 # Advanced Canine Environmental Management in Mobile Habitation
 
 ## Introduction: The Interdisciplinary Challenge of Canine Van Life
@@ -156,7 +167,7 @@ For the researcher, the goal is to move from reactive care to *predictive* care.
         *   Continuous core temperature monitoring ($\text{T}_{\text{core}}$).
         *   Heart Rate Variability ($\text{HRV}$) analysis (a proxy for autonomic nervous system stress).
         *   Activity tracking (measuring deviation from baseline energy expenditure).
-    *   *Data Analysis:* Machine learning algorithms can be trained on this longitudinal data to predict the onset of distress (e.g., a sustained drop in $\text{HRV}$ coupled with elevated $\text{T}_{\text{core}}$ suggests impending heat exhaustion hours before clinical signs manifest).
+    *   *Data Analysis:* [Machine learning](MachineLearning) algorithms can be trained on this longitudinal data to predict the onset of distress (e.g., a sustained drop in $\text{HRV}$ coupled with elevated $\text{T}_{\text{core}}$ suggests impending heat exhaustion hours before clinical signs manifest).
 2.  **Energy Budgeting Model ($\text{E}_{\text{budget}}$):**
     *   We must model the dog's energy expenditure ($\text{E}_{\text{out}}$) against its caloric intake ($\text{C}_{\text{in}}$) and the energy required for thermoregulation ($\text{E}_{\text{thermo}}$).
     $$\text{E}_{\text{budget}} = \text{C}_{\text{in}} - (\text{E}_{\text{activity}} + \text{E}_{\text{thermo}})$$

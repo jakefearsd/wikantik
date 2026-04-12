@@ -51,7 +51,7 @@ In a military first, Ukrainian forces deployed a single land drone armed with a 
 
 ## AI and Autonomous Systems
 
-Artificial intelligence is increasingly central to drone warfare in Ukraine:
+[Artificial intelligence](ArtificialIntelligence) is increasingly central to drone warfare in Ukraine:
 
 - **Optical target recognition:** AI systems that can identify and lock onto targets without human input
 - **Autonomous navigation:** Algorithms that allow drones to navigate to targets even when GPS and radio signals are jammed
@@ -83,7 +83,7 @@ The war has transformed Ukraine from a defense technology importer into a global
 The Russia-Ukraine drone war has generated extensive study by military establishments worldwide:
 
 - Traditional armored warfare has been fundamentally challenged by cheap, precision-guided drones
-- The cost asymmetry — where a $500 drone can destroy a $5 million tank — is reshaping procurement strategies
+- The cost asymmetry — where a $500 drone can destroy a $5 million tank — is reshaping [procurement strategies](ProcurementStrategies)
 - Infantry must now operate under constant aerial surveillance, changing tactical movement patterns
 - The Hudson Institute, CSIS, and Atlantic Council have all published major analyses of these transformations
 

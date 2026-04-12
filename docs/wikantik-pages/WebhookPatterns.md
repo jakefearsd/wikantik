@@ -1,3 +1,13 @@
+---
+title: Webhook Patterns
+type: article
+tags:
+- event
+- provid
+- webhook
+summary: Webhook Callback Event Notification Welcome.
+auto-generated: true
+---
 # Webhook Callback Event Notification
 
 Welcome. If you've reached this document, you are likely past the point of simply "setting up a webhook." You are researching the failure modes, the architectural implications, and the subtle nuances that separate a functional integration from a robust, production-grade, mission-critical data pipeline.

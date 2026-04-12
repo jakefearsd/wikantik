@@ -1,8 +1,20 @@
+---
+title: Message Queue Patterns
+type: article
+tags:
+- messag
+- queue
+- consum
+summary: When a service call blocks waiting for a response, you are not merely waiting
+  for a network packet; you are waiting for the entire transaction lifecycle of another,
+  potentially overloaded, service.
+auto-generated: true
+---
 # Message Queues with RabbitMQ
 
 For those of us who have spent enough time wrestling with distributed systems, the concept of synchronous communication feels less like a reliable pattern and more like a ticking time bomb wrapped in a network latency guarantee. When a service call blocks waiting for a response, you are not merely waiting for a network packet; you are waiting for the entire transaction lifecycle of another, potentially overloaded, service. This is the architectural Achilles' heel of monolithic or tightly coupled microservice designs.
 
-This tutorial is not for the novice seeking to understand what a message queue is. We assume a deep familiarity with distributed consensus, network protocols, and the inherent complexities of eventual consistency. Our focus here is on **RabbitMQ**—its deep mechanics, its advanced pattern capabilities, and the rigorous operational considerations required to deploy it in mission-critical, high-throughput, and failure-prone environments.
+This tutorial is not for the novice seeking to understand what a message queue is. We assume a deep familiarity with distributed consensus, network protocols, and the inherent complexities of [eventual consistency](EventualConsistency). Our focus here is on **RabbitMQ**—its deep mechanics, its advanced pattern capabilities, and the rigorous operational considerations required to deploy it in mission-critical, high-throughput, and failure-prone environments.
 
 We will move beyond simple "send message, receive message" tutorials and delve into the theoretical underpinnings, the performance tuning knobs, the failure domain analysis, and the advanced topologies that separate a functional queue implementation from a truly resilient, enterprise-grade asynchronous backbone.
 
@@ -131,7 +143,7 @@ In high-throughput scenarios, the consumer might process messages faster than th
 While RabbitMQ supports transactions (using `txSelect`, `txCommit`, `txRollback`), **we strongly advise against relying on them for high-throughput systems.**
 
 *   **The Problem with Broker Transactions:** Broker-level transactions force the broker to hold all messages in memory or disk until the commit point. This severely limits throughput and introduces significant latency overhead, effectively serializing the entire system.
-*   **The Preferred Solution: Outbox Pattern:** For ensuring atomicity between a database write and a message send, the **Outbox Pattern** is superior.
+*   **The Preferred Solution: [Outbox Pattern](OutboxPattern):** For ensuring atomicity between a database write and a message send, the **Outbox Pattern** is superior.
     1.  The service performs a local ACID transaction: It writes the state change *and* the outgoing message payload into a dedicated `outbox` table within its own database.
     2.  A separate, reliable **Message Relay Service** polls the `outbox` table for pending records.
     3.  The Relay Service reads the message, publishes it to RabbitMQ, and *only then* marks the record in the `outbox` table as `processed`.

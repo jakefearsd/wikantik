@@ -1,3 +1,14 @@
+---
+title: Measure Theory
+type: article
+tags:
+- measur
+- mu
+- integr
+summary: If you are reading this, you are not merely looking for a refresher on Riemann
+  integration.
+auto-generated: true
+---
 # A Tutorial
 
 Welcome. If you are reading this, you are not merely looking for a refresher on Riemann integration. You are researching techniques that push the boundaries of modern analysis, probability, or mathematical physics. Therefore, this tutorial assumes a high degree of mathematical fluency—you are comfortable with $\mathbb{R}^n$, basic topology, and the concept of limits.
@@ -158,7 +169,7 @@ For general locally compact Hausdorff spaces, the measure theory is formalized u
 2.  **Outer Regularity:** For any Borel set $A$, $\mu(A) = \inf \{\mu(U) : A \subseteq U, U \text{ open}\}$.
 3.  **Inner Regularity:** For any Borel set $A$, $\mu(A) = \sup \{\mu(K) : K \subseteq A, K \text{ compact}\}$.
 
-**Significance:** Radon measures bridge the gap between abstract measure theory and classical analysis. They ensure that the measure of a set is determined by its compact subsets (inner regularity) and that the measure of a set is approximated by open sets (outer regularity). This is crucial for defining integration in functional analysis settings.
+**Significance:** Radon measures bridge the gap between abstract measure theory and classical analysis. They ensure that the measure of a set is determined by its compact subsets (inner regularity) and that the measure of a set is approximated by open sets (outer regularity). This is crucial for defining integration in [functional analysis](FunctionalAnalysis) settings.
 
 ---
 
@@ -178,7 +189,7 @@ $$\|f\|_{L^\infty} = \text{ess } \sup_{x \in X} |f(x)|$$
 
 The most profound property of $L^p$ spaces (for $p \ge 1$) is that they are **complete** under their respective norms. This means they are **Banach spaces**.
 
-**Why completeness matters:** Completeness guarantees that Cauchy sequences converge *within* the space. If we are solving differential equations or performing iterative numerical methods, we need to know that the limit of the sequence of approximations actually exists within the space we are working in.
+**Why completeness matters:** Completeness guarantees that Cauchy sequences converge *within* the space. If we are solving differential equations or performing iterative [numerical methods](NumericalMethods), we need to know that the limit of the sequence of approximations actually exists within the space we are working in.
 
 ### 5.3 Duality and the Riesz Representation Theorem
 
@@ -199,7 +210,7 @@ The utility of measure theory is best appreciated when it underpins fields far r
 
 ### 6.1 Probability Theory (The Measure of Randomness)
 
-In probability theory, the sample space $\Omega$ is equipped with a probability measure $P$, which is simply a measure where $P(\Omega) = 1$.
+In [probability theory](ProbabilityTheory), the sample space $\Omega$ is equipped with a probability measure $P$, which is simply a measure where $P(\Omega) = 1$.
 
 *   **Random Variables:** A random variable $X$ is simply a measurable function $X: \Omega \to \mathbb{R}$.
 *   **Expectation:** The expected value $E[X]$ is precisely the Lebesgue integral:

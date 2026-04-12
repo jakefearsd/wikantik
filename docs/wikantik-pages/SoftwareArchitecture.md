@@ -1,10 +1,21 @@
+---
+title: Software Architecture
+type: article
+tags:
+- servic
+- event
+- you
+summary: If you've reached this document, you likely already understand that "building
+  software" is less about writing lines of code and more about managing complexity.
+auto-generated: true
+---
 # A Guide
 
 Welcome. If you've reached this document, you likely already understand that "building software" is less about writing lines of code and more about managing complexity. You are not looking for a beginner's primer on REST endpoints; you are researching the bleeding edge, the architectural compromises, and the theoretical boundaries of distributed systems.
 
 This tutorial is designed not merely to define Microservices, but to dissect the entire ecosystem—the theoretical underpinnings, the operational nightmares, the advanced patterns required for true resilience, and the inevitable trade-offs that accompany moving away from the comforting embrace of the monolith.
 
-We will proceed methodically, starting from the foundational concepts and escalating into advanced patterns like Event Sourcing, Consensus Mechanisms, and the operational realities of a Service Mesh.
+We will proceed methodically, starting from the foundational concepts and escalating into advanced patterns like [Event Sourcing](EventSourcing), Consensus Mechanisms, and the operational realities of a Service Mesh.
 
 ---
 
@@ -66,7 +77,7 @@ The principle of **Database Per Service** is non-negotiable for achieving true i
 **The Mechanism:** Communication must occur via explicit, well-defined APIs or asynchronous events.
 
 **The Trade-off: Consistency Models**
-This is where most architectural discussions stall. Moving from a single ACID database to multiple independent databases forces a shift from **Immediate Consistency** to **Eventual Consistency**.
+This is where most architectural discussions stall. Moving from a single ACID database to multiple independent databases forces a shift from **Immediate Consistency** to **[Eventual Consistency](EventualConsistency)**.
 
 *   **ACID (Atomicity, Consistency, Isolation, Durability):** The gold standard of traditional RDBMS transactions. If you update A and B, they either both succeed or both fail instantly.
 *   **Eventual Consistency:** If you update A and B, the system guarantees that *eventually*, all replicas and dependent services will reflect the same state, provided no new updates occur. There is a window of inconsistency.
@@ -89,7 +100,7 @@ This is the simplest pattern, often implemented via HTTP/REST or gRPC. Service A
     *   **Tight Coupling (Temporal):** The calling service is temporally coupled to the availability and latency of the called service.
 
 **Mitigation Techniques (Must Know):**
-1.  **Circuit Breaker Pattern:** If Service B fails repeatedly, Service A "trips the circuit," immediately failing subsequent calls without attempting to contact B, allowing B time to recover.
+1.  **[Circuit Breaker Pattern](CircuitBreakerPattern):** If Service B fails repeatedly, Service A "trips the circuit," immediately failing subsequent calls without attempting to contact B, allowing B time to recover.
 2.  **Bulkhead Pattern:** Isolating resource pools. Instead of one thread pool for all outbound calls, dedicate separate pools for different downstream services. A failure in Service B's calls will only exhaust the B-specific pool, leaving resources available for calls to Service C.
 3.  **Timeouts and Retries with Jitter:** Never retry immediately. Implement exponential backoff with added *jitter* (random delay) to prevent the "thundering herd" problem, where all failed clients retry simultaneously, overwhelming the recovering service.
 

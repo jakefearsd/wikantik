@@ -1,3 +1,15 @@
+---
+title: I Bonds And Treasuries
+type: article
+tags:
+- bond
+- inflat
+- adjust
+summary: 'Advanced Modeling and Comparative Analysis for Quantitative Researchers
+  Target Audience: Financial Engineers, Quantitative Analysts, Econometricians, and
+  Advanced Fixed Income Researchers.'
+auto-generated: true
+---
 # Advanced Modeling and Comparative Analysis for Quantitative Researchers
 
 **Target Audience:** Financial Engineers, Quantitative Analysts, Econometricians, and Advanced Fixed Income Researchers.

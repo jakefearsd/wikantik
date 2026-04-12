@@ -1,8 +1,18 @@
+---
+title: Reactive Programming
+type: article
+tags:
+- request
+- backpressur
+- stream
+summary: Reactive Programming Streams Backpressure Welcome.
+auto-generated: true
+---
 # Reactive Programming Streams Backpressure
 
 Welcome. If you are reading this, you are likely already familiar with the basic concepts of asynchronous data streams—the idea that data flows over time, and that managing that flow is non-trivial. You understand that simply subscribing to a source is not enough; you need control.
 
-This tutorial is not for the curious newcomer who thinks "backpressure" is just a fancy word for "slow down." For you, the expert researching novel stream processing techniques, we will dissect the mechanics, the theoretical underpinnings, the implementation nuances across major frameworks, and the often-overlooked edge cases of backpressure management in reactive systems.
+This tutorial is not for the curious newcomer who thinks "backpressure" is just a fancy word for "slow down." For you, the expert researching novel [stream processing](StreamProcessing) techniques, we will dissect the mechanics, the theoretical underpinnings, the implementation nuances across major frameworks, and the often-overlooked edge cases of backpressure management in reactive systems.
 
 We aim to move beyond *what* backpressure is, to *how* it is mathematically modeled, *why* certain strategies fail under load, and *where* the industry standards are currently falling short.
 

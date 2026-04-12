@@ -1,3 +1,13 @@
+---
+title: Simulation Modeling
+type: article
+tags:
+- event
+- time
+- de
+summary: This necessity has birthed the discipline of simulation modeling.
+auto-generated: true
+---
 # Simulation Modeling: The Synthesis of Discrete Event Dynamics and Monte Carlo Uncertainty
 
 **A Comprehensive Tutorial for Advanced Researchers**

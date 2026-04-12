@@ -1,3 +1,13 @@
+---
+title: Direct Indexing
+type: article
+tags:
+- tax
+- must
+- optim
+summary: Direct Indexing Custom Tax Optimization Welcome.
+auto-generated: true
+---
 # Direct Indexing Custom Tax Optimization
 
 Welcome. If you are reading this, you are likely already familiar with the basic mechanics of index tracking, the inherent limitations of pooled investment vehicles, and the general concept of tax-loss harvesting. Therefore, we will not waste time on introductory material. This tutorial is designed for the seasoned quantitative analyst, the sophisticated wealth manager, and the tax architect who views portfolio construction not merely as an allocation problem, but as a complex, multi-jurisdictional optimization challenge.
@@ -221,7 +231,7 @@ No technical deep dive is complete without addressing the failure modes.
 
 ## VI. Synthesis and Conclusion: The Future State of Wealth Management
 
-Direct Indexing, when coupled with advanced tax optimization algorithms, represents a paradigm shift from passive asset allocation to **active, tax-aware capital engineering**.
+Direct Indexing, when coupled with advanced tax optimization algorithms, represents a paradigm shift from passive [asset allocation](AssetAllocation) to **active, tax-aware capital engineering**.
 
 We have established that the process is not merely about *owning* the underlying stocks; it is about *managing the tax lifecycle* of those ownership stakes. The technical hurdle is immense, requiring the integration of:
 

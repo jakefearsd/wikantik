@@ -1,3 +1,14 @@
+---
+title: Authentication And Authorization
+type: article
+tags:
+- token
+- jwt
+- user
+summary: 'Conceptual Foundations: Defining the Pillars of Identity Before we dive
+  into the mechanisms, we must achieve absolute clarity on the terminology.'
+auto-generated: true
+---
 # The Triad of Trust
 
 For those of us who spend our professional lives wrestling with the delicate balance between usability and impenetrable security, the concepts of authentication, authorization, and state management are not mere checkboxes; they are the foundational pillars upon which modern distributed systems stand or collapse into a heap of predictable vulnerabilities.

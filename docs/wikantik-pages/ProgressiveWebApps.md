@@ -1,3 +1,15 @@
+---
+title: Progressive Web Apps
+type: article
+tags:
+- cach
+- sw
+- network
+summary: Progressive Web Apps (PWAs) represent the zenith of this ambition, promising
+  the reliability of native applications without the restrictive sandboxes or platform
+  dependencies.
+auto-generated: true
+---
 # The Architecture of Resilience
 
 For those of us who have spent enough time wrestling with the ephemeral nature of the browser network, the concept of a truly "offline-first" web application is less a feature and more a fundamental requirement for modern digital experiences. Progressive Web Apps (PWAs) represent the zenith of this ambition, promising the reliability of native applications without the restrictive sandboxes or platform dependencies.

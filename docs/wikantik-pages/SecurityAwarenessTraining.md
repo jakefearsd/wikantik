@@ -1,3 +1,14 @@
+---
+title: Security Awareness Training
+type: article
+tags:
+- attack
+- must
+- research
+summary: The Adversarial Human Interface The modern security perimeter is no longer
+  defined solely by firewalls, intrusion detection systems, or endpoint protection.
+auto-generated: true
+---
 # The Adversarial Human Interface
 
 The modern security perimeter is no longer defined solely by firewalls, intrusion detection systems, or endpoint protection. It has migrated, quite literally, into the human mind. For security professionals tasked with researching novel attack vectors, the human element—the cognitive vulnerability—represents the most persistent, unpredictable, and ultimately, most lucrative attack surface.

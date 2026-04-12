@@ -1,3 +1,14 @@
+---
+title: Dbt And Analytics Engineering
+type: article
+tags:
+- data
+- dbt
+- model
+summary: We are no longer merely querying data; we are engineering reliable, governed,
+  and performant data products.
+auto-generated: true
+---
 # The Architect's Guide
 
 For those of us who have spent enough time staring at SQL queries to develop a sixth sense for JOIN syntax, the concept of data transformation has evolved far beyond simple `SELECT * FROM table WHERE condition`. We are no longer merely querying data; we are engineering reliable, governed, and performant data products.

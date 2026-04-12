@@ -1,6 +1,18 @@
+---
+title: Dead Letter Queue Patterns
+type: article
+tags:
+- messag
+- dlq
+- failur
+summary: Failure Containment For those of us who spend our careers building resilient,
+  event-driven architectures, the concept of failure is not an exception; it is the
+  primary operational constant.
+auto-generated: true
+---
 # Failure Containment
 
-For those of us who spend our careers building resilient, event-driven architectures, the concept of failure is not an exception; it is the primary operational constant. We design systems assuming that things *will* break—network partitions, malformed payloads, external service degradation, and, most notoriously, the insidious "poison message."
+For those of us who spend our careers building resilient, event-driven architectures, the concept of failure is not an exception; it is the primary operational constant. We [design systems](DesignSystems) assuming that things *will* break—network partitions, malformed payloads, external service degradation, and, most notoriously, the insidious "poison message."
 
 A message queue, at its heart, is a promise of eventual processing. It guarantees delivery, or at least, the *attempt* at delivery. However, when that promise encounters data that is fundamentally unprocessable, the queue mechanism, by its very nature of persistence and retry, can become a catastrophic liability. This comprehensive tutorial is not merely a review of best practices; it is an excavation into the theoretical underpinnings, advanced patterns, and operational nuances required to treat the Dead Letter Queue (DLQ) not as a mere dumping ground, but as a sophisticated, critical component of the overall system reliability boundary.
 
@@ -100,7 +112,7 @@ This is a crucial pattern that elevates the DLQ from a simple endpoint to an act
 
 ### C. Circuit Breaker Integration
 
-The DLQ mechanism should ideally be coupled with a Circuit Breaker pattern. The circuit breaker acts as a circuit monitor *upstream* of the queue processing logic.
+The DLQ mechanism should ideally be coupled with a [Circuit Breaker pattern](CircuitBreakerPattern). The circuit breaker acts as a circuit monitor *upstream* of the queue processing logic.
 
 If the failure rate for a specific downstream service (Service B) exceeds a defined threshold (e.g., 50% failure rate over 60 seconds), the circuit breaker "trips."
 

@@ -1,3 +1,14 @@
+---
+title: Adventure Travel Planning
+type: article
+tags:
+- text
+- must
+- plan
+summary: We are not merely booking trips; we are engineering complex, temporary socio-technical
+  systems designed to operate at the edge of known parameters.
+auto-generated: true
+---
 # Adventure Travel Planning
 
 ## Introduction
@@ -6,7 +17,7 @@ For those of us who have spent enough time in the trenches of expedition logisti
 
 We are not merely *booking* trips; we are engineering complex, temporary socio-technical systems designed to operate at the edge of known parameters. An expedition, at its highest level, is a controlled experiment in human resilience, resource management under duress, and deep environmental interaction.
 
-This tutorial is not a guide for the novice seeking a "dream adventure" (as some commercial sites suggest). Instead, it is a deep dive into the advanced, research-grade methodologies required for those who treat expedition planning as a discipline intersecting with operations research, risk engineering, behavioral science, and sustainable systems theory. We will dissect the process into its core, interlocking technical domains, focusing on techniques that move beyond mere contingency planning into proactive, predictive modeling.
+This tutorial is not a guide for the novice seeking a "dream adventure" (as some commercial sites suggest). Instead, it is a deep dive into the advanced, research-grade methodologies required for those who treat expedition planning as a discipline intersecting with [operations research](OperationsResearch), risk engineering, behavioral science, and sustainable systems theory. We will dissect the process into its core, interlocking technical domains, focusing on techniques that move beyond mere contingency planning into proactive, predictive modeling.
 
 ---
 
@@ -101,7 +112,7 @@ This is often the weakest link in commercial planning. Experts must treat the op
 
 ## III. Logistical Optimization and Supply Chain Resilience
 
-The physical movement of people and materiel across hostile or remote terrain is a classic optimization problem. We are dealing with variants of the Vehicle Routing Problem (VRP) and the Knapsack Problem, but with the added complexity of human fatigue as a variable constraint.
+The physical movement of people and materiel across hostile or remote terrain is a classic optimization problem. We are dealing with variants of the [Vehicle Routing Problem](VehicleRoutingProblem) (VRP) and the Knapsack Problem, but with the added complexity of human fatigue as a variable constraint.
 
 ### A. Multi-Modal, Dynamic Resource Allocation
 

@@ -1,3 +1,15 @@
+---
+title: Number Theory
+type: article
+tags:
+- curv
+- mathbb
+- structur
+summary: For researchers accustomed to the specialized focus of their subfields, this
+  treatise aims to illuminate the deep, often non-obvious, structural isomorphisms
+  that underpin modern number theory.
+auto-generated: true
+---
 # Number Theory: From Primes to Elliptic Curves—A Guide
 
 This document is intended not as a mere review, but as a comprehensive synthesis of the mathematical machinery that connects the seemingly discrete world of prime numbers to the rich, continuous geometry of elliptic curves. For researchers accustomed to the specialized focus of their subfields, this treatise aims to illuminate the deep, often non-obvious, structural isomorphisms that underpin modern number theory.

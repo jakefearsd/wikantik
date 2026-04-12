@@ -1,3 +1,13 @@
+---
+title: Cap Theorem
+type: article
+tags:
+- system
+- text
+- consist
+summary: This tutorial aims to move beyond the textbook simplification.
+auto-generated: true
+---
 # The CAP Theorem
 
 The CAP theorem, often cited in introductory texts as a simple "pick two" dilemma, is in reality a foundational concept whose implications are far more nuanced and complex when viewed through the lens of modern, large-scale, fault-tolerant systems. For researchers and architects designing the next generation of distributed infrastructure, understanding CAP is not about choosing a side; it is about understanding the *boundaries* of impossibility and mastering the *art of the trade-off* across multiple, interacting consistency models.
@@ -38,7 +48,7 @@ In practice, achieving perfect linearizability across geographically dispersed n
 
 *   **Sequential Consistency:** Requires that all nodes see the operations in the same order that a single, non-distributed process would have executed them. This is weaker than linearizability because the perceived order might not match the real-time order, but it is much easier to achieve than true linearizability.
 *   **Causal Consistency:** This is critical for collaborative systems. It guarantees that if process $A$ causes process $B$ (i.e., $A$ writes data that $B$ subsequently reads and modifies), then all nodes must see the writes from $A$ before they see the writes from $B$. It respects causality but allows concurrent, unrelated writes to propagate asynchronously.
-*   **Eventual Consistency:** The weakest guarantee. It states that if no new updates are made to a given data item, eventually all accesses to that item will return the last updated value. This is the hallmark of many highly available, eventually consistent NoSQL stores (e.g., Cassandra).
+*   **[Eventual Consistency](EventualConsistency):** The weakest guarantee. It states that if no new updates are made to a given data item, eventually all accesses to that item will return the last updated value. This is the hallmark of many highly available, eventually consistent NoSQL stores (e.g., Cassandra).
 
 **The Expert Takeaway:** When discussing $\text{C}$ in the context of CAP, we are usually referring to the *strongest* consistency model the system *must* maintain during a partition. If the system cannot guarantee linearizability, it is technically operating in a state of *reduced* consistency, which is the core of the trade-off.
 
@@ -152,7 +162,7 @@ This extension is crucial because it forces architects to consider the performan
 
 ### B. Conflict-Free Replicated Data Types (CRDTs)
 
-CRDTs represent one of the most elegant solutions to the $\text{AP}$ problem. Instead of relying on a central coordinator to resolve conflicts *after* they happen (which introduces latency and is inherently CP-like), CRDTs are data structures designed such that concurrent updates, when merged, are mathematically guaranteed to converge to the same, correct state, regardless of the order of arrival.
+CRDTs represent one of the most elegant solutions to the $\text{AP}$ problem. Instead of relying on a central coordinator to resolve conflicts *after* they happen (which introduces latency and is inherently CP-like), CRDTs are [data structures](DataStructures) designed such that concurrent updates, when merged, are mathematically guaranteed to converge to the same, correct state, regardless of the order of arrival.
 
 **How they work:**
 CRDTs encode the merge logic directly into the data structure itself. They are categorized into two main types:
@@ -235,7 +245,7 @@ However, real-world adversaries or severe software bugs can lead to **Byzantine 
 
 The concept of time is the weakest link in distributed systems. If two nodes cannot agree on the order of events (i.e., they cannot agree on a global clock), then achieving linearizability is impossible.
 
-*   **Vector Clocks:** These are the standard mechanism for tracking causality without relying on synchronized physical clocks. A vector clock associated with a piece of data is a map $\{NodeID: Counter\}$. When a node receives data, it compares its local clock vector with the incoming vector.
+*   **[Vector Clocks](VectorClocks):** These are the standard mechanism for tracking causality without relying on synchronized physical clocks. A vector clock associated with a piece of data is a map $\{NodeID: Counter\}$. When a node receives data, it compares its local clock vector with the incoming vector.
     *   If the incoming vector is greater than the local vector in *all* dimensions, the data is newer.
     *   If the local vector is greater than the incoming vector in *all* dimensions, the data is stale.
     *   If they are incomparable (neither dominates the other), a **concurrent write** has occurred, and conflict resolution is mandatory.

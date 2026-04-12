@@ -1,8 +1,20 @@
+---
+title: Deep Learning Fundamentals
+type: article
+tags:
+- mathbf
+- gradient
+- partial
+summary: The neural network, parameterized by a set of weights $\mathbf{W}$ and biases
+  $\mathbf{b}$, serves as our hypothesis function $\hat{y} = \text{NN}(\mathbf{x};
+  \mathbf{W}, \mathbf{b})$.
+auto-generated: true
+---
 # Backpropagation: A Deep Dive into the Calculus and Computational Machinery Driving Modern Deep Learning
 
 For those of us who spend our days wrestling with the intricacies of high-dimensional manifolds and the subtle gradients that dictate the fate of billion-parameter models, the term "Backpropagation" often elicits a sigh—a mix of reverence for its foundational importance and mild exasperation at its perceived oversimplification in introductory texts.
 
-This tutorial is not intended for those who merely need to know that Backpropagation (BP) "works backward to adjust weights." We assume a fluency in multivariable calculus, linear algebra, and the optimization landscape. Our goal is to dissect BP not as a mere algorithm, but as a sophisticated application of the multivariate chain rule, revealing its computational graph traversal, its inherent limitations, and the advanced mathematical machinery required to push the boundaries of modern deep architectures.
+This tutorial is not intended for those who merely need to know that Backpropagation (BP) "works backward to adjust weights." We assume a fluency in multivariable calculus, [linear algebra](LinearAlgebra), and the optimization landscape. Our goal is to dissect BP not as a mere algorithm, but as a sophisticated application of the multivariate chain rule, revealing its computational graph traversal, its inherent limitations, and the advanced mathematical machinery required to push the boundaries of modern deep architectures.
 
 ---
 
@@ -189,7 +201,7 @@ $$
 
 ### B. The Transformer Architecture: Attention and Contextual Gradients
 
-The Transformer architecture, which eschews recurrence entirely, represents a paradigm shift in how dependencies are modeled. It relies on the **Self-Attention Mechanism**.
+The [Transformer architecture](TransformerArchitecture), which eschews recurrence entirely, represents a paradigm shift in how dependencies are modeled. It relies on the **Self-Attention Mechanism**.
 
 The core operation is calculating the attention score $\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V})$:
 $$
@@ -250,7 +262,7 @@ Adaptive methods modify the update rule by maintaining a running estimate of the
 
 ### B. Regularization as Gradient Modification
 
-Regularization techniques are mathematically equivalent to modifying the loss function $L$ by adding a penalty term $\Omega(\mathbf{W})$:
+[Regularization techniques](RegularizationTechniques) are mathematically equivalent to modifying the loss function $L$ by adding a penalty term $\Omega(\mathbf{W})$:
 $$
 L_{\text{regularized}} = L(\mathbf{W}) + \lambda \Omega(\mathbf{W})
 $$

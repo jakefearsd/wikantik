@@ -1,3 +1,15 @@
+---
+title: State Management Patterns
+type: article
+tags:
+- state
+- context
+- redux
+summary: When an application grows beyond a trivial component tree, the simple local
+  state management provided by useState quickly buckles under the weight of cross-cutting
+  concerns.
+auto-generated: true
+---
 # React State Management
 
 For seasoned React developers, state management is not merely a feature; it is the central, defining architectural challenge of building scalable, maintainable, and performant user interfaces. When an application grows beyond a trivial component tree, the simple local state management provided by `useState` quickly buckles under the weight of cross-cutting concerns.

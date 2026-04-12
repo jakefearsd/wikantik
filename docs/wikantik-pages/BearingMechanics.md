@@ -1,8 +1,18 @@
+---
+title: Bearing Mechanics
+type: article
+tags:
+- contact
+- bear
+- load
+summary: Bearing Design and Rolling Element Mechanics Welcome.
+auto-generated: true
+---
 # Bearing Design and Rolling Element Mechanics
 
 Welcome. If you are reading this, you are not looking for the introductory chapter from a mechanical engineering textbook. You are researching the limits of current tribological understanding, grappling with non-linear material responses, and attempting to push the operational envelope of mechanical systems.
 
-This tutorial assumes a profound familiarity with solid mechanics, continuum mechanics, advanced materials science, and numerical methods. We will traverse the established fundamentals—the geometry, the contact mechanics, and the failure modes—but we will spend the majority of our time dissecting the complex, coupled physics that define the state-of-the-art in bearing design.
+This tutorial assumes a profound familiarity with solid mechanics, continuum mechanics, advanced materials science, and [numerical methods](NumericalMethods). We will traverse the established fundamentals—the geometry, the contact mechanics, and the failure modes—but we will spend the majority of our time dissecting the complex, coupled physics that define the state-of-the-art in bearing design.
 
 ---
 

@@ -1,3 +1,13 @@
+---
+title: Wiki Internationalization
+type: article
+tags:
+- local
+- must
+- languag
+summary: This tutorial is not a beginner's guide.
+auto-generated: true
+---
 # The Architectonics of Global Knowledge
 
 For those of us who spend our professional lives wrestling with the delicate interplay between structured data, human language, and the relentless march of global connectivity, the topic of Internationalization (i18n) and Localization (l10n) is less a feature set and more a fundamental architectural constraint. Building a wiki—a system predicated on collaborative, decentralized content creation—to operate across linguistic and cultural boundaries is arguably one of the most complex software engineering challenges available.
@@ -64,7 +74,7 @@ In this model, the content is written *once* in a canonical source language (usu
 *   **Translation Drift:** The primary weakness. If the translation process is imperfect, the resulting localized content can feel disjointed or overly literal, losing the nuance of native writing.
 *   **Workflow Bottleneck:** Requires a robust, managed translation workflow (e.g., involving professional translators or advanced MT pipelines).
 
-**Use Case Sweet Spot:** Technical documentation, reference wikis (e.g., API documentation, scientific wikis) where precision and structural integrity outweigh idiomatic flow.
+**Use Case Sweet Spot:** Technical documentation, reference wikis (e.g., [API documentation](ApiDocumentation), scientific wikis) where precision and structural integrity outweigh idiomatic flow.
 
 ### 2.2. Model B: Parallel Content Storage (The "N-Way" Model)
 
@@ -81,7 +91,7 @@ This is the most common, yet often most brittle, model seen in large, establishe
 
 **Cons:**
 *   **Data Redundancy & Consistency Risk:** The same concept (e.g., "The Battle of Hastings") must be written, formatted, and maintained *N* times. If one version is updated and another is missed, the wiki becomes factually inconsistent.
-*   **Schema Bloat:** The database schema grows linearly with the number of supported languages, leading to complex indexing and query optimization challenges.
+*   **Schema Bloat:** The database schema grows linearly with the number of supported languages, leading to complex indexing and [query optimization](QueryOptimization) challenges.
 *   **Transclusion Complexity:** If a template or boilerplate text is used, it must be localized *within* the template definition for every single language.
 
 **Use Case Sweet Spot:** Large, mature, community-driven encyclopedic platforms where local editorial control is paramount (e.g., Wikipedia, specialized national wikis).

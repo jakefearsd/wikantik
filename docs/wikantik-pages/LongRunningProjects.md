@@ -1,3 +1,15 @@
+---
+title: Long Running Projects
+type: article
+tags:
+- context
+- token
+- memori
+summary: We are tasked with building systems that can sustain multi-session dialogues,
+  process vast document corpuses over weeks, and maintain intricate, evolving internal
+  states.
+auto-generated: true
+---
 # Long-Running Projects: Managing Token Limits and Persistence in Advanced LLM Architectures
 
 ## Introduction: The Illusion of Infinite Memory
@@ -14,7 +26,7 @@ This comprehensive guide will dissect the theoretical limitations, explore estab
 
 ## I. The Theoretical Constraints: Understanding the Context Window Bottleneck
 
-Before we can solve the problem, we must fully appreciate its mathematical and computational roots. The concept of "forgetting" is not a failure of intelligence; it is a direct consequence of the Transformer architecture's input limitations.
+Before we can solve the problem, we must fully appreciate its mathematical and computational roots. The concept of "forgetting" is not a failure of intelligence; it is a direct consequence of the [Transformer architecture](TransformerArchitecture)'s input limitations.
 
 ### A. Tokenization and Context Limits
 
@@ -221,6 +233,6 @@ Managing token limits and achieving persistence in long-running LLM projects is 
 
 For the expert researcher, the takeaway is clear: **The LLM should never be treated as the memory; it must be treated as the reasoning interface to a sophisticated, external memory graph.**
 
-By implementing a multi-layered system—one that uses structured logging, graph databases for relationships, vector stores for semantic recall, and recursive summarization for immediate context—you move from merely *calling* an LLM to *engineering* a persistent, reliable cognitive assistant. The complexity scales not with the length of the conversation, but with the sophistication of the memory retrieval and synthesis pipeline you build around it.
+By implementing a multi-layered system—one that uses [structured logging](StructuredLogging), graph databases for relationships, vector stores for semantic recall, and recursive summarization for immediate context—you move from merely *calling* an LLM to *engineering* a persistent, reliable cognitive assistant. The complexity scales not with the length of the conversation, but with the sophistication of the memory retrieval and synthesis pipeline you build around it.
 
 This requires rigorous testing against failure modes, constant monitoring of token budgets, and a willingness to treat the entire system as a distributed state machine, rather than a simple prompt-response loop. Now, if you'll excuse me, I have a few billion parameters to optimize.

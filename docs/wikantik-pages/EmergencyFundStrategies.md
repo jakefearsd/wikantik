@@ -1,3 +1,14 @@
+---
+title: Emergency Fund Strategies
+type: article
+tags:
+- text
+- risk
+- yield
+summary: The Architecture of Resilience This document is intended for financial engineers,
+  quantitative analysts, portfolio managers, and advanced wealth management researchers.
+auto-generated: true
+---
 # The Architecture of Resilience
 
 This document is intended for financial engineers, quantitative analysts, portfolio managers, and advanced wealth management researchers. We are moving beyond the simplistic "save $X amount" advice. Our focus here is on the *optimization, modeling, and structural integrity* of liquid reserves—the financial shock absorbers that prevent catastrophic portfolio drawdown during periods of unexpected systemic stress or personal crisis.

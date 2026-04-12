@@ -1,3 +1,14 @@
+---
+title: Java Annotation Processing
+type: article
+tags:
+- annot
+- compil
+- processor
+summary: If you are reading this, you are not looking for a simple "Hello World" tutorial
+  on @interface.
+auto-generated: true
+---
 # The Meta-Layer
 
 Welcome. If you are reading this, you are not looking for a simple "Hello World" tutorial on `@interface`. You are researching the limits of compile-time metaprogramming, seeking to understand the architectural patterns that allow Java to bend its own rules—or, more accurately, to *augment* them—at the deepest levels of the build lifecycle.

@@ -1,3 +1,15 @@
+---
+title: Test Driven Development Guide
+type: article
+tags:
+- test
+- must
+- refactor
+summary: 'The mantra, "Red, Green, Refactor," is frequently reduced in introductory
+  materials to a mere checklist: write a failing test, write the minimum code to pass
+  it, clean up.'
+auto-generated: true
+---
 # The Triad of Engineering Discipline
 
 For those of us operating at the bleeding edge of software engineering—those who view established methodologies not as immutable laws, but as highly optimized hypotheses—the concept of Test-Driven Development (TDD) often appears quaintly simple. The mantra, "Red, Green, Refactor," is frequently reduced in introductory materials to a mere checklist: write a failing test, write the minimum code to pass it, clean up.
@@ -95,7 +107,7 @@ If the tests pass, the behavior is preserved. If the tests fail, the refactoring
 Refactoring must be viewed across multiple dimensions:
 
 *   **Structural Refactoring:** Improving class/method organization (e.g., extracting methods, moving responsibilities). This directly combats high Cyclomatic Complexity.
-*   **Design Refactoring:** Addressing architectural debt (e.g., applying the Strategy Pattern, introducing an Observer pattern, or correctly implementing Dependency Inversion). This improves *extensibility*.
+*   **Design Refactoring:** Addressing architectural debt (e.g., applying the [Strategy Pattern](StrategyPattern), introducing an [Observer pattern](ObserverPattern), or correctly implementing Dependency Inversion). This improves *extensibility*.
 *   **Clarity Refactoring:** Improving naming conventions, documentation, and reducing cognitive load for the next developer (or future self).
 
 #### 3. The Iterative Nature of Refactoring
@@ -141,7 +153,7 @@ In complex systems involving multiple writes (e.g., financial transactions), the
 
 *   **The Test:** The test must assert the *entire* state change, including rollback conditions.
 *   **The Green Implementation:** The code must use mechanisms like database transactions or compensating actions.
-*   **The Refactor:** The refactoring must ensure that the transaction boundary logic (e.g., `try...catch...rollback`) is clean, idempotent, and correctly handles partial failures, often leading to the adoption of patterns like the Saga pattern in microservices.
+*   **The Refactor:** The refactoring must ensure that the transaction boundary logic (e.g., `try...catch...rollback`) is clean, idempotent, and correctly handles partial failures, often leading to the adoption of patterns like the [Saga pattern](SagaPattern) in microservices.
 
 ---
 

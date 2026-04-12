@@ -1,3 +1,13 @@
+---
+title: Bloom Filters
+type: article
+tags:
+- hash
+- bf
+- bit
+summary: Bloom Filter Probabilistic Membership Welcome.
+auto-generated: true
+---
 # Bloom Filter Probabilistic Membership
 
 Welcome. If you are reading this, you are likely already familiar with the basic concept of a Bloom Filter (BF)—a space-efficient probabilistic data structure used to test set membership. You probably know that it trades absolute certainty for remarkable space savings.
@@ -11,7 +21,7 @@ This tutorial assumes a high level of mathematical maturity, familiarity with ha
 ## I. Introduction: The Necessity of Probabilistic Structures
 
 ### A. The Problem Space: Set Membership Under Constraint
-In modern computing, the sheer volume of data necessitates data structures that scale gracefully in memory usage. Traditional set implementations (like hash tables or balanced binary search trees) offer $O(1)$ average time complexity for insertion and lookup, but their memory footprint is often prohibitive when dealing with petabytes of unique identifiers (e.g., IP addresses, session tokens, genomic sequences).
+In modern computing, the sheer volume of data necessitates [data structures](DataStructures) that scale gracefully in memory usage. Traditional set implementations (like hash tables or balanced binary search trees) offer $O(1)$ average time complexity for insertion and lookup, but their memory footprint is often prohibitive when dealing with petabytes of unique identifiers (e.g., IP addresses, session tokens, genomic sequences).
 
 The Bloom Filter emerges as a compelling solution to this resource constraint. It provides a mechanism to answer the question, "Is element $x$ *definitely not* in the set $S$?" with absolute certainty, while answering, "Is element $x$ *probably* in the set $S$?" with a quantifiable, controllable probability of error.
 

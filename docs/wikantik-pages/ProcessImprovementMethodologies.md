@@ -1,3 +1,13 @@
+---
+title: Process Improvement Methodologies
+type: article
+tags:
+- process
+- kaizen
+- time
+summary: This tutorial assumes a high baseline of knowledge.
+auto-generated: true
+---
 # Perpetual Refinement
 
 For those of us who have spent enough time staring at process flowcharts to develop a sixth sense for waste, the term "Continuous Improvement" often feels less like a corporate buzzword and more like a fundamental law of thermodynamics applied to organizational entropy. We are not here to learn *what* Kaizen is; we are here to dissect its operational architecture, understand its theoretical underpinnings, and map out the advanced techniques required to move it from a commendable initiative to an ingrained, self-correcting organizational metabolism.
@@ -147,7 +157,7 @@ In complex systems (e.g., supply chains, healthcare), the process is rarely dete
 
 1.  **Theory of Constraints (TOC):** Instead of trying to optimize every single step (which is often futile), TOC dictates that the entire system's throughput is dictated by its single **Constraint** (the bottleneck). All improvement efforts must focus disproportionately on alleviating the constraint.
 2.  **Buffer Management:** Recognizing that variability is inevitable, advanced Lean systems build *buffers* (time, inventory, capacity) strategically around the constraint, rather than trying to eliminate the variability itself.
-3.  **Simulation Modeling:** Before committing resources to a Kaizen Event that might restructure a complex process, advanced practitioners utilize discrete-event simulation software. This allows testing the impact of proposed changes (e.g., increasing machine uptime by 15% vs. adding a second shift) on system throughput under simulated peak load conditions, mitigating the risk of a costly, failed physical rollout.
+3.  **[Simulation Modeling](SimulationModeling):** Before committing resources to a Kaizen Event that might restructure a complex process, advanced practitioners utilize discrete-event simulation software. This allows testing the impact of proposed changes (e.g., increasing machine uptime by 15% vs. adding a second shift) on system throughput under simulated peak load conditions, mitigating the risk of a costly, failed physical rollout.
 
 ### C. The Human Element: Behavioral Economics in Process Change
 

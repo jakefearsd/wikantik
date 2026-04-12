@@ -1,3 +1,13 @@
+---
+title: Van Life O Verview
+type: article
+tags:
+- text
+- system
+- load
+summary: 'Scope: This document moves beyond anecdotal lifestyle reporting.'
+auto-generated: true
+---
 # A Systemic Analysis of Mobile Habitation Units: An Overview of Van Life for Advanced Research Protocols
 
 **Target Audience:** Experts in Sustainable Engineering, Mobile Systems Design, Off-Grid Infrastructure, and Human Factors Engineering.

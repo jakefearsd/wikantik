@@ -23,7 +23,7 @@ related:
 
 ## Three Decades of Transformation
 
-The landscape of distributed computing has undergone radical transformation since the mid-1990s. What began with simple client-server architectures and CORBA has evolved through service-oriented architecture, cloud computing, and into today's world of globally distributed, event-driven microservices running on Kubernetes.
+The landscape of distributed computing has undergone radical transformation since the mid-1990s. What began with simple client-server architectures and CORBA has evolved through service-oriented architecture, [cloud computing](CloudComputing), and into today's world of globally distributed, event-driven microservices running on Kubernetes.
 
 ## The 1990s: Foundations
 
@@ -31,7 +31,7 @@ The 1990s established the building blocks of modern distributed systems:
 
 - **CORBA and RPC** dominated enterprise computing, offering location-transparent remote procedure calls with IDL-based contracts. The complexity overhead was enormous, but the ideas of interface contracts and service discovery were foundational.
 - **Java RMI and EJB** simplified distributed object computing for Java shops, though the deployment ceremony of EJB was notoriously painful.
-- **The CAP theorem** (1998, formally proved 2002) gave the field its most important theoretical constraint: in a distributed system, you can have at most two of Consistency, Availability, and Partition tolerance. This insight continues to drive architectural decisions today.
+- **The [CAP theorem](CapTheorem)** (1998, formally proved 2002) gave the field its most important theoretical constraint: in a distributed system, you can have at most two of Consistency, Availability, and Partition tolerance. This insight continues to drive architectural decisions today.
 - **Two-phase commit** was the gold standard for distributed transactions, trading availability for strong consistency.
 
 ## The 2000s: Services and Scale
@@ -53,7 +53,7 @@ The 2010s saw distributed computing become the default architecture:
 - **Apache Kafka** (2011) became the backbone of event-driven architectures, providing durable, ordered, replayable event logs.
 - **Service mesh** (Istio, Linkerd) abstracted networking concerns — retries, circuit breaking, mutual TLS — out of application code and into infrastructure.
 - **Consensus protocols** matured: Raft (2013) made Paxos accessible, powering etcd, Consul, and CockroachDB.
-- **CRDTs** (conflict-free replicated data types) offered eventual consistency without coordination, gaining adoption in collaborative editing and distributed databases.
+- **CRDTs** (conflict-free replicated data types) offered [eventual consistency](EventualConsistency) without coordination, gaining adoption in collaborative editing and distributed databases.
 
 ## The 2020s: Current Best Practices
 
@@ -65,18 +65,18 @@ Modern distributed systems combine lessons from three decades of evolution:
 - **Edge computing** pushes logic closer to users via CDN workers (Cloudflare Workers, AWS Lambda@Edge), reducing latency for global applications.
 
 ### Data
-- **Event sourcing and CQRS** separate read and write models, allowing independent scaling and providing a complete audit trail.
+- **[Event sourcing](EventSourcing) and CQRS** separate read and write models, allowing independent scaling and providing a complete audit trail.
 - **NewSQL databases** (CockroachDB, Spanner, TiDB) offer distributed SQL with strong consistency, removing the old "NoSQL or SQL" false dichotomy.
-- **Stream processing** (Kafka Streams, Flink, Materialize) enables real-time analytics and derived views from event logs.
+- **[Stream processing](StreamProcessing)** (Kafka Streams, Flink, Materialize) enables real-time analytics and derived views from event logs.
 
 ### Reliability
-- **Observability** (not just monitoring): structured logging, distributed tracing (OpenTelemetry), and metrics form the three pillars. You cannot debug a distributed system without them.
-- **Chaos engineering** (pioneered by Netflix's Chaos Monkey) is now standard practice for validating fault tolerance.
+- **Observability** (not just monitoring): [structured logging](StructuredLogging), [distributed tracing](DistributedTracing) (OpenTelemetry), and metrics form the three pillars. You cannot debug a distributed system without them.
+- **[Chaos engineering](ChaosEngineering)** (pioneered by Netflix's Chaos Monkey) is now standard practice for validating fault tolerance.
 - **Circuit breakers and bulkheads** prevent cascade failures. Libraries like Resilience4j make these patterns accessible.
 - **Zero-trust networking** replaces perimeter security with per-request authentication and encryption (mTLS via service mesh).
 
 ### Operations
-- **GitOps** (ArgoCD, Flux) treats infrastructure as code with git as the single source of truth.
+- **GitOps** (ArgoCD, Flux) treats [infrastructure as code](InfrastructureAsCode) with git as the single source of truth.
 - **Platform engineering** provides self-service internal developer platforms, reducing the cognitive load of operating distributed systems.
 - **FinOps** emerged as cloud costs became a primary concern — cost-aware architecture is now a design constraint, not an afterthought.
 

@@ -1,3 +1,14 @@
+---
+title: Ci Cd Pipelines
+type: article
+tags:
+- pipelin
+- test
+- must
+summary: This tutorial is not intended for the novice who needs to understand what
+  a "build step" is.
+auto-generated: true
+---
 # CI/CD Pipelines
 
 For those of us who have spent enough time wrestling with build failures at 3 AM, the concept of Continuous Integration/Continuous Delivery (CI/CD) is less a methodology and more a fundamental prerequisite for modern software existence. It is the invisible scaffolding that allows complex, distributed systems to evolve at the velocity demanded by the market, while theoretically minimizing the catastrophic blast radius of any single commit.
@@ -107,7 +118,7 @@ The concept of the "build artifact" must be rigorously defined. An artifact is n
 
 The pipeline requires credentials—database passwords, API keys, cloud service tokens. Storing these in environment variables or configuration files within the pipeline definition is an immediate security failure.
 
-**Best Practice:** Use dedicated, centralized secrets management vaults (e.g., HashiCorp Vault, AWS Secrets Manager, Azure Key Vault).
+**Best Practice:** Use dedicated, centralized [secrets management](SecretsManagement) vaults (e.g., HashiCorp Vault, AWS Secrets Manager, Azure Key Vault).
 
 **Pipeline Interaction:** The CI/CD orchestrator should *not* store the secrets. Instead, it should be granted a temporary, scoped role (via IAM roles or OIDC federation) that allows it to *read* the necessary secrets from the vault at runtime, injecting them only into the specific process that requires them, and never logging them.
 
@@ -203,7 +214,7 @@ The fundamental limitation of any automated pipeline is that **it can only test 
 
 What happens when a dependency is external, managed by a third party, and has no API contract? (e.g., a payment gateway, a government API).
 
-*   **Mitigation:** The pipeline must incorporate **Service Virtualization** or **Mocking Layers**. Instead of calling the real external service during testing, the pipeline routes calls to a local service virtualization layer that simulates the expected latency, failure modes, and data structures of the external dependency. This allows the core business logic to be tested in isolation from external instability.
+*   **Mitigation:** The pipeline must incorporate **Service Virtualization** or **Mocking Layers**. Instead of calling the real external service during testing, the pipeline routes calls to a local service virtualization layer that simulates the expected latency, failure modes, and [data structures](DataStructures) of the external dependency. This allows the core business logic to be tested in isolation from external instability.
 
 ### C. The Cost of Complexity (The "Pipeline Tax")
 

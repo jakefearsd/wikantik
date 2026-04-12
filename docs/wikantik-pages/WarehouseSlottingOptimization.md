@@ -1,3 +1,14 @@
+---
+title: Warehouse Slotting Optimization
+type: article
+tags:
+- slot
+- sku
+- pick
+summary: It represents the critical intersection where inventory science, combinatorial
+  mathematics, and real-time operational data converge.
+auto-generated: true
+---
 # The Algorithmic Art of Placement
 
 For the seasoned researcher, the operational expert, or the data scientist tasked with squeezing the last few percentage points of efficiency from a sprawling material handling network, warehouse slotting optimization is not merely a "best practice"—it is a complex, multi-variable, NP-hard optimization problem. It represents the critical intersection where inventory science, combinatorial mathematics, and real-time operational data converge.
@@ -23,7 +34,7 @@ The complexity arises because these objectives are often in conflict. Maximizing
 
 ## 🧠 Section 1: Theoretical Foundations and Modeling Paradigms
 
-Before diving into algorithms, we must establish the mathematical framework. Slotting optimization can be modeled using several established paradigms from Operations Research (OR). Understanding these models allows researchers to select the appropriate computational toolset.
+Before diving into algorithms, we must establish the mathematical framework. Slotting optimization can be modeled using several established paradigms from [Operations Research](OperationsResearch) (OR). Understanding these models allows researchers to select the appropriate computational toolset.
 
 ### 1.1 The Quadratic Assignment Problem (QAP)
 
@@ -223,7 +234,7 @@ Slotting must be linked to the PLM system. When a product transitions from "Intr
 
 Automation doesn't solve the math; it executes the math faster and more precisely.
 
-*   **Automated Storage and Retrieval Systems (AS/RS):** These systems often dictate a highly structured, linear slotting model (e.g., single-deep racking). The optimization challenge here shifts from *pathing* to *slot assignment within the system's constraints*.
+*   **[Automated Storage and Retrieval](AutomatedStorageAndRetrieval) Systems (AS/RS):** These systems often dictate a highly structured, linear slotting model (e.g., single-deep racking). The optimization challenge here shifts from *pathing* to *slot assignment within the system's constraints*.
 *   **Goods-to-Person (G2P):** When using G2P, the optimization goal shifts entirely from minimizing *travel distance* to minimizing *system cycle time* and maximizing the *batch size* of items delivered to the picker station. Slotting becomes about grouping items that are frequently picked together into the same delivery tote/cart.
 
 ---

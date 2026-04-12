@@ -1,3 +1,14 @@
+---
+title: Google SSO
+type: article
+tags:
+- your
+- token
+- googl
+summary: It’s brittle, it scales poorly, and it generates an unacceptable volume of
+  helpdesk tickets.
+auto-generated: true
+---
 # The Definitive Guide to Accessing and Configuring Google Single Sign-On (SSO) for Enterprise Applications
 
 **A Technical Deep Dive for Expert Software Engineers and Data Scientists**

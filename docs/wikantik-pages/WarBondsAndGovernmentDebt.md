@@ -1,3 +1,13 @@
+---
+title: War Bonds And Government Debt
+type: article
+tags:
+- text
+- war
+- bond
+summary: Roosevelt or the exigencies of the Great War.
+auto-generated: true
+---
 # War Bonds Government Debt Financing
 
 ## Introduction: The Calculus of Crisis Finance

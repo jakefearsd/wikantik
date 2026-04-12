@@ -1,3 +1,15 @@
+---
+title: Fine Tuning Large Language Models
+type: article
+tags:
+- model
+- fine
+- loss
+summary: We are moving far beyond the era of mere prompt engineering, where clever
+  phrasing was sufficient to coax desired behavior from a general-purpose foundation
+  model.
+auto-generated: true
+---
 # The Architect's Guide
 
 For those of us who treat Large Language Models (LLMs) not as mere APIs, but as malleable computational substrates, the concept of "fine-tuning" is less a tutorial topic and more a fundamental engineering discipline. We are moving far beyond the era of mere prompt engineering, where clever phrasing was sufficient to coax desired behavior from a general-purpose foundation model. Today, the frontier demands surgical precision: the ability to imbue a massive, pre-trained model with the specific, nuanced knowledge, tone, and reasoning patterns of a highly specialized domain.
@@ -55,7 +67,7 @@ $$\Theta_{new} = \Theta_{base} + \Delta\Theta$$
 
 ## II. Parameter-Efficient Fine-Tuning (PEFT) Techniques
 
-PEFT techniques are the cornerstone of modern LLM customization. They are not merely optimizations; they represent a sophisticated understanding of the transformer architecture's redundancy and modularity.
+PEFT techniques are the cornerstone of modern LLM customization. They are not merely optimizations; they represent a sophisticated understanding of the [transformer architecture](TransformerArchitecture)'s redundancy and modularity.
 
 ### A. Low-Rank Adaptation (LoRA)
 
@@ -138,7 +150,7 @@ For domain adaptation (e.g., legal, medical, financial), the data must be repres
 
 ### C. Synthetic Data Generation (The Frontier Approach)
 
-When real-world, labeled data is scarce (a common problem in highly regulated fields), synthetic data generation becomes a powerful, albeit risky, technique.
+When real-world, labeled data is scarce (a common problem in highly regulated fields), [synthetic data generation](SyntheticDataGeneration) becomes a powerful, albeit risky, technique.
 
 **The Process:**
 1.  Use a highly capable, general-purpose LLM (e.g., GPT-4) as a *data generator*.

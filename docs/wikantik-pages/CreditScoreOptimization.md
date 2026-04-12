@@ -1,3 +1,14 @@
+---
+title: Credit Score Optimization
+type: article
+tags:
+- credit
+- model
+- payment
+summary: 'Credit Score Optimization Disclaimer: This tutorial is written for advanced
+  practitioners, quantitative researchers, and financial modelers.'
+auto-generated: true
+---
 # Credit Score Optimization
 
 ***

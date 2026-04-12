@@ -1,3 +1,13 @@
+---
+title: Performance Profiling
+type: article
+tags:
+- profil
+- bottleneck
+- you
+summary: The Art and Science of Performance Profiling Welcome.
+auto-generated: true
+---
 # The Art and Science of Performance Profiling
 
 Welcome. If you've reached this document, you likely already understand that "it runs slow" is a complaint, not a diagnosis. You are not here to learn what a profiler *is*; you are here to master the methodology of extracting actionable, statistically significant performance insights from complex, high-throughput systems.

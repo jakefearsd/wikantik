@@ -1,3 +1,14 @@
+---
+title: Context Compression
+type: article
+tags:
+- context
+- text
+- queri
+summary: Smart Context Compression and Relevance Filtering The rapid ascent of Large
+  Language Models (LLMs) has ushered in an era of unprecedented computational capability.
+auto-generated: true
+---
 # Smart Context Compression and Relevance Filtering
 
 The rapid ascent of Large Language Models (LLMs) has ushered in an era of unprecedented computational capability. However, this power is fundamentally constrained by a physical limitation: the context window. As AI agents are tasked with ingesting vast, complex, and often voluminous streams of information—be it multi-document knowledge bases, protracted conversational histories, or real-time sensor data—the sheer volume of input threatens to overwhelm the model's attention mechanisms and degrade performance.
@@ -14,7 +25,7 @@ Before diving into solutions, we must establish a rigorous understanding of the 
 
 ### A. The Mechanics of Attention Decay and Context Overload
 
-At the core of modern LLMs is the Transformer architecture, relying on the self-attention mechanism. Mathematically, the attention score between two tokens, $Q$ (Query) and $K$ (Key), is calculated via a scaled dot-product:
+At the core of modern LLMs is the [Transformer architecture](TransformerArchitecture), relying on the self-attention mechanism. Mathematically, the attention score between two tokens, $Q$ (Query) and $K$ (Key), is calculated via a scaled dot-product:
 
 $$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
 

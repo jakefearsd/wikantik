@@ -1,3 +1,14 @@
+---
+title: Van First Aid Kit
+type: article
+tags:
+- manag
+- kit
+- must
+summary: 'Discipline Focus: Pre-hospital Trauma Life Support (PHTLS), Tropical Medicine,
+  Remote Care Logistics.'
+auto-generated: true
+---
 # Comprehensive Technical Guide: Advanced First Aid and Wellness Kit Protocols for Extended Expeditionary Travel
 
 **Target Audience:** Field Researchers, Expedition Medicine Specialists, Advanced Wilderness Survival Technicians.

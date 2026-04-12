@@ -1,10 +1,21 @@
+---
+title: Recommendation Systems
+type: article
+tags:
+- item
+- user
+- model
+summary: Collaborative Filtering The field of recommender systems (RS) is, frankly,
+  a sprawling mess of statistical models, graph algorithms, and deep neural networks.
+auto-generated: true
+---
 # Collaborative Filtering
 
 The field of recommender systems (RS) is, frankly, a sprawling mess of statistical models, graph algorithms, and deep neural networks. While the commercial success of platforms like Netflix and Amazon often obscures the underlying mathematical complexity, the core engine driving much of this magic remains **Collaborative Filtering (CF)**.
 
 For researchers operating at the bleeding edge—those who are not content merely deploying established models but are actively seeking to break through the current performance ceilings—a comprehensive understanding of CF is not enough. One must understand its mathematical limitations, its historical evolution, and the specific failure modes that modern techniques aim to correct.
 
-This tutorial is designed not as a refresher, but as a deep, technical exposition, assuming a robust background in linear algebra, machine learning theory, and statistical modeling. We will dissect the theory, traverse the algorithmic landscape from neighborhood-based methods to modern attention-based architectures, and critically examine the unsolved problems that define the current research frontier.
+This tutorial is designed not as a refresher, but as a deep, technical exposition, assuming a robust background in [linear algebra](LinearAlgebra), [machine learning](MachineLearning) theory, and statistical modeling. We will dissect the theory, traverse the algorithmic landscape from neighborhood-based methods to modern attention-based architectures, and critically examine the unsolved problems that define the current research frontier.
 
 ---
 
@@ -142,7 +153,7 @@ $$\hat{R}_{u, i} = f(p_u, q_i)$$
 The current state-of-the-art research moves beyond simple concatenation and MLP structures by incorporating sequential and contextual awareness.
 
 *   **Attention Mechanisms:** Instead of treating all interactions equally, attention mechanisms allow the model to dynamically weigh the importance of different neighbors (users or items) or different features. For instance, in an item-item context, an attention layer can learn that Item $A$'s similarity to Item $B$ is highly dependent on the *context* of User $U$'s past viewing history, rather than just co-occurrence counts.
-*   **Sequential Models (RNNs/Transformers):** When the interaction history is treated as a sequence (e.g., User $U$ watched $I_1 \to I_2 \to I_3$), Recurrent Neural Networks (RNNs) or, more recently, Transformer architectures (like SASRec) are employed. These models predict the *next* item in the sequence, fundamentally shifting the CF problem from "What do they like?" to "What do they do next?"
+*   **Sequential Models (RNNs/Transformers):** When the interaction history is treated as a sequence (e.g., User $U$ watched $I_1 \to I_2 \to I_3$), [Recurrent Neural Networks](RecurrentNeuralNetworks) (RNNs) or, more recently, Transformer architectures (like SASRec) are employed. These models predict the *next* item in the sequence, fundamentally shifting the CF problem from "What do they like?" to "What do they do next?"
 
 ---
 
@@ -196,7 +207,7 @@ To truly operate at the research frontier, one must master the integration of te
 
 The order in which items are consumed is often more predictive than the set of items consumed. This necessitates treating the interaction history as a time series.
 
-**The Transformer Architecture in RS:**
+**The [Transformer Architecture](TransformerArchitecture) in RS:**
 The Transformer, originally designed for NLP, has proven exceptionally powerful here. It excels at capturing long-range dependencies in sequences.
 
 1.  **Positional Encoding:** Since Transformers process tokens (items) in parallel, they lose inherent sequence order. Positional embeddings must be added to the item embeddings to reintroduce temporal information.

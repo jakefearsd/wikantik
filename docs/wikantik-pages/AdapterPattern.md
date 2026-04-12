@@ -1,3 +1,15 @@
+---
+title: Adapter Pattern
+type: article
+tags:
+- adapt
+- text
+- adapte
+summary: Adapter Pattern The modern software landscape is less a cohesive ecosystem
+  and more a sprawling, interconnected archipelago of specialized services, legacy
+  monoliths, and bleeding-edge protocols.
+auto-generated: true
+---
 # Adapter Pattern
 
 The modern software landscape is less a cohesive ecosystem and more a sprawling, interconnected archipelago of specialized services, legacy monoliths, and bleeding-edge protocols. In this environment, the most persistent and insidious challenge for architects and researchers is not usually the *creation* of new functionality, but the *integration* of disparate, pre-existing components.
@@ -26,8 +38,8 @@ The Adapter Pattern is one of the canonical structural patterns identified by th
 However, for researchers dealing with modern, polyglot systems, its scope often overlaps with, and must be rigorously differentiated from, related patterns:
 
 *   **Facade Pattern:** A Facade provides a simplified, high-level interface to a complex subsystem. The goal is *simplification* and *abstraction*. The subsystem components themselves are usually compatible with each other, but the Facade shields the client from their complexity.
-*   **Decorator Pattern:** A Decorator dynamically adds responsibilities or behaviors to an object. It typically maintains the *same* interface as the component it decorates. The goal is *extension* while preserving the contract.
-*   **Proxy Pattern:** A Proxy provides a surrogate or placeholder for another object to control access. It often implements the *exact same* interface as the real subject, intercepting calls for purposes like lazy loading, security checks, or logging.
+*   **[Decorator Pattern](DecoratorPattern):** A Decorator dynamically adds responsibilities or behaviors to an object. It typically maintains the *same* interface as the component it decorates. The goal is *extension* while preserving the contract.
+*   **[Proxy Pattern](ProxyPattern):** A Proxy provides a surrogate or placeholder for another object to control access. It often implements the *exact same* interface as the real subject, intercepting calls for purposes like lazy loading, security checks, or logging.
 
 **The Critical Distinction:**
 The Adapter's primary function is **translation across incompatible contracts**. If the client expects `process(data: String)` and the adaptee only accepts `process(byte[] data)`, the Adapter must handle the `String` $\rightarrow$ `byte[]` conversion. A Proxy or Decorator would typically assume the underlying method signature is already correct.

@@ -1,3 +1,14 @@
+---
+title: Router Techniques And Jigs
+type: article
+tags:
+- jig
+- system
+- materi
+summary: The basic tutorials—the ones showing you how to cut a simple dado or profile
+  a basic edge using scraps—are merely introductory primers.
+auto-generated: true
+---
 # Advanced Router Techniques, Jigs, and Fixtures for the Research-Grade Woodworker
 
 For those of us who treat the router not merely as a tool, but as a highly controllable, high-speed material removal system, the concept of a "simple jig" is an insult to our collective experience. The basic tutorials—the ones showing you how to cut a simple dado or profile a basic edge using scraps—are merely introductory primers. They teach the novice how to *make* a cut; they do not teach the expert how to *control* the cut under non-ideal, high-stress, or geometrically complex conditions.

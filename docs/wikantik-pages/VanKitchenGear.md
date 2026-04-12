@@ -1,3 +1,15 @@
+---
+title: Van Kitchen Gear
+type: article
+tags:
+- high
+- heat
+- must
+summary: The transition from a fixed, utility-rich domestic kitchen to a self-contained,
+  mobile unit introduces a complex set of engineering, material science, and workflow
+  challenges.
+auto-generated: true
+---
 # The Mobile Culinary Ecosystem
 
 ## Introduction: Redefining Culinary Constraints in a Constrained Volume

@@ -1,3 +1,14 @@
+---
+title: Inventory Theory
+type: article
+tags:
+- cost
+- model
+- demand
+summary: This tutorial is not intended for the undergraduate student who merely needs
+  to plug values into a textbook formula.
+auto-generated: true
+---
 # Bridging the Deterministic Certainty of EOQ with the Stochastic Reality of the Newsvendor Model
 
 For those of us who spend our professional lives wrestling with the inherent tension between supply chain efficiency and unpredictable consumer behavior, inventory theory is less a field of study and more a necessary framework for survival. We are tasked with optimizing the placement of capital—the physical stock of goods—in a system where the inputs (demand) are inherently noisy, and the costs (holding, ordering, obsolescence) are rarely linear.
@@ -8,7 +19,7 @@ This tutorial is not intended for the undergraduate student who merely needs to 
 
 ## Introduction: The Mathematical Imperative of Inventory Theory
 
-Inventory theory, at its core, is the mathematical discipline dedicated to determining the optimal timing, quantity, and level of stock replenishment to minimize the total relevant cost function over a specified time horizon. As noted in the context, this field sits squarely within Operations Research and is a critical component of modern Operations Management [2].
+Inventory theory, at its core, is the mathematical discipline dedicated to determining the optimal timing, quantity, and level of stock replenishment to minimize the total relevant cost function over a specified time horizon. As noted in the context, this field sits squarely within [Operations Research](OperationsResearch) and is a critical component of modern Operations Management [2].
 
 The fundamental challenge is the **trade-off**:
 1.  **Holding Costs ($C_h$):** Carrying too much inventory ties up working capital, incurs storage costs, and increases the risk of obsolescence.
@@ -238,7 +249,7 @@ The frontier, where true innovation lies, is in the **synthesis**:
 
 1.  **Dynamic Stochastic Control:** Developing $(s, S)$ policies where $S$ is not fixed but is re-optimized periodically based on updated forecasts of demand distribution parameters.
 2.  **Incorporating Interdependencies:** Modeling multi-echelon systems where the safety stock calculation at one node must account for the variability introduced by the upstream node's replenishment policy.
-3.  **Adaptive Learning:** Integrating machine learning techniques to dynamically estimate the parameters ($\mu, \sigma, C_u, C_o$) of the underlying distributions as the system operates, moving beyond static assumptions.
+3.  **Adaptive Learning:** Integrating [machine learning](MachineLearning) techniques to dynamically estimate the parameters ($\mu, \sigma, C_u, C_o$) of the underlying distributions as the system operates, moving beyond static assumptions.
 
 Mastering these models requires recognizing that no single formula is universally applicable. The choice of model is dictated entirely by the temporal structure of the decision (single shot vs. continuous stream) and the quantifiable nature of the associated risks.
 

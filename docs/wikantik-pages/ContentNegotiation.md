@@ -1,3 +1,15 @@
+---
+title: Content Negotiation
+type: article
+tags:
+- accept
+- header
+- server
+summary: The Request For those of us who spend our days wrestling with the intricacies
+  of the HTTP protocol, content negotiation is less a feature and more a fundamental
+  pillar of modern, robust API design.
+auto-generated: true
+---
 # The Request
 
 For those of us who spend our days wrestling with the intricacies of the HTTP protocol, content negotiation is less a feature and more a fundamental pillar of modern, robust API design. It is the mechanism that allows a single, canonical Uniform Resource Identifier (URI) to serve multiple, contextually appropriate representations of the same underlying resource.

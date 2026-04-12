@@ -1,3 +1,14 @@
+---
+title: Factory Pattern
+type: article
+tags:
+- factori
+- abstract
+- method
+summary: If you are reading this, you are likely already familiar with the basic syntax
+  of object-oriented programming—the ability to invoke a constructor, for instance.
+auto-generated: true
+---
 # Factory Pattern
 
 Welcome. If you are reading this, you are likely already familiar with the basic syntax of object-oriented programming—the ability to invoke a constructor, for instance. If that is the case, you are also likely familiar with the fundamental problem that plagues large, evolving codebases: the tyranny of the `new` keyword.

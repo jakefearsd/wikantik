@@ -1,3 +1,14 @@
+---
+title: Van Water Systems
+type: article
+tags:
+- system
+- water
+- text
+summary: 'Introduction: Defining the Scope of "Long Trips" For the layperson, a "long
+  trip" might imply a weekend hike.'
+auto-generated: true
+---
 # Hydration and Water Storage Systems for Long-Duration Expeditionary Research
 
 ## Abstract

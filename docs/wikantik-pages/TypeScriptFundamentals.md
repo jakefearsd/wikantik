@@ -1,3 +1,15 @@
+---
+title: Type Script Fundamentals
+type: article
+tags:
+- type
+- gener
+- function
+summary: 'This tutorial assumes a profound familiarity with TypeScript''s core concepts:
+  structural typing, type inference, union types, intersection types, and basic utility
+  types (Partial, Pick, Omit).'
+auto-generated: true
+---
 # TypeScript Generics
 
 Welcome. If you've reached this material, you likely already understand that TypeScript is not merely a superset of JavaScript; it is a sophisticated, structural type system that allows for compile-time guarantees far beyond what runtime checks can offer. You are not here to learn what a generic type *is*; you are here to dissect *how* they work, where the compiler makes its assumptions, and how to push the boundaries of type safety in complex, highly abstracted codebases.

@@ -1,3 +1,14 @@
+---
+title: Command Pattern
+type: article
+tags:
+- command
+- state
+- undo
+summary: This tutorial is not intended for those who merely need to implement a basic
+  "Undo" button.
+auto-generated: true
+---
 # The Command Pattern: Advanced Action Encapsulation, Undo Semantics, and Transactional State Management
 
 For those of us who have spent enough time wrestling with mutable state in complex, interactive systems, the concept of managing causality—the ability to reliably step backward through a sequence of operations—is not merely a feature; it is a fundamental requirement for building robust, user-facing software. The Command Pattern, when properly understood and extended, transcends its textbook definition to become a powerful architectural primitive for achieving transactional integrity within application logic.
@@ -255,7 +266,7 @@ For the expert researcher, the takeaway is that the pattern's utility is not inh
 Mastery requires recognizing the limitations:
 1.  **State Complexity:** When state is too large or too interconnected, the Memento approach fails due to performance constraints.
 2.  **Irreversibility:** When actions are external or non-deterministic, the pattern must gracefully degrade into a Compensating Transaction model.
-3.  **Atomicity:** When multiple actions must succeed or fail together, the Composite Pattern must be layered on top to enforce transactional boundaries.
+3.  **Atomicity:** When multiple actions must succeed or fail together, the [Composite Pattern](CompositePattern) must be layered on top to enforce transactional boundaries.
 
 By viewing the Command object as a self-contained, transactional unit—a miniature, encapsulated workflow—the developer moves from merely *writing* code to *designing* state machines that are provably reversible, resilient, and predictable, even when the underlying system is anything but.
 

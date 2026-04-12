@@ -1,3 +1,13 @@
+---
+title: Api Documentation
+type: article
+tags:
+- oa
+- document
+- api
+summary: If you are reading this, you are not a beginner.
+auto-generated: true
+---
 # API Specification and Documentation
 
 For those of us who spend our professional lives wrestling with the brittle, undocumented, and perpetually misunderstood contract that is a modern API, the concept of a formal specification feels less like a feature and more like a fundamental requirement for sanity.
@@ -41,9 +51,9 @@ An OAS document is fundamentally a structured YAML or JSON object composed of se
 This is the mandatory header, declaring the version of the specification being used (e.g., `3.1.0`). This dictates which features and validation rules are available.
 
 #### B. `info` Object
-This section handles metadata—the human-readable context. Experts must pay attention here, as poor `info` blocks lead to poor developer experience (DX).
+This section handles metadata—the human-readable context. Experts must pay attention here, as poor `info` blocks lead to poor [developer experience](DeveloperExperience) (DX).
 *   **`title` / `description`:** Must be exhaustive. The description should not just summarize functionality; it should articulate the *design philosophy* of the API.
-*   **`version`:** Must align with semantic versioning practices (e.g., `v1.2.3-beta`).
+*   **`version`:** Must align with [semantic versioning](SemanticVersioning) practices (e.g., `v1.2.3-beta`).
 
 #### C. `servers` Array (The Contextual Layer)
 This is a crucial, often overlooked element. Instead of hardcoding base URLs in every path operation, the `servers` array allows you to define multiple deployment environments (e.g., `staging`, `production`, `sandbox`). Tools consuming this spec can dynamically adjust the base URL based on the environment context, which is vital for CI/CD pipelines.
@@ -201,7 +211,7 @@ Versioning is where most documentation efforts fail. The OAS itself does not dic
 
 1.  **URI Versioning (The Most Common):** Including the version in the path (`/v2/users`). This is the easiest to document in OAS because it changes the `paths` object entirely.
 2.  **Header Versioning:** Using a custom header (`X-API-Version: 2`). This requires careful modeling in the `security` or `parameters` section, as the path remains constant.
-3.  **Media Type Versioning (Accept Header):** Using `Accept: application/vnd.myapi.v2+json`. This is the most RESTful approach but requires the OAS to model content negotiation explicitly, often involving multiple `content` blocks for the same operation.
+3.  **Media Type Versioning (Accept Header):** Using `Accept: application/vnd.myapi.v2+json`. This is the most RESTful approach but requires the OAS to model [content negotiation](ContentNegotiation) explicitly, often involving multiple `content` blocks for the same operation.
 
 **Best Practice:** The OAS document should ideally document *all* supported versions, perhaps using a `v` tag in the `info` block and linking to separate, versioned spec files, or using the `servers` block to point to version-specific base URLs.
 

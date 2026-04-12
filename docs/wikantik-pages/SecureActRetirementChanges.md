@@ -1,3 +1,14 @@
+---
+title: Secure Act Retirement Changes
+type: article
+tags:
+- distribut
+- rule
+- must
+summary: This tutorial is not intended for the general practitioner seeking a simple
+  "what-did-it-change" summary.
+auto-generated: true
+---
 # The SECURE Act and SECURE 2.0: Implications for Modern Retirement Plan Architecture
 
 For those of us who spend our professional lives wrestling with the arcane intersection of tax code, actuarial science, and legislative whim, the Securities and Exchange Commission's (SEC) oversight of retirement plans is less a regulatory framework and more a veritable labyrinth of amendments. The passage of the **Setting Every Community Up for Retirement Enhancement (SECURE) Act of 2019**, followed by the more expansive **SECURE 2.0 Act of 2022**, did not merely update rules; it fundamentally rewired the operational logic governing Defined Contribution (DC) plans, Individual Retirement Arrangements (IRAs), and the entire lifecycle of retirement savings.
@@ -22,7 +33,7 @@ Before these acts, many plan rules operated on relatively static parameters (e.g
 
 To achieve the necessary depth, we must dissect the legislation into its primary functional pillars:
 
-1.  **Required Minimum Distributions (RMDs):** The timing and calculation of mandatory withdrawals.
+1.  **[Required Minimum Distributions](RequiredMinimumDistributions) (RMDs):** The timing and calculation of mandatory withdrawals.
 2.  **Contribution Mechanics:** Updates to catch-up contributions and employer matching rules.
 3.  **Inheritance Planning:** The rules governing non-spousal beneficiaries and the "stretch" provisions.
 4.  **Plan Administration & Accessibility:** Changes affecting Roth conversions and plan portability.
@@ -217,7 +228,7 @@ The SECURE Act and SECURE 2.0 represent a monumental effort to overhaul the fina
 
 The transition from the legacy system to the modern, state-machine-driven compliance engine is a massive undertaking. The key areas demanding the most rigorous attention are:
 
-1.  **Temporal Logic:** Correctly sequencing age checks, date calculations, and annual triggers (RMDs).
+1.  **[Temporal Logic](TemporalLogic):** Correctly sequencing age checks, date calculations, and annual triggers (RMDs).
 2.  **Hierarchical Logic:** Managing the cascading rules of beneficiary designations and distribution timelines.
 3.  **Data Granularity:** Maintaining immutable, multi-dimensional ledgers for tax basis tracking.
 

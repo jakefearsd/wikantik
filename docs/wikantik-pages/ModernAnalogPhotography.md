@@ -1,3 +1,15 @@
+---
+title: Modern Analog Photography
+type: article
+tags:
+- film
+- digit
+- develop
+summary: The Analog Renaissance The current discourse surrounding analog photography
+  often flirts with the superficial—a romanticized yearning for a bygone era, easily
+  dismissed as mere aesthetic nostalgia.
+auto-generated: true
+---
 # The Analog Renaissance
 
 The current discourse surrounding analog photography often flirts with the superficial—a romanticized yearning for a bygone era, easily dismissed as mere aesthetic nostalgia. For the seasoned practitioner, however, the "revival" is not merely a fashion trend; it represents a complex confluence of technological limitations, philosophical shifts in visual culture, and the rediscovery of deeply nuanced material science.

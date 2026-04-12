@@ -1,3 +1,15 @@
+---
+title: Vetting Guests Remotely
+type: article
+tags:
+- risk
+- book
+- must
+summary: For the expert researching advanced mitigation techniques, this scenario
+  moves beyond simple "best practices" and enters the realm of probabilistic risk
+  modeling and behavioral forensics.
+auto-generated: true
+---
 # Vetting Airbnb Guests When You Cannot Meet Them In Person: A Protocol for Advanced Risk Mitigation
 
 ## Introduction: The Trust Deficit in Digital Hospitality
@@ -188,7 +200,7 @@ To summarize the journey from basic tips to expert protocol, the vetting process
 
 The ultimate goal for the expert researcher is the transition toward an **Autonomous Host Model**. This model would integrate:
 
-*   **Natural Language Processing (NLP):** To analyze the *intent* behind language, not just the sentiment.
+*   **[Natural Language Processing](NaturalLanguageProcessing) (NLP):** To analyze the *intent* behind language, not just the sentiment.
 *   **Graph Databases:** To map relationships between guests, hosts, and properties, identifying entire networks of potential risk rather than isolated incidents.
 *   **Predictive Modeling:** To forecast the *likelihood* of a dispute or damage claim based on the initial data set, allowing the host to preemptively adjust pricing, insurance requirements, or even decline the booking before the contract is signed.
 

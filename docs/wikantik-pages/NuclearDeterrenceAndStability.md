@@ -1,3 +1,14 @@
+---
+title: Nuclear Deterrence And Stability
+type: article
+tags:
+- deterr
+- nuclear
+- model
+summary: 'Scope: A comprehensive, multi-layered analysis synthesizing classical deterrence
+  theory with contemporary technological, cognitive, and geopolitical realities.'
+auto-generated: true
+---
 # The Calculus of Catastrophe: Advanced Modeling of Nuclear Deterrence and Geopolitical Stability in the 21st Century
 
 ***
@@ -115,7 +126,7 @@ If the hardware of deterrence is becoming increasingly complex, the software—t
 
 ### A. AI, Genomics, and Predictive Modeling of Intent
 
-The integration of Artificial Intelligence (AI) with advanced behavioral science, such as Mind Genomics (Source [7]), represents a frontier in strategic analysis. The goal is to move from *reacting* to stated policy to *predicting* underlying decision parameters.
+The integration of [Artificial Intelligence](ArtificialIntelligence) (AI) with advanced behavioral science, such as Mind Genomics (Source [7]), represents a frontier in strategic analysis. The goal is to move from *reacting* to stated policy to *predicting* underlying decision parameters.
 
 AI models, when fed vast datasets of historical rhetoric, military posturing, economic indicators, and diplomatic communications, can attempt to map the "decision space" of a rival state. This moves beyond simple threat assessment to **Intent Mapping**.
 

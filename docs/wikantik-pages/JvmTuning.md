@@ -1,3 +1,14 @@
+---
+title: Jvm Tuning
+type: article
+tags:
+- gc
+- heap
+- collector
+summary: If you are reading this, you are not a novice who thinks adding a few flags
+  will magically solve performance bottlenecks.
+auto-generated: true
+---
 # JVM Tuning
 
 Welcome. If you are reading this, you are not a novice who thinks adding a few flags will magically solve performance bottlenecks. You are a researcher, an engineer, or a performance architect who understands that the Java Virtual Machine (JVM) is a complex, highly tunable beast, and that Garbage Collection (GC) is often the single most opaque, yet most critical, performance lever.

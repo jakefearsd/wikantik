@@ -1,3 +1,14 @@
+---
+title: File Upload Patterns
+type: article
+tags:
+- stream
+- boundari
+- process
+summary: This tutorial is not for the backend developer who just needs to make the
+  endpoint work.
+auto-generated: true
+---
 # The Stream
 
 For those of us who have spent any significant amount of time wrestling with network I/O, the concept of "uploading a file" often feels like a deceptively simple feature request that masks an architectural minefield. When dealing with large payloads, unreliable networks, or high-throughput services, the naive approach—buffering the entire request body into memory—is not merely inefficient; it is an invitation to an OutOfMemoryError, a performance bottleneck, and a fundamental violation of scalable design principles.
@@ -88,7 +99,7 @@ Since the implementation details are highly language and framework-dependent, we
 
 ### A. The Reactive Java Approach (Spring WebFlux / Reactor)
 
-In the Java ecosystem, the shift towards non-blocking I/O and reactive programming has fundamentally changed how file uploads are handled. The goal is to avoid blocking threads while waiting for I/O, making reactive streams the natural fit.
+In the Java ecosystem, the shift towards non-blocking I/O and [reactive programming](ReactiveProgramming) has fundamentally changed how file uploads are handled. The goal is to avoid blocking threads while waiting for I/O, making reactive streams the natural fit.
 
 **Key Concept:** Working with `Flux<Part>` or equivalent reactive stream types.
 
@@ -238,6 +249,6 @@ File upload streaming multipart processing is far more than just reading bytes; 
 
 For the expert researcher, the takeaway is that the goal is never to *process* the data in the request handler thread. The goal is to *transfer* the data safely and reliably to a durable, temporary location, and then *process* it asynchronously.
 
-Mastering this domain requires fluency across several disciplines: HTTP protocol knowledge, reactive programming patterns, stream mechanics, and robust error handling strategies like resumability and checksum validation. If you can architect a system that handles a 50 GB file upload with the same memory footprint and processing latency predictability as a 5 KB text field, you have achieved mastery over the streaming paradigm.
+Mastering this domain requires fluency across several disciplines: HTTP protocol knowledge, reactive programming patterns, stream mechanics, and robust [error handling strategies](ErrorHandlingStrategies) like resumability and checksum validation. If you can architect a system that handles a 50 GB file upload with the same memory footprint and processing latency predictability as a 5 KB text field, you have achieved mastery over the streaming paradigm.
 
 The complexity is high, the failure modes are numerous, but the payoff—a truly scalable, high-throughput data ingestion layer—is worth the intellectual rigor. Now, go build something that doesn't crash when the user uploads their entire video library.

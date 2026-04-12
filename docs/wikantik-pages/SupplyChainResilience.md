@@ -1,3 +1,14 @@
+---
+title: Supply Chain Resilience
+type: article
+tags:
+- text
+- inventori
+- model
+summary: What were once considered 'Black Swan' events—pandemics, geopolitical flashpoints,
+  climate-induced supply shocks—have become the operational baseline.
+auto-generated: true
+---
 # Supply Chain Disruptions and Home Inventory Management: A Framework for Hyper-Resilient Resource Allocation
 
 ## Abstract
@@ -34,7 +45,7 @@ To manage home inventory effectively during a crisis, one must first master the 
 
 ### 2.1 The Cost-Benefit Calculus of Inventory Holding
 
-The foundational tension in inventory theory remains the balance between holding costs ($C_h$) and the cost of a stock-out ($C_s$).
+The foundational tension in [inventory theory](InventoryTheory) remains the balance between holding costs ($C_h$) and the cost of a stock-out ($C_s$).
 
 $$\text{Optimal Order Quantity (EOQ)} = \sqrt{\frac{2 \cdot D \cdot S}{H}}$$
 

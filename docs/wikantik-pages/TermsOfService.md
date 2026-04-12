@@ -28,7 +28,7 @@ You may create an account using:
 - Third-party OAuth authentication (Google, GitHub, Facebook, or other supported providers)
 
     1. 3.2 OAuth / Social Login
-When you authenticate using a third-party provider, you authorize us to access basic profile information (such as your name and email address) as permitted by that provider's policies. We do not receive or store your third-party account password. Your use of third-party authentication is also subject to that provider's terms of service and privacy policy.
+When you authenticate using a third-party provider, you authorize us to access basic profile information (such as your name and email address) as permitted by that provider's policies. We do not receive or store your third-party account password. Your use of third-party authentication is also subject to that provider's terms of service and [privacy policy](PrivacyPolicy).
 
     1. 3.3 Account Security
 You are responsible for:

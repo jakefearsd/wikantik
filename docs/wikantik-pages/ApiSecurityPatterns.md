@@ -1,3 +1,14 @@
+---
+title: Api Security Patterns
+type: article
+tags:
+- limit
+- rate
+- request
+summary: In reality, they represent two fundamentally different, yet critically interdependent,
+  layers of defense.
+auto-generated: true
+---
 # API Security: Authentication and Rate Limiting
 
 For those of us who spend our days staring at JSON payloads and worrying about the entropy of session tokens, the concepts of "authentication" and "rate limiting" are often treated as checkboxes on a compliance list. In reality, they represent two fundamentally different, yet critically interdependent, layers of defense. One answers the question, "Who are you?" (Authentication), and the other answers, "How much are you allowed to ask?" (Rate Limiting).

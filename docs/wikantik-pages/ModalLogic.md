@@ -1,6 +1,16 @@
+---
+title: Modal Logic
+type: article
+tags:
+- world
+- phi
+- logic
+summary: Modal Logic and Possible Worlds Semantics Welcome.
+auto-generated: true
+---
 # Modal Logic and Possible Worlds Semantics
 
-Welcome. If you are reading this, you are likely already familiar with the basic machinery of propositional logic and have encountered the necessity of modal operators ($\Box$ and $\Diamond$). You are not here for a remedial introduction to truth tables. You are here because you are researching the limits of formal representation, the nature of necessity, and the structural integrity of formal semantics itself.
+Welcome. If you are reading this, you are likely already familiar with the basic machinery of [propositional logic](PropositionalLogic) and have encountered the necessity of modal operators ($\Box$ and $\Diamond$). You are not here for a remedial introduction to truth tables. You are here because you are researching the limits of formal representation, the nature of necessity, and the structural integrity of [formal semantics](FormalSemantics) itself.
 
 This tutorial aims to provide a comprehensive, graduate-level treatment of Possible Worlds Semantics (PWS). We will not merely recite the definition of a Kripke model; rather, we will dissect its assumptions, explore its necessary extensions to handle temporal and higher-order modalities, and critically examine the philosophical and mathematical debates surrounding its foundational status.
 
@@ -56,7 +66,7 @@ To maintain the required depth, we must move beyond mere definition and explore 
 When researchers debate the nature of necessity, they are often debating the nature of $R$. Is $R$ determined by the *content* of the propositions, or is it an independent, structural feature of the model?
 
 1.  **Content-Determined Relations (Epistemic Logic):** In epistemic logic (the logic of knowledge, $\mathbf{K} \mathcal{L}$), the accessibility relation $R$ is often interpreted as "is indistinguishable from" or "is consistent with." If $w'$ is accessible from $w$, it means that the evidence available at $w$ does not rule out the possibility of $w'$. Here, the structure of $R$ is derived from the axioms of knowledge (e.g., $\mathbf{S}5$ for perfect knowledge).
-2.  **Structural Relations (Temporal Logic):** In temporal logic, $R$ is not arbitrary; it is usually a strict ordering (a path). The accessibility relation must be a **strict partial order** (irreflexive and transitive). The structure of $R$ *is* the flow of time.
+2.  **Structural Relations ([Temporal Logic](TemporalLogic)):** In temporal logic, $R$ is not arbitrary; it is usually a strict ordering (a path). The accessibility relation must be a **strict partial order** (irreflexive and transitive). The structure of $R$ *is* the flow of time.
 
 The crucial point for advanced research is recognizing that the choice of $R$'s properties dictates the *scope* of the logic, and vice versa. If we assume $\mathbf{S}5$, we are implicitly asserting that the structure of possibility is perfectly symmetrical and transitive, a claim that many philosophers find suspiciously strong.
 
@@ -201,7 +211,7 @@ In a probabilistic setting, the model $\mathcal{M}$ is augmented with a probabil
 The semantics for $\Box \phi$ is then interpreted as:
 $$\mathcal{M}, w \models \Box \phi \iff P(\text{worlds where } \phi \text{ is false} | w) = 0$$
 
-This moves the entire enterprise from pure set theory into measure theory, requiring the researcher to adopt tools from information theory to quantify the "distance" from necessity.
+This moves the entire enterprise from pure set theory into [measure theory](MeasureTheory), requiring the researcher to adopt tools from information theory to quantify the "distance" from necessity.
 
 ### C. Handling Contradictory Worlds (Inconsistency)
 

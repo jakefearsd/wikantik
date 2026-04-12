@@ -66,12 +66,12 @@ Robotic picking arms require the vision system to:
 3. **Select a graspable instance** from the detected set
 4. **Plan a grasp** that won't fail or damage the item
 
-Convolutional neural networks (CNNs) — particularly Mask R-CNN, YOLO variants, and transformer-based detectors — handle steps 1–2. Foundation models (SAM — Segment Anything Model, Grounded SAM) are increasingly used for zero-shot detection of novel SKUs.
+[Convolutional neural networks](ConvolutionalNeuralNetworks) (CNNs) — particularly Mask R-CNN, YOLO variants, and transformer-based detectors — handle steps 1–2. Foundation models (SAM — Segment Anything Model, Grounded SAM) are increasingly used for zero-shot detection of novel SKUs.
 
 ### Training Data Challenges
 
 - Physical items are infinitely variable; a model trained on catalogue images may fail on creased, partially occluded, or loose-poly-bagged items in a real bin.
-- **Synthetic data generation** — photorealistic 3D renderings of items in simulated bins accelerate training without physical setup costs.
+- **[Synthetic data generation](SyntheticDataGeneration)** — photorealistic 3D renderings of items in simulated bins accelerate training without physical setup costs.
 - **Domain randomisation** — random lighting, textures, and clutter in simulation improve model robustness in production.
 
 ### Quality Inspection

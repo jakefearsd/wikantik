@@ -1,6 +1,16 @@
+---
+title: Data Catalog Tools
+type: article
+tags:
+- data
+- metadata
+- catalog
+summary: Data Catalog Discovery Metadata Management Welcome.
+auto-generated: true
+---
 # Data Catalog Discovery Metadata Management
 
-Welcome. If you've reached this document, you likely already understand that "data governance" is not merely a compliance checklist to be ticked off by legal counsel. You are here because you are researching the *mechanisms*—the technical, architectural, and theoretical underpinnings—that allow organizations to move from possessing data assets to actually *leveraging* them.
+Welcome. If you've reached this document, you likely already understand that "[data governance](DataGovernance)" is not merely a compliance checklist to be ticked off by legal counsel. You are here because you are researching the *mechanisms*—the technical, architectural, and theoretical underpinnings—that allow organizations to move from possessing data assets to actually *leveraging* them.
 
 This tutorial is not a "What is a Data Catalog?" primer. We assume you are experts. We are diving deep into the intersection of **Data Cataloging**, **Metadata Management**, and **Data Discovery**—a triad that, when implemented correctly, transforms a chaotic data swamp into a navigable, intelligent data fabric.
 
@@ -219,7 +229,7 @@ The modern trend is treating data not as a collection of tables, but as a **Prod
 
 **Data Product Metadata:** This metadata describes the *service* wrapping the data, not just the data itself.
 *   **Product Owner:** Who is responsible for the data product?
-*   **SLAs (Service Level Agreements):** What is the guaranteed latency (e.g., "Data is available within 15 minutes of the source transaction")?
+*   **SLAs ([Service Level Agreements](ServiceLevelAgreements)):** What is the guaranteed latency (e.g., "Data is available within 15 minutes of the source transaction")?
 *   **Consumption Method:** Is it a batch file, a real-time Kafka stream, or a REST API endpoint?
 *   **Versioning:** Tracking major and minor versions of the data product schema.
 

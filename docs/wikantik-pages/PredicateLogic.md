@@ -1,6 +1,18 @@
+---
+title: Predicate Logic
+type: article
+tags:
+- foral
+- exist
+- model
+summary: A Tutorial For those of us who find the elegant simplicity of propositional
+  logic charmingly insufficient, First-Order Logic (FOL)—or Predicate Logic—represents
+  the necessary next step.
+auto-generated: true
+---
 # A Tutorial
 
-For those of us who find the elegant simplicity of propositional logic charmingly insufficient, First-Order Logic (FOL)—or Predicate Logic—represents the necessary next step. It is not merely an extension; it is a fundamental paradigm shift in how we formalize reasoning, moving from analyzing the truth-value relationships between entire statements to analyzing the relationships between *objects* and the *properties* they possess.
+For those of us who find the elegant simplicity of [propositional logic](PropositionalLogic) charmingly insufficient, First-Order Logic (FOL)—or Predicate Logic—represents the necessary next step. It is not merely an extension; it is a fundamental paradigm shift in how we formalize reasoning, moving from analyzing the truth-value relationships between entire statements to analyzing the relationships between *objects* and the *properties* they possess.
 
 This tutorial is designed for researchers already comfortable with propositional calculus, basic set theory, and formal proof systems. We will not waste time reviewing the definition of $\land, \lor, \neg$, or $\rightarrow$. Instead, we will excavate the formal machinery, explore the deep theoretical underpinnings (Model Theory), and critically examine the expressive boundaries of FOL when compared to its successors.
 

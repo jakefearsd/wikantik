@@ -1,3 +1,15 @@
+---
+title: Sprint Planning
+type: article
+tags:
+- text
+- veloc
+- point
+summary: It promises predictability, offering a seemingly objective, quantitative
+  anchor point against the chaotic, inherently ambiguous nature of building complex
+  software.
+auto-generated: true
+---
 # The Algorithmic Illusion
 
 For those of us who have spent enough time in the trenches of iterative development—the ones who treat story points like volatile commodities and sprint reviews like high-stakes academic defenses—the concept of "velocity" is both the most comforting metric and the most insidious trap. It promises predictability, offering a seemingly objective, quantitative anchor point against the chaotic, inherently ambiguous nature of building complex software.
@@ -58,7 +70,7 @@ For superior time-series forecasting, Exponential Smoothing is superior because 
 
 The basic formula for simple exponential smoothing ($\text{SES}$) is:
 $$\text{Forecast}_{t+1} = \alpha \cdot \text{Actual}_t + (1 - \alpha) \cdot \text{Forecast}_t$$
-Where $\alpha$ (the smoothing constant, $0 < \alpha < 1$) determines the weight given to the most recent observation. A higher $\alpha$ means the model reacts faster to recent changes (high volatility assumption); a lower $\alpha$ means the model is smoother and more resistant to noise (stable process assumption).
+Where $\alpha$ (the smoothing constant, $0 < \alpha < 1$) determines the weight given to the most recent observation. A higher $\alpha$ means the model reacts faster to [recent changes](RecentChanges) (high volatility assumption); a lower $\alpha$ means the model is smoother and more resistant to noise (stable process assumption).
 
 **Expert Recommendation:** When researching new techniques, do not default to SMA. Model the velocity using $\text{SES}$ and tune $\alpha$ based on the perceived stability of the team and the domain.
 
@@ -114,7 +126,7 @@ If the requirements are highly novel (high $\text{U}$), the required buffer incr
 Experts must distinguish between these two concepts:
 
 1.  **Velocity Planning (What we *can* do):** Based on historical *output* (points completed). This is retrospective and predictive of *past performance*.
-2.  **Capacity Planning (What we *should* do):** Based on available *time* and *resource allocation*. This is prospective and constrained by reality.
+2.  **[Capacity Planning](CapacityPlanning) (What we *should* do):** Based on available *time* and *resource allocation*. This is prospective and constrained by reality.
 
 **The Integration:** The true planning capacity ($\text{C}_{\text{true}}$) is the minimum of the two:
 

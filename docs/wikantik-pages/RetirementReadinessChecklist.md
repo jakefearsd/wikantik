@@ -1,3 +1,14 @@
+---
+title: Retirement Readiness Checklist
+type: article
+tags:
+- text
+- retir
+- must
+summary: To treat retirement readiness as a mere sequence of completed tasks is to
+  misunderstand the problem entirely.
+auto-generated: true
+---
 # The Chronometric Calculus of Retirement Readiness
 
 For the seasoned financial analyst, the concept of "retirement planning" often devolves into a series of simplistic, linear checklists—a pedagogical oversimplification that fails to capture the stochastic nature of long-term wealth accumulation and depletion. To treat retirement readiness as a mere sequence of completed tasks is to misunderstand the problem entirely. Retirement is not a destination marked by a single date; it is the successful navigation of a complex, multi-variable optimization problem under conditions of profound uncertainty.
@@ -8,7 +19,7 @@ This tutorial is designed for experts—those who are not merely *following* a c
 
 ## Introduction: Reframing Retirement Readiness as a Stochastic Process
 
-At its core, retirement readiness is the successful management of **Longevity Risk** (outliving one's assets) and **Sequence of Returns Risk (SRR)** (experiencing poor market returns early in retirement). The traditional checklist approach—which often focuses on discrete milestones like "paying off debt" or "having X amount saved"—is insufficient because it fails to account for the *interaction* between these variables over decades.
+At its core, retirement readiness is the successful management of **Longevity Risk** (outliving one's assets) and **[Sequence of Returns Risk](SequenceOfReturnsRisk) (SRR)** (experiencing poor market returns early in retirement). The traditional checklist approach—which often focuses on discrete milestones like "paying off debt" or "having X amount saved"—is insufficient because it fails to account for the *interaction* between these variables over decades.
 
 We must adopt a phased, dynamic modeling approach. We will segment the planning horizon into distinct epochs, each requiring a different set of analytical tools, risk parameters, and decision gates.
 
@@ -153,7 +164,7 @@ The traditional "bucket strategy" (Cash $\rightarrow$ Bonds $\rightarrow$ Equiti
 This is arguably the most poorly modeled aspect of retirement planning. The assumption of "good health" is a statistical anomaly.
 
 *   **Long-Term Care (LTC) Risk:** The cost of custodial care is highly variable. The expert must model the probability of needing LTC care *and* the associated cost curve. If private insurance is insufficient, the capital allocated to this risk must be calculated using actuarial tables specific to the expected lifespan and regional cost indices.
-*   **Disability Insurance:** While often viewed as an "early career" tool, the risk of *early* retirement due to disability must be factored into the initial capital calculation. If the probability of disability ($P(D)$) is non-zero, the required capital must be inflated by the expected value of lost lifetime earnings.
+*   **[Disability Insurance](DisabilityInsurance):** While often viewed as an "early career" tool, the risk of *early* retirement due to disability must be factored into the initial capital calculation. If the probability of disability ($P(D)$) is non-zero, the required capital must be inflated by the expected value of lost lifetime earnings.
 
 ### 3. Behavioral Finance Integration: The Decision Friction Point
 The greatest threat to the plan is often the planner themselves. The expert must build mechanisms to counteract cognitive biases.

@@ -1,3 +1,14 @@
+---
+title: Api Design Best Practices
+type: article
+tags:
+- version
+- api
+- chang
+summary: If you are reading this, you are not a junior developer looking for a simple
+  checklist.
+auto-generated: true
+---
 # API Design Best Practices
 
 Welcome. If you are reading this, you are not a junior developer looking for a simple checklist. You are an architect, a principal engineer, or a researcher grappling with the inherent tension in distributed systems: the need for immediate feature velocity versus the absolute requirement for long-term, backward-compatible stability.
@@ -50,7 +61,7 @@ The cost of poor versioning is astronomical:
 
 1.  **Client Paralysis:** A single breaking change forces every consumer to immediately halt development on their end to update, creating massive coordination overhead.
 2.  **Technical Debt Accumulation:** Teams become afraid to refactor or improve the API because they fear breaking an unknown, undocumented dependency. The API stagnates, becoming brittle and difficult to maintain.
-3.  **Poor Developer Experience (DX):** A confusing or non-existent versioning strategy signals immaturity and unreliability to potential consumers.
+3.  **Poor [Developer Experience](DeveloperExperience) (DX):** A confusing or non-existent versioning strategy signals immaturity and unreliability to potential consumers.
 
 ### B. Defining "Breaking Change"
 
@@ -117,7 +128,7 @@ This is arguably the most "pure" REST approach, leveraging the `Accept` header t
 *   Example: `GET /api/users/123` with Header: `Accept: application/vnd.mycompany.users.v2+json`
 
 **Pros (The Appeal):**
-1.  **REST Purity:** It adheres perfectly to HTTP standards, using the mechanism designed for content negotiation.
+1.  **REST Purity:** It adheres perfectly to HTTP standards, using the mechanism designed for [content negotiation](ContentNegotiation).
 2.  **Flexibility:** It allows the server to serve the same URI for different representations (e.g., V1 JSON, V2 JSON, V1 XML).
 3.  **Decoupling:** The version is tied to the *data contract* (the media type), not the *address* (the URI).
 
@@ -150,7 +161,7 @@ For experts, versioning is not just about picking a URI format; it's about imple
 
 ### A. Semantic Versioning (SemVer) for APIs
 
-The adoption of Semantic Versioning (SemVer) is critical for communicating the *risk* associated with an update. While SemVer is traditionally applied to libraries (e.g., `MAJOR.MINOR.PATCH`), it must be adapted for API contracts.
+The adoption of [Semantic Versioning](SemanticVersioning) (SemVer) is critical for communicating the *risk* associated with an update. While SemVer is traditionally applied to libraries (e.g., `MAJOR.MINOR.PATCH`), it must be adapted for API contracts.
 
 We map the components to API impact:
 
@@ -174,7 +185,7 @@ We map the components to API impact:
 
 The most critical part of versioning is the *exit* from an old version. A version should never simply vanish.
 
-1.  **Announcement (T-Minus 12 Months):** Announce the deprecation of the version (e.g., v1) via multiple channels: API documentation, developer portal banners, and direct communication with key consumers.
+1.  **Announcement (T-Minus 12 Months):** Announce the deprecation of the version (e.g., v1) via multiple channels: [API documentation](ApiDocumentation), developer portal banners, and direct communication with key consumers.
 2.  **Warning (T-Minus 6 Months):** Implement **Warning Headers**. When a client calls the deprecated version, the server must respond with a `Warning` HTTP header (or a custom header) detailing the deprecation status and the target version.
     *   *Example Header:* `Warning: 299 - "API v1 is deprecated. Please migrate to v2 by YYYY-MM-DD. See documentation for details."`
 3.  **Soft Deprecation (T-Minus 3 Months):** The server begins logging detailed metrics on usage of the deprecated version. The response payload might include a deprecation notice within the body itself.

@@ -1,10 +1,20 @@
+---
+title: Crdt Data Structures
+type: article
+tags:
+- state
+- merg
+- crdt
+summary: Conflict-Free Replicated Data Types (CRDTs) Welcome.
+auto-generated: true
+---
 # Conflict-Free Replicated Data Types (CRDTs)
 
-Welcome. If you’ve spent any significant amount of time wrestling with distributed state management—the kind of problem that makes you question the very nature of time and consensus—you know that the simple act of updating a counter across three geographically separated nodes is anything but trivial. You’ve likely wrestled with Paxos, Raft, or perhaps the sheer, beautiful terror of eventual consistency.
+Welcome. If you’ve spent any significant amount of time wrestling with distributed state management—the kind of problem that makes you question the very nature of time and consensus—you know that the simple act of updating a counter across three geographically separated nodes is anything but trivial. You’ve likely wrestled with Paxos, Raft, or perhaps the sheer, beautiful terror of [eventual consistency](EventualConsistency).
 
-This tutorial assumes you are already intimately familiar with distributed consensus algorithms, vector clocks, causal dependencies, and the fundamental limitations imposed by the CAP theorem. We are not here to explain *what* a distributed system is, nor are we going to waste time explaining that network partitions are, in fact, a persistent feature of reality.
+This tutorial assumes you are already intimately familiar with distributed consensus algorithms, [vector clocks](VectorClocks), causal dependencies, and the fundamental limitations imposed by the [CAP theorem](CapTheorem). We are not here to explain *what* a distributed system is, nor are we going to waste time explaining that network partitions are, in fact, a persistent feature of reality.
 
-We are here to dissect Conflict-Free Replicated Data Types (CRDTs)—a sophisticated class of data structures designed not merely to *tolerate* conflicts, but to *guarantee* their resolution deterministically, regardless of the network topology, message ordering, or sheer incompetence of the participating replicas.
+We are here to dissect Conflict-Free Replicated Data Types (CRDTs)—a sophisticated class of [data structures](DataStructures) designed not merely to *tolerate* conflicts, but to *guarantee* their resolution deterministically, regardless of the network topology, message ordering, or sheer incompetence of the participating replicas.
 
 Consider this less a tutorial and more a highly detailed, somewhat cynical, but ultimately necessary deep-dive into the mathematical machinery that allows us to treat distributed state convergence as a solvable, predictable problem.
 

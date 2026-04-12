@@ -1,3 +1,14 @@
+---
+title: User Story Writing
+type: article
+tags:
+- ac
+- must
+- user
+summary: If the User Story is the intent—the high-level narrative of value—then the
+  Acceptance Criteria (AC) are the contract.
+auto-generated: true
+---
 # The Rigor of Specification
 
 For those of us who have spent enough time in the trenches of software development—the trenches where vague requirements meet the unforgiving reality of compiled code—the concept of "writing acceptance criteria" often shifts from being a helpful suggestion to being the absolute linchpin of project success.

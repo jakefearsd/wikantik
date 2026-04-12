@@ -1,3 +1,14 @@
+---
+title: Road Back Joint Health
+type: article
+tags:
+- movement
+- protocol
+- must
+summary: This tutorial is not intended as a remedial guide for the layperson who believes
+  that "a gentle stretch" will cure years of poor posture.
+auto-generated: true
+---
 # Advanced Biomechanical Protocols for Spinal and Articular Integrity During Prolonged Vehicular Immobility
 
 ## Introduction: The Biomechanics of Sedentary Drift

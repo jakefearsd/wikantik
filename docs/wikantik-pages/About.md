@@ -43,7 +43,7 @@ Wikantik follows a modular architecture organized around a central `WikiEngine` 
 - **Event-Driven Communication** — Components communicate through a `WikiEvent` system, enabling loose coupling between subsystems. Listeners react to page changes, user actions, search index updates, and more.
 - **Filter Pipeline** — Content passes through a configurable filter chain for pre- and post-processing. Filters handle spam detection, profanity filtering, reference tracking, and custom transformations.
 - **Plugin Architecture** — The wiki is extensible through plugins (dynamic content generation), filters (content processing), custom editors, templates, and storage providers.
-- **Command Pattern** — UI actions are modeled as commands with URL-to-command mapping, cleanly separating user interface concerns from business logic.
+- **[Command Pattern](CommandPattern)** — UI actions are modeled as commands with URL-to-command mapping, cleanly separating user interface concerns from business logic.
 
 ### Module Structure
 
@@ -117,9 +117,9 @@ Content is organized into **topic clusters** — groups of interlinked articles 
 
 ### Current Article Clusters
 
-- **Finance and Retirement** — Index fund investing, retirement planning strategies, EU retirement systems, safe withdrawal rates, and Monte Carlo simulation
+- **Finance and Retirement** — Index fund investing, retirement planning strategies, EU retirement systems, [safe withdrawal rates](SafeWithdrawalRates), and Monte Carlo simulation
 - **Geopolitics and Conflict** — How major international conflicts shaped global equity markets, from WWI through the Russia-Ukraine war
-- **Technology** — Generative AI adoption guide, Linux for Windows users, prompt engineering, and local LLM deployment
+- **Technology** — [Generative AI adoption guide](GenerativeAiAdoptionGuide), [Linux for Windows users](LinuxForWindowsUsers), prompt engineering, and local LLM deployment
 - **Immigration** — Complete spousal green card process including petition filing, adjustment of status, consular processing, and interview preparation
 
 ## The Semantic Agentic Vision
@@ -144,4 +144,4 @@ This instance runs on Apache Tomcat 11 with the VersioningFileProvider for page 
 
 Wikantik is licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0). The source code is available at [https://wikantik.com/](https://wikantik.com/). This fork's enhancements — including the MCP module, Markdown support improvements, and YAML frontmatter — are developed in the open.
 
-For more information about Wikantik development, see the [project wiki](https://wiki.wikantik.com/).
+For more information about [Wikantik development](WikantikDevelopment), see the [project wiki](https://wiki.wikantik.com/).

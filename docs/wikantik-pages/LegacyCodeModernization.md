@@ -1,3 +1,14 @@
+---
+title: Legacy Code Modernization
+type: article
+tags:
+- new
+- legaci
+- servic
+summary: The "Big Bang Rewrite" is the industry's most romanticized, yet statistically
+  riskiest, endeavor.
+auto-generated: true
+---
 # Gradual Decay
 
 For those of us who spend our careers wrestling with the ghosts in the machine—the monolithic applications built on decades of accumulated business logic, arcane frameworks, and the sheer inertia of institutional knowledge—the prospect of "rewriting" is less a technical challenge and more a professional hazard. The "Big Bang Rewrite" is the industry's most romanticized, yet statistically riskiest, endeavor. It promises a clean slate but often delivers a delayed, over-budget, and fundamentally misunderstood replacement.
@@ -16,7 +27,7 @@ When modern business requirements—such as real-time data processing, hyper-sca
 
 ### Defining the Strangler Fig Pattern (SFP)
 
-The Strangler Fig Pattern, first popularized in the context of software architecture, draws its evocative name from the biological phenomenon of the strangler fig (*Ficus aurea*). This plant does not violently uproot its host tree; instead, it sends aerial roots that gradually envelop, penetrate, and eventually replace the host's structure, leading to the host's eventual obsolescence.
+The Strangler Fig Pattern, first popularized in the context of [software architecture](SoftwareArchitecture), draws its evocative name from the biological phenomenon of the strangler fig (*Ficus aurea*). This plant does not violently uproot its host tree; instead, it sends aerial roots that gradually envelop, penetrate, and eventually replace the host's structure, leading to the host's eventual obsolescence.
 
 In software terms, the SFP dictates that instead of attempting a monolithic replacement, one must build a new, modern system *around* the edges of the legacy system. New functionality is implemented in the modern service layer, and as confidence grows, specific, bounded domains of the legacy functionality are systematically extracted, replaced, and decommissioned—one service at a time.
 
@@ -51,7 +62,7 @@ The most critical component is the **Facade** (or API Gateway/Proxy Layer). This
 
 ### B. The Anti-Corruption Layer (ACL): The Semantic Firewall
 
-This is arguably the most frequently misunderstood, yet most vital, component. As noted in advanced literature (e.g., [5]), simply routing traffic is insufficient. The ACL is the semantic boundary that prevents the conceptual model of the new service from being polluted by the archaic data structures, business rules, or terminology of the legacy system.
+This is arguably the most frequently misunderstood, yet most vital, component. As noted in advanced literature (e.g., [5]), simply routing traffic is insufficient. The ACL is the semantic boundary that prevents the conceptual model of the new service from being polluted by the archaic [data structures](DataStructures), business rules, or terminology of the legacy system.
 
 **What the ACL Does:**
 The ACL acts as a translator, not just for protocols, but for *meaning*.

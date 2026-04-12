@@ -1,3 +1,14 @@
+---
+title: Workshop Layout And Dust Collection
+type: article
+tags:
+- dust
+- system
+- text
+summary: Dust collection, when engineered correctly, is not a mitigation strategy;
+  it is an integral, dynamic component of the woodworking process itself.
+auto-generated: true
+---
 # The Aerodynamics of Craft
 
 ## Introduction: Beyond the Vacuum Hanger

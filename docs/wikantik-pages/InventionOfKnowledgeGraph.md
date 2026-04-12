@@ -1,3 +1,15 @@
+---
+title: Invention Of Knowledge Graph
+type: article
+tags:
+- graph
+- knowledg
+- text
+summary: The invention of the Knowledge Graph introduced a formal, structural, and
+  semantic layer to data, allowing machines to perform reasoning, disambiguation,
+  and relational discovery.
+auto-generated: true
+---
 # The Genealogy of Meaning
 
 ## Abstract
@@ -15,7 +27,7 @@ A Knowledge Graph is not merely a graph database; it is a directed, labeled grap
 The "invention" of the Knowledge Graph is not a single event but a multi-generational evolution of three distinct technological movements:
 1.  **The Symbolic Movement:** The quest to represent human cognition through formal logic.
 2.  **The Semantic Web Movement:** The quest to make the internet machine-readable via standardized protocols.
-3.  **The Industrial/Statistical Movement:** The quest to scale entity-centric data for global-scale search and machine learning.
+3.  **The Industrial/Statistical Movement:** The quest to scale entity-centric data for global-scale search and [machine learning](MachineLearning).
 
 ---
 

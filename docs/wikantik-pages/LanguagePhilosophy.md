@@ -1,3 +1,13 @@
+---
+title: Language Philosophy
+type: article
+tags:
+- text
+- logic
+- formal
+summary: The Logic and Philosophy of Language Welcome.
+auto-generated: true
+---
 # The Logic and Philosophy of Language
 
 Welcome. If you are reading this, you are likely already familiar with the basic tenets of formal logic, the limitations of classical propositional calculus, and the general discomfort that arises when attempting to map the messy, context-laden sprawl of natural language onto the pristine, binary structures of mathematical proof.
@@ -74,7 +84,7 @@ Does this mean:
 1. (Universal scope on $\forall$): For every student $x$, there exists some book $y$ such that $x$ read $y$. ($\forall x \exists y \text{ Read}(x, y)$)
 2. (Existential scope on $\exists$): There exists a book $y$ such that every student $x$ read $y$. ($\exists y \forall x \text{ Read}(x, y)$)
 
-The ambiguity is structural, yet it is semantic. Standard lambda calculus and formal semantics must employ sophisticated mechanisms—such as explicit scope markers or semantic representations that capture the binding structure—to resolve this.
+The ambiguity is structural, yet it is semantic. Standard lambda calculus and [formal semantics](FormalSemantics) must employ sophisticated mechanisms—such as explicit scope markers or semantic representations that capture the binding structure—to resolve this.
 
 **Technical Deep Dive: Lambda Calculus and Type Theory**
 The adoption of $\lambda$-calculus (as seen in Montague Grammar [6]) was revolutionary because it provided a mechanism to treat functions (predicates) and arguments (terms) with the same formal machinery.

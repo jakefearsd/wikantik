@@ -1,6 +1,16 @@
+---
+title: Game Day Exercises
+type: article
+tags:
+- failur
+- servic
+- system
+summary: Chaos Monkey Game Day Failure Injection Welcome.
+auto-generated: true
+---
 # Chaos Monkey Game Day Failure Injection
 
-Welcome. If you are reading this, you are likely already familiar with the buzzwords surrounding resilience engineering—terms like "Chaos Engineering," "Blast Radius," and "Mean Time To Recovery (MTTR)." You understand that simply having redundancy is no longer sufficient; you must prove that redundancy works when the underlying assumptions of your system break down.
+Welcome. If you are reading this, you are likely already familiar with the buzzwords surrounding resilience engineering—terms like "[Chaos Engineering](ChaosEngineering)," "Blast Radius," and "Mean Time To Recovery (MTTR)." You understand that simply having redundancy is no longer sufficient; you must prove that redundancy works when the underlying assumptions of your system break down.
 
 This tutorial is not a refresher on what Chaos Monkey *is*. It is a comprehensive, deep-dive examination of what Chaos Monkey *represents* in the modern context of building financial-grade, hyperscale, and mission-critical systems. We are moving beyond the novelty of random failure injection and into the rigorous science of controlled, hypothesis-driven failure modeling.
 
@@ -31,7 +41,7 @@ A failure domain is the scope within which a failure can manifest. When designin
 1.  **Service Domain:** Which microservices are affected? (e.g., `UserAuth`, `InventoryService`).
 2.  **Infrastructure Domain:** Which physical or virtual resources are compromised? (e.g., specific availability zone, network segment, database cluster).
 3.  **Dependency Domain:** Which external or internal services rely on the failing component? (e.g., a third-party payment gateway, a caching layer like Redis).
-4.  **Data Domain:** Is the failure related to data corruption, stale reads, or eventual consistency violations?
+4.  **Data Domain:** Is the failure related to data corruption, stale reads, or [eventual consistency](EventualConsistency) violations?
 
 The **Blast Radius** is the measure of the impact of a failure. A naive implementation assumes a small blast radius (only the failed service). A mature understanding recognizes that the blast radius is determined by the *coupling* between services. A single, seemingly minor failure (e.g., increased latency on a non-critical logging endpoint) can propagate through synchronous calls, leading to thread pool exhaustion and a massive, cascading failure across unrelated services.
 
@@ -173,7 +183,7 @@ Before the first failure is injected, the following artifacts must be finalized:
 1.  **Scope Definition (The "Blast Radius Map"):** A diagram detailing every service, every dependency, and the acceptable failure boundaries. Nothing is out of scope.
 2.  **Observability Baseline (The "Ground Truth"):** This is non-negotiable. You must have comprehensive, real-time metrics, logs, and traces *before* the test begins.
     *   **Metrics:** Must include saturation metrics (CPU utilization, queue depth, connection pool usage) alongside standard SLO/SLI metrics (Latency, Error Rate, Throughput).
-    *   **Tracing:** Distributed tracing (e.g., Jaeger, Zipkin) must be configured to follow a single request across all services, allowing pinpointing of the exact hop where latency spiked or the error originated.
+    *   **Tracing:** [Distributed tracing](DistributedTracing) (e.g., Jaeger, Zipkin) must be configured to follow a single request across all services, allowing pinpointing of the exact hop where latency spiked or the error originated.
 3.  **Rollback Plan (The "Panic Button"):** A documented, rehearsed, and *immediately executable* plan to restore the system to a known good state if the chaos experiment causes an uncontrolled outage. This plan must be tested *before* the Game Day.
 
 ### 4.2 The Execution Flow: Hypothesis $\rightarrow$ Inject $\rightarrow$ Observe $\rightarrow$ Hypothesize

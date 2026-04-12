@@ -1,3 +1,15 @@
+---
+title: ML Ops Practices
+type: article
+tags:
+- model
+- data
+- must
+summary: If you are reading this, you likely understand that simply containerizing
+  a trained model is merely the deployment step, not the automation of the entire
+  lifecycle.
+auto-generated: true
+---
 # MLOps Pipeline Automation
 
 For those of us who have moved past the "notebook-to-production" phase—the quaint, often disastrous rite of passage for nascent ML practitioners—the concept of MLOps is less a set of best practices and more a fundamental requirement for operationalizing intelligence at scale. If you are reading this, you likely understand that simply containerizing a trained model is merely the *deployment* step, not the *automation* of the entire lifecycle.
@@ -10,7 +22,7 @@ We will dissect the architecture, the advanced components, the failure modes, an
 
 ## 🚀 Introduction
 
-The initial allure of machine learning is its predictive power. The initial hurdle, however, is the chasm between a high-performing Jupyter Notebook (a research artifact) and a reliable, low-latency service endpoint (an industrial asset).
+The initial allure of [machine learning](MachineLearning) is its predictive power. The initial hurdle, however, is the chasm between a high-performing Jupyter Notebook (a research artifact) and a reliable, low-latency service endpoint (an industrial asset).
 
 Traditional software engineering pipelines (DevOps) assume that the inputs and the transformation logic are static and deterministic. ML systems, by their very nature, violate this assumption. The output quality is not solely a function of the code ($\text{Model} = f(\text{Code})$); it is critically dependent on the data ($\text{Model} = f(\text{Code}, \text{Data})$). This data dependency introduces non-determinism, making the pipeline inherently more complex than standard software CI/CD.
 
@@ -70,7 +82,7 @@ In traditional DevOps, CI verifies that the code compiles and passes unit tests.
 
 *   **Code Testing:** Standard unit tests for feature transformation logic, data loaders, and model wrappers.
 *   **Dependency Management:** Strict pinning of all libraries (e.g., `scikit-learn==1.3.2`, `pandas>=2.0.0`). Environment reproducibility is paramount.
-*   **Integration Testing (The ML Twist):** This involves running the feature engineering pipeline on a small, representative sample dataset and ensuring the output feature vectors match the expected structure and type *before* the model training even begins.
+*   **Integration Testing (The ML Twist):** This involves running the [feature engineering](FeatureEngineering) pipeline on a small, representative sample dataset and ensuring the output feature vectors match the expected structure and type *before* the model training even begins.
 
 ### 2.2. Automated Model Training and Hyperparameter Optimization (HPO)
 
@@ -183,7 +195,7 @@ The testing suite must be multi-layered to cover the entire ML stack.
 
 The concept of "versioning" must be applied everywhere, creating a traceable lineage graph.
 
-*   **Data Versioning (DVC/Lakehouse Formats):** Instead of just pointing to a S3 bucket path, the system must reference a specific, immutable snapshot ID of the data. This allows for perfect reproducibility: "Train Model X using Data Snapshot Y, processed by Feature Pipeline Z."
+*   **[Data Versioning](DataVersioning) (DVC/Lakehouse Formats):** Instead of just pointing to a S3 bucket path, the system must reference a specific, immutable snapshot ID of the data. This allows for perfect reproducibility: "Train Model X using Data Snapshot Y, processed by Feature Pipeline Z."
 *   **Model Versioning:** As discussed, the Model Registry is key. It must store not just the weights, but the *entire environment* required to load and run those weights (e.g., a specific Docker image tag).
 
 ### 4.4. Concept Drift vs. Data Drift
@@ -216,7 +228,7 @@ At scale, the pipeline cannot rely on local compute resources.
 Running constant retraining loops and maintaining multiple shadow environments is computationally expensive. Experts must build cost-aware pipelines.
 
 *   **Trigger Throttling:** Do not retrain on every minor data fluctuation. Implement hysteresis—a drift must exceed $\tau$ *and* persist for $T$ time units before triggering a costly retraining cycle.
-*   **Model Quantization and Pruning:** Before deployment, the pipeline should automatically run optimization passes:
+*   **[Model Quantization](ModelQuantization) and Pruning:** Before deployment, the pipeline should automatically run optimization passes:
     *   **Quantization:** Reducing the precision of weights (e.g., from FP32 to INT8) to drastically reduce memory footprint and increase inference speed with minimal accuracy loss.
     *   **Pruning:** Removing redundant weights or connections in neural networks.
 *   **Resource Tiering:** Different stages require different resources. Data validation might run on spot instances (cheaper, interruptible), while the final production inference endpoint must run on reserved, high-availability instances.

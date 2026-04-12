@@ -1,3 +1,15 @@
+---
+title: Paxos And Raft
+type: article
+tags:
+- leader
+- propos
+- node
+summary: When multiple independent nodes must agree on a single sequence of operations,
+  even in the face of network partitions, node failures, or malicious actors, we enter
+  the realm of distributed consensus.
+auto-generated: true
+---
 # Consensus Algorithms for Distributed Systems
 
 For expert software engineers and data scientists operating at the frontier of distributed systems research, understanding consensus is not merely a feature—it is the foundational prerequisite for building reliable, stateful services. When multiple independent nodes must agree on a single sequence of operations, even in the face of network partitions, node failures, or malicious actors, we enter the realm of distributed consensus.
@@ -12,7 +24,7 @@ At its core, a distributed system aims to mimic the behavior of a single, perfec
 
 ### The Theoretical Landscape
 
-The problem of consensus is famously difficult. The **CAP Theorem** dictates that a distributed system can only provide two out of three guarantees: Consistency, Availability, and Partition Tolerance. In the context of consensus protocols, we are almost always designing for **Consistency** and **Partition Tolerance** ($\text{CP}$), which necessitates sacrificing Availability during a partition.
+The problem of consensus is famously difficult. The **[CAP Theorem](CapTheorem)** dictates that a distributed system can only provide two out of three guarantees: Consistency, Availability, and Partition Tolerance. In the context of consensus protocols, we are almost always designing for **Consistency** and **Partition Tolerance** ($\text{CP}$), which necessitates sacrificing Availability during a partition.
 
 The fundamental challenge is achieving agreement on a single value (or a sequence of values) across a set of unreliable participants.
 
@@ -215,7 +227,7 @@ To guarantee **Linearizability** (the strongest consistency model, meaning reads
 
 It is crucial to note that both standard Paxos and Raft are designed for **Crash-Fail Fault Tolerance (CFT)**—they assume nodes fail by stopping (crashing) but do not lie.
 
-If the system must tolerate **Byzantine Failures** (nodes actively sending contradictory, malicious, or misleading information), neither vanilla Paxos nor vanilla Raft is sufficient. For BFT, one must resort to protocols like **PBFT (Practical Byzantine Fault Tolerance)** or variants thereof, which require significantly more complex cryptographic proofs and communication overhead.
+If the system must tolerate **Byzantine Failures** (nodes actively sending contradictory, malicious, or misleading information), neither vanilla Paxos nor vanilla Raft is sufficient. For BFT, one must resort to protocols like **PBFT (Practical [Byzantine Fault Tolerance](ByzantineFaultTolerance))** or variants thereof, which require significantly more complex cryptographic proofs and communication overhead.
 
 ### 4. Performance Considerations: Write vs. Read
 

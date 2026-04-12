@@ -1,3 +1,14 @@
+---
+title: Ai Powered Search
+type: article
+tags:
+- vector
+- text
+- queri
+summary: We are moving beyond the brittle logic of keyword matching and into the realm
+  of genuine contextual understanding.
+auto-generated: true
+---
 # The Architecture of Understanding
 
 For those of us who spend our professional lives wrestling with the limitations of information retrieval systems, the concept of "semantic search" often feels less like an incremental improvement and more like a fundamental paradigm shift. We are moving beyond the brittle logic of keyword matching and into the realm of genuine contextual understanding.
@@ -43,7 +54,7 @@ The first major breakthrough was the concept of representing discrete words as d
 
 ### 2.2 Contextual Embeddings: The Game Changer
 
-The advent of the Transformer architecture, particularly models like BERT (Bidirectional Encoder Representations from Transformers), solved the static embedding problem.
+The advent of the [Transformer architecture](TransformerArchitecture), particularly models like BERT (Bidirectional Encoder Representations from Transformers), solved the static embedding problem.
 
 *   **Mechanism:** Instead of generating one vector per word, contextual models generate a unique vector for a word *based on the entire sequence* it appears in. The model processes the input sequence bidirectionally, allowing every token's representation to be informed by tokens preceding it and tokens succeeding it.
 *   **The Output:** For a given input sentence $S = \{w_1, w_2, \dots, w_n\}$, the model outputs a sequence of context-aware vectors: $\{\mathbf{e}_1, \mathbf{e}_2, \dots, \mathbf{e}_n\}$.
@@ -191,7 +202,7 @@ The embedding space is a mirror of the data it is trained on. If the training da
 *   **The Problem:** If the training data disproportionately associates certain demographics with lower-status jobs, the vector space will encode this correlation, leading the search to unfairly rank results.
 *   **Mitigation (Bias Auditing):**
     1.  **Bias Benchmarking:** Using standardized datasets (e.g., testing for gender bias in professional role associations) to measure the vector distance between biased pairs.
-    2.  **Debiasing Techniques:** Applying mathematical transformations to the embedding vectors (e.g., projecting the vectors onto a subspace orthogonal to the identified bias direction) to neutralize the biased dimensions while preserving semantic meaning. This is advanced linear algebra applied to the embedding space.
+    2.  **Debiasing Techniques:** Applying mathematical transformations to the embedding vectors (e.g., projecting the vectors onto a subspace orthogonal to the identified bias direction) to neutralize the biased dimensions while preserving semantic meaning. This is advanced [linear algebra](LinearAlgebra) applied to the embedding space.
 
 ### 5.4 Scalability and Latency Trade-offs
 

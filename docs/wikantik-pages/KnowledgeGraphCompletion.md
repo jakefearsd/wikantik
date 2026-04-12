@@ -1,3 +1,15 @@
+---
+title: Knowledge Graph Completion
+type: article
+tags:
+- predict
+- embed
+- relat
+summary: Knowledge Graph Completion Prediction Knowledge Graphs (KGs) have become
+  the de facto standard for structuring vast amounts of interconnected, real-world
+  knowledge.
+auto-generated: true
+---
 # Knowledge Graph Completion Prediction
 
 Knowledge Graphs (KGs) have become the de facto standard for structuring vast amounts of interconnected, real-world knowledge. They move beyond simple relational databases by explicitly modeling entities (nodes) and the relationships (edges or triples) that connect them. However, the reality of knowledge acquisition is that these graphs are inherently incomplete. The task of inferring the missing facts—the missing triples—is not merely an academic exercise; it is a critical bottleneck in deploying AI systems that require comprehensive world knowledge.
@@ -146,7 +158,7 @@ The most challenging variant, as highlighted in the context, is **Entity Predict
 To handle time, the embedding space must be augmented. Common approaches include:
 
 1.  **Time-Augmented Embeddings:** Concatenating time-derived features (e.g., time elapsed, periodicity) to the standard entity/relation embeddings.
-2.  **Recurrent Structures:** Using Recurrent Neural Networks (RNNs) or specialized temporal attention mechanisms over the sequence of known facts to predict the next state.
+2.  **Recurrent Structures:** Using [Recurrent Neural Networks](RecurrentNeuralNetworks) (RNNs) or specialized temporal attention mechanisms over the sequence of known facts to predict the next state.
 3.  **Pre-trained Language Models (LLMs) for Time:** LLMs can be fine-tuned on temporal reasoning datasets (e.g., event sequences) to generate embeddings that inherently capture temporal causality, which are then used to guide the KGC scoring function.
 
 ### 3.2. Relation Prediction vs. Entity Prediction

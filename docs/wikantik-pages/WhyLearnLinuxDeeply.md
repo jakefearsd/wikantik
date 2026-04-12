@@ -31,7 +31,7 @@ The numbers are stark:
 - **100%** of the world's top 500 supercomputers run Linux
 - **Android** (based on the Linux kernel) runs on 72% of mobile devices
 - **All major cloud providers** (AWS, Azure, GCP) run Linux workloads predominantly — even Microsoft's Azure runs more Linux VMs than Windows VMs
-- **Every major container orchestration platform** (Docker, Kubernetes) is Linux-native
+- **Every major [container orchestration](ContainerOrchestration) platform** (Docker, Kubernetes) is Linux-native
 - **Most CI/CD pipelines** run on Linux build agents
 
 If you work in software, data, DevOps, security, or infrastructure, you will encounter Linux. The question is whether you encounter it as someone who understands it or someone who copies commands from Stack Overflow without knowing what they do.

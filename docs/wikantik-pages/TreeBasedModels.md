@@ -1,3 +1,15 @@
+---
+title: Tree Based Models
+type: article
+tags:
+- model
+- tree
+- featur
+summary: We are not merely selecting a "good" algorithm; we are selecting a systematic
+  approach to variance reduction, bias mitigation, and the precise management of model
+  complexity.
+auto-generated: true
+---
 # Decision Trees, Random Forests, and Gradient Boosting for Advanced Research
 
 For those of us who spend our days wrestling with the inherent messiness of real-world data—data that rarely conforms to the pristine Gaussian assumptions of textbook examples—the choice of model architecture is less an art and more a high-stakes engineering decision. We are not merely selecting a "good" algorithm; we are selecting a systematic approach to variance reduction, bias mitigation, and the precise management of model complexity.
@@ -48,7 +60,7 @@ The split criterion then selects the feature and threshold that yield the larges
 
 The primary weakness of a single, unconstrained DT is its tendency toward **overfitting**. Because the algorithm is purely greedy—it makes the locally optimal split at every step—it will continue splitting until the training set is perfectly classified (or until a predefined stopping criterion is met). This results in a tree that has near-zero training error but catastrophic generalization error on unseen data.
 
-To combat this, regularization techniques are mandatory:
+To combat this, [regularization techniques](RegularizationTechniques) are mandatory:
 
 1.  **Pre-pruning (Early Stopping):** Setting explicit constraints *before* training. Examples include:
     *   `max_depth`: Limiting the maximum depth of the tree.

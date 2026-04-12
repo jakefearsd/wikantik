@@ -1,3 +1,14 @@
+---
+title: Food Science
+type: article
+tags:
+- text
+- flavor
+- receptor
+summary: Food Science and the Chemistry of Flavor The study of flavor is arguably
+  one of the most complex, multidisciplinary endeavors in modern science.
+auto-generated: true
+---
 # Food Science and the Chemistry of Flavor
 
 The study of flavor is arguably one of the most complex, multidisciplinary endeavors in modern science. It sits at the volatile intersection of organic chemistry, biochemistry, sensory physiology, and advanced data science. For researchers operating at the cutting edge, understanding flavor requires moving far beyond simple identification; it demands a mastery of reaction kinetics, receptor-ligand interactions, and high-dimensional data interpretation.
@@ -40,7 +51,7 @@ The most chemically rich area for research involves understanding how complex fl
 
 ### A. The Maillard Reaction: The Cornerstone of Browning
 
-The Maillard reaction is not a single reaction but a cascade of complex, parallel reactions between reducing sugars and amino acids, leading to hundreds of melanoidin-forming products.
+The [Maillard reaction](MaillardReaction) is not a single reaction but a cascade of complex, parallel reactions between reducing sugars and amino acids, leading to hundreds of melanoidin-forming products.
 
 **Chemical Complexity:** The initial stages involve the formation of unstable intermediates like N-substituted glycosylamines and subsequent Amadori products. The final, desirable flavor compounds are often formed through subsequent degradation pathways of these intermediates.
 
@@ -180,7 +191,7 @@ Computational methods allow us to test hypotheses about flavor molecules that ar
     *   **Dipole Moment ($\mu$):** Correlates strongly with molecular polarity and receptor interaction.
     *   **Electrostatic Potential Maps:** Visualize where the molecule is most likely to interact with charged amino acid residues within a receptor binding pocket.
 
-2.  **QSAR Refinement using Machine Learning (ML):** Traditional PLS models are often linear approximations. Modern approaches utilize deep learning architectures (e.g., Graph Neural Networks, GNNs) to process the molecular structure directly.
+2.  **QSAR Refinement using [Machine Learning](MachineLearning) (ML):** Traditional PLS models are often linear approximations. Modern approaches utilize deep learning architectures (e.g., Graph Neural Networks, GNNs) to process the molecular structure directly.
 
 **GNN Application:** A GNN treats a molecule not as a list of atoms, but as a graph (atoms = nodes; bonds = edges). This allows the model to learn complex, non-linear relationships between the graph structure and the measured sensory score, bypassing the need for manually selected molecular descriptors.
 

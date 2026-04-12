@@ -1,8 +1,19 @@
+---
+title: SPARQL
+type: article
+tags:
+- queri
+- data
+- graph
+summary: SPARQL in the Semantic Web The Semantic Web, in its purest form, represents
+  a paradigm shift away from the limitations of traditional data models.
+auto-generated: true
+---
 # SPARQL in the Semantic Web
 
 The Semantic Web, in its purest form, represents a paradigm shift away from the limitations of traditional data models. It seeks to encode not just *data*, but *meaning*. For the expert software engineer or the data scientist accustomed to the rigid structures of SQL or the flexibility (and ambiguity) of NoSQL document stores, the transition to querying knowledge graphs requires a fundamental shift in mindset.
 
-This tutorial serves as a deep dive into SPARQL—the standardized query language designed to navigate and extract knowledge from data modeled using Resource Description Framework (RDF). Given the depth required, we will not merely cover syntax; we will explore the underlying graph theory, the engineering implications of query execution, and the advanced patterns necessary for building robust, scalable knowledge graph applications.
+This tutorial serves as a deep dive into SPARQL—the standardized query language designed to navigate and extract knowledge from data modeled using [Resource Description Framework](ResourceDescriptionFramework) (RDF). Given the depth required, we will not merely cover syntax; we will explore the underlying graph theory, the engineering implications of query execution, and the advanced patterns necessary for building robust, scalable knowledge graph applications.
 
 ---
 

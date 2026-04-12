@@ -1,8 +1,18 @@
+---
+title: Regularization Techniques
+type: article
+tags:
+- regular
+- mathbf
+- weight
+summary: Overfitting, Dropout, L1, and L2 for Advanced Research Welcome.
+auto-generated: true
+---
 # Overfitting, Dropout, L1, and L2 for Advanced Research
 
 Welcome. If you’ve reached this document, you likely already understand that model performance metrics are not merely academic exercises; they are the gatekeepers to deployable intelligence. You are not here to learn what overfitting *is*—that concept is foundational, bordering on remedial. You are here to dissect the mechanisms by which we force complex, high-capacity models to exhibit generalization capabilities that mimic, rather than merely parrot, the training distribution.
 
-This tutorial assumes fluency in multivariate calculus, linear algebra, and the core mechanics of neural network optimization. We will treat regularization not as a collection of "tricks," but as a sophisticated set of constraints imposed upon the optimization landscape itself. We will dissect the mathematical underpinnings of L1, L2, and Dropout, compare their theoretical justifications, and explore the cutting-edge variations that keep the field from stagnating into mere textbook recitation.
+This tutorial assumes fluency in multivariate calculus, [linear algebra](LinearAlgebra), and the core mechanics of neural [network optimization](NetworkOptimization). We will treat regularization not as a collection of "tricks," but as a sophisticated set of constraints imposed upon the optimization landscape itself. We will dissect the mathematical underpinnings of L1, L2, and Dropout, compare their theoretical justifications, and explore the cutting-edge variations that keep the field from stagnating into mere textbook recitation.
 
 ---
 
@@ -136,7 +146,7 @@ During testing (inference), no scaling is necessary, as the expected value of th
 For researchers pushing the boundaries, the standard Bernoulli dropout is often insufficient:
 
 1.  **DropConnect:** Instead of dropping entire neurons (activations), DropConnect randomly sets *connections* (weights) to zero with probability $p$. This is useful when the redundancy lies in the connections rather than the nodes themselves.
-2.  **Spatial Dropout:** In Convolutional Neural Networks (CNNs), dropping individual feature maps independently is inefficient because adjacent pixels/features are highly correlated. Spatial Dropout drops entire feature maps (channels) simultaneously, preserving the spatial correlation structure inherent in image data.
+2.  **Spatial Dropout:** In [Convolutional Neural Networks](ConvolutionalNeuralNetworks) (CNNs), dropping individual feature maps independently is inefficient because adjacent pixels/features are highly correlated. Spatial Dropout drops entire feature maps (channels) simultaneously, preserving the spatial correlation structure inherent in image data.
 3.  **Monte Carlo Dropout (MC Dropout):** This is perhaps the most theoretically significant variant. Instead of using dropout only for regularization, one can keep dropout active *at inference time*. By running the forward pass $T$ times (e.g., $T=100$) and collecting $T$ predictions, the variance across these predictions provides an **estimate of the model's predictive uncertainty**. This moves regularization from a mere performance booster to a tool for **Uncertainty Quantification (UQ)**, which is paramount in safety-critical AI systems.
 
 ---

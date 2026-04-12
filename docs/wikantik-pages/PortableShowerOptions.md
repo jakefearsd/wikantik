@@ -1,3 +1,14 @@
+---
+title: Portable Shower Options
+type: article
+tags:
+- text
+- system
+- must
+summary: The modern assumption of continuous, pressurized, potable water access—the
+  bedrock of conventional residential hygiene—is a privilege, not a guarantee.
+auto-generated: true
+---
 # Portable Shower Systems
 
 ## Introduction: The Engineering Imperative of Hygiene Mobility

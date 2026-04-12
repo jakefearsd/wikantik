@@ -1,3 +1,14 @@
+---
+title: Reverse Proxy Patterns
+type: article
+tags:
+- proxi
+- haproxi
+- nginx
+summary: When architecting microservices, the reverse proxy is the gatekeeper, the
+  traffic cop, and occasionally, the primary point of failure.
+auto-generated: true
+---
 # The Ingress Nexus
 
 For those of us who spend our careers wrestling with the invisible plumbing of modern distributed systems, the concept of the "Ingress Point" is not merely a feature—it is the central nervous system. When architecting microservices, the reverse proxy is the gatekeeper, the traffic cop, and occasionally, the primary point of failure.

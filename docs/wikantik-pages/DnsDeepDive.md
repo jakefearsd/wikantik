@@ -1,3 +1,14 @@
+---
+title: Dns Deep Dive
+type: article
+tags:
+- record
+- resolv
+- cach
+summary: It is the foundational layer upon which the entire modern internet—from microservice
+  mesh discovery to global CDN routing—is built.
+auto-generated: true
+---
 # Resolution, Caching, and the Architecture of Modern Name Resolution Systems
 
 For those of us who spend enough time wrestling with network plumbing, DNS is less a "phone book" and more a highly complex, distributed, stateful, and often frustratingly opaque distributed consensus system. It is the foundational layer upon which the entire modern internet—from microservice mesh discovery to global CDN routing—is built.
@@ -49,7 +60,7 @@ The most significant theoretical challenge is the **asynchronous nature of TTL u
 
 *   **The Worst Case:** If the TTL is set to 24 hours, and the IP address changes, every resolver globally must wait up to 24 hours for the cache entry to expire naturally. During this window, the system operates on stale data.
 *   **The Best Practice (The "Zero TTL" Illusion):** While setting TTL to 0 is technically possible, it forces every resolver to re-query on every single request, effectively eliminating the cache benefit and causing a massive, unnecessary load spike on the authoritative servers.
-*   **The Expert Compromise (Low TTLs):** For rapidly changing infrastructure (e.g., load balancers, canary deployments), TTLs are aggressively lowered (e.g., 60 seconds, 300 seconds). This trades performance gains for increased operational overhead and higher query volume.
+*   **The Expert Compromise (Low TTLs):** For rapidly changing infrastructure (e.g., load balancers, [canary deployments](CanaryDeployments)), TTLs are aggressively lowered (e.g., 60 seconds, 300 seconds). This trades performance gains for increased operational overhead and higher query volume.
 
 #### 2. Caching Layers in Depth
 
@@ -106,7 +117,7 @@ For services requiring near-instantaneous global availability (e.g., critical AP
 
 ## IV. DNS in Modern, Complex Ecosystems
 
-The theoretical model breaks down when confronted with the realities of cloud networking, containerization, and private service meshes. Here, the "resolver" is often not a single, monolithic piece of software, but a complex, multi-layered control plane.
+The theoretical model breaks down when confronted with the realities of [cloud networking](CloudNetworking), containerization, and private service meshes. Here, the "resolver" is often not a single, monolithic piece of software, but a complex, multi-layered control plane.
 
 ### A. Cloud Networking and Private Resolution (The Virtual Boundary)
 

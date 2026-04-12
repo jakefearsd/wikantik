@@ -1,513 +1,222 @@
-# Wikantik Reader UI
+# Wikantik React SPA
 
-A modern, Medium.com-inspired reading experience built with React.
+The `wikantik-frontend` module implements Wikantik's user interface as a React
+18 single-page application. It is built with Vite as part of the standard
+Maven build, bundled into the WAR, and served at the web root — there is no
+separate hosting, no CORS configuration, and no legacy JSP templates alongside
+it.
 
-> **Implementation Status:** This React SPA has been fully implemented in the `wikantik-frontend/` directory and is bundled into the WAR at `/app/`. The application includes: page viewing with rendered Markdown, inline editing, search, dark mode, metadata chips, change history, admin panel (Users, Content, Security tabs), and sidebar navigation with cluster grouping.
+## Status
 
-## Overview
-
-A standalone React SPA that consumes Wikantik's REST API, providing a modern reading and editing experience alongside the traditional JSP templates.
+Fully implemented. The SPA covers reading, inline editing, search, change
+history, similar-pages discovery, attachment management, blogs, dark mode, the
+admin panel (users, content, security, knowledge), and the knowledge graph
+visualiser.
 
 ## Architecture
 
-### Core Concept
+| Concern | Choice |
+|---------|--------|
+| Framework | React 18 (`react`, `react-dom`) |
+| Routing | React Router v6 (`react-router-dom`) |
+| Build | Vite 5 (`@vitejs/plugin-react`) |
+| Markdown rendering | `react-markdown` + `remark-gfm`, `remark-math`, `rehype-katex`, `rehype-highlight` |
+| Graph visualisation | `cytoscape` + `cytoscape-cose-bilkent` via `react-cytoscapejs` |
+| Testing | Vitest + Testing Library + `happy-dom` |
+| Styling | Hand-written CSS with a token-based design system (no framework) |
+| State | React state + hooks; no external store library |
 
-- **Standalone React SPA** deployed at `/app/`
-- Consumes Wikantik REST API (`/api/`)
-- Admin panel at `/app/admin/`
-- Clean separation of concerns
+The build runs automatically during `mvn package` — `frontend-maven-plugin`
+installs Node and npm, runs `npm ci` and `npm run build`, and the resulting
+`dist/` is copied into the WAR.
 
-### Technology Stack (Implemented)
+## Routing
 
-| Layer | Choice | Notes |
-|-------|--------|-------|
-| Framework | React 18 | Industry standard, large ecosystem |
-| Build | Vite | Fast HMR, modern defaults; integrated into Maven build |
-| Routing | React Router v6 | Client-side routing |
-| Styling | Custom CSS design system | No frameworks; CSS variables for theming |
+The SPA is served from `/` and uses client-side routing for all interactive
+views. Deep links are handled by `SpaRoutingFilter` (in `wikantik-http`), which
+forwards SPA paths to `/index.html` so the React router can take over.
 
-## Project Structure
+| Route | Purpose |
+|-------|---------|
+| `/` | Home — recent pages, clusters, entry points |
+| `/wiki/{PageName}` | Article reader |
+| `/edit/{PageName}` | Inline editor (markdown source + live preview) |
+| `/search` | Search results (full-text + frontmatter facets) |
+| `/graph` | Knowledge graph visualiser |
+| `/admin/*` | Admin panel (users, content, security, knowledge) |
+
+The REST API lives under `/api/` and the MCP server under `/mcp/` — both are
+serviced by `wikantik-rest` / `wikantik-mcp` rather than the SPA.
+
+## Project Layout
 
 ```
-jspwiki-reader/                    # New Maven module
-├── pom.xml
+wikantik-frontend/
 ├── package.json
-├── vite.config.ts                 # Vite for fast builds
-├── tsconfig.json
-├── src/
-│   ├── main.tsx                   # Entry point
-│   ├── App.tsx                    # Root component + routing
-│   ├── api/
-│   │   ├── client.ts              # API client (fetch wrapper)
-│   │   ├── pages.ts               # Page API calls
-│   │   ├── search.ts              # Search API
-│   │   └── types.ts               # TypeScript interfaces
-│   ├── components/
-│   │   ├── layout/
-│   │   │   ├── Header.tsx         # Minimal sticky header
-│   │   │   ├── MobileNav.tsx      # Bottom navigation (mobile)
-│   │   │   ├── Sidebar.tsx        # ToC sidebar (desktop)
-│   │   │   └── ProgressBar.tsx    # Reading progress
-│   │   ├── article/
-│   │   │   ├── ArticleView.tsx    # Main article container
-│   │   │   ├── ArticleHeader.tsx  # Title, meta, hero image
-│   │   │   ├── ArticleBody.tsx    # Rendered content
-│   │   │   ├── CodeBlock.tsx      # Syntax highlighted code
-│   │   │   ├── WikiLink.tsx       # Internal link handling
-│   │   │   └── ImageViewer.tsx    # Lightbox for images
-│   │   ├── navigation/
-│   │   │   ├── TableOfContents.tsx
-│   │   │   ├── Breadcrumbs.tsx
-│   │   │   └── RelatedPages.tsx
-│   │   ├── search/
-│   │   │   ├── SearchModal.tsx    # Cmd+K search
-│   │   │   └── SearchResults.tsx
-│   │   └── ui/                    # Primitives
-│   │       ├── Button.tsx
-│   │       ├── Card.tsx
-│   │       ├── Skeleton.tsx       # Loading states
-│   │       └── ThemeToggle.tsx
-│   ├── hooks/
-│   │   ├── useArticle.ts          # Fetch + cache article
-│   │   ├── useReadingProgress.ts  # Scroll tracking
-│   │   ├── useReadingTime.ts      # Word count calculation
-│   │   ├── useTheme.ts            # Dark/light mode
-│   │   ├── useMediaQuery.ts       # Responsive breakpoints
-│   │   └── useScrollDirection.ts  # Header show/hide
-│   ├── stores/
-│   │   └── reader.ts              # Zustand store
-│   ├── styles/
-│   │   ├── global.css             # CSS reset, variables
-│   │   ├── typography.css         # Font system
-│   │   └── theme.css              # Color tokens
-│   ├── utils/
-│   │   ├── wikiParser.ts          # Transform wiki HTML
-│   │   └── readingTime.ts
-│   └── pages/
-│       ├── HomePage.tsx           # Recent/featured pages
-│       ├── ArticlePage.tsx        # Single article view
-│       ├── SearchPage.tsx         # Search results
-│       └── NotFoundPage.tsx
-└── public/
-    └── fonts/                     # Self-hosted fonts
+├── vite.config.js
+├── index.html
+├── public/
+└── src/
+    ├── main.jsx                 Entry point
+    ├── App.jsx                  Routes + layout shell
+    ├── api/
+    │   └── client.js            Fetch wrapper for /api/*
+    ├── components/
+    │   ├── PageView.jsx         Article rendering (react-markdown pipeline)
+    │   ├── PageEditor.jsx       Inline editor
+    │   ├── Sidebar.jsx          Cluster-grouped navigation
+    │   ├── SearchOverlay.jsx    Cmd+K search
+    │   ├── MetadataPanel.jsx    Frontmatter chips
+    │   ├── ChangeNotesPanel.jsx History + diffs
+    │   ├── SimilarPagesPanel.jsx
+    │   ├── AttachmentPanel.jsx
+    │   ├── DiffViewer.jsx
+    │   ├── BlogHome.jsx / BlogEntry.jsx / BlogEditor.jsx …
+    │   ├── admin/               Admin panel pages + forms
+    │   └── graph/               Knowledge graph viewer (see below)
+    ├── hooks/
+    │   ├── useApi.js            Fetch + auth header plumbing
+    │   ├── useAuth.jsx          Login state, current user
+    │   ├── useDarkMode.js       Theme toggle + persistence
+    │   ├── useAttachments.js
+    │   └── useEditorDrop.js
+    ├── utils/
+    │   ├── math.js              LaTeX helpers for the markdown pipeline
+    │   ├── frontmatterUtils.js
+    │   ├── pageUrl.js
+    │   ├── slugUtils.js
+    │   ├── attachmentNameValidator.js
+    │   └── remarkAttachments.js Custom remark plugin for attachment links
+    └── styles/
+        ├── globals.css          Reset, CSS variables, theme tokens
+        ├── article.css
+        └── admin.css
 ```
+
+## Markdown Rendering Pipeline
+
+Article bodies are rendered client-side with `react-markdown` and the
+following plugin chain:
+
+- `remark-gfm` — tables, strikethrough, task lists
+- `remark-math` — recognise `$…$` and `$$…$$`
+- `rehype-katex` — typeset math via KaTeX (CSS and fonts bundled from the
+  npm package, not a CDN)
+- `rehype-highlight` — syntax-highlight fenced code blocks
+- A custom `remarkAttachments` plugin — rewrites attachment links so they
+  resolve relative to the current page
+
+See [MathematicalNotation.md](MathematicalNotation.md) for the full math
+syntax reference.
+
+## Knowledge Graph View
+
+The `/graph` route renders an interactive, zoomable graph of page
+relationships. Nodes are pages; edges are backlinks, frontmatter relations
+(`related`, `cluster`), and cluster membership. Hubs (nodes above a
+configurable degree threshold) are highlighted; anomalies (restricted pages,
+orphans) can be toggled into view.
+
+| Component | Role |
+|-----------|------|
+| `GraphView.jsx` | Top-level container — fetches snapshot, owns state |
+| `GraphCanvas.jsx` | Cytoscape canvas with CoSE-Bilkent layout |
+| `GraphToolbar.jsx` | Edge-type filters, anomaly toggle, refresh |
+| `GraphZoomSlider.jsx` | Manual zoom control (semantic zoom) |
+| `GraphLegend.jsx` | Hub threshold and edge-type legend |
+| `GraphDetailsDrawer.jsx` | Selected-node details + incident edges |
+| `GraphErrorBoundary.jsx` / `GraphErrorState.jsx` | Failure UI |
+| `graph-data.js` | Converts the REST snapshot into Cytoscape elements |
+| `graph-style.js` | Cytoscape stylesheet |
+
+The snapshot comes from `GET /api/knowledge/graph` (served by
+`KnowledgeGraphResource` in `wikantik-rest`, backed by
+`DefaultKnowledgeGraphService` in `wikantik-knowledge`). A `?focus=PageName`
+query parameter auto-centres and selects a node on load — useful for linking
+to the graph from an article.
 
 ## Design System
 
-### Typography
-
-**Font Stack:**
-```css
-/* Body - Georgia-based stack (no licensing needed) */
---font-body: Charter, 'Bitstream Charter', 'Sitka Text', Cambria, serif;
-
-/* Headings - Clean sans-serif */
---font-heading: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-
-/* Code - Monospace */
---font-code: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
-```
-
-**Type Scale (Major Third - 1.25):**
-```css
---text-sm: 0.875rem;    /* 14px - metadata */
---text-base: 1.25rem;   /* 20px - body (larger than typical) */
---text-lg: 1.5rem;      /* 24px - lead paragraph */
---text-xl: 2rem;        /* 32px - h3 */
---text-2xl: 2.5rem;     /* 40px - h2 */
---text-3xl: 3rem;       /* 48px - h1/title */
-
---line-height-body: 1.7;
---line-height-heading: 1.2;
---letter-spacing-body: -0.003em;
-```
-
-### Layout
-
-**Content Container:**
-```css
-.article-content {
-    max-width: 680px;           /* Medium's magic number */
-    margin: 0 auto;
-    padding: 0 24px;
-}
-
-.article-content--wide {
-    max-width: 1000px;          /* For tables, code blocks */
-}
-
-.article-hero-image {
-    max-width: 100vw;           /* Full-bleed images */
-    margin-left: calc(-50vw + 50%);
-    width: 100vw;
-}
-```
-
-**Responsive Breakpoints:**
-```css
---breakpoint-sm: 480px;   /* Mobile */
---breakpoint-md: 728px;   /* Tablet */
---breakpoint-lg: 1080px;  /* Desktop */
-```
-
-### Color System
+The CSS design system is intentionally minimal and framework-free. Tokens live
+in `src/styles/globals.css` and drive light and dark themes:
 
 ```css
 :root {
-  /* Colors - Light */
   --bg-primary: #ffffff;
   --bg-secondary: #f9fafb;
-  --bg-tertiary: #f3f4f6;
   --text-primary: #111827;
   --text-secondary: #6b7280;
-  --text-tertiary: #9ca3af;
   --border: #e5e7eb;
   --accent: #059669;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
-
-  /* Transitions */
-  --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
+  --font-body: Charter, 'Bitstream Charter', Cambria, serif;
+  --font-heading: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-code: 'SF Mono', Consolas, Menlo, monospace;
 }
 
 [data-theme="dark"] {
   --bg-primary: #0f0f0f;
   --bg-secondary: #171717;
-  --bg-tertiary: #262626;
   --text-primary: #f9fafb;
   --text-secondary: #9ca3af;
-  --text-tertiary: #6b7280;
   --border: #374151;
   --accent: #10b981;
 }
 ```
 
-## Component Design
+Typography follows a major-third scale; body text sits at 1.25rem with a 1.7
+line height to favour long-form reading. A max content width of roughly 680px
+keeps reading lines comfortable, widening to ~1000px for tables and code.
 
-### Header (responsive)
+## Admin Panel
 
-```
-┌────────────────────────────────────────────────────────┐
-│  [Wiki Logo]              [Search] [ToC] [Theme] [☰]  │
-└────────────────────────────────────────────────────────┘
-```
-- Transparent initially, solid on scroll
-- Hides when scrolling down, reveals on scroll up
-- Progress bar along bottom edge
+Accessed at `/admin/` and protected by `AdminAuthFilter` (requires
+`AllPermission`). Tabs map to dedicated pages in `components/admin/`:
 
-### Article Header
+- **Users** — list, create, edit, delete; role assignment
+- **Content** — orphaned pages, broken links, version purging, cache stats
+- **Security** — groups, group membership, policy grants (the
+  database-backed replacement for `wikantik.policy`)
+- **Knowledge** — hub discovery, existing hubs, content embeddings, KG
+  embeddings, proposal review queue
 
-```
-┌────────────────────────────────────────────────────────┐
-│                                                        │
-│            Understanding Wiki Architecture             │  ← Title (h1)
-│                                                        │
-│            A deep dive into Wikantik internals          │  ← Subtitle (optional)
-│                                                        │
-│  [Avatar] John Smith · 8 min read · Dec 8, 2025       │  ← Metadata
-│                                                        │
-│  ┌──────────────────────────────────────────────────┐ │
-│  │                  [Hero Image]                     │ │  ← Full-width
-│  └──────────────────────────────────────────────────┘ │
-│                                                        │
-└────────────────────────────────────────────────────────┘
-```
+## Authentication
 
-### Mobile Navigation (bottom bar)
+The SPA uses session cookies set by the standard Wikantik login flow. All
+`/api/*` calls include the session cookie; ACLs and policy grants are
+enforced server-side by `RestServletBase.checkPagePermission()`. There is no
+token or JWT layer — the SPA is a thin client of the same session the JSP-era
+wiki used to serve.
 
-```
-┌─────────┬─────────┬─────────┬─────────┐
-│  Home   │ Search  │Contents │  Edit   │
-└─────────┴─────────┴─────────┴─────────┘
+## Running the Frontend Standalone (Development)
+
+For fast frontend iteration without a full Maven rebuild:
+
+```bash
+cd wikantik-frontend
+npm install
+npm run dev         # Vite dev server at http://localhost:5173/
 ```
 
-### Table of Contents (slide-in)
+Point the dev server at a running backend by setting the `VITE_API_BASE`
+environment variable, or keep the default which proxies `/api/*` to
+`http://localhost:8080/`. See `vite.config.js` for the proxy configuration.
 
-```
-┌─────────────────────┐
-│  Contents           │
-│  ─────────────────  │
-│  • Introduction     │  ← Current section highlighted
-│  • Architecture     │
-│    ◦ Components     │
-│    ◦ Providers      │
-│  • Implementation   │
-│  • Conclusion       │
-└─────────────────────┘
-```
-- Fixed position on wide screens (>1200px)
-- Slide-out panel on narrower screens
-- Highlights current section
+Unit tests:
 
-## API Integration
-
-```typescript
-// src/api/types.ts
-interface WikiPage {
-  name: string;
-  content: string;        // HTML rendered content
-  lastModified: string;
-  author: string;
-  version: number;
-  attachments?: Attachment[];
-}
-
-interface SearchResult {
-  page: string;
-  score: number;
-  contexts: string[];     // Highlighted snippets
-}
-
-// src/api/client.ts
-const API_BASE = '/api';  // Or full URL if separate origin
-
-export async function fetchPage(name: string): Promise<WikiPage> {
-  const res = await fetch(`${API_BASE}/pages/${encodeURIComponent(name)}`);
-  if (!res.ok) throw new Error(`Page not found: ${name}`);
-  return res.json();
-}
-
-export async function searchPages(query: string): Promise<SearchResult[]> {
-  const res = await fetch(`${API_BASE}/search?query=${encodeURIComponent(query)}`);
-  return res.json();
-}
+```bash
+npm test            # vitest
 ```
 
-## Key React Hooks
+## Production Build
 
-```typescript
-// src/hooks/useArticle.ts
-import { useQuery } from '@tanstack/react-query';
-import { fetchPage } from '../api/client';
+The production build runs as part of `mvn package`. To build the frontend
+directly:
 
-export function useArticle(pageName: string) {
-  return useQuery({
-    queryKey: ['page', pageName],
-    queryFn: () => fetchPage(pageName),
-    staleTime: 5 * 60 * 1000,  // 5 minutes
-  });
-}
-
-// src/hooks/useReadingProgress.ts
-export function useReadingProgress() {
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const article = document.querySelector('article');
-      if (!article) return;
-
-      const { top, height } = article.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      const scrolled = Math.max(0, -top);
-      const total = height - windowHeight;
-
-      setProgress(Math.min(100, (scrolled / total) * 100));
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  return { progress };
-}
-
-// src/hooks/useScrollDirection.ts
-export function useScrollDirection() {
-  const [direction, setDirection] = useState<'up' | 'down'>('up');
-  const lastScrollY = useRef(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentY = window.scrollY;
-      const threshold = 10;
-
-      if (Math.abs(currentY - lastScrollY.current) < threshold) return;
-
-      setDirection(currentY > lastScrollY.current ? 'down' : 'up');
-      lastScrollY.current = currentY;
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  return { scrollDirection: direction };
-}
-
-// src/hooks/useReadingTime.ts
-export function useReadingTime(content?: string) {
-  return useMemo(() => {
-    if (!content) return 0;
-    const text = content.replace(/<[^>]*>/g, '');
-    const words = text.trim().split(/\s+/).length;
-    return Math.ceil(words / 200);  // 200 wpm average
-  }, [content]);
-}
+```bash
+cd wikantik-frontend
+npm run build       # outputs to dist/
 ```
 
-## Wiki Content Processing
-
-```typescript
-// src/utils/wikiParser.ts
-export function processWikiContent(html: string): string {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-
-  // Transform wiki links to React Router links
-  doc.querySelectorAll('a.wikipage').forEach(link => {
-    const href = link.getAttribute('href');
-    if (href?.startsWith('/wiki/')) {
-      link.setAttribute('data-wiki-link', 'true');
-      link.setAttribute('href', `/page/${href.replace('/wiki/', '')}`);
-    }
-  });
-
-  // Add lazy loading to images
-  doc.querySelectorAll('img').forEach(img => {
-    img.setAttribute('loading', 'lazy');
-    img.classList.add('article-image');
-  });
-
-  // Wrap tables for horizontal scroll
-  doc.querySelectorAll('table').forEach(table => {
-    const wrapper = doc.createElement('div');
-    wrapper.className = 'table-wrapper';
-    table.parentNode?.insertBefore(wrapper, table);
-    wrapper.appendChild(table);
-  });
-
-  return doc.body.innerHTML;
-}
-```
-
-## Maven Build Integration
-
-```xml
-<!-- jspwiki-reader/pom.xml -->
-<project>
-  <parent>
-    <groupId>org.apache.jspwiki</groupId>
-    <artifactId>jspwiki-builder</artifactId>
-    <version>3.0.7-SNAPSHOT</version>
-  </parent>
-
-  <artifactId>jspwiki-reader</artifactId>
-  <packaging>pom</packaging>
-  <name>Wikantik Reader UI</name>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>com.github.eirslett</groupId>
-        <artifactId>frontend-maven-plugin</artifactId>
-        <version>1.15.0</version>
-        <executions>
-          <execution>
-            <id>install-node-npm</id>
-            <goals><goal>install-node-and-npm</goal></goals>
-            <configuration>
-              <nodeVersion>v20.10.0</nodeVersion>
-            </configuration>
-          </execution>
-          <execution>
-            <id>npm-install</id>
-            <goals><goal>npm</goal></goals>
-            <configuration>
-              <arguments>ci</arguments>
-            </configuration>
-          </execution>
-          <execution>
-            <id>npm-build</id>
-            <goals><goal>npm</goal></goals>
-            <configuration>
-              <arguments>run build</arguments>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- Copy built assets to WAR -->
-      <plugin>
-        <artifactId>maven-resources-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>copy-reader-assets</id>
-            <phase>package</phase>
-            <goals><goal>copy-resources</goal></goals>
-            <configuration>
-              <outputDirectory>
-                ${project.parent.basedir}/wikantik-war/target/Wikantik/reader
-              </outputDirectory>
-              <resources>
-                <resource>
-                  <directory>dist</directory>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
-</project>
-```
-
-## Implementation Phases
-
-### Phase 1: Project Setup -- COMPLETED
-- Created `wikantik-frontend/` module
-- Configured Vite + React
-- Set up CSS design system architecture
-- Implemented API client
-- Basic routing with React Router v6
-
-### Phase 2: Core Reading Experience -- COMPLETED
-- Page viewing with rendered Markdown
-- Inline editing
-- Typography and spacing
-- Responsive layout
-
-### Phase 3: Navigation & Chrome -- COMPLETED
-- Sidebar navigation with cluster grouping
-- Metadata chips
-- Change history viewing
-
-### Phase 4: Search & Discovery -- COMPLETED
-- Search functionality
-- Home page with content listing
-
-### Phase 5: Polish -- COMPLETED
-- Dark mode
-- Loading states
-- Error states
-
-### Phase 6: Integration -- COMPLETED
-- Maven build integration (npm install + Vite build run automatically during WAR build)
-- Deployed at `/app/` within the WAR
-- Admin panel at `/app/admin/` with Users, Content, and Security tabs
-
-## Deployment
-
-The React SPA is embedded in the WAR and served from `/app/`. The Vite build is triggered automatically during the Maven WAR build (`npm install` + `vite build`). No separate hosting or CORS configuration is needed.
-
-### Architectural Decisions (Resolved)
-
-| Decision | Choice |
-|----------|--------|
-| Module Location | `wikantik-frontend/` module |
-| Deployment Model | Embedded in WAR at `/app/` |
-| Authentication | Respects ACLs via REST API session |
-| Feature Scope | Full: reading, editing, search, dark mode, admin panel |
-
-## Risks & Mitigations
-
-| Risk | Mitigation |
-|------|------------|
-| Plugin compatibility | Create plugin output wrapper styles |
-| Editor experience | Fall back to haddock for editing |
-| Accessibility | Ensure WCAG 2.1 AA compliance from start |
-| Browser support | Target modern browsers, graceful degradation |
-| Performance | Lazy load images, minimize JS |
+The `wikantik-war` module's `pom.xml` copies `dist/` into
+`wikantik-war/target/Wikantik/` during the packaging phase — no manual copy
+step is required.

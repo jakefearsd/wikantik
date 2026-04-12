@@ -22,16 +22,17 @@ The license file can be found in LICENSE.
 
 ## What is Wikantik?
 
-Wikantik is a modular Java-based knowledge base platform built on JEE technologies. It combines a Markdown-native authoring system with a React single-page application, a REST API, an MCP server for AI agent integration, and a full observability stack. Content is organized into thematic clusters with structured frontmatter metadata, indexed by Lucene for full-text and faceted search.
+Wikantik is a modular Java-based knowledge base platform built on JEE technologies. It combines a Markdown-native authoring system with a React single-page application, a REST API, a Model Context Protocol server for AI agent integration, a knowledge graph visualiser, and a full observability stack. Content is organised into thematic clusters with structured frontmatter metadata, indexed by Lucene for full-text and faceted search.
 
 Key capabilities:
 
-- **Markdown rendering** with Flexmark — fenced code blocks, tables, footnotes, definition lists, TOC generation, and wiki-style internal links
-- **React SPA** at `/app/` — editorial magazine aesthetic with dark mode, metadata chips, change history, and inline editing
-- **REST API** at `/api/` — full CRUD for pages, attachments, search, history, diffs, and backlinks with ACL-based permission enforcement
-- **MCP server** at `/mcp/` — 37 tools, 6 resources, 8 prompts for AI-assisted wiki operations including cluster publishing, auditing, and content management
-- **Admin panel** — user management, content management (orphaned pages, broken links, version purging, cache stats), security management (groups and policy grants)
-- **Database-backed authorization** — policy grants and groups stored in PostgreSQL, manageable through the admin UI, with bootstrap admin override for recovery
+- **Markdown rendering** with Flexmark — fenced code blocks, tables, footnotes, definition lists, TOC generation, wiki-style internal links, and LaTeX math (see [MathematicalNotation.md](docs/MathematicalNotation.md))
+- **React SPA** served at `/` — editorial magazine aesthetic with dark mode, metadata chips, change history, similar-pages panel, and inline editing
+- **Knowledge graph** at `/graph` — interactive Cytoscape visualisation of page relationships (backlinks, frontmatter, clusters) with semantic zoom, edge-type filtering, and parallel-edge merging
+- **REST API** at `/api/` — full CRUD for pages, attachments, search, history, diffs, backlinks, and the knowledge graph snapshot, with ACL-based permission enforcement
+- **MCP server** at `/mcp/` — 22 tools (page read/search, export/import workflow, link analysis, metadata queries, knowledge proposals) plus resources, prompts, and completions for AI-assisted wiki operations
+- **Admin panel** at `/admin/` — user management, content management (orphaned pages, broken links, version purging, cache stats), security management (groups and policy grants)
+- **Database-backed authorisation** — policy grants and groups stored in PostgreSQL, manageable through the admin UI, with bootstrap admin override for recovery
 - **Observability** — health checks, Prometheus metrics at `/metrics`, structured logging with request correlation, IP-restricted to internal networks
 - **Content clusters** — thematic article groupings with hub pages, sub-clusters, cross-references, and automated structural auditing
 - **NIST 800-63B password validation** — blocklist-checked password strength enforcement for account creation
@@ -67,7 +68,7 @@ mvn clean install -Dmaven.test.skip -T 1C
 # 5. Start Tomcat
 tomcat/tomcat-11/bin/startup.sh
 # Access at http://localhost:8080/ — default login: admin / admin123
-# React SPA at http://localhost:8080/app/
+# React SPA at http://localhost:8080/, knowledge graph at http://localhost:8080/graph
 ```
 
 Database schema lives in [`wikantik-war/src/main/config/db/migrations/`](wikantik-war/src/main/config/db/migrations/README.md).
@@ -88,19 +89,21 @@ Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeploymen
 
 | Module | Purpose |
 |--------|---------|
-| `wikantik-api` | Core interfaces and contracts (manager interfaces, frontmatter, page save) |
-| `wikantik-main` | Main implementation — rendering, providers, auth, search, references |
+| `wikantik-bom` | Bill-of-materials POM pinning shared dependency versions |
+| `wikantik-api` | Core interfaces and contracts (manager interfaces, frontmatter, page save, knowledge graph service) |
+| `wikantik-main` | Main implementation — Markdown rendering, providers, auth, search, references, math parser |
 | `wikantik-event` | Event system for decoupled communication |
 | `wikantik-util` | Utility classes and helpers |
-| `wikantik-bootstrap` | Initialization and bootstrap |
 | `wikantik-cache` | EhCache-based caching layer |
 | `wikantik-cache-memcached` | Distributed cache adapter for Memcached |
-| `wikantik-http` | Servlet filters — CSRF, CORS, CSP, security headers |
+| `wikantik-http` | Servlet filters — CSRF, CORS, CSP, security headers, SPA routing |
 | `wikantik-rest` | REST/JSON API and admin panel endpoints |
-| `wikantik-mcp` | MCP server for AI agent integration (37 tools) |
+| `wikantik-mcp` | MCP server for AI agent integration (22 tools plus resources, prompts, completions) |
+| `wikantik-knowledge` | Knowledge graph service — page-relationship snapshot generation and proposals |
 | `wikantik-observability` | Health checks, Prometheus metrics, request correlation |
-| `wikantik-war` | WAR packaging, React frontend build, deployment config |
-| `wikantik-wikipages` | Default wiki pages (en, es, ru) |
+| `wikantik-frontend` | React SPA (Vite build) — reader, editor, admin panel, knowledge graph viewer |
+| `wikantik-war` | WAR packaging and deployment config; bundles the frontend build output |
+| `wikantik-wikipages` | Default wiki pages shipped with a fresh install |
 | `wikantik-it-tests` | Integration tests (Selenide browser automation, REST API, custom providers) |
 
 ## Documentation
@@ -124,7 +127,9 @@ Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeploymen
 ### Features
 
 - [MarkdownLinks.md](docs/MarkdownLinks.md) — Markdown internal and external link syntax
-- [NewUI.md](docs/NewUI.md) — React SPA design and architecture
+- [MathematicalNotation.md](docs/MathematicalNotation.md) — LaTeX math rendering (`$…$`, `$$…$$`, ```` ```math ````) via Flexmark + KaTeX
+- [NewUI.md](docs/NewUI.md) — React SPA design and architecture (reader, editor, admin, knowledge graph)
+- [DatabaseUpdates.md](docs/DatabaseUpdates.md) — Knowledge graph schema and index layout
 - [RelationalUserDatabase.md](docs/RelationalUserDatabase.md) — PostgreSQL user and group database configuration
 - [Sitemap.md](docs/Sitemap.md) — Sitemap.xml and Atom feed servlets
 - [OAuthImplementation.md](docs/OAuthImplementation.md) — OAuth SSO implementation plan (Google, GitHub)
@@ -146,11 +151,12 @@ Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeploymen
 - [PerformanceEvaluation.md](docs/PerformanceEvaluation.md) — I/O, indexing, and rendering bottleneck analysis
 - [complete_markdown_migration.md](docs/complete_markdown_migration.md) — Migration from legacy wiki syntax to Markdown-only rendering
 - [semantic_wiki_thoughts.md](docs/semantic_wiki_thoughts.md) — AI-augmented semantic wiki vision
+- [full_rebrand_project.md](docs/full_rebrand_project.md) — Contributor reference for the JSPWiki → Wikantik rebrand and naming conventions
 - [ADR-001: Extract manager interfaces to API](docs/adrs/001-extract-manager-interfaces-to-api.md)
 
 ### MCP Integration
 
-The `wikantik-mcp` module provides a Model Context Protocol server for AI-assisted wiki operations — article authoring, cluster management, structural auditing, and content publishing. 37 tools, 6 resources, 8 prompts, and 3 completions.
+The `wikantik-mcp` module provides a Model Context Protocol server at `/mcp/` for AI-assisted wiki operations — reading, searching, link and backlink analysis, history and diffs, metadata querying, recent changes, an export/import workflow for bulk editing (replacing legacy per-page CRUD), structural-verification checks, and knowledge-graph proposals. The server exposes 22 tools plus resource templates, prompts, and completions. See `wikantik-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java` for the authoritative tool list.
 
 ### Research
 

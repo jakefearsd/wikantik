@@ -2,6 +2,9 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { toCytoscapeElements } from './graph-data.js';
+import { applyFilters } from './filter-engine.js';
+import { paramsToFilterState, filterStateToParams } from './filter-url.js';
+import FilterPanel from './FilterPanel.jsx';
 import GraphCanvas from './GraphCanvas.jsx';
 import GraphToolbar from './GraphToolbar.jsx';
 import GraphLegend from './GraphLegend.jsx';
@@ -10,6 +13,7 @@ import GraphDetailsDrawer from './GraphDetailsDrawer.jsx';
 import GraphErrorState from './GraphErrorState.jsx';
 import GraphErrorBoundary from './GraphErrorBoundary.jsx';
 import GraphLoadingFallback from './GraphLoadingFallback.jsx';
+import { setEdgeTypeHidden, setShowOrphansStubs } from './filter-state.js';
 import './graph.css';
 
 export default function GraphView() {
@@ -21,9 +25,15 @@ export default function GraphView() {
   const [errorVariant, setErrorVariant] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
-  const [hiddenEdgeTypes, setHiddenEdgeTypes] = useState(new Set());
-  const [onlyAnomalies, setOnlyAnomalies] = useState(false);
+  const [filterState, setFilterState] = useState(() => paramsToFilterState(searchParams));
   const [layoutDone, setLayoutDone] = useState(false);
+
+  useEffect(() => {
+    const next = filterStateToParams(filterState, new URLSearchParams(window.location.search));
+    const qs = next.toString();
+    const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    window.history.replaceState(null, '', url);
+  }, [filterState]);
 
   const fetchSnapshot = useCallback(async () => {
     setFetchState('loading');
@@ -32,11 +42,9 @@ export default function GraphView() {
       const data = await api.knowledge.getGraphSnapshot();
       setSnapshot(data);
       if (data.nodeCount === 0) {
-        setFetchState('error');
-        setErrorVariant('empty');
+        setFetchState('error'); setErrorVariant('empty');
       } else if (data.nodes.every(n => n.restricted)) {
-        setFetchState('error');
-        setErrorVariant('empty-for-you');
+        setFetchState('error'); setErrorVariant('empty-for-you');
       } else {
         setFetchState('ready');
       }
@@ -50,10 +58,21 @@ export default function GraphView() {
 
   useEffect(() => { fetchSnapshot(); }, [fetchSnapshot]);
 
+  const focusNodeId = useMemo(() => {
+    if (!focusParam.current || !snapshot) return null;
+    const match = snapshot.nodes.find(n => n.name === focusParam.current && !n.restricted);
+    return match?.id || null;
+  }, [snapshot]);
+
+  const filterResult = useMemo(() => {
+    if (!snapshot || fetchState !== 'ready') return null;
+    return applyFilters(snapshot, filterState, focusNodeId);
+  }, [snapshot, fetchState, filterState, focusNodeId]);
+
   const elements = useMemo(() => {
     if (!snapshot || fetchState !== 'ready') return { nodes: [], edges: [] };
-    return toCytoscapeElements(snapshot);
-  }, [snapshot, fetchState]);
+    return toCytoscapeElements(snapshot, filterResult);
+  }, [snapshot, fetchState, filterResult]);
 
   const edgeTypes = useMemo(() => {
     if (!snapshot) return [];
@@ -62,11 +81,8 @@ export default function GraphView() {
 
   const timestamp = useMemo(() => {
     if (!snapshot?.generatedAt) return '';
-    try {
-      return new Date(snapshot.generatedAt).toLocaleTimeString();
-    } catch {
-      return snapshot.generatedAt;
-    }
+    try { return new Date(snapshot.generatedAt).toLocaleTimeString(); }
+    catch { return snapshot.generatedAt; }
   }, [snapshot]);
 
   const selectedNode = useMemo(() => {
@@ -93,51 +109,27 @@ export default function GraphView() {
       });
   }, [selectedId, snapshot]);
 
-  const focusNodeId = useMemo(() => {
-    if (!focusParam.current || !snapshot) return null;
-    const match = snapshot.nodes.find(
-      n => n.name === focusParam.current && !n.restricted
-    );
-    return match?.id || null;
-  }, [snapshot]);
-
   const handleNodeClick = useCallback((nodeId) => setSelectedId(nodeId), []);
   const handleBackgroundClick = useCallback(() => setSelectedId(null), []);
-
-  const handleReady = useCallback(() => {
-    setLayoutDone(true);
-  }, []);
-
-  const handleOpenPage = useCallback((pageName) => {
-    navigate(`/wiki/${encodeURIComponent(pageName)}`);
-  }, [navigate]);
+  const handleReady = useCallback(() => setLayoutDone(true), []);
+  const handleOpenPage = useCallback((pageName) => navigate(`/wiki/${encodeURIComponent(pageName)}`), [navigate]);
 
   const handleToggleEdgeType = useCallback((type) => {
-    setHiddenEdgeTypes(prev => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
-      return next;
-    });
+    setFilterState(prev => setEdgeTypeHidden(prev, type, !prev.hiddenEdgeTypes.has(type)));
+  }, []);
+
+  const handleToggleOrphans = useCallback(() => {
+    setFilterState(prev => setShowOrphansStubs(prev, !prev.showOrphansStubs));
   }, []);
 
   const handleRefresh = useCallback(async () => {
     const prevSelectedName = selectedNode?.name;
-    setFetchState('loading');
-    setErrorVariant(null);
+    setFetchState('loading'); setErrorVariant(null);
     try {
       const data = await api.knowledge.getGraphSnapshot();
       setSnapshot(data);
-      if (data.nodeCount === 0) {
-        setFetchState('error');
-        setErrorVariant('empty');
-        return;
-      }
-      if (data.nodes.every(n => n.restricted)) {
-        setFetchState('error');
-        setErrorVariant('empty-for-you');
-        return;
-      }
+      if (data.nodeCount === 0) { setFetchState('error'); setErrorVariant('empty'); return; }
+      if (data.nodes.every(n => n.restricted)) { setFetchState('error'); setErrorVariant('empty-for-you'); return; }
       setFetchState('ready');
       if (prevSelectedName) {
         const match = data.nodes.find(n => n.name === prevSelectedName);
@@ -152,9 +144,7 @@ export default function GraphView() {
   }, [selectedNode]);
 
   useEffect(() => {
-    const handler = (e) => {
-      if (e.key === 'Escape') setSelectedId(null);
-    };
+    const handler = (e) => { if (e.key === 'Escape') setSelectedId(null); };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
@@ -162,25 +152,28 @@ export default function GraphView() {
   if (fetchState === 'loading') return <GraphLoadingFallback />;
   if (fetchState === 'error') return <GraphErrorState variant={errorVariant} onRetry={fetchSnapshot} />;
 
+  const noVisibleNodes = filterResult && filterResult.visibleNodeIds.size === 0;
+
   return (
     <GraphErrorBoundary>
       <div className="graph-view">
+        <FilterPanel state={filterState} snapshot={snapshot} onChange={setFilterState} />
         <GraphToolbar
           onFitToView={() => window.cy?.fit()}
           onRefresh={handleRefresh}
-          onToggleAnomalies={() => setOnlyAnomalies(v => !v)}
+          onToggleAnomalies={handleToggleOrphans}
           onToggleEdgeType={handleToggleEdgeType}
           edgeTypes={edgeTypes}
-          hiddenEdgeTypes={hiddenEdgeTypes}
-          onlyAnomalies={onlyAnomalies}
+          hiddenEdgeTypes={filterState.hiddenEdgeTypes}
+          onlyAnomalies={!filterState.showOrphansStubs}
           timestamp={timestamp}
         />
         <GraphCanvas
           elements={elements}
           selectedId={selectedId}
           focusNodeId={focusNodeId}
-          hiddenEdgeTypes={hiddenEdgeTypes}
-          onlyAnomalies={onlyAnomalies}
+          hiddenEdgeTypes={filterState.hiddenEdgeTypes}
+          onlyAnomalies={!filterState.showOrphansStubs}
           onNodeClick={handleNodeClick}
           onBackgroundClick={handleBackgroundClick}
           onReady={handleReady}
@@ -203,6 +196,14 @@ export default function GraphView() {
             timestamp={timestamp}
           />
         </div>
+        {noVisibleNodes && (
+          <div className="graph-empty-overlay">
+            No matches —{' '}
+            <button type="button" onClick={() => setFilterState(paramsToFilterState(new URLSearchParams()))}>
+              clear filters
+            </button>
+          </div>
+        )}
         {!layoutDone && (
           <div className="graph-layout-overlay">Laying out graph...</div>
         )}

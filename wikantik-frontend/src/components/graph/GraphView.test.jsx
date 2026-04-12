@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, describe as d2, it as i2, expect as e2, vi as v2, beforeEach as b2 } from 'vitest';
+import { fireEvent as f2 } from '@testing-library/react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -68,5 +69,31 @@ describe('GraphView', () => {
     });
     render(<MemoryRouter initialEntries={['/graph']}><GraphView /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText(/don't have permission/i)).toBeTruthy());
+  });
+});
+
+d2('GraphView with FilterPanel', () => {
+  const snap = {
+    generatedAt: new Date().toISOString(), nodeCount: 2, edgeCount: 1,
+    hubDegreeThreshold: 10,
+    nodes: [
+      { id: 'a', name: 'A', type: 'hub', role: 'hub', restricted: false, cluster: 'math', tags: [], status: 'active', degreeIn: 0, degreeOut: 1, provenance: 'HUMAN_AUTHORED', sourcePage: 'A' },
+      { id: 'b', name: 'B', type: 'article', role: 'normal', restricted: false, cluster: 'math', tags: [], status: 'active', degreeIn: 1, degreeOut: 0, provenance: 'HUMAN_AUTHORED', sourcePage: 'B' },
+    ],
+    edges: [{ id: 'e1', source: 'a', target: 'b', relationshipType: 'links_to', provenance: 'HUMAN_AUTHORED' }],
+  };
+
+  b2(() => { v2.clearAllMocks(); });
+
+  i2('renders FilterPanel and writes preset param to URL on preset click', async () => {
+    api.knowledge.getGraphSnapshot.mockResolvedValue(snap);
+    const replace = v2.spyOn(window.history, 'replaceState');
+    render(<MemoryRouter initialEntries={['/graph']}><GraphView /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole('button', { name: /backbone/i })).toBeInTheDocument());
+    f2.click(screen.getByRole('button', { name: /backbone/i }));
+    await waitFor(() => {
+      const calls = replace.mock.calls.map(c => c[2] || '');
+      expect(calls.some(url => url.includes('preset=backbone'))).toBe(true);
+    });
   });
 });

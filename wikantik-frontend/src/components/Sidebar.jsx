@@ -108,6 +108,13 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           {navLink('/wiki/UnusedPages', 'Unused pages')}
           {navLink('/wiki/UndefinedPages', 'Undefined pages')}
           {navLink('/wiki/SystemInfo', 'System Info')}
+          <Link
+            to={activePage ? `/graph?focus=${encodeURIComponent(activePage)}` : '/graph'}
+            className="sidebar-link"
+            onClick={onMobileClose}
+          >
+            Knowledge Graph
+          </Link>
         </div>
 
         {/* Recent Changes — live feed */}

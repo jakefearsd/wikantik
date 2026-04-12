@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
@@ -22,6 +22,8 @@ import NewBlogEntry from './components/NewBlogEntry';
 import BlogEditor from './components/BlogEditor';
 import './styles/globals.css';
 
+const GraphView = React.lazy(() => import('./components/graph/GraphView.jsx'));
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>
@@ -35,6 +37,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/edit/:name" element={<PageEditor />} />
             <Route path="/diff/:name" element={<DiffViewer />} />
             <Route path="/search" element={<SearchResultsPage />} />
+            <Route path="/graph" element={
+              <Suspense fallback={<div className="graph-loading"><p>Loading knowledge graph...</p></div>}>
+                <GraphView />
+              </Suspense>
+            } />
             <Route path="/preferences" element={<UserPreferencesPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/admin" element={<AdminLayout />}>

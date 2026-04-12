@@ -98,6 +98,18 @@ export const graphStylesheet = [
     },
   },
   {
+    selector: 'node.faded',
+    style: { 'opacity': 0.15 },
+  },
+  {
+    selector: 'edge.faded',
+    style: { 'opacity': 0.08 },
+  },
+  {
+    selector: 'node[clusterColor]',
+    style: { 'border-color': 'data(clusterColor)', 'border-width': 3 },
+  },
+  {
     selector: ':selected',
     style: {
       'border-width': 3,

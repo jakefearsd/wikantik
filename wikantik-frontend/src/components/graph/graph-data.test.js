@@ -187,3 +187,61 @@ describe('edge palette', () => {
     expect(c1).toBe(c2);
   });
 });
+
+describe('toCytoscapeElements with filter output', () => {
+  const snapshot = {
+    nodes: [
+      { id: 'a', name: 'A', type: 'article', role: 'normal', restricted: false, cluster: 'math', tags: [], status: 'active' },
+      { id: 'b', name: 'B', type: 'hub', role: 'hub', restricted: false, cluster: 'math', tags: [], status: 'active' },
+    ],
+    edges: [
+      { id: 'e1', source: 'a', target: 'b', relationshipType: 'links_to', provenance: 'HUMAN_AUTHORED' },
+    ],
+  };
+
+  it('applies hidden class to nodes not in visibleNodeIds', () => {
+    const filter = {
+      visibleNodeIds: new Set(['b']),
+      fadedNodeIds: new Set(),
+      visibleEdgeIds: new Set(),
+      fadedEdgeIds: new Set(),
+      nodeColor: new Map(),
+    };
+    const { nodes } = toCytoscapeElements(snapshot, filter);
+    const nodeA = nodes.find(n => n.data.id === 'a');
+    expect(nodeA.classes).toContain('hidden');
+  });
+
+  it('applies faded class to nodes in fadedNodeIds', () => {
+    const filter = {
+      visibleNodeIds: new Set(['a', 'b']),
+      fadedNodeIds: new Set(['a']),
+      visibleEdgeIds: new Set(['e1']),
+      fadedEdgeIds: new Set(),
+      nodeColor: new Map(),
+    };
+    const { nodes } = toCytoscapeElements(snapshot, filter);
+    const nodeA = nodes.find(n => n.data.id === 'a');
+    expect(nodeA.classes).toContain('faded');
+  });
+
+  it('attaches clusterColor data from nodeColor map', () => {
+    const filter = {
+      visibleNodeIds: new Set(['a', 'b']),
+      fadedNodeIds: new Set(),
+      visibleEdgeIds: new Set(['e1']),
+      fadedEdgeIds: new Set(),
+      nodeColor: new Map([['a', '#123456']]),
+    };
+    const { nodes } = toCytoscapeElements(snapshot, filter);
+    const nodeA = nodes.find(n => n.data.id === 'a');
+    expect(nodeA.data.clusterColor).toBe('#123456');
+  });
+
+  it('with no filter argument, behaves as before (all visible, no new classes)', () => {
+    const { nodes } = toCytoscapeElements(snapshot);
+    const nodeA = nodes.find(n => n.data.id === 'a');
+    expect(nodeA.classes).not.toContain('hidden');
+    expect(nodeA.classes).not.toContain('faded');
+  });
+});

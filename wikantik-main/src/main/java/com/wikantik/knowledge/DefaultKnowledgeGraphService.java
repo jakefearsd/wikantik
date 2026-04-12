@@ -403,7 +403,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                         e.relationshipType(), e.provenance() ) )
                 .toList();
 
-        return new GraphSnapshot( Instant.now(), nodes.size(), edges.size(),
+        return new GraphSnapshot( Instant.now().toString(), nodes.size(), edges.size(),
                 hubThreshold, nodes, edges );
     }
 

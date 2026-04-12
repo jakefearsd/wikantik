@@ -302,6 +302,10 @@
        <servlet-class>com.wikantik.rest.BacklinksResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>KnowledgeGraphResource</servlet-name>
+       <servlet-class>com.wikantik.rest.KnowledgeGraphResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AttachmentResource</servlet-name>
        <servlet-class>com.wikantik.rest.AttachmentResource</servlet-class>
        <multipart-config>
@@ -438,6 +442,10 @@
    <servlet-mapping>
        <servlet-name>BacklinksResource</servlet-name>
        <url-pattern>/api/backlinks/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>KnowledgeGraphResource</servlet-name>
+       <url-pattern>/api/knowledge/graph</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AttachmentResource</servlet-name>

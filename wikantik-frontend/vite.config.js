@@ -35,6 +35,13 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
   },
+  experimental: {
+    renderBuiltUrl( filename, { hostType } ) {
+      if ( hostType === 'js' ) {
+        return { runtime: `new URL((window.__WIKANTIK_BASE__||"")+"/"+${JSON.stringify( filename )},location.origin).href` };
+      }
+    },
+  },
   server: {
     port: 5173,
     proxy: {

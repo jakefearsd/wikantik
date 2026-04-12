@@ -320,6 +320,15 @@
   border-bottom-color: var(--accent);
 }
 
+.tab-description {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--border);
+}
+
 /* Stats cards */
 .stats-grid {
   display: grid;

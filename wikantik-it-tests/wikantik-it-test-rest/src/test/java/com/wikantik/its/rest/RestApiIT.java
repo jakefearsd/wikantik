@@ -29,6 +29,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.net.URI;
@@ -63,8 +64,37 @@ public class RestApiIT {
         baseUrl = System.getProperty( "it-wikantik.base.url", "http://localhost:8080/wikantik-it-test-rest" );
         client = HttpClient.newBuilder()
                 .followRedirects( HttpClient.Redirect.NORMAL )
-                .cookieHandler( new CookieManager( null, CookiePolicy.ACCEPT_ALL ) )
+                .cookieHandler( secureCookieOverHttp() )
                 .build();
+    }
+
+    /**
+     * The web.xml sets {@code <secure>true</secure>} on the session cookie.
+     * Browsers treat {@code http://localhost} as a secure context, but Java's
+     * {@link java.net.InMemoryCookieStore} does not — it filters Secure
+     * cookies when the request URI uses the {@code http} scheme. This wrapper
+     * fools the store into treating every request as HTTPS so the JSESSIONID
+     * cookie is always sent.
+     */
+    private static CookieHandler secureCookieOverHttp() {
+        final CookieManager cm = new CookieManager( null, CookiePolicy.ACCEPT_ALL );
+        return new CookieHandler() {
+            @Override
+            public Map< String, List< String > > get( final URI uri,
+                    final Map< String, List< String > > requestHeaders ) throws IOException {
+                return cm.get( asHttps( uri ), requestHeaders );
+            }
+
+            @Override
+            public void put( final URI uri,
+                    final Map< String, List< String > > responseHeaders ) throws IOException {
+                cm.put( uri, responseHeaders );
+            }
+
+            private URI asHttps( final URI uri ) {
+                return URI.create( uri.toString().replaceFirst( "^http:", "https:" ) );
+            }
+        };
     }
 
     // ---- helper methods ----
@@ -329,10 +359,9 @@ public class RestApiIT {
     @Order( 11 )
     void testLoginLogout() throws Exception {
         // Use a dedicated client with its own cookie jar for session isolation
-        final CookieManager cookieManager = new CookieManager( null, CookiePolicy.ACCEPT_ALL );
         final HttpClient authClient = HttpClient.newBuilder()
                 .followRedirects( HttpClient.Redirect.NORMAL )
-                .cookieHandler( cookieManager )
+                .cookieHandler( secureCookieOverHttp() )
                 .build();
 
         // Login
@@ -454,9 +483,15 @@ public class RestApiIT {
         final HttpResponse< String > resp = get( "/api/pages/Main" );
         assertEquals( 200, resp.statusCode() );
 
-        final String corsHeader = resp.headers().firstValue( "Access-Control-Allow-Origin" ).orElse( null );
-        assertNotNull( corsHeader, "Response should include Access-Control-Allow-Origin header" );
-        assertEquals( "*", corsHeader, "CORS origin should be wildcard" );
+        final String methods = resp.headers().firstValue( "Access-Control-Allow-Methods" ).orElse( null );
+        assertNotNull( methods, "Response should include Access-Control-Allow-Methods header" );
+        assertTrue( methods.contains( "GET" ), "Allowed methods should include GET" );
+
+        // No Origin header sent → server must NOT echo Access-Control-Allow-Origin
+        // (CORS allowlist mode since c2cc1e858).
+        final String origin = resp.headers().firstValue( "Access-Control-Allow-Origin" ).orElse( null );
+        assertEquals( null, origin,
+                "Without an Origin header, Access-Control-Allow-Origin should not be set" );
     }
 
 }

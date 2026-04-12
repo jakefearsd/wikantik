@@ -48,15 +48,21 @@
   padding: 0 var(--space-xs);
 }
 
-.graph-legend {
+.graph-bottom-right {
   position: absolute;
   bottom: var(--space-sm);
   right: var(--space-sm);
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  z-index: 10;
+}
+
+.graph-legend {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: var(--space-sm);
-  z-index: 10;
   font-size: 0.8rem;
   max-width: 240px;
 }
@@ -245,5 +251,42 @@
   gap: var(--space-xs);
   padding: 2px 0;
   font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.graph-zoom-slider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: var(--space-xs);
+}
+
+.graph-zoom-slider .zoom-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.graph-zoom-slider .zoom-btn:hover {
+  background: var(--bg-hover, #f1f5f9);
+}
+
+.graph-zoom-slider .zoom-range {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  height: 120px;
+  width: 20px;
   cursor: pointer;
 }

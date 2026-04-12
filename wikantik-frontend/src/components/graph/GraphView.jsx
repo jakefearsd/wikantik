@@ -5,6 +5,7 @@ import { toCytoscapeElements } from './graph-data.js';
 import GraphCanvas from './GraphCanvas.jsx';
 import GraphToolbar from './GraphToolbar.jsx';
 import GraphLegend from './GraphLegend.jsx';
+import GraphZoomSlider from './GraphZoomSlider.jsx';
 import GraphDetailsDrawer from './GraphDetailsDrawer.jsx';
 import GraphErrorState from './GraphErrorState.jsx';
 import GraphErrorBoundary from './GraphErrorBoundary.jsx';
@@ -194,11 +195,14 @@ export default function GraphView() {
             onOpenPage={handleOpenPage}
           />
         )}
-        <GraphLegend
-          hubDegreeThreshold={snapshot?.hubDegreeThreshold || 10}
-          edgeTypes={edgeTypes}
-          timestamp={timestamp}
-        />
+        <div className="graph-bottom-right">
+          <GraphZoomSlider layoutDone={layoutDone} />
+          <GraphLegend
+            hubDegreeThreshold={snapshot?.hubDegreeThreshold || 10}
+            edgeTypes={edgeTypes}
+            timestamp={timestamp}
+          />
+        </div>
         {!layoutDone && (
           <div className="graph-layout-overlay">Laying out graph...</div>
         )}

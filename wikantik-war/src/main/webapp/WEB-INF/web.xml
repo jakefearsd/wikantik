@@ -126,6 +126,7 @@
      <url-pattern>/diff/*</url-pattern>
      <url-pattern>/admin/*</url-pattern>
      <url-pattern>/search</url-pattern>
+     <url-pattern>/graph</url-pattern>
      <url-pattern>/preferences</url-pattern>
      <url-pattern>/reset-password</url-pattern>
      <url-pattern>/blog/*</url-pattern>

@@ -220,4 +220,29 @@ class DefaultKnowledgeGraphServiceTest {
         assertEquals( "related_to", edge.relationshipType() );
         assertEquals( Provenance.HUMAN_AUTHORED, edge.provenance() );
     }
+
+    @Test
+    void snapshotGraph_exposesClusterTagsStatusFromProperties() throws Exception {
+        service.upsertNode( "LinearAlgebra", "article", "LinearAlgebra.md",
+                Provenance.HUMAN_AUTHORED, Map.of(
+                        "cluster", "mathematics",
+                        "tags", java.util.List.of( "linear-algebra", "vectors" ),
+                        "status", "active" ) );
+        final GraphSnapshot snap = service.snapshotGraph( adminSession() );
+        final SnapshotNode node = snap.nodes().get( 0 );
+        assertEquals( "mathematics", node.cluster() );
+        assertEquals( java.util.List.of( "linear-algebra", "vectors" ), node.tags() );
+        assertEquals( "active", node.status() );
+    }
+
+    @Test
+    void snapshotGraph_nullPropertiesYieldNullClusterAndEmptyTags() throws Exception {
+        service.upsertNode( "Orphan", "article", "Orphan.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final GraphSnapshot snap = service.snapshotGraph( adminSession() );
+        final SnapshotNode node = snap.nodes().get( 0 );
+        assertNull( node.cluster() );
+        assertTrue( node.tags().isEmpty() );
+        assertNull( node.status() );
+    }
 }

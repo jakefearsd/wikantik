@@ -48,7 +48,7 @@ public class McpEdgeCasesIT extends WithMcpTestSetup {
         final String longContent = sb.toString();
         Assertions.assertTrue( longContent.length() > 100_000, "Content should exceed 100KB" );
 
-        final Map< String, Object > writeResult = mcp.writePage( pageName, longContent );
+        final Map< String, Object > writeResult = mcp.importPage( pageName, longContent );
         Assertions.assertEquals( true, writeResult.get( "success" ) );
 
         final Map< String, Object > readResult = mcp.readPage( pageName );
@@ -76,7 +76,7 @@ public class McpEdgeCasesIT extends WithMcpTestSetup {
 
                 **bold** and *italic* and `monospace`""";
 
-        final Map< String, Object > result = mcp.writePage( pageName, markdownContent );
+        final Map< String, Object > result = mcp.importPage( pageName, markdownContent );
         Assertions.assertEquals( true, result.get( "success" ) );
 
         final Map< String, Object > readResult = mcp.readPage( pageName );
@@ -89,7 +89,7 @@ public class McpEdgeCasesIT extends WithMcpTestSetup {
     @Test
     public void unicodeInPageName() {
         final String pageName = uniquePageName( "Edg\u00e9Caf\u00e9" );
-        final Map< String, Object > result = mcp.writePage( pageName, "Unicode page name test" );
+        final Map< String, Object > result = mcp.importPage( pageName, "Unicode page name test" );
         Assertions.assertEquals( true, result.get( "success" ) );
 
         final Map< String, Object > readResult = mcp.readPage( pageName );
@@ -107,7 +107,7 @@ public class McpEdgeCasesIT extends WithMcpTestSetup {
         metadata.put( "type", "complex" );
         metadata.put( "config", nested );
 
-        mcp.writePage( pageName, "Nested metadata body", metadata );
+        mcp.importPage( pageName, "Nested metadata body", metadata );
 
         final Map< String, Object > readResult = mcp.readPage( pageName );
         @SuppressWarnings( "unchecked" )
@@ -128,7 +128,7 @@ public class McpEdgeCasesIT extends WithMcpTestSetup {
         metadata.put( "description", "Contains: colons and \"quotes\" and 'single quotes'" );
         metadata.put( "note", "Value with # hash" );
 
-        mcp.writePage( pageName, "YAML special chars body", metadata );
+        mcp.importPage( pageName, "YAML special chars body", metadata );
 
         final Map< String, Object > readResult = mcp.readPage( pageName );
         @SuppressWarnings( "unchecked" )
@@ -143,7 +143,7 @@ public class McpEdgeCasesIT extends WithMcpTestSetup {
         final int versionCount = 10;
 
         for ( int v = 1; v <= versionCount; v++ ) {
-            mcp.writePage( pageName, "Content for version " + v );
+            mcp.importPage( pageName, "Content for version " + v );
         }
 
         for ( int v = 1; v <= versionCount; v++ ) {

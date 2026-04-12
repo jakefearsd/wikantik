@@ -24,9 +24,9 @@ export default function LoginForm({ onClose }) {
   };
 
   return (
-    <div className="search-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="search-overlay" data-testid="login-modal" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="search-dialog" style={{ maxWidth: '380px' }}>
-        <form onSubmit={handleSubmit} style={{ padding: 'var(--space-xl)' }}>
+        <form onSubmit={handleSubmit} data-testid="login-form" style={{ padding: 'var(--space-xl)' }}>
           <h2 style={{
             fontFamily: 'var(--font-display)',
             fontSize: '1.5rem',
@@ -36,7 +36,7 @@ export default function LoginForm({ onClose }) {
             Sign in
           </h2>
 
-          {error && <div className="error-banner" style={{ marginBottom: 'var(--space-md)' }}>{error}</div>}
+          {error && <div className="error-banner" data-testid="login-error" style={{ marginBottom: 'var(--space-md)' }}>{error}</div>}
 
           <div style={{ marginBottom: 'var(--space-md)' }}>
             <label style={{
@@ -49,6 +49,7 @@ export default function LoginForm({ onClose }) {
             <input
               type="text"
               name="username"
+              data-testid="login-username"
               autoComplete="username"
               value={username}
               onChange={e => setUsername(e.target.value)}
@@ -75,6 +76,7 @@ export default function LoginForm({ onClose }) {
             <input
               type="password"
               name="password"
+              data-testid="login-password"
               autoComplete="current-password"
               value={password}
               onChange={e => setPassword(e.target.value)}
@@ -89,8 +91,13 @@ export default function LoginForm({ onClose }) {
             />
           </div>
 
-          <button type="submit" className="btn btn-primary" disabled={loading}
-            style={{ width: '100%', justifyContent: 'center', padding: 'var(--space-sm) var(--space-lg)' }}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            data-testid="login-submit"
+            disabled={loading}
+            style={{ width: '100%', justifyContent: 'center', padding: 'var(--space-sm) var(--space-lg)' }}
+          >
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
 

@@ -50,8 +50,8 @@ public class ReadPageIT extends WithMcpTestSetup {
     public void readPageWithVersion() {
         final String pageName = uniquePageName( "ReadVersioned" );
 
-        mcp.writePage( pageName, "Version one content" );
-        mcp.writePage( pageName, "Version two content" );
+        mcp.importPage( pageName, "Version one content" );
+        mcp.importPage( pageName, "Version two content" );
 
         final Map< String, Object > v1 = mcp.readPage( pageName, 1 );
         Assertions.assertEquals( true, v1.get( "exists" ) );
@@ -68,7 +68,7 @@ public class ReadPageIT extends WithMcpTestSetup {
         final String pageName = uniquePageName( "UnicodeRead" );
         final String unicodeContent = "CJK: \u4f60\u597d\u4e16\u754c Emoji: \ud83d\ude80 Accent: caf\u00e9 \u00fc\u00f1\u00ef";
 
-        mcp.writePage( pageName, unicodeContent );
+        mcp.importPage( pageName, unicodeContent );
         final Map< String, Object > result = mcp.readPage( pageName );
 
         final String readContent = McpTestClient.normalizeCrlf( ( String ) result.get( "content" ) );
@@ -83,7 +83,7 @@ public class ReadPageIT extends WithMcpTestSetup {
         metadata.put( "type", "howto" );
         metadata.put( "author", "test" );
 
-        mcp.writePage( pageName, "Body content here", metadata );
+        mcp.importPage( pageName, "Body content here", metadata );
 
         final Map< String, Object > result = mcp.readPage( pageName );
         Assertions.assertEquals( true, result.get( "exists" ) );

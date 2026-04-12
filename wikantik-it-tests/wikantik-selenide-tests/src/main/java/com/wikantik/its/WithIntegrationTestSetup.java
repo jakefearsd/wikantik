@@ -18,6 +18,7 @@
  */
 package com.wikantik.its;
 
+import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.junit5.ScreenShooterExtension;
 import com.wikantik.its.environment.Env;
 import org.junit.jupiter.api.BeforeAll;
@@ -28,10 +29,23 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @ExtendWith( ScreenShooterExtension.class )
 public class WithIntegrationTestSetup {
 
+    /**
+     * Closes any WebDriver the previous test class left open, so each class
+     * starts with a clean browser session (no leaked cookies, localStorage, or
+     * React auth state). Selenide will lazily spin up a fresh driver on the
+     * next {@code Selenide.open(...)} call.
+     *
+     * <p>The React SPA caches authentication state in cookies and memory.
+     * Without this reset, a test class that authenticates (e.g. {@code EditIT}
+     * logging in as Janne) would leave later classes (e.g. {@code LoginIT})
+     * believing they are already logged in when they expect an anonymous
+     * starting state.
+     */
     @BeforeAll
     @DisabledOnOs(OS.WINDOWS)
     public static void setUp() {
         Env.setUp();
+        Selenide.closeWebDriver();
     }
 
 }

@@ -19,63 +19,114 @@
 package com.wikantik.pages.haddock;
 
 import com.codeborne.selenide.CollectionCondition;
+import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.ElementsCollection;
 import com.codeborne.selenide.Selenide;
 import com.wikantik.pages.Page;
-import org.openqa.selenium.By;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.codeborne.selenide.Selenide.$;
+import static com.codeborne.selenide.Selenide.$$;
 
 /**
- * Actions available on the Search Results page.
+ * Page object for the React SPA search results page.
+ *
+ * <p>Results are rendered as {@code [data-testid=search-result-card]} articles,
+ * each containing a {@code [data-testid=search-result-link]} anchor. The card
+ * exposes its page name through the {@code data-page-name} attribute so tests
+ * can assert result membership without relying on DOM text which may include
+ * snippet highlights.
  */
 public class SearchResultsPage implements HaddockPage {
 
-    private static final String SEARCH_PAGE_NAME_RESULTS = ".wikitable.table-striped tr:not(:first-child) td:first-child";
-
     /**
-     * Open the search results page with a given query text to search for.
+     * Open the search results page with a given query text.
      *
-     * @param pageName Wiki page name to View.
-     * @return {@link ViewWikiPage} instance, to allow chaining of actions.
+     * @param pageName Wiki page name (or free-text query) to search for.
+     * @return {@link SearchResultsPage} instance, to allow chaining of actions.
      */
     public static SearchResultsPage open( final String pageName ) {
-        return Page.withUrl( Page.baseUrl() + "/Search.jsp?query=" + pageName ).openAs( new SearchResultsPage() );
+        final String encoded = URLEncoder.encode( pageName, StandardCharsets.UTF_8 );
+        final SearchResultsPage page = Page.withUrl( Page.baseUrl() + "/search?q=" + encoded ).openAs( new SearchResultsPage() );
+        $( "[data-testid=search-results-page]" ).shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
+        return page;
     }
 
     /**
-     * Returns the search result page names.
+     * Returns the list of page names present in the search results.
      *
-     * @return the list of page names returned by the search query.
+     * @return the list of page names in result order.
      */
     public List< String > pagesFound() {
-        return Selenide.$$( By.cssSelector( SEARCH_PAGE_NAME_RESULTS ) ).texts();
+        final ElementsCollection cards = $$( "[data-testid=search-result-card]" );
+        return cards.asDynamicIterable()
+                    .stream()
+                    .map( c -> c.getAttribute( "data-page-name" ) )
+                    .collect( Collectors.toList() );
     }
 
     /**
-     * Ensures that the given page names are present on the search results.
+     * Ensures that the given page names are present in the search results.
+     * Waits up to 5 seconds for each expected name to appear so transient
+     * index-refresh races don't cause flakes.
      *
      * @param pageNames page names to look for.
      * @return {@link SearchResultsPage} instance, to allow chaining of actions.
      */
     public SearchResultsPage shouldContain( final String... pageNames ) {
-        final ElementsCollection resultsTableRows = Selenide.$$( By.cssSelector( SEARCH_PAGE_NAME_RESULTS ) );
-        for( final String pageName : pageNames ) {
-            resultsTableRows.shouldHave( CollectionCondition.itemWithText( pageName ) );
+        final ElementsCollection cards = $$( "[data-testid=search-result-card]" );
+        cards.shouldHave( CollectionCondition.sizeGreaterThan( 0 ), Duration.ofSeconds( 5 ) );
+        for ( final String pageName : pageNames ) {
+            $( "[data-testid=search-result-card][data-page-name=\"" + pageName + "\"]" )
+                .shouldBe( Condition.visible, Duration.ofSeconds( 5 ) );
         }
-
         return this;
     }
 
     /**
-     * Navigates to a view page from the search results.
+     * Navigates to a view page from the search results by clicking its card.
      *
      * @param result wikipage name to navigate to.
      * @return {@link ViewWikiPage} instance, to allow chaining of actions.
      */
-    public ViewWikiPage navigateTo(final String result ) {
-        Selenide.$( By.cssSelector( ".wikitable.table-striped" ) ).find( By.linkText( result ) ).click();
+    public ViewWikiPage navigateTo( final String result ) {
+        $( "[data-testid=search-result-card][data-page-name=\"" + result + "\"] [data-testid=search-result-link]" )
+            .shouldBe( Condition.visible, Duration.ofSeconds( 5 ) )
+            .click();
+        $( "[data-testid=page-view]" ).shouldBe( Condition.visible, DEFAULT_WAIT );
         return new ViewWikiPage();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The search results route has no single "page name" — override to
+     * return the current query string so callers that ask for {@code title()}
+     * still get something meaningful.
+     */
+    @Override
+    public String wikiTitle() {
+        return Selenide.$( "[data-testid=search-results-page]" )
+                       .shouldBe( Condition.visible, Duration.ofSeconds( 5 ) )
+                       .getAttribute( "data-query" );
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns the rendered search results heading (e.g. "3 results for X")
+     * so content assertions can match on the heading copy.
+     */
+    @Override
+    public String wikiPageContent() {
+        return Selenide.$( "[data-testid=search-results-heading]" )
+                       .shouldBe( Condition.visible, Duration.ofSeconds( 5 ) )
+                       .text();
     }
 
 }

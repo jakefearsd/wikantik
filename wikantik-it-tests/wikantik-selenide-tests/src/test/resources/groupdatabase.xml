@@ -31,5 +31,6 @@
   <group name="Art" created="2006.06.24 at 14:50:54:000 EDT" modifier="" lastModified="2006.01.25 at 14:50:54:000 EST"/>
   <group name="Admin" created="2006.06.25 at 14:50:54:000 EDT" modifier="" lastModified="2006.01.26 at 14:50:54:000 EST">
     <member principal="Administrator" />
+    <member principal="JanneJalkanen" />
   </group>
 </groups>

@@ -33,7 +33,7 @@ public class RecentChangesIT extends WithMcpTestSetup {
     @Test
     public void recentChangesIncludesNewlyWrittenPage() {
         final String pageName = uniquePageName( "RecentNew" );
-        mcp.writePage( pageName, "New page for recent changes" );
+        mcp.importPage( pageName, "New page for recent changes" );
 
         final Map< String, Object > result = mcp.recentChanges();
         @SuppressWarnings( "unchecked" )
@@ -47,7 +47,7 @@ public class RecentChangesIT extends WithMcpTestSetup {
     public void recentChangesRespectsSinceFilter() {
         final Instant before = Instant.now().truncatedTo( java.time.temporal.ChronoUnit.SECONDS );
         final String pageName = uniquePageName( "RecentSince" );
-        mcp.writePage( pageName, "Page after timestamp" );
+        mcp.importPage( pageName, "Page after timestamp" );
 
         final Map< String, Object > result = mcp.recentChanges( before.toString() );
         @SuppressWarnings( "unchecked" )
@@ -79,7 +79,7 @@ public class RecentChangesIT extends WithMcpTestSetup {
     public void recentChangesIncludesChangeNote() {
         final String pageName = uniquePageName( "RecentNote" );
         final String note = "IT change " + System.currentTimeMillis();
-        mcp.writePage( pageName, "Content", note );
+        mcp.importPage( pageName, "Content", null, note );
 
         final Map< String, Object > result = mcp.recentChanges();
         @SuppressWarnings( "unchecked" )

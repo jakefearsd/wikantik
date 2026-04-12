@@ -42,7 +42,7 @@ public class McpWorkflowIT extends WithMcpTestSetup {
         final Map< String, Object > metadata = Map.of( "type", "note", "priority", "high" );
         final String body = "Round trip body content";
 
-        mcp.writePage( pageName, body, metadata );
+        mcp.importPage( pageName, body, metadata );
         final Map< String, Object > readResult = mcp.readPage( pageName );
 
         Assertions.assertEquals( true, readResult.get( "exists" ) );
@@ -59,7 +59,7 @@ public class McpWorkflowIT extends WithMcpTestSetup {
     public void writeSearchReadWorkflow() {
         final String keyword = "wfsearch" + UUID.randomUUID().toString().replace( "-", "" );
         final String pageName = uniquePageName( "WFSearch" );
-        mcp.writePage( pageName, "Content containing " + keyword );
+        mcp.importPage( pageName, "Content containing " + keyword );
 
         Awaitility.await()
                 .atMost( SEARCH_TIMEOUT )
@@ -84,8 +84,8 @@ public class McpWorkflowIT extends WithMcpTestSetup {
         final String target = uniquePageName( "WFTarget" );
         final String source = uniquePageName( "WFSource" );
 
-        mcp.writePage( target, "Target page content" );
-        mcp.writePage( source, "Source links to [" + target + "](" + target + ") here" );
+        mcp.importPage( target, "Target page content" );
+        mcp.importPage( source, "Source links to [" + target + "](" + target + ") here" );
 
         final Map< String, Object > backlinks = mcp.getBacklinks( target );
         @SuppressWarnings( "unchecked" )
@@ -101,7 +101,7 @@ public class McpWorkflowIT extends WithMcpTestSetup {
 
         for ( int i = 0; i < 3; i++ ) {
             final String pageName = uniquePageName( "WFQuery" + i );
-            mcp.writePage( pageName, "Query test page " + i, Map.of( "type", typeValue ) );
+            mcp.importPage( pageName, "Query test page " + i, Map.of( "type", typeValue ) );
         }
 
         final Map< String, Object > queryResult = mcp.queryMetadataByType( typeValue );
@@ -113,7 +113,7 @@ public class McpWorkflowIT extends WithMcpTestSetup {
     @Test
     public void writePageThenConfirmInRecentChangesAndListPages() {
         final String pageName = uniquePageName( "WFConfirm" );
-        mcp.writePage( pageName, "Confirm in both tools" );
+        mcp.importPage( pageName, "Confirm in both tools" );
 
         // Check recent changes
         final Map< String, Object > recentResult = mcp.recentChanges();
@@ -133,8 +133,8 @@ public class McpWorkflowIT extends WithMcpTestSetup {
     @Test
     public void versionHistoryWorkflow() {
         final String pageName = uniquePageName( "WFVersion" );
-        mcp.writePage( pageName, "Version 1 content" );
-        mcp.writePage( pageName, "Version 2 content" );
+        mcp.importPage( pageName, "Version 1 content" );
+        mcp.importPage( pageName, "Version 2 content" );
 
         final Map< String, Object > v1 = mcp.readPage( pageName, 1 );
         final Map< String, Object > v2 = mcp.readPage( pageName, 2 );
@@ -156,7 +156,7 @@ public class McpWorkflowIT extends WithMcpTestSetup {
         metadata.put( "tags", List.of( "java", "wiki", "test" ) );
 
         final String body = "Line one\nLine two\nLine three";
-        mcp.writePage( pageName, body, metadata );
+        mcp.importPage( pageName, body, metadata );
 
         final Map< String, Object > readResult = mcp.readPage( pageName );
         @SuppressWarnings( "unchecked" )

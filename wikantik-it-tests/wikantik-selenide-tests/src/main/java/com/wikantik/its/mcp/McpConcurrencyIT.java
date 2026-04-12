@@ -34,7 +34,7 @@ public class McpConcurrencyIT extends WithMcpTestSetup {
     @Test
     public void parallelReadsDoNotInterfere() throws Exception {
         final String pageName = uniquePageName( "ConcRead" );
-        mcp.writePage( pageName, "Concurrent read content" );
+        mcp.importPage( pageName, "Concurrent read content" );
 
         final int threads = 5;
         final int readsPerThread = 10;
@@ -76,7 +76,7 @@ public class McpConcurrencyIT extends WithMcpTestSetup {
             futures.add( executor.submit( () -> {
                 final String pageName = uniquePageName( "ConcWrite" + threadIdx );
                 final String content = "Thread " + threadIdx + " content";
-                mcp.writePage( pageName, content );
+                mcp.importPage( pageName, content );
                 return pageName;
             } ) );
         }
@@ -105,7 +105,7 @@ public class McpConcurrencyIT extends WithMcpTestSetup {
             futures.add( executor.submit( () -> {
                 try ( final McpTestClient client = McpTestClient.create() ) {
                     final String pageName = uniquePageName( "MultiClient" + clientIdx );
-                    client.writePage( pageName, "Client " + clientIdx );
+                    client.importPage( pageName, "Client " + clientIdx );
                     final Map< String, Object > result = client.readPage( pageName );
                     return Boolean.TRUE.equals( result.get( "exists" ) );
                 }

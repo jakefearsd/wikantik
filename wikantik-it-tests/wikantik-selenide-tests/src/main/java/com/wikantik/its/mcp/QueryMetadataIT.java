@@ -34,7 +34,7 @@ public class QueryMetadataIT extends WithMcpTestSetup {
     public void queryByFieldAndValue() {
         final String suffix = String.valueOf( System.currentTimeMillis() );
         final String pageName = uniquePageName( "QMField" );
-        mcp.writePage( pageName, "Howto body", Map.of( "type", "howto-" + suffix ) );
+        mcp.importPage( pageName, "Howto body", Map.of( "type", "howto-" + suffix ) );
 
         final Map< String, Object > result = mcp.queryMetadata( "type", "howto-" + suffix );
         @SuppressWarnings( "unchecked" )
@@ -47,7 +47,7 @@ public class QueryMetadataIT extends WithMcpTestSetup {
     @Test
     public void queryByFieldWithoutValue() {
         final String pageName = uniquePageName( "QMFieldOnly" );
-        mcp.writePage( pageName, "Has category", Map.of( "category", "testing" ) );
+        mcp.importPage( pageName, "Has category", Map.of( "category", "testing" ) );
 
         final Map< String, Object > result = mcp.queryMetadata( "category", null );
         @SuppressWarnings( "unchecked" )
@@ -61,7 +61,7 @@ public class QueryMetadataIT extends WithMcpTestSetup {
     public void queryByTypeShortcut() {
         final String suffix = String.valueOf( System.currentTimeMillis() );
         final String pageName = uniquePageName( "QMType" );
-        mcp.writePage( pageName, "Reference body", Map.of( "type", "reference-" + suffix ) );
+        mcp.importPage( pageName, "Reference body", Map.of( "type", "reference-" + suffix ) );
 
         final Map< String, Object > result = mcp.queryMetadataByType( "reference-" + suffix );
         @SuppressWarnings( "unchecked" )
@@ -94,7 +94,7 @@ public class QueryMetadataIT extends WithMcpTestSetup {
         final Map< String, Object > metadata = new LinkedHashMap<>();
         metadata.put( "tags", List.of( "alpha-" + suffix, "beta", "gamma" ) );
 
-        mcp.writePage( pageName, "Tagged content", metadata );
+        mcp.importPage( pageName, "Tagged content", metadata );
 
         final Map< String, Object > result = mcp.queryMetadata( "tags", "alpha-" + suffix );
         @SuppressWarnings( "unchecked" )

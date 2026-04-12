@@ -79,6 +79,51 @@ public final class RestSeedHelper {
         return post( "/admin/knowledge/hub-discovery/run", "" );
     }
 
+    /**
+     * Forces a synchronous content-model retrain against the live admin REST
+     * endpoint, driven from inside the currently-open browser session so the
+     * request carries the UI-login cookie (admin REST endpoints reject the
+     * basic-auth header because there is no BASIC login-config in web.xml).
+     *
+     * <p>The discovery pipeline's candidate pool comes from
+     * {@code TfidfModel.getEntityNames()}, which only updates when the model is
+     * retrained — the {@code kge-retrain} scheduler runs every N minutes by
+     * default, far too slow for an IT. Call this after seeding pages and
+     * before {@link #runDiscovery()} so freshly-written pages appear in the
+     * candidate pool.
+     *
+     * <p>Requires the test to have already performed a browser UI login, so a
+     * session cookie exists in the driver.
+     */
+    public static void retrainContentModelViaBrowser() {
+        // fetch() from the browser session so the request carries the UI-login
+        // cookie. The URL is prefixed with window.__WIKANTIK_BASE__ so it
+        // resolves against the correct context path (e.g. /wikantik-it-test-custom).
+        final String script = """
+            const cb = arguments[arguments.length - 1];
+            const base = window.__WIKANTIK_BASE__ || '';
+            fetch(base + '/admin/knowledge/embeddings/retrain-content', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin'
+            })
+            .then(r => r.text().then(body => ({ status: r.status, body })))
+            .then(res => cb(res))
+            .catch(err => cb({ status: -1, body: String(err) }));
+            """;
+        final Object result = com.codeborne.selenide.Selenide.executeAsyncJavaScript( script );
+        if ( result instanceof java.util.Map< ?, ? > m ) {
+            final Object status = m.get( "status" );
+            if ( status instanceof Number n && n.intValue() >= 200 && n.intValue() < 300 ) {
+                return;
+            }
+            throw new IllegalStateException( "retrainContentModelViaBrowser failed: "
+                + status + " " + m.get( "body" ) );
+        }
+        throw new IllegalStateException( "retrainContentModelViaBrowser: unexpected result "
+            + ( result == null ? "null" : result.getClass().getName() ) );
+    }
+
     /** GET /admin/knowledge/hub-discovery/proposals; returns the raw JSON body. */
     public static String listProposals() throws Exception {
         return get( "/admin/knowledge/hub-discovery/proposals?limit=50" );

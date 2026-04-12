@@ -67,22 +67,25 @@ export default function SearchOverlay({ onClose }) {
   };
 
   return (
-    <div className="search-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="search-overlay" data-testid="search-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="search-dialog">
         <input
           ref={inputRef}
           className="search-input"
+          data-testid="search-overlay-input"
           type="text"
           placeholder="Search pages…"
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
         />
-        <div className="search-results">
+        <div className="search-results" data-testid="search-overlay-results">
           {results.length > 0 ? results.map((r, i) => (
             <button
               key={r.name}
               className={`search-result-item ${i === focused ? 'focused' : ''}`}
+              data-testid="search-overlay-result"
+              data-page-name={r.name}
               onClick={() => select(r.name)}
               onMouseEnter={() => setFocused(i)}
             >

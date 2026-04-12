@@ -1,4 +1,8 @@
-const BASE = '';
+// Context path prefix injected by SpaRoutingFilter at index.html serve time.
+// Empty string for root-context deployments (production), e.g.
+// "/wikantik-it-test-custom" for the selenide IT suite's cargo-launched WAR.
+// Without this, absolute API paths like "/api/pages" miss the context and 404.
+const BASE = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
 
 /* global __BUILD_VERSION__ */
 let versionMismatchSignaled = false;
@@ -112,7 +116,7 @@ export const api = {
     const form = new FormData();
     form.append('file', file);
     if (name) form.append('name', name);
-    const resp = await fetch(`/api/attachments/${encodeURIComponent(page)}`, {
+    const resp = await fetch(`${BASE}/api/attachments/${encodeURIComponent(page)}`, {
       method: 'POST',
       body: form,
     });
@@ -130,7 +134,7 @@ export const api = {
 
   renameAttachment: async (page, oldName, newName) => {
     const resp = await fetch(
-      `/api/attachments/${encodeURIComponent(page)}/${encodeURIComponent(oldName)}`,
+      `${BASE}/api/attachments/${encodeURIComponent(page)}/${encodeURIComponent(oldName)}`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

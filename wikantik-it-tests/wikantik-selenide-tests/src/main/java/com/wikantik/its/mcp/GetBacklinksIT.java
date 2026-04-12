@@ -33,8 +33,8 @@ public class GetBacklinksIT extends WithMcpTestSetup {
     public void backlinksForPageWithKnownLinks() {
         final String target = uniquePageName( "BLTarget" );
         final String source = uniquePageName( "BLSource" );
-        mcp.writePage( target, "Target page content" );
-        mcp.writePage( source, "Links to [" + target + "](" + target + ")" );
+        mcp.importPage( target, "Target page content" );
+        mcp.importPage( source, "Links to [" + target + "](" + target + ")" );
 
         final Map< String, Object > result = mcp.getBacklinks( target );
         @SuppressWarnings( "unchecked" )
@@ -47,7 +47,7 @@ public class GetBacklinksIT extends WithMcpTestSetup {
     @Test
     public void backlinksForPageWithNoLinks() {
         final String pageName = uniquePageName( "Isolated" );
-        mcp.writePage( pageName, "No links to this page" );
+        mcp.importPage( pageName, "No links to this page" );
 
         final Map< String, Object > result = mcp.getBacklinks( pageName );
         @SuppressWarnings( "unchecked" )
@@ -62,8 +62,8 @@ public class GetBacklinksIT extends WithMcpTestSetup {
         final String target = uniquePageName( "BacklinkTarget" );
         final String source = uniquePageName( "BacklinkSource" );
 
-        mcp.writePage( target, "Target page" );
-        mcp.writePage( source, "This links to [" + target + "](" + target + ")" );
+        mcp.importPage( target, "Target page" );
+        mcp.importPage( source, "This links to [" + target + "](" + target + ")" );
 
         final Map< String, Object > result = mcp.getBacklinks( target );
         @SuppressWarnings( "unchecked" )

@@ -28,11 +28,19 @@ import io.modelcontextprotocol.spec.McpSchema.CallToolRequest;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import io.modelcontextprotocol.spec.McpSchema.ListToolsResult;
 import com.wikantik.its.environment.Env;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * Helper wrapping {@link McpSyncClient} with typed convenience methods for MCP integration tests.
@@ -104,38 +112,94 @@ public class McpTestClient implements AutoCloseable {
         return callTool( "read_page", Map.of( "pageName", pageName, "version", version ) );
     }
 
-    public Map< String, Object > writePage( final String pageName, final String content ) {
-        return callTool( "write_page", Map.of( "pageName", pageName, "content", content ) );
+    /**
+     * Write a single page through the {@code import_content} MCP tool. Creates
+     * a throwaway temp directory with a single {@code <pageName>.md} file and
+     * calls {@code import_content} on it. The temp directory is removed before
+     * returning. Returns the per-page result entry (status, action, etc.).
+     *
+     * <p>The server-side {@code import_content} tool reads files from the local
+     * filesystem. Since IT tests and the Cargo-managed Tomcat share the same
+     * host, creating a temp file works for both processes.
+     */
+    public Map< String, Object > importPage( final String pageName, final String content ) {
+        return importPage( pageName, content, null, null );
     }
 
-    public Map< String, Object > writePage( final String pageName, final String content, final Map< String, Object > metadata ) {
-        final Map< String, Object > args = new LinkedHashMap<>();
-        args.put( "pageName", pageName );
-        args.put( "content", content );
-        args.put( "metadata", metadata );
-        return callTool( "write_page", args );
+    public Map< String, Object > importPage( final String pageName, final String content,
+                                               final Map< String, Object > metadata ) {
+        return importPage( pageName, content, metadata, null );
     }
 
-    public Map< String, Object > writePage( final String pageName, final String content, final String changeNote ) {
-        final Map< String, Object > args = new LinkedHashMap<>();
-        args.put( "pageName", pageName );
-        args.put( "content", content );
-        args.put( "changeNote", changeNote );
-        return callTool( "write_page", args );
-    }
-
-    public Map< String, Object > writePageFull( final String pageName, final String content,
-                                                 final Map< String, Object > metadata, final String changeNote ) {
-        final Map< String, Object > args = new LinkedHashMap<>();
-        args.put( "pageName", pageName );
-        args.put( "content", content );
-        if ( metadata != null ) {
-            args.put( "metadata", metadata );
+    public Map< String, Object > importPage( final String pageName, final String content,
+                                               final Map< String, Object > metadata, final String changeNote ) {
+        final Path dir;
+        try {
+            dir = Files.createTempDirectory( "wikantik-it-import-" );
+        } catch ( final IOException e ) {
+            throw new RuntimeException( "Failed to create temp dir for import_content", e );
         }
-        if ( changeNote != null ) {
-            args.put( "changeNote", changeNote );
+        try {
+            final String fileBody = buildMarkdownFile( content, metadata );
+            final Path pageFile = dir.resolve( pageName + ".md" );
+            Files.writeString( pageFile, fileBody, StandardCharsets.UTF_8 );
+
+            final Map< String, Object > args = new LinkedHashMap<>();
+            args.put( "directory", dir.toAbsolutePath().toString() );
+            if ( changeNote != null ) {
+                args.put( "changeNote", changeNote );
+            }
+            final Map< String, Object > response = callTool( "import_content", args );
+            @SuppressWarnings( "unchecked" )
+            final List< Map< String, Object > > results = ( List< Map< String, Object > > ) response.get( "results" );
+            if ( results == null || results.isEmpty() ) {
+                throw new AssertionError( "import_content returned no results for " + pageName + ": " + response );
+            }
+            return results.get( 0 );
+        } catch ( final IOException e ) {
+            throw new RuntimeException( "Failed to write temp .md file for import_content", e );
+        } finally {
+            deleteRecursively( dir );
         }
-        return callTool( "write_page", args );
+    }
+
+    /**
+     * Build the content of a Markdown file, prepending YAML frontmatter when
+     * metadata is supplied. Mirrors the format produced by
+     * {@code ExportContentTool} so the round-trip matches.
+     */
+    private static String buildMarkdownFile( final String content, final Map< String, Object > metadata ) {
+        if ( metadata == null || metadata.isEmpty() ) {
+            return content;
+        }
+        final DumperOptions options = new DumperOptions();
+        options.setDefaultFlowStyle( DumperOptions.FlowStyle.BLOCK );
+        options.setPrettyFlow( true );
+        final String yaml = new Yaml( options ).dump( metadata );
+        final StringBuilder sb = new StringBuilder();
+        sb.append( "---\n" );
+        sb.append( yaml );
+        if ( !yaml.endsWith( "\n" ) ) {
+            sb.append( '\n' );
+        }
+        sb.append( "---\n" );
+        sb.append( content );
+        return sb.toString();
+    }
+
+    private static void deleteRecursively( final Path dir ) {
+        if ( dir == null || !Files.exists( dir ) ) {
+            return;
+        }
+        try ( final Stream< Path > stream = Files.walk( dir ) ) {
+            stream.sorted( Comparator.reverseOrder() ).forEach( p -> {
+                try {
+                    Files.deleteIfExists( p );
+                } catch ( final IOException ignored ) {
+                }
+            } );
+        } catch ( final IOException ignored ) {
+        }
     }
 
     public Map< String, Object > searchPages( final String query ) {
@@ -186,14 +250,6 @@ public class McpTestClient implements AutoCloseable {
         }
         args.put( "limit", limit );
         return callTool( "recent_changes", args );
-    }
-
-    public Map< String, Object > getAttachments( final String pageName ) {
-        return callTool( "get_attachments", Map.of( "pageName", pageName ) );
-    }
-
-    public Map< String, Object > getAttachmentsExpectingError( final String pageName ) {
-        return callToolExpectingError( "get_attachments", Map.of( "pageName", pageName ) );
     }
 
     public Map< String, Object > queryMetadata( final String field, final String value ) {

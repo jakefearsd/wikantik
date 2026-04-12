@@ -530,6 +530,66 @@ public class MarkdownRendererTest {
                 "Variable should not render as a create-page link, got: " + result );
     }
 
+    @Test
+    public void testInlineMathRendersWithMathInlineClass() throws Exception {
+        final String src = "The formula $x^2 + y^2 = r^2$ is well known.";
+        final String result = translate( src );
+        Assertions.assertTrue( result.contains( "class=\"math-inline\"" ),
+                "Inline math should render with class math-inline, got: " + result );
+        // + and = may be HTML-encoded by the sanitizer — browsers decode entities, so this is correct
+        Assertions.assertTrue( result.contains( "x^2" ) && result.contains( "r^2" ),
+                "Inline math should preserve LaTeX content, got: " + result );
+    }
+
+    @Test
+    public void testDisplayMathRendersWithMathDisplayClass() throws Exception {
+        final String src = "Text before\n\n$$\n\\int_0^1 f(x)\\,dx\n$$\n\nText after";
+        final String result = translate( src );
+        Assertions.assertTrue( result.contains( "math-display" ),
+                "Display math should render with class math-display, got: " + result );
+        Assertions.assertTrue( result.contains( "\\int_0^1 f(x)\\,dx" ),
+                "Display math should preserve LaTeX content, got: " + result );
+    }
+
+    @Test
+    public void testFencedMathBlockRendersWithMathDisplayClass() throws Exception {
+        final String src = "Text before\n\n```math\n\\sum_{i=1}^{n} i\n```\n\nText after";
+        final String result = translate( src );
+        Assertions.assertTrue( result.contains( "math-display" ),
+                "Fenced math block should render with class math-display, got: " + result );
+        // = may be HTML-encoded by the sanitizer — browsers decode entities, so this is correct
+        Assertions.assertTrue( result.contains( "\\sum_" ) && result.contains( "^{n} i" ),
+                "Fenced math block should preserve LaTeX content, got: " + result );
+    }
+
+    @Test
+    public void testEscapedDollarSignNotParsedAsMath() throws Exception {
+        final String src = "The price is \\$100.";
+        final String result = translate( src );
+        Assertions.assertFalse( result.contains( "math-inline" ),
+                "Escaped dollar sign should not be parsed as math, got: " + result );
+    }
+
+    @Test
+    public void testMathInListItem() throws Exception {
+        final String src = "- Item with $E = mc^2$ formula";
+        final String result = translate( src );
+        Assertions.assertTrue( result.contains( "math-inline" ),
+                "Math inside list item should render, got: " + result );
+        Assertions.assertTrue( result.contains( "<li>" ),
+                "List structure should be preserved, got: " + result );
+    }
+
+    @Test
+    public void testMathInBlockquote() throws Exception {
+        final String src = "> A quote with $\\alpha + \\beta$ math";
+        final String result = translate( src );
+        Assertions.assertTrue( result.contains( "math-inline" ),
+                "Math inside blockquote should render, got: " + result );
+        Assertions.assertTrue( result.contains( "<blockquote>" ),
+                "Blockquote structure should be preserved, got: " + result );
+    }
+
     @AfterEach
     public void tearDown() {
         created.clear();

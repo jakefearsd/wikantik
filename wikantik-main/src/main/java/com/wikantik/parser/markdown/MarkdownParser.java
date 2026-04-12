@@ -29,6 +29,7 @@ import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.UserManager;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.markdown.extensions.math.DisplayMathPreProcessor;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
 
@@ -80,7 +81,10 @@ public class MarkdownParser extends MarkupParser {
         }
 
         // Normalize [{...}] wiki-syntax references by appending () so Flexmark parses them as inline links
-        final String body = WIKI_BRACKET_REF.matcher( parsed.body() ).replaceAll( "$1()" );
+        final String normalized = WIKI_BRACKET_REF.matcher( parsed.body() ).replaceAll( "$1()" );
+
+        // Convert $$...$$ display math blocks into ```math fenced blocks for the GitLab extension
+        final String body = DisplayMathPreProcessor.transform( normalized );
 
         // Collect links from a clean AST (before JSPWiki post-processors modify URLs)
         collectLinks( body );

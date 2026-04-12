@@ -18,12 +18,16 @@
  */
 package com.wikantik.its;
 
+import com.codeborne.selenide.Condition;
+import com.codeborne.selenide.Selenide;
 import com.wikantik.pages.haddock.EditWikiPage;
 import com.wikantik.pages.haddock.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
+
+import java.time.Duration;
 
 /**
  * Edit-related tests for Apache JSPWiki
@@ -46,6 +50,10 @@ public class EditIT extends WithIntegrationTestSetup {
         Assertions.assertEquals( "random page", requiresJannesAccess.wikiPageContent() );
 
         requiresJannesAccess.clickOnLogout();
+        // The SPA re-fetches the page after logout, gets a 403, and redirects
+        // to /wiki/Main. Wait for the redirect to complete before asserting.
+        Selenide.$( "[data-testid=page-view][data-page-name=Main]" )
+                .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
         Assertions.assertEquals( "Main", requiresJannesAccess.wikiTitle() ); // no access for anonymous user, so redirected to main
         Assertions.assertNotEquals( "random page", randomPage.wikiPageContent() );
     }

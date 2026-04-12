@@ -372,7 +372,7 @@ public class LuceneSearchProvider implements SearchProvider {
      * @param page The WikiPage to check
      * @param text The page text to index.
      */
-    protected synchronized void updateLuceneIndex( final Page page, final String text ) {
+    protected synchronized boolean updateLuceneIndex( final Page page, final String text ) {
         LOG.debug( "Updating Lucene index for page '{}'...", page.getName() );
         pageRemoved( page );
 
@@ -382,13 +382,14 @@ public class LuceneSearchProvider implements SearchProvider {
             luceneIndexPage( page, text, writer );
         } catch( final IOException e ) {
             LOG.error( "Unable to update page '{}' from Lucene index", page.getName(), e );
-            // reindexPage( page );
+            return false;
         } catch( final Exception e ) {
             LOG.error( "Unexpected Lucene exception - please check configuration!", e );
-            // reindexPage( page );
+            return false;
         }
 
         LOG.debug( "Done updating Lucene index for page '{}'.", page.getName() );
+        return true;
     }
 
     /**
@@ -887,11 +888,24 @@ public class LuceneSearchProvider implements SearchProvider {
             watchdog.enterState( "Emptying index queue", 60 );
 
             synchronized( provider.updates ) {
-                while(!provider.updates.isEmpty()) {
-                    final Object[] pair = provider.updates.remove( 0 );
-                    final Page page = ( Page )pair[ 0 ];
-                    final String text = ( String )pair[ 1 ];
-                    provider.updateLuceneIndex( page, text );
+                final int totalQueued = provider.updates.size();
+                if( totalQueued > 0 ) {
+                    int processed = 0;
+                    int errors = 0;
+                    while( !provider.updates.isEmpty() ) {
+                        final Object[] pair = provider.updates.remove( 0 );
+                        final Page page = ( Page )pair[ 0 ];
+                        final String text = ( String )pair[ 1 ];
+                        if( !provider.updateLuceneIndex( page, text ) ) {
+                            errors++;
+                        }
+                        processed++;
+                        if( processed % 100 == 0 ) {
+                            LOG.info( "Reindex progress: {}/{} pages indexed ({} errors so far)", processed, totalQueued, errors );
+                        }
+                    }
+                    LOG.info( "Reindex complete: {} pages indexed, {} failed out of {} total",
+                              processed - errors, errors, totalQueued );
                 }
             }
 

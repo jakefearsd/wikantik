@@ -70,8 +70,14 @@ import java.nio.charset.StandardCharsets;
  * WAR entirely. When serving {@code index.html} for a non-root context,
  * {@link #rewriteIndexHtml(String, String)} injects the context prefix into
  * asset URLs so the browser fetches them from inside the WAR. It also
- * exposes {@code window.__WIKANTIK_BASE__} so the API client can prepend the
- * same prefix to fetch calls.
+ * injects an {@code <script type="importmap">} that remaps {@code /assets/}
+ * to the context-prefixed path, so lazy-loaded chunks resolved via
+ * {@code import()} at runtime also hit the correct WAR. A
+ * {@code vite:preloadError} listener suppresses the CSS-preload 404 that
+ * Vite's helper would otherwise throw (Vite prepends {@code /} instead of
+ * the context path when constructing {@code <link>} tags at runtime for
+ * lazy-chunk CSS deps). Finally, it exposes {@code window.__WIKANTIK_BASE__}
+ * so the API client can prepend the same prefix to fetch calls.
  */
 public class SpaRoutingFilter implements Filter {
 
@@ -351,16 +357,28 @@ public class SpaRoutingFilter implements Filter {
             out = out.replace( "href=\"/assets/", "href=\"" + ctx + "/assets/" );
             out = out.replace( "href=\"/favicon", "href=\"" + ctx + "/favicon" );
         }
-        final String baseScript = "<script>window.__WIKANTIK_BASE__=\"" + ctx + "\";</script>";
-        // Inject the base script right before the first <script> tag so it
-        // runs before any bundled code reads the global. If there's no script
-        // tag, drop it just before </head>.
+        final StringBuilder injected = new StringBuilder();
+        if ( !ctx.isEmpty() ) {
+            injected.append( "<script type=\"importmap\">{\"imports\":{\"/assets/\":\"" )
+                    .append( ctx )
+                    .append( "/assets/\"}}</script>" );
+        }
+        injected.append( "<script>window.__WIKANTIK_BASE__=\"" ).append( ctx ).append( "\";" );
+        if ( !ctx.isEmpty() ) {
+            injected.append( "window.addEventListener('vite:preloadError',function(e){e.preventDefault()});" );
+            injected.append( "window.addEventListener('error',function(e){var t=e.target;" )
+                    .append( "if(t&&t.tagName==='LINK'){var h=t.getAttribute('href');" )
+                    .append( "if(h&&h.startsWith('/assets/'))e.stopImmediatePropagation()}" )
+                    .append( "},true);" );
+        }
+        injected.append( "</script>" );
+        final String injection = injected.toString();
         final int scriptIdx = out.indexOf( "<script" );
         final int headCloseIdx = out.indexOf( "</head>" );
         if ( scriptIdx >= 0 && ( headCloseIdx < 0 || scriptIdx < headCloseIdx ) ) {
-            out = out.substring( 0, scriptIdx ) + baseScript + out.substring( scriptIdx );
+            out = out.substring( 0, scriptIdx ) + injection + out.substring( scriptIdx );
         } else if ( headCloseIdx >= 0 ) {
-            out = out.substring( 0, headCloseIdx ) + baseScript + out.substring( headCloseIdx );
+            out = out.substring( 0, headCloseIdx ) + injection + out.substring( headCloseIdx );
         }
         return out;
     }

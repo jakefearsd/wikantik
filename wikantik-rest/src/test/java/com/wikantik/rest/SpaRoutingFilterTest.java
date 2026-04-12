@@ -436,6 +436,44 @@ class SpaRoutingFilterTest {
     }
 
     @Test
+    void testRewriteIndexHtmlWithSubcontextInjectsImportMap() {
+        final String out = SpaRoutingFilter.rewriteIndexHtml( FAKE_INDEX_HTML, "/wikantik-it-test-custom" );
+
+        assertTrue( out.contains( "<script type=\"importmap\">" ),
+                    "non-root context should inject an import map for lazy chunks" );
+        assertTrue( out.contains( "\"/assets/\":\"/wikantik-it-test-custom/assets/\"" ),
+                    "import map should remap /assets/ to context-prefixed path" );
+        final int importMapIdx = out.indexOf( "<script type=\"importmap\">" );
+        final int firstModuleIdx = out.indexOf( "type=\"module\"" );
+        assertTrue( importMapIdx < firstModuleIdx,
+                    "import map must appear before the first module script" );
+    }
+
+    @Test
+    void testRewriteIndexHtmlAtRootContextOmitsImportMap() {
+        final String out = SpaRoutingFilter.rewriteIndexHtml( FAKE_INDEX_HTML, "" );
+
+        assertFalse( out.contains( "<script type=\"importmap\">" ),
+                     "root context should not inject an import map" );
+    }
+
+    @Test
+    void testRewriteIndexHtmlWithSubcontextInjectsPreloadErrorHandler() {
+        final String out = SpaRoutingFilter.rewriteIndexHtml( FAKE_INDEX_HTML, "/wikantik-it-test-custom" );
+
+        assertTrue( out.contains( "vite:preloadError" ),
+                    "non-root context should inject a vite:preloadError handler" );
+    }
+
+    @Test
+    void testRewriteIndexHtmlAtRootContextOmitsPreloadErrorHandler() {
+        final String out = SpaRoutingFilter.rewriteIndexHtml( FAKE_INDEX_HTML, "" );
+
+        assertFalse( out.contains( "vite:preloadError" ),
+                     "root context should not inject vite:preloadError handler" );
+    }
+
+    @Test
     void testRewriteIndexHtmlInjectsBaseBeforeFirstScript() {
         final String out = SpaRoutingFilter.rewriteIndexHtml( FAKE_INDEX_HTML, "/ctx" );
 

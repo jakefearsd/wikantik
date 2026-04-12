@@ -19,6 +19,9 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.PostgresTestContainer;
+import com.wikantik.TestEngine;
+import com.wikantik.WikiSessionTest;
+import com.wikantik.api.core.Session;
 import com.wikantik.api.knowledge.*;
 import org.junit.jupiter.api.*;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -26,6 +29,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -34,11 +38,14 @@ import static org.junit.jupiter.api.Assertions.*;
 class DefaultKnowledgeGraphServiceTest {
 
     private static DataSource dataSource;
+    private static TestEngine engine;
     private DefaultKnowledgeGraphService service;
 
     @BeforeAll
-    static void initDataSource() {
+    static void initDataSource() throws Exception {
         dataSource = PostgresTestContainer.createDataSource();
+        final Properties props = TestEngine.getTestProperties();
+        engine = new TestEngine( props );
     }
 
     @BeforeEach
@@ -49,7 +56,11 @@ class DefaultKnowledgeGraphServiceTest {
             conn.createStatement().execute( "DELETE FROM kg_rejections" );
             conn.createStatement().execute( "DELETE FROM kg_nodes" );
         }
-        service = new DefaultKnowledgeGraphService( new JdbcKnowledgeRepository( dataSource ) );
+        service = new DefaultKnowledgeGraphService( new JdbcKnowledgeRepository( dataSource ), engine );
+    }
+
+    private Session adminSession() throws Exception {
+        return WikiSessionTest.adminSession( engine );
     }
 
     @Test
@@ -113,5 +124,100 @@ class DefaultKnowledgeGraphServiceTest {
         assertNull( service.submitProposal( "new-edge", "Order.md",
             Map.of( "source", "Order", "target", "Inventory", "relationship", "depends-on" ),
             0.8, "test again" ) );
+    }
+
+    // --- snapshotGraph tests ---
+
+    @Test
+    void snapshotGraph_emptyGraph_returnsEmptyCollections() throws Exception {
+        final GraphSnapshot snap = service.snapshotGraph( adminSession() );
+        assertEquals( 0, snap.nodeCount() );
+        assertEquals( 0, snap.edgeCount() );
+        assertTrue( snap.nodes().isEmpty() );
+        assertTrue( snap.edges().isEmpty() );
+        assertNotNull( snap.generatedAt() );
+        assertEquals( 10, snap.hubDegreeThreshold() );
+    }
+
+    @Test
+    void snapshotGraph_classifiesOrphanWithZeroDegree() throws Exception {
+        service.upsertNode( "Orphan", "page", "Orphan",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final GraphSnapshot snap = service.snapshotGraph( adminSession() );
+        assertEquals( 1, snap.nodeCount() );
+        final SnapshotNode node = snap.nodes().get( 0 );
+        assertEquals( "orphan", node.role() );
+        assertEquals( 0, node.degreeIn() );
+        assertEquals( 0, node.degreeOut() );
+    }
+
+    @Test
+    void snapshotGraph_classifiesStubFromNullSourcePage() throws Exception {
+        service.upsertNode( "StubTarget", "page", null,
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final GraphSnapshot snap = service.snapshotGraph( adminSession() );
+        final SnapshotNode node = snap.nodes().get( 0 );
+        assertEquals( "stub", node.role() );
+    }
+
+    @Test
+    void snapshotGraph_classifiesHubAtThreshold() throws Exception {
+        final var hub = service.upsertNode( "Hub", "page", "Hub",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        for ( int i = 0; i < 12; i++ ) {
+            final var target = service.upsertNode( "Target" + i, "page", "Target" + i,
+                    Provenance.HUMAN_AUTHORED, Map.of() );
+            service.upsertEdge( hub.id(), target.id(), "links_to",
+                    Provenance.HUMAN_AUTHORED, Map.of() );
+        }
+        final GraphSnapshot snap = service.snapshotGraph( adminSession() );
+        final SnapshotNode hubNode = snap.nodes().stream()
+                .filter( n -> "Hub".equals( n.name() ) ).findFirst().orElseThrow();
+        assertEquals( "hub", hubNode.role() );
+    }
+
+    @Test
+    void snapshotGraph_hubThresholdFloorIsTen() throws Exception {
+        service.upsertNode( "A", "page", "A", Provenance.HUMAN_AUTHORED, Map.of() );
+        final GraphSnapshot snap = service.snapshotGraph( adminSession() );
+        assertTrue( snap.hubDegreeThreshold() >= 10 );
+    }
+
+    @Test
+    void snapshotGraph_degreeCountsBothDirections() throws Exception {
+        final var a = service.upsertNode( "A", "page", "A",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var b = service.upsertNode( "B", "page", "B",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( a.id(), b.id(), "links_to",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+
+        final GraphSnapshot snap = service.snapshotGraph( adminSession() );
+        final SnapshotNode nodeA = snap.nodes().stream()
+                .filter( n -> "A".equals( n.name() ) ).findFirst().orElseThrow();
+        final SnapshotNode nodeB = snap.nodes().stream()
+                .filter( n -> "B".equals( n.name() ) ).findFirst().orElseThrow();
+        assertEquals( 0, nodeA.degreeIn() );
+        assertEquals( 1, nodeA.degreeOut() );
+        assertEquals( 1, nodeB.degreeIn() );
+        assertEquals( 0, nodeB.degreeOut() );
+    }
+
+    @Test
+    void snapshotGraph_edgesReturnedWithCorrectFields() throws Exception {
+        final var a = service.upsertNode( "A", "page", "A",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var b = service.upsertNode( "B", "page", "B",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( a.id(), b.id(), "related_to",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+
+        final GraphSnapshot snap = service.snapshotGraph( adminSession() );
+        assertEquals( 1, snap.edgeCount() );
+        final var edge = snap.edges().get( 0 );
+        assertEquals( a.id(), edge.source() );
+        assertEquals( b.id(), edge.target() );
+        assertEquals( "related_to", edge.relationshipType() );
+        assertEquals( Provenance.HUMAN_AUTHORED, edge.provenance() );
     }
 }

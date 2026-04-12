@@ -53,6 +53,7 @@ import com.wikantik.render.RenderingManager;
 import com.wikantik.search.LuceneSearchProvider;
 import com.wikantik.search.SearchManager;
 import com.wikantik.search.SearchProvider;
+import com.wikantik.knowledge.DefaultKnowledgeGraphService;
 import com.wikantik.knowledge.EmbeddingService;
 import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.knowledge.HubDiscoveryRepository;
@@ -553,6 +554,11 @@ public class WikiEngine implements Engine {
                 getManager( PageManager.class ),
                 new PageSaveHelper( this ),
                 luceneMlt );
+
+            // Inject engine reference for graph visualization ACL checks.
+            if ( svcs.kgService() instanceof DefaultKnowledgeGraphService dkgs ) {
+                dkgs.setEngine( this );
+            }
 
             // Register services with the engine's manager map.
             managers.put( KnowledgeGraphService.class, svcs.kgService() );

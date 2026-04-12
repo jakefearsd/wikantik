@@ -1,3 +1,14 @@
+---
+title: Off Roading Van Life
+type: article
+tags:
+- text
+- must
+- requir
+summary: 'Introduction: Deconstructing the Modern Mobile Habitat The concept of "Van
+  Life" has undergone a profound cultural metamorphosis.'
+auto-generated: true
+---
 # The Convergence of Nomadic Lifestyles and Extreme Mobility
 
 ## Abstract

@@ -1,6 +1,18 @@
+---
+title: Decorator Pattern
+type: article
+tags:
+- decor
+- pattern
+- object
+summary: The Decorator Pattern The pursuit of elegant, scalable, and maintainable
+  software architecture often leads practitioners down rabbit holes of design pattern
+  theory.
+auto-generated: true
+---
 # The Decorator Pattern
 
-The pursuit of elegant, scalable, and maintainable software architecture often leads practitioners down rabbit holes of design pattern theory. While foundational patterns like Factory or Singleton are useful for managing object creation or state, it is the **Decorator Pattern** that provides one of the most sophisticated mechanisms for achieving true runtime extensibility without incurring the crippling rigidity of classical inheritance hierarchies.
+The pursuit of elegant, scalable, and maintainable [software architecture](SoftwareArchitecture) often leads practitioners down rabbit holes of design pattern theory. While foundational patterns like Factory or Singleton are useful for managing object creation or state, it is the **Decorator Pattern** that provides one of the most sophisticated mechanisms for achieving true runtime extensibility without incurring the crippling rigidity of classical inheritance hierarchies.
 
 For those of us researching novel techniques—those who find the limitations of static compile-time binding frustrating—the Decorator Pattern is not merely a design pattern; it is a fundamental architectural tool for managing **compositional complexity**. It allows us to treat behavior as a first-class, composable citizen, rather than as a fixed, immutable property of a class definition.
 

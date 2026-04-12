@@ -1,3 +1,15 @@
+---
+title: Materialized Views
+type: article
+tags:
+- mv
+- refresh
+- queri
+summary: For the seasoned data architect, the challenge is often not if the data can
+  be queried, but how fast it can be queried while maintaining acceptable levels of
+  data freshness.
+auto-generated: true
+---
 # Materialized Views Query Performance Caching
 
 ## Introduction: The Performance Imperative in Modern Data Warehousing
@@ -58,7 +70,7 @@ This is the simplest model, often the default or the fallback.
 #### 2. Incremental Refresh (The Holy Grail)
 This is the most desired, yet often the most complex, technique.
 *   **Mechanism:** The MV only calculates and applies the changes (inserts, updates, deletes) that have occurred in the source tables since the last successful refresh.
-*   **Prerequisites:** This requires the source tables to have reliable mechanisms for change data capture (CDC). This usually means:
+*   **Prerequisites:** This requires the source tables to have reliable mechanisms for [change data capture](ChangeDataCapture) (CDC). This usually means:
     *   **Timestamps:** A reliable `updated_at` column on all relevant source tables.
     *   **Sequence/Version Columns:** A monotonically increasing ID or version number.
 *   **Implementation Complexity:** The MV definition must be augmented with logic (often involving `JOIN`s against a change log or using database-specific CDC features) to isolate only the delta.
@@ -112,9 +124,9 @@ In some regulatory or research contexts, the requirement is not just for the *la
 Standard MVs typically point to the current state. To achieve true time-travel querying, the MV must be coupled with **Temporal Data Modeling** techniques, often involving:
 
 1.  **SCD Type 2 Implementation:** The source tables themselves must track history (e.g., `start_date`, `end_date`, `is_current`).
-2.  **MV Definition:** The MV must incorporate the temporal logic into its `SELECT` statement, effectively querying the historical state of the source tables *at the time of the MV's creation*.
+2.  **MV Definition:** The MV must incorporate the [temporal logic](TemporalLogic) into its `SELECT` statement, effectively querying the historical state of the source tables *at the time of the MV's creation*.
 
-If the underlying database supports true temporal tables (like some advanced data warehouses), the MV definition can leverage these built-in time-travel functions, making the MV inherently historical rather than just a snapshot of the current state.
+If the underlying database supports true [temporal tables](TemporalTables) (like some advanced data warehouses), the MV definition can leverage these built-in time-travel functions, making the MV inherently historical rather than just a snapshot of the current state.
 
 ### C. Optimizing the Refresh Query Itself
 
@@ -149,7 +161,7 @@ Schema drift—where the structure of a source table changes unexpectedly (e.g.,
 *   **The Failure Mode:** A schema change in a source table that is referenced by an MV definition will almost certainly cause the `REFRESH` command to fail immediately, halting data availability.
 *   **Mitigation (Defensive Coding):**
     1.  **Schema Validation Hooks:** Implement pre-refresh validation scripts that query the database's metadata catalog (`INFORMATION_SCHEMA`) to compare the expected schema against the actual schema of all source tables.
-    2.  **Graceful Degradation:** Design the MV refresh process to *log* schema discrepancies rather than failing entirely. If a non-critical column is dropped, the MV should log a warning and proceed with the refresh, only failing if a *required* column is missing or its data type fundamentally changes.
+    2.  **[Graceful Degradation](GracefulDegradation):** Design the MV refresh process to *log* schema discrepancies rather than failing entirely. If a non-critical column is dropped, the MV should log a warning and proceed with the refresh, only failing if a *required* column is missing or its data type fundamentally changes.
 
 ### C. The Cardinality Trap
 
@@ -162,7 +174,7 @@ Cardinality refers to the number of unique values in a column. MVs are most effe
 
 ## V. Advanced Comparative Analysis: MV vs. Data Lakehouse Caching
 
-For the researcher pushing boundaries, the comparison must extend beyond traditional RDBMS features and into modern data lakehouse architectures (e.g., Delta Lake, Apache Hudi, Iceberg).
+For the researcher pushing boundaries, the comparison must extend beyond traditional RDBMS features and into modern [data lakehouse](DataLakehouse) architectures (e.g., Delta Lake, Apache Hudi, Iceberg).
 
 ### A. The Lakehouse Paradigm Shift
 

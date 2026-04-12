@@ -1,6 +1,16 @@
+---
+title: Feature Toggle Management
+type: article
+tags:
+- flag
+- featur
+- must
+summary: You are past the point of needing a basic "what is a feature flag?" overview.
+auto-generated: true
+---
 # The Art of Ephemerality
 
-Welcome. If you are reading this, you likely understand that feature flags are not merely "switches"; they are sophisticated, stateful, distributed configuration mechanisms that fundamentally alter the relationship between code deployment and feature release. You are past the point of needing a basic "what is a feature flag?" overview. You are here to master the *lifecycle*—the governance, the architectural implications, and the often-neglected cleanup procedures that separate a robust, scalable system from a sprawling, unmanageable technical debt nightmare.
+Welcome. If you are reading this, you likely understand that [feature flags](FeatureFlags) are not merely "switches"; they are sophisticated, stateful, distributed configuration mechanisms that fundamentally alter the relationship between code deployment and feature release. You are past the point of needing a basic "what is a feature flag?" overview. You are here to master the *lifecycle*—the governance, the architectural implications, and the often-neglected cleanup procedures that separate a robust, scalable system from a sprawling, unmanageable technical debt nightmare.
 
 This tutorial assumes fluency in distributed systems, CI/CD pipelines, and modern microservice architectures. We will dissect the feature flag lifecycle not as a linear checklist, but as a complex, multi-dimensional governance process that touches everything from database schema design to organizational policy.
 
@@ -37,7 +47,7 @@ While often used synonymously in casual conversation, understanding the subtle d
 A robust flag system requires several interacting components:
 
 1.  **The Flag Management Service (FMS):** The centralized source of truth (e.g., a dedicated microservice or SaaS platform). It stores flag definitions, targeting rules, and historical states.
-2.  **The SDK/Client Library:** The code integrated into the application runtime. This library is responsible for fetching the current state of the flags, applying caching strategies, and executing the evaluation logic (e.g., `if (flagService.isEnabled("new_ui", context)) { ... }`).
+2.  **The SDK/Client Library:** The code integrated into the application runtime. This library is responsible for fetching the current state of the flags, applying [caching strategies](CachingStrategies), and executing the evaluation logic (e.g., `if (flagService.isEnabled("new_ui", context)) { ... }`).
 3.  **The Context Provider:** The mechanism that supplies the necessary context for evaluation. This context is critical and can include:
     *   User ID/Email
     *   Geographic Location (IP-based)

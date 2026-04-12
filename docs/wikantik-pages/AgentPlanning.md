@@ -1,8 +1,19 @@
+---
+title: Agent Planning
+type: article
+tags:
+- agent
+- plan
+- pattern
+summary: Agent Planning If you are reading this, you are likely past the stage of
+  merely chaining API calls together.
+auto-generated: true
+---
 # Agent Planning
 
 If you are reading this, you are likely past the stage of merely chaining API calls together. You understand that the modern AI agent is not a glorified wrapper around an LLM endpoint; it is a complex, stateful, reasoning system. The transition from simple prompt-response interaction to reliable, multi-step task completion requires a rigorous understanding of *architectural* patterns, not just prompt engineering tricks.
 
-This tutorial serves as a comprehensive technical deep dive into the established and emerging patterns governing how sophisticated agents plan, execute, recover from failure, and coordinate across multiple specialized entities. We are moving beyond the "magic" of the prompt and into the verifiable, engineering discipline of agentic workflow design.
+This tutorial serves as a comprehensive technical deep dive into the established and emerging patterns governing how sophisticated agents plan, execute, recover from failure, and coordinate across multiple specialized entities. We are moving beyond the "magic" of the prompt and into the verifiable, engineering discipline of [agentic workflow design](AgenticWorkflowDesign).
 
 ---
 
@@ -309,7 +320,7 @@ To summarize for those who prefer bullet points: building an expert agent is not
 The evolution of agentic systems follows a clear progression of complexity:
 
 1.  **Basic:** Single-shot prompting (Brittle, Context-limited).
-2.  **Intermediate:** Linear Tool Calling (Stateful, but non-recoverable).
+2.  **Intermediate:** Linear [Tool Calling](ToolCalling) (Stateful, but non-recoverable).
 3.  **Advanced:** HTN/ToT Planning (Structured, Search-aware).
 4.  **Expert:** Hierarchical, Multi-Agent Orchestration with Reflection and Guardrails (Robust, Self-Correcting, and Scalable).
 

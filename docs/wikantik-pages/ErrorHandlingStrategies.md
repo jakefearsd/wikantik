@@ -1,3 +1,14 @@
+---
+title: Error Handling Strategies
+type: article
+tags:
+- except
+- failur
+- error
+summary: If you've reached this document, you are likely past the point of merely
+  writing code that runs; you are now concerned with writing code that survives.
+auto-generated: true
+---
 # The Architecture of Failure
 
 Welcome. If you've reached this document, you are likely past the point of merely writing code that *runs*; you are now concerned with writing code that *survives*. Error handling, often relegated to the status of boilerplate defensive programming, is, in fact, one of the most profound architectural decisions a software engineer makes. It dictates the system's resilience, its maintainability under duress, and its ultimate trustworthiness.
@@ -69,7 +80,7 @@ At the apex resides `Throwable`. This is the root of all errors and exceptions. 
 #### 2.1.3. The Strategic Choice: Checked vs. Unchecked
 The debate over checked vs. unchecked exceptions is perhaps the most heated topic in Java error handling.
 
-*   **Argument for Checked:** They improve API documentation by making failure modes explicit in the method signature.
+*   **Argument for Checked:** They improve [API documentation](ApiDocumentation) by making failure modes explicit in the method signature.
 *   **Argument Against (The Modern Stance):** They violate the principle of least surprise. If a failure is truly exceptional (like a network outage), it should be handled by a high-level service layer, not by forcing every single method call down the stack to acknowledge it. Modern frameworks often favor unchecked exceptions for internal state management, reserving checked exceptions only for truly external, recoverable boundaries (e.g., I/O operations).
 
 ### 2.2. The Python Model: Implicit Hierarchy and Duck Typing
@@ -244,7 +255,7 @@ When reviewing any complex system's error handling, ask these questions:
 
 ### 5.2. Final Thoughts for the Researcher
 
-The trend in advanced software architecture is a gradual move away from the *exception as the primary control flow mechanism* toward **explicit data modeling of failure**. The Result/Either Monad pattern, while sometimes verbose initially, represents the most mathematically sound and compositionally robust way to manage failure states in complex, multi-stage pipelines.
+The trend in advanced [software architecture](SoftwareArchitecture) is a gradual move away from the *exception as the primary control flow mechanism* toward **explicit data modeling of failure**. The Result/Either Monad pattern, while sometimes verbose initially, represents the most mathematically sound and compositionally robust way to manage failure states in complex, multi-stage pipelines.
 
 Mastering exception hierarchies means understanding the *trade-offs* between compile-time safety (Java's checked model), runtime flexibility (Python's dynamic model), and explicit data flow (Functional/Monadic models).
 

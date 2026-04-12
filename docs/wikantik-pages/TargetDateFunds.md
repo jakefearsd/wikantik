@@ -1,8 +1,20 @@
+---
+title: Target Date Funds
+type: article
+tags:
+- text
+- risk
+- path
+summary: It represents an explicit assumption about the relationship between time
+  horizon, investor risk tolerance, and the optimal risk-return profile required to
+  meet a future liability stream.
+auto-generated: true
+---
 # The Calculus of Time
 
 ## Introduction: Deconstructing the Time-Based Investment Mandate
 
-Target Date Funds (TDFs), often marketed with the comforting simplicity of a "set it and forget it" investment vehicle, represent a sophisticated, albeit sometimes oversimplified, attempt to automate the complex, non-linear process of personal financial planning. At the core of every TDF lies the **glide path**: a pre-defined, systematic trajectory dictating the evolution of the fund’s asset allocation over time, designed to shepherd the investor from an aggressive accumulation phase toward a capital preservation and income generation phase near the specified retirement date.
+Target Date Funds (TDFs), often marketed with the comforting simplicity of a "set it and forget it" investment vehicle, represent a sophisticated, albeit sometimes oversimplified, attempt to automate the complex, non-linear process of personal financial planning. At the core of every TDF lies the **glide path**: a pre-defined, systematic trajectory dictating the evolution of the fund’s [asset allocation](AssetAllocation) over time, designed to shepherd the investor from an aggressive accumulation phase toward a capital preservation and income generation phase near the specified retirement date.
 
 For the seasoned quantitative researcher or the quantitative portfolio manager, the glide path is not merely a suggestion of asset weights; it is a formalized, time-dependent constraint imposed upon the Mean-Variance Optimization (MVO) framework. It represents an explicit assumption about the relationship between time horizon, investor risk tolerance, and the optimal risk-return profile required to meet a future liability stream.
 
@@ -19,7 +31,7 @@ The premise of the glide path rests on the fundamental, yet often contested, ass
 In classical portfolio theory, risk is often modeled solely through volatility ($\sigma^2$). However, TDFs introduce a temporal dimension, necessitating the consideration of **Time Horizon Risk**. This risk is not purely statistical; it is behavioral and structural.
 
 1.  **The Accumulation Phase (Long Time Horizon):** When an investor is decades from retirement, the primary risk is **Inflation Risk** and **Opportunity Cost Risk**. The optimal strategy, theoretically, is to maximize the expected geometric mean return ($\text{E}[R_g]$) while maintaining a manageable level of volatility. Since time is the greatest asset, the portfolio can afford higher systematic risk ($\beta$) assets (equities) to capture higher expected returns, accepting higher short-term volatility as a necessary cost of achieving long-term growth.
-2.  **The Decumulation Phase (Short Time Horizon):** As the target date approaches, the primary risk shifts dramatically to **Sequence of Returns Risk (SRR)**. This is the risk that poor market performance early in retirement depletes the portfolio's principal base, forcing permanent capital cuts. The glide path must, therefore, systematically de-risk to protect the *sequence* of returns, not just the terminal value.
+2.  **The Decumulation Phase (Short Time Horizon):** As the target date approaches, the primary risk shifts dramatically to **[Sequence of Returns Risk](SequenceOfReturnsRisk) (SRR)**. This is the risk that poor market performance early in retirement depletes the portfolio's principal base, forcing permanent capital cuts. The glide path must, therefore, systematically de-risk to protect the *sequence* of returns, not just the terminal value.
 
 ### B. The Utility Function Shift: From Growth to Certainty
 

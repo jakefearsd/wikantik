@@ -1,3 +1,13 @@
+---
+title: Maven Multi Module Projects
+type: article
+tags:
+- modul
+- depend
+- version
+summary: This tutorial is not a "how-to" guide for junior developers.
+auto-generated: true
+---
 # The Architecture of Scale
 
 For those of us who spend our professional lives wrestling with build systems, the concept of the multi-module project is less a feature and more a necessary evil—a structural compromise required when an application’s complexity exceeds the scope of a single, monolithic artifact. If you are researching advanced techniques, you already understand that the goal is not merely to *build* multiple JARs, but to manage a complex, evolving *system* of interconnected components with predictable build semantics, robust dependency resolution, and maintainable release cycles.

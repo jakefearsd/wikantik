@@ -1,3 +1,14 @@
+---
+title: Cloud Migration Strategies
+type: article
+tags:
+- cloud
+- refactor
+- manag
+summary: The Migration Continuum Cloud migration is no longer a singular, monolithic
+  project; it is, rather, a complex, multi-dimensional architectural evolution.
+auto-generated: true
+---
 # The Migration Continuum
 
 Cloud migration is no longer a singular, monolithic project; it is, rather, a complex, multi-dimensional architectural evolution. For seasoned practitioners researching next-generation deployment patterns, the choice between migrating an application is rarely a simple binary decision. It exists on a spectrum, a continuum of effort, risk, and potential reward.
@@ -20,7 +31,7 @@ To frame this discussion, we must view these strategies not as discrete choices,
 
 1.  **Lift & Shift (Rehosting):** Minimal change. The application runs *as is* on new infrastructure.
 2.  **Replatforming (Lift-Tinker-Shift):** Moderate change. Key components are optimized or swapped out (e.g., moving from self-managed database to a managed cloud service).
-3.  **Refactoring/Rearchitecting:** Significant change. The application is fundamentally redesigned to leverage cloud-native paradigms (e.g., moving from monolith to microservices, adopting event sourcing).
+3.  **Refactoring/Rearchitecting:** Significant change. The application is fundamentally redesigned to leverage cloud-native paradigms (e.g., moving from monolith to microservices, adopting [event sourcing](EventSourcing)).
 4.  **Rebuilding/Replacing:** Maximum change. The application is rewritten from scratch using modern languages and frameworks, often discarding the original business logic structure entirely.
 
 Our focus here will be on the technical nuances of **Lift & Shift** (the baseline), **Refactoring** (the art), and the critical decision points that separate them.
@@ -55,7 +66,7 @@ For the architect managing a portfolio of legacy systems, the immediate benefits
 
 This is where the expert must temper enthusiasm with technical skepticism. While fast, Lift & Shift is often the most expensive strategy in the long run because it **locks in technical debt**.
 
-1.  **Cloud Inefficiency:** The application is forced into an "anti-pattern" cloud deployment. If the legacy application was designed for predictable, vertically scaled, dedicated hardware, running it on elastic, horizontally scaled cloud primitives (like managed container orchestration) will result in suboptimal performance, poor cost utilization, and unnecessary operational overhead.
+1.  **Cloud Inefficiency:** The application is forced into an "anti-pattern" cloud deployment. If the legacy application was designed for predictable, vertically scaled, dedicated hardware, running it on elastic, horizontally scaled cloud primitives (like managed [container orchestration](ContainerOrchestration)) will result in suboptimal performance, poor cost utilization, and unnecessary operational overhead.
 2.  **Vendor Lock-In (The Wrong Kind):** While you are moving *to* the cloud, you are replicating the *constraints* of your old data center. You are not adopting cloud-native best practices, meaning you are simply swapping one form of vendor dependency (the hardware vendor) for another (the IaaS provider).
 3.  **Operational Blind Spots:** The team becomes proficient at managing VMs *in* the cloud, rather than mastering cloud-native patterns like service mesh, event streaming, or serverless function orchestration.
 
@@ -239,8 +250,8 @@ A successful migration is not defined by the *move*, but by the *ability to oper
 *   **Legacy Monitoring:** Often relies on SNMP traps, host-level CPU/RAM metrics, and simple log file tailing.
 *   **Cloud-Native Observability:** Requires the "Three Pillars":
     1.  **Metrics:** Time-series data (Prometheus/CloudWatch) for performance tracking.
-    2.  **Logs:** Structured logging (JSON format) ingested into a centralized platform (ELK stack/Splunk).
-    3.  **Traces:** Distributed tracing (Jaeger/Zipkin) to visualize the entire request path across multiple services, which is *impossible* to do effectively in a monolith.
+    2.  **Logs:** [Structured logging](StructuredLogging) (JSON format) ingested into a centralized platform (ELK stack/Splunk).
+    3.  **Traces:** [Distributed tracing](DistributedTracing) (Jaeger/Zipkin) to visualize the entire request path across multiple services, which is *impossible* to do effectively in a monolith.
 
 If you refactor without implementing distributed tracing, you have simply built a faster, more complex black box.
 

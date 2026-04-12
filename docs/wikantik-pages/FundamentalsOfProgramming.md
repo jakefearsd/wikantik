@@ -64,7 +64,7 @@ What it cannot reliably do — and this is the critical gap — is **layer 2 at 
 
 The ability to decompose a problem into steps, identify patterns, abstract away details, and design a solution *before* writing code is more valuable than ever. AI tools are excellent at generating code for a well-specified problem. They are poor at deciding what problem to solve, what trade-offs to accept, and what edge cases matter.
 
-**What to learn:** Practice breaking complex problems into smaller pieces. Understand basic algorithmic concepts — not to implement them from memory, but to recognize when a solution will be too slow, use too much memory, or fail at scale. Know enough about data structures to have an opinion about the AI's choices.
+**What to learn:** Practice breaking complex problems into smaller pieces. Understand basic algorithmic concepts — not to implement them from memory, but to recognize when a solution will be too slow, use too much memory, or fail at scale. Know enough about [data structures](DataStructures) to have an opinion about the AI's choices.
 
 ### 2. Reading Code (More Important Than Writing It)
 
@@ -127,7 +127,7 @@ A healthcare developer who understands clinical workflows will build better soft
 
 ### What Junior Developers Will Do Differently
 
-The traditional junior developer path (write simple functions → fix bugs → build features → design systems) is compressing. AI tools handle the first two steps. The new junior developer path looks more like:
+The traditional junior developer path (write simple functions → fix bugs → build features → [design systems](DesignSystems)) is compressing. AI tools handle the first two steps. The new junior developer path looks more like:
 
 1. **Learn to specify precisely** — Write clear descriptions of what software should do. This is harder than it sounds.
 2. **Learn to evaluate output** — Review AI-generated code for correctness, security, and maintainability.

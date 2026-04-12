@@ -1,3 +1,15 @@
+---
+title: Semantic Versioning
+type: article
+tags:
+- chang
+- contract
+- version
+summary: A well-defined API contract allows for parallel development, independent
+  deployment, and the illusion of stability in an otherwise chaotic, rapidly evolving
+  technological landscape.
+auto-generated: true
+---
 # The Semantics of Change
 
 For those of us who spend our professional lives wrestling with distributed systems, API contracts are not mere documentation; they are the foundational legal agreements of our digital economies. A well-defined API contract allows for parallel development, independent deployment, and the illusion of stability in an otherwise chaotic, rapidly evolving technological landscape.

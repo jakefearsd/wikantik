@@ -1,3 +1,14 @@
+---
+title: Budgeting Methods
+type: article
+tags:
+- model
+- alloc
+- zbb
+summary: 'Disclaimer: This tutorial treats budgeting methods not as mere lifestyle
+  guides, but as formal models of resource allocation under strict constraints.'
+auto-generated: true
+---
 # Zero-Based Budgeting Versus the Envelope System for Advanced Financial Modeling
 
 **Target Audience:** Financial Engineers, Behavioral Economists, Computational Finance Researchers, and Advanced Practitioners in Personal Resource Management.

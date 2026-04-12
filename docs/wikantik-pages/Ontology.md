@@ -1,6 +1,17 @@
+---
+title: Ontology
+type: article
+tags:
+- ontolog
+- exist
+- research
+summary: 'Ontology: What Exists and Why If you are researching new techniques, you
+  are already operating under a set of assumptions.'
+auto-generated: true
+---
 # Ontology: What Exists and Why
 
-If you are researching new techniques, you are already operating under a set of assumptions. These assumptions—about causality, about the stability of concepts, about the very nature of the data you believe exists—are the scaffolding upon which your entire research edifice rests. To build anything truly novel, one must first dismantle the scaffolding. This tutorial is not merely a review of definitions; it is an excavation of the concept of "Ontology" itself, examining its philosophical roots, its methodological implications in empirical science, and its rigorous formalization within Artificial Intelligence.
+If you are researching new techniques, you are already operating under a set of assumptions. These assumptions—about causality, about the stability of concepts, about the very nature of the data you believe exists—are the scaffolding upon which your entire research edifice rests. To build anything truly novel, one must first dismantle the scaffolding. This tutorial is not merely a review of definitions; it is an excavation of the concept of "Ontology" itself, examining its philosophical roots, its methodological implications in empirical science, and its rigorous formalization within [Artificial Intelligence](ArtificialIntelligence).
 
 For the expert researcher, understanding ontology means recognizing that the term is not monolithic. It is a polysemous concept, shifting meaning depending on whether you are debating metaphysics at a dinner party, designing a knowledge graph, or critiquing a qualitative research design. We will navigate these three primary domains—the **Philosophical**, the **Methodological**, and the **Computational**—and explore their necessary, and often fraught, intersections.
 
@@ -35,7 +46,7 @@ This is the foundational split.
 *   **Strong Realism:** Assumes that the world, including its fundamental structures (like mathematical objects or causal laws), exists independently of human perception or conceptualization. If you are building a system to model physics, a realist ontology assumes the underlying laws *are* there, waiting to be discovered.
 *   **Constructivism/Anti-Realism:** Argues that our understanding of reality is fundamentally mediated by our cognitive structures, language, and cultural frameworks. In this view, "reality" is a highly sophisticated, shared human construction. This perspective is critical in social sciences, suggesting that the ontology of "poverty" is not a single, objective physical state, but a complex interplay of policy, perception, and interaction.
 
-**2. Types of Being (Modal Logic):**
+**2. Types of Being ([Modal Logic](ModalLogic)):**
 Advanced ontology must grapple with modalities:
 *   **Necessity ($\Box$):** What *must* be true in all possible worlds? (e.g., $A \implies A$).
 *   **Possibility ($\Diamond$):** What *could* be true in some possible world? (e.g., "It is possible that the speed of light changes").
@@ -89,7 +100,7 @@ If the philosopher asks, "What *is* a cat?" the computational ontologist asks, "
 
 ### A. Core Components of a Computational Ontology
 
-A computational ontology is typically structured using formal description logics (DLs) and represented in languages like Web Ontology Language (OWL). It is fundamentally a structured knowledge base.
+A computational ontology is typically structured using formal description logics (DLs) and represented in languages like [Web Ontology Language](WebOntologyLanguage) (OWL). It is fundamentally a structured knowledge base.
 
 **1. TBox (Terminological Box):**
 This is the *schema*—the vocabulary and the rules governing the domain. It defines the classes, properties, and the relationships between them. It is the *conceptualization*.
@@ -164,7 +175,7 @@ The static nature of traditional OWL ontologies is their Achilles' heel when mod
 **1. Temporal Ontology:**
 To handle change, one must move toward **Temporal Ontologies**. These systems do not just assert that $A$ is true; they assert that $A$ was true during the interval $[t_1, t_2]$.
 
-*   **Challenge:** This requires integrating temporal logic (like Allen's Interval Algebra) into the formal framework. The ontology must track not just *what* exists, but *when* it existed, and *how* its existence changed.
+*   **Challenge:** This requires integrating [temporal logic](TemporalLogic) (like Allen's Interval Algebra) into the formal framework. The ontology must track not just *what* exists, but *when* it existed, and *how* its existence changed.
 *   **Example:** Modeling the status of a chemical compound. Its structure (its ontology) changes over time due to reaction kinetics. The system must model the *process* of transformation, not just the stable endpoints.
 
 **2. Emergence and Non-Linearity:**

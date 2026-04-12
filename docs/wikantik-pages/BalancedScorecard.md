@@ -1,3 +1,15 @@
+---
+title: Balanced Scorecard
+type: article
+tags:
+- bsc
+- metric
+- must
+summary: 'Conceptual Foundations The initial utility of the BSC, as popularized by
+  Kaplan and Norton, was elegantly simple: to force management to look beyond the
+  Profit & Loss statement.'
+auto-generated: true
+---
 # Balanced Scorecard
 
 The Balanced Scorecard (BSC), initially conceived as a corrective mechanism against the myopic focus on lagging financial indicators, has matured from a mere measurement framework into a complex, multi-dimensional strategic management architecture. For practitioners operating at the frontier of organizational design and performance research, understanding the BSC is no longer about memorizing its four perspectives; it is about mastering the *causal logic* that binds these perspectives into a cohesive, actionable strategic narrative.

@@ -1,6 +1,18 @@
+---
+title: Wood Turning Fundamentals
+type: article
+tags:
+- tool
+- chuck
+- must
+summary: The depth of coverage assumes familiarity with basic lathe operation, material
+  properties of hardwoods, and mechanical principles such as torque, stress distribution,
+  and rotational kinematics.
+auto-generated: true
+---
 # The Kinematics and Craft
 
-**Disclaimer:** This document is intended for highly experienced woodturning artisans, mechanical engineers specializing in rotational dynamics, and materials scientists researching advanced wood utilization techniques. The depth of coverage assumes familiarity with basic lathe operation, material properties of hardwoods, and mechanical principles such as torque, stress distribution, and rotational kinematics.
+**Disclaimer:** This document is intended for highly experienced woodturning artisans, mechanical engineers specializing in [rotational dynamics](RotationalDynamics), and materials scientists researching advanced wood utilization techniques. The depth of coverage assumes familiarity with basic lathe operation, material properties of hardwoods, and mechanical principles such as torque, stress distribution, and rotational kinematics.
 
 ---
 
@@ -201,7 +213,7 @@ For the researcher aiming to push the boundaries of this craft, the next frontie
 
 **Key Research Directives:**
 
-1.  **AI-Driven Tool Path Optimization:** Developing machine learning algorithms that ingest wood species data (density, grain pattern, moisture content) and generate the optimal, multi-pass tool path (as outlined in Section III.C) that guarantees minimal stress accumulation and maximum material removal efficiency.
+1.  **AI-Driven Tool Path Optimization:** Developing [machine learning](MachineLearning) algorithms that ingest wood species data (density, grain pattern, moisture content) and generate the optimal, multi-pass tool path (as outlined in Section III.C) that guarantees minimal stress accumulation and maximum material removal efficiency.
 2.  **Adaptive Chucking Systems:** Creating chucks that dynamically adjust their gripping force and angular alignment based on real-time vibrational feedback from accelerometers mounted near the chuck jaws, ensuring perfect concentricity regardless of blank irregularity.
 3.  **Bio-Inspired Tooling:** Investigating tool materials or coatings that mimic biological self-sharpening mechanisms, thereby eliminating the need for manual re-profiling and extending operational uptime in high-throughput scenarios.
 

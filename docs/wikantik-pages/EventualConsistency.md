@@ -1,6 +1,16 @@
+---
+title: Eventual Consistency
+type: article
+tags:
+- consist
+- write
+- node
+summary: Eventual Consistency in Distributed Storage Welcome.
+auto-generated: true
+---
 # Eventual Consistency in Distributed Storage
 
-Welcome. If you've reached this document, you're likely already familiar with the basic tenets of distributed systems—the headache of coordinating state across unreliable networks. We are not here to rehash the basics of the CAP theorem, though we will certainly revisit its implications. This tutorial is intended for researchers and senior architects who are not merely *using* eventually consistent systems, but who are actively designing, benchmarking, and improving the convergence guarantees of the next generation of distributed storage.
+Welcome. If you've reached this document, you're likely already familiar with the basic tenets of distributed systems—the headache of coordinating state across unreliable networks. We are not here to rehash the basics of the [CAP theorem](CapTheorem), though we will certainly revisit its implications. This tutorial is intended for researchers and senior architects who are not merely *using* eventually consistent systems, but who are actively designing, benchmarking, and improving the convergence guarantees of the next generation of distributed storage.
 
 We will treat eventual consistency not as a weak guarantee, but as a sophisticated, mathematically bounded convergence property that requires deep understanding of its failure modes and optimization vectors.
 
@@ -61,7 +71,7 @@ LWW is the simplest, yet most dangerous, mechanism. It relies entirely on synchr
 **Mitigation:** LWW is only acceptable when the data type is inherently idempotent (e.g., a simple counter increment where the *final* value matters, not the order of increments) and when the clock skew can be bounded far tighter than the acceptable window of inconsistency.
 
 #### 2.1.2 Vector Clocks (The Gold Standard for Causality)
-Vector clocks solve the fundamental problem of LWW by abandoning reliance on absolute time. Instead, they track the causality history across all participating nodes.
+[Vector clocks](VectorClocks) solve the fundamental problem of LWW by abandoning reliance on absolute time. Instead, they track the causality history across all participating nodes.
 
 **Concept:** A vector clock $V$ is a map $\{NodeID \rightarrow Counter\}$. $V(i)$ represents the number of updates observed from $Node_i$.
 
@@ -97,7 +107,7 @@ FUNCTION CompareClocks(V_A, V_B):
 #### 2.1.3 Conflict-Free Replicated Data Types (CRDTs)
 CRDTs represent the most sophisticated evolution beyond simple conflict resolution. Instead of storing the *state* and resolving conflicts on the state, CRDTs store the *operations* in a mathematically structured way that guarantees convergence regardless of the order of application.
 
-**Principle:** They are data structures designed such that merging replicas (the merge function $\text{Merge}(S_A, S_B)$) is commutative, associative, and idempotent.
+**Principle:** They are [data structures](DataStructures) designed such that merging replicas (the merge function $\text{Merge}(S_A, S_B)$) is commutative, associative, and idempotent.
 
 **Types of CRDTs:**
 1.  **Operation-based (Op-based):** Replicas exchange the operations themselves (e.g., "increment by 1"). Requires reliable message delivery (like a distributed log).
@@ -162,7 +172,7 @@ When microservices interact, the failure domain expands exponentially. A single 
 
 **The Problem:** If Service A commits successfully, but Service B fails before committing, the system is left in an inconsistent state that EC mechanisms alone cannot fix.
 
-**The Solution: The Saga Pattern.**
+**The Solution: The [Saga Pattern](SagaPattern).**
 Sagas manage long-lived transactions by breaking them into a sequence of local, ACID transactions. Crucially, each local transaction must be paired with a **Compensation Transaction**.
 
 *   **Example:** Order Placement $\rightarrow$ (1) Reserve Inventory (Service A) $\rightarrow$ (2) Process Payment (Service B) $\rightarrow$ (3) Create Shipment (Service C).
@@ -211,7 +221,7 @@ The choice of underlying data structure and coordination protocol dictates the p
 
 ### 5.1 Dynamo-Style Replication (Quorum-Based)
 Dynamo was the seminal example of building a highly available, eventually consistent key-value store. It relies heavily on:
-1.  **Consistent Hashing:** Mapping keys to a ring of nodes to distribute load and minimize data movement during node addition/removal.
+1.  **[Consistent Hashing](ConsistentHashing):** Mapping keys to a ring of nodes to distribute load and minimize data movement during node addition/removal.
 2.  **Vector Clocks:** For conflict detection.
 3.  **Quorum Reads/Writes:** For tunable consistency.
 

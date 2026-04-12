@@ -49,7 +49,7 @@ The resurgence of AI came through [machine learning](MachineLearning) — system
 
 ### The Generative AI Era (2017-Present)
 
-The introduction of the Transformer architecture in the 2017 paper "Attention Is All You Need" proved pivotal. Transformers enabled a new generation of language models, beginning with BERT (2018) and GPT-2 (2019). The release of GPT-3 in 2020, with its 175 billion parameters, demonstrated that large language models could generate remarkably coherent text, write code, and perform tasks they were never explicitly trained on. The public release of ChatGPT in November 2022 brought generative AI into mainstream awareness, reaching 100 million users in two months. Subsequent frontier models — GPT-4, Claude, Gemini, Llama — have continued to push capabilities forward. For details on how these models are built, see [AI Model Training](AIModelTraining).
+The introduction of the [Transformer architecture](TransformerArchitecture) in the 2017 paper "Attention Is All You Need" proved pivotal. Transformers enabled a new generation of language models, beginning with BERT (2018) and GPT-2 (2019). The release of GPT-3 in 2020, with its 175 billion parameters, demonstrated that large language models could generate remarkably coherent text, write code, and perform tasks they were never explicitly trained on. The public release of ChatGPT in November 2022 brought generative AI into mainstream awareness, reaching 100 million users in two months. Subsequent frontier models — GPT-4, Claude, Gemini, Llama — have continued to push capabilities forward. For details on how these models are built, see [AI Model Training](AIModelTraining).
 
 ## Types of AI
 
@@ -69,7 +69,7 @@ All current AI systems, no matter how impressive, fall under the category of nar
 
 ### Deep Learning
 
-Deep learning uses artificial neural networks with many layers to learn hierarchical representations of data. Convolutional neural networks (CNNs) revolutionized computer vision, while recurrent neural networks (RNNs) and later Transformers transformed natural language processing. Deep learning's power comes from its ability to automatically learn features from raw data, eliminating much of the manual feature engineering that earlier ML approaches required.
+Deep learning uses artificial neural networks with many layers to learn hierarchical representations of data. [Convolutional neural networks](ConvolutionalNeuralNetworks) (CNNs) revolutionized computer vision, while [recurrent neural networks](RecurrentNeuralNetworks) (RNNs) and later Transformers transformed [natural language processing](NaturalLanguageProcessing). Deep learning's power comes from its ability to automatically learn features from raw data, eliminating much of the manual [feature engineering](FeatureEngineering) that earlier ML approaches required.
 
 ### Reinforcement Learning
 

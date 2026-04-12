@@ -64,7 +64,7 @@ The system is organized into 16 Maven modules with clear separation of concerns:
 
 2. **Frontmatter as Source of Truth** — Wiki page YAML frontmatter is the canonical source for knowledge graph relationships. The GraphProjector synchronizes frontmatter to graph nodes/edges on every page save.
 
-3. **Provenance Model** — All knowledge graph content tracks its origin: `human-authored` (from frontmatter), `ai-inferred` (proposals), `ai-reviewed` (approved proposals written back to frontmatter).
+3. **[Provenance Model](ProvenanceModel)** — All knowledge graph content tracks its origin: `human-authored` (from frontmatter), `ai-inferred` (proposals), `ai-reviewed` (approved proposals written back to frontmatter).
 
 ## Feature Timeline
 

@@ -1,8 +1,19 @@
+---
+title: Probability Theory
+type: article
+tags:
+- process
+- mathcal
+- model
+summary: If you are reading this, you are not looking for a refresher on basic probability
+  axioms.
+auto-generated: true
+---
 # A Tutorial
 
 Welcome. If you are reading this, you are not looking for a refresher on basic probability axioms. You are researching the frontiers—the points where pure mathematics intersects with complex physical, financial, and biological systems. Probability Theory and Stochastic Processes (PTSP) is not merely a collection of tools; it is the mathematical language used to model inherent uncertainty and temporal evolution.
 
-This tutorial is designed to serve as a comprehensive, rigorous deep dive, assuming a foundational mastery of measure theory, real analysis, and basic probability concepts ($\sigma$-algebras, measure spaces, random variables, expectation). We will proceed methodically, building from the necessary mathematical bedrock to the most cutting-edge techniques currently employed in research.
+This tutorial is designed to serve as a comprehensive, rigorous deep dive, assuming a foundational mastery of [measure theory](MeasureTheory), [real analysis](RealAnalysis), and basic probability concepts ($\sigma$-algebras, measure spaces, random variables, expectation). We will proceed methodically, building from the necessary mathematical bedrock to the most cutting-edge techniques currently employed in research.
 
 ***
 
@@ -156,7 +167,7 @@ For researchers pushing the boundaries, the focus shifts from solving textbook p
 The vast majority of modern stochastic modeling is formulated as SDEs:
 $$dX_t = \mu(t, X_t) dt + \sigma(t, X_t) dW_t$$
 
-Solving these analytically is rare. Therefore, numerical methods are paramount.
+Solving these analytically is rare. Therefore, [numerical methods](NumericalMethods) are paramount.
 
 #### A. Euler-Maruyama Scheme (The Workhorse)
 The simplest numerical approximation, derived from the Taylor expansion, is:
@@ -184,14 +195,14 @@ When the state variable $X$ is not just a point in $\mathbb{R}^d$, but a *field*
 
 A canonical example is the **$\Phi^4_3$ model** or the **Stochastic Heat Equation**:
 $$\frac{\partial u}{\partial t} = \Delta u + \text{Noise}(x, t)$$
-Here, the noise term is often modeled as space-time white noise, $\dot{W}(x, t)$, which requires defining the noise in a generalized sense (e.g., using the Wiener process in the space of distributions). Solving these requires techniques from functional analysis and stochastic geometry.
+Here, the noise term is often modeled as space-time white noise, $\dot{W}(x, t)$, which requires defining the noise in a generalized sense (e.g., using the Wiener process in the space of distributions). Solving these requires techniques from [functional analysis](FunctionalAnalysis) and stochastic geometry.
 
 ### 4. Machine Learning Integration: Deep Stochastic Modeling
 
 The convergence of Deep Learning (DL) and PSTS is perhaps the most active research area. DL models are increasingly used to:
 
 1.  **Estimate Parameters:** Using techniques like Maximum Likelihood Estimation (MLE) or Variational Inference (VI) to estimate the drift ($\mu$) and diffusion ($\sigma$) coefficients of an underlying SDE from observed data.
-2.  **Model Trajectories:** Using Recurrent Neural Networks (RNNs) or specialized generative models (like Stochastic Differential Equation Neural Networks, or SDE-NNs) to learn the underlying stochastic dynamics directly from time series data, bypassing the need for explicit physical models.
+2.  **Model Trajectories:** Using [Recurrent Neural Networks](RecurrentNeuralNetworks) (RNNs) or specialized generative models (like Stochastic Differential Equation Neural Networks, or SDE-NNs) to learn the underlying stochastic dynamics directly from time series data, bypassing the need for explicit physical models.
 3.  **Filtering:** Deep Kalman Filters or Particle Filters are used to estimate the hidden state $X_t$ given noisy, incomplete observations $Y_t$, effectively performing non-linear state estimation where the standard Kalman filter fails.
 
 ***

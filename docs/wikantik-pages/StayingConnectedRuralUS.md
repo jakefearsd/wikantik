@@ -1,3 +1,14 @@
+---
+title: Staying Connected Rural US
+type: article
+tags:
+- connect
+- data
+- high
+summary: 'Staying Connected Target Audience: Field Researchers, Telecommunications
+  Engineers, Disaster Preparedness Specialists, and Advanced Field Technologists.'
+auto-generated: true
+---
 # Staying Connected
 
 **Target Audience:** Field Researchers, Telecommunications Engineers, Disaster Preparedness Specialists, and Advanced Field Technologists.

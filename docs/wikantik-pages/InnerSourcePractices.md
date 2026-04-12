@@ -1,3 +1,14 @@
+---
+title: Inner Source Practices
+type: article
+tags:
+- must
+- contribut
+- sourc
+summary: We are no longer in an era where proprietary code, locked within the corporate
+  firewall, was the default assumption of value.
+auto-generated: true
+---
 # The Symbiotic Nexus
 
 ## Introduction: Navigating the Modern Software Development Paradigm
@@ -16,7 +27,7 @@ Before diving into the mechanics, we must establish rigorous definitions. Confus
 2.  **Inner Source (IS):** The practice of applying the principles, culture, and collaborative mechanisms of open-source development *within* the boundaries of a single organization. The code remains proprietary or internal, but the *process* mimics OSS collaboration (e.g., pull requests, code reviews, RFCs, contribution guidelines).
 3.  **Enterprise Open Source (EOS):** This describes the *state* where an enterprise actively adopts, contributes to, and manages its relationship with external OSS projects, while simultaneously leveraging IS practices internally. It is the operational maturity achieved by successfully integrating IS principles into an OSS-aware enterprise structure.
 
-The core thesis we must adopt is this: **Inner Source is the necessary cultural and process precursor to successful Enterprise Open Source contribution.** You cannot effectively contribute to the global OSS ecosystem if your internal development process is fundamentally siloed and non-collaborative.
+The core thesis we must adopt is this: **Inner Source is the necessary cultural and process precursor to successful Enterprise [Open Source contribution](OpenSourceContribution).** You cannot effectively contribute to the global OSS ecosystem if your internal development process is fundamentally siloed and non-collaborative.
 
 ---
 
@@ -248,7 +259,7 @@ Instead of attempting a "big bang" rewrite, the IS approach demands the Strangle
 3.  **Redirect Traffic:** Gradually redirect calls meant for the legacy monolith to this new Facade.
 4.  **Isolate and Refactor:** Once the Facade is stable and all consumers are pointing to it, the corresponding module within the monolith can be safely retired or refactored, piece by piece.
 
-This process forces the team to treat the legacy code not as a single unit, but as a collection of discrete, replaceable services—the ultimate goal of modern microservices architecture, facilitated by the IS mindset.
+This process forces the team to treat the legacy code not as a single unit, but as a collection of discrete, replaceable services—the ultimate goal of modern [microservices architecture](MicroservicesArchitecture), facilitated by the IS mindset.
 
 ### 4.3 Advanced Governance: The Multi-Tiered Contribution Model
 

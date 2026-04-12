@@ -1,3 +1,14 @@
+---
+title: Romance In A Small Van
+type: article
+tags:
+- must
+- text
+- we
+summary: The goal is not merely to look romantic, but to function romantically, regardless
+  of external variables or internal entropy.
+auto-generated: true
+---
 # Engineering Intimacy
 
 **Target Audience:** Advanced Practitioners, Spatial Psychologists, Experiential Architects, and Behavioral Designers researching novel methodologies for intimate environment optimization.

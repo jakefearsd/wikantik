@@ -1,3 +1,13 @@
+---
+title: Fastener Engineering
+type: article
+tags:
+- fasten
+- joint
+- stress
+summary: Fastener Engineering and Joint Design Welcome.
+auto-generated: true
+---
 # Fastener Engineering and Joint Design
 
 Welcome. If you are reading this, you are not a novice who merely needs to know which grade of bolt to buy based on a simple tensile strength chart. You are a researcher, an engineer pushing the boundaries of what is structurally feasible. You understand that a joint is not merely a collection of components held together; it is a complex, multi-physics system whose failure modes dictate the reliability of the entire structure.

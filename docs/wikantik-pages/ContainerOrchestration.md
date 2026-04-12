@@ -1,3 +1,15 @@
+---
+title: Container Orchestration
+type: article
+tags:
+- servic
+- pod
+- control
+summary: This tutorial assumes a high level of familiarity with Linux internals, distributed
+  systems theory, networking stacks (TCP/IP, iptables/IPVS), and the general concepts
+  of control theory.
+auto-generated: true
+---
 # Container Orchestration
 
 For those of us who have moved past the introductory tutorials—the ones that explain what a container *is* and how to run `docker run hello-world`—the discussion around container orchestration is less about *usage* and more about *mechanics*, *failure modes*, and the underlying *declarative state machine* that makes it all function.
@@ -242,7 +254,7 @@ For the researcher, the current frontier is moving away from simple container de
 
 1.  **WebAssembly (Wasm) Integration:** Running sandboxed, highly portable code modules within the container runtime, offering a security boundary potentially stronger than traditional Linux namespaces for certain workloads.
 2.  **AI/ML Workloads:** Developing specialized schedulers and operators that understand the computational graph of a model (e.g., knowing that Model A must run on GPU X, and Model B requires specific interconnectivity) rather than just resource counts.
-3.  **Edge Computing Orchestration:** Adapting the control plane to operate reliably with intermittent connectivity, requiring sophisticated local caching, eventual consistency models, and decentralized consensus mechanisms that challenge the core assumptions of the centralized etcd store.
+3.  **Edge Computing Orchestration:** Adapting the control plane to operate reliably with intermittent connectivity, requiring sophisticated local caching, [eventual consistency](EventualConsistency) models, and decentralized consensus mechanisms that challenge the core assumptions of the centralized etcd store.
 
 The system is robust, complex, and relentlessly iterative. The goal is no longer to *run* containers, but to *program the system that runs the containers*.
 

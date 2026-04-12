@@ -1,3 +1,14 @@
+---
+title: Strategy Pattern
+type: article
+tags:
+- strategi
+- pattern
+- context
+summary: This rigidity is an anti-pattern in itself, stifling evolution and dramatically
+  increasing the cost of change.
+auto-generated: true
+---
 # Dynamic Behavior
 
 ## Introduction: The Problem of Inflexibility in Code Architecture
@@ -6,7 +17,7 @@ In the pursuit of robust, scalable, and maintainable software systems, developer
 
 The Strategy Pattern, formally recognized as a behavioral design pattern, provides the canonical solution to this problem. At its heart, it is not merely about polymorphism; it is a sophisticated mechanism for **decoupling the *what* (the client's goal) from the *how* (the specific algorithm used to achieve that goal).**
 
-For researchers and architects dealing with complex, evolving domains—such as financial modeling, machine learning pipelines, or complex routing systems—understanding the Strategy Pattern is insufficient. One must master the *runtime selection* mechanism that governs which strategy is invoked, and critically, understand the architectural trade-offs when selecting, composing, or replacing the pattern entirely.
+For researchers and architects dealing with complex, evolving domains—such as financial modeling, [machine learning](MachineLearning) pipelines, or complex routing systems—understanding the Strategy Pattern is insufficient. One must master the *runtime selection* mechanism that governs which strategy is invoked, and critically, understand the architectural trade-offs when selecting, composing, or replacing the pattern entirely.
 
 This tutorial is designed for experts. We will move beyond the textbook definition, delving into the advanced mechanics, meta-patterns built upon it, performance considerations, and the subtle edge cases where its application requires deep architectural foresight.
 

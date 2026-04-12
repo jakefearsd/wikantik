@@ -1,3 +1,14 @@
+---
+title: Java Reflection And Proxies
+type: article
+tags:
+- method
+- proxi
+- methodhandl
+summary: This tutorial is not for the novice attempting to wrap a simple service layer
+  method.
+auto-generated: true
+---
 # The Art of Interception
 
 For those of us who spend enough time wrestling with the JVM's introspection capabilities, the concepts of reflection, proxies, and method handles often feel less like features and more like necessary evils—powerful tools that grant god-like access to the runtime state of a program, but at the cost of predictable performance and type safety.

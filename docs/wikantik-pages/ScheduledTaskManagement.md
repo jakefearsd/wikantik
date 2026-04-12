@@ -1,3 +1,14 @@
+---
+title: Scheduled Task Management
+type: article
+tags:
+- cron
+- time
+- schedul
+summary: Advanced Cron Job Management For those of us who have spent enough time wrestling
+  with system uptime, the concept of "scheduling" is deeply ingrained.
+auto-generated: true
+---
 # Advanced Cron Job Management
 
 For those of us who have spent enough time wrestling with system uptime, the concept of "scheduling" is deeply ingrained. We rely on mechanisms to ensure that critical, repetitive, and time-sensitive tasks execute reliably, regardless of human intervention. The venerable `cron` utility, with its deceptively simple syntax, has been the backbone of Unix-like job scheduling for decades.

@@ -1,3 +1,14 @@
+---
+title: Actor Model Programming
+type: article
+tags:
+- actor
+- messag
+- process
+summary: Traditional concurrency models, while mathematically sound in theory, often
+  degrade into brittle, non-obvious failure modes in practice.
+auto-generated: true
+---
 # Actor Model Programming
 
 For those of us who have spent enough time wrestling with shared mutable state in multi-threaded environments, the sheer cognitive load of managing locks, semaphores, and volatile reads becomes less a programming challenge and more a form of existential dread. Traditional concurrency models, while mathematically sound in theory, often degrade into brittle, non-obvious failure modes in practice.

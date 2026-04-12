@@ -1,3 +1,13 @@
+---
+title: Project Communication Strategies
+type: article
+tags:
+- report
+- statu
+- must
+summary: The Architecture of Assurance Status reporting.
+auto-generated: true
+---
 # The Architecture of Assurance
 
 Status reporting. The phrase itself often evokes images of fluorescent-lit conference rooms, dense PowerPoint decks, and the weary sigh of a stakeholder who has seen this exact slide deck before. For the seasoned practitioner, it can feel like an archaic, bureaucratic necessity—a ritualistic performance designed to reassure rather than inform.

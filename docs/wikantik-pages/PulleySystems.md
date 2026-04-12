@@ -1,3 +1,13 @@
+---
+title: Pulley Systems
+type: article
+tags:
+- text
+- system
+- pullei
+summary: 'Scope and Objectives This treatise aims to achieve the following: 1.'
+auto-generated: true
+---
 # The Mechanics of Pulleys and Pulley Systems
 
 This tutorial is designed not for the undergraduate student reviewing basic physics, but for the seasoned engineer, materials scientist, or mechanical researcher who requires a comprehensive, rigorous examination of pulley mechanics. We will move far beyond the simple concepts of "effort reduction" and delve into the dynamic modeling, material science constraints, advanced power transmission dynamics, and optimization heuristics governing these deceptively simple machines.
@@ -159,7 +169,7 @@ FUNCTION Calculate_Ideal_Tension(Load_L, Num_Ropes_N):
 
 ## IV. Power Transmission Beyond Simple Lifting: Belts, Sprockets, and Rotational Dynamics
 
-When the pulley system is used for power transmission—transferring rotational motion and torque ($\tau$)—the analysis shifts from linear force mechanics to rotational dynamics and material science. This is where the system becomes significantly more complex than simple lifting mechanisms.
+When the pulley system is used for power transmission—transferring rotational motion and torque ($\tau$)—the analysis shifts from linear force mechanics to [rotational dynamics](RotationalDynamics) and material science. This is where the system becomes significantly more complex than simple lifting mechanisms.
 
 ### A. Pulleys, Belts, and Sprockets (The Coupled System)
 

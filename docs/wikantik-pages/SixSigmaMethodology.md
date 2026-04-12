@@ -1,3 +1,13 @@
+---
+title: Six Sigma Methodology
+type: article
+tags:
+- process
+- measur
+- defect
+summary: Six Sigma DMAIC for Defect Reduction Welcome.
+auto-generated: true
+---
 # Six Sigma DMAIC for Defect Reduction
 
 Welcome. If you are reading this, you are likely not a Yellow Belt who just finished a weekend seminar. You are an expert, a researcher, or an engineer tasked with optimizing processes where the cost of failure is measured in millions, not mere man-hours. You understand that "process improvement" is a nebulous concept until it is quantified, statistically modeled, and rigorously controlled.
@@ -193,7 +203,7 @@ For researchers researching *new* techniques, the traditional DMAIC model must b
 Traditional SPC is statistical inference based on historical distributions. ML-PQ uses complex, non-linear relationships to predict failure probability based on multivariate sensor data.
 
 1.  **Data Preparation:** This requires massive, high-frequency time-series data (vibration, thermal imaging, acoustic signatures) collected during the Measure phase.
-2.  **Model Selection:**
+2.  **[Model Selection](ModelSelection):**
     *   **Classification Models (e.g., SVM, Random Forest):** Trained to classify a unit as "Defective" or "Non-Defective" based on sensor readings.
     *   **Anomaly Detection (e.g., Autoencoders):** The model learns the "normal" manifold of the process data. Any input that results in a high reconstruction error is flagged as an anomaly, signaling a potential defect *before* it crosses a hard specification limit.
 

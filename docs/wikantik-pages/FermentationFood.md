@@ -1,3 +1,14 @@
+---
+title: Fermentation Food
+type: article
+tags:
+- text
+- ferment
+- acid
+summary: The historical context, as noted by various sources, confirms its longevity
+  (Source [7]).
+auto-generated: true
+---
 # Fermentation Food
 
 **A Comprehensive Tutorial for Advanced Researchers**
@@ -58,7 +69,7 @@ This is perhaps the most recognized pathway, responsible for products like yogur
     The co-production of acetic acid and $\text{CO}_2$ provides a multi-pronged preservation effect, often leading to more complex flavor profiles (Source [6]).
 
 #### 2. Alcoholic Fermentation
-Primarily driven by *Saccharomyces cerevisiae*, this pathway is characterized by the conversion of sugars to ethanol and $\text{CO}_2$. While often associated with beverage production, its role in food preservation is secondary to its impact on flavor and texture.
+Primarily driven by *Saccharomyces cerevisiae*, this pathway is characterized by the conversion of sugars to ethanol and $\text{CO}_2$. While often associated with beverage production, its role in [food preservation](FoodPreservation) is secondary to its impact on flavor and texture.
 
 #### 3. Mixed Acid Fermentation
 This is the hallmark of complex, natural fermentations (e.g., sourdough, certain silage ferments). Multiple species interact, leading to a cocktail of acids (lactic, acetic, succinic), $\text{CO}_2$, and sometimes even formic acid. The resulting chemical matrix is far more complex and robustly preservative than single-acid systems.

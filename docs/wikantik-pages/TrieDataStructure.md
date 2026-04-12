@@ -1,8 +1,19 @@
+---
+title: Trie Data Structure
+type: article
+tags:
+- node
+- trie
+- word
+summary: This tutorial is not intended for those who merely need to pass a basic data
+  structures interview.
+auto-generated: true
+---
 # Prefix Search
 
 For those of us who spend our careers optimizing the microseconds of latency in search infrastructure, the efficiency of prefix matching is not merely a feature—it is the fundamental constraint upon which modern user experience is built. When a user types "comput," the system must instantaneously return suggestions like "computer," "compute," and "computation." The underlying data structure responsible for this magic is the Trie, or Prefix Tree.
 
-This tutorial is not intended for those who merely need to pass a basic data structures interview. We are addressing seasoned researchers, architects, and engineers who understand that "implementing a Trie" is a trivial exercise compared to designing a Trie that scales across petabytes of data, handles complex Unicode character sets, and maintains sub-millisecond latency under extreme load.
+This tutorial is not intended for those who merely need to pass a basic [data structures](DataStructures) interview. We are addressing seasoned researchers, architects, and engineers who understand that "implementing a Trie" is a trivial exercise compared to designing a Trie that scales across petabytes of data, handles complex Unicode character sets, and maintains sub-millisecond latency under extreme load.
 
 We will dissect the theory, explore advanced memory optimizations, compare architectural alternatives, and analyze the performance characteristics that separate a textbook implementation from a production-grade, industry-leading search component.
 

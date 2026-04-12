@@ -1,3 +1,15 @@
+---
+title: Kanban Methodology
+type: article
+tags:
+- limit
+- wip
+- time
+summary: If Kanban is the map, WIP limits are the highly calibrated, dynamic flow
+  regulators that prevent the entire enterprise from collapsing into a state of beautiful,
+  yet utterly unproductive, chaos.
+auto-generated: true
+---
 # Kanban Methodology
 
 For those of us who have moved past the introductory "what is Kanban" phase, the concept of Work-in-Progress (WIP) limits ceases to be a mere best practice and becomes the central, non-negotiable mechanism governing system throughput. If Kanban is the map, WIP limits are the highly calibrated, dynamic flow regulators that prevent the entire enterprise from collapsing into a state of beautiful, yet utterly unproductive, chaos.
@@ -8,7 +20,7 @@ This tutorial is not for the novice seeking to "visualize their board." This is 
 
 ## I. Why WIP Limits Matter
 
-To treat WIP limits as mere process guidelines is to fundamentally misunderstand the nature of complex adaptive systems. They are, in fact, direct applications of established principles from queuing theory, operations research, and systems dynamics. Understanding this theoretical bedrock is crucial for moving beyond anecdotal evidence and implementing scientifically validated flow controls.
+To treat WIP limits as mere process guidelines is to fundamentally misunderstand the nature of complex adaptive systems. They are, in fact, direct applications of established principles from queuing theory, [operations research](OperationsResearch), and systems dynamics. Understanding this theoretical bedrock is crucial for moving beyond anecdotal evidence and implementing scientifically validated flow controls.
 
 ### A. Little's Law
 
@@ -48,7 +60,7 @@ The WIP limit acts as the *gatekeeper* for the pull mechanism. It is the explici
 
 ## II. Implementing WIP Limits
 
-Moving from theory to practice requires rigorous definition of the limit itself. A WIP limit is not a static number; it is a dynamic policy derived from empirical data and team capacity modeling.
+Moving from theory to practice requires rigorous definition of the limit itself. A WIP limit is not a static number; it is a dynamic policy derived from empirical data and team [capacity modeling](CapacityModeling).
 
 ### A. Defining the Scope of the Limit
 
@@ -217,7 +229,7 @@ The WIP limit for the hand-off stage (e.g., "Ready for Team B Review") should be
 
 *   **If Team B's WIP limit is 2:** Team A must stop pulling work into the "Ready for Team B" column, even if Team A has completed 10 items. Team A must instead swarm on items that *do not* require Team B's input, thus maintaining local flow while respecting the downstream constraint.
 
-This requires explicit, documented Service Level Agreements (SLAs) that translate directly into quantitative WIP constraints.
+This requires explicit, documented [Service Level Agreements](ServiceLevelAgreements) (SLAs) that translate directly into quantitative WIP constraints.
 
 ### B. Handling Scope Volatility and Requirements Drift
 

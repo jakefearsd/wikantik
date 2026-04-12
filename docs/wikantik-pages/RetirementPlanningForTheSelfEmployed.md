@@ -1,3 +1,14 @@
+---
+title: Retirement Planning For The Self Employed
+type: article
+tags:
+- contribut
+- '401'
+- tax
+summary: It assumes a comprehensive understanding of IRS tax code mechanics, ERISA
+  principles, and general investment vehicle structures.
+auto-generated: true
+---
 # Solo 401(k) vs. SEP IRA
 
 **Disclaimer:** *This document is intended for highly sophisticated financial professionals, tax researchers, and established self-employed individuals seeking to optimize complex retirement contribution strategies. It assumes a comprehensive understanding of IRS tax code mechanics, ERISA principles, and general investment vehicle structures. Consult a qualified CPA or tax attorney before implementing any strategy.*

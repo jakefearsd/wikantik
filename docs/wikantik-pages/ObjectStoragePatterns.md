@@ -1,8 +1,19 @@
+---
+title: Object Storage Patterns
+type: article
+tags:
+- minio
+- data
+- object
+summary: Object storage emerged as the dominant paradigm to address the petabyte-scale
+  data challenges inherent in modern workloads.
+auto-generated: true
+---
 # The Infrastructure
 
 ## Introduction: The Imperative for Portable, Scalable Data Planes
 
-In the modern landscape of high-performance computing, artificial intelligence research, and large-scale data engineering, the storage layer is no longer a mere utility; it is a critical, often performance-limiting, architectural component. Researchers and engineers frequently encounter the "vendor lock-in" problem, where proprietary cloud storage APIs and service models—while convenient—create significant barriers to portability, cost optimization, and multi-cloud resilience.
+In the modern landscape of high-performance computing, [artificial intelligence](ArtificialIntelligence) research, and large-scale data engineering, the storage layer is no longer a mere utility; it is a critical, often performance-limiting, architectural component. Researchers and engineers frequently encounter the "vendor lock-in" problem, where proprietary cloud storage APIs and service models—while convenient—create significant barriers to portability, cost optimization, and multi-cloud resilience.
 
 Object storage emerged as the dominant paradigm to address the petabyte-scale data challenges inherent in modern workloads. Unlike traditional file systems (which struggle with massive metadata overhead) or block storage (which is optimized for transactional I/O), object storage treats data as immutable, self-contained units (objects) addressed by unique keys within a flat namespace.
 

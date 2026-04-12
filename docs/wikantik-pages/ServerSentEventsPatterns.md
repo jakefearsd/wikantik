@@ -1,3 +1,15 @@
+---
+title: Server Sent Events Patterns
+type: article
+tags:
+- server
+- client
+- data
+summary: We will dissect Long Polling, Server-Sent Events (SSE), and WebSockets, not
+  just as alternatives, but as fundamentally different paradigms for establishing
+  persistent, asynchronous data streams.
+auto-generated: true
+---
 # Long Polling, Server-Sent Events, and WebSockets for Expert Systems Design
 
 For those of us who spend our professional lives wrestling with the ephemeral nature of network communication, the concept of "real-time" is less a feature and more a persistent, frustrating architectural challenge. When the client needs data from the server *as it happens*, the traditional request-response cycle of HTTP feels less like a reliable communication method and more like a series of polite, yet ultimately insufficient, suggestions.

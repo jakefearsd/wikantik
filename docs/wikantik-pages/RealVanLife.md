@@ -1,3 +1,15 @@
+---
+title: Real Van Life
+type: article
+tags:
+- system
+- model
+- high
+summary: 'The Nomadic Habitation System Disclaimer: This document is intended for
+  advanced researchers, systems analysts, urban geographers, and technical writers
+  studying transient habitation models.'
+auto-generated: true
+---
 # The Nomadic Habitation System
 
 ***

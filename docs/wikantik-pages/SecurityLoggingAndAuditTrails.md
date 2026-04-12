@@ -1,3 +1,13 @@
+---
+title: Security Logging And Audit Trails
+type: article
+tags:
+- log
+- data
+- forens
+summary: Security Logging, Audit Trail Forensics Welcome.
+auto-generated: true
+---
 # Security Logging, Audit Trail Forensics
 
 Welcome. If you are reading this, you are presumably beyond the stage of merely "implementing" logging; you are in the realm of optimizing, hardening, and, most critically, *interpreting* the resulting data streams. The field of security logging, audit trail management, and digital forensics is not a static discipline; it is a constantly evolving arms race against obfuscation, volume, and the sheer entropy of modern IT infrastructure.
@@ -132,7 +142,7 @@ The single greatest vulnerability in logging is the ability to modify or delete 
 
 ### B. User and Entity Behavior Analytics (UEBA) Integration
 
-UEBA moves logging from a reactive, signature-based system to a proactive, predictive one. It requires machine learning models trained on the normalized, correlated data stream.
+UEBA moves logging from a reactive, signature-based system to a proactive, predictive one. It requires [machine learning](MachineLearning) models trained on the normalized, correlated data stream.
 
 1.  **Modeling "Normal":**
     The ML model must ingest data across multiple vectors:

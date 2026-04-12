@@ -1,3 +1,14 @@
+---
+title: News
+type: article
+tags:
+- '2026'
+- '03'
+- '04'
+summary: JSPWiki Development News A log of recent development activity on the JSPWiki
+  project.
+auto-generated: true
+---
 # JSPWiki Development News
 
 A log of recent development activity on the JSPWiki project.

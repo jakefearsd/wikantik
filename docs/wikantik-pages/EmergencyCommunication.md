@@ -1,7 +1,19 @@
+---
+title: Emergency Communication
+type: article
+tags:
+- commun
+- must
+- plan
+summary: 'Developing a Family Emergency Communication Plan Target Audience: Experts
+  in Disaster Resilience, Emergency Management Systems, and Advanced Preparedness
+  Research.'
+auto-generated: true
+---
 # Developing a Family Emergency Communication Plan
 
 **Target Audience:** Experts in Disaster Resilience, Emergency Management Systems, and Advanced Preparedness Research.
-**Scope:** This tutorial moves beyond rudimentary "call this number" checklists. It treats the Family Emergency Communication Plan (FECP) not as a static document, but as a dynamic, multi-layered, resilient communication architecture requiring rigorous threat modeling, protocol design, and continuous validation.
+**Scope:** This tutorial moves beyond rudimentary "call this number" checklists. It treats the Family Emergency Communication Plan (FECP) not as a static document, but as a dynamic, multi-layered, resilient communication architecture requiring rigorous [threat modeling](ThreatModeling), protocol design, and continuous validation.
 
 ***
 

@@ -1,3 +1,13 @@
+---
+title: Logical Fallacies
+type: article
+tags:
+- fallaci
+- argument
+- structur
+summary: Logical Fallacies and Critical Reasoning Welcome.
+auto-generated: true
+---
 # Logical Fallacies and Critical Reasoning
 
 Welcome. If you are reading this, you are not looking for a remedial overview of basic argumentation skills. You are researching novel techniques, operating at the intersection of complex systems, advanced modeling, and high-stakes decision architecture. Therefore, this tutorial will not merely *list* logical fallacies; rather, it will dissect the *mechanisms* by which faulty reasoning compromises rigorous thought, providing a framework for identifying, quantifying, and mitigating these errors within advanced research pipelines.
@@ -152,7 +162,7 @@ The application of fallacies changes based on the domain of research.
 The primary fallacy here is **Overfitting** (a computational/statistical fallacy).
 *   **Description:** Creating a model that fits the noise and random fluctuations of the training data *too* perfectly, resulting in excellent performance on the training set but catastrophic failure on unseen, real-world data.
 *   **Logical Parallel:** This is akin to assuming that the specific, limited set of observed data points ($D_{train}$) are the *necessary and sufficient* representation of the entire population ($P$). The researcher mistakes correlation for causation, a classic fallacy of presumption.
-*   **Mitigation:** Rigorous cross-validation, regularization techniques ($\text{L1/L2}$), and establishing clear null hypotheses ($H_0$) that must be rejected with high statistical confidence.
+*   **Mitigation:** Rigorous cross-validation, [regularization techniques](RegularizationTechniques) ($\text{L1/L2}$), and establishing clear null hypotheses ($H_0$) that must be rejected with high statistical confidence.
 
 #### B. Philosophy and Metaphysics
 Here, the fallacies often revolve around scope and definition.

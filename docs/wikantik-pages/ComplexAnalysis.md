@@ -1,8 +1,20 @@
+---
+title: Complex Analysis
+type: article
+tags:
+- map
+- domain
+- conform
+summary: Complex Analysis and Conformal Mappings The study of complex functions often
+  reveals symmetries and structures that are invisible when viewed through the lens
+  of real variables.
+auto-generated: true
+---
 # Complex Analysis and Conformal Mappings
 
 The study of complex functions often reveals symmetries and structures that are invisible when viewed through the lens of real variables. Conformal mapping stands as one of the most profound and powerful manifestations of this insight. It is not merely a mathematical curiosity; it is a fundamental tool that allows us to transform domains with inconvenient geometries into canonical, simpler forms—such as the unit disk or the upper half-plane—where established analytical techniques can be applied.
 
-This tutorial is designed for researchers already proficient in complex analysis, differential geometry, and advanced PDEs. We will move beyond the introductory proofs to explore the deep theoretical underpinnings, the limitations of classical theorems, and the cutting-edge generalizations necessary for solving modern problems in physics and engineering.
+This tutorial is designed for researchers already proficient in complex analysis, [differential geometry](DifferentialGeometry), and advanced PDEs. We will move beyond the introductory proofs to explore the deep theoretical underpinnings, the limitations of classical theorems, and the cutting-edge generalizations necessary for solving modern problems in physics and engineering.
 
 ---
 
@@ -74,7 +86,7 @@ This means that the mapping $f$ transforms the solution of Laplace's equation in
 1.  **Electrostatics:** The potential $\Phi$ (harmonic) in the $z$-plane is mapped to a potential $\Phi'$ in the $w$-plane. The electric field lines (orthogonal trajectories to the equipotential lines) are mapped conformally.
 2.  **Ideal Fluid Flow:** The velocity potential $\phi$ and the stream function $\psi$ (both harmonic) are mapped such that the flow lines (lines of constant $\psi$) and the equipotential lines (lines of constant $\phi$) maintain their orthogonal intersection property.
 
-This harmonic connection is why numerical methods often rely on solving Laplace's equation on the transformed domain (Source [5]).
+This harmonic connection is why [numerical methods](NumericalMethods) often rely on solving Laplace's equation on the transformed domain (Source [5]).
 
 ---
 

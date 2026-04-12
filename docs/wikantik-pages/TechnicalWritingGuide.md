@@ -1,3 +1,14 @@
+---
+title: Technical Writing Guide
+type: article
+tags:
+- style
+- guid
+- must
+summary: You are dealing with concepts that defy simple analogy, where the very language
+  used to describe the system can become a critical failure point.
+auto-generated: true
+---
 # The Architectonics of Clarity
 
 Welcome. If you find yourself in the trenches of researching bleeding-edge techniques—the kind of work that hasn't been codified into a textbook yet—you understand that the documentation surrounding the technology is often as complex, if not more so, than the technology itself. You are dealing with concepts that defy simple analogy, where the very language used to describe the system can become a critical failure point.
@@ -41,7 +52,7 @@ The most advanced style guides are not written for the *writer*; they are writte
 
 When you define your audience as "Experts researching new techniques," your style guide must reflect that assumption:
 
-1.  **Assumption of Prior Knowledge:** You do not need to define basic concepts (e.g., what a CPU is). You *do* need to define the precise relationship between two advanced concepts (e.g., the difference between eventual consistency in a CRDT vs. a Paxos implementation).
+1.  **Assumption of Prior Knowledge:** You do not need to define basic concepts (e.g., what a CPU is). You *do* need to define the precise relationship between two advanced concepts (e.g., the difference between [eventual consistency](EventualConsistency) in a CRDT vs. a Paxos implementation).
 2.  **Tolerance for Density:** The reader *expects* density. They are not looking for hand-holding; they are looking for precise, actionable, and comprehensive detail.
 3.  **Emphasis on Mechanism:** The focus must be on *how* the system works, not *that* it works.
 
@@ -149,7 +160,7 @@ This is where the style guide moves from being a helpful suggestion to an indisp
 
 ### A. API Reference Documentation Style
 
-API documentation is a specialized sub-discipline. It requires a near-mathematical level of precision.
+[API documentation](ApiDocumentation) is a specialized sub-discipline. It requires a near-mathematical level of precision.
 
 #### 1. The Signature Block (The Contract)
 The function signature must be presented first, acting as the primary contract.
@@ -204,7 +215,7 @@ Instead of just listing successful inputs, dedicate sections to:
 
 *   **Invalid Inputs:** What happens if the input array is empty? What if the data type is mismatched?
 *   **Concurrency Failures:** How does the system behave under race conditions? (This requires describing the *observable* state, not just the theoretical failure).
-*   **Resource Exhaustion:** What is the graceful degradation path when memory or network bandwidth is depleted?
+*   **Resource Exhaustion:** What is the [graceful degradation](GracefulDegradation) path when memory or network bandwidth is depleted?
 
 This forces the writer to think like a failure-mode analyst, which is the hallmark of expert-level documentation.
 

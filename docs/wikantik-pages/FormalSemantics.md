@@ -1,6 +1,17 @@
+---
+title: Formal Semantics
+type: article
+tags:
+- model
+- semant
+- formal
+summary: If you are reading this, you are not looking for a refresher on propositional
+  logic.
+auto-generated: true
+---
 # A Tutorial
 
-Welcome. If you are reading this, you are not looking for a refresher on propositional logic. You are researching the bleeding edge—the points where formal systems buckle under the weight of natural language ambiguity, or where the elegance of a proof system fails to capture the messy reality of interpretation.
+Welcome. If you are reading this, you are not looking for a refresher on [propositional logic](PropositionalLogic). You are researching the bleeding edge—the points where formal systems buckle under the weight of natural language ambiguity, or where the elegance of a proof system fails to capture the messy reality of interpretation.
 
 This tutorial assumes a working fluency in first-order logic ($\mathcal{L}$), basic set theory, and familiarity with advanced mathematical structures. Our goal is not merely to define Formal Semantics (FS) or Model Theory (MT) separately, but to rigorously map the complex, often fraught, relationship between them, particularly as they apply to computational linguistics, knowledge representation, and advanced logic programming.
 
@@ -54,7 +65,7 @@ In standard first-order logic, predicates operate on objects (individuals). In N
 ### B. Monads and Contextual Semantics
 For phenomena like scope ambiguity or anaphora resolution, the meaning of a word often depends on the entire discourse history—the *context*. This dependency is non-local and stateful.
 
-**Monads** (from category theory, but applied here to semantics) provide a powerful algebraic structure for modeling computation that involves state or context accumulation. In semantic parsing, a monad can encapsulate the accumulated context ($\Gamma$) alongside the derived meaning ($\mu$):
+**Monads** (from [category theory](CategoryTheory), but applied here to semantics) provide a powerful algebraic structure for modeling computation that involves state or context accumulation. In semantic parsing, a monad can encapsulate the accumulated context ($\Gamma$) alongside the derived meaning ($\mu$):
 
 $$ \text{Semantic Operation: } \text{Op} : \text{Context} \to \text{Meaning} $$
 

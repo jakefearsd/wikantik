@@ -1,10 +1,22 @@
+---
+title: Capacity Planning
+type: article
+tags:
+- resourc
+- model
+- project
+summary: Capacity Planning Resource Forecasting Resource capacity planning and forecasting
+  is, frankly, one of the most persistently difficult problems in applied operations
+  research and project management.
+auto-generated: true
+---
 # Capacity Planning Resource Forecasting
 
-Resource capacity planning and forecasting is, frankly, one of the most persistently difficult problems in applied operations research and project management. It is not merely an administrative task of checking calendars; it is a complex, multi-variable, stochastic optimization problem that sits at the intersection of organizational theory, predictive statistics, and resource economics.
+Resource capacity planning and forecasting is, frankly, one of the most persistently difficult problems in applied [operations research](OperationsResearch) and project management. It is not merely an administrative task of checking calendars; it is a complex, multi-variable, stochastic optimization problem that sits at the intersection of organizational theory, predictive statistics, and resource economics.
 
 For experts researching novel techniques, the goal is to move far beyond the rudimentary Gantt chart analysis—the simple comparison of *allocated* hours versus *estimated* hours. We must delve into predictive modeling, constraint satisfaction programming, and the incorporation of latent, unobservable variables that drive demand.
 
-This tutorial will serve as a comprehensive review, moving from foundational theory through state-of-the-art machine learning approaches, while critically examining the inherent limitations and edge cases that plague even the most sophisticated models.
+This tutorial will serve as a comprehensive review, moving from foundational theory through state-of-the-art [machine learning](MachineLearning) approaches, while critically examining the inherent limitations and edge cases that plague even the most sophisticated models.
 
 ---
 
@@ -75,7 +87,7 @@ Regression models attempt to establish a causal link between the resource demand
 
 $$D(t) = \beta_0 + \sum_{i=1}^{k} \beta_i X_i(t) + \epsilon_t$$
 
-The critical step here is feature engineering. The $X_i$ variables must capture the *drivers* of demand, not just the historical demand itself.
+The critical step here is [feature engineering](FeatureEngineering). The $X_i$ variables must capture the *drivers* of demand, not just the historical demand itself.
 
 **Examples of $X_i$ Variables:**
 *   **Portfolio Size:** Number of active projects.
@@ -111,7 +123,7 @@ For sequence data where the *order* and *context* of events matter profoundly (e
 
 LSTMs are designed to remember dependencies over long sequences, mitigating the vanishing gradient problem that plagued basic RNNs.
 
-**The Transformer Architecture:**
+**The [Transformer Architecture](TransformerArchitecture):**
 The current state-of-the-art for sequence modeling is the Transformer (the architecture underpinning models like BERT and GPT). It relies on the **Self-Attention Mechanism**. Instead of processing data sequentially (like an LSTM), the Transformer processes all time steps simultaneously, calculating the relevance (attention score) of *every* time step to *every other* time step.
 
 **Expert Insight:** For resource forecasting, the Transformer allows the model to simultaneously weigh the impact of a resource constraint from 12 months ago against a current market signal, providing a holistic contextual understanding that linear models cannot replicate. However, this requires massive, clean, and highly structured historical data to train effectively.

@@ -1,3 +1,14 @@
+---
+title: Agent Loops
+type: article
+tags:
+- failur
+- state
+- must
+summary: We have moved beyond the quaint notion of a single API call; we are now constructing
+  complex, multi-step, stateful reasoning engines.
+auto-generated: true
+---
 # Agent Loops
 
 The modern AI agent loop—the iterative process where an LLM reasons, calls tools, observes results, and refines its plan—is arguably the most exciting, and frankly, the most brittle, area of contemporary software engineering. We have moved beyond the quaint notion of a single API call; we are now constructing complex, multi-step, stateful reasoning engines.
@@ -18,7 +29,7 @@ The Large Language Model (LLM) API is the primary source of non-determinism. Fai
 
 1.  **Transient Network Errors:** Standard HTTP failures (timeouts, connection resets). These are the easiest to handle, usually requiring simple exponential backoff retries.
 2.  **Rate Limiting Errors:** The API provider enforces quotas. The critical detail here, which many practitioners overlook, is the `Retry-After` header. A naive retry mechanism that ignores this header is not merely inefficient; it is actively hostile to your service uptime. The correct approach requires parsing this header and implementing a mandatory, non-negotiable wait period.
-3.  **Schema/Parsing Failures (Tool Calling Fidelity):** This is the most insidious failure mode. The LLM *thinks* it has called the right tool with the right parameters, but the JSON output is malformed, or the parameters, while syntactically correct, violate the underlying schema constraints (e.g., passing a string where an integer is required).
+3.  **Schema/Parsing Failures ([Tool Calling](ToolCalling) Fidelity):** This is the most insidious failure mode. The LLM *thinks* it has called the right tool with the right parameters, but the JSON output is malformed, or the parameters, while syntactically correct, violate the underlying schema constraints (e.g., passing a string where an integer is required).
     *   **Expert Insight:** The failure here is not network-related; it is a *semantic* failure of the model's adherence to the provided structure. Robust systems must implement a secondary validation layer—a Pydantic or JSON Schema validator—*after* the LLM output but *before* the tool execution logic is invoked. If validation fails, the loop must not crash; it must feed the error message back to the LLM for self-correction (a form of guided retry).
 
 ### B. Tool Execution Failures (The "Real World" Problem)
@@ -61,7 +72,7 @@ This structure forces explicit handling of every possible outcome, eliminating t
 
 ### B. The Circuit Breaker Pattern
 
-When dealing with external services (APIs, databases), the Circuit Breaker pattern is non-negotiable. It prevents the agent from repeatedly hammering a service that is known to be down or overloaded.
+When dealing with external services (APIs, databases), the [Circuit Breaker pattern](CircuitBreakerPattern) is non-negotiable. It prevents the agent from repeatedly hammering a service that is known to be down or overloaded.
 
 **Mechanism:**
 

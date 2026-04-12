@@ -1,3 +1,14 @@
+---
+title: Knowledge Graph Vs Relational Database
+type: article
+tags:
+- text
+- data
+- rdbm
+summary: This tutorial is not designed for the data analyst who needs to know which
+  tool to pull up for their quarterly report.
+auto-generated: true
+---
 # Knowledge Graphs vs. Relational Databases
 
 For those of us who have spent enough time wrestling with data models to develop a healthy skepticism regarding any "one-size-fits-all" solution, the debate between Relational Database Management Systems (RDBMS) and Knowledge Graphs (KGs) is less a binary choice and more a nuanced discussion of *computational paradigms*.

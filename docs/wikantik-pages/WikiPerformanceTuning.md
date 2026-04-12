@@ -1,3 +1,14 @@
+---
+title: Wiki Performance Tuning
+type: article
+tags:
+- cach
+- data
+- layer
+summary: A wiki, by its very nature, is a highly dynamic, write-heavy, and read-intensive
+  system.
+auto-generated: true
+---
 # The Architecture of Speed
 
 For those of us who spend enough time wrestling with the sheer entropy of collaborative knowledge bases—the digital equivalent of a thousand librarians arguing over the precise definition of "fluffy"—performance tuning is not a mere optimization; it is an architectural necessity. A wiki, by its very nature, is a highly dynamic, write-heavy, and read-intensive system. It demands the agility of a modern microservice while retaining the historical depth of an encyclopedia.
@@ -51,7 +62,7 @@ While OPcache handles the PHP runtime, some advanced systems or specific framewo
 
 ### B. Layer 2: The Object/Data Caching Layer (Application State)
 
-This layer caches the *results* of expensive computations or the *retrieved data structures* that are needed across multiple requests, but which do not change often. This is where Memcached and Redis shine.
+This layer caches the *results* of expensive computations or the *retrieved [data structures](DataStructures)* that are needed across multiple requests, but which do not change often. This is where Memcached and Redis shine.
 
 #### 1. Memcached vs. Redis: A Comparative Analysis
 
@@ -177,7 +188,7 @@ To summarize this labyrinthine process for the researcher who needs a definitive
 2.  **Varnish (Local Edge):** Handles request throttling, basic response caching, and ESI for dynamic components.
 3.  **PHP Opcode Cache (Runtime):** Eliminates source code parsing overhead.
 4.  **Object Cache (Redis/Memcached):** Stores computed, reusable data structures (e.g., user permissions, taxonomy trees, widget data).
-5.  **Database Optimization (Replicas/Materialized Views):** Ensures the foundational data retrieval is maximally efficient.
+5.  **Database Optimization (Replicas/[Materialized Views](MaterializedViews)):** Ensures the foundational data retrieval is maximally efficient.
 6.  **Message Queues (Kafka/RabbitMQ):** Manages asynchronous tasks (image processing, indexing, notifications) to prevent synchronous blocking of the main request thread.
 
 ### Final Considerations for the Deep Researcher

@@ -1,3 +1,13 @@
+---
+title: Wiki Search Optimization
+type: article
+tags:
+- text
+- link
+- mathbf
+summary: Wiki Search Optimization Relevance Ranking Welcome.
+auto-generated: true
+---
 # Wiki Search Optimization Relevance Ranking
 
 Welcome. If you are reading this, you are presumably beyond the rudimentary understanding of "on-page SEO" or the simplistic notion that "more links equals better ranking." You are here because you are researching the bleeding edge—the intersection where classical Information Retrieval (IR) theory collides with the massive, semi-structured, and inherently authoritative corpus that is Wikipedia.
@@ -22,7 +32,7 @@ The goal, therefore, is to develop a ranking function, $\mathcal{R}(Q, D)$, that
 
 Traditional SEO models often treat the web as a collection of independent, siloed documents. Wikipedia, however, functions as a highly interconnected *web of knowledge*. A simple link count or keyword density analysis fails because it ignores the *semantic relationship* between the linked concepts.
 
-For instance, if a query is "Quantum Entanglement," a document that merely repeats the phrase is less relevant than a document that links to the foundational papers, cites the relevant physical constants, and links to related concepts like "Bell's Theorem" and "Quantum Computing" in a structured manner.
+For instance, if a query is "Quantum Entanglement," a document that merely repeats the phrase is less relevant than a document that links to the foundational papers, cites the relevant physical constants, and links to related concepts like "Bell's Theorem" and "[Quantum Computing](QuantumComputing)" in a structured manner.
 
 Our focus must shift from **Keyword Matching** to **Knowledge Graph Traversal and Semantic Coherence Scoring.**
 
@@ -130,7 +140,7 @@ $$\mathbf{h}_v^{(k)} = \text{AGGREGATE}^{(k)} \left( \mathbf{h}_v^{(k-1)}, \left
 Where $\text{AGGREGATE}^{(k)}$ is the aggregation function (e.g., Graph Attention Network (GAT) or Graph Convolutional Network (GCN)).
 
 **Application to Ranking:**
-1.  **Feature Engineering:** The initial features ($\mathbf{h}_v^{(0)}$) for each node $v$ must be rich: TF-IDF vector, citation count, page age, etc.
+1.  **[Feature Engineering](FeatureEngineering):** The initial features ($\mathbf{h}_v^{(0)}$) for each node $v$ must be rich: TF-IDF vector, citation count, page age, etc.
 2.  **Message Passing:** The GNN passes "messages" (updated feature vectors) across the graph edges.
 3.  **Scoring:** The final relevance score $\mathcal{R}(Q, D)$ is derived by comparing the query embedding $\mathbf{h}_Q$ with the final, context-aware embedding of the document $\mathbf{h}_D$.
 

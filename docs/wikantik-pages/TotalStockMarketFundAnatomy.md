@@ -1,6 +1,17 @@
+---
+title: Total Stock Market Fund Anatomy
+type: article
+tags:
+- sector
+- factor
+- model
+summary: This tutorial is designed for experts who view TSMFs not as endpoints, but
+  as complex, dynamic data streams requiring rigorous decomposition.
+auto-generated: true
+---
 # Advanced Sectoral Decomposition and Factor Modeling for Quantitative Research
 
-For the quantitative researcher operating at the frontier of asset allocation, the concept of a "Total Stock Market Fund" (TSMF) is often treated as a monolithic, passive benchmark. While funds like the Vanguard Total Stock Market ETF (VTI) provide unparalleled breadth by capturing the entire investable equity universe—from micro-caps to mega-caps—relying solely on its reported sector weightings is akin to accepting a pre-digested narrative.
+For the quantitative researcher operating at the frontier of [asset allocation](AssetAllocation), the concept of a "Total Stock Market Fund" (TSMF) is often treated as a monolithic, passive benchmark. While funds like the Vanguard Total Stock Market ETF (VTI) provide unparalleled breadth by capturing the entire investable equity universe—from micro-caps to mega-caps—relying solely on its reported sector weightings is akin to accepting a pre-digested narrative.
 
 This tutorial is designed for experts who view TSMFs not as endpoints, but as complex, dynamic data streams requiring rigorous decomposition. We will move far beyond simple sector allocation reporting, delving into the mathematical, econometric, and structural techniques necessary to model, predict, and potentially arbitrage the underlying sector composition dynamics.
 
@@ -177,7 +188,7 @@ $$\omega_{S, t} = f(\text{Factor Scores}_{t-1})$$
 
 ### B. Liquidity Constraints and Trading Friction
 
-A model might predict that the optimal allocation requires a massive overweighting in a niche, high-growth sector (e.g., quantum computing infrastructure). However, if the underlying assets in that sector are thinly traded or lack deep secondary market liquidity, the predicted allocation is practically impossible to achieve without incurring massive slippage costs.
+A model might predict that the optimal allocation requires a massive overweighting in a niche, high-growth sector (e.g., [quantum computing](QuantumComputing) infrastructure). However, if the underlying assets in that sector are thinly traded or lack deep secondary market liquidity, the predicted allocation is practically impossible to achieve without incurring massive slippage costs.
 
 **Practical Constraint Modeling:**
 The model must incorporate a liquidity penalty ($\lambda_{L}$):

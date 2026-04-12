@@ -1,3 +1,14 @@
+---
+title: Wiki Plugin Development
+type: article
+tags:
+- extens
+- plugin
+- point
+summary: The Architecture of Adaptability For the seasoned researcher, the mere act
+  of "developing a plugin" is often an oversimplification.
+auto-generated: true
+---
 # The Architecture of Adaptability
 
 For the seasoned researcher, the mere act of "developing a plugin" is often an oversimplification. True system mastery lies not in writing the feature itself, but in understanding the *scaffolding* that permits the feature to exist without rewriting the core. This document serves as a comprehensive, expert-level tutorial on the concept, implementation, and advanced architectural considerations surrounding **Extension Points** within the context of wiki and knowledge management systems.
@@ -25,7 +36,7 @@ To appreciate the nuances, it is crucial to map the various mechanisms found in 
 *   **Simple Hooks (Event Listeners):** The system broadcasts an event (`onPageSave`, `onUserLogin`). Any registered listener can react. *Limitation:* These are often purely reactive; they cannot fundamentally alter the data flow or execution path unless the hook is explicitly designed for mutation.
 *   **Interceptors/Filters:** The system passes data through a chain of components. Each component can inspect, modify, or short-circuit the data flow. (Think of HTTP middleware).
 *   **Pluggable Architectures (Service Provider Interfaces - SPI):** The core system queries a registry for all available implementations of a specific interface (`IContentRenderer`, `IValidator`). The core then delegates the task to the collection of providers.
-*   **Compiler/Runtime Transformation Points:** The most invasive level. The extension point dictates that the compiler or runtime *must* pause its normal execution flow to allow external code to analyze, rewrite, or inject code/data structures.
+*   **Compiler/Runtime Transformation Points:** The most invasive level. The extension point dictates that the compiler or runtime *must* pause its normal execution flow to allow external code to analyze, rewrite, or inject code/[data structures](DataStructures).
 
 ### B. The Expert's View: The Contractual Burden
 
@@ -88,7 +99,7 @@ The Eclipse ecosystem is the canonical example of the Interface-based Plugin Arc
 RViz demonstrates an approach where the extension point is often derived from an existing, complex class structure.
 
 *   **Extension Points:** Instead of just implementing an interface, developers are encouraged to *derive* from existing base classes (`rviz_visual_testing_framework`).
-*   **The Contract:** The contract is structural inheritance. The plugin must adhere not just to the public methods, but often to the internal state management patterns established by the base class.
+*   **The Contract:** The contract is structural inheritance. The plugin must adhere not just to the public methods, but often to the internal [state management patterns](StateManagementPatterns) established by the base class.
 *   **Expert Consideration:** This is a high-coupling mechanism. While it simplifies development by providing scaffolding, it means that any change to the base class's internal state management (even if the public API remains stable) can break the derived plugin, demanding deep knowledge of the base class's invariants.
 
 ### D. Client-Side/Web Extension Points: The Browser Sandbox (Chrome)
@@ -190,7 +201,7 @@ Instead of relying on simple hooks or pure API calls, the core should operate on
 
 ### B. Addressing Edge Cases in the Hybrid Model
 
-*   **Performance Bottleneck:** The DAG construction and traversal itself can become an overhead. The system must implement **caching strategies** based on the input state hash. If the input graph state hasn't changed since the last successful processing, the entire pipeline can be skipped.
+*   **Performance Bottleneck:** The DAG construction and traversal itself can become an overhead. The system must implement **[caching strategies](CachingStrategies)** based on the input state hash. If the input graph state hasn't changed since the last successful processing, the entire pipeline can be skipped.
 *   **Security:** Every plugin execution must occur within a highly restricted sandbox (e.g., a Web Worker model for client-side logic, or a dedicated microservice boundary for backend logic). The core system must act as a strict resource monitor, throttling CPU time and memory usage per plugin execution.
 *   **Debugging:** The system must generate a complete, traceable **Execution Trace Log** for every operation. This log must detail: *Which plugin ran? What was its input state? What was its output state? What was the final decision made regarding any conflicts it encountered?*
 

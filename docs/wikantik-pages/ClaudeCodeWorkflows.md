@@ -1,3 +1,14 @@
+---
+title: Claude Code Workflows
+type: article
+tags:
+- workflow
+- agent
+- code
+summary: We are no longer merely prompting an LLM; we are attempting to orchestrate
+  an entire engineering process.
+auto-generated: true
+---
 # The Expert's Guide to Autonomous Code Generation
 
 For the expert software engineer or the seasoned data scientist, the concept of "AI coding assistance" has rapidly evolved from a helpful autocomplete feature into a genuine, albeit volatile, paradigm shift in the development lifecycle. We are no longer merely *prompting* an LLM; we are attempting to *orchestrate* an entire engineering process.

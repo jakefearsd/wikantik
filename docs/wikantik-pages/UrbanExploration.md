@@ -1,3 +1,13 @@
+---
+title: Urban Exploration
+type: article
+tags:
+- navig
+- research
+- structur
+summary: Urban Exploration and City Navigation Techniques Welcome.
+auto-generated: true
+---
 # Urban Exploration and City Navigation Techniques
 
 Welcome. If you are reading this, you are not looking for a pamphlet of "Top 10 Safe Spots." You are here because you view the city not as a backdrop, but as a complex, navigable, and often decaying system ripe for rigorous study. You are researching techniques, methodologies, and the very limits of human traversal within the built environment.
@@ -69,7 +79,7 @@ When traversing abandoned sites, the primary threat is not the environment's lay
 
 ### C. Historical and Cultural Navigation Modeling (The Indus Precedent)
 
-While the Indus Valley Civilization (Source [7]) predates modern urbanism, its navigational challenges—managing trade routes across unknown, resource-scarce environments—offer valuable modeling techniques for modern, poorly documented urban areas.
+While the Indus Valley Civilization (Source [7]) predates modern urbanism, its navigational challenges—managing [trade routes](TradeRoutes) across unknown, resource-scarce environments—offer valuable modeling techniques for modern, poorly documented urban areas.
 
 *   **Resource-Constrained Pathfinding:** In the absence of modern mapping, historical navigation relied on fixed markers (landmarks, celestial bodies, reliable water sources). In a modern UE context, the "resource" is often *information* or *safety*. The technique involves establishing a **Cognitive Bearing System (CBS)**: relying on multiple, redundant, and cross-referenced local markers (e.g., "Follow the path that runs parallel to the original railway line, then turn at the intersection marked by the pre-war municipal plaque").
 

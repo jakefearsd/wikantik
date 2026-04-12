@@ -1,8 +1,19 @@
+---
+title: Graph RAG
+type: article
+tags:
+- text
+- graph
+- queri
+summary: They are, in essence, sophisticated pattern matchers trained on colossal
+  corpora of human text.
+auto-generated: true
+---
 # Knowledge Graphs and Retrieval Augmented Generation
 
 ## Introduction: The Limits of Context and the Promise of Structure
 
-Large Language Models (LLMs) have fundamentally shifted the paradigm of artificial intelligence, offering unprecedented capabilities in natural language understanding and generation. They are, in essence, sophisticated pattern matchers trained on colossal corpora of human text. However, this very strength—their ability to synthesize vast amounts of unstructured data—is also their most glaring weakness.
+Large Language Models (LLMs) have fundamentally shifted the paradigm of [artificial intelligence](ArtificialIntelligence), offering unprecedented capabilities in natural language understanding and generation. They are, in essence, sophisticated pattern matchers trained on colossal corpora of human text. However, this very strength—their ability to synthesize vast amounts of unstructured data—is also their most glaring weakness.
 
 The primary technical hurdle facing modern LLM deployment is **hallucination**: the confident generation of factually incorrect, unsupported, or nonsensical information. While prompt engineering and fine-tuning offer mitigation strategies, they are fundamentally palliative measures, treating the symptom rather than the underlying architectural deficiency. LLMs, at their core, are statistical predictors of the next token, not repositories of verifiable, structured truth.
 

@@ -1,6 +1,17 @@
+---
+title: Food Preservation
+type: article
+tags:
+- text
+- preserv
+- acid
+summary: 'Disclaimer: This document synthesizes historical, anthropological, and biochemical
+  data to provide a comprehensive overview of traditional food preservation.'
+auto-generated: true
+---
 # Paleo-Biochemistry: Preserving Food with Traditional Techniques for the Modern Research Frontier
 
-**Target Audience:** Food Science Experts, Archaeobotanists, Food Chemistry Researchers, and Culinary Technologists investigating sustainable preservation methodologies.
+**Target Audience:** [Food Science](FoodScience) Experts, Archaeobotanists, Food Chemistry Researchers, and Culinary Technologists investigating sustainable preservation methodologies.
 
 **Disclaimer:** This document synthesizes historical, anthropological, and biochemical data to provide a comprehensive overview of traditional food preservation. While the principles discussed are scientifically robust, the application of these methods requires rigorous modern safety testing, as historical practices often lacked standardized controls for pathogens.
 

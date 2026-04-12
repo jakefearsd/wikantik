@@ -1,8 +1,18 @@
+---
+title: Recurrent Neural Networks
+type: article
+tags:
+- mathbf
+- state
+- model
+summary: Recurrent Neural Network Sequence Modeling Welcome.
+auto-generated: true
+---
 # Recurrent Neural Network Sequence Modeling
 
 Welcome. If you've reached this document, you are likely past the point of needing a high-school overview of backpropagation. You are here to dissect the mechanisms, understand the theoretical bottlenecks, and explore the bleeding edge of sequence modeling.
 
-This tutorial assumes a robust background in deep learning theory, linear algebra, and stochastic processes. We will not merely *review* Recurrent Neural Networks (RNNs); we will treat them as a foundational, yet evolving, paradigm, analyzing their strengths, their inherent mathematical frailties, and the sophisticated architectural advancements that have defined the state-of-the-art in sequential data processing.
+This tutorial assumes a robust background in deep learning theory, [linear algebra](LinearAlgebra), and stochastic processes. We will not merely *review* Recurrent Neural Networks (RNNs); we will treat them as a foundational, yet evolving, paradigm, analyzing their strengths, their inherent mathematical frailties, and the sophisticated architectural advancements that have defined the state-of-the-art in sequential data processing.
 
 ---
 
@@ -184,7 +194,7 @@ Where $q$ is the query (the current decoder state $\mathbf{h}_t$) and $k$ are th
 
 While the initial attention mechanism was used to *connect* an encoder to a decoder, the concept was generalized to **Self-Attention**. Self-attention allows the model to weigh the importance of different parts of the *same* input sequence relative to each other.
 
-This leads to the core mechanism of the Transformer architecture. In self-attention, the input $\mathbf{X}$ is transformed into three distinct vectors for every token $x_i$:
+This leads to the core mechanism of the [Transformer architecture](TransformerArchitecture). In self-attention, the input $\mathbf{X}$ is transformed into three distinct vectors for every token $x_i$:
 1.  **Query ($\mathbf{Q}$):** What am I looking for?
 2.  **Key ($\mathbf{K}$):** What do I contain?
 3.  **Value ($\mathbf{V}$):** What information should be passed on if I am relevant?

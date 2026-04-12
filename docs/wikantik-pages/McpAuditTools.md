@@ -18,7 +18,7 @@ related:
 ---
 # MCP Audit Tools
 
-The MCP audit tools are a designed but not yet built set of MCP tools that would power the wiki audit skill. These tools would provide structured access to content quality metrics and validation results.
+The MCP audit tools are a designed but not yet built set of MCP tools that would power the [wiki audit skill](WikiAuditSkill). These tools would provide structured access to content quality metrics and validation results.
 
 ## Design Status
 

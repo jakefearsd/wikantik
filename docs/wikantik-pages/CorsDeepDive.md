@@ -1,3 +1,13 @@
+---
+title: Cors Deep Dive
+type: article
+tags:
+- header
+- request
+- origin
+summary: Cross-Origin Resource Sharing (CORS) Welcome.
+auto-generated: true
+---
 # Cross-Origin Resource Sharing (CORS)
 
 Welcome. If you are reading this, you are presumably already familiar with the basic concept of Cross-Origin Resource Sharing (CORS)—that it allows a web application running at `Origin A` to fetch resources from a server at `Origin B` without triggering the browser's default Same-Origin Policy (SOP) block.

@@ -1,3 +1,15 @@
+---
+title: Vendor Management
+type: article
+tags:
+- vendor
+- score
+- must
+summary: The Algorithmic Art of Selection For those of us who spend our careers optimizing
+  processes, the act of selecting a vendor—a critical external partner—often feels
+  deceptively simple.
+auto-generated: true
+---
 # The Algorithmic Art of Selection
 
 For those of us who spend our careers optimizing processes, the act of selecting a vendor—a critical external partner—often feels deceptively simple. We write a Request for Proposal (RFP), compare glossy decks, and sign a contract. This superficial process, however, is where most organizations fall into what I like to call "The Vendor Selection Trap." It’s a trap of cognitive bias, insufficient due diligence, and, frankly, over-reliance on the most polished PowerPoint presentation rather than rigorous, multi-dimensional quantitative analysis.
@@ -199,11 +211,11 @@ In today's climate, a vendor's location is a primary risk variable. We must move
 The future of vendor evaluation is predictive, not descriptive. We are moving from *scoring* past performance to *predicting* future failure modes.
 
 1.  **Predictive Failure Modeling:** Using historical data (e.g., Mean Time Between Failures (MTBF), Mean Time To Repair (MTTR), combined with vendor size/complexity) to train models (like Survival Analysis or Weibull distributions) to predict the probability of failure within the contract term.
-2.  **Natural Language Processing (NLP) for RFP Analysis:** Instead of manually reading proposals, NLP models can scan thousands of pages of vendor documentation (security policies, technical specs) to extract structured data points, flagging inconsistencies or vague language that signals risk.
+2.  **[Natural Language Processing](NaturalLanguageProcessing) (NLP) for RFP Analysis:** Instead of manually reading proposals, NLP models can scan thousands of pages of vendor documentation (security policies, technical specs) to extract structured data points, flagging inconsistencies or vague language that signals risk.
 
 **Conceptual Workflow (AI Integration):**
 1.  **Data Ingestion:** Collect all historical vendor data (tickets, invoices, audit reports, proposals).
-2.  **Feature Engineering:** Clean and structure data into quantifiable features (e.g., "Average time to resolve P1 incident in Q3").
+2.  **[Feature Engineering](FeatureEngineering):** Clean and structure data into quantifiable features (e.g., "Average time to resolve P1 incident in Q3").
 3.  **Model Training:** Train a classification model (e.g., Random Forest) to predict "High Risk" vs. "Low Risk" based on the feature set.
 4.  **Scoring:** The model outputs a predictive risk score, which is then weighted alongside the MCDM score.
 

@@ -1,3 +1,14 @@
+---
+title: Six Month American West Loop
+type: article
+tags:
+- text
+- must
+- model
+summary: 'Disclaimer: This document is a theoretical, highly detailed planning framework
+  designed for experts accustomed to modeling complex, multi-variable systems.'
+auto-generated: true
+---
 # A Methodological Framework for Planning a Six-Month Trans-Continental Traverse: The American West Loop
 
 **Target Audience:** Research Scientists, Advanced Logistics Planners, Extreme Endurance Athletes, and Technical Field Researchers.

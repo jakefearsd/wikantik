@@ -1,3 +1,13 @@
+---
+title: Aesthetics
+type: article
+tags:
+- aesthet
+- art
+- we
+summary: Aesthetics and the Philosophy of Art Welcome.
+auto-generated: true
+---
 # Aesthetics and the Philosophy of Art
 
 Welcome. If you are reading this, you are not looking for a high school overview of Plato’s cave. You are researching novel techniques, meaning you require a deep, granular excavation of the theoretical bedrock upon which aesthetic inquiry rests. This treatise aims to synthesize the historical, ontological, epistemological, and comparative dimensions of Aesthetics and the Philosophy of Art, treating the subject not as a collection of settled doctrines, but as a dynamic, contested field ripe for methodological disruption.

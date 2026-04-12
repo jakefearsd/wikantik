@@ -1,3 +1,13 @@
+---
+title: Travel Photography
+type: article
+tags:
+- captur
+- you
+- moment
+summary: Travel Photography and Capturing Authentic Moments Welcome.
+auto-generated: true
+---
 # Travel Photography and Capturing Authentic Moments
 
 Welcome. If you are reading this, you are not interested in the facile advice of "just be present" or the predictable platitudes of "smile more." You are an expert, a researcher, someone who understands that the difference between a tourist snapshot and a piece of ethnographic visual documentation lies in the methodology, the theoretical underpinning, and the sheer, grueling patience required to capture the *unscripted*.

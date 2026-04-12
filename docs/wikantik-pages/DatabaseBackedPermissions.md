@@ -35,6 +35,6 @@ The `postgresql-permissions.ddl` script creates the `policy_grants` and `groups`
 
 ## Impact
 
-This change was a prerequisite for both the Admin Security UI and the Knowledge Graph, which needed database-backed group membership for its `knowledge-admin` role plan.
+This change was a prerequisite for both the [Admin Security UI](AdminSecurityUi) and the Knowledge Graph, which needed database-backed group membership for its `knowledge-admin` role plan.
 
 [{Relationships}]

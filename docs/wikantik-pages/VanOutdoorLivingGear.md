@@ -1,3 +1,14 @@
+---
+title: Van Outdoor Living Gear
+type: article
+tags:
+- must
+- chair
+- deploy
+summary: 'The Optimized Outdoor Module Target Audience: Field Researchers, Advanced
+  Van Life System Designers, and Outdoor Engineering Specialists.'
+auto-generated: true
+---
 # The Optimized Outdoor Module
 
 **Target Audience:** Field Researchers, Advanced Van Life System Designers, and Outdoor Engineering Specialists.

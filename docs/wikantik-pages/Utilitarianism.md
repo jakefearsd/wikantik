@@ -1,3 +1,13 @@
+---
+title: Utilitarianism
+type: article
+tags:
+- util
+- utilitarian
+- rule
+summary: Utilitarianism and Consequentialist Reasoning Welcome.
+auto-generated: true
+---
 # Utilitarianism and Consequentialist Reasoning
 
 Welcome. If you are reading this, you are likely already familiar with the basic tenets of moral philosophy—the pleasantries of duty, the rigidity of rights, and the general discomfort of being asked to quantify human suffering. This tutorial assumes a high level of technical proficiency, treating foundational ethical concepts not as philosophical debates, but as complex, often ill-posed, computational models awaiting refinement.

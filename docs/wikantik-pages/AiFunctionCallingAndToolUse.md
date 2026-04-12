@@ -1,3 +1,14 @@
+---
+title: Ai Function Calling And Tool Use
+type: article
+tags:
+- model
+- structur
+- schema
+summary: This tutorial is not for the prompt engineer looking to make their chatbot
+  sound more empathetic.
+auto-generated: true
+---
 # AI Function Calling and Structured Output
 
 For those of us who spend our days wrestling with the probabilistic nature of large language models (LLMs), the concept of "reliable output" often feels like chasing a unicorn through a stochastic fog. We are building systems that must interface with the rigid, deterministic world of software—databases, APIs, state machines—yet our primary interface, the LLM, speaks in the fluid, beautiful, but ultimately unpredictable language of natural language.

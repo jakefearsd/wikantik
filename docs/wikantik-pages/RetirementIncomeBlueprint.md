@@ -51,7 +51,7 @@ Draw from your investment portfolio for expenses above the floor: travel, dining
 
 **Use a dynamic withdrawal strategy** (not a fixed dollar amount). The two leading approaches:
 - **[Guardrails method](GuardrailsSpendingStrategy)**: Start at 4.5-5%, define upper and lower guardrails, adjust by 10% when a guardrail is hit. Allows a higher initial rate because spending adapts to portfolio performance. Best for retirees who want a clear, rule-based system with pre-committed adjustment triggers.
-- **Variable Percentage Withdrawal**: Withdraw a percentage based on age and remaining balance. Cannot run out but spending fluctuates more.
+- **[Variable Percentage Withdrawal](VariablePercentageWithdrawal)**: Withdraw a percentage based on age and remaining balance. Cannot run out but spending fluctuates more.
 - See [Safe Withdrawal Rates](SafeWithdrawalRates) for detailed comparison of all approaches.
 
 **Account sequencing matters**: Which account you draw from each year affects your tax bracket, IRMAA, and ACA subsidies. See [Retirement Withdrawal Sequencing](RetirementWithdrawalSequencing).

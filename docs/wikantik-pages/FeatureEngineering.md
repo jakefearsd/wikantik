@@ -1,6 +1,17 @@
+---
+title: Feature Engineering
+type: article
+tags:
+- featur
+- model
+- mathbf
+summary: It is where the art of domain expertise collides violently—and hopefully
+  productively—with the cold, hard mathematics of statistical modeling.
+auto-generated: true
+---
 # The Triad of Predictive Power
 
-For those of us who spend our days wrestling with the messy, high-dimensional reality of raw data, the process of preparing features is less a mere preprocessing step and more the central, defining act of the entire machine learning endeavor. It is where the art of domain expertise collides violently—and hopefully productively—with the cold, hard mathematics of statistical modeling.
+For those of us who spend our days wrestling with the messy, high-dimensional reality of raw data, the process of preparing features is less a mere preprocessing step and more the central, defining act of the entire [machine learning](MachineLearning) endeavor. It is where the art of domain expertise collides violently—and hopefully productively—with the cold, hard mathematics of statistical modeling.
 
 This tutorial is not for the novice who merely needs to scale features or impute missing values with the mean. We are addressing the seasoned researcher, the architect of novel predictive systems, who understands that the model itself is often secondary to the quality, dimensionality, and informational density of the input feature space.
 
@@ -147,7 +158,7 @@ When $N$ is very large, we seek a lower-dimensional representation $\mathbf{Z}$ 
 For signals (time series, audio, sensor data), standard transformations are insufficient.
 
 1.  **Wavelet Transform (WT):** Unlike Fourier Transform, which provides global frequency information, WT provides *time-frequency localization*. It decomposes a signal into different frequency bands while retaining precise temporal information. This is crucial when analyzing transient events (e.g., detecting a sudden spike in heart rate variability).
-2.  **Kernel Methods (Implicit Transformation):** In Support Vector Machines (SVMs), the kernel trick implicitly maps the data into an infinitely high-dimensional feature space ($\phi(\mathbf{X})$) without ever calculating the coordinates in that space.
+2.  **Kernel Methods (Implicit Transformation):** In [Support Vector Machines](SupportVectorMachines) (SVMs), the kernel trick implicitly maps the data into an infinitely high-dimensional feature space ($\phi(\mathbf{X})$) without ever calculating the coordinates in that space.
     $$\text{Similarity}(\mathbf{X}_i, \mathbf{X}_j) = K(\mathbf{X}_i, \mathbf{X}_j) = \phi(\mathbf{X}_i)^T \phi(\mathbf{X}_j)$$
     The choice of kernel (e.g., Radial Basis Function (RBF) kernel) dictates the nature of the transformation.
 
@@ -168,7 +179,7 @@ The sequence dictates the outcome. Consider the following scenarios:
     *   *Recommended Order:* **FE $\rightarrow$ FT (Autoencoder/Embeddings) $\rightarrow$ FS (Permutation Importance)**.
     *   *Rationale:* The network handles the non-linear mapping implicitly. FE creates the raw inputs. FT (Autoencoder) learns the optimal low-dimensional manifold representation. FS then validates which *original* engineered features contributed most to the learned latent space.
 
-3.  **Scenario 3: Time Series Forecasting:**
+3.  **Scenario 3: [Time Series Forecasting](TimeSeriesForecasting):**
     *   *Recommended Order:* **FE (Lag/Decomposition) $\rightarrow$ FT (Differencing/Stationarity Check) $\rightarrow$ FS (Feature Importance on Lagged Values)**.
     *   *Rationale:* Stationarity (a form of FT) must be achieved first. Then, engineered lags are tested for predictive power (FS).
 

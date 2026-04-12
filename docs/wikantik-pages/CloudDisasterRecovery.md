@@ -1,3 +1,14 @@
+---
+title: Cloud Disaster Recovery
+type: article
+tags:
+- region
+- data
+- replic
+summary: We are moving beyond simple data replication and into the domain of systemic
+  survivability.
+auto-generated: true
+---
 # The Art of Persistence
 
 Welcome. If you are reading this, you are likely past the point of simply "having a backup." You are in the realm of resilience engineering, where the failure of a single Availability Zone (AZ) is considered a minor inconvenience, and the loss of an entire geographic Region is merely a scheduled maintenance window.
@@ -62,7 +73,7 @@ The choice of pattern dictates cost, complexity, and achievable RPO/RTO. We must
 
 ### 1. Cold Standby (The Budget Approach)
 This is the simplest, cheapest, and slowest approach.
-*   **Mechanism:** The backup region contains only the *infrastructure blueprints* (Infrastructure as Code templates, e.g., Terraform/CloudFormation) and perhaps the most recent, validated backups. No services are running.
+*   **Mechanism:** The backup region contains only the *infrastructure blueprints* ([Infrastructure as Code](InfrastructureAsCode) templates, e.g., Terraform/CloudFormation) and perhaps the most recent, validated backups. No services are running.
 *   **Failover Process:** Upon disaster declaration, the team must first provision *all* necessary compute, networking, and services in the backup region, followed by the data restoration.
 *   **RPO/RTO Profile:** High RPO (limited by backup frequency) and High RTO (limited by provisioning time).
 *   **Use Case:** Non-critical systems, archival data, or systems where downtime of several days is acceptable.
@@ -181,13 +192,13 @@ Consider a distributed transaction involving three services:
 
 If the failover occurs after Service 1 and 2 have committed their changes, but before Service 3 has received the final transaction log entry, the recovered system in Region B will be in an **inconsistent state**.
 
-*   **Solution Focus:** Implementing the **Saga Pattern** or **Two-Phase Commit (2PC)** protocols across regions. While 2PC is notoriously difficult to implement reliably in a failure scenario, the Saga pattern (using compensating transactions) is the modern, preferred approach. If the payment succeeds but the inventory update fails to replicate, the system must automatically trigger a compensating transaction (e.g., refunding the payment) in the recovery region.
+*   **Solution Focus:** Implementing the **[Saga Pattern](SagaPattern)** or **Two-Phase Commit (2PC)** protocols across regions. While 2PC is notoriously difficult to implement reliably in a failure scenario, the Saga pattern (using compensating transactions) is the modern, preferred approach. If the payment succeeds but the inventory update fails to replicate, the system must automatically trigger a compensating transaction (e.g., refunding the payment) in the recovery region.
 
 ### 2. The Automation Imperative: The Failover Playbook
 A DR plan that relies on manual execution is not a plan; it is a suggestion. The failover process *must* be codified, automated, and idempotent.
 
 *   **Idempotency:** The recovery script must be idempotent. This means running the script multiple times (e.g., during testing, or during a partial failover attempt) must yield the exact same result as running it once. If the script fails halfway through, rerunning it must pick up exactly where it left off without corrupting the state.
-*   **Orchestration Tools:** Tools like HashiCorp Terraform (for infrastructure provisioning), Ansible (for configuration management), and dedicated cloud orchestration services (like AWS Step Functions or Azure Logic Apps) are mandatory.
+*   **Orchestration Tools:** Tools like HashiCorp Terraform (for infrastructure provisioning), Ansible (for [configuration management](ConfigurationManagement)), and dedicated cloud orchestration services (like AWS Step Functions or Azure Logic Apps) are mandatory.
 *   **Pseudocode Example (Conceptual Failover Trigger):**
 
 ```pseudocode
@@ -220,7 +231,7 @@ FUNCTION Execute_Failover(Target_Region, Last_Known_Good_Time):
 This section deserves its own warning. Most organizations treat DR testing as a compliance checkbox, not an engineering exercise.
 
 *   **The "Test vs. Live" Fallacy:** Testing in a sandbox environment is insufficient. You must test the *actual* failover mechanism against *production-like* data volumes and under *simulated* network degradation.
-*   **Chaos Engineering:** This is the advanced technique. Instead of waiting for a disaster, you proactively inject failures into the running system (e.g., using tools like Netflix's Chaos Monkey). You randomly terminate instances, inject high latency between AZs, or simulate database connection drops. This forces the system to prove its resilience continuously.
+*   **[Chaos Engineering](ChaosEngineering):** This is the advanced technique. Instead of waiting for a disaster, you proactively inject failures into the running system (e.g., using tools like Netflix's Chaos Monkey). You randomly terminate instances, inject high latency between AZs, or simulate database connection drops. This forces the system to prove its resilience continuously.
 *   **The "Failback" Problem:** Most teams focus solely on the failover (A $\rightarrow$ B). The failback (B $\rightarrow$ A) is often neglected. Failback is harder because you are reintroducing the primary site *without* causing a second outage. It requires careful synchronization to ensure no data written in Region B is lost when reverting to Region A.
 
 ### 4. Edge Cases and Future Threats

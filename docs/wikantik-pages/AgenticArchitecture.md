@@ -1,3 +1,14 @@
+---
+title: Agentic Architecture
+type: article
+tags:
+- agent
+- must
+- tool
+summary: From Reactive Tools to Proactive Agents To appreciate agentic architecture,
+  one must first fully internalize what it is not.
+auto-generated: true
+---
 # Agentic Software Architecture: Building Autonomous Systems
 
 For those of us who have spent enough time wrestling with the limitations of prompt-response paradigms, the concept of "agentic architecture" feels less like an evolution and more like a necessary paradigm collapse. We are moving beyond the era of the sophisticated autocomplete and into the realm of the digital worker—systems capable of receiving a high-level objective, decomposing it into actionable sub-goals, executing those steps across heterogeneous tools, self-correcting upon failure, and ultimately delivering an outcome without constant human supervision.
@@ -22,7 +33,7 @@ The critical flaw, which seasoned researchers must recognize, is that **the LLM 
 
 ### B. Defining the Agentic Paradigm
 
-Agentic software architecture, conversely, models the system after cognitive agents found in AI theory and even biological systems. An agent is defined by its ability to operate within an environment, perceive its state, reason about its goals, and execute actions to minimize the distance between its current state and its desired goal state.
+Agentic [software architecture](SoftwareArchitecture), conversely, models the system after cognitive agents found in AI theory and even biological systems. An agent is defined by its ability to operate within an environment, perceive its state, reason about its goals, and execute actions to minimize the distance between its current state and its desired goal state.
 
 As noted in the research context, the shift is from "answering" to "pursuing outcomes" [1].
 
@@ -55,7 +66,7 @@ Memory is arguably the most complex and least standardized component. An agent c
 
 1.  **Short-Term Memory (STM):** This is the active context window. It dictates the immediate scope of the current reasoning step. Its size is a hard constraint, forcing the agent to be ruthlessly efficient with token usage.
 2.  **Long-Term Memory (LTM) - Episodic Recall:** This stores the *experience* of past interactions. It is not just a log; it must be indexed for semantic retrieval. When the agent encounters a novel problem, it must query its LTM: "Have I solved a problem *like* this before? What sequence of actions worked?"
-    *   **Implementation Detail:** This necessitates sophisticated **Vector Databases** coupled with advanced embedding models. The retrieval process must be context-aware, not just keyword-matching.
+    *   **Implementation Detail:** This necessitates sophisticated **[Vector Databases](VectorDatabases)** coupled with advanced embedding models. The retrieval process must be context-aware, not just keyword-matching.
 3.  **Semantic/Procedural Memory:** This stores generalized knowledge—the *rules* of the environment. Examples include: "To book a flight, you must first check availability via the `flight_api`," or "The user prefers concise, bulleted summaries." This memory guides the *planning* phase, acting as a set of hard-coded, learned constraints.
 
 ### C. Planning and Reasoning Engines (The Executive Function)
@@ -194,7 +205,7 @@ Autonomy is expensive. Every thought, every retrieval, and every tool call incur
 1.  **Cascading Reasoning:** Implement a tiered reasoning approach:
     *   **Tier 1 (Fast/Cheap):** Use a smaller, highly optimized model (e.g., GPT-3.5 Turbo, or a fine-tuned open-source model) for initial parsing, tool selection, and simple state updates.
     *   **Tier 2 (Slow/Expensive):** Reserve the largest, most capable model (e.g., GPT-4o, Claude Opus) only for the **Reflection/Critique** step or the final **Synthesis** step, where deep, complex reasoning is absolutely necessary.
-2.  **Caching Strategies:** Aggressively cache results for idempotent operations. If the agent needs to know "What is the population of Paris?" and the system has already executed that query in the current session, the agent must be programmed to check the cache *before* invoking the tool.
+2.  **[Caching Strategies](CachingStrategies):** Aggressively cache results for idempotent operations. If the agent needs to know "What is the population of Paris?" and the system has already executed that query in the current session, the agent must be programmed to check the cache *before* invoking the tool.
 
 ---
 

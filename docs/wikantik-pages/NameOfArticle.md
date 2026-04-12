@@ -1,8 +1,19 @@
+---
+title: Name Of Article
+type: article
+tags:
+- search
+- text
+- queri
+summary: We are not here to explain what an LLM is, nor are we here to explain what
+  cosine similarity means.
+auto-generated: true
+---
 # Advanced Search Term Engineering for State-of-the-Art RAG Systems
 
 ***
 
-**Disclaimer:** This tutorial is written for advanced practitioners, researchers, and ML engineers who are already familiar with the fundamental concepts of Retrieval-Augmented Generation (RAG), vector databases, and transformer architectures. We are not here to explain what an LLM is, nor are we here to explain what cosine similarity means. We are here to dissect the precise, often esoteric, art of crafting the *query*—the search term—that elevates a functional RAG pipeline into a state-of-the-art research tool.
+**Disclaimer:** This tutorial is written for advanced practitioners, researchers, and ML engineers who are already familiar with the fundamental concepts of Retrieval-Augmented Generation (RAG), [vector databases](VectorDatabases), and transformer architectures. We are not here to explain what an LLM is, nor are we here to explain what cosine similarity means. We are here to dissect the precise, often esoteric, art of crafting the *query*—the search term—that elevates a functional RAG pipeline into a state-of-the-art research tool.
 
 If you believe that simply pasting the user's raw question into your vector search API will yield optimal results, I suggest you take a moment to review the foundational papers on information retrieval. Because, frankly, that assumption is where most RAG implementations stall, resulting in brittle, contextually blind, and ultimately disappointing outputs.
 

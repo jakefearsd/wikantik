@@ -1,3 +1,14 @@
+---
+title: Wiki Backup And Restore
+type: article
+tags:
+- backup
+- restor
+- data
+summary: We are not merely concerned with copying bits from Disk A to Disk B; we are
+  engineering temporal resilience.
+auto-generated: true
+---
 # Advanced Techniques for the Modern Data Steward
 
 For those of us who spend our careers wrestling with the ephemeral nature of digital information, the concept of "backup" often feels less like a technical procedure and more like a philosophical necessity. We are not merely concerned with copying bits from Disk A to Disk B; we are engineering temporal resilience. We are building insurance policies against the inevitable entropy of data, the malice of human error, and the sheer unpredictability of catastrophic failure.
@@ -10,7 +21,7 @@ We will move far beyond the basic concepts of Full, Incremental, and Differentia
 
 ## I. Theoretical Foundations: Defining the Resilience Metrics
 
-Before we touch a single command line or restore button, we must establish the vocabulary of resilience. Misunderstanding these core metrics is the single most common failure point in enterprise data governance.
+Before we touch a single command line or restore button, we must establish the vocabulary of resilience. Misunderstanding these core metrics is the single most common failure point in enterprise [data governance](DataGovernance).
 
 ### A. Recovery Point Objective (RPO)
 The RPO defines the maximum acceptable amount of data loss, measured in time. If your RPO is 4 hours, it means that if the system fails today, you can afford to lose no more than the data generated in the last four hours.
@@ -188,7 +199,7 @@ We have moved from the simple concept of "making a copy" to a sophisticated unde
 1.  **Temporal Modeling:** Understanding RPO/RTO and the necessity of PITR via transaction logs.
 2.  **Architectural Awareness:** Recognizing the distinct, interdependent layers of data (Content, Metadata, Assets).
 3.  **Governance Rigor:** Treating the DRP as a living, mandatory, and frequently tested operational mandate.
-4.  **Threat Modeling:** Incorporating modern threats like ransomware via immutable storage and quorum mechanisms.
+4.  **[Threat Modeling](ThreatModeling):** Incorporating modern threats like ransomware via immutable storage and quorum mechanisms.
 
 The ultimate takeaway for the expert researcher is this: **The highest level of resilience is achieved not by the most expensive backup software, but by the most rigorously tested, thoroughly documented, and architecturally sound recovery *process*.**
 

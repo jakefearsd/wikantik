@@ -1,3 +1,15 @@
+---
+title: Extreme Weather Prep
+type: article
+tags:
+- model
+- must
+- text
+summary: 'Extreme Weather Preparedness Disclaimer: This document is intended for advanced
+  researchers, climate modelers, civil engineers, disaster risk reduction (DRR) specialists,
+  and policy architects.'
+auto-generated: true
+---
 # Extreme Weather Preparedness
 
 ***
@@ -174,7 +186,7 @@ The concept of a single, monolithic power grid is an unacceptable risk profile i
     *   **Chemical Storage:** Hydrogen fuel cells ($\text{H}_2$) derived from electrolysis powered by excess renewable energy.
     *   **Thermal Storage:** Utilizing molten salt or advanced phase-change materials (PCMs) to store thermal energy for district heating/cooling during peak demand lulls.
     *   **Mechanical Storage:** Pumped Hydro Storage (PHS), where feasible, remains the gold standard for grid-scale, long-duration storage.
-*   **Smart Grid Optimization:** The grid must operate as a self-optimizing mesh network. This requires implementing **Distributed Energy Resource Management Systems (DERMS)** that use machine learning algorithms to predict localized supply/demand imbalances and autonomously re-route power flow *before* a manual operator is alerted to a potential overload.
+*   **Smart Grid Optimization:** The grid must operate as a self-optimizing mesh network. This requires implementing **Distributed Energy Resource Management Systems (DERMS)** that use [machine learning](MachineLearning) algorithms to predict localized supply/demand imbalances and autonomously re-route power flow *before* a manual operator is alerted to a potential overload.
 
 ### 4.2. Material Science and Structural Self-Healing
 

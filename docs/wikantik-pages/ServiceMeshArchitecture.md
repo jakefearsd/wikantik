@@ -1,3 +1,15 @@
+---
+title: Service Mesh Architecture
+type: article
+tags:
+- sidecar
+- envoi
+- servic
+summary: 'The Envoy Sidecar in Istio For those of us who have moved past the initial
+  "what is a service mesh?" phase, the discussion inevitably narrows down to the plumbing:
+  the data plane.'
+auto-generated: true
+---
 # The Envoy Sidecar in Istio
 
 For those of us who have moved past the initial "what is a service mesh?" phase, the discussion inevitably narrows down to the plumbing: the data plane. Specifically, the ubiquitous, yet profoundly complex, mechanism by which Istio achieves its magic—the Envoy proxy deployed as a sidecar container.
@@ -86,7 +98,7 @@ Security is perhaps the most complex feature. Istio enforces mTLS by default, me
 Envoy is a phenomenal telemetry collector. It doesn't just route traffic; it *measures* it.
 
 *   **Metrics:** Envoy automatically generates rich metrics for every request passing through it: request count, latency (p50, p95, p99), connection duration, upstream cluster health, and HTTP status codes. These metrics are exposed via a dedicated endpoint (e.g., `/stats`).
-*   **Tracing Context Propagation:** For distributed tracing (e.g., Jaeger, Zipkin), the sidecar is responsible for injecting and propagating correlation headers (like `x-request-id`, `x-b3-traceid`). If the application code fails to pass these headers, the sidecar must be configured to inject them *before* forwarding the request, ensuring the trace context remains intact across service boundaries.
+*   **Tracing Context Propagation:** For [distributed tracing](DistributedTracing) (e.g., Jaeger, Zipkin), the sidecar is responsible for injecting and propagating correlation headers (like `x-request-id`, `x-b3-traceid`). If the application code fails to pass these headers, the sidecar must be configured to inject them *before* forwarding the request, ensuring the trace context remains intact across service boundaries.
 
 ### 3.3 Traffic Management: Advanced Routing Semantics
 

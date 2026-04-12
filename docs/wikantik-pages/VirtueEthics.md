@@ -1,3 +1,13 @@
+---
+title: Virtue Ethics
+type: article
+tags:
+- virtu
+- text
+- moral
+summary: Virtue Ethics and Character Development Welcome.
+auto-generated: true
+---
 # Virtue Ethics and Character Development
 
 Welcome. If you are reading this, you are likely already familiar with the basic tenets of deontology (duty-based ethics) and consequentialism (outcome-based ethics). You are here because you suspect that the most robust ethical framework—the one capable of navigating the messy, contradictory reality of human moral life—must reside in the agent, not merely in the rulebook or the ledger of outcomes.

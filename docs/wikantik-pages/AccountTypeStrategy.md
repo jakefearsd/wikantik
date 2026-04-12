@@ -144,7 +144,7 @@ Over an investing lifetime, systematic tax-loss harvesting in taxable accounts c
 
 1. **Maxing 401(k) but ignoring taxable accounts**: You will have a lot of money you cannot access.
 2. **Keeping too much in savings accounts**: Anything beyond 6-12 months of expenses should be invested.
-3. **Investing differently in each account**: Treat all accounts as one portfolio. The same asset allocation applies across all accounts — asset location is about which fund goes where, not different strategies per account.
+3. **Investing differently in each account**: Treat all accounts as one portfolio. The same [asset allocation](AssetAllocation) applies across all accounts — asset location is about which fund goes where, not different strategies per account.
 4. **Ignoring the Roth option in your 401(k)**: If your plan offers Roth 401(k) contributions, consider splitting between Traditional and Roth for tax diversification.
 5. **Paying 10% early withdrawal penalties**: With proper planning (Roth ladder, SEPP/72(t), Roth contributions), this penalty is entirely avoidable.
 

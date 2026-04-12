@@ -1,3 +1,13 @@
+---
+title: Snowbird Van Life
+type: article
+tags:
+- system
+- text
+- must
+summary: Winter Strategy Snowbird Van Life in the Southern US Welcome.
+auto-generated: true
+---
 # Winter Strategy Snowbird Van Life in the Southern US
 
 Welcome. If you are reading this, you are not a novice who believes that "chasing 70 degrees" is a viable life strategy based on a poorly rendered map found on the interwebs. You are an expert—a researcher, an engineer, a highly motivated systems analyst—who views the act of "van life" not as a bohemian whim, but as a complex, mobile, off-grid habitation system requiring rigorous optimization.

@@ -21,7 +21,7 @@ part-of:
 ---
 # Revenue Management with OR
 
-Revenue management (RM) — also called **yield management** — is the practice of selling the right product to the right customer at the right time for the right price. It is one of the most commercially valuable applications of operations research, credited with saving American Airlines alone over $1.4 billion in its first three years (1988–1991) and reshaping pricing across airlines, hotels, car rentals, media streaming, ride-hailing, and retail.
+Revenue management (RM) — also called **yield management** — is the practice of selling the right product to the right customer at the right time for the right price. It is one of the most commercially valuable applications of [operations research](OperationsResearch), credited with saving American Airlines alone over $1.4 billion in its first three years (1988–1991) and reshaping pricing across airlines, hotels, car rentals, media streaming, ride-hailing, and retail.
 
 At its core, revenue management is a stochastic optimization problem: products with fixed capacity, perishable value, heterogeneous customers, and uncertain arrival patterns. Operations research provides the models that make optimal — or near-optimal — decisions computationally tractable.
 

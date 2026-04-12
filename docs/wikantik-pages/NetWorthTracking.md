@@ -1,3 +1,15 @@
+---
+title: Net Worth Tracking
+type: article
+tags:
+- nw
+- text
+- asset
+summary: 'Net Worth Tracking Introduction For the layperson, the Net Worth Statement
+  (NWS) is a straightforward calculation: $\text{Assets} - \text{Liabilities} = \text{Net
+  Worth}$.'
+auto-generated: true
+---
 # Net Worth Tracking
 
 ## Introduction
@@ -206,7 +218,7 @@ To satisfy the requirement for comprehensive coverage, we must confront the inhe
 What about assets that defy standard valuation models?
 
 1.  **Social Capital:** The network, reputation, and trust built over decades. This is the hardest to quantify. Research suggests modeling this via network theory (e.g., calculating centrality measures in a social graph) and assigning a probabilistic multiplier to the NWS.
-2.  **Human Capital (Revisited):** Beyond expected salary, this includes the *optionality* of one's skills. A highly specialized skill set in a rapidly emerging field (e.g., quantum computing) has a value that cannot be captured by current salary data. This requires modeling the *rate of skill obsolescence* versus the *rate of skill acquisition*.
+2.  **Human Capital (Revisited):** Beyond expected salary, this includes the *optionality* of one's skills. A highly specialized skill set in a rapidly emerging field (e.g., [quantum computing](QuantumComputing)) has a value that cannot be captured by current salary data. This requires modeling the *rate of skill obsolescence* versus the *rate of skill acquisition*.
 3.  **Emotional Capital:** While speculative, advanced behavioral models attempt to quantify the "cost of stress" or "opportunity cost of time." This is usually modeled as a negative drag on the effective rate of return.
 
 ### B. Modeling Systemic Risk and Correlation Breakdown
@@ -226,7 +238,7 @@ The NWS should not just report *what* the wealth is; it should report the *tax-a
 
 ## Conclusion
 
-The Net Worth Statement, therefore, is not a single financial statement but rather a **framework for iterative, multi-dimensional modeling**. It is a nexus point where accounting principles, advanced statistics, behavioral economics, and data engineering converge.
+The Net Worth Statement, therefore, is not a single financial statement but rather a **framework for iterative, multi-[dimensional modeling](DimensionalModeling)**. It is a nexus point where accounting principles, advanced statistics, behavioral economics, and data engineering converge.
 
 For the expert researcher, the journey from a simple calculation ($\text{Assets} - \text{Liabilities}$) to a predictive, risk-adjusted, tax-optimized model requires:
 

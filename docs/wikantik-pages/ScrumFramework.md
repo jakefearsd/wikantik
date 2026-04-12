@@ -1,3 +1,14 @@
+---
+title: Scrum Framework
+type: article
+tags:
+- sprint
+- team
+- must
+summary: The Engine For those of us who have moved beyond the introductory glossaries
+  of Agile methodologies, the Scrum framework ceases to be a mere process checklist.
+auto-generated: true
+---
 # The Engine
 
 For those of us who have moved beyond the introductory glossaries of Agile methodologies, the Scrum framework ceases to be a mere process checklist. It transforms into a sophisticated, self-regulating, empirical system—a highly optimized feedback loop designed to manage complexity and uncertainty in knowledge work.
@@ -70,7 +81,7 @@ The ceremonies are the scheduled rituals that enforce the empirical nature of Sc
 
 ### A. Sprint Planning: Establishing the Commitment Boundary
 
-Sprint Planning is the mechanism by which the team negotiates a binding commitment for a fixed timebox (the Sprint). It is where the abstract desires of the Product Backlog are translated into concrete, achievable work units.
+[Sprint Planning](SprintPlanning) is the mechanism by which the team negotiates a binding commitment for a fixed timebox (the Sprint). It is where the abstract desires of the Product Backlog are translated into concrete, achievable work units.
 
 #### 1. The Mechanics of Commitment
 The process involves three distinct outputs:

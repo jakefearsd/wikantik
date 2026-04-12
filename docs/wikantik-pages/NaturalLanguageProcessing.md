@@ -1,3 +1,15 @@
+---
+title: Natural Language Processing
+type: article
+tags:
+- model
+- text
+- mathbf
+summary: We have moved decisively from the brittle, rule-based systems of the early
+  days to the emergent, statistically sophisticated architectures embodied by Large
+  Language Models (LLMs).
+auto-generated: true
+---
 # Natural Language Processing and Language Models
 
 The field of Natural Language Processing (NLP) has undergone a transformation so rapid that it often feels less like incremental progress and more like a phase transition. We have moved decisively from the brittle, rule-based systems of the early days to the emergent, statistically sophisticated architectures embodied by Large Language Models (LLMs). For researchers operating at the frontier—those designing novel attention mechanisms, optimizing parameter efficiency, or tackling deep grounding problems—a mere overview is insufficient. What is required is a comprehensive, architecturally deep, and critically analytical survey of the current landscape.
@@ -16,7 +28,7 @@ Before diving into the tensor calculus, we must first establish the conceptual h
 *   **Natural Language Understanding (NLU):** This is the critical step *beyond* mere processing. NLU aims to extract the *meaning* (semantics and pragmatics) from the text. It asks: "What does this sentence *mean* in context?" This involves resolving coreference, understanding implied meaning, and mapping linguistic structures to conceptual representations.
 *   **Language Models (LMs) / Large Language Models (LLMs):** At the heart of modern NLP, an LM is fundamentally a sophisticated **probability distribution estimator**. Its core function is to model the probability of a sequence of tokens $W = \{w_1, w_2, \dots, w_T\}$ given the preceding context. Mathematically, the goal is to estimate $P(W)$.
 
-The modern paradigm, heavily influenced by the Transformer architecture, has effectively merged the capabilities of NLU and NLP into a single, monolithic, highly parameterized function. The LLM *is* the current state-of-the-art NLU engine.
+The modern paradigm, heavily influenced by the [Transformer architecture](TransformerArchitecture), has effectively merged the capabilities of NLU and NLP into a single, monolithic, highly parameterized function. The LLM *is* the current state-of-the-art NLU engine.
 
 ### 1.2 The Evolution of Modeling Paradigms
 
@@ -26,13 +38,13 @@ The journey to LLMs is a story of increasing abstraction and statistical power. 
 Early NLP relied on hand-crafted grammars (e.g., Context-Free Grammars) and extensive lexicons. These systems were brittle; they excelled in narrow, well-defined domains but failed catastrophically when encountering ambiguity or novel phrasing (the "combinatorial explosion" problem).
 
 #### B. Statistical Methods (The Probabilistic Era)
-The shift came with statistical NLP, utilizing techniques like Hidden Markov Models (HMMs) and Conditional Random Fields (CRFs). These models treated language as a sequence of observable events governed by transition probabilities. While a massive leap in robustness, they struggled with long-range dependencies and required extensive feature engineering.
+The shift came with statistical NLP, utilizing techniques like Hidden Markov Models (HMMs) and Conditional Random Fields (CRFs). These models treated language as a sequence of observable events governed by transition probabilities. While a massive leap in robustness, they struggled with long-range dependencies and required extensive [feature engineering](FeatureEngineering).
 
 #### C. Neural Networks (The Vectorization Era)
 The introduction of word embeddings (Word2Vec, GloVe) marked the transition to continuous vector representations. Language was no longer treated as discrete symbols but as points in a high-dimensional vector space, allowing models to capture semantic similarity (e.g., the vector difference between "King" and "Man" approximates the vector difference between "Queen" and "Woman").
 
 #### D. Recurrent Architectures (The Sequential Era)
-Recurrent Neural Networks (RNNs), and their sophisticated variants like LSTMs and GRUs, were the first deep learning models to process sequences naturally. They maintained a hidden state $h_t$ that theoretically summarized all preceding information. However, they suffered from the **vanishing/exploding gradient problem** over long sequences, limiting their effective context window.
+[Recurrent Neural Networks](RecurrentNeuralNetworks) (RNNs), and their sophisticated variants like LSTMs and GRUs, were the first deep learning models to process sequences naturally. They maintained a hidden state $h_t$ that theoretically summarized all preceding information. However, they suffered from the **vanishing/exploding gradient problem** over long sequences, limiting their effective context window.
 
 ---
 

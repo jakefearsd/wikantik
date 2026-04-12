@@ -1,3 +1,15 @@
+---
+title: Wood Finishing Guide
+type: article
+tags:
+- solvent
+- text
+- cure
+summary: The common vernacular—stain, varnish, lacquer—is a gross oversimplification
+  of materials that, at their core, represent distinct chemical families designed
+  to achieve specific surface energy profiles.
+auto-generated: true
+---
 # The Advanced Material Science of Wood Finishing
 
 For those of us who have moved past the rudimentary "wipe on and wait" methodology of amateur finishing, the selection and application of a protective coating is less an art and more a complex interplay of polymer chemistry, solvent dynamics, and substrate physics. The common vernacular—stain, varnish, lacquer—is a gross oversimplification of materials that, at their core, represent distinct chemical families designed to achieve specific surface energy profiles.

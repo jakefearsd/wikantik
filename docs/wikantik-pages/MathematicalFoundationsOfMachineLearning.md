@@ -28,7 +28,7 @@ This article covers the essential mathematical concepts and, critically, shows h
 
 ## Linear Algebra: The Language of Data
 
-ML operates on data, and data is represented as vectors and matrices. Linear algebra is the language in which virtually every ML computation is expressed.
+ML operates on data, and data is represented as vectors and matrices. [Linear algebra](LinearAlgebra) is the language in which virtually every ML computation is expressed.
 
 ### Vectors and Matrices
 
@@ -48,7 +48,7 @@ The core operation in neural networks is matrix multiplication. A fully connecte
 | PCA | Eigendecomposition of the covariance matrix identifies principal components |
 | Recommendation systems | User-item interaction as matrix factorization |
 
-GPU acceleration exists because matrix multiplication is massively parallelizable. The entire hardware ecosystem of ML — NVIDIA GPUs, Google TPUs, Apple Neural Engines — is fundamentally optimized for this one operation.
+[GPU acceleration](GPUAcceleration) exists because matrix multiplication is massively parallelizable. The entire hardware ecosystem of ML — NVIDIA GPUs, Google TPUs, Apple Neural Engines — is fundamentally optimized for this one operation.
 
 ### Eigenvalues and Eigenvectors
 
@@ -125,7 +125,7 @@ This is why you can write a novel architecture in PyTorch and get correct gradie
 
 ## Probability and Statistics: Reasoning Under Uncertainty
 
-ML models operate in a world of uncertainty — noisy data, incomplete information, stochastic training. Probability theory provides the framework for reasoning rigorously about this uncertainty.
+ML models operate in a world of uncertainty — noisy data, incomplete information, stochastic training. [Probability theory](ProbabilityTheory) provides the framework for reasoning rigorously about this uncertainty.
 
 ### Probability Distributions
 

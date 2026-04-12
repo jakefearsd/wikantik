@@ -1,3 +1,15 @@
+---
+title: Ending Van Life Airbnb Transition
+type: article
+tags:
+- text
+- must
+- practition
+summary: 'The Decommissioning Protocol Target Audience: Advanced Practitioners, Urban
+  Planners, Financial Modelers, and Lifestyle Engineers researching sustainable habitation
+  transition methodologies.'
+auto-generated: true
+---
 # The Decommissioning Protocol
 
 **Target Audience:** Advanced Practitioners, Urban Planners, Financial Modelers, and Lifestyle Engineers researching sustainable habitation transition methodologies.

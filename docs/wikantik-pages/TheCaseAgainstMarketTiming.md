@@ -1,3 +1,14 @@
+---
+title: The Case Against Market Timing
+type: article
+tags:
+- return
+- model
+- time
+summary: 'The Asymptotic Cost of Inaction Target Audience: Quantitative Researchers,
+  Advanced Portfolio Strategists, Financial Engineers.'
+auto-generated: true
+---
 # The Asymptotic Cost of Inaction
 
 **Target Audience:** Quantitative Researchers, Advanced Portfolio Strategists, Financial Engineers.
@@ -191,11 +202,11 @@ Given the mathematical weight of compounding and the empirical evidence of extre
 
 ### A. The Superiority of Systematic Allocation Over Prediction
 
-For the advanced researcher, the conclusion must be a pivot from *prediction* to *robust allocation*. Instead of asking, "When will the market peak?", the superior question is: **"How should my asset allocation change systematically as the market transitions between known, measurable regimes?"**
+For the advanced researcher, the conclusion must be a pivot from *prediction* to *robust allocation*. Instead of asking, "When will the market peak?", the superior question is: **"How should my [asset allocation](AssetAllocation) change systematically as the market transitions between known, measurable regimes?"**
 
 This leads to methodologies such as:
 *   **Risk Parity:** Allocating capital such that each asset class contributes equally to the overall portfolio risk, rather than aiming for equal returns.
-*   **Factor Investing:** Systematically tilting exposure based on measurable factors (Value, Momentum, Quality) rather than trying to predict the absolute market direction.
+*   **[Factor Investing](FactorInvesting):** Systematically tilting exposure based on measurable factors (Value, Momentum, Quality) rather than trying to predict the absolute market direction.
 
 These methods acknowledge the market's inherent randomness while optimizing the *risk contribution* across known states, rather than attempting to capture the unquantifiable "best day."
 

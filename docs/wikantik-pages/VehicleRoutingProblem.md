@@ -1,6 +1,18 @@
+---
+title: Vehicle Routing Problem
+type: article
+tags:
+- time
+- rout
+- move
+summary: We will move beyond introductory definitions to dissect the mathematical
+  rigor, the state-of-the-art solution methodologies, and the bleeding-edge extensions
+  that define modern VRP research.
+auto-generated: true
+---
 # Operations Research Vehicle Routing Problems
 
-The Vehicle Routing Problem (VRP) stands as a cornerstone challenge in combinatorial optimization, representing a class of problems so pervasive in modern logistics that mastering its nuances is synonymous with mastering applied operations research. For researchers pushing the boundaries of computational feasibility, the VRP is not a single problem, but rather a vast, interconnected family of extensions, each introducing unique constraints, non-linearities, and computational hurdles.
+The Vehicle Routing Problem (VRP) stands as a cornerstone challenge in combinatorial optimization, representing a class of problems so pervasive in modern logistics that mastering its nuances is synonymous with mastering applied [operations research](OperationsResearch). For researchers pushing the boundaries of computational feasibility, the VRP is not a single problem, but rather a vast, interconnected family of extensions, each introducing unique constraints, non-linearities, and computational hurdles.
 
 This tutorial is designed for experts—those who are already fluent in Mixed Integer Linear Programming (MILP), advanced metaheuristic design, and the theoretical underpinnings of combinatorial optimization. We will move beyond introductory definitions to dissect the mathematical rigor, the state-of-the-art solution methodologies, and the bleeding-edge extensions that define modern VRP research.
 

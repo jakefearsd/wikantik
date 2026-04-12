@@ -1,3 +1,15 @@
+---
+title: Set Theory Logic
+type: article
+tags:
+- set
+- theori
+- axiom
+summary: The Axiomatic Crucible This tutorial is not intended for those merely seeking
+  to use mathematics; it is designed for those who seek to understand the scaffolding
+  upon which mathematics is built.
+auto-generated: true
+---
 # The Axiomatic Crucible
 
 This tutorial is not intended for those merely seeking to *use* mathematics; it is designed for those who seek to *understand the scaffolding* upon which mathematics is built. For experts researching novel techniques, the relationship between set theory and mathematical logic is not a historical footnote—it is the active, volatile frontier of modern mathematical thought.
@@ -72,7 +84,7 @@ Type Theory offers a radical departure. Instead of treating everything as a set,
 *   **Difference from ZFC:** ZFC is fundamentally *extensional* (sets are defined by their members). Type theory is fundamentally *structural* (objects are defined by their type and the rules governing them).
 
 #### C. Category Theory (The Structural Approach)
-Category Theory views mathematics not as the study of objects (sets), but as the study of *morphisms* (structure-preserving maps) between objects.
+[Category Theory](CategoryTheory) views mathematics not as the study of objects (sets), but as the study of *morphisms* (structure-preserving maps) between objects.
 *   **Perspective:** A category $\mathcal{C}$ defines a mathematical structure. The "objects" of the category are the mathematical entities, and the "morphisms" are the structure-preserving relationships (homomorphisms, functors).
 *   **Foundation:** While one can *model* a category using ZFC (e.g., the category of sets $\mathbf{Set}$), the category-theoretic approach suggests that the *relationships* themselves are the primary mathematical objects, potentially bypassing the need for a single, monolithic "set of all sets."
 

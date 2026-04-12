@@ -1,3 +1,13 @@
+---
+title: Spring Boot Fundamentals
+type: article
+tags:
+- configur
+- auto
+- spring
+summary: At the heart of this perceived magic lies Auto-configuration.
+auto-generated: true
+---
 # The Mechanics of Magic
 
 For those of us who have spent enough time wrestling with the boilerplate of traditional Spring XML configurations, the arrival of Spring Boot felt less like an evolution and more like a benevolent, highly competent overlord taking over the build process. At the heart of this perceived magic lies **Auto-configuration**.

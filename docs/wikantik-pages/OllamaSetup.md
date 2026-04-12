@@ -1,3 +1,14 @@
+---
+title: Ollama Setup
+type: article
+tags:
+- model
+- ollama
+- local
+summary: The dependency on external endpoints introduces unacceptable vectors of latency,
+  cost volatility, and, critically, data sovereignty risk.
+auto-generated: true
+---
 # Local Language Models with Ollama
 
 For the researcher accustomed to the convenience, yet inherent limitations, of proprietary cloud APIs, the shift toward local, self-contained Large Language Model (LLM) inference is not merely a trend—it is a necessary paradigm correction. The dependency on external endpoints introduces unacceptable vectors of latency, cost volatility, and, critically, data sovereignty risk.
@@ -39,7 +50,7 @@ For researchers, the concept of quantization is critical. A full-precision (FP32
 
 Ollama heavily leverages the **GGML/GGUF** format.
 
-*   **GGML (Georgi Gerganov Machine Learning):** An early framework designed for efficient loading and running of neural networks on commodity hardware, particularly focusing on CPU efficiency.
+*   **GGML (Georgi Gerganov [Machine Learning](MachineLearning)):** An early framework designed for efficient loading and running of neural networks on commodity hardware, particularly focusing on CPU efficiency.
 *   **GGUF (GPT-GEneration Unified Format):** The modern, standardized evolution of GGML. It packages the model weights, metadata, and architecture information into a single, contiguous file.
 
 When you pull a model like `llama3:8b`, you are not downloading the original, massive PyTorch checkpoint. You are downloading a highly optimized, quantized GGUF file tailored for fast, low-memory inference on your specific hardware profile.

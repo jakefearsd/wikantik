@@ -1,3 +1,14 @@
+---
+title: Boondocking BLM Southwest
+type: article
+tags:
+- must
+- site
+- system
+summary: The information provided synthesizes current best practices and theoretical
+  models; it does not constitute legal advice.
+auto-generated: true
+---
 # Boondocking on BLM Land Across the American Southwest
 
 ***

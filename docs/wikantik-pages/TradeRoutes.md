@@ -1,3 +1,14 @@
+---
+title: Trade Routes
+type: article
+tags:
+- trade
+- rout
+- system
+summary: 'The Interstitial Flow Target Audience: Experts in Historical Systems Analysis,
+  Network Theory, and Cultural Diffusion.'
+auto-generated: true
+---
 # The Interstitial Flow
 
 **Target Audience:** Experts in Historical Systems Analysis, Network Theory, and Cultural Diffusion.

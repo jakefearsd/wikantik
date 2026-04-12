@@ -1,10 +1,20 @@
+---
+title: Backwards Compatibility Strategies
+type: article
+tags:
+- version
+- chang
+- contract
+summary: Backwards Compatibility Strategies Welcome.
+auto-generated: true
+---
 # Backwards Compatibility Strategies
 
 Welcome. If you are reading this, you are likely already aware that APIs are not static artifacts; they are living, breathing contracts that decay the moment they are deployed. The concept of "backwards compatibility" is often treated as a mere checklist item—a minor concern addressed with a version number appended to a URI. For the seasoned architect, however, it is the single most complex, politically charged, and technically demanding aspect of distributed system design.
 
 We are not here to discuss basic REST principles. We are here to dissect the failure modes, explore the bleeding edge of schema evolution, and architect strategies that allow services to evolve rapidly without triggering a cascade of developer panic, lost revenue, or, worse, the complete erosion of developer trust.
 
-This tutorial assumes you are intimately familiar with concepts like idempotency, eventual consistency, schema definition languages (SDLs), and the pain of debugging a system that "just works for me." If you find the sheer weight of this topic daunting, perhaps you should stick to simple CRUD applications.
+This tutorial assumes you are intimately familiar with concepts like idempotency, [eventual consistency](EventualConsistency), schema definition languages (SDLs), and the pain of debugging a system that "just works for me." If you find the sheer weight of this topic daunting, perhaps you should stick to simple CRUD applications.
 
 ---
 
@@ -58,7 +68,7 @@ This is the most visible and often simplest approach: embedding the version numb
 
 ### B. Header Versioning (The Negotiated Approach)
 
-This method uses custom HTTP headers (e.g., `Accept-Version: 2.0`) or standard content negotiation headers (`Accept` header) to signal the required contract version.
+This method uses custom HTTP headers (e.g., `Accept-Version: 2.0`) or standard [content negotiation](ContentNegotiation) headers (`Accept` header) to signal the required contract version.
 
 **Example:**
 The client sends: `Accept: application/vnd.mycompany.users.v2+json`

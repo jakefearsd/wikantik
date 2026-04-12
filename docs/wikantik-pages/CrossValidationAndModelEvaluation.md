@@ -1,3 +1,15 @@
+---
+title: Cross Validation And Model Evaluation
+type: article
+tags:
+- text
+- metric
+- model
+summary: If you've reached this guide, you are presumably well past the stage of simply
+  running model.fit(Xtrain, ytrain) and declaring victory based on a single test set
+  score.
+auto-generated: true
+---
 # The Rigor of Assessment
 
 Welcome. If you've reached this guide, you are presumably well past the stage of simply running `model.fit(X_train, y_train)` and declaring victory based on a single test set score. You understand, perhaps intuitively, that model performance is not a static measurement; it is a function of the evaluation methodology itself.
@@ -10,7 +22,7 @@ Consider this your deep dive into the evaluation pipeline—the part of the rese
 
 ## 🚀 Introduction: Why Evaluation is Not an Afterthought
 
-In the modern machine learning landscape, the model architecture itself is often the least concerning aspect of a research project. The true bottleneck, the Achilles' heel, is almost invariably the evaluation protocol. A model that performs flawlessly on the data it has seen is, by definition, a model that has learned the noise, the idiosyncrasies, and the sheer *luck* of the training set.
+In the modern [machine learning](MachineLearning) landscape, the model architecture itself is often the least concerning aspect of a research project. The true bottleneck, the Achilles' heel, is almost invariably the evaluation protocol. A model that performs flawlessly on the data it has seen is, by definition, a model that has learned the noise, the idiosyncrasies, and the sheer *luck* of the training set.
 
 The goal of any robust evaluation framework is to estimate the model's expected performance on **unseen, independently drawn data**—the operational environment.
 
@@ -21,7 +33,7 @@ To understand the necessity of cross-validation, one must first appreciate the f
 When you partition your data into $D_{train}$, $D_{val}$, and $D_{test}$, the resulting performance metric, $M_{test}$, is inherently noisy. This noise stems from two primary sources:
 
 1.  **Sampling Variance:** The specific data points allocated to $D_{test}$ might, by chance, be unusually easy or unusually difficult compared to the overall data distribution. The resulting metric is thus a function of the *sample*, not the *population*.
-2.  **Data Leakage (The Cardinal Sin):** While not strictly an evaluation metric issue, the temptation to "peek" at the test set during feature engineering or hyperparameter tuning contaminates the metric entirely.
+2.  **Data Leakage (The Cardinal Sin):** While not strictly an evaluation metric issue, the temptation to "peek" at the test set during [feature engineering](FeatureEngineering) or hyperparameter tuning contaminates the metric entirely.
 
 Cross-validation (CV) addresses this by systematically rotating the roles of the data subsets. Instead of relying on one arbitrary split, CV utilizes *multiple* splits, averaging the resulting performance estimates. This process dramatically reduces the variance of the performance estimate, providing a far more stable and trustworthy estimate of generalization error.
 
@@ -59,7 +71,7 @@ When evaluating, we are essentially trying to find the "sweet spot" on the Bias-
 
 ## 🛡️ Section 2: Advanced Cross-Validation Methodologies
 
-The standard $K$-Fold CV is often sufficient, but for expert research, we must consider data structures and class distributions that violate its underlying assumptions.
+The standard $K$-Fold CV is often sufficient, but for expert research, we must consider [data structures](DataStructures) and class distributions that violate its underlying assumptions.
 
 ### 2.1 Standard $K$-Fold Cross-Validation
 
@@ -309,7 +321,7 @@ While CV averages over data splits, Bootstrapping involves creating multiple new
 
 **When to use Bootstrapping:**
 1.  **Estimating Model Uncertainty:** Instead of just reporting the mean score, bootstrapping allows you to calculate the standard deviation of the performance metric across the bootstrap samples. This gives you a confidence interval (e.g., "We are 95% confident the true performance lies between $X$ and $Y$").
-2.  **Model Selection:** It can provide a more stable estimate of model variance than standard CV, especially when the underlying data distribution is complex or non-stationary.
+2.  **[Model Selection](ModelSelection):** It can provide a more stable estimate of model variance than standard CV, especially when the underlying data distribution is complex or non-stationary.
 
 ***
 

@@ -1,3 +1,14 @@
+---
+title: Secrets Management
+type: article
+tags:
+- rotat
+- secret
+- vault
+summary: The Art and Science of Secrets Management Vault Rotation Secrets management
+  is no longer a feature; it is the foundational pillar of modern, resilient infrastructure.
+auto-generated: true
+---
 # The Art and Science of Secrets Management Vault Rotation
 
 Secrets management is no longer a feature; it is the foundational pillar of modern, resilient infrastructure. In an era where the blast radius of a single compromised credential can equate to catastrophic business failure, the mechanism by which secrets are provisioned, consumed, and, most critically, *rotated*, moves from being a mere operational task to a core security engineering discipline.
@@ -266,7 +277,7 @@ The modern approach is:
 2.  The IdP verifies the identity and issues a short-lived token (JWT).
 3.  Service X presents this JWT to the target API/Service, which validates the token against the IdP's public key.
 
-**Rotation Implication:** In this model, "rotation" is handled by the IdP's token lifetime (e.g., 15 minutes). The secret never needs to be stored, managed, or rotated by the vault system, drastically reducing the operational burden and the attack surface. This is the ultimate goal of Zero Trust architecture.
+**Rotation Implication:** In this model, "rotation" is handled by the IdP's token lifetime (e.g., 15 minutes). The secret never needs to be stored, managed, or rotated by the vault system, drastically reducing the operational burden and the attack surface. This is the ultimate goal of [Zero Trust architecture](ZeroTrustArchitecture).
 
 ---
 

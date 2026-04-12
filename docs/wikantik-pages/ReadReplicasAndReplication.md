@@ -1,3 +1,14 @@
+---
+title: Read Replicas And Replication
+type: article
+tags:
+- read
+- replica
+- primari
+summary: This tutorial is not for the DBA who just needs to point a load balancer
+  at a secondary endpoint.
+auto-generated: true
+---
 # Advanced Techniques in Read Replica Replication for High Availability Systems
 
 For those of us who spend our careers optimizing the data plane, the concept of "read scaling" is often treated as a mere afterthought—a simple feature toggle. However, for systems operating at global scale, handling petabytes of data, or demanding near-perfect uptime, the read replica is not just a performance booster; it is a critical component of the overall High Availability (HA) architecture.
@@ -41,7 +52,7 @@ Here, the system captures the *intent* of the change—the SQL statement execute
 
 ### C. The Consistency Spectrum: CAP Theorem Implications
 
-When discussing HA, we are constantly wrestling with the CAP theorem (Consistency, Availability, Partition Tolerance).
+When discussing HA, we are constantly wrestling with the [CAP theorem](CapTheorem) (Consistency, Availability, Partition Tolerance).
 
 *   **In a perfect, non-partitioned network:** We aim for strong consistency (C) and high availability (A).
 *   **In a real-world distributed system (where partitions *will* happen):** We must choose between Consistency (C) and Availability (A).
@@ -94,7 +105,7 @@ For true global scale, we move beyond simple "read replicas" to complex **Global
     *   **The Challenge:** Conflict resolution. If two users update the same record (e.g., User A updates the address in London, User B updates the phone number in Tokyo) before the changes synchronize, the system must decide which write "wins."
     *   **Techniques:**
         *   **Last Write Wins (LWW):** The simplest, but often the worst, solution. It relies on synchronized, monotonically increasing timestamps. If clocks drift, data is silently overwritten incorrectly.
-        *   **Conflict-Free Replicated Data Types (CRDTs):** The mathematically rigorous solution. CRDTs are data structures designed so that merging concurrent updates results in a mathematically guaranteed, deterministic state, regardless of the order of arrival. This is the research frontier for highly available, eventually consistent systems.
+        *   **Conflict-Free Replicated Data Types (CRDTs):** The mathematically rigorous solution. CRDTs are [data structures](DataStructures) designed so that merging concurrent updates results in a mathematically guaranteed, deterministic state, regardless of the order of arrival. This is the research frontier for highly available, eventually consistent systems.
 
 ### C. The Role of the Load Balancer (Beyond Simple Round Robin)
 
@@ -162,13 +173,13 @@ Where $\text{Time}_{\text{Write}}(t)$ is the commit time on the primary, and $\t
 
 ### B. Eventual Consistency and Business Logic
 
-When accepting eventual consistency (which is necessary for global HA), the application logic *must* be rewritten to handle ambiguity.
+When accepting [eventual consistency](EventualConsistency) (which is necessary for global HA), the application logic *must* be rewritten to handle ambiguity.
 
 **Example: Inventory Management**
 *   **Bad Logic (Strong Consistency Assumption):** "If the read replica shows stock > 0, allow the order." (Fails if the primary just processed a sale that hasn't replicated yet).
 *   **Good Logic (Eventual Consistency Aware):** "If the read replica shows stock > 0, *tentatively* reserve the item, and immediately trigger a background reconciliation job against the primary to confirm the reservation."
 
-This requires the application to adopt a **Saga Pattern** or similar compensating transaction logic, acknowledging that the read path is advisory, not definitive.
+This requires the application to adopt a **[Saga Pattern](SagaPattern)** or similar compensating transaction logic, acknowledging that the read path is advisory, not definitive.
 
 ### C. Advanced Replication Streams: Change Data Capture (CDC)
 

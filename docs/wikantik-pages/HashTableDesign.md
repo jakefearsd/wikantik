@@ -1,3 +1,14 @@
+---
+title: Hash Table Design
+type: article
+tags:
+- hash
+- probe
+- alpha
+summary: If you are reading this, you are presumably well past the point of needing
+  a simple definition of a hash map.
+auto-generated: true
+---
 # Hash Table Design
 
 Welcome. If you are reading this, you are presumably well past the point of needing a simple definition of a hash map. You understand that the theoretical ideal—$O(1)$ average time complexity for insertion, deletion, and retrieval—is a beautiful mathematical construct, but the physical implementation is where the rubber meets the road, and where collisions inevitably introduce fascinating, and often infuriating, computational wrinkles.
@@ -207,7 +218,7 @@ To synthesize this knowledge for a research audience, we must move beyond simple
 
 ### B. The Role of Universal Hashing
 
-Regardless of the resolution strategy chosen (except perhaps for Bloom Filters), the quality of the hash function $h$ is paramount. For expert work, one must assume the use of a **Universal Hash Family**.
+Regardless of the resolution strategy chosen (except perhaps for [Bloom Filters](BloomFilters)), the quality of the hash function $h$ is paramount. For expert work, one must assume the use of a **Universal Hash Family**.
 
 A family of hash functions $\mathcal{H}$ is universal if, for any two distinct keys $k_1$ and $k_2$, the probability of collision is:
 $$P_{h \in \mathcal{H}}[h(k_1) = h(k_2)] \le \frac{1}{M}$$

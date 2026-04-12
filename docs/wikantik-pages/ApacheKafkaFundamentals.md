@@ -1,10 +1,22 @@
+---
+title: Apache Kafka Fundamentals
+type: article
+tags:
+- kafka
+- stream
+- consum
+summary: We are treating Kafka not merely as a message broker, but as the central
+  nervous system—the immutable, ordered, and highly scalable log upon which modern,
+  real-time data architectures must be built.
+auto-generated: true
+---
 # Apache Kafka
 
 For those of us who have moved past the quaint notion of a "message queue" and into the realm of true, high-throughput, durable, and ordered event streams, Apache Kafka represents less of a component and more of a foundational architectural primitive. This tutorial is not intended for those who need to know what a topic is; we assume you are already wrestling with distributed consensus, backpressure mechanisms, and the subtle nuances between event time and processing time.
 
 We are treating Kafka not merely as a message broker, but as the central nervous system—the immutable, ordered, and highly scalable *log* upon which modern, real-time data architectures must be built. If your current system relies on transactional database writes or simple point-to-point messaging, you are operating with an outdated model.
 
-This deep dive will dissect Kafka's mechanics, explore advanced stream processing paradigms, analyze failure modes at the protocol level, and chart the bleeding edge of its application in complex, stateful data pipelines.
+This deep dive will dissect Kafka's mechanics, explore advanced [stream processing](StreamProcessing) paradigms, analyze failure modes at the protocol level, and chart the bleeding edge of its application in complex, stateful data pipelines.
 
 ---
 
@@ -127,7 +139,7 @@ Stream processors use **Watermarks** to manage event time. A watermark is a wate
 
 ## IV. Operational Excellence: Resilience, Security, and Governance
 
-A system designed for high throughput must also be designed for high failure rates. Operationalizing Kafka requires rigorous attention to failure modes and data governance.
+A system designed for high throughput must also be designed for high failure rates. Operationalizing Kafka requires rigorous attention to failure modes and [data governance](DataGovernance).
 
 ### A. Failure Domain Analysis
 Understanding *where* the failure occurs dictates the recovery strategy.

@@ -49,7 +49,7 @@ Your first RMD must be taken by April 1 of the year following the year you reach
 **RMDs do NOT apply to:**
 - Roth IRAs (during the owner's lifetime)
 - Roth 401(k) accounts (as of 2024, thanks to SECURE 2.0)
-- Health Savings Accounts
+- [Health Savings Accounts](HealthSavingsAccounts)
 
 ## How RMDs Are Calculated
 

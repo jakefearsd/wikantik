@@ -1,10 +1,22 @@
+---
+title: Token Budgeting
+type: article
+tags:
+- cost
+- token
+- model
+summary: Failure to master this discipline results in what we might charitably call
+  "budget shock"—a sudden, catastrophic expenditure spike that derails roadmaps and
+  erodes profitability.
+auto-generated: true
+---
 # Token Budgeting and Cost Forecasting for Long-Term Projects
 
 The integration of Large Language Models (LLMs) into core business infrastructure represents a paradigm shift, one that brings with it an equally profound shift in operational expenditure management. For the seasoned researcher or architect building systems intended to last years, not quarters, the ephemeral nature of "tokens" transitions from a mere technical metric to a critical, high-stakes financial variable.
 
 Token budgeting and cost forecasting for long-term AI projects are not merely accounting exercises; they are sophisticated exercises in predictive modeling, resource allocation, and strategic product governance. Failure to master this discipline results in what we might charitably call "budget shock"—a sudden, catastrophic expenditure spike that derails roadmaps and erodes profitability.
 
-This tutorial is designed for experts—those who are already fluent in transformer architectures, prompt engineering, and cloud cost optimization—and who now need to master the intersection of computational linguistics, financial engineering, and scalable system design. We will move far beyond simple input/output counting and delve into dynamic, predictive, and architecturally sound cost management frameworks.
+This tutorial is designed for experts—those who are already fluent in transformer architectures, prompt engineering, and [cloud cost optimization](CloudCostOptimization)—and who now need to master the intersection of computational linguistics, financial engineering, and scalable system design. We will move far beyond simple input/output counting and delve into dynamic, predictive, and architecturally sound cost management frameworks.
 
 ---
 
@@ -36,7 +48,7 @@ $$\text{CPT} = \frac{\text{Business Value Generated (B\$)}}{\text{Total Token Co
 If a feature yields a high B\$ but requires a low C\$ (high CPT), it is a strategic priority. If it yields moderate B\$ but requires a high C\$ (low CPT), it must be aggressively optimized or deprecated.
 
 **Practical Application: The "Good Enough" Principle:**
-For long-term projects, the temptation is to use the largest, most capable model available (the "brute force" approach). The expert counter-strategy is to implement a tiered model selection based on the required depth of reasoning:
+For long-term projects, the temptation is to use the largest, most capable model available (the "brute force" approach). The expert counter-strategy is to implement a tiered [model selection](ModelSelection) based on the required depth of reasoning:
 
 1.  **Tier 1 (Triage/Classification):** Use the cheapest, fastest model (e.g., GPT-3.5 equivalent) for initial filtering, summarization, or intent detection. *Goal: Minimize $T_{in}$ and $T_{out}$.*
 2.  **Tier 2 (Synthesis/Drafting):** Use a mid-range model for structured generation, leveraging advanced prompting techniques. *Goal: Balance quality and cost.*

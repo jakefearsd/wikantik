@@ -1,3 +1,14 @@
+---
+title: Grpc Fundamentals
+type: article
+tags:
+- servic
+- grpc
+- client
+summary: This tutorial is not for the novice who just needs to make a simple Hello
+  World call.
+auto-generated: true
+---
 # gRPC and Protocol Buffers
 
 For those of us who spend our careers wrestling with the messy realities of distributed systems—where network latency is a constant nemesis and schema drift can bring down a production cluster faster than a poorly managed database transaction—the elegance of gRPC paired with Protocol Buffers (Protobuf) is less a feature and more a fundamental necessity.
@@ -16,7 +27,7 @@ Historically, this agreement was brittle. JSON, while ubiquitous, is schema-less
 
 To appreciate the depth, we must first dissect the roles:
 
-*   **Protocol Buffers (Protobuf):** This is the serialization mechanism and the schema definition language. It defines the *data structures* (`message`) and the *service interface* (`service`). It dictates *what* is being sent and *how* it is structured.
+*   **Protocol Buffers (Protobuf):** This is the serialization mechanism and the schema definition language. It defines the *[data structures](DataStructures)* (`message`) and the *service interface* (`service`). It dictates *what* is being sent and *how* it is structured.
 *   **gRPC:** This is the framework that handles the *transport* and the *invocation*. It takes the Protobuf definitions, generates client stubs and server skeletons in various target languages, and manages the underlying network plumbing (HTTP/2).
 *   **HTTP/2:** This is the transport protocol. Its features—multiplexing, header compression (HPACK), and stream management—are what elevate gRPC far beyond simple REST/HTTP 1.1 implementations.
 
@@ -259,7 +270,7 @@ This requires the service implementation to be highly polymorphic, capable of in
 
 ## 🔬 Conclusion
 
-We have traversed the landscape from the fundamental binary encoding of Protobuf to the complex orchestration required by Service Meshes and the Saga pattern.
+We have traversed the landscape from the fundamental binary encoding of Protobuf to the complex orchestration required by Service Meshes and the [Saga pattern](SagaPattern).
 
 gRPC and Protocol Buffers are not merely a set of tools; they represent a mature, highly optimized *philosophy* for building resilient, high-performance distributed systems. They enforce discipline through their contract-first approach, leverage the efficiency of HTTP/2, and provide structured patterns for handling the inherent unreliability of the network.
 

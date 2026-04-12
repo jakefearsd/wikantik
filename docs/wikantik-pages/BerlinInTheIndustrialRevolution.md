@@ -1,3 +1,14 @@
+---
+title: Berlin In The Industrial Revolution
+type: article
+tags:
+- industri
+- berlin
+- system
+summary: This tutorial aims to synthesize the major epochs of Berlin’s manufacturing
+  evolution, providing a framework for analyzing the underlying structural shifts.
+auto-generated: true
+---
 # From Craft Guilds to Digital Prototyping
 
 **A Comprehensive Tutorial for Advanced Researchers in Industrial History and Technological Transition**
@@ -178,7 +189,7 @@ The current phase is characterized by the "Digital Industrial Revolution" (as re
 
 **Key Techniques for Expert Consideration:**
 
-1.  **Internet of Things (IoT) Integration:** Embedding sensors into legacy machinery and new prototypes to create a real-time digital twin of the physical asset. This allows for **Predictive Maintenance (PdM)**, shifting maintenance from scheduled downtime to condition-based intervention.
+1.  **Internet of Things (IoT) Integration:** Embedding sensors into legacy machinery and new prototypes to create a real-time digital twin of the physical asset. This allows for **[Predictive Maintenance](PredictiveMaintenance) (PdM)**, shifting maintenance from scheduled downtime to condition-based intervention.
 2.  **Additive Manufacturing (AM) in the Supply Chain:** The ability to prototype and manufacture complex, customized parts *on-site* using 3D printing drastically shortens the physical supply chain, bypassing the need for massive, centralized tooling inventories. This is the ultimate realization of decentralized production.
 3.  **Cyber-Physical Systems (CPS):** The fusion of computation, networking, and physical processes. A modern Berlin manufacturing cell is a CPS: the PLC (Programmable Logic Controller) is the brain, the sensors are the nerves, and the robotic arm is the muscle, all communicating over a secure, high-bandwidth network.
 

@@ -1,3 +1,14 @@
+---
+title: Tool Calling
+type: article
+tags:
+- tool
+- text
+- agent
+summary: The era of the purely conversational chatbot—a digital parrot repeating plausible-sounding
+  nonsense—is, frankly, over.
+auto-generated: true
+---
 # Tool Use and Function Calling in LLM-Powered Agents
 
 If you are reading this, you are likely already aware that Large Language Models (LLMs) are not merely sophisticated text predictors; they are, or are rapidly becoming, the central nervous system for complex, actionable AI systems. The era of the purely conversational chatbot—a digital parrot repeating plausible-sounding nonsense—is, frankly, over. The current frontier demands that these models move beyond mere *generation* into *action*.

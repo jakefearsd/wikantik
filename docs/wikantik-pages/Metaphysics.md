@@ -1,3 +1,13 @@
+---
+title: Metaphysics
+type: article
+tags:
+- metaphys
+- physic
+- fundament
+summary: Metaphysics and the Nature of Reality Welcome.
+auto-generated: true
+---
 # Metaphysics and the Nature of Reality
 
 Welcome. If you are reading this, you are presumably already aware that "Metaphysics" is not merely a quaint academic parlor game involving debating whether unicorns are fundamentally real. You are here because the established boundaries of physics—the elegant, yet ultimately incomplete, mathematical descriptions of the observable universe—are insufficient to account for the *structure* of reality itself.
@@ -144,7 +154,7 @@ To satisfy the requirement for comprehensive depth, we must venture into the hig
 
 ### A. Modal Logic and Possible Worlds Semantics
 
-Modal logic provides the formal tools to discuss necessity and possibility without relying on intuition.
+[Modal logic](ModalLogic) provides the formal tools to discuss necessity and possibility without relying on intuition.
 
 *   **Modal Operators:** We use operators $\Box$ (Necessity: "It must be the case that...") and $\Diamond$ (Possibility: "It could be the case that...").
 *   **Kripke Semantics:** This formalizes the concept of "possible worlds." A possible world is a complete, self-consistent assignment of truth values to all propositions.

@@ -1,3 +1,14 @@
+---
+title: Van Life Coffee Setups
+type: article
+tags:
+- text
+- system
+- high
+summary: We are not discussing the quaint, aesthetically pleasing setups marketed
+  to the novice camper.
+auto-generated: true
+---
 # Coffee System Architecture for Mobile Habitation
 
 ## Introduction: Beyond the Brew—A Systems Engineering Approach to Mobile Caffeine Delivery
@@ -227,7 +238,7 @@ END LOOP
 
 The evolution of the van life coffee setup is a microcosm of portable engineering itself. It demands that the user transition from being a mere consumer to being a **system integrator**.
 
-For the expert researcher, the next frontier lies in integrating predictive maintenance algorithms directly into the CSA. By continuously monitoring the electrical draw, the water conductivity, and the pressure decay curves, the system could predict component failure (e.g., "The grinder burr set will reach 90% efficiency degradation within 45 cycles") *before* it occurs.
+For the expert researcher, the next frontier lies in integrating [predictive maintenance](PredictiveMaintenance) algorithms directly into the CSA. By continuously monitoring the electrical draw, the water conductivity, and the pressure decay curves, the system could predict component failure (e.g., "The grinder burr set will reach 90% efficiency degradation within 45 cycles") *before* it occurs.
 
 The ultimate coffee setup is not a collection of expensive gadgets; it is a **self-optimizing, energy-aware, modular thermodynamic unit** capable of delivering a consistent, high-quality product across wildly variable operational parameters.
 

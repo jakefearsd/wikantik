@@ -1,3 +1,15 @@
+---
+title: Business Continuity Planning
+type: article
+tags:
+- must
+- data
+- requir
+summary: This tutorial is designed for the expert practitioner, the research scientist,
+  and the architect tasked with designing systems that don't just recover, but that
+  thrive under duress.
+auto-generated: true
+---
 # Business Continuity Planning and Disaster Recovery
 
 For those of us who spend our professional lives navigating the theoretical abyss between "it works" and "it catastrophically fails," the concepts of Business Continuity Planning (BCP) and Disaster Recovery (DR) are less like checklists and more like fundamental axioms of modern enterprise architecture.
@@ -145,7 +157,7 @@ For the researcher, the current state-of-the-art is rapidly being challenged by 
 
 ### A. Chaos Engineering: Proactive Failure Injection
 
-If traditional DR testing is like checking if the parachute opens (a single, expected failure), Chaos Engineering is like deliberately jumping out of a plane and seeing how the entire system reacts to unexpected turbulence, equipment failure, and unexpected wind shear simultaneously.
+If traditional DR testing is like checking if the parachute opens (a single, expected failure), [Chaos Engineering](ChaosEngineering) is like deliberately jumping out of a plane and seeing how the entire system reacts to unexpected turbulence, equipment failure, and unexpected wind shear simultaneously.
 
 *   **Principle:** Assume failure is inevitable and test the system *while it is running*.
 *   **Implementation:** Tools (like Netflix's Chaos Monkey) are used to randomly terminate services, inject network latency, or overload specific APIs in production or pre-production environments.
@@ -160,13 +172,13 @@ This is perhaps the most critical conceptual shift in the last decade. DR assume
     *   **Logical Air-Gapping:** Maintaining a copy of the most critical data that is *never* connected to the primary network or the main backup network. This requires meticulous operational discipline to manage the restoration process, as it is slow but guaranteed clean.
 
 ### C. AI/ML in Incident Response and Triage
-Artificial Intelligence is moving from being a *system* component to being a *management* component of the response.
+[Artificial Intelligence](ArtificialIntelligence) is moving from being a *system* component to being a *management* component of the response.
 
 1.  **Automated Root Cause Analysis (RCA):** ML models can ingest massive volumes of telemetry data (logs, metrics, traces) from multiple disparate sources (network flow, application logs, security alerts). Instead of an engineer manually correlating 50 different dashboards, the AI can hypothesize the most probable root cause and suggest the precise remediation sequence.
 2.  **Predictive Failure Modeling:** By analyzing historical operational data (e.g., CPU utilization trends correlated with memory leaks over time), ML can predict *when* a component is likely to fail *before* it crosses a hard threshold, allowing for pre-emptive scaling or failover initiation.
 
 ### D. Quantum Computing Implications (The Long-Term Threat)
-While not an immediate operational concern, experts must model the eventual threat posed by quantum computing to current cryptographic standards (RSA, ECC).
+While not an immediate operational concern, experts must model the eventual threat posed by [quantum computing](QuantumComputing) to current cryptographic standards (RSA, ECC).
 
 *   **The Threat:** Shor's algorithm threatens the public-key cryptography underpinning most secure communications and digital signatures.
 *   **The Mitigation:** Organizations must begin the process of **Crypto-Agility**—designing systems that can rapidly swap out cryptographic primitives (e.g., migrating to Post-Quantum Cryptography (PQC) algorithms like CRYSTALS-Kyber) without requiring a full system overhaul. This is a governance and architectural challenge, not a technical patch.

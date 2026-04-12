@@ -1,3 +1,13 @@
+---
+title: Dollar Cost Averaging
+type: article
+tags:
+- dca
+- lsi
+- expect
+summary: This tutorial assumes a high level of technical proficiency.
+auto-generated: true
+---
 # The Calculus of Capital Allocation
 
 The debate surrounding the optimal timing of capital deployment—whether to deploy a corpus of funds immediately (Lump Sum Investing, LSI) or to systematically drip-feed investments over time (Dollar Cost Averaging, DCA)—is perhaps the most enduring, yet least definitively solved, conundrum in quantitative finance. For the seasoned researcher or the quantitative portfolio manager, this is not merely a matter of "what is better," but rather an exploration of market efficiency assumptions, behavioral biases, and the stochastic nature of asset returns.

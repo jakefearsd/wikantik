@@ -1,3 +1,15 @@
+---
+title: Life Insurance Types
+type: article
+tags:
+- text
+- guarante
+- valu
+summary: The market presents four primary architectural paradigms—Term, Whole, Universal,
+  and Variable—each representing a distinct mathematical solution to the problem of
+  mortality risk mitigation.
+auto-generated: true
+---
 # Term, Whole, Universal, and Variable Architectures for Advanced Research
 
 For those of us who spend our professional lives dissecting the mechanics of risk transfer, the landscape of life insurance can appear less like a consumer product and more like a complex, multi-variable stochastic differential equation. The market presents four primary architectural paradigms—Term, Whole, Universal, and Variable—each representing a distinct mathematical solution to the problem of mortality risk mitigation.

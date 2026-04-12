@@ -1,3 +1,15 @@
+---
+title: Tax Bracket Management In Retirement
+type: article
+tags:
+- tax
+- convers
+- rate
+summary: The traditional narrative surrounding Roth conversions—that one simply converts
+  assets when tax rates are low—is, frankly, an oversimplification suitable for introductory
+  seminars.
+auto-generated: true
+---
 # Tax Arbitrage in Retirement
 
 ## Introduction
@@ -6,7 +18,7 @@ For the seasoned financial architect, retirement planning is not merely an exerc
 
 This tutorial is designed for the expert researcher—the quantitative analyst, the seasoned CPA, or the wealth manager who views the Internal Revenue Code (IRC) with the same critical eye one views a complex derivative structure. We are moving past the "if" and into the "how much" and "when."
 
-The objective here is to synthesize current best practices, explore advanced modeling techniques, and dissect the nuanced interplay between current marginal tax rates, projected future income streams (especially Required Minimum Distributions, or RMDs), and the strategic deployment of after-tax capital into tax-free vehicles. We are managing the *shape* of your lifetime tax bracket, not just minimizing the immediate year's bill.
+The objective here is to synthesize current best practices, explore advanced modeling techniques, and dissect the nuanced interplay between current marginal tax rates, projected future income streams (especially [Required Minimum Distributions](RequiredMinimumDistributions), or RMDs), and the strategic deployment of after-tax capital into tax-free vehicles. We are managing the *shape* of your lifetime tax bracket, not just minimizing the immediate year's bill.
 
 ---
 

@@ -1,3 +1,14 @@
+---
+title: Summer Van Cooling
+type: article
+tags:
+- text
+- heat
+- thermal
+summary: 'Advanced Thermal Management in Built Environments Target Audience: Research
+  Engineers, Building Physicists, HVAC System Designers, and Architectural Technologists.'
+auto-generated: true
+---
 # Advanced Thermal Management in Built Environments
 
 **Target Audience:** Research Engineers, Building Physicists, HVAC System Designers, and Architectural Technologists.

@@ -1,3 +1,14 @@
+---
+title: Skill Performance
+type: article
+tags:
+- text
+- skill
+- mathcal
+summary: Performance Optimization and Efficiency in Skill Design The pursuit of peak
+  performance is, frankly, an exhausting endeavor.
+auto-generated: true
+---
 # Performance Optimization and Efficiency in Skill Design
 
 The pursuit of peak performance is, frankly, an exhausting endeavor. For decades, the discourse surrounding human capital has oscillated between simplistic models—the "training gap" narrative—and overly complex, often opaque, management fads. For those of us operating at the research frontier, we understand that performance optimization is not merely about *adding* skills; it is about *architecting* the interaction between existing skills, cognitive load, systemic processes, and the underlying psychological models that govern human decision-making.

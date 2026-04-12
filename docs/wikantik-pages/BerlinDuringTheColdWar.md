@@ -1,3 +1,15 @@
+---
+title: Berlin During The Cold War
+type: article
+tags:
+- system
+- model
+- state
+summary: 'The Berlin Wall and German Reunification (1961–1990) Target Audience: Experts
+  in System Dynamics, Geopolitical Modeling, Conflict Resolution Engineering, and
+  Post-Conflict Reconstruction.'
+auto-generated: true
+---
 # The Berlin Wall and German Reunification (1961–1990)
 
 **Target Audience:** Experts in System Dynamics, Geopolitical Modeling, Conflict Resolution Engineering, and Post-Conflict Reconstruction.

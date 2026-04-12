@@ -1,6 +1,16 @@
+---
+title: Modern Bundlers And Build Tools
+type: article
+tags:
+- rollup
+- webpack
+- modul
+summary: This tutorial is not a "how-to-start" guide.
+auto-generated: true
+---
 # The Modern JavaScript Tooling Stack
 
-For those of us who have spent enough time wrestling with build pipelines, the term "bundler" has become less of a technical descriptor and more of a philosophical battleground. We have moved far beyond the era where simply concatenating assets was considered "modern." Today, the tooling landscape is characterized by a relentless pursuit of speed, developer experience (DX), and architectural elegance.
+For those of us who have spent enough time wrestling with build pipelines, the term "bundler" has become less of a technical descriptor and more of a philosophical battleground. We have moved far beyond the era where simply concatenating assets was considered "modern." Today, the tooling landscape is characterized by a relentless pursuit of speed, [developer experience](DeveloperExperience) (DX), and architectural elegance.
 
 This tutorial is not a "how-to-start" guide. We assume you are already intimately familiar with module resolution, dependency graphs, and the pain points of legacy build systems. Our goal here is to dissect the underlying mechanisms, compare the architectural philosophies, and provide a deep, comparative analysis of the dominant players: Webpack, Rollup, and the disruptive force, Vite.
 

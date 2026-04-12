@@ -1,3 +1,13 @@
+---
+title: Van Interior Lighting
+type: article
+tags:
+- text
+- light
+- must
+summary: For the expert researcher, however, the challenge is vastly more complex.
+auto-generated: true
+---
 # Lighting Design for a Cozy and Functional Van Interior
 
 ## Introduction: The Illumination Challenge in Constrained, Dynamic Environments
@@ -226,7 +236,7 @@ The successful system moves beyond simple fixture selection ($\text{LED} \righta
 
 For future research, we recommend focusing on:
 
-1.  **Predictive Modeling:** Developing machine learning models that correlate occupant biometric data (e.g., heart rate variability, measured alertness) with optimal, real-time spectral adjustments, moving beyond simple time-of-day protocols.
+1.  **Predictive Modeling:** Developing [machine learning](MachineLearning) models that correlate occupant biometric data (e.g., heart rate variability, measured alertness) with optimal, real-time spectral adjustments, moving beyond simple time-of-day protocols.
 2.  **Material-Specific Spectral Mapping:** Creating databases that map the $\text{SPD}$ required to optimally illuminate specific, novel interior materials (e.g., reclaimed wood species, specialized textiles) to maximize perceived richness and minimize color shift artifacts.
 3.  **Hyper-Efficient Power Cycling:** Developing predictive algorithms that forecast solar input and battery drain to dynamically throttle the *quality* of light (e.g., reducing $\text{CRI}$ slightly during peak power drain if the functional difference is negligible to the user) rather than simply reducing the *intensity*.
 

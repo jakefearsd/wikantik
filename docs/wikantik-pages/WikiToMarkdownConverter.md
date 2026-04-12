@@ -17,12 +17,12 @@ related:
 ---
 # Wiki-to-Markdown Converter
 
-The wiki-to-markdown converter migrated legacy JSPWiki syntax pages to Markdown format. This was a prerequisite for the knowledge graph (which parses YAML frontmatter from Markdown pages) and the blog feature (which uses Markdown rendering).
+The wiki-to-markdown converter migrated legacy JSPWiki syntax pages to Markdown format. This was a prerequisite for the knowledge graph (which parses YAML frontmatter from Markdown pages) and the [blog feature](BlogFeature) (which uses Markdown rendering).
 
 ## Conversion Rules
 
 - JSPWiki headings (`!!!`, `!!`, `!`) converted to Markdown headings (`#`, `##`, `###`)
-- Wiki links (`[PageName]`) converted to Markdown links
+- Wiki links (`[PageName]`) converted to [Markdown links](MarkdownLinks)
 - Inline formatting (bold, italic) converted to Markdown equivalents
 - Plugin syntax preserved as-is (Flexmark handles plugin rendering)
 

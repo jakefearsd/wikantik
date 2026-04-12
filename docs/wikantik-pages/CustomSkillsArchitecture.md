@@ -1,3 +1,13 @@
+---
+title: Custom Skills Architecture
+type: article
+tags:
+- skill
+- must
+- e.g
+summary: 'Building Custom Skills for Claude Code: Architecture and Patterns Welcome.'
+auto-generated: true
+---
 # Building Custom Skills for Claude Code: Architecture and Patterns
 
 Welcome. If you've reached this guide, you are likely past the point of simply following a "click-through" tutorial. You understand that the true power of Large Language Models (LLMs) does not reside in the prompt itself, but in the *system* that orchestrates the prompt, manages the state, and enforces the constraints.
@@ -65,7 +75,7 @@ The execution engine is the sandboxed environment where the skill's actual compu
 **A. Language Agnosticism and Interoperability:**
 A truly expert skill architecture must be language-agnostic at the *interface* level. While the skill might be written in Python (for its rich ecosystem), its *interface* to the LLM should only expose abstract concepts: `Input -> Process -> Output`.
 
-**B. State Management Patterns:**
+**B. [State Management Patterns](StateManagementPatterns):**
 For multi-turn interactions, the skill cannot rely on the LLM's conversational memory. You must implement explicit state management:
 
 *   **Session Context Object:** The skill must accept a `session_context` object passed by the orchestrator. This object should contain:
@@ -99,7 +109,7 @@ For experts, the goal is not just functionality, but *elegance* and *maintainabi
 
 ### 3.1 The Strategy Pattern: Implementing Domain Specialization
 
-The Strategy Pattern is ideal when a single high-level goal can be achieved via multiple, distinct algorithmic approaches.
+The [Strategy Pattern](StrategyPattern) is ideal when a single high-level goal can be achieved via multiple, distinct algorithmic approaches.
 
 **Scenario:** A "Code Refactoring Skill."
 **Problem:** Refactoring a class might require different strategies depending on the language, the complexity level, or the architectural pattern being enforced (e.g., moving from procedural to object-oriented).

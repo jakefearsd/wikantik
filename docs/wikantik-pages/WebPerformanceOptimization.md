@@ -1,3 +1,15 @@
+---
+title: Web Performance Optimization
+type: article
+tags:
+- load
+- perform
+- lcp
+summary: We are no longer optimizing for speed in a vacuum; we are optimizing for
+  perceived quality—a complex, multi-dimensional metric that Google has codified,
+  imperfectly, into the Core Web Vitals (CWV).
+auto-generated: true
+---
 # Web Performance Optimization
 
 For those of us who have spent enough time staring at waterfall diagrams until our retinas ache, the concept of "web performance" has evolved far beyond simple bandwidth measurements or even basic Time To First Byte (TTFB). We are no longer optimizing for *speed* in a vacuum; we are optimizing for *perceived quality*—a complex, multi-dimensional metric that Google has codified, imperfectly, into the Core Web Vitals (CWV).

@@ -1,3 +1,15 @@
+---
+title: Behavioral Finance For Investors
+type: article
+tags:
+- model
+- system
+- behavior
+summary: 'Cognitive Architectures, Biases, and Advanced Modeling for Next-Generation
+  Investment Strategies Target Audience: Quantitative Researchers, Behavioral Economists,
+  and Advanced Portfolio Strategists.'
+auto-generated: true
+---
 # Cognitive Architectures, Biases, and Advanced Modeling for Next-Generation Investment Strategies
 
 **Target Audience:** Quantitative Researchers, Behavioral Economists, and Advanced Portfolio Strategists.
@@ -7,7 +19,7 @@
 
 ## Introduction: The Necessary Critique of Rationality
 
-Classical financial theory, epitomized by the Efficient Market Hypothesis (EMH), operates under a foundational, and frankly, rather quaint assumption: the *Homo Economicus*. This theoretical agent is perfectly rational, possesses complete information, and processes all available data without emotional interference. In short, the model assumes that human decision-making is a pristine, deterministic calculation.
+Classical financial theory, epitomized by the [Efficient Market Hypothesis](EfficientMarketHypothesis) (EMH), operates under a foundational, and frankly, rather quaint assumption: the *Homo Economicus*. This theoretical agent is perfectly rational, possesses complete information, and processes all available data without emotional interference. In short, the model assumes that human decision-making is a pristine, deterministic calculation.
 
 However, decades of empirical evidence—from speculative bubbles to market crashes—have provided a rather robust, and frankly predictable, counter-narrative. Behavioral Finance (BF) emerged precisely because the real world, populated by actual, fallible, and emotionally volatile humans, behaves nothing like the idealized agent of the textbook.
 
@@ -52,7 +64,7 @@ For the researcher, understanding this relationship is key: **Biases are not fai
 
 ## II. Core Cognitive Biases
 
-We must move beyond the superficial listing of biases and analyze their structural impact on portfolio construction and asset allocation decisions.
+We must move beyond the superficial listing of biases and analyze their structural impact on portfolio construction and [asset allocation](AssetAllocation) decisions.
 
 ### A. Confirmation Bias (The Echo Chamber Effect)
 

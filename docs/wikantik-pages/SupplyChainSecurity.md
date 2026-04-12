@@ -1,10 +1,22 @@
+---
+title: Supply Chain Security
+type: article
+tags:
+- sbom
+- compon
+- graph
+summary: The Architecture of Trust The modern software development lifecycle (SDLC)
+  is less a linear assembly line and more a sprawling, interconnected ecosystem of
+  borrowed code.
+auto-generated: true
+---
 # The Architecture of Trust
 
 The modern software development lifecycle (SDLC) is less a linear assembly line and more a sprawling, interconnected ecosystem of borrowed code. We rarely write monolithic applications; rather, we orchestrate complex compositions of open-source libraries, vendor APIs, and third-party commercial components. This reality, while enabling unprecedented levels of innovation, has simultaneously constructed an unprecedented attack surface.
 
 For experts researching next-generation security techniques, the concept of "trust" in software has fundamentally shifted from trusting the *source* to verifying the *entire lineage*. At the heart of this paradigm shift lies the Software Bill of Materials (SBOM) and the rigorous analysis of its underlying dependency graph.
 
-This tutorial is designed not merely to explain *what* an SBOM is—a concept now bordering on basic industry knowledge—but to dissect the advanced methodologies, theoretical limitations, and cutting-edge research vectors required to leverage SBOMs for true, verifiable supply chain resilience.
+This tutorial is designed not merely to explain *what* an SBOM is—a concept now bordering on basic industry knowledge—but to dissect the advanced methodologies, theoretical limitations, and cutting-edge research vectors required to leverage SBOMs for true, verifiable [supply chain resilience](SupplyChainResilience).
 
 ---
 
@@ -159,10 +171,10 @@ Traditional vulnerability scanners use signature matching (CVE IDs). GNNs offer 
 
 **How GNNs Apply:**
 1.  **Training Data:** The model is trained on graphs representing known secure software compositions and known compromised compositions.
-2.  **Feature Engineering:** Nodes (components) are embedded with features like license entropy, maintainer activity history, and dependency depth. Edges are weighted by interaction frequency and data flow potential.
+2.  **[Feature Engineering](FeatureEngineering):** Nodes (components) are embedded with features like license entropy, maintainer activity history, and dependency depth. Edges are weighted by interaction frequency and data flow potential.
 3.  **Anomaly Detection:** When a new SBOM graph is input, the GNN calculates the graph's embedding vector. If this vector deviates significantly from the learned manifold of "normal" software composition, it flags the graph as anomalous, suggesting potential malicious injection or structural weakness, even if no known CVE applies.
 
-This is a frontier area, requiring expertise in both software engineering and advanced machine learning theory.
+This is a frontier area, requiring expertise in both software engineering and advanced [machine learning](MachineLearning) theory.
 
 ### C. Formal Verification and Proof-Carrying Code (PCC)
 

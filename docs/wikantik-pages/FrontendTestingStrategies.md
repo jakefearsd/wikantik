@@ -1,3 +1,14 @@
+---
+title: Frontend Testing Strategies
+type: article
+tags:
+- test
+- compon
+- playwright
+summary: We are no longer satisfied with mere smoke tests; we demand rigorous validation
+  across every layer of abstraction.
+auto-generated: true
+---
 # The Triad
 
 For those of us who spend our professional lives wrestling with the ephemeral nature of user interfaces, the testing suite is less a set of safety nets and more a philosophical statement about the perceived stability of our code. We are no longer satisfied with mere smoke tests; we demand rigorous validation across every layer of abstraction.
@@ -213,7 +224,7 @@ The context provided hints at module system compatibility issues (Source [7]). T
 
 ### 5.3. Advanced Edge Case: Testing Custom Elements (Web Components)
 
-If your architecture involves Web Components (Custom Elements), the testing strategy must account for the Shadow DOM.
+If your architecture involves [Web Components](WebComponents) (Custom Elements), the testing strategy must account for the Shadow DOM.
 
 *   **The Challenge:** JSDOM often fails to correctly simulate the encapsulation provided by the Shadow DOM.
 *   **The Solution:** This is a strong argument for Playwright. Because it renders in a real browser, it handles the Shadow DOM boundaries correctly. When testing a component that *is* a Web Component, Playwright component testing is significantly more reliable than Jest/RTL. You must write selectors that traverse *into* the shadow root (`component.locator('shadow=...').getByRole(...)`).

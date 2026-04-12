@@ -1,3 +1,14 @@
+---
+title: Van Climate Control
+type: article
+tags:
+- text
+- heat
+- air
+summary: True, optimized, year-round thermal comfort is not achieved by the mere juxtaposition
+  of disparate mechanical components.
+auto-generated: true
+---
 # Heaters, Fans, and Insulation for Optimized Year-Round Thermal Management
 
 ## Introduction: Beyond the Appliance Paradigm
@@ -274,7 +285,7 @@ Future research must focus on materials that actively participate in thermal reg
 
 ### B. AI and Machine Learning in HVAC Optimization
 
-The next frontier involves moving beyond pre-programmed MPC models to true Machine Learning (ML) optimization.
+The next frontier involves moving beyond pre-programmed MPC models to true [Machine Learning](MachineLearning) (ML) optimization.
 
 *   **Reinforcement Learning (RL):** An RL agent can be trained in a high-fidelity digital twin simulation of the building. The agent's "reward" is maximizing comfort while minimizing energy expenditure. Over millions of simulated cycles, the agent learns non-linear, counter-intuitive control strategies that human engineers might overlook—for instance, realizing that running the dehumidifier slightly *above* the setpoint for two hours can yield greater energy savings than running it precisely at the setpoint.
 

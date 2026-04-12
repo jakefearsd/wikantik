@@ -1,3 +1,14 @@
+---
+title: Code Review Practices
+type: article
+tags:
+- review
+- must
+- code
+summary: When researching new techniques in software development, one cannot afford
+  to treat code review as a mere checklist exercise.
+auto-generated: true
+---
 # The Art and Science of Critique
 
 ## Introduction: The Pull Request as a Cultural Artifact
@@ -33,7 +44,7 @@ The most underrated aspect of expert review is managing the cognitive load of th
 **Best Practice: The "Intent First" Rule.**
 The PR template must mandate more than just a description of *what* the code does. It must force the author to articulate:
 1.  **The Problem Statement:** What specific, measurable pain point does this solve? (e.g., "Latency spikes observed during peak load on endpoint X.")
-2.  **The Proposed Solution (Architectural Rationale):** Why was this approach chosen over alternatives (e.g., "We chose eventual consistency here because the read-after-write requirement is non-critical for this specific reporting endpoint.")
+2.  **The Proposed Solution (Architectural Rationale):** Why was this approach chosen over alternatives (e.g., "We chose [eventual consistency](EventualConsistency) here because the read-after-write requirement is non-critical for this specific reporting endpoint.")
 3.  **The Scope of Change:** Explicitly list which components are touched and why.
 
 If the author cannot articulate the *why* clearly, the review process should pause, forcing a synchronous discussion rather than allowing asynchronous, ambiguous comments.
@@ -59,7 +70,7 @@ While automated scanners catch basic injection vectors, expert review must focus
 1.  **Authorization vs. Authentication:** A common mistake is confusing the two. Reviewers must verify that every endpoint check not only confirms *who* the user is (AuthN) but also confirms *if* that user has the explicit right to perform that action on that specific resource (AuthZ).
     *   *Edge Case Example:* Checking for Insecure Direct Object Reference (IDOR). If the code accesses `user_id` from the request body, the reviewer must verify that the backend logic *re-queries* the database using the authenticated user's ID to ensure they own the requested resource, rather than trusting the input ID.
 2.  **Data Flow Tainting:** Trace sensitive data (PII, tokens, secrets) from its point of entry (the request header/body) through every function call until its point of exit (the database write or external API call). At every junction, ask: *Is this data sanitized, encrypted, or masked appropriately for the next stage?*
-3.  **Rate Limiting and Throttling:** Review the implementation of rate limiting not just at the API gateway level, but *within* the service logic itself, especially for expensive operations (e.g., complex report generation).
+3.  **[Rate Limiting and Throttling](RateLimitingAndThrottling):** Review the implementation of rate limiting not just at the API gateway level, but *within* the service logic itself, especially for expensive operations (e.g., complex report generation).
 
 ### B. Maintainability and Readability: The Cost of Future You
 
@@ -108,7 +119,7 @@ The ability to discern "high-impact feedback" is the hallmark of a senior review
 
 **The Art of the "Parking Lot" Comment:** If a reviewer spots a fascinating, high-level architectural improvement that is *out of scope* for the current PR (e.g., "We should really look into migrating this entire service to Kafka"), they must *not* leave it as a mandatory comment. Instead, they should use a dedicated "Parking Lot" comment:
 
-> *[Parking Lot]: This pattern suggests we might benefit from an event sourcing model in the future. Let's create a follow-up ticket (JIRA-XXXX) to research this, rather than blocking this PR.*
+> *[Parking Lot]: This pattern suggests we might benefit from an [event sourcing](EventSourcing) model in the future. Let's create a follow-up ticket (JIRA-XXXX) to research this, rather than blocking this PR.*
 
 This acknowledges the insight without derailing the immediate goal of merging the current feature.
 
@@ -185,7 +196,7 @@ The best practices fail when the process itself is ignored or when the team hits
 
 Stale PRs are technical debt waiting to happen. They represent unvalidated assumptions and forgotten context.
 
-1.  **Service Level Agreements (SLAs):** Define clear, measurable SLAs for reviews.
+1.  **[Service Level Agreements](ServiceLevelAgreements) (SLAs):** Define clear, measurable SLAs for reviews.
     *   *Ideal:* PRs must receive initial feedback within $T_{initial}$ hours (e.g., 4 business hours).
     *   *Follow-up:* If the author needs clarification, the follow-up must occur within $T_{followup}$ hours.
 2.  **The "Stale PR" Protocol:** If a PR remains unreviewed or unaddressed for $X$ days, it should automatically trigger a notification to the author's manager and the reviewer's manager. This elevates the issue from a technical oversight to a process failure, which is necessary for organizational accountability.

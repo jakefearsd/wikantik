@@ -1,3 +1,14 @@
+---
+title: Batch Api Design
+type: article
+tags:
+- batch
+- api
+- bulk
+summary: If you are reading this, you are not a novice who simply needs to know how
+  to loop through a JSON array and call an endpoint repeatedly.
+auto-generated: true
+---
 # Batch API Design
 
 Welcome. If you are reading this, you are not a novice who simply needs to know how to loop through a JSON array and call an endpoint repeatedly. You are an expert researcher, an architect, or a high-throughput systems engineer grappling with the fundamental limitations of synchronous, sequential API interaction. You understand that the cost of an API call is not merely the network latency, but the cumulative overhead of serialization, authentication handshakes, server-side request parsing, and the inherent "chatty" nature of RESTful interaction.
@@ -52,7 +63,7 @@ The single most challenging aspect of bulk operations is guaranteeing **Atomicit
 *   **Weak Guarantee (Client-Side):** If the API returns a list of errors, the client must implement complex logic to determine which subset succeeded and which failed, and then potentially retry the failed subset. This is brittle.
 *   **Strong Guarantee (True Batch/Transactional):** The API must wrap the entire batch in a single, ACID-compliant transaction (or an equivalent compensating transaction model). If *any* operation fails, the entire batch must be rolled back, leaving the system state unchanged from before the request.
 
-**Expert Insight:** When an API documentation *fails* to specify transactional guarantees for bulk operations, assume the worst: **partial success is possible, and you must build compensating logic.**
+**Expert Insight:** When an [API documentation](ApiDocumentation) *fails* to specify transactional guarantees for bulk operations, assume the worst: **partial success is possible, and you must build compensating logic.**
 
 ---
 
@@ -284,7 +295,7 @@ The modern expert must operate with a layered understanding:
 
 1.  **Understand the Contract:** Never assume atomicity. Always verify the transactional guarantees for the specific endpoint being used.
 2.  **Optimize the Pattern:** Determine if the API requires Payload Aggregation (Parts), dedicated Throughput Endpoints, or if the workload demands full Asynchronous Queuing.
-3.  **Build Resilience First:** Implement rate limiting protection using Exponential Backoff with Jitter, and wrap the entire process in a Circuit Breaker pattern.
+3.  **Build Resilience First:** Implement rate limiting protection using Exponential Backoff with Jitter, and wrap the entire process in a [Circuit Breaker pattern](CircuitBreakerPattern).
 4.  **Plan for Failure:** Design the retry logic to be granular, moving from full-batch retries to isolated record retries, and finally to a Dead Letter Queue for human triage.
 
 Mastering bulk operations means accepting that the most efficient code is often the code that anticipates failure, manages state across time, and respects the underlying architectural constraints of the service provider.

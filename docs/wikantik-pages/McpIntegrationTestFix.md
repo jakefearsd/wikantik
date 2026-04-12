@@ -15,7 +15,7 @@ related:
 ---
 # MCP Integration Test Fix
 
-The MCP integration tests were silently failing due to two root causes: WikiEngine lazy initialization during test setup, and Maven Failsafe's `testFailureIgnore` setting suppressing failures.
+The [MCP integration](McpIntegration) tests were silently failing due to two root causes: WikiEngine lazy initialization during test setup, and Maven Failsafe's `testFailureIgnore` setting suppressing failures.
 
 ## Root Causes
 

@@ -37,7 +37,7 @@ Most mainstream retirement advice assumes you will work until your mid-60s. If y
 - [Investing in Your Twenties: Why You Should Be All In on Stocks](InvestingInYourTwenties) — Why investors in their 20s should strongly consider 100% equities, and how risk tolerance evolves with age
 
 ### The Solution
-- [Building a Portfolio with Low-Cost Index Funds](IndexFundPortfolioConstruction) — Total market, international, and bond index funds: what to buy, why, and in what proportions
+- [Building a Portfolio with Low-Cost Index Funds](IndexFundPortfolioConstruction) — Total market, international, and [bond index funds](BondIndexFunds): what to buy, why, and in what proportions
 
 ### The Access Problem
 - [Account Type Strategy for Early Retirement](AccountTypeStrategy) — Why you need taxable brokerage accounts alongside 401(k)s and IRAs, and how to fill them in order
@@ -51,7 +51,7 @@ Most mainstream retirement advice assumes you will work until your mid-60s. If y
 1. **Costs are the only reliable predictor of future fund performance.** You cannot control market returns. You can control what you pay.
 2. **Tax-advantaged space is valuable but insufficient.** If you plan to retire before 59.5, you need substantial assets in taxable accounts or a bridge strategy.
 3. **Simplicity wins.** A three-fund portfolio at Vanguard or Fidelity will outperform the vast majority of complex strategies over 20+ year horizons.
-4. **Asset location matters as much as asset allocation.** Which fund goes in which account type can add 0.1-0.5% annually in after-tax returns.
+4. **Asset location matters as much as [asset allocation](AssetAllocation).** Which fund goes in which account type can add 0.1-0.5% annually in after-tax returns.
 5. **Your savings rate dominates everything.** No amount of portfolio optimisation compensates for spending 90% of your income.
 
 ## Related Existing Articles

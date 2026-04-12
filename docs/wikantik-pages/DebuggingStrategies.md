@@ -1,3 +1,14 @@
+---
+title: Debugging Strategies
+type: article
+tags:
+- must
+- failur
+- test
+summary: Failure Analysis Debugging, at its most fundamental level, is not merely
+  the act of finding and fixing bugs.
+auto-generated: true
+---
 # Failure Analysis
 
 Debugging, at its most fundamental level, is not merely the act of finding and fixing bugs. For the expert researcher operating at the frontier of computational science, it is a sophisticated, multi-layered discipline—a rigorous form of **failure analysis**. It requires a synthesis of deep domain knowledge, advanced mathematical reasoning, meticulous engineering discipline, and a healthy dose of intellectual skepticism.
@@ -109,13 +120,13 @@ For the truly advanced researcher, debugging moves into the realm of formal meth
 *   **Example:** Instead of tracking the exact value of a variable $x$ (which could be any floating-point number), the abstract domain might track the *range* of $x$ (e.g., $x \in [0, 1]$).
 *   **Application:** This is crucial for proving properties like "this function will never return a negative number" without running the function through every possible negative input.
 
-**Model Checking** takes this further. It attempts to exhaustively check whether a system model (often described in temporal logic, like LTL or CTL) satisfies a set of required properties. If the model checker finds a path that violates a property, it returns a **counterexample trace**—the exact sequence of inputs and states that caused the failure. This is the gold standard for proving the existence of a bug.
+**Model Checking** takes this further. It attempts to exhaustively check whether a system model (often described in [temporal logic](TemporalLogic), like LTL or CTL) satisfies a set of required properties. If the model checker finds a path that violates a property, it returns a **counterexample trace**—the exact sequence of inputs and states that caused the failure. This is the gold standard for proving the existence of a bug.
 
 ### C. Differential Debugging (Delta Debugging)
 
 When a bug is suspected to be related to a large, complex input set, differential debugging is invaluable. The core idea is to find the *minimal difference* between the failing input and a known working input.
 
-If Input $A$ fails, and Input $B$ works, the bug is likely caused by the structural or semantic difference between $A$ and $B$. Techniques involve iteratively removing elements, simplifying data structures, or reducing the complexity of the input until the failure boundary is hit. This is computationally intensive but mathematically sound for narrowing the search space.
+If Input $A$ fails, and Input $B$ works, the bug is likely caused by the structural or semantic difference between $A$ and $B$. Techniques involve iteratively removing elements, simplifying [data structures](DataStructures), or reducing the complexity of the input until the failure boundary is hit. This is computationally intensive but mathematically sound for narrowing the search space.
 
 ---
 
@@ -132,7 +143,7 @@ Logs must capture more than just the value; they must capture the *context* of t
 *   **Bad Log:** `User processed successfully.`
 *   **Good Log:** `[TXN_ID: 9001] [USER_ID: 45] [SERVICE: Auth] User processed successfully. Input payload hash: 0xDEADBEEF. Duration: 12ms.`
 
-**2. Structured Logging (JSON/Key-Value Pairs):**
+**2. [Structured Logging](StructuredLogging) (JSON/Key-Value Pairs):**
 Using structured formats allows downstream analysis tools (like ELK stack or Splunk) to query the failure state with the precision of a database query, rather than relying on fragile regex matching on plain text.
 
 **3. Checkpointing and State Snapshots:**

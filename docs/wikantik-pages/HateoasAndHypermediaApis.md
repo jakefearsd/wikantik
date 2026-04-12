@@ -1,3 +1,14 @@
+---
+title: Hateoas And Hypermedia Apis
+type: article
+tags:
+- link
+- hateoa
+- state
+summary: This reliance on external, non-executable documentation is the architectural
+  Achilles' heel of many modern RESTful services.
+auto-generated: true
+---
 # HATEOAS and Hypermedia APIs
 
 ## Introduction

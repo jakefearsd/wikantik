@@ -1,8 +1,18 @@
+---
+title: Wiki Migration Strategies
+type: article
+tags:
+- data
+- content
+- you
+summary: The Art and Science of Digital Archaeology Welcome.
+auto-generated: true
+---
 # The Art and Science of Digital Archaeology
 
 Welcome. If you are reading this, you are not looking for a simple "how-to" guide for a junior administrator. You are a researcher, an architect, or a data scientist tasked with the monumental, often messy, process of migrating knowledge bases built on the volatile substrate of wiki software. You understand that "migration" is rarely a single transaction; it is a complex, multi-stage process of digital archaeology, requiring deep knowledge of data modeling, schema transformation, and the inherent entropy of collaborative text.
 
-This tutorial is designed to serve as a comprehensive technical deep-dive, moving far beyond basic export buttons. We will dissect the underlying data structures, analyze the limitations of existing tooling, and explore advanced, programmatic techniques required to move content reliably from a source wiki ecosystem to a target repository, whether that target is a modern CMS, a graph database, or another wiki implementation entirely.
+This tutorial is designed to serve as a comprehensive technical deep-dive, moving far beyond basic export buttons. We will dissect the underlying [data structures](DataStructures), analyze the limitations of existing tooling, and explore advanced, programmatic techniques required to move content reliably from a source wiki ecosystem to a target repository, whether that target is a modern CMS, a graph database, or another wiki implementation entirely.
 
 ---
 
@@ -217,7 +227,7 @@ The modern expert must operate with a toolkit that spans:
 
 1.  **Parsing Expertise:** Deep knowledge of DSLs (Wikitext, Markdown, LaTeX).
 2.  **Data Engineering:** Mastery of ETL principles, schema mapping, and relational/graph modeling.
-3.  **System Architecture:** Understanding of APIs, event sourcing, and version control paradigms.
+3.  **System Architecture:** Understanding of APIs, [event sourcing](EventSourcing), and version control paradigms.
 
 The sheer depth required to handle the edge cases—the forgotten template parameters, the ambiguous link resolution, the conflicting historical revisions—is what separates a simple data dump from a successful, academically rigorous migration. Approach this task not as a technical hurdle, but as a profound exercise in digital preservation and semantic reconstruction.
 

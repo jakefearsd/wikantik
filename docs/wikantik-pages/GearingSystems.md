@@ -1,3 +1,14 @@
+---
+title: Gearing Systems
+type: article
+tags:
+- gear
+- text
+- system
+summary: We must move beyond the idealized textbook model and confront the realities
+  of contact mechanics, dynamic loading, material fatigue, and non-linear system behavior.
+auto-generated: true
+---
 # Gearing Systems in Mechanical Transmission
 
 ## Introduction: The Art and Science of Rotational Power Transfer
@@ -8,7 +19,7 @@ While introductory texts might treat gears as simple meshing wheels—a concept 
 
 This tutorial is designed not as a refresher, but as an advanced monograph. We will dissect the theoretical underpinnings, explore the cutting edge of dynamic analysis, examine the material science limitations, and survey the most complex modern architectures. If you are researching next-generation robotics, high-efficiency aerospace drives, or novel energy harvesting systems, this deep dive into the physics of meshing teeth should provide the necessary theoretical scaffolding.
 
-**Scope Definition:** We will cover the kinematics, geometry, dynamics, tribology, and advanced architectural considerations of mechanical gearing systems, assuming a baseline proficiency in classical mechanics, differential geometry, and solid mechanics.
+**Scope Definition:** We will cover the kinematics, geometry, dynamics, tribology, and advanced architectural considerations of mechanical gearing systems, assuming a baseline proficiency in classical mechanics, [differential geometry](DifferentialGeometry), and solid mechanics.
 
 ***
 
@@ -306,7 +317,7 @@ For the expert researcher, the field demands a holistic view. One cannot optimiz
 
 The trajectory of research is clear:
 1.  **From Static Analysis to Full-Field Dynamics:** Moving from simple load calculations to coupled FEA/MBD simulations that account for material viscoelasticity and thermal gradients.
-2.  **From Reactive to Predictive Maintenance:** Integrating ML models directly into the design lifecycle to predict failure modes before they manifest as measurable deviations in the spectral domain.
+2.  **From Reactive to [Predictive Maintenance](PredictiveMaintenance):** Integrating ML models directly into the design lifecycle to predict failure modes before they manifest as measurable deviations in the spectral domain.
 3.  **Towards Novel Actuation:** Exploring non-contact or quasi-contact mechanisms (like strain wave gearing) to eliminate the inherent wear and noise associated with traditional meshing.
 
 Mastering gearing systems requires fluency across mechanical engineering, materials science, and computational physics. It is a field where the most elegant solutions are those that manage complexity while maximizing efficiency under extreme, transient loading conditions.

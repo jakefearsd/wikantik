@@ -1,3 +1,14 @@
+---
+title: Site Reliability Engineering
+type: article
+tags:
+- text
+- slo
+- sli
+summary: If you are reading this, you likely already understand that simply "making
+  it work" is insufficient.
+auto-generated: true
+---
 # The Triad of Trust
 
 For those of us who have spent more time staring at dashboards than actual sunlight, the concepts of Site Reliability Engineering (SRE), Service Level Indicators (SLIs), and Service Level Objectives (SLOs) are not merely buzzwords; they are the operational calculus governing the modern distributed system. If you are reading this, you likely already understand that simply "making it work" is insufficient. You are researching *how* to prove, mathematically and operationally, that it will continue to work under duress, and that the cost of failure is precisely quantified.
@@ -164,7 +175,7 @@ SLOs are living documents. They must be governed by a formal process, ideally in
 
 ### B. Integrating Chaos Engineering into SLO Validation
 
-Chaos Engineering (CE) is the proactive mechanism for testing the SLO boundary conditions. It is the controlled, deliberate attempt to violate the SLO to see if the monitoring, alerting, and remediation systems work correctly.
+[Chaos Engineering](ChaosEngineering) (CE) is the proactive mechanism for testing the SLO boundary conditions. It is the controlled, deliberate attempt to violate the SLO to see if the monitoring, alerting, and remediation systems work correctly.
 
 **The CE Loop:**
 1.  **Hypothesis:** "If the database connection pool latency increases by 50% for 5 minutes, the $\text{p}99$ latency SLO will breach, and the automated circuit breaker will correctly failover traffic to the secondary region."

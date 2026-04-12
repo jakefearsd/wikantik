@@ -1,3 +1,14 @@
+---
+title: Time Series Databases
+type: article
+tags:
+- data
+- prometheu
+- time
+summary: When the data volume scales into the petabytes, the query latency shifts
+  from an annoyance to a catastrophic failure point.
+auto-generated: true
+---
 # The Architectural Showdown
 
 For those of us who spend our days wrestling with metrics, logs, and traces—the digital residue of complex systems—the choice of persistence layer is rarely a trivial decision. When the data volume scales into the petabytes, the query latency shifts from an annoyance to a catastrophic failure point. In the realm of time series databases (TSDBs), two names dominate the conversation, often leading to an almost tribalistic debate: Prometheus and InfluxDB.

@@ -1,3 +1,14 @@
+---
+title: Coffee Roasting
+type: article
+tags:
+- text
+- extract
+- roast
+summary: Coffee Roasting and Extraction Science This tutorial is intended for researchers,
+  food scientists, and process engineers operating at the frontier of coffee science.
+auto-generated: true
+---
 # Coffee Roasting and Extraction Science
 
 This tutorial is intended for researchers, food scientists, and process engineers operating at the frontier of coffee science. We assume a foundational understanding of chemical kinetics, thermodynamics, mass transfer phenomena, and advanced analytical chemistry. Our goal is not merely to summarize established practices, but to synthesize the underlying physical and chemical principles governing the transformation of *Coffea* seeds into a consumable beverage, focusing on areas ripe for novel methodological investigation.
@@ -33,7 +44,7 @@ The primary goal here is to achieve a consistent, predictable moisture removal r
 Once the moisture content drops sufficiently (typically below 10%), the temperature rises, and the amino acids and reducing sugars begin to react. This is the chemical cornerstone of flavor development.
 
 ### 1.2.1 The Maillard Reaction
-The Maillard reaction is a cascade involving the condensation of reducing sugars (e.g., glucose, fructose) with amino groups ($\text{R-NH}_2$) under heat. It is not a single reaction but a series of steps:
+The [Maillard reaction](MaillardReaction) is a cascade involving the condensation of reducing sugars (e.g., glucose, fructose) with amino groups ($\text{R-NH}_2$) under heat. It is not a single reaction but a series of steps:
 
 1.  **Condensation:** Formation of an unstable Schiff base.
 2.  **Amadori Rearrangement:** Stabilization into a more stable compound.
@@ -257,12 +268,12 @@ $\text{UAE}$ utilizes high-frequency sound waves to induce **cavitation** within
 
 The sheer number of interacting variables ($T_{roast}, t_{roast}, \text{Grind Size}, T_{water}, \text{pH}_{water}, \text{Mineral Profile}, \text{Roast Level}$) renders traditional empirical modeling insufficient.
 
-**The Solution:** Implementing Machine Learning (ML) models, particularly Gaussian Process Regression or Neural Networks, trained on comprehensive datasets linking input parameters to sensory panel scores (e.g., acidity score, perceived body, volatile profile fingerprinting via GC-MS).
+**The Solution:** Implementing [Machine Learning](MachineLearning) (ML) models, particularly Gaussian Process Regression or Neural Networks, trained on comprehensive datasets linking input parameters to sensory panel scores (e.g., acidity score, perceived body, volatile profile fingerprinting via GC-MS).
 
 **ML Workflow Concept:**
 
 1.  **Data Acquisition:** Collect data points: $\{P_{roast}, E_{extract}\} \rightarrow \{S_{sensory}\}$
-2.  **Feature Engineering:** Calculate derived features: $\text{Roast\_Rate\_of\_Change}$, $\text{Average\_PSD\_Deviation}$, $\text{Water\_Hardness\_Ratio}$.
+2.  **[Feature Engineering](FeatureEngineering):** Calculate derived features: $\text{Roast\_Rate\_of\_Change}$, $\text{Average\_PSD\_Deviation}$, $\text{Water\_Hardness\_Ratio}$.
 3.  **Model Training:** Train the NN to predict $S_{sensory}$ given the feature set.
 4.  **Inverse Problem Solving:** The ultimate goal is to use the desired $S_{sensory}$ vector as the target output and solve the model *in reverse* to generate the optimal $\{P_{roast}, E_{extract}\}$ parameters.
 

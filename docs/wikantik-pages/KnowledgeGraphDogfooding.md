@@ -21,7 +21,7 @@ This initiative makes the wiki the source of truth for its own development by do
 
 ## Goals
 
-- Decompose the Knowledge Graph into focused sub-feature pages (GraphProjector, Proposals, Admin UI, Provenance, Frontmatter Conventions)
+- Decompose the Knowledge Graph into focused sub-feature pages (GraphProjector, Proposals, Admin UI, Provenance, [Frontmatter Conventions](FrontmatterConventions))
 - Backfill wiki pages for all features that have design specs or plans but no wiki representation
 - Introduce a status vocabulary (`idea` → `designed` → `planned` → `active` → `deployed`) to track development lifecycle
 - Add new relationship types (`part-of`, `enables`, `supersedes`) alongside existing `related` and `depends-on`

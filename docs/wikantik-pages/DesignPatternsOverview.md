@@ -1,3 +1,14 @@
+---
+title: Design Patterns Overview
+type: article
+tags:
+- pattern
+- object
+- you
+summary: They are the distilled wisdom of decades of accumulated failure and subsequent
+  refinement.
+auto-generated: true
+---
 # Design Patterns Overview
 
 For those of us who spend our professional lives wrestling with the inherent chaos of emergent complexity—the kind of system where a simple feature request spirals into a multi-threaded, state-dependent nightmare—design patterns are not merely helpful suggestions; they are the fundamental vocabulary of robust software engineering. They are the distilled wisdom of decades of accumulated failure and subsequent refinement.
@@ -258,7 +269,7 @@ As systems move beyond the single process memory space, traditional GoF patterns
 
 1.  **Distributed Singleton:** This is nearly impossible to solve perfectly without consensus algorithms (like Paxos or Raft). Instead of aiming for a true Singleton, architects aim for **Idempotency**—ensuring that executing the operation multiple times yields the same result as executing it once.
 2.  **Distributed Observer:** This is the domain of Message Queues and Event Streaming (as mentioned above). The "Subject" becomes the message broker, and the "Observer" becomes any service capable of consuming messages from the relevant topic.
-3.  **Circuit Breaker Pattern:** This is a crucial behavioral pattern for resilience in microservices. It wraps calls to external services. If the failure rate exceeds a threshold, the Circuit Breaker "trips," immediately failing subsequent calls without attempting to contact the failing service, allowing it time to recover and preventing cascading failures.
+3.  **[Circuit Breaker Pattern](CircuitBreakerPattern):** This is a crucial behavioral pattern for resilience in microservices. It wraps calls to external services. If the failure rate exceeds a threshold, the Circuit Breaker "trips," immediately failing subsequent calls without attempting to contact the failing service, allowing it time to recover and preventing cascading failures.
 
 ***
 

@@ -1,3 +1,15 @@
+---
+title: Convolutional Neural Networks
+type: article
+tags:
+- mathbf
+- model
+- weight
+summary: Convolutional Neural Networks for Image Classification The field of computer
+  vision, particularly image classification, has undergone a transformation so profound
+  that it borders on the miraculous.
+auto-generated: true
+---
 # Convolutional Neural Networks for Image Classification
 
 The field of computer vision, particularly image classification, has undergone a transformation so profound that it borders on the miraculous. Convolutional Neural Networks (CNNs) are not merely an incremental improvement over previous methods; they represent a fundamental paradigm shift in how machines interpret visual data. For those of us researching the next frontier—those who find the standard ResNet backbone insufficient for the next benchmark—a mere tutorial on Keras implementation is, frankly, insulting.
@@ -108,7 +120,7 @@ Not all features are equally important at all scales. A single object might be c
 
 ### C. Self-Attention in Vision (ViT)
 
-The most significant architectural departure in recent years is the adoption of the Transformer architecture, originally designed for NLP, into vision. This shift fundamentally challenges the CNN's reliance on local connectivity.
+The most significant architectural departure in recent years is the adoption of the [Transformer architecture](TransformerArchitecture), originally designed for NLP, into vision. This shift fundamentally challenges the CNN's reliance on local connectivity.
 
 **The Core Mechanism: Self-Attention:**
 The self-attention mechanism calculates the relationship (or "attention weight") between every element (or patch) and every other element in the input sequence. For an input sequence of $N$ tokens (image patches), the attention score $A$ is calculated using Query ($\mathbf{Q}$), Key ($\mathbf{K}$), and Value ($\mathbf{V}$) matrices:

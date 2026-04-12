@@ -19,7 +19,7 @@ part-of:
 ---
 # History of Operations Research
 
-Operations Research has one of the clearest origin stories in applied science: it was born of wartime necessity, flourished in the peacetime economy, and eventually became so embedded in industrial and commercial practice that its presence became invisible. This article traces that arc from the first operational analysis groups of World War II through the formalization of the discipline and its explosive post-war growth.
+[Operations Research](OperationsResearch) has one of the clearest origin stories in applied science: it was born of wartime necessity, flourished in the peacetime economy, and eventually became so embedded in industrial and commercial practice that its presence became invisible. This article traces that arc from the first operational analysis groups of World War II through the formalization of the discipline and its explosive post-war growth.
 
 ## Origins in World War II (1939–1945)
 
@@ -106,7 +106,7 @@ Manufacturing followed:
 
 - **MRP (Material Requirements Planning):** OR-based production scheduling systems, deployed through the 1970s-80s in manufacturing
 - **Just-in-Time inventory:** Toyota's production system, formalized in the 1970s, drew heavily on queuing theory and inventory models
-- **Network optimization:** Oil companies used large-scale network flow models for pipeline and refinery operations
+- **[Network optimization](NetworkOptimization):** Oil companies used large-scale network flow models for pipeline and refinery operations
 
 ### The PERT/CPM Era in Project Management
 
@@ -146,7 +146,7 @@ The rise of the internet created entirely new OR application domains:
 
 ### OR and Machine Learning
 
-Modern practice increasingly combines OR with machine learning:
+Modern practice increasingly combines OR with [machine learning](MachineLearning):
 
 - **Predict-then-optimize:** Use ML to forecast demand, prices, or costs; use OR to optimize given those forecasts
 - **Learning to optimize:** Neural networks trained to find good solutions to combinatorial problems

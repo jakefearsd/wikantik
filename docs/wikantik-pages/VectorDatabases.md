@@ -1,3 +1,14 @@
+---
+title: Vector Databases
+type: article
+tags:
+- vector
+- search
+- databas
+summary: 'The Vector Database Triad Target Audience: AI/ML Engineers, Research Scientists,
+  and Architects designing production-grade LLM applications.'
+auto-generated: true
+---
 # The Vector Database Triad
 
 **Target Audience:** AI/ML Engineers, Research Scientists, and Architects designing production-grade LLM applications.
@@ -63,7 +74,7 @@ Pinecone is designed for *scale and operational simplicity*. It abstracts the un
 
 #### 2. Strengths for Experts
 *   **Operational Maturity:** For teams prioritizing rapid deployment and minimal DevOps burden, Pinecone is unmatched. You point it at a problem, and it handles the infrastructure scaling required for millions or billions of vectors.
-*   **Performance Predictability:** Because it is a fully managed service, performance benchmarks are highly consistent across different load profiles, making capacity planning more straightforward.
+*   **Performance Predictability:** Because it is a fully managed service, performance benchmarks are highly consistent across different load profiles, making [capacity planning](CapacityPlanning) more straightforward.
 *   **Scalability Ceiling:** Its architecture is built from the ground up for hyperscale, making it a reliable choice for global, high-throughput applications.
 
 #### 3. Weaknesses and Edge Cases
@@ -96,7 +107,7 @@ Weaviate is ideal for **enterprise knowledge bases** where the retrieved context
 
 ### C. Chroma: The Developer-Centric, Embedded Champion
 
-Chroma DB has carved out a niche by prioritizing developer experience, ease of use, and the ability to operate *locally* or within an existing application stack without immediately requiring a dedicated cloud endpoint.
+Chroma DB has carved out a niche by prioritizing [developer experience](DeveloperExperience), ease of use, and the ability to operate *locally* or within an existing application stack without immediately requiring a dedicated cloud endpoint.
 
 #### 1. Architectural Philosophy
 Chroma is designed to feel like an extension of the application itself. It excels in the prototyping, testing, and small-to-medium scale deployment environments. It can operate in an embedded mode (running entirely within a Python process) or as a client-server instance.

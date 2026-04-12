@@ -1,3 +1,14 @@
+---
+title: Two Phase Commit Protocol
+type: article
+tags:
+- commit
+- coordin
+- particip
+summary: The Two-Phase Commit (2PC) protocol stands as the canonical, textbook solution
+  to this problem.
+auto-generated: true
+---
 # The Anatomy of Atomic Commitment
 
 For those of us who spend our days wrestling with the inherent chaos of distributed state—where network latency is a feature, not a bug, and failure is the primary operational mode—the concept of maintaining transactional integrity across multiple, independent nodes is not merely an academic exercise; it is the bedrock of reliable computation. When we speak of distributed transactions, we are fundamentally grappling with the challenge of achieving **atomicity** in an environment where the concept of a single, shared memory space is a quaint historical artifact.
@@ -203,7 +214,7 @@ The most direct theoretical improvement over 2PC is the Three-Phase Commit (3PC)
 
 The ultimate realization in distributed systems theory is that the problem of coordinating state changes (like committing a transaction) is fundamentally equivalent to the **Consensus Problem**. Instead of using a protocol layered *on top* of unreliable messaging (like 2PC/3PC), modern systems use protocols designed to elect a leader and ensure that a majority (a quorum) agrees on a single value, regardless of failures.
 
-**Paxos and Raft** are not transaction protocols; they are *consensus protocols*. They solve the underlying problem: *How do we agree on a single value (e.g., "Commit T" or "Abort T") when nodes can fail and messages can be lost?*
+**[Paxos and Raft](PaxosAndRaft)** are not transaction protocols; they are *consensus protocols*. They solve the underlying problem: *How do we agree on a single value (e.g., "Commit T" or "Abort T") when nodes can fail and messages can be lost?*
 
 **How they supersede 2PC:**
 1.  **Leader Election:** They elect a single, authoritative Leader.
@@ -236,7 +247,7 @@ The introduction of timeouts in 2PC is a pragmatic patch for liveness, but it is
 
 A significant challenge arises when the Participants are not homogeneous (e.g., mixing a relational database, a key-value store like Redis, and a message queue like Kafka).
 
-*   **The Problem:** Each resource manager has its own native transaction semantics. Some support XA/JTA; others might only offer eventual consistency guarantees.
+*   **The Problem:** Each resource manager has its own native transaction semantics. Some support XA/JTA; others might only offer [eventual consistency](EventualConsistency) guarantees.
 *   **The Solution Gap:** 2PC assumes a uniform ability to enter and exit the "prepared" state. When mixing systems, the Coordinator must implement complex **compensating transactions**. If the database commits but the message queue fails to acknowledge the commit, the Coordinator must execute a compensating transaction on the database side to undo the committed work, effectively simulating an abort. This moves the system away from pure 2PC and into the realm of **Saga Patterns**, which are inherently eventually consistent rather than strictly atomic.
 
 ### C. The Cost Model: Latency and Throughput
@@ -257,7 +268,7 @@ To summarize for the researcher:
 
 The Two-Phase Commit protocol is a monumentally important piece of distributed systems theory. It provided the first widely adopted, relatively simple mechanism to enforce atomicity across heterogeneous resources, allowing the massive growth of distributed enterprise computing. It is the gold standard for understanding *what* must be achieved (atomic commitment).
 
-However, its reliance on a single, stateful Coordinator, and its susceptibility to indefinite blocking upon Coordinator failure, renders it fundamentally unsuitable for modern, highly available, partition-tolerant systems (i.e., systems adhering to the **CAP Theorem** principles where Availability and Partition Tolerance are prioritized over strict Consistency during failure).
+However, its reliance on a single, stateful Coordinator, and its susceptibility to indefinite blocking upon Coordinator failure, renders it fundamentally unsuitable for modern, highly available, partition-tolerant systems (i.e., systems adhering to the **[CAP Theorem](CapTheorem)** principles where Availability and Partition Tolerance are prioritized over strict Consistency during failure).
 
 **In summary:**
 

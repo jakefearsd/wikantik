@@ -1,3 +1,14 @@
+---
+title: Procurement Strategies
+type: article
+tags:
+- sourc
+- supplier
+- cost
+summary: To treat it as a mere administrative function—the act of purchasing—is not
+  just outdated; it is professionally negligent.
+auto-generated: true
+---
 # Value Extraction
 
 For those of us who have spent enough time in the trenches of supply chain management, the term "procurement" often evokes images of endless spreadsheets, endless RFPs, and the faint, lingering scent of stale conference room coffee. To treat it as a mere administrative function—the act of *purchasing*—is not just outdated; it is professionally negligent.
@@ -85,10 +96,10 @@ Here, the intelligence gathered dictates the approach. The goal is not to select
     *   **Leverage Items (High Impact, High Risk):** Focus on aggressive negotiation, volume consolidation, and dual-sourcing mandates.
     *   **Bottleneck Items (Low Impact, High Risk):** Focus on immediate risk mitigation—qualification of alternative, non-obvious sources, even if more expensive initially.
     *   **Non-Critical Items (Low Impact, Low Risk):** Automate purchasing entirely (P-Card, e-catalogs).
-2.  **The Sourcing Model Selection:** This determines the contractual and operational framework.
+2.  **The Sourcing [Model Selection](ModelSelection):** This determines the contractual and operational framework.
     *   **Single Source:** Reserved only for items where proprietary technology or extreme specialization dictates it, and only after rigorous risk mitigation plans are in place.
     *   **Multi-Source/Dual-Source:** The default for most critical components. Requires managing supplier redundancy costs.
-    *   **Framework Agreements:** Establishing pre-negotiated terms, pricing bands, and service level agreements (SLAs) with multiple suppliers, allowing for rapid switching without re-tendering the entire contract.
+    *   **Framework Agreements:** Establishing pre-negotiated terms, pricing bands, and [service level agreements](ServiceLevelAgreements) (SLAs) with multiple suppliers, allowing for rapid switching without re-tendering the entire contract.
 
 ### D. Phase 4: Negotiation and Contracting (The Legal & Financial Lock-In)
 
@@ -158,7 +169,7 @@ The future of procurement is not about smarter people; it is about augmenting hu
 
 AI moves spend analysis from descriptive ("What did we spend?") to **predictive** ("What *will* we spend, and why?").
 
-1.  **Natural Language Processing (NLP) for Contract Mining:** AI tools can ingest thousands of unstructured contracts (PDFs, scanned documents) and automatically extract key clauses: termination rights, force majeure triggers, warranty periods, and indexation methods. This drastically reduces the time and risk associated with manual contract review.
+1.  **[Natural Language Processing](NaturalLanguageProcessing) (NLP) for Contract Mining:** AI tools can ingest thousands of unstructured contracts (PDFs, scanned documents) and automatically extract key clauses: termination rights, force majeure triggers, warranty periods, and indexation methods. This drastically reduces the time and risk associated with manual contract review.
 2.  **Predictive Demand Forecasting:** By ingesting external data (weather patterns, social media sentiment, competitor product launches, macroeconomic indicators), ML models can adjust the demand forecast for a component weeks or months before traditional ERP systems would flag a need.
 
 ### B. Machine Learning in Risk Scoring

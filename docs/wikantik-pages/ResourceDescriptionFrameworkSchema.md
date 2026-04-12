@@ -1,12 +1,23 @@
+---
+title: Resource Description Framework Schema
+type: article
+tags:
+- rdf
+- properti
+- data
+summary: RDF Schema (RDFS) Introduction In the era of Big Data, the challenge has
+  shifted from mere data storage to data interoperability.
+auto-generated: true
+---
 # RDF Schema (RDFS)
 
 ## Introduction
 
 In the era of Big Data, the challenge has shifted from mere data storage to data *interoperability*. While relational databases excel at structured, closed-world transactions, they struggle with the "Open World Assumption" (OWA) required by the Web. As we move toward a decentralized Web of Data, we require a framework that allows disparate datasets to be merged without a centralized schema-management authority.
 
-This is where the **Resource Description Framework (RDF)** and its schema layer, **RDF Schema (RDFS)**, become foundational. For the software engineer, RDFS is the "type system" of the Semantic Web. For the data scientist, it is the mechanism for injecting semantic meaning into unstructured or semi-structured graphs, enabling automated reasoning and discovery.
+This is where the **[Resource Description Framework](ResourceDescriptionFramework) (RDF)** and its schema layer, **RDF Schema (RDFS)**, become foundational. For the software engineer, RDFS is the "type system" of the Semantic Web. For the data scientist, it is the mechanism for injecting semantic meaning into unstructured or semi-structured graphs, enabling automated reasoning and discovery.
 
-This tutorial provides a rigorous technical exploration of RDFS. We will move beyond the high-level definitions to examine the formal semantics, the mechanics of class and property hierarchies, and the computational implications of RDFS reasoning in large-scale knowledge graphs.
+This tutorial provides a rigorous technical exploration of RDFS. We will move beyond the high-level definitions to examine the [formal semantics](FormalSemantics), the mechanics of class and property hierarchies, and the computational implications of RDFS reasoning in large-scale knowledge graphs.
 
 ---
 
@@ -102,7 +113,7 @@ The graph now contains the original 5 triples plus the inferred triples:
 * `ex:R&D rdf:type ex:Department`
 
 ### 3.2 Computational Complexity and Performance
-For software engineers, it is critical to understand that RDFS reasoning is computationally "cheap" compared to OWL (Web Ontology Language). RDFS entailment is essentially a set of monotonic logic rules that can be implemented via forward-chaining (materialization) or backward-chaining (query rewriting).
+For software engineers, it is critical to understand that RDFS reasoning is computationally "cheap" compared to OWL ([Web Ontology Language](WebOntologyLanguage)). RDFS entailment is essentially a set of monotonic logic rules that can be implemented via forward-chaining (materialization) or backward-chaining (query rewriting).
 
 *   **Materialization (Forward Chaining):** During data ingestion, the reasoner computes all possible inferences and stores them physically in the triple store.
     *   *Pros*: Extremely fast query performance (SPARQL queries don't need to compute logic on the fly).

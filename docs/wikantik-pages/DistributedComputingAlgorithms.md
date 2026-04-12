@@ -1,3 +1,14 @@
+---
+title: Distributed Computing Algorithms
+type: article
+tags:
+- model
+- algorithm
+- comput
+summary: The algorithms designed to solve these problems are often more complex than
+  the algorithms they are meant to accelerate.
+auto-generated: true
+---
 # Distributed Computing Algorithms for Algorithm Researchers
 
 This document serves as an exhaustive technical deep dive into the theory, models, and practical implementations of distributed computing algorithms. Given the target audience—expert software engineers engaged in algorithm research—we will bypass introductory concepts and focus immediately on the formalisms, inherent complexities, failure models, and the subtle trade-offs that define modern distributed systems research.
@@ -19,7 +30,7 @@ We categorize failures into distinct, increasingly complex models:
 
 *   **Crash Failures (Fail-Stop):** The simplest model. A process either executes correctly or it stops entirely and never recovers. This is the assumption underlying most basic consensus protocols (e.g., Raft in its basic form).
 *   **Omission Failures:** A process fails to send or receive messages, but it does not necessarily crash. This is often modeled by assuming message loss.
-*   **Arbitrary/Byzantine Failures:** The most challenging model. A faulty node can behave arbitrarily—sending conflicting information to different peers, lying about its state, or colluding with other faulty nodes. Algorithms designed for this model (Byzantine Fault Tolerance, or BFT) are significantly more complex and computationally expensive than those for crash failures.
+*   **Arbitrary/Byzantine Failures:** The most challenging model. A faulty node can behave arbitrarily—sending conflicting information to different peers, lying about its state, or colluding with other faulty nodes. Algorithms designed for this model ([Byzantine Fault Tolerance](ByzantineFaultTolerance), or BFT) are significantly more complex and computationally expensive than those for crash failures.
 
 #### 2. Timing Models
 The assumption about time dictates the necessary synchronization mechanisms:
@@ -228,7 +239,7 @@ Load balancing algorithms are critical for maximizing throughput and minimizing 
 
 The goal is to minimize the expected completion time $E[T_{total}]$ subject to resource constraints.
 
-*   **Hashing-Based Methods:** Simple, deterministic assignment (e.g., consistent hashing) minimizes data movement when nodes are added or removed.
+*   **Hashing-Based Methods:** Simple, deterministic assignment (e.g., [consistent hashing](ConsistentHashing)) minimizes data movement when nodes are added or removed.
 *   **Adaptive/Feedback Methods:** These algorithms monitor the latency and utilization of nodes in real-time. They often use queuing theory models (e.g., M/M/k queues) to predict future load and dynamically re-route requests.
 *   **Cost Modeling:** Advanced research focuses on modeling the *cost* of communication versus the *cost* of computation. If the communication cost (e.g., serialization, network hops) is $C_{comm}$ and the computation cost is $C_{comp}$, the optimal placement of data relative to the computation unit is a complex optimization problem often solved via graph partitioning heuristics.
 

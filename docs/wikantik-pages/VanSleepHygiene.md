@@ -1,3 +1,14 @@
+---
+title: Van Sleep Hygiene
+type: article
+tags:
+- sleep
+- text
+- light
+summary: The foundational principles discussed herein build upon established literature
+  but are framed for critical review and advanced application.
+auto-generated: true
+---
 # Sleep Hygiene and Blackout Strategies for Better Rest
 
 ***

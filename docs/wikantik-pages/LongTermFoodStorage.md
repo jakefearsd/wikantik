@@ -1,6 +1,17 @@
+---
+title: Long Term Food Storage
+type: article
+tags:
+- text
+- e.g
+- requir
+summary: 'Methodologies for Advanced Preparedness Research Target Audience: Experts
+  in Supply Chain Resilience, Disaster Preparedness, Food Science, and Archival Systems.'
+auto-generated: true
+---
 # Methodologies for Advanced Preparedness Research
 
-**Target Audience:** Experts in Supply Chain Resilience, Disaster Preparedness, Food Science, and Archival Systems.
+**Target Audience:** Experts in [Supply Chain Resilience](SupplyChainResilience), Disaster Preparedness, [Food Science](FoodScience), and Archival Systems.
 **Scope:** This tutorial moves beyond basic "buy and store" advice, focusing instead on the engineering, chemical, and logistical frameworks required to maintain viable, accessible, and safe food reserves over multi-decade timescales.
 
 ***

@@ -1,3 +1,14 @@
+---
+title: Refugee Crisis Economic Impact
+type: article
+tags:
+- econom
+- displac
+- model
+summary: 'Methodological Frontiers for Advanced Research Target Audience: Experts
+  in Development Economics, Migration Studies, Humanitarian Finance, and Applied Geoinformatics.'
+auto-generated: true
+---
 # Methodological Frontiers for Advanced Research
 
 **Target Audience:** Experts in Development Economics, Migration Studies, Humanitarian Finance, and Applied Geoinformatics.
@@ -130,7 +141,7 @@ When studying the impact of displacement ($\text{D}$) on local GDP ($\text{Y}$),
     *   **SAR Model:** Models the dependent variable as being influenced by its own spatially lagged values:
         $$\mathbf{Y} = \rho \mathbf{W} \mathbf{Y} + \mathbf{X} \mathbf{\beta} + \mathbf{\epsilon}$$
         Where $\mathbf{W}$ is the spatial weight matrix (defining neighborhood relationships), $\rho$ is the spatial autoregressive parameter, and $\mathbf{W}\mathbf{Y}$ captures the spillover effect.
-    *   **Weight Matrix Construction:** The choice of $\mathbf{W}$ is critical. Should it be based on physical distance (Inverse Distance Weighting, IDW), administrative adjacency, or functional connectivity (e.g., trade routes)? This choice is a major research variable.
+    *   **Weight Matrix Construction:** The choice of $\mathbf{W}$ is critical. Should it be based on physical distance (Inverse Distance Weighting, IDW), administrative adjacency, or functional connectivity (e.g., [trade routes](TradeRoutes))? This choice is a major research variable.
 
 ### B. Agent-Based Modeling (ABM)
 

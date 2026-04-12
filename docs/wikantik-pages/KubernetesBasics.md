@@ -1,6 +1,18 @@
+---
+title: Kubernetes Basics
+type: article
+tags:
+- pod
+- servic
+- manag
+summary: This tutorial assumes a deep familiarity with container runtimes (Docker/containerd),
+  networking fundamentals (IP addressing, load balancing), and declarative infrastructure
+  management principles.
+auto-generated: true
+---
 # Pods, Services, and Deployments for the Advanced Researcher
 
-For those of us who have spent enough time wrestling with container orchestration, the initial documentation on Kubernetes often feels like reading a highly polished, yet fundamentally incomplete, primer. We are not here to learn *what* a Pod is; we are here to dissect *why* the Pod abstraction exists, *how* the Service layer solves the inherent instability of ephemeral IPs, and *under what failure modes* the Deployment controller gracefully manages the desired state.
+For those of us who have spent enough time wrestling with [container orchestration](ContainerOrchestration), the initial documentation on Kubernetes often feels like reading a highly polished, yet fundamentally incomplete, primer. We are not here to learn *what* a Pod is; we are here to dissect *why* the Pod abstraction exists, *how* the Service layer solves the inherent instability of ephemeral IPs, and *under what failure modes* the Deployment controller gracefully manages the desired state.
 
 This tutorial assumes a deep familiarity with container runtimes (Docker/containerd), networking fundamentals (IP addressing, load balancing), and declarative infrastructure management principles. We will treat Pods, Services, and Deployments not as isolated concepts, but as interconnected layers of abstraction designed to solve increasingly complex operational problems within a distributed system.
 

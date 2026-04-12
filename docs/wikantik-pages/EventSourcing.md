@@ -1,3 +1,13 @@
+---
+title: Event Sourcing
+type: article
+tags:
+- event
+- state
+- must
+summary: This tutorial is not a gentle introduction to Event Sourcing (ES).
+auto-generated: true
+---
 # Event Sourcing
 
 ## Introduction
@@ -6,7 +16,7 @@ For those of us who have spent enough time wrestling with traditional relational
 
 However, in modern, distributed, and highly regulated systems, "erasure" is not just poor practice; it is often a compliance violation, a source of critical business logic failure, or an insurmountable obstacle to debugging.
 
-This tutorial is not a gentle introduction to Event Sourcing (ES). We assume familiarity with distributed systems, eventual consistency, and the general pitfalls of mutable state. Our focus is on the **immutable log append-only** nature of the underlying data structure—the bedrock upon which robust, auditable, and scalable systems are built. We will dissect the theoretical underpinnings, explore the advanced architectural patterns, and confront the practical complexities of building systems where the history *is* the source of truth.
+This tutorial is not a gentle introduction to Event Sourcing (ES). We assume familiarity with distributed systems, [eventual consistency](EventualConsistency), and the general pitfalls of mutable state. Our focus is on the **immutable log append-only** nature of the underlying data structure—the bedrock upon which robust, auditable, and scalable systems are built. We will dissect the theoretical underpinnings, explore the advanced architectural patterns, and confront the practical complexities of building systems where the history *is* the source of truth.
 
 ### Defining the Core Tenets
 
@@ -41,7 +51,7 @@ This principle extends far beyond finance. Every change in a user's profile, eve
 
 The integrity of the entire system hinges on the **total ordering** of events. If $e_A$ must logically precede $e_B$ (e.g., you cannot `Withdraw` funds before an `AccountOpened` event), the log must enforce this sequence.
 
-In a distributed environment, achieving a single, global, total order is notoriously difficult (the CAP theorem whispers sweet nothings about this). Therefore, advanced implementations must manage ordering at multiple levels:
+In a distributed environment, achieving a single, global, total order is notoriously difficult (the [CAP theorem](CapTheorem) whispers sweet nothings about this). Therefore, advanced implementations must manage ordering at multiple levels:
 
 1.  **Aggregate Level Ordering:** Within a single bounded context or Aggregate Root (e.g., `Order-123`), the sequence must be strictly enforced. This is typically managed by optimistic concurrency control mechanisms (like version numbers or sequence IDs) checked at the point of event persistence.
 2.  **Stream Level Ordering:** For a given stream (e.g., all events related to `Customer-XYZ`), the persistence mechanism (like Kafka partitions) must guarantee ordering *within* that partition.

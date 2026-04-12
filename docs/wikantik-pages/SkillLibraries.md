@@ -1,3 +1,14 @@
+---
+title: Skill Libraries
+type: article
+tags:
+- skill
+- must
+- e.g
+summary: 'Skill Libraries Target Audience: AI/ML Researchers, Advanced Systems Architects,
+  and Technical Leads developing next-generation autonomous agentic systems.'
+auto-generated: true
+---
 # Skill Libraries
 
 **Target Audience:** AI/ML Researchers, Advanced Systems Architects, and Technical Leads developing next-generation autonomous agentic systems.
@@ -53,7 +64,7 @@ While initial implementations might rely on simple documentation files (like the
 A comprehensive Skill Manifest must contain, at minimum, the following components:
 
 1.  **`skill_id` (Unique Identifier):** A globally unique, namespaced identifier (e.g., `valendata.web.scrape_price`).
-2.  **`version`:** Semantic Versioning (e.g., `v2.1.0`). Crucial for rollback and dependency management.
+2.  **`version`:** [Semantic Versioning](SemanticVersioning) (e.g., `v2.1.0`). Crucial for rollback and dependency management.
 3.  **`description`:** A high-level, natural language summary of the skill's purpose.
 4.  **`schema` (The Contract):** The formal definition of inputs and outputs. This is best represented using JSON Schema or OpenAPI specifications.
     *   *Input:* Must list required/optional parameters, their data types (string, integer, array, object), and constraints (regex patterns, min/max values).

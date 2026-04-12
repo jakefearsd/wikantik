@@ -1,3 +1,15 @@
+---
+title: Propositional Logic
+type: article
+tags:
+- algebra
+- lor
+- land
+summary: '--- Introduction: The Conceptual Divide and Reconciliation At first glance,
+  Propositional Logic (PL) and Boolean Algebra (BA) appear to inhabit different mathematical
+  realms.'
+auto-generated: true
+---
 # Bridging Semantics and Algebra for Advanced Research
 
 This tutorial is designed for researchers and advanced practitioners who already possess a solid foundation in discrete mathematics, formal systems, and abstract algebra. We will move beyond introductory definitions to explore the deep structural isomorphism between classical propositional logic and Boolean algebra, examining the theoretical underpinnings necessary for applying these concepts in cutting-edge fields such as formal verification, hardware description languages, and knowledge representation.
@@ -122,7 +134,7 @@ It is vital to recognize that a Boolean Algebra is a specific type of algebraic 
 *   **Distributive:** The meet and join operations distribute over each other (as shown in the axioms above).
 *   **Complemented:** Every element $a$ has a complement $\neg a$ such that $a \land (\neg a) = 0$ and $a \lor (\neg a) = 1$.
 
-Understanding this lattice structure allows us to generalize the concepts. If we move to fuzzy logic or multi-valued logic, we are essentially studying generalizations of lattices (e.g., Heyting algebras or MV-algebras), but the underlying structure remains rooted in the lattice axioms.
+Understanding this lattice structure allows us to generalize the concepts. If we move to [fuzzy logic](FuzzyLogic) or multi-valued logic, we are essentially studying generalizations of lattices (e.g., Heyting algebras or MV-algebras), but the underlying structure remains rooted in the lattice axioms.
 
 ---
 

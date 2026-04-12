@@ -1,3 +1,14 @@
+---
+title: Git Workflows
+type: article
+tags:
+- branch
+- featur
+- tbd
+summary: However, as projects scale, the architectural decisions made regarding branching—the
+  very mechanism by which collaboration is managed—become critical failure points.
+auto-generated: true
+---
 # The Stream
 
 ## Introduction: The Crisis of Branching Complexity
@@ -34,7 +45,7 @@ The philosophy rests on three pillars:
 
 1.  **Continuous Integration (CI) Mandate:** Every commit, no matter how small, must be integrated into the trunk immediately. This forces developers to confront integration issues within minutes, not weeks.
 2.  **Small Batches:** Work must be broken down into the smallest possible, independently testable units. A feature should be committed, tested, and merged as soon as it is functionally complete, even if the surrounding UI elements are not ready.
-3.  **Feature Toggles (Feature Flags):** This is the critical technical enabler. Since we cannot wait for the entire feature to be "done" before merging (as that violates the CI mandate), we merge the *code* for the feature, but we keep it *inactive* in production via a configuration toggle.
+3.  **Feature Toggles ([Feature Flags](FeatureFlags)):** This is the critical technical enabler. Since we cannot wait for the entire feature to be "done" before merging (as that violates the CI mandate), we merge the *code* for the feature, but we keep it *inactive* in production via a configuration toggle.
 
 > **Expert Insight:** TBD is not just a branching strategy; it is an **operational discipline** that mandates a high degree of automated testing coverage and robust deployment tooling. If your CI/CD pipeline cannot handle automated testing, feature flagging, and rapid rollback, TBD will expose those weaknesses immediately.
 

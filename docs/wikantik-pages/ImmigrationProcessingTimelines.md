@@ -1,3 +1,15 @@
+---
+title: Immigration Processing Timelines
+type: article
+tags:
+- text
+- data
+- time
+summary: For the average applicant, the journey from filing a petition to receiving
+  final approval is often characterized by periods of agonizing silence punctuated
+  by sudden, unpredictable status changes.
+auto-generated: true
+---
 # The Algorithmic Cartography of Bureaucracy
 
 ## Introduction: Mapping the Unmappable Flow

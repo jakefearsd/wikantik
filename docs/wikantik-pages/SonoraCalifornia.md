@@ -1,3 +1,14 @@
+---
+title: Sonora California
+type: article
+tags:
+- gold
+- sonora
+- text
+summary: 'A Multi-Scalar Analysis for Advanced Research Target Audience: Experts in
+  Historical Geography, Resource Economics, and Socio-Cultural Anthropology.'
+auto-generated: true
+---
 # A Multi-Scalar Analysis for Advanced Research
 
 **Target Audience:** Experts in Historical Geography, Resource Economics, and Socio-Cultural Anthropology.
@@ -35,7 +46,7 @@ For the researcher, the key takeaway here is the concept of **carrying capacity*
 **Analytical Focus for Researchers:**
 When modeling the pre-contact economy, one must move beyond simple population estimates. Focus should be placed on:
 1.  **Resource Mapping:** Identifying primary resource nodes (e.g., acorn groves, specific medicinal flora, game migration routes).
-2.  **Trade Network Modeling:** Reconstructing pre-existing, non-commodity-driven trade routes between neighboring groups.
+2.  **Trade Network Modeling:** Reconstructing pre-existing, non-commodity-driven [trade routes](TradeRoutes) between neighboring groups.
 3.  **Demographic Stability:** Analyzing population fluctuations based on climatic cycles (drought, wet years) rather than external economic shocks.
 
 ### B. Early Resource Utilization and Material Culture

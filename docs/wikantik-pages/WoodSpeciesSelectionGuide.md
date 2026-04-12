@@ -1,3 +1,14 @@
+---
+title: Wood Species Selection Guide
+type: article
+tags:
+- text
+- wood
+- speci
+summary: To treat wood selection as a mere aesthetic choice is to fundamentally misunderstand
+  the material science underpinning its utility.
+auto-generated: true
+---
 # The Arborist's Algorithm
 
 For those of us who have moved past the superficial considerations of "color" and "feel" when selecting a structural or decorative wood species, the selection process is less an art and more a complex, multi-variable engineering challenge. To treat wood selection as a mere aesthetic choice is to fundamentally misunderstand the material science underpinning its utility.

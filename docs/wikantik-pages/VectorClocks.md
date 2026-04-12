@@ -1,8 +1,18 @@
+---
+title: Vector Clocks
+type: article
+tags:
+- clock
+- vc
+- causal
+summary: Vector Clocks in Distributed Systems Welcome.
+auto-generated: true
+---
 # Vector Clocks in Distributed Systems
 
 Welcome. If you've spent any significant time wrestling with distributed systems, you've quickly learned that the concept of "time" is a philosophical minefield, not a simple function call. Relying on `System.currentTimeMillis()` across nodes separated by network jitter and clock drift is not merely poor engineering; it's a recipe for catastrophic, non-reproducible bugs.
 
-This tutorial assumes you are already fluent in concepts like message passing, eventual consistency, and the CAP theorem. We are not here to explain what a distributed system is. We are here to dissect **Vector Clocks (VCs)**—a sophisticated, mathematically grounded mechanism designed to impose a partial ordering on events, thereby providing a robust tool for tracking causality in the absence of a global, synchronized clock.
+This tutorial assumes you are already fluent in concepts like message passing, [eventual consistency](EventualConsistency), and the [CAP theorem](CapTheorem). We are not here to explain what a distributed system is. We are here to dissect **Vector Clocks (VCs)**—a sophisticated, mathematically grounded mechanism designed to impose a partial ordering on events, thereby providing a robust tool for tracking causality in the absence of a global, synchronized clock.
 
 Consider this your advanced reference guide. We will move far beyond the introductory "what it is" and delve into the formalisms, the subtle edge cases, and the advanced applications that make VCs indispensable for rigorous research in distributed consensus and state management.
 
@@ -16,7 +26,7 @@ The core difficulty is that the concept of a "happened-before" relationship ($\r
 
 ### 1.1. Lamport Timestamps: The Necessary, But Insufficient, Step
 
-Lamport Clocks provided the first major breakthrough. They introduced a logical clock value ($L(e)$) such that if $e_A \rightarrow e_B$, then $L(e_A) < L(e_B)$. This established a *happened-before* relationship.
+[Lamport Clocks](LamportClocks) provided the first major breakthrough. They introduced a logical clock value ($L(e)$) such that if $e_A \rightarrow e_B$, then $L(e_A) < L(e_B)$. This established a *happened-before* relationship.
 
 However, Lamport clocks are notoriously insufficient for modern research because they only yield a **total ordering** (or rather, *one* possible total ordering) of events.
 

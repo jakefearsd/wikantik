@@ -1,3 +1,14 @@
+---
+title: Agent Reasoning
+type: article
+tags:
+- agent
+- text
+- reason
+summary: We will not waste time explaining what a transformer is, so assume a high
+  baseline level of technical proficiency.
+auto-generated: true
+---
 # Agent Reasoning
 
 ***

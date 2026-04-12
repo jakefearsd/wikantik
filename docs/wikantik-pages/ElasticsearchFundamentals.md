@@ -1,3 +1,14 @@
+---
+title: Elasticsearch Fundamentals
+type: article
+tags:
+- queri
+- search
+- score
+summary: For experts researching advanced search techniques, understanding Elasticsearch's
+  Full-Text Search (FTS) capabilities requires moving far beyond basic match queries.
+auto-generated: true
+---
 # Elasticsearch Full-Text Search Analytics
 
 Elasticsearch is not merely a search engine; it is a distributed, scalable, and highly configurable analytics platform built upon the robust foundation of Apache Lucene. For experts researching advanced search techniques, understanding Elasticsearch's Full-Text Search (FTS) capabilities requires moving far beyond basic `match` queries. It demands a deep, almost architectural understanding of the underlying text processing pipeline, relevance scoring models, and the integration of modern vector semantics.

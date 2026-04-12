@@ -1,3 +1,15 @@
+---
+title: Berlin Tech Scene
+type: article
+tags:
+- berlin
+- research
+- model
+summary: We will dissect the confluence of governmental support (State of Berlin initiatives),
+  deep-tech specialization (AI, Cleantech, Biotech), and the unique cultural capital
+  that attracts global talent.
+auto-generated: true
+---
 # The Berlin Nexus
 
 **For Advanced Researchers and Technical Strategists**
@@ -174,7 +186,7 @@ To truly satisfy the requirements of an expert audience, we must move beyond the
 
 Berlin, as a central European node, is acutely sensitive to geopolitical shifts. Researchers must model their technology stack against potential disruptions:
 
-1.  **Supply Chain Resilience:** For hardware-dependent technologies (e.g., advanced sensors, specialized chips), reliance on single geopolitical sources (e.g., East Asia) represents a critical vulnerability. Startups must incorporate **multi-sourcing strategies** and design for modularity to allow rapid substitution of components.
+1.  **[Supply Chain Resilience](SupplyChainResilience):** For hardware-dependent technologies (e.g., advanced sensors, specialized chips), reliance on single geopolitical sources (e.g., East Asia) represents a critical vulnerability. Startups must incorporate **multi-sourcing strategies** and design for modularity to allow rapid substitution of components.
 2.  **Data Sovereignty:** The tension between global cloud infrastructure (AWS, Azure) and national data sovereignty laws (especially concerning defense or critical infrastructure data) forces a complex architectural decision. Solutions often require **hybrid cloud models** utilizing on-premise, sovereign data centers, which increases complexity but guarantees compliance.
 
 ### B. The Challenge of Hyper-Specialization vs. Generalization

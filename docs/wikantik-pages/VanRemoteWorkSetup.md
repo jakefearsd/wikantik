@@ -1,3 +1,14 @@
+---
+title: Van Remote Work Setup
+type: article
+tags:
+- must
+- system
+- desk
+summary: This tutorial moves beyond superficial recommendations for "adjustable chairs"
+  and instead posits the van as a complex, dynamic, and resource-limited system.
+auto-generated: true
+---
 # The Mobile Biome: Designing Hyper-Ergonomic Workspaces for Remote Operations from a Van
 
 **A Comprehensive Technical Deep Dive for Advanced Researchers and Field Engineers**

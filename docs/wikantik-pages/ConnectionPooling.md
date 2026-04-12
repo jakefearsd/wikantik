@@ -1,3 +1,13 @@
+---
+title: Connection Pooling
+type: article
+tags:
+- connect
+- pgbouncer
+- hikaricp
+summary: This tutorial is not for the novice who merely needs to instantiate a DataSource.
+auto-generated: true
+---
 # The Intermediary
 
 For those of us who treat database connectivity not as a feature, but as a critical, highly optimized subsystem, the concept of connection pooling is less a convenience and more a fundamental necessity. When dealing with modern, highly distributed microservice architectures—where dozens of ephemeral services are constantly hammering a shared, finite resource like a PostgreSQL cluster—the naive approach of opening and closing connections per request is not merely inefficient; it is an operational liability.

@@ -1,3 +1,14 @@
+---
+title: Singleton Pattern And Alternatives
+type: article
+tags:
+- state
+- singleton
+- pattern
+summary: When researching new techniques, one inevitably encounters the Singleton
+  pattern.
+auto-generated: true
+---
 # The Singleton Pattern and Global State Management
 
 For those of us who have spent enough time wrestling with application state—the ephemeral, mutable beast that dictates the behavior of complex systems—the concept of "global state" is less a feature and more a persistent, low-grade architectural fever dream. When researching new techniques, one inevitably encounters the Singleton pattern. It is a pattern so pervasive, so deeply ingrained in the initial educational toolkits of software engineering, that it often carries the weight of historical necessity rather than modern best practice.

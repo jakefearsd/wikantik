@@ -1,3 +1,15 @@
+---
+title: Market Cap Vs Equal Weight Indexing
+type: article
+tags:
+- weight
+- cap
+- market
+summary: When constructing an index—be it for tracking, hedging, or direct investment—the
+  weighting methodology dictates which assets contribute how much to the overall portfolio
+  return and risk profile.
+auto-generated: true
+---
 # Market Capitalization Weighting vs. Equal Weighting for Advanced Quantitative Research
 
 This tutorial is designed for quantitative researchers, portfolio strategists, and quantitative analysts who are moving beyond introductory concepts and require a rigorous, comprehensive comparison of the two dominant index weighting methodologies: Market Capitalization Weighting (Mkt-Cap) and Equal Weighting (EW).
@@ -38,7 +50,7 @@ Mkt-Cap weighting is the default, the industry standard, and the methodology tha
 
 ### 2.1 Theoretical Underpinnings and Assumptions
 
-The core assumption underpinning Mkt-Cap indexing is the **Efficient Market Hypothesis (EMH)**, or at least a pragmatic, localized version thereof. The methodology assumes that the aggregate market pricing mechanism is the most reliable predictor of future performance.
+The core assumption underpinning Mkt-Cap indexing is the **[Efficient Market Hypothesis](EfficientMarketHypothesis) (EMH)**, or at least a pragmatic, localized version thereof. The methodology assumes that the aggregate market pricing mechanism is the most reliable predictor of future performance.
 
 1.  **Price Reflects Value:** The market's collective wisdom (as embodied by the share price) is assumed to be the optimal estimator of the asset's true economic value.
 2.  **Liquidity Proxy:** By weighting by market cap, the index naturally concentrates capital in the most liquid names. This is not a coincidence; it is a structural feature.

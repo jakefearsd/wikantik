@@ -1,3 +1,14 @@
+---
+title: Best National Parks For Couples
+type: article
+tags:
+- text
+- high
+- data
+summary: Optimizing National Park Itineraries for Midlife Couple Cohorts Abstract
+  This document transcends the conventional literature of recreational travel.
+auto-generated: true
+---
 # Optimizing National Park Itineraries for Midlife Couple Cohorts
 
 ## Abstract

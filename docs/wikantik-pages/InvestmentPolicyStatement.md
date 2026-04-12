@@ -1,3 +1,14 @@
+---
+title: Investment Policy Statement
+type: article
+tags:
+- risk
+- ip
+- model
+summary: To treat the IPS as a mere compliance checklist is to fundamentally misunderstand
+  its role.
+auto-generated: true
+---
 # The Architecture of Prudence
 
 For those of us who spend our professional lives wrestling with the inherent uncertainty of capital markets, the Investment Policy Statement (IPS) is not merely a document; it is the foundational covenant—the intellectual scaffolding upon which all subsequent investment decisions must rest. To treat the IPS as a mere compliance checklist is to fundamentally misunderstand its role. It is, in fact, a sophisticated, multi-dimensional optimization problem statement, a formalized articulation of the client's *utility function* under conditions of extreme uncertainty.
@@ -142,7 +153,7 @@ The time horizon ($T$) dictates the appropriate risk profile. A short horizon ($
 These are non-negotiable constraints imposed by external bodies or the client's governing charter.
 
 *   **Fiduciary Duty:** The IPS must demonstrate adherence to the "Prudent Person Rule," requiring the manager to act with the care and diligence of a prudent professional.
-*   **Regulatory Mandates:** For pension funds or endowments, specific rules govern asset allocation (e.g., minimum required allocation to domestic infrastructure, or restrictions on investments in certain geopolitical zones).
+*   **Regulatory Mandates:** For pension funds or endowments, specific rules govern [asset allocation](AssetAllocation) (e.g., minimum required allocation to domestic infrastructure, or restrictions on investments in certain geopolitical zones).
 *   **ESG/SRI Mandates:** These are increasingly treated as hard constraints. If the client mandates "no investment in thermal coal," this is a binary exclusion constraint that must be hard-coded into the asset universe selection process.
 
 ***

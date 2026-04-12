@@ -1,10 +1,20 @@
+---
+title: Markov Chain Fundamentals
+type: article
+tags:
+- mathbf
+- state
+- time
+summary: Markov Chains and Stochastic Process Transitions Welcome.
+auto-generated: true
+---
 # Markov Chains and Stochastic Process Transitions
 
 Welcome. If you are reading this, you are likely already familiar with the basic definition of a stochastic process—a collection of random variables indexed by time. You are not here for the undergraduate review of "the next state depends only on the current state." You are here because you are researching novel techniques, and you require a deep, mathematically rigorous, and comprehensive understanding of the machinery that Markov Chains provide.
 
 This tutorial is designed not merely to *explain* Markov Chains, but to *operationalize* them—to treat them as a powerful, multifaceted mathematical framework whose nuances often dictate the feasibility and complexity of advanced modeling in fields ranging from computational physics to quantitative finance.
 
-We will proceed through the formal foundations, the spectral theory underpinning convergence, the necessary transition to continuous time, and finally, the modern extensions that bridge classical theory with contemporary machine learning and physics simulations.
+We will proceed through the formal foundations, the spectral theory underpinning convergence, the necessary transition to continuous time, and finally, the modern extensions that bridge classical theory with contemporary [machine learning](MachineLearning) and physics simulations.
 
 ---
 
@@ -110,7 +120,7 @@ where $\mathbf{I}$ is the identity matrix.
 
 Since the rows of $\mathbf{P}$ sum to 1, the matrix $(\mathbf{P} - \mathbf{I})$ is singular (its rows sum to zero). This means the system of equations is linearly dependent, which is why we must replace one of the balance equations with the normalization constraint ($\sum \pi_i = 1$) to obtain a unique, solvable system.
 
-**Computational Note:** Solving this system typically involves Gaussian elimination or specialized linear algebra solvers, treating the problem as finding the left eigenvector of $\mathbf{P}$ corresponding to the eigenvalue $\lambda=1$.
+**Computational Note:** Solving this system typically involves Gaussian elimination or specialized [linear algebra](LinearAlgebra) solvers, treating the problem as finding the left eigenvector of $\mathbf{P}$ corresponding to the eigenvalue $\lambda=1$.
 
 ### 3.4 Mean First Passage Time (MFPT) and Expected Return Time
 
@@ -229,7 +239,7 @@ The model is defined by three components:
 2.  **Decoding (Viterbi Algorithm):** Finding the single most likely sequence of hidden states $\mathbf{X}^* = \{X^*_1, \dots, X^*_T\}$ that generated $\mathbf{Y}$. This is the path-finding analogue of the MC.
 3.  **Learning (Baum-Welch Algorithm):** Estimating the parameters $\lambda$ (i.e., finding the optimal $\mathbf{P}$ and $\mathbf{E}$) that maximize $P(\mathbf{Y} \mid \lambda)$. This is an Expectation-Maximization (EM) routine.
 
-**Research Frontier:** Modern research often involves deep integration, such as using Recurrent Neural Networks (RNNs) or Transformers to model the emission probabilities $P(Y_t \mid X_t)$, thereby creating *Deep HMMs*.
+**Research Frontier:** Modern research often involves deep integration, such as using [Recurrent Neural Networks](RecurrentNeuralNetworks) (RNNs) or Transformers to model the emission probabilities $P(Y_t \mid X_t)$, thereby creating *Deep HMMs*.
 
 ### 6.2 Markov Random Fields (MRFs) and Graphical Models
 

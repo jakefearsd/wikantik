@@ -1,3 +1,15 @@
+---
+title: Mortgage Strategies
+type: article
+tags:
+- rate
+- text
+- comparison
+summary: It is a deep-dive technical manual designed for experts researching novel
+  techniques in mortgage structuring, rate arbitrage, and comprehensive cost-of-capital
+  modeling.
+auto-generated: true
+---
 # Advanced Comparative Analysis
 
 ## Introduction: Beyond the Headline Rate
@@ -180,7 +192,7 @@ To handle the complexity outlined above, manual spreadsheet manipulation (like t
 The primary bottleneck is the disparate nature of lender data.
 
 1.  **Structured Data Sources:** Direct API feeds from major clearinghouses or data aggregators (if available) are ideal. These provide standardized, real-time rate sheets.
-2.  **Unstructured Data Parsing:** For proprietary lender pricing sheets (PDFs, complex web forms), advanced Natural Language Processing (NLP) and Optical Character Recognition (OCR) models must be trained to extract key variables: LTV tiers, points schedules, fee breakdowns, and rate caps/floors. This requires significant machine learning overhead.
+2.  **Unstructured Data Parsing:** For proprietary lender pricing sheets (PDFs, complex web forms), advanced [Natural Language Processing](NaturalLanguageProcessing) (NLP) and Optical Character Recognition (OCR) models must be trained to extract key variables: LTV tiers, points schedules, fee breakdowns, and rate caps/floors. This requires significant [machine learning](MachineLearning) overhead.
 
 ### B. The Comparative Engine Architecture
 

@@ -1,8 +1,20 @@
+---
+title: Sentiment Analysis With Machine Learning
+type: article
+tags:
+- model
+- word
+- text
+summary: This tutorial assumes a robust background in Natural Language Processing
+  (NLP), linear algebra, deep learning frameworks (PyTorch/TensorFlow), and statistical
+  modeling.
+auto-generated: true
+---
 # Machine Learning for Sentiment Analysis
 
 Sentiment Analysis (SA), or Opinion Mining, has evolved from a niche academic curiosity into a critical, high-throughput component of modern business intelligence and large-scale data monitoring. For expert software engineers and data scientists engaged in research, understanding SA is not merely about applying a pre-trained model; it requires mastering the entire pipeline—from the subtle nuances of human language to the selection of the optimal, context-aware deep learning architecture.
 
-This tutorial assumes a robust background in Natural Language Processing (NLP), linear algebra, deep learning frameworks (PyTorch/TensorFlow), and statistical modeling. We will move beyond introductory tutorials to explore the architectural decisions, inherent limitations, and state-of-the-art methodologies required for building production-grade, research-grade sentiment systems.
+This tutorial assumes a robust background in [Natural Language Processing](NaturalLanguageProcessing) (NLP), [linear algebra](LinearAlgebra), deep learning frameworks (PyTorch/TensorFlow), and statistical modeling. We will move beyond introductory tutorials to explore the architectural decisions, inherent limitations, and state-of-the-art methodologies required for building production-grade, research-grade sentiment systems.
 
 ---
 
@@ -24,7 +36,7 @@ The challenge, which separates expert research from basic implementation, is tha
 
 Early SA systems relied heavily on lexicon-based approaches (e.g., counting positive/negative words from a predefined dictionary). While fast, these methods lack semantic understanding.
 
-Machine Learning (ML) elevates this by allowing the model to learn *patterns* of co-occurrence and grammatical structure. Deep Learning (DL) further refines this by learning *contextual representations* of words, understanding that the meaning of "bank" changes drastically depending on whether the surrounding words are "river" or "money."
+[Machine Learning](MachineLearning) (ML) elevates this by allowing the model to learn *patterns* of co-occurrence and grammatical structure. Deep Learning (DL) further refines this by learning *contextual representations* of words, understanding that the meaning of "bank" changes drastically depending on whether the surrounding words are "river" or "money."
 
 ---
 
@@ -89,7 +101,7 @@ These embeddings assign a fixed vector to a word, regardless of its context in a
 
 This is the paradigm shift. Contextual embeddings generate a *different* vector for the same word based on the sentence it appears in.
 
-*   **Transformers (The Architecture):** The foundation is the Transformer architecture, which relies entirely on the **Self-Attention Mechanism**.
+*   **Transformers (The Architecture):** The foundation is the [Transformer architecture](TransformerArchitecture), which relies entirely on the **Self-Attention Mechanism**.
 *   **Self-Attention:** This mechanism calculates the relevance (or "attention score") of every other token in the input sequence relative to the current token being processed. It allows the model to weigh the importance of different parts of the input simultaneously.
     $$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
     Where $Q$ (Query), $K$ (Key), and $V$ (Value) are derived from the input embeddings. The $\sqrt{d_k}$ scaling factor prevents the dot products from becoming too large, stabilizing the softmax function.
@@ -109,7 +121,7 @@ The choice of model dictates how the learned embeddings are ultimately used for 
 
 These models treat the sequence of embeddings (or TF-IDF vectors) as fixed features and apply standard classifiers.
 
-*   **Support Vector Machines (SVM):** Highly effective in high-dimensional spaces. SVM finds the optimal hyperplane that maximally separates the classes in the feature space.
+*   **[Support Vector Machines](SupportVectorMachines) (SVM):** Highly effective in high-dimensional spaces. SVM finds the optimal hyperplane that maximally separates the classes in the feature space.
     *   *Implementation Note:* When using embeddings, you typically average the word embeddings for the document to create a fixed-size document vector, which is then fed into the SVM.
 *   **Logistic Regression:** Provides a probabilistic framework, outputting the log-odds of belonging to a class. It is highly interpretable and often serves as an excellent, fast baseline.
 *   **Naive Bayes (Multinomial/Bernoulli):** Based on Bayes' theorem, assuming feature independence. While often outperformed by SVMs or DL models on complex text, it remains computationally inexpensive and excellent for initial prototyping.

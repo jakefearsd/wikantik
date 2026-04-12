@@ -1,3 +1,13 @@
+---
+title: Mechanical Coupling
+type: article
+tags:
+- coupl
+- mechan
+- stress
+summary: The Science Behind Efficient Mechanical Coupling Welcome.
+auto-generated: true
+---
 # The Science Behind Efficient Mechanical Coupling
 
 Welcome. If you are reading this, you are not interested in the brochure-level descriptions of couplings—the kind that merely state, "We connect two shafts." You are here because you understand that a coupling is not merely a mechanical fastener; it is a critical, highly dynamic interface whose performance dictates the overall efficiency, lifespan, and operational envelope of an entire machine system.
@@ -164,7 +174,7 @@ Where $e(t) = \mathbf{x}_{actual}(t) - \mathbf{x}_{desired}(t)$ is the error vec
 This transforms the coupling into a **Feedback Control System**, achieving dynamic efficiency far superior to any purely passive mechanical design.
 
 ### C. Predictive Maintenance via Digital Twins
-The ultimate expression of efficiency science is predictive maintenance. By creating a "Digital Twin"—a high-fidelity, physics-based simulation model of the coupling—researchers can run the operational data ($\mathbf{x}_{actual}$) through the model to predict the remaining useful life (RUL).
+The ultimate expression of efficiency science is [predictive maintenance](PredictiveMaintenance). By creating a "Digital Twin"—a high-fidelity, physics-based simulation model of the coupling—researchers can run the operational data ($\mathbf{x}_{actual}$) through the model to predict the remaining useful life (RUL).
 
 The model continuously calculates the accumulated damage index ($\text{DI}$), which is a weighted sum of fatigue cycles, thermal cycles, and peak stress events:
 

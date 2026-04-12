@@ -42,13 +42,13 @@ Provenance tracking ensures you always know whether a fact in the graph was auth
 
 ### How Pages Become Graph Data
 
-The **Graph Projector** is a page filter that fires automatically on every page save. It:
+The **[Graph Projector](GraphProjector)** is a page filter that fires automatically on every page save. It:
 
 1. Parses the page's YAML frontmatter
 2. Upserts a node for the page itself
 3. Detects which frontmatter keys represent relationships versus properties
 4. Creates edges for each relationship target
-5. Scans the page body for markdown links and creates `links_to` edges
+5. Scans the page body for [markdown links](MarkdownLinks) and creates `links_to` edges
 6. Removes stale edges that no longer appear in the frontmatter or body
 7. Creates **stub nodes** for any target that doesn't have its own wiki page yet
 
@@ -321,7 +321,7 @@ Click **Merge** to combine two duplicate nodes. Merging:
 
 **Before merging**, verify that the two nodes genuinely represent the same concept. Common legitimate merge scenarios:
 
-- `AssetAllocation` and `Asset Allocation` (naming inconsistency)
+- `AssetAllocation` and `[Asset Allocation](AssetAllocation)` (naming inconsistency)
 - `REST API` and `RestApi` (different naming conventions)
 - A stub node and a fully-realized page node for the same concept
 

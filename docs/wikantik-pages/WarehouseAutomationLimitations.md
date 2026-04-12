@@ -102,7 +102,7 @@ Automation concentrates risk. A single failed conveyor segment can block the ent
 - **Redundant paths** — parallel conveyor lines, multiple sorter loops
 - **Bypass lanes** — manual handling options when automation is down
 - **Hot standby components** — spare conveyor drives, scanner arrays kept online
-- **Predictive maintenance** — [AI-driven fault prediction](WarehouseAiAndMl) reduces unplanned downtime
+- **[Predictive maintenance](PredictiveMaintenance)** — [AI-driven fault prediction](WarehouseAiAndMl) reduces unplanned downtime
 
 Despite best efforts, large automated facilities typically target 98–99.5% system availability; the remaining 0.5–2% downtime can translate to significant lost throughput at peak.
 

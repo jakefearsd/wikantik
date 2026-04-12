@@ -1,3 +1,15 @@
+---
+title: Reinforcement Learning Fundamentals
+type: article
+tags:
+- polici
+- pi
+- reward
+summary: We are tasked with building systems that learn optimal behavior purely through
+  interaction—a process fundamentally governed by the interplay between the Agent,
+  the Policy, and the Reward Function.
+auto-generated: true
+---
 # The Symbiotic Triad
 
 For those of us who spend our days wrestling with the stochastic nature of decision-making in high-dimensional state spaces, the concept of Reinforcement Learning (RL) is less a field of study and more a persistent, exhilarating obsession. We are tasked with building systems that learn optimal behavior purely through interaction—a process fundamentally governed by the interplay between the **Agent**, the **Policy**, and the **Reward Function**.

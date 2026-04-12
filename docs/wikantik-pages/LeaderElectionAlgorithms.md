@@ -1,8 +1,20 @@
+---
+title: Leader Election Algorithms
+type: article
+tags:
+- node
+- leader
+- elect
+summary: We will dissect the theoretical underpinnings, analyze classical solutions,
+  and explore the modern consensus mechanisms that have superseded simple election
+  protocols.
+auto-generated: true
+---
 # The Art of Agreement
 
 Leader election is not merely a "nice-to-have" feature in a distributed system; it is the fundamental prerequisite for maintaining coordinated state, ensuring data consistency, and allowing a collection of independent, potentially faulty nodes to behave as a single, coherent entity. For those of us researching the bleeding edge of distributed consensus, understanding leader election moves beyond simply implementing a known pattern; it requires a deep appreciation for the underlying assumptions about failure, timing, and network topology.
 
-This tutorial is structured for experts—those who have already wrestled with Paxos, understand the nuances of quorum intersection, and view the CAP theorem not as a limitation, but as a design constraint to be navigated with mathematical rigor. We will dissect the theoretical underpinnings, analyze classical solutions, and explore the modern consensus mechanisms that have superseded simple election protocols.
+This tutorial is structured for experts—those who have already wrestled with Paxos, understand the nuances of quorum intersection, and view the [CAP theorem](CapTheorem) not as a limitation, but as a design constraint to be navigated with mathematical rigor. We will dissect the theoretical underpinnings, analyze classical solutions, and explore the modern consensus mechanisms that have superseded simple election protocols.
 
 ***
 
@@ -29,7 +41,7 @@ This is the simplest model. A node either operates correctly or it stops respond
 A node might fail to send a message, even if it is operational. This is often modeled as temporary network congestion or node overload. This is generally easier to handle than arbitrary failures.
 
 #### 3. Byzantine Failures (Arbitrary Failures)
-This is the nightmare scenario. A faulty node can behave arbitrarily: it can send conflicting messages to different nodes (e.g., telling Node A that Node B is the leader, but telling Node C that Node D is the leader), it can lie about its own state, or it can actively attempt to sabotage the consensus process. Algorithms designed for Byzantine Fault Tolerance (BFT) are orders of magnitude more complex than those for crash failures.
+This is the nightmare scenario. A faulty node can behave arbitrarily: it can send conflicting messages to different nodes (e.g., telling Node A that Node B is the leader, but telling Node C that Node D is the leader), it can lie about its own state, or it can actively attempt to sabotage the consensus process. Algorithms designed for [Byzantine Fault Tolerance](ByzantineFaultTolerance) (BFT) are orders of magnitude more complex than those for crash failures.
 
 ### C. The Impossibility Results: Theoretical Boundaries
 

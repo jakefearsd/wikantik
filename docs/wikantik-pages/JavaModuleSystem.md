@@ -1,3 +1,14 @@
+---
+title: Java Module System
+type: article
+tags:
+- modul
+- requir
+- depend
+summary: This tutorial assumes a high level of familiarity with Java's internal workings,
+  bytecode manipulation, and dependency resolution theory.
+auto-generated: true
+---
 # Mastering the Art of Isolation
 
 The evolution of Java's module system, formalized by the Java Platform Module System (JPMS) in Java 9 (and subsequently refined through subsequent JEPs), represents one of the most significant architectural shifts in the language's history. For seasoned developers and researchers accustomed to the historical flexibility—and inherent chaos—of the traditional classpath model, JPMS is not merely an organizational tool; it is a fundamental paradigm shift in how dependencies, visibility, and runtime contracts are enforced.

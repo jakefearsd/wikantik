@@ -1,3 +1,15 @@
+---
+title: Context Window Management
+type: article
+tags:
+- context
+- chunk
+- model
+summary: Context Window Management The ability of Large Language Models (LLMs) to
+  process vast amounts of information has fundamentally shifted the landscape of AI
+  application development.
+auto-generated: true
+---
 # Context Window Management
 
 The ability of Large Language Models (LLMs) to process vast amounts of information has fundamentally shifted the landscape of AI application development. We have moved from an era of simple prompt-response interactions to one demanding complex, multi-stage reasoning, agentic workflows, and deep project understanding. At the heart of this revolution, and simultaneously its most persistent bottleneck, lies the **Context Window**.
@@ -10,7 +22,7 @@ This tutorial is designed for experts—those who are already proficient with ba
 
 ## I. The Constraint
 
-Before we can master the management, we must deeply understand the mechanism we are managing. The context window ($\text{CW}$) is the finite sequence of tokens—input prompt, system instructions, retrieved documents, and the model's own generated response—that the transformer architecture can reference simultaneously.
+Before we can master the management, we must deeply understand the mechanism we are managing. The context window ($\text{CW}$) is the finite sequence of tokens—input prompt, system instructions, retrieved documents, and the model's own generated response—that the [transformer architecture](TransformerArchitecture) can reference simultaneously.
 
 ### A. Attention Complexity
 

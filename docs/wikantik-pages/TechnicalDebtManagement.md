@@ -1,3 +1,13 @@
+---
+title: Technical Debt Management
+type: article
+tags:
+- debt
+- text
+- must
+summary: This tutorial is not intended to provide a checklist of linting rules.
+auto-generated: true
+---
 # Technical Debt
 
 Welcome. If you are reading this, you are likely already aware that "technical debt" is not merely a buzzword used by architects to justify budget cuts, nor is it simply synonymous with "bad code." For those of us operating at the research frontier, technical debt represents a complex, multi-dimensional liability—a form of accrued, systemic entropy within a software system.

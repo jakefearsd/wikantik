@@ -1,3 +1,14 @@
+---
+title: Model Selection
+type: article
+tags:
+- model
+- e.g
+- cost
+summary: We have moved rapidly from the era of proof-of-concept demos to the stage
+  of mission-critical enterprise integration.
+auto-generated: true
+---
 # Domain-Specific Model Selection: Choosing the Right LLM for Your Application
 
 **A Comprehensive Guide for Advanced Researchers and ML Engineers**
@@ -27,7 +38,7 @@ The choice of deployment paradigm dictates the entire operational envelope, affe
 #### 1. Proprietary, Closed-Source APIs (The "Utility Model")
 These models (e.g., OpenAI GPT series, Anthropic Claude) are accessed via managed APIs.
 *   **Pros:** Immediate access to state-of-the-art performance, minimal infrastructure overhead, rapid iteration cycles managed by the provider.
-*   **Cons:** **Vendor Lock-in** is the most significant risk. Data governance is subject to the provider's terms of service, and customization is limited to prompt engineering and function calling. Latency can be unpredictable due to shared infrastructure load.
+*   **Cons:** **Vendor Lock-in** is the most significant risk. [Data governance](DataGovernance) is subject to the provider's [terms of service](TermsOfService), and customization is limited to prompt engineering and function calling. Latency can be unpredictable due to shared infrastructure load.
 *   **Expert Consideration:** These are ideal for initial prototyping or tasks where the required performance ceiling *must* be met, and the data sensitivity allows for third-party processing (e.g., non-PII summarization).
 
 #### 2. Open-Source, Self-Hosted Models (The "Sovereignty Model")

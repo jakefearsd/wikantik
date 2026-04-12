@@ -1,8 +1,19 @@
+---
+title: Domain And Integration Events
+type: article
+tags:
+- event
+- servic
+- consum
+summary: When building modern, scalable, microservice-based applications, we are constantly
+  dealing with state changes that must propagate across service boundaries.
+auto-generated: true
+---
 # Domain Events vs. Integration Events
 
 For those of us who spend our professional lives wrestling with the inherent chaos of distributed systems, the concept of "events" is both our greatest tool and our most persistent source of architectural anxiety. When building modern, scalable, microservice-based applications, we are constantly dealing with state changes that must propagate across service boundaries. The naive approach—treating every state change as a simple broadcast—leads to brittle, tightly coupled spaghetti code that collapses under the slightest load spike.
 
-The critical realization, however, is that not all events are created equal. Misclassifying an event's scope—treating an internal coordination mechanism as a durable, cross-system contract, or vice versa—is a recipe for catastrophic eventual consistency failures.
+The critical realization, however, is that not all events are created equal. Misclassifying an event's scope—treating an internal coordination mechanism as a durable, cross-system contract, or vice versa—is a recipe for catastrophic [eventual consistency](EventualConsistency) failures.
 
 This tutorial is not a gentle introduction. It is a comprehensive, deep-dive examination of the theoretical and practical distinctions between **Domain Events (DE)** and **Integration Events (IE)**, analyzing the architectural implications, required messaging infrastructure, and advanced patterns necessary for building truly resilient, event-driven systems. If you are researching novel techniques, you need to understand not just *what* they are, but *why* the boundary between them must be rigorously enforced.
 
@@ -192,7 +203,7 @@ The most advanced research area involves recognizing when a DE is *too* importan
 
 **The Test:** Ask yourself: "If this event happened, and I had to rebuild the entire system from scratch using only the event log, would the state of the external system be correct?"
 
-*   If the answer is **Yes**, it *must* be an Integration Event, requiring the Outbox Pattern and a durable broker.
+*   If the answer is **Yes**, it *must* be an Integration Event, requiring the [Outbox Pattern](OutboxPattern) and a durable broker.
 *   If the answer is **No** (because the external system relies on a side effect that the source BC cannot guarantee), then the coupling is too tight, and the BC boundary needs re-evaluation, or the interaction must be modeled as a synchronous API call (a last resort).
 
 ---

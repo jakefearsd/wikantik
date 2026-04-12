@@ -14,7 +14,7 @@ Based on comprehensive analysis of the Wikantik codebase, six high-value refacto
 
 ---
 
-  1. Priority 1: Decorator Pattern Generalization for Providers
+  1. Priority 1: [Decorator Pattern](DecoratorPattern) Generalization for Providers
 
     1. Current State
 
@@ -426,9 +426,9 @@ Priority 1 + 4 together would significantly improve the provider architecture wi
 The codebase already has excellent implementations of several patterns:
 
 - **Facade Pattern**: WikiEngine and Manager classes provide clean abstractions
-- **Provider/Strategy Pattern**: PageProvider, AttachmentProvider, SearchProvider
-- **Observer Pattern**: WikiEventManager with WikiEventListener
+- **Provider/[Strategy Pattern](StrategyPattern)**: PageProvider, AttachmentProvider, SearchProvider
+- **[Observer Pattern](ObserverPattern)**: WikiEventManager with WikiEventListener
 - **Chain of Responsibility**: FilterManager with PageFilter pipeline
-- **Command Pattern**: Command interface with PageCommand, WikiCommand, etc.
+- **[Command Pattern](CommandPattern)**: Command interface with PageCommand, WikiCommand, etc.
 
 These should be maintained and can serve as examples for new pattern implementations.

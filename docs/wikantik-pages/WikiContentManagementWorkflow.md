@@ -1,3 +1,14 @@
+---
+title: Wiki Content Management Workflow
+type: article
+tags:
+- workflow
+- must
+- content
+summary: We are moving beyond simple status transitions and into the realm of process
+  orchestration, semantic governance, and resilient state management.
+auto-generated: true
+---
 # The Architecture of Authority
 
 For those of us who spend our professional lives wrestling with the digital equivalent of institutional memory—the vast, sprawling, and often contradictory knowledge base that is the wiki—the concept of a "workflow" is not a mere suggestion; it is a critical, non-negotiable architectural requirement. A wiki, by its very nature, champions decentralized contribution, which, while democratizing knowledge, simultaneously introduces the most volatile element into any digital publishing stack: unmanaged entropy.

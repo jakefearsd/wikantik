@@ -1,3 +1,14 @@
+---
+title: Home Emergency Prep
+type: article
+tags:
+- must
+- system
+- e.g
+summary: This tutorial posits that viewing home preparedness merely as inventory management
+  is a critical failure of conceptualization.
+auto-generated: true
+---
 # Home Emergency Preparedness: Building a Practical Foundation for System Resilience
 
 **A Technical Deep Dive for Research Practitioners**
@@ -177,7 +188,7 @@ The failure of municipal sewage systems creates immediate, high-risk biohazards.
 
 ## 5. Edge Cases and Advanced Threat Modeling
 
-A truly expert-level plan must account for the "unknown unknowns"—scenarios that defy standard threat modeling.
+A truly expert-level plan must account for the "unknown unknowns"—scenarios that defy standard [threat modeling](ThreatModeling).
 
 ### 5.1 Chemical, Biological, Radiological, and Nuclear (CBRN) Defense
 

@@ -1,3 +1,14 @@
+---
+title: American Coinage In The1900s
+type: article
+tags:
+- innov
+- coin
+- coinag
+summary: For the seasoned researcher, the term "innovation" in this context must be
+  rigorously defined.
+auto-generated: true
+---
 # Twentieth Century Coinage Innovation in America
 
 ## Introduction: Defining Innovation in Metallic Media
@@ -166,7 +177,7 @@ This requires collaboration with materials scientists. Innovation in striking te
 
 ### 3. Discourse Analysis of Advisory Minutes (Textual Data Mining)
 
-The most underutilized resource is the textual record of the CCAC and similar bodies. Applying Natural Language Processing (NLP) to minutes, reports, and correspondence allows researchers to quantify the *language* of innovation.
+The most underutilized resource is the textual record of the CCAC and similar bodies. Applying [Natural Language Processing](NaturalLanguageProcessing) (NLP) to minutes, reports, and correspondence allows researchers to quantify the *language* of innovation.
 
 *   **Topic Modeling (LDA):** Identify latent topics discussed over time. A shift in the dominant topic cluster (e.g., moving from "Natural Resources" to "Industrial Labor" to "Global Trade") directly maps to the policy innovation cycle.
 *   **Sentiment Analysis:** Track the sentiment associated with specific economic terms (e.g., "inflation," "commodity," "trust"). A sustained positive sentiment regarding a concept, even when economic indicators are poor, signals a successful *narrative* innovation.

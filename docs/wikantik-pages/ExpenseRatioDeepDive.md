@@ -88,7 +88,7 @@ When you account for all costs, the total drag of a typical active fund is often
 2. **Replace anything above 0.20%** with a low-cost index equivalent unless you have a specific, defensible reason.
 3. **Check your 401(k) options.** Many plans now include index funds at 0.02-0.10%. If yours does not, lobby your HR department — the Department of Labor's fiduciary rule has pushed plans toward lower-cost options.
 4. **Ignore "institutional class" branding.** What matters is the number, not the name.
-5. **Never pay a financial advisor a percentage of assets** (typically 1%) for simply placing you in mutual funds. A one-time fee-only financial plan costs $1,000-3,000 and delivers the same asset allocation advice without the annual drag.
+5. **Never pay a financial advisor a percentage of assets** (typically 1%) for simply placing you in mutual funds. A one-time fee-only financial plan costs $1,000-3,000 and delivers the same [asset allocation](AssetAllocation) advice without the annual drag.
 
 ## Related Articles
 

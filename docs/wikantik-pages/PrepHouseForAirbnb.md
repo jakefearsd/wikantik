@@ -1,3 +1,14 @@
+---
+title: Prep House For Airbnb
+type: article
+tags:
+- must
+- e.g
+- guest
+summary: 'Transient Living Target Audience: Real Estate Developers, Hospitality Tech
+  Consultants, Property Management Experts, and Advanced Operations Researchers.'
+auto-generated: true
+---
 # Transient Living
 
 **Target Audience:** Real Estate Developers, Hospitality Tech Consultants, Property Management Experts, and Advanced Operations Researchers.
@@ -12,7 +23,7 @@ The modern short-term rental (STR) market, epitomized by platforms like Airbnb, 
 
 We are not merely cleaning a house; we are designing a temporary, highly controlled, and legally compliant micro-ecosystem. The objective shifts from mere habitability to *optimized throughput*—maximizing guest satisfaction metrics while minimizing the owner's operational expenditure (OpEx) and liability exposure.
 
-This tutorial moves far beyond the rudimentary checklists found online. We will dissect the preparation process into five critical, interconnected domains: **Jurisdictional Compliance, Infrastructure Hardening, Ergonomic Design, Predictive Maintenance, and Digital Operationalization.**
+This tutorial moves far beyond the rudimentary checklists found online. We will dissect the preparation process into five critical, interconnected domains: **Jurisdictional Compliance, Infrastructure Hardening, Ergonomic Design, [Predictive Maintenance](PredictiveMaintenance), and Digital Operationalization.**
 
 ***
 
@@ -218,7 +229,7 @@ This requires developing a comprehensive, multi-layered emergency protocol that 
 #### 2. Utility Failure Response (The Blackout Scenario)
 What happens when the grid fails?
 
-*   **Backup Power Assessment:** For critical systems (network router, primary smart lock hub, essential lighting), a small Uninterruptible Power Supply (UPS) should be installed. This buys time for manual intervention or generator startup.
+*   **[Backup Power](BackupPower) Assessment:** For critical systems (network router, primary smart lock hub, essential lighting), a small Uninterruptible Power Supply (UPS) should be installed. This buys time for manual intervention or generator startup.
 *   **Manual Override Documentation:** Creating laminated, highly visible guides detailing the manual operation of every critical system (e.g., "How to manually lock the deadbolt if the smart lock fails").
 
 ***

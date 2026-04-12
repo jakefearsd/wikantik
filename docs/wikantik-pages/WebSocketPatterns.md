@@ -1,3 +1,14 @@
+---
+title: Web Socket Patterns
+type: article
+tags:
+- websocket
+- client
+- connect
+summary: This tutorial is not for the novice needing to know what a "persistent connection"
+  is.
+auto-generated: true
+---
 # WebSocket Real-Time Bidirectional Communication
 
 For those of us who have spent enough time wrestling with the limitations of the HTTP request-response cycle, the concept of WebSockets feels less like an innovation and more like a necessary correction to the fundamental assumptions of early web architecture. This tutorial is not for the novice needing to know what a "persistent connection" is. We assume a deep understanding of TCP/IP, HTTP semantics, asynchronous programming models, and distributed systems theory. Our goal is to dissect the mechanics, analyze the failure modes, and architect solutions for deploying WebSockets in high-throughput, mission-critical, real-time environments.

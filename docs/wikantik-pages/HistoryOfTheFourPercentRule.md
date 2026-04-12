@@ -67,7 +67,7 @@ Bengen's paper was published in a professional journal read by financial planner
 
 "95% success rate" sounds like a near-guarantee. It became the number that launched a thousand retirement calculators.
 
-## 2000s: The [FIRE Movement](FireMovement) Adopts 4%
+## 2000s: The FIRE Movement Adopts 4%
 
 In the early 2000s, the [Financial Independence / Retire Early](FireMovement) (FIRE) movement began coalescing in online forums and blogs. The 4% rule became its central organising principle, but with a crucial twist: FIRE adherents used it **backwards**.
 
@@ -113,7 +113,7 @@ Several researchers argued that starting conditions matter and that a retiree en
 
 The most practical criticism: no real person withdraws a fixed inflation-adjusted amount regardless of market conditions. People respond to circumstances. They spend more in early, active retirement (the "go-go" years), less in their sedentary mid-70s to mid-80s (the "slow-go" years), and potentially much more in late retirement for healthcare (the "no-go" years).
 
-The 4% rule models a robot, not a human being. This insight drove the development of dynamic strategies like [guardrails](GuardrailsSpendingStrategy) and variable percentage withdrawal.
+The 4% rule models a robot, not a human being. This insight drove the development of dynamic strategies like [guardrails](GuardrailsSpendingStrategy) and [variable percentage withdrawal](VariablePercentageWithdrawal).
 
 ### Criticism 4: It Ignores Other Income
 

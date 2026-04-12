@@ -1,3 +1,13 @@
+---
+title: Social Security Spousal And Survivor Benefits
+type: article
+tags:
+- benefit
+- text
+- claim
+summary: 'Discipline: Social Security Benefit Modeling and Retirement Income Sequencing.'
+auto-generated: true
+---
 # A Comprehensive Technical Review of Social Security Spousal and Survivor Benefit Optimization Strategies
 
 **Target Audience:** Financial Planners, Actuaries, Estate Attorneys, and Advanced Retirement Researchers.
@@ -165,7 +175,7 @@ The SSA rules regarding benefit portability and spousal rights are notoriously c
 
 When a claimant becomes disabled, the benefit structure shifts entirely.
 
-*   **SSDI:** If the claimant qualifies for Social Security Disability Insurance (SSDI), the disability benefit amount ($\text{D}_{\text{SSDI}}$) is calculated based on the worker's *prime* earning years, which may differ significantly from the PIA used for spousal calculations.
+*   **SSDI:** If the claimant qualifies for Social Security [Disability Insurance](DisabilityInsurance) (SSDI), the disability benefit amount ($\text{D}_{\text{SSDI}}$) is calculated based on the worker's *prime* earning years, which may differ significantly from the PIA used for spousal calculations.
 *   **The "Benefit Waterfall":** If the claimant receives both a disability benefit *and* a spousal benefit (e.g., if the disability benefit is lower than the spousal benefit), the SSA rules dictate which benefit takes precedence or how they are aggregated. The claimant must elect the highest available stream, which may necessitate temporarily pausing the spousal claim if the disability benefit is superior.
 
 ### 4.3 The Non-Traditional Partnership Challenge

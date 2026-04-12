@@ -1,3 +1,15 @@
+---
+title: Business Process Modeling
+type: article
+tags:
+- model
+- process
+- bpmn
+summary: Business Process Model and Notation (BPMN) was developed precisely to tame
+  this beast—to provide a standardized, unambiguous, and graphically intuitive language
+  for describing the flow of work.
+auto-generated: true
+---
 # Business Process Model and Notation (BPMN) Workflows
 
 For those of us who spend our professional lives wrestling with the inherent messiness of human organizational structures, the concept of "process" is both our greatest tool and our most persistent headache. Business Process Model and Notation (BPMN) was developed precisely to tame this beast—to provide a standardized, unambiguous, and graphically intuitive language for describing the flow of work.
@@ -62,7 +74,7 @@ Activities are the verbs of the process. Their semantics are highly dependent on
 Gateways are the most mathematically rich elements, as they define the state transition logic. They are essentially decision points that control the path through the process graph.
 
 1.  **Exclusive Gateway ($\text{XOR}$):** Represents mutual exclusion. Only *one* path can be taken.
-    *   *Formal Semantics:* $\text{Path} \in \{P_1, P_2, \dots, P_n\}$ such that $\text{Path} \cap \text{Path}' = \emptyset$ for any $P \neq P'$.
+    *   *[Formal Semantics](FormalSemantics):* $\text{Path} \in \{P_1, P_2, \dots, P_n\}$ such that $\text{Path} \cap \text{Path}' = \emptyset$ for any $P \neq P'$.
     *   *Edge Case:* The "Default Flow" path. This is critical for robustness. If none of the explicit conditions are met, the default path must be defined, or the process risks an unhandled state exception.
 
 2.  **Parallel Gateway ($\text{AND}$):** Represents concurrent execution. All outgoing paths must be executed simultaneously.
@@ -199,7 +211,7 @@ Real-world processes are inherently non-deterministic. BPMN handles *conditional
 
 For high-assurance systems (e.g., medical device control, financial trading), the *timing* is as critical as the sequence.
 
-*   **Temporal Logic:** Formalisms like Linear Temporal Logic (LTL) allow stating properties like: "It must *always* be true that if the alarm state is entered, a maintenance ticket is created within $T$ minutes."
+*   **[Temporal Logic](TemporalLogic):** Formalisms like Linear Temporal Logic (LTL) allow stating properties like: "It must *always* be true that if the alarm state is entered, a maintenance ticket is created within $T$ minutes."
 *   **BPMN Integration:** Integrating LTL constraints requires the BPMN engine to not just track the state, but to maintain a continuous temporal context, validating every transition against the defined temporal invariants. This moves the model from a simple workflow diagram to a **Temporal Constraint Network**.
 
 ---

@@ -29,7 +29,7 @@ The primary MCP server exposes 47+ tools organized by capability:
 - **Search** — full-text search, reference lookups, backlink queries
 - **Frontmatter** — read/write YAML metadata
 - **Attachments** — upload, list, delete file attachments
-- **Knowledge proposals** — propose new nodes/edges, list pending proposals, check rejections
+- **[Knowledge proposals](KnowledgeProposals)** — propose new nodes/edges, list pending proposals, check rejections
 - **Resources** — 6 MCP resources for schema discovery
 - **Prompts** — 8 guided prompts for common workflows
 

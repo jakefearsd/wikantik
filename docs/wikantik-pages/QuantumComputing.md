@@ -1,8 +1,18 @@
+---
+title: Quantum Computing
+type: article
+tags:
+- quantum
+- rangl
+- state
+summary: Quantum Computing Principles and Applications Welcome.
+auto-generated: true
+---
 # Quantum Computing Principles and Applications
 
 Welcome. If you've reached this document, you are likely past the introductory phase of quantum information theory. You are not looking for a high-school analogy involving spinning coins; you are looking for the mathematical rigor, the architectural bottlenecks, and the bleeding-edge research directions that define the next decade of computation.
 
-This tutorial is designed not merely to summarize existing knowledge, but to serve as a comprehensive technical reference, synthesizing the foundational principles with the most advanced, computationally intensive applications currently under investigation. We will proceed assuming fluency in linear algebra, basic quantum mechanics formalism, and the general architecture of computational complexity theory.
+This tutorial is designed not merely to summarize existing knowledge, but to serve as a comprehensive technical reference, synthesizing the foundational principles with the most advanced, computationally intensive applications currently under investigation. We will proceed assuming fluency in [linear algebra](LinearAlgebra), basic quantum mechanics formalism, and the general architecture of computational complexity theory.
 
 ---
 
@@ -127,7 +137,7 @@ The process is highly structured:
 3.  **Measurement & Collapse:** Measure the second register (the output register). This collapses the first register into a superposition of states $|x\rangle$ that yield the same measured value $y_0$. This resulting state is periodic with period $r$.
 4.  **Period Extraction (The Quantum Core):** Apply the Quantum Fourier Transform ($\text{QFT}$) to the first register. The QFT maps the periodicity $r$ into a measurable peak in the amplitude distribution.
 5.  **Classical Post-Processing:** Measure the first register and use the resulting frequency information (via continued fractions approximation) to determine $r$.
-6.  **Final Step:** Once $r$ is known, classical number theory (using $\gcd(a^{r/2} \pm 1, N)$) yields the factors $p$ and $q$.
+6.  **Final Step:** Once $r$ is known, classical [number theory](NumberTheory) (using $\gcd(a^{r/2} \pm 1, N)$) yields the factors $p$ and $q$.
 
 **Complexity:** Classically, factoring $N$ takes sub-exponential time (e.g., the Number Field Sieve). Shor's algorithm achieves polynomial time complexity, rendering current public-key cryptography (RSA, ECC) obsolete once large-scale, fault-tolerant quantum computers are available.
 
@@ -236,7 +246,7 @@ Many industrial problems—logistics, scheduling, financial portfolio optimizati
 
 ### C. Quantum Machine Learning (QML)
 
-QML seeks to leverage quantum processing power to enhance machine learning tasks, particularly those involving high-dimensional feature spaces.
+QML seeks to leverage quantum processing power to enhance [machine learning](MachineLearning) tasks, particularly those involving high-dimensional feature spaces.
 
 1.  **Quantum Feature Maps:** Instead of classically mapping data $\mathbf{x}$ into a high-dimensional feature space $\phi(\mathbf{x})$, QML uses quantum circuits to map the data into a quantum Hilbert space: $\vert \psi(\mathbf{x}) \rangle = U(\mathbf{x}) \vert 0 \rangle$. This mapping can implicitly encode complex, non-linear relationships that are intractable classically.
 2.  **Quantum Kernel Estimation:** The core idea is to calculate the quantum overlap (the fidelity) between two data points $\mathbf{x}_i$ and $\mathbf{x}_j$:

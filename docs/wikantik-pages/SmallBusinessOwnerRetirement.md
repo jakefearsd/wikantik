@@ -1,3 +1,15 @@
+---
+title: Small Business Owner Retirement
+type: article
+tags:
+- tax
+- plan
+- contribut
+summary: The SBO, conversely, must architect this mechanism entirely from scratch,
+  integrating it seamlessly with their operational cash flow, evolving tax liabilities,
+  and ultimate business exit strategy.
+auto-generated: true
+---
 # Advanced Architectures for Retirement Security
 
 ## Introduction: The Asymmetry of Self-Employment Retirement Planning

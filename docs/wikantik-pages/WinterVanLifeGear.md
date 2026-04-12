@@ -1,3 +1,15 @@
+---
+title: Winter Van Life Gear
+type: article
+tags:
+- system
+- must
+- heat
+summary: 'Advanced Thermal Management Protocols Target Audience: Research Scientists,
+  Wilderness Medicine Specialists, High-Performance Outdoor Engineers, and Advanced
+  Expedition Planners.'
+auto-generated: true
+---
 # Advanced Thermal Management Protocols
 
 **Target Audience:** Research Scientists, Wilderness Medicine Specialists, High-Performance Outdoor Engineers, and Advanced Expedition Planners.

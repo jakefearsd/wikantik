@@ -1,3 +1,14 @@
+---
+title: Bread Making
+type: article
+tags:
+- text
+- dough
+- structur
+summary: If you are reading this, you are not interested in the comforting, generalized
+  platitudes found in introductory cookbooks.
+auto-generated: true
+---
 # Bread Making
 
 Welcome. If you are reading this, you are not interested in the comforting, generalized platitudes found in introductory cookbooks. You are a researcher, a practitioner pushing the boundaries, someone who views the humble loaf not as a culinary endpoint, but as a complex, multi-stage physicochemical system.
@@ -192,7 +203,7 @@ As the internal temperature rises, the gluten network undergoes irreversible the
 #### 3. Phase III: Crust Formation and Maillard Chemistry
 This phase involves the surface chemistry, where the crust develops its color, flavor, and rigidity.
 
-*   **Maillard Reaction:** This is the non-enzymatic browning reaction between reducing sugars (e.g., glucose, fructose) and amino groups (from proteins) when heated above $120^\circ\text{C}$.
+*   **[Maillard Reaction](MaillardReaction):** This is the non-enzymatic browning reaction between reducing sugars (e.g., glucose, fructose) and amino groups (from proteins) when heated above $120^\circ\text{C}$.
     $$\text{Amino Acid} + \text{Reducing Sugar} \xrightarrow{\text{Heat}} \text{Melanoidins} + \text{Flavor Compounds}$$
     The complexity of the resulting flavor profile (pyrazines, furans, etc.) is dictated by the specific amino acid/sugar ratios present in the flour and the duration/temperature profile.
 *   **Caramelization:** Occurs when sugars decompose solely due to heat, independent of amino acids. This contributes to the deep, nutty notes.

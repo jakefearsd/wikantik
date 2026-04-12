@@ -1,3 +1,15 @@
+---
+title: Van Life Cost Analysis
+type: article
+tags:
+- text
+- cost
+- model
+summary: Consequently, the public discourse surrounding its associated costs is often
+  characterized by anecdotal evidence, generalized estimates, and highly subjective
+  reporting.
+auto-generated: true
+---
 # Methodologies for Advanced Research
 
 ## Introduction: Deconstructing the Anecdotal into the Algorithmic

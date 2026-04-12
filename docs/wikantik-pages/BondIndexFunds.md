@@ -1,3 +1,13 @@
+---
+title: Bond Index Funds
+type: article
+tags:
+- text
+- index
+- durat
+summary: This tutorial moves beyond introductory concepts of diversification.
+auto-generated: true
+---
 # Bond Index Funds for Fixed Income Allocation
 
 For the seasoned quantitative researcher, the fixed income allocation decision is rarely a simple matter of "risk tolerance" versus "return expectation." It is a complex interplay of duration modeling, credit cycle anticipation, yield curve dynamics, and the structural limitations imposed by the chosen investment vehicle. While the general market narrative often simplifies fixed income to a mere ballast—a low-volatility anchor—the reality for experts is that the bond market is a sophisticated, multi-dimensional asset class whose mispricing opportunities are subtle, fleeting, and highly dependent on the methodology of index construction and subsequent tactical overlay.
@@ -21,7 +31,7 @@ However, for the expert researcher, the index is not a destination; it is a **st
 We must differentiate between three concepts:
 
 1.  **Index Tracking:** The mechanical act of minimizing the tracking error ($\text{TE}$) relative to the benchmark index ($\text{B}$).
-2.  **Asset Allocation:** Determining the optimal weight ($\omega_B$) of the bond sleeve within the total portfolio ($\text{P} = \omega_E \text{E} + \omega_B \text{B} + \dots$).
+2.  **[Asset Allocation](AssetAllocation):** Determining the optimal weight ($\omega_B$) of the bond sleeve within the total portfolio ($\text{P} = \omega_E \text{E} + \omega_B \text{B} + \dots$).
 3.  **Index Selection/Overlay:** Choosing the *right* index ($\text{B}^*$) and applying a systematic, quantitative overlay ($\text{O}$) to the resulting allocation ($\text{P} \approx \omega_E \text{E} + \omega_B (\text{B}^* + \text{O})$).
 
 The bulk of this tutorial focuses on mastering the relationship between the index structure ($\text{B}^*$) and the tactical overlay ($\text{O}$).
@@ -198,7 +208,7 @@ Indices are not static. They undergo **reconstitution** (changes in methodology 
 
 For sophisticated investors, the structure matters as much as the asset.
 
-*   **Direct Indexing:** Holding the underlying bonds directly, rather than through a mutual fund wrapper. This allows for granular tax-loss harvesting and precise control over the realized duration profile, bypassing the fund's internal trading constraints.
+*   **[Direct Indexing](DirectIndexing):** Holding the underlying bonds directly, rather than through a mutual fund wrapper. This allows for granular tax-loss harvesting and precise control over the realized duration profile, bypassing the fund's internal trading constraints.
 *   **Tax-Advantaged Wrappers:** Utilizing structures (like tax-exempt municipal bond funds) where the tax benefit itself acts as a yield enhancement factor, effectively increasing the after-tax return ($\text{R}_{\text{after-tax}} = \text{R}_{\text{pre-tax}} \times (1 - \text{TaxRate}_{\text{B}} / \text{TaxRate}_{\text{E}})$).
 
 ---

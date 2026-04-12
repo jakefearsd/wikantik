@@ -1,3 +1,15 @@
+---
+title: Property Graph Model
+type: article
+tags:
+- properti
+- relationship
+- model
+summary: As data complexity increases—moving beyond simple tabular records into intricate,
+  interconnected systems—the limitations of the Relational Model (RDBMS) become acutely
+  apparent.
+auto-generated: true
+---
 # The Labeled Property Graph Model
 
 ## Introduction: The Necessity of Graph Structures in Modern Data Science
@@ -6,7 +18,7 @@ For researchers operating at the frontier of data modeling, the choice of underl
 
 This tutorial is dedicated to the **Labeled Property Graph (LPG) Model**. We are not merely reviewing a database type; we are dissecting a sophisticated, highly flexible data paradigm. For experts researching novel techniques, understanding the LPG model requires moving beyond simple definitions of "nodes and edges." It demands a rigorous understanding of its theoretical underpinnings, its precise differentiation from competing graph paradigms (most notably RDF/OWL), and the advanced techniques required to model complex, real-world phenomena while maintaining query efficiency.
 
-The LPG model, at its core, is an evolution designed to maximize *traversal performance* and *schema flexibility* simultaneously. It represents a significant engineering compromise that favors operational speed and modeling expressiveness over the strict, formal semantics enforced by triple-store architectures.
+The LPG model, at its core, is an evolution designed to maximize *traversal performance* and *schema flexibility* simultaneously. It represents a significant engineering compromise that favors operational speed and modeling expressiveness over the strict, [formal semantics](FormalSemantics) enforced by triple-store architectures.
 
 ---
 
@@ -111,7 +123,7 @@ This is the most critical distinction:
 *   **LPG:** Relationship properties are native and first-class. They are attached directly to the edge object. This structural efficiency is the primary performance advantage in transactional, highly connected systems.
 
 #### 3. Semantic Rigor and Querying
-*   **RDF/OWL:** Excels in **semantic inference** and **ontology management**. OWL (Web Ontology Language) allows for defining complex axioms (e.g., "If A is a subclass of B, and B has property P, then A must also have property P"). SPARQL is designed to query these formal logical relationships.
+*   **RDF/OWL:** Excels in **semantic inference** and **ontology management**. OWL ([Web Ontology Language](WebOntologyLanguage)) allows for defining complex axioms (e.g., "If A is a subclass of B, and B has property P, then A must also have property P"). SPARQL is designed to query these formal logical relationships.
 *   **LPG:** Excels in **traversal performance** and **operational modeling**. While modern LPGs can incorporate label constraints that mimic some ontological rules, they generally do not possess the built-in, standardized machinery for complex logical inference that OWL provides.
 
 | Feature | LPG Model | RDF/Triple Store |

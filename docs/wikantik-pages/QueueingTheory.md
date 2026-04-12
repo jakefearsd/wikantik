@@ -1,3 +1,13 @@
+---
+title: Queueing Theory
+type: article
+tags:
+- system
+- time
+- servic
+summary: Queueing Theory Waiting Line Analysis Welcome.
+auto-generated: true
+---
 # Queueing Theory Waiting Line Analysis
 
 Welcome. If you are reading this, you are not looking for the basic definition of Little's Law or the derivation of the M/M/1 waiting time. You are here because the standard textbook treatments feel insufficient, because the real-world systems you are modeling exhibit complexities that render simple exponential distributions laughably inadequate.
@@ -225,7 +235,7 @@ Queueing theory, for the expert researcher, is no longer a collection of solvabl
 
 We have traversed the landscape from the elegant, yet restrictive, steady-state solutions of the M/M/c model, through the powerful generalization of the P-K formula, into the necessity of time-dependent differential equations, and finally into the adaptive, data-driven optimization provided by Reinforcement Learning.
 
-The modern researcher must be proficient not only in the mathematics of stochastic processes (Markov Chains, Renewal Theory) but also in the computational paradigms of simulation (DES/ABM) and machine learning (RL).
+The modern researcher must be proficient not only in the mathematics of stochastic processes (Markov Chains, Renewal Theory) but also in the computational paradigms of simulation (DES/ABM) and [machine learning](MachineLearning) (RL).
 
 The ultimate goal remains the same: to quantify the inevitable friction between demand and finite capacity. However, the tools required to achieve this quantification have evolved from solving algebraic equations to training deep neural networks on simulated realities.
 

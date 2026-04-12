@@ -1,3 +1,14 @@
+---
+title: Midlife Van Life
+type: article
+tags:
+- text
+- system
+- life
+summary: 'Van Life in Your 40s and 50s Target Audience: Research Fellows, Systems
+  Engineers, Behavioral Economists, and Advanced Lifestyle Planners.'
+auto-generated: true
+---
 # Van Life in Your 40s and 50s
 
 **Target Audience:** Research Fellows, Systems Engineers, Behavioral Economists, and Advanced Lifestyle Planners.

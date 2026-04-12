@@ -1,3 +1,15 @@
+---
+title: Clock Synchronization
+type: article
+tags:
+- time
+- clock
+- system
+summary: Clock Synchronization in Distributed Systems The concept of "time" in a distributed
+  computing environment is perhaps the most deceptively simple, yet profoundly complex,
+  problem in computer science.
+auto-generated: true
+---
 # Clock Synchronization in Distributed Systems
 
 The concept of "time" in a distributed computing environment is perhaps the most deceptively simple, yet profoundly complex, problem in computer science. When multiple independent nodes—each with its own physical clock, subject to thermal variations, crystal imperfections, and environmental noise—are required to agree on a single, coherent sequence of events, the system's integrity is fundamentally at risk. Clock synchronization is not merely a utility function; it is a prerequisite for transactional consistency, causality tracking, and the very notion of a globally ordered state.
@@ -136,7 +148,7 @@ This is a crucial distinction for researchers.
 
 **The Conflict:** Distributed databases often *must* use consensus time for transaction ordering (e.g., "Transaction X happened before Transaction Y"). However, user-facing APIs often *demand* wall-clock time for logging and display.
 
-**The Expert Compromise:** Modern systems use NTP/PTP to keep the wall clock *close* to the consensus time, but they use vector clocks or Lamport timestamps internally to guarantee causality, falling back to the wall clock only for non-critical logging metadata.
+**The Expert Compromise:** Modern systems use NTP/PTP to keep the wall clock *close* to the consensus time, but they use [vector clocks](VectorClocks) or Lamport timestamps internally to guarantee causality, falling back to the wall clock only for non-critical logging metadata.
 
 ---
 

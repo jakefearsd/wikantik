@@ -1,3 +1,14 @@
+---
+title: Database Indexing Strategies
+type: article
+tags:
+- index
+- tree
+- data
+summary: When researching novel query execution plans or designing next-generation
+  storage engines, a superficial understanding of indexing is simply insufficient.
+auto-generated: true
+---
 # B-Tree, Hash, and the Power of Covering Structures
 
 For those of us who spend our careers wrestling with the abyssal depths of data retrieval, the concept of the index is less a mere optimization feature and more the fundamental principle separating a functional database from an expensive, slow-moving data swamp. When researching novel query execution plans or designing next-generation storage engines, a superficial understanding of indexing is simply insufficient. We must dissect the underlying mathematical structures, analyze their I/O characteristics at the page level, and understand the precise conditions under which they fail or excel.
@@ -226,7 +237,7 @@ Modern DBMSs offer index types tailored for specific data domains:
 
 1.  **GIN (Generalized Inverted Index):** Used extensively for indexing composite data types, such as JSONB fields in PostgreSQL, or full-text search vectors. Instead of indexing a single value, it indexes *every distinct component* of the data structure, mapping the component back to the row ID. This is crucial for querying within semi-structured data.
 2.  **GiST (Generalized Search Tree):** A highly flexible, generalized structure that can be adapted to index complex, non-standard data types (like geometric shapes or ranges). It is often used when the data structure does not fit the rigid constraints of a standard B-Tree.
-3.  **Bloom Filters:** These are not true indexes but probabilistic data structures used for *membership testing*. They can quickly tell you, "This value *might* be in the set," or "This value *definitely* is not in the set." They are excellent for pre-filtering candidates before executing an expensive index seek, drastically reducing the number of necessary I/O operations when dealing with massive datasets where false positives are acceptable risks.
+3.  **[Bloom Filters](BloomFilters):** These are not true indexes but probabilistic [data structures](DataStructures) used for *membership testing*. They can quickly tell you, "This value *might* be in the set," or "This value *definitely* is not in the set." They are excellent for pre-filtering candidates before executing an expensive index seek, drastically reducing the number of necessary I/O operations when dealing with massive datasets where false positives are acceptable risks.
 
 ### B. LSM Trees (Log-Structured Merge Trees)
 
@@ -236,7 +247,7 @@ Instead of updating data in place (which causes random I/O), writes are appended
 
 ### C. Indexing for Vector Embeddings (The Modern Frontier)
 
-As AI and machine learning integrate into databases, the indexing challenge has shifted from discrete keys (strings, integers) to continuous, high-dimensional vectors (e.g., 768-dimensional embeddings).
+As AI and [machine learning](MachineLearning) integrate into databases, the indexing challenge has shifted from discrete keys (strings, integers) to continuous, high-dimensional vectors (e.g., 768-dimensional embeddings).
 
 Standard B-Trees and Hash indexes are useless here because the distance metric (e.g., Cosine Distance) is not inherently ordered or hashable in a simple, deterministic way. This necessitates **Approximate Nearest Neighbor (ANN)** indexing techniques, such as:
 *   **IVF (Inverted File Index):** Clustering the vector space and only indexing the centroids.

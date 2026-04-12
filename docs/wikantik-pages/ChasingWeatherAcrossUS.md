@@ -1,3 +1,15 @@
+---
+title: Chasing Weather Across US
+type: article
+tags:
+- text
+- weather
+- forc
+summary: We are not simply tracking storms; we are mapping the transient intersection
+  of large-scale forcing mechanisms, mesoscale instability gradients, and boundary
+  layer convergence zones.
+auto-generated: true
+---
 # Chasing Weather Across the US
 
 The pursuit of optimal convective weather—the phenomenon meteorologists colloquially term "chasing"—is not merely a recreational endeavor; for the advanced practitioner, it represents a complex, multi-variable problem in atmospheric fluid dynamics. We are not simply tracking storms; we are mapping the transient intersection of large-scale forcing mechanisms, mesoscale instability gradients, and boundary layer convergence zones.
@@ -177,7 +189,7 @@ To summarize the operational paradigm: Chasing perfect weather is not about foll
 
 The current state-of-the-art requires the integration of these disparate fields:
 
-1.  **Machine Learning for Pattern Recognition:** Developing $\text{AI}$ models trained on decades of high-resolution sounding data to recognize subtle, non-linear precursors to severe weather that human pattern recognition might miss.
+1.  **[Machine Learning](MachineLearning) for Pattern Recognition:** Developing $\text{AI}$ models trained on decades of high-resolution sounding data to recognize subtle, non-linear precursors to severe weather that human pattern recognition might miss.
 2.  **High-Resolution Numerical Weather Prediction ($\text{NWP}$):** Pushing model resolution down to the $1-3 \text{ km}$ scale to accurately resolve boundary layer processes and mesoscale convergence zones.
 3.  **Multi-Sensor Data Fusion:** Creating unified platforms that ingest $\text{GOES-R}$ $\text{CTT}$, Doppler $\text{Z}_{acc}$, and $\text{NAM}$ model outputs simultaneously to generate a single, weighted probability map of severe threat.
 

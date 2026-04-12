@@ -1,3 +1,14 @@
+---
+title: Acid Transactions And Isolation
+type: article
+tags:
+- read
+- transact
+- lock
+summary: This tutorial is not for the junior developer who merely needs to know that
+  BEGIN TRANSACTION exists.
+auto-generated: true
+---
 # ACID Transactions and Isolation
 
 For those of us who spend our careers wrestling with the inherent chaos of shared state, the concept of database transactions is less a feature and more a fundamental necessity—a digital pact against entropy. When multiple processes attempt to read, write, and modify the same data concurrently, the resulting state can quickly devolve into a computational nightmare of lost updates, dirty reads, and logical inconsistencies.
@@ -58,7 +69,7 @@ Database systems typically offer a hierarchy of isolation levels. Understanding 
 **Guarantee:** None, beyond the basic ACID contract itself.
 **Mechanism:** Reads the absolute latest data written to the buffer, regardless of whether the writing transaction has committed or rolled back.
 **Anomalies Permitted:** Dirty Reads, Non-Repeatable Reads, Phantom Reads.
-**Use Case:** Almost never appropriate for business logic. Perhaps only for high-volume, non-critical monitoring or preliminary data sampling where eventual consistency is acceptable.
+**Use Case:** Almost never appropriate for business logic. Perhaps only for high-volume, non-critical monitoring or preliminary data sampling where [eventual consistency](EventualConsistency) is acceptable.
 **Expert Warning:** Using this level is akin to trusting a rumor whispered in a crowded room; it might be true for a moment, but it has no lasting commitment.
 
 ### B. Read Committed (The Industry Baseline)
@@ -190,9 +201,9 @@ When a single logical transaction spans multiple, independent database nodes (e.
 ### C. The Role of Causality and Temporal Consistency
 For researchers building novel systems, the concept of *causality* is paramount. A transaction must not only be isolated but must also respect the temporal order of events.
 
-In advanced systems, especially those leveraging event sourcing or CRDTs (Conflict-free Replicated Data Types), the focus shifts from *locking* to *ordering*. Instead of asking, "What is the state now?" (which implies a single point in time), the system asks, "What is the state after applying this sequence of events?"
+In advanced systems, especially those leveraging [event sourcing](EventSourcing) or CRDTs (Conflict-free Replicated Data Types), the focus shifts from *locking* to *ordering*. Instead of asking, "What is the state now?" (which implies a single point in time), the system asks, "What is the state after applying this sequence of events?"
 
-This requires mechanisms that can process operations idempotently and deterministically, regardless of the order in which they arrive at different replicas. This moves the problem from traditional ACID transaction management into the realm of distributed consensus and functional data structures.
+This requires mechanisms that can process operations idempotently and deterministically, regardless of the order in which they arrive at different replicas. This moves the problem from traditional ACID transaction management into the realm of distributed consensus and functional [data structures](DataStructures).
 
 ---
 

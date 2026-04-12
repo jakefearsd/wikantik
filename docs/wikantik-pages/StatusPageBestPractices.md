@@ -1,8 +1,20 @@
+---
+title: Status Page Best Practices
+type: article
+tags:
+- commun
+- statu
+- must
+summary: The Architecture of Trust For the seasoned practitioner, the status page
+  is not merely a public-facing dashboard; it is a critical, high-stakes component
+  of the overall incident response architecture.
+auto-generated: true
+---
 # The Architecture of Trust
 
 For the seasoned practitioner, the status page is not merely a public-facing dashboard; it is a critical, high-stakes component of the overall incident response architecture. It is the primary conduit through which organizational competence, transparency, and reliability are broadcast to the market. When systems fail—and they *will* fail, given the increasing complexity of microservice amalgamations—the status page becomes the definitive artifact of your operational maturity.
 
-This tutorial is designed for experts researching advanced techniques in Site Reliability Engineering (SRE), Incident Management, and Crisis Communications. We will move beyond the basic "update every 15 minutes" dogma and delve into the theoretical underpinnings, architectural requirements, and nuanced communication protocols necessary to maintain stakeholder trust when the underlying systems are demonstrably broken.
+This tutorial is designed for experts researching advanced techniques in [Site Reliability Engineering](SiteReliabilityEngineering) (SRE), [Incident Management](IncidentManagement), and Crisis Communications. We will move beyond the basic "update every 15 minutes" dogma and delve into the theoretical underpinnings, architectural requirements, and nuanced communication protocols necessary to maintain stakeholder trust when the underlying systems are demonstrably broken.
 
 ---
 

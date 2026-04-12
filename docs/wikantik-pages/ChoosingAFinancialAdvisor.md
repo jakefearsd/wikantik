@@ -1,3 +1,14 @@
+---
+title: Choosing A Financial Advisor
+type: article
+tags:
+- fee
+- advisor
+- client
+summary: We move beyond the consumer-facing definitions to dissect the underlying
+  legal, economic, and structural implications of these standards.
+auto-generated: true
+---
 # Choosing a Financial Advisor
 
 This tutorial is designed for seasoned professionals—quantitative analysts, compliance officers, advanced financial modelers, and researchers—who require a granular, multi-layered understanding of the "Fiduciary" and "Fee-Only" designations in wealth management. We move beyond the consumer-facing definitions to dissect the underlying legal, economic, and structural implications of these standards.
@@ -6,7 +17,7 @@ This tutorial is designed for seasoned professionals—quantitative analysts, co
 
 ## Ⅰ. Introduction
 
-In the contemporary financial landscape, the selection criteria for an advisory partner have become increasingly complex, moving from simple asset allocation discussions to rigorous vetting of the advisor's *incentive structure*. The terms "Fiduciary" and "Fee-Only" are often conflated in public discourse, leading to significant informational asymmetry. For those researching best practices in client asset stewardship, understanding the precise, non-overlapping definitions of these two pillars is not merely beneficial—it is foundational to constructing an unbiased financial model.
+In the contemporary financial landscape, the selection criteria for an advisory partner have become increasingly complex, moving from simple [asset allocation](AssetAllocation) discussions to rigorous vetting of the advisor's *incentive structure*. The terms "Fiduciary" and "Fee-Only" are often conflated in public discourse, leading to significant informational asymmetry. For those researching best practices in client asset stewardship, understanding the precise, non-overlapping definitions of these two pillars is not merely beneficial—it is foundational to constructing an unbiased financial model.
 
 This analysis posits that the true value proposition lies not in the mere presence of these labels, but in the *structural enforcement* of their combination. We will treat this topic as a system architecture problem: identifying the necessary constraints (Fiduciary Duty) and the necessary input mechanism (Fee-Only Compensation) required to guarantee optimal client utility maximization, independent of the advisor's internal revenue streams.
 

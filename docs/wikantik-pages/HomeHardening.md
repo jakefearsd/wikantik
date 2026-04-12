@@ -1,3 +1,15 @@
+---
+title: Home Hardening
+type: article
+tags:
+- must
+- structur
+- text
+summary: 'Advanced Protocols for Resilient Habitation Target Audience: Disaster Resilience
+  Researchers, Structural Engineers, High-Level Security Consultants, and Preparedness
+  Experts.'
+auto-generated: true
+---
 # Advanced Protocols for Resilient Habitation
 
 **Target Audience:** Disaster Resilience Researchers, Structural Engineers, High-Level Security Consultants, and Preparedness Experts.
@@ -25,7 +37,7 @@ Before detailing specific countermeasures, one must establish a rigorous analyti
 
 ### 1. Threat Modeling and Vulnerability Mapping
 
-A generalized approach is inherently flawed. Resilience planning must begin with granular threat modeling, which requires mapping specific vulnerabilities against predicted threat profiles.
+A generalized approach is inherently flawed. Resilience planning must begin with granular [threat modeling](ThreatModeling), which requires mapping specific vulnerabilities against predicted threat profiles.
 
 #### 1.1. The Threat Matrix Development
 A robust threat matrix requires cross-referencing potential hazards ($\mathcal{H}$) with the structural weaknesses ($\mathcal{W}$) of the asset.
@@ -142,7 +154,7 @@ This requires the highest level of procedural rigor, demanding immediate identif
 When the threat is environmental (e.g., prolonged blizzard, regional blackout), the focus shifts to **resource management** and **HVAC redundancy**.
 
 *   **Water Security:** Beyond basic storage, advanced planning requires understanding potable vs. non-potable water cycling. Implementing advanced filtration (e.g., reverse osmosis units powered by auxiliary generators) is necessary for long-term viability.
-*   **HVAC Redundancy:** The system must be designed with at least N+1 redundancy for critical air handling units. This includes backup power sources (e.g., diesel generators with sufficient fuel reserves and maintenance contracts) and manual override capabilities for all dampers and dampers.
+*   **HVAC Redundancy:** The system must be designed with at least N+1 redundancy for critical air handling units. This includes [backup power](BackupPower) sources (e.g., diesel generators with sufficient fuel reserves and maintenance contracts) and manual override capabilities for all dampers and dampers.
 
 ### 3.2. Life Support Systems and Resource Autonomy
 

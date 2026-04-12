@@ -1,3 +1,14 @@
+---
+title: Small Cap Value Premium
+type: article
+tags:
+- factor
+- premium
+- small
+summary: It is not merely a factor; it is a confluence of size, value, and often,
+  a degree of market neglect.
+auto-generated: true
+---
 # The Small Cap Value Premium
 
 For those of us who spend our professional lives wrestling with the ghosts of academic anomalies and the stubborn persistence of market inefficiencies, the "Small Cap Value Premium" remains one of the most persistently debated, yet potentially lucrative, frontiers in quantitative finance. It is not merely a factor; it is a confluence of size, value, and often, a degree of market neglect.
@@ -10,7 +21,7 @@ We will dissect the theoretical underpinnings, critique the methodologies, explo
 
 ## I. Introduction: Defining the Anomaly Landscape
 
-The concept of factor investing posits that asset returns are not solely explained by systematic market risk ($\beta$), but by exposure to several measurable, persistent risk premia (e.g., size, value, momentum, quality). The Small Cap Value Premium (SCVP) suggests that a specific combination of characteristics—being small *and* being undervalued relative to its fundamentals—tends to generate excess returns ($\alpha$) over a risk-adjusted benchmark.
+The concept of [factor investing](FactorInvesting) posits that asset returns are not solely explained by systematic market risk ($\beta$), but by exposure to several measurable, persistent risk premia (e.g., size, value, momentum, quality). The Small Cap Value Premium (SCVP) suggests that a specific combination of characteristics—being small *and* being undervalued relative to its fundamentals—tends to generate excess returns ($\alpha$) over a risk-adjusted benchmark.
 
 ### A. The Components
 
@@ -249,7 +260,7 @@ The Small Cap Value Premium is a sophisticated, multi-dimensional hypothesis. It
 
 For those continuing to push the boundaries of factor research, we suggest focusing on these areas:
 
-1.  **Machine Learning for Factor Discovery:** Instead of relying on linear factor models, employ non-linear techniques (e.g., Random Forests, Neural Networks) to model the return function, allowing the model to discover complex, non-additive interactions between size, value, and profitability metrics that traditional regression might miss.
+1.  **[Machine Learning](MachineLearning) for Factor Discovery:** Instead of relying on linear factor models, employ non-linear techniques (e.g., Random Forests, Neural Networks) to model the return function, allowing the model to discover complex, non-additive interactions between size, value, and profitability metrics that traditional regression might miss.
 2.  **Incorporating ESG/Governance:** Develop a "Governance Discount" factor. Perhaps the true premium is not just "small" and "cheap," but "small," "cheap," *and* showing signs of governance improvement (i.e., a factor that measures the *potential* for improvement, rather than just the current state).
 3.  **Factor Hedging and Decay Modeling:** Develop quantitative models that estimate the expected decay rate ($\lambda$) of the premium based on the current level of market attention (e.g., tracking the number of academic papers or media mentions related to the factor).
 

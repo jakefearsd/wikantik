@@ -17,7 +17,7 @@ related:
 ---
 # Wiki Audit Skill
 
-The wiki audit skill is a designed but not yet implemented capability for automated content quality auditing. An AI agent would use MCP audit tools to scan wiki pages for quality issues — broken links, missing frontmatter, orphaned pages, inconsistent formatting — and generate reports or proposals for fixes.
+The wiki audit skill is a designed but not yet implemented capability for automated content quality auditing. An AI agent would use [MCP audit tools](McpAuditTools) to scan wiki pages for quality issues — broken links, missing frontmatter, orphaned pages, inconsistent formatting — and generate reports or proposals for fixes.
 
 ## Design Status
 

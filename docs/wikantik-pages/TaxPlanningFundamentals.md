@@ -1,3 +1,14 @@
+---
+title: Tax Planning Fundamentals
+type: article
+tags:
+- tax
+- credit
+- deduct
+summary: This tutorial is not designed for the undergraduate student reviewing basic
+  tax concepts.
+auto-generated: true
+---
 # The Calculus of Tax Mitigation
 
 For those of us who spend our professional lives navigating the labyrinthine corridors of tax code interpretation, the terms "deduction" and "credit" are not mere synonyms for "tax break." They represent fundamentally different mathematical operations applied to the tax equation, and misunderstanding their interplay is the hallmark of a practitioner who hasn't spent enough time staring at tax forms until the numbers blur.

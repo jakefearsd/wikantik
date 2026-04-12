@@ -1,3 +1,13 @@
+---
+title: Feature Flags
+type: article
+tags:
+- flag
+- featur
+- rollout
+summary: The Art and Science of Progressive Rollout Toggles Welcome.
+auto-generated: true
+---
 # The Art and Science of Progressive Rollout Toggles
 
 Welcome. If you’ve reached this document, you likely already understand that a simple `if (isFeatureEnabled)` check is insufficient for modern, high-velocity software delivery. You are not here to learn what a feature flag is; you are here to master the *mechanics* of controlled, observable, and reversible feature exposure at scale.

@@ -1,3 +1,15 @@
+---
+title: Maillard Reaction
+type: article
+tags:
+- text
+- reaction
+- flavor
+summary: 'The Maillard Reaction and Cooking Chemistry Disclaimer: This tutorial is
+  written for researchers, food scientists, and chemical engineers operating at an
+  expert level.'
+auto-generated: true
+---
 # The Maillard Reaction and Cooking Chemistry
 
 ***
@@ -118,7 +130,7 @@ The amino acid composition of the substrate dictates the *potential* flavor spac
 *   **Lysine and Arginine:** These are often highlighted due to their high reactivity and involvement in forming specific nitrogenous compounds.
 *   **Cysteine and Methionine:** The presence of sulfur-containing amino acids introduces the potential for **thiocarbonyl chemistry**. Upon heating, these can lead to the formation of volatile thiols ($\text{R-SH}$) and sulfides, imparting characteristic "meaty," "sulfurous," or "garlicky" notes. This is a crucial pathway for flavor depth that must be accounted for in modeling.
 
-**Research Vector:** Developing predictive models that map the amino acid fingerprint ($\text{AA}_{\text{fingerprint}}$) to the resulting volatile organic compound ($\text{VOC}$) profile ($\text{VOC}_{\text{profile}}$) using machine learning regression techniques.
+**Research Vector:** Developing predictive models that map the amino acid fingerprint ($\text{AA}_{\text{fingerprint}}$) to the resulting volatile organic compound ($\text{VOC}$) profile ($\text{VOC}_{\text{profile}}$) using [machine learning](MachineLearning) regression techniques.
 
 ### B. Carbohydrate Control: Beyond Simple Sugars
 

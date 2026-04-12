@@ -1,3 +1,13 @@
+---
+title: Redis Patterns
+type: article
+tags:
+- cach
+- redi
+- data
+summary: This tutorial is not for the novice looking for a simple SET key value tutorial.
+auto-generated: true
+---
 # Redis Patterns: Architecting Hyper-Scalable Systems with Caching, Session Management, and Pub/Sub
 
 For those of us who have spent enough time wrestling with distributed systems, the term "state management" is less a feature and more a philosophical battle. We are constantly fighting the entropy of scale, the inevitable race conditions, and the sheer headache of ensuring that what one service thinks is true, all other services also agree upon—and do so *instantly*.
@@ -10,7 +20,7 @@ This tutorial is not for the novice looking for a simple `SET key value` tutoria
 
 ## 🚀 Introduction: The Necessity of Pattern Recognition
 
-In the early days of microservices, developers often treated Redis as a glorified, faster `Map` implementation. While it certainly excels at that, modern, high-scale applications demand more. They require coordination. They require *eventual consistency* managed with surgical precision.
+In the early days of microservices, developers often treated Redis as a glorified, faster `Map` implementation. While it certainly excels at that, modern, high-scale applications demand more. They require coordination. They require *[eventual consistency](EventualConsistency)* managed with surgical precision.
 
 The modern Redis pattern stack—Caching, Sessions, and Pub/Sub—is not three separate features; it is a cohesive, interlocking mechanism for achieving **distributed coherence**.
 
@@ -58,7 +68,7 @@ The application writes only to the cache. The cache layer is responsible for asy
 
 ### 1.2 Advanced Data Structure Utilization
 
-Relying solely on simple strings (`SET key value`) is a rookie mistake. Redis's strength lies in its diverse data structures, which allow us to model complex objects efficiently:
+Relying solely on simple strings (`SET key value`) is a rookie mistake. Redis's strength lies in its diverse [data structures](DataStructures), which allow us to model complex objects efficiently:
 
 1.  **Hashes (`HSET`):** Ideal for representing objects. Instead of serializing an entire user object into a JSON string and storing it as one key, use a Hash where fields map to attributes (e.g., `HSET user:123 username "Alice" email "a@b.com"`). This allows atomic updates to single fields without reloading the entire object.
 2.  **Sorted Sets (`ZADD`):** Essential for leaderboards, time-series data, or implementing rate limiting based on scores. The score provides the natural ordering mechanism.
@@ -169,7 +179,7 @@ Let's model a complex, real-world scenario: **User Profile Update and Cache Inva
 
 ### 4.2 The Role of Event Sourcing Principles
 
-What we just described is a lightweight implementation of **Event Sourcing**. Instead of just updating the current state (the "current profile"), we are treating the *change itself* (the event) as the primary artifact.
+What we just described is a lightweight implementation of **[Event Sourcing](EventSourcing)**. Instead of just updating the current state (the "current profile"), we are treating the *change itself* (the event) as the primary artifact.
 
 By using Pub/Sub (or Streams), we are broadcasting the immutable event record. Any service that needs to know about the change can subscribe and rebuild its necessary local state or cache copy based on that event, without needing to query the source of truth every time.
 
@@ -183,7 +193,7 @@ To claim expertise, one must anticipate failure. Redis is fast, but it is not in
 
 ### 5.1 Consistency Guarantees: The CAP Theorem in Practice
 
-When using Redis for caching and sessions, you are making explicit choices regarding the CAP theorem (Consistency, Availability, Partition Tolerance).
+When using Redis for caching and sessions, you are making explicit choices regarding the [CAP theorem](CapTheorem) (Consistency, Availability, Partition Tolerance).
 
 *   **If you prioritize Availability (A) and Partition Tolerance (P):** You use Redis as a cache. If Redis goes down, your application degrades gracefully (cache misses increase, latency rises) but remains available by falling back to the primary DB. This is the standard pattern.
 *   **If you prioritize Consistency (C) and Partition Tolerance (P):** You must use a replicated, clustered setup (Redis Sentinel or Cluster Mode) *and* ensure your write path writes to the primary DB *and* the cache atomically, or use a transactional mechanism that guarantees the write to both or neither.

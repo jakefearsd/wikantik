@@ -1,8 +1,18 @@
+---
+title: Dev Ops
+type: article
+tags:
+- state
+- iac
+- tool
+summary: DevOps Practices and Infrastructure as Code Welcome.
+auto-generated: true
+---
 # DevOps Practices and Infrastructure as Code
 
 Welcome. If you are reading this, you are not interested in the basic "what is IaC" elevator pitch. You are here because you are researching the bleeding edge, looking for the architectural seams, the performance bottlenecks, and the theoretical underpinnings that separate mere automation from true, resilient, self-healing infrastructure systems.
 
-This tutorial assumes a deep familiarity with CI/CD pipelines, cloud networking primitives (VPC/VNet concepts), declarative vs. imperative programming models, and the general pain points of operational toil. We will treat Infrastructure as Code (IaC) not as a best practice, but as a fundamental, non-negotiable prerequisite for modern, resilient software delivery.
+This tutorial assumes a deep familiarity with CI/CD pipelines, [cloud networking](CloudNetworking) primitives (VPC/VNet concepts), declarative vs. imperative programming models, and the general pain points of operational toil. We will treat [Infrastructure as Code](InfrastructureAsCode) (IaC) not as a best practice, but as a fundamental, non-negotiable prerequisite for modern, resilient software delivery.
 
 ---
 

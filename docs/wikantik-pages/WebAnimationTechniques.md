@@ -1,3 +1,15 @@
+---
+title: Web Animation Techniques
+type: article
+tags:
+- anim
+- framer
+- css
+summary: 'You are not here to learn what transition: all 0.3s does; you are here to
+  understand the limitations of that syntax and the mathematical underpinnings of
+  declarative animation libraries.'
+auto-generated: true
+---
 # The Animation Spectrum
 
 Welcome. If you’ve reached this document, you likely already understand that "animation" is not merely about making things move; it’s about controlling the perceived passage of time, managing user cognitive load, and architecting a cohesive, performant user experience. You are not here to learn what `transition: all 0.3s` does; you are here to understand the *limitations* of that syntax and the *mathematical underpinnings* of declarative animation libraries.

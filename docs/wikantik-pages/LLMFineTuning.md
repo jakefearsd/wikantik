@@ -1,3 +1,13 @@
+---
+title: LLM Fine Tuning
+type: article
+tags:
+- model
+- text
+- mathbf
+summary: Fine-Tuning LLMs on Custom Data for Domain-Specific Tasks Welcome.
+auto-generated: true
+---
 # Fine-Tuning LLMs on Custom Data for Domain-Specific Tasks
 
 Welcome. If you’ve reached this guide, you likely already understand that simply calling an API with a few well-crafted prompts—the quaint art of prompt engineering—is merely the *suggestion* of intelligence. You are here because you recognize the fundamental limitation of the general-purpose LLM: it knows everything, and therefore, it truly masters nothing.

@@ -1,8 +1,19 @@
+---
+title: Business Metrics And Kpis
+type: article
+tags:
+- data
+- dashboard
+- kpi
+summary: If you are reading this, you are not looking for a beginner's guide on what
+  a KPI dashboard is.
+auto-generated: true
+---
 # The Architecture of Insight
 
 Welcome. If you are reading this, you are not looking for a beginner's guide on what a KPI dashboard is. You already know that a KPI dashboard is a visual reporting tool designed to track, measure, and analyze key performance indicators in real time, helping businesses make data-driven decisions (as noted by dashboardbuilder.net [4] and Tableau [5]).
 
-This document assumes you possess a deep, working knowledge of data warehousing, business process modeling, and statistical analysis. We are not here to define terms; we are here to dissect the *architecture* of effective measurement systems. We will move beyond mere visualization best practices and delve into the theoretical underpinnings, advanced modeling techniques, governance frameworks, and emerging computational methods required to build dashboards that don't just *report* data, but actively *drive* strategic change.
+This document assumes you possess a deep, working knowledge of data warehousing, [business process modeling](BusinessProcessModeling), and statistical analysis. We are not here to define terms; we are here to dissect the *architecture* of effective measurement systems. We will move beyond mere visualization best practices and delve into the theoretical underpinnings, advanced modeling techniques, governance frameworks, and emerging computational methods required to build dashboards that don't just *report* data, but actively *drive* strategic change.
 
 Consider this a deep dive into the methodology—the science of turning raw, noisy data streams into actionable, defensible strategic narratives.
 
@@ -25,7 +36,7 @@ Before a single chart is drawn, the underlying strategic model must be rock soli
         *   **KPI (The Metric):** Average Ticket Resolution Time (measured in hours/minutes).
         *   **Target:** $\text{Current Value} \times 0.80$.
 
-2.  **The Balanced Scorecard (BSC):**
+2.  **The [Balanced Scorecard](BalancedScorecard) (BSC):**
     The BSC forces a holistic view by mapping KPIs across four critical perspectives: Financial, Customer, Internal Process, and Learning & Growth. A dashboard built solely on financial metrics, for instance, is inherently incomplete because it ignores the operational levers (Internal Process) that *drive* future financial performance.
     *   **Advanced Application:** When designing a dashboard, you must architect it to force cross-perspective correlation. A simple KPI card showing "Revenue Growth" (Financial) must be immediately adjacent to a KPI card showing "Employee Training Hours Completed" (Learning & Growth) to suggest causality.
 
@@ -52,7 +63,7 @@ This is perhaps the most critical distinction for advanced practitioners. Many d
 
 ## II. The Data Engineering Backbone: Ensuring Metric Integrity
 
-A dashboard is only as good as the data pipeline feeding it. For experts, this section transcends simple ETL (Extract, Transform, Load) and enters the realm of Data Observability and Data Governance.
+A dashboard is only as good as the data pipeline feeding it. For experts, this section transcends simple ETL (Extract, Transform, Load) and enters the realm of [Data Observability](DataObservability) and [Data Governance](DataGovernance).
 
 ### A. Data Lineage and Trust Scoring
 

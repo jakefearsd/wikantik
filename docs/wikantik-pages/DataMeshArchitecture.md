@@ -1,6 +1,17 @@
+---
+title: Data Mesh Architecture
+type: article
+tags:
+- data
+- domain
+- must
+summary: We will dissect the Data Mesh paradigm, focusing intensely on the implications
+  of Domain-Oriented Decentralization.
+auto-generated: true
+---
 # Data Mesh
 
-This tutorial is designed for seasoned data architects, principal engineers, and research scientists who are moving beyond the theoretical understanding of centralized data platforms and are ready to grapple with the socio-technical complexities of truly decentralized data governance.
+This tutorial is designed for seasoned data architects, principal engineers, and research scientists who are moving beyond the theoretical understanding of centralized data platforms and are ready to grapple with the socio-technical complexities of truly decentralized [data governance](DataGovernance).
 
 We will dissect the Data Mesh paradigm, focusing intensely on the implications of **Domain-Oriented Decentralization**. This is not merely an architectural pattern; it is a fundamental organizational and governance shift that redefines data ownership, treating data not as a corporate asset managed by a central team, but as a consumable, versioned product owned by the business domain that creates it.
 
@@ -43,8 +54,8 @@ It means the data product must possess the characteristics of any high-quality s
 
 *   **Discoverability:** Consumers must easily find it via a central catalog, understanding its scope and lineage.
 *   **Addressability:** It must have a stable, versioned, and unique endpoint (e.g., a specific API endpoint or a dedicated data store).
-*   **Trustworthiness (SLAs):** The domain owner must provide Service Level Agreements (SLAs) regarding data freshness, quality thresholds, and schema stability.
-*   **Usability:** The data must be served in a consumable format—often via standardized APIs or materialized views—rather than raw, complex database dumps.
+*   **Trustworthiness (SLAs):** The domain owner must provide [Service Level Agreements](ServiceLevelAgreements) (SLAs) regarding data freshness, quality thresholds, and schema stability.
+*   **Usability:** The data must be served in a consumable format—often via standardized APIs or [materialized views](MaterializedViews)—rather than raw, complex database dumps.
 
 **Advanced Consideration: Schema Evolution Management:**
 The greatest technical challenge here is schema evolution. If Domain A updates its core transaction schema, it cannot unilaterally break Domain B, which consumes that data. The Data Mesh mandates that the *producer* (Domain A) must manage this evolution contractually. This requires implementing robust **Schema Registry** patterns (similar to those used in Kafka/Avro) that enforce backward and forward compatibility checks *before* deployment.

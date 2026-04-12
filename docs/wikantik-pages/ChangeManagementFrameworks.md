@@ -1,3 +1,13 @@
+---
+title: Change Management Frameworks
+type: article
+tags:
+- system
+- chang
+- transform
+summary: This tutorial moves beyond the prescriptive checklists.
+auto-generated: true
+---
 # Change Management Frameworks
 
 **A Comprehensive Tutorial for Research Experts**
@@ -63,7 +73,7 @@ A robust assessment must map readiness across at least five orthogonal dimension
 1.  **Cultural Readiness (The Implicit Layer):** Assessing underlying assumptions, shared narratives, and cognitive biases. *Technique Focus: Narrative Analysis and Archetype Mapping.*
 2.  **Structural Readiness (The Formal Layer):** Analyzing reporting lines, governance models, and decision rights (RACI matrices are insufficient; we need **DACI**—Driver, Approver, Contributor, Informed—to map influence).
 3.  **Process Readiness (The Operational Layer):** Mapping current-state workflows against desired-state workflows, identifying non-value-add steps that are maintained purely due to habit or political inertia.
-4.  **Technological Readiness (The Enabling Layer):** Assessing technical debt, integration complexity, and data governance maturity.
+4.  **Technological Readiness (The Enabling Layer):** Assessing technical debt, integration complexity, and [data governance](DataGovernance) maturity.
 5.  **Leadership Readiness (The Sponsorship Layer):** Measuring the *consistency* of sponsorship. Is the mandate coming from the C-suite, or is it merely a series of departmental initiatives that will collapse when the initial funding cycle ends?
 
 ### B. State-Space Mapping

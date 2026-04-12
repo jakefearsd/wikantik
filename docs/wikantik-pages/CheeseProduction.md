@@ -1,3 +1,14 @@
+---
+title: Cheese Production
+type: article
+tags:
+- text
+- acid
+- protein
+summary: We are moving far beyond the artisanal anecdotes of curd cutting and whey
+  draining.
+auto-generated: true
+---
 # Cheese Production
 
 For those of us who find the term "cheesemaking" to be an oversimplification—a mere culinary craft rather than a rigorous exercise in biochemical engineering—this tutorial is intended as a deep technical review. We are moving far beyond the artisanal anecdotes of curd cutting and whey draining. Our focus here is on the molecular kinetics, the microbial ecology, and the advanced separation science that underpin the transformation of raw milk into a stable, complex food matrix.
@@ -194,7 +205,7 @@ Flavor is a cocktail. Replicating the full spectrum of volatile compounds (diace
 
 The concept of "dairy-free" cheese necessitates expanding the substrate base beyond lactose.
 
-*   **Plant Proteins:** Utilizing soy, pea, or coconut proteins requires significant pre-treatment (e.g., enzymatic hydrolysis) to break down complex polysaccharides into fermentable sugars and amino acids suitable for LAB consumption.
+*   **[Plant Proteins](PlantProteins):** Utilizing soy, pea, or coconut proteins requires significant pre-treatment (e.g., enzymatic hydrolysis) to break down complex polysaccharides into fermentable sugars and amino acids suitable for LAB consumption.
 *   **Hydrolyzed Protein Isolate (HPI):** Using pre-digested protein hydrolysates as the primary nitrogen source allows for rapid, controlled amino acid feeding, bypassing the variable proteolysis inherent in raw milk.
 
 ---

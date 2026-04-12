@@ -1,3 +1,14 @@
+---
+title: Healthy On The Road After40
+type: article
+tags:
+- activ
+- must
+- high
+summary: Introduction The concept of "staying healthy" is often presented in generalized,
+  easily digestible bullet points—a quaint suggestion for the general public.
+auto-generated: true
+---
 # Healthy on the Road After 40
 
 ***

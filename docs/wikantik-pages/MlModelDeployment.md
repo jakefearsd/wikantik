@@ -1,3 +1,14 @@
+---
+title: Ml Model Deployment
+type: article
+tags:
+- model
+- text
+- infer
+summary: This tutorial is not for the novice who merely needs to wrap a .pkl file
+  in a basic Flask endpoint.
+auto-generated: true
+---
 # ML Model Serving in Production
 
 For those of us who have spent enough time wrestling with gradient descent and hyperparameter tuning, the final, often most underestimated, hurdle is not the model's accuracy, but its *availability*. Developing a state-of-the-art model in a controlled Jupyter environment is an academic exercise; deploying it to handle millions of real-time, mission-critical decisions is an exercise in distributed systems engineering, operational resilience, and sheer industrial grit.

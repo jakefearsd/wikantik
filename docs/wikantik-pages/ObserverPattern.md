@@ -1,3 +1,14 @@
+---
+title: Observer Pattern
+type: article
+tags:
+- event
+- broker
+- observ
+summary: When components need to communicate without knowing the identity, location,
+  or even the existence of their consumers, we turn to patterns of indirect communication.
+auto-generated: true
+---
 # The Triad of Decoupling
 
 For researchers and architects operating at the bleeding edge of distributed and reactive systems, managing dependencies is less a matter of coding practice and more a fundamental constraint on system scalability and maintainability. When components need to communicate without knowing the identity, location, or even the existence of their consumers, we turn to patterns of indirect communication.
@@ -107,7 +118,7 @@ The execution model dictates the reliability and perceived latency of the system
     *   The Publisher sends the message to the Broker. The Broker immediately acknowledges receipt and returns control to the Publisher.
     *   The Broker then dispatches the message to subscribers, often running handlers in separate threads or processes.
     *   **Failure Mode:** A failure in one subscriber does not affect the others or the Publisher. The Broker handles retries, dead-letter queues (DLQs), and failure isolation.
-    *   **Best For:** High-throughput, distributed microservices communication where eventual consistency is acceptable.
+    *   **Best For:** High-throughput, distributed microservices communication where [eventual consistency](EventualConsistency) is acceptable.
 
 ---
 
@@ -117,7 +128,7 @@ For researchers, the goal is rarely to use the "standard" implementation. The go
 
 ### A. The Role of Reactive Streams and Backpressure
 
-When dealing with high-velocity data streams (e.g., sensor readings, market ticks), the synchronous, unbounded nature of simple Observer/PubSub implementations fails catastrophically. This is where **Reactive Programming** enters the picture, often implemented via the **Reactive Streams Specification**.
+When dealing with high-velocity data streams (e.g., sensor readings, market ticks), the synchronous, unbounded nature of simple Observer/PubSub implementations fails catastrophically. This is where **[Reactive Programming](ReactiveProgramming)** enters the picture, often implemented via the **Reactive Streams Specification**.
 
 Reactive Streams formalizes the concept of **Backpressure**.
 
@@ -162,7 +173,7 @@ When using asynchronous, reliable messaging (Pub/Sub with brokers), messages can
 #### 2. Transactional Outbox Pattern
 In microservices architectures, the biggest failure point is the "distributed transaction" problem: ensuring that the state change in Service A and the publication of the event to the Broker happen atomically.
 
-The **Transactional Outbox Pattern** solves this:
+The **Transactional [Outbox Pattern](OutboxPattern)** solves this:
 1.  Instead of publishing directly to the Broker, the service writes the event payload into a dedicated `Outbox` table *within the same local database transaction* as the state change.
 2.  A separate, reliable **Relay Service** polls the Outbox table for pending messages.
 3.  The Relay reads the message and publishes it to the Broker.

@@ -1,3 +1,14 @@
+---
+title: Remote Team Management
+type: article
+tags:
+- must
+- time
+- system
+summary: You understand that the transition to distributed work is not merely a logistical
+  challenge—it is a fundamental, systemic overhaul of organizational topology.
+auto-generated: true
+---
 # The Architecture of Absence
 
 **For Researching Experts in Organizational Topology and Advanced Workflow Engineering**
@@ -252,7 +263,7 @@ A distributed team must be designed to withstand catastrophic failure—not just
 | **Platform Outage (e.g., Slack Down)** | Communication/Coordination | Tiered Communication Fallback | Pre-established, tested fallback channels (e.g., dedicated emergency email list, SMS tree). |
 | **Regulatory Blockade** | Legal/Operational | Legal Redundancy Planning | Pre-vetted alternative operational jurisdictions or legal entities. |
 
-This requires treating the team's operational continuity plan with the same rigor as the core software architecture.
+This requires treating the team's operational continuity plan with the same rigor as the core [software architecture](SoftwareArchitecture).
 
 ---
 

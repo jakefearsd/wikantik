@@ -1,3 +1,15 @@
+---
+title: Home Buying Process
+type: article
+tags:
+- lender
+- pre
+- incom
+summary: This tutorial assumes a high degree of existing knowledge regarding financial
+  instruments, credit scoring methodologies (FICO, VantageScore), and basic real estate
+  transaction mechanics.
+auto-generated: true
+---
 # Home Buying Process
 
 For those of us who treat the residential real estate transaction not as a series of emotional milestones, but as a complex, multi-variable financial engineering problem, the mortgage pre-approval process is less a "step" and more a critical **initial data validation gate**. The layperson views it as merely "getting permission to buy." We, however, view it as the establishment of a preliminary, lender-vetted Debt Service Coverage Ratio (DSCR) envelope, constrained by current credit reporting standards and underwriting guidelines.

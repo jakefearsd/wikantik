@@ -1,3 +1,14 @@
+---
+title: Symbolic Logic
+type: article
+tags:
+- proof
+- system
+- logic
+summary: The transition from "it seems obvious" to $\Gamma \vdash \phi$ is not merely
+  a matter of rigor; it is a profound shift in epistemology.
+auto-generated: true
+---
 # A Tutorial
 
 If you find yourself in the weeds of mathematical research, you have likely encountered the frustrating chasm between the elegant, intuitive narrative of an informal proof and the cold, unyielding scaffolding of a formal derivation. The transition from "it seems obvious" to $\Gamma \vdash \phi$ is not merely a matter of rigor; it is a profound shift in epistemology.
@@ -82,7 +93,7 @@ These three concepts form the bedrock of evaluating any formal system.
 
 3.  **Decidability:** A system is **decidable** if there exists an algorithm that, given any WFF $\phi$, will halt and correctly determine, in finite time, whether $\phi$ is a theorem ($\vdash \phi$) or not.
 
-> **The Crucial Takeaway:** For Propositional Logic (PL), the system is sound, complete, and decidable (via truth tables). For First-Order Logic (FOL), the system is sound and complete (Gödel's Completeness Theorem), but it is **undecidable** (the Halting Problem connection). This undecidability is the boundary condition for most automated reasoning research.
+> **The Crucial Takeaway:** For [Propositional Logic](PropositionalLogic) (PL), the system is sound, complete, and decidable (via truth tables). For First-Order Logic (FOL), the system is sound and complete (Gödel's Completeness Theorem), but it is **undecidable** (the Halting Problem connection). This undecidability is the boundary condition for most automated reasoning research.
 
 ---
 
@@ -180,14 +191,14 @@ Intuitionistic logic, championed by Brouwer, rejects the Law of Excluded Middle 
 
 ### B. Modal Logic ($\text{ML}$)
 
-Modal logic extends classical logic by adding operators that quantify over *modes* of truth, most famously $\Box$ (Necessity) and $\Diamond$ (Possibility).
+[Modal logic](ModalLogic) extends classical logic by adding operators that quantify over *modes* of truth, most famously $\Box$ (Necessity) and $\Diamond$ (Possibility).
 
 *   **Formalization:** These operators are typically interpreted using Kripke Semantics, which involves a set of possible worlds $\{W\}$ and an accessibility relation $R$ between them.
     *   $\Box P$: $P$ is true in all worlds $w'$ accessible from the current world $w$.
     *   $\Diamond P$: $P$ is true in at least one world $w'$ accessible from $w$.
 *   **Applications:**
     *   **Epistemic Logic:** Modeling knowledge ($\text{Knows}(A, P)$). $\Box P$ means "Agent $A$ knows $P$."
-    *   **Temporal Logic:** Modeling time ($\text{Next}(P)$). $\Box P$ means "It is necessarily true that $P$."
+    *   **[Temporal Logic](TemporalLogic):** Modeling time ($\text{Next}(P)$). $\Box P$ means "It is necessarily true that $P$."
 *   **Research Edge Case:** The axioms chosen for $\text{ML}$ (e.g., whether $\Box P \rightarrow P$ holds) define the specific flavor of necessity being modeled, leading to rich, specialized formal systems.
 
 ### C. Paraconsistent Logic ($\text{PLog}$)
@@ -216,16 +227,16 @@ A major area of modern research is **Proof Complexity**. Instead of merely askin
 
 While FOL is powerful, it is limited because its quantifiers ($\forall, \exists$) range only over the elements of the domain (individuals). $\text{HOL}$ allows quantification over *functions* and *predicates* themselves.
 
-*   **The Power:** $\text{HOL}$ is necessary to formalize much of modern mathematics, such as category theory or advanced set theory, where the objects of study are themselves structures.
+*   **The Power:** $\text{HOL}$ is necessary to formalize much of modern mathematics, such as [category theory](CategoryTheory) or advanced set theory, where the objects of study are themselves structures.
 *   **The Cost:** $\text{HOL}$ systems are significantly more complex to manage and often sacrifice the clean decidability properties of PL. This is why modern proof assistants often default to $\text{HOL}$ or related type theories.
 
 ### C. Integrating AI and Logic: Neuro-Symbolic Approaches
 
-The ultimate frontier involves bridging the gap between the structured, symbolic world of formal logic and the fuzzy, statistical world of modern machine learning.
+The ultimate frontier involves bridging the gap between the structured, symbolic world of formal logic and the fuzzy, statistical world of modern [machine learning](MachineLearning).
 
 *   **The Goal:** To create systems where ML models can generate plausible hypotheses (the "informal intuition") which are then fed into a formal proof engine to generate a verifiable, symbolic proof.
 *   **Challenges:**
-    1.  **Grounding:** How do you reliably map the high-dimensional feature space of an image recognition model onto the discrete symbols of a predicate logic?
+    1.  **Grounding:** How do you reliably map the high-dimensional feature space of an image recognition model onto the discrete symbols of a [predicate logic](PredicateLogic)?
     2.  **Error Propagation:** If the ML component makes a subtle error in its hypothesis generation, the formal prover will dutifully build a perfect proof for a false premise.
 
 ---

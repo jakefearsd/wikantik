@@ -1,3 +1,14 @@
+---
+title: Requirements Gathering
+type: article
+tags:
+- requir
+- system
+- must
+summary: 'We are tasked with extracting crystallized, actionable knowledge from a
+  messy, often contradictory, source: the stakeholders themselves.'
+auto-generated: true
+---
 # A Guide for Advanced Research in System Definition
 
 For those of us who spend our professional lives wrestling with the inherent ambiguity of human intent, the process of defining *what* a system must do—the requirements—is less an engineering task and more an act of applied epistemology. We are tasked with extracting crystallized, actionable knowledge from a messy, often contradictory, source: the stakeholders themselves.
@@ -150,7 +161,7 @@ To truly push the boundaries, we must address the areas where traditional method
 $\text{NFR}$s are often treated as afterthoughts, but they define the *viability* of the system. They are rarely single requirements; they are often complex trade-off surfaces.
 
 #### A. Security Requirements (Threat Modeling)
-Security cannot be elicited by asking, "What security features do you want?" Instead, it requires **Threat Modeling** (e.g., using STRIDE: Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege).
+Security cannot be elicited by asking, "What security features do you want?" Instead, it requires **[Threat Modeling](ThreatModeling)** (e.g., using STRIDE: Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege).
 
 *   **Process:** Model the system architecture, identify trust boundaries, and then systematically ask: "How could an attacker exploit this boundary?" The resulting mitigations become the concrete security requirements.
 
@@ -169,7 +180,7 @@ In modern enterprise research, the system is never purely technical. It interact
 
 ### 3. Requirements in AI/ML Systems (The Black Box Problem Redux)
 
-When the system incorporates Machine Learning, the concept of a deterministic "requirement" breaks down. The system's behavior is probabilistic, not absolute.
+When the system incorporates [Machine Learning](MachineLearning), the concept of a deterministic "requirement" breaks down. The system's behavior is probabilistic, not absolute.
 
 *   **Shifting Focus:** The requirement shifts from defining the *output* to defining the *acceptable performance envelope* and the *governance* around the model.
 *   **Key Requirements to Elicit:**

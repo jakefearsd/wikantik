@@ -1,3 +1,14 @@
+---
+title: Rotational Dynamics
+type: article
+tags:
+- vec
+- conserv
+- momentum
+summary: 'Advanced Theoretical Frameworks for Modern Research Target Audience: Experts
+  in Theoretical and Applied Physics researching advanced dynamics techniques.'
+auto-generated: true
+---
 # Advanced Theoretical Frameworks for Modern Research
 
 **Target Audience:** Experts in Theoretical and Applied Physics researching advanced dynamics techniques.
@@ -292,7 +303,7 @@ FUNCTION Transform_Torque(Tau_space, R_matrix):
 
 ## VII. Conclusion: Synthesis and Future Directions
 
-Rotational dynamics and angular momentum are far from a closed chapter in physics. They serve as a powerful nexus connecting classical mechanics, tensor analysis, differential geometry, and quantum theory.
+Rotational dynamics and angular momentum are far from a closed chapter in physics. They serve as a powerful nexus connecting classical mechanics, tensor analysis, [differential geometry](DifferentialGeometry), and quantum theory.
 
 We have traversed the spectrum from the simple $\vec{\tau} = d\vec{L}/dt$ to the sophisticated machinery of Lie Groups and Hamiltonian mechanics. The key takeaways for the researching expert are:
 

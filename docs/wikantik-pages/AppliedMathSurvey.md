@@ -1,3 +1,14 @@
+---
+title: Applied Math Survey
+type: article
+tags:
+- solut
+- model
+- e.g
+summary: If you find yourself here, you are not looking for a refresher course on
+  the Navier-Stokes equations or a gentle introduction to Fourier transforms.
+auto-generated: true
+---
 # Topics in Applied Mathematics
 
 Welcome. If you find yourself here, you are not looking for a refresher course on the Navier-Stokes equations or a gentle introduction to Fourier transforms. You are an expert, a researcher, someone whose current understanding of the state-of-the-art feels, frankly, insufficient.
@@ -37,7 +48,7 @@ For novel research, standard finite difference methods are often insufficient du
 When uncertainty is inherent—be it market volatility, molecular motion, or measurement error—deterministic models fail. Stochastic Calculus provides the necessary framework.
 
 *   **The Core Tool:** The **Itô Integral**. Unlike the Riemann-Stieltjes integral, the Itô integral correctly accounts for the non-zero quadratic variation of the Wiener process ($W_t$).
-*   **The Challenge of Modeling:** The primary difficulty is model selection. Is the volatility $\sigma(t)$ constant (Geometric Brownian Motion)? Or is it correlated with the underlying process $X_t$ (e.g., Heston model)?
+*   **The Challenge of Modeling:** The primary difficulty is [model selection](ModelSelection). Is the volatility $\sigma(t)$ constant (Geometric Brownian Motion)? Or is it correlated with the underlying process $X_t$ (e.g., Heston model)?
 *   **Numerical Approximation:** Standard Euler-Maruyama schemes are often insufficient for stability or accuracy when the drift or diffusion terms are highly non-linear. Researchers must investigate higher-order schemes, such as Milstein schemes, or specialized methods tailored for specific noise structures (e.g., jump-diffusion processes modeled via Lévy processes).
 
 ### C. Functional Analysis and Operator Theory
@@ -46,7 +57,7 @@ At the deepest level, applied mathematics is the study of operators acting on fu
 
 *   **The Viewpoint:** A PDE, $\mathcal{L}u = f$, is fundamentally an equation stating that the operator $\mathcal{L}$ applied to the unknown function $u$ equals the known source term $f$.
 *   **Key Concepts:** Understanding the **spectrum** of the operator $\mathcal{L}$ (its eigenvalues) tells you about the natural modes of the system. If the spectrum is discrete, the system is oscillatory or stable; if it's continuous, the system might exhibit continuous spectrum behavior (e.g., wave propagation in unbounded domains).
-*   **Research Frontier:** The study of **ill-posed problems**—where small changes in the input data ($f$) lead to arbitrarily large changes in the solution ($u$)—is critical. This forces the adoption of **Regularization Techniques** (e.g., Tikhonov regularization, Wiener filtering) to stabilize the inverse problem.
+*   **Research Frontier:** The study of **ill-posed problems**—where small changes in the input data ($f$) lead to arbitrarily large changes in the solution ($u$)—is critical. This forces the adoption of **[Regularization Techniques](RegularizationTechniques)** (e.g., Tikhonov regularization, Wiener filtering) to stabilize the inverse problem.
 
 ***
 
@@ -139,7 +150,7 @@ DeepONets address the problem of *solving* PDEs repeatedly for different paramet
 
 Many physical systems are not described in Euclidean space ($\mathbb{R}^n$). They evolve on curved spaces or constrained manifolds.
 
-*   **Geometric Deep Learning (GDL):** This field develops neural network architectures that are inherently invariant or equivariant to the underlying geometric structure.
+*   **Geometric Deep Learning (GDL):** This field develops [neural network architectures](NeuralNetworkArchitectures) that are inherently invariant or equivariant to the underlying geometric structure.
     *   **Graph Neural Networks (GNNs):** When the system can be discretized into a network of interacting nodes (e.g., molecular interactions, social networks), GNNs are used. They operate on adjacency matrices and node features, respecting the local connectivity structure.
     *   **Manifold Learning:** If the true state space of a system (e.g., the possible configurations of a protein) lies on a low-dimensional manifold embedded in a high-dimensional space, techniques like Isomap or Variational Autoencoders (VAEs) are used to map the data onto a computationally tractable coordinate system before applying standard solvers.
 
@@ -197,7 +208,7 @@ To summarize this sprawling landscape for a peer researcher: Applied Mathematics
 
 ### A Final Word on Mastery
 
-The most successful researchers in this field do not master one topic; they master the *translation* between these domains. They must be comfortable moving from the abstract language of functional analysis (proving existence) to the concrete language of GPU-accelerated tensor operations (achieving a solution).
+The most successful researchers in this field do not master one topic; they master the *translation* between these domains. They must be comfortable moving from the abstract language of [functional analysis](FunctionalAnalysis) (proving existence) to the concrete language of GPU-accelerated tensor operations (achieving a solution).
 
 If you are researching a new technique, ask these questions:
 

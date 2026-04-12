@@ -1,3 +1,13 @@
+---
+title: Warehouse Labor Management
+type: article
+tags:
+- text
+- time
+- optim
+summary: It is, fundamentally, a complex, dynamic, stochastic optimization problem.
+auto-generated: true
+---
 # The Algorithmic Choreography
 
 ## Introduction: Beyond Headcount Counting
@@ -54,7 +64,7 @@ Labor is not a fungible commodity like electricity. It possesses inherent constr
 
 ## II. Advanced Demand Forecasting Methodologies (Predicting the Load)
 
-The quality of the entire labor plan hinges on the accuracy of the demand forecast. Relying solely on simple Moving Averages (MA) or Exponential Smoothing (ETS) is insufficient for modern, volatile e-commerce environments. We must employ sophisticated time-series and machine learning techniques.
+The quality of the entire labor plan hinges on the accuracy of the demand forecast. Relying solely on simple Moving Averages (MA) or Exponential Smoothing (ETS) is insufficient for modern, volatile e-commerce environments. We must employ sophisticated time-series and [machine learning](MachineLearning) techniques.
 
 ### A. Time Series Decomposition and Advanced Models
 
@@ -76,7 +86,7 @@ For experts, the focus shifts to models that can capture non-linear interactions
 The most significant leap in forecasting comes from treating demand as a function of *causality*, not just time.
 
 1.  **Gradient Boosting Machines (GBMs) / XGBoost:** These models excel at handling high-dimensional, mixed-type feature sets. We treat the problem as a regression task where the target variable is the required labor hours, and the features are the external variables.
-    *   **Feature Engineering Example:** Instead of just using "Marketing Spend," create interaction terms: $\text{Spend} \times \text{Day\_of\_Week\_Factor}$.
+    *   **[Feature Engineering](FeatureEngineering) Example:** Instead of just using "Marketing Spend," create interaction terms: $\text{Spend} \times \text{Day\_of\_Week\_Factor}$.
 2.  **Deep Learning (LSTMs/Transformers):** For extremely long-term forecasting or when sequence dependency is paramount. Long Short-Term Memory (LSTM) networks are adept at remembering dependencies over long sequences, making them suitable for modeling multi-quarter planning cycles where macro-economic shifts are key.
 
 **Expert Consideration: The Uncertainty Quantification:**
@@ -86,7 +96,7 @@ A forecast must never be a single point estimate ($\hat{D}$). It must be a proba
 
 ## III. Optimization Modeling: From Forecast to Schedule (The Mathematical Core)
 
-Once we have a probabilistic forecast of required work units (e.g., 10,000 picks, 500 units sorted), we must determine the minimum required labor hours, $H_{\text{req}}$, and the optimal deployment schedule. This is where Operations Research shines.
+Once we have a probabilistic forecast of required work units (e.g., 10,000 picks, 500 units sorted), we must determine the minimum required labor hours, $H_{\text{req}}$, and the optimal deployment schedule. This is where [Operations Research](OperationsResearch) shines.
 
 ### A. The Assignment Problem: Matching Tasks to People
 

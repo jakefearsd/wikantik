@@ -1,3 +1,15 @@
+---
+title: Oauth And Oidc Deep Dive
+type: article
+tags:
+- token
+- client
+- text
+summary: It is intended for the seasoned researcher, the architect designing the next
+  generation of identity fabric, or the security engineer tasked with auditing the
+  subtle failure modes of established flows.
+auto-generated: true
+---
 # The Deep Dive into OAuth 2.0 and OpenID Connect Token Flows: A Guide for Protocol Researchers
 
 For those of us who spend our professional lives wrestling with the nuances of delegated authorization and identity federation, the term "OAuth/OIDC" often elicits a mixture of weary familiarity and profound technical challenge. We are not merely discussing a set of endpoints; we are dissecting a complex, multi-layered protocol stack designed to solve the fundamental problem of "Who are you, and what are you allowed to touch?"

@@ -1,3 +1,13 @@
+---
+title: Api Rate Limiting Algorithms
+type: article
+tags:
+- rate
+- bucket
+- token
+summary: An API, by definition, is a contract governing resource access.
+auto-generated: true
+---
 # API Rate Limiting
 
 ## Introduction

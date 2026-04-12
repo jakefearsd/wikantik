@@ -26,7 +26,7 @@ The story of how Berlin evolved from a modest medieval trading settlement on the
 
 Berlin originated as twin settlements: Cölln, on an island in the River Spree (first documented in 1237), and [Berlin](Berlin), on the river's eastern bank (documented in 1244). Both were likely founded by German settlers during the eastward colonization movement (Ostsiedlung) that brought Germanic peoples into Slavic territories in the 12th and 13th centuries. The area had been home to Slavic peoples, particularly the Hevelli and Sprevane tribes, for centuries before German settlement.
 
-The settlements sat at a natural crossing point of the Spree, on trade routes connecting the Elbe region to the west with the Oder region to the east. This location, while not as advantageous as that of cities on major rivers like the Rhine, provided enough commercial activity to sustain growth. By the late 13th century, Berlin-Cölln had joined the Hanseatic League, participating in the trading network that linked cities across northern Europe.
+The settlements sat at a natural crossing point of the Spree, on [trade routes](TradeRoutes) connecting the Elbe region to the west with the Oder region to the east. This location, while not as advantageous as that of cities on major rivers like the Rhine, provided enough commercial activity to sustain growth. By the late 13th century, Berlin-Cölln had joined the Hanseatic League, participating in the trading network that linked cities across northern Europe.
 
 In 1307, the two towns merged their administrations while retaining separate councils, a practical arrangement for managing shared infrastructure like bridges and markets.
 

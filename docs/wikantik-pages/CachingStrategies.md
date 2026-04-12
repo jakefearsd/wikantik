@@ -1,3 +1,14 @@
+---
+title: Caching Strategies
+type: article
+tags:
+- cach
+- write
+- data
+summary: If your application relies on fetching data from a persistent store, you
+  are inherently dealing with latency, and latency is the enemy.
+auto-generated: true
+---
 # The Architect's Playbook
 
 For those of us who spend more time optimizing latency than writing business logic, caching isn't a feature; it's the fundamental prerequisite for existence in modern, high-throughput distributed systems. If your application relies on fetching data from a persistent store, you are inherently dealing with latency, and latency is the enemy.
@@ -20,7 +31,7 @@ When we discuss caching in 2025, we are not talking about a single cache. We are
 
 1.  **Edge Caching (CDN/HTTP Headers):** The outermost layer. Deals with static assets, public API responses, and geographical distribution.
 2.  **Application/Service Caching (Redis/Memcached):** The primary, volatile, in-memory data store for session state, computed results, and frequently accessed entity objects.
-3.  **Database Caching (L2/L3):** Sometimes implemented via connection pooling or specialized database features, acting as a buffer between the application and the physical disk store.
+3.  **Database Caching (L2/L3):** Sometimes implemented via [connection pooling](ConnectionPooling) or specialized database features, acting as a buffer between the application and the physical disk store.
 
 The complexity arises because the failure or misconfiguration of *any* layer can lead to data inconsistency, stale reads, or catastrophic cascading failures. Our focus here will be on the patterns that govern the interaction between the Application Cache (Redis/Memcached) and the Source of Truth (the Database).
 
@@ -34,7 +45,7 @@ Before we discuss patterns, we must establish the toolset. While both Redis and 
 
 Memcached was designed with a singular, ruthless focus: **maximum speed for simple key-value lookups.**
 
-*   **Strengths:** Extreme simplicity, minimal overhead, highly optimized for basic GET/SET operations. It is often faster than Redis for pure, unadulterated key-value retrieval because it avoids the complexity of data structures and persistence mechanisms.
+*   **Strengths:** Extreme simplicity, minimal overhead, highly optimized for basic GET/SET operations. It is often faster than Redis for pure, unadulterated key-value retrieval because it avoids the complexity of [data structures](DataStructures) and persistence mechanisms.
 *   **Weaknesses:** Lacks data structure richness. It is fundamentally limited to strings/blobs. It has no native support for complex operations (like atomic increments across multiple keys, sorted sets, etc.). It is generally volatile by design.
 *   **Use Case Sweet Spot:** Simple session storage, rate limiting counters where only atomic increments are needed, or caching serialized JSON payloads where the structure is guaranteed to be simple.
 

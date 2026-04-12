@@ -1,3 +1,14 @@
+---
+title: Java Memory Management
+type: article
+tags:
+- memori
+- gc
+- heap
+summary: 'The Managed Heap: The Labyrinth of Object Graphs The Heap is the primary
+  area where all dynamically allocated objects reside.'
+auto-generated: true
+---
 # The Deep Dive
 
 For those of us who have moved past the introductory "what is the heap, what is the stack" phase, the standard textbook descriptions of Java memory management feel less like documentation and more like a quaint historical artifact. We are not merely concerned with *if* memory is managed, but *how* the management system fails, *where* the performance bottlenecks hide when the GC is doing its best, and *how* we can architect around its inherent unpredictability.
@@ -51,7 +62,7 @@ The Stack is fundamentally different from the Heap. It is *not* managed by the G
 
 This is where the discussion moves from standard JVM guarantees to advanced systems programming. Native memory refers to any memory allocated outside the JVM's direct control—memory managed by the OS or explicitly requested by the JVM via JNI or specialized APIs.
 
-*   **The Problem:** When performance profiling reveals that the GC pauses are acceptable, but the overall throughput is limited by memory bandwidth or predictable latency is required, the answer often lies *off-heap*.
+*   **The Problem:** When [performance profiling](PerformanceProfiling) reveals that the GC pauses are acceptable, but the overall throughput is limited by memory bandwidth or predictable latency is required, the answer often lies *off-heap*.
 *   **Mechanisms:**
     *   **`java.nio.ByteBuffer.allocateDirect()`:** This is the canonical example. It allocates memory outside the Java heap, typically backed by native OS memory. The JVM *knows* this memory exists, but it does not track its liveness via object graphs.
     *   **JNI (Java Native Interface):** Direct interaction with C/C++ memory allocation routines (`malloc`, `calloc`, etc.).
@@ -97,7 +108,7 @@ The goal of modern collectors is to drive $C_{barrier}$ towards $O(1)$ while mai
 
 ## III. Off-Heap Memory and Deterministic Control
 
-For the expert researcher, the limitations of the GC are often the most valuable research topic. The solution frequently involves bypassing the GC entirely for specific data structures.
+For the expert researcher, the limitations of the GC are often the most valuable research topic. The solution frequently involves bypassing the GC entirely for specific [data structures](DataStructures).
 
 ### A. Direct Byte Buffers and Memory Mapping
 

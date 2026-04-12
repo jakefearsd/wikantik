@@ -1,3 +1,14 @@
+---
+title: Application Security Fundamentals
+type: article
+tags:
+- data
+- must
+- secur
+summary: For security researchers and architects operating at the bleeding edge, viewing
+  this list as a definitive checklist is both naive and dangerous.
+auto-generated: true
+---
 # The OWASP Top Ten in the Age of Distributed Systems and Generative AI
 
 The OWASP Top Ten is, by design, an awareness document—a necessary, yet inherently incomplete, snapshot of the ever-shifting threat landscape. For security researchers and architects operating at the bleeding edge, viewing this list as a definitive checklist is both naive and dangerous. It is, rather, a foundational taxonomy of systemic failures in secure design and implementation.
@@ -157,7 +168,7 @@ When a function call is about to execute, the RASP agent monitors the call stack
 **Research Focus:** The challenge with RASP is the performance overhead and the risk of the RASP agent itself becoming a single point of failure or a target for bypass research.
 
 ### C. Threat Modeling as a Continuous Process
-Threat modeling (e.g., using STRIDE: Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege) cannot be a one-time activity. It must be integrated into the CI/CD pipeline.
+[Threat modeling](ThreatModeling) (e.g., using STRIDE: Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege) cannot be a one-time activity. It must be integrated into the CI/CD pipeline.
 
 **Advanced Application:** When integrating a new feature, the team must model the *data flow* across the new component. For instance, if a new LLM feature is added, the threat model must specifically ask:
 1.  *Data Flow:* Where does the external data come from? (Source)

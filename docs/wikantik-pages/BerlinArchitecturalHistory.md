@@ -1,3 +1,15 @@
+---
+title: Berlin Architectural History
+type: article
+tags:
+- bauhau
+- structur
+- materi
+summary: 'From Utopian Theory to Adaptive Materiality Target Audience: Architectural
+  Researchers, Structural Engineers, Design Theorists specializing in 20th-Century
+  Modernism.'
+auto-generated: true
+---
 # From Utopian Theory to Adaptive Materiality
 
 **Target Audience:** Architectural Researchers, Structural Engineers, Design Theorists specializing in 20th-Century Modernism.

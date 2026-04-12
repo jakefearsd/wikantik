@@ -1,3 +1,15 @@
+---
+title: Sous Vide Cooking
+type: article
+tags:
+- temperatur
+- thermal
+- heat
+summary: Sous Vide Cooking and Precision Temperature Control The technique of sous
+  vide—literally meaning "under vacuum"—has transcended its initial status as a novel
+  kitchen gadget.
+auto-generated: true
+---
 # Sous Vide Cooking and Precision Temperature Control
 
 The technique of sous vide—literally meaning "under vacuum"—has transcended its initial status as a novel kitchen gadget. For the seasoned researcher, it represents a sophisticated, highly controllable thermal processing methodology. It is not merely about setting a dial and waiting; it is an exercise in applied thermodynamics, protein chemistry, and fluid dynamics. For those of us pushing the boundaries of culinary science, understanding sous vide requires moving beyond the consumer-facing narrative of "perfectly cooked steak" and delving into the underlying physical principles that govern molecular transformation.
@@ -261,7 +273,7 @@ The next frontier moves beyond simple temperature monitoring. Future systems mus
 
 1.  **Multi-Point Thermal Mapping:** Using arrays of micro-thermocouples embedded within the food item itself, allowing the system to calculate the *average* internal temperature and the *maximum* gradient simultaneously.
 2.  **Chemical Sensing:** Integrating $\text{pH}$ and dissolved gas sensors (e.g., $\text{CO}_2$ evolution rate, which correlates with enzymatic activity) directly into the bath monitoring system. This would allow the system to dynamically adjust the set point based on the *chemical state* of the food, not just its physical temperature.
-3.  **Predictive Modeling Integration:** Linking the PID output directly to a machine learning model trained on historical data sets of protein/collagen conversion curves, allowing the system to suggest the *optimal end-point* rather than just maintaining a set temperature.
+3.  **Predictive Modeling Integration:** Linking the PID output directly to a [machine learning](MachineLearning) model trained on historical data sets of protein/collagen conversion curves, allowing the system to suggest the *optimal end-point* rather than just maintaining a set temperature.
 
 ### B. Conclusion: Mastery Through Understanding
 

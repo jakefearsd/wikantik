@@ -1,3 +1,15 @@
+---
+title: Web Ontology Language
+type: article
+tags:
+- owl
+- class
+- logic
+summary: At the heart of this transformation lies the Semantic Web, a vision pioneered
+  by Tim Berners-Lee, where data is not merely readable by humans but interpretable
+  by autonomous agents.
+auto-generated: true
+---
 # The Web Ontology Language (OWL)
 
 ## Introduction
@@ -30,7 +42,7 @@ In DL, we deal with:
 The power of OWL lies in its ability to define concepts using logical constructors. For example, a concept can be defined as the intersection of two other concepts: `Parent ≡ Human ⊓ ∃hasChild.Human`.
 
 ### 1.3 The Semantic Web Stack
-OWL does not exist in a vacuum. It sits atop the RDF (Resource Description Framework) layer.
+OWL does not exist in a vacuum. It sits atop the RDF ([Resource Description Framework](ResourceDescriptionFramework)) layer.
 *   **RDF:** Provides the graph-based data model (triples: Subject-Predicate-Object).
 *   **RDFS:** Adds basic typing (subClassOf, subPropertyOf) and domain/range constraints.
 *   **OWL:** Adds the heavy-duty logic (disjointness, cardinality, property characteristics, and complex class expressions).
@@ -237,4 +249,4 @@ The Web Ontology Language (OWL) represents the pinnacle of formal knowledge repr
 
 For the software engineer, OWL offers a way to move beyond simple data storage into the realm of automated inference and complex domain modeling. For the data scientist, it provides the structural backbone necessary to turn unstructured data into a coherent, queryable, and machine-understandable Knowledge Graph.
 
-While the challenges of computational complexity and the paradigm shift from Closed World to Open World assumptions are significant, the rewards—systems that can reason, explain, and integrate knowledge across the global web—are unparalleled. As we move toward an era of increasingly complex AI, the marriage of symbolic logic (OWL) and connectionist learning (ML) will undoubtedly be the cornerstone of the next generation of intelligent software.
+While the challenges of computational complexity and the paradigm shift from Closed World to Open World assumptions are significant, the rewards—systems that can reason, explain, and integrate knowledge across the global web—are unparalleled. As we move toward an era of increasingly complex AI, the marriage of [symbolic logic](SymbolicLogic) (OWL) and connectionist learning (ML) will undoubtedly be the cornerstone of the next generation of intelligent software.

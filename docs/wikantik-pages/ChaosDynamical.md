@@ -1,3 +1,14 @@
+---
+title: Chaos Dynamical
+type: article
+tags:
+- system
+- mathbf
+- attractor
+summary: If you are reading this, you are not here for the undergraduate survey course
+  that merely explains the "Butterfly Effect" using weather patterns.
+auto-generated: true
+---
 # Chaos and Dynamical Systems
 
 Welcome. If you are reading this, you are not here for the undergraduate survey course that merely explains the "Butterfly Effect" using weather patterns. You are here because you are wrestling with the limits of predictability, the geometry of phase space, and the subtle, often frustrating, boundary between deterministic order and apparent randomness.
@@ -248,7 +259,7 @@ FUNCTION Calculate_Lyapunov_Spectrum(F, x0, T, N_vectors):
 
 ## Conclusion
 
-The mathematics of chaos and dynamical systems is not a single field; it is a vast, interconnected landscape built upon differential geometry, measure theory, topology, and numerical analysis.
+The mathematics of chaos and dynamical systems is not a single field; it is a vast, interconnected landscape built upon [differential geometry](DifferentialGeometry), [measure theory](MeasureTheory), topology, and numerical analysis.
 
 We have established that:
 1.  The long-term behavior is governed by attractors, which can be simple points, closed loops, or complex, fractal sets.

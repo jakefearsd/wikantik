@@ -1,3 +1,15 @@
+---
+title: Self Sufficiency Skills
+type: article
+tags:
+- text
+- system
+- must
+summary: 'Advanced Protocols for Resilient Living Target Audience: Research Scientists,
+  Systems Engineers, Ecological Modelers, and Advanced Practitioners in Sustainable
+  Technology.'
+auto-generated: true
+---
 # Advanced Protocols for Resilient Living
 
 **Target Audience:** Research Scientists, Systems Engineers, Ecological Modelers, and Advanced Practitioners in Sustainable Technology.
@@ -178,7 +190,7 @@ The ability to repair, rather than replace, is the hallmark of resilience.
 Harvesting food is only half the battle; maintaining its nutritional integrity over time is the true challenge. We must treat preservation as a controlled chemical and microbiological process.
 
 ### A. Water Activity ($a_w$)
-The primary determinant of food preservation success is the **Water Activity ($a_w$)**, which measures the amount of "free" water available for microbial growth or chemical reaction.
+The primary determinant of [food preservation](FoodPreservation) success is the **Water Activity ($a_w$)**, which measures the amount of "free" water available for microbial growth or chemical reaction.
 
 *   **Goal:** To reduce $a_w$ below the threshold required for spoilage organisms (typically $<0.85$ for most molds/bacteria).
 *   **Methods:**

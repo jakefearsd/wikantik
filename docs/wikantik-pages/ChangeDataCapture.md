@@ -1,3 +1,15 @@
+---
+title: Change Data Capture
+type: article
+tags:
+- data
+- cdc
+- sourc
+summary: The Delta For those of us who have spent enough time wrestling with data
+  pipelines, the concept of "moving data" has evolved far beyond the quaint notion
+  of nightly batch ETL jobs.
+auto-generated: true
+---
 # The Delta
 
 For those of us who have spent enough time wrestling with data pipelines, the concept of "moving data" has evolved far beyond the quaint notion of nightly batch ETL jobs. We no longer merely move snapshots; we must capture the *moment* of change. Change Data Capture (CDC) is not just a feature; it is a fundamental paradigm shift in data integration, transforming data movement from a bulk operation into a continuous, event-driven stream.
@@ -40,7 +52,7 @@ The output of a successful CDC pipeline is not a row of data, but a structured *
 
 ### 3. The Conceptual Leap: From Data to Events
 
-The most advanced understanding of CDC requires viewing it through the lens of **Event Sourcing (ES)**.
+The most advanced understanding of CDC requires viewing it through the lens of **[Event Sourcing](EventSourcing) (ES)**.
 
 *   **State:** The current representation of the data (e.g., the `users` table).
 *   **Event Stream:** The immutable, ordered sequence of facts that led to the current state (e.g., `UserCreated(id=1)`, `UserEmailUpdated(id=1, new_email='x')`, `UserAddressUpdated(id=1, new_address='y')`).
@@ -95,7 +107,7 @@ This is the pattern described earlier, relying on querying columns like `updated
 #### A. Analysis for Experts
 This method is fundamentally flawed because it assumes that *every* change will result in a modification to a specific, designated column. This assumption breaks down instantly in real-world, complex applications where business logic might update related records without touching the primary record's timestamp.
 
-**Conclusion:** This pattern should only be used for non-critical, low-velocity data synchronization where eventual consistency is acceptable and the data model is extremely simple and stable. For anything requiring transactional guarantees, it is insufficient.
+**Conclusion:** This pattern should only be used for non-critical, low-velocity data synchronization where [eventual consistency](EventualConsistency) is acceptable and the data model is extremely simple and stable. For anything requiring transactional guarantees, it is insufficient.
 
 ---
 
@@ -286,7 +298,7 @@ To truly master the landscape, one must know where CDC fits relative to other ar
 
 We have traversed the theoretical underpinnings, mastered the industry-standard implementation using Debezium and Kafka Connect, and navigated the treacherous waters of idempotency, schema evolution, and backpressure.
 
-CDC streaming replication is not a single technology; it is an entire, complex, resilient data pipeline pattern. Its mastery requires deep expertise in three distinct domains: **Database Internals** (WAL/Binlog), **Distributed Messaging** (Kafka/Schema Registry), and **Stream Processing Logic** (Flink/Kafka Streams).
+CDC streaming replication is not a single technology; it is an entire, complex, resilient data pipeline pattern. Its mastery requires deep expertise in three distinct domains: **Database Internals** (WAL/Binlog), **Distributed Messaging** (Kafka/Schema Registry), and **[Stream Processing](StreamProcessing) Logic** (Flink/Kafka Streams).
 
 For the researcher looking ahead, the frontier is moving beyond simple relational replication:
 

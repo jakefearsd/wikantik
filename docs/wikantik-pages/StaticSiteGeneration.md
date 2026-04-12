@@ -1,3 +1,13 @@
+---
+title: Static Site Generation
+type: article
+tags:
+- compon
+- astro
+- build
+summary: We are moving beyond the era where "fast" was measured by build time alone.
+auto-generated: true
+---
 # The Architectural
 
 For the researcher, the architect, or the seasoned developer perpetually chasing the bleeding edge of web performance, the choice of tooling is rarely about mere syntax; it is fundamentally an architectural decision. We are moving beyond the era where "fast" was measured by build time alone. Today, performance is measured by runtime efficiency, bundle size, and the intelligent management of JavaScript execution boundaries.

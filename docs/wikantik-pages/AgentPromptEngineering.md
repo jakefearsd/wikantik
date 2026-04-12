@@ -1,6 +1,17 @@
+---
+title: Agent Prompt Engineering
+type: article
+tags:
+- prompt
+- agent
+- must
+summary: Agent Prompt Engineering The landscape of Artificial Intelligence is rapidly
+  shifting from mere predictive models to autonomous, goal-oriented systems.
+auto-generated: true
+---
 # Agent Prompt Engineering
 
-The landscape of Artificial Intelligence is rapidly shifting from mere predictive models to autonomous, goal-oriented systems. We are moving beyond the era of single-turn query-response and entering the domain of **Agentic AI**. For researchers and practitioners developing the next generation of complex reasoning systems, the prompt is no longer a mere input string; it is the architectural blueprint, the operational constitution, and the primary control mechanism governing emergent, multi-step behavior.
+The landscape of [Artificial Intelligence](ArtificialIntelligence) is rapidly shifting from mere predictive models to autonomous, goal-oriented systems. We are moving beyond the era of single-turn query-response and entering the domain of **Agentic AI**. For researchers and practitioners developing the next generation of complex reasoning systems, the prompt is no longer a mere input string; it is the architectural blueprint, the operational constitution, and the primary control mechanism governing emergent, multi-step behavior.
 
 This tutorial is designed for experts—those deeply familiar with transformer architectures, advanced prompt engineering paradigms, and the theoretical underpinnings of cognitive science. We will move far beyond basic few-shot examples, dissecting the mechanisms by which prompts can induce robust, reliable, and decomposable agentic behavior, while simultaneously addressing the inherent brittleness and failure modes of these nascent systems.
 
@@ -200,7 +211,7 @@ Developing these complex prompts is only half the battle. The other half—and t
 
 ### 5.1 Metrics Beyond Perplexity
 
-Traditional LLM evaluation metrics (perplexity, BLEU score) measure linguistic fluency or similarity to a reference answer. They are woefully inadequate for agentic systems. We must measure *behavior*.
+Traditional [LLM evaluation metrics](LlmEvaluationMetrics) (perplexity, BLEU score) measure linguistic fluency or similarity to a reference answer. They are woefully inadequate for agentic systems. We must measure *behavior*.
 
 **Key Agentic Metrics:**
 

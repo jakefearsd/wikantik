@@ -1,3 +1,13 @@
+---
+title: Phenomenology
+type: article
+tags:
+- structur
+- experi
+- model
+summary: Phenomenology and the Structure of Experience Welcome.
+auto-generated: true
+---
 # Phenomenology and the Structure of Experience
 
 Welcome. If you are reading this, you are likely already familiar with the basic tenets of phenomenology—the notion that philosophy should return *to the things themselves*. However, for those of us researching cutting-edge techniques, the surface-level understanding of "describing experience" is woefully inadequate.
@@ -34,7 +44,7 @@ The *epoché* is the methodological suspension of judgment regarding the ontolog
 **Technical Implication:** In experimental design, this translates to designing protocols where the researcher must explicitly isolate the *phenomenal data* from the *metaphysical assumptions* of the experimenter. If you are studying memory recall, you must bracket the assumption that the memory *must* exist in a stable, retrievable form; instead, you analyze the *structure of the attempt* to retrieve it.
 
 #### 2. Eidetic Variation
-This technique involves systematically varying the parameters of an experience until the necessary, invariant structure—the *eidos*—is revealed. It is the philosophical equivalent of parameter sweeping in machine learning.
+This technique involves systematically varying the parameters of an experience until the necessary, invariant structure—the *eidos*—is revealed. It is the philosophical equivalent of parameter sweeping in [machine learning](MachineLearning).
 
 **Example:** Consider the experience of "redness." An eidetic variation would involve systematically altering the perceived color (moving toward green, blue, yellow, etc.) while asking: "What is the necessary structural component that must remain constant for this experience to still be recognizable as *red*?" The answer points toward specific structural invariants (e.g., a certain wavelength ratio, a specific emotional valence association, etc.) that define the *essence* of the experience, independent of the specific instance.
 
@@ -213,7 +223,7 @@ This shifts the focus from *what* the qualia is, to *what structural rules* the 
 Time is perhaps the most resistant concept. We do not experience time as a linear sequence of discrete moments ($\Delta t$). We experience it as *duration*—a continuous, unfolding structure.
 
 *   **Protention and Retention:** The structure of experience is always a tension between what *was* (Retention) and what *is about to be* (Protention). The present moment is merely the structural nexus point where these two forces meet.
-*   **Technique Development:** Any temporal modeling technique (e.g., predictive coding, recurrent neural networks) must explicitly incorporate mechanisms for modeling these structural tensions, rather than just predicting the next discrete state. The "error signal" in a predictive model, viewed phenomenologically, is the structural gap between the expected continuity and the actual input.
+*   **Technique Development:** Any temporal modeling technique (e.g., predictive coding, [recurrent neural networks](RecurrentNeuralNetworks)) must explicitly incorporate mechanisms for modeling these structural tensions, rather than just predicting the next discrete state. The "error signal" in a predictive model, viewed phenomenologically, is the structural gap between the expected continuity and the actual input.
 
 ### C. The Limits of Language and Formalization
 

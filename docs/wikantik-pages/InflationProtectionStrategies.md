@@ -1,3 +1,15 @@
+---
+title: Inflation Protection Strategies
+type: article
+tags:
+- tip
+- inflat
+- real
+summary: Retirement planning, by its very nature, is a multi-decade endeavor, exposing
+  the principal and the resultant income stream to the full spectrum of macroeconomic
+  volatility.
+auto-generated: true
+---
 # Inflation-Protected TIPS Integration within Advanced Retirement Portfolio Construction
 
 **A Technical Monograph for Quantitative Researchers and Portfolio Strategists**

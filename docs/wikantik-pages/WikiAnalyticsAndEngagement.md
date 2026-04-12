@@ -1,3 +1,14 @@
+---
+title: Wiki Analytics And Engagement
+type: article
+tags:
+- text
+- page
+- user
+summary: 'Prerequisites: A robust understanding of web architecture, statistical modeling,
+  and the limitations of standard web telemetry.'
+auto-generated: true
+---
 # Advanced Wiki Analytics for Measuring Page View Engagement in Knowledge Ecosystems
 
 **Target Audience:** Research Scientists, Data Architects, Digital Humanities Scholars, and Advanced Web Analytics Practitioners.
@@ -235,7 +246,7 @@ For those researching the next generation of knowledge analytics, the focus must
 
 Instead of asking, "How well did users engage with Page X?", the advanced question is: **"What knowledge gap, if filled by a new page, would maximize the $\text{EPV}$ for the current user cohort?"**
 
-This requires building a **Knowledge Graph Completion Model**.
+This requires building a **[Knowledge Graph Completion](KnowledgeGraphCompletion) Model**.
 
 1.  **Graph Representation:** Nodes are concepts/pages; Edges are relationships (e.g., *is a type of*, *is related to*, *causes*).
 2.  **Link Prediction:** Using algorithms like TransE or ComplEx, the model predicts the most probable missing edge $(A \rightarrow B)$ given the existing structure and the observed user paths.

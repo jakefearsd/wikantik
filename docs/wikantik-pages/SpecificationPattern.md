@@ -1,3 +1,13 @@
+---
+title: Specification Pattern
+type: article
+tags:
+- specif
+- text
+- composit
+summary: We are translating human ambiguity into machine certainty.
+auto-generated: true
+---
 # Formalizing Logic
 
 For those of us who spend our careers wrestling with the inherent messiness of business requirements—the nebulous, often contradictory, and perpetually evolving mandates that govern software behavior—the mere act of writing code is often less an act of creation and more an act of translation. We are translating human ambiguity into machine certainty.

@@ -1,3 +1,14 @@
+---
+title: On Call Practices
+type: article
+tags:
+- runbook
+- must
+- system
+summary: If you are reading this, you are likely past the stage of simply "having"
+  an on-call rotation.
+auto-generated: true
+---
 # The Operational Crucible
 
 Welcome. If you are reading this, you are likely past the stage of simply "having" an on-call rotation. You are in the realm of optimizing the operational feedback loop—the place where documentation, human fatigue, and distributed systems meet in a high-stakes, low-tolerance environment.
@@ -62,7 +73,7 @@ Experts recognize that an engineer should not be immediately assigned to a high-
 
 The handover is the most fragile point in the entire operational chain. It is where context, memory, and immediate priorities are transferred. A simple "Good luck, you're on call now" is an unacceptable failure state.
 
-**The Ideal Handover Artifact (The "Shift Summary Packet"):** This must be a structured, machine-readable, and human-digestible package, ideally generated automatically by the incident management platform (e.g., PagerDuty, Opsgenie).
+**The Ideal Handover Artifact (The "Shift Summary Packet"):** This must be a structured, machine-readable, and human-digestible package, ideally generated automatically by the [incident management](IncidentManagement) platform (e.g., PagerDuty, Opsgenie).
 
 **Required Components of the Handover:**
 
@@ -201,7 +212,7 @@ The goal of the post-mortem is **Systemic Improvement**, not **Personnel Account
 1.  **The 5 Whys (Systemic Application):** Do not stop at the immediate cause. If the failure was "The service crashed due to memory exhaustion," the 5 Whys must continue:
     *   *Why?* Because the memory leak wasn't caught.
     *   *Why?* Because the monitoring threshold was set too high.
-    *   *Why?* Because the capacity planning model didn't account for this specific load pattern.
+    *   *Why?* Because the [capacity planning](CapacityPlanning) model didn't account for this specific load pattern.
     *   *Why?* Because the load testing environment didn't simulate this pattern.
     *   *Why?* $\rightarrow$ **Root Cause:** The load testing suite needs a new, dedicated test case.
 2.  **Timeline Reconstruction:** The post-mortem must generate a precise, minute-by-minute timeline, cross-referencing:
@@ -240,7 +251,7 @@ Since the target audience is researching new techniques, we must venture into ar
 
 ### 6.1 Chaos Engineering Integration: Proactive Runbook Validation
 
-Chaos Engineering (CE) is the mechanism by which we *force* the failure modes described in our runbooks to occur in a controlled environment.
+[Chaos Engineering](ChaosEngineering) (CE) is the mechanism by which we *force* the failure modes described in our runbooks to occur in a controlled environment.
 
 **The CE-Runbook Feedback Loop:**
 
@@ -255,7 +266,7 @@ This turns the runbook from a guide for *reacting* to failure into a *testable c
 
 ### 6.2 Advanced Alerting: Anomaly Detection vs. Thresholding
 
-Relying solely on static thresholds ($\text{CPU} > 90\%$) is brittle. Experts must implement machine learning-backed anomaly detection.
+Relying solely on static thresholds ($\text{CPU} > 90\%$) is brittle. Experts must implement [machine learning](MachineLearning)-backed anomaly detection.
 
 **Technique:** Time-Series Forecasting Models (e.g., ARIMA, Prophet).
 Instead of setting a threshold, the system models the *expected* behavior ($\hat{y}_t$) for a metric at time $t$, given historical seasonality and trend. An alert fires only when the actual measurement ($y_t$) falls outside the statistically derived confidence interval (e.g., $y_t > \hat{y}_t + 3\sigma$).

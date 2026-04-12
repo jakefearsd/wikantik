@@ -1,7 +1,18 @@
+---
+title: Monitoring And Alerting
+type: article
+tags:
+- observ
+- trace
+- must
+summary: 'The Architecture of Insight Target Audience: Senior Engineers, Site Reliability
+  Engineers (SREs), Platform Architects, and Researchers in Distributed Systems.'
+auto-generated: true
+---
 # The Architecture of Insight
 
 **Target Audience:** Senior Engineers, Site Reliability Engineers (SREs), Platform Architects, and Researchers in Distributed Systems.
-**Prerequisites:** Deep understanding of microservices architecture, cloud-native patterns (Kubernetes), and distributed tracing concepts.
+**Prerequisites:** Deep understanding of [microservices architecture](MicroservicesArchitecture), cloud-native patterns (Kubernetes), and [distributed tracing](DistributedTracing) concepts.
 
 ---
 
@@ -33,7 +44,7 @@ True observability is not achieved by implementing one tool; it is achieved by m
 
 ### 1.1 Metrics: The Quantitative View (The "What")
 
-Metrics are numerical measurements aggregated over time. They are the backbone of trend analysis, capacity planning, and high-level SLO adherence. They answer questions like: "How many requests per second are we handling?" or "What is the 99th percentile latency over the last hour?"
+Metrics are numerical measurements aggregated over time. They are the backbone of trend analysis, [capacity planning](CapacityPlanning), and high-level SLO adherence. They answer questions like: "How many requests per second are we handling?" or "What is the 99th percentile latency over the last hour?"
 
 #### Types and Collection Models
 
@@ -66,7 +77,7 @@ Logs are discrete, immutable records of events that occurred at a specific point
 
 The days of parsing monolithic, unstructured text logs (e.g., `[2023-10-27 10:00:01] ERROR: User 123 failed to process payment for item X due to invalid credentials.`) are over for serious production systems.
 
-**Structured Logging** mandates that logs are emitted in a machine-readable format, typically JSON.
+**[Structured Logging](StructuredLogging)** mandates that logs are emitted in a machine-readable format, typically JSON.
 
 **Example (Unstructured vs. Structured):**
 
@@ -260,7 +271,7 @@ The goal is to fail fast, catching observability gaps *before* production deploy
 
 1.  **Contract Testing for Telemetry:** Treat the instrumentation layer as a contract. When a developer changes a service's API, they must also update the required metrics, log fields, and tracing headers. Automated tests should validate that the service still emits the expected telemetry structure.
 2.  **Synthetic Monitoring (Canary Testing):** Before a new version (v2) hits 100% traffic, deploy it to a small canary group. Simultaneously, run synthetic transactions (automated scripts mimicking user journeys) against v2. These scripts generate predictable, high-fidelity telemetry streams that can be compared against the baseline (v1) metrics, providing an immediate "observability delta" report.
-3.  **Chaos Engineering Integration:** Tools like Chaos Mesh or Gremlin are used to *intentionally* break the system (e.g., latency injection, random process termination). The success metric of the chaos experiment is not whether the system crashed, but whether the **observability stack successfully detected, alerted on, and allowed the automated remediation system to correct the failure** while maintaining SLO adherence.
+3.  **[Chaos Engineering](ChaosEngineering) Integration:** Tools like Chaos Mesh or Gremlin are used to *intentionally* break the system (e.g., latency injection, random process termination). The success metric of the chaos experiment is not whether the system crashed, but whether the **observability stack successfully detected, alerted on, and allowed the automated remediation system to correct the failure** while maintaining SLO adherence.
 
 ### 5.2 Advanced Alerting Patterns: Anomaly Detection vs. Thresholding
 
@@ -268,7 +279,7 @@ As systems become more complex, static thresholds become useless. We must move t
 
 **Techniques:**
 *   **Seasonal Decomposition of Time Series (STL):** Decomposing a metric into Trend, Seasonality, and Residual components. An alert fires only if the residual component (the unexpected noise) exceeds a calculated standard deviation ($\sigma$) for that specific time of day/day of week.
-*   **Machine Learning Baselines:** Using models (like ARIMA or Prophet) trained on months of historical data to predict the expected range for a metric. An alert triggers when the actual value falls outside the $3\sigma$ confidence interval of the prediction.
+*   **[Machine Learning](MachineLearning) Baselines:** Using models (like ARIMA or Prophet) trained on months of historical data to predict the expected range for a metric. An alert triggers when the actual value falls outside the $3\sigma$ confidence interval of the prediction.
 
 **Caution:** ML-based alerting requires significant tuning. A poorly tuned model can generate false positives at an alarming rate, necessitating a human-in-the-loop validation process for the model's baseline drift.
 

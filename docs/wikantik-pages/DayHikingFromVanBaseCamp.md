@@ -1,3 +1,14 @@
+---
+title: Day Hiking From Van Base Camp
+type: article
+tags:
+- text
+- must
+- system
+summary: This tutorial is not for the enthusiast who packs a picnic basket and expects
+  a scenic photo opportunity.
+auto-generated: true
+---
 # The Expeditionary Calculus: Advanced Methodologies for Van-Based Hiking Day Trips
 
 For those who view the campervan not as a recreational novelty, but as a highly mobile, self-contained, temporary habitat capable of supporting extended, self-sufficient field operations, the concept of the "day trip" requires a significant methodological overhaul. This tutorial is not for the enthusiast who packs a picnic basket and expects a scenic photo opportunity. This is for the researcher, the expedition planner, or the technical adventurer who treats the vehicle and the surrounding environment as a complex, interconnected system requiring rigorous analysis, predictive modeling, and robust contingency planning.
@@ -214,7 +225,7 @@ The assumption of immediate medical care is a fatal flaw in planning. The protoc
 
 1.  **Level 1 (Self-Sufficiency):** Treating minor injuries using onboard supplies (e.g., treating a deep laceration from a fall).
 2.  **Level 2 (Local Resource Utilization):** Utilizing local knowledge (e.g., identifying edible flora, finding clean water sources *outside* the van's immediate radius). This requires pre-vetted local guides or anthropological data.
-3.  **Level 3 (External Extraction):** Initiating emergency communication (Satellite Messenger/PLB) and coordinating with external rescue assets.
+3.  **Level 3 (External Extraction):** Initiating [emergency communication](EmergencyCommunication) (Satellite Messenger/PLB) and coordinating with external rescue assets.
 
 **The Communication Protocol:**
 Communication must be layered:

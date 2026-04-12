@@ -1,8 +1,19 @@
+---
+title: Constraint Programming
+type: article
+tags:
+- constraint
+- solver
+- sat
+summary: This tutorial is intended for researchers operating at the cutting edge of
+  Artificial Intelligence, formal methods, and combinatorial optimization.
+auto-generated: true
+---
 # The Architecture of Inference
 
 For those of us who spend our days wrestling with the intractable nature of combinatorial problems, the concept of a "solver" is less a piece of software and more a philosophical tool—a formal mechanism for imposing structure upon chaos. When we discuss Constraint Programming Satisfiability Solvers (CP-SAT), we are not merely discussing an extension of Boolean satisfiability; we are discussing a fundamentally different, yet deeply related, paradigm of automated reasoning.
 
-This tutorial is intended for researchers operating at the cutting edge of Artificial Intelligence, formal methods, and combinatorial optimization. We will move beyond the introductory material—the "what"—and delve into the intricate "how" and "why" of these solvers, examining the theoretical underpinnings, the algorithmic machinery, and the current frontiers of research.
+This tutorial is intended for researchers operating at the cutting edge of [Artificial Intelligence](ArtificialIntelligence), formal methods, and combinatorial optimization. We will move beyond the introductory material—the "what"—and delve into the intricate "how" and "why" of these solvers, examining the theoretical underpinnings, the algorithmic machinery, and the current frontiers of research.
 
 ***
 
@@ -18,7 +29,7 @@ To properly situate CP-SAT, one must first understand its lineage. The field sit
 
 The critical distinction for the expert researcher is this:
 
-*   **SAT Solvers** operate exclusively in the Boolean domain $\{True, False\}$. They reduce everything to propositional logic.
+*   **SAT Solvers** operate exclusively in the Boolean domain $\{True, False\}$. They reduce everything to [propositional logic](PropositionalLogic).
 *   **CP-SAT Solvers** operate over arbitrary domains (integers, real numbers, finite sets) and employ specialized **constraint propagators** that maintain consistency across these non-Boolean domains.
 
 The goal of a CP-SAT solver is not just to find *an* assignment, but often to find the *optimal* assignment (making it an Optimization Problem, or CP-Opt), while rigorously proving *unsatisfiability* when no solution exists.

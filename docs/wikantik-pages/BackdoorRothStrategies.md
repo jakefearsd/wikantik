@@ -1,3 +1,13 @@
+---
+title: Backdoor Roth Strategies
+type: article
+tags:
+- tax
+- ira
+- convers
+summary: This tutorial is not a pamphlet for the general public.
+auto-generated: true
+---
 # Backdoor Roth Strategies
 
 For those of us who spend our professional lives wrestling with the arcane interplay between tax code sections and personal financial planning, the Backdoor Roth IRA is less a "strategy" and more a highly optimized, legally permissible arbitrage opportunity. It is a mechanism designed not for the novice investor seeking a simple tax break, but for the sophisticated participant who understands the precise limitations of current tax legislation and how to navigate around them with surgical precision.

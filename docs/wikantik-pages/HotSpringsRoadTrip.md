@@ -1,3 +1,14 @@
+---
+title: Hot Springs Road Trip
+type: article
+tags:
+- text
+- model
+- e.g
+summary: We move beyond simple itinerary aggregation, focusing instead on predictive
+  modeling derived from geological, hydrological, and linguistic pattern recognition.
+auto-generated: true
+---
 # A Methodological Framework for Identifying and Validating Geothermally Active, Undocumented Hot Spring Sites
 
 ## Abstract
@@ -277,7 +288,7 @@ $$\text{Model} = \text{Classifier}(\mathbf{F}) \rightarrow P(Y=1 | \mathbf{F})$$
 *   **Recommended Model:** Gradient Boosting Machines (GBM) or Random Forests, due to their robustness with mixed-type, high-dimensional geophysical data.
 
 **B. Unsupervised Learning for Anomaly Detection:**
-When labeled data is scarce (the most likely scenario for truly "off the beaten path" sites), we use clustering algorithms (e.g., DBSCAN or Gaussian Mixture Models) on the feature space $\mathbf{F}$. Clusters that form in low-density regions of the feature space, yet exhibit high internal coherence (i.e., they share multiple geophysical characteristics), represent novel, unclassified phenomena worthy of investigation.
+When labeled data is scarce (the most likely scenario for truly "off the beaten path" sites), we use [clustering algorithms](ClusteringAlgorithms) (e.g., DBSCAN or Gaussian Mixture Models) on the feature space $\mathbf{F}$. Clusters that form in low-density regions of the feature space, yet exhibit high internal coherence (i.e., they share multiple geophysical characteristics), represent novel, unclassified phenomena worthy of investigation.
 
 ### 6.3 Edge Case: The Anthropogenic Influence
 

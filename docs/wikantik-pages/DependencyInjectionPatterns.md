@@ -1,3 +1,14 @@
+---
+title: Dependency Injection Patterns
+type: article
+tags:
+- contain
+- depend
+- manag
+summary: This tutorial is not intended for the novice who merely needs to register
+  a service.
+auto-generated: true
+---
 # Dependency Injection and IoC Container Wiring
 
 For those of us who spend enough time wrestling with the seams of modern application architecture, the concepts of Dependency Injection (DI), Inversion of Control (IoC), and the Container itself often blur into a single, somewhat magical, black box. We treat the container as an oracle that simply *knows* how to build everything, and while this convenience is undeniable, understanding the underlying mechanics—the *wiring*—is crucial for moving beyond mere usage and into true architectural mastery.

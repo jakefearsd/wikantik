@@ -1,3 +1,14 @@
+---
+title: Stoicism
+type: article
+tags:
+- text
+- stoic
+- emot
+summary: Stoicism and the Pursuit of Tranquility The pursuit of tranquility—that elusive
+  state of ataraxia or apatheia—has captivated philosophers since antiquity.
+auto-generated: true
+---
 # Stoicism and the Pursuit of Tranquility
 
 The pursuit of tranquility—that elusive state of *ataraxia* or *apatheia*—has captivated philosophers since antiquity. For the modern researcher steeped in cognitive behavioral models, neuroplasticity, and complex systems theory, the ancient framework of Stoicism offers not merely a set of comforting aphorisms, but a remarkably robust, highly actionable, and deeply integrated philosophical operating system.

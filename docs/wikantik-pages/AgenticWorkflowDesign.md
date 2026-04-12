@@ -1,6 +1,17 @@
+---
+title: Agentic Workflow Design
+type: article
+tags:
+- agent
+- must
+- state
+summary: Agentic Workflow Design The landscape of artificial intelligence is undergoing
+  a transformation that moves far beyond the era of static, rule-based automation.
+auto-generated: true
+---
 # Agentic Workflow Design
 
-The landscape of artificial intelligence is undergoing a transformation that moves far beyond the era of static, rule-based automation. We are witnessing the maturation of **Agentic Workflows**: systems where AI does not merely execute a predefined sequence of steps, but rather *thinks*, *plans*, *reflects*, and *acts* autonomously toward a complex, high-level objective.
+The landscape of [artificial intelligence](ArtificialIntelligence) is undergoing a transformation that moves far beyond the era of static, rule-based automation. We are witnessing the maturation of **Agentic Workflows**: systems where AI does not merely execute a predefined sequence of steps, but rather *thinks*, *plans*, *reflects*, and *acts* autonomously toward a complex, high-level objective.
 
 For researchers and practitioners operating at the cutting edge of AI development, understanding agentic workflows is not just about adopting a new tool; it is about mastering a fundamentally new paradigm of computation—one that mimics, imperfectly but powerfully, the cognitive loop of human problem-solving.
 
@@ -269,7 +280,7 @@ As agents become more powerful, the risk profile increases exponentially. The in
 
 ## Conclusion
 
-Agentic workflows represent the most significant leap in operational AI since the advent of the transformer architecture itself. They transform AI from a sophisticated calculator into a digital collaborator capable of complex, iterative problem-solving.
+Agentic workflows represent the most significant leap in operational AI since the advent of the [transformer architecture](TransformerArchitecture) itself. They transform AI from a sophisticated calculator into a digital collaborator capable of complex, iterative problem-solving.
 
 For the expert researcher, the takeaway is clear: **The value is no longer in the LLM itself, but in the orchestration layer built around it.**
 

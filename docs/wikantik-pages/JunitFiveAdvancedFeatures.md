@@ -1,3 +1,14 @@
+---
+title: Junit Five Advanced Features
+type: article
+tags:
+- test
+- data
+- parameter
+summary: JUnit 5 Advanced Features For the seasoned practitioner, JUnit 5 is less
+  a testing framework and more a sophisticated, extensible testing platform.
+auto-generated: true
+---
 # JUnit 5 Advanced Features
 
 For the seasoned practitioner, JUnit 5 is less a testing framework and more a sophisticated, extensible testing *platform*. While the basic usage of `@ParameterizedTest` is straightforward—providing data, running tests—the true power, and the subject of deep research, lies in understanding how this data-driven execution model intersects with the framework's highly granular extension points.

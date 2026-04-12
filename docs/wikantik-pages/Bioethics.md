@@ -1,3 +1,13 @@
+---
+title: Bioethics
+type: article
+tags:
+- ethic
+- must
+- research
+summary: Bioethics and Medical Philosophy Welcome.
+auto-generated: true
+---
 # Bioethics and Medical Philosophy
 
 Welcome. If you are reading this, you are likely already proficient in the technical intricacies of your chosen domain—be it CRISPR methodology, advanced neuro-interface design, or complex epidemiological modeling. You understand the *how*. This tutorial, however, is designed to force you to confront the *should*, the *ought*, and the *why*.

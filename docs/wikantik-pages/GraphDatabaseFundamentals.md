@@ -1,6 +1,17 @@
+---
+title: Graph Database Fundamentals
+type: article
+tags:
+- properti
+- relationship
+- graph
+summary: This tutorial is not intended for those who merely need to know how to write
+  a basic MATCH (a)-[:KNOWS]->(b) query.
+auto-generated: true
+---
 # The Architecture of Connectivity
 
-For those of us who have spent enough time wrestling with the limitations of tabular data structures, the concept of the Property Graph Model (PGM) is less a novelty and more a necessary paradigm shift. This tutorial is not intended for those who merely need to know how to write a basic `MATCH (a)-[:KNOWS]->(b)` query. We are addressing experts—researchers, architects, and advanced practitioners—who require a deep, almost visceral understanding of the model's theoretical underpinnings, its physical implementation nuances within Neo4j, and the advanced patterns required to push its boundaries in cutting-edge research domains.
+For those of us who have spent enough time wrestling with the limitations of tabular [data structures](DataStructures), the concept of the [Property Graph Model](PropertyGraphModel) (PGM) is less a novelty and more a necessary paradigm shift. This tutorial is not intended for those who merely need to know how to write a basic `MATCH (a)-[:KNOWS]->(b)` query. We are addressing experts—researchers, architects, and advanced practitioners—who require a deep, almost visceral understanding of the model's theoretical underpinnings, its physical implementation nuances within Neo4j, and the advanced patterns required to push its boundaries in cutting-edge research domains.
 
 We will treat the Property Graph Model not just as a data structure, but as a computational framework.
 
@@ -21,7 +32,7 @@ However, their Achilles' heel, particularly for complex knowledge representation
 
 ### B. The Semantic Gap: PGM vs. RDF Triple Stores
 
-When researchers move beyond RDBMS, they often encounter Resource Description Framework (RDF) graphs, which utilize the triple structure: `(Subject, Predicate, Object)`. This is a powerful, standardized model for knowledge representation.
+When researchers move beyond RDBMS, they often encounter [Resource Description Framework](ResourceDescriptionFramework) (RDF) graphs, which utilize the triple structure: `(Subject, Predicate, Object)`. This is a powerful, standardized model for knowledge representation.
 
 The PGM, however, introduces a critical layer of abstraction that often makes it superior for *operational* graph traversal: **Properties on Relationships**.
 
@@ -53,7 +64,7 @@ The PGM is defined by three primary, interconnected components. Mastery requires
 Nodes represent the primary entities within the domain model. They are the "nouns" of the graph.
 
 1.  **Identity and Uniqueness:** Every node possesses a unique internal identifier (the internal ID, which is immutable). While we often use business keys (like a UUID or email) as properties for logical identification, the internal ID is the true anchor for the database engine.
-2.  **Labels (Type System):** Labels are crucial for schema enforcement and query optimization. They function as high-level categories (e.g., `:Person`, `:Product`, `:City`).
+2.  **Labels (Type System):** Labels are crucial for schema enforcement and [query optimization](QueryOptimization). They function as high-level categories (e.g., `:Person`, `:Product`, `:City`).
     *   **Expert Consideration:** Labels are *not* strictly enforced types in the same way a foreign key is in RDBMS. They are organizational tools. A node can possess multiple labels (e.g., a node might be labeled `:User` and `:Employee`).
 3.  **Properties:** Nodes can hold key-value pairs (properties). These properties define the attributes of the entity.
     *   *Example:* A `:Person` node might have properties `name: "Dr. Smith"`, `age: 45`, and `department: "AI Research"`.

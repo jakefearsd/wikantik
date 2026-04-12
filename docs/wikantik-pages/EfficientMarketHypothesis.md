@@ -1,3 +1,15 @@
+---
+title: Efficient Market Hypothesis
+type: article
+tags:
+- mean
+- market
+- model
+summary: Mean Reversion Market Efficiency Hypothesis The Efficient Market Hypothesis
+  (EMH) stands as one of the most foundational, and perhaps most stubbornly debated,
+  pillars of modern financial economics.
+auto-generated: true
+---
 # Mean Reversion Market Efficiency Hypothesis
 
 The Efficient Market Hypothesis (EMH) stands as one of the most foundational, and perhaps most stubbornly debated, pillars of modern financial economics. It posits a beautiful, clean world where asset prices instantaneously and perfectly reflect all available information. For decades, this theory served as the intellectual bedrock for much of quantitative finance, suggesting that consistent, risk-adjusted alpha generation through fundamental analysis or technical pattern recognition is, by definition, impossible.
@@ -139,13 +151,13 @@ This is where most academic papers fail, and where the expert must remain perpet
 *   **Look-Ahead Bias:** Using information that would not have been available at the time the trade was executed. For instance, calculating a rolling mean using the closing price *after* the signal was generated.
 *   **Data Mining/Overfitting:** Testing hundreds of different parameters ($\kappa$, $\mu$, lookback windows, $k$ standard deviations) until one combination yields statistically significant results. This creates a false sense of predictive power that collapses in live trading.
 
-**Mitigation Strategy:** Rigorous out-of-sample testing, walk-forward optimization, and employing model selection criteria (like AIC or BIC) are non-negotiable.
+**Mitigation Strategy:** Rigorous out-of-sample testing, walk-forward optimization, and employing [model selection](ModelSelection) criteria (like AIC or BIC) are non-negotiable.
 
 ---
 
 ## V. Advanced Modeling Techniques for Exploiting Mean Reversion
 
-To move beyond simple Z-score thresholds on a spread, advanced researchers must integrate non-linear dynamics and machine learning techniques.
+To move beyond simple Z-score thresholds on a spread, advanced researchers must integrate non-linear dynamics and [machine learning](MachineLearning) techniques.
 
 ### A. Time Series Models: ARIMA and GARCH Extensions
 

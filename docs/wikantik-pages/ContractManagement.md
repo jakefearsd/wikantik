@@ -1,3 +1,13 @@
+---
+title: Contract Management
+type: article
+tags:
+- claus
+- negoti
+- must
+summary: This tutorial is not a refresher course for paralegals.
+auto-generated: true
+---
 # Contract Management
 
 For those of us who have spent enough time wading through the digital detritus of legal agreements, the term "Contract Lifecycle Management" (CLM) has transitioned from a mere buzzword to a fundamental pillar of enterprise risk architecture. However, for the seasoned researcher or the architect designing the next generation of legal tech, the standard textbook definition—*Initiation $\rightarrow$ Negotiation $\rightarrow$ Execution $\rightarrow$ Management*—is laughably insufficient.
@@ -62,7 +72,7 @@ The negotiation process breaks down into discrete clause negotiations. Here, the
 #### 1. Ambiguity Quantification and Semantic Drift Detection
 The most dangerous clauses are those that are technically valid but semantically ambiguous.
 
-*   **Technique:** Natural Language Processing (NLP) combined with specialized domain ontologies.
+*   **Technique:** [Natural Language Processing](NaturalLanguageProcessing) (NLP) combined with specialized domain ontologies.
 *   **Process:** The system maps key terms (e.g., "reasonable effort," "material breach," "best efforts") against a corpus of precedent agreements and relevant case law.
 *   **Output:** A **Semantic Drift Score (SDS)**. If the SDS for a clause exceeds a predefined threshold ($\text{SDS} > \tau$), the system flags it, suggesting alternative, more precise language derived from established legal definitions.
 
@@ -94,7 +104,7 @@ Standard NER identifies entities (names, dates, monetary values). Advanced syste
     *   **Relation:** (Indemnifies $\rightarrow$ Client) $\text{IF}$ (Infringement $\rightarrow$ IP) $\text{AND}$ (Time $\rightarrow$ Effective Date).
 
 **2. Clause Classification and Normalization:**
-Using supervised machine learning (e.g., BERT or fine-tuned Transformers), the system classifies clauses into standardized taxonomies (e.g., Indemnification, Limitation of Liability, Governing Law, Termination for Cause). Normalization involves mapping variations of the same concept (e.g., "hold harmless," "indemnify," "defend") to a single, canonical internal representation.
+Using supervised [machine learning](MachineLearning) (e.g., BERT or fine-tuned Transformers), the system classifies clauses into standardized taxonomies (e.g., Indemnification, Limitation of Liability, Governing Law, Termination for Cause). Normalization involves mapping variations of the same concept (e.g., "hold harmless," "indemnify," "defend") to a single, canonical internal representation.
 
 ### B. Machine Learning for Risk Quantification and Scoring
 

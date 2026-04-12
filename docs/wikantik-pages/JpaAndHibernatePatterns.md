@@ -1,3 +1,15 @@
+---
+title: Jpa And Hibernate Patterns
+type: article
+tags:
+- join
+- fetch
+- load
+summary: It is the mechanism by which Hibernate—and JPA implementations in general—attempt
+  to reconcile the impedance mismatch between the object graph model and the relational
+  database structure.
+auto-generated: true
+---
 # JPA and Hibernate Patterns
 
 For those of us who spend enough time wrestling with Object-Relational Mapping (ORM) frameworks, the concept of "lazy loading" is less a feature and more a necessary, yet perpetually misunderstood, architectural constraint. It is the mechanism by which Hibernate—and JPA implementations in general—attempt to reconcile the impedance mismatch between the object graph model and the relational database structure.

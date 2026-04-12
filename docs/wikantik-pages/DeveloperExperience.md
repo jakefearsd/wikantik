@@ -1,3 +1,14 @@
+---
+title: Developer Experience
+type: article
+tags:
+- tool
+- develop
+- code
+summary: We know, intellectually, that writing code is not the bottleneck; the bottleneck
+  is the process surrounding the code.
+auto-generated: true
+---
 # Developer Experience
 
 ## Introduction
@@ -174,7 +185,7 @@ We apply observability principles (used in microservices) to the developer's loc
 
 The ultimate frontier is the **Meta-Tooling Layer**. This is the layer that manages, updates, and coordinates all the other tools.
 
-Imagine a developer working on a project that uses Python, Rust, and TypeScript, and relies on three different cloud providers. Instead of needing three separate configuration management tools, the Meta-Tooling Layer provides a single declarative interface:
+Imagine a developer working on a project that uses Python, Rust, and TypeScript, and relies on three different cloud providers. Instead of needing three separate [configuration management](ConfigurationManagement) tools, the Meta-Tooling Layer provides a single declarative interface:
 
 ```yaml
 # Project Manifest (The Single Source of Truth)

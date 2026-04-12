@@ -1,3 +1,14 @@
+---
+title: First Job Financial Checklist
+type: article
+tags:
+- text
+- mathbf
+- you
+summary: 'Disclaimer: This document is designed not merely as a "checklist," but as
+  a comprehensive, multi-phase operational framework.'
+auto-generated: true
+---
 # The First Employment Financial & Strategic Implementation Guide for New Graduates
 
 **Target Audience:** Advanced Researchers, Career Strategists, and High-Potential Graduates Seeking Systemic Mastery of Early Career Trajectories.
@@ -33,7 +44,7 @@ The most persistent challenge cited in graduate employment literature is the "sk
 A modern professional skill stack is not linear. It comprises three orthogonal dimensions:
 
 *   **Hard Skills ($\mathbf{H}$):** Quantifiable, teachable proficiencies (e.g., Python, GAAP accounting, advanced econometric modeling). These are the easiest to benchmark.
-*   **Soft Skills ($\mathbf{S}$):** Interpersonal and cognitive abilities (e.g., Stakeholder management, critical thinking, ambiguity tolerance). These are the hardest to quantify and the most critical for senior roles.
+*   **Soft Skills ($\mathbf{S}$):** Interpersonal and cognitive abilities (e.g., [Stakeholder management](StakeholderManagement), critical thinking, ambiguity tolerance). These are the hardest to quantify and the most critical for senior roles.
 *   **Domain Knowledge ($\mathbf{D}$):** Deep, specialized understanding of an industry's mechanics (e.g., Basel III compliance in banking, supply chain logistics in pharmaceuticals).
 
 **2. The Gap Quantification Metric ($\mathbf{G}$):**

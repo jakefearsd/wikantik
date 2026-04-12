@@ -1,3 +1,15 @@
+---
+title: Knowledge Graph Construction Pipeline
+type: article
+tags:
+- text
+- pipelin
+- model
+summary: 'Structured Knowledge Introduction: The Imperative of Structure in the Age
+  of Unstructured Data The modern digital landscape is characterized by an overwhelming
+  deluge of unstructured text.'
+auto-generated: true
+---
 # Structured Knowledge
 
 ## Introduction: The Imperative of Structure in the Age of Unstructured Data
@@ -34,7 +46,7 @@ The challenge, as highlighted by general research (Source [5]), is not just extr
 NER is the process of locating and classifying named entities within text. While it seems straightforward—tagging spans of text—its technical depth is profound.
 
 #### 1. Evolution of NER Models
-Historically, NER relied on rule-based systems and Maximum Entropy models (e.g., CRF). These were brittle; a minor change in phrasing could cause catastrophic failure. The paradigm shift arrived with deep learning, specifically sequence labeling models built upon recurrent architectures (Bi-LSTMs) and, ultimately, the Transformer architecture.
+Historically, NER relied on rule-based systems and Maximum Entropy models (e.g., CRF). These were brittle; a minor change in phrasing could cause catastrophic failure. The paradigm shift arrived with deep learning, specifically sequence labeling models built upon recurrent architectures (Bi-LSTMs) and, ultimately, the [Transformer architecture](TransformerArchitecture).
 
 *   **Transformer Dominance:** Modern NER almost universally utilizes pre-trained language models (PLMs) like BERT, RoBERTa, or specialized domain models. These models treat NER as a sequence classification task, predicting a tag (e.g., B-PER, I-PER, O) for every token.
 *   **The Tagging Scheme:** The industry standard remains the **BIO (Begin, Inside, Outside)** scheme. For advanced research, extensions like **BILOU (Begin, Inside, Last, Outside)** are preferred as they explicitly mark the end of an entity span, improving boundary detection accuracy.

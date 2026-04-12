@@ -1,8 +1,19 @@
+---
+title: Game Theory Fundamentals
+type: article
+tags:
+- player
+- game
+- equilibrium
+summary: This tutorial is not intended for the undergraduate who is first encountering
+  the Prisoner's Dilemma.
+auto-generated: true
+---
 # Advanced Analysis of Nash Concepts for Research Practitioners
 
 For those of us who have spent enough time staring at payoff matrices to develop a sixth sense for suboptimal decision-making, the concept of "game theory" often feels less like a field of study and more like a necessary, if occasionally tedious, mathematical framework for modeling human—or algorithmic—interaction.
 
-This tutorial is not intended for the undergraduate who is first encountering the Prisoner's Dilemma. We assume a baseline proficiency in mathematical optimization, probability theory, and the general concept of utility maximization. Our goal here is to synthesize the foundational understanding of Nash Equilibrium (NE) and then rigorously expand the scope into the advanced, often messy, territories where modern research actually resides: imperfect information, dynamic credibility, and computational tractability.
+This tutorial is not intended for the undergraduate who is first encountering the Prisoner's Dilemma. We assume a baseline proficiency in mathematical optimization, [probability theory](ProbabilityTheory), and the general concept of utility maximization. Our goal here is to synthesize the foundational understanding of Nash Equilibrium (NE) and then rigorously expand the scope into the advanced, often messy, territories where modern research actually resides: imperfect information, dynamic credibility, and computational tractability.
 
 Consider this less a "tutorial" and more a highly detailed, critical survey of the necessary theoretical machinery required to push the boundaries of strategic modeling.
 

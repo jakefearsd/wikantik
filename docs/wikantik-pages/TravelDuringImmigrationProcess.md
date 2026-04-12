@@ -1,3 +1,14 @@
+---
+title: Travel During Immigration Process
+type: article
+tags:
+- applic
+- travel
+- u.
+summary: 'The Nexus Target Audience: Immigration Law Practitioners, Advanced Researchers,
+  and Policy Analysts.'
+auto-generated: true
+---
 # The Nexus
 
 **Target Audience:** Immigration Law Practitioners, Advanced Researchers, and Policy Analysts.

@@ -1,3 +1,15 @@
+---
+title: Network Segmentation
+type: article
+tags:
+- polici
+- network
+- enforc
+summary: Network Isolation For those of us who spend our careers wrestling with the
+  digital perimeter, the concept of "security" has undergone a profound, almost philosophical,
+  transformation.
+auto-generated: true
+---
 # Network Isolation
 
 For those of us who spend our careers wrestling with the digital perimeter, the concept of "security" has undergone a profound, almost philosophical, transformation. We have moved from the era of the hard shell and soft center—the castle-and-moat analogy—to an environment where the moat itself is porous, the walls are virtual, and the attackers are already inside.

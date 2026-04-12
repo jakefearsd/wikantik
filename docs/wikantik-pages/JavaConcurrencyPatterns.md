@@ -1,3 +1,14 @@
+---
+title: Java Concurrency Patterns
+type: article
+tags:
+- thread
+- vt
+- virtual
+summary: 1.1 The Platform Thread Bottleneck (The Old Way) Before Project Loom, Java
+  concurrency relied almost entirely on Platform Threads.
+auto-generated: true
+---
 # The Modern Concurrency Landscape
 
 For those of us who have spent years wrestling with the intricacies of Java concurrency—navigating the pitfalls of `synchronized` blocks, wrestling with `volatile` semantics, and optimizing thread pool sizing until the late hours—the arrival of Virtual Threads (VT) feels less like an incremental update and more like a fundamental paradigm shift.

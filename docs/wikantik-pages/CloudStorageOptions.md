@@ -1,3 +1,14 @@
+---
+title: Cloud Storage Options
+type: article
+tags:
+- data
+- cost
+- archiv
+summary: If you've reached this tutorial, you likely aren't looking for a simple "how-to"
+  guide for uploading photos.
+auto-generated: true
+---
 # The Deep Archive
 
 Welcome. If you've reached this tutorial, you likely aren't looking for a simple "how-to" guide for uploading photos. You are researching the bleeding edge of data persistence, cost optimization, and massive-scale data lifecycle management. You understand that "storage" is not a monolithic concept; it is a complex, multi-dimensional trade-off between latency, durability, cost, and retrieval complexity.
@@ -33,7 +44,7 @@ For the advanced researcher, understanding the implication of the "Blob" designa
 
 ### 1.3 The Necessity of Archival Tiers: The Cost-Latency Trade-off
 
-The primary driver for researching "archiving" is the economic reality of cloud computing. Storing data is cheap; *accessing* data is expensive, and *keeping* data accessible forever is prohibitively costly.
+The primary driver for researching "archiving" is the economic reality of [cloud computing](CloudComputing). Storing data is cheap; *accessing* data is expensive, and *keeping* data accessible forever is prohibitively costly.
 
 Cloud providers solve this by creating tiered storage models. These tiers are not merely "slower"; they represent fundamentally different contractual agreements regarding **retrieval latency** and **cost per GB-month**.
 
@@ -195,13 +206,13 @@ While cloud providers handle much of the physical compression, researchers shoul
 
 While speculative, any comprehensive technical review must touch upon the next frontier.
 
-*   **Post-Quantum Cryptography (PQC):** As quantum computing advances, current encryption standards (like RSA and ECC) will become vulnerable. Cloud providers are beginning to integrate PQC standards into their key management services. For long-term archives (data needing to remain secure for decades), the archival process must eventually incorporate cryptographic agility—the ability to re-encrypt data using new, quantum-resistant algorithms *before* the current encryption keys become obsolete. This process is known as **Crypto-Shifting** and adds significant operational overhead to the archival workflow.
+*   **Post-Quantum Cryptography (PQC):** As [quantum computing](QuantumComputing) advances, current encryption standards (like RSA and ECC) will become vulnerable. Cloud providers are beginning to integrate PQC standards into their key management services. For long-term archives (data needing to remain secure for decades), the archival process must eventually incorporate cryptographic agility—the ability to re-encrypt data using new, quantum-resistant algorithms *before* the current encryption keys become obsolete. This process is known as **Crypto-Shifting** and adds significant operational overhead to the archival workflow.
 
 ---
 
 ## 5. Synthesis and Conclusion: The Expert's Checklist
 
-To summarize this sprawling landscape for the expert researcher, the process of managing an S3 Blob Object Archive is not a single technical action; it is a **multi-stage, policy-driven, cost-optimized data governance workflow.**
+To summarize this sprawling landscape for the expert researcher, the process of managing an S3 Blob Object Archive is not a single technical action; it is a **multi-stage, policy-driven, cost-optimized [data governance](DataGovernance) workflow.**
 
 You are not just storing data; you are managing a complex, time-dependent financial liability.
 

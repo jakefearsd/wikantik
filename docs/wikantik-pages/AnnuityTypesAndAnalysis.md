@@ -1,3 +1,14 @@
+---
+title: Annuity Types And Analysis
+type: article
+tags:
+- text
+- annuiti
+- risk
+summary: To treat these products as mere "retirement income streams" is to fundamentally
+  misunderstand their underlying contractual complexity.
+auto-generated: true
+---
 # Fixed, Variable, and Indexed Income Streams for Advanced Financial Modeling
 
 For those of us who spend our professional lives wrestling with the stochastic nature of long-term capital preservation, the annuity product remains a fascinating, often opaque, intersection of insurance mathematics, investment theory, and actuarial science. To treat these products as mere "retirement income streams" is to fundamentally misunderstand their underlying contractual complexity.
@@ -8,7 +19,7 @@ This tutorial is not for the novice seeking a simple "guaranteed income" answer.
 
 ## I. Conceptual Framework: The Problem Annuities Attempt to Solve
 
-Before diving into the specific types, we must establish the core financial problem these instruments are designed to mitigate: **Longevity Risk** and **Sequence of Returns Risk (SRR)**.
+Before diving into the specific types, we must establish the core financial problem these instruments are designed to mitigate: **Longevity Risk** and **[Sequence of Returns Risk](SequenceOfReturnsRisk) (SRR)**.
 
 ### A. Defining the Risk Landscape
 

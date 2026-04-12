@@ -1,3 +1,13 @@
+---
+title: Van Life Mattress Guide
+type: article
+tags:
+- support
+- system
+- mattress
+summary: This tutorial moves beyond the anecdotal advice found in consumer guides.
+auto-generated: true
+---
 # Choosing the Right Mattress for Van Life Comfort (A Technical Review for Advanced Practitioners)
 
 The contemporary movement of "Van Life" presents a fascinating, if somewhat under-researched, intersection of nomadic engineering, portable habitation design, and human biomechanics. For the casual consumer, selecting a mattress for a converted van is a matter of choosing between "memory foam" and "air." For the expert researcher, however, the problem is far more complex: it is a multi-variable optimization challenge involving dynamic load distribution, thermal regulation under variable environmental gradients, structural integration within non-standardized, vibration-prone chassis, and the mitigation of chronic musculoskeletal strain accumulated during periods of prolonged, non-sedentary activity.

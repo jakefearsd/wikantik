@@ -1,3 +1,14 @@
+---
+title: Single Page Application Architecture
+type: article
+tags:
+- rout
+- compon
+- state
+summary: We are moving far beyond the simple link that once signaled a full page request
+  to the server.
+auto-generated: true
+---
 # Single Page Application Routing Navigation
 
 For those of us who have spent enough time wrestling with the nuances of modern web architecture, the concept of "routing" in a Single Page Application (SPA) often feels less like a feature and more like a fundamental, yet deceptively complex, piece of plumbing. We are moving far beyond the simple `<a href="/about">` link that once signaled a full page request to the server. Today, routing is an intricate dance between the client's JavaScript execution context, the browser's native History API, and the expectations of the backend infrastructure.

@@ -1,3 +1,15 @@
+---
+title: Skill Integration
+type: article
+tags:
+- skill
+- mcp
+- tool
+summary: Integrating External Tools and APIs into Claude Code Skills The landscape
+  of AI development is rapidly evolving from mere text generation to complex, multi-step
+  action.
+auto-generated: true
+---
 # Integrating External Tools and APIs into Claude Code Skills
 
 The landscape of AI development is rapidly evolving from mere text generation to complex, multi-step *action*. Early iterations of large language models (LLMs) were impressive parlor tricks—sophisticated autocomplete engines capable of generating plausible, yet ultimately isolated, text blocks. However, the true paradigm shift, the one that moves AI from a novelty to a mission-critical enterprise asset, lies in its ability to interact with the external world.
@@ -66,7 +78,7 @@ The context suggests several ways MCP servers can run, which dictates the robust
 #### 1. HTTP/REST Endpoints (The Standard Workhorse)
 This is the most common and robust method. The tool exposes a well-documented REST endpoint that accepts standardized MCP request bodies.
 
-*   **Pros:** Highly portable, easily secured via standard OAuth/API Gateway patterns, and works across disparate cloud environments.
+*   **Pros:** Highly portable, easily secured via standard OAuth/[API Gateway patterns](ApiGatewayPatterns), and works across disparate cloud environments.
 *   **Cons:** Introduces network latency. The entire round trip (Request $\rightarrow$ Network $\rightarrow$ Tool $\rightarrow$ Network $\rightarrow$ Response) adds measurable overhead.
 *   **Use Case:** Integrating with mature, external SaaS platforms (e.g., Slack, Salesforce, external microservices).
 

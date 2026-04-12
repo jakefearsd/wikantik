@@ -1,3 +1,15 @@
+---
+title: Inherited Ira Rules
+type: article
+tags:
+- tax
+- year
+- beneficiari
+summary: 'Analyzing the Ten-Year Rule for Advanced Retirement Planning Target Audience:
+  Financial Engineers, Tax Attorneys, Wealth Management Strategists, and Advanced
+  Retirement Planners.'
+auto-generated: true
+---
 # Analyzing the Ten-Year Rule for Advanced Retirement Planning
 
 **Target Audience:** Financial Engineers, Tax Attorneys, Wealth Management Strategists, and Advanced Retirement Planners.
@@ -20,7 +32,7 @@ This tutorial aims to provide a comprehensive, multi-layered analysis of the cur
 
 ## I. Foundational Concepts and Legislative Context
 
-Before dissecting the mechanics of the ten-year depletion, one must establish a robust understanding of the core components: the IRA structure, the concept of Required Minimum Distributions (RMDs), and the legislative impetus for change.
+Before dissecting the mechanics of the ten-year depletion, one must establish a robust understanding of the core components: the IRA structure, the concept of [Required Minimum Distributions](RequiredMinimumDistributions) (RMDs), and the legislative impetus for change.
 
 ### A. Defining the Inherited IRA Structure
 

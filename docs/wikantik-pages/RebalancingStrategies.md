@@ -1,6 +1,16 @@
+---
+title: Rebalancing Strategies
+type: article
+tags:
+- cost
+- mathbf
+- optim
+summary: The literature, frankly, is often disappointingly simplistic.
+auto-generated: true
+---
 # The Calculus of Consistency
 
-Welcome. If you are reading this, you are not interested in the boilerplate advice that suggests "quarterly rebalancing is good enough." You are here because you understand that portfolio management, at its core, is a problem of optimal control theory applied under conditions of inherent uncertainty. The question of *when* to rebalance is not merely a scheduling decision; it is a complex, multi-variable optimization problem that dictates the realized risk-adjusted return profile of an asset allocation strategy.
+Welcome. If you are reading this, you are not interested in the boilerplate advice that suggests "quarterly rebalancing is good enough." You are here because you understand that portfolio management, at its core, is a problem of optimal control theory applied under conditions of inherent uncertainty. The question of *when* to rebalance is not merely a scheduling decision; it is a complex, multi-variable optimization problem that dictates the realized risk-adjusted return profile of an [asset allocation](AssetAllocation) strategy.
 
 The literature, frankly, is often disappointingly simplistic. We are moving beyond the realm of "set it and forget it" heuristics. For the expert researcher, the optimal rebalancing frequency is not a constant; it is a dynamic function of market volatility, asset correlation structure, transaction costs, and the investor's specific utility function.
 

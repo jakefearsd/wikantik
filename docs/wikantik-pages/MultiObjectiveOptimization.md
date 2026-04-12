@@ -1,8 +1,19 @@
+---
+title: Multi Objective Optimization
+type: article
+tags:
+- mathbf
+- object
+- optim
+summary: If you find yourself researching optimization techniques, you have likely
+  encountered the frustrating reality that the "best" solution rarely exists.
+auto-generated: true
+---
 # The Art of Compromise
 
 Welcome. If you find yourself researching optimization techniques, you have likely encountered the frustrating reality that the "best" solution rarely exists. Instead, you are faced with a constellation of conflicting goals—minimize cost while maximizing performance, or reduce emissions while maintaining structural integrity. This is the domain of Multi-Objective Optimization (MOO).
 
-This tutorial is not a gentle introduction; it is a deep dive, intended for researchers already fluent in constrained optimization, metaheuristics, and advanced mathematical modeling. We will dissect the theoretical underpinnings of the Pareto frontier, scrutinize the computational limitations of various solution methodologies, and explore the cutting edge where MOO intersects with quantum computing and machine learning.
+This tutorial is not a gentle introduction; it is a deep dive, intended for researchers already fluent in constrained optimization, metaheuristics, and advanced mathematical modeling. We will dissect the theoretical underpinnings of the Pareto frontier, scrutinize the computational limitations of various solution methodologies, and explore the cutting edge where MOO intersects with [quantum computing](QuantumComputing) and [machine learning](MachineLearning).
 
 ---
 

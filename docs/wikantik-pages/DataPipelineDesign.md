@@ -1,3 +1,13 @@
+---
+title: Data Pipeline Design
+type: article
+tags:
+- data
+- pipelin
+- transform
+summary: This tutorial assumes a high level of expertise.
+auto-generated: true
+---
 # Advanced ETL Orchestration for Research-Grade Systems
 
 ## Introduction: Navigating the Data Gravity Well
@@ -274,7 +284,7 @@ Testing must cover multiple dimensions:
 ### 5.3 Deployment Strategies
 
 *   **Staging/Pre-Production:** Never deploy a major change directly to production. The pipeline must run against a mirror of production data (or a recent snapshot) in a staging environment.
-*   **Canary Deployments (Data Context):** When deploying a major transformation change, run the new pipeline logic in parallel with the old one for a limited time. Compare the outputs (using checksums or row counts) to ensure parity before cutting over the production consumers.
+*   **[Canary Deployments](CanaryDeployments) (Data Context):** When deploying a major transformation change, run the new pipeline logic in parallel with the old one for a limited time. Compare the outputs (using checksums or row counts) to ensure parity before cutting over the production consumers.
 
 ---
 

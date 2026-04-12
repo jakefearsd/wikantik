@@ -1,7 +1,19 @@
+---
+title: No Sql Database Types
+type: article
+tags:
+- data
+- store
+- kei
+summary: 'Document, Graph, Key-Value, and Wide-Column Architectures Target Audience:
+  Database Architects, Data Scientists, and Software Engineers specializing in high-scale,
+  distributed systems research.'
+auto-generated: true
+---
 # Document, Graph, Key-Value, and Wide-Column Architectures
 
 **Target Audience:** Database Architects, Data Scientists, and Software Engineers specializing in high-scale, distributed systems research.
-**Prerequisites:** Solid understanding of relational algebra, ACID properties, and distributed computing concepts (e.g., CAP Theorem).
+**Prerequisites:** Solid understanding of relational algebra, ACID properties, and distributed computing concepts (e.g., [CAP Theorem](CapTheorem)).
 
 ---
 
@@ -13,7 +25,7 @@ NoSQL (Not Only SQL) databases emerged not as a replacement for RDBMS, but as a 
 
 At its core, the shift from RDBMS to NoSQL is a fundamental shift in **data modeling philosophy**: moving from a normalized, query-centric view (where data is structured to minimize redundancy and maximize integrity) to a **data access pattern-centric view** (where data is structured to optimize the most frequent, high-throughput read/write operations).
 
-This tutorial will provide an exhaustive, expert-level examination of the four dominant NoSQL architectural patterns—Key-Value, Document, Graph, and Wide-Column—analyzing their underlying data structures, their theoretical performance characteristics, their inherent trade-offs concerning consistency and atomicity, and the advanced architectural patterns required for their optimal deployment.
+This tutorial will provide an exhaustive, expert-level examination of the four dominant NoSQL architectural patterns—Key-Value, Document, Graph, and Wide-Column—analyzing their underlying [data structures](DataStructures), their theoretical performance characteristics, their inherent trade-offs concerning consistency and atomicity, and the advanced architectural patterns required for their optimal deployment.
 
 ---
 
@@ -37,7 +49,7 @@ The choice of NoSQL model is inextricably linked to the consistency model adopte
 1.  **ACID (Atomicity, Consistency, Isolation, Durability):** The hallmark of traditional RDBMS. Guarantees that transactions are processed reliably, even during failures.
 2.  **BASE (Basically Available, Soft state, Eventually consistent):** The typical trade-off made by highly distributed NoSQL systems. They prioritize remaining available and responsive even if temporary inconsistencies exist across nodes, with the guarantee that the system *will* eventually converge to a consistent state.
 
-Understanding when eventual consistency is acceptable (e.g., viewing a social media feed) versus when immediate consistency is mandatory (e.g., financial ledger updates) is the most critical architectural decision.
+Understanding when [eventual consistency](EventualConsistency) is acceptable (e.g., viewing a social media feed) versus when immediate consistency is mandatory (e.g., financial ledger updates) is the most critical architectural decision.
 
 ---
 
@@ -217,9 +229,9 @@ This decomposition ensures that each component is optimized for its specific, hi
 
 The biggest challenge in polyglot persistence is maintaining data consistency across disparate models. Since true, distributed ACID transactions spanning multiple database types are notoriously difficult, architects must rely on compensating transactions and eventual consistency patterns:
 
-1.  **Saga Pattern:** This is the dominant pattern. Instead of attempting a global ACID transaction, the business process is modeled as a sequence of local, atomic transactions. If any step fails, the Saga executes compensating transactions to undo the work of the preceding successful steps.
+1.  **[Saga Pattern](SagaPattern):** This is the dominant pattern. Instead of attempting a global ACID transaction, the business process is modeled as a sequence of local, atomic transactions. If any step fails, the Saga executes compensating transactions to undo the work of the preceding successful steps.
     *   *Example:* Order Placement $\rightarrow$ (1) Reserve Inventory (Wide-Column) $\rightarrow$ (2) Create Order Record (Document) $\rightarrow$ (3) Notify Payment Gateway (External Service). If (3) fails, the Saga triggers a compensating transaction to release the inventory reserved in (1).
-2.  **Outbox Pattern:** To ensure that a state change in one service (e.g., updating a user's status in the Document DB) reliably triggers an event consumed by another service (e.g., updating the user's status in the Graph DB), the originating service writes the state change *and* the outgoing event message to a dedicated "Outbox" table within its own local transaction. A separate message relay service then reads the Outbox and publishes the event to a message broker (like Kafka).
+2.  **[Outbox Pattern](OutboxPattern):** To ensure that a state change in one service (e.g., updating a user's status in the Document DB) reliably triggers an event consumed by another service (e.g., updating the user's status in the Graph DB), the originating service writes the state change *and* the outgoing event message to a dedicated "Outbox" table within its own local transaction. A separate message relay service then reads the Outbox and publishes the event to a message broker (like Kafka).
 
 ---
 

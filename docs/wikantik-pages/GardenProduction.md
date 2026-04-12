@@ -1,3 +1,14 @@
+---
+title: Garden Production
+type: article
+tags:
+- food
+- crop
+- local
+summary: This monograph synthesizes current literature and proposes an advanced technical
+  framework for optimizing gardening and crop production.
+auto-generated: true
+---
 # Gardening and Crop Production for Food Security
 
 **Abstract:**

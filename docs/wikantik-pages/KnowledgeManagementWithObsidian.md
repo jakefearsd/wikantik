@@ -1,3 +1,15 @@
+---
+title: Knowledge Management With Obsidian
+type: article
+tags:
+- note
+- moc
+- link
+summary: The Architect's Guide to Digital Epistemology For the expert researcher,
+  the modern knowledge base is not merely a collection of notes; it is a dynamic,
+  navigable cognitive extension of the self.
+auto-generated: true
+---
 # The Architect's Guide to Digital Epistemology
 
 For the expert researcher, the modern knowledge base is not merely a collection of notes; it is a dynamic, navigable cognitive extension of the self. We are no longer limited by the physical constraints of filing cabinets or the linear constraints of word processors. We operate in a realm of networked thought, where the value lies not in the data points themselves, but in the *connections* forged between them.
@@ -114,7 +126,7 @@ citation_schema: APA # Defines the *format* for external data
 This structured data allows plugins like Dataview (or custom scripting) to perform complex, relational queries that mimic database joins.
 
 **Dataview Query Example (Conceptual):**
-"Show me all notes of `type: Theory/Critique` within the `domain: Machine Learning` that have *not* been linked to a `status: Finalized` note in the last six months."
+"Show me all notes of `type: Theory/Critique` within the `domain: [Machine Learning](MachineLearning)` that have *not* been linked to a `status: Finalized` note in the last six months."
 
 This query filters the graph based on *multiple, structured constraints*, moving far beyond simple keyword searching.
 

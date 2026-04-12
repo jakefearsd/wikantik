@@ -1,3 +1,14 @@
+---
+title: Cloud Monitoring
+type: article
+tags:
+- cloudwatch
+- metric
+- data
+summary: If you've reached this guide, you likely already understand that monitoring
+  is not merely about setting thresholds on CPU utilization.
+auto-generated: true
+---
 # CloudWatch Observability
 
 Welcome. If you've reached this guide, you likely already understand that monitoring is not merely about setting thresholds on CPU utilization. You are here because you are researching the bleeding edge—the point where mere *monitoring* dissolves into true *observability*.
@@ -58,7 +69,7 @@ Never rely solely on the `Average()` function. The average is notoriously mislea
 Logs are unstructured (or semi-structured) streams of text. CloudWatch Logs is the ingestion mechanism, but the intelligence must be applied *after* ingestion.
 
 #### A. Structured Logging Mandate
-The single most important architectural shift for expert-level observability is enforcing **structured logging**. Logs should *never* be free-form text if they contain machine-readable data.
+The single most important architectural shift for expert-level observability is enforcing **[structured logging](StructuredLogging)**. Logs should *never* be free-form text if they contain machine-readable data.
 
 Instead of:
 `[ERROR] User 123 failed to process payment for $50. Reason: Invalid CVV.`

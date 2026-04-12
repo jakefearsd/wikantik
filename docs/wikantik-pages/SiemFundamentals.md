@@ -1,3 +1,15 @@
+---
+title: Siem Fundamentals
+type: article
+tags:
+- data
+- log
+- siem
+summary: 'Architectures, Advanced Detection Paradigms, and the Frontier of Security
+  Analytics Target Audience: Security Architects, Threat Hunters, Data Scientists,
+  and Security Researchers.'
+auto-generated: true
+---
 # Architectures, Advanced Detection Paradigms, and the Frontier of Security Analytics
 
 **Target Audience:** Security Architects, Threat Hunters, Data Scientists, and Security Researchers.
@@ -35,7 +47,7 @@ The ingestion layer is the first point of failure and the primary bottleneck for
     *   **Normalization:** Mapping disparate field names to a canonical, internal schema. For instance, `src_ip` from Firewall A must map to the same internal field as `source_address` from Firewall B.
     *   **Enrichment:** Augmenting the raw event data with contextual metadata *before* analysis. This includes GeoIP lookups, asset criticality tagging (CMDB integration), and threat intelligence feed matching (e.g., checking if an observed IP is on a known C2 list).
 
-    *Expert Insight:* The efficiency of the parsing engine dictates the overall cost and latency. Modern systems favor stream processing frameworks (like Apache Flink or Kafka Streams) over traditional batch processing to handle real-time schema evolution gracefully.
+    *Expert Insight:* The efficiency of the parsing engine dictates the overall cost and latency. Modern systems favor [stream processing](StreamProcessing) frameworks (like Apache Flink or Kafka Streams) over traditional batch processing to handle real-time schema evolution gracefully.
 
 ### B. Data Storage and Indexing Paradigms
 

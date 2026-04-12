@@ -1,3 +1,13 @@
+---
+title: Kantian Ethics
+type: article
+tags:
+- moral
+- duti
+- ration
+summary: Kantian Ethics and the Categorical Imperative Welcome.
+auto-generated: true
+---
 # Kantian Ethics and the Categorical Imperative
 
 Welcome. If you are reading this, you are presumably not satisfied with the superficial application of "do the right thing." You are here because you understand that moral philosophy, particularly the Kantian tradition, is not merely a set of guidelines but a rigorous, formal system of transcendental deduction.

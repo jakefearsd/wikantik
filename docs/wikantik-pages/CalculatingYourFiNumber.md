@@ -1,3 +1,15 @@
+---
+title: Calculating Your Fi Number
+type: article
+tags:
+- text
+- withdraw
+- fi
+summary: The Financial Independence Number The concept of Financial Independence (FI)
+  has, in recent years, transitioned from niche financial planning jargon to a mainstream
+  movement.
+auto-generated: true
+---
 # The Financial Independence Number
 
 The concept of Financial Independence (FI) has, in recent years, transitioned from niche financial planning jargon to a mainstream movement. For those of us who spend our professional lives modeling stochastic processes, optimizing utility functions, and stress-testing asset allocations, the "Financial Independence Number" (FI Number) is less a definitive answer and more a highly sophisticated, context-dependent *proxy* for achieving a desired state of financial freedom.
@@ -49,7 +61,7 @@ The original Trinity Study (1998) analyzed historical data for a 30-year period 
 ### C. Limitations and Expert Critique
 For advanced research, the 4% rule is insufficient because it fails to account for:
 
-1.  **Sequence of Returns Risk (SORR):** This is the single most critical failure point. If a major market downturn occurs early in retirement (e.g., Year 1 or Year 2), the portfolio is forced to sell assets at depressed prices to meet withdrawals, severely impairing the recovery trajectory. The 4% rule assumes withdrawals can be sustained regardless of the initial market conditions.
+1.  **[Sequence of Returns Risk](SequenceOfReturnsRisk) (SORR):** This is the single most critical failure point. If a major market downturn occurs early in retirement (e.g., Year 1 or Year 2), the portfolio is forced to sell assets at depressed prices to meet withdrawals, severely impairing the recovery trajectory. The 4% rule assumes withdrawals can be sustained regardless of the initial market conditions.
 2.  **Non-Normal Distribution:** Financial returns are notoriously non-normal, exhibiting "fat tails" (leptokurtosis). Standard deviation-based risk metrics underestimate the probability of catastrophic, rare events.
 3.  **Inflation Modeling:** The rule assumes a stable, predictable inflation rate ($\pi$). In periods of high inflation coupled with low real growth (stagflation), the model collapses.
 
@@ -63,7 +75,7 @@ To move beyond the simplistic $C = W / \text{WR}$ calculation, we must adopt dyn
 The gold standard for testing FI viability is the Monte Carlo Simulation. Instead of relying on a single historical average return, MCS runs thousands (or tens of thousands) of potential future market paths.
 
 **Process Outline:**
-1.  Define the asset allocation ($\mathbf{w} = [w_s, w_b, w_r]$ for stocks, bonds, real assets).
+1.  Define the [asset allocation](AssetAllocation) ($\mathbf{w} = [w_s, w_b, w_r]$ for stocks, bonds, real assets).
 2.  Define the expected return vector ($\boldsymbol{\mu}$) and the covariance matrix ($\boldsymbol{\Sigma}$) for the asset classes.
 3.  Simulate $N$ paths over $T$ years, where each year's return vector $\mathbf{R}_t$ is drawn from a multivariate normal distribution:
     $$\mathbf{R}_t \sim \mathcal{N}(\boldsymbol{\mu}, \boldsymbol{\Sigma})$$
@@ -104,7 +116,7 @@ The goal here is to find the optimal $\mathbf{w}$ that maximizes the Sharpe Rati
 Since the FI Number is a function of multiple variables, optimizing the inputs is equivalent to optimizing the entire system.
 
 ### A. The Savings Rate ($\text{SR}$) vs. The FI Number
-The relationship between the Savings Rate and the time to FI is perhaps the most famous, yet most misunderstood, aspect of the FIRE movement.
+The relationship between the Savings Rate and the time to FI is perhaps the most famous, yet most misunderstood, aspect of the [FIRE movement](FireMovement).
 
 $$\text{Time to FI} \propto \frac{1}{\text{Savings Rate}}$$
 
@@ -133,7 +145,7 @@ The optimal withdrawal order is not simply "take from the most tax-advantaged ac
 $$\text{Minimize Tax Liability} \quad \text{Subject to} \quad \text{Portfolio Value} > 0$$
 
 The general heuristic (though context-dependent) is often:
-1.  **Taxable Accounts:** Withdraw only what is necessary to cover required minimum distributions (RMDs) or to meet the spending need, minimizing capital gains realization.
+1.  **Taxable Accounts:** Withdraw only what is necessary to cover [required minimum distributions](RequiredMinimumDistributions) (RMDs) or to meet the spending need, minimizing capital gains realization.
 2.  **Tax-Deferred Accounts (Traditional IRA/401k):** Use these strategically to fill the gap between the spending need and the tax-free income sources, as they are taxed at ordinary income rates.
 3.  **Tax-Free Accounts (Roth/HSA):** These are the ultimate "last resort" or "buffer" accounts, as they are immune to future tax law changes.
 
@@ -162,7 +174,7 @@ Financial models often fail because they ignore human psychology. A truly compre
 ### C. The "Coast FIRE" and "Barista FIRE" Adjustments
 These concepts modify the *source* of the required capital, thereby reducing the necessary FI Number.
 
-*   **Coast FIRE:** The individual saves enough in the early years such that, by the time they reach their desired retirement age, the remaining capital, left to compound untouched, will grow to the full FI Number without further contributions.
+*   **[Coast FIRE](CoastFire):** The individual saves enough in the early years such that, by the time they reach their desired retirement age, the remaining capital, left to compound untouched, will grow to the full FI Number without further contributions.
     *   *Modeling Implication:* The calculation shifts from $\text{FI Number} = f(\text{Savings})$ to $\text{FI Number} = f(\text{Initial Capital}, \text{Time Remaining}, \text{Expected Return})$.
 *   **Barista FIRE:** The individual supplements the portfolio income with low-stress, part-time labor income ($I_{part}$).
     *   *Modeling Implication:* The required withdrawal $W$ is reduced: $W_{new} = W_{desired} - I_{part}$. This directly lowers the required FI Number:

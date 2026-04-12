@@ -1,3 +1,14 @@
+---
+title: Server Side Rendering
+type: article
+tags:
+- server
+- compon
+- client
+summary: If you've reached this document, you likely view web performance not as a
+  feature, but as a non-negotiable architectural requirement.
+auto-generated: true
+---
 # The Architecture of Illusion
 
 Welcome. If you've reached this document, you likely view web performance not as a feature, but as a non-negotiable architectural requirement. You understand that the difference between a fast, resilient application and a sluggish, SEO-graveyard is often measured in milliseconds—or, more accurately, in the precise synchronization of runtime environments.
@@ -19,7 +30,7 @@ To appreciate the complexity, we must first categorize the rendering paradigms:
 *   **Client-Side Rendering (CSR):** The browser receives a minimal HTML shell (often just a root `<div id="root"></div>`) and a large JavaScript bundle. React then executes entirely in the browser, fetching data and building the DOM tree from scratch.
     *   *Pros:* Excellent for highly dynamic, user-specific content that doesn't need pre-indexing.
     *   *Cons:* Poor initial load performance (blank screen until JS executes), terrible for SEO crawlers that might time out or fail to execute complex JavaScript.
-*   **Static Site Generation (SSG):** Pages are rendered entirely into static HTML files at *build time*. The output is pure, pre-baked HTML served via a CDN.
+*   **[Static Site Generation](StaticSiteGeneration) (SSG):** Pages are rendered entirely into static HTML files at *build time*. The output is pure, pre-baked HTML served via a CDN.
     *   *Pros:* Blazing fast, near-zero server load, perfect for SEO.
     *   *Cons:* Inflexible. Any content that changes frequently (e.g., a live counter, a personalized dashboard) requires a rebuild, which is impractical.
 *   **Server-Side Rendering (SSR):** The server executes the React component tree *on every request*. It generates the complete, ready-to-display HTML payload, which is streamed to the client. The client receives fully formed HTML, achieving excellent First Contentful Paint (FCP).

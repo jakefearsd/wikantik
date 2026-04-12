@@ -1,3 +1,14 @@
+---
+title: Structured Logging
+type: article
+tags:
+- log
+- field
+- index
+summary: If you are reading this, you are likely past the point of simply appending
+  stack traces to a file and hoping for the best.
+auto-generated: true
+---
 # The Architecture of Insight
 
 Welcome. If you are reading this, you are likely past the point of simply appending stack traces to a file and hoping for the best. You understand that data, in its raw, unstructured form, is merely noise—a high-entropy signal requiring sophisticated processing to yield actionable intelligence.

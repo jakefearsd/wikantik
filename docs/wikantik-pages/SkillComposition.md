@@ -1,6 +1,17 @@
+---
+title: Skill Composition
+type: article
+tags:
+- skill
+- data
+- must
+summary: For the researcher or architect designing next-generation AI systems, the
+  challenge is no longer merely prompting the model; it is orchestrating the model.
+auto-generated: true
+---
 # Skill Composition and Chaining for Complex Workflows
 
-The modern paradigm of Artificial Intelligence is rapidly shifting from viewing Large Language Models (LLMs) as monolithic, all-knowing oracles to recognizing them as highly capable, yet inherently narrow, *components*. While the raw generative power of a single, massive model is impressive, it possesses critical limitations when faced with tasks that require sustained reasoning, multi-step planning, external data interaction, or verifiable, structured output across extended contexts.
+The modern paradigm of [Artificial Intelligence](ArtificialIntelligence) is rapidly shifting from viewing Large Language Models (LLMs) as monolithic, all-knowing oracles to recognizing them as highly capable, yet inherently narrow, *components*. While the raw generative power of a single, massive model is impressive, it possesses critical limitations when faced with tasks that require sustained reasoning, multi-step planning, external data interaction, or verifiable, structured output across extended contexts.
 
 For the researcher or architect designing next-generation AI systems, the challenge is no longer merely prompting the model; it is **orchestrating** the model. This tutorial serves as a comprehensive deep dive into **Skill Composition and Chaining**, the architectural pattern that allows us to build reliable, complex, and robust AI systems by assembling specialized, modular capabilities. If you are researching the bleeding edge of AI agentic workflows, this material is intended to provide the necessary theoretical scaffolding and practical depth.
 

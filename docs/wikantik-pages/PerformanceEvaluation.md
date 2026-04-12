@@ -76,4 +76,4 @@ The process of rendering a wiki page involves parsing the markup, applying filte
 
 - **Plugin Caching:** Cache the output of plugins that produce static content.
 - **Lazy Loading:** Defer the execution of plugins that are not immediately visible on the page.
-- **Performance Profiling:** Profile the performance of individual plugins to identify and optimize the slow ones.
+- **[Performance Profiling](PerformanceProfiling):** Profile the performance of individual plugins to identify and optimize the slow ones.

@@ -1,3 +1,14 @@
+---
+title: Type Systems Comparison
+type: article
+tags:
+- type
+- system
+- static
+summary: The choice of type system dictates the contract between the programmer, the
+  compiler/interpreter, and the runtime environment.
+auto-generated: true
+---
 # The Type Spectrum
 
 For those of us perpetually wrestling with the theoretical underpinnings of computation, the concept of "type" is less a mere feature of a language and more a fundamental constraint on the very structure of valid computation. The choice of type system dictates the contract between the programmer, the compiler/interpreter, and the runtime environment. Understanding the spectrum—from rigidly enforced compile-time guarantees to maximally flexible runtime interpretation—is not just academic; it is crucial for designing robust, scalable, and maintainable systems, especially when researching novel language constructs or domain-specific languages (DSLs).
@@ -8,7 +19,7 @@ This tutorial is intended for experts—researchers, compiler engineers, and adv
 
 ## I. Foundations: Defining the Type System Landscape
 
-Before dissecting the three major paradigms, we must establish a shared vocabulary. A **Type System** is, at its heart, a set of rules that govern the construction and manipulation of data types within a programming language. It provides a formal mechanism for verifying that programs are "well-typed," meaning that operations are only applied to data structures they are designed to handle.
+Before dissecting the three major paradigms, we must establish a shared vocabulary. A **Type System** is, at its heart, a set of rules that govern the construction and manipulation of data types within a programming language. It provides a formal mechanism for verifying that programs are "well-typed," meaning that operations are only applied to [data structures](DataStructures) they are designed to handle.
 
 ### A. The Core Dichotomy: Compile-Time vs. Runtime Enforcement
 

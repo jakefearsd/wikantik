@@ -1,3 +1,13 @@
+---
+title: Wine Fermentation
+type: article
+tags:
+- text
+- ferment
+- must
+summary: Wine Fermentation and the Role of Yeast Welcome.
+auto-generated: true
+---
 # Wine Fermentation and the Role of Yeast
 
 Welcome. If you are reading this, you are not interested in the basic "sugar turns into alcohol" narrative. You are here because you are researching the subtle, complex, and often poorly understood biochemical machinery that transforms grape must into wine. Wine fermentation is not a single reaction; it is a dynamic, multi-stage, microbial ecosystem interaction governed by kinetics, thermodynamics, and environmental stress.

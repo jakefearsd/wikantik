@@ -1,3 +1,14 @@
+---
+title: Philosophy Of Science
+type: article
+tags:
+- we
+- scientif
+- model
+summary: We assume that a rigorous enough application of logic and experiment will
+  inevitably lead to truth.
+auto-generated: true
+---
 # Philosophy of Science and the Modern Scientific Method
 
 For those of us who spend our days wrestling with novel techniques—be it in quantum computation, advanced materials synthesis, or complex systems modeling—the underlying assumptions of *how* we know what we know are often taken for granted. We assume the method works. We assume the data speaks. We assume that a rigorous enough application of logic and experiment will inevitably lead to truth.

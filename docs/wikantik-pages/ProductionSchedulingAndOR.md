@@ -22,7 +22,7 @@ part-of:
 ---
 # Production Scheduling and OR
 
-Scheduling — assigning tasks to resources over time — is among the most practically important problem domains in operations research. It governs when a factory makes which product, how a hospital assigns operating rooms, when a construction project hits milestones, and how a chip manufacturer sequences thousands of jobs through its fab. Scheduling problems range from polynomial-time solvable to deeply NP-hard, and the dividing lines are often surprisingly delicate.
+Scheduling — assigning tasks to resources over time — is among the most practically important problem domains in [operations research](OperationsResearch). It governs when a factory makes which product, how a hospital assigns operating rooms, when a construction project hits milestones, and how a chip manufacturer sequences thousands of jobs through its fab. Scheduling problems range from polynomial-time solvable to deeply NP-hard, and the dividing lines are often surprisingly delicate.
 
 ## Project Scheduling: CPM and PERT
 

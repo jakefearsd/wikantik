@@ -1,3 +1,14 @@
+---
+title: Backpacking Guide
+type: article
+tags:
+- text
+- must
+- we
+summary: 'Disclaimer: This document assumes a baseline understanding of geopolitical
+  risk assessment, advanced resource management, and iterative system design.'
+auto-generated: true
+---
 # Backpacking Guide
 
 **Target Audience:** Seasoned field researchers, logistical architects, and technical travelers who view international backpacking not as a vacation, but as a complex, multi-variable, adaptive expeditionary science problem.

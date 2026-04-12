@@ -1,3 +1,13 @@
+---
+title: Epistemology
+type: article
+tags:
+- knowledg
+- you
+- belief
+summary: Epistemology, at its core, is the theory of knowledge.
+auto-generated: true
+---
 # Epistemology: The Nature and Limits of Knowledge
 
 This tutorial is not designed for the undergraduate who merely needs to define "knowledge." Given your stated expertise—researching novel techniques at the cutting edge of a technical domain—we must treat epistemology not as a historical survey of dusty texts, but as a **meta-theoretical framework**—a set of critical lenses through which the very possibility and validity of your research outputs must be scrutinized.
@@ -65,7 +75,7 @@ Coherentists reject the need for a single, unshakeable foundation. Instead, they
 Externalist theories shift the focus of justification away from the internal mental state of the knower and toward the *relationship* between the belief-forming process and the world.
 *   *Key Concept:* **Reliabilism.** A belief is justified if it is produced by a reliable cognitive process.
 *   *Example:* If you are trained to identify a stop sign, and your visual processing system reliably flags red, octagonal signs in the real world, your belief that the sign means "stop" is justified, *regardless* of whether you can perfectly articulate the causal chain of your recognition.
-*   *Implication for AI:* This is perhaps the most direct philosophical parallel to modern machine learning. We don't ask, "Does the model *know* why it classified this?" (internal justification); we ask, "Is the model's classification process *reliable* given this type of input?" (external justification).
+*   *Implication for AI:* This is perhaps the most direct philosophical parallel to modern [machine learning](MachineLearning). We don't ask, "Does the model *know* why it classified this?" (internal justification); we ask, "Is the model's classification process *reliable* given this type of input?" (external justification).
 
 ---
 
@@ -140,7 +150,7 @@ The frontier of epistemology often turns inward: knowing *how* we know. This is 
 
 *   **The Challenge of Implicit Knowledge:** As noted in the context [3], much of our behavior is governed by unconscious states, implicit biases, and automatic responses. These are forms of knowledge that resist propositional articulation.
 *   **The Research Gap:** Most technical techniques are designed to process *explicit* data. They struggle profoundly with the implicit, the biased, or the contextually suppressed.
-*   **Practical Application:** When auditing a system, you must ask: "What assumptions, biases, or unstated contextual rules (the implicit knowledge) are embedded in the training data or the feature engineering that we are currently treating as objective?"
+*   **Practical Application:** When auditing a system, you must ask: "What assumptions, biases, or unstated contextual rules (the implicit knowledge) are embedded in the training data or the [feature engineering](FeatureEngineering) that we are currently treating as objective?"
 
 ---
 

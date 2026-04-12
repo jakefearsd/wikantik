@@ -1,3 +1,14 @@
+---
+title: State Machine Pattern
+type: article
+tags:
+- state
+- transit
+- event
+summary: It is the formal mechanism by which we tame the inherent chaos of time-dependent,
+  event-driven systems.
+auto-generated: true
+---
 # The Architecture of Flow
 
 For those of us who spend our careers wrestling with complex business logic—the kind that doesn't fit neatly into a single function call—the State Machine Pattern (SMP) is not merely a pattern; it is a fundamental architectural necessity. It is the formal mechanism by which we tame the inherent chaos of time-dependent, event-driven systems.

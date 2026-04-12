@@ -27,7 +27,7 @@ function buildVersionPlugin() {
 export default defineConfig({
   plugins: [react(), buildVersionPlugin()],
   test: {
-    environment: 'node',
+    environment: 'happy-dom',
   },
   base: '/',
   build: {

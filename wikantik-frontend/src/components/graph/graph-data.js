@@ -74,43 +74,69 @@ export function mergeParallelEdges(edges) {
   return result;
 }
 
-export function toCytoscapeElements(snapshot) {
-  const nodes = snapshot.nodes.map(n => ({
-    data: {
-      id: n.id,
-      name: n.name,
-      type: n.type,
-      role: n.role,
-      provenance: n.provenance,
-      sourcePage: n.sourcePage,
-      degreeIn: n.degreeIn,
-      degreeOut: n.degreeOut,
-      restricted: n.restricted,
-      label: n.restricted ? '\u{1F512}' : (n.name || ''),
-    },
-    classes: `role-${n.role}`,
-  }));
+export function toCytoscapeElements(snapshot, filter) {
+  const visibleNodeIds = filter?.visibleNodeIds ?? null;
+  const fadedNodeIds = filter?.fadedNodeIds ?? new Set();
+  const visibleEdgeIds = filter?.visibleEdgeIds ?? null;
+  const fadedEdgeIds = filter?.fadedEdgeIds ?? new Set();
+  const nodeColor = filter?.nodeColor ?? new Map();
+
+  const nodes = snapshot.nodes.map(n => {
+    const hidden = visibleNodeIds !== null && !visibleNodeIds.has(n.id);
+    const faded = fadedNodeIds.has(n.id);
+    const classList = [`role-${n.role}`];
+    if (hidden) classList.push('hidden');
+    if (faded) classList.push('faded');
+    const clusterColor = nodeColor.get(n.id);
+    return {
+      data: {
+        id: n.id,
+        name: n.name,
+        type: n.type,
+        role: n.role,
+        provenance: n.provenance,
+        sourcePage: n.sourcePage,
+        degreeIn: n.degreeIn,
+        degreeOut: n.degreeOut,
+        restricted: n.restricted,
+        label: n.restricted ? '\u{1F512}' : (n.name || ''),
+        cluster: n.cluster ?? null,
+        tags: n.tags ?? [],
+        status: n.status ?? null,
+        ...(clusterColor ? { clusterColor } : {}),
+      },
+      classes: classList.join(' '),
+    };
+  });
 
   const bidiMerged = mergeBidirectionalEdges(snapshot.edges);
   const parallelMerged = mergeParallelEdges(bidiMerged);
 
-  const edges = parallelMerged.map(e => ({
-    classes: e.relationshipTypes.length > 1 ? 'composite' : '',
-    data: {
-      id: e.relationshipTypes.length > 1
-        ? e.relationshipTypes.join('-') + '-' + e.source + '-' + e.target
-        : e.id + (e.bidirectional ? '-bidi' : ''),
-      source: e.source,
-      target: e.target,
-      relationshipType: e.relationshipTypes[0],
-      relationshipTypes: e.relationshipTypes,
-      edgeLabel: e.relationshipTypes.join(' \u00B7 '),
-      provenance: e.provenance,
-      edgeColor: colorFor(e.relationshipTypes[0]),
-      bidirectional: e.bidirectional || false,
-      compositeWidth: e.relationshipTypes.length > 1 ? 2 : 1,
-    },
-  }));
+  const edges = parallelMerged.map(e => {
+    const baseClass = e.relationshipTypes.length > 1 ? 'composite' : '';
+    const hidden = visibleEdgeIds !== null && !visibleEdgeIds.has(e.id);
+    const faded = fadedEdgeIds.has(e.id);
+    const classList = baseClass ? [baseClass] : [];
+    if (hidden) classList.push('hidden');
+    if (faded) classList.push('faded');
+    return {
+      classes: classList.join(' '),
+      data: {
+        id: e.relationshipTypes.length > 1
+          ? e.relationshipTypes.join('-') + '-' + e.source + '-' + e.target
+          : e.id + (e.bidirectional ? '-bidi' : ''),
+        source: e.source,
+        target: e.target,
+        relationshipType: e.relationshipTypes[0],
+        relationshipTypes: e.relationshipTypes,
+        edgeLabel: e.relationshipTypes.join(' \u00B7 '),
+        provenance: e.provenance,
+        edgeColor: colorFor(e.relationshipTypes[0]),
+        bidirectional: e.bidirectional || false,
+        compositeWidth: e.relationshipTypes.length > 1 ? 2 : 1,
+      },
+    };
+  });
 
   return { nodes, edges };
 }

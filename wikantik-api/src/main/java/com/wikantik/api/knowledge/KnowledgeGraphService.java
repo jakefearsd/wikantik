@@ -86,4 +86,18 @@ public interface KnowledgeGraphService {
 
     /** Deletes all knowledge graph data: nodes, edges, proposals, rejections, and embeddings. */
     void clearAll();
+
+    // --- Graph visualization ---
+
+    /**
+     * Builds a snapshot of the entire knowledge graph for visualization.
+     * Nodes are classified by role (hub, normal, orphan, stub, restricted).
+     * Restricted nodes have sensitive fields redacted based on the viewer's
+     * page-level permissions. The underlying data may be cached; per-user
+     * redaction is applied on top of the cache.
+     *
+     * @param viewer the user's session (used for ACL checks); must not be null
+     * @return a complete snapshot of all nodes and edges
+     */
+    GraphSnapshot snapshotGraph( com.wikantik.api.core.Session viewer );
 }

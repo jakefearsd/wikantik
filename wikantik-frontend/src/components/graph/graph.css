@@ -290,3 +290,31 @@
   width: 20px;
   cursor: pointer;
 }
+
+.filter-panel { padding: 8px; border-bottom: 1px solid #e5e7eb; }
+.filter-preset-row { display: flex; gap: 4px; margin-bottom: 8px; }
+.filter-preset-pill {
+  padding: 4px 10px; border: 1px solid #d1d5db; border-radius: 999px;
+  background: #fff; cursor: pointer; font-size: 12px;
+}
+.filter-preset-pill.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+.filter-section { margin-top: 6px; font-size: 12px; }
+.filter-caption { color: #6b7280; font-size: 11px; margin-top: 4px; }
+.cluster-legend { display: flex; flex-direction: column; gap: 2px; }
+.cluster-legend-item {
+  display: flex; align-items: center; gap: 6px; padding: 2px 4px;
+  background: none; border: none; cursor: pointer; text-align: left;
+}
+.cluster-legend-item.active { background: #eff6ff; }
+.cluster-swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.cluster-name { flex: 1; }
+.cluster-count { color: #6b7280; }
+.tag-picker { display: flex; flex-wrap: wrap; gap: 4px 10px; max-height: 160px; overflow-y: auto; }
+.tag-option { font-size: 12px; display: inline-flex; gap: 4px; align-items: center; }
+.facet-row { display: flex; gap: 4px; margin-top: 6px; }
+.facet-row select, .facet-row input { font-size: 12px; padding: 2px 4px; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.filter-chip {
+  font-size: 11px; padding: 2px 6px; border: 1px solid #d1d5db; border-radius: 999px;
+  background: #f3f4f6; cursor: pointer;
+}

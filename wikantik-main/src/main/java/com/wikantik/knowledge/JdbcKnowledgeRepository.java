@@ -326,7 +326,27 @@ public class JdbcKnowledgeRepository {
     }
 
     /**
-     * Returns all edges in the knowledge graph. Used by the embedding training pipeline.
+     * Returns all nodes in the knowledge graph, ordered by id for determinism.
+     *
+     * @return list of all nodes
+     */
+    public List< KgNode > getAllNodes() {
+        final List< KgNode > results = new ArrayList<>();
+        try( final Connection conn = dataSource.getConnection();
+             final Statement st = conn.createStatement();
+             final ResultSet rs = st.executeQuery( "SELECT * FROM kg_nodes ORDER BY id" ) ) {
+            while( rs.next() ) {
+                results.add( mapNode( rs ) );
+            }
+        } catch( final SQLException e ) {
+            LOG.warn( "Failed to get all nodes: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
+        return results;
+    }
+
+    /**
+     * Returns all edges in the knowledge graph, ordered by id for determinism.
      *
      * @return list of all edges
      */
@@ -334,7 +354,7 @@ public class JdbcKnowledgeRepository {
         final List< KgEdge > results = new ArrayList<>();
         try( final Connection conn = dataSource.getConnection();
              final Statement st = conn.createStatement();
-             final ResultSet rs = st.executeQuery( "SELECT * FROM kg_edges" ) ) {
+             final ResultSet rs = st.executeQuery( "SELECT * FROM kg_edges ORDER BY id" ) ) {
             while( rs.next() ) {
                 results.add( mapEdge( rs ) );
             }

@@ -125,6 +125,64 @@ class ComplExModelTest {
     }
 
     @Test
+    void embeddingsContainNoNaN() {
+        for( int i = 0; i < model.getEntityCount(); i++ ) {
+            for( final float v : model.getEntityReal( i ) ) {
+                assertFalse( Float.isNaN( v ), "NaN in entityReal[" + i + "] (" + model.getEntityNames().get( i ) + ")" );
+                assertFalse( Float.isInfinite( v ), "Infinity in entityReal[" + i + "]" );
+            }
+            for( final float v : model.getEntityImag( i ) ) {
+                assertFalse( Float.isNaN( v ), "NaN in entityImag[" + i + "] (" + model.getEntityNames().get( i ) + ")" );
+                assertFalse( Float.isInfinite( v ), "Infinity in entityImag[" + i + "]" );
+            }
+        }
+        for( int i = 0; i < model.getRelationCount(); i++ ) {
+            for( final float v : model.getRelationReal( i ) ) {
+                assertFalse( Float.isNaN( v ), "NaN in relationReal[" + i + "]" );
+                assertFalse( Float.isInfinite( v ), "Infinity in relationReal[" + i + "]" );
+            }
+            for( final float v : model.getRelationImag( i ) ) {
+                assertFalse( Float.isNaN( v ), "NaN in relationImag[" + i + "]" );
+                assertFalse( Float.isInfinite( v ), "Infinity in relationImag[" + i + "]" );
+            }
+        }
+    }
+
+    @Test
+    void highEpochTrainingProducesFiniteEmbeddings() {
+        // Stress test: aggressive lr + many epochs on a dense graph to trigger float overflow
+        // in normalizeRows when relation embeddings are not normalized.
+        // Before the fix, unbounded relation growth amplified entity gradients until
+        // float accumulation in normalizeRows overflowed to Infinity → NaN.
+        final List< String > entities = new java.util.ArrayList<>();
+        for( int i = 0; i < 30; i++ ) entities.add( "E" + i );
+        final List< String > relations = List.of( "r0", "r1" );
+        final List< Triple > triples = new java.util.ArrayList<>();
+        for( int i = 0; i < 30; i++ ) {
+            triples.add( new Triple( i, 0, ( i + 1 ) % 30 ) );
+            triples.add( new Triple( i, 1, ( i + 7 ) % 30 ) );
+        }
+        final ComplExModel stress = new ComplExModel();
+        stress.train( entities, relations, triples, 20, 200, 0.05f, 15, 1.0f );
+        for( int i = 0; i < stress.getEntityCount(); i++ ) {
+            for( final float v : stress.getEntityReal( i ) ) {
+                assertTrue( Float.isFinite( v ), "Non-finite in entityReal[" + i + "] after stress training" );
+            }
+            for( final float v : stress.getEntityImag( i ) ) {
+                assertTrue( Float.isFinite( v ), "Non-finite in entityImag[" + i + "] after stress training" );
+            }
+        }
+        for( int i = 0; i < stress.getRelationCount(); i++ ) {
+            for( final float v : stress.getRelationReal( i ) ) {
+                assertTrue( Float.isFinite( v ), "Non-finite in relationReal[" + i + "] after stress training" );
+            }
+            for( final float v : stress.getRelationImag( i ) ) {
+                assertTrue( Float.isFinite( v ), "Non-finite in relationImag[" + i + "] after stress training" );
+            }
+        }
+    }
+
+    @Test
     void emptyTriplesDoesNotFail() {
         final ComplExModel empty = new ComplExModel();
         empty.train( ENTITIES, RELATIONS, List.of(), 20, 10, 0.01f, 3, 1.0f );

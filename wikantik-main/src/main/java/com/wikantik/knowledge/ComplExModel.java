@@ -151,9 +151,33 @@ public class ComplExModel {
                 }
             }
 
-            // L2 normalize entity embeddings every epoch to prevent drift
+            // L2 normalize all embeddings every epoch to prevent drift
             normalizeRows( entityReal );
             normalizeRows( entityImag );
+            normalizeRows( relationReal );
+            normalizeRows( relationImag );
+        }
+
+        validateFinite();
+    }
+
+    private void validateFinite() {
+        for( int i = 0; i < entityReal.length; i++ ) {
+            checkRow( entityReal[ i ], "entityReal", i );
+            checkRow( entityImag[ i ], "entityImag", i );
+        }
+        for( int i = 0; i < relationReal.length; i++ ) {
+            checkRow( relationReal[ i ], "relationReal", i );
+            checkRow( relationImag[ i ], "relationImag", i );
+        }
+    }
+
+    private void checkRow( final float[] row, final String label, final int idx ) {
+        for( int j = 0; j < row.length; j++ ) {
+            if( !Float.isFinite( row[ j ] ) ) {
+                throw new ArithmeticException(
+                    label + "[" + idx + "][" + j + "] is " + row[ j ] + " after training" );
+            }
         }
     }
 
@@ -270,19 +294,24 @@ public class ComplExModel {
         updateTripleGradient( neg.head, neg.relation, neg.tail, negLr );
     }
 
+    private static final float GRAD_CLIP = 5.0f;
+
+    private static float clip( final float v ) {
+        return Math.max( -GRAD_CLIP, Math.min( GRAD_CLIP, v ) );
+    }
+
     private void updateTripleGradient( final int h, final int r, final int t, final float lr ) {
         for( int d = 0; d < dim; d++ ) {
             final float hRe = entityReal[ h ][ d ], hIm = entityImag[ h ][ d ];
             final float rRe = relationReal[ r ][ d ], rIm = relationImag[ r ][ d ];
             final float tRe = entityReal[ t ][ d ], tIm = entityImag[ t ][ d ];
 
-            // Gradients of ComplEx score w.r.t. each parameter
-            entityReal[ h ][ d ] += lr * ( rRe * tRe + rIm * tIm );
-            entityImag[ h ][ d ] += lr * ( rRe * tIm - rIm * tRe );
-            relationReal[ r ][ d ] += lr * ( hRe * tRe + hIm * tIm );
-            relationImag[ r ][ d ] += lr * ( hRe * tIm - hIm * tRe );
-            entityReal[ t ][ d ] += lr * ( hRe * rRe - hIm * rIm );
-            entityImag[ t ][ d ] += lr * ( hIm * rRe + hRe * rIm );
+            entityReal[ h ][ d ] += lr * clip( rRe * tRe + rIm * tIm );
+            entityImag[ h ][ d ] += lr * clip( rRe * tIm - rIm * tRe );
+            relationReal[ r ][ d ] += lr * clip( hRe * tRe + hIm * tIm );
+            relationImag[ r ][ d ] += lr * clip( hRe * tIm - hIm * tRe );
+            entityReal[ t ][ d ] += lr * clip( hRe * rRe - hIm * rIm );
+            entityImag[ t ][ d ] += lr * clip( hIm * rRe + hRe * rIm );
         }
     }
 
@@ -300,11 +329,11 @@ public class ComplExModel {
 
     private static void normalizeRows( final float[][] m ) {
         for( final float[] row : m ) {
-            float norm = 0;
-            for( final float v : row ) norm += v * v;
+            double norm = 0;
+            for( final float v : row ) norm += (double) v * v;
             if( norm > 0 ) {
-                norm = ( float ) Math.sqrt( norm );
-                for( int j = 0; j < row.length; j++ ) row[ j ] /= norm;
+                final float invNorm = ( float ) ( 1.0 / Math.sqrt( norm ) );
+                for( int j = 0; j < row.length; j++ ) row[ j ] *= invNorm;
             }
         }
     }

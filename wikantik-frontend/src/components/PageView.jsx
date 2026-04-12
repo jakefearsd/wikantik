@@ -1,13 +1,15 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
+import { renderMath } from '../utils/math';
 import PageMeta from './PageMeta';
 import MetadataPanel from './MetadataPanel';
 import SimilarPagesPanel from './SimilarPagesPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
 import CommentsPanel from './CommentsPanel';
+import 'katex/dist/katex.min.css';
 import '../styles/article.css';
 import '../styles/admin.css';
 
@@ -16,6 +18,19 @@ export default function PageView() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: page, loading, error } = useApi((signal) => api.getPage(name, { render: true, signal }), [name, user?.authenticated]);
+
+  const articleRef = useRef(null);
+
+  // Render LaTeX math expressions via KaTeX after page content is injected.
+  // Depend on the `page` object reference (not the contentHtml string) so the
+  // effect fires on every refetch — e.g. auth state transitions where
+  // dangerouslySetInnerHTML resets the DOM and wipes previously-rendered
+  // KaTeX output. renderMath is idempotent (guards with `math-rendered`).
+  useEffect(() => {
+    if (articleRef.current && page?.contentHtml) {
+      renderMath(articleRef.current);
+    }
+  }, [page]);
 
   // Sync document.title with current page. Integration tests assert titles
   // like "Wikantik: Main" so keep the format stable.
@@ -180,6 +195,7 @@ export default function PageView() {
       <ChangeNotesPanel pageName={name} />
 
       <article
+        ref={articleRef}
         className="article-prose"
         onClick={handleContentClick}
         dangerouslySetInnerHTML={{ __html: page.contentHtml || page.content || '' }}

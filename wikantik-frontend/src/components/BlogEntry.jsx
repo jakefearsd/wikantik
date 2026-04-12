@@ -1,7 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
+import { renderMath } from '../utils/math';
 import '../styles/article.css';
 
 export default function BlogEntry() {
@@ -11,6 +13,18 @@ export default function BlogEntry() {
     (signal) => api.blog.getEntry(username, entryName, { render: true, signal }),
     [username, entryName, user?.authenticated]
   );
+
+  const articleRef = useRef(null);
+
+  // Depend on the `entry` object reference (not the contentHtml string) so
+  // the effect fires on every refetch — e.g. auth state transitions where
+  // dangerouslySetInnerHTML resets the DOM and wipes previously-rendered
+  // KaTeX output. renderMath is idempotent (guards with `math-rendered`).
+  useEffect(() => {
+    if (articleRef.current && entry?.contentHtml) {
+      renderMath(articleRef.current);
+    }
+  }, [entry]);
 
   const isOwner = user?.authenticated && user.loginPrincipal?.toLowerCase() === username?.toLowerCase();
   const isAdmin = user?.authenticated && user.roles?.includes('Admin');
@@ -58,6 +72,7 @@ export default function BlogEntry() {
       )}
 
       <article
+        ref={articleRef}
         className="article-prose"
         dangerouslySetInnerHTML={{ __html: entry.contentHtml || entry.content || '' }}
       />

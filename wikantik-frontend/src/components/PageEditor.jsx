@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { api } from '../api/client';
 import { reconstructContent, stripFrontmatter } from '../utils/frontmatterUtils';
 import { remarkAttachments } from '../utils/remarkAttachments';
@@ -220,8 +222,9 @@ export default function PageEditor() {
           <article className="article-prose">
             <ReactMarkdown remarkPlugins={[
               remarkGfm,
+              remarkMath,
               [remarkAttachments, { attachments: attachments.list, pageName: name }],
-            ]}>
+            ]} rehypePlugins={[rehypeKatex]}>
               {previewContent}
             </ReactMarkdown>
           </article>

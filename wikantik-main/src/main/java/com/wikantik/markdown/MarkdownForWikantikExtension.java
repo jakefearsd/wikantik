@@ -22,6 +22,7 @@ import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.data.MutableDataHolder;
 import com.wikantik.api.core.Context;
+import com.wikantik.markdown.extensions.math.InlineMathParser;
 import com.wikantik.markdown.extensions.wikilinks.attributeprovider.WikantikLinkAttributeProviderFactory;
 import com.wikantik.markdown.extensions.wikilinks.postprocessor.WikantikNodePostProcessorFactory;
 import com.wikantik.markdown.renderer.WikantikNodeRendererFactory;
@@ -78,6 +79,7 @@ public class MarkdownForWikantikExtension implements Parser.ParserExtension, Htm
 	@Override
 	public void extend( final Parser.Builder parserBuilder ) {
 	    parserBuilder.postProcessorFactory( new WikantikNodePostProcessorFactory( context, parserBuilder, isImageInlining, inlineImagePatterns ) );
+	    parserBuilder.customInlineParserExtensionFactory( new InlineMathParser.Factory() );
 	}
 
 }

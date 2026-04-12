@@ -1,7 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
+import { renderMath } from '../utils/math';
 import '../styles/article.css';
 
 export default function BlogHome() {
@@ -11,6 +13,18 @@ export default function BlogHome() {
     (signal) => api.blog.get(username, { render: true, signal }),
     [username, user?.authenticated]
   );
+
+  const articleRef = useRef(null);
+
+  // Depend on the `page` object reference (not the contentHtml string) so the
+  // effect fires on every refetch — e.g. auth state transitions where
+  // dangerouslySetInnerHTML resets the DOM and wipes previously-rendered
+  // KaTeX output. renderMath is idempotent (guards with `math-rendered`).
+  useEffect(() => {
+    if (articleRef.current && page?.contentHtml) {
+      renderMath(articleRef.current);
+    }
+  }, [page]);
 
   const isOwner = user?.authenticated && user.loginPrincipal?.toLowerCase() === username?.toLowerCase();
   const isAdmin = user?.authenticated && user.roles?.includes('Admin');
@@ -60,6 +74,7 @@ export default function BlogHome() {
       </div>
 
       <article
+        ref={articleRef}
         className="article-prose"
         dangerouslySetInnerHTML={{ __html: page.contentHtml || page.content || '' }}
       />

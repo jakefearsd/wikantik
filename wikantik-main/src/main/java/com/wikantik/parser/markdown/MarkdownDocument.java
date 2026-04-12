@@ -21,6 +21,7 @@ package com.wikantik.parser.markdown;
 import com.vladsch.flexmark.ext.attributes.AttributesExtension;
 import com.vladsch.flexmark.ext.definition.DefinitionExtension;
 import com.vladsch.flexmark.ext.footnotes.FootnoteExtension;
+import com.vladsch.flexmark.ext.gitlab.GitLabExtension;
 import com.vladsch.flexmark.ext.tables.TablesExtension;
 import com.vladsch.flexmark.ext.toc.TocExtension;
 import com.vladsch.flexmark.html.HtmlRenderer;
@@ -71,10 +72,24 @@ public class MarkdownDocument extends WikiDocument {
         // align style of Markdown's footnotes extension with wikantik footnotes refs
         options.set( FootnoteExtension.FOOTNOTE_LINK_REF_CLASS, MarkupParser.CLASS_FOOTNOTE_REF );
         options.set( HtmlRenderer.ESCAPE_HTML, !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) );
+        // GitLab extension: enable only block math rendering (```math fenced blocks).
+        // Disable the GitLab inline math parser ($`...`$ syntax) — we register our own
+        // InlineMathParser for the standard $...$ convention instead.
+        options.set( GitLabExtension.INLINE_MATH_PARSER, false );
+        options.set( GitLabExtension.RENDER_BLOCK_MATH, true );
+        options.set( GitLabExtension.INLINE_MATH_CLASS, "math-inline" );
+        options.set( GitLabExtension.BLOCK_MATH_CLASS, "math-display" );
+        options.set( GitLabExtension.DEL_PARSER, false );
+        options.set( GitLabExtension.INS_PARSER, false );
+        options.set( GitLabExtension.BLOCK_QUOTE_PARSER, false );
+        options.set( GitLabExtension.RENDER_VIDEO_IMAGES, false );
+        options.set( GitLabExtension.RENDER_VIDEO_LINK, false );
+        options.set( GitLabExtension.RENDER_BLOCK_MERMAID, false );
         options.set( Parser.EXTENSIONS, Arrays.asList( new Extension[] { new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),
                                                                          AttributesExtension.create(),
                                                                          DefinitionExtension.create(),
                                                                          FootnoteExtension.create(),
+                                                                         GitLabExtension.create(),
                                                                          TablesExtension.create(),
                                                                          TocExtension.create() } ) );
         return options;

@@ -396,12 +396,15 @@ public class AdminKnowledgeResource extends RestServletBase {
             final Collection< ? extends Page > allPages = pm.getAllPages();
             int scanned = 0;
             int projected = 0;
+            int contentPageCount = 0;
             final List< String > errors = new ArrayList<>();
             for ( final Page page : allPages ) {
                 scanned++;
                 if ( projector.isSystemPage( page.getName() ) ) {
                     continue;
                 }
+                contentPageCount++;
+                LOG.info( "Projecting page '{}' ({}/{})", page.getName(), scanned, allPages.size() );
                 try {
                     final String text = pm.getPureText( page );
                     final ParsedPage parsed = FrontmatterParser.parse( text );
@@ -411,6 +414,19 @@ public class AdminKnowledgeResource extends RestServletBase {
                     errors.add( page.getName() + ": " + e.getMessage() );
                 }
             }
+
+            final int totalPageCount = pm.getTotalPageCount();
+            if ( scanned < totalPageCount ) {
+                throw new IllegalStateException(
+                        "getAllPages() returned " + scanned + " pages but getTotalPageCount() reports "
+                        + totalPageCount + "; projection is incomplete" );
+            }
+            if ( projected + errors.size() != contentPageCount ) {
+                throw new IllegalStateException(
+                        "Projection invariant violated: projected=" + projected
+                        + " errors=" + errors.size() + " contentPages=" + contentPageCount );
+            }
+
             LOG.info( "Projected {} of {} pages into knowledge graph ({} errors)",
                     projected, scanned, errors.size() );
             sendJson( response, Map.of( "scanned", scanned, "projected", projected, "errors", errors ) );

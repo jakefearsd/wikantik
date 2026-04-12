@@ -114,4 +114,124 @@ class HubDiscoveryRepositoryTest {
         repo.insert( "H2", "D", List.of( "D", "E", "F" ), 0.6 );
         assertEquals( 2, repo.count() );
     }
+
+    // ---- Dismissed-row operations ----
+
+    @Test
+    void markDismissed_pendingRow_updatesStatusAndReviewer() {
+        final int id = repo.insert( "H", "A", List.of( "A", "B", "C" ), 0.5 );
+        assertTrue( repo.markDismissed( id, "alice" ) );
+
+        // Row is no longer counted or returned as pending.
+        assertEquals( 0, repo.count() );
+        assertEquals( 0, repo.list( 50, 0 ).size() );
+
+        // It is now in the dismissed list with the reviewer populated.
+        final var dismissed = repo.listDismissed( 50, 0 );
+        assertEquals( 1, dismissed.size() );
+        assertEquals( id, dismissed.get( 0 ).id() );
+        assertEquals( "alice", dismissed.get( 0 ).reviewedBy() );
+        assertNotNull( dismissed.get( 0 ).reviewedAt() );
+        assertEquals( List.of( "A", "B", "C" ), dismissed.get( 0 ).memberPages() );
+    }
+
+    @Test
+    void markDismissed_alreadyDismissed_returnsFalse() {
+        final int id = repo.insert( "H", "A", List.of( "A", "B", "C" ), 0.5 );
+        assertTrue( repo.markDismissed( id, "alice" ) );
+        assertFalse( repo.markDismissed( id, "bob" ) );
+    }
+
+    @Test
+    void markDismissed_missingId_returnsFalse() {
+        assertFalse( repo.markDismissed( 99999, "alice" ) );
+    }
+
+    @Test
+    void countDismissed_returnsOnlyDismissed() {
+        repo.insert( "Pending", "A", List.of( "A", "B", "C" ), 0.5 );
+        final int d = repo.insert( "Dismissed", "D", List.of( "D", "E", "F" ), 0.6 );
+        repo.markDismissed( d, "alice" );
+        assertEquals( 1, repo.count() );
+        assertEquals( 1, repo.countDismissed() );
+    }
+
+    @Test
+    void deleteDismissed_onlyDeletesDismissedRows() {
+        final int pending = repo.insert( "Pending", "A", List.of( "A", "B", "C" ), 0.5 );
+        final int dismissed = repo.insert( "Dismissed", "D", List.of( "D", "E", "F" ), 0.6 );
+        repo.markDismissed( dismissed, "alice" );
+
+        // Attempting to deleteDismissed on a pending row leaves it in place.
+        assertFalse( repo.deleteDismissed( pending ) );
+        assertNotNull( repo.findById( pending ) );
+
+        // Deleting the dismissed row removes it entirely.
+        assertTrue( repo.deleteDismissed( dismissed ) );
+        assertNull( repo.findById( dismissed ) );
+    }
+
+    @Test
+    void deleteDismissedBulk_deletesOnlyDismissedAndReturnsCount() {
+        final int pending = repo.insert( "Pending", "A", List.of( "A", "B", "C" ), 0.5 );
+        final int d1 = repo.insert( "D1", "D", List.of( "D", "E", "F" ), 0.6 );
+        final int d2 = repo.insert( "D2", "G", List.of( "G", "H", "I" ), 0.7 );
+        final int d3 = repo.insert( "D3", "J", List.of( "J", "K", "L" ), 0.8 );
+        repo.markDismissed( d1, "alice" );
+        repo.markDismissed( d2, "alice" );
+        repo.markDismissed( d3, "alice" );
+
+        // Supply a mix: pending + two dismissed. Only the two dismissed should be deleted.
+        final int deleted = repo.deleteDismissedBulk( List.of( pending, d1, d2 ) );
+        assertEquals( 2, deleted );
+        assertNotNull( repo.findById( pending ) );
+        assertNull( repo.findById( d1 ) );
+        assertNull( repo.findById( d2 ) );
+        assertNotNull( repo.findById( d3 ) );
+    }
+
+    @Test
+    void deleteDismissedBulk_emptyList_returnsZero() {
+        assertEquals( 0, repo.deleteDismissedBulk( List.of() ) );
+    }
+
+    @Test
+    void findDismissedMatchingMembers_exactSortedMatch_returnsTrue() {
+        final int id = repo.insert( "H", "Baking",
+            List.of( "Baking", "Grilling", "Roasting" ), 0.9 );
+        repo.markDismissed( id, "alice" );
+
+        // Exact sorted match hits.
+        assertTrue( repo.findDismissedMatchingMembers(
+            List.of( "Baking", "Grilling", "Roasting" ) ) );
+    }
+
+    @Test
+    void findDismissedMatchingMembers_differentOrder_returnsFalse() {
+        final int id = repo.insert( "H", "Baking",
+            List.of( "Baking", "Grilling", "Roasting" ), 0.9 );
+        repo.markDismissed( id, "alice" );
+
+        // JSONB array equality is order-sensitive — by design, the service
+        // sorts members before both insertion and the dismissed-match check.
+        assertFalse( repo.findDismissedMatchingMembers(
+            List.of( "Roasting", "Grilling", "Baking" ) ) );
+    }
+
+    @Test
+    void findDismissedMatchingMembers_pendingRowIgnored_returnsFalse() {
+        repo.insert( "H", "Baking", List.of( "Baking", "Grilling", "Roasting" ), 0.9 );
+        // Row is pending, not dismissed — must not match.
+        assertFalse( repo.findDismissedMatchingMembers(
+            List.of( "Baking", "Grilling", "Roasting" ) ) );
+    }
+
+    @Test
+    void findDismissedMatchingMembers_noMatch_returnsFalse() {
+        final int id = repo.insert( "H", "Baking",
+            List.of( "Baking", "Grilling", "Roasting" ), 0.9 );
+        repo.markDismissed( id, "alice" );
+        assertFalse( repo.findDismissedMatchingMembers(
+            List.of( "Soccer", "Tennis" ) ) );
+    }
 }

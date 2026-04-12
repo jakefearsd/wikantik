@@ -36,11 +36,15 @@ import static com.codeborne.selenide.Selenide.$;
 public class HubDiscoveryAdminPage implements Page {
 
     public HubDiscoveryAdminPage open() {
-        Selenide.open( "/admin/knowledge" );
+        // Use the full baseUrl so the context path prefix (e.g.
+        // /wikantik-it-test-custom) isn't stripped when the IT suite runs
+        // against a non-root-context WAR. Bare paths like "/admin/knowledge"
+        // resolve against the host root and 404.
+        Selenide.open( Page.baseUrl() + "/admin/knowledge" );
         // Activate the Hub Discovery tab. The React component renders the tab panel wrapper
         // with data-testid="hub-discovery-tab"; clicking the tab button with label "Hub Discovery"
         // switches the active tab.
-        $( ".admin-tab" ).shouldBe( visible );
+        $( ".admin-tab" ).shouldBe( visible, Duration.ofSeconds( 10 ) );
         $$( ".admin-tab" ).findBy( Condition.text( "Hub Discovery" ) ).click();
         $( "[data-testid='hub-discovery-tab']" ).shouldBe( visible );
         return this;
@@ -94,6 +98,53 @@ public class HubDiscoveryAdminPage implements Page {
     public HubDiscoveryAdminPage assertCardStillPresent( final int proposalId ) {
         $( "[data-testid='hub-discovery-card-" + proposalId + "']" )
             .shouldBe( Condition.visible );
+        return this;
+    }
+
+    // ---- Dismissed proposals section ----
+
+    public HubDiscoveryAdminPage expandDismissedSection() {
+        $( "[data-testid='hub-discovery-dismissed-toggle']" ).shouldBe( visible ).click();
+        $( "[data-testid='hub-discovery-dismissed-panel']" )
+            .shouldBe( visible, Duration.ofSeconds( 10 ) );
+        return this;
+    }
+
+    public SelenideElement dismissedRow( final int proposalId ) {
+        return $( "[data-testid='hub-discovery-dismissed-row-" + proposalId + "']" );
+    }
+
+    public HubDiscoveryAdminPage assertDismissedRowPresent( final int proposalId ) {
+        dismissedRow( proposalId ).shouldBe( visible, Duration.ofSeconds( 10 ) );
+        return this;
+    }
+
+    public HubDiscoveryAdminPage assertDismissedRowAbsent( final int proposalId ) {
+        dismissedRow( proposalId ).shouldNotBe( exist, Duration.ofSeconds( 10 ) );
+        return this;
+    }
+
+    public HubDiscoveryAdminPage selectDismissed( final int proposalId ) {
+        $( "[data-testid='hub-discovery-dismissed-select-" + proposalId + "']" )
+            .shouldBe( visible ).click();
+        return this;
+    }
+
+    public HubDiscoveryAdminPage clickBulkDeleteDismissed() {
+        $( "[data-testid='hub-discovery-dismissed-bulk-delete']" ).shouldBe( visible ).click();
+        return this;
+    }
+
+    public HubDiscoveryAdminPage clickDeleteDismissed( final int proposalId ) {
+        $( "[data-testid='hub-discovery-dismissed-delete-" + proposalId + "']" )
+            .shouldBe( visible ).click();
+        return this;
+    }
+
+    public HubDiscoveryAdminPage confirmDeleteDismissed() {
+        $( "[data-testid='hub-discovery-dismissed-confirm-modal']" )
+            .shouldBe( visible, Duration.ofSeconds( 5 ) );
+        $( "[data-testid='hub-discovery-dismissed-confirm-delete']" ).shouldBe( visible ).click();
         return this;
     }
 

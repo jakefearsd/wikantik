@@ -97,7 +97,7 @@ public class HubDiscoveryService {
 
     /** Summary returned by {@link #runDiscovery()}. */
     public record RunSummary( int proposalsCreated, int candidatePoolSize,
-                               int noisePages, long durationMs ) {}
+                               int noisePages, int skippedDismissed, long durationMs ) {}
 
     // ---- Public API ----
 
@@ -123,7 +123,7 @@ public class HubDiscoveryService {
 
         final TfidfModel model = resolveModel();
         if ( model == null ) {
-            return new RunSummary( 0, 0, 0, elapsed( start ) );
+            return new RunSummary( 0, 0, 0, 0, elapsed( start ) );
         }
 
         try {
@@ -132,7 +132,7 @@ public class HubDiscoveryService {
             if ( candidates.size() < minCandidatePool ) {
                 LOG.info( "Hub discovery: short-circuit — candidate pool size {} < minCandidatePool {}",
                     candidates.size(), minCandidatePool );
-                return new RunSummary( 0, candidates.size(), 0, elapsed( start ) );
+                return new RunSummary( 0, candidates.size(), 0, 0, elapsed( start ) );
             }
             LOG.info( "Hub discovery step 1: {} candidates in pool", candidates.size() );
 
@@ -153,8 +153,10 @@ public class HubDiscoveryService {
                 if ( label == -1 ) noiseCount++;
             }
 
-            // Step 5 — persist one proposal per cluster
+            // Step 5 — persist one proposal per cluster, skipping clusters whose
+            // sorted member set exactly matches an already-dismissed proposal.
             int created = 0;
+            int skippedDismissed = 0;
             for ( final Map.Entry< Integer, List< Integer > > entry : clusterMap.entrySet() ) {
                 final List< Integer > memberIndices = entry.getValue();
                 final List< String > memberNames = new ArrayList<>( memberIndices.size() );
@@ -174,6 +176,18 @@ public class HubDiscoveryService {
                 // Use exemplar as the suggested name placeholder; Task 10 will refine naming.
                 final String  suggestedName = exemplar + " Hub";
 
+                // Sort once — canonical order for both the signature check AND
+                // the persisted member_pages JSONB so dismissed-signature
+                // comparison is a trivial JSONB equality.
+                Collections.sort( memberNames );
+
+                if ( discoveryRepo.findDismissedMatchingMembers( memberNames ) ) {
+                    skippedDismissed++;
+                    LOG.info( "Hub discovery: skipping cluster '{}' ({} members) — matches a previously-dismissed proposal",
+                        suggestedName, memberNames.size() );
+                    continue;
+                }
+
                 discoveryRepo.insert( suggestedName, exemplar, memberNames, coherence );
                 created++;
                 LOG.info( "Hub discovery: wrote proposal '{}' with {} members, coherence={}",
@@ -181,9 +195,9 @@ public class HubDiscoveryService {
             }
 
             final long duration = elapsed( start );
-            LOG.info( "Hub discovery complete in {}ms: {} proposals created, {} noise pages",
-                duration, created, noiseCount );
-            return new RunSummary( created, candidates.size(), noiseCount, duration );
+            LOG.info( "Hub discovery complete in {}ms: {} proposals created, {} noise pages, {} skipped as previously dismissed",
+                duration, created, noiseCount, skippedDismissed );
+            return new RunSummary( created, candidates.size(), noiseCount, skippedDismissed, duration );
 
         } catch ( final RuntimeException e ) {
             // Admin-triggered batch failure — the REST caller only sees a 500, so the full
@@ -260,16 +274,28 @@ public class HubDiscoveryService {
     }
 
     /**
-     * Dismiss a cluster proposal (delete it from the review queue without creating a page).
+     * Dismiss a cluster proposal. Marks the row {@code status='dismissed'} so
+     * the next discovery run will skip any cluster whose member set exactly
+     * matches this one. Use {@link HubDiscoveryRepository#deleteDismissed(int)}
+     * (via the admin UI) to permanently clear the dismissal and re-enable
+     * rediscovery of that specific cluster.
      *
-     * @throws HubDiscoveryException if the proposal does not exist.
+     * @throws HubDiscoveryException if the proposal does not exist, or has
+     *                                already been dismissed.
      */
     public void dismissProposal( final int id, final String reviewedBy ) {
         final var proposal = discoveryRepo.findById( id );
         if ( proposal == null ) {
             throw new HubDiscoveryException( "Hub discovery proposal " + id + " not found", null );
         }
-        discoveryRepo.delete( id );
+        if ( !discoveryRepo.markDismissed( id, reviewedBy ) ) {
+            // findById succeeded but markDismissed did not update a pending row
+            // — the only realistic cause is a concurrent dismissal. Treat as
+            // not-pending (already dismissed) and report via the existing
+            // exception type.
+            throw new HubDiscoveryException(
+                "Hub discovery proposal " + id + " is not pending (already dismissed)", null );
+        }
         LOG.info( "Hub discovery: dismissed proposal {} ('{}', {} members, reviewed by {})",
             id, proposal.suggestedName(), proposal.memberPages().size(), reviewedBy );
     }

@@ -20,7 +20,7 @@ import { useState } from 'react';
 import { api } from '../../api/client';
 import PageLink from './PageLink';
 
-export default function HubDiscoveryCard({ proposal, onRemoved, onError }) {
+export default function HubDiscoveryCard({ proposal, onAccepted, onDismissed, onError }) {
   const [name, setName] = useState(proposal.suggestedName);
   const [checked, setChecked] = useState(() => new Set(proposal.memberPages));
   const [busy, setBusy] = useState(false);
@@ -45,7 +45,7 @@ export default function HubDiscoveryCard({ proposal, onRemoved, onError }) {
     try {
       const members = proposal.memberPages.filter((m) => checked.has(m));
       await api.knowledge.acceptHubDiscoveryProposal(proposal.id, name.trim(), members);
-      onRemoved?.(proposal.id);
+      onAccepted?.(proposal.id);
     } catch (err) {
       onError?.(err.body?.message || err.message || 'Accept failed');
       setBusy(false);
@@ -56,7 +56,7 @@ export default function HubDiscoveryCard({ proposal, onRemoved, onError }) {
     setBusy(true);
     try {
       await api.knowledge.dismissHubDiscoveryProposal(proposal.id);
-      onRemoved?.(proposal.id);
+      onDismissed?.(proposal);
     } catch (err) {
       onError?.(err.body?.message || err.message || 'Dismiss failed');
       setBusy(false);

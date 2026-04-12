@@ -259,11 +259,17 @@ CREATE TABLE IF NOT EXISTS hub_discovery_proposals (
     exemplar_page   TEXT             NOT NULL,
     member_pages    JSONB            NOT NULL,
     coherence_score DOUBLE PRECISION NOT NULL,
+    status          VARCHAR(20)      NOT NULL DEFAULT 'pending',
+    reviewed_by     VARCHAR(255),
+    reviewed_at     TIMESTAMPTZ,
     created         TIMESTAMPTZ      NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_hub_discovery_proposals_created
     ON hub_discovery_proposals ( created DESC );
+
+CREATE INDEX IF NOT EXISTS idx_hub_discovery_proposals_status
+    ON hub_discovery_proposals ( status );
 
 -- JDBCPlugin test table
 CREATE TABLE IF NOT EXISTS employees (

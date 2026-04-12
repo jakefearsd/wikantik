@@ -97,7 +97,7 @@ export default function KgEmbeddingsTab() {
             <>
               <span>v{status.model_version}</span>
               <span>{status.entity_count} entities</span>
-              <span>{status.relation_count} relations</span>
+              <span>{status.relation_count} relationship types</span>
               <span>dim {status.dimension}</span>
             </>
           )}

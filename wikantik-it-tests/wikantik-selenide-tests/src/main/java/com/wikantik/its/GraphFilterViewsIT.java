@@ -130,8 +130,7 @@ class GraphFilterViewsIT extends WithIntegrationTestSetup {
                 .shouldBe( visible, Duration.ofSeconds( 15 ) )
                 .shouldHave( text( "Backbone" ) );
 
-        // The +1 hop checkbox is rendered inside the filter controls.
-        $( "input[type='checkbox'][data-hop='1'], input[type='checkbox'].hop-checkbox" )
-                .shouldBe( checked );
+        // The +1 hop checkbox is rendered inside the Backbone filter section's <label>.
+        $( ".filter-section input[type='checkbox']" ).shouldBe( checked );
     }
 }

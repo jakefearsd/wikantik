@@ -68,10 +68,18 @@ Links are automatically styled with CSS classes:
 - **Custom attributes**: `[text](url){target=blank}`
 - **Section anchors**: `[PageName#SectionName]()`
 
+## Mathematical Notation
+
+Wikantik also supports LaTeX math inside Markdown pages — `$…$` for inline,
+`$$…$$` or ```` ```math ```` for display blocks. See
+[MathematicalNotation.md](MathematicalNotation.md) for the full syntax,
+examples, and configuration details.
+
 ## Source Files
 
 The link processing is implemented in:
 
-- `jspwiki-markdown/src/main/java/org/apache/wiki/markdown/nodes/WikantikLink.java`
-- `jspwiki-markdown/src/main/java/org/apache/wiki/markdown/extensions/jspwikilinks/attributeprovider/WikantikLinkAttributeProvider.java`
-- `jspwiki-markdown/src/main/java/org/apache/wiki/markdown/extensions/jspwikilinks/attributeprovider/LocalLinkAttributeProviderState.java`
+- `wikantik-main/src/main/java/com/wikantik/markdown/nodes/WikantikLink.java`
+- `wikantik-main/src/main/java/com/wikantik/markdown/extensions/wikilinks/attributeprovider/WikantikLinkAttributeProvider.java`
+- `wikantik-main/src/main/java/com/wikantik/markdown/extensions/wikilinks/attributeprovider/WikantikLinkAttributeProviderFactory.java`
+- `wikantik-main/src/main/java/com/wikantik/markdown/renderer/WikantikLinkRenderer.java`

@@ -8,10 +8,10 @@ The deployed Wikantik instance includes the following endpoints:
 
 | Path | Description |
 |------|-------------|
-| `/` | Traditional JSP-based wiki interface |
-| `/app/` | React SPA (modern reading/editing UI) |
-| `/app/admin/` | Admin panel (user, content, and security management) |
-| `/api/` | REST API |
+| `/` | React SPA (reader, editor, search) |
+| `/graph` | Knowledge graph visualiser |
+| `/admin/` | Admin panel (user, content, and security management) |
+| `/api/` | REST API (pages, attachments, search, history, knowledge graph) |
 | `/mcp/` | MCP server for AI agent integration |
 
 The `wikantik-observability` module provides additional endpoints:
@@ -33,16 +33,15 @@ The following environment variables are available to configure your Wikantik ins
 
 *   `CATALINA_OPTS`: Additional options for the Tomcat server. The default value, `-Djava.security.egd=file:/dev/./urandom`, is recommended for better performance on systems with low entropy.
 *   `LANG`: Sets the language for the container. Defaults to `en_US.UTF-8`.
-*   `jspwiki_basicAttachmentProvider_storageDir`: The directory where attachments are stored. Defaults to `/var/jspwiki/pages`.
-*   `jspwiki_fileSystemProvider_pageDir`: The directory where wiki pages are stored. Defaults to `/var/jspwiki/pages`.
-*   `jspwiki_frontPage`: The name of the wiki's front page. Defaults to `Main`.
-*   `jspwiki_pageProvider`: The page provider to use. Defaults to `VersioningFileProvider`.
-*   `jspwiki_use_external_logconfig`: Set to `true` to use an external Log4j2 configuration file. Defaults to `true`.
-*   `jspwiki_workDir`: The working directory for Wikantik. Defaults to `/var/jspwiki/work`.
-*   `jspwiki_xmlUserDatabaseFile`: The path to the user database file. Defaults to `/var/jspwiki/etc/userdatabase.xml`.
-*   `jspwiki_xmlGroupDatabaseFile`: The path to the group database file. Defaults to `/var/jspwiki/etc/groupdatabase.xml`.
+*   `wikantik_basicAttachmentProvider_storageDir`: The directory where attachments are stored. Defaults to `/var/wikantik/pages`.
+*   `wikantik_fileSystemProvider_pageDir`: The directory where wiki pages are stored. Defaults to `/var/wikantik/pages`.
+*   `wikantik_frontPage`: The name of the wiki's front page. Defaults to `Main`.
+*   `wikantik_pageProvider`: The page provider to use. Defaults to `VersioningFileProvider`.
+*   `wikantik_use_external_logconfig`: Set to `true` to use an external Log4j2 configuration file. Defaults to `true`.
+*   `wikantik_workDir`: The working directory for Wikantik. Defaults to `/var/wikantik/work`.
+*   `wikantik_datasource`: JNDI name of the PostgreSQL DataSource. Required for database-backed authorisation, groups, and the knowledge graph.
 
-**Note on naming conventions**: The environment variables above use the legacy `jspwiki_` prefix for backward compatibility. The current codebase uses `wikantik` naming internally, but the `jspwiki_` prefix continues to work for property overrides.
+**Note on naming conventions**: The property prefix is `wikantik_`. The legacy `jspwiki_` prefix is still accepted by the property-override layer for backward compatibility with older deployments, but new deployments should use `wikantik_`.
 
 ## 2. Data Persistence and Backup Strategy
 
@@ -52,10 +51,12 @@ To ensure that your wiki's data persists across container restarts and to facili
 
 The following directories contain all of Wikantik's critical data and should be mounted as volumes:
 
-*   `/var/jspwiki/pages`: Contains the wiki pages and attachments.
-*   `/var/jspwiki/etc`: Contains the user and group databases.
-*   `/var/jspwiki/logs`: Contains the application logs.
-*   `/var/jspwiki/work`: The working directory for Wikantik.
+*   `/var/wikantik/pages`: Contains the wiki pages and attachments.
+*   `/var/wikantik/logs`: Contains the application logs.
+*   `/var/wikantik/work`: The working directory for Wikantik.
+
+Users, groups, and policy grants are stored in the PostgreSQL database — make
+sure to back that up separately alongside the file volumes.
 
 ### Automated Backups
 
@@ -81,27 +82,27 @@ This example uses `docker-compose` to define and run a multi-container Wikantik 
 version: '3.7'
 
 services:
-  jspwiki:
+  wikantik:
     build: .
-    container_name: jspwiki
+    container_name: wikantik
     restart: always
     ports:
       - "8080:8080"
     volumes:
-      - jspwiki-data:/var/jspwiki
+      - wikantik-data:/var/wikantik
 
   backup:
     image: alpine
-    container_name: jspwiki-backup
+    container_name: wikantik-backup
     restart: always
     volumes:
-      - jspwiki-data:/var/jspwiki:ro
+      - wikantik-data:/var/wikantik:ro
       - ./backups:/backups
       - ./backup:/etc/periodic/daily
     command: ["crond", "-f", "-d", "8"]
 
 volumes:
-  jspwiki-data:
+  wikantik-data:
 ```
 
 ### `backup/backup.sh`
@@ -113,12 +114,12 @@ set -e
 
 # Create a compressed archive of the wikantik data
 TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
-BACKUP_FILE="/backups/jspwiki-backup-${TIMESTAMP}.tar.gz"
+BACKUP_FILE="/backups/wikantik-backup-${TIMESTAMP}.tar.gz"
 
-tar -czf "${BACKUP_FILE}" -C /var/jspwiki .
+tar -czf "${BACKUP_FILE}" -C /var/wikantik .
 
 # Prune old backups (keep the last 7)
-find /backups -name "jspwiki-backup-*.tar.gz" -type f -mtime +7 -delete
+find /backups -name "wikantik-backup-*.tar.gz" -type f -mtime +7 -delete
 ```
 
 ### `backup/crontab`
@@ -149,27 +150,31 @@ find /backups -name "jspwiki-backup-*.tar.gz" -type f -mtime +7 -delete
     *   Check the logs of the backup container to ensure that the cron job is running:
 
         ```bash
-        docker logs jspwiki-backup
+        docker logs wikantik-backup
         ```
 
 ### Restoring from a Backup
 
 To restore your Wikantik instance from a backup:
 
-1.  **Stop the `jspwiki` container**:
+1.  **Stop the `wikantik` container**:
 
     ```bash
-    docker-compose stop jspwiki
+    docker-compose stop wikantik
     ```
 
-2.  **Extract the backup archive** to the `jspwiki-data` volume:
+2.  **Extract the backup archive** to the `wikantik-data` volume:
 
     ```bash
-    docker run --rm -v jspwiki-data:/var/jspwiki -v $(pwd)/backups:/backups alpine tar -xzf /backups/jspwiki-backup-<TIMESTAMP>.tar.gz -C /var/jspwiki
+    docker run --rm -v wikantik-data:/var/wikantik -v $(pwd)/backups:/backups alpine tar -xzf /backups/wikantik-backup-<TIMESTAMP>.tar.gz -C /var/wikantik
     ```
 
-3.  **Restart the `jspwiki` container**:
+3.  **Restart the `wikantik` container**:
 
     ```bash
-    docker-compose start jspwiki
+    docker-compose start wikantik
     ```
+
+Remember to also restore the PostgreSQL database (users, groups, policy
+grants, knowledge-graph tables) from its own backup — file volumes alone are
+not sufficient for a full restore.

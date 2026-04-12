@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toCytoscapeElements, mergeBidirectionalEdges } from './graph-data.js';
+import { toCytoscapeElements, mergeBidirectionalEdges, mergeParallelEdges } from './graph-data.js';
 
 const SNAPSHOT = {
   generatedAt: '2026-04-12T10:00:00Z',
@@ -98,6 +98,79 @@ describe('mergeBidirectionalEdges', () => {
     const m2 = mergeBidirectionalEdges(edges2);
     expect(m1[0].source).toBe(m2[0].source);
     expect(m1[0].target).toBe(m2[0].target);
+  });
+});
+
+describe('mergeParallelEdges', () => {
+  it('collapses edges between same pair into one composite edge', () => {
+    const edges = [
+      { id: 'e1', source: 'aaa', target: 'bbb', relationshipType: 'links_to', provenance: 'HUMAN_AUTHORED' },
+      { id: 'e2', source: 'aaa', target: 'bbb', relationshipType: 'related_to', provenance: 'HUMAN_AUTHORED' },
+    ];
+    const merged = mergeParallelEdges(edges);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].relationshipTypes).toEqual(['links_to', 'related_to']);
+    expect(merged[0].source).toBe('aaa');
+    expect(merged[0].target).toBe('bbb');
+  });
+
+  it('keeps edges between different pairs separate', () => {
+    const edges = [
+      { id: 'e1', source: 'aaa', target: 'bbb', relationshipType: 'links_to', provenance: 'HUMAN_AUTHORED' },
+      { id: 'e2', source: 'aaa', target: 'ccc', relationshipType: 'links_to', provenance: 'HUMAN_AUTHORED' },
+    ];
+    const merged = mergeParallelEdges(edges);
+    expect(merged).toHaveLength(2);
+  });
+
+  it('preserves singleton edges with a single-element types array', () => {
+    const edges = [
+      { id: 'e1', source: 'aaa', target: 'bbb', relationshipType: 'links_to', provenance: 'HUMAN_AUTHORED' },
+    ];
+    const merged = mergeParallelEdges(edges);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].relationshipTypes).toEqual(['links_to']);
+  });
+
+  it('preserves bidirectional flag', () => {
+    const edges = [
+      { id: 'e1', source: 'aaa', target: 'bbb', relationshipType: 'links_to', bidirectional: true },
+      { id: 'e2', source: 'aaa', target: 'bbb', relationshipType: 'related_to' },
+    ];
+    const merged = mergeParallelEdges(edges);
+    expect(merged[0].bidirectional).toBe(true);
+  });
+
+  it('deduplicates relationship types', () => {
+    const edges = [
+      { id: 'e1', source: 'aaa', target: 'bbb', relationshipType: 'links_to' },
+      { id: 'e2', source: 'aaa', target: 'bbb', relationshipType: 'links_to' },
+    ];
+    const merged = mergeParallelEdges(edges);
+    expect(merged[0].relationshipTypes).toEqual(['links_to']);
+  });
+});
+
+describe('toCytoscapeElements parallel merge', () => {
+  it('produces composite label for multi-type edges', () => {
+    const snap = {
+      ...SNAPSHOT,
+      edges: [
+        { id: 'e1', source: 'aaa', target: 'bbb', relationshipType: 'links_to', provenance: 'HUMAN_AUTHORED' },
+        { id: 'e2', source: 'aaa', target: 'bbb', relationshipType: 'related_to', provenance: 'HUMAN_AUTHORED' },
+      ],
+    };
+    const { edges } = toCytoscapeElements(snap);
+    expect(edges).toHaveLength(1);
+    expect(edges[0].data.relationshipTypes).toEqual(['links_to', 'related_to']);
+    expect(edges[0].data.edgeLabel).toBe('links_to · related_to');
+    expect(edges[0].data.compositeWidth).toBeGreaterThan(1);
+  });
+
+  it('sets compositeWidth to 1 for single-type edges', () => {
+    const { edges } = toCytoscapeElements(SNAPSHOT);
+    const linksTo = edges.find(e => e.data.relationshipTypes.includes('links_to'));
+    expect(linksTo.data.compositeWidth).toBe(1);
   });
 });
 

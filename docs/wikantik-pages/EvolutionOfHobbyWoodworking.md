@@ -1,7 +1,15 @@
 ---
+date: '2026-03-20'
 summary: 'How hobby woodworking transformed from 2000 to 2026: YouTube, the maker
   movement, new materials, and the digital workshop'
-date: '2026-03-20'
+cluster: hobby-woodworking
+related:
+- HobbyWoodworkingInTheTwentyFirstCentury
+- CncRoutersForTheHobbyWorkshop
+- ModernHandToolRenaissance
+part-of:
+- HobbyWoodworkingInTheTwentyFirstCentury
+type: article
 tags:
 - woodworking
 - hobby
@@ -9,14 +17,8 @@ tags:
 - tools
 - maker
 - craftsmanship
-related:
-- HobbyWoodworkingInTheTwentyFirstCentury
-- CncRoutersForTheHobbyWorkshop
-- ModernHandToolRenaissance
-type: article
-cluster: hobby-woodworking
 status: active
-part-of:
+hubs:
 - HobbyWoodworkingInTheTwentyFirstCentury
 ---
 # Evolution of Hobby Woodworking

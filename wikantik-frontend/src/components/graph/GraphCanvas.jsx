@@ -74,9 +74,7 @@ export default function GraphCanvas({
       onReady();
     }, LAYOUT_TIMEOUT_MS);
 
-    if (import.meta.env.DEV) {
-      window.cy = cy;
-    }
+    window.cy = cy;
   }, [onNodeClick, onBackgroundClick, onReady, onLayoutTimeout]);
 
   useEffect(() => {
@@ -95,8 +93,9 @@ export default function GraphCanvas({
     if (!cyRef.current) return;
     const cy = cyRef.current;
     cy.edges().forEach(edge => {
-      const type = edge.data('relationshipType');
-      if (hiddenEdgeTypes && hiddenEdgeTypes.has(type)) {
+      const types = edge.data('relationshipTypes') || [edge.data('relationshipType')];
+      const allHidden = hiddenEdgeTypes && types.every(t => hiddenEdgeTypes.has(t));
+      if (allHidden) {
         edge.addClass('hidden');
       } else {
         edge.removeClass('hidden');
@@ -124,20 +123,59 @@ export default function GraphCanvas({
   useEffect(() => {
     if (!cyRef.current) return;
     const cy = cyRef.current;
-    const updateLabels = () => {
+    let baseZoom = null;
+
+    const applySemanticZoom = () => {
       const zoom = cy.zoom();
+      if (baseZoom === null) baseZoom = zoom;
+      const ratio = baseZoom / zoom;
+      const scale = Math.max(0.3, Math.min(ratio, 3));
+
       cy.nodes().forEach(node => {
+        const bw = node.data('_baseW');
+        const bh = node.data('_baseH');
+        if (bw != null) {
+          node.style('width', bw * scale);
+          node.style('height', bh * scale);
+        }
+        node.style('font-size', 10 * scale);
+
         const isSelected = node.selected();
         const isNeighbor = selectedId && cy.getElementById(selectedId).closedNeighborhood().has(node);
-        if (zoom < 0.6 && !isSelected && !isNeighbor) {
+        if (zoom / baseZoom > 1.5 || (zoom < baseZoom * 0.6 && !isSelected && !isNeighbor)) {
           node.style('label', '');
         } else {
           node.style('label', node.data('label'));
         }
       });
+
+      cy.edges().forEach(edge => {
+        const bw = edge.data('compositeWidth') || 1;
+        edge.style('width', bw * scale);
+        edge.style('font-size', 7 * scale);
+        edge.style('arrow-scale', 0.6 * scale);
+      });
     };
-    cy.on('zoom', updateLabels);
-    return () => cy.off('zoom', updateLabels);
+
+    const captureBaseSizes = () => {
+      cy.nodes().forEach(node => {
+        if (node.data('_baseW') == null) {
+          node.data('_baseW', node.numericStyle('width'));
+          node.data('_baseH', node.numericStyle('height'));
+        }
+      });
+      baseZoom = cy.zoom();
+      applySemanticZoom();
+    };
+
+    cy.on('zoom', applySemanticZoom);
+    cy.on('layoutstop', captureBaseSizes);
+    if (cy.nodes().length > 0) captureBaseSizes();
+
+    return () => {
+      cy.off('zoom', applySemanticZoom);
+      cy.off('layoutstop', captureBaseSizes);
+    };
   }, [selectedId]);
 
   return (

@@ -1,5 +1,14 @@
 ---
+status: active
+cluster: hobby-woodworking
 type: hub
+related:
+- EvolutionOfHobbyWoodworking
+- CncRoutersForTheHobbyWorkshop
+- ThreeDeePrintingMeetsWoodworking
+- LaserCuttersAndEngraversForWood
+- DigitalDesignToolsForWoodworkers
+- ModernHandToolRenaissance
 tags:
 - woodworking
 - hobby
@@ -8,18 +17,9 @@ tags:
 - tools
 - craftsmanship
 date: '2026-03-20'
-cluster: hobby-woodworking
-status: active
-summary: How computer-controlled tools, digital design, and a hand tool revival have
-  transformed hobby woodworking since 2000
-related:
-- EvolutionOfHobbyWoodworking
-- CncRoutersForTheHobbyWorkshop
-- ThreeDeePrintingMeetsWoodworking
-- LaserCuttersAndEngraversForWood
-- DigitalDesignToolsForWoodworkers
-- ModernHandToolRenaissance
+summary: How computer-controlled tools, digital design, and a hand tool revival have transformed hobby woodworking since 2000
 ---
+
 # Hobby Woodworking in the Twenty-First Century
 
 The last twenty-five years have transformed what a hobbyist can accomplish in a home workshop. What once required a commercial cabinet shop — precision joinery, curved inlays, repeatable production — is now within reach of a dedicated amateur with a modest budget and a willingness to learn.
@@ -40,8 +40,3 @@ But the revolution isn't only digital. The same period saw a remarkable revival 
 - [Laser Cutters and Engravers for Wood](LaserCuttersAndEngraversForWood) — CO2 and diode lasers for cutting, engraving, and inlay work in a home shop
 - [Digital Design Tools for Woodworkers](DigitalDesignToolsForWoodworkers) — CAD and CAM software that bridges the gap between a napkin sketch and a finished piece
 - [The Modern Hand Tool Renaissance](ModernHandToolRenaissance) — How premium hand tools and a global maker community brought traditional craft back to hobby workshops
-
-## See Also
-
-- [Embedded AI on Limited Hardware](EmbeddedAiOnLimitedHardware) — Relevant to smart tooling and IoT-enabled workshop equipment
-- [Generative AI Adoption Guide](GenerativeAiAdoptionGuide) — AI-assisted design is beginning to enter the woodworking CAD space

@@ -56,12 +56,26 @@ export const graphStylesheet = [
   {
     selector: 'edge',
     style: {
-      'width': 1,
+      'width': 'data(compositeWidth)',
       'curve-style': 'bezier',
       'line-color': 'data(edgeColor)',
       'target-arrow-color': 'data(edgeColor)',
       'target-arrow-shape': 'triangle',
       'arrow-scale': 0.6,
+      'label': 'data(edgeLabel)',
+      'font-size': 7,
+      'text-rotation': 'autorotate',
+      'text-opacity': 0,
+      'color': '#64748b',
+    },
+  },
+  {
+    selector: 'edge.composite',
+    style: {
+      'text-opacity': 1,
+      'text-background-color': '#ffffff',
+      'text-background-opacity': 0.85,
+      'text-background-padding': '2px',
     },
   },
   {

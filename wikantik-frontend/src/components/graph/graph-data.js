@@ -49,6 +49,31 @@ export function mergeBidirectionalEdges(edges) {
   return result;
 }
 
+export function mergeParallelEdges(edges) {
+  const groups = new Map();
+  for (const edge of edges) {
+    const [a, b] = [edge.source, edge.target].sort();
+    const key = `${a}|${b}`;
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(edge);
+  }
+
+  const result = [];
+  for (const group of groups.values()) {
+    const types = [...new Set(group.map(e => e.relationshipType))];
+    const bidirectional = group.some(e => e.bidirectional);
+    const primary = group[0];
+    result.push({
+      ...primary,
+      bidirectional,
+      relationshipTypes: types,
+    });
+  }
+  return result;
+}
+
 export function toCytoscapeElements(snapshot) {
   const nodes = snapshot.nodes.map(n => ({
     data: {
@@ -66,17 +91,24 @@ export function toCytoscapeElements(snapshot) {
     classes: `role-${n.role}`,
   }));
 
-  const mergedEdges = mergeBidirectionalEdges(snapshot.edges);
+  const bidiMerged = mergeBidirectionalEdges(snapshot.edges);
+  const parallelMerged = mergeParallelEdges(bidiMerged);
 
-  const edges = mergedEdges.map(e => ({
+  const edges = parallelMerged.map(e => ({
+    classes: e.relationshipTypes.length > 1 ? 'composite' : '',
     data: {
-      id: e.id + (e.bidirectional ? '-bidi' : ''),
+      id: e.relationshipTypes.length > 1
+        ? e.relationshipTypes.join('-') + '-' + e.source + '-' + e.target
+        : e.id + (e.bidirectional ? '-bidi' : ''),
       source: e.source,
       target: e.target,
-      relationshipType: e.relationshipType,
+      relationshipType: e.relationshipTypes[0],
+      relationshipTypes: e.relationshipTypes,
+      edgeLabel: e.relationshipTypes.join(' \u00B7 '),
       provenance: e.provenance,
-      edgeColor: colorFor(e.relationshipType),
+      edgeColor: colorFor(e.relationshipTypes[0]),
       bidirectional: e.bidirectional || false,
+      compositeWidth: e.relationshipTypes.length > 1 ? 2 : 1,
     },
   }));
 

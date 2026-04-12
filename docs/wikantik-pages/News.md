@@ -1,14 +1,3 @@
----
-title: News
-type: article
-tags:
-- '2026'
-- '03'
-- '04'
-summary: JSPWiki Development News A log of recent development activity on the JSPWiki
-  project.
-auto-generated: true
----
 # JSPWiki Development News
 
 A log of recent development activity on the JSPWiki project.
@@ -16,6 +5,22 @@ A log of recent development activity on the JSPWiki project.
 ---
 
 ## April 2026
+
+**2026-04-12** — fix(ui): label "relations" as "relationship types" in KG embeddings tab
+
+**2026-04-12** — fix(knowledge): gradient clipping and relation normalization in ComplEx
+
+**2026-04-12** — feat(knowledge): track dismissed hub proposals to prevent rediscovery
+
+**2026-04-12** — feat(frontend+it): React SPA testability and integration test modernization
+
+**2026-04-12** — content(wikantik-pages): bulk content refresh across ~802 pages
+
+**2026-04-12** — plan: knowledge graph visualization implementation (19 tasks, TDD)
+
+**2026-04-11** — docs(specs): knowledge graph visualization design
+
+**2026-04-11** — content(wikantik-pages): bulk heading flourish cleanup across ~793 pages
 
 **2026-04-11** — refactor(util): simplify escapeHTMLEntities with switch + helpers
 

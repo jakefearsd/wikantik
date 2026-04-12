@@ -313,6 +313,9 @@ export const api = {
 
   // Knowledge Graph Administration
   knowledge: {
+    getGraphSnapshot: ({ signal } = {}) =>
+      request('/api/knowledge/graph', { signal }),
+
     getSchema: () => request('/admin/knowledge/schema'),
 
     queryNodes: ({ node_type, name, status, limit = 50, offset = 0 } = {}) => {

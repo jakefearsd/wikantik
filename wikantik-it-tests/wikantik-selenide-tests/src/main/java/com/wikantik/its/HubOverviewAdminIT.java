@@ -18,11 +18,13 @@
  */
 package com.wikantik.its;
 
+import com.codeborne.selenide.Selenide;
 import com.wikantik.its.environment.Env;
 import com.wikantik.pages.admin.HubDiscoveryAdminPage;
 import com.wikantik.pages.admin.HubOverviewAdminPage;
 import com.wikantik.pages.haddock.ViewWikiPage;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -36,11 +38,21 @@ import org.junit.jupiter.api.condition.OS;
  * panel: expand → assert all three hubs are listed → drill into one → assert the
  * sections render → remove a member → confirm the row disappears → attempt a
  * removal that would leave fewer than 2 members and verify the 409 toast.
+ *
+ * <p><b>Disabled:</b> The Existing Hubs panel reads from the knowledge graph
+ * and content-embedding tables, which require a PostgreSQL datasource with the
+ * pgvector extension. No current IT module provides that — {@code
+ * wikantik-it-test-custom} has XML-only auth and {@code
+ * wikantik-it-test-custom-jdbc} runs against HSQLDB. Re-enable once a
+ * PostgreSQL test-container IT module is added.
  */
+@Disabled("Requires a PostgreSQL+pgvector datasource; no IT module currently provides one")
 public class HubOverviewAdminIT extends WithIntegrationTestSetup {
 
     @BeforeEach
     void login() {
+        // Fresh browser session per test — see rationale in HubDiscoveryAdminIT.login().
+        Selenide.closeWebDriver();
         ViewWikiPage.open( "Main" )
             .clickOnLogin()
             .performLogin( Env.LOGIN_JANNE_USERNAME, Env.LOGIN_JANNE_PASSWORD );
@@ -70,6 +82,9 @@ public class HubOverviewAdminIT extends WithIntegrationTestSetup {
             # OvCookingHub
             Cooking related articles.
             """ );
+        // Force a content-model retrain so the TfidfModel knows about the
+        // seeded articles before the Existing Hubs panel queries them.
+        RestSeedHelper.retrainContentModelViaBrowser();
 
         // 2. Open the Hub Discovery admin tab and expand the Existing Hubs panel.
         new HubDiscoveryAdminPage().open();

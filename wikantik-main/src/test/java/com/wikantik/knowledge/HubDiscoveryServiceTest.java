@@ -383,7 +383,35 @@ class HubDiscoveryServiceTest {
     }
 
     @Test
-    void dismissProposal_deletesRow() {
+    void dismissProposal_marksRowDismissedInsteadOfDeleting() {
+        final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final HubDiscoveryService service = HubDiscoveryService.builder()
+            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).contentRepo( contentRepo )
+            .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
+            .contentModel( new TfidfModel() )
+            .pageWriter( helper::saveText )
+            .pageExists( name -> false )
+            .build();
+
+        final int id = discoveryRepo.insert( "JavaHub", "Java",
+            List.of( "Java", "Kotlin", "Scala" ), 0.9 );
+        service.dismissProposal( id, "reviewer1" );
+
+        // Row must still exist: the dismissed list keeps rediscovery in check.
+        assertNotNull( discoveryRepo.findById( id ) );
+        // It must no longer be in the pending list.
+        assertFalse( discoveryRepo.list( 50, 0 ).stream().anyMatch( p -> p.id() == id ) );
+        // It must show up in the dismissed list with the reviewer recorded.
+        final var dismissed = discoveryRepo.listDismissed( 50, 0 );
+        assertEquals( 1, dismissed.size() );
+        assertEquals( id, dismissed.get( 0 ).id() );
+        assertEquals( "reviewer1", dismissed.get( 0 ).reviewedBy() );
+        assertNotNull( dismissed.get( 0 ).reviewedAt() );
+    }
+
+    @Test
+    void dismissProposal_twice_throwsOnSecondCall() {
         final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
         final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
         final HubDiscoveryService service = HubDiscoveryService.builder()
@@ -397,7 +425,60 @@ class HubDiscoveryServiceTest {
         final int id = discoveryRepo.insert( "JavaHub", "Java",
             List.of( "Java", "Kotlin", "Scala" ), 0.9 );
         service.dismissProposal( id, "admin" );
-        assertNull( discoveryRepo.findById( id ) );
+        // Second dismiss is not allowed: the row is no longer pending.
+        assertThrows( HubDiscoveryException.class,
+            () -> service.dismissProposal( id, "admin" ) );
+    }
+
+    @Test
+    void runDiscovery_skipsClustersMatchingDismissedSignature() {
+        // Seed a dismissed proposal whose sorted member set matches the cooking cluster.
+        final int dismissedId = discoveryRepo.insert( "Cooking Hub", "Baking",
+            List.of( "Baking", "Grilling", "Roasting" ), 0.9 );
+        assertTrue( discoveryRepo.markDismissed( dismissedId, "admin" ) );
+
+        // Now set up a candidate pool that HDBSCAN will cluster into that same triad.
+        final String[] pages = { "Baking", "Roasting", "Grilling",
+            "Soccer", "Basketball", "Tennis", "Miscellaneous" };
+        for ( final String name : pages ) {
+            kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
+        }
+        model = new TfidfModel();
+        model.build(
+            List.of( "Baking", "Roasting", "Grilling",
+                     "Soccer", "Basketball", "Tennis", "Miscellaneous" ),
+            List.of(
+                "baking bread cake flour sugar butter oven recipe dough knead bake baking",
+                "roasting roast oven meat chicken beef pork temperature seasoning oven baking",
+                "grilling grill barbecue charcoal meat chicken beef outdoor fire baking roasting",
+                "soccer football pitch goal player team league kick score match field stadium",
+                "basketball hoop court player team league score dribble slam match field stadium",
+                "tennis court racquet player serve volley match score grand slam stadium league",
+                "quantum xylophone abstract topology divergent perpendicular"
+            )
+        );
+        contentRepo.saveEmbeddings( 1, model, Map.of() );
+
+        final HubDiscoveryService service = HubDiscoveryService.builder()
+            .kgRepo( kgRepo )
+            .discoveryRepo( discoveryRepo )
+            .contentRepo( contentRepo )
+            .minClusterSize( 3 )
+            .minPts( 3 )
+            .minCandidatePool( 5 )
+            .contentModel( model )
+            .build();
+
+        final HubDiscoveryService.RunSummary summary = service.runDiscovery();
+
+        // The cooking cluster matches the dismissed signature and must not be re-created.
+        assertTrue( summary.skippedDismissed() >= 1,
+            "Expected at least one skippedDismissed in summary, got " + summary.skippedDismissed() );
+        final var pending = discoveryRepo.list( 50, 0 );
+        for ( final var p : pending ) {
+            assertFalse( p.memberPages().containsAll( List.of( "Baking", "Roasting", "Grilling" ) ),
+                "Cooking cluster must not be re-proposed: " + p.memberPages() );
+        }
     }
 
     @Test

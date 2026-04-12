@@ -33,18 +33,17 @@ import java.util.stream.Collectors;
 public class McpProtocolIT extends WithMcpTestSetup {
 
     private static final Set< String > EXPECTED_TOOLS = Set.of(
-            "read_page", "write_page", "search_pages", "list_pages",
-            "get_backlinks", "recent_changes", "get_attachments", "query_metadata",
-            "delete_page", "get_page_history", "diff_page", "batch_write_pages",
+            // Read/query tools
+            "read_page", "search_pages", "list_pages", "get_backlinks",
+            "recent_changes", "query_metadata", "get_page_history", "diff_page",
             "get_outbound_links", "get_broken_links", "get_orphaned_pages",
-            "get_wiki_stats", "list_metadata_values", "rename_page",
-            "lock_page", "unlock_page", "upload_attachment", "read_attachment",
-            "delete_attachment", "patch_page", "batch_patch_pages",
-            "update_metadata", "scan_markdown_links",
-            "batch_update_metadata", "ping_search_engines",
-            "preview_structured_data", "verify_pages",
-            "get_cluster_map", "audit_cluster", "audit_cross_cluster", "apply_audit_fixes",
-            "publish_cluster", "extend_cluster"
+            "get_wiki_stats", "list_metadata_values",
+            // Export/import workflow (replaces per-page CRUD)
+            "export_content", "preview_import", "import_content",
+            // Structured/metadata/SEO helpers
+            "rename_page", "ping_search_engines", "preview_structured_data", "verify_pages",
+            // Knowledge graph proposals
+            "propose_knowledge", "list_proposals"
     );
 
     @Test
@@ -81,11 +80,9 @@ public class McpProtocolIT extends WithMcpTestSetup {
                 .collect( Collectors.toMap( McpSchema.Tool::name, t -> t.inputSchema().required() != null ? t.inputSchema().required() : List.of() ) );
 
         Assertions.assertTrue( toolRequiredParams.get( "read_page" ).contains( "pageName" ) );
-        Assertions.assertTrue( toolRequiredParams.get( "write_page" ).contains( "pageName" ) );
-        Assertions.assertTrue( toolRequiredParams.get( "write_page" ).contains( "content" ) );
         Assertions.assertTrue( toolRequiredParams.get( "search_pages" ).contains( "query" ) );
         Assertions.assertTrue( toolRequiredParams.get( "get_backlinks" ).contains( "pageName" ) );
-        Assertions.assertTrue( toolRequiredParams.get( "get_attachments" ).contains( "pageName" ) );
+        Assertions.assertTrue( toolRequiredParams.get( "import_content" ).contains( "directory" ) );
     }
 
     @Test

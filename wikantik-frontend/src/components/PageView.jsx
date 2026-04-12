@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
@@ -16,6 +16,28 @@ export default function PageView() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: page, loading, error } = useApi((signal) => api.getPage(name, { render: true, signal }), [name, user?.authenticated]);
+
+  // Sync document.title with current page. Integration tests assert titles
+  // like "Wikantik: Main" so keep the format stable.
+  useEffect(() => {
+    if (error?.status === 404) {
+      document.title = `Wikantik: Not Found`;
+    } else if (page) {
+      document.title = `Wikantik: ${name}`;
+    }
+  }, [name, page, error]);
+
+  // If the current page is forbidden (403) or requires authentication (401),
+  // bounce to Main. This mirrors the legacy haddock template's server-side
+  // redirect behavior when a user loses view permission on the active page
+  // (e.g. after logout on a page guarded by [{ALLOW view Janne}]). Without
+  // this redirect the SPA would render a bare error banner and integration
+  // tests that assert the post-logout page is Main would fail.
+  useEffect(() => {
+    if (name !== 'Main' && (error?.status === 403 || error?.status === 401)) {
+      navigate('/wiki/Main', { replace: true });
+    }
+  }, [name, error, navigate]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
   const [showRename, setShowRename] = useState(false);
@@ -93,22 +115,22 @@ export default function PageView() {
   if (!page) return null;
 
   return (
-    <div className="page-enter">
+    <div className="page-enter" data-testid="page-view" data-page-name={name}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-md)' }}>
         <PageMeta page={page} />
         <div style={{ display: 'flex', gap: 'var(--space-sm)', flexShrink: 0 }}>
           {page.permissions?.edit && (
-            <Link to={`/edit/${name}`} className="btn btn-ghost">
+            <Link to={`/edit/${name}`} className="btn btn-ghost" data-testid="edit-page-link">
               ✎ Edit
             </Link>
           )}
           {page.permissions?.rename && (
-            <button className="btn btn-ghost" onClick={() => { setShowRename(true); setNewName(name); setRenameError(null); }}>
+            <button className="btn btn-ghost" data-testid="rename-page-button" onClick={() => { setShowRename(true); setNewName(name); setRenameError(null); }}>
               Rename
             </button>
           )}
           {page.permissions?.delete && (
-            <button className="btn btn-ghost btn-danger" onClick={() => { setConfirmDelete(true); setDeleteError(null); }}>
+            <button className="btn btn-ghost btn-danger" data-testid="delete-page-button" onClick={() => { setConfirmDelete(true); setDeleteError(null); }}>
               🗑 Delete
             </button>
           )}

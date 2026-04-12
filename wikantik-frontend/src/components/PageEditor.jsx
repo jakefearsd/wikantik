@@ -65,6 +65,11 @@ export default function PageEditor() {
     });
   }, [name]);
 
+  // Sync document.title so selenide tests can assert editor context.
+  useEffect(() => {
+    document.title = `Wikantik: ${isNew ? 'Create' : 'Edit'} ${name}`;
+  }, [name, isNew]);
+
   const handleConvert = async () => {
     setConverting(true);
     setError(null);
@@ -143,16 +148,17 @@ export default function PageEditor() {
   };
 
   return (
-    <div className={`page-enter${panelOpen ? ' editor-with-panel' : ''}`}>
+    <div className={`page-enter${panelOpen ? ' editor-with-panel' : ''}`} data-testid="page-editor" data-page-name={name}>
       <div className="editor-toolbar">
         <div className="editor-toolbar-group">
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600 }}>
+          <h2 data-testid="editor-heading" style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600 }}>
             {isNew ? 'Create' : 'Edit'}: {name}
           </h2>
         </div>
         <div className="editor-toolbar-group">
           <input
             type="text"
+            data-testid="editor-change-note"
             placeholder="Change note…"
             value={changeNote}
             onChange={e => setChangeNote(e.target.value)}
@@ -170,10 +176,10 @@ export default function PageEditor() {
             title="Attachments">
             Attach
           </button>
-          <button className="btn btn-ghost" onClick={() => navigate(`/wiki/${name}`)}>
+          <button className="btn btn-ghost" data-testid="editor-cancel" onClick={() => navigate(`/wiki/${name}`)}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={save} disabled={saving}>
+          <button className="btn btn-primary" data-testid="editor-save" onClick={save} disabled={saving}>
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
@@ -197,13 +203,14 @@ export default function PageEditor() {
         </div>
       )}
 
-      {error && <div className="error-banner">{error}</div>}
+      {error && <div className="error-banner" data-testid="editor-error">{error}</div>}
 
       <div className="editor-container">
         <div className="editor-pane">
           <textarea
             ref={textareaRef}
             className="editor-textarea"
+            data-testid="editor-textarea"
             value={content}
             onChange={e => setContent(e.target.value)}
             spellCheck="false"

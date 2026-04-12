@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
@@ -6,6 +7,10 @@ export default function SearchResultsPage() {
   const [params] = useSearchParams();
   const query = params.get('q') || '';
   const { data, loading, error } = useApi((signal) => api.search(query, 50, { signal }), [query]);
+
+  useEffect(() => {
+    document.title = query ? `Wikantik: Search results for ${query}` : 'Wikantik: Search';
+  }, [query]);
 
   if (!query) {
     return (
@@ -24,14 +29,17 @@ export default function SearchResultsPage() {
   const results = data?.results || [];
 
   return (
-    <div className="page-enter">
+    <div className="page-enter" data-testid="search-results-page" data-query={query}>
       <div style={{ marginBottom: 'var(--space-xl)' }}>
-        <h1 style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '1.75rem',
-          fontWeight: 700,
-          marginBottom: 'var(--space-xs)',
-        }}>
+        <h1
+          data-testid="search-results-heading"
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '1.75rem',
+            fontWeight: 700,
+            marginBottom: 'var(--space-xs)',
+          }}
+        >
           {results.length > 0
             ? `${results.length} result${results.length !== 1 ? 's' : ''} for "${query}"`
             : `No results for "${query}"`
@@ -44,7 +52,7 @@ export default function SearchResultsPage() {
         )}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }} data-testid="search-results-list">
         {results.map(result => (
           <SearchResultCard key={result.name} result={result} />
         ))}
@@ -63,25 +71,29 @@ function SearchResultCard({ result }) {
   const tags = Array.isArray(result.tags) ? result.tags : result.tags ? [result.tags] : [];
 
   return (
-    <article style={{
-      padding: 'var(--space-lg)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius-md)',
-      transition: 'border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease)',
-      background: 'var(--bg-elevated)',
-    }}
-    onMouseEnter={e => {
-      e.currentTarget.style.borderColor = 'var(--border-strong)';
-      e.currentTarget.style.boxShadow = '0 2px 12px var(--shadow)';
-    }}
-    onMouseLeave={e => {
-      e.currentTarget.style.borderColor = 'var(--border)';
-      e.currentTarget.style.boxShadow = 'none';
-    }}
+    <article
+      data-testid="search-result-card"
+      data-page-name={result.name}
+      style={{
+        padding: 'var(--space-lg)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)',
+        transition: 'border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease)',
+        background: 'var(--bg-elevated)',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = 'var(--border-strong)';
+        e.currentTarget.style.boxShadow = '0 2px 12px var(--shadow)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'var(--border)';
+        e.currentTarget.style.boxShadow = 'none';
+      }}
     >
       {/* Title */}
       <Link
         to={`/wiki/${result.name}`}
+        data-testid="search-result-link"
         style={{
           fontFamily: 'var(--font-display)',
           fontSize: '1.3rem',

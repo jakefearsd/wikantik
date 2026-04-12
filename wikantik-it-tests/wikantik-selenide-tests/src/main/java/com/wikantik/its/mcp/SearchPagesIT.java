@@ -56,7 +56,7 @@ public class SearchPagesIT extends WithMcpTestSetup {
     public void searchFindsNewlyWrittenPage() {
         final String keyword = "uniquekeyword" + UUID.randomUUID().toString().replace( "-", "" );
         final String pageName = uniquePageName( "SearchNew" );
-        mcp.writePage( pageName, "This page contains " + keyword + " for search testing" );
+        mcp.importPage( pageName, "This page contains " + keyword + " for search testing" );
 
         Awaitility.await()
                 .atMost( SEARCH_TIMEOUT )

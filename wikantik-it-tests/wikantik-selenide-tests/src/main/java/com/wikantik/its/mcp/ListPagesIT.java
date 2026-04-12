@@ -51,9 +51,9 @@ public class ListPagesIT extends WithMcpTestSetup {
     @Test
     public void listPagesWithPrefix() {
         final String prefix = "ListPfx" + System.currentTimeMillis();
-        mcp.writePage( prefix + "Alpha", "Alpha" );
-        mcp.writePage( prefix + "Beta", "Beta" );
-        mcp.writePage( "OtherPage" + System.currentTimeMillis(), "Other" );
+        mcp.importPage( prefix + "Alpha", "Alpha" );
+        mcp.importPage( prefix + "Beta", "Beta" );
+        mcp.importPage( "OtherPage" + System.currentTimeMillis(), "Other" );
 
         final Map< String, Object > result = mcp.listPages( prefix );
         @SuppressWarnings( "unchecked" )

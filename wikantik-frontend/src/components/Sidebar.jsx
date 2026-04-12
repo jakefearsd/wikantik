@@ -74,7 +74,11 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           </button>
         </div>
 
-        <button className="search-trigger" onClick={() => setSearchOpen(true)}>
+        <button
+          className="search-trigger"
+          data-testid="sidebar-search-trigger"
+          onClick={() => setSearchOpen(true)}
+        >
           <span>🔍</span> Search…
           <kbd>⌘K</kbd>
         </button>

@@ -28,6 +28,7 @@ export default defineConfig({
   plugins: [react(), buildVersionPlugin()],
   test: {
     environment: 'happy-dom',
+    setupFiles: ['./src/setupTests.js'],
   },
   base: '/',
   build: {

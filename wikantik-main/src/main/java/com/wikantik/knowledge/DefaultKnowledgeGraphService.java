@@ -395,7 +395,10 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
             final String role = GraphRoleClassifier.classify( node, deg[0], deg[1], hubThreshold, false );
             nodes.add( new SnapshotNode(
                     node.id(), node.name(), node.nodeType(), role,
-                    node.provenance(), node.sourcePage(), deg[0], deg[1], false ) );
+                    node.provenance(), node.sourcePage(), deg[0], deg[1], false,
+                    propString( node, "cluster" ),
+                    propStringList( node, "tags" ),
+                    propString( node, "status" ) ) );
         }
 
         final List< SnapshotEdge > edges = allEdges.stream()
@@ -434,7 +437,8 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
             if ( node.sourcePage() != null && !isViewable( node.sourcePage(), viewer, authMgr, pageMgr ) ) {
                 redacted.add( new SnapshotNode(
                         node.id(), null, null, "restricted", null, null,
-                        node.degreeIn(), node.degreeOut(), true ) );
+                        node.degreeIn(), node.degreeOut(), true,
+                        null, List.of(), null ) );
             } else {
                 redacted.add( node );
             }
@@ -450,6 +454,26 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                 ? PermissionFactory.getPagePermission( page, "view" )
                 : new PagePermission( engine.getApplicationName() + ":" + pageName, "view" );
         return authMgr.checkPermission( viewer, perm );
+    }
+
+    private static String propString( final KgNode node, final String key ) {
+        if ( node.properties() == null ) return null;
+        final Object v = node.properties().get( key );
+        return ( v == null ) ? null : v.toString();
+    }
+
+    @SuppressWarnings( "unchecked" )
+    private static List< String > propStringList( final KgNode node, final String key ) {
+        if ( node.properties() == null ) return List.of();
+        final Object v = node.properties().get( key );
+        if ( v instanceof List< ? > list ) {
+            final List< String > out = new ArrayList<>( list.size() );
+            for ( final Object item : list ) {
+                if ( item instanceof String s ) out.add( s );
+            }
+            return List.copyOf( out );
+        }
+        return List.of();
     }
 
     private void invalidateSnapshotCache() {

@@ -47,6 +47,117 @@ Key capabilities:
 | Maven | 3.9+ | `mvn -version` |
 | Node.js + npm | 18+ | Required — WAR build runs `npm install` + `vite build` automatically |
 | PostgreSQL | 15+ | For local deployment; unit tests use in-memory H2 |
+| pgvector | 0.5+ | PostgreSQL extension — required for the knowledge graph (see below) |
+
+### Installing pgvector
+
+The knowledge graph and hub-discovery features store machine-learning
+embeddings directly in PostgreSQL using the [`pgvector`](https://github.com/pgvector/pgvector)
+extension. Without it, migration `V004` will fail (`CREATE EXTENSION vector`)
+and the knowledge-graph endpoints under `/graph`, `/api/knowledge/*`, and
+`/admin/knowledge/*` will not function.
+
+**What pgvector is used for in Wikantik**
+
+- `kg_embeddings.embedding vector(100)` — ComplEx knowledge-graph embeddings
+  (real and imaginary components of 50-dimensional complex vectors concatenated
+  into a single 100-D real vector) powering link prediction and merge candidates.
+- `kg_content_embeddings.embedding vector(512)` — dense text embeddings over
+  page content used for similarity search and hub-proposal clustering.
+- `hubs.centroid vector(512)` — per-hub centroid for near-miss / drilldown
+  queries in the hub overview admin UI.
+- Cosine-distance operators (`<=>`) are used in-database for k-NN retrieval,
+  which is far cheaper than shipping vectors to the JVM.
+
+The extension must be installed on the PostgreSQL server that hosts the
+application database. `install-fresh.sh` (run as the `postgres` superuser)
+issues `CREATE EXTENSION vector` — this only succeeds if the extension
+binaries are already present on the server.
+
+**Ubuntu / Debian**
+
+The PGDG apt repository ships a `postgresql-<MAJOR>-pgvector` package that
+matches your installed PostgreSQL major version. Install the one that
+corresponds to your server (check with `psql --version`):
+
+```bash
+# Ensure the PGDG repository is configured (usually already present if you
+# installed PostgreSQL from apt.postgresql.org). If not:
+sudo apt install -y curl ca-certificates gnupg
+curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    | sudo gpg --dearmor -o /usr/share/keyrings/pgdg.gpg
+echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+    | sudo tee /etc/apt/sources.list.d/pgdg.list
+sudo apt update
+
+# Then install pgvector matching your PostgreSQL major version, e.g. 16:
+sudo apt install -y postgresql-16-pgvector
+
+# Restart PostgreSQL so new extension files are visible:
+sudo systemctl restart postgresql
+```
+
+**Fedora / RHEL / Rocky / AlmaLinux**
+
+The PGDG yum repository provides `pgvector_<MAJOR>`:
+
+```bash
+# Install the PGDG repository RPM (adjust for your distro; Fedora 40 shown):
+sudo dnf install -y \
+    https://download.postgresql.org/pub/repos/yum/reporpms/F-40-x86_64/pgdg-fedora-repo-latest.noarch.rpm
+
+# Install pgvector matching your PostgreSQL major version, e.g. 16:
+sudo dnf install -y pgvector_16
+
+# Restart PostgreSQL:
+sudo systemctl restart postgresql-16
+```
+
+For RHEL / Rocky / Alma, substitute the appropriate repo RPM from
+https://yum.postgresql.org/repopackages/ and use `postgresql-<MAJOR>-server`
+service naming.
+
+**macOS (Homebrew)**
+
+Homebrew ships pgvector as a standalone formula that links against the
+Homebrew PostgreSQL build:
+
+```bash
+# Install PostgreSQL (skip if you already have one from Homebrew):
+brew install postgresql@16
+
+# Install pgvector — it autodetects the Homebrew PostgreSQL install:
+brew install pgvector
+
+# Start/restart PostgreSQL:
+brew services restart postgresql@16
+```
+
+If you run PostgreSQL from Postgres.app or another non-Homebrew source, build
+pgvector from source against that installation's `pg_config`:
+
+```bash
+git clone --branch v0.7.4 https://github.com/pgvector/pgvector.git
+cd pgvector
+# Point make at the right pg_config if it is not first on PATH:
+PG_CONFIG=/Applications/Postgres.app/Contents/Versions/16/bin/pg_config make
+PG_CONFIG=/Applications/Postgres.app/Contents/Versions/16/bin/pg_config sudo make install
+```
+
+**Verifying the install**
+
+After installing pgvector and restarting PostgreSQL, confirm the extension is
+available to the server:
+
+```bash
+psql -h localhost -U postgres -c \
+    "SELECT name, default_version FROM pg_available_extensions WHERE name='vector';"
+```
+
+You should see a row listing `vector` with a version of `0.5.x` or newer.
+If the row is missing, the extension binaries are not on this server — re-check
+that you installed the package matching the PostgreSQL major version actually
+running (not just the client you have on your PATH).
 
 ## Quick Start (Local Development)
 

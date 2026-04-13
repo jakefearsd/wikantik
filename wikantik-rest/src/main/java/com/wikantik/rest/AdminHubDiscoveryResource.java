@@ -131,8 +131,11 @@ public class AdminHubDiscoveryResource extends RestServletBase {
                 "HubDiscoveryService is not available" );
             return;
         }
+        final String reviewer = resolveReviewer( request );
+        LOG.info( "Hub discovery run started by {}", reviewer );
         try {
             final HubDiscoveryService.RunSummary summary = svc.runDiscovery();
+            LOG.info( "Hub discovery run completed by {}: {}", reviewer, summary );
             sendJson( response, summary );
         } catch ( final HubDiscoveryException e ) {
             // LOG.error justified: admin-triggered discovery run failure must surface full stack trace
@@ -214,6 +217,8 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         final String reviewer = resolveReviewer( request );
         try {
             final HubDiscoveryService.AcceptResult result = svc.acceptProposal( id, name, members, reviewer );
+            LOG.info( "Hub proposal {} accepted by {} as '{}' ({} members)",
+                id, reviewer, result.createdPage(), result.memberCount() );
             sendJson( response, Map.of(
                 "createdPage", result.createdPage(),
                 "members", result.memberCount() ) );
@@ -245,6 +250,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         final String reviewer = resolveReviewer( request );
         try {
             svc.dismissProposal( id, reviewer );
+            LOG.info( "Hub proposal {} dismissed by {}", id, reviewer );
             response.setStatus( HttpServletResponse.SC_NO_CONTENT );
         } catch ( final HubDiscoveryException e ) {
             sendError( response, HttpServletResponse.SC_NOT_FOUND, e.getMessage() );
@@ -302,6 +308,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
             return;
         }
         if ( repo.deleteDismissed( id ) ) {
+            LOG.info( "Dismissed hub proposal {} permanently deleted", id );
             response.setStatus( HttpServletResponse.SC_NO_CONTENT );
         } else {
             sendError( response, HttpServletResponse.SC_NOT_FOUND,
@@ -337,6 +344,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         }
 
         final int deleted = repo.deleteDismissedBulk( body.ids );
+        LOG.info( "Bulk-deleted {} dismissed hub proposal(s)", deleted );
         sendJson( response, Map.of( "deleted", deleted ) );
     }
 
@@ -469,6 +477,8 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         final String reviewer = resolveReviewer( request );
         try {
             final var result = svc.removeMember( hubName, body.member, reviewer );
+            LOG.info( "Hub '{}' member '{}' removed by {} ({} remaining)",
+                hubName, body.member, reviewer, result.remainingMemberCount() );
             sendJson( response, Map.of(
                 "removed", result.removed(),
                 "remainingMemberCount", result.remainingMemberCount() ) );

@@ -116,7 +116,7 @@ public class AdminContentResource extends RestServletBase {
         } else if ( "cache/flush".equals( action ) ) {
             handleCacheFlush( request, response );
         } else if ( "refresh-news".equals( action ) ) {
-            handleRefreshNews( response );
+            handleRefreshNews( request, response );
         } else {
             sendNotFound( response, "Unknown content endpoint: " + action );
         }
@@ -220,6 +220,10 @@ public class AdminContentResource extends RestServletBase {
         final List< String > deleted = new ArrayList<>();
         final List< Map< String, String > > failed = new ArrayList<>();
 
+        final String actor = resolveActor( request );
+        LOG.info( "Bulk delete started by {}: {} page(s) requested",
+            actor, pagesArray.size() );
+
         for ( int i = 0; i < pagesArray.size(); i++ ) {
             final String pageName = pagesArray.get( i ).getAsString();
             try {
@@ -232,6 +236,8 @@ public class AdminContentResource extends RestServletBase {
             }
         }
 
+        LOG.info( "Bulk delete finished by {}: {} deleted, {} failed",
+            actor, deleted.size(), failed.size() );
         sendJson( response, Map.of( "deleted", deleted, "failed", failed ) );
     }
 
@@ -334,13 +340,15 @@ public class AdminContentResource extends RestServletBase {
         sendJson( response, Map.of( "flushed", true, "entriesRemoved", flushed ) );
     }
 
-    private void handleRefreshNews( final HttpServletResponse response ) throws IOException {
+    private void handleRefreshNews( final HttpServletRequest request,
+                                     final HttpServletResponse response ) throws IOException {
         final NewsPageGenerator gen = getEngine().getManager( NewsPageGenerator.class );
         if ( gen == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                        "News page generator is not running" );
             return;
         }
+        LOG.info( "News page refresh triggered by {}", resolveActor( request ) );
         gen.generateNow();
         sendJson( response, Map.of( "triggered", true ) );
     }
@@ -349,6 +357,11 @@ public class AdminContentResource extends RestServletBase {
 
     private String shortCacheName( final String fullName ) {
         return fullName.replace( "wikantik.", "" );
+    }
+
+    private static String resolveActor( final HttpServletRequest request ) {
+        final String user = request.getRemoteUser();
+        return ( user != null && !user.isEmpty() ) ? user : "admin";
     }
 
 }

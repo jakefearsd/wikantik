@@ -439,12 +439,14 @@ public class AdminKnowledgeResource extends RestServletBase {
 
     private void handleClearAll( final KnowledgeGraphService service,
                                  final HttpServletResponse response ) throws IOException {
+        LOG.info( "Knowledge graph clearAll requested" );
         try {
             service.clearAll();
             final EmbeddingService embSvc = getEmbeddingService();
             if ( embSvc != null ) {
                 embSvc.reset();
             }
+            LOG.info( "Knowledge graph clearAll completed" );
             sendJson( response, Map.of( "message", "All knowledge graph data cleared" ) );
         } catch ( final Exception e ) {
             LOG.error( "Failed to clear knowledge graph", e );
@@ -461,6 +463,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         final UUID id = parseUuid( idStr, response );
         if ( id == null ) return;
         service.deleteNode( id );
+        LOG.info( "Knowledge graph node deleted: {}", id );
         sendJson( response, Map.of( "deleted", true ) );
     }
 
@@ -470,6 +473,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         final UUID id = parseUuid( idStr, response );
         if ( id == null ) return;
         service.deleteEdge( id );
+        LOG.info( "Knowledge graph edge deleted: {}", id );
         sendJson( response, Map.of( "deleted", true ) );
     }
 

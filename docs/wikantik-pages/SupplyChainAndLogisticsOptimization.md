@@ -174,7 +174,7 @@ The UN Humanitarian Response Depot network — pre-positioned supply caches arou
 
 ## See Also
 
-- [Operations Research Hub](OperationsResearchHub) — Cluster overview
+- [Operations Research Hub](OperationsResearch) — Cluster overview
 - [Integer and Combinatorial Optimization](IntegerAndCombinatorialOptimization) — VRP and facility location as integer programs
 - [Stochastic Models in OR](StochasticModelsInOR) — Safety stock, stochastic demand, newsvendor
 - [Linear Programming Foundations](LinearProgrammingFoundations) — Transportation problem as LP

@@ -40,7 +40,7 @@ You can read the [site blogs here]( ../blog/) and learn about the [Wikantik Know
 
 ### Operations Research
 
-- [Operations Research](OperationsResearchHub) — History, mathematical foundations, and proven applications of OR: linear programming, integer optimization, stochastic models, supply chain, scheduling, and revenue management
+- [Operations Research](OperationsResearch) — History, mathematical foundations, and proven applications of OR: linear programming, integer optimization, stochastic models, supply chain, scheduling, and revenue management
 
 ### Warehouse Automation
 

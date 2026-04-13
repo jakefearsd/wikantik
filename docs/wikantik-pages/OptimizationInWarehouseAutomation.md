@@ -23,7 +23,7 @@ related:
 
 ## Where Operations Research Meets the Physical World
 
-Modern automated warehouses are among the most computationally intensive environments in logistics. Behind every robotic arm that picks a product, every conveyor that routes a package, and every inventory decision that positions goods closer to shipping docks, there is an optimization problem — and most of those problems have been studied for decades under the umbrella of [operations research](OperationsResearchHub). What has changed is that warehouse automation hardware has finally caught up with the theory, creating environments where OR techniques can be applied at scale and in real time.
+Modern automated warehouses are among the most computationally intensive environments in logistics. Behind every robotic arm that picks a product, every conveyor that routes a package, and every inventory decision that positions goods closer to shipping docks, there is an optimization problem — and most of those problems have been studied for decades under the umbrella of [operations research](OperationsResearch). What has changed is that warehouse automation hardware has finally caught up with the theory, creating environments where OR techniques can be applied at scale and in real time.
 
 This article explores how the foundational techniques from [operations research](OperationsResearch) — [linear programming](LinearProgrammingFoundations), [scheduling algorithms](ProductionSchedulingAndOR), and stochastic modeling — are applied in practice within modern warehouse automation systems.
 

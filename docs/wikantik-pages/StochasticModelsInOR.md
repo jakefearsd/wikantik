@@ -200,7 +200,7 @@ The VSS measures how much is gained by solving the stochastic program vs. ignori
 
 ## See Also
 
-- [Operations Research Hub](OperationsResearchHub) — Cluster overview
+- [Operations Research Hub](OperationsResearch) — Cluster overview
 - [Revenue Management with OR](RevenueManagementWithOR) — MDPs applied to pricing and seat allocation
 - [Supply Chain and Logistics Optimization](SupplyChainAndLogisticsOptimization) — Stochastic inventory models
 - [Linear Programming Foundations](LinearProgrammingFoundations) — The deterministic foundation that stochastic programming extends

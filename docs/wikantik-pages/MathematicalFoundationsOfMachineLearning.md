@@ -281,6 +281,6 @@ You do not need a math degree. You need fluency with the specific concepts that 
 - [LLMs Since 2020](LlmsSinceTwentyTwenty) — How these mathematical concepts manifest in modern large language models
 - [The Future of Machine Learning](TheFutureOfMachineLearning) — Emerging directions where new mathematical tools are needed
 - [Linear Programming Foundations](LinearProgrammingFoundations) — How convex optimization and LP duality connect OR to ML optimization theory
-- [Operations Research](OperationsResearchHub) — The applied discipline that uses convex and combinatorial optimization to solve real-world resource allocation problems
+- [Operations Research](OperationsResearch) — The applied discipline that uses convex and combinatorial optimization to solve real-world resource allocation problems
 
 [{Relationships}]

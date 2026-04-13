@@ -38,7 +38,7 @@ A warehouse must decide how much of each SKU to hold, where to hold it (which fa
 - **Time-series models** — ARIMA, Prophet (Meta), and LSTM networks learn seasonal patterns, trends, and event spikes (promotions, holidays) from historical sales data.
 - **Causal / feature-rich models** — XGBoost and LightGBM ingest external signals: weather, social media sentiment, macro indicators, competitor prices.
 - **Probabilistic forecasting** — models like DeepAR output a distribution of demand outcomes rather than a point estimate, enabling safety stock to be set at a target service level.
-- **Network optimisation** — combined with [operations research](OperationsResearchHub) solvers, ML forecasts feed multi-echelon inventory models that position stock across a warehouse network to minimise expected total cost.
+- **Network optimisation** — combined with [operations research](OperationsResearch) solvers, ML forecasts feed multi-echelon inventory models that position stock across a warehouse network to minimise expected total cost.
 
 ## Slotting Optimisation
 
@@ -116,4 +116,4 @@ See [Warehouse Automation Limitations](WarehouseAutomationLimitations) for a ful
 - [Warehouse Management Systems](WarehouseManagementSystems) — platform into which AI modules are integrated
 - [Artificial Intelligence](ArtificialIntelligence) — broader AI context
 - [Machine Learning](MachineLearning) — ML techniques referenced here
-- [Operations Research Hub](OperationsResearchHub) — OR methods combined with ML for forecasting and slotting
+- [Operations Research Hub](OperationsResearch) — OR methods combined with ML for forecasting and slotting

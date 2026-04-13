@@ -173,7 +173,7 @@ Hospital nurse scheduling must cover demand (patient-to-nurse ratios by ward and
 
 ## See Also
 
-- [Operations Research Hub](OperationsResearchHub) — Cluster overview
+- [Operations Research Hub](OperationsResearch) — Cluster overview
 - [Integer and Combinatorial Optimization](IntegerAndCombinatorialOptimization) — Branch and bound, integer programming methods used in scheduling
 - [History of Operations Research](HistoryOfOperationsResearch) — CPM/PERT origins and the OR history behind them
 - [Linear Programming Foundations](LinearProgrammingFoundations) — Project crashing as an LP

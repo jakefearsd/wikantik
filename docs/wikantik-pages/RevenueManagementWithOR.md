@@ -177,7 +177,7 @@ Fashion retailers commit to inventory before knowing demand. Unsold items must b
 
 ## See Also
 
-- [Operations Research Hub](OperationsResearchHub) — Cluster overview
+- [Operations Research Hub](OperationsResearch) — Cluster overview
 - [Stochastic Models in OR](StochasticModelsInOR) — MDP foundations, Markov chains, queuing models underlying RM
 - [Linear Programming Foundations](LinearProgrammingFoundations) — Network LP formulation for multi-leg RM
 - [Integer and Combinatorial Optimization](IntegerAndCombinatorialOptimization) — IP methods for group booking and fleet assignment

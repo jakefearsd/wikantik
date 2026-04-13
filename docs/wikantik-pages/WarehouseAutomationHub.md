@@ -50,6 +50,6 @@ Modern automation stacks layer multiple technologies: a **software layer** that 
 
 ## See Also
 
-- [Operations Research Hub](OperationsResearchHub) — scheduling, routing, and optimisation methods underpinning WMS and planning systems
+- [Operations Research Hub](OperationsResearch) — scheduling, routing, and optimisation methods underpinning WMS and planning systems
 - [Artificial Intelligence](ArtificialIntelligence) — broader AI context
 - [Machine Learning](MachineLearning) — ML techniques applied in warehouse AI modules

@@ -286,7 +286,7 @@
 .graph-zoom-slider .zoom-range {
   writing-mode: vertical-lr;
   direction: rtl;
-  height: 120px;
+  height: 200px;
   width: 20px;
   cursor: pointer;
 }

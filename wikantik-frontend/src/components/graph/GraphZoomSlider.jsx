@@ -34,8 +34,8 @@ export default function GraphZoomSlider({ layoutDone }) {
     });
   }, [bounds]);
 
-  const logMin = Math.log(bounds.min);
-  const logMax = Math.log(bounds.max);
+  const logMin = Math.log(Math.max(bounds.min, 0.3));
+  const logMax = Math.log(Math.min(bounds.max, 3));
   const sliderT = logMax > logMin
     ? Math.min(1, Math.max(0, (Math.log(zoom) - logMin) / (logMax - logMin)))
     : 0;
@@ -58,7 +58,7 @@ export default function GraphZoomSlider({ layoutDone }) {
         type="range"
         min={0}
         max={1}
-        step={0.02}
+        step={0.005}
         value={sliderT}
         onChange={handleChange}
         className="zoom-range"

@@ -192,4 +192,4 @@ The gap between knowing an algorithm and applying it effectively is significant:
 - [Machine Learning](MachineLearning) — Many ML algorithms (gradient descent, backpropagation, EM) build on the foundations covered here
 - [The Future of Machine Learning](TheFutureOfMachineLearning) — How algorithmic advances are shaping the next generation of ML
 - [Artificial Intelligence](ArtificialIntelligence) — The broader AI field and its algorithmic foundations
-- [Operations Research](OperationsResearchHub) — The applied discipline that turned graph algorithms, dynamic programming, and combinatorial optimization into industrial practice: scheduling, logistics, revenue management
+- [Operations Research](OperationsResearch) — The applied discipline that turned graph algorithms, dynamic programming, and combinatorial optimization into industrial practice: scheduling, logistics, revenue management

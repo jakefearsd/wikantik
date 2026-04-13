@@ -90,4 +90,4 @@ Every inventory movement is a **transaction** against a **location** for a speci
 - [Warehouse Robotics](WarehouseRobotics) — robot fleet integration with WMS
 - [Warehouse AI and ML](WarehouseAiAndMl) — AI modules that plug into or layer above WMS
 - [Warehouse Automation Limitations](WarehouseAutomationLimitations) — WMS complexity and integration challenges
-- [Operations Research Hub](OperationsResearchHub) — optimisation methods used in wave planning and slotting
+- [Operations Research Hub](OperationsResearch) — optimisation methods used in wave planning and slotting

@@ -1,15 +1,14 @@
 ---
-title: Linear Algebra
+auto-generated: true
 type: article
 tags:
 - mathbf
 - space
 - vector
-summary: We learn to solve systems of equations, to perform Gaussian elimination,
-  and to calculate determinants—all operations beautifully encapsulated by the rectangular
-  array of numbers.
-auto-generated: true
+summary: We learn to solve systems of equations, to perform Gaussian elimination, and to calculate determinants—all operations beautifully encapsulated by the rectangular array of numbers.
+title: Linear Algebra
 ---
+
 # Linear Algebra Beyond Matrices: Vector Spaces and Transformations
 
 For those of us who have spent any significant amount of time wrestling with the mechanics of linear algebra, the initial comfort zone is undeniably the matrix. We learn to solve systems of equations, to perform Gaussian elimination, and to calculate determinants—all operations beautifully encapsulated by the rectangular array of numbers. Matrices provide the indispensable, concrete machinery that allows us to manipulate finite-dimensional vector spaces ($\mathbb{R}^n$ or $\mathbb{C}^n$) with tangible results.
@@ -17,8 +16,6 @@ For those of us who have spent any significant amount of time wrestling with the
 However, to treat matrices as the *essence* of linear algebra is to mistake the highly efficient *representation* for the underlying *structure*. As researchers pushing the boundaries of computational science, theoretical physics, or advanced [machine learning](MachineLearning) algorithms, you must master the abstraction. The true power, the conceptual bedrock that allows us to generalize concepts from $\mathbb{R}^2$ to the space of continuous functions, lies in the abstract definitions of **Vector Spaces** and **Linear Transformations**.
 
 This tutorial is designed not as a refresher, but as a deep dive—a rigorous exploration of the conceptual framework that allows us to treat the matrix formalism as merely a coordinate-dependent artifact of a much richer mathematical reality. If you are researching novel techniques, understanding this abstraction is non-negotiable.
-
-***
 
 ## I. The Conceptual Shift: From Computation to Structure
 
@@ -56,8 +53,6 @@ For an expert audience, the most practical test for a subspace $W$ is the **Two-
 
 This concept generalizes the idea of the column space of a matrix, $\text{Col}(A)$, which is always a subspace of the codomain $\mathbb{R}^m$.
 
-***
-
 ## II. Linear Transformations: The Abstract Mappings
 
 If vector spaces are the *stage*, linear transformations are the *actions* performed on that stage.
@@ -93,8 +88,6 @@ $$A = [T]_{\mathcal{B}_W}^{\mathcal{B}_V} = \left[ [T(\mathbf{v}_1)]_{\mathcal{B
 
 This confirms that the matrix $A$ is merely the *coordinate representation* of the abstract map $T$. If we change the basis in $V$ (say, to $\mathcal{B}'_V$), the matrix representation changes via a similarity transformation: $A' = B^{-1} A B$, where $B$ is the change-of-basis matrix. The underlying transformation $T$ remains invariant, which is the core insight.
 
-***
-
 ## III. Structure, Isomorphisms, and Change of Basis
 
 For experts, understanding when two spaces are "the same" is more important than knowing their coordinates.
@@ -125,8 +118,6 @@ If $V \cong W$, they are structurally identical, regardless of what their elemen
 *   **Example:** The space of $2 \times 2$ matrices, $M_{2\times 2}(\mathbb{R})$, is isomorphic to $\mathbb{R}^4$. The isomorphism is simply mapping the matrix $\begin{pmatrix} a & b \\ c & d \end{pmatrix}$ to the vector $(a, b, c, d)$.
 
 This concept allows us to solve problems by mapping the abstract space $V$ onto a concrete, manageable space $\mathbb{R}^n$, solving the problem there, and mapping the result back.
-
-***
 
 ## IV. Inner Product Spaces
 
@@ -165,8 +156,6 @@ $$\text{proj}_W(\mathbf{v}) = \sum_{i=1}^k \langle \mathbf{v}, \mathbf{e}_i \ran
 
 The error vector, $\mathbf{v} - \text{proj}_W(\mathbf{v})$, is guaranteed to be orthogonal to every vector in $W$. This principle underpins techniques like Principal Component Analysis (PCA) and least-squares fitting.
 
-***
-
 ## V. Spectral Theory and Self-Adjoint Operators
 
 When we move from general inner product spaces to those where the linear transformation $T$ itself is "well-behaved" with respect to the inner product, we enter the realm of Spectral Theory. This is where the theory becomes deeply intertwined with physics and advanced data science.
@@ -192,8 +181,6 @@ The Spectral Theorem is arguably the most powerful result connecting linear alge
     where $\lambda_i$ are the real eigenvalues.
 
 This theorem guarantees that the complex, abstract action of $T$ can be perfectly decomposed into a set of independent, real-valued scaling operations along orthogonal axes. This is the mathematical underpinning of Principal Component Analysis (PCA), where the covariance matrix (which is self-adjoint) is diagonalized to find the principal axes (eigenvectors) that capture the maximum variance.
-
-***
 
 ## VI. Beyond Finite Dimensions: Function Spaces and Hilbert Spaces
 
@@ -230,8 +217,6 @@ This is the infinite-dimensional analogue of writing a vector $\mathbf{v}$ in te
 
 The spectral theory extends beautifully here. Self-adjoint operators on Hilbert spaces (e.g., the Hamiltonian operator in quantum mechanics) are central. The Spectral Theorem generalizes to state that such operators can be decomposed using spectral measures, allowing us to calculate functions of the operator (e.g., $e^{-iHt/\hbar}$ for time evolution) through integration over the spectrum, rather than simple matrix exponentiation.
 
-***
-
 ## VII. Advanced Topics and Research Frontiers
 
 For those researching novel techniques, the utility of this abstract framework manifests in several key areas.
@@ -256,8 +241,6 @@ These methods are essentially sophisticated ways of exploiting the *sparsity* or
 When data points do not lie in a flat Euclidean subspace $\mathbb{R}^n$, but rather on a curved manifold $\mathcal{M} \subset \mathbb{R}^N$, standard linear algebra fails because the concept of "straight line" (the geodesic) is curved.
 
 Here, the tools shift to **Riemannian Geometry**. The tangent space $T_p\mathcal{M}$ at any point $p$ on the manifold $\mathcal{M}$ *is* a finite-dimensional vector space, and the metric tensor (which defines the inner product on the tangent space) allows us to locally apply linear algebra tools (like PCA on the tangent space) to approximate the geometry.
-
-***
 
 ## VIII. Summary and Conclusion
 

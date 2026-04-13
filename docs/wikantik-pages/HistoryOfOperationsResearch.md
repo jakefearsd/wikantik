@@ -169,6 +169,6 @@ The boundary between OR and AI has become genuinely blurry. Both Google DeepMind
 
 ## See Also
 
-- [Operations Research Hub](OperationsResearchHub) — Cluster overview
+- [Operations Research Hub](OperationsResearch) — Cluster overview
 - [Linear Programming Foundations](LinearProgrammingFoundations) — The mathematics of Dantzig's breakthrough
 - [Integer and Combinatorial Optimization](IntegerAndCombinatorialOptimization) — Beyond LP: when variables must be integers

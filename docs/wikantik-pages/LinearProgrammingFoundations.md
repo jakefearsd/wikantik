@@ -169,7 +169,7 @@ Modeling languages like **AMPL**, **GAMS**, and the Julia package **JuMP** allow
 
 ## See Also
 
-- [Operations Research Hub](OperationsResearchHub) — Cluster overview
+- [Operations Research Hub](OperationsResearch) — Cluster overview
 - [History of Operations Research](HistoryOfOperationsResearch) — How LP was developed by Dantzig
 - [Integer and Combinatorial Optimization](IntegerAndCombinatorialOptimization) — LP extended to integer variables
 - [Mathematical Foundations of Machine Learning](MathematicalFoundationsOfMachineLearning) — Convex optimization methods shared with ML

@@ -166,7 +166,7 @@ For NP-hard problems where exact solutions are too slow, approximation algorithm
 
 ## See Also
 
-- [Operations Research Hub](OperationsResearchHub) — Cluster overview
+- [Operations Research Hub](OperationsResearch) — Cluster overview
 - [Linear Programming Foundations](LinearProgrammingFoundations) — LP relaxations underpin IP methods
 - [Production Scheduling and OR](ProductionSchedulingAndOR) — Job-shop scheduling as IP
 - [Supply Chain and Logistics Optimization](SupplyChainAndLogisticsOptimization) — Transportation problems and vehicle routing

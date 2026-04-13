@@ -6,6 +6,42 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-12** — docs: refresh README and linked docs; add MathematicalNotation
+
+**2026-04-12** — feat(math): LaTeX math expression rendering via Flexmark GitLab ext + KaTeX
+
+**2026-04-12** — feat(frontend): semantic zoom and parallel edge merging for knowledge graph
+
+**2026-04-12** — fix(frontend): sub-context deployment fixes, IT test repairs, and full-width graph layout
+
+**2026-04-12** — test(it): add 6 Selenide ITs for knowledge graph visualization
+
+**2026-04-12** — fix(routing): add /graph to SPA routing filter and web.xml
+
+**2026-04-12** — feat(frontend): wire /graph route and sidebar link
+
+**2026-04-12** — feat(frontend): add GraphCanvas and GraphView state owner
+
+**2026-04-12** — feat(frontend): add GraphLegend, GraphToolbar, GraphDetailsDrawer with TDD tests
+
+**2026-04-12** — feat(frontend): add graph API client, error/loading components
+
+**2026-04-12** — feat(frontend): add cytoscape stylesheet and graph CSS
+
+**2026-04-12** — feat(frontend): add graph-data.js transform with TDD tests
+
+**2026-04-12** — chore(frontend): add cytoscape + testing deps, switch test env to happy-dom
+
+**2026-04-12** — feat(rest): add KnowledgeGraphResource servlet at /api/knowledge/graph
+
+**2026-04-12** — feat(knowledge): implement snapshotGraph with caching and ACL redaction
+
+**2026-04-12** — feat(knowledge): add getAllNodes() to JdbcKnowledgeRepository
+
+**2026-04-12** — feat(knowledge): add GraphRoleClassifier with TDD tests
+
+**2026-04-12** — feat(api): add GraphSnapshot records and snapshotGraph interface method
+
 **2026-04-12** — fix(ui): label "relations" as "relationship types" in KG embeddings tab
 
 **2026-04-12** — fix(knowledge): gradient clipping and relation normalization in ComplEx

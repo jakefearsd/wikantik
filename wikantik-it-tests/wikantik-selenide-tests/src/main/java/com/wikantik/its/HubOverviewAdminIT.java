@@ -24,7 +24,6 @@ import com.wikantik.pages.admin.HubDiscoveryAdminPage;
 import com.wikantik.pages.admin.HubOverviewAdminPage;
 import com.wikantik.pages.haddock.ViewWikiPage;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -39,14 +38,7 @@ import org.junit.jupiter.api.condition.OS;
  * sections render → remove a member → confirm the row disappears → attempt a
  * removal that would leave fewer than 2 members and verify the 409 toast.
  *
- * <p><b>Disabled:</b> The Existing Hubs panel reads from the knowledge graph
- * and content-embedding tables, which require a PostgreSQL datasource with the
- * pgvector extension. No current IT module provides that — {@code
- * wikantik-it-test-custom} has XML-only auth and {@code
- * wikantik-it-test-custom-jdbc} runs against HSQLDB. Re-enable once a
- * PostgreSQL test-container IT module is added.
  */
-@Disabled("Requires a PostgreSQL+pgvector datasource; no IT module currently provides one")
 public class HubOverviewAdminIT extends WithIntegrationTestSetup {
 
     @BeforeEach

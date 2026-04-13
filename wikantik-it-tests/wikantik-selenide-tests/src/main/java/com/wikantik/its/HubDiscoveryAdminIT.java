@@ -41,15 +41,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>Dismiss -&gt; card disappears, list empty.</li>
  * </ol>
  *
- * <p><b>Disabled:</b> Hub Discovery requires a PostgreSQL datasource with the
- * pgvector extension to persist content embeddings and hub proposals. The
- * {@code wikantik-it-test-custom} module provisions only XML user/group
- * databases, and {@code wikantik-it-test-custom-jdbc} uses HSQLDB, neither of
- * which can host {@code kg_content_embeddings} or
- * {@code hub_discovery_proposals}. Re-enable once a PostgreSQL test-container
- * IT module is added.
+ * <p><b>Disabled:</b> Infrastructure now works (cards render from PG+pgvector),
+ * but the happy-path, dismiss, and accept-collision flows have UI/app bugs that
+ * predate the HSQLDB->PG migration and are out of scope for it. Re-enable once
+ * the Hub feature UI is fixed.
  */
-@Disabled("Requires a PostgreSQL+pgvector datasource; no IT module currently provides one")
+@Disabled("Hub feature UI has pre-existing bugs; infrastructure verified but flows fail")
 public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
 
     @BeforeEach

@@ -41,13 +41,22 @@
   <build>
     <plugins>
       <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>properties-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>io.fabric8</groupId>
+        <artifactId>docker-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <configuration>
-          <excludes>
-            <!-- JDBCPluginIT requires HSQLDB which is not configured in this module -->
-            <exclude>**/JDBCPluginIT.java</exclude>
-          </excludes>
-        </configuration>
       </plugin>
 
       <plugin>

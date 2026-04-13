@@ -45,7 +45,7 @@ same Maven lifecycle, driven by `io.fabric8:docker-maven-plugin`:
 
 ```
 pre-integration-test:
-  1. docker-maven-plugin: start pgvector/pgvector:pg16
+  1. docker-maven-plugin: start pgvector/pgvector:pg17
      - port 55432:5432
      - env: POSTGRES_USER=${it.db.user}, POSTGRES_PASSWORD=${it.db.password},
             POSTGRES_DB=wikantik
@@ -83,7 +83,7 @@ The image tag is centralized to the root-pom `<pgvector.image>` property.
 
 ### Image pinning
 
-Root `pom.xml` gets `<pgvector.image>pgvector/pgvector:pg16</pgvector.image>`.
+Root `pom.xml` gets `<pgvector.image>pgvector/pgvector:pg17</pgvector.image>`.
 Every consumer — `PostgresTestContainer` (via system property),
 docker-maven-plugin configs — references this property. Single source of
 truth.
@@ -145,7 +145,7 @@ port HSQLDB → PG, no structural change.
 ### Root
 
 - **`pom.xml`**
-  - Add `<pgvector.image>pgvector/pgvector:pg16</pgvector.image>` property
+  - Add `<pgvector.image>pgvector/pgvector:pg17</pgvector.image>` property
   - Remove `hsqldb` from `<dependencyManagement>`
 - **`.gitignore`**
   - Add `wikantik-it-tests/it-db.properties`

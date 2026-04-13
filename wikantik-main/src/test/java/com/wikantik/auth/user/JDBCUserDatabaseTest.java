@@ -460,7 +460,7 @@ public class JDBCUserDatabaseTest {
         m_db.save( profile );
 
         // Verify the user still exists and can be retrieved (even if lock expiry
-        // isn't properly persisted in HSQLDB test environment)
+        // isn't properly persisted in the test container)
         profile = m_db.findByLoginName( loginName );
         Assertions.assertEquals( loginName, profile.getLoginName() );
 

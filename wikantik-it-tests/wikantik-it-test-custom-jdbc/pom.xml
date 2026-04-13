@@ -41,8 +41,18 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>com.btmatthews.maven.plugins.inmemdb</groupId>
-        <artifactId>inmemdb-maven-plugin</artifactId>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>properties-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>io.fabric8</groupId>
+        <artifactId>docker-maven-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
       </plugin>
 
       <plugin>

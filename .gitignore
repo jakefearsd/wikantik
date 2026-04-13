@@ -28,3 +28,4 @@ socket:*
 wiki.zip
 .mcp.json.bak
 /test.properties
+wikantik-it-tests/it-db.properties

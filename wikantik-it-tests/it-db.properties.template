@@ -1,0 +1,5 @@
+# Credentials for the PostgreSQL container spun up by docker-maven-plugin
+# during the integration-tests profile. Copied to it-db.properties on first
+# build; edit that (gitignored) file if you need different values.
+it.db.user=jspwiki
+it.db.password=jspwiki-it

@@ -35,13 +35,13 @@ import static com.codeborne.selenide.Selenide.$$;
 
 /**
  * Integration tests for the JDBCPlugin.
- * Tests that the plugin can execute SQL queries against an HSQLDB database
- * and render the results as HTML tables.
+ * Tests that the plugin can execute SQL queries against the IT PostgreSQL
+ * container and render the results as HTML tables.
  *
  * <p>The JDBC plugin requires {@code AllPermission} (admin) to run arbitrary
- * SQL, so the suite authenticates as janne once per class — the HSQL seed
- * grants {@code JanneJalkanen} membership in the {@code Admin} group in the
- * IT test environment, which in turn grants {@code AllPermission} via the
+ * SQL, so the suite authenticates as janne once per class — the IT seed
+ * ({@code it-test-seed.sql}) grants {@code JanneJalkanen} membership in the
+ * {@code Admin} group, which in turn grants {@code AllPermission} via the
  * default {@code wikantik.policy}. Logging in per-test would fail because the
  * React SPA preserves the auth cookie across tests in the same class.
  */

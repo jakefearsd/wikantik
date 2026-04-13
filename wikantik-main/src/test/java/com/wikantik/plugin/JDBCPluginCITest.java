@@ -48,16 +48,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration-style tests for {@link JDBCPlugin} that exercise the JDBC execution path
- * using an HSQLDB in-memory database.  These tests cover the ConnectionConfig inner class,
- * SQL result formatting, error-handling paths, and the addResultLimit variants that are
- * not exercised by the pure-unit JDBCPluginTest.
- *
- * <p>HSQLDB is available as a test-scope dependency in wikantik-main.
- * HSQLDB uses the FETCH FIRST limit style, which exercises that code path.</p>
- *
- * <p>A static anchor connection keeps the HSQLDB in-memory database alive for the
- * duration of the test class; HSQLDB drops the in-memory DB when its last connection
- * is closed.</p>
+ * against a real PostgreSQL container (via {@link com.wikantik.PostgresTestContainer}).
+ * Covers the ConnectionConfig inner class, SQL result formatting, error-handling
+ * paths, and the addResultLimit variants not exercised by the pure-unit JDBCPluginTest.
  */
 @Testcontainers( disabledWithoutDocker = true )
 class JDBCPluginCITest {
@@ -110,7 +103,7 @@ class JDBCPluginCITest {
     // ============== ConnectionConfig via property-based JDBC path ==============
 
     /**
-     * Happy path: executes a real SELECT against HSQLDB and verifies the table HTML is returned.
+     * Happy path: executes a real SELECT against PostgreSQL and verifies the table HTML is returned.
      */
     @Test
     void testExecuteSelectReturnsHtmlTable() throws Exception {
@@ -300,11 +293,11 @@ class JDBCPluginCITest {
                     "Exception should mention database: " + ex.getMessage() );
     }
 
-    // ============== addResultLimit coverage (HSQLDB = FETCH FIRST style) ==============
+    // ============== addResultLimit coverage (PostgreSQL = LIMIT style) ==============
 
     /**
-     * HSQLDB uses FETCH FIRST n ROWS ONLY.  When the query already has a FETCH clause
-     * the plugin must not append another one.
+     * When the query already has a FETCH FIRST clause (valid ANSI SQL accepted by PostgreSQL)
+     * the plugin must not append another limit clause.
      */
     @Test
     void testFetchFirstNotDoubled() throws Exception {
@@ -324,7 +317,7 @@ class JDBCPluginCITest {
     }
 
     /**
-     * Verifies a trailing semicolon is stripped before the FETCH FIRST clause is appended.
+     * Verifies a trailing semicolon is stripped before the LIMIT clause is appended.
      */
     @Test
     void testTrailingSemicolonStrippedBeforeFetchAppended() throws Exception {
@@ -346,7 +339,7 @@ class JDBCPluginCITest {
     // ============== maxresults == 0 disables limiting ==============
 
     /**
-     * When {@code jdbc.maxresults} is 0 no FETCH FIRST clause must be appended.
+     * When {@code jdbc.maxresults} is 0 no LIMIT clause must be appended.
      */
     @Test
     void testMaxResultsZeroDisablesLimit() throws Exception {

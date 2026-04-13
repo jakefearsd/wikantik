@@ -43,6 +43,9 @@
     <it-wikantik.mock-oauth.image>ghcr.io/navikt/mock-oauth2-server:2.1.10</it-wikantik.mock-oauth.image>
   </properties>
 
+  <profiles>
+  <profile>
+    <id>integration-tests</id>
   <build>
     <!--
       Use only this module's resources (which contain the SSO-specific
@@ -76,14 +79,38 @@
         </configuration>
       </plugin>
 
-      <!-- Stand up mock-oauth2-server before Cargo boots Tomcat (so the WAR
-           can fetch the OIDC discovery doc at startup) and tear it down after
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>properties-maven-plugin</artifactId>
+      </plugin>
+
+      <!-- Stand up PG + mock-oauth2-server before Cargo boots Tomcat (so the WAR
+           can fetch the OIDC discovery doc at startup) and tear them down after
            the ITs finish. -->
       <plugin>
         <groupId>io.fabric8</groupId>
         <artifactId>docker-maven-plugin</artifactId>
         <configuration>
           <images>
+            <image>
+              <alias>${it.db.container-alias}</alias>
+              <name>${pgvector.image}</name>
+              <run>
+                <ports>
+                  <port>${it.db.port}:5432</port>
+                </ports>
+                <env>
+                  <POSTGRES_USER>${it.db.user}</POSTGRES_USER>
+                  <POSTGRES_PASSWORD>${it.db.password}</POSTGRES_PASSWORD>
+                  <POSTGRES_DB>${it.db.name}</POSTGRES_DB>
+                </env>
+                <wait>
+                  <log>database system is ready to accept connections</log>
+                  <time>30000</time>
+                </wait>
+                <autoRemove>false</autoRemove>
+              </run>
+            </image>
             <image>
               <alias>mock-oauth2-server</alias>
               <name>${it-wikantik.mock-oauth.image}</name>
@@ -105,23 +132,21 @@
         </configuration>
         <executions>
           <execution>
-            <id>mock-oauth-start</id>
-            <!-- Must run before cargo-start (both in pre-integration-test).
-                 docker-maven-plugin is declared first in the <plugins> order,
-                 so Maven will invoke it before cargo. -->
+            <id>pg-start</id>
             <phase>pre-integration-test</phase>
-            <goals>
-              <goal>start</goal>
-            </goals>
+            <goals><goal>start</goal></goals>
           </execution>
           <execution>
-            <id>mock-oauth-stop</id>
+            <id>pg-stop</id>
             <phase>post-integration-test</phase>
-            <goals>
-              <goal>stop</goal>
-            </goals>
+            <goals><goal>stop</goal></goals>
           </execution>
         </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
       </plugin>
 
       <plugin>
@@ -130,6 +155,8 @@
       </plugin>
     </plugins>
   </build>
+  </profile>
+  </profiles>
 
   <dependencies>
     <!-- Brings Env, WithIntegrationTestSetup, and the Selenide page objects. -->

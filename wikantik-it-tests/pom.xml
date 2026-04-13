@@ -28,7 +28,7 @@
   <groupId>com.wikantik.it</groupId>
   <artifactId>wikantik-it-tests</artifactId>
   <modelVersion>4.0.0</modelVersion>
-  <description>selenium tests execution for Wikantik</description>
+  <description>selenium / cargo integration tests for Wikantik (PostgreSQL + pgvector)</description>
   <packaging>pom</packaging>
 
   <modules>
@@ -36,7 +36,16 @@
     <module>wikantik-it-test-custom</module>
     <module>wikantik-it-test-custom-jdbc</module>
     <module>wikantik-it-test-rest</module>
+    <module>wikantik-it-test-sso</module>
   </modules>
+
+  <properties>
+    <it.db.port>55432</it.db.port>
+    <it.db.name>wikantik</it.db.name>
+    <it.db.container-alias>wikantik-pg</it.db.container-alias>
+    <it.db.migrate-script>${project.basedir}/../../wikantik-war/src/main/config/db/migrate.sh</it.db.migrate-script>
+    <it.db.seed-script>${project.basedir}/../src/main/resources/sql/it-test-seed.sql</it.db.seed-script>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -47,10 +56,9 @@
     </dependency>
 
     <dependency>
-      <groupId>org.hsqldb</groupId>
-      <artifactId>hsqldb</artifactId>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
       <scope>provided</scope>
-      <classifier>jdk8</classifier>
     </dependency>
 
     <dependency>
@@ -79,36 +87,18 @@
   </dependencies>
 
   <profiles>
-    <!--
-      Opt-in profile that adds the SSO IT submodule. Docker daemon required
-      because the submodule stands up a mock-oauth2-server container during
-      pre-integration-test. Activate alongside the integration-tests profile:
-
-          mvn clean verify -Pintegration-tests,sso-it -fae
-    -->
-    <profile>
-      <id>sso-it</id>
-      <modules>
-        <module>wikantik-it-test-sso</module>
-      </modules>
-    </profile>
-
     <profile>
       <id>integration-tests</id>
 
-      <properties>
-        <hsqldb.daemon>true</hsqldb.daemon>
-      </properties>
-
       <build>
-        <testResources><!-- tests reuse [1/2]: share common resources -->
+        <testResources>
           <testResource>
             <directory>${project.basedir}/../wikantik-selenide-tests/src/test/resources</directory>
           </testResource>
         </testResources>
 
         <resources>
-          <resource><!-- tests reuse [2/2]: share common resources -->
+          <resource>
             <directory>${project.basedir}/../wikantik-selenide-tests/src/main/resources</directory>
             <filtering>true</filtering>
           </resource>
@@ -116,6 +106,24 @@
 
         <pluginManagement>
           <plugins>
+            <plugin>
+              <groupId>org.codehaus.mojo</groupId>
+              <artifactId>properties-maven-plugin</artifactId>
+              <version>1.2.1</version>
+              <executions>
+                <execution>
+                  <id>load-it-db-credentials</id>
+                  <phase>initialize</phase>
+                  <goals><goal>read-project-properties</goal></goals>
+                  <configuration>
+                    <files>
+                      <file>${project.basedir}/../it-db.properties</file>
+                    </files>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+
             <plugin>
               <artifactId>maven-failsafe-plugin</artifactId>
               <version>${plugin.surefire.version}</version>
@@ -150,62 +158,127 @@
               <version>${plugin.war.version}</version>
             </plugin>
 
-            <!-- Activates the HSQLDB database for IT tests -->
             <plugin>
-              <groupId>com.btmatthews.maven.plugins.inmemdb</groupId>
-              <artifactId>inmemdb-maven-plugin</artifactId>
-              <version>${plugin.inmemdb.version}</version>
+              <groupId>io.fabric8</groupId>
+              <artifactId>docker-maven-plugin</artifactId>
               <configuration>
-                <monitorKey>inmem</monitorKey>
-                <monitorPort>11157</monitorPort>
-                <daemon>${hsqldb.daemon}</daemon>
-                <database>wikantik</database>
-                <username>SA</username>
-                <password />
-                <sources>
-                  <script><sourceFile>${project.basedir}/../wikantik-selenide-tests/src/test/resources/hsqldb/hsql-userdb-setup.sql</sourceFile></script>
-                </sources>
+                <images>
+                  <image>
+                    <alias>${it.db.container-alias}</alias>
+                    <name>${pgvector.image}</name>
+                    <run>
+                      <ports>
+                        <port>${it.db.port}:5432</port>
+                      </ports>
+                      <env>
+                        <POSTGRES_USER>${it.db.user}</POSTGRES_USER>
+                        <POSTGRES_PASSWORD>${it.db.password}</POSTGRES_PASSWORD>
+                        <POSTGRES_DB>${it.db.name}</POSTGRES_DB>
+                      </env>
+                      <wait>
+                        <log>database system is ready to accept connections</log>
+                        <time>30000</time>
+                      </wait>
+                      <autoRemove>false</autoRemove>
+                    </run>
+                  </image>
+                </images>
               </configuration>
               <executions>
                 <execution>
-                  <id>run</id>
+                  <id>pg-start</id>
                   <phase>pre-integration-test</phase>
-                  <goals><goal>run</goal></goals>
+                  <goals><goal>start</goal></goals>
                 </execution>
                 <execution>
-                  <id>stop</id>
+                  <id>pg-stop</id>
                   <phase>post-integration-test</phase>
                   <goals><goal>stop</goal></goals>
                 </execution>
               </executions>
-              <dependencies>
-                <dependency>
-                  <groupId>org.hsqldb</groupId>
-                  <artifactId>hsqldb</artifactId>
-                  <version>${hsqldb.version}</version>
-                  <classifier>jdk8</classifier>
-                </dependency>
-                <dependency>
-                  <groupId>org.hsqldb</groupId>
-                  <artifactId>sqltool</artifactId>
-                  <version>${hsqldb.version}</version>
-                </dependency>
-              </dependencies>
             </plugin>
 
-            <!-- Additional Tomcat configuration (JNDI lookups for DB access, tomcat-users.xml file) -->
+            <plugin>
+              <groupId>org.codehaus.mojo</groupId>
+              <artifactId>exec-maven-plugin</artifactId>
+              <version>3.1.1</version>
+              <executions>
+                <execution>
+                  <id>pg-wait-ready</id>
+                  <phase>pre-integration-test</phase>
+                  <goals><goal>exec</goal></goals>
+                  <configuration>
+                    <executable>bash</executable>
+                    <arguments>
+                      <argument>-c</argument>
+                      <argument>for i in $(seq 1 60); do pg_isready -h localhost -p ${it.db.port} -U ${it.db.user} -d ${it.db.name} -t 1 &amp;&amp; exit 0; sleep 1; done; echo "pg_isready timed out after 60s"; exit 1</argument>
+                    </arguments>
+                    <environmentVariables>
+                      <PGPASSWORD>${it.db.password}</PGPASSWORD>
+                    </environmentVariables>
+                  </configuration>
+                </execution>
+                <execution>
+                  <id>pg-apply-migrations</id>
+                  <phase>pre-integration-test</phase>
+                  <goals><goal>exec</goal></goals>
+                  <configuration>
+                    <executable>bash</executable>
+                    <arguments>
+                      <argument>${it.db.migrate-script}</argument>
+                    </arguments>
+                    <environmentVariables>
+                      <DB_NAME>${it.db.name}</DB_NAME>
+                      <DB_APP_USER>${it.db.user}</DB_APP_USER>
+                      <PGHOST>localhost</PGHOST>
+                      <PGPORT>${it.db.port}</PGPORT>
+                      <PGUSER>${it.db.user}</PGUSER>
+                      <PGPASSWORD>${it.db.password}</PGPASSWORD>
+                    </environmentVariables>
+                  </configuration>
+                </execution>
+                <execution>
+                  <id>pg-seed-test-data</id>
+                  <phase>pre-integration-test</phase>
+                  <goals><goal>exec</goal></goals>
+                  <configuration>
+                    <executable>psql</executable>
+                    <arguments>
+                      <argument>-v</argument>
+                      <argument>ON_ERROR_STOP=1</argument>
+                      <argument>-h</argument>
+                      <argument>localhost</argument>
+                      <argument>-p</argument>
+                      <argument>${it.db.port}</argument>
+                      <argument>-U</argument>
+                      <argument>${it.db.user}</argument>
+                      <argument>-d</argument>
+                      <argument>${it.db.name}</argument>
+                      <argument>-f</argument>
+                      <argument>${it.db.seed-script}</argument>
+                    </arguments>
+                    <environmentVariables>
+                      <PGPASSWORD>${it.db.password}</PGPASSWORD>
+                    </environmentVariables>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+
             <plugin>
               <groupId>org.codehaus.cargo</groupId>
               <artifactId>cargo-maven3-plugin</artifactId>
               <configuration>
+                <log>${project.build.directory}/cargo.log</log>
+                <output>${project.build.directory}/tomcat.log</output>
                 <configuration>
                   <datasources>
                     <datasource>
                       <jndiName>jdbc/WikiDatabase</jndiName>
-                      <driverClass>org.hsqldb.jdbc.JDBCDriver</driverClass>
-                      <url>jdbc:hsqldb:hsql://localhost/wikantik</url>
-                      <username>SA</username>
-                      <password />
+                      <driverClass>org.postgresql.Driver</driverClass>
+                      <url>jdbc:postgresql://localhost:${it.db.port}/${it.db.name}</url>
+                      <username>${it.db.user}</username>
+                      <password>${it.db.password}</password>
                       <connectionProperties>
                         <maxTotal>10</maxTotal>
                         <maxIdle>5</maxIdle>
@@ -237,10 +310,9 @@
                 <container>
                   <dependencies>
                     <dependency>
-                      <groupId>org.hsqldb</groupId>
-                      <artifactId>hsqldb</artifactId>
+                      <groupId>org.postgresql</groupId>
+                      <artifactId>postgresql</artifactId>
                       <classpath>shared</classpath>
-                      <classifier>jdk8</classifier>
                     </dependency>
                   </dependencies>
                 </container>
@@ -248,16 +320,12 @@
               <executions>
                 <execution>
                   <id>container-start</id>
-                  <goals>
-                    <goal>start</goal>
-                  </goals>
+                  <goals><goal>start</goal></goals>
                   <phase>pre-integration-test</phase>
                 </execution>
                 <execution>
                   <id>container-stop</id>
-                  <goals>
-                    <goal>stop</goal>
-                  </goals>
+                  <goals><goal>stop</goal></goals>
                   <phase>post-integration-test</phase>
                   <configuration>
                     <ignoreFailures>true</ignoreFailures>
@@ -266,10 +334,9 @@
               </executions>
               <dependencies>
                 <dependency>
-                  <groupId>org.hsqldb</groupId>
-                  <artifactId>hsqldb</artifactId>
-                  <version>${hsqldb.version}</version>
-                  <classifier>jdk8</classifier>
+                  <groupId>org.postgresql</groupId>
+                  <artifactId>postgresql</artifactId>
+                  <version>${postgresql-jdbc.version}</version>
                 </dependency>
               </dependencies>
             </plugin>

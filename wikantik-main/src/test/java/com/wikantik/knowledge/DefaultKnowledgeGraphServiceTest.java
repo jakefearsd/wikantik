@@ -236,6 +236,45 @@ class DefaultKnowledgeGraphServiceTest {
     }
 
     @Test
+    void snapshotGraph_filtersNonStringEntriesFromTags() throws Exception {
+        service.upsertNode( "MixedTags", "article", "MixedTags.md",
+                Provenance.HUMAN_AUTHORED, Map.of(
+                        "tags", java.util.List.of( "alpha", 42, "beta", true ) ) );
+        final GraphSnapshot snap = service.snapshotGraph( adminSession() );
+        final SnapshotNode node = snap.nodes().get( 0 );
+        assertEquals( java.util.List.of( "alpha", "beta" ), node.tags() );
+    }
+
+    @Test
+    void snapshotGraph_invalidatesCacheOnUpsertNode() throws Exception {
+        service.upsertNode( "First", "article", "First.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final GraphSnapshot before = service.snapshotGraph( adminSession() );
+        assertEquals( 1, before.nodeCount() );
+
+        service.upsertNode( "Second", "article", "Second.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final GraphSnapshot after = service.snapshotGraph( adminSession() );
+        assertEquals( 2, after.nodeCount(), "Cache should be invalidated after upsertNode" );
+    }
+
+    @Test
+    void snapshotGraph_invalidatesCacheOnDeleteNode() throws Exception {
+        final KgNode n = service.upsertNode( "Temp", "article", "Temp.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        assertEquals( 1, service.snapshotGraph( adminSession() ).nodeCount() );
+        service.deleteNode( n.id() );
+        assertEquals( 0, service.snapshotGraph( adminSession() ).nodeCount(),
+                "Cache should be invalidated after deleteNode" );
+    }
+
+    @Test
+    void snapshotGraph_rejectsAnonymousViewer() {
+        assertThrows( IllegalArgumentException.class,
+                () -> service.snapshotGraph( null ) );
+    }
+
+    @Test
     void snapshotGraph_nullPropertiesYieldNullClusterAndEmptyTags() throws Exception {
         service.upsertNode( "Orphan", "article", "Orphan.md",
                 Provenance.HUMAN_AUTHORED, Map.of() );

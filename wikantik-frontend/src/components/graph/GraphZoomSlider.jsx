@@ -34,9 +34,16 @@ export default function GraphZoomSlider({ layoutDone }) {
     });
   }, [bounds]);
 
+  const logMin = Math.log(bounds.min);
+  const logMax = Math.log(bounds.max);
+  const sliderT = logMax > logMin
+    ? Math.min(1, Math.max(0, (Math.log(zoom) - logMin) / (logMax - logMin)))
+    : 0;
+
   const handleChange = useCallback((e) => {
-    applyZoom(parseFloat(e.target.value));
-  }, [applyZoom]);
+    const t = parseFloat(e.target.value);
+    applyZoom(Math.exp(logMin + t * (logMax - logMin)));
+  }, [applyZoom, logMin, logMax]);
 
   const nudge = useCallback((delta) => {
     const cy = window.cy;
@@ -49,10 +56,10 @@ export default function GraphZoomSlider({ layoutDone }) {
       <button className="zoom-btn" onClick={() => nudge(0.2)} title="Zoom in">+</button>
       <input
         type="range"
-        min={bounds.min}
-        max={bounds.max}
-        step={0.01}
-        value={zoom}
+        min={0}
+        max={1}
+        step={0.02}
+        value={sliderT}
         onChange={handleChange}
         className="zoom-range"
       />

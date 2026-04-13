@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <parent>
+    <groupId>com.wikantik.it</groupId>
+    <artifactId>wikantik-it-tests</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>wikantik-it-test-sso</artifactId>
+  <modelVersion>4.0.0</modelVersion>
+  <packaging>war</packaging>
+  <description>SSO (OIDC) end-to-end test — drives wikantik's /sso/login flow against a disposable mock-oauth2-server container</description>
+
+  <properties>
+    <it-wikantik.context>${project.artifactId}</it-wikantik.context>
+
+    <it-wikantik.groupdatabase>com.wikantik.auth.authorize.XMLGroupDatabase</it-wikantik.groupdatabase>
+    <it-wikantik.userdatabase>com.wikantik.auth.user.XMLUserDatabase</it-wikantik.userdatabase>
+    <it-wikantik.referenceStyle>relative</it-wikantik.referenceStyle>
+
+    <!-- Host port the mock-oauth2-server binds to. Fixed (like Cargo 8080)
+         because the integration-tests profile forbids parallel IT modules. -->
+    <it-wikantik.mock-oauth.port>8088</it-wikantik.mock-oauth.port>
+    <it-wikantik.mock-oauth.image>ghcr.io/navikt/mock-oauth2-server:2.1.10</it-wikantik.mock-oauth.image>
+  </properties>
+
+  <build>
+    <!--
+      Use only this module's resources (which contain the SSO-specific
+      wikantik-custom.properties). The parent integration-tests profile
+      points resources at the shared wikantik-selenide-tests file; overriding
+      here with combine.self="override" replaces that list instead of
+      appending, so there's no ambiguity about which wikantik-custom.properties
+      ends up on the classpath.
+    -->
+    <resources combine.self="override">
+      <resource>
+        <directory>${project.basedir}/src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+
+    <plugins>
+      <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <!-- This module has its own IT; do not also run the ITs scanned
+               from the shared wikantik-selenide-tests dependency. -->
+          <dependenciesToScan combine.self="override" />
+          <includes>
+            <include>**/SSOLoginIT.java</include>
+          </includes>
+          <systemPropertyVariables>
+            <it-wikantik.base.url>http://localhost:8080/${it-wikantik.context}</it-wikantik.base.url>
+            <it-wikantik.mock-oauth.base-url>http://localhost:${it-wikantik.mock-oauth.port}</it-wikantik.mock-oauth.base-url>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+
+      <!-- Stand up mock-oauth2-server before Cargo boots Tomcat (so the WAR
+           can fetch the OIDC discovery doc at startup) and tear it down after
+           the ITs finish. -->
+      <plugin>
+        <groupId>io.fabric8</groupId>
+        <artifactId>docker-maven-plugin</artifactId>
+        <configuration>
+          <images>
+            <image>
+              <alias>mock-oauth2-server</alias>
+              <name>${it-wikantik.mock-oauth.image}</name>
+              <run>
+                <ports>
+                  <port>${it-wikantik.mock-oauth.port}:8080</port>
+                </ports>
+                <wait>
+                  <http>
+                    <url>http://localhost:${it-wikantik.mock-oauth.port}/default/.well-known/openid-configuration</url>
+                    <method>GET</method>
+                    <status>200</status>
+                  </http>
+                  <time>30000</time>
+                </wait>
+              </run>
+            </image>
+          </images>
+        </configuration>
+        <executions>
+          <execution>
+            <id>mock-oauth-start</id>
+            <!-- Must run before cargo-start (both in pre-integration-test).
+                 docker-maven-plugin is declared first in the <plugins> order,
+                 so Maven will invoke it before cargo. -->
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>start</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>mock-oauth-stop</id>
+            <phase>post-integration-test</phase>
+            <goals>
+              <goal>stop</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.cargo</groupId>
+        <artifactId>cargo-maven3-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+  <dependencies>
+    <!-- Brings Env, WithIntegrationTestSetup, and the Selenide page objects. -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>wikantik-selenide-tests</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

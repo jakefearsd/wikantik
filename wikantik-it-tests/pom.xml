@@ -79,6 +79,20 @@
   </dependencies>
 
   <profiles>
+    <!--
+      Opt-in profile that adds the SSO IT submodule. Docker daemon required
+      because the submodule stands up a mock-oauth2-server container during
+      pre-integration-test. Activate alongside the integration-tests profile:
+
+          mvn clean verify -Pintegration-tests,sso-it -fae
+    -->
+    <profile>
+      <id>sso-it</id>
+      <modules>
+        <module>wikantik-it-test-sso</module>
+      </modules>
+    </profile>
+
     <profile>
       <id>integration-tests</id>
 

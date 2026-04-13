@@ -22,6 +22,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AuthenticationManager;
 import org.pac4j.core.config.Config;
 import org.pac4j.core.engine.CallbackLogic;
 import org.pac4j.core.engine.DefaultCallbackLogic;
@@ -80,6 +81,12 @@ public class SSOCallbackServlet extends HttpServlet {
             final var frameworkParameters = new JEEFrameworkParameters( request, response );
             final String defaultUrl = request.getContextPath() + "/";
             callbackLogic.perform( pac4jConfig, defaultUrl, false, null, frameworkParameters );
+
+            // pac4j has stored the profile in the HTTP session; translate it into
+            // WikiSession principals now. WikiServletFilter is only mapped to
+            // /attach/*, so without this explicit call the SSOLoginModule never
+            // runs and the React UI keeps seeing an anonymous session.
+            engine.getManager( AuthenticationManager.class ).login( request );
         } catch( final Exception e ) {
             LOG.error( "SSO callback processing failed", e );
             response.sendRedirect( request.getContextPath() + "/login?error=sso_callback_failed" );

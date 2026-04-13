@@ -57,13 +57,14 @@ function matchesAllTagFacets(node, state) {
 }
 
 function computeBackboneVisible(snapshot, state) {
-  const visible = new Set();
-  for (const n of snapshot.nodes) if (isHub(n)) visible.add(n.id);
-  if (state.includeHubNeighbors) {
-    for (const e of snapshot.edges) {
-      if (visible.has(e.source)) visible.add(e.target);
-      if (visible.has(e.target)) visible.add(e.source);
-    }
+  const hubs = new Set();
+  for (const n of snapshot.nodes) if (isHub(n)) hubs.add(n.id);
+  if (!state.includeHubNeighbors) return hubs;
+
+  const visible = new Set(hubs);
+  for (const e of snapshot.edges) {
+    if (hubs.has(e.source)) visible.add(e.target);
+    if (hubs.has(e.target)) visible.add(e.source);
   }
   return visible;
 }

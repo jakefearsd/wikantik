@@ -52,6 +52,19 @@ describe('applyFilters', () => {
     expect(r.visibleNodeIds.has('n2')).toBe(false);
   });
 
+  it('backbone +1 hop does not transitively add 2-hop neighbors regardless of edge order', () => {
+    const baseNodes = [node('h', { role: 'hub' }), node('n1'), node('n2')];
+    const edgesForward = [edge('e1', 'h', 'n1'), edge('e2', 'n1', 'n2')];
+    const edgesReverse = [edge('e2', 'n1', 'n2'), edge('e1', 'h', 'n1')];
+    const state = { ...applyPreset(INITIAL_FILTER_STATE, PRESETS.BACKBONE), includeHubNeighbors: true };
+
+    const rForward = applyFilters(snap(baseNodes, edgesForward), state);
+    const rReverse = applyFilters(snap(baseNodes, edgesReverse), state);
+
+    expect(rForward.visibleNodeIds.has('n2')).toBe(false);
+    expect(rReverse.visibleNodeIds.has('n2')).toBe(false);
+  });
+
   it('edge hidden when either endpoint is not visible', () => {
     const s = snap(
       [node('h', { role: 'hub' }), node('n1')],

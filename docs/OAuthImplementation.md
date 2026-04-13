@@ -160,19 +160,6 @@ Both XMLUserDatabase and JDBCUserDatabase support:
 
 ---
 
-## Estimated Effort
-
-| Phase | Effort | Description |
-|-------|--------|-------------|
-| **Core OAuth** | 3-4 days | LoginModule, CallbackHandler, Servlet, Providers |
-| **User provisioning** | 1-2 days | Account creation, email linking, attributes |
-| **UI** | 1 day | Login buttons, styling |
-| **Configuration** | 0.5 day | Properties, documentation |
-| **Testing** | 2-3 days | Unit tests, integration tests |
-| **Total** | ~8-10 days | For experienced developer |
-
----
-
 ## Architecture Decision: Servlet + LoginModule Hybrid
 
 **Recommended approach**:

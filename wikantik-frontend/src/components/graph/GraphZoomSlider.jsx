@@ -1,8 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  SLIDER_MIN_ZOOM,
+  SLIDER_MAX_ZOOM,
+  zoomToSliderPosition,
+  sliderPositionToZoom,
+  clampZoom,
+} from './zoom-scale.js';
+
+const NUDGE_STEP = 0.2;
 
 export default function GraphZoomSlider({ layoutDone }) {
   const [zoom, setZoom] = useState(1);
-  const [bounds, setBounds] = useState({ min: 0.1, max: 4 });
+  const [bounds, setBounds] = useState({ min: SLIDER_MIN_ZOOM, max: SLIDER_MAX_ZOOM });
   const rafRef = useRef(null);
 
   useEffect(() => {
@@ -27,23 +36,17 @@ export default function GraphZoomSlider({ layoutDone }) {
   const applyZoom = useCallback((level) => {
     const cy = window.cy;
     if (!cy) return;
-    const clamped = Math.min(bounds.max, Math.max(bounds.min, level));
     cy.zoom({
-      level: clamped,
+      level: clampZoom(level, bounds),
       renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 },
     });
   }, [bounds]);
 
-  const logMin = Math.log(Math.max(bounds.min, 0.3));
-  const logMax = Math.log(Math.min(bounds.max, 3));
-  const sliderT = logMax > logMin
-    ? Math.min(1, Math.max(0, (Math.log(zoom) - logMin) / (logMax - logMin)))
-    : 0;
+  const sliderPosition = zoomToSliderPosition(zoom, bounds);
 
   const handleChange = useCallback((e) => {
-    const t = parseFloat(e.target.value);
-    applyZoom(Math.exp(logMin + t * (logMax - logMin)));
-  }, [applyZoom, logMin, logMax]);
+    applyZoom(sliderPositionToZoom(parseFloat(e.target.value), bounds));
+  }, [applyZoom, bounds]);
 
   const nudge = useCallback((delta) => {
     const cy = window.cy;
@@ -53,17 +56,17 @@ export default function GraphZoomSlider({ layoutDone }) {
 
   return (
     <div className="graph-zoom-slider">
-      <button className="zoom-btn" onClick={() => nudge(0.2)} title="Zoom in">+</button>
+      <button className="zoom-btn" onClick={() => nudge(NUDGE_STEP)} title="Zoom in">+</button>
       <input
         type="range"
         min={0}
         max={1}
         step={0.005}
-        value={sliderT}
+        value={sliderPosition}
         onChange={handleChange}
         className="zoom-range"
       />
-      <button className="zoom-btn" onClick={() => nudge(-0.2)} title="Zoom out">&minus;</button>
+      <button className="zoom-btn" onClick={() => nudge(-NUDGE_STEP)} title="Zoom out">&minus;</button>
     </div>
   );
 }

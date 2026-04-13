@@ -12,13 +12,13 @@
 }
 
 .graph-toolbar {
-  position: absolute;
-  top: var(--space-sm);
-  left: var(--space-sm);
   display: flex;
   gap: var(--space-xs);
-  z-index: 10;
   flex-wrap: wrap;
+  align-items: center;
+  padding: var(--space-sm);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 
 .graph-toolbar button {
@@ -291,7 +291,7 @@
   cursor: pointer;
 }
 
-.filter-panel { padding: 8px; border-bottom: 1px solid #e5e7eb; }
+.filter-panel { padding: var(--space-sm); background: var(--bg); border-bottom: 1px solid var(--border); }
 .filter-preset-row { display: flex; gap: 4px; margin-bottom: 8px; }
 .filter-preset-pill {
   padding: 4px 10px; border: 1px solid #d1d5db; border-radius: 999px;

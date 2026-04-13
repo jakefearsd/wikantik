@@ -23,25 +23,24 @@ function colorFor(relationshipType) {
 }
 
 export function mergeBidirectionalEdges(edges) {
-  const seen = new Map();
+  const byDirected = new Map();
   const result = [];
 
   for (const edge of edges) {
-    const key = [edge.source, edge.target, edge.relationshipType].sort().join('|') +
-                '|' + edge.relationshipType;
-    const reverseKey = [edge.target, edge.source, edge.relationshipType].sort().join('|') +
-                       '|' + edge.relationshipType;
+    const forward = `${edge.source}|${edge.target}|${edge.relationshipType}`;
+    const reverse = `${edge.target}|${edge.source}|${edge.relationshipType}`;
+    const reverseIdx = forward !== reverse ? byDirected.get(reverse) : undefined;
 
-    if (seen.has(reverseKey) || seen.has(key)) {
-      const existingIdx = seen.get(key) ?? seen.get(reverseKey);
-      if (existingIdx !== undefined && !result[existingIdx].bidirectional) {
-        result[existingIdx].bidirectional = true;
-        const [a, b] = [result[existingIdx].source, result[existingIdx].target].sort();
-        result[existingIdx].source = a;
-        result[existingIdx].target = b;
+    if (reverseIdx !== undefined) {
+      const existing = result[reverseIdx];
+      if (!existing.bidirectional) {
+        existing.bidirectional = true;
+        const [a, b] = [existing.source, existing.target].sort();
+        existing.source = a;
+        existing.target = b;
       }
-    } else {
-      seen.set(key, result.length);
+    } else if (!byDirected.has(forward)) {
+      byDirected.set(forward, result.length);
       result.push({ ...edge });
     }
   }

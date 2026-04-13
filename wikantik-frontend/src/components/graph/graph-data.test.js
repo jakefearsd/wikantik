@@ -85,6 +85,15 @@ describe('mergeBidirectionalEdges', () => {
     expect(merged[0].bidirectional).toBeFalsy();
   });
 
+  it('does not mark two same-direction duplicate edges as bidirectional', () => {
+    const edges = [
+      { id: 'e1', source: 'aaa', target: 'bbb', relationshipType: 'links_to' },
+      { id: 'e2', source: 'aaa', target: 'bbb', relationshipType: 'links_to' },
+    ];
+    const merged = mergeBidirectionalEdges(edges);
+    expect(merged.every(e => !e.bidirectional)).toBe(true);
+  });
+
   it('is stable across ordering', () => {
     const edges1 = [
       { id: 'e2', source: 'aaa', target: 'ddd', relationshipType: 'related_to' },

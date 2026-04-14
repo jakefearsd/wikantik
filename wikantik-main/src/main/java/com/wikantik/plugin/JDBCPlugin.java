@@ -112,7 +112,6 @@ public class JDBCPlugin implements Plugin {
         DB2( "com.ibm.db2.jcc.DB2Driver", "jdbc:db2:", LimitStyle.FETCH_FIRST ),
         SYBASE( "com.sybase.jdbc4.jdbc.SybDriver", "jdbc:sybase:", LimitStyle.TOP ),
         H2( "org.h2.Driver", "jdbc:h2:", LimitStyle.LIMIT ),
-        HSQLDB( "org.hsqldb.jdbc.JDBCDriver", "jdbc:hsqldb:", LimitStyle.FETCH_FIRST ),
         DERBY( "org.apache.derby.jdbc.ClientDriver", "jdbc:derby:", LimitStyle.FETCH_FIRST );
 
         private final String driverClass;
@@ -176,7 +175,7 @@ public class JDBCPlugin implements Plugin {
      * Different SQL dialects for limiting result rows.
      */
     private enum LimitStyle {
-        LIMIT,       // MySQL, PostgreSQL, H2, HSQLDB: LIMIT n
+        LIMIT,       // MySQL, PostgreSQL, H2: LIMIT n
         TOP,         // SQL Server, Sybase: SELECT TOP n
         ROWNUM,      // Oracle: WHERE ROWNUM <= n
         FETCH_FIRST  // DB2, Derby: FETCH FIRST n ROWS ONLY

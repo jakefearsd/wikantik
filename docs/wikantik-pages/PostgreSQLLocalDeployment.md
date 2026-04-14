@@ -19,7 +19,7 @@ This setup involves:
 The strategy is to create template configuration files in the tracked codebase, which the deployment script copies to your Tomcat instance. This:
 - Keeps sensitive passwords out of git
 - Documents the expected configuration
-- Has zero impact on the existing test suite (which uses HSQLDB via Cargo)
+- Has zero impact on the existing test suite
 - Survives WAR rebuilds (only needs password edit once)
 
   1. Prerequisites
@@ -243,7 +243,7 @@ sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.
 This configuration has **zero impact** on the existing test suite:
 
 - **Unit tests** use `TestEngine` with their own configuration
-- **Integration tests** use Cargo plugin + HSQLDB
+- **Integration tests** use Cargo plugin + PostgreSQL (Testcontainers)
 - The `tomcat/` directory is gitignored
 - The `deploy-local.sh` script is for manual testing only
 
@@ -255,4 +255,3 @@ You can run `mvn clean test` or `mvn clean install` without any PostgreSQL-relat
 
 - [Developing with PostgreSQL](DevelopingWithPostgresql.md) - Detailed JDBC configuration reference
 - [PostgreSQL DDL](../wikantik-war/src/main/config/db/postgresql.ddl) - Database schema
-- [HSQLDB DDL](../wikantik-war/src/main/config/db/hsql.ddl) - Reference schema for comparison

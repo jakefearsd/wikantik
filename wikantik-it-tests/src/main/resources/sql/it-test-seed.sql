@@ -64,7 +64,7 @@ INSERT INTO products (id, name, category, price, in_stock) VALUES
   (5, 'Desk Lamp',    'Furniture',    49.99, 30);
 
 -- -----------------------------------------------------------------------
--- Supplementary group fixtures (parity with the old HSQL seed)
+-- Supplementary group fixtures
 -- -----------------------------------------------------------------------
 INSERT INTO groups (name, created, modified) VALUES
   ('TV',         NOW(), NOW()),
@@ -81,9 +81,9 @@ INSERT INTO group_members (name, member) VALUES
 ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------
--- IT policy overrides — legacy tests (parity with the old HSQL
--- wikantik.policy) granted broad edit rights to anonymous users so pages
--- could be created/modified without login. Production grants only `view`
+-- IT policy overrides — legacy tests grant broad edit rights to anonymous
+-- users so pages could be created/modified without login. Production grants
+-- only `view`
 -- to role All; these extra IT grants keep the existing test expectations.
 -- -----------------------------------------------------------------------
 INSERT INTO policy_grants (principal_type, principal_name, permission_type, target, actions) VALUES

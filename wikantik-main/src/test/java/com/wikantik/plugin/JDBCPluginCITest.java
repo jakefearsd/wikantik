@@ -431,8 +431,6 @@ class JDBCPluginCITest {
                 JDBCPlugin.DatabaseType.fromDriver( "com.sybase.jdbc4.jdbc.SybDriver" ) );
         assertEquals( JDBCPlugin.DatabaseType.DERBY,
                 JDBCPlugin.DatabaseType.fromDriver( "org.apache.derby.jdbc.ClientDriver" ) );
-        assertEquals( JDBCPlugin.DatabaseType.HSQLDB,
-                JDBCPlugin.DatabaseType.fromDriver( "org.hsqldb.jdbc.JDBCDriver" ) );
     }
 
     /**
@@ -446,13 +444,13 @@ class JDBCPluginCITest {
     }
 
     /**
-     * Verifies that HSQLDB and DERBY both use FETCH FIRST style.
+     * Verifies that DB2 and Derby both use FETCH FIRST style.
      */
     @Test
-    void testHsqldbAndDerbyUseSameFetchFirstStyle() {
-        assertEquals( JDBCPlugin.DatabaseType.HSQLDB.getLimitStyle(),
+    void testDb2AndDerbyUseSameFetchFirstStyle() {
+        assertEquals( JDBCPlugin.DatabaseType.DB2.getLimitStyle(),
                       JDBCPlugin.DatabaseType.DERBY.getLimitStyle(),
-                      "HSQLDB and DERBY should both use FETCH FIRST style" );
+                      "DB2 and DERBY should both use FETCH FIRST style" );
     }
 
     // ============== ConnectionConfig — no user/password uses simple DriverManager.getConnection ==============

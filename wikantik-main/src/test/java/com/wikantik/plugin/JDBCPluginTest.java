@@ -164,9 +164,6 @@ class JDBCPluginTest {
         Assertions.assertEquals( JDBCPlugin.DatabaseType.H2,
             JDBCPlugin.DatabaseType.fromUrl( "jdbc:h2:mem:testdb" ) );
 
-        Assertions.assertEquals( JDBCPlugin.DatabaseType.HSQLDB,
-            JDBCPlugin.DatabaseType.fromUrl( "jdbc:hsqldb:mem:testdb" ) );
-
         Assertions.assertEquals( JDBCPlugin.DatabaseType.DERBY,
             JDBCPlugin.DatabaseType.fromUrl( "jdbc:derby:memory:testdb;create=true" ) );
 
@@ -232,13 +229,10 @@ class JDBCPluginTest {
             JDBCPlugin.DatabaseType.SYBASE.getLimitStyle(),
             "MSSQL and Sybase should both use TOP style" );
 
-        // Verify DB2, Derby and HSQLDB use FETCH FIRST
+        // Verify DB2 and Derby use FETCH FIRST
         Assertions.assertEquals( JDBCPlugin.DatabaseType.DB2.getLimitStyle(),
             JDBCPlugin.DatabaseType.DERBY.getLimitStyle(),
             "DB2 and Derby should both use FETCH FIRST style" );
-        Assertions.assertEquals( JDBCPlugin.DatabaseType.HSQLDB.getLimitStyle(),
-            JDBCPlugin.DatabaseType.DERBY.getLimitStyle(),
-            "HSQLDB and Derby should both use FETCH FIRST style" );
 
         // Verify H2 uses LIMIT (like MySQL/PostgreSQL)
         Assertions.assertEquals( JDBCPlugin.DatabaseType.H2.getLimitStyle(),
@@ -274,7 +268,6 @@ class JDBCPluginTest {
         Assertions.assertEquals( "jdbc:sqlserver:", JDBCPlugin.DatabaseType.MSSQL.getUrlPrefix() );
         Assertions.assertEquals( "jdbc:oracle:", JDBCPlugin.DatabaseType.ORACLE.getUrlPrefix() );
         Assertions.assertEquals( "jdbc:h2:", JDBCPlugin.DatabaseType.H2.getUrlPrefix() );
-        Assertions.assertEquals( "jdbc:hsqldb:", JDBCPlugin.DatabaseType.HSQLDB.getUrlPrefix() );
         Assertions.assertEquals( "jdbc:derby:", JDBCPlugin.DatabaseType.DERBY.getUrlPrefix() );
         Assertions.assertEquals( "jdbc:db2:", JDBCPlugin.DatabaseType.DB2.getUrlPrefix() );
         Assertions.assertEquals( "jdbc:sybase:", JDBCPlugin.DatabaseType.SYBASE.getUrlPrefix() );
@@ -290,6 +283,5 @@ class JDBCPluginTest {
         Assertions.assertEquals( "com.microsoft.sqlserver.jdbc.SQLServerDriver", JDBCPlugin.DatabaseType.MSSQL.getDriverClass() );
         Assertions.assertEquals( "oracle.jdbc.driver.OracleDriver", JDBCPlugin.DatabaseType.ORACLE.getDriverClass() );
         Assertions.assertEquals( "org.h2.Driver", JDBCPlugin.DatabaseType.H2.getDriverClass() );
-        Assertions.assertEquals( "org.hsqldb.jdbc.JDBCDriver", JDBCPlugin.DatabaseType.HSQLDB.getDriverClass() );
     }
 }

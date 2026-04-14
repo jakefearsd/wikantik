@@ -88,7 +88,11 @@ public class SSOCallbackServlet extends HttpServlet {
             // runs and the React UI keeps seeing an anonymous session.
             engine.getManager( AuthenticationManager.class ).login( request );
         } catch( final Exception e ) {
-            LOG.error( "SSO callback processing failed", e );
+            // Most callback failures are bad/stale input (missing state, expired
+            // session, user hit /sso/callback directly, replayed code) rather
+            // than a server fault — log at WARN so genuine misconfigurations
+            // still stand out when an operator turns ERROR-level alerts on.
+            LOG.warn( "SSO callback processing failed", e );
             response.sendRedirect( request.getContextPath() + "/login?error=sso_callback_failed" );
         }
     }

@@ -18,6 +18,7 @@ export default function PageEditor() {
   const navigate = useNavigate();
   const location = useLocation();
   const [content, setContent] = useState('');
+  const [loaded, setLoaded] = useState(false);
   const [originalVersion, setOriginalVersion] = useState(null);
   const [changeNote, setChangeNote] = useState('');
   const [saving, setSaving] = useState(false);
@@ -64,6 +65,8 @@ export default function PageEditor() {
       } else {
         setError(err.message);
       }
+    }).finally(() => {
+      setLoaded(true);
     });
   }, [name]);
 
@@ -148,6 +151,20 @@ export default function PageEditor() {
     setOriginalVersion(conflict.serverVersion);
     setConflict(null);
   };
+
+  if (!loaded) {
+    return (
+      <div className="page-enter" data-testid="page-editor" data-page-name={name} data-loading="true">
+        <div className="editor-toolbar">
+          <div className="editor-toolbar-group">
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600 }}>
+              Loading…
+            </h2>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`page-enter${panelOpen ? ' editor-with-panel' : ''}`} data-testid="page-editor" data-page-name={name}>

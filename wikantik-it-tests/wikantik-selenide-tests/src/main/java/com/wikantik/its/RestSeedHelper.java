@@ -124,9 +124,35 @@ public final class RestSeedHelper {
             + ( result == null ? "null" : result.getClass().getName() ) );
     }
 
-    /** GET /admin/knowledge/hub-discovery/proposals; returns the raw JSON body. */
-    public static String listProposals() throws Exception {
-        return get( "/admin/knowledge/hub-discovery/proposals?limit=50" );
+    /**
+     * GET /admin/knowledge/hub-discovery/proposals driven from the browser session
+     * so the UI-login cookie authorises the admin endpoint (basic auth is rejected
+     * by {@code AdminAuthFilter}). Returns the raw JSON body.
+     */
+    public static String listProposals() {
+        final String script = """
+            const cb = arguments[arguments.length - 1];
+            const base = window.__WIKANTIK_BASE__ || '';
+            fetch(base + '/admin/knowledge/hub-discovery/proposals?limit=50', {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            })
+            .then(r => r.text().then(body => ({ status: r.status, body })))
+            .then(res => cb(res))
+            .catch(err => cb({ status: -1, body: String(err) }));
+            """;
+        final Object result = com.codeborne.selenide.Selenide.executeAsyncJavaScript( script );
+        if ( result instanceof java.util.Map< ?, ? > m ) {
+            final Object status = m.get( "status" );
+            if ( status instanceof Number n && n.intValue() >= 200 && n.intValue() < 300 ) {
+                return String.valueOf( m.get( "body" ) );
+            }
+            throw new IllegalStateException( "listProposals failed: "
+                + status + " " + m.get( "body" ) );
+        }
+        throw new IllegalStateException( "listProposals: unexpected result "
+            + ( result == null ? "null" : result.getClass().getName() ) );
     }
 
     /** Directly insert a proposal via the REST admin test seam, if one exists; otherwise use runDiscovery. */

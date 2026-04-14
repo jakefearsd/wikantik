@@ -23,7 +23,6 @@ import com.wikantik.its.environment.Env;
 import com.wikantik.pages.admin.HubDiscoveryAdminPage;
 import com.wikantik.pages.haddock.ViewWikiPage;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -39,14 +38,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>Happy-path run -&gt; accept -&gt; graph projection -&gt; stub page visible.</li>
  *   <li>409 collision -&gt; inline error, card retained, existing page untouched.</li>
  *   <li>Dismiss -&gt; card disappears, list empty.</li>
+ *   <li>Dismissed retention -&gt; signature block on re-run, delete re-opens cluster.</li>
  * </ol>
  *
- * <p><b>Disabled:</b> Infrastructure now works (cards render from PG+pgvector),
- * but the happy-path, dismiss, and accept-collision flows have UI/app bugs that
- * predate the HSQLDB->PG migration and are out of scope for it. Re-enable once
- * the Hub feature UI is fixed.
+ * <p>Each test seeds a diverse background corpus ({@link #seedBackgroundCorpus})
+ * plus a dense topical cluster; without both, HDBSCAN flags every page as noise
+ * on a cold database and no proposals are produced.
  */
-@Disabled("Hub feature UI has pre-existing bugs; infrastructure verified but flows fail")
 public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
 
     @BeforeEach
@@ -61,34 +59,74 @@ public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
             .performLogin( Env.LOGIN_JANNE_USERNAME, Env.LOGIN_JANNE_PASSWORD );
     }
 
+    /**
+     * Seed a baseline corpus of diverse pages so HDBSCAN has enough TF-IDF
+     * contrast to separate a dense cluster (the per-test cooking/sports/etc.
+     * pages) from noise. Empirically a cold DB with only 6–12 seeded pages
+     * causes every candidate to be flagged as noise and the discovery run
+     * yields zero proposals — blocking every downstream assertion. Calling
+     * {@code writePage} is idempotent (PUT overwrites) so running this on
+     * every test is safe and cheap.
+     */
+    private static void seedBackgroundCorpus() throws Exception {
+        RestSeedHelper.writePage( "BgAstronomyStars", "stars distant galaxies telescope universe light years" );
+        RestSeedHelper.writePage( "BgAstronomyPlanets", "planets orbit solar system rings moons atmosphere" );
+        RestSeedHelper.writePage( "BgAstronomyComets", "comets tails ice dust orbit sun periodic" );
+        RestSeedHelper.writePage( "BgAstronomyNebulae", "nebulae clouds gas dust stellar nursery emission" );
+        RestSeedHelper.writePage( "BgMusicClassical", "music symphony orchestra composer violin piano concert" );
+        RestSeedHelper.writePage( "BgMusicJazz", "jazz improvisation saxophone blues swing trumpet" );
+        RestSeedHelper.writePage( "BgMusicRock", "rock guitar drums bass amplifier vocals band" );
+        RestSeedHelper.writePage( "BgMusicFolk", "folk acoustic guitar ballad traditional storytelling" );
+        RestSeedHelper.writePage( "BgLanguageFrench", "french language grammar conjugation accents phrases" );
+        RestSeedHelper.writePage( "BgLanguageMandarin", "mandarin chinese tones characters writing pinyin" );
+        RestSeedHelper.writePage( "BgLanguageSpanish", "spanish language grammar verbs subjunctive pronouns" );
+        RestSeedHelper.writePage( "BgPhysicsMechanics", "physics mechanics force motion mass acceleration gravity" );
+        RestSeedHelper.writePage( "BgPhysicsOptics", "physics optics light lens refraction wavelength prism" );
+        RestSeedHelper.writePage( "BgBiologyCells", "biology cells membrane nucleus dna ribosomes organelles" );
+        RestSeedHelper.writePage( "BgBiologyEcology", "biology ecology ecosystem species habitat food web" );
+    }
+
     @Test
     @DisabledOnOs(OS.WINDOWS)
     void runAcceptFlow_happyPath() throws Exception {
-        // Seed six tightly-related cooking pages via the page REST API so the content
-        // model picks them up on its next retrain. The wikantik.properties used by ITs
-        // must enable on-save content-model updates (it does by default).
-        RestSeedHelper.writePage( "CookingBaking", "baking bread cake flour sugar oven recipes" );
-        RestSeedHelper.writePage( "CookingRoasting", "roasting meat oven temperature seasoning recipes" );
-        RestSeedHelper.writePage( "CookingGrilling", "grilling outdoor charcoal meat barbecue" );
-        RestSeedHelper.writePage( "CookingSauteing", "sauteing pan oil butter quick heat" );
-        RestSeedHelper.writePage( "CookingBroiling", "broiling oven top direct heat meat" );
-        RestSeedHelper.writePage( "CookingBoiling", "boiling water pot heat stovetop" );
-        // Force a content-model retrain so the seeded pages are in the
-        // TfidfModel's entity list before discovery runs.
+        seedBackgroundCorpus();
+        // 15 tightly-related cooking pages with a shared token bed so HDBSCAN sees
+        // them as a single dense cluster against the diverse background.
+        final String cookBody = "cooking recipe kitchen heat flavor ingredient technique food preparation meal dish savor taste ";
+        RestSeedHelper.writePage( "CookingBaking", cookBody + "baking bread cake flour sugar oven dough yeast" );
+        RestSeedHelper.writePage( "CookingRoasting", cookBody + "roasting meat oven temperature seasoning juices" );
+        RestSeedHelper.writePage( "CookingGrilling", cookBody + "grilling outdoor charcoal meat barbecue sear char" );
+        RestSeedHelper.writePage( "CookingSauteing", cookBody + "sauteing pan oil butter quick vegetables stirring" );
+        RestSeedHelper.writePage( "CookingBroiling", cookBody + "broiling oven top direct meat glaze caramelize" );
+        RestSeedHelper.writePage( "CookingBoiling", cookBody + "boiling water pot stovetop pasta vegetables" );
+        RestSeedHelper.writePage( "CookingSteaming", cookBody + "steaming basket water vegetables fish dumplings" );
+        RestSeedHelper.writePage( "CookingPoaching", cookBody + "poaching liquid gentle eggs fish delicate" );
+        RestSeedHelper.writePage( "CookingBraising", cookBody + "braising slow liquid meat tender sear covered" );
+        RestSeedHelper.writePage( "CookingStewing", cookBody + "stewing pot liquid meat vegetables simmer" );
+        RestSeedHelper.writePage( "CookingSmoking", cookBody + "smoking wood chips slow low meat flavor" );
+        RestSeedHelper.writePage( "CookingFrying", cookBody + "frying oil hot pan batter crisp golden" );
+        RestSeedHelper.writePage( "CookingBaking2", cookBody + "pastry dessert sweet butter vanilla custard" );
+        RestSeedHelper.writePage( "CookingSousVide", cookBody + "sous vide vacuum bag water bath precise" );
+        RestSeedHelper.writePage( "CookingGriddling", cookBody + "griddle flat cast iron pancakes eggs bacon" );
         RestSeedHelper.retrainContentModelViaBrowser();
 
         final HubDiscoveryAdminPage page = new HubDiscoveryAdminPage().open();
         page.clickRunDiscovery().waitForSuccessToast();
 
         // Find the first proposal card that appeared. The card id is not known statically,
-        // so we match the generic card data-testid prefix.
+        // so we match the generic card data-testid prefix. A cold-start run (fresh DB +
+        // freshly-seeded pages) can take 10+ seconds for retrain+clustering to publish
+        // proposals to the list, so override Selenide's default 4s visibility timeout.
         final var firstCard = $( "[data-testid^='hub-discovery-card-']" );
-        firstCard.shouldBe( visible );
+        firstCard.shouldBe( visible, java.time.Duration.ofSeconds( 20 ) );
         final String testid = firstCard.getAttribute( "data-testid" );
         assertTrue( testid != null && testid.startsWith( "hub-discovery-card-" ) );
         final int proposalId = Integer.parseInt( testid.substring( "hub-discovery-card-".length() ) );
 
-        page.clickAccept( proposalId );
+        // Force a unique name to avoid colliding with either preseeded wiki pages
+        // or hub stubs left behind by earlier test runs against the same DB.
+        page.setName( proposalId, "HappyPathHub_" + System.currentTimeMillis() )
+            .clickAccept( proposalId );
         page.assertCardDisappears( proposalId );
 
         // The stub page should now exist. Its name is the exemplar page name — the test
@@ -104,22 +142,29 @@ public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
     @Test
     @DisabledOnOs(OS.WINDOWS)
     void acceptCollisionShowsInlineError() throws Exception {
+        seedBackgroundCorpus();
         // Pre-create a wiki page that a discovery card's name will collide with.
         RestSeedHelper.writePage( "ClashingHubName",
             "Pre-existing content for collision test" );
-        // Seed enough cooking pages to produce at least one cluster.
-        RestSeedHelper.writePage( "SportSoccer", "soccer football goal player team" );
-        RestSeedHelper.writePage( "SportBasketball", "basketball hoop court player team" );
-        RestSeedHelper.writePage( "SportTennis", "tennis racquet grand slam court" );
-        RestSeedHelper.writePage( "SportRugby", "rugby scrum ball tackle field" );
-        RestSeedHelper.writePage( "SportHockey", "hockey stick ice puck goal" );
-        RestSeedHelper.writePage( "SportBaseball", "baseball bat ball pitcher batter" );
+        final String sportBody = "sport athletics competition team player match score game league stadium training skill ";
+        RestSeedHelper.writePage( "SportSoccer", sportBody + "soccer football goal kick field" );
+        RestSeedHelper.writePage( "SportBasketball", sportBody + "basketball hoop court dribble dunk" );
+        RestSeedHelper.writePage( "SportTennis", sportBody + "tennis racquet grand slam net serve" );
+        RestSeedHelper.writePage( "SportRugby", sportBody + "rugby scrum ball tackle try" );
+        RestSeedHelper.writePage( "SportHockey", sportBody + "hockey stick ice puck goal" );
+        RestSeedHelper.writePage( "SportBaseball", sportBody + "baseball bat pitcher batter innings" );
+        RestSeedHelper.writePage( "SportVolleyball", sportBody + "volleyball net spike serve block" );
+        RestSeedHelper.writePage( "SportCricket", sportBody + "cricket bat wicket bowler over" );
+        RestSeedHelper.writePage( "SportGolf", sportBody + "golf club course green putt fairway" );
+        RestSeedHelper.writePage( "SportBoxing", sportBody + "boxing ring gloves jab hook round" );
+        RestSeedHelper.writePage( "SportSkiing", sportBody + "skiing slopes snow moguls downhill slalom" );
+        RestSeedHelper.writePage( "SportSwimming", sportBody + "swimming pool laps stroke freestyle backstroke" );
         RestSeedHelper.retrainContentModelViaBrowser();
 
         final HubDiscoveryAdminPage page = new HubDiscoveryAdminPage().open();
         page.clickRunDiscovery().waitForSuccessToast();
         final var firstCard = $( "[data-testid^='hub-discovery-card-']" );
-        firstCard.shouldBe( visible );
+        firstCard.shouldBe( visible, java.time.Duration.ofSeconds( 20 ) );
         final int proposalId = Integer.parseInt(
             firstCard.getAttribute( "data-testid" ).substring( "hub-discovery-card-".length() ) );
 
@@ -129,25 +174,34 @@ public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
             .assertCardStillPresent( proposalId );
 
         // Pre-existing page still has original content.
-        open( "/" + "ClashingHubName" );
-        $( "main" ).shouldHave( com.codeborne.selenide.Condition.text( "Pre-existing content" ) );
+        open( com.wikantik.pages.Page.baseUrl() + "/wiki/ClashingHubName" );
+        $( "main" ).shouldHave( com.codeborne.selenide.Condition.text( "Pre-existing content" ),
+            java.time.Duration.ofSeconds( 10 ) );
     }
 
     @Test
     @DisabledOnOs(OS.WINDOWS)
     void dismissRemovesCard() throws Exception {
-        RestSeedHelper.writePage( "DismissBaking", "baking bread cake flour sugar oven" );
-        RestSeedHelper.writePage( "DismissRoasting", "roasting meat oven temperature seasoning" );
-        RestSeedHelper.writePage( "DismissGrilling", "grilling outdoor charcoal meat barbecue" );
-        RestSeedHelper.writePage( "DismissSauteing", "sauteing pan oil butter quick heat" );
-        RestSeedHelper.writePage( "DismissBroiling", "broiling oven top direct heat meat" );
-        RestSeedHelper.writePage( "DismissBoiling", "boiling water pot heat stovetop" );
+        seedBackgroundCorpus();
+        final String gardenBody = "garden plant flower soil water sunlight grow bloom leaf stem root seed ";
+        RestSeedHelper.writePage( "GardenRose", gardenBody + "rose thorn red petal fragrance bouquet" );
+        RestSeedHelper.writePage( "GardenTulip", gardenBody + "tulip bulb spring bright cup-shaped" );
+        RestSeedHelper.writePage( "GardenOrchid", gardenBody + "orchid exotic tropical delicate epiphyte" );
+        RestSeedHelper.writePage( "GardenSunflower", gardenBody + "sunflower yellow tall seeds sun-tracking" );
+        RestSeedHelper.writePage( "GardenLily", gardenBody + "lily trumpet shaped fragrant white pink" );
+        RestSeedHelper.writePage( "GardenDaisy", gardenBody + "daisy simple white yellow center meadow" );
+        RestSeedHelper.writePage( "GardenIris", gardenBody + "iris rhizome sword-shaped purple blue" );
+        RestSeedHelper.writePage( "GardenPeony", gardenBody + "peony shrub fragrant large lush blooms" );
+        RestSeedHelper.writePage( "GardenBegonia", gardenBody + "begonia shade tender colourful foliage" );
+        RestSeedHelper.writePage( "GardenCarnation", gardenBody + "carnation frilled fragrant long-lasting pink" );
+        RestSeedHelper.writePage( "GardenMarigold", gardenBody + "marigold orange yellow pest-repellent annual" );
+        RestSeedHelper.writePage( "GardenPansy", gardenBody + "pansy cool-season biennial colourful face" );
         RestSeedHelper.retrainContentModelViaBrowser();
 
         final HubDiscoveryAdminPage page = new HubDiscoveryAdminPage().open();
         page.clickRunDiscovery().waitForSuccessToast();
         final var firstCard = $( "[data-testid^='hub-discovery-card-']" );
-        firstCard.shouldBe( visible );
+        firstCard.shouldBe( visible, java.time.Duration.ofSeconds( 20 ) );
         final int proposalId = Integer.parseInt(
             firstCard.getAttribute( "data-testid" ).substring( "hub-discovery-card-".length() ) );
 
@@ -173,19 +227,27 @@ public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
     @Test
     @DisabledOnOs(OS.WINDOWS)
     void dismissedRetention_blocksRediscoveryUntilDeleted() throws Exception {
-        RestSeedHelper.writePage( "RetainBaking", "baking bread cake flour sugar oven" );
-        RestSeedHelper.writePage( "RetainRoasting", "roasting meat oven temperature seasoning" );
-        RestSeedHelper.writePage( "RetainGrilling", "grilling outdoor charcoal meat barbecue" );
-        RestSeedHelper.writePage( "RetainSauteing", "sauteing pan oil butter quick heat" );
-        RestSeedHelper.writePage( "RetainBroiling", "broiling oven top direct heat meat" );
-        RestSeedHelper.writePage( "RetainBoiling", "boiling water pot heat stovetop" );
+        seedBackgroundCorpus();
+        final String birdBody = "bird feather wing nest egg beak flight migration species habitat song plumage ";
+        RestSeedHelper.writePage( "BirdEagle", birdBody + "eagle raptor talons soaring majestic hunter" );
+        RestSeedHelper.writePage( "BirdSparrow", birdBody + "sparrow small brown common urban seeds" );
+        RestSeedHelper.writePage( "BirdOwl", birdBody + "owl nocturnal silent prey mouse vision" );
+        RestSeedHelper.writePage( "BirdParrot", birdBody + "parrot colourful tropical mimicry intelligent" );
+        RestSeedHelper.writePage( "BirdCrow", birdBody + "crow black clever tool-user scavenger" );
+        RestSeedHelper.writePage( "BirdHummingbird", birdBody + "hummingbird tiny nectar hover rapid wings" );
+        RestSeedHelper.writePage( "BirdFalcon", birdBody + "falcon peregrine swift stoop dive" );
+        RestSeedHelper.writePage( "BirdPenguin", birdBody + "penguin flightless antarctic swim cold" );
+        RestSeedHelper.writePage( "BirdPelican", birdBody + "pelican pouch fish coastal glide wing span" );
+        RestSeedHelper.writePage( "BirdHeron", birdBody + "heron wading long legs patient fish" );
+        RestSeedHelper.writePage( "BirdSwallow", birdBody + "swallow aerial insect catcher forked tail" );
+        RestSeedHelper.writePage( "BirdRobin", birdBody + "robin red breast garden spring worm" );
         RestSeedHelper.retrainContentModelViaBrowser();
 
         final HubDiscoveryAdminPage page = new HubDiscoveryAdminPage().open();
         page.clickRunDiscovery().waitForSuccessToast();
 
         final var firstCard = $( "[data-testid^='hub-discovery-card-']" );
-        firstCard.shouldBe( visible );
+        firstCard.shouldBe( visible, java.time.Duration.ofSeconds( 20 ) );
         final int dismissedId = Integer.parseInt(
             firstCard.getAttribute( "data-testid" ).substring( "hub-discovery-card-".length() ) );
 

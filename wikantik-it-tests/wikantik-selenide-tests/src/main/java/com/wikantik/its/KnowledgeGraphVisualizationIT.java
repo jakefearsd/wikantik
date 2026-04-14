@@ -78,7 +78,13 @@ class KnowledgeGraphVisualizationIT extends WithIntegrationTestSetup {
         open( Env.TESTS_BASE_URL + "/graph" );
         $( ".graph-view, [data-testid='graph-error-state']" )
                 .shouldBe( visible, Duration.ofSeconds( 15 ) );
-        $( ".graph-error-state" ).shouldNotHave( text( "Sign in" ) );
+        // If the server error state rendered (graph API returned non-2xx),
+        // verify it is NOT the sign-in prompt — the authenticated path
+        // should reach the graph endpoint with an auth cookie and fail (or
+        // succeed) on graph-level concerns, not on authentication.
+        if ( $( ".graph-error-state" ).exists() ) {
+            $( ".graph-error-state" ).shouldNotHave( text( "Sign in" ) );
+        }
     }
 
     @Test

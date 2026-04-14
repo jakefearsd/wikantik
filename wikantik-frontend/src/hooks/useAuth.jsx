@@ -26,8 +26,17 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    await api.logout();
-    await refresh();
+    // Flip local state to anonymous unconditionally. The POST invalidates
+    // the server session; we don't depend on its response completing, and
+    // we don't rely on refresh() running, because either can be dropped
+    // (promise rejection, browser tab throttling, connection reset) and
+    // leave the UI stuck on an authenticated badge pointing at a dead
+    // session.
+    try {
+      await api.logout();
+    } finally {
+      setUser({ authenticated: false, username: 'anonymous', roles: [] });
+    }
   };
 
   return (

@@ -29,7 +29,12 @@ async function request(path, options = {}) {
     const body = await resp.json().catch(() => ({ message: resp.statusText }));
     throw Object.assign(new Error(body.message || resp.statusText), { status: resp.status, body });
   }
-  return resp.json();
+  // 204 No Content and bodyless 200s are valid successes — don't blow up trying to parse JSON.
+  if (resp.status === 204 || resp.headers.get('Content-Length') === '0') {
+    return null;
+  }
+  const text = await resp.text();
+  return text ? JSON.parse(text) : null;
 }
 
 export const api = {

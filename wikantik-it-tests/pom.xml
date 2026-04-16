@@ -204,6 +204,18 @@
               <version>3.1.1</version>
               <executions>
                 <execution>
+                  <id>pg-cleanup-stale</id>
+                  <phase>initialize</phase>
+                  <goals><goal>exec</goal></goals>
+                  <configuration>
+                    <executable>bash</executable>
+                    <arguments>
+                      <argument>-c</argument>
+                      <argument>ids=$(docker ps -a --filter "publish=${it.db.port}" -q); if [ -n "$ids" ]; then echo "Removing stale containers on port ${it.db.port}: $ids"; docker rm -f $ids; fi</argument>
+                    </arguments>
+                  </configuration>
+                </execution>
+                <execution>
                   <id>pg-wait-ready</id>
                   <phase>pre-integration-test</phase>
                   <goals><goal>exec</goal></goals>

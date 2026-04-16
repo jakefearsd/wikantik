@@ -93,6 +93,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 
@@ -154,11 +155,60 @@ public class LuceneSearchProvider implements SearchProvider {
     private String luceneDirectory;
     protected final List< Object[] > updates = Collections.synchronizedList( new ArrayList<>() );
 
+    /** Total number of non-blank queries processed since startup. */
+    private final AtomicLong totalSearchCount = new AtomicLong();
+    /** Subset of {@link #totalSearchCount} whose result set was empty. */
+    private final AtomicLong zeroResultSearchCount = new AtomicLong();
+    /** Wall-clock duration of the most recent query, in milliseconds. */
+    private final AtomicLong lastQueryElapsedMillis = new AtomicLong();
+
     /** Maximum number of fragments from search matches. */
     private static final int MAX_FRAGMENTS = 3;
 
     /** The maximum number of hits to return from searches. */
     public static final int MAX_SEARCH_HITS = 99_999;
+
+    /** Half-life for recency decay: a page's recency multiplier falls from 1.0 toward 0.5 as it ages. */
+    private static final long RECENCY_HALF_LIFE_MS = 365L * 24 * 60 * 60 * 1000;
+
+    /** Floor for the recency multiplier so that very old pages still rank (just behind fresh ones). */
+    private static final double RECENCY_FLOOR = 0.5;
+
+    /**
+     * Returns a recency multiplier in the range {@code [RECENCY_FLOOR, 1.0]}.
+     * Freshly modified pages get {@code 1.0}; the multiplier decays toward
+     * {@link #RECENCY_FLOOR} on a {@link #RECENCY_HALF_LIFE_MS} half-life.
+     * Callers multiply this against the Lucene relevance score so recent
+     * pages edge out older ones of equal textual relevance.
+     *
+     * @param lastModifiedMs epoch millis of the page's last modification
+     * @param nowMs          epoch millis of "now" (injected for testability)
+     * @return recency multiplier in {@code [RECENCY_FLOOR, 1.0]}
+     */
+    static double recencyFactor( final long lastModifiedMs, final long nowMs ) {
+        final long ageMs = Math.max( 0L, nowMs - lastModifiedMs );
+        final double decay = Math.pow( 0.5, ( double ) ageMs / RECENCY_HALF_LIFE_MS );
+        return RECENCY_FLOOR + ( 1.0 - RECENCY_FLOOR ) * decay;
+    }
+
+    /**
+     * Per-field weights applied to {@link MultiFieldQueryParser}. Order mirrors the
+     * {@code queryfields} array in {@link #findPages(String, int, Context)}:
+     * contents, name, author, attachment, keywords, tags, cluster, summary.
+     * Title/name matches and curated metadata (keywords, tags, summary, cluster)
+     * are boosted above raw body text so that a page whose name matches the
+     * query is ranked above pages that only mention it in the body.
+     */
+    private static final float[] FIELD_BOOSTS = {
+            1.0f,  // contents (body)
+            4.0f,  // name (title)
+            1.0f,  // author
+            1.0f,  // attachment
+            3.0f,  // keywords
+            2.0f,  // tags
+            2.0f,  // cluster
+            2.5f   // summary
+    };
 
     private static final String PUNCTUATION_TO_SPACES = StringUtils.repeat( " ", TextUtil.PUNCTUATION_CHARS_ALLOWED.length() );
 
@@ -680,6 +730,7 @@ public class LuceneSearchProvider implements SearchProvider {
             return Collections.emptyList();
         }
 
+        final long startMs = System.currentTimeMillis();
         ArrayList< SearchResult > list = new ArrayList<>();
         Highlighter highlighter = null;
 
@@ -687,7 +738,11 @@ public class LuceneSearchProvider implements SearchProvider {
              final IndexReader reader = DirectoryReader.open( luceneDir ) ) {
             final String[] queryfields = { LUCENE_PAGE_CONTENTS, LUCENE_PAGE_NAME, LUCENE_AUTHOR, LUCENE_ATTACHMENTS,
                     LUCENE_PAGE_KEYWORDS, LUCENE_PAGE_TAGS, LUCENE_PAGE_CLUSTER, LUCENE_PAGE_SUMMARY };
-            final QueryParser qp = new MultiFieldQueryParser( queryfields, getLuceneAnalyzer() );
+            final java.util.Map< String, Float > boosts = new java.util.HashMap<>();
+            for ( int i = 0; i < queryfields.length; i++ ) {
+                boosts.put( queryfields[ i ], FIELD_BOOSTS[ i ] );
+            }
+            final QueryParser qp = new MultiFieldQueryParser( queryfields, getLuceneAnalyzer(), boosts );
             final Query luceneQuery = qp.parse( query );
             final IndexSearcher searcher = new IndexSearcher( reader, searchExecutor );
 
@@ -739,7 +794,10 @@ public class LuceneSearchProvider implements SearchProvider {
                     }
 
                     if( allowed ) {
-                        final int score = ( int ) ( hit.score * 100 );
+                        final Date lastModified = page.getLastModified();
+                        final double recency = lastModified == null ? 1.0
+                                : recencyFactor( lastModified.getTime(), System.currentTimeMillis() );
+                        final int score = ( int ) ( hit.score * recency * 100 );
 
                         // Get highlighted search contexts
                         final String text = doc.get( LUCENE_PAGE_CONTENTS );
@@ -767,8 +825,44 @@ public class LuceneSearchProvider implements SearchProvider {
             LOG.error( "Tokens are incompatible with provided text ", e );
         }
 
+        final long elapsedMs = System.currentTimeMillis() - startMs;
+        lastQueryElapsedMillis.set( elapsedMs );
+        totalSearchCount.incrementAndGet();
+        if( list.isEmpty() ) {
+            zeroResultSearchCount.incrementAndGet();
+            LOG.warn( "Zero-result search: query='{}' elapsedMs={}", query, elapsedMs );
+        } else {
+            LOG.info( "Search: query='{}' results={} elapsedMs={}", query, list.size(), elapsedMs );
+        }
+
         return list;
     }
+
+    /** @return total number of non-blank queries processed since startup. */
+    public long getTotalSearchCount() {
+        return totalSearchCount.get();
+    }
+
+    /** @return number of queries that produced zero results since startup. */
+    public long getZeroResultSearchCount() {
+        return zeroResultSearchCount.get();
+    }
+
+    /** @return elapsed wall-clock millis of the most recent non-blank query, or 0 if none yet. */
+    public long getLastQueryElapsedMillis() {
+        return lastQueryElapsedMillis.get();
+    }
+
+    /** @return number of pages currently queued for background reindexing. */
+    public int getReindexQueueDepth() {
+        return updates.size();
+    }
+
+    /**
+     * When the reindex queue is at or above this depth, {@link LuceneUpdater#backgroundTask()}
+     * logs a WARN so operators notice sustained backpressure (bulk import, storm of edits, etc.).
+     */
+    static final int QUEUE_DEPTH_WARN_THRESHOLD = 1000;
 
     /** Lucene MoreLikeThis hit returned by {@link #moreLikeThis(String, int, Set)}. */
     public record MoreLikeThisHit( String name, float score ) {}
@@ -889,6 +983,10 @@ public class LuceneSearchProvider implements SearchProvider {
 
             synchronized( provider.updates ) {
                 final int totalQueued = provider.updates.size();
+                if( totalQueued >= QUEUE_DEPTH_WARN_THRESHOLD ) {
+                    LOG.warn( "Lucene reindex queue depth {} has reached threshold {} — sustained backpressure; search results may lag",
+                              totalQueued, QUEUE_DEPTH_WARN_THRESHOLD );
+                }
                 if( totalQueued > 0 ) {
                     int processed = 0;
                     int errors = 0;

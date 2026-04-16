@@ -34,6 +34,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -277,6 +279,148 @@ class LuceneSearchProviderTest {
     @Test
     void testProviderInfo() {
         Assertions.assertEquals( "LuceneSearchProvider", m_provider.getProviderInfo() );
+    }
+
+    // =========================================================================
+    // Field boost tests: title (name) matches should rank above body-only matches
+    // =========================================================================
+
+    @Test
+    void testTitleMatchRanksAboveBodyOnlyMatch() throws Exception {
+        // "widgetquark" is a unique nonsense term. Page "Widgetquark" only
+        // contains it in the title/name; page "BodyHolder" contains it three
+        // times in body text. Without field boosts the body-repeat page often
+        // wins on pure TF. With a title/name boost the title match wins.
+        m_engine.saveText( "Widgetquark", "Generic lorem ipsum content with nothing unusual." );
+        m_engine.saveText( "BodyHolder", "Body mentions widgetquark. Again widgetquark. Thrice widgetquark." );
+
+        Awaitility.await( "both pages indexed" )
+                .atMost( 10, TimeUnit.SECONDS )
+                .until( () -> {
+                    final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+                    final Context ctx = Wiki.context().create( m_engine, request, ContextEnum.PAGE_EDIT.getRequestContext() );
+                    final Collection<SearchResult> results = m_mgr.findPages( "widgetquark", ctx );
+                    return results != null && results.size() >= 2;
+                } );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        final Context ctx = Wiki.context().create( m_engine, request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        final List<SearchResult> sorted = new ArrayList<>( m_mgr.findPages( "widgetquark", ctx ) );
+        sorted.sort( Comparator.comparingInt( SearchResult::getScore ).reversed() );
+
+        Assertions.assertEquals( "Widgetquark", sorted.get( 0 ).getPage().getName(),
+                "Title-only match should outrank a body-only match with three TF hits when name field is boosted" );
+
+        m_engine.deleteTestPage( "Widgetquark" );
+        m_engine.deleteTestPage( "BodyHolder" );
+    }
+
+    // =========================================================================
+    // Recency decay helper: pure function, unit-testable without TestEngine.
+    // =========================================================================
+
+    @Test
+    void testRecencyFactorIsOneForJustModifiedPage() {
+        final long now = 1_000_000_000_000L;
+        Assertions.assertEquals( 1.0, LuceneSearchProvider.recencyFactor( now, now ), 1e-9,
+                "Age zero should produce factor 1.0" );
+    }
+
+    @Test
+    void testRecencyFactorClampsFuturePagesToOne() {
+        final long now = 1_000_000_000_000L;
+        // A page with lastModified in the future (clock skew, bad mtime) must
+        // not be boosted above 1.0.
+        Assertions.assertEquals( 1.0,
+                LuceneSearchProvider.recencyFactor( now + 86_400_000L, now ),
+                1e-9,
+                "Future lastModified should clamp to 1.0" );
+    }
+
+    @Test
+    void testRecencyFactorMonotonicallyDecreasesWithAge() {
+        final long now = 1_000_000_000_000L;
+        final long oneYearMs  = 365L * 24 * 60 * 60 * 1000;
+        final long twoYearMs  = 2 * oneYearMs;
+        final long tenYearMs  = 10 * oneYearMs;
+
+        final double fresh = LuceneSearchProvider.recencyFactor( now, now );
+        final double oneYr = LuceneSearchProvider.recencyFactor( now - oneYearMs, now );
+        final double twoYr = LuceneSearchProvider.recencyFactor( now - twoYearMs, now );
+        final double tenYr = LuceneSearchProvider.recencyFactor( now - tenYearMs, now );
+
+        Assertions.assertTrue( fresh > oneYr, "fresh > 1yr" );
+        Assertions.assertTrue( oneYr > twoYr, "1yr > 2yr" );
+        Assertions.assertTrue( twoYr > tenYr, "2yr > 10yr" );
+    }
+
+    // =========================================================================
+    // Search metrics: total, zero-result, and latency counters
+    // =========================================================================
+
+    @Test
+    void testSearchMetricsIncrementOnHit() throws Exception {
+        final long totalBefore = m_provider.getTotalSearchCount();
+        final long zeroBefore  = m_provider.getZeroResultSearchCount();
+
+        m_engine.saveText( "MetricsPage", "quokkatoken content worth finding" );
+
+        Awaitility.await( "metricspage indexed" )
+                .atMost( 10, TimeUnit.SECONDS )
+                .until( findsResultsFor( new ArrayList<>(), "quokkatoken" ) );
+
+        Assertions.assertTrue( m_provider.getTotalSearchCount() > totalBefore,
+                "Total search counter should increment on each non-blank query" );
+        Assertions.assertEquals( zeroBefore, m_provider.getZeroResultSearchCount(),
+                "Zero-result counter must NOT increment for queries that returned hits" );
+        Assertions.assertTrue( m_provider.getLastQueryElapsedMillis() >= 0L,
+                "Last-query elapsed millis should be recorded (>=0)" );
+
+        m_engine.deleteTestPage( "MetricsPage" );
+    }
+
+    @Test
+    void testZeroResultSearchIncrementsZeroResultCounter() throws Exception {
+        final long totalBefore = m_provider.getTotalSearchCount();
+        final long zeroBefore  = m_provider.getZeroResultSearchCount();
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        final Context ctx = Wiki.context().create( m_engine, request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        final Collection<SearchResult> results = m_mgr.findPages( "definitelynotapagezzqq7", ctx );
+
+        Assertions.assertTrue( results == null || results.isEmpty(), "sanity check — query must return zero" );
+        Assertions.assertEquals( totalBefore + 1, m_provider.getTotalSearchCount(),
+                "Total should tick up once for a zero-result query" );
+        Assertions.assertEquals( zeroBefore + 1, m_provider.getZeroResultSearchCount(),
+                "Zero-result counter should tick up for a zero-result query" );
+    }
+
+    @Test
+    void testBlankQueryDoesNotAffectMetrics() throws Exception {
+        final long totalBefore = m_provider.getTotalSearchCount();
+        final long zeroBefore  = m_provider.getZeroResultSearchCount();
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        final Context ctx = Wiki.context().create( m_engine, request, ContextEnum.PAGE_EDIT.getRequestContext() );
+        m_mgr.findPages( "", ctx );
+        m_mgr.findPages( "   ", ctx );
+
+        Assertions.assertEquals( totalBefore, m_provider.getTotalSearchCount(),
+                "Blank queries are input-validation failures, not real searches — must not count" );
+        Assertions.assertEquals( zeroBefore, m_provider.getZeroResultSearchCount(),
+                "Blank queries must not increment zero-result counter either" );
+    }
+
+    @Test
+    void testRecencyFactorHasFloorSoOldPagesStillRank() {
+        final long now = 1_000_000_000_000L;
+        // After a very long time the factor must not collapse to zero —
+        // old pages should still rank, just behind fresh ones.
+        final double ancient = LuceneSearchProvider.recencyFactor( 0L, now );
+        Assertions.assertTrue( ancient >= 0.5,
+                "Very old pages should retain at least a 0.5 score multiplier, was " + ancient );
+        Assertions.assertTrue( ancient <= 1.0,
+                "Multiplier must never exceed 1.0, was " + ancient );
     }
 
 }

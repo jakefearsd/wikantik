@@ -4,22 +4,22 @@
 #
 # Prerequisites:
 #   1. Run 'mvn clean install' (or 'mvn clean install -Dmaven.test.skip') first
-#   2. PostgreSQL running with 'wikantik' database created
-#   3. Run the DDL: sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.ddl
-#   4. Edit tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml to set your password
+#   2. PostgreSQL running with 'wikantik' database created (use bin/db/install-fresh.sh)
+#   3. Edit tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml to set your password
 #
 # Usage:
-#   ./deploy-local.sh          # Deploy WAR and configure Tomcat
-#   ./deploy-local.sh --help   # Show this help
+#   bin/deploy-local.sh          # Deploy WAR and configure Tomcat
+#   bin/deploy-local.sh --help   # Show this help
 #
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOMCAT_DIR="${SCRIPT_DIR}/tomcat/tomcat-11"
-WAR_SOURCE="${SCRIPT_DIR}/wikantik-war/target/Wikantik.war"
-CONFIG_DIR="${SCRIPT_DIR}/wikantik-war/src/main/config/tomcat"
-SEED_SQL="${SCRIPT_DIR}/wikantik-war/src/main/config/db/seed-users.sql"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+TOMCAT_DIR="${PROJECT_ROOT}/tomcat/tomcat-11"
+WAR_SOURCE="${PROJECT_ROOT}/wikantik-war/target/Wikantik.war"
+CONFIG_DIR="${PROJECT_ROOT}/wikantik-war/src/main/config/tomcat"
+SEED_SQL="${SCRIPT_DIR}/db/seed-users.sql"
 CONTEXT_DEST="${TOMCAT_DIR}/conf/Catalina/localhost/ROOT.xml"
 PROPS_DEST="${TOMCAT_DIR}/lib/wikantik-custom.properties"
 LOG4J2_DEST="${TOMCAT_DIR}/lib/log4j2.xml"
@@ -121,7 +121,7 @@ fi
 
 # Copy properties template if destination doesn't exist (substituting @@REPO_ROOT@@ tokens)
 if [[ ! -f "${PROPS_DEST}" ]]; then
-    sed "s|@@REPO_ROOT@@|${SCRIPT_DIR}|g" \
+    sed "s|@@REPO_ROOT@@|${PROJECT_ROOT}|g" \
         "${CONFIG_DIR}/wikantik-custom-postgresql.properties.template" \
         > "${PROPS_DEST}"
     print_status "Created ${PROPS_DEST} (paths substituted for ${SCRIPT_DIR})"
@@ -190,7 +190,7 @@ if [[ -f "${CONTEXT_DEST}" ]]; then
 fi
 
 # Run database migrations (tracked in schema_migrations, idempotent)
-MIGRATE_SH="${SCRIPT_DIR}/wikantik-war/src/main/config/db/migrate.sh"
+MIGRATE_SH="${SCRIPT_DIR}/db/migrate.sh"
 echo ""
 echo "Running database migrations..."
 if DB_NAME="${WIKI_DB}" "${MIGRATE_SH}"; then

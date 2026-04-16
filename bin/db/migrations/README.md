@@ -12,11 +12,14 @@ safely and repeatably.
 - `V003__policy_grants.sql` — database-backed authorization policy
 - `V004__knowledge_graph.sql` — knowledge graph tables + pgvector + embeddings
 - `V005__hub_membership.sql` — Hub centroids and Hub membership proposals
+- `V006__hub_discovery_proposals.sql` — cluster-based hub discovery review queue
+- `V007__hub_discovery_proposal_status.sql` — dismissed-status tracking for V006
 
-The companion scripts live one directory up:
+The companion scripts live one directory up (`bin/db/`):
 
 - `../migrate.sh` — apply any pending migrations to an existing database
 - `../install-fresh.sh` — create a new DB + app user and run `migrate.sh`
+- `../create-migrate-user.sh` — provision the dedicated `migrate` PostgreSQL role
 
 ## Naming convention
 
@@ -66,15 +69,14 @@ V<NNN>__<snake_case_description>.sql
 
 ```bash
 # Against the default local dev database
-cd wikantik-war/src/main/config/db
-./migrate.sh
+bin/db/migrate.sh
 
 # Check what has been applied
-./migrate.sh --status
+bin/db/migrate.sh --status
 
 # Production: set connection vars and run
-DB_NAME=wikantik_prod PGHOST=db.example.com PGUSER=postgres \
-    PGPASSWORD='…' ./migrate.sh
+DB_NAME=wikantik_prod PGHOST=db.example.com PGUSER=migrate \
+    PGPASSWORD='…' bin/db/migrate.sh
 ```
 
 ## Relationship to the legacy `postgresql-*.ddl` files

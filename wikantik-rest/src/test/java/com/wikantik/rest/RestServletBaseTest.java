@@ -129,6 +129,84 @@ class RestServletBaseTest {
                 .setHeader( Mockito.eq( "Access-Control-Allow-Credentials" ), Mockito.anyString() );
     }
 
+    // ---- Wildcard origin tests ----
+
+    private TestRestServlet servletWithAllowed( final String allowed ) {
+        final Engine eng = Mockito.mock( Engine.class );
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.cors.allowedOrigins", allowed );
+        Mockito.when( eng.getWikiProperties() ).thenReturn( props );
+        return new TestRestServlet( eng );
+    }
+
+    private void assertEchoed( final String allowed, final String origin ) {
+        final TestRestServlet servlet = servletWithAllowed( allowed );
+        final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
+        final HttpServletResponse resp = Mockito.mock( HttpServletResponse.class );
+        Mockito.when( req.getHeader( "Origin" ) ).thenReturn( origin );
+        servlet.applyCors( req, resp );
+        Mockito.verify( resp ).setHeader( "Access-Control-Allow-Origin", origin );
+    }
+
+    private void assertNotEchoed( final String allowed, final String origin ) {
+        final TestRestServlet servlet = servletWithAllowed( allowed );
+        final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
+        final HttpServletResponse resp = Mockito.mock( HttpServletResponse.class );
+        Mockito.when( req.getHeader( "Origin" ) ).thenReturn( origin );
+        servlet.applyCors( req, resp );
+        Mockito.verify( resp, Mockito.never() )
+                .setHeader( Mockito.eq( "Access-Control-Allow-Origin" ), Mockito.anyString() );
+    }
+
+    @Test
+    void wildcardMatchesSingleLabelSubdomain() {
+        assertEchoed( "https://*.jakefear.com", "https://wiki.jakefear.com" );
+    }
+
+    @Test
+    void wildcardMatchesMultiLabelSubdomain() {
+        assertEchoed( "https://*.jakefear.com", "https://a.b.jakefear.com" );
+    }
+
+    @Test
+    void wildcardDoesNotMatchApexDomain() {
+        assertNotEchoed( "https://*.jakefear.com", "https://jakefear.com" );
+    }
+
+    @Test
+    void wildcardDoesNotMatchSiblingHost() {
+        assertNotEchoed( "https://*.jakefear.com", "https://evil-jakefear.com" );
+    }
+
+    @Test
+    void wildcardDoesNotMatchSuffixTrick() {
+        assertNotEchoed( "https://*.jakefear.com", "https://foo.jakefear.com.evil.com" );
+    }
+
+    @Test
+    void wildcardRequiresSchemeMatch() {
+        assertNotEchoed( "https://*.jakefear.com", "http://foo.jakefear.com" );
+    }
+
+    @Test
+    void wildcardRejectsPathInjection() {
+        assertNotEchoed( "https://*.jakefear.com", "https://attacker.com/.jakefear.com" );
+    }
+
+    @Test
+    void wildcardAndExactCoexistInSameList() {
+        final String list = "https://app.example.com,https://*.jakefear.com";
+        assertEchoed( list, "https://app.example.com" );
+        assertEchoed( list, "https://www.jakefear.com" );
+        assertNotEchoed( list, "https://other.com" );
+    }
+
+    @Test
+    void wildcardPortIsRespected() {
+        assertEchoed( "https://*.jakefear.com:8443", "https://foo.jakefear.com:8443" );
+        assertNotEchoed( "https://*.jakefear.com:8443", "https://foo.jakefear.com" );
+    }
+
     // ---- New helper tests ----
 
     @Test

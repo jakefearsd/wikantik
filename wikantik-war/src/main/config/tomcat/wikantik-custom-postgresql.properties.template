@@ -55,5 +55,17 @@ wikantik.frontmatter.autoDefaults = true
 # noise once the review queue is tuned.
 # wikantik.hub.reviewPercentile = 50
 
+# CORS allow-list for REST/JSON endpoints. Comma-separated origins that will
+# be echoed back in Access-Control-Allow-Origin. Each entry is an exact match
+# unless it contains '*', in which case '*' matches one-or-more characters
+# except '/'. Scheme, port, and the literal parts after the wildcard must
+# match. Examples:
+#   https://app.example.com            exact
+#   https://*.jakefear.com             any subdomain depth (foo., a.b., ...)
+#   https://*.jakefear.com:8443        wildcard with explicit port
+# Apex (https://jakefear.com) is NOT covered by *.jakefear.com — list it
+# separately if you need it.
+# wikantik.cors.allowedOrigins = https://*.jakefear.com
+
 # Sitemap base URL for HTTPS behind proxy (e.g., cloudflared)
 #wikantik.sitemap.baseURL = https://example.com

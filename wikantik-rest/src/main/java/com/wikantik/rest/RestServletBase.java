@@ -106,7 +106,8 @@ public abstract class RestServletBase extends HttpServlet {
     /**
      * Sets CORS headers on the response when {@link #isCrossOriginAllowed()} is true.
      * Echoes the request's {@code Origin} header only when it matches one of the
-     * comma-separated values in the {@code wikantik.cors.allowedOrigins} property,
+     * comma-separated values in the {@code wikantik.cors.allowedOrigins} property
+     * (exact match, or wildcard with {@code *} — see {@link #originMatches}),
      * and always sets {@code Vary: Origin} so caches don't reuse responses across
      * different origins. Never sets {@code Access-Control-Allow-Credentials}: the
      * wiki's session cookie must not be exposed to arbitrary cross-origin JS.
@@ -130,11 +131,39 @@ public abstract class RestServletBase extends HttpServlet {
                 ? eng.getWikiProperties().getProperty( PROP_ALLOWED_ORIGINS, "" )
                 : "";
         for ( final String candidate : allowed.split( "," ) ) {
-            if ( origin.equalsIgnoreCase( candidate.trim() ) ) {
+            if ( originMatches( origin, candidate.trim() ) ) {
                 response.setHeader( "Access-Control-Allow-Origin", origin );
                 return;
             }
         }
+    }
+
+    /**
+     * Matches an {@code Origin} header value against a single whitelist entry.
+     * Plain entries match exactly (case-insensitive). Entries containing
+     * {@code *} are treated as wildcards: each {@code *} matches one-or-more
+     * characters except {@code /}, so {@code https://*.example.com} matches
+     * any subdomain depth under {@code example.com} but never the apex, a
+     * sibling host like {@code evil-example.com}, a different scheme, or a
+     * URL with path-injection trickery.
+     */
+    static boolean originMatches( final String origin, final String candidate ) {
+        if ( candidate.isEmpty() ) {
+            return false;
+        }
+        if ( candidate.indexOf( '*' ) < 0 ) {
+            return origin.equalsIgnoreCase( candidate );
+        }
+        final StringBuilder regex = new StringBuilder();
+        int from = 0;
+        for ( int star = candidate.indexOf( '*' ); star >= 0; star = candidate.indexOf( '*', from ) ) {
+            regex.append( java.util.regex.Pattern.quote( candidate.substring( from, star ) ) );
+            regex.append( "[^/]+" );
+            from = star + 1;
+        }
+        regex.append( java.util.regex.Pattern.quote( candidate.substring( from ) ) );
+        return java.util.regex.Pattern.compile( regex.toString(),
+                java.util.regex.Pattern.CASE_INSENSITIVE ).matcher( origin ).matches();
     }
 
     /**

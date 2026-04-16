@@ -165,14 +165,14 @@ running (not just the client you have on your PATH).
 # 1. Create the database, application role, and full schema (idempotent)
 sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
     DB_APP_PASSWORD='ChangeMe123!' \
-    wikantik-war/src/main/config/db/install-fresh.sh
+    bin/db/install-fresh.sh
 
 # 2. Build (includes React frontend via npm)
 mvn clean install -Dmaven.test.skip -T 1C
 
 # 3. Bootstrap Tomcat, configure, and deploy. deploy-local.sh runs migrate.sh
 #    so any pending schema migrations are applied automatically.
-./deploy-local.sh
+bin/deploy-local.sh
 
 # 4. Set your PostgreSQL password in the context file (path shown by script output)
 
@@ -182,9 +182,9 @@ tomcat/tomcat-11/bin/startup.sh
 # React SPA at http://localhost:8080/, knowledge graph at http://localhost:8080/graph
 ```
 
-Database schema lives in [`wikantik-war/src/main/config/db/migrations/`](wikantik-war/src/main/config/db/migrations/README.md).
+Database schema lives in [`bin/db/migrations/`](bin/db/migrations/README.md).
 To bring an existing database up to date (including production), run
-`wikantik-war/src/main/config/db/migrate.sh` with connection env vars set.
+`bin/db/migrate.sh` with connection env vars set.
 
 See [PostgreSQLLocalDeployment.md](docs/PostgreSQLLocalDeployment.md) for the full guide.
 

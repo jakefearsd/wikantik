@@ -43,7 +43,7 @@
     <it.db.port>55432</it.db.port>
     <it.db.name>wikantik</it.db.name>
     <it.db.container-alias>wikantik-pg</it.db.container-alias>
-    <it.db.migrate-script>${project.basedir}/../../wikantik-war/src/main/config/db/migrate.sh</it.db.migrate-script>
+    <it.db.migrate-script>${project.basedir}/../../bin/db/migrate.sh</it.db.migrate-script>
     <it.db.seed-script>${project.basedir}/../src/main/resources/sql/it-test-seed.sql</it.db.seed-script>
   </properties>
 

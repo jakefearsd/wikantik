@@ -13,7 +13,11 @@
 #   DB_APP_USER  jspwiki    role granted DML access in each migration
 #   PGHOST       localhost
 #   PGPORT       5432
-#   PGUSER       postgres   role that runs migrations (needs CREATE on DB)
+#   PGUSER       migrate    role that runs migrations. Created by
+#                           create-migrate-user.sh; needs CREATE on schema
+#                           public and (one-time) extensions pre-installed
+#                           by a superuser. Override with PGUSER=postgres
+#                           if you have not yet provisioned the migrate role.
 #   PGPASSWORD              optional
 #
 # Each migration is executed inside a single transaction via psql's
@@ -29,7 +33,7 @@ DB_NAME="${DB_NAME:-wikantik}"
 DB_APP_USER="${DB_APP_USER:-jspwiki}"
 export PGHOST="${PGHOST:-localhost}"
 export PGPORT="${PGPORT:-5432}"
-export PGUSER="${PGUSER:-postgres}"
+export PGUSER="${PGUSER:-migrate}"
 
 RED="\033[0;31m"
 GREEN="\033[0;32m"

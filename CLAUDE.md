@@ -110,7 +110,7 @@ Configuration files (gitignored; templates in `wikantik-war/src/main/config/tomc
 #    (idempotent — safe to re-run).
 sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
     DB_APP_PASSWORD='ChangeMe123!' \
-    wikantik-war/src/main/config/db/install-fresh.sh
+    bin/db/install-fresh.sh
 
 # 2. Build the WAR (also builds the React frontend via npm automatically)
 mvn clean install -Dmaven.test.skip -T 1C
@@ -118,7 +118,7 @@ mvn clean install -Dmaven.test.skip -T 1C
 # 3. Bootstrap — downloads Tomcat if absent, copies and patches config templates,
 #    removes stale files, deploys the WAR. deploy-local.sh also runs migrate.sh
 #    so any pending migrations get applied on every redeploy.
-./deploy-local.sh
+bin/deploy-local.sh
 
 # 4. Set your PostgreSQL password in the context file (path shown by script output):
 #    tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml
@@ -136,20 +136,20 @@ migrations by hand (e.g. against production):
 
 ```bash
 DB_NAME=wikantik DB_APP_USER=jspwiki PGHOST=db.example.com PGUSER=postgres \
-    PGPASSWORD='…' wikantik-war/src/main/config/db/migrate.sh
+    PGPASSWORD='…' bin/db/migrate.sh
 
 # Check what has been applied
-wikantik-war/src/main/config/db/migrate.sh --status
+bin/db/migrate.sh --status
 ```
 
 #### Adding a schema change
 
 **Every commit that changes the database schema MUST also add a numbered
-migration** under `wikantik-war/src/main/config/db/migrations/`. Pick the
+migration** under `bin/db/migrations/`. Pick the
 next `V<NNN>__description.sql`, write idempotent DDL (`CREATE TABLE IF NOT EXISTS`,
 `ADD COLUMN IF NOT EXISTS`, `INSERT … ON CONFLICT DO NOTHING`), use the
 `:app_user` psql variable for grants, and verify the migration is a no-op
-when re-applied. See `wikantik-war/src/main/config/db/migrations/README.md`
+when re-applied. See `bin/db/migrations/README.md`
 for the full convention. Never edit a migration after it has been applied
 in production — fix mistakes with a follow-up migration.
 
@@ -263,7 +263,7 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 - Main configuration: `ini/wikantik.properties` (in JAR)
 - Custom overrides: `wikantik-custom.properties` (in WEB-INF or container lib)
 - Security policy: `policy_grants` table (database-backed) or `WEB-INF/wikantik.policy` (file-based fallback)
-- Permission migration DDL: `wikantik-war/src/main/config/db/postgresql-permissions.ddl`
+- Permission migration DDL: `bin/db/postgresql-permissions.ddl` (legacy reference; current schema lives in `bin/db/migrations/V003__policy_grants.sql`)
 
 ### Extension Points
 

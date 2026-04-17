@@ -99,4 +99,24 @@ class ContentChunkerTest {
         assertEquals(List.of("One", "Two", "Three"), chunks.get(0).headingPath());
         assertEquals(List.of("One", "TwoPrime"), chunks.get(1).headingPath());
     }
+
+    @Test
+    void headingWithInlineMarkupPreservesFullTitle() {
+        String body = """
+            # Top
+
+            ## First *emphasized* Section
+
+            Body paragraph under the emphasized-title section, long enough to be emitted as its own chunk.
+            """;
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body);
+        List<Chunk> chunks = chunker.chunk("Inline", page);
+        assertEquals(1, chunks.size());
+        assertEquals(2, chunks.get(0).headingPath().size());
+        assertEquals("Top", chunks.get(0).headingPath().get(0));
+        String second = chunks.get(0).headingPath().get(1);
+        assertTrue(second.contains("First"), "title contains First: " + second);
+        assertTrue(second.contains("emphasized"), "title contains emphasized: " + second);
+        assertTrue(second.contains("Section"), "title contains Section: " + second);
+    }
 }

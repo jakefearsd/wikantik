@@ -234,8 +234,16 @@ out of sync with the page body. Out-of-sync state is recoverable via backfill.
 
 - **Target:** 300 tokens per chunk.
 - **Max:** 512 tokens (hard ceiling).
-- **Min:** 80 tokens. Chunks below this are merged forward into the next chunk
-  where possible.
+- **Min (reported floor):** 80 tokens. This is a *soft target* surfaced in
+  stats and to consumers — "a healthy chunk is at least this big." It is
+  **not** the merge-forward trigger.
+- **Merge-forward:** 8 tokens. A flushed chunk below this threshold gets
+  merged into the next chunk's content. The value is small on purpose: we
+  merge truly trivial stubs ("Tiny.", section-heading-plus-one-sentence
+  fragments) without collapsing legitimate short subsections into their
+  successors. `mergeForwardTokens` lives on `ContentChunker.Config` as a
+  first-class knob rather than a derived function of `minTokens` — the two
+  quantities answer different questions.
 - **Estimator:** `token_count_estimate = ceil(char_count / 4.0)`. This is the
   standard GPT-family heuristic and is close enough for planning; the real
   tokenizer arrives with the embedding model. Both `char_count` (exact) and
@@ -268,10 +276,14 @@ retrieval *precision* than to chunk size, favouring smaller chunks.
    sentence boundaries (regex on `. `, `! `, `? ` followed by capitalized
    letter or newline). If a single sentence still exceeds `max`, split on
    character boundary at the nearest whitespace and log at `WARN`.
-7. **Heading-only boundaries:** when a heading is encountered, flush the current
-   chunk if it is at or above `min`. If below `min`, continue accumulating
-   across the heading boundary — the next heading still appears in
-   `heading_path` when the chunk eventually flushes.
+7. **Heading-only boundaries:** when a heading is encountered, flush the
+   current chunk. The flush helper then decides whether to emit the chunk
+   or merge it forward: if the chunk is at or above `mergeForwardTokens`,
+   emit; if below, push the accumulated text back into the buffer so the
+   next block's content concatenates with it. A merged chunk carries the
+   **first** section's `heading_path` (captured at the start of
+   accumulation). Leading empty entries in the heading stack (from
+   `#` → `###` jumps) are stripped at emit time so paths stay clean.
 8. **Plugin markup** (`[{Plugin}]` / `[{Plugin}]()`) is preserved as literal
    text in the chunk. Chunks are raw content, not rendered output.
 9. **Empty pages** (zero body length after frontmatter strip) produce zero
@@ -623,9 +635,10 @@ Added to `wikantik.properties` defaults, overridable in
 
 ```
 wikantik.chunker.target_tokens = 300
-wikantik.chunker.max_tokens    = 512
-wikantik.chunker.min_tokens    = 80
-wikantik.chunker.enabled       = true
+wikantik.chunker.max_tokens              = 512
+wikantik.chunker.min_tokens              = 80
+wikantik.chunker.merge_forward_tokens    = 8
+wikantik.chunker.enabled                 = true
 ```
 
 Plus the rebuild properties already defined in the Rebuild section:
@@ -650,8 +663,8 @@ Per `CLAUDE.md` project preference: TDD, tests-before-fix. Three test classes:
 ### `ContentChunkerTest` (unit, no database)
 
 - Empty body → zero chunks.
-- Single paragraph shorter than `min` → one chunk (the `min` threshold is a
-  merge-forward policy, not a drop policy).
+- Single paragraph shorter than `merge_forward_tokens` → one chunk (the
+  merge-forward threshold is an accumulation policy, not a drop policy).
 - Three H2 sections, each short → three chunks, each with `heading_path`
   = `["<h1>", "<section-title>"]`.
 - One oversized paragraph (~800 tokens) → split on sentence boundaries, each
@@ -792,8 +805,15 @@ None of the follow-ons require schema changes to `kg_content_chunks`.
 
 ## Resolved decisions (from 2026-04-16 review)
 
-- **`min_tokens = 80` merge-forward, carrying the first section's
-  heading_path.** Approved.
+- **Merge-forward uses a dedicated `mergeForwardTokens` knob (default 8),
+  not `minTokens` itself.** `minTokens = 80` remains the reported "healthy
+  chunk" floor for stats and downstream consumers, but the trigger for
+  merging a below-threshold chunk into the next one is a separate,
+  smaller value. This resolves the original 2026-04-16 draft's internal
+  inconsistency where short-section tests (at ~10–17 tokens) required
+  chunks to survive flush, contradicting a literal read of
+  "merge everything below 80." Merged chunks still carry the first
+  section's `heading_path`.
 - **`ChunkProjector` runs after `GraphProjector`.** Approved.
 - **Backfill is async** and combined with Lucene reindex into a single
   rebuild operation driven by `ContentIndexRebuildService`. Production

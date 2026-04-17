@@ -74,6 +74,12 @@ public class ChunkProjector implements PageFilter {
      * registry so callers that don't own a shared {@link MeterRegistry} still
      * get working metric increments (observable via
      * {@link #meterRegistry()} for tests).
+     *
+     * <p>Production should use the four-arg constructor that accepts the
+     * shared registry (see
+     * {@link com.wikantik.api.observability.MeterRegistryHolder}); meters
+     * registered against a {@link SimpleMeterRegistry} are not scraped by
+     * the Prometheus endpoint.
      */
     public ChunkProjector( final ContentChunker chunker,
                            final ContentChunkRepository repository,

@@ -21,6 +21,8 @@ package com.wikantik.rest;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import com.wikantik.admin.ContentIndexRebuildService;
+import com.wikantik.admin.IndexStatusSnapshot;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
@@ -58,7 +60,9 @@ import java.util.Set;
  *   <li>{@code GET  /admin/content/broken-links} — missing link targets</li>
  *   <li>{@code POST /admin/content/bulk-delete} — delete multiple pages</li>
  *   <li>{@code POST /admin/content/purge-versions} — purge old page versions</li>
- *   <li>{@code POST /admin/content/reindex} — force full search index rebuild</li>
+ *   <li>{@code POST /admin/content/reindex} — force full search index rebuild (deprecated — use {@code /rebuild-indexes})</li>
+ *   <li>{@code GET  /admin/content/index-status} — unified Lucene + chunk index snapshot</li>
+ *   <li>{@code POST /admin/content/rebuild-indexes} — trigger async rebuild of Lucene + chunks</li>
  *   <li>{@code POST /admin/content/refresh-news} — trigger immediate news page update from git</li>
  *   <li>{@code POST /admin/content/cache/flush} — flush caches</li>
  * </ul>
@@ -96,6 +100,8 @@ public class AdminContentResource extends RestServletBase {
             handleOrphanedPages( response );
         } else if ( "broken-links".equals( action ) ) {
             handleBrokenLinks( response );
+        } else if ( "index-status".equals( action ) ) {
+            handleIndexStatus( response );
         } else {
             sendNotFound( response, "Unknown content endpoint: " + action );
         }
@@ -113,6 +119,8 @@ public class AdminContentResource extends RestServletBase {
             handlePurgeVersions( request, response );
         } else if ( "reindex".equals( action ) ) {
             handleReindex( response );
+        } else if ( "rebuild-indexes".equals( action ) ) {
+            handleRebuildIndexes( response );
         } else if ( "cache/flush".equals( action ) ) {
             handleCacheFlush( request, response );
         } else if ( "refresh-news".equals( action ) ) {
@@ -287,7 +295,16 @@ public class AdminContentResource extends RestServletBase {
         }
     }
 
+    /**
+     * Deprecated: prefer {@code POST /admin/content/rebuild-indexes}. This
+     * handler is retained for legacy operator scripts; response carries
+     * RFC-8594 / RFC-8288 deprecation headers advertising the successor.
+     */
     private void handleReindex( final HttpServletResponse response ) throws IOException {
+        // Set before any body is written (sendJson/sendError commits the response).
+        response.setHeader( "Deprecation", "true" );
+        response.setHeader( "Link",
+            "</admin/content/rebuild-indexes>; rel=\"successor-version\"" );
         try {
             final Engine engine = getEngine();
             final SearchManager sm = engine.getManager( SearchManager.class );
@@ -307,6 +324,101 @@ public class AdminContentResource extends RestServletBase {
             LOG.error( "Failed to trigger reindex", e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Reindex failed" );
         }
+    }
+
+    private void handleIndexStatus( final HttpServletResponse response ) throws IOException {
+        final ContentIndexRebuildService svc = getEngine().getManager( ContentIndexRebuildService.class );
+        if ( svc == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "rebuild service not available" );
+            return;
+        }
+        sendJsonWithStatus( response, HttpServletResponse.SC_OK,
+            snapshotToMap( svc.snapshot() ) );
+    }
+
+    private void handleRebuildIndexes( final HttpServletResponse response ) throws IOException {
+        final ContentIndexRebuildService svc = getEngine().getManager( ContentIndexRebuildService.class );
+        if ( svc == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "rebuild service not available" );
+            return;
+        }
+        try {
+            final IndexStatusSnapshot snap = svc.triggerRebuild();
+            LOG.info( "Content index rebuild triggered" );
+            sendJsonWithStatus( response, 202, snapshotToMap( snap ) );
+        } catch ( final ContentIndexRebuildService.ConflictException e ) {
+            LOG.warn( "Rebuild rejected — already in flight: {}", e.getMessage() );
+            sendJsonWithStatus( response, HttpServletResponse.SC_CONFLICT,
+                snapshotToMap( e.current() ) );
+        } catch ( final ContentIndexRebuildService.DisabledException e ) {
+            LOG.warn( "Rebuild rejected — disabled by configuration" );
+            sendJsonWithStatus( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                Map.of(
+                    "error", "rebuild disabled",
+                    "flag", "wikantik.rebuild.enabled" ) );
+        }
+    }
+
+    /**
+     * Like {@link #sendJson} but applies an explicit HTTP status code and emits
+     * {@code null}-valued fields so clients can rely on a stable JSON shape
+     * (e.g. {@code "started_at": null} when no rebuild has run yet).
+     */
+    private void sendJsonWithStatus( final HttpServletResponse response, final int status,
+                                     final Object payload ) throws IOException {
+        response.setStatus( status );
+        response.setContentType( "application/json" );
+        response.setCharacterEncoding( "UTF-8" );
+        response.getWriter().write(
+            new com.google.gson.GsonBuilder().serializeNulls().create().toJson( payload ) );
+    }
+
+    /** Serialises an {@link IndexStatusSnapshot} into the JSON shape the REST contract promises. */
+    private Map< String, Object > snapshotToMap( final IndexStatusSnapshot s ) {
+        final Map< String, Object > out = new LinkedHashMap<>();
+        out.put( "pages", Map.of(
+            "total", s.pages().total(),
+            "system", s.pages().system(),
+            "indexable", s.pages().indexable() ) );
+
+        final Map< String, Object > lucene = new LinkedHashMap<>();
+        lucene.put( "documents_indexed", s.lucene().documentsIndexed() );
+        lucene.put( "queue_depth", s.lucene().queueDepth() );
+        lucene.put( "last_update",
+            s.lucene().lastUpdate() == null ? null : s.lucene().lastUpdate().toString() );
+        out.put( "lucene", lucene );
+
+        out.put( "chunks", Map.of(
+            "pages_with_chunks", s.chunks().pagesWithChunks(),
+            "pages_missing_chunks", s.chunks().pagesMissingChunks(),
+            "total_chunks", s.chunks().totalChunks(),
+            "avg_tokens", s.chunks().avgTokens(),
+            "min_tokens", s.chunks().minTokens(),
+            "max_tokens", s.chunks().maxTokens() ) );
+
+        // Rebuild block has 9 fields — Map.of caps at 10 entries; use LinkedHashMap
+        // both to stay under the cap and to keep a predictable JSON ordering.
+        final Map< String, Object > rebuild = new LinkedHashMap<>();
+        rebuild.put( "state", s.rebuild().state() );
+        rebuild.put( "started_at",
+            s.rebuild().startedAt() == null ? null : s.rebuild().startedAt().toString() );
+        rebuild.put( "pages_total", s.rebuild().pagesTotal() );
+        rebuild.put( "pages_iterated", s.rebuild().pagesIterated() );
+        rebuild.put( "pages_chunked", s.rebuild().pagesChunked() );
+        rebuild.put( "system_pages_skipped", s.rebuild().systemPagesSkipped() );
+        rebuild.put( "lucene_queued", s.rebuild().luceneQueued() );
+        rebuild.put( "chunks_written", s.rebuild().chunksWritten() );
+        rebuild.put( "errors", s.rebuild().errors().stream().map( e -> {
+            final Map< String, Object > m = new LinkedHashMap<>();
+            m.put( "page", e.page() );
+            m.put( "error", e.error() );
+            m.put( "at", e.at() == null ? null : e.at().toString() );
+            return m;
+        } ).toList() );
+        out.put( "rebuild", rebuild );
+        return out;
     }
 
     private void handleCacheFlush( final HttpServletRequest request, final HttpServletResponse response )

@@ -261,6 +261,7 @@ public class ContentIndexRebuildService {
                 lucene.clearIndex();
                 chunkRepo.deleteAll();
             } catch ( final Exception fatal ) {
+                // LOG.error justified: index wipe failed; both indexes in indeterminate state, operator action required.
                 LOG.error( "STARTING phase failed: {}", fatal.getMessage(), fatal );
                 recordError( "<starting>", fatal );
                 return;
@@ -270,10 +271,12 @@ public class ContentIndexRebuildService {
             try {
                 all = pages.getAllPages();
             } catch ( final ProviderException e ) {
+                // LOG.error justified: page provider unreachable after indexes already cleared; rebuild cannot continue.
                 LOG.error( "getAllPages failed: {}", e.getMessage(), e );
                 recordError( "<get-all-pages>", e );
                 return;
             } catch ( final RuntimeException e ) {
+                // LOG.error justified: page provider unreachable after indexes already cleared; rebuild cannot continue.
                 LOG.error( "getAllPages failed: {}", e.getMessage(), e );
                 recordError( "<get-all-pages>", e );
                 return;
@@ -315,6 +318,7 @@ public class ContentIndexRebuildService {
             setState( State.DRAINING_LUCENE );
             drainLucene();
         } catch ( final Exception fatal ) {
+            // LOG.error justified: unexpected fatal exception escaped per-page isolation; run aborts with partial state.
             LOG.error( "Rebuild fatal: {}", fatal.getMessage(), fatal );
             recordError( "<rebuild>", fatal );
         } finally {

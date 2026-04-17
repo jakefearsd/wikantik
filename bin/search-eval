@@ -1,0 +1,400 @@
+#!/usr/bin/env python3
+"""
+search-eval — retrieval quality evaluation for Wikantik.
+
+Reads a CSV of (query, ideal_page, notes) and measures how well the wiki's
+/api/search endpoint ranks the ideal page. Reports recall@5, recall@20, MRR,
+and a per-category breakdown. Tests whatever retriever is currently deployed.
+
+Usage:
+    bin/search-eval
+    bin/search-eval --base-url https://staging.example.com --out baseline.txt
+    bin/search-eval --queries eval/custom.csv --json --limit 500
+
+Credentials default to reading test.properties at the repo root. Override
+with --user/--password, or pass --anonymous to skip auth entirely.
+
+Exit codes:
+    0   ran to completion
+    1   ran but at least one query errored (see report)
+    2   usage / configuration error (missing endpoint, bad CSV, etc.)
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import csv
+import json
+import os
+import sys
+import urllib.parse
+import urllib.request
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Iterable
+
+
+DEFAULT_BASE_URL = os.environ.get("WIKANTIK_BASE_URL", "http://localhost:8080")
+DEFAULT_QUERIES = "eval/retrieval-queries.csv"
+DEFAULT_LIMIT = 200
+DEFAULT_TIMEOUT = 30.0
+
+
+# --- Data model ------------------------------------------------------------
+
+@dataclass(frozen=True)
+class EvalCase:
+    query: str
+    ideal_page: str
+    notes: str
+
+
+@dataclass
+class EvalResult:
+    case: EvalCase
+    rank: int        # 1-based; -1 if ideal_page not in top N; -2 on error
+    total_hits: int
+    error: str | None = None
+
+
+@dataclass
+class Summary:
+    total: int
+    recall_at_5: float
+    recall_at_20: float
+    mrr: float
+    by_category: dict[str, dict[str, float]] = field(default_factory=dict)
+
+
+# --- HTTP ------------------------------------------------------------------
+
+class WikiClient:
+    """Minimal HTTP client — std-lib only so no pip install needed."""
+
+    def __init__(self, base_url: str, user: str | None, password: str | None,
+                 timeout: float = DEFAULT_TIMEOUT):
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+        self._auth_header = None
+        if user and password is not None:
+            token = base64.b64encode(f"{user}:{password}".encode()).decode()
+            self._auth_header = f"Basic {token}"
+
+    def search(self, query: str, limit: int) -> dict:
+        path = f"/api/search?q={urllib.parse.quote(query)}&limit={limit}"
+        req = urllib.request.Request(self.base_url + path, method="GET")
+        req.add_header("Accept", "application/json")
+        if self._auth_header:
+            req.add_header("Authorization", self._auth_header)
+        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            return json.loads(resp.read().decode())
+
+
+# --- Credentials -----------------------------------------------------------
+
+def load_test_properties(path: Path) -> tuple[str | None, str | None]:
+    """Parses a simple key=value .properties file. Returns (login, password)."""
+    if not path.is_file():
+        return None, None
+    login = password = None
+    with path.open() as fh:
+        for raw in fh:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key, val = key.strip(), val.strip()
+            if key == "test.user.login":
+                login = val
+            elif key == "test.user.password":
+                password = val
+    return login, password
+
+
+# --- Queries ---------------------------------------------------------------
+
+def load_queries(path: Path) -> list[EvalCase]:
+    cases: list[EvalCase] = []
+    with path.open(newline="") as fh:
+        reader = csv.reader(fh)
+        header_seen = False
+        for row in reader:
+            if not row:
+                continue
+            first = row[0].strip()
+            if first.startswith("#"):
+                continue
+            if not header_seen:
+                header_seen = True
+                if first == "query":
+                    continue  # skip the header
+            if len(row) < 2:
+                continue
+            query = row[0].strip()
+            ideal = row[1].strip()
+            notes = row[2].strip() if len(row) > 2 else ""
+            if query and ideal:
+                cases.append(EvalCase(query=query, ideal_page=ideal, notes=notes))
+    return cases
+
+
+# --- Evaluation ------------------------------------------------------------
+
+def rank_of(results: list[dict], ideal_page: str) -> int:
+    """Returns 1-based rank of ideal_page in `results` by `name`, or -1."""
+    for i, hit in enumerate(results, start=1):
+        if hit.get("name") == ideal_page:
+            return i
+    return -1
+
+
+def evaluate(client: WikiClient, cases: list[EvalCase], limit: int,
+             progress: bool = True) -> list[EvalResult]:
+    results: list[EvalResult] = []
+    for i, case in enumerate(cases, start=1):
+        if progress:
+            sys.stderr.write(f"\r[{i}/{len(cases)}] {case.query[:60]:<60}")
+            sys.stderr.flush()
+        try:
+            body = client.search(case.query, limit)
+            hits = body.get("results") or []
+            total = body.get("total", len(hits))
+            rank = rank_of(hits, case.ideal_page)
+            results.append(EvalResult(case=case, rank=rank, total_hits=total))
+        except Exception as e:
+            results.append(EvalResult(case=case, rank=-2, total_hits=0,
+                                      error=f"{type(e).__name__}: {e}"))
+    if progress:
+        sys.stderr.write("\r" + " " * 80 + "\r")
+    return results
+
+
+# --- Metrics ---------------------------------------------------------------
+
+def summarize(results: list[EvalResult]) -> Summary:
+    valid = [r for r in results if r.rank >= 0 or r.rank == -1]  # include misses
+    n = len(valid)
+    if n == 0:
+        return Summary(0, 0.0, 0.0, 0.0)
+
+    def recall(k: int) -> float:
+        hits = sum(1 for r in valid if 0 < r.rank <= k)
+        return hits / n
+
+    def mrr(rs: Iterable[EvalResult]) -> float:
+        rs = list(rs)
+        if not rs:
+            return 0.0
+        return sum((1.0 / r.rank) if r.rank > 0 else 0.0 for r in rs) / len(rs)
+
+    by_cat: dict[str, dict[str, float]] = {}
+    buckets: dict[str, list[EvalResult]] = defaultdict(list)
+    for r in valid:
+        buckets[r.case.notes or "uncategorized"].append(r)
+    for cat, rs in sorted(buckets.items()):
+        count = len(rs)
+        r5 = sum(1 for r in rs if 0 < r.rank <= 5) / count if count else 0.0
+        r20 = sum(1 for r in rs if 0 < r.rank <= 20) / count if count else 0.0
+        by_cat[cat] = {"count": count, "recall@5": r5, "recall@20": r20, "mrr": mrr(rs)}
+
+    return Summary(
+        total=n,
+        recall_at_5=recall(5),
+        recall_at_20=recall(20),
+        mrr=mrr(valid),
+        by_category=by_cat,
+    )
+
+
+# --- Report formatting -----------------------------------------------------
+
+def format_text_report(client: WikiClient, results: list[EvalResult],
+                       summary: Summary, queries_path: Path,
+                       quiet: bool) -> str:
+    lines: list[str] = []
+    lines.append("Retrieval evaluation — GET /api/search")
+    lines.append(f"Base URL:      {client.base_url}")
+    lines.append(f"Queries:       {summary.total}  ({queries_path})")
+    lines.append(f"Authenticated: {'yes' if client._auth_header else 'no (anonymous)'}")
+    lines.append(f"Captured:      {datetime.now(timezone.utc).isoformat(timespec='seconds')}")
+    lines.append("")
+    lines.append(f"recall@5  = {summary.recall_at_5:.3f}")
+    lines.append(f"recall@20 = {summary.recall_at_20:.3f}")
+    lines.append(f"MRR       = {summary.mrr:.3f}")
+    lines.append("")
+
+    if summary.by_category:
+        lines.append("By category:")
+        hdr = f"  {'category':<18} {'n':>3}  {'recall@5':>9}  {'recall@20':>10}  {'mrr':>6}"
+        lines.append(hdr)
+        lines.append("  " + "-" * (len(hdr) - 2))
+        for cat, stats in summary.by_category.items():
+            lines.append(
+                f"  {cat:<18} {int(stats['count']):>3}  "
+                f"{stats['recall@5']:>9.3f}  "
+                f"{stats['recall@20']:>10.3f}  "
+                f"{stats['mrr']:>6.3f}"
+            )
+        lines.append("")
+
+    errors = [r for r in results if r.rank == -2]
+    if errors:
+        lines.append(f"Errors ({len(errors)}):")
+        for r in errors:
+            lines.append(f"  {r.case.query[:60]:<60}  {r.error}")
+        lines.append("")
+
+    missed = [r for r in results if r.rank == -1 or r.rank > 20]
+    if missed:
+        lines.append(f"Missed top-20 ({len(missed)}):")
+        lines.append(f"  {'rank':>5}  {'ideal_page':<40}  query")
+        lines.append(f"  {'-'*5}  {'-'*40}  {'-'*60}")
+        for r in sorted(missed, key=lambda x: (x.rank if x.rank > 0 else 10**9)):
+            rank_str = str(r.rank) if r.rank > 0 else "—"
+            lines.append(
+                f"  {rank_str:>5}  {r.case.ideal_page[:40]:<40}  "
+                f"{r.case.query[:60]}"
+            )
+        lines.append("")
+
+    if not quiet:
+        lines.append("All queries:")
+        lines.append(f"  {'rank':>5}  {'@20?':<5}  {'ideal_page':<40}  query")
+        lines.append(f"  {'-'*5}  {'-'*5}  {'-'*40}  {'-'*60}")
+        for r in results:
+            rank_str = str(r.rank) if r.rank > 0 else ("ERR" if r.rank == -2 else "—")
+            in_top20 = "yes" if 0 < r.rank <= 20 else "no"
+            lines.append(
+                f"  {rank_str:>5}  {in_top20:<5}  "
+                f"{r.case.ideal_page[:40]:<40}  "
+                f"{r.case.query[:60]}"
+            )
+
+    return "\n".join(lines) + "\n"
+
+
+def format_json_report(client: WikiClient, results: list[EvalResult],
+                       summary: Summary, queries_path: Path) -> str:
+    payload = {
+        "base_url": client.base_url,
+        "queries_path": str(queries_path),
+        "authenticated": bool(client._auth_header),
+        "captured_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "summary": {
+            "total": summary.total,
+            "recall_at_5": summary.recall_at_5,
+            "recall_at_20": summary.recall_at_20,
+            "mrr": summary.mrr,
+            "by_category": summary.by_category,
+        },
+        "results": [
+            {
+                "query": r.case.query,
+                "ideal_page": r.case.ideal_page,
+                "category": r.case.notes,
+                "rank": r.rank,
+                "total_hits": r.total_hits,
+                "error": r.error,
+            }
+            for r in results
+        ],
+    }
+    return json.dumps(payload, indent=2) + "\n"
+
+
+# --- CLI -------------------------------------------------------------------
+
+def repo_root() -> Path:
+    """Find the repo root by walking up from this script's directory."""
+    here = Path(__file__).resolve().parent
+    for cand in [here, *here.parents]:
+        if (cand / ".git").exists():
+            return cand
+    return Path.cwd()
+
+
+def build_arg_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="search-eval",
+        description="Measure retrieval quality against a live wiki.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="Credentials: --user/--password take precedence over test.properties; "
+               "pass --anonymous to skip auth entirely.",
+    )
+    p.add_argument("--base-url", default=DEFAULT_BASE_URL,
+                   help=f"wiki base URL (default: {DEFAULT_BASE_URL} "
+                        "or WIKANTIK_BASE_URL)")
+    p.add_argument("--queries", default=None,
+                   help=f"path to queries CSV (default: {DEFAULT_QUERIES} "
+                        "relative to repo root)")
+    p.add_argument("--user", default=None,
+                   help="auth user (overrides test.properties)")
+    p.add_argument("--password", default=None,
+                   help="auth password (overrides test.properties)")
+    p.add_argument("--test-properties", default=None,
+                   help="path to test.properties (default: repo_root/test.properties)")
+    p.add_argument("--anonymous", action="store_true",
+                   help="skip authentication (ignore test.properties)")
+    p.add_argument("--limit", type=int, default=DEFAULT_LIMIT,
+                   help=f"max hits to request per query (default: {DEFAULT_LIMIT})")
+    p.add_argument("--out", default=None,
+                   help="also write the report to this path")
+    p.add_argument("--json", action="store_true",
+                   help="emit JSON instead of a formatted text report")
+    p.add_argument("--quiet", action="store_true",
+                   help="omit the per-query table in text mode")
+    p.add_argument("--no-progress", action="store_true",
+                   help="suppress the stderr progress indicator")
+    p.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT,
+                   help=f"per-request timeout seconds (default: {DEFAULT_TIMEOUT})")
+    return p
+
+
+def main(argv: list[str]) -> int:
+    args = build_arg_parser().parse_args(argv)
+    root = repo_root()
+
+    queries_path = Path(args.queries) if args.queries else (root / DEFAULT_QUERIES)
+    if not queries_path.is_absolute():
+        queries_path = (root / queries_path).resolve()
+    if not queries_path.is_file():
+        print(f"error: queries file not found: {queries_path}", file=sys.stderr)
+        return 2
+
+    user = password = None
+    if not args.anonymous:
+        user, password = args.user, args.password
+        if user is None or password is None:
+            tp_path = Path(args.test_properties) if args.test_properties \
+                      else (root / "test.properties")
+            tp_user, tp_pw = load_test_properties(tp_path)
+            user = user or tp_user
+            password = password or tp_pw
+
+    client = WikiClient(args.base_url, user, password, timeout=args.timeout)
+
+    cases = load_queries(queries_path)
+    if not cases:
+        print(f"error: no queries parsed from {queries_path}", file=sys.stderr)
+        return 2
+
+    results = evaluate(client, cases, args.limit,
+                       progress=not args.no_progress and sys.stderr.isatty())
+    summary = summarize(results)
+
+    if args.json:
+        report = format_json_report(client, results, summary, queries_path)
+    else:
+        report = format_text_report(client, results, summary, queries_path, args.quiet)
+
+    sys.stdout.write(report)
+    if args.out:
+        Path(args.out).write_text(report)
+
+    return 1 if any(r.rank == -2 for r in results) else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

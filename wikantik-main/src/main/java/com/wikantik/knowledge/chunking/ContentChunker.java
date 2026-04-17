@@ -18,12 +18,17 @@
  */
 package com.wikantik.knowledge.chunking;
 
+import com.vladsch.flexmark.ast.Heading;
+import com.vladsch.flexmark.parser.Parser;
+import com.vladsch.flexmark.util.ast.Node;
 import com.wikantik.api.frontmatter.ParsedPage;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HexFormat;
 import java.util.List;
 
@@ -43,9 +48,53 @@ public class ContentChunker {
         if (body.isEmpty()) {
             return out;
         }
-        List<String> headingPath = List.of();
-        out.add(buildChunk(pageName, 0, headingPath, body));
+
+        Parser parser = Parser.builder().build();
+        Node root = parser.parse(body);
+
+        Deque<String> headingStack = new ArrayDeque<>();
+        List<Node> pendingBlocks = new ArrayList<>();
+        int[] chunkIndex = {0};
+
+        for (Node child : root.getChildren()) {
+            if (child instanceof Heading heading) {
+                flushChunk(pageName, chunkIndex, List.copyOf(headingStack),
+                           pendingBlocks, out);
+                adjustHeadingStack(headingStack, heading.getLevel(),
+                                   heading.getText().toString());
+            } else {
+                pendingBlocks.add(child);
+            }
+        }
+        flushChunk(pageName, chunkIndex, List.copyOf(headingStack), pendingBlocks, out);
         return out;
+    }
+
+    private void adjustHeadingStack(Deque<String> stack, int level, String title) {
+        while (stack.size() >= level) {
+            stack.removeLast();
+        }
+        while (stack.size() < level - 1) {
+            stack.addLast("");
+        }
+        stack.addLast(title.trim());
+    }
+
+    private void flushChunk(String pageName, int[] idx, List<String> headingPath,
+                            List<Node> blocks, List<Chunk> out) {
+        if (blocks.isEmpty()) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Node block : blocks) {
+            sb.append(block.getChars().toString()).append("\n\n");
+        }
+        String text = sb.toString().strip();
+        blocks.clear();
+        if (text.isEmpty()) {
+            return;
+        }
+        out.add(buildChunk(pageName, idx[0]++, headingPath, text));
     }
 
     Chunk buildChunk(String pageName, int index, List<String> headingPath, String text) {

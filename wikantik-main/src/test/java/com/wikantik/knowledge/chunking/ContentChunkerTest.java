@@ -52,4 +52,51 @@ class ContentChunkerTest {
         assertTrue(chunks.get(0).tokenCountEstimate() > 0);
         assertNotNull(chunks.get(0).contentHash());
     }
+
+    @Test
+    void threeShortSectionsProduceThreeChunksWithHeadingPaths() {
+        String body = """
+            # Top Title
+
+            ## First Section
+
+            Alpha paragraph with enough words to count as a real chunk of prose.
+
+            ## Second Section
+
+            Bravo paragraph, also substantive enough to be emitted on its own.
+
+            ## Third Section
+
+            Charlie paragraph — again, long enough to warrant emission.
+            """;
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body);
+        List<Chunk> chunks = chunker.chunk("Sections", page);
+        assertEquals(3, chunks.size());
+        assertEquals(List.of("Top Title", "First Section"), chunks.get(0).headingPath());
+        assertEquals(List.of("Top Title", "Second Section"), chunks.get(1).headingPath());
+        assertEquals(List.of("Top Title", "Third Section"), chunks.get(2).headingPath());
+    }
+
+    @Test
+    void headingStackPopsOnShallowerHeading() {
+        String body = """
+            # One
+
+            ## Two
+
+            ### Three
+
+            Leaf text sufficient to be emitted.
+
+            ## TwoPrime
+
+            Sibling text also long enough to warrant emission.
+            """;
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body);
+        List<Chunk> chunks = chunker.chunk("Pops", page);
+        assertEquals(2, chunks.size());
+        assertEquals(List.of("One", "Two", "Three"), chunks.get(0).headingPath());
+        assertEquals(List.of("One", "TwoPrime"), chunks.get(1).headingPath());
+    }
 }

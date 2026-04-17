@@ -119,4 +119,78 @@ class ContentChunkerTest {
         assertTrue(second.contains("emphasized"), "title contains emphasized: " + second);
         assertTrue(second.contains("Section"), "title contains Section: " + second);
     }
+
+    @Test
+    void oversizedParagraphIsSplitOnSentenceBoundaries() {
+        StringBuilder big = new StringBuilder();
+        for (int i = 0; i < 80; i++) {
+            big.append("Sentence number ").append(i).append(" filler text. ");
+        }
+        ParsedPage page = new ParsedPage(java.util.Map.of(), big.toString());
+        List<Chunk> chunks = chunker.chunk("Big", page);
+        assertTrue(chunks.size() > 1, "expected multiple chunks, got " + chunks.size());
+        for (Chunk c : chunks) {
+            assertTrue(c.tokenCountEstimate() <= 512,
+                "chunk " + c.chunkIndex() + " exceeds max: " + c.tokenCountEstimate());
+        }
+    }
+
+    @Test
+    void fencedCodeBlockIsAtomicEvenIfOversized() {
+        StringBuilder body = new StringBuilder("# Title\n\n```\n");
+        for (int i = 0; i < 200; i++) {
+            body.append("public int x").append(i).append(" = ").append(i).append(";\n");
+        }
+        body.append("```\n");
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body.toString());
+        List<Chunk> chunks = chunker.chunk("Code", page);
+        assertEquals(1, chunks.size());
+        assertTrue(chunks.get(0).text().contains("public int x0 = 0;"));
+        assertTrue(chunks.get(0).text().contains("public int x199 = 199;"));
+    }
+
+    @Test
+    void shortChunkBelowMinMergesForwardAcrossHeadingBoundary() {
+        String body = """
+            ## Stub
+
+            Tiny.
+
+            ## Real
+
+            This paragraph has plenty of real content to ensure we cross the min
+            threshold on merge and emit a single well-formed chunk.
+            """;
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body);
+        List<Chunk> chunks = chunker.chunk("Merge", page);
+        assertEquals(1, chunks.size(), "tiny first section should merge forward");
+        assertEquals(List.of("Stub"), chunks.get(0).headingPath(),
+                     "merged chunk carries first section's heading path");
+        assertTrue(chunks.get(0).text().contains("Tiny."));
+        assertTrue(chunks.get(0).text().contains("plenty of real content"));
+    }
+
+    @Test
+    void pluginMarkupIsPreservedVerbatim() {
+        String body = "[{Plugin}] then some prose of reasonable length to be emitted.";
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body);
+        List<Chunk> chunks = chunker.chunk("Plugin", page);
+        assertEquals(1, chunks.size());
+        assertTrue(chunks.get(0).text().contains("[{Plugin}]"));
+    }
+
+    @Test
+    void contentHashIsDeterministicAndSensitiveToHeadingPath() {
+        String body = "## A\n\nSame body text repeated across two sections.\n\n"
+                    + "## B\n\nSame body text repeated across two sections.\n";
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body);
+        List<Chunk> chunks = chunker.chunk("Hash", page);
+        assertEquals(2, chunks.size());
+        assertNotEquals(chunks.get(0).contentHash(), chunks.get(1).contentHash(),
+            "identical body text under different headings must hash differently");
+
+        List<Chunk> again = chunker.chunk("Hash", page);
+        assertEquals(chunks.get(0).contentHash(), again.get(0).contentHash());
+        assertEquals(chunks.get(1).contentHash(), again.get(1).contentHash());
+    }
 }

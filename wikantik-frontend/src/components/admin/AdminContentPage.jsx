@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import IndexStatusTab from './IndexStatusTab';
 import '../../styles/admin.css';
 
-const TABS = ['Dashboard', 'Orphaned Pages', 'Broken Links', 'Versions'];
+const TABS = ['Dashboard', 'Orphaned Pages', 'Broken Links', 'Versions', 'Index Status'];
 
 export default function AdminContentPage() {
   const [tab, setTab] = useState('Dashboard');
@@ -26,6 +27,7 @@ export default function AdminContentPage() {
       {tab === 'Orphaned Pages' && <OrphanedPagesTab />}
       {tab === 'Broken Links' && <BrokenLinksTab />}
       {tab === 'Versions' && <VersionsTab />}
+      {tab === 'Index Status' && <IndexStatusTab />}
     </div>
   );
 }
@@ -35,7 +37,6 @@ export default function AdminContentPage() {
 function DashboardTab() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [reindexing, setReindexing] = useState(false);
   const [flushing, setFlushing] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -51,19 +52,6 @@ function DashboardTab() {
   };
 
   useEffect(() => { load(); }, []);
-
-  const handleReindex = async () => {
-    setReindexing(true);
-    setMessage(null);
-    try {
-      const result = await api.admin.reindex();
-      setMessage({ type: 'success', text: `Reindex started: ${result.pagesQueued} pages queued` });
-    } catch (err) {
-      setMessage({ type: 'error', text: err.message });
-    } finally {
-      setReindexing(false);
-    }
-  };
 
   const handleFlushAll = async () => {
     setFlushing(true);
@@ -106,9 +94,6 @@ function DashboardTab() {
         <h3>Actions</h3>
       </div>
       <div className="admin-actions-row">
-        <button className="btn btn-primary" onClick={handleReindex} disabled={reindexing}>
-          {reindexing ? 'Rebuilding…' : 'Rebuild Search Index'}
-        </button>
         <button className="btn btn-ghost" onClick={handleFlushAll} disabled={flushing}>
           {flushing ? 'Flushing…' : 'Flush All Caches'}
         </button>

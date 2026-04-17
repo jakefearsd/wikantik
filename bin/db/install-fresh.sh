@@ -10,13 +10,22 @@
 #   ./install-fresh.sh
 #
 # Environment variables (with defaults):
-#   DB_NAME           wikantik        target database
-#   DB_APP_USER       jspwiki         application role (created if absent)
-#   DB_APP_PASSWORD   ChangeMe123!    password set on the application role
-#   PGHOST            localhost
-#   PGPORT            5432
-#   PGUSER            postgres        superuser that runs the bootstrap
-#   PGPASSWORD                        optional (or rely on peer/trust auth)
+#   DB_NAME              wikantik        target database
+#   DB_APP_USER          jspwiki         application role (created if absent)
+#   DB_APP_PASSWORD      ChangeMe123!    password set on the application role
+#   DB_MIGRATE_USER      migrate         migration role (created if absent)
+#   DB_MIGRATE_PASSWORD                  password for the migration role.
+#                                        Required when bootstrapping the
+#                                        migrate role here; if unset, this
+#                                        script skips create-migrate-user
+#                                        and runs migrate.sh as PGUSER,
+#                                        leaving tables owned by PGUSER —
+#                                        the operator must run
+#                                        create-migrate-user.sh afterwards.
+#   PGHOST               localhost
+#   PGPORT               5432
+#   PGUSER               postgres        superuser that runs the bootstrap
+#   PGPASSWORD                           optional (or rely on peer/trust auth)
 #
 # This script MUST be run by a PostgreSQL superuser because it creates
 # the database, creates the application role, and installs the pgvector
@@ -74,9 +83,25 @@ super_psql -d "${DB_NAME}" -c "GRANT USAGE   ON SCHEMA public           TO \"${D
 print_ok "Granted CONNECT and USAGE on public to ${DB_APP_USER}"
 
 # 4. Run migrations. migrate.sh will install pgvector inside V004 and
-#    create every table.
-DB_NAME="${DB_NAME}" DB_APP_USER="${DB_APP_USER}" \
+#    create every table. Runs as PGUSER (typically postgres) so the
+#    superuser can create extensions — tables land owned by PGUSER.
+DB_NAME="${DB_NAME}" DB_APP_USER="${DB_APP_USER}" PGUSER="${PGUSER}" \
     "${SCRIPT_DIR}/migrate.sh"
+
+# 5. If a migrate password was provided, create the migrate role and
+#    transfer ownership of public-schema objects to it. This makes
+#    subsequent `migrate.sh` runs (as the migrate role) able to ALTER
+#    the tables we just created. Without this, later migrations that
+#    ALTER existing tables will fail with "must be owner of table X".
+if [[ -n "${DB_MIGRATE_PASSWORD:-}" ]]; then
+    echo
+    echo "Bootstrapping migrate role and transferring ownership…"
+    DB_NAME="${DB_NAME}" DB_APP_USER="${DB_APP_USER}" \
+        "${SCRIPT_DIR}/create-migrate-user.sh"
+else
+    print_warn "DB_MIGRATE_PASSWORD not set — skipping create-migrate-user."
+    print_warn "Run create-migrate-user.sh manually, or future ALTER-based migrations will fail."
+fi
 
 echo
 print_ok "Fresh install complete"

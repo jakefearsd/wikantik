@@ -1,0 +1,44 @@
+# v0 draft seed query set for retrieval evaluation. Curate me.
+# Categories (notes column): synonym-drift, indirect, multi-word-concept, specific, general, business-process, hard.
+# Every ideal_page MUST exist as a file in docs/wikantik-pages/ (without the .md extension).
+query,ideal_page,notes
+how do I deploy the wiki locally,JspwikiDeployment,indirect
+which embedding model should we pick for local RAG,EmbeddingsVectorDB,synonym-drift
+Ollama installation,OllamaSetup,specific
+running Wikantik in a container,WikantikOnDocker,synonym-drift
+setting up postgres on my laptop,PostgreSQLLocalDeployment,indirect
+cors preflight handling,CorsDeepDive,specific
+full text search in relational database,FullTextSearchInPostgresql,multi-word-concept
+local retrieval augmented generation,LocalRAG,multi-word-concept
+blue green release strategy,BlueGreenDeployments,synonym-drift
+gradual rollout with traffic shifting,CanaryDeployments,indirect
+oauth authorization code flow,OAuthImplementation,specific
+single sign on with identity providers,FullOAuth,indirect
+storage patterns for files,ObjectStoragePatterns,synonym-drift
+how do we protect against supply chain attacks,SupplyChainSecurity,business-process
+onboarding a new client,CustomerRelationshipManagement,business-process
+how to plan a sprint,SprintPlanning,business-process
+handling a production outage,IncidentManagement,business-process
+roadmap planning process,ProductRoadmapping,business-process
+code review best practices,CodeReviewPractices,specific
+admin ui for security settings,AdminSecurityUi,multi-word-concept
+role based access permissions stored in the database,DatabaseBackedPermissions,indirect
+k8s,KubernetesBasics,hard
+ci cd,CiCdPipelines,hard
+backup strategy for the database,DatabaseBackupStrategies,multi-word-concept
+schema migration approach,DatabaseMigrationStrategies,synonym-drift
+semantic search with embeddings,AiPoweredSearch,synonym-drift
+knowledge graph retrieval,GraphRAG,general
+images and text embeddings together,MultimodalEmbeddings,indirect
+how agents remember things,AgentMemory,indirect
+evaluating and monitoring llm agents in production,AgentObservability,multi-word-concept
+prompt engineering for agents,AgentPromptEngineering,specific
+test driven development,TestDrivenDevelopmentGuide,general
+writing technical docs,TechnicalWritingGuide,synonym-drift
+setting up docker for development,DockerSetup,general
+ai,ArtificialIntelligence,hard
+jvm gc,JavaMemoryManagement,hard
+overview of agent architectures,AgenticArchitecture,general
+objectives and key results,OkrsAndGoalSetting,general
+setting goals for the quarter,OkrsAndGoalSetting,indirect
+measuring what matters,BusinessMetricsAndKpis,hard

@@ -20,8 +20,12 @@ package com.wikantik.admin;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.knowledge.chunking.Chunk;
+import com.wikantik.knowledge.chunking.ChunkDiff;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.chunking.ContentChunker;
 import org.apache.logging.log4j.LogManager;
@@ -177,12 +181,116 @@ public class ContentIndexRebuildService {
     }
 
     /**
-     * Test/extension seam: the real rebuild loop lands here in Task 10.
-     * In the current scaffold it immediately returns to {@link State#IDLE}.
+     * Full rebuild loop. Runs on a dedicated daemon thread started by
+     * {@link #triggerRebuild()}. Phases:
+     * <ol>
+     *   <li>{@link State#STARTING} — wipe both indexes. A failure here is
+     *       fatal to this run; error is recorded and we return to IDLE.</li>
+     *   <li>{@link State#RUNNING} — iterate every page. For non-system pages
+     *       compute chunks and diff-apply them; for every page (system or
+     *       not) enqueue a Lucene reindex — system pages become no-ops in
+     *       Lucene thanks to the preflight filter. Per-page failures are
+     *       captured into {@link #errors} and the loop continues.</li>
+     *   <li>{@link State#DRAINING_LUCENE} — poll the Lucene queue depth at
+     *       {@code luceneDrainPollMs}; exit after two consecutive zero
+     *       readings.</li>
+     * </ol>
      */
     protected void runRebuild() {
-        // Scaffold: immediately return to IDLE; Task 10 replaces this body.
-        state.set( State.IDLE );
+        try {
+            setState( State.STARTING );
+            try {
+                lucene.clearIndex();
+                chunkRepo.deleteAll();
+            } catch ( final Exception fatal ) {
+                LOG.error( "STARTING phase failed: {}", fatal.getMessage(), fatal );
+                recordError( "<starting>", fatal );
+                return;
+            }
+
+            final Collection< ? extends Page > all;
+            try {
+                all = pages.getAllPages();
+            } catch ( final ProviderException e ) {
+                LOG.error( "getAllPages failed: {}", e.getMessage(), e );
+                recordError( "<get-all-pages>", e );
+                return;
+            } catch ( final RuntimeException e ) {
+                LOG.error( "getAllPages failed: {}", e.getMessage(), e );
+                recordError( "<get-all-pages>", e );
+                return;
+            }
+            pagesTotal = all.size();
+            setState( State.RUNNING );
+
+            for ( final Page page : all ) {
+                pagesIterated++;
+                final String name = page.getName();
+                final boolean isSystem = systemPages.isSystemPage( name );
+                if ( isSystem ) {
+                    systemPagesSkipped++;
+                } else {
+                    try {
+                        final String content = pages.getPureText( page );
+                        final ParsedPage parsed = FrontmatterParser.parse(
+                            content == null ? "" : content );
+                        final List< Chunk > produced = chunker.chunk( name, parsed );
+                        final List< ChunkDiff.Stored > existing = chunkRepo.findByPage( name );
+                        final ChunkDiff.Diff diff = ChunkDiff.compute( existing, produced );
+                        chunkRepo.apply( name, diff );
+                        pagesChunked++;
+                        chunksWritten += produced.size();
+                    } catch ( final Exception e ) {
+                        LOG.warn( "Chunker failed for page '{}': {}", name, e.getMessage(), e );
+                        recordError( name, e );
+                    }
+                }
+                try {
+                    lucene.reindexPage( page );
+                    luceneQueued++;
+                } catch ( final Exception e ) {
+                    LOG.warn( "Lucene enqueue failed for page '{}': {}", name, e.getMessage(), e );
+                    recordError( name, e );
+                }
+            }
+
+            setState( State.DRAINING_LUCENE );
+            drainLucene();
+        } catch ( final Exception fatal ) {
+            LOG.error( "Rebuild fatal: {}", fatal.getMessage(), fatal );
+            recordError( "<rebuild>", fatal );
+        } finally {
+            setState( State.IDLE );
+        }
+    }
+
+    private void recordError( final String page, final Exception e ) {
+        errors.add( new IndexStatusSnapshot.RebuildError(
+            page,
+            e.getClass().getSimpleName() + ": " + String.valueOf( e.getMessage() ),
+            Instant.now() ) );
+    }
+
+    /**
+     * Polls {@link LuceneReindexQueue#queueDepth()} until it reads {@code 0}
+     * on two consecutive polls. Restores the interrupt flag and returns early
+     * if interrupted.
+     */
+    private void drainLucene() {
+        int zeroStreak = 0;
+        while ( zeroStreak < 2 ) {
+            try {
+                Thread.sleep( luceneDrainPollMs );
+            } catch ( final InterruptedException ie ) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            if ( lucene.queueDepth() == 0 ) {
+                zeroStreak++;
+            } else {
+                zeroStreak = 0;
+            }
+        }
     }
 
     /** Test/subclass accessor. */

@@ -28,6 +28,11 @@ import com.wikantik.knowledge.chunking.Chunk;
 import com.wikantik.knowledge.chunking.ChunkDiff;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.chunking.ContentChunker;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,6 +41,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 
@@ -98,6 +105,14 @@ public class ContentIndexRebuildService {
     protected volatile int chunksWritten;
     protected final List< IndexStatusSnapshot.RebuildError > errors = new CopyOnWriteArrayList<>();
 
+    // --- metrics ---------------------------------------------------------
+    private final MeterRegistry meterRegistry;
+    /** Gauge-backed integer: 0=IDLE, 1=STARTING, 2=RUNNING, 3=DRAINING_LUCENE. */
+    private final AtomicInteger stateMetric = new AtomicInteger( 0 );
+    private final Timer durationTimer;
+    /** Error count at the moment this run transitioned to STARTING, for outcome classification. */
+    private volatile int errorsAtRunStart;
+
     public ContentIndexRebuildService( final PageManager pages,
                                        final SystemPageRegistry systemPages,
                                        final LuceneReindexQueue lucene,
@@ -105,6 +120,18 @@ public class ContentIndexRebuildService {
                                        final ContentChunker chunker,
                                        final BooleanSupplier rebuildEnabled,
                                        final long luceneDrainPollMs ) {
+        this( pages, systemPages, lucene, chunkRepo, chunker, rebuildEnabled,
+            luceneDrainPollMs, new SimpleMeterRegistry() );
+    }
+
+    public ContentIndexRebuildService( final PageManager pages,
+                                       final SystemPageRegistry systemPages,
+                                       final LuceneReindexQueue lucene,
+                                       final ContentChunkRepository chunkRepo,
+                                       final ContentChunker chunker,
+                                       final BooleanSupplier rebuildEnabled,
+                                       final long luceneDrainPollMs,
+                                       final MeterRegistry meterRegistry ) {
         this.pages = pages;
         this.systemPages = systemPages;
         this.lucene = lucene;
@@ -112,7 +139,36 @@ public class ContentIndexRebuildService {
         this.chunker = chunker;
         this.rebuildEnabled = rebuildEnabled;
         this.luceneDrainPollMs = luceneDrainPollMs;
+        this.meterRegistry = meterRegistry != null ? meterRegistry : new SimpleMeterRegistry();
+
+        Gauge.builder( "wikantik_rebuild_state", stateMetric, AtomicInteger::get )
+            .description( "Rebuild state: 0=IDLE 1=STARTING 2=RUNNING 3=DRAINING_LUCENE" )
+            .register( this.meterRegistry );
+        Gauge.builder( "wikantik_rebuild_pages_iterated", this,
+                ContentIndexRebuildService::getPagesIterated )
+            .description( "Pages visited by the current/last rebuild" )
+            .register( this.meterRegistry );
+        Gauge.builder( "wikantik_rebuild_pages_chunked", this,
+                ContentIndexRebuildService::getPagesChunked )
+            .description( "Pages chunked by the current/last rebuild" )
+            .register( this.meterRegistry );
+        Gauge.builder( "wikantik_rebuild_system_pages_skipped", this,
+                ContentIndexRebuildService::getSystemPagesSkipped )
+            .description( "System pages skipped for chunking in current/last rebuild" )
+            .register( this.meterRegistry );
+        this.durationTimer = Timer.builder( "wikantik_rebuild_duration_seconds" )
+            .description( "End-to-end rebuild duration (STARTING through IDLE)" )
+            .register( this.meterRegistry );
     }
+
+    /** Test/production accessor for the registry this service publishes to. */
+    public MeterRegistry meterRegistry() { return meterRegistry; }
+
+    // Micrometer gauge callbacks — kept package-private so the registry can
+    // reach them without widening the public surface.
+    int getPagesIterated() { return pagesIterated; }
+    int getPagesChunked() { return pagesChunked; }
+    int getSystemPagesSkipped() { return systemPagesSkipped; }
 
     /**
      * Atomically starts a rebuild if the service is idle and not kill-switched.
@@ -197,6 +253,8 @@ public class ContentIndexRebuildService {
      * </ol>
      */
     protected void runRebuild() {
+        final long startNanos = System.nanoTime();
+        errorsAtRunStart = errors.size();
         try {
             setState( State.STARTING );
             try {
@@ -260,6 +318,13 @@ public class ContentIndexRebuildService {
             LOG.error( "Rebuild fatal: {}", fatal.getMessage(), fatal );
             recordError( "<rebuild>", fatal );
         } finally {
+            durationTimer.record( System.nanoTime() - startNanos, TimeUnit.NANOSECONDS );
+            final String outcome = ( errors.size() > errorsAtRunStart ) ? "failed" : "completed";
+            Counter.builder( "wikantik_rebuild_runs_total" )
+                .description( "Total rebuild runs, tagged by outcome (completed|failed)" )
+                .tag( "outcome", outcome )
+                .register( meterRegistry )
+                .increment();
             setState( State.IDLE );
         }
     }
@@ -293,8 +358,11 @@ public class ContentIndexRebuildService {
         }
     }
 
-    /** Test/subclass accessor. */
-    protected void setState( final State s ) { state.set( s ); }
+    /** Test/subclass accessor. Also updates the Prometheus state gauge. */
+    protected void setState( final State s ) {
+        state.set( s );
+        stateMetric.set( s.ordinal() );
+    }
 
     /** Test/subclass accessor. */
     protected State currentState() { return state.get(); }

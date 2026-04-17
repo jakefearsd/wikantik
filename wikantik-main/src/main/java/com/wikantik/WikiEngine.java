@@ -548,12 +548,29 @@ public class WikiEngine implements Engine {
                 }
             }
 
+            // Resolve the Prometheus MeterRegistry installed by the observability
+            // extension in its onInit phase. When present (the production path),
+            // chunker / rebuild metrics flow to /observability/metrics. When
+            // absent (unusual — e.g. test harnesses that skip Engine.start()),
+            // the chunker and rebuild service each fall back to an in-process
+            // SimpleMeterRegistry and we log a WARN so the gap is visible.
+            final io.micrometer.core.instrument.MeterRegistry meterRegistry =
+                com.wikantik.api.observability.MeterRegistryHolder.get();
+            if ( meterRegistry == null ) {
+                LOG.warn( "No shared MeterRegistry installed — ChunkProjector and "
+                        + "ContentIndexRebuildService will publish metrics to a "
+                        + "local SimpleMeterRegistry that is NOT scraped at "
+                        + "/observability/metrics. Check that ObservabilityLifecycleExtension "
+                        + "is on the classpath and that onInit has run." );
+            }
+
             final KnowledgeGraphServiceFactory.Services svcs = KnowledgeGraphServiceFactory.create(
                 ds, props,
                 getManager( SystemPageRegistry.class ),
                 getManager( PageManager.class ),
                 new PageSaveHelper( this ),
-                luceneMlt );
+                luceneMlt,
+                meterRegistry );
 
             // Inject engine reference for graph visualization ACL checks.
             if ( svcs.kgService() instanceof DefaultKnowledgeGraphService dkgs ) {
@@ -589,14 +606,24 @@ public class WikiEngine implements Engine {
                             TextUtil.getIntegerProperty( props, "wikantik.chunker.min_tokens", 80 ),
                             TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 8 ) ) );
                 final com.wikantik.admin.ContentIndexRebuildService rebuildService =
-                    new com.wikantik.admin.ContentIndexRebuildService(
-                        getManager( PageManager.class ),
-                        getManager( SystemPageRegistry.class ),
-                        queue,
-                        svcs.contentChunkRepo(),
-                        rebuildChunker,
-                        () -> TextUtil.getBooleanProperty( props, "wikantik.rebuild.enabled", true ),
-                        TextUtil.getIntegerProperty( props, "wikantik.rebuild.lucene_drain_poll_ms", 2000 ) );
+                    meterRegistry != null
+                        ? new com.wikantik.admin.ContentIndexRebuildService(
+                            getManager( PageManager.class ),
+                            getManager( SystemPageRegistry.class ),
+                            queue,
+                            svcs.contentChunkRepo(),
+                            rebuildChunker,
+                            () -> TextUtil.getBooleanProperty( props, "wikantik.rebuild.enabled", true ),
+                            TextUtil.getIntegerProperty( props, "wikantik.rebuild.lucene_drain_poll_ms", 2000 ),
+                            meterRegistry )
+                        : new com.wikantik.admin.ContentIndexRebuildService(
+                            getManager( PageManager.class ),
+                            getManager( SystemPageRegistry.class ),
+                            queue,
+                            svcs.contentChunkRepo(),
+                            rebuildChunker,
+                            () -> TextUtil.getBooleanProperty( props, "wikantik.rebuild.enabled", true ),
+                            TextUtil.getIntegerProperty( props, "wikantik.rebuild.lucene_drain_poll_ms", 2000 ) );
                 managers.put( com.wikantik.admin.ContentIndexRebuildService.class, rebuildService );
                 LOG.info( "ContentIndexRebuildService registered" );
             } else {

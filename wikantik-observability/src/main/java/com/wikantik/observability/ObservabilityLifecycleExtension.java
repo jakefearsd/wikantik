@@ -20,11 +20,13 @@ package com.wikantik.observability;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.engine.EngineLifecycleExtension;
+import com.wikantik.api.observability.MeterRegistryHolder;
 import com.wikantik.observability.health.DatabaseHealthCheck;
 import com.wikantik.observability.health.EngineHealthCheck;
 import com.wikantik.observability.health.HealthCheck;
 import com.wikantik.observability.health.SearchIndexHealthCheck;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
@@ -56,20 +58,65 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
     private static final String PROP_DB_DATASOURCE = "wikantik.datasource";
     private static final String DEFAULT_DB_DATASOURCE = "jdbc/WikiDatabase";
 
+    /**
+     * Process-wide shared registry, created in {@link #onInit} so engine code
+     * that runs during {@code initialize()} (e.g. {@code WikiEngine.initKnowledgeGraph})
+     * can register meters against the same registry later scraped by
+     * {@link MetricsServlet}. Public getter is {@link #getSharedRegistry()}.
+     */
+    private static volatile PrometheusMeterRegistry sharedRegistry;
+
     private PrometheusMeterRegistry registry;
     private JvmGcMetrics jvmGcMetrics;
+
+    /**
+     * Returns the process-wide Prometheus registry that will be scraped at
+     * {@code /observability/metrics}, or {@code null} if the observability
+     * extension has not yet run {@code onInit} (e.g. test contexts that bypass
+     * {@code Engine.start()}). Callers should fall back to a local
+     * {@code SimpleMeterRegistry} with a WARN when this returns null.
+     */
+    public static MeterRegistry getSharedRegistry() {
+        return sharedRegistry;
+    }
+
+    @Override
+    public void onInit( final Properties properties ) {
+        // Create the registry early so components that wire up during
+        // Engine#initialize() (notably the knowledge-graph chunker and rebuild
+        // service) can register meters against the same registry that later
+        // gets scraped at /observability/metrics. JVM binders are attached
+        // here too so they publish regardless of onStart ordering.
+        if ( sharedRegistry == null ) {
+            sharedRegistry = new PrometheusMeterRegistry( PrometheusConfig.DEFAULT );
+            new JvmMemoryMetrics().bindTo( sharedRegistry );
+            jvmGcMetrics = new JvmGcMetrics();
+            jvmGcMetrics.bindTo( sharedRegistry );
+            new JvmThreadMetrics().bindTo( sharedRegistry );
+            new ClassLoaderMetrics().bindTo( sharedRegistry );
+            MeterRegistryHolder.set( sharedRegistry );
+            LOG.info( "Shared Prometheus meter registry created in onInit" );
+        }
+    }
 
     @Override
     public void onStart( final Engine engine, final Properties properties ) {
         LOG.info( "Initializing observability subsystem" );
 
-        // Meter registry
-        registry = new PrometheusMeterRegistry( PrometheusConfig.DEFAULT );
-        new JvmMemoryMetrics().bindTo( registry );
-        jvmGcMetrics = new JvmGcMetrics();
-        jvmGcMetrics.bindTo( registry );
-        new JvmThreadMetrics().bindTo( registry );
-        new ClassLoaderMetrics().bindTo( registry );
+        // Reuse the registry created in onInit. If onInit was somehow skipped
+        // (unexpected host lifecycle), create one here as a safety net.
+        if ( sharedRegistry == null ) {
+            LOG.warn( "onStart reached without onInit — creating registry late; "
+                    + "meters registered during Engine#initialize will not publish to /metrics" );
+            sharedRegistry = new PrometheusMeterRegistry( PrometheusConfig.DEFAULT );
+            new JvmMemoryMetrics().bindTo( sharedRegistry );
+            jvmGcMetrics = new JvmGcMetrics();
+            jvmGcMetrics.bindTo( sharedRegistry );
+            new JvmThreadMetrics().bindTo( sharedRegistry );
+            new ClassLoaderMetrics().bindTo( sharedRegistry );
+            MeterRegistryHolder.set( sharedRegistry );
+        }
+        registry = sharedRegistry;
 
         // Wiki-specific event-driven metrics
         new WikiMetrics( registry, engine );
@@ -102,6 +149,11 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
         if ( registry != null ) {
             registry.close();
         }
+        // Clear the static holder so a subsequent engine restart (e.g. in
+        // integration tests that tear down and re-create the container) does
+        // not leave a closed registry in place.
+        sharedRegistry = null;
+        MeterRegistryHolder.clear();
         LOG.info( "Observability subsystem shut down" );
     }
 

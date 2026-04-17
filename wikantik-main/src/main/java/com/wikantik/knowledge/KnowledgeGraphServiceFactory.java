@@ -28,6 +28,7 @@ import com.wikantik.knowledge.chunking.ChunkProjector;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.chunking.ContentChunker;
 import com.wikantik.util.TextUtil;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -79,7 +80,17 @@ public final class KnowledgeGraphServiceFactory {
                                     final SystemPageRegistry spr,
                                     final PageManager pageManager,
                                     final PageSaveHelper saveHelper ) {
-        return create( dataSource, props, spr, pageManager, saveHelper, null );
+        return create( dataSource, props, spr, pageManager, saveHelper, null, null );
+    }
+
+    /** Backwards-compatible overload — no explicit MeterRegistry. */
+    public static Services create( final DataSource dataSource,
+                                    final Properties props,
+                                    final SystemPageRegistry spr,
+                                    final PageManager pageManager,
+                                    final PageSaveHelper saveHelper,
+                                    final HubOverviewService.LuceneMlt luceneMlt ) {
+        return create( dataSource, props, spr, pageManager, saveHelper, luceneMlt, null );
     }
 
     /**
@@ -96,13 +107,18 @@ public final class KnowledgeGraphServiceFactory {
      * @param pageManager page manager used by HubSyncFilter to fetch current page text
      * @param saveHelper save helper used by HubSyncFilter to write updated hub pages
      * @param luceneMlt  optional Lucene MoreLikeThis seam for hub overview drilldown
+     * @param meterRegistry optional Micrometer registry used by {@link ChunkProjector}
+     *                     so chunker metrics flow to the Prometheus scrape
+     *                     endpoint; when {@code null} the projector falls back
+     *                     to an in-process {@code SimpleMeterRegistry}.
      */
     public static Services create( final DataSource dataSource,
                                     final Properties props,
                                     final SystemPageRegistry spr,
                                     final PageManager pageManager,
                                     final PageSaveHelper saveHelper,
-                                    final HubOverviewService.LuceneMlt luceneMlt ) {
+                                    final HubOverviewService.LuceneMlt luceneMlt,
+                                    final MeterRegistry meterRegistry ) {
         final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( dataSource );
         final DefaultKnowledgeGraphService kgService = new DefaultKnowledgeGraphService( repo );
         final GraphProjector projector = new GraphProjector( kgService, spr );
@@ -185,8 +201,12 @@ public final class KnowledgeGraphServiceFactory {
             TextUtil.getIntegerProperty( props, "wikantik.chunker.max_tokens", 512 ),
             TextUtil.getIntegerProperty( props, "wikantik.chunker.min_tokens", 80 ),
             TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 8 ) ) );
-        final ChunkProjector chunkProjector = new ChunkProjector( chunker, contentChunkRepo,
-            () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ) );
+        final ChunkProjector chunkProjector = meterRegistry != null
+            ? new ChunkProjector( chunker, contentChunkRepo,
+                () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ),
+                meterRegistry )
+            : new ChunkProjector( chunker, contentChunkRepo,
+                () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ) );
 
         return new Services( kgService, projector, fmDefaults, hubSync,
             embeddingService, hubProposalRepo, hubProposalService,

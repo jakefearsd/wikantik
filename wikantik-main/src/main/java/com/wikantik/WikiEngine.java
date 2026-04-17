@@ -569,10 +569,15 @@ public class WikiEngine implements Engine {
             managers.put( HubDiscoveryRepository.class, svcs.hubDiscoveryRepo() );
             managers.put( HubDiscoveryService.class, svcs.hubDiscoveryService() );
             managers.put( HubOverviewService.class, svcs.hubOverviewService() );
+            managers.put( com.wikantik.knowledge.chunking.ChunkProjector.class, svcs.chunkProjector() );
+            managers.put( com.wikantik.knowledge.chunking.ContentChunkRepository.class, svcs.contentChunkRepo() );
 
             // Register filters (priority order preserved from the original initializer).
+            // PriorityList is descending: higher priority runs first, so -1005 runs
+            // AFTER -1003 (GraphProjector). That's the intended save-time ordering.
             final FilterManager filterManager = getManager( FilterManager.class );
             filterManager.addPageFilter( svcs.graphProjector(), -1003 );
+            filterManager.addPageFilter( svcs.chunkProjector(), -1005 );
             filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), -1004 );
             filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );
 

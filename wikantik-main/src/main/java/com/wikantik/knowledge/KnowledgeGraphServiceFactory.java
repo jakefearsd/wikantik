@@ -24,6 +24,10 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
+import com.wikantik.knowledge.chunking.ChunkProjector;
+import com.wikantik.knowledge.chunking.ContentChunkRepository;
+import com.wikantik.knowledge.chunking.ContentChunker;
+import com.wikantik.util.TextUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -62,7 +66,9 @@ public final class KnowledgeGraphServiceFactory {
         HubProposalService hubProposalService,
         HubDiscoveryRepository hubDiscoveryRepo,
         HubDiscoveryService hubDiscoveryService,
-        HubOverviewService hubOverviewService
+        HubOverviewService hubOverviewService,
+        ChunkProjector chunkProjector,
+        ContentChunkRepository contentChunkRepo
     ) {}
 
     private KnowledgeGraphServiceFactory() {}
@@ -173,8 +179,18 @@ public final class KnowledgeGraphServiceFactory {
             .propsFrom( props )
             .build();
 
+        final ContentChunkRepository contentChunkRepo = new ContentChunkRepository( dataSource );
+        final ContentChunker chunker = new ContentChunker( new ContentChunker.Config(
+            TextUtil.getIntegerProperty( props, "wikantik.chunker.target_tokens", 300 ),
+            TextUtil.getIntegerProperty( props, "wikantik.chunker.max_tokens", 512 ),
+            TextUtil.getIntegerProperty( props, "wikantik.chunker.min_tokens", 80 ),
+            TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 8 ) ) );
+        final ChunkProjector chunkProjector = new ChunkProjector( chunker, contentChunkRepo,
+            () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ) );
+
         return new Services( kgService, projector, fmDefaults, hubSync,
             embeddingService, hubProposalRepo, hubProposalService,
-            hubDiscoveryRepo, hubDiscoveryService, hubOverviewService );
+            hubDiscoveryRepo, hubDiscoveryService, hubOverviewService,
+            chunkProjector, contentChunkRepo );
     }
 }

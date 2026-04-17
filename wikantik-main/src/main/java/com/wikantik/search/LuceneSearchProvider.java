@@ -65,6 +65,7 @@ import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
+import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.Session;
 import com.wikantik.auth.AuthorizationManager;
@@ -111,6 +112,7 @@ public class LuceneSearchProvider implements SearchProvider {
     private AttachmentManager attachmentManager;
     private AuthorizationManager authorizationManager;
     private AclManager aclManager;
+    private SystemPageRegistry systemPageRegistry;
     private Executor searchExecutor;
 
     // Lucene properties.
@@ -229,10 +231,24 @@ public class LuceneSearchProvider implements SearchProvider {
                           final AttachmentManager attachmentManager,
                           final AuthorizationManager authorizationManager,
                           final AclManager aclManager ) {
+        this( pageManager, attachmentManager, authorizationManager, aclManager, null );
+    }
+
+    /**
+     * Package-private constructor for testing that also accepts a
+     * {@link SystemPageRegistry} so tests can assert that system pages
+     * are filtered out of the index.
+     */
+    LuceneSearchProvider( final PageManager pageManager,
+                          final AttachmentManager attachmentManager,
+                          final AuthorizationManager authorizationManager,
+                          final AclManager aclManager,
+                          final SystemPageRegistry systemPageRegistry ) {
         this.pageManager = pageManager;
         this.attachmentManager = attachmentManager;
         this.authorizationManager = authorizationManager;
         this.aclManager = aclManager;
+        this.systemPageRegistry = systemPageRegistry;
     }
 
     /** {@inheritDoc} */
@@ -241,6 +257,7 @@ public class LuceneSearchProvider implements SearchProvider {
         this.engine = engine;
         this.pageManager = engine.getManager( PageManager.class );
         this.attachmentManager = engine.getManager( AttachmentManager.class );
+        this.systemPageRegistry = engine.getManager( SystemPageRegistry.class );
         // AuthorizationManager and AclManager are initialized after SearchManager
         // in the engine startup sequence, so we resolve them lazily on first use.
         searchExecutor = Executors.newCachedThreadPool();
@@ -300,6 +317,25 @@ public class LuceneSearchProvider implements SearchProvider {
     }
 
     /**
+     * Returns {@code true} if the given page name refers to a system page
+     * (CSS theme, navigation fragment, layout template, etc.) and should
+     * therefore be excluded from the Lucene index. System pages pollute
+     * search results and downstream RAG retrieval.
+     *
+     * <p>If the registry is not wired (e.g. an old test constructor path),
+     * this returns {@code false} so behavior degrades to indexing everything —
+     * matching the pre-filter behavior rather than silently dropping pages.
+     *
+     * @param pageName the wiki page name to check
+     * @return true if the page is a system page and should not be indexed
+     */
+    boolean isSystemPageExcluded( final String pageName ) {
+        return systemPageRegistry != null
+                && pageName != null
+                && systemPageRegistry.isSystemPage( pageName );
+    }
+
+    /**
      * Performs a full Lucene reindex, if necessary.
      *
      * @throws IOException If there's a problem during indexing
@@ -326,8 +362,13 @@ public class LuceneSearchProvider implements SearchProvider {
                 final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
                 try( final IndexWriter writer = getIndexWriter( luceneDir ) ) {
                     long pagesIndexed = 0L;
+                    long systemPagesSkipped = 0L;
                     final Collection< Page > allPages = pageManager.getAllPages();
                     for( final Page page : allPages ) {
+                        if( isSystemPageExcluded( page.getName() ) ) {
+                            systemPagesSkipped++;
+                            continue;
+                        }
                         try {
                             final String text = pageManager.getPageText( page.getName(), WikiProvider.LATEST_VERSION );
                             luceneIndexPage( page, text, writer );
@@ -336,7 +377,7 @@ public class LuceneSearchProvider implements SearchProvider {
                             LOG.warn( "Unable to index page {}, continuing to next ", page.getName(), e );
                         }
                     }
-                    LOG.info( "Indexed {} pages", pagesIndexed );
+                    LOG.info( "Indexed {} pages ({} system pages skipped)", pagesIndexed, systemPagesSkipped );
 
                     long attachmentsIndexed = 0L;
                     final Collection< Attachment > allAttachments = attachmentManager.getAllAttachments();
@@ -423,6 +464,10 @@ public class LuceneSearchProvider implements SearchProvider {
      * @param text The page text to index.
      */
     protected synchronized boolean updateLuceneIndex( final Page page, final String text ) {
+        if( isSystemPageExcluded( page.getName() ) ) {
+            LOG.debug( "Skipping Lucene index update for system page '{}'", page.getName() );
+            return false;
+        }
         LOG.debug( "Updating Lucene index for page '{}'...", page.getName() );
         pageRemoved( page );
 
@@ -687,6 +732,10 @@ public class LuceneSearchProvider implements SearchProvider {
     @Override
     public void reindexPage( final Page page ) {
         if( page != null ) {
+            if( isSystemPageExcluded( page.getName() ) ) {
+                LOG.debug( "Skipping system page '{}' — system pages are not indexed", page.getName() );
+                return;
+            }
             final String text;
 
             // TODO: Think if this was better done in the thread itself?

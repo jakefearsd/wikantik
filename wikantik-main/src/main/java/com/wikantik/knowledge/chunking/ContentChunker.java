@@ -61,13 +61,34 @@ public class ContentChunker {
                 flushChunk(pageName, chunkIndex, List.copyOf(headingStack),
                            pendingBlocks, out);
                 adjustHeadingStack(headingStack, heading.getLevel(),
-                                   heading.getText().toString());
+                                   extractHeadingTitle(heading));
             } else {
                 pendingBlocks.add(child);
             }
         }
         flushChunk(pageName, chunkIndex, List.copyOf(headingStack), pendingBlocks, out);
         return out;
+    }
+
+    /**
+     * Extracts the heading's full title by walking its inline children and
+     * concatenating their source ranges. Flexmark's {@code Heading.getText()}
+     * returns a {@link com.vladsch.flexmark.util.sequence.BasedSequence} covering
+     * the ATX text span in the current version (0.64.8), but that behaviour is
+     * brittle across versions: sibling releases have returned only the first
+     * child's characters, silently truncating headings that contain inline
+     * markup like {@code ## First *emphasized* Section}. Walking the children
+     * explicitly and using {@code getChars()} on each one preserves the full
+     * source-range title (markers included) regardless of Flexmark version.
+     */
+    private static String extractHeadingTitle(Heading heading) {
+        StringBuilder sb = new StringBuilder();
+        Node child = heading.getFirstChild();
+        while (child != null) {
+            sb.append(child.getChars());
+            child = child.getNext();
+        }
+        return sb.toString().strip();
     }
 
     private void adjustHeadingStack(Deque<String> stack, int level, String title) {

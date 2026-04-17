@@ -664,9 +664,19 @@ public class LuceneSearchProvider implements SearchProvider {
             // Get all pages from disk
             final Collection< Page > allPages = pageManager.getAllPages();
 
-            // Find pages that exist on disk but not in index
+            // Find pages that exist on disk but not in index. System pages are
+            // skipped here too — otherwise, because doFullLuceneReindex() excludes
+            // them, every system page would appear "missing" on every sweep and
+            // get re-indexed, defeating the filter.
             final List< Page > missingPages = allPages.stream()
                     .filter( page -> !indexedPages.contains( page.getName() ) )
+                    .filter( page -> {
+                        if( isSystemPageExcluded( page.getName() ) ) {
+                            LOG.debug( "Skipping system page '{}' during missing-page sweep", page.getName() );
+                            return false;
+                        }
+                        return true;
+                    } )
                     .toList();
 
             if( !missingPages.isEmpty() ) {
@@ -908,6 +918,74 @@ public class LuceneSearchProvider implements SearchProvider {
     }
 
     /**
+     * Stats returned from a single invocation of {@link #drainUpdateQueue()}.
+     *
+     * @param totalQueued  total items dequeued (indexed + skipped + failed)
+     * @param indexed      items successfully written to the Lucene index
+     * @param skipped      items skipped because they are system pages (not a failure)
+     * @param failed       items where {@link #updateLuceneIndex(Page, String)} returned
+     *                     false for non-skip reasons (IO, unexpected exception)
+     */
+    record DrainStats( int totalQueued, int indexed, int skipped, int failed ) {}
+
+    /**
+     * Drains the pending reindex queue, writing each page to the Lucene index.
+     * Extracted from {@link LuceneUpdater#backgroundTask()} so the counter logic
+     * can be exercised in isolation — in particular the invariant that
+     * system-page skips must NOT be counted as failures.
+     *
+     * <p>System pages are detected via {@link #isSystemPageExcluded(String)} and
+     * skipped before {@link #updateLuceneIndex(Page, String)} is called, so they
+     * never contribute to either {@code indexed} or {@code failed}. The
+     * defense-in-depth check in {@code updateLuceneIndex} still returns
+     * {@code false} for system pages if reached via a direct caller, but on the
+     * normal drain path it is unreachable.
+     *
+     * @return stats describing what the drain did; {@code totalQueued == 0}
+     *         means the queue was empty.
+     */
+    DrainStats drainUpdateQueue() {
+        synchronized( updates ) {
+            final int totalQueued = updates.size();
+            if( totalQueued >= QUEUE_DEPTH_WARN_THRESHOLD ) {
+                LOG.warn( "Lucene reindex queue depth {} has reached threshold {} — sustained backpressure; search results may lag",
+                          totalQueued, QUEUE_DEPTH_WARN_THRESHOLD );
+            }
+            if( totalQueued == 0 ) {
+                return new DrainStats( 0, 0, 0, 0 );
+            }
+
+            int processed = 0;
+            int failed = 0;
+            int skipped = 0;
+            while( !updates.isEmpty() ) {
+                final Object[] pair = updates.remove( 0 );
+                final Page page = ( Page ) pair[ 0 ];
+                final String text = ( String ) pair[ 1 ];
+                if( isSystemPageExcluded( page.getName() ) ) {
+                    // Defense-in-depth: reindexPage already filters system pages
+                    // before enqueueing, but anything that bypassed that (e.g. a
+                    // direct updates.add() in a test or future caller) must not
+                    // be counted as a failure.
+                    LOG.debug( "Drain loop skipping system page '{}'", page.getName() );
+                    skipped++;
+                } else if( !updateLuceneIndex( page, text ) ) {
+                    failed++;
+                }
+                processed++;
+                if( processed % 100 == 0 ) {
+                    LOG.info( "Reindex progress: {}/{} pages indexed ({} failed, {} skipped so far)",
+                              processed, totalQueued, failed, skipped );
+                }
+            }
+            final int indexed = processed - failed - skipped;
+            LOG.info( "Reindex complete: {} pages indexed, {} failed, {} skipped out of {} total",
+                      indexed, failed, skipped, totalQueued );
+            return new DrainStats( totalQueued, indexed, skipped, failed );
+        }
+    }
+
+    /**
      * When the reindex queue is at or above this depth, {@link LuceneUpdater#backgroundTask()}
      * logs a WARN so operators notice sustained backpressure (bulk import, storm of edits, etc.).
      */
@@ -1030,31 +1108,7 @@ public class LuceneSearchProvider implements SearchProvider {
         public void backgroundTask() {
             watchdog.enterState( "Emptying index queue", 60 );
 
-            synchronized( provider.updates ) {
-                final int totalQueued = provider.updates.size();
-                if( totalQueued >= QUEUE_DEPTH_WARN_THRESHOLD ) {
-                    LOG.warn( "Lucene reindex queue depth {} has reached threshold {} — sustained backpressure; search results may lag",
-                              totalQueued, QUEUE_DEPTH_WARN_THRESHOLD );
-                }
-                if( totalQueued > 0 ) {
-                    int processed = 0;
-                    int errors = 0;
-                    while( !provider.updates.isEmpty() ) {
-                        final Object[] pair = provider.updates.remove( 0 );
-                        final Page page = ( Page )pair[ 0 ];
-                        final String text = ( String )pair[ 1 ];
-                        if( !provider.updateLuceneIndex( page, text ) ) {
-                            errors++;
-                        }
-                        processed++;
-                        if( processed % 100 == 0 ) {
-                            LOG.info( "Reindex progress: {}/{} pages indexed ({} errors so far)", processed, totalQueued, errors );
-                        }
-                    }
-                    LOG.info( "Reindex complete: {} pages indexed, {} failed out of {} total",
-                              processed - errors, errors, totalQueued );
-                }
-            }
+            provider.drainUpdateQueue();
 
             watchdog.exitState();
 

@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ContentChunkerTest {
 
     private final ContentChunker chunker = new ContentChunker(
-        new ContentChunker.Config(300, 512, 80));
+        new ContentChunker.Config(300, 512, 80, 8));
 
     @Test
     void emptyBodyProducesZeroChunks() {

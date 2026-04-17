@@ -39,7 +39,17 @@ public class ContentChunker {
 
     private static final Logger LOG = LogManager.getLogger(ContentChunker.class);
 
-    public record Config(int targetTokens, int maxTokens, int minTokens) {}
+    public record Config(int targetTokens, int maxTokens, int minTokens, int mergeForwardTokens) {
+        /**
+         * Backward-compatible constructor that applies the default
+         * {@code mergeForwardTokens} of 8. Prefer the canonical 4-arg
+         * constructor in new call sites so the merge-forward threshold is
+         * explicit.
+         */
+        public Config(int targetTokens, int maxTokens, int minTokens) {
+            this(targetTokens, maxTokens, minTokens, 8);
+        }
+    }
 
     private final Config config;
 
@@ -75,8 +85,8 @@ public class ContentChunker {
             }
         }
         flushBlocks(pageName, chunkIndex, currentHeadingPath(headingStack), state, out);
-        // Final forced emit: any merge-forward residue below minTokens still
-        // deserves to be emitted so we don't drop content.
+        // Final flush: emit any residual merge-forward buffer even if below threshold,
+        // so tail content is never dropped.
         if (!state.pending.isEmpty()) {
             String text = state.pending.toString().strip();
             if (!text.isEmpty()) {
@@ -206,7 +216,9 @@ public class ContentChunker {
             }
             if (state.pending.length() == 0) {
                 // First content landing in this pending buffer owns the heading_path.
-                state.pendingHeadingPath = headingPath;
+                // Defensive copy: makes the contract local even if a future caller
+                // forgets to pass an immutable list.
+                state.pendingHeadingPath = List.copyOf(headingPath);
             }
             state.pending.append(blockText).append("\n\n");
         }
@@ -214,20 +226,6 @@ public class ContentChunker {
         // At end of a section flush, attempt to emit whatever's pending. If
         // it's below minTokens it stays in the buffer for merge-forward.
         emitPending(pageName, idx, headingPath, state, out);
-    }
-
-    /**
-     * Token threshold below which we trigger merge-forward. We deliberately use
-     * a value much smaller than {@link Config#minTokens()} so that only truly
-     * trivial leading sections (think: a placeholder "Tiny." stub under a
-     * heading) are absorbed into the next chunk. Applying merge-forward at the
-     * full {@code minTokens} threshold collapses well-formed short sections
-     * (e.g. a one-paragraph subsection with ~17 tokens) that authors clearly
-     * intended to stand on their own.
-     */
-    private int mergeForwardThreshold() {
-        // Scales with minTokens but caps small; for minTokens=80 this yields 5.
-        return Math.max(3, config.minTokens() / 16);
     }
 
     private void emitPending(String pageName, int[] idx, List<String> fallbackHeadingPath,
@@ -238,7 +236,7 @@ public class ContentChunker {
             state.pendingHeadingPath = null;
             return;
         }
-        if (estimateTokens(text) < mergeForwardThreshold()) {
+        if (estimateTokens(text) < config.mergeForwardTokens()) {
             // Hold onto it — next block's content merges with it. Leave
             // pendingHeadingPath as set so the first section's path is carried.
             return;

@@ -572,6 +572,37 @@ public class WikiEngine implements Engine {
             managers.put( com.wikantik.knowledge.chunking.ChunkProjector.class, svcs.chunkProjector() );
             managers.put( com.wikantik.knowledge.chunking.ContentChunkRepository.class, svcs.contentChunkRepo() );
 
+            // Content rebuild orchestrator — singleton wired against the live Lucene
+            // provider (if any) so an admin-triggered rebuild can enqueue pages,
+            // observe queue depth, and wipe the index without leaving the filesystem
+            // in a half-broken state. When Lucene is disabled/unsupported we skip
+            // wiring the service so the admin UI surfaces a clean "not available"
+            // instead of NPE'ing; the rest of the knowledge graph still starts.
+            if ( searchMgr != null && searchMgr.getSearchEngine() instanceof LuceneSearchProvider lsp ) {
+                final com.wikantik.admin.LuceneReindexQueue queue =
+                    new com.wikantik.admin.LuceneSearchProviderAdapter( lsp );
+                final com.wikantik.knowledge.chunking.ContentChunker rebuildChunker =
+                    new com.wikantik.knowledge.chunking.ContentChunker(
+                        new com.wikantik.knowledge.chunking.ContentChunker.Config(
+                            TextUtil.getIntegerProperty( props, "wikantik.chunker.target_tokens", 300 ),
+                            TextUtil.getIntegerProperty( props, "wikantik.chunker.max_tokens", 512 ),
+                            TextUtil.getIntegerProperty( props, "wikantik.chunker.min_tokens", 80 ),
+                            TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 8 ) ) );
+                final com.wikantik.admin.ContentIndexRebuildService rebuildService =
+                    new com.wikantik.admin.ContentIndexRebuildService(
+                        getManager( PageManager.class ),
+                        getManager( SystemPageRegistry.class ),
+                        queue,
+                        svcs.contentChunkRepo(),
+                        rebuildChunker,
+                        () -> TextUtil.getBooleanProperty( props, "wikantik.rebuild.enabled", true ),
+                        TextUtil.getIntegerProperty( props, "wikantik.rebuild.lucene_drain_poll_ms", 2000 ) );
+                managers.put( com.wikantik.admin.ContentIndexRebuildService.class, rebuildService );
+                LOG.info( "ContentIndexRebuildService registered" );
+            } else {
+                LOG.info( "ContentIndexRebuildService NOT registered — no LuceneSearchProvider in use" );
+            }
+
             // Register filters (priority order preserved from the original initializer).
             // PriorityList is descending: higher priority runs first, so -1005 runs
             // AFTER -1003 (GraphProjector). That's the intended save-time ordering.

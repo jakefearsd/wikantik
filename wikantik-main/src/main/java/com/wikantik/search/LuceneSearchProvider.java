@@ -83,6 +83,7 @@ import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -163,6 +164,14 @@ public class LuceneSearchProvider implements SearchProvider {
     private final AtomicLong zeroResultSearchCount = new AtomicLong();
     /** Wall-clock duration of the most recent query, in milliseconds. */
     private final AtomicLong lastQueryElapsedMillis = new AtomicLong();
+
+    /**
+     * Timestamp of the most recent successful Lucene index update (per-page
+     * update, drain cycle, or full reindex). Coarse-grained — intended for
+     * the admin rebuild-status UI, not for correctness. Starts at
+     * {@link Instant#EPOCH} until the first update lands.
+     */
+    private volatile Instant lastUpdateInstant = Instant.EPOCH;
 
     /** Maximum number of fragments from search matches. */
     private static final int MAX_FRAGMENTS = 3;
@@ -395,6 +404,7 @@ public class LuceneSearchProvider implements SearchProvider {
 
                 final Date end = new Date();
                 LOG.info( "Full Lucene index finished in {} milliseconds.", end.getTime() - start.getTime() );
+                lastUpdateInstant = Instant.now();
             } else {
                 // Index exists - check for pages added outside the wiki UI (e.g., directly to filesystem)
                 LOG.info( "Lucene index exists, checking for missing pages..." );
@@ -484,6 +494,7 @@ public class LuceneSearchProvider implements SearchProvider {
         }
 
         LOG.debug( "Done updating Lucene index for page '{}'.", page.getName() );
+        lastUpdateInstant = Instant.now();
         return true;
     }
 
@@ -918,6 +929,71 @@ public class LuceneSearchProvider implements SearchProvider {
     }
 
     /**
+     * Returns the current number of live (non-deleted) documents in the
+     * Lucene index, or {@code 0} if the index directory is empty or cannot
+     * be opened. Matches the error-handling style of
+     * {@link #getIndexedPageNames()} — IO failures are logged at WARN and
+     * a sentinel is returned rather than propagating up the stack.
+     *
+     * @return live document count, or {@code 0} on error/empty index
+     */
+    public int documentCount() {
+        final File dir = new File( luceneDirectory == null ? "" : luceneDirectory );
+        final String[] dirFiles = dir.list();
+        if ( !dir.exists() || dirFiles == null || dirFiles.length == 0 ) {
+            return 0;
+        }
+        try ( final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
+              final IndexReader reader = DirectoryReader.open( luceneDir ) ) {
+            return reader.numDocs();
+        } catch ( final IOException e ) {
+            LOG.warn( "Could not read Lucene index for documentCount: {}", e.getMessage(), e );
+            return 0;
+        }
+    }
+
+    /**
+     * @return the timestamp of the most recent successful index update;
+     *         {@link Instant#EPOCH} if no update has been recorded yet
+     */
+    public Instant lastUpdateInstant() {
+        return lastUpdateInstant;
+    }
+
+    /**
+     * Removes every document from the Lucene index via
+     * {@link IndexWriter#deleteAll()} + {@link IndexWriter#commit()}. Does
+     * NOT delete the underlying directory — the index stays present and
+     * writable, just empty. After a successful clear, {@link #documentCount()}
+     * returns {@code 0} and the last-update timestamp is advanced.
+     *
+     * <p>IO failures are logged at ERROR and rethrown as a runtime exception
+     * — matching {@link #doFullLuceneReindex()}'s "unable to create Lucene
+     * index" pattern — so callers (the rebuild orchestrator) can record the
+     * failure and abort the run.
+     */
+    public synchronized void clearIndex() {
+        if ( luceneDirectory == null ) {
+            LOG.warn( "clearIndex called before Lucene directory was initialized — nothing to clear" );
+            return;
+        }
+        final File dir = new File( luceneDirectory );
+        if ( !dir.exists() ) {
+            return;
+        }
+        try ( final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
+              final IndexWriter writer = getIndexWriter( luceneDir ) ) {
+            writer.deleteAll();
+            writer.commit();
+            lastUpdateInstant = Instant.now();
+            LOG.info( "Cleared Lucene index at {}", dir.getAbsolutePath() );
+        } catch ( final IOException e ) {
+            LOG.error( "Unable to clear Lucene index at {}: {}", dir.getAbsolutePath(), e.getMessage(), e );
+            throw new IllegalStateException( "unable to clear Lucene index", e );
+        }
+    }
+
+    /**
      * Stats returned from a single invocation of {@link #drainUpdateQueue()}.
      *
      * @param totalQueued  total items dequeued (indexed + skipped + failed)
@@ -981,6 +1057,9 @@ public class LuceneSearchProvider implements SearchProvider {
             final int indexed = processed - failed - skipped;
             LOG.info( "Reindex complete: {} pages indexed, {} failed, {} skipped out of {} total",
                       indexed, failed, skipped, totalQueued );
+            if ( indexed > 0 ) {
+                lastUpdateInstant = Instant.now();
+            }
             return new DrainStats( totalQueued, indexed, skipped, failed );
         }
     }

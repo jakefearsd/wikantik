@@ -272,6 +272,39 @@ export const api = {
         body: JSON.stringify({}),
       }),
 
+    getIndexStatus: () => request('/admin/content/index-status'),
+
+    rebuildIndexes: async () => {
+      const resp = await fetch(`${BASE}/admin/content/rebuild-indexes`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      });
+      if (resp.status === 409) {
+        const body = await resp.json().catch(() => ({}));
+        throw Object.assign(new Error(body.message || 'A rebuild is already in flight'), {
+          status: 409,
+          code: 'rebuild_in_flight',
+          body,
+        });
+      }
+      if (resp.status === 503) {
+        const body = await resp.json().catch(() => ({}));
+        throw Object.assign(new Error(body.message || 'Rebuild disabled (wikantik.rebuild.enabled=false)'), {
+          status: 503,
+          code: 'rebuild_disabled',
+          body,
+        });
+      }
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({ message: resp.statusText }));
+        throw Object.assign(new Error(body.message || resp.statusText), { status: resp.status, body });
+      }
+      if (resp.status === 204 || resp.headers.get('Content-Length') === '0') return null;
+      const text = await resp.text();
+      return text ? JSON.parse(text) : null;
+    },
+
     flushCache: (cache) =>
       request('/admin/content/cache/flush', {
         method: 'POST',

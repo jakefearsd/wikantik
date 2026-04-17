@@ -69,11 +69,18 @@ No threshold assertions in v1. The harness is informational.
 
 ## Safety note — TestEngine and emptyWikiDir
 
-`TestEngine.shutdown()` calls `emptyWikiDir()`, which recursively deletes everything under the configured `wikantik.fileSystemProvider.pageDir`. This is deliberate — tests that create ad-hoc pages want a clean slate for the next run. But it assumes the page dir is a disposable tmp directory.
+`TestEngine.shutdown()` calls `emptyWikiDir()`, which can recursively delete everything under the configured `wikantik.fileSystemProvider.pageDir`. This is deliberate — tests that create ad-hoc pages want a clean slate for the next run. But if it ever sees a non-test directory, the consequences are permanent.
 
-Pointing `TestEngine` directly at `docs/wikantik-pages` will delete the real corpus on shutdown. The harness avoids this by copying the corpus to a per-run `target/retrieval-eval-corpus-<timestamp>/` directory before engine init, and pointing the engine there. Do **not** remove that copy step.
+Two guards are in place:
 
-Related: `emptyWorkDir` (the sibling cleanup for the Lucene index files) has a built-in ownership check — it only deletes if the workdir contains a `refmgr.ser` file, proving the engine created it. `emptyWikiDir` has no such guard, which is the root cause of the risk. Adding a "test-created this dir" marker before bulk deletion would bring both helpers to the same safety posture. Tracked as a potential follow-up.
+1. **Ownership marker.** Every `TestEngine` writes `.testengine-owned` into the page and attachment directories on init. If the marker is missing, `emptyWikiDir` refuses and logs a WARN.
+2. **File-age check.** Even when the marker is present, any file older than one hour in the tree trips an ERROR-level refusal. Real corpus files are almost always older than that; test-created files are not. The helper logs the first five offending paths and returns without deleting.
+
+The retrieval-eval harness still copies `docs/wikantik-pages/` to a per-run `target/retrieval-eval-corpus-<timestamp>/` directory before engine init. That's belt-and-suspenders — with the two guards above, pointing at the real corpus would be refused, but not writing a stray marker into it in the first place is cleaner.
+
+Do **not** remove the copy step.
+
+See `TestEngineSafetyTest` for the guards' unit tests.
 
 ## Query-writing heuristics
 

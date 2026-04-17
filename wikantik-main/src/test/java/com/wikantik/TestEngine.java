@@ -67,6 +67,21 @@ import java.util.Properties;
 public class TestEngine extends WikiEngine {
     private static final Logger LOG = LogManager.getLogger( TestEngine.class );
 
+    /**
+     * Filename dropped into every test-owned page/attachment directory. Its
+     * presence is the first of two guards that {@link #emptyWikiDir} requires
+     * before it will consent to delete.
+     */
+    static final String TEST_OWNERSHIP_MARKER = ".testengine-owned";
+
+    /**
+     * Second guard on {@link #emptyWikiDir}: if the directory contains any
+     * file older than this, the cleanup is refused and logged loudly. Test
+     * pages and attachments created during a run are always newer than this
+     * threshold; a production corpus is almost always older. One hour.
+     */
+    static final long OWNERSHIP_AGE_LIMIT_MS = 60L * 60L * 1000L;
+
     private Session m_adminWikiSession;
     private Session m_janneWikiSession;
     private Session m_guestWikiSession;
@@ -186,9 +201,45 @@ public class TestEngine extends WikiEngine {
         // For tests, we need to wait to ensure predictable behavior.
         waitForReferenceManager();
 
+        // Claim the page and attachment dirs so emptyWikiDir is willing to
+        // delete them on shutdown. Without this marker, emptyWikiDir refuses.
+        writeOwnershipMarkers( getWikiProperties() );
+
         // Stash the WikiEngine in the servlet context
         final ServletContext servletContext = this.getServletContext();
         servletContext.setAttribute( "com.wikantik.WikiEngine", this );
+    }
+
+    /**
+     * Writes {@link #TEST_OWNERSHIP_MARKER} into the page dir and attachment
+     * dir so {@link #safelyEmptyTestOwnedDir} will consent to delete them.
+     * Called at engine init.
+     */
+    private static void writeOwnershipMarkers( final Properties props ) {
+        touchMarker( props.getProperty( AbstractFileProvider.PROP_PAGEDIR ) );
+        touchMarker( props.getProperty( AttachmentProvider.PROP_STORAGEDIR ) );
+    }
+
+    private static void touchMarker( final String dir ) {
+        if ( dir == null ) return;
+        final File f = new File( dir );
+        if ( !f.exists() && !f.mkdirs() ) {
+            LOG.warn( "Could not create dir to mark as test-owned: {}", f.getAbsolutePath() );
+            return;
+        }
+        if ( !f.isDirectory() ) return;
+        final File marker = new File( f, TEST_OWNERSHIP_MARKER );
+        if ( marker.exists() ) return;
+        try {
+            java.nio.file.Files.writeString(
+                marker.toPath(),
+                "created=" + java.time.Instant.now() + "\n"
+                + "by=" + TestEngine.class.getName() + "\n"
+                + "notice=emptyWikiDir will nuke this directory on engine shutdown.\n" );
+        } catch ( final IOException e ) {
+            LOG.warn( "Could not write ownership marker {}: {}",
+                    marker.getAbsolutePath(), e.getMessage() );
+        }
     }
 
     /**
@@ -254,15 +305,101 @@ public class TestEngine extends WikiEngine {
         if( properties == null ) {
             properties = getTestProperties();
         }
-        emptyDir( properties.getProperty( AbstractFileProvider.PROP_PAGEDIR ) );
-        emptyDir( properties.getProperty( AttachmentProvider.PROP_STORAGEDIR ) );
+        safelyEmptyTestOwnedDir( properties.getProperty( AbstractFileProvider.PROP_PAGEDIR ) );
+        safelyEmptyTestOwnedDir( properties.getProperty( AttachmentProvider.PROP_STORAGEDIR ) );
     }
 
+    /**
+     * Legacy helper preserved for callers outside the {@code emptyWikiDir}
+     * path. Prefer {@link #safelyEmptyTestOwnedDir} for anything new — it
+     * has two guards ({@link #TEST_OWNERSHIP_MARKER} file and a per-file
+     * age check) that prevent a misconfigured test from wiping real data.
+     */
     static void emptyDir( final String dir ) {
         if ( dir != null ) {
             final File f = new File( dir );
             if( f.exists() && f.isDirectory() ) {
                 deleteAll( f );
+            }
+        }
+    }
+
+    /**
+     * Empties {@code dir} only if it is demonstrably a TestEngine-owned
+     * directory. Two guards:
+     *
+     * <ol>
+     *   <li>{@link #TEST_OWNERSHIP_MARKER} must be present in the directory
+     *       root. The engine writes this on init. If the marker is missing
+     *       this call returns without touching anything and logs a WARN —
+     *       the caller probably pointed the engine at a non-test directory.</li>
+     *   <li>No regular file in the tree (recursively, excluding the marker
+     *       itself) may have a modification time older than
+     *       {@link #OWNERSHIP_AGE_LIMIT_MS}. If such files are present, the
+     *       marker might be stale or the directory may be a real corpus
+     *       with an accidentally-written marker. The call logs at ERROR,
+     *       enumerates the first handful of offending paths, and returns
+     *       without deleting.</li>
+     * </ol>
+     *
+     * <p>Both guards are designed to fail loudly but recoverably — the
+     * method never throws, so shutdown continues (in particular so that
+     * {@link #emptyWorkDir} still runs).
+     */
+    static void safelyEmptyTestOwnedDir( final String dir ) {
+        if ( dir == null ) return;
+        final File root = new File( dir );
+        if ( !root.exists() || !root.isDirectory() ) return;
+
+        final File marker = new File( root, TEST_OWNERSHIP_MARKER );
+        if ( !marker.exists() ) {
+            LOG.warn( "Refusing to empty {}: {} marker is missing. "
+                    + "Did a test point TestEngine at a non-test directory?",
+                    root.getAbsolutePath(), TEST_OWNERSHIP_MARKER );
+            return;
+        }
+
+        final long ageCutoff = System.currentTimeMillis() - OWNERSHIP_AGE_LIMIT_MS;
+        final java.util.List< File > stale = new java.util.ArrayList<>();
+        scanForStaleFiles( root, marker, ageCutoff, stale );
+
+        if ( !stale.isEmpty() ) {
+            LOG.error( "" );
+            LOG.error( "===========================================================" );
+            LOG.error( "  REFUSING TO DELETE: {}" , root.getAbsolutePath() );
+            LOG.error( "  This directory carries a {} ownership marker, but it",
+                    TEST_OWNERSHIP_MARKER );
+            LOG.error( "  also contains {} file(s) older than {} ms (~1 hour).",
+                    stale.size(), OWNERSHIP_AGE_LIMIT_MS );
+            LOG.error( "  This looks like production data with an accidentally" );
+            LOG.error( "  written marker. Aborting cleanup to avoid data loss." );
+            LOG.error( "  First 5 offending files by age:" );
+            stale.stream().sorted( java.util.Comparator.comparingLong( File::lastModified ) )
+                    .limit( 5 )
+                    .forEach( f -> LOG.error( "    {}  (modified {})",
+                            f.getAbsolutePath(),
+                            java.time.Instant.ofEpochMilli( f.lastModified() ) ) );
+            LOG.error( "  Fix: delete {} by hand after confirming it is safe,",
+                    marker.getAbsolutePath() );
+            LOG.error( "  OR point the engine's pageDir at a fresh tmp directory." );
+            LOG.error( "===========================================================" );
+            LOG.error( "" );
+            return;
+        }
+        deleteAll( root );
+    }
+
+    private static void scanForStaleFiles( final File dir, final File marker,
+                                            final long ageCutoff,
+                                            final java.util.List< File > out ) {
+        final File[] entries = dir.listFiles();
+        if ( entries == null ) return;
+        for ( final File e : entries ) {
+            if ( e.equals( marker ) ) continue;
+            if ( e.isDirectory() ) {
+                scanForStaleFiles( e, marker, ageCutoff, out );
+            } else if ( e.lastModified() < ageCutoff ) {
+                out.add( e );
             }
         }
     }

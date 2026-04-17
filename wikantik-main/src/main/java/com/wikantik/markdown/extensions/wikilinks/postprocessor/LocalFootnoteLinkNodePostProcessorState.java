@@ -44,7 +44,14 @@ public class LocalFootnoteLinkNodePostProcessorState implements NodePostProcesso
      */
     @Override
     public void process( final NodeTracker state, final WikantikLink link ) {
-        link.setUrl( CharSubSequence.of( wikiContext.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), link.getUrl().toString() ) ) );
+        // Fragment-only links like [text](#heading-id) are same-page anchors;
+        // routing them through PAGE_VIEW URL construction percent-encodes the
+        // '#' and produces a bogus /wiki/%23heading-id wiki-page link.
+        final String url = link.getUrl().toString();
+        if( url.startsWith( "#" ) ) {
+            return;
+        }
+        link.setUrl( CharSubSequence.of( wikiContext.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), url ) ) );
     }
 
 }

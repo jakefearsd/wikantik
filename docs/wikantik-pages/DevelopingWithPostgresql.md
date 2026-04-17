@@ -4,30 +4,31 @@ tags:
 - uncategorized
 summary: Developing with PostgreSQL as the Wikantik User Database
 ---
-1. Developing with PostgreSQL as the Wikantik User Database
+
+# Developing with PostgreSQL as the Wikantik User Database
 
 This document provides a complete, step-by-step guide for configuring PostgreSQL as the backing database for Wikantik's user and group management system. It covers development setup, testing, validation, and production deployment.
 
-  1. Table of Contents
+## Table of Contents
 
-1. [Overview](Overview)(#1-overview)
-2. [Prerequisites](Prerequisites)(#2-prerequisites)
+1. [Overview](#1-overview)
+2. [Prerequisites](#2-prerequisites)
 3. [PostgreSQL Server Setup](#3-postgresql-server-setup)
 4. [Database Schema Creation](#4-database-schema-creation)
 5. [JDBC Driver Installation](#5-jdbc-driver-installation)
 6. [Tomcat JNDI Configuration](#6-tomcat-jndi-configuration)
-7. [Wikantik Configuration](#7-jspwiki-configuration)
+7. [Wikantik Configuration](#7-wikantik-configuration)
 8. [Testing the Configuration](#8-testing-the-configuration)
 9. [Validation Procedures](#9-validation-procedures)
 10. [Production Deployment](#10-production-deployment)
-11. [Troubleshooting](Troubleshooting)(#11-troubleshooting)
+11. [Troubleshooting](#11-troubleshooting)
 12. [Appendix: Password Hashing](#appendix-password-hashing)
 
 ---
 
-  1. 1. Overview
+## 1. Overview
 
-    1. What This Document Covers
+### What This Document Covers
 
 Wikantik can store user profiles and group memberships in either:
 - **XML files** (default) - Simple, file-based storage suitable for small installations
@@ -39,7 +40,7 @@ This guide focuses on using **PostgreSQL** as the relational database backend, w
 - Integration with existing PostgreSQL infrastructure
 - Enhanced security through database-level access controls
 
-    1. Architecture
+### Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -68,7 +69,7 @@ This guide focuses on using **PostgreSQL** as the relational database backend, w
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-    1. Key Implementation Details
+### Key Implementation Details
 
 From the source code (`JDBCUserDatabase.java` and `JDBCGroupDatabase.java`):
 
@@ -80,9 +81,9 @@ From the source code (`JDBCUserDatabase.java` and `JDBCGroupDatabase.java`):
 
 ---
 
-  1. 2. Prerequisites
+## 2. Prerequisites
 
-    1. Software Requirements
+### Software Requirements
 
 | Component | Minimum Version | Recommended |
 |-----------|----------------|-------------|
@@ -91,7 +92,7 @@ From the source code (`JDBCUserDatabase.java` and `JDBCGroupDatabase.java`):
 | Apache Tomcat | 9.0 | 11.0 |
 | PostgreSQL JDBC Driver | 42.2.x | 42.7.x |
 
-    1. Required Knowledge
+### Required Knowledge
 
 - Basic PostgreSQL administration (creating databases, users, grants)
 - Tomcat configuration (context.xml, JNDI resources)
@@ -99,11 +100,11 @@ From the source code (`JDBCUserDatabase.java` and `JDBCGroupDatabase.java`):
 
 ---
 
-  1. 3. PostgreSQL Server Setup
+## 3. PostgreSQL Server Setup
 
-    1. 3.1 Install PostgreSQL
+### 3.1 Install PostgreSQL
 
-  - Ubuntu/Debian:**
+**Ubuntu/Debian:**
 ```bash
 sudo apt update
 sudo apt install postgresql postgresql-contrib
@@ -111,7 +112,7 @@ sudo systemctl enable postgresql
 sudo systemctl start postgresql
 ```
 
-  - RHEL/CentOS/Fedora:**
+**RHEL/CentOS/Fedora:**
 ```bash
 sudo dnf install postgresql-server postgresql-contrib
 sudo postgresql-setup --initdb
@@ -119,13 +120,13 @@ sudo systemctl enable postgresql
 sudo systemctl start postgresql
 ```
 
-  - macOS (Homebrew):**
+**macOS (Homebrew):**
 ```bash
 brew install postgresql@15
 brew services start postgresql@15
 ```
 
-    1. 3.2 Create the Wikantik Database
+### 3.2 Create the Wikantik Database
 
 Connect to PostgreSQL as the superuser:
 
@@ -137,7 +138,7 @@ Create the database:
 
 ```sql
 -- Create the database
-CREATE DATABASE jspwiki
+CREATE DATABASE wikantik
     WITH
     ENCODING = 'UTF8'
     LC_COLLATE = 'en_US.UTF-8'
@@ -145,16 +146,16 @@ CREATE DATABASE jspwiki
     TEMPLATE = template0;
 
 -- Verify creation
-\l jspwiki
+\l wikantik
 ```
 
-    1. 3.3 Create the Application User
+### 3.3 Create the Application User
 
 Create a dedicated database user for Wikantik:
 
 ```sql
 -- Create the user with a strong password
-CREATE USER wikantik WITH
+CREATE USER jspwiki WITH
     ENCRYPTED PASSWORD 'your_secure_password_here'
     NOSUPERUSER
     NOCREATEDB
@@ -164,7 +165,7 @@ CREATE USER wikantik WITH
 GRANT CONNECT ON DATABASE wikantik TO jspwiki;
 
 -- Connect to the wikantik database
-\c jspwiki
+\c wikantik
 
 -- Grant schema usage and creation privileges
 -- NOTE: PostgreSQL 15+ restricts CREATE on public schema by default
@@ -172,25 +173,25 @@ GRANT USAGE ON SCHEMA public TO jspwiki;
 GRANT CREATE ON SCHEMA public TO jspwiki;
 ```
 
-  - Important (PostgreSQL 15+):** Starting with PostgreSQL 15, the `CREATE` privilege on the `public` schema is no longer granted to all users by default. You must explicitly grant it as shown above, or create the tables as a superuser and only grant DML permissions to the application user.
+**Important (PostgreSQL 15+):** Starting with PostgreSQL 15, the `CREATE` privilege on the `public` schema is no longer granted to all users by default. You must explicitly grant it as shown above, or create the tables as a superuser and only grant DML permissions to the application user.
 
-  - Security Note:** In production, use a strong, randomly generated password. Consider using a password manager or secrets management system.
+**Security Note:** In production, use a strong, randomly generated password. Consider using a password manager or secrets management system.
 
-    1. 3.4 Configure PostgreSQL Authentication
+### 3.4 Configure PostgreSQL Authentication
 
-Edit `pg_hba.conf` to allow the wikantik user to connect:
+Edit `pg_hba.conf` to allow the jspwiki user to connect:
 
 ```bash
-1. Find the pg_hba.conf location
+# Find the pg_hba.conf location
 sudo -u postgres psql -c "SHOW hba_file;"
 ```
 
 Add the following line (adjust for your network):
 
 ```
-1. TYPE  DATABASE    USER      ADDRESS         METHOD
-host    wikantik     wikantik   127.0.0.1/32    scram-sha-256
-host    wikantik     wikantik   ::1/128         scram-sha-256
+# TYPE  DATABASE    USER      ADDRESS         METHOD
+host    wikantik    jspwiki   127.0.0.1/32    scram-sha-256
+host    wikantik    jspwiki   ::1/128         scram-sha-256
 ```
 
 Reload PostgreSQL configuration:
@@ -201,22 +202,22 @@ sudo systemctl reload postgresql
 
 ---
 
-  1. 4. Database Schema Creation
+## 4. Database Schema Creation
 
-    1. 4.1 Complete PostgreSQL Schema
+### 4.1 Complete PostgreSQL Schema
 
-  - Important:** The schema creation script must be run as a PostgreSQL **superuser** (e.g., `postgres`) because it:
+**Important:** The schema creation script must be run as a PostgreSQL **superuser** (e.g., `postgres`) because it:
 - Creates/drops the `jspwiki` application user
 - Grants permissions on tables
 
 Connect to the wikantik database as the superuser:
 
 ```bash
-1. Option 1: Run the DDL file directly
+# Option 1: Run the DDL file directly
 sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.ddl
 
-1. Option 2: Connect interactively as superuser
-sudo -u postgres psql -d jspwiki
+# Option 2: Connect interactively as superuser
+sudo -u postgres psql -d wikantik
 ```
 
 Execute the following DDL:
@@ -339,7 +340,7 @@ CREATE TABLE group_members (
 CREATE INDEX idx_group_members_member ON group_members(member);
 ```
 
-    1. 4.2 Grant Table Permissions
+### 4.2 Grant Table Permissions
 
 After creating the tables, grant the necessary permissions:
 
@@ -351,7 +352,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON groups TO jspwiki;
 GRANT SELECT, INSERT, UPDATE, DELETE ON group_members TO jspwiki;
 ```
 
-    1. 4.3 Create Initial Admin User
+### 4.3 Create Initial Admin User
 
 Create an initial administrator account:
 
@@ -391,7 +392,7 @@ VALUES ('Admin', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 INSERT INTO group_members (name, member) VALUES ('Admin', 'Administrator');
 ```
 
-    1. 4.4 Verify Schema
+### 4.4 Verify Schema
 
 Verify the tables were created correctly:
 
@@ -415,9 +416,9 @@ SELECT * FROM group_members;
 
 ---
 
-  1. 5. JDBC Driver Installation
+## 5. JDBC Driver Installation
 
-    1. 5.1 Download the PostgreSQL JDBC Driver
+### 5.1 Download the PostgreSQL JDBC Driver
 
 Download the PostgreSQL JDBC driver from the official website:
 - https://jdbc.postgresql.org/download/
@@ -427,34 +428,34 @@ Choose the JDBC 4.2 driver (for Java 8+) or JDBC 4.3 driver (for Java 11+).
 Example download using curl:
 
 ```bash
-1. Download PostgreSQL JDBC Driver 42.7.4 (check for latest version)
+# Download PostgreSQL JDBC Driver 42.7.4 (check for latest version)
 curl -L -o postgresql-42.7.4.jar \
     https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
 ```
 
-    1. 5.2 Install in Tomcat
+### 5.2 Install in Tomcat
 
 Copy the JDBC driver to Tomcat's lib directory:
 
 ```bash
-1. For the project's bundled Tomcat
+# For the project's bundled Tomcat
 cp postgresql-42.7.4.jar /home/jakefear/source/jspwiki/tomcat/tomcat-11/lib/
 
-1. For a system Tomcat installation
+# For a system Tomcat installation
 cp postgresql-42.7.4.jar $CATALINA_HOME/lib/
 ```
 
-  - Important:** Restart Tomcat after adding the driver.
+**Important:** Restart Tomcat after adding the driver.
 
 ---
 
-  1. 6. Tomcat JNDI Configuration
+## 6. Tomcat JNDI Configuration
 
-    1. 6.1 Configure DataSource Resources
+### 6.1 Configure DataSource Resources
 
 Edit Tomcat's `context.xml` or create an application-specific context file.
 
-  - Option A: Global Context (conf/context.xml)**
+**Option A: Global Context (conf/context.xml)**
 
 Edit `$CATALINA_HOME/conf/context.xml`:
 
@@ -472,7 +473,7 @@ Edit `$CATALINA_HOME/conf/context.xml`:
         auth="Container"
         type="javax.sql.DataSource"
         driverClassName="org.postgresql.Driver"
-        url="jdbc:postgresql://localhost:5432/jspwiki"
+        url="jdbc:postgresql://localhost:5432/wikantik"
         username="jspwiki"
         password="your_secure_password_here"
 
@@ -500,7 +501,7 @@ Edit `$CATALINA_HOME/conf/context.xml`:
 </Context>
 ```
 
-  - Option B: Application-Specific Context**
+**Option B: Application-Specific Context**
 
 Create `$CATALINA_HOME/conf/Catalina/localhost/Wikantik.xml`:
 
@@ -512,7 +513,7 @@ Create `$CATALINA_HOME/conf/Catalina/localhost/Wikantik.xml`:
         auth="Container"
         type="javax.sql.DataSource"
         driverClassName="org.postgresql.Driver"
-        url="jdbc:postgresql://localhost:5432/jspwiki"
+        url="jdbc:postgresql://localhost:5432/wikantik"
         username="jspwiki"
         password="your_secure_password_here"
         maxTotal="30"
@@ -525,7 +526,7 @@ Create `$CATALINA_HOME/conf/Catalina/localhost/Wikantik.xml`:
 </Context>
 ```
 
-    1. 6.2 Connection Pool Settings Explained
+### 6.2 Connection Pool Settings Explained
 
 | Setting | Description | Recommended Value |
 |---------|-------------|-------------------|
@@ -540,31 +541,31 @@ Create `$CATALINA_HOME/conf/Catalina/localhost/Wikantik.xml`:
 
 ---
 
-  1. 7. Wikantik Configuration
+## 7. Wikantik Configuration
 
-    1. 7.1 Configure wikantik-custom.properties
+### 7.1 Configure wikantik-custom.properties
 
 Create or edit `WEB-INF/wikantik-custom.properties`:
 
 ```properties
-1. ============================================================================
-1. Wikantik JDBC User/Group Database Configuration
-1. ============================================================================
+# ============================================================================
+# Wikantik JDBC User/Group Database Configuration
+# ============================================================================
 
-1. Enable JDBC User Database (instead of default XML)
+# Enable JDBC User Database (instead of default XML)
 jspwiki.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
 
-1. Enable JDBC Group Database (instead of default XML)
+# Enable JDBC Group Database (instead of default XML)
 jspwiki.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 
-1. ============================================================================
-1. JNDI DataSource Name
-1. Must match the Resource name in Tomcat's context.xml
-1. ============================================================================
+# ============================================================================
+# JNDI DataSource Name
+# Must match the Resource name in Tomcat's context.xml
+# ============================================================================
 wikantik.datasource = jdbc/WikiDatabase
 ```
 
-    1. 7.2 Verify web.xml Resource References (Optional)
+### 7.2 Verify web.xml Resource References (Optional)
 
 If using resource-ref declarations, ensure `WEB-INF/web.xml` includes:
 
@@ -579,29 +580,29 @@ If using resource-ref declarations, ensure `WEB-INF/web.xml` includes:
 
 ---
 
-  1. 8. Testing the Configuration
+## 8. Testing the Configuration
 
-    1. 8.1 Development Build and Deploy
+### 8.1 Development Build and Deploy
 
 Build Wikantik and deploy to the development Tomcat:
 
 ```bash
 cd /home/jakefear/source/jspwiki
 
-1. Build the project (skip tests for quick iteration)
+# Build the project (skip tests for quick iteration)
 mvn clean install -Dmaven.test.skip
 
-1. Copy the WAR to Tomcat
+# Copy the WAR to Tomcat
 cp wikantik-war/target/Wikantik.war tomcat/tomcat-11/webapps/
 
-1. Start Tomcat
+# Start Tomcat
 ./tomcat/tomcat-11/bin/startup.sh
 
-1. Tail the logs
+# Tail the logs
 tail -f tomcat/tomcat-11/logs/catalina.out
 ```
 
-    1. 8.2 Verify Database Connectivity
+### 8.2 Verify Database Connectivity
 
 Check the logs for successful JDBC initialization:
 
@@ -617,7 +618,7 @@ JDBCGroupDatabase initialized from JNDI DataSource: jdbc/WikiDatabase
 JDBCGroupDatabase supports transactions. Good; we will use them.
 ```
 
-    1. 8.3 Test Login
+### 8.3 Test Login
 
 1. Open http://localhost:8080/Wikantik
 2. Click "Login"
@@ -626,7 +627,7 @@ JDBCGroupDatabase supports transactions. Good; we will use them.
    - Password: `admin` (or whatever you set)
 4. Verify successful login
 
-    1. 8.4 Test User Registration
+### 8.4 Test User Registration
 
 1. Log out
 2. Click "Register"
@@ -638,7 +639,7 @@ JDBCGroupDatabase supports transactions. Good; we will use them.
 SELECT login_name, full_name, email, created FROM users ORDER BY created DESC LIMIT 5;
 ```
 
-    1. 8.5 Test Group Management
+### 8.5 Test Group Management
 
 1. Log in as admin
 2. Go to Group Management (Admin > Group Management)
@@ -655,33 +656,33 @@ ORDER BY g.name;
 
 ---
 
-  1. 9. Validation Procedures
+## 9. Validation Procedures
 
-    1. 9.1 Database Connection Validation
+### 9.1 Database Connection Validation
 
 Create a simple test script to validate connectivity:
 
 ```bash
-1. !/bin/bash
-1. test_postgres_connection.sh
+#!/bin/bash
+# test_postgres_connection.sh
 
 echo "Testing PostgreSQL connection..."
-psql -h localhost -U wikantik -d wikantik -c "SELECT 1 as connection_test;"
+psql -h localhost -U jspwiki -d wikantik -c "SELECT 1 as connection_test;"
 
 echo ""
 echo "Checking table structure..."
-psql -h localhost -U wikantik -d wikantik -c "\dt"
+psql -h localhost -U jspwiki -d wikantik -c "\dt"
 
 echo ""
 echo "Checking user count..."
-psql -h localhost -U wikantik -d wikantik -c "SELECT COUNT(*) as user_count FROM users;"
+psql -h localhost -U jspwiki -d wikantik -c "SELECT COUNT(*) as user_count FROM users;"
 
 echo ""
 echo "Checking group count..."
-psql -h localhost -U wikantik -d wikantik -c "SELECT COUNT(*) as group_count FROM groups;"
+psql -h localhost -U jspwiki -d wikantik -c "SELECT COUNT(*) as group_count FROM groups;"
 ```
 
-    1. 9.2 Application Health Check
+### 9.2 Application Health Check
 
 Create a SQL script to validate the database state:
 
@@ -722,31 +723,31 @@ WHERE modified > CURRENT_TIMESTAMP - INTERVAL '7 days'
 ORDER BY modified DESC;
 ```
 
-    1. 9.3 Unit Test Execution
+### 9.3 Unit Test Execution
 
 Run the JDBC-related unit tests:
 
 ```bash
 cd /home/jakefear/source/jspwiki
 
-1. Run JDBCUserDatabase tests
+# Run JDBCUserDatabase tests
 mvn test -Dtest=JDBCUserDatabaseTest -pl wikantik-main
 
-1. Run JDBCGroupDatabase tests
+# Run JDBCGroupDatabase tests
 mvn test -Dtest=JDBCGroupDatabaseTest -pl wikantik-main
 ```
 
 ---
 
-  1. 10. Production Deployment
+## 10. Production Deployment
 
-    1. 10.1 Security Hardening
+### 10.1 Security Hardening
 
-  - Database Security:**
+**Database Security:**
 
 ```sql
 -- Use a strong, unique password
-ALTER USER wikantik WITH PASSWORD 'use_a_very_strong_password_here_min_32_chars';
+ALTER USER jspwiki WITH PASSWORD 'use_a_very_strong_password_here_min_32_chars';
 
 -- Limit connection privileges
 REVOKE ALL ON DATABASE wikantik FROM PUBLIC;
@@ -764,26 +765,26 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON groups TO jspwiki;
 GRANT SELECT, INSERT, UPDATE, DELETE ON group_members TO jspwiki;
 ```
 
-  - Network Security:**
+**Network Security:**
 
 ```bash
-1. pg_hba.conf - Production settings
-1. Only allow connections from application server
-host    wikantik     wikantik   10.0.0.5/32    scram-sha-256
+# pg_hba.conf - Production settings
+# Only allow connections from application server
+host    wikantik    jspwiki   10.0.0.5/32    scram-sha-256
 
-1. Or use SSL
-hostssl wikantik     wikantik   10.0.0.5/32    scram-sha-256 clientcert=verify-ca
+# Or use SSL
+hostssl wikantik    jspwiki   10.0.0.5/32    scram-sha-256 clientcert=verify-ca
 ```
 
-  - SSL/TLS Configuration:**
+**SSL/TLS Configuration:**
 
 Update the JDBC URL in context.xml for SSL:
 
 ```xml
-url="jdbc:postgresql://db-server:5432/jspwiki?ssl=true&amp;sslmode=verify-full&amp;sslrootcert=/path/to/ca.crt"
+url="jdbc:postgresql://db-server:5432/wikantik?ssl=true&amp;sslmode=verify-full&amp;sslrootcert=/path/to/ca.crt"
 ```
 
-    1. 10.2 Connection Pool Tuning
+### 10.2 Connection Pool Tuning
 
 For production workloads, tune the connection pool:
 
@@ -793,7 +794,7 @@ For production workloads, tune the connection pool:
     auth="Container"
     type="javax.sql.DataSource"
     driverClassName="org.postgresql.Driver"
-    url="jdbc:postgresql://db-server:5432/jspwiki"
+    url="jdbc:postgresql://db-server:5432/wikantik"
     username="jspwiki"
     password="production_password"
 
@@ -831,55 +832,55 @@ For production workloads, tune the connection pool:
 />
 ```
 
-    1. 10.3 Backup and Recovery
+### 10.3 Backup and Recovery
 
-  - Daily Backup Script:**
+**Daily Backup Script:**
 
 ```bash
-1. !/bin/bash
-1. backup_jspwiki_db.sh
+#!/bin/bash
+# backup_wikantik_db.sh
 
 BACKUP_DIR="/var/backups/postgresql"
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="${BACKUP_DIR}/jspwiki_${DATE}.sql.gz"
+BACKUP_FILE="${BACKUP_DIR}/wikantik_${DATE}.sql.gz"
 
-1. Create backup directory if needed
+# Create backup directory if needed
 mkdir -p "${BACKUP_DIR}"
 
-1. Dump and compress
-pg_dump -h localhost -U wikantik -d wikantik | gzip > "${BACKUP_FILE}"
+# Dump and compress
+pg_dump -h localhost -U jspwiki -d wikantik | gzip > "${BACKUP_FILE}"
 
-1. Keep only last 30 days of backups
-find "${BACKUP_DIR}" -name "jspwiki_*.sql.gz" -mtime +30 -delete
+# Keep only last 30 days of backups
+find "${BACKUP_DIR}" -name "wikantik_*.sql.gz" -mtime +30 -delete
 
 echo "Backup completed: ${BACKUP_FILE}"
 ```
 
-  - Restore Procedure:**
+**Restore Procedure:**
 
 ```bash
-1. Stop Wikantik/Tomcat first
+# Stop Wikantik/Tomcat first
 systemctl stop tomcat
 
-1. Restore from backup
-gunzip -c /var/backups/postgresql/jspwiki_20250101_120000.sql.gz | psql -h localhost -U wikantik -d jspwiki
+# Restore from backup
+gunzip -c /var/backups/postgresql/wikantik_20250101_120000.sql.gz | psql -h localhost -U jspwiki -d wikantik
 
-1. Start Wikantik/Tomcat
+# Start Wikantik/Tomcat
 systemctl start tomcat
 ```
 
-    1. 10.4 Monitoring
+### 10.4 Monitoring
 
-  - PostgreSQL Queries for Monitoring:**
+**PostgreSQL Queries for Monitoring:**
 
 ```sql
 -- Active connections
-SELECT count(*) FROM pg_stat_activity WHERE datname = 'jspwiki';
+SELECT count(*) FROM pg_stat_activity WHERE datname = 'wikantik';
 
 -- Connection state breakdown
 SELECT state, count(*)
 FROM pg_stat_activity
-WHERE datname = 'jspwiki'
+WHERE datname = 'wikantik'
 GROUP BY state;
 
 -- Table sizes
@@ -903,50 +904,50 @@ WHERE schemaname = 'public';
 
 ---
 
-  1. 11. Troubleshooting
+## 11. Troubleshooting
 
-    1. 11.1 Common Errors
+### 11.1 Common Errors
 
-  - Error: DataSource not found**
+**Error: DataSource not found**
 ```
 javax.naming.NameNotFoundException: Name [jdbc/WikiDatabase] is not bound
 ```
 
-  - Solution:**
+**Solution:**
 - Verify the Resource is defined in context.xml
 - Check the resource name matches exactly
 - Restart Tomcat completely
 
-  - Error: Driver not found**
+**Error: Driver not found**
 ```
 java.sql.SQLException: No suitable driver found for jdbc:postgresql://
 ```
 
-  - Solution:**
+**Solution:**
 - Ensure postgresql-X.X.X.jar is in $CATALINA_HOME/lib/
 - Restart Tomcat after adding the driver
 
-  - Error: Authentication failed**
+**Error: Authentication failed**
 ```
 FATAL: password authentication failed for user "jspwiki"
 ```
 
-  - Solution:**
+**Solution:**
 - Verify username/password in context.xml
 - Check pg_hba.conf allows the connection
 - Verify the user exists: `\du jspwiki`
 
-  - Error: Connection refused**
+**Error: Connection refused**
 ```
 java.net.ConnectException: Connection refused
 ```
 
-  - Solution:**
+**Solution:**
 - Verify PostgreSQL is running: `systemctl status postgresql`
 - Check PostgreSQL is listening: `ss -tlnp | grep 5432`
 - Verify postgresql.conf has `listen_addresses = '*'`
 
-    1. 11.2 Debug Logging
+### 11.2 Debug Logging
 
 Enable JDBC debug logging in `log4j2.xml`:
 
@@ -956,7 +957,7 @@ Enable JDBC debug logging in `log4j2.xml`:
 <Logger name="org.apache.tomcat.jdbc.pool" level="DEBUG"/>
 ```
 
-    1. 11.3 Database Diagnostics
+### 11.3 Database Diagnostics
 
 ```sql
 -- Check for locks
@@ -969,7 +970,7 @@ SELECT
 FROM pg_locks
 JOIN pg_class ON pg_locks.relation = pg_class.oid
 JOIN pg_stat_activity ON pg_locks.pid = pg_stat_activity.pid
-WHERE pg_stat_activity.datname = 'jspwiki';
+WHERE pg_stat_activity.datname = 'wikantik';
 
 -- Check for long-running queries
 SELECT
@@ -978,16 +979,16 @@ SELECT
     query,
     state
 FROM pg_stat_activity
-WHERE datname = 'jspwiki'
+WHERE datname = 'wikantik'
 AND state != 'idle'
 AND now() - pg_stat_activity.query_start > interval '5 seconds';
 ```
 
 ---
 
-  1. Appendix: Password Hashing
+## Appendix: Password Hashing
 
-    1. A.1 Password Format
+### A.1 Password Format
 
 Wikantik stores passwords using RFC 2307-compliant salted hashing:
 
@@ -996,27 +997,27 @@ Wikantik stores passwords using RFC 2307-compliant salted hashing:
 
 Format: `{ALGORITHM}Base64(hash + salt)`
 
-    1. A.2 Generating Password Hashes
+### A.2 Generating Password Hashes
 
 Use the `CryptoUtil` command-line tool:
 
 ```bash
 cd /home/jakefear/source/jspwiki
 
-1. Build the project first
+# Build the project first
 mvn clean install -Dmaven.test.skip
 
-1. Generate a SHA-256 hash (recommended)
-java -cp jspwiki-util/target/classes com.wikantik.util.CryptoUtil --hash "mypassword" "{SHA-256}"
+# Generate a SHA-256 hash (recommended)
+java -cp wikantik-util/target/classes com.wikantik.util.CryptoUtil --hash "mypassword" "{SHA-256}"
 
-1. Generate a SSHA hash (legacy)
-java -cp jspwiki-util/target/classes com.wikantik.util.CryptoUtil --hash "mypassword" "{SSHA}"
+# Generate a SSHA hash (legacy)
+java -cp wikantik-util/target/classes com.wikantik.util.CryptoUtil --hash "mypassword" "{SSHA}"
 
-1. Verify a password against a hash
-java -cp jspwiki-util/target/classes com.wikantik.util.CryptoUtil --verify "mypassword" "{SHA-256}xyz123..."
+# Verify a password against a hash
+java -cp wikantik-util/target/classes com.wikantik.util.CryptoUtil --verify "mypassword" "{SHA-256}xyz123..."
 ```
 
-    1. A.3 Updating a User's Password via SQL
+### A.3 Updating a User's Password via SQL
 
 ```sql
 -- Generate a new hash using CryptoUtil first, then:
@@ -1028,18 +1029,19 @@ WHERE login_name = 'username';
 
 ---
 
-  1. Document History
+## Document History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-11-30 | Claude | Initial comprehensive PostgreSQL setup guide |
+| 1.1 | 2026-04-17 | Claude | Repaired heading/list markup damage; fixed ToC anchors; corrected DB/user naming to wikantik/jspwiki |
 
 ---
 
-  1. References
+## References
 
-- [Wikantik Source: JDBCUserDatabase.java](../wikantik-main/src/main/java/org/apache/wiki/auth/user/JDBCUserDatabase.java)
-- [Wikantik Source: JDBCGroupDatabase.java](../wikantik-main/src/main/java/org/apache/wiki/auth/authorize/JDBCGroupDatabase.java)
+- [Wikantik Source: JDBCUserDatabase.java](../wikantik-main/src/main/java/com/wikantik/auth/user/JDBCUserDatabase.java)
+- [Wikantik Source: JDBCGroupDatabase.java](../wikantik-main/src/main/java/com/wikantik/auth/authorize/JDBCGroupDatabase.java)
 - [PostgreSQL JDBC Driver Documentation](https://jdbc.postgresql.org/documentation/)
 - [Apache Tomcat JNDI Resources](https://tomcat.apache.org/tomcat-11.0-doc/jndi-resources-howto.html)
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/)

@@ -308,6 +308,14 @@ public class MarkdownRendererTest {
     }
 
     @Test
+    public void testFragmentOnlyLinkPreservesAnchor() throws Exception {
+        // [text](#anchor) must render as an in-page fragment link, not be
+        // URL-encoded and wrapped as /wiki/%23anchor (a bogus wiki page).
+        final String src = "[Overview](#1-overview)";
+        Assertions.assertEquals( "<p><a href=\"#1-overview\" class=\"footnote\">Overview</a></p>\n", translate( src ) );
+    }
+
+    @Test
     public void testAttachmentLink0() throws Exception {
         final String src = "This should be an [attachment link](Test/TestAtt.txt)";
         newPage( "Test" );

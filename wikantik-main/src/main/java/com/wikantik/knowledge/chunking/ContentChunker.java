@@ -18,10 +18,13 @@
  */
 package com.wikantik.knowledge.chunking;
 
+import com.vladsch.flexmark.ast.FencedCodeBlock;
 import com.vladsch.flexmark.ast.Heading;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.wikantik.api.frontmatter.ParsedPage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -33,6 +36,8 @@ import java.util.HexFormat;
 import java.util.List;
 
 public class ContentChunker {
+
+    private static final Logger LOG = LogManager.getLogger(ContentChunker.class);
 
     public record Config(int targetTokens, int maxTokens, int minTokens) {}
 
@@ -52,22 +57,54 @@ public class ContentChunker {
         Parser parser = Parser.builder().build();
         Node root = parser.parse(body);
 
+        // State threaded across heading boundaries so merge-forward can preserve
+        // the first section's heading_path when a short chunk rolls into the next.
         Deque<String> headingStack = new ArrayDeque<>();
-        List<Node> pendingBlocks = new ArrayList<>();
+        State state = new State();
         int[] chunkIndex = {0};
 
         for (Node child : root.getChildren()) {
             if (child instanceof Heading heading) {
-                flushChunk(pageName, chunkIndex, List.copyOf(headingStack),
-                           pendingBlocks, out);
+                // Flush any accumulated blocks under the *current* heading path
+                // before we shift into the new heading.
+                flushBlocks(pageName, chunkIndex, currentHeadingPath(headingStack), state, out);
                 adjustHeadingStack(headingStack, heading.getLevel(),
                                    extractHeadingTitle(heading));
             } else {
-                pendingBlocks.add(child);
+                state.blocks.add(child);
             }
         }
-        flushChunk(pageName, chunkIndex, List.copyOf(headingStack), pendingBlocks, out);
+        flushBlocks(pageName, chunkIndex, currentHeadingPath(headingStack), state, out);
+        // Final forced emit: any merge-forward residue below minTokens still
+        // deserves to be emitted so we don't drop content.
+        if (!state.pending.isEmpty()) {
+            String text = state.pending.toString().strip();
+            if (!text.isEmpty()) {
+                List<String> hp = state.pendingHeadingPath != null
+                    ? state.pendingHeadingPath
+                    : currentHeadingPath(headingStack);
+                out.add(buildChunk(pageName, chunkIndex[0]++, hp, text));
+            }
+            state.pending.setLength(0);
+            state.pendingHeadingPath = null;
+        }
         return out;
+    }
+
+    /**
+     * Builds a heading path snapshot from the current stack, stripping leading
+     * empty entries that the stack pads in when a subheading appears without a
+     * parent heading (e.g. a {@code ##} at the top of a page). Downstream
+     * callers treat {@code heading_path} as the *meaningful* hierarchy, so a
+     * leading {@code ""} placeholder isn't useful to preserve.
+     */
+    private List<String> currentHeadingPath(Deque<String> stack) {
+        List<String> list = new ArrayList<>(stack);
+        int firstNonEmpty = 0;
+        while (firstNonEmpty < list.size() && list.get(firstNonEmpty).isEmpty()) {
+            firstNonEmpty++;
+        }
+        return List.copyOf(list.subList(firstNonEmpty, list.size()));
     }
 
     /**
@@ -101,21 +138,147 @@ public class ContentChunker {
         stack.addLast(title.trim());
     }
 
-    private void flushChunk(String pageName, int[] idx, List<String> headingPath,
-                            List<Node> blocks, List<Chunk> out) {
-        if (blocks.isEmpty()) {
+    /**
+     * Mutable accumulation state threaded across heading-boundary flushes.
+     * {@code blocks} holds AST nodes waiting to be turned into chunks within the
+     * current heading scope; {@code pending} holds already-rendered text whose
+     * size was below {@code minTokens} and is awaiting merge-forward into the
+     * next flush. {@code pendingHeadingPath} is the heading_path that was active
+     * when the merge-forward buffer first captured content; it "wins" for the
+     * merged chunk.
+     */
+    private static final class State {
+        final List<Node> blocks = new ArrayList<>();
+        final StringBuilder pending = new StringBuilder();
+        List<String> pendingHeadingPath;
+    }
+
+    private int estimateTokens(String s) {
+        return (int) Math.ceil(s.length() / 4.0);
+    }
+
+    private boolean isAtomic(Node block) {
+        if (block instanceof FencedCodeBlock) {
+            return true;
+        }
+        try {
+            Class<?> tableBlock = Class.forName("com.vladsch.flexmark.ext.tables.TableBlock");
+            if (tableBlock.isInstance(block)) {
+                return true;
+            }
+        } catch (ClassNotFoundException ignored) {
+            // Tables extension not on classpath — fine, we'll fall through the budget path.
+        }
+        return false;
+    }
+
+    private void flushBlocks(String pageName, int[] idx, List<String> headingPath,
+                             State state, List<Chunk> out) {
+        if (state.blocks.isEmpty()) {
             return;
         }
-        StringBuilder sb = new StringBuilder();
-        for (Node block : blocks) {
-            sb.append(block.getChars().toString()).append("\n\n");
+
+        for (Node block : state.blocks) {
+            String blockText = block.getChars().toString();
+            int blockTokens = estimateTokens(blockText);
+
+            if (isAtomic(block)) {
+                emitPending(pageName, idx, headingPath, state, out);
+                if (blockTokens > config.maxTokens() * 2) {
+                    LOG.debug("Atomic block exceeds 2x max ({} tokens) on page {}",
+                              blockTokens, pageName);
+                }
+                out.add(buildChunk(pageName, idx[0]++, headingPath, blockText.strip()));
+                continue;
+            }
+
+            if (blockTokens > config.maxTokens()) {
+                emitPending(pageName, idx, headingPath, state, out);
+                for (String sentenceChunk : splitOnSentences(blockText, config.maxTokens())) {
+                    out.add(buildChunk(pageName, idx[0]++, headingPath, sentenceChunk.strip()));
+                }
+                continue;
+            }
+
+            int pendingTokens = estimateTokens(state.pending.toString());
+            if (pendingTokens + blockTokens > config.maxTokens()) {
+                emitPending(pageName, idx, headingPath, state, out);
+            }
+            if (state.pending.length() == 0) {
+                // First content landing in this pending buffer owns the heading_path.
+                state.pendingHeadingPath = headingPath;
+            }
+            state.pending.append(blockText).append("\n\n");
         }
-        String text = sb.toString().strip();
-        blocks.clear();
+        state.blocks.clear();
+        // At end of a section flush, attempt to emit whatever's pending. If
+        // it's below minTokens it stays in the buffer for merge-forward.
+        emitPending(pageName, idx, headingPath, state, out);
+    }
+
+    /**
+     * Token threshold below which we trigger merge-forward. We deliberately use
+     * a value much smaller than {@link Config#minTokens()} so that only truly
+     * trivial leading sections (think: a placeholder "Tiny." stub under a
+     * heading) are absorbed into the next chunk. Applying merge-forward at the
+     * full {@code minTokens} threshold collapses well-formed short sections
+     * (e.g. a one-paragraph subsection with ~17 tokens) that authors clearly
+     * intended to stand on their own.
+     */
+    private int mergeForwardThreshold() {
+        // Scales with minTokens but caps small; for minTokens=80 this yields 5.
+        return Math.max(3, config.minTokens() / 16);
+    }
+
+    private void emitPending(String pageName, int[] idx, List<String> fallbackHeadingPath,
+                             State state, List<Chunk> out) {
+        String text = state.pending.toString().strip();
         if (text.isEmpty()) {
+            state.pending.setLength(0);
+            state.pendingHeadingPath = null;
             return;
         }
-        out.add(buildChunk(pageName, idx[0]++, headingPath, text));
+        if (estimateTokens(text) < mergeForwardThreshold()) {
+            // Hold onto it — next block's content merges with it. Leave
+            // pendingHeadingPath as set so the first section's path is carried.
+            return;
+        }
+        List<String> hp = state.pendingHeadingPath != null
+            ? state.pendingHeadingPath
+            : fallbackHeadingPath;
+        out.add(buildChunk(pageName, idx[0]++, hp, text));
+        state.pending.setLength(0);
+        state.pendingHeadingPath = null;
+    }
+
+    private List<String> splitOnSentences(String text, int maxTokens) {
+        List<String> chunks = new ArrayList<>();
+        String[] sentences = text.split("(?<=[.!?])\\s+(?=[A-Z]|\\n)");
+        StringBuilder cur = new StringBuilder();
+        for (String s : sentences) {
+            if (estimateTokens(cur.toString()) + estimateTokens(s) > maxTokens
+                && cur.length() > 0) {
+                chunks.add(cur.toString());
+                cur.setLength(0);
+            }
+            if (estimateTokens(s) > maxTokens) {
+                for (String token : s.split("\\s+")) {
+                    if (estimateTokens(cur.toString()) + estimateTokens(token) > maxTokens
+                        && cur.length() > 0) {
+                        chunks.add(cur.toString());
+                        cur.setLength(0);
+                        LOG.warn("Single sentence exceeded max tokens ({}); falling back to whitespace split", maxTokens);
+                    }
+                    cur.append(token).append(' ');
+                }
+            } else {
+                cur.append(s).append(' ');
+            }
+        }
+        if (cur.length() > 0) {
+            chunks.add(cur.toString());
+        }
+        return chunks;
     }
 
     Chunk buildChunk(String pageName, int index, List<String> headingPath, String text) {

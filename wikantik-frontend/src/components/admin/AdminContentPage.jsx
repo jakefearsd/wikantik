@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import IndexStatusTab from './IndexStatusTab';
+import ChunkInspectorTab from './ChunkInspectorTab';
 import '../../styles/admin.css';
 
-const TABS = ['Dashboard', 'Orphaned Pages', 'Broken Links', 'Versions', 'Index Status'];
+const TABS = ['Dashboard', 'Orphaned Pages', 'Broken Links', 'Versions', 'Chunk Inspector', 'Index Status'];
 
 export default function AdminContentPage() {
   const [tab, setTab] = useState('Dashboard');
@@ -27,6 +28,7 @@ export default function AdminContentPage() {
       {tab === 'Orphaned Pages' && <OrphanedPagesTab />}
       {tab === 'Broken Links' && <BrokenLinksTab />}
       {tab === 'Versions' && <VersionsTab />}
+      {tab === 'Chunk Inspector' && <ChunkInspectorTab />}
       {tab === 'Index Status' && <IndexStatusTab />}
     </div>
   );

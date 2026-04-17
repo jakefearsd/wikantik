@@ -28,6 +28,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -61,6 +63,36 @@ public class ContentChunkRepository {
         int pagesWithChunks, int pagesMissingChunks,
         int totalChunks, int avgTokens, int minTokens, int maxTokens ) {}
 
+    /**
+     * Full row from {@code kg_content_chunks} including the chunk text and
+     * timestamps. Returned by {@link #findFullByPage(String)} so operator
+     * tooling can inspect what the chunker actually produced.
+     */
+    public record FullChunk(
+        UUID id,
+        int chunkIndex,
+        List< String > headingPath,
+        String text,
+        int charCount,
+        int tokenCountEstimate,
+        String contentHash,
+        Instant created,
+        Instant modified ) {}
+
+    /** Corpus-wide chunking outliers surfaced by {@link #outliers()}. */
+    public record OutlierReport(
+        List< OutlierEntry > mostChunks,
+        List< OutlierEntry > largeSingleChunks,
+        List< OutlierEntry > oversizedChunks ) {}
+
+    /** Row in an {@link OutlierReport} list. */
+    public record OutlierEntry(
+        String pageName,
+        int chunkCount,
+        int maxTokens,
+        int totalTokens,
+        int charCount ) {}
+
     private final DataSource dataSource;
 
     public ContentChunkRepository( final DataSource dataSource ) {
@@ -92,6 +124,113 @@ public class ContentChunkRepository {
         } catch( final SQLException e ) {
             LOG.warn( "Failed to find chunks for page '{}': {}", pageName, e.getMessage(), e );
             throw new RuntimeException( "findByPage failed for " + pageName, e );
+        }
+    }
+
+    /**
+     * Returns every chunk for a page with full contents (text, timestamps,
+     * token/char counts), ordered by {@code chunk_index}. Used by the admin
+     * Chunk Inspector tab to surface exactly what the chunker wrote.
+     *
+     * @param pageName the wiki page name
+     * @return list of full chunks, empty if the page has no rows
+     */
+    public List< FullChunk > findFullByPage( final String pageName ) {
+        final String sql = "SELECT id, chunk_index, heading_path, text, char_count, "
+                         + "token_count_estimate, content_hash, created, modified "
+                         + "FROM kg_content_chunks WHERE page_name = ? ORDER BY chunk_index";
+        try( final Connection conn = dataSource.getConnection();
+             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setString( 1, pageName );
+            try( final ResultSet rs = ps.executeQuery() ) {
+                final List< FullChunk > out = new ArrayList<>();
+                while( rs.next() ) {
+                    final Array hp = rs.getArray( 3 );
+                    final List< String > headingPath;
+                    if( hp == null ) {
+                        headingPath = List.of();
+                    } else {
+                        final String[] arr = (String[]) hp.getArray();
+                        headingPath = arr == null ? List.of() : List.of( arr );
+                    }
+                    final Timestamp createdTs = rs.getTimestamp( 8 );
+                    final Timestamp modifiedTs = rs.getTimestamp( 9 );
+                    out.add( new FullChunk(
+                        rs.getObject( 1, UUID.class ),
+                        rs.getInt( 2 ),
+                        headingPath,
+                        rs.getString( 4 ),
+                        rs.getInt( 5 ),
+                        rs.getInt( 6 ),
+                        rs.getString( 7 ),
+                        createdTs == null ? null : createdTs.toInstant(),
+                        modifiedTs == null ? null : modifiedTs.toInstant() ) );
+                }
+                return out;
+            }
+        } catch( final SQLException e ) {
+            LOG.warn( "Failed to find full chunks for page '{}': {}", pageName, e.getMessage(), e );
+            throw new RuntimeException( "findFullByPage failed for " + pageName, e );
+        }
+    }
+
+    /**
+     * Computes three small outlier lists (top 10 each) over the chunks table:
+     * pages with the most chunks, single-chunk pages whose sole chunk has
+     * &gt; 400 chars, and chunks whose estimated token count exceeds 512
+     * (the chunker's {@code maxTokens} target). All three are lightweight
+     * aggregates — no caching.
+     *
+     * @return populated outlier report (empty lists if nothing matches)
+     */
+    public OutlierReport outliers() {
+        final List< OutlierEntry > most = new ArrayList<>();
+        final List< OutlierEntry > largeSingles = new ArrayList<>();
+        final List< OutlierEntry > oversized = new ArrayList<>();
+
+        final String mostSql =
+            "SELECT page_name, COUNT(*), MAX(token_count_estimate), "
+          + "SUM(token_count_estimate), MAX(char_count) "
+          + "FROM kg_content_chunks GROUP BY page_name "
+          + "ORDER BY COUNT(*) DESC LIMIT 10";
+
+        final String largeSql =
+            "SELECT page_name, 1, token_count_estimate, token_count_estimate, char_count "
+          + "FROM kg_content_chunks "
+          + "WHERE page_name IN ( SELECT page_name FROM kg_content_chunks "
+          + "                     GROUP BY page_name HAVING COUNT(*) = 1 ) "
+          + "  AND char_count > 400 "
+          + "ORDER BY char_count DESC LIMIT 10";
+
+        final String oversizedSql =
+            "SELECT page_name, 1, token_count_estimate, token_count_estimate, char_count "
+          + "FROM kg_content_chunks "
+          + "WHERE token_count_estimate > 512 "
+          + "ORDER BY token_count_estimate DESC LIMIT 10";
+
+        try( final Connection conn = dataSource.getConnection() ) {
+            readOutlierRows( conn, mostSql, most );
+            readOutlierRows( conn, largeSql, largeSingles );
+            readOutlierRows( conn, oversizedSql, oversized );
+        } catch( final SQLException e ) {
+            LOG.warn( "Failed to compute chunk outliers: {}", e.getMessage(), e );
+            throw new RuntimeException( "outliers failed", e );
+        }
+        return new OutlierReport( most, largeSingles, oversized );
+    }
+
+    private static void readOutlierRows( final Connection conn, final String sql,
+                                         final List< OutlierEntry > sink ) throws SQLException {
+        try( final PreparedStatement ps = conn.prepareStatement( sql );
+             final ResultSet rs = ps.executeQuery() ) {
+            while( rs.next() ) {
+                sink.add( new OutlierEntry(
+                    rs.getString( 1 ),
+                    rs.getInt( 2 ),
+                    rs.getInt( 3 ),
+                    rs.getInt( 4 ),
+                    rs.getInt( 5 ) ) );
+            }
         }
     }
 

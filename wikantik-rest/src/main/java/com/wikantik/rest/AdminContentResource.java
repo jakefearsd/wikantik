@@ -32,6 +32,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.cache.CacheInfo;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.content.NewsPageGenerator;
+import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.search.SearchManager;
 
 import jakarta.servlet.ServletException;
@@ -102,6 +103,10 @@ public class AdminContentResource extends RestServletBase {
             handleBrokenLinks( response );
         } else if ( "index-status".equals( action ) ) {
             handleIndexStatus( response );
+        } else if ( "chunks".equals( action ) ) {
+            handleChunksByPage( request, response );
+        } else if ( "chunks/outliers".equals( action ) ) {
+            handleChunkOutliers( response );
         } else {
             sendNotFound( response, "Unknown content endpoint: " + action );
         }
@@ -359,6 +364,89 @@ public class AdminContentResource extends RestServletBase {
                     "error", "rebuild disabled",
                     "flag", "wikantik.rebuild.enabled" ) );
         }
+    }
+
+    // ---- Chunk inspector ----
+
+    /**
+     * Serves every chunk for a single page so operators can inspect exactly
+     * what the chunker produced. Returns 400 if {@code ?page=} is missing
+     * or blank, and 404 if the page has no chunk rows.
+     */
+    private void handleChunksByPage( final HttpServletRequest request,
+                                     final HttpServletResponse response ) throws IOException {
+        final String page = request.getParameter( "page" );
+        if ( page == null || page.isBlank() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                "page query parameter is required" );
+            return;
+        }
+        final ContentChunkRepository repo = getEngine().getManager( ContentChunkRepository.class );
+        if ( repo == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "chunk repository not available" );
+            return;
+        }
+        final List< ContentChunkRepository.FullChunk > chunks = repo.findFullByPage( page );
+        if ( chunks.isEmpty() ) {
+            final Map< String, Object > body = new LinkedHashMap<>();
+            body.put( "error", "page not found" );
+            body.put( "page", page );
+            sendJsonWithStatus( response, HttpServletResponse.SC_NOT_FOUND, body );
+            return;
+        }
+        final List< Map< String, Object > > rows = new ArrayList<>( chunks.size() );
+        for ( final ContentChunkRepository.FullChunk c : chunks ) {
+            final Map< String, Object > m = new LinkedHashMap<>();
+            m.put( "chunk_index", c.chunkIndex() );
+            m.put( "heading_path", c.headingPath() );
+            m.put( "text", c.text() );
+            m.put( "char_count", c.charCount() );
+            m.put( "token_count_estimate", c.tokenCountEstimate() );
+            m.put( "content_hash", c.contentHash() );
+            m.put( "created", c.created() == null ? null : c.created().toString() );
+            m.put( "modified", c.modified() == null ? null : c.modified().toString() );
+            rows.add( m );
+        }
+        final Map< String, Object > body = new LinkedHashMap<>();
+        body.put( "page", page );
+        body.put( "chunks", rows );
+        sendJsonWithStatus( response, HttpServletResponse.SC_OK, body );
+    }
+
+    /**
+     * Serves corpus-wide chunk outliers (top 10 each): pages with the most
+     * chunks, single-chunk pages whose sole chunk is unusually large, and
+     * chunks whose estimated token count exceeds the chunker's max target.
+     */
+    private void handleChunkOutliers( final HttpServletResponse response ) throws IOException {
+        final ContentChunkRepository repo = getEngine().getManager( ContentChunkRepository.class );
+        if ( repo == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "chunk repository not available" );
+            return;
+        }
+        final ContentChunkRepository.OutlierReport report = repo.outliers();
+        final Map< String, Object > body = new LinkedHashMap<>();
+        body.put( "most_chunks", outlierEntriesToMaps( report.mostChunks() ) );
+        body.put( "large_single_chunks", outlierEntriesToMaps( report.largeSingleChunks() ) );
+        body.put( "oversized_chunks", outlierEntriesToMaps( report.oversizedChunks() ) );
+        sendJsonWithStatus( response, HttpServletResponse.SC_OK, body );
+    }
+
+    private List< Map< String, Object > > outlierEntriesToMaps(
+            final List< ContentChunkRepository.OutlierEntry > src ) {
+        final List< Map< String, Object > > out = new ArrayList<>( src.size() );
+        for ( final ContentChunkRepository.OutlierEntry e : src ) {
+            final Map< String, Object > m = new LinkedHashMap<>();
+            m.put( "page_name", e.pageName() );
+            m.put( "chunk_count", e.chunkCount() );
+            m.put( "max_tokens", e.maxTokens() );
+            m.put( "total_tokens", e.totalTokens() );
+            m.put( "char_count", e.charCount() );
+            out.add( m );
+        }
+        return out;
     }
 
     /**

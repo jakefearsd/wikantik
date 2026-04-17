@@ -26,9 +26,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.auth.AuthorizationManager;
-import com.wikantik.auth.permissions.PagePermission;
-import com.wikantik.auth.permissions.PermissionFactory;
+import com.wikantik.auth.permissions.PermissionFilter;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletException;
@@ -302,33 +300,18 @@ public abstract class RestServletBase extends HttpServlet {
                                           final String action ) {
         final Engine eng = getEngine();
         final Session session = Wiki.session().find( eng, request );
-        final Page page = eng.getManager( PageManager.class ).getPage( pageName );
-        final java.security.Permission perm = ( page != null )
-                ? PermissionFactory.getPagePermission( page, action )
-                : new PagePermission( eng.getApplicationName() + ":" + pageName, action );
-        return eng.getManager( AuthorizationManager.class ).checkPermission( session, perm );
+        return new PermissionFilter( eng ).canAccess( session, pageName, action );
     }
 
     protected boolean checkPagePermission( final HttpServletRequest request,
                                             final HttpServletResponse response,
                                             final String pageName,
                                             final String action ) throws IOException {
-        final Engine eng = getEngine();
-        final Session session = Wiki.session().find( eng, request );
-        final Page page = eng.getManager( PageManager.class ).getPage( pageName );
-        // When the page exists, use the Page overload so ACLs embedded in the content
-        // are evaluated.  When it doesn't exist yet (e.g. a PUT creating a new page),
-        // construct the permission with the wiki's application name so that the
-        // policy grant "wiki:*" still matches.
-        final java.security.Permission perm = ( page != null )
-                ? PermissionFactory.getPagePermission( page, action )
-                : new PagePermission( eng.getApplicationName() + ":" + pageName, action );
-        final AuthorizationManager authMgr = eng.getManager( AuthorizationManager.class );
-        if ( !authMgr.checkPermission( session, perm ) ) {
-            sendError( response, HttpServletResponse.SC_FORBIDDEN, "Forbidden" );
-            return false;
+        if ( hasPagePermission( request, pageName, action ) ) {
+            return true;
         }
-        return true;
+        sendError( response, HttpServletResponse.SC_FORBIDDEN, "Forbidden" );
+        return false;
     }
 
     /**

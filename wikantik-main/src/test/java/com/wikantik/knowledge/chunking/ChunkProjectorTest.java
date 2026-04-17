@@ -123,4 +123,21 @@ class ChunkProjectorTest {
         off.projectPage( "P", Map.of(), "Body content sufficient to emit a chunk under normal settings." );
         assertTrue( repo.findByPage( "P" ).isEmpty() );
     }
+
+    @Test
+    void projectionIncrementsChunksProducedCounter() {
+        final io.micrometer.core.instrument.simple.SimpleMeterRegistry reg =
+            new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        final ChunkProjector instrumented = new ChunkProjector( chunker, repo, () -> true, reg );
+        final double before = reg.counter( "wikantik_chunker_chunks_produced" ).count();
+        instrumented.projectPage( "MetricPage", Map.of(),
+            "Body with enough prose content to produce a single chunk of reasonable size "
+            + "so that the min-tokens floor does not cause merge-forward to swallow this "
+            + "buffer and we end up with at least one persisted chunk row in the database." );
+        final int chunkCount = repo.findByPage( "MetricPage" ).size();
+        assertTrue( chunkCount >= 1, "at least one chunk produced" );
+        final double after = reg.counter( "wikantik_chunker_chunks_produced" ).count();
+        assertEquals( before + chunkCount, after, 0.0001,
+            "counter increased by the number of chunks produced" );
+    }
 }

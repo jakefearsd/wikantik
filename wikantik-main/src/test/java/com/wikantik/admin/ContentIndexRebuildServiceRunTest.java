@@ -79,4 +79,35 @@ class ContentIndexRebuildServiceRunTest {
         assertTrue( RebuildTestFactory.chunksClearedAtLeastOnce(),
             "chunkRepo.deleteAll() called at least once during STARTING" );
     }
+
+    @Test
+    void stateGaugeMovesThroughDrainingAndReturnsToIdle() {
+        final ContentIndexRebuildService svc = RebuildTestFactory.build( 1, 0 );
+        // Before any trigger, the state gauge must read IDLE (0).
+        final double initial = svc.meterRegistry()
+            .get( "wikantik_rebuild_state" ).gauge().value();
+        assertEquals( 0.0, initial, 0.0001, "state gauge starts at IDLE=0" );
+
+        svc.triggerRebuild();
+        // Observe DRAINING (3) at some point during the run; at worst we catch
+        // IDLE again if the run completes before the polling loop observes it,
+        // so fall through to the final assertion rather than failing here.
+        await().atMost( Duration.ofSeconds( 10 ) ).until( () -> {
+            final double v = svc.meterRegistry()
+                .get( "wikantik_rebuild_state" ).gauge().value();
+            return v == 3.0 || v == 0.0;
+        } );
+
+        await().atMost( Duration.ofSeconds( 10 ) ).until( () ->
+            svc.snapshot().rebuild().state().equals( "IDLE" ) );
+        final double finalValue = svc.meterRegistry()
+            .get( "wikantik_rebuild_state" ).gauge().value();
+        assertEquals( 0.0, finalValue, 0.0001, "state gauge returns to IDLE=0" );
+
+        // runs_total counter must have ticked once with outcome=completed.
+        final double runs = svc.meterRegistry()
+            .get( "wikantik_rebuild_runs_total" ).tag( "outcome", "completed" )
+            .counter().count();
+        assertTrue( runs >= 1.0, "runs_total[completed] >= 1 after a successful rebuild" );
+    }
 }

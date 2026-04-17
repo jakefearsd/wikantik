@@ -274,6 +274,35 @@ export const api = {
 
     getIndexStatus: () => request('/admin/content/index-status'),
 
+    getChunks: async (pageName) => {
+      const resp = await fetch(
+        `${BASE}/admin/content/chunks?page=${encodeURIComponent(pageName)}`,
+        {
+          credentials: 'same-origin',
+          headers: { 'Accept': 'application/json' },
+        },
+      );
+      if (resp.status === 404) {
+        const body = await resp.json().catch(() => ({}));
+        throw Object.assign(new Error(body.error || `No chunks found for page ${pageName}`), {
+          status: 404,
+          code: 'page_not_found',
+          body,
+        });
+      }
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({ message: resp.statusText }));
+        throw Object.assign(new Error(body.message || resp.statusText), {
+          status: resp.status,
+          body,
+        });
+      }
+      const text = await resp.text();
+      return text ? JSON.parse(text) : null;
+    },
+
+    getChunkOutliers: () => request('/admin/content/chunks/outliers'),
+
     rebuildIndexes: async () => {
       const resp = await fetch(`${BASE}/admin/content/rebuild-indexes`, {
         method: 'POST',

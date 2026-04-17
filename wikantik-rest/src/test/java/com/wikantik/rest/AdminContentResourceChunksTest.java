@@ -25,6 +25,7 @@ import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.admin.ContentIndexRebuildService;
 import com.wikantik.admin.IndexStatusSnapshot;
+import com.wikantik.knowledge.chunking.ContentChunkRepository;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
@@ -208,6 +209,121 @@ class AdminContentResourceChunksTest {
         final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
         assertEquals( "rebuild disabled", obj.get( "error" ).getAsString() );
         assertEquals( "wikantik.rebuild.enabled", obj.get( "flag" ).getAsString() );
+    }
+
+    // ---- GET /admin/content/chunks ----
+
+    @Test
+    void getChunksByPageReturnsFullChunkShape() throws Exception {
+        final ContentChunkRepository repo = Mockito.mock( ContentChunkRepository.class );
+        final java.util.UUID id = java.util.UUID.randomUUID();
+        final Instant t = Instant.parse( "2026-04-17T10:00:00Z" );
+        Mockito.doReturn( List.of(
+            new ContentChunkRepository.FullChunk(
+                id, 0, List.of( "Top", "Section" ),
+                "the chunk text", 14, 4, "abc123", t, t ) ) )
+            .when( repo ).findFullByPage( "PageA" );
+        engine.setManager( ContentChunkRepository.class, repo );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        final HttpServletRequest request = createRequest( "/chunks" );
+        Mockito.doReturn( "PageA" ).when( request ).getParameter( "page" );
+        servlet.doGet( request, response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_OK );
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertEquals( "PageA", obj.get( "page" ).getAsString() );
+        assertTrue( obj.get( "chunks" ).isJsonArray() );
+        assertEquals( 1, obj.getAsJsonArray( "chunks" ).size() );
+
+        final JsonObject chunk = obj.getAsJsonArray( "chunks" ).get( 0 ).getAsJsonObject();
+        assertEquals( 0, chunk.get( "chunk_index" ).getAsInt() );
+        assertEquals( "the chunk text", chunk.get( "text" ).getAsString() );
+        assertEquals( 14, chunk.get( "char_count" ).getAsInt() );
+        assertEquals( 4, chunk.get( "token_count_estimate" ).getAsInt() );
+        assertEquals( "abc123", chunk.get( "content_hash" ).getAsString() );
+        assertTrue( chunk.get( "heading_path" ).isJsonArray() );
+        assertEquals( 2, chunk.getAsJsonArray( "heading_path" ).size() );
+        assertEquals( "Top",
+            chunk.getAsJsonArray( "heading_path" ).get( 0 ).getAsString() );
+        assertEquals( "2026-04-17T10:00:00Z", chunk.get( "created" ).getAsString() );
+        assertEquals( "2026-04-17T10:00:00Z", chunk.get( "modified" ).getAsString() );
+    }
+
+    @Test
+    void getChunksByPageReturns404WhenEmpty() throws Exception {
+        final ContentChunkRepository repo = Mockito.mock( ContentChunkRepository.class );
+        Mockito.doReturn( List.of() ).when( repo ).findFullByPage( "Missing" );
+        engine.setManager( ContentChunkRepository.class, repo );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        final HttpServletRequest request = createRequest( "/chunks" );
+        Mockito.doReturn( "Missing" ).when( request ).getParameter( "page" );
+        servlet.doGet( request, response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertEquals( "page not found", obj.get( "error" ).getAsString() );
+        assertEquals( "Missing", obj.get( "page" ).getAsString() );
+    }
+
+    @Test
+    void getChunksByPageReturns400WhenPageParamMissing() throws Exception {
+        final ContentChunkRepository repo = Mockito.mock( ContentChunkRepository.class );
+        engine.setManager( ContentChunkRepository.class, repo );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        final HttpServletRequest request = createRequest( "/chunks" );
+        // Missing page parameter — getParameter returns null by default on the mock.
+        servlet.doGet( request, response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+        Mockito.verify( repo, Mockito.never() ).findFullByPage( Mockito.anyString() );
+    }
+
+    // ---- GET /admin/content/chunks/outliers ----
+
+    @Test
+    void getOutliersReturnsAllThreeArrays() throws Exception {
+        final ContentChunkRepository repo = Mockito.mock( ContentChunkRepository.class );
+        final ContentChunkRepository.OutlierReport report = new ContentChunkRepository.OutlierReport(
+            List.of( new ContentChunkRepository.OutlierEntry( "BigPage", 42, 510, 12000, 2048 ) ),
+            List.of( new ContentChunkRepository.OutlierEntry( "LonelyGiant", 1, 130, 130, 500 ) ),
+            List.of( new ContentChunkRepository.OutlierEntry( "OverTok", 1, 910, 910, 300 ) ) );
+        Mockito.doReturn( report ).when( repo ).outliers();
+        engine.setManager( ContentChunkRepository.class, repo );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( createRequest( "/chunks/outliers" ), response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.has( "most_chunks" ) );
+        assertTrue( obj.has( "large_single_chunks" ) );
+        assertTrue( obj.has( "oversized_chunks" ) );
+        assertEquals( 1, obj.getAsJsonArray( "most_chunks" ).size() );
+        final JsonObject first = obj.getAsJsonArray( "most_chunks" ).get( 0 ).getAsJsonObject();
+        assertEquals( "BigPage", first.get( "page_name" ).getAsString() );
+        assertEquals( 42, first.get( "chunk_count" ).getAsInt() );
+        assertEquals( 510, first.get( "max_tokens" ).getAsInt() );
+        assertEquals( 12000, first.get( "total_tokens" ).getAsInt() );
+        assertEquals( 2048, first.get( "char_count" ).getAsInt() );
+
+        assertEquals( "LonelyGiant", obj.getAsJsonArray( "large_single_chunks" )
+            .get( 0 ).getAsJsonObject().get( "page_name" ).getAsString() );
+        assertEquals( 910, obj.getAsJsonArray( "oversized_chunks" )
+            .get( 0 ).getAsJsonObject().get( "max_tokens" ).getAsInt() );
     }
 
     // ---- POST /admin/content/reindex deprecation ----

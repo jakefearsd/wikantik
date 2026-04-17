@@ -22,9 +22,17 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.test.StubSystemPageRegistry;
+import org.apache.lucene.analysis.classic.ClassicAnalyzer;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
+
+import java.io.File;
+import java.lang.reflect.Field;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.Executors;
 
 /**
  * Unit tests verifying that {@link LuceneSearchProvider} excludes system pages
@@ -51,6 +59,16 @@ class LuceneSearchProviderSystemPageFilterTest {
         }
         return new LuceneSearchProvider( pm, Mockito.mock( AttachmentManager.class ),
                 null, null, spr );
+    }
+
+    private static void setField( final Object target, final String fieldName, final Object value ) {
+        try {
+            final Field field = target.getClass().getDeclaredField( fieldName );
+            field.setAccessible( true );
+            field.set( target, value );
+        } catch( final Exception e ) {
+            throw new RuntimeException( "Failed to set field " + fieldName, e );
+        }
     }
 
     // =========================================================================
@@ -125,6 +143,86 @@ class LuceneSearchProviderSystemPageFilterTest {
                 "Registered system page must be excluded from full reindex iteration" );
         Assertions.assertFalse( provider.isSystemPageExcluded( "RegularArticle" ),
                 "Non-system page must not be excluded from full reindex iteration" );
+    }
+
+    // =========================================================================
+    // indexMissingPages(): must not re-index system pages on the periodic sweep
+    // =========================================================================
+
+    @Test
+    void testIndexMissingPagesSkipsSystemPages( @TempDir final File tempDir ) throws Exception {
+        final File luceneDir = new File( tempDir, "lucene" );
+        Assertions.assertTrue( luceneDir.mkdirs() );
+
+        final PageManager pm = Mockito.mock( PageManager.class );
+        final AttachmentManager am = Mockito.mock( AttachmentManager.class );
+        final StubSystemPageRegistry spr = new StubSystemPageRegistry();
+        spr.addSystemPage( "LeftMenu" );
+        final LuceneSearchProvider provider = new LuceneSearchProvider( pm, am, null, null, spr );
+        setField( provider, "luceneDirectory", luceneDir.getAbsolutePath() );
+        setField( provider, "analyzer", new ClassicAnalyzer() );
+        setField( provider, "searchExecutor", Executors.newCachedThreadPool() );
+
+        // Seed the Lucene index with one unrelated page so dir.list() is non-empty
+        // (otherwise indexMissingPages short-circuits before checking pages).
+        final Page seed = Mockito.mock( Page.class );
+        Mockito.when( seed.getName() ).thenReturn( "SeedPage" );
+        Mockito.when( am.listAttachments( Mockito.any( Page.class ) ) ).thenReturn( Collections.emptyList() );
+        provider.updateLuceneIndex( seed, "seed content" );
+
+        // One regular page + one system page, both "missing" from the index.
+        final Page regular = Mockito.mock( Page.class );
+        Mockito.when( regular.getName() ).thenReturn( "RegularMissing" );
+        final Page system = Mockito.mock( Page.class );
+        Mockito.when( system.getName() ).thenReturn( "LeftMenu" );
+
+        Mockito.when( pm.getAllPages() ).thenReturn( List.of( regular, system ) );
+        Mockito.when( pm.getPageText( Mockito.eq( "RegularMissing" ), Mockito.anyInt() ) )
+                .thenReturn( "regular body" );
+        // If the filter fails, this stub would be consulted for the system page
+        // too — we leave it unstubbed so the test would fail with a NPE / absent
+        // content assertion if that ever happens.
+        Mockito.when( am.getAllAttachments() ).thenReturn( Collections.emptyList() );
+
+        final int indexed = provider.indexMissingPages();
+
+        Assertions.assertEquals( 1, indexed,
+                "Only the regular page should be indexed; the system page must be skipped" );
+        Assertions.assertTrue( provider.getIndexedPageNames().contains( "RegularMissing" ),
+                "Regular page should end up in the Lucene index" );
+        Assertions.assertFalse( provider.getIndexedPageNames().contains( "LeftMenu" ),
+                "System page must NOT be indexed by the missing-page sweep" );
+    }
+
+    // =========================================================================
+    // Drain-loop counter: skips must not be counted as failures
+    // =========================================================================
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void testDrainUpdateQueueDoesNotCountSystemPageSkipAsFailure() throws Exception {
+        final PageManager pm = Mockito.mock( PageManager.class );
+        final LuceneSearchProvider provider = newProviderWithSystemPages( pm, "LeftMenu" );
+
+        // Enqueue a system page directly, bypassing reindexPage's filter, to
+        // simulate the "enqueued via a non-filtered route" scenario the drain
+        // loop must handle without counting the skip as a failure.
+        final Page sysPage = Mockito.mock( Page.class );
+        Mockito.when( sysPage.getName() ).thenReturn( "LeftMenu" );
+        final Field updatesField = LuceneSearchProvider.class.getDeclaredField( "updates" );
+        updatesField.setAccessible( true );
+        final List< Object[] > updates = ( List< Object[] > ) updatesField.get( provider );
+        updates.add( new Object[] { sysPage, "fragment body" } );
+
+        final LuceneSearchProvider.DrainStats stats = provider.drainUpdateQueue();
+
+        Assertions.assertEquals( 1, stats.totalQueued(), "Queue had one item" );
+        Assertions.assertEquals( 0, stats.indexed(),
+                "System page must not be indexed" );
+        Assertions.assertEquals( 0, stats.failed(),
+                "System-page skips MUST NOT be counted as failures — this was the bug" );
+        Assertions.assertEquals( 1, stats.skipped(),
+                "System page should be counted as skipped, not failed" );
     }
 
     @Test

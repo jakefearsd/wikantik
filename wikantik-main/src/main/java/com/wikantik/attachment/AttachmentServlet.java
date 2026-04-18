@@ -26,7 +26,6 @@ import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.security.Permission;
 import java.security.Principal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
@@ -486,46 +485,20 @@ public class AttachmentServlet extends HttpServlet {
             upload.setProgressListener( pl );
             final List<FileItem> items = upload.parseRequest( req );
 
-            String   wikipage   = null;
-            String   changeNote = null;
-            //FileItem actualFile = null;
-            final List<FileItem> fileItems = new ArrayList<>();
-
-            for( final FileItem item : items ) {
-                if( item.isFormField() ) {
-                    switch( item.getFieldName() ) {
-                    case "page":
-                        // FIXME: Kludge alert.  We must end up with the parent page name, if this is an upload of a new revision
-                        wikipage = item.getString( StandardCharsets.UTF_8);
-                        final int slashIndex = wikipage.indexOf( "/" );
-                        if( slashIndex != -1 ) {
-                            wikipage = wikipage.substring( 0, slashIndex );
-                        }
-                        break;
-                    case "changenote":
-                        changeNote = item.getString( StandardCharsets.UTF_8 );
-                        if( changeNote != null ) {
-                            changeNote = TextUtil.replaceEntities( changeNote );
-                        }
-                        break;
-                    case "nextpage":
-                        nextPage = validateNextPage( item.getString( StandardCharsets.UTF_8 ), errorPage );
-                        break;
-                    }
-                } else {
-                    fileItems.add( item );
-                }
+            final UploadFormData form = UploadFormParser.parse( items );
+            if ( form.nextPage() != null ) {
+                nextPage = validateNextPage( form.nextPage(), errorPage );
             }
 
-            if(fileItems.isEmpty()) {
+            if( form.fileItems().isEmpty() ) {
                 throw new RedirectException( "Broken file upload", errorPage );
 
             } else {
-                for( final FileItem actualFile : fileItems ) {
+                for( final FileItem actualFile : form.fileItems() ) {
                     final String filename = actualFile.getName();
                     final long   fileSize = actualFile.getSize();
                     try( final InputStream in  = actualFile.getInputStream() ) {
-                        executeUpload( context, in, filename, nextPage, wikipage, changeNote, fileSize );
+                        executeUpload( context, in, filename, nextPage, form.wikipage(), form.changeNote(), fileSize );
                     }
                 }
             }

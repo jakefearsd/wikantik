@@ -34,7 +34,18 @@ import java.util.List;
 public record IndexStatusSnapshot( Pages pages,
                                    Lucene lucene,
                                    Chunks chunks,
+                                   Embeddings embeddings,
                                    Rebuild rebuild ) {
+
+    /**
+     * Backwards-compatible constructor for callers that pre-date the
+     * embedding index (Phase 1 of hybrid retrieval). Fills
+     * {@link #embeddings()} with an empty snapshot.
+     */
+    public IndexStatusSnapshot( final Pages pages, final Lucene lucene,
+                                final Chunks chunks, final Rebuild rebuild ) {
+        this( pages, lucene, chunks, Embeddings.empty(), rebuild );
+    }
 
     /**
      * Page-population counts. {@code indexable = total - system}.
@@ -60,6 +71,23 @@ public record IndexStatusSnapshot( Pages pages,
                           int avgTokens,
                           int minTokens,
                           int maxTokens ) {}
+
+    /**
+     * Aggregate stats over {@code content_chunk_embeddings} for the current
+     * production model. A null/empty model code means the embedding subsystem
+     * has not been configured yet — UI should treat it as "disabled".
+     *
+     * @param modelCode   model identifier the counts are for
+     *                    (empty string when disabled)
+     * @param dim         vector dimension currently on record; {@code 0} when
+     *                    no rows exist
+     * @param rowCount    number of {@code (chunk_id, model_code)} rows
+     * @param lastUpdate  most recent {@code updated} timestamp, or {@code null}
+     *                    if no rows exist
+     */
+    public record Embeddings( String modelCode, int dim, int rowCount, Instant lastUpdate ) {
+        public static Embeddings empty() { return new Embeddings( "", 0, 0, null ); }
+    }
 
     /**
      * Rebuild run progress. All counters are zero while {@code state == "IDLE"}.

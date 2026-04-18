@@ -486,6 +486,17 @@ public class AdminContentResource extends RestServletBase {
             "min_tokens", s.chunks().minTokens(),
             "max_tokens", s.chunks().maxTokens() ) );
 
+        // Embedding index status (Phase 1 of hybrid retrieval). When the
+        // embedding subsystem is disabled the record carries empty defaults,
+        // which still render to a stable JSON shape so UI can drive off them.
+        final Map< String, Object > embeddings = new LinkedHashMap<>();
+        embeddings.put( "model_code", s.embeddings().modelCode() );
+        embeddings.put( "dim", s.embeddings().dim() );
+        embeddings.put( "row_count", s.embeddings().rowCount() );
+        embeddings.put( "last_update",
+            s.embeddings().lastUpdate() == null ? null : s.embeddings().lastUpdate().toString() );
+        out.put( "embeddings", embeddings );
+
         // Rebuild block has 9 fields — Map.of caps at 10 entries; use LinkedHashMap
         // both to stay under the cap and to keep a predictable JSON ordering.
         final Map< String, Object > rebuild = new LinkedHashMap<>();

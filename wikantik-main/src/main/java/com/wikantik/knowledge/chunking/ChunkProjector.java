@@ -32,8 +32,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 /**
  * Save-time {@link PageFilter} that drives {@link ContentChunker} and persists
@@ -110,6 +112,27 @@ public class ChunkProjector implements PageFilter {
     public MeterRegistry meterRegistry() { return meterRegistry; }
 
     /**
+     * Post-projection sink invoked after chunks for a page are diff-applied.
+     * Receives the full list of chunk IDs currently stored for the page
+     * (inserts + updates, never deletes) so downstream consumers can rebuild
+     * derived projections (dense embeddings, etc.).
+     *
+     * <p>The sink is invoked on the same thread that drove the save; it is
+     * the sink's responsibility to off-load any expensive work onto a
+     * background executor. This keeps ChunkProjector itself free of thread
+     * pools while honouring the "don't block the save path" contract.</p>
+     */
+    private volatile Consumer< List< UUID > > postChunkSink;
+
+    /**
+     * Registers a sink to be called after a successful projectPage apply.
+     * Passing {@code null} clears any previously registered sink.
+     */
+    public void setPostChunkSink( final Consumer< List< UUID > > sink ) {
+        this.postChunkSink = sink;
+    }
+
+    /**
      * PageFilter callback — chunks the saved page and persists the diff.
      * Never rethrows: failures are logged and the save is unaffected.
      */
@@ -156,12 +179,37 @@ public class ChunkProjector implements PageFilter {
             LOG.info( "Chunked '{}' into {} chunks (+{} ~{} -{})",
                 pageName, produced.size(),
                 diff.inserts().size(), diff.updates().size(), diff.deletes().size() );
+            notifyPostChunkSink( pageName );
         } catch( final Exception e ) {
             LOG.warn( "Content chunking failed for page '{}': {}",
                 pageName, e.getMessage(), e );
             recordFailure( e );
         } finally {
             projectionTimer.record( System.nanoTime() - startNanos, TimeUnit.NANOSECONDS );
+        }
+    }
+
+    /**
+     * Reads back every chunk ID currently stored for {@code pageName} and
+     * hands them to the registered sink. A sink failure is isolated — it
+     * logs at {@code warn} with context but never propagates back into the
+     * save path, which has already committed.
+     */
+    private void notifyPostChunkSink( final String pageName ) {
+        final Consumer< List< UUID > > sink = postChunkSink;
+        if ( sink == null ) {
+            return;
+        }
+        try {
+            final List< ChunkDiff.Stored > stored = repository.findByPage( pageName );
+            final List< UUID > ids = new java.util.ArrayList<>( stored.size() );
+            for ( final ChunkDiff.Stored s : stored ) {
+                ids.add( s.id() );
+            }
+            sink.accept( ids );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Post-chunk sink failed for page '{}': {}",
+                pageName, e.getMessage(), e );
         }
     }
 

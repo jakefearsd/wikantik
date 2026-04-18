@@ -123,6 +123,139 @@ The report groups recall by the `notes` label. Categories tell you *where* retri
 
 Track the categories over time. A retrieval change that lifts `specific` from 0.9 to 1.0 while dragging `synonym-drift` from 0.4 to 0.2 is a regression worth rolling back.
 
+## Next step: hybrid BM25 + dense retrieval
+
+The baseline report makes the gap visible: BM25 is already near-ceiling on `specific` and `multi-word-concept` (recall@5 ≈ 0.80, recall@20 = 1.00) and weak on `indirect` (0.50), `general` (0.20), and `business-process` (0.40). The standard move here is a second retriever that reads meaning rather than surface tokens, fused with BM25 by Reciprocal Rank Fusion (RRF) — no tuning, no threshold, just interleaved ranks. Any query where one retriever nails it carries the fused result; queries where both fail stay failed and surface in the eval as genuine gaps.
+
+Mechanically: an embedding model turns each chunk (and each query) into a vector; pgvector stores the chunk vectors with an HNSW index; retrieval returns BM25 top-K and vector top-K, then RRF combines them. The existing `ChunkInspector` admin tab already shows what a chunk looks like, so the chunking step is not new work.
+
+### Picking an embedding model
+
+Three questions decide the model: **deployment target** (GPU available or CPU-only), **quality floor** (how much recall lift you need), and **latency budget** (query-time embedding adds to every search).
+
+**Quality tiers, open-source, as of 2026:**
+
+| Tier | Model | Params | Dim | Notes |
+|------|-------|--------|-----|-------|
+| Top | Qwen3-Embedding-8B | 8 B | ≤ 4096 | SOTA open, multilingual + code |
+| Strong | Qwen3-Embedding-4B | 4 B | ≤ 4096 | GPU-class; int8 makes it CPU-viable with patience |
+| Balanced | bge-m3 | 568 M | 1024 | Dense + sparse + ColBERT in one model |
+| Balanced | Qwen3-Embedding-0.6B | 600 M | up to 1024 | Small-but-strong, code-aware |
+| Balanced | nomic-embed-text-v1.5 | 137 M | 768 (Matryoshka 64–768) | Fully open, 8K context |
+| Light | bge-small-en-v1.5 | 33 M | 384 | Small, fast, solid English |
+| Light | mxbai-embed-large-v1 | 335 M | 1024 | Good English baseline |
+
+Configuration points that apply to all of them:
+
+1. **Prompt prefixes matter.** nomic uses `search_document: …` / `search_query: …`. Qwen3 uses instruction prompts per the model card. bge-m3 is optional but benefits from an instruction. Wrong or missing prefixes silently tank recall — verify with two or three known-good queries after any model change.
+2. **Normalize vectors and use cosine distance** (`<=>` in pgvector). All the models above are trained with cosine; using `<->` (L2) on un-normalized vectors is a common silent bug.
+3. **Index**: `hnsw` over `ivfflat` at this corpus size (~1K pages, few-K chunks). Start `m = 16, ef_construction = 64`; tune `ef_search` per query for the recall/latency tradeoff. Rebuild the index only when the embedding model changes.
+4. **Matryoshka truncation** (nomic, Qwen3) lets you store full-dim and query-truncate for a real speedup with small recall cost — apply only after measuring the default.
+5. **Quantization**: fp16 is the default; int8 roughly halves memory and doubles CPU throughput for < 0.5 % MTEB loss. Use it on CPU; usually unnecessary on GPU.
+6. **Chunk size**: 512 tokens with 64-token overlap is a good default; raise to 1024 for long design docs. The chunker already exists; `ChunkInspector` is the debugging tool for this.
+
+### Deployment target A: GPU box (reference: RTX 4060 Ti 16 GB)
+
+Fits comfortably: Qwen3-Embedding-0.6B, bge-m3, nomic, any light-tier model. Fits tightly: Qwen3-Embedding-4B (fp16 ≈ 8 GB, q4 ≈ 4 GB). Does not fit with any serious local LLM also resident: Qwen3-Embedding-8B or NV-Embed-v2.
+
+Recommended default for a dev-wiki use case: **Qwen3-Embedding-0.6B, fp16, normalized, cosine, HNSW**. Code-aware, strong benchmarks, plenty of VRAM headroom if an LLM lands on the same card later. Move up to bge-m3 if you want the built-in sparse head, which could eventually replace Lucene BM25 and collapse the hybrid stack into a single model. Move up to Qwen3-4B only if the eval shows a persistent quality ceiling on `indirect` / `business-process`.
+
+Expected query-embed latency (single query, fp16):
+
+| Model | VRAM | Query latency |
+|-------|------|---------------|
+| nomic | ~0.3 GB | 3–5 ms |
+| bge-m3 | ~1.2 GB | 10–20 ms |
+| Qwen3-0.6B | ~1.5 GB | 15–30 ms |
+| Qwen3-4B | ~8 GB (fp16) | 60–120 ms |
+
+### Deployment target B: CPU-only box
+
+This is the interesting case — customer-site deployments, ops boxes without a GPU, or a dedicated mini-PC. The reference we're planning against:
+
+**NiPoGi AM06 PRO** — AMD Ryzen 7 7730U (Zen 3, 8C/16T, AVX2 + FMA3, **no AVX-512**, **no AMD NPU**), 32 GB RAM, 512 GB M.2 SSD, integrated Vega 8 iGPU (not useful for ML — ROCm on Barcelo is a dead end), dual GbE, configurable cTDP 10–25 W. Roughly 60–70 % of an Intel AVX-512/VNNI box of similar core count on int8 embedding workloads — slower than a discrete GPU by a factor of ~10–30×, but fast enough for a ~1K-page wiki.
+
+Top picks for CPU-only, ordered by the usual tradeoff:
+
+| Model | Params | Dim | CPU latency/query (Zen 3, int8) | Notes |
+|-------|--------|-----|--------------------------------|-------|
+| bge-small-en-v1.5 | 33 M | 384 | 10–20 ms | Tiny, fast, English-strong |
+| nomic-embed-text-v1.5 | 137 M | 768 | 30–80 ms | 8K context, Matryoshka, fully open |
+| bge-m3 | 568 M | 1024 | 50–90 ms | Unified dense + sparse + ColBERT |
+| Qwen3-Embedding-0.6B | 600 M | up to 1024 | 80–200 ms | Upper-bound CPU quality |
+
+Recommended default for this box: **bge-m3, int8 ONNX, served by Hugging Face `text-embeddings-inference` (TEI)**. Multi-functional dense+sparse in one model, production-grade HTTP server with batching and concurrent request handling, built-in Prometheus metrics, OpenAI-compatible `/v1/embeddings` endpoint, stable Docker image.
+
+Setup sketch (Ubuntu Server 24.04, Docker, bge-m3 int8):
+
+```bash
+# BIOS: set cTDP to 25 W if thermals hold, 20 W otherwise.
+# Verify with `stress-ng --cpu 16 --timeout 600s` while watching `sensors`.
+
+mkdir -p ~/tei/data
+cat > ~/tei/docker-compose.yml <<'YAML'
+services:
+  tei:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.6
+    restart: unless-stopped
+    ports: ["8001:80"]
+    volumes: ["./data:/data"]
+    environment:
+      OMP_NUM_THREADS: "8"          # physical cores, not logical
+      RUST_LOG: "info"
+    command: >
+      --model-id BAAI/bge-m3
+      --dtype float16
+      --max-batch-tokens 16384
+      --max-concurrent-requests 64
+      --pooling cls
+YAML
+docker compose -f ~/tei/docker-compose.yml up -d
+
+curl -s localhost:8001/embed \
+  -H 'content-type: application/json' \
+  -d '{"inputs": ["hello wikantik"]}' | jq '.[0] | length'
+# Expect 1024.
+```
+
+Pre-export int8 once if the image build doesn't auto-quantize:
+
+```bash
+optimum-cli export onnx --model BAAI/bge-m3 \
+    --task feature-extraction --device cpu ./data/bge-m3-onnx
+optimum-cli onnxruntime quantize --onnx_model ./data/bge-m3-onnx \
+    --avx2 -o ./data/bge-m3-onnx-int8
+# Then change --model-id to /data/bge-m3-onnx-int8.
+```
+
+Expected throughput on this box:
+
+- **Full reindex** (~1K pages × ~5 chunks = ~5K chunks): ~40–60 s, cold, one-shot. Rare event.
+- **Incremental on page save** (~5 chunks): ~300 ms — synchronous on save is fine.
+- **Query embed**: ~60–90 ms + pgvector HNSW ~5 ms + transport → end-to-end retrieval stays under ~150 ms.
+
+### Wikantik integration shape
+
+The wiki and PostgreSQL stay where they live today. Only the embedding transform moves to the GPU or mini-PC box. Concretely:
+
+1. **Schema migration** adds an `embeddings` table keyed on `(page, chunk_id)` with a `vector(dim)` column and an `hnsw` index. Empty table, reversible.
+2. **`EmbeddingClient`** in `wikantik-main` — small HTTP client that `POST`s to TEI's `/embed` (or local Ollama / whatever backend), with a connection pool, timeout, and retry. No heavyweight SDK needed.
+3. **Indexer hook** on the page-save pipeline: chunk the page, embed each chunk, upsert into `embeddings`. One-shot backfill script for the existing corpus.
+4. **Retrieval path**: `SearchResource` grows a hybrid branch — BM25 top-K (existing Lucene path) + vector top-K (pgvector) fused by RRF.
+5. **Feature flag** `wikantik.search.hybrid.enabled`. When off or the embedding service is unreachable, fall back to pure BM25. The flag decides whether the vector path runs; BM25 is always wired up as the safety net.
+
+### Security and ops for the embedding service
+
+- **Auth**: pass `--api-key` to TEI, put the shared secret in `wikantik-custom.properties`, send `Authorization: Bearer …` from `EmbeddingClient`.
+- **Network**: WireGuard or Tailscale tunnel between the wiki host and the embedding box; don't expose TEI on the LAN without auth.
+- **Metrics**: TEI exposes `/metrics` in Prometheus format — scrape it from the `wikantik-observability` stack. Alert on p95 request latency and container restarts.
+- **Updates**: pin the TEI image tag in `docker-compose.yml`; `docker compose pull && up -d` for upgrades.
+- **Thermal sanity**: small mini-PCs throttle under sustained load. Verify with `stress-ng` for 10+ minutes and watch `sensors` before committing a cTDP setting.
+
+### Gating the change on the eval
+
+Any dense / hybrid rollout commits to re-running `bin/search-eval` and diffing against the baseline in `docs/superpowers/specs/2026-04-17-retrieval-eval-baseline.md`. The merge criterion is **`indirect` and `general` recall@5 lift without regression on `specific` or `multi-word-concept`**. If `specific` drops more than ~0.05 while `indirect` lifts, the fusion weighting is wrong (or BM25 is being overridden) and the change isn't ready.
+
 ## Why a standalone tool (not a JUnit test)
 
 Previous versions of this harness lived inside `wikantik-main` as a `@Disabled` JUnit test that built its own `TestEngine` and indexed `docs/wikantik-pages/` into a scratch directory. That worked but wasn't the shape an eval tool wants:

@@ -140,4 +140,33 @@ class ChunkProjectorTest {
         assertEquals( before + chunkCount, after, 0.0001,
             "counter increased by the number of chunks produced" );
     }
+
+    @Test
+    void postChunkSinkReceivesChunkIdsAfterSuccessfulApply() {
+        final java.util.concurrent.atomic.AtomicReference< List< UUID > > captured =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        projector.setPostChunkSink( captured::set );
+        projector.projectPage( "SinkPage", Map.of(),
+            "Body with enough prose content to produce a single chunk of reasonable size "
+            + "so that the min-tokens floor does not cause merge-forward to swallow this "
+            + "buffer and we end up with at least one persisted chunk row in the database." );
+        final List< UUID > stored = repo.findByPage( "SinkPage" ).stream()
+            .map( ChunkDiff.Stored::id ).toList();
+        assertNotEquals( 0, stored.size(), "at least one chunk persisted" );
+        assertEquals( stored, captured.get(),
+            "sink receives exactly the IDs currently in the repository" );
+    }
+
+    @Test
+    void postChunkSinkExceptionDoesNotPropagate() {
+        projector.setPostChunkSink( ids -> {
+            throw new RuntimeException( "sink blew up" );
+        } );
+        assertDoesNotThrow( () -> projector.projectPage( "CrashPage", Map.of(),
+            "Body with enough prose content to produce a single chunk of reasonable size "
+            + "so that the min-tokens floor does not cause merge-forward to swallow this "
+            + "buffer and we end up with at least one persisted chunk row in the database." ) );
+        assertEquals( 1, repo.findByPage( "CrashPage" ).size(),
+            "chunks still committed despite sink failure" );
+    }
 }

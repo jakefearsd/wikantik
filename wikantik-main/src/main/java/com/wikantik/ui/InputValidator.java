@@ -25,7 +25,6 @@ import com.wikantik.preferences.Preferences;
 
 import java.text.MessageFormat;
 import java.util.ResourceBundle;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -108,49 +107,34 @@ public final class InputValidator {
      * @return returns <code>true</code> if valid, <code>false</code> otherwise
      */
     public boolean validate( final String input, final String label, final int type ) {
-        // If blank, it's valid
+        return validate( input, label, toValidationType( type ) );
+    }
+
+    /**
+     * Type-safe overload of {@link #validate(String, String, int)}. Delegates match semantics
+     * and message wiring to the {@link ValidationType} strategy, so this method only decides
+     * what to do with the strategy's verdict.
+     */
+    public boolean validate( final String input, final String label, final ValidationType type ) {
         if ( isBlank( input ) ) {
             return true;
         }
-
-        final ResourceBundle rb = Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE );
-
-        // Otherwise, see if it matches the pattern for the target type
-        final Matcher matcher;
-        final boolean valid;
-        switch( type ) {
-        case STANDARD:
-            matcher = UNSAFE_PATTERN.matcher( input );
-            valid = !matcher.find();
-            if ( !valid ) {
-                // MessageTag already invokes replaceEntities()
-                // Object[] args = { label, "&quot;&#39;&lt;&gt;;&amp;[]#\\@{}%$" };
-                final Object[] args = { label, "'\"<>;&[]#\\@{}%$" };
-                session.addMessage( form, MessageFormat.format( rb.getString( "validate.unsafechars" ), args ) );
-            }
-            return valid;
-        case EMAIL:
-            matcher = EMAIL_PATTERN.matcher( input );
-            valid = matcher.matches();
-            if ( !valid ) {
-                final Object[] args = { label };
-                session.addMessage( form, MessageFormat.format( rb.getString( "validate.invalidemail" ), args ) );
-            }
-            return valid;
-        case ID:
-            matcher = ID_PATTERN.matcher( input );
-            valid = !matcher.find();
-            if ( !valid ) {
-                // MessageTag already invokes replaceEntities()
-                // Object[] args = { label, "&quot;&#39;&lt;&gt;;&amp;{}" };
-                final Object[] args = { label, "'\"<>;&{}" };
-                session.addMessage( form, MessageFormat.format( rb.getString( "validate.unsafechars" ), args ) );
-            }
-            return valid;
-         default:
-             break;
+        if ( type.isValid( input ) ) {
+            return true;
         }
-        throw new IllegalArgumentException( "Invalid input type." );
+        final ResourceBundle rb = Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE );
+        session.addMessage( form,
+                MessageFormat.format( rb.getString( type.messageKey() ), type.messageArgs( label ) ) );
+        return false;
+    }
+
+    private static ValidationType toValidationType( final int type ) {
+        return switch ( type ) {
+            case STANDARD -> ValidationType.STANDARD;
+            case EMAIL    -> ValidationType.EMAIL;
+            case ID       -> ValidationType.ID;
+            default       -> throw new IllegalArgumentException( "Invalid input type." );
+        };
     }
 
     /**

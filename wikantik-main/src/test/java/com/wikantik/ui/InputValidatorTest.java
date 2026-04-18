@@ -92,4 +92,29 @@ public class InputValidatorTest
         Assertions.assertFalse( val.validateNotNull("foobar@foo", "E-mail", InputValidator.EMAIL) );
     }
 
+    @Test
+    public void testValidateId()
+    {
+        Assertions.assertTrue( val.validate( "Test string", "Name", InputValidator.ID ) );
+        Assertions.assertFalse( val.validate( "Test <string>", "Name", InputValidator.ID ) );
+        Assertions.assertFalse( val.validate( "Test 'string'", "Name", InputValidator.ID ) );
+        Assertions.assertFalse( val.validate( "Test \"string\"", "Name", InputValidator.ID ) );
+        Assertions.assertFalse( val.validate( "Test;string", "Name", InputValidator.ID ) );
+        Assertions.assertFalse( val.validate( "Test&string", "Name", InputValidator.ID ) );
+        Assertions.assertFalse( val.validate( "Test{string}", "Name", InputValidator.ID ) );
+        // ID allows chars STANDARD rejects, e.g. $ and @
+        Assertions.assertTrue( val.validate( "foo$bar", "Name", InputValidator.ID ) );
+        Assertions.assertTrue( val.validate( "foo@bar", "Name", InputValidator.ID ) );
+        // Null/blank are always valid
+        Assertions.assertTrue( val.validate( "", "Name", InputValidator.ID ) );
+        Assertions.assertTrue( val.validate( null, "Name", InputValidator.ID ) );
+    }
+
+    @Test
+    public void testValidateUnknownTypeThrows()
+    {
+        Assertions.assertThrows( IllegalArgumentException.class,
+                () -> val.validate( "non-blank", "Name", 999 ) );
+    }
+
 }

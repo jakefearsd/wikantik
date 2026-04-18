@@ -6,6 +6,70 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-16** — docs(spec): production db deployment workflow plan
+
+**2026-04-16** — feat(rest): support wildcard origins in cors allowedOrigins
+
+**2026-04-16** — fix(it): clean up stale pgvector containers before docker:start
+
+**2026-04-16** — refactor(infra): move db scripts and deploy-local.sh to bin/
+
+**2026-04-14** — refactor(jdbc): remove HSQLDB enum value and all stale references
+
+**2026-04-14** — chore(it): replace password-looking literal with filter variable
+
+**2026-04-14** — fix(ui,it,sso): re-enable HubDiscovery ITs and quiet expected SSO errors
+
+**2026-04-14** — refactor(it): replace HSQLDB with PostgreSQL+pgvector across all tests
+
+**2026-04-13** — docs(spec): design for HSQLDB removal, PG+pgvector everywhere in ITs
+
+**2026-04-13** — feat(sso): end-to-end OIDC IT + fix post-callback session translation
+
+**2026-04-13** — Update OAuthImplementation.md
+
+**2026-04-13** — docs(readme): document pgvector prerequisite + install instructions
+
+**2026-04-13** — feat(logging): add INFO audit trail for admin actions
+
+**2026-04-13** — test(knowledge): cover snapshot cache invalidation + tag-filter edge cases
+
+**2026-04-13** — fix(graph): backbone +1 hop respects hub-only set, not accumulating set
+
+**2026-04-13** — fix(graph): bidi merge no longer flags same-direction duplicates
+
+**2026-04-13** — refactor(graph): extract log-scale zoom math + add slider tests
+
+**2026-04-13** — docs: wiki content updates and hub/indexing plans
+
+**2026-04-13** — fix(graph): finer zoom slider steps and narrower usable range
+
+**2026-04-13** — fix(graph): log-scale the zoom slider so small moves aren't huge zooms
+
+**2026-04-13** — fix(graph): stack FilterPanel and toolbar above canvas instead of overlay
+
+**2026-04-12** — fix(it): use label-based selector for +1 hop checkbox in GraphFilterViewsIT
+
+**2026-04-12** — test(it): Selenide IT covering graph filter presets and URL sync
+
+**2026-04-12** — feat(graph): wire FilterPanel + URL sync into GraphView
+
+**2026-04-12** — feat(graph): URL sync for filter state (parse/serialize)
+
+**2026-04-12** — feat(graph): FilterPanel UI with presets, contextual controls, chips
+
+**2026-04-12** — feat(graph): Cytoscape classes for hidden/faded filter states
+
+**2026-04-12** — feat(graph): pure applyFilters engine for client-side view modes
+
+**2026-04-12** — feat(graph): filter state model with presets and orthogonal controls
+
+**2026-04-12** — feat(knowledge): expose cluster/tags/status in SnapshotNode DTO
+
+**2026-04-12** — docs(plan): graph filter views implementation plan
+
+**2026-04-12** — docs(spec): graph filter views design
+
 **2026-04-12** — docs: refresh README and linked docs; add MathematicalNotation
 
 **2026-04-12** — feat(math): LaTeX math expression rendering via Flexmark GitLab ext + KaTeX

@@ -4,15 +4,15 @@ tags:
 - uncategorized
 summary: OAuth SSO Implementation Plan for Google/GitHub Logins
 ---
-1. OAuth SSO Implementation Plan for Google/GitHub Logins
+# OAuth SSO Implementation Plan for Google/GitHub Logins
 
-  1. Executive Summary
+## Executive Summary
 
 Wikantik's JAAS-based architecture is **well-suited for OAuth integration**. The key insight is that passwords are optional in the user database, so OAuth users can be created without passwords and never use password-based login.
 
 ---
 
-  1. Required Components
+## Required Components
 
     1. 1. New Java Classes (~6-8 files)
 
@@ -34,16 +34,16 @@ Wikantik's JAAS-based architecture is **well-suited for OAuth integration**. The
     1. 3. Configuration (wikantik.properties)
 
 ```properties
-1. OAuth SSO Configuration
+# OAuth SSO Configuration
 jspwiki.oauth.enabled=true
 jspwiki.oauth.autoCreateUsers=true
 
-1. Google OAuth 2.0 / OpenID Connect
+# Google OAuth 2.0 / OpenID Connect
 jspwiki.oauth.google.enabled=true
 jspwiki.oauth.google.clientId=YOUR_CLIENT_ID
 jspwiki.oauth.google.clientSecret=YOUR_CLIENT_SECRET
 
-1. GitHub OAuth 2.0
+# GitHub OAuth 2.0
 jspwiki.oauth.github.enabled=true
 jspwiki.oauth.github.clientId=YOUR_CLIENT_ID
 jspwiki.oauth.github.clientSecret=YOUR_CLIENT_SECRET
@@ -57,10 +57,10 @@ jspwiki.oauth.github.clientSecret=YOUR_CLIENT_SECRET
 
 ---
 
-  1. OAuth Flow Integration
+## OAuth Flow Integration
 
 ```
-1. User clicks "Login with Google" on LoginContent.jsp
+# User clicks "Login with Google" on LoginContent.jsp
                     ↓
 2. OAuthCallbackServlet redirects to Google consent screen
                     ↓
@@ -91,9 +91,9 @@ jspwiki.oauth.github.clientSecret=YOUR_CLIENT_SECRET
 
 ---
 
-  1. User Account Creation Strategy
+## User Account Creation Strategy
 
-    1. Option A: Email-Based Linking (Recommended)
+### Option A: Email-Based Linking (Recommended)
 
 ```java
 // In OAuthLoginModule.login()
@@ -116,7 +116,7 @@ try {
 }
 ```
 
-    1. Login Name Generation Options
+### Login Name Generation Options
 
 - `google_123456789` (provider + ID)
 - `john.smith` (email local part)
@@ -124,7 +124,7 @@ try {
 
 ---
 
-  1. Key Technical Insights
+## Key Technical Insights
 
     1. 1. Password-less Users Work Out-of-Box
 
@@ -154,7 +154,7 @@ Both XMLUserDatabase and JDBCUserDatabase support:
 
 ---
 
-  1. Challenges & Solutions
+## Challenges & Solutions
 
 | Challenge | Solution |
 |-----------|----------|
@@ -166,7 +166,7 @@ Both XMLUserDatabase and JDBCUserDatabase support:
 
 ---
 
-  1. Estimated Effort
+## Estimated Effort
 
 | Phase | Effort | Description |
 |-------|--------|-------------|
@@ -179,7 +179,7 @@ Both XMLUserDatabase and JDBCUserDatabase support:
 
 ---
 
-  1. Architecture Decision: Servlet + LoginModule Hybrid
+## Architecture Decision: Servlet + LoginModule Hybrid
 
   - Recommended approach**:
 
@@ -198,7 +198,7 @@ This separation keeps OAuth protocol details out of JAAS and allows the LoginMod
 
 ---
 
-  1. Files to Modify (Existing)
+## Files to Modify (Existing)
 
 | File | Change |
 |------|--------|
@@ -209,36 +209,36 @@ This separation keeps OAuth protocol details out of JAAS and allows the LoginMod
 
 ---
 
-  1. Key Code Locations
+## Key Code Locations
 
-    1. Authentication Flow
+### Authentication Flow
 - Entry: `WikiServletFilter.doFilter()` line 120
 - Manager: `DefaultAuthenticationManager.login()` lines 156-240
 - Session: `WikiSession.getWikiSession()` line 483
 - Event handling: `WikiSession.actionPerformed()` line 244
 
-    1. User Management
+### User Management
 - Profile interface: `/auth/user/UserProfile.java`
 - Profile impl: `/auth/user/DefaultUserProfile.java`
 - Database interface: `/auth/user/UserDatabase.java`
 - Database impl: `/auth/user/XMLUserDatabase.java`, `/auth/user/JDBCUserDatabase.java`
 
-    1. Login Modules
+### Login Modules
 - Abstract: `/auth/login/AbstractLoginModule.java`
 - User database: `/auth/login/UserDatabaseLoginModule.java` lines 66-108
 - Callback base: `/auth/login/WikiCallbackHandler.java`
 
-    1. Configuration
+### Configuration
 - Properties loaded: `DefaultAuthenticationManager.initialize()` line 110
 - Options extraction: `DefaultAuthenticationManager.initLoginModuleOptions()` line 375
 
-    1. UI
+### UI
 - Login page: `/wikantik-war/src/main/webapp/Login.jsp`
 - Login form: `/wikantik-war/src/main/webapp/templates/default/LoginContent.jsp`
 
 ---
 
-  1. Conclusion
+## Conclusion
 
 Implementing OAuth SSO for Google/GitHub in Wikantik is **architecturally straightforward** due to:
 

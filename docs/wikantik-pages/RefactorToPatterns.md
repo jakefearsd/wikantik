@@ -4,31 +4,31 @@ tags:
 - uncategorized
 summary: Gang of Four Design Pattern Refactoring Opportunities
 ---
-1. Gang of Four Design Pattern Refactoring Opportunities
+# Gang of Four Design Pattern Refactoring Opportunities
 
 This document outlines practical refactoring opportunities to apply well-known Gang of Four design patterns to improve the Wikantik codebase architecture.
 
-  1. Overview
+## Overview
 
 Based on comprehensive analysis of the Wikantik codebase, six high-value refactoring opportunities have been identified. These patterns would improve code maintainability, testability, and extensibility.
 
 ---
 
-  1. Priority 1: [Decorator Pattern](DecoratorPattern) Generalization for Providers
+## Priority 1: [Decorator Pattern](DecoratorPattern) Generalization for Providers
 
-    1. Current State
+### Current State
 
 `CachingProvider` wraps `PageProvider` but this pattern isn't generalized.
 
-  - Code Location:** `wikantik-main/src/main/java/org/apache/wiki/providers/CachingProvider.java:63-102`
+**Code Location:** `wikantik-main/src/main/java/org/apache/wiki/providers/CachingProvider.java:63-102`
 
-    1. Problem
+### Problem
 
 - CachingProvider is tightly coupled to EhCache implementation
 - No easy way to add other cross-cutting concerns (logging, metrics, access control)
 - Attachment caching uses a completely separate class (`CachingAttachmentProvider`)
 
-    1. Recommended Pattern: Generalized Provider Decorator
+### Recommended Pattern: Generalized Provider Decorator
 
 ```java
 // Base decorator for PageProvider
@@ -52,34 +52,34 @@ public class MetricsPageProviderDecorator extends PageProviderDecorator { ... }
 public class LoggingPageProviderDecorator extends PageProviderDecorator { ... }
 ```
 
-    1. Benefits
+### Benefits
 
 - Single Responsibility Principle - each decorator handles one concern
 - Easy to compose decorators: `new Caching(new Logging(new FileSystem()))`
 - Same pattern applies to AttachmentProvider
 
-  - Effort:** Medium | **Impact:** High
+**Effort:** Medium | **Impact:** High
 
 ---
 
-  1. Priority 2: Abstract Factory for Storage Backends
+## Priority 2: Abstract Factory for Storage Backends
 
-    1. Current State
+### Current State
 
 Providers are instantiated independently via `ClassUtil.buildInstance()`:
 - `PageManager` creates its `PageProvider`
 - `AttachmentManager` creates its `AttachmentProvider`
 - `SearchManager` creates its `SearchProvider`
 
-  - Code Location:** `wikantik-main/src/main/java/org/apache/wiki/WikiEngine.java:272-310`
+**Code Location:** `wikantik-main/src/main/java/org/apache/wiki/WikiEngine.java:272-310`
 
-    1. Problem
+### Problem
 
 - No guarantee providers are compatible (e.g., JDBC page provider with file-based attachments)
 - Configuration scattered across multiple properties
 - Hard to add new storage backends (e.g., cloud storage)
 
-    1. Recommended Pattern: Abstract Factory
+### Recommended Pattern: Abstract Factory
 
 ```java
 public interface StorageBackendFactory {
@@ -116,19 +116,19 @@ public class VersioningFileStorageFactory implements StorageBackendFactory {
 }
 ```
 
-    1. Benefits
+### Benefits
 
 - Ensures provider compatibility
 - Simplifies configuration (one property instead of three)
 - Easy to add new storage backends as a unit
 
-  - Effort:** Medium | **Impact:** High
+**Effort:** Medium | **Impact:** High
 
 ---
 
-  1. Priority 3: Builder Pattern for Engine Initialization
+## Priority 3: Builder Pattern for Engine Initialization
 
-    1. Current State
+### Current State
 
 `WikiEngine.initialize()` has 25+ sequential `initComponent()` calls with implicit ordering:
 
@@ -139,15 +139,15 @@ initComponent( PageManager.class, this, props );
 // ... 20+ more
 ```
 
-  - Code Location:** `wikantik-main/src/main/java/org/apache/wiki/WikiEngine.java:272-310`
+**Code Location:** `wikantik-main/src/main/java/org/apache/wiki/WikiEngine.java:272-310`
 
-    1. Problem
+### Problem
 
 - Dependencies between managers are implicit (comment says RenderingManager depends on FilterManager)
 - Hard to test with partial initialization
 - No way to customize initialization order
 
-    1. Recommended Pattern: Builder with Dependency Declaration
+### Recommended Pattern: Builder with Dependency Declaration
 
 ```java
 public class WikiEngineBuilder {
@@ -179,19 +179,19 @@ WikiEngine engine = new WikiEngineBuilder()
     .build(props);
 ```
 
-    1. Benefits
+### Benefits
 
 - Explicit dependency declaration
 - Automatic dependency resolution
 - Easier testing with subset of managers
 
-  - Effort:** High | **Impact:** Medium
+**Effort:** High | **Impact:** Medium
 
 ---
 
-  1. Priority 4: Strategy Pattern for Property Caching
+## Priority 4: Strategy Pattern for Property Caching
 
-    1. Current State
+### Current State
 
 `VersioningFileProvider.CachedProperties` is a single-entry cache:
 
@@ -204,15 +204,15 @@ private static class CachedProperties {
 private CachedProperties m_cachedProperties;  // Only ONE entry!
 ```
 
-  - Code Location:** `wikantik-main/src/main/java/org/apache/wiki/providers/VersioningFileProvider.java:697-720`
+**Code Location:** `wikantik-main/src/main/java/org/apache/wiki/providers/VersioningFileProvider.java:697-720`
 
-    1. Problem
+### Problem
 
 - Only caches last-accessed properties file
 - Accessing A→B→A causes 3 disk reads instead of 2
 - Comment admits "there is likely to be little performance gain" but doesn't prove it
 
-    1. Recommended Pattern: Strategy Pattern for Cache Implementation
+### Recommended Pattern: Strategy Pattern for Cache Implementation
 
 ```java
 public interface PropertyCacheStrategy {
@@ -240,19 +240,19 @@ public class NoOpPropertyCache implements PropertyCacheStrategy {
 }
 ```
 
-    1. Benefits
+### Benefits
 
 - Configurable cache size via property
 - Easy to benchmark different strategies
 - Better separation of concerns
 
-  - Effort:** Low | **Impact:** Medium (synergizes with disk I/O optimizations)
+**Effort:** Low | **Impact:** Medium (synergizes with disk I/O optimizations)
 
 ---
 
-  1. Priority 5: Type-Safe Event System
+## Priority 5: Type-Safe Event System
 
-    1. Current State
+### Current State
 
 Events use integer constants:
 
@@ -269,16 +269,16 @@ public static final int PAGE_UNLOCK = 12;
 public static final int PAGE_REQUESTED = 20;
 ```
 
-  - Code Location:** `jspwiki-event/src/main/java/org/apache/wiki/event/WikiEvent.java`
+**Code Location:** `jspwiki-event/src/main/java/org/apache/wiki/event/WikiEvent.java`
 
-    1. Problem
+### Problem
 
 - No compile-time type safety
 - Easy to use wrong event type constant
 - `switch` statements on int values scattered through codebase
 - Can't use generics for type-safe listeners
 
-    1. Recommended Pattern: Type-Safe Event Hierarchy with Visitor
+### Recommended Pattern: Type-Safe Event Hierarchy with Visitor
 
 ```java
 // Sealed event hierarchy (Java 17+)
@@ -319,20 +319,20 @@ public interface PageEventListener {
 }
 ```
 
-    1. Benefits
+### Benefits
 
 - Compile-time type safety
 - Exhaustive switch checking with sealed classes
 - Better IDE support
 - Immutable events with records
 
-  - Effort:** High | **Impact:** Medium (modernization)
+**Effort:** High | **Impact:** Medium (modernization)
 
 ---
 
-  1. Priority 6: Template Method for Provider Lifecycle
+## Priority 6: Template Method for Provider Lifecycle
 
-    1. Current State
+### Current State
 
 All providers implement `initialize()` but lifecycle is inconsistent:
 
@@ -343,13 +343,13 @@ public interface WikiProvider {
 }
 ```
 
-    1. Problem
+### Problem
 
 - No standard shutdown/cleanup method
 - No reload capability
 - Providers manage their own initialization state inconsistently
 
-    1. Recommended Pattern: Template Method with Lifecycle Hooks
+### Recommended Pattern: Template Method with Lifecycle Hooks
 
 ```java
 public abstract class AbstractWikiProvider implements WikiProvider {
@@ -389,18 +389,18 @@ public abstract class AbstractWikiProvider implements WikiProvider {
 }
 ```
 
-    1. Benefits
+### Benefits
 
 - Consistent lifecycle across all providers
 - Reloadable providers for configuration changes
 - Clean shutdown for resource cleanup
 - Validation hooks for early failure
 
-  - Effort:** Medium | **Impact:** Medium
+**Effort:** Medium | **Impact:** Medium
 
 ---
 
-  1. Implementation Roadmap
+## Implementation Roadmap
 
 | Priority | Pattern | Effort | Impact | Dependencies |
 |----------|---------|--------|--------|--------------|
@@ -411,17 +411,17 @@ public abstract class AbstractWikiProvider implements WikiProvider {
 | 5 | Type-Safe Events | High | Medium | None |
 | 6 | Template Method (Lifecycle) | Medium | Medium | None |
 
-    1. Recommended Starting Point
+### Recommended Starting Point
 
   - Priority 4 (Strategy for Property Cache)** - Low effort, builds on existing performance work, demonstrates pattern value.
 
-    1. Quick Win Combination
+### Quick Win Combination
 
 Priority 1 + 4 together would significantly improve the provider architecture with moderate effort.
 
 ---
 
-  1. Existing Well-Implemented Patterns
+## Existing Well-Implemented Patterns
 
 The codebase already has excellent implementations of several patterns:
 

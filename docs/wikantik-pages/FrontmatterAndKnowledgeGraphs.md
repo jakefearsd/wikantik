@@ -156,7 +156,7 @@ parameters:
 capability: research
 ---
 # Instructions
-1. Use the `arxiv_api` tool to fetch results for the `query`.
+# Use the `arxiv_api` tool to fetch results for the `query`.
 2. Filter results based on the `topic` provided in the frontmatter.
 3. Return a summary of the top `max_results`.
 ```

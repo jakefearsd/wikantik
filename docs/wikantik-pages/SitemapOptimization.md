@@ -4,41 +4,41 @@ tags:
 - uncategorized
 summary: 'Sitemap.xml Optimization Research: The Ideal Output for Google Search'
 ---
-1. Sitemap.xml Optimization Research: The Ideal Output for Google Search
+# Sitemap.xml Optimization Research: The Ideal Output for Google Search
 
-  1. Executive Summary
+## Executive Summary
 
 This document explores what values beyond the basic URL help Google understand and index content, and what the "best possible outcome" sitemap looks like for optimal search visibility.
 
-  - Key Finding:** Google ignores `<changefreq>` and `<priority>` values. The only universally valuable optional field is `<lastmod>`, and only if it's **accurate**. However, **sitemap extensions** (image, video, hreflang) provide significant value for rich content and international sites.
+**Key Finding:** Google ignores `<changefreq>` and `<priority>` values. The only universally valuable optional field is `<lastmod>`, and only if it's **accurate**. However, **sitemap extensions** (image, video, hreflang) provide significant value for rich content and international sites.
 
 ---
 
-  1. Part 1: What Google Actually Uses vs. Ignores
+## Part 1: What Google Actually Uses vs. Ignores
 
-    1. 1.1 Fields Google Processes
+### 1.1 Fields Google Processes
 
 | Field | Status | Notes |
 |-------|--------|-------|
 | `<loc>` | **Required** | The canonical URL - must be accurate and accessible |
 | `<lastmod>` | **Conditional** | Used IF consistently accurate; ignored if manipulated |
 
-    1. 1.2 Fields Google Ignores
+### 1.2 Fields Google Ignores
 
 | Field | Status | Notes |
 |-------|--------|-------|
 | `<changefreq>` | **Ignored** | Google has publicly confirmed they ignore this |
 | `<priority>` | **Ignored** | Google has publicly confirmed they ignore this |
 
-  - Source:** [Google Search Central Documentation](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap) states:
+**Source:** [Google Search Central Documentation](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap) states:
 > "Google ignores `<priority>` and `<changefreq>` values."
 
-    1. 1.3 Why `<lastmod>` Matters (When Accurate)
+### 1.3 Why `<lastmod>` Matters (When Accurate)
 
 Google's documentation states:
 > "The `<lastmod>` value should reflect the date and time of the last **significant** update to the page. For example, an update to the main content, the structured data, or links on the page is generally considered significant, however an update to the copyright date is not."
 
-  - Critical Warning:** Google will stop trusting `<lastmod>` if:
+**Critical Warning:** Google will stop trusting `<lastmod>` if:
 - Dates are artificially inflated to appear "fresh"
 - Dates don't match actual content changes
 - Dates are updated without meaningful content changes
@@ -47,20 +47,20 @@ Google's documentation states:
 
 ---
 
-  1. Part 2: Sitemap Extensions That Add Real Value
+## Part 2: Sitemap Extensions That Add Real Value
 
 While the basic sitemap fields are limited, **extensions** provide substantial benefits for rich content discovery.
 
-    1. 2.1 Image Sitemap Extension
+### 2.1 Image Sitemap Extension
 
-  - Purpose:** Help Google discover images that might not be found through normal crawling (e.g., JavaScript-loaded images, images in carousels).
+**Purpose:** Help Google discover images that might not be found through normal crawling (e.g., JavaScript-loaded images, images in carousels).
 
-  - Namespace:**
+**Namespace:**
 ```xml
 xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 ```
 
-  - Example:**
+**Example:**
 ```xml
 <url>
   <loc>https://example.com/wiki/MainPage</loc>
@@ -74,25 +74,25 @@ xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
 </url>
 ```
 
-  - Benefits:**
+**Benefits:**
 - Images appear in Google Images search results
 - Better indexing of dynamically loaded images
 - Up to 1,000 images per URL entry
 
-  - Deprecated Tags:** Google no longer uses `<image:caption>`, `<image:geo_location>`, `<image:title>`, or `<image:license>`. Only `<image:loc>` is processed.
+**Deprecated Tags:** Google no longer uses `<image:caption>`, `<image:geo_location>`, `<image:title>`, or `<image:license>`. Only `<image:loc>` is processed.
 
-  - Source:** [Google Image Sitemaps Documentation](https://developers.google.com/search/docs/crawling-indexing/sitemaps/image-sitemaps)
+**Source:** [Google Image Sitemaps Documentation](https://developers.google.com/search/docs/crawling-indexing/sitemaps/image-sitemaps)
 
-    1. 2.2 Video Sitemap Extension
+### 2.2 Video Sitemap Extension
 
-  - Purpose:** Enable rich video search results and Video tab appearances.
+**Purpose:** Enable rich video search results and Video tab appearances.
 
-  - Namespace:**
+**Namespace:**
 ```xml
 xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"
 ```
 
-  - Required Tags:**
+**Required Tags:**
 ```xml
 <url>
   <loc>https://example.com/wiki/TutorialPage</loc>
@@ -107,7 +107,7 @@ xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"
 </url>
 ```
 
-  - Optional But Valuable Tags:**
+**Optional But Valuable Tags:**
 ```xml
 <video:duration>600</video:duration>              <!-- Seconds -->
 <video:publication_date>2024-11-01</video:publication_date>
@@ -115,23 +115,23 @@ xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"
 <video:live>no</video:live>
 ```
 
-  - Benefits:**
+**Benefits:**
 - Video thumbnails in search results
 - Eligibility for Video carousel
 - Enhanced click-through rates
 
-  - Source:** [XML Sitemaps Generator - Video Sitemap](https://www.xml-sitemaps.com/video-sitemap.html)
+**Source:** [XML Sitemaps Generator - Video Sitemap](https://www.xml-sitemaps.com/video-sitemap.html)
 
-    1. 2.3 News Sitemap Extension
+### 2.3 News Sitemap Extension
 
-  - Purpose:** Rapid indexing for news content (articles published within last 48 hours).
+**Purpose:** Rapid indexing for news content (articles published within last 48 hours).
 
-  - Namespace:**
+**Namespace:**
 ```xml
 xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"
 ```
 
-  - Example:**
+**Example:**
 ```xml
 <url>
   <loc>https://example.com/wiki/BreakingNews</loc>
@@ -146,29 +146,29 @@ xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"
 </url>
 ```
 
-  - Requirements:**
+**Requirements:**
 - Only include articles from the **last 2 days**
 - Remove older articles or strip `<news:news>` metadata
 - Maximum 1,000 URLs per news sitemap
 - Consider registering with [Google Publisher Center](https://support.google.com/news/publisher-center/answer/9606709)
 
-  - Benefits:**
+**Benefits:**
 - Faster indexing (within minutes for approved publishers)
 - Eligibility for Google News and Top Stories
 - Higher visibility for timely content
 
-  - Source:** [Google News Sitemap Documentation](https://developers.google.com/search/docs/crawling-indexing/sitemaps/news-sitemap)
+**Source:** [Google News Sitemap Documentation](https://developers.google.com/search/docs/crawling-indexing/sitemaps/news-sitemap)
 
-    1. 2.4 Hreflang for International/Multilingual Content
+### 2.4 Hreflang for International/Multilingual Content
 
-  - Purpose:** Tell Google about language and regional variations of pages to serve the right version to users.
+**Purpose:** Tell Google about language and regional variations of pages to serve the right version to users.
 
-  - Namespace:**
+**Namespace:**
 ```xml
 xmlns:xhtml="http://www.w3.org/1999/xhtml"
 ```
 
-  - Example:**
+**Example:**
 ```xml
 <url>
   <loc>https://example.com/wiki/MainPage</loc>
@@ -179,28 +179,28 @@ xmlns:xhtml="http://www.w3.org/1999/xhtml"
 </url>
 ```
 
-  - Critical Requirements:**
+**Critical Requirements:**
 - **Bidirectional:** Every page must link to all alternates AND itself
 - **Self-referential:** Include the current page in the list
 - **x-default:** Designates the fallback for unmatched languages
 
-  - Language Code Format:**
+**Language Code Format:**
 - Language only: `en`, `de`, `fr`
 - Language + region: `en-US`, `en-GB`, `de-AT`
 - Uses ISO 639-1 (language) + ISO 3166-1 Alpha 2 (region)
 
-  - Benefits:**
+**Benefits:**
 - Correct regional content served to users
 - Consolidated ranking signals across language versions
 - Reduced duplicate content issues
 
-  - Source:** [Google Localized Versions Documentation](https://developers.google.com/search/docs/specialty/international/localized-versions)
+**Source:** [Google Localized Versions Documentation](https://developers.google.com/search/docs/specialty/international/localized-versions)
 
 ---
 
-  1. Part 3: The Ideal Sitemap Structure
+## Part 3: The Ideal Sitemap Structure
 
-    1. 3.1 Complete Example with All Extensions
+### 3.1 Complete Example with All Extensions
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -256,9 +256,9 @@ xmlns:xhtml="http://www.w3.org/1999/xhtml"
 </urlset>
 ```
 
-    1. 3.2 What NOT to Include
+### 3.2 What NOT to Include
 
-  - Do NOT include in sitemap:**
+**Do NOT include in sitemap:**
 - URLs that return non-200 status codes
 - URLs blocked by robots.txt
 - URLs with `noindex` meta tags
@@ -267,7 +267,7 @@ xmlns:xhtml="http://www.w3.org/1999/xhtml"
 - Admin/system pages
 - Duplicate content
 
-  - For Wikantik specifically, exclude:**
+**For Wikantik specifically, exclude:**
 - LeftMenu, RightMenu, TitleBox, PageHeader, PageFooter
 - CSS* pages
 - Login.jsp, UserPreferences.jsp (administrative)
@@ -275,9 +275,9 @@ xmlns:xhtml="http://www.w3.org/1999/xhtml"
 
 ---
 
-  1. Part 4: Technical Best Practices
+## Part 4: Technical Best Practices
 
-    1. 4.1 File Size and URL Limits
+### 4.1 File Size and URL Limits
 
 | Limit | Value |
 |-------|-------|
@@ -285,7 +285,7 @@ xmlns:xhtml="http://www.w3.org/1999/xhtml"
 | Maximum uncompressed size | 50 MB |
 | Recommended for performance | < 10,000 URLs |
 
-  - For larger sites:** Use a sitemap index file:
+**For larger sites:** Use a sitemap index file:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -301,21 +301,21 @@ xmlns:xhtml="http://www.w3.org/1999/xhtml"
 </sitemapindex>
 ```
 
-    1. 4.2 Compression
+### 4.2 Compression
 
 Use gzip compression for large sitemaps:
 - Filename: `sitemap.xml.gz`
 - Reduces bandwidth and speeds up crawling
 - Google automatically decompresses
 
-    1. 4.3 Date Formats
+### 4.3 Date Formats
 
 Use ISO 8601 format:
 - Date only: `2024-11-28`
 - With time: `2024-11-28T14:30:00+00:00`
 - UTC: `2024-11-28T14:30:00Z`
 
-    1. 4.4 URL Canonicalization
+### 4.4 URL Canonicalization
 
 Ensure consistency:
 - Choose www vs non-www and stick to it
@@ -331,7 +331,7 @@ Ensure consistency:
 <loc>http://www.wiki.example.com/Documentation/</loc>
 ```
 
-    1. 4.5 Submission Methods
+### 4.5 Submission Methods
 
 1. **Google Search Console** (recommended)
    - Submit sitemap URL
@@ -350,9 +350,9 @@ Ensure consistency:
 
 ---
 
-  1. Part 5: Current Wikantik Implementation Analysis
+## Part 5: Current Wikantik Implementation Analysis
 
-    1. 5.1 Current State
+### 5.1 Current State
 
 The existing `SitemapServlet.java` (wikantik-main/src/main/java/org/apache/wiki/ui/SitemapServlet.java) generates:
 
@@ -365,19 +365,19 @@ The existing `SitemapServlet.java` (wikantik-main/src/main/java/org/apache/wiki/
 </url>
 ```
 
-  - What it does well:**
+**What it does well:**
 - Excludes menu/template pages (LeftMenu, TitleBox, etc.)
 - Checks page permissions (only public pages)
 - Uses accurate `lastmod` from page metadata
 - Proper XML escaping
 
-  - Opportunities for improvement:**
+**Opportunities for improvement:**
 - Remove `<changefreq>` and `<priority>` (wasted bytes)
 - Add image extension for attachments
 - Add hreflang for multi-language wiki pages
 - Consider sitemap index for large wikis
 
-    1. 5.2 Recommended Enhancements
+### 5.2 Recommended Enhancements
 
   - Priority 1: Remove Ignored Fields**
 ```java
@@ -413,9 +413,9 @@ out.println( "    <xhtml:link rel=\"alternate\" hreflang=\"en\" " +
 
 ---
 
-  1. Part 6: Measuring Success
+## Part 6: Measuring Success
 
-    1. 6.1 Google Search Console Metrics
+### 6.1 Google Search Console Metrics
 
 After implementing an optimized sitemap, monitor:
 
@@ -426,30 +426,30 @@ After implementing an optimized sitemap, monitor:
 | **Crawl stats** | Efficient crawling, no wasted requests |
 | **Rich results** | Increased if using image/video extensions |
 
-    1. 6.2 Expected Outcomes
+### 6.2 Expected Outcomes
 
-  - With basic optimized sitemap:**
+**With basic optimized sitemap:**
 - Faster discovery of new/updated pages
 - More accurate `lastmod` signals improve crawl efficiency
 - Reduced crawl budget waste (no non-indexable URLs)
 
-  - With image extension:**
+**With image extension:**
 - Improved Google Images visibility
 - Better image indexing for wiki attachments
 
-  - With video extension:**
+**With video extension:**
 - Video thumbnails in search results
 - Eligibility for video carousels
 
-  - With hreflang:**
+**With hreflang:**
 - Correct language versions served to international users
 - Consolidated ranking power across translations
 
 ---
 
-  1. Part 7: Summary - The Ideal Sitemap
+## Part 7: Summary - The Ideal Sitemap
 
-    1. What to Include
+### What to Include
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -474,7 +474,7 @@ After implementing an optimized sitemap, monitor:
 </urlset>
 ```
 
-    1. What NOT to Include
+### What NOT to Include
 
 - `<changefreq>` - Google ignores it
 - `<priority>` - Google ignores it
@@ -483,9 +483,9 @@ After implementing an optimized sitemap, monitor:
 - URLs blocked by robots.txt
 - Pages with noindex directives
 
-    1. The Bottom Line
+### The Bottom Line
 
-  - The ideal sitemap is:**
+**The ideal sitemap is:**
 1. **Accurate** - Only valid, canonical URLs with correct lastmod dates
 2. **Complete** - All indexable public content included
 3. **Rich** - Image/video extensions where applicable
@@ -494,7 +494,7 @@ After implementing an optimized sitemap, monitor:
 
 ---
 
-  1. Sources
+## Sources
 
 - [Google Search Central - Build and Submit a Sitemap](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap)
 - [Google Image Sitemaps Documentation](https://developers.google.com/search/docs/crawling-indexing/sitemaps/image-sitemaps)

@@ -4,11 +4,11 @@ tags:
 - uncategorized
 summary: Wikantik Logging Configuration Guide
 ---
-1. Wikantik Logging Configuration Guide
+# Wikantik Logging Configuration Guide
 
-  1. Understanding `jspwiki.use.external.logconfig`
+## Understanding `jspwiki.use.external.logconfig`
 
-    1. The Logging Stack
+### The Logging Stack
 
 Your Wikantik 3.0.2 uses this logging architecture:
 ```
@@ -24,17 +24,17 @@ The JARs in your `/opt/tomcat/webapps/ROOT/WEB-INF/lib/`:
 - `log4j-core-2.25.2.jar` - Log4j2 implementation
 - `log4j-1.2-api-2.25.2.jar` - Bridges old Log4j 1.x calls
 
-    1. How `jspwiki.use.external.logconfig` Works
+### How `jspwiki.use.external.logconfig` Works
 
 When Wikantik starts, `WikiBootstrapServletContextListener.initWikiLoggingFramework()` reads this property:
 
-  - When `false` (default):**
+**When `false` (default):**
 1. Wikantik reads all properties from `wikantik.properties` / `wikantik-custom.properties`
 2. It filters properties starting with: `appender`, `logger`, `rootLogger`, `filter`, `status`, `dest`, `name`, `properties`, `property`, or `log4j2`
 3. These are fed into Log4j2's `PropertiesConfigurationFactory`
 4. Log4j2 is reconfigured programmatically
 
-  - When `true`:**
+**When `true`:**
 1. Wikantik does nothing with logging configuration
 2. Log4j2 uses its standard automatic configuration mechanism
 3. It searches the classpath for: `log4j2-test.xml`, `log4j2.xml`, `log4j2.properties`
@@ -42,11 +42,11 @@ When Wikantik starts, `WikiBootstrapServletContextListener.initWikiLoggingFramew
 
 ---
 
-  1. External XML Configuration Setup
+## External XML Configuration Setup
 
 Use a separate `log4j2.xml` file with full Log4j2 capabilities.
 
-    1. Step 1: Set in wikantik-custom.properties
+### Step 1: Set in wikantik-custom.properties
 
 ```properties
 jspwiki.use.external.logconfig = true
@@ -54,7 +54,7 @@ jspwiki.use.external.logconfig = true
 
 Also remove any existing broken logging lines (log4j.* properties are Log4j 1.x syntax and will be ignored).
 
-    1. Step 2: Create /opt/tomcat/lib/log4j2.xml
+### Step 2: Create /opt/tomcat/lib/log4j2.xml
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -130,32 +130,32 @@ Also remove any existing broken logging lines (log4j.* properties are Log4j 1.x 
 </Configuration>
 ```
 
-    1. Step 3: Create the log directory
+### Step 3: Create the log directory
 
 ```bash
 sudo mkdir -p /var/log/jspwiki
 sudo chown tomcat:tomcat /var/log/jspwiki
 ```
 
-    1. Step 4: Restart Tomcat
+### Step 4: Restart Tomcat
 
 ```bash
 sudo systemctl restart tomcat
 ```
 
-    1. Step 5: Verify
+### Step 5: Verify
 
 ```bash
-1. Check catalina.out for startup messages
+# Check catalina.out for startup messages
 tail -f /opt/tomcat/logs/catalina.out
 
-1. Check new log files are created
+# Check new log files are created
 ls -la /var/log/jspwiki/
 ```
 
 ---
 
-  1. Customizing the Log Directory for Different Environments
+## Customizing the Log Directory for Different Environments
 
 The log directory is defined in the `<Properties>` section at the top of the XML file:
 
@@ -173,7 +173,7 @@ fileName="${logDir}/jspwiki.log"
 filePattern="${logDir}/jspwiki-%d{yyyy-MM-dd}-%i.log.gz"
 ```
 
-    1. Recommended Paths by Environment
+### Recommended Paths by Environment
 
 | Environment | Path | Notes |
 |-------------|------|-------|
@@ -183,7 +183,7 @@ filePattern="${logDir}/jspwiki-%d{yyyy-MM-dd}-%i.log.gz"
 | Portable | `${sys:catalina.base}/logs/jspwiki` | Relative to Tomcat install |
 | Java temp | `${sys:java.io.tmpdir}/jspwiki` | Uses Java's temp directory |
 
-    1. Using System Property Lookups
+### Using System Property Lookups
 
 The `${sys:...}` syntax references Java system properties, making configs portable across environments:
 
@@ -194,7 +194,7 @@ The `${sys:...}` syntax references Java system properties, making configs portab
 | `${sys:java.io.tmpdir}` | Java temp directory | `/tmp` |
 | `${sys:user.home}` | User home directory | `/home/tomcat` |
 
-  - Example for development/testing:**
+**Example for development/testing:**
 
 ```xml
 <Properties>
@@ -203,7 +203,7 @@ The `${sys:...}` syntax references Java system properties, making configs portab
 </Properties>
 ```
 
-    1. Environment Variables
+### Environment Variables
 
 You can also use environment variables with the `${env:...}` syntax:
 
@@ -213,23 +213,23 @@ You can also use environment variables with the `${env:...}` syntax:
 
 This uses `$JSPWIKI_LOG_DIR` if set, otherwise falls back to `/var/log/jspwiki`.
 
-    1. Important Reminders
+### Important Reminders
 
 1. **Permissions**: Ensure the `tomcat` user has write permission to the chosen directory
 2. **Create directory**: The directory must exist before Tomcat starts (Log4j2 won't create parent directories)
 3. **Disk space**: Choose a location with adequate space for log rotation
 
 ```bash
-1. Example setup for testing environment
+# Example setup for testing environment
 sudo mkdir -p /opt/tomcat/logs/jspwiki
 sudo chown tomcat:tomcat /opt/tomcat/logs/jspwiki
 ```
 
 ---
 
-  1. Log4j2 Configuration Reference
+## Log4j2 Configuration Reference
 
-    1. Log Levels (in order of severity)
+### Log Levels (in order of severity)
 
 | Level | Description |
 |-------|-------------|
@@ -240,7 +240,7 @@ sudo chown tomcat:tomcat /opt/tomcat/logs/jspwiki
 | ERROR | Error conditions |
 | FATAL | Critical errors causing shutdown |
 
-    1. Common Pattern Layout Tokens
+### Common Pattern Layout Tokens
 
 | Token | Description |
 |-------|-------------|
@@ -257,7 +257,7 @@ sudo chown tomcat:tomcat /opt/tomcat/logs/jspwiki
 | `%X{key}` | Thread context map (MDC) value |
 | `%highlight{pattern}` | ANSI color highlighting |
 
-    1. Useful Wikantik Logger Names
+### Useful Wikantik Logger Names
 
 | Logger | Purpose |
 |--------|---------|
@@ -271,9 +271,9 @@ sudo chown tomcat:tomcat /opt/tomcat/logs/jspwiki
 
 ---
 
-  1. Advanced Features
+## Advanced Features
 
-    1. Hot Reload Configuration
+### Hot Reload Configuration
 
 Add `monitorInterval` to automatically reload config changes:
 
@@ -281,7 +281,7 @@ Add `monitorInterval` to automatically reload config changes:
 <Configuration status="WARN" monitorInterval="30">
 ```
 
-    1. Async Logging (Performance)
+### Async Logging (Performance)
 
 Wrap appenders for non-blocking logging:
 
@@ -294,7 +294,7 @@ Wrap appenders for non-blocking logging:
 </Appenders>
 ```
 
-    1. Syslog Appender (Centralized Logging)
+### Syslog Appender (Centralized Logging)
 
 ```xml
 <Syslog name="Syslog"
@@ -305,7 +305,7 @@ Wrap appenders for non-blocking logging:
         appName="jspwiki"/>
 ```
 
-    1. Filter Sensitive Data
+### Filter Sensitive Data
 
 ```xml
 <RollingFile name="AppLog" ...>
@@ -316,7 +316,7 @@ Wrap appenders for non-blocking logging:
 
 ---
 
-  1. Sources
+## Sources
 
 - [Wikantik Releases - Log4j2 configuration notes](https://github.com/apache/jspwiki/releases)
 - [Wikantik Dockerfile - External log config setup](https://github.com/apache/jspwiki/blob/master/Dockerfile)

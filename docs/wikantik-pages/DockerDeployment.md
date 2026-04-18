@@ -4,15 +4,15 @@ tags:
 - uncategorized
 summary: Professional Wikantik Deployment with Docker
 ---
-1. Professional Wikantik Deployment with Docker
+# Professional Wikantik Deployment with Docker
 
 This guide provides a comprehensive walkthrough for deploying a production-ready Wikantik instance using Docker, with a focus on configuration, data persistence, and automated backups.
 
-  1. 1. Configuration
+## 1. Configuration
 
 Wikantik's Docker container is highly configurable through environment variables. This allows you to customize your installation without modifying the core application files.
 
-    1. Environment Variables
+### Environment Variables
 
 The following environment variables are available to configure your Wikantik instance. You can set them in your `docker-compose.yml` file or directly with the `docker run` command.
 
@@ -27,11 +27,11 @@ The following environment variables are available to configure your Wikantik ins
 - `jspwiki_xmlUserDatabaseFile`: The path to the user database file. Defaults to `/var/jspwiki/etc/userdatabase.xml`.
 - `jspwiki_xmlGroupDatabaseFile`: The path to the group database file. Defaults to `/var/jspwiki/etc/groupdatabase.xml`.
 
-  1. 2. Data Persistence and Backup Strategy
+## 2. Data Persistence and Backup Strategy
 
 To ensure that your wiki's data persists across container restarts and to facilitate backups, it is crucial to use Docker volumes.
 
-    1. Critical Data Directories
+### Critical Data Directories
 
 The following directories contain all of Wikantik's critical data and should be mounted as volumes:
 
@@ -40,15 +40,15 @@ The following directories contain all of Wikantik's critical data and should be 
 - `/var/jspwiki/logs`: Contains the application logs.
 - `/var/jspwiki/work`: The working directory for Wikantik.
 
-    1. Automated Backups
+### Automated Backups
 
 Our recommended backup strategy involves a dedicated backup container that has read-only access to the Wikantik data volume. This container runs a cron job to create compressed archives of the data at regular intervals.
 
-  1. 3. Example Docker Compose Deployment
+## 3. Example Docker Compose Deployment
 
 This example uses `docker-compose` to define and run a multi-container Wikantik application with an automated backup service.
 
-    1. Project Structure
+### Project Structure
 
 ```
 .
@@ -58,7 +58,7 @@ This example uses `docker-compose` to define and run a multi-container Wikantik 
     └── crontab
 ```
 
-    1. `docker-compose.yml`
+### `docker-compose.yml`
 
 ```yaml
 version: '3.7'
@@ -87,31 +87,31 @@ volumes:
   jspwiki-data:
 ```
 
-    1. `backup/backup.sh`
+### `backup/backup.sh`
 
 ```bash
-1. !/bin/sh
+#!/bin/sh
 
 set -e
 
-1. Create a compressed archive of the wikantik data
+# Create a compressed archive of the wikantik data
 TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
 BACKUP_FILE="/backups/jspwiki-backup-${TIMESTAMP}.tar.gz"
 
 tar -czf "${BACKUP_FILE}" -C /var/jspwiki .
 
-1. Prune old backups (keep the last 7)
+# Prune old backups (keep the last 7)
 find /backups -name "jspwiki-backup-*.tar.gz" -type f -mtime +7 -delete
 ```
 
-    1. `backup/crontab`
+### `backup/crontab`
 
 ```
-1. Run the backup script daily at 2:00 AM
+# Run the backup script daily at 2:00 AM
 0 2 * * * /etc/periodic/daily/backup.sh
 ```
 
-    1. Deployment Steps
+### Deployment Steps
 
 1.  **Create the necessary files and directories** as shown in the project structure above.
 2.  **Make the `backup.sh` script executable**:
@@ -135,7 +135,7 @@ find /backups -name "jspwiki-backup-*.tar.gz" -type f -mtime +7 -delete
         docker logs jspwiki-backup
         ```
 
-    1. Restoring from a Backup
+### Restoring from a Backup
 
 To restore your Wikantik instance from a backup:
 

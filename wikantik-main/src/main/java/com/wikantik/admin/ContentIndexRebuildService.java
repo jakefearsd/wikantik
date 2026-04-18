@@ -28,6 +28,7 @@ import com.wikantik.knowledge.chunking.Chunk;
 import com.wikantik.knowledge.chunking.ChunkDiff;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.chunking.ContentChunker;
+import com.wikantik.search.embedding.EmbeddingIndexService;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -105,6 +106,16 @@ public class ContentIndexRebuildService {
     protected volatile int chunksWritten;
     protected final List< IndexStatusSnapshot.RebuildError > errors = new CopyOnWriteArrayList<>();
 
+    // --- embedding hook (Phase 1 of hybrid retrieval) --------------------
+    // Optional collaborators: when both are set, the rebuild thread invokes
+    // EmbeddingIndexService.indexAll(modelCode) after chunks are rewritten but
+    // before DRAINING_LUCENE exits. Left null in tests and in deployments that
+    // haven't enabled hybrid retrieval yet — embedding errors are isolated
+    // from the rebuild outcome counter.
+    private volatile EmbeddingIndexService embeddingIndex;
+    private volatile String embeddingModelCode;
+    protected volatile int embeddingsIndexed;
+
     // --- metrics ---------------------------------------------------------
     private final MeterRegistry meterRegistry;
     /** Gauge-backed integer: 0=IDLE, 1=STARTING, 2=RUNNING, 3=DRAINING_LUCENE. */
@@ -163,6 +174,26 @@ public class ContentIndexRebuildService {
 
     /** Test/production accessor for the registry this service publishes to. */
     public MeterRegistry meterRegistry() { return meterRegistry; }
+
+    /**
+     * Wires the optional embedding indexer that runs after chunks are
+     * rewritten. Both arguments must be non-null to enable the hook; passing
+     * either as null clears the wiring (used by tests). Invoked from
+     * engine startup when {@link EmbeddingIndexService} is available.
+     *
+     * @param service   the indexer that will own the embedding-indexing work
+     * @param modelCode the model identifier written into {@code model_code};
+     *                  see {@code EmbeddingConfig.PROP_MODEL}
+     */
+    public void setEmbeddingHook( final EmbeddingIndexService service, final String modelCode ) {
+        if ( service == null || modelCode == null || modelCode.isBlank() ) {
+            this.embeddingIndex = null;
+            this.embeddingModelCode = null;
+            return;
+        }
+        this.embeddingIndex = service;
+        this.embeddingModelCode = modelCode;
+    }
 
     // Micrometer gauge callbacks — kept package-private so the registry can
     // reach them without widening the public surface.
@@ -224,6 +255,7 @@ public class ContentIndexRebuildService {
                 agg.avgTokens(),
                 agg.minTokens(),
                 agg.maxTokens() ),
+            embeddingSnapshot(),
             new IndexStatusSnapshot.Rebuild(
                 state.get().name(),
                 startedAt,
@@ -315,6 +347,12 @@ public class ContentIndexRebuildService {
                 }
             }
 
+            // Post-chunk hook: refresh dense-vector embeddings now that the
+            // chunk rows are in their final state. This runs synchronously on
+            // the rebuild thread (not on the save path) because it can take
+            // several seconds at corpus scale.
+            runEmbeddingIndex();
+
             setState( State.DRAINING_LUCENE );
             drainLucene();
         } catch ( final Exception fatal ) {
@@ -330,6 +368,52 @@ public class ContentIndexRebuildService {
                 .register( meterRegistry )
                 .increment();
             setState( State.IDLE );
+        }
+    }
+
+    /**
+     * Builds the embeddings section of the snapshot by querying
+     * {@link EmbeddingIndexService#status(String)} when the hook is wired.
+     * Snapshot reads are diagnostic — a transient failure degrades the
+     * snapshot to empty rather than propagating up the servlet stack.
+     */
+    private IndexStatusSnapshot.Embeddings embeddingSnapshot() {
+        final EmbeddingIndexService svc = embeddingIndex;
+        final String model = embeddingModelCode;
+        if ( svc == null || model == null ) {
+            return IndexStatusSnapshot.Embeddings.empty();
+        }
+        try {
+            final EmbeddingIndexService.Status s = svc.status( model );
+            return new IndexStatusSnapshot.Embeddings(
+                s.modelCode(), s.dim(), s.rowCount(), s.lastUpdated() );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Embedding status lookup failed for model={}: {}",
+                model, e.getMessage(), e );
+            return new IndexStatusSnapshot.Embeddings( model, 0, 0, null );
+        }
+    }
+
+    /**
+     * Runs a full embedding reindex against the chunks that were just
+     * rewritten. Called after the per-page loop completes so chunk IDs are
+     * already committed. Errors are recorded in {@link #errors} and logged
+     * at {@code warn}, but never thrown — a broken embedding backend must
+     * not mark the whole rebuild as failed when Lucene+chunks succeeded.
+     */
+    private void runEmbeddingIndex() {
+        final EmbeddingIndexService svc = embeddingIndex;
+        final String model = embeddingModelCode;
+        if ( svc == null || model == null ) {
+            return;
+        }
+        try {
+            final int indexed = svc.indexAll( model );
+            embeddingsIndexed = indexed;
+            LOG.info( "Embedding rebuild complete: model={} indexed={}", model, indexed );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Embedding rebuild failed for model={}: {}", model, e.getMessage(), e );
+            recordError( "<embedding-indexer>", e );
         }
     }
 
@@ -393,6 +477,7 @@ public class ContentIndexRebuildService {
         systemPagesSkipped = 0;
         luceneQueued = 0;
         chunksWritten = 0;
+        embeddingsIndexed = 0;
         errors.clear();
     }
 }

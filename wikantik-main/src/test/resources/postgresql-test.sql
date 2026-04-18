@@ -180,6 +180,20 @@ CREATE INDEX IF NOT EXISTS idx_kg_content_chunks_page_name
 CREATE INDEX IF NOT EXISTS idx_kg_content_chunks_content_hash
     ON kg_content_chunks (content_hash);
 
+-- Dense embeddings projection of kg_content_chunks (V009)
+CREATE TABLE IF NOT EXISTS content_chunk_embeddings (
+    chunk_id   UUID        NOT NULL,
+    model_code TEXT        NOT NULL,
+    dim        INT         NOT NULL,
+    vec        BYTEA       NOT NULL,
+    updated    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (chunk_id, model_code),
+    FOREIGN KEY (chunk_id) REFERENCES kg_content_chunks(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS ix_cce_model
+    ON content_chunk_embeddings (model_code);
+
 -- ============================================================
 -- Test seed data
 -- ============================================================

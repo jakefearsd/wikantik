@@ -72,7 +72,7 @@
         </dependency>
 
         <dependency>
-            <groupId>com.github.benmanes.caffeine</groupId>
+            <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
         </dependency>
 

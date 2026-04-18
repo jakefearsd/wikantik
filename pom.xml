@@ -92,7 +92,7 @@
     <xmemcached.version>2.4.8</xmemcached.version>
     <micrometer.version>1.14.6</micrometer.version>
     <testcontainers.version>1.20.4</testcontainers.version>
-    <caffeine.version>3.2.0</caffeine.version>
+    <caffeine.version>3.2.3</caffeine.version>
 
     <plugin.antrun.version>3.1.0</plugin.antrun.version>
     <plugin.assembly.version>3.7.1</plugin.assembly.version>
@@ -299,7 +299,7 @@
       </dependency>
 
       <dependency>
-        <groupId>com.github.benmanes.caffeine</groupId>
+        <groupId>com.github.ben-manes.caffeine</groupId>
         <artifactId>caffeine</artifactId>
         <version>${caffeine.version}</version>
       </dependency>

@@ -6,11 +6,11 @@ tags:
 summary: This guide explains how to configure Wikantik to send transactional emails
   (account verification, password reset, notifications) from a self-hosted installation.
 ---
-1. Sending Email from the Wiki
+# Sending Email from the Wiki
 
 This guide explains how to configure Wikantik to send transactional emails (account verification, password reset, notifications) from a self-hosted installation.
 
-  1. Why You Need an Email Relay Service
+## Why You Need an Email Relay Service
 
 Sending email directly from a home server will fail because:
 - Residential IPs are universally blacklisted by spam filters
@@ -22,7 +22,7 @@ Sending email directly from a home server will fail because:
 
 ---
 
-  1. Recommended Email Services
+## Recommended Email Services
 
     1. 1. Brevo (formerly Sendinblue) - Best Free Tier
 
@@ -64,23 +64,23 @@ Sending email directly from a home server will fail because:
 
 ---
 
-  1. Step-by-Step Setup
+## Step-by-Step Setup
 
 This example uses Brevo, but the process is similar for other providers.
 
-    1. Step 1: Sign Up for Email Service
+### Step 1: Sign Up for Email Service
 
 1. Go to https://www.brevo.com
 2. Create a free account
 3. Verify your email address
 
-    1. Step 2: Add and Verify Your Sending Domain
+### Step 2: Add and Verify Your Sending Domain
 
 1. In Brevo dashboard, go to **Senders & IP** → **Domains**
 2. Add your domain (e.g., `jakefear.com` or `wiki.jakefear.com`)
 3. Brevo will provide DNS records to add
 
-    1. Step 3: Configure DNS Records
+### Step 3: Configure DNS Records
 
 Add the DNS records provided by your email service. Typical records include:
 
@@ -95,7 +95,7 @@ Add the DNS records provided by your email service. Typical records include:
 v=spf1 include:existing.com include:sendinblue.com ~all
 ```
 
-    1. Step 4: Get SMTP Credentials
+### Step 4: Get SMTP Credentials
 
 In your email service dashboard:
 1. Navigate to SMTP settings
@@ -105,12 +105,12 @@ In your email service dashboard:
    - Login/Username
    - Password or API Key
 
-    1. Step 5: Configure Wikantik
+### Step 5: Configure Wikantik
 
 Add to your `wikantik-custom.properties`:
 
 ```properties
-1. Email configuration
+# Email configuration
 mail.from = Wikantik <wiki@yourdomain.com>
 mail.smtp.host = smtp-relay.brevo.com
 mail.smtp.port = 587
@@ -121,7 +121,7 @@ mail.smtp.timeout = 5000
 mail.smtp.connectiontimeout = 5000
 ```
 
-    1. Step 6: Test Email
+### Step 6: Test Email
 
 1. Restart Tomcat
 2. Create a new user account in Wikantik
@@ -130,7 +130,7 @@ mail.smtp.connectiontimeout = 5000
 
 ---
 
-  1. Alternative: JNDI Configuration (More Secure)
+## Alternative: JNDI Configuration (More Secure)
 
 To keep credentials out of properties files, configure the mail session in Tomcat's context file.
 
@@ -153,9 +153,9 @@ Wikantik will automatically use the JNDI session `mail/Session` when available.
 
 ---
 
-  1. SMTP Settings by Provider
+## SMTP Settings by Provider
 
-    1. Brevo (Sendinblue)
+### Brevo (Sendinblue)
 
 ```properties
 mail.smtp.host = smtp-relay.brevo.com
@@ -163,7 +163,7 @@ mail.smtp.port = 587
 mail.smtp.starttls.enable = true
 ```
 
-    1. SendGrid
+### SendGrid
 
 ```properties
 mail.smtp.host = smtp.sendgrid.net
@@ -173,7 +173,7 @@ mail.smtp.password = SG.your-api-key-here
 mail.smtp.starttls.enable = true
 ```
 
-    1. Mailjet
+### Mailjet
 
 ```properties
 mail.smtp.host = in-v3.mailjet.com
@@ -181,7 +181,7 @@ mail.smtp.port = 587
 mail.smtp.starttls.enable = true
 ```
 
-    1. Amazon SES
+### Amazon SES
 
 ```properties
 mail.smtp.host = email-smtp.us-east-1.amazonaws.com
@@ -191,7 +191,7 @@ mail.smtp.starttls.enable = true
 
 ---
 
-  1. Wikantik Mail Properties Reference
+## Wikantik Mail Properties Reference
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -207,29 +207,29 @@ mail.smtp.starttls.enable = true
 
 ---
 
-  1. Troubleshooting
+## Troubleshooting
 
-    1. Emails Not Sending
+### Emails Not Sending
 
 1. Check Tomcat logs for mail-related errors
 2. Verify SMTP credentials are correct
 3. Ensure port 587 outbound is not blocked by firewall
 4. Check email service dashboard for rejected/bounced messages
 
-    1. Emails Going to Spam
+### Emails Going to Spam
 
 1. Verify SPF, DKIM, and DMARC records are properly configured
 2. Use a "from" address that matches your verified domain
 3. Allow 24-48 hours for DNS changes to propagate
 4. Check your domain's reputation at https://mxtoolbox.com
 
-    1. Authentication Errors
+### Authentication Errors
 
 1. Some services require API keys instead of passwords
 2. SendGrid uses `apikey` as the username with API key as password
 3. Ensure special characters in passwords are properly escaped
 
-    1. Connection Timeouts
+### Connection Timeouts
 
 1. Try port 465 (SSL) instead of 587 (TLS)
 2. Check if your ISP blocks outbound SMTP ports
@@ -237,7 +237,7 @@ mail.smtp.starttls.enable = true
 
 ---
 
-  1. Related Documentation
+## Related Documentation
 
 - [PostgreSQL Local Deployment](PostgreSQLLocalDeployment.md) - Local development setup
 - [Wikantik Properties Reference](https://wiki.wikantik.com/Wiki.jsp?page=Documentation) - Full configuration options

@@ -4,35 +4,35 @@ tags:
 - uncategorized
 summary: Using a Relational Database for User Management
 ---
-1. Using a Relational Database for User Management
+# Using a Relational Database for User Management
 
 This guide provides a detailed walkthrough for configuring Wikantik to use a relational database for storing user and group information, with a specific focus on MySQL.
 
-  1. 1. Overview
+## 1. Overview
 
 Wikantik can be configured to use a relational database for user and group management instead of the default XML files. This is highly recommended for production environments as it offers better performance, scalability, and security.
 
 Wikantik uses JNDI (Java Naming and Directory Interface) to look up the database connection, which means you'll need to configure a JNDI `DataSource` in your application server (e.g., Tomcat).
 
-  1. 2. Prerequisites
+## 2. Prerequisites
 
 - A running MySQL or PostgreSQL server.
 - The appropriate JDBC driver for your database.
 
-  1. 3. Configuration Steps
+## 3. Configuration Steps
 
-    1. Step 1: Add the JDBC Driver
+### Step 1: Add the JDBC Driver
 
 Download the appropriate JDBC driver for your database and place it in the `lib` directory of your Tomcat installation (`$CATALINA_HOME/lib`).
 
 - **MySQL:** [MySQL Connector/J](https://dev.mysql.com/downloads/connector/j/)
 - **PostgreSQL:** [PostgreSQL JDBC Driver](https://jdbc.postgresql.org/)
 
-    1. Step 2: Configure the JNDI DataSource in Tomcat
+### Step 2: Configure the JNDI DataSource in Tomcat
 
 To configure the JNDI `DataSource`, you'll need to add a `<Resource>` element to your Tomcat's `conf/context.xml` file.
 
-      1. MySQL Example
+#### MySQL Example
 
 ```xml
 <Context>
@@ -46,7 +46,7 @@ To configure the JNDI `DataSource`, you'll need to add a `<Resource>` element to
 </Context>
 ```
 
-      1. PostgreSQL Example
+#### PostgreSQL Example
 
 ```xml
 <Context>
@@ -60,29 +60,29 @@ To configure the JNDI `DataSource`, you'll need to add a `<Resource>` element to
 </Context>
 ```
 
-  - Note:**
+**Note:**
 
 - Replace `your_username` and `your_password` with your database credentials.
 - The `url` parameter should point to your database server and database name.
 
-    1. Step 3: Configure Wikantik
+### Step 3: Configure Wikantik
 
 Update your `wikantik-custom.properties` file to use the `JDBCUserDatabase` and `JDBCGroupDatabase`.
 
 ```properties
-1. Use the JDBC user and group databases
+# Use the JDBC user and group databases
 jspwiki.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
 jspwiki.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 
-1. Shared JNDI DataSource name
+# Shared JNDI DataSource name
 wikantik.datasource = jdbc/WikiDatabase
 ```
 
-    1. Step 4: Create the Database Tables
+### Step 4: Create the Database Tables
 
 Wikantik does not automatically create the necessary tables in the database. You'll need to create them manually.
 
-      1. MySQL
+#### MySQL
 
 ```sql
 CREATE TABLE users (
@@ -114,7 +114,7 @@ CREATE TABLE group_members (
 );
 ```
 
-      1. PostgreSQL
+#### PostgreSQL
 
 ```sql
 CREATE TABLE users (
@@ -145,7 +145,7 @@ CREATE TABLE group_members (
 );
 ```
 
-  1. 4. Differences Between MySQL and PostgreSQL
+## 4. Differences Between MySQL and PostgreSQL
 
 While the configuration is similar for both databases, there are a few key differences to be aware of:
 

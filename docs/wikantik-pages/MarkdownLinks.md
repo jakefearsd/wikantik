@@ -4,11 +4,11 @@ tags:
 - uncategorized
 summary: Wikantik Markdown Internal Link Syntax
 ---
-1. Wikantik Markdown Internal Link Syntax
+# Wikantik Markdown Internal Link Syntax
 
 This document describes how to create links to other pages on the same wiki when using Wikantik's Markdown parser.
 
-  1. Basic Syntax
+## Basic Syntax
 
 In Wikantik's Markdown parser, the **empty link** syntax is used for internal wiki page links:
 
@@ -18,7 +18,7 @@ In Wikantik's Markdown parser, the **empty link** syntax is used for internal wi
 
 The empty parentheses `()` tell Wikantik that the link text is the wiki page name.
 
-  1. Examples
+## Examples
 
 | Syntax | Result |
 |--------|--------|
@@ -27,27 +27,27 @@ The empty parentheses `()` tell Wikantik that the link text is the wiki page nam
 | `[Click here](TargetPage)` | Custom text linking to TargetPage |
 | `[NonExistentPage](NonExistentPage)()` | Creates an "edit" link (red link) |
 
-  1. Other Link Types
+## Other Link Types
 
-    1. External Links
+### External Links
 
 ```markdown
 [text](https://example.com)
 ```
 
-    1. InterWiki Links
+### InterWiki Links
 
 ```markdown
 [text](Wikantik:About)
 ```
 
-    1. Attachment Links
+### Attachment Links
 
 ```markdown
 [text](PageName/attachment.txt)
 ```
 
-  1. How It Works
+## How It Works
 
 The Markdown parser uses Wikantik's custom empty link syntax extension. When the URL portion is empty `()`, Wikantik uses the link text as the wiki page name. When the URL has content, that content is the target.
 
@@ -58,7 +58,7 @@ The system classifies links in this order:
 3. **Footnote links** - Starts with # or is numeric
 4. **Local wiki links** - Everything else (checked against page existence)
 
-  1. CSS Classes
+## CSS Classes
 
 Links are automatically styled with CSS classes:
 
@@ -68,13 +68,13 @@ Links are automatically styled with CSS classes:
 - `interwiki` - InterWiki links
 - `attachment` - Attachment links
 
-  1. Special Features
+## Special Features
 
 - **HTML/Markdown inside links**: `[Link **bold**]()` works and renders the markdown
 - **Custom attributes**: `[text](url){target=blank}`
 - **Section anchors**: `[PageName#SectionName]()`
 
-  1. Source Files
+## Source Files
 
 The link processing is implemented in:
 

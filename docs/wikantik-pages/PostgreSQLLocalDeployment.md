@@ -4,11 +4,11 @@ tags:
 - uncategorized
 summary: PostgreSQL Local Deployment Guide
 ---
-1. PostgreSQL Local Deployment Guide
+# PostgreSQL Local Deployment Guide
 
 This guide walks you through setting up Wikantik to use PostgreSQL for user and group storage, deployed to a local Tomcat 11 instance for manual testing.
 
-  1. Overview
+## Overview
 
 This setup involves:
 - **Tomcat 11** at `tomcat/tomcat-11/` (gitignored)
@@ -22,7 +22,7 @@ The strategy is to create template configuration files in the tracked codebase, 
 - Has zero impact on the existing test suite
 - Survives WAR rebuilds (only needs password edit once)
 
-  1. Prerequisites
+## Prerequisites
 
 - PostgreSQL 15+ installed and running
 - Database `jspwiki` created: `CREATE DATABASE jspwiki;`
@@ -32,34 +32,34 @@ The strategy is to create template configuration files in the tracked codebase, 
 
 ---
 
-  1. Quick Start
+## Quick Start
 
 If you've already completed the one-time setup, the deployment cycle is:
 
 ```bash
-1. 1. Build the project
+# 1. Build the project
 mvn clean install -Dmaven.test.skip
 
-1. 2. Deploy to local Tomcat
+# 2. Deploy to local Tomcat
 ./deploy-local.sh
 
-1. 3. Start Tomcat
+# 3. Start Tomcat
 tomcat/tomcat-11/bin/startup.sh
 
-1. 4. Access the wiki
-1. http://localhost:8080/Wikantik/
+# 4. Access the wiki
+# http://localhost:8080/Wikantik/
 ```
 
 ---
 
-  1. One-Time Setup
+## One-Time Setup
 
-    1. Step 1: Initialize the PostgreSQL Database
+### Step 1: Initialize the PostgreSQL Database
 
 Run the DDL script to set up tables and the default admin user:
 
 ```bash
-1. Run as postgres superuser
+# Run as postgres superuser
 sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.ddl
 ```
 
@@ -70,17 +70,17 @@ This creates:
 
   - Important**: Change the admin password immediately after first login!
 
-    1. Step 2: Build Wikantik
+### Step 2: Build Wikantik
 
 ```bash
-1. Full build with tests
+# Full build with tests
 mvn clean install
 
-1. Or skip tests for faster iteration
+# Or skip tests for faster iteration
 mvn clean install -Dmaven.test.skip
 ```
 
-    1. Step 3: Run the Deployment Script
+### Step 3: Run the Deployment Script
 
 ```bash
 ./deploy-local.sh
@@ -94,7 +94,7 @@ The script will:
 5. Stop Tomcat (if running)
 6. Deploy the WAR file
 
-    1. Step 4: Configure the Database Password
+### Step 4: Configure the Database Password
 
 Edit the context file to set your PostgreSQL password:
 
@@ -104,16 +104,16 @@ nano tomcat/tomcat-11/conf/Catalina/localhost/Wikantik.xml
 
 Replace `YOUR_SECURE_PASSWORD_HERE` with your actual password for the `jspwiki` database user (appears twice in the file).
 
-    1. Step 5: Start Tomcat
+### Step 5: Start Tomcat
 
 ```bash
 tomcat/tomcat-11/bin/startup.sh
 
-1. Watch the logs for any errors
+# Watch the logs for any errors
 tail -f tomcat/tomcat-11/logs/catalina.out
 ```
 
-    1. Step 6: Test the Deployment
+### Step 6: Test the Deployment
 
 1. Open http://localhost:8080/Wikantik/
 2. Login with: `admin` / `admin`
@@ -125,18 +125,18 @@ sudo -u postgres psql -d wikantik -c "SELECT login_name, email FROM users;"
 
 ---
 
-  1. Subsequent Deployments
+## Subsequent Deployments
 
 After the one-time setup, redeploying is simple:
 
 ```bash
-1. Rebuild
+# Rebuild
 mvn clean install -Dmaven.test.skip
 
-1. Redeploy (does not overwrite your password configuration)
+# Redeploy (does not overwrite your password configuration)
 ./deploy-local.sh
 
-1. Restart Tomcat
+# Restart Tomcat
 tomcat/tomcat-11/bin/shutdown.sh
 tomcat/tomcat-11/bin/startup.sh
 ```
@@ -145,7 +145,7 @@ The deployment script preserves existing configuration files, so your password s
 
 ---
 
-  1. What the Deployment Script Does
+## What the Deployment Script Does
 
 The `deploy-local.sh` script automates these tasks:
 
@@ -162,9 +162,9 @@ The `deploy-local.sh` script automates these tasks:
 
 ---
 
-  1. Configuration Files
+## Configuration Files
 
-    1. Git-Tracked Templates
+### Git-Tracked Templates
 
 Located in `wikantik-war/src/main/config/tomcat/`:
 
@@ -173,7 +173,7 @@ Located in `wikantik-war/src/main/config/tomcat/`:
 | `Wikantik-context.xml.template` | JNDI DataSource configuration for PostgreSQL |
 | `wikantik-custom-postgresql.properties.template` | Wikantik JDBC database settings |
 
-    1. Local Files (Not in Git)
+### Local Files (Not in Git)
 
 Located in `tomcat/tomcat-11/`:
 
@@ -185,9 +185,9 @@ Located in `tomcat/tomcat-11/`:
 
 ---
 
-  1. Troubleshooting
+## Troubleshooting
 
-    1. Common Issues
+### Common Issues
 
 | Symptom | Cause | Solution |
 |---------|-------|----------|
@@ -198,47 +198,47 @@ Located in `tomcat/tomcat-11/`:
 | Login fails with correct password | Wrong password hash format | Regenerate password using `CryptoUtil` |
 | WAR file not found | Build not run | Run `mvn clean install` first |
 
-    1. Checking Logs
+### Checking Logs
 
 ```bash
-1. Tomcat logs
+# Tomcat logs
 tail -f tomcat/tomcat-11/logs/catalina.out
 
-1. Look for JNDI errors
+# Look for JNDI errors
 grep -i "jdbc\|datasource\|jndi" tomcat/tomcat-11/logs/catalina.out
 
-1. PostgreSQL logs (location varies by installation)
+# PostgreSQL logs (location varies by installation)
 sudo tail -f /var/log/postgresql/postgresql-*-main.log
 ```
 
-    1. Resetting Configuration
+### Resetting Configuration
 
 To start fresh with configuration files:
 
 ```bash
-1. Remove local configuration (will be recreated by deploy-local.sh)
+# Remove local configuration (will be recreated by deploy-local.sh)
 rm tomcat/tomcat-11/conf/Catalina/localhost/Wikantik.xml
 rm tomcat/tomcat-11/lib/wikantik-custom.properties
 
-1. Redeploy
+# Redeploy
 ./deploy-local.sh
 
-1. Don't forget to set your password again!
+# Don't forget to set your password again!
 nano tomcat/tomcat-11/conf/Catalina/localhost/Wikantik.xml
 ```
 
-    1. Resetting the Database
+### Resetting the Database
 
 To reset the database to a clean state:
 
 ```bash
-1. Re-run the DDL (drops and recreates all tables)
+# Re-run the DDL (drops and recreates all tables)
 sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.ddl
 ```
 
 ---
 
-  1. Impact on Test Suite
+## Impact on Test Suite
 
 This configuration has **zero impact** on the existing test suite:
 
@@ -251,7 +251,7 @@ You can run `mvn clean test` or `mvn clean install` without any PostgreSQL-relat
 
 ---
 
-  1. Related Documentation
+## Related Documentation
 
 - [Developing with PostgreSQL](DevelopingWithPostgresql.md) - Detailed JDBC configuration reference
 - [PostgreSQL DDL](../wikantik-war/src/main/config/db/postgresql.ddl) - Database schema

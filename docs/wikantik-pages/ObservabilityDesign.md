@@ -4,13 +4,13 @@ tags:
 - uncategorized
 type: article
 ---
-1. Wikantik Observability System Design
+# Wikantik Observability System Design
 
-  1. Overview
+## Overview
 
 This document describes an open-source observability stack for Wikantik, leveraging the existing Log4j2 logging infrastructure. The design follows the three pillars of observability: **Logs**, **Metrics**, and **Traces**.
 
-  1. Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -40,11 +40,11 @@ This document describes an open-source observability stack for Wikantik, leverag
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-  1. Components
+## Components
 
     1. 1. Log Collection Layer
 
-      1. Promtail (Log Shipper)
+#### Promtail (Log Shipper)
 - **Purpose**: Collects logs from files and ships to Loki
 - **Source**: https://grafana.com/oss/promtail/
 - **License**: AGPL-3.0
@@ -53,13 +53,13 @@ Promtail watches log files, extracts labels, and pushes to Loki.
 
     1. 2. Storage Layer
 
-      1. Loki (Log Aggregation)
+#### Loki (Log Aggregation)
 - **Purpose**: Horizontally-scalable, highly-available log aggregation
 - **Source**: https://grafana.com/oss/loki/
 - **License**: AGPL-3.0
 - **Why Loki**: Unlike Elasticsearch, Loki only indexes labels (not full text), making it lightweight and cost-effective
 
-      1. Prometheus (Metrics)
+#### Prometheus (Metrics)
 - **Purpose**: Time-series metrics storage and alerting
 - **Source**: https://prometheus.io/
 - **License**: Apache-2.0
@@ -67,7 +67,7 @@ Promtail watches log files, extracts labels, and pushes to Loki.
 
     1. 3. Visualization Layer
 
-      1. Grafana (Dashboards)
+#### Grafana (Dashboards)
 - **Purpose**: Unified dashboards for logs, metrics, and alerts
 - **Source**: https://grafana.com/oss/grafana/
 - **License**: AGPL-3.0
@@ -81,9 +81,9 @@ Promtail watches log files, extracts labels, and pushes to Loki.
 
 ---
 
-  1. Configuration
+## Configuration
 
-    1. Step 1: Log4j2 Configuration for JSON Output
+### Step 1: Log4j2 Configuration for JSON Output
 
 Update Wikantik's Log4j2 configuration to output JSON for machine parsing.
 
@@ -93,7 +93,7 @@ Update Wikantik's Log4j2 configuration to output JSON for machine parsing.
 status = warn
 name = jspwiki-log4j2-observability
 
-1. Console appender for container environments
+# Console appender for container environments
 appenders = console, rolling
 
 appender.console.type = Console
@@ -101,7 +101,7 @@ appender.console.name = Console
 appender.console.layout.type = JsonTemplateLayout
 appender.console.layout.eventTemplateUri = classpath:EcsLayout.json
 
-1. Rolling file appender with JSON format
+# Rolling file appender with JSON format
 appender.rolling.type = RollingFile
 appender.rolling.name = RollingFile
 appender.rolling.fileName = /var/log/jspwiki/jspwiki.log
@@ -120,7 +120,7 @@ rootLogger.level = info
 rootLogger.appenderRef.console.ref = Console
 rootLogger.appenderRef.rolling.ref = RollingFile
 
-1. Specific loggers for key components
+# Specific loggers for key components
 logger.wiki.name = com.wikantik
 logger.wiki.level = info
 
@@ -141,7 +141,7 @@ logger.pages.level = info
 </dependency>
 ```
 
-    1. Step 2: Tomcat Access Log Configuration
+### Step 2: Tomcat Access Log Configuration
 
 Configure Tomcat to output access logs in a parseable format, including Cloudflare headers for geographic data.
 
@@ -164,7 +164,7 @@ Pattern fields:
 - `%b` - Bytes sent
 - `%D` - Request duration (ms)
 
-  - Cloudflare Headers Available:**
+**Cloudflare Headers Available:**
 | Header | Description |
 |--------|-------------|
 | `CF-Connecting-IP` | Real visitor IP address |
@@ -172,7 +172,7 @@ Pattern fields:
 | `CF-IPCity` | City name (Enterprise plan only) |
 | `CF-IPContinent` | Continent code (Enterprise plan only) |
 
-    1. Step 3: Promtail Configuration
+### Step 3: Promtail Configuration
 
   - File**: `/etc/promtail/promtail.yaml`
 
@@ -267,7 +267,7 @@ scrape_configs:
           **path**: /var/log/tomcat/catalina*.log
 ```
 
-    1. Step 4: Prometheus Configuration
+### Step 4: Prometheus Configuration
 
   - File**: `/etc/prometheus/prometheus.yml`
 
@@ -312,7 +312,7 @@ scrape_configs:
       - targets: ['localhost:9404']
 ```
 
-    1. Step 5: Loki Configuration
+### Step 5: Loki Configuration
 
   - File**: `/etc/loki/loki.yaml`
 
@@ -361,7 +361,7 @@ limits_config:
   ingestion_burst_size_mb: 20
 ```
 
-    1. Step 6: Grafana Data Sources
+### Step 6: Grafana Data Sources
 
   - File**: `/etc/grafana/provisioning/datasources/datasources.yaml`
 
@@ -387,25 +387,25 @@ datasources:
 
 ---
 
-  1. Installation (Ubuntu/Debian)
+## Installation (Ubuntu/Debian)
 
-    1. Prerequisites
+### Prerequisites
 
 ```bash
-1. Create directories
+# Create directories
 sudo mkdir -p /var/log/jspwiki /var/log/tomcat
 sudo mkdir -p /var/lib/loki /var/lib/promtail /var/lib/prometheus
 sudo mkdir -p /etc/promtail /etc/loki /etc/prometheus
 
-1. Install dependencies
+# Install dependencies
 sudo apt-get update
 sudo apt-get install -y curl wget gnupg2 apt-transport-https
 ```
 
-    1. Install Grafana
+### Install Grafana
 
 ```bash
-1. Add Grafana GPG key and repository
+# Add Grafana GPG key and repository
 wget -q -O - https://apt.grafana.com/gpg.key | sudo apt-key add -
 echo "deb https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
 
@@ -416,43 +416,43 @@ sudo systemctl enable grafana-server
 sudo systemctl start grafana-server
 ```
 
-    1. Install Loki and Promtail
+### Install Loki and Promtail
 
 ```bash
-1. Download latest releases
+# Download latest releases
 LOKI_VERSION="2.9.3"
 cd /tmp
 
-1. Loki
+# Loki
 wget https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/loki-linux-amd64.zip
 unzip loki-linux-amd64.zip
 sudo mv loki-linux-amd64 /usr/local/bin/loki
 
-1. Promtail
+# Promtail
 wget https://github.com/grafana/loki/releases/download/v${LOKI_VERSION}/promtail-linux-amd64.zip
 unzip promtail-linux-amd64.zip
 sudo mv promtail-linux-amd64 /usr/local/bin/promtail
 ```
 
-    1. Install Prometheus and node_exporter
+### Install Prometheus and node_exporter
 
 ```bash
 PROMETHEUS_VERSION="2.48.1"
 NODE_EXPORTER_VERSION="1.7.0"
 
-1. Prometheus
+# Prometheus
 wget https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz
 tar xzf prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz
 sudo mv prometheus-${PROMETHEUS_VERSION}.linux-amd64/prometheus /usr/local/bin/
 sudo mv prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool /usr/local/bin/
 
-1. node_exporter
+# node_exporter
 wget https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
 tar xzf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
 sudo mv node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
 ```
 
-    1. Create Systemd Services
+### Create Systemd Services
 
   - File**: `/etc/systemd/system/loki.service`
 
@@ -529,25 +529,25 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-    1. Create Users and Set Permissions
+### Create Users and Set Permissions
 
 ```bash
-1. Create service users
+# Create service users
 sudo useradd --no-create-home --shell /bin/false loki
 sudo useradd --no-create-home --shell /bin/false promtail
 sudo useradd --no-create-home --shell /bin/false prometheus
 sudo useradd --no-create-home --shell /bin/false node_exporter
 
-1. Set ownership
+# Set ownership
 sudo chown -R loki:loki /var/lib/loki /etc/loki
 sudo chown -R promtail:promtail /var/lib/promtail /etc/promtail
 sudo chown -R prometheus:prometheus /var/lib/prometheus /etc/prometheus
 
-1. Allow promtail to read log files
+# Allow promtail to read log files
 sudo usermod -a -G adm promtail
 ```
 
-    1. Start Services
+### Start Services
 
 ```bash
 sudo systemctl daemon-reload
@@ -561,14 +561,14 @@ sudo systemctl enable --now grafana-server
 
 ---
 
-  1. Grafana Dashboards
+## Grafana Dashboards
 
-    1. Access Grafana
+### Access Grafana
 
 - URL: http://your-server:3000
 - Default credentials: admin / admin
 
-    1. Recommended Dashboards
+### Recommended Dashboards
 
 Import these community dashboards from grafana.com:
 
@@ -581,11 +581,11 @@ Import these community dashboards from grafana.com:
 3. **JVM Micrometer** (ID: 4701)
    - JVM metrics (if using JMX exporter)
 
-    1. Custom Wikantik Dashboard
+### Custom Wikantik Dashboard
 
 Create a custom dashboard with these panels:
 
-      1. Log Panels (Loki)
+#### Log Panels (Loki)
 
 1. **Error Rate**
    ```logql
@@ -607,7 +607,7 @@ Create a custom dashboard with these panels:
    {app="jspwiki"} | json | level="ERROR"
    ```
 
-      1. Traffic Analytics Panels (Loki + Cloudflare Geo Data)
+#### Traffic Analytics Panels (Loki + Cloudflare Geo Data)
 
 These panels provide visibility into article traffic and geographic distribution of visitors.
 
@@ -652,7 +652,7 @@ These panels provide visibility into article traffic and geographic distribution
    - Field mapping: Map `country` field to ISO 3166-1 alpha-2 country codes
    - Layer: **Markers** with size based on request count
 
-      1. Metric Panels (Prometheus)
+#### Metric Panels (Prometheus)
 
 1. **HTTP Request Rate**
    ```promql
@@ -688,9 +688,9 @@ These panels provide visibility into article traffic and geographic distribution
 
 ---
 
-  1. Alerting Rules
+## Alerting Rules
 
-    1. Prometheus Alert Rules
+### Prometheus Alert Rules
 
   - File**: `/etc/prometheus/rules/jspwiki-alerts.yml`
 
@@ -741,7 +741,7 @@ groups:
 
 ---
 
-  1. Docker Compose Alternative
+## Docker Compose Alternative
 
 For easier deployment, here's a Docker Compose configuration:
 
@@ -823,30 +823,30 @@ volumes:
 
 ---
 
-  1. Verification Checklist
+## Verification Checklist
 
 After installation, verify each component:
 
 ```bash
-1. Check service status
+# Check service status
 sudo systemctl status loki promtail prometheus node_exporter grafana-server
 
-1. Verify Loki is receiving logs
+# Verify Loki is receiving logs
 curl http://localhost:3100/ready
 
-1. Verify Prometheus targets
+# Verify Prometheus targets
 curl http://localhost:9090/api/v1/targets
 
-1. Check node_exporter metrics
+# Check node_exporter metrics
 curl http://localhost:9100/metrics | head -20
 
-1. Check Grafana
+# Check Grafana
 curl http://localhost:3000/api/health
 ```
 
 ---
 
-  1. Summary
+## Summary
 
 | Component | Port | Purpose |
 |-----------|------|---------|
@@ -856,13 +856,13 @@ curl http://localhost:3000/api/health
 | Promtail | 9080 | Log collection agent |
 | node_exporter | 9100 | System metrics |
 
-    1. Data Flow
+### Data Flow
 
 1. **Logs**: Wikantik (Log4j2 JSON) → Promtail → Loki → Grafana
 2. **Access Logs**: Tomcat → Promtail → Loki → Grafana
 3. **Metrics**: node_exporter → Prometheus → Grafana
 
-    1. Traffic Analytics Capabilities
+### Traffic Analytics Capabilities
 
 With this design, you can answer:
 
@@ -876,14 +876,14 @@ With this design, you can answer:
 
   - Geographic Data Source**: Cloudflare automatically adds the `CF-IPCountry` header to every request, providing accurate country-level geolocation without any additional GeoIP database or service required.
 
-    1. Retention
+### Retention
 
 - Logs: 30 days (configurable in Loki)
 - Metrics: 30 days (configurable in Prometheus)
 
 ---
 
-  1. Future Enhancements
+## Future Enhancements
 
 1. **[Distributed Tracing](DistributedTracing)**: Add Jaeger or Tempo for request tracing
 2. **JMX Metrics**: Add jmx_exporter for JVM metrics

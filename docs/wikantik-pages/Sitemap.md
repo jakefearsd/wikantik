@@ -4,15 +4,15 @@ tags:
 - uncategorized
 summary: Implementing a Sitemap.xml Servlet for Wikantik
 ---
-1. Implementing a Sitemap.xml Servlet for Wikantik
+# Implementing a Sitemap.xml Servlet for Wikantik
 
-  1. Overview
+## Overview
 
 A sitemap.xml tells search engines about the pages on your wiki, helping them crawl more efficiently. This document provides a detailed breakdown of what needs to be implemented for Google Search Console compliance.
 
 ---
 
-  1. Google Sitemap Requirements
+## Google Sitemap Requirements
 
 Google Search Console expects sitemaps to follow the [Sitemap Protocol](https://www.sitemaps.org/protocol.html):
 
@@ -29,7 +29,7 @@ Google Search Console expects sitemaps to follow the [Sitemap Protocol](https://
 </urlset>
 ```
 
-  - Key requirements:**
+**Key requirements:**
 - Maximum 50,000 URLs per sitemap file
 - Maximum 50MB uncompressed size
 - UTF-8 encoding
@@ -38,13 +38,13 @@ Google Search Console expects sitemaps to follow the [Sitemap Protocol](https://
 
 ---
 
-  1. Implementation Plan
+## Implementation Plan
 
-    1. Phase 1: Core Implementation (MVP)
+### Phase 1: Core Implementation (MVP)
 
-      1. Step 1: Create the Sitemap Servlet
+#### Step 1: Create the Sitemap Servlet
 
-  - Location:** `wikantik-main/src/main/java/org/apache/wiki/ui/SitemapServlet.java`
+**Location:** `wikantik-main/src/main/java/org/apache/wiki/ui/SitemapServlet.java`
 
 ```java
 package com.wikantik.ui;
@@ -98,7 +98,7 @@ public class SitemapServlet extends HttpServlet {
 }
 ```
 
-      1. Step 2: Implement Core Sitemap Generation Logic
+#### Step 2: Implement Core Sitemap Generation Logic
 
         1. 2.1 Get All Pages
 
@@ -190,7 +190,7 @@ for ( Page page : publicPages ) {
 out.println( "</urlset>" );
 ```
 
-      1. Step 3: Implement Helper Methods
+#### Step 3: Implement Helper Methods
 
         1. 3.1 Determine Change Frequency
 
@@ -256,9 +256,9 @@ private String escapeXml( final String input ) {
 }
 ```
 
-      1. Step 4: Register the Servlet
+#### Step 4: Register the Servlet
 
-  - Location:** `wikantik-war/src/main/webapp/WEB-INF/web.xml`
+**Location:** `wikantik-war/src/main/webapp/WEB-INF/web.xml`
 
 ```xml
 <servlet>
@@ -272,9 +272,9 @@ private String escapeXml( final String input ) {
 </servlet-mapping>
 ```
 
-      1. Step 5: Write Unit Tests
+#### Step 5: Write Unit Tests
 
-  - Location:** `wikantik-main/src/test/java/org/apache/wiki/ui/SitemapServletTest.java`
+**Location:** `wikantik-main/src/test/java/org/apache/wiki/ui/SitemapServletTest.java`
 
 Create tests for:
 - XML validity
@@ -285,9 +285,9 @@ Create tests for:
 
 ---
 
-    1. Phase 2: Enhanced Features
+### Phase 2: Enhanced Features
 
-      1. Step 6: Implement Caching
+#### Step 6: Implement Caching
 
 For performance, cache the generated sitemap using Wikantik's CachingManager:
 
@@ -314,14 +314,14 @@ private String generateSitemapContent( final HttpServletRequest req ) {
 }
 ```
 
-  - Note:** You may need to register the cache name in the caching configuration.
+**Note:** You may need to register the cache name in the caching configuration.
 
-      1. Step 7: Add Configuration Properties
+#### Step 7: Add Configuration Properties
 
-  - Location:** Add to `wikantik-main/src/main/resources/ini/wikantik.properties`
+**Location:** Add to `wikantik-main/src/main/resources/ini/wikantik.properties`
 
 ```properties
-1. Sitemap configuration
+# Sitemap configuration
 jspwiki.sitemap.enabled = true
 jspwiki.sitemap.includeAttachments = false
 jspwiki.sitemap.cacheTimeout = 3600
@@ -344,9 +344,9 @@ private boolean isEnabled() {
 
 ---
 
-    1. Phase 3: Large Wiki Support
+### Phase 3: Large Wiki Support
 
-      1. Step 8: Handle Large Wikis with Sitemap Index
+#### Step 8: Handle Large Wikis with Sitemap Index
 
 For wikis with more than 50,000 pages, implement a sitemap index:
 
@@ -408,9 +408,9 @@ protected void doGet( final HttpServletRequest req, final HttpServletResponse re
 
 ---
 
-    1. Phase 4: Optional Features
+### Phase 4: Optional Features
 
-      1. Step 9: Include Attachments (Optional)
+#### Step 9: Include Attachments (Optional)
 
 To index attachments:
 
@@ -432,9 +432,9 @@ for ( Page page : publicPages ) {
 }
 ```
 
-      1. Step 10: Add robots.txt Reference
+#### Step 10: Add robots.txt Reference
 
-  - Location:** `wikantik-war/src/main/webapp/robots.txt`
+**Location:** `wikantik-war/src/main/webapp/robots.txt`
 
 ```
 User-agent: *
@@ -443,11 +443,11 @@ Allow: /
 Sitemap: https://wiki.example.com/sitemap.xml
 ```
 
-  - Note:** The sitemap URL should be configurable or dynamically generated based on `engine.getBaseURL()`.
+**Note:** The sitemap URL should be configurable or dynamically generated based on `engine.getBaseURL()`.
 
 ---
 
-  1. Summary of Files to Create/Modify
+## Summary of Files to Create/Modify
 
 | File | Action | Phase | Description |
 |------|--------|-------|-------------|
@@ -459,7 +459,7 @@ Sitemap: https://wiki.example.com/sitemap.xml
 
 ---
 
-  1. Additional Considerations
+## Additional Considerations
 
 1. **URL Format**: The implementation uses `URLConstructor` to generate URLs in the configured format (e.g., `/wiki/PageName` for ShortViewURLConstructor)
 
@@ -473,9 +473,9 @@ Sitemap: https://wiki.example.com/sitemap.xml
 
 ---
 
-  1. API Reference
+## API Reference
 
-    1. Key Classes and Methods
+### Key Classes and Methods
 
 - **Engine access**: `Wiki.engine().find( config )`
 - **Session access**: `Wiki.session().find( engine, request )`
@@ -486,7 +486,7 @@ Sitemap: https://wiki.example.com/sitemap.xml
 - **Page management**: `engine.getManager( PageManager.class ).getAllPages()`
 - **References**: `engine.getManager( ReferenceManager.class ).findReferrers( pageName )`
 
-    1. Import Requirements
+### Import Requirements
 
 Use Jakarta EE (not javax):
 ```java

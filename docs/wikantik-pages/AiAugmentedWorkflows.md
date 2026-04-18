@@ -118,7 +118,7 @@ AI compression is excellent because it doesn't have the emotional attachment to 
 
 ```
 Prompt: "Here's my technical blog post. Create these versions:
-1. A 280-character tweet
+# A 280-character tweet
 2. A 3-sentence LinkedIn post
 3. A 5-bullet executive summary
 4. A Slack message to my team summarising the key finding"
@@ -144,7 +144,7 @@ One piece of content, four formats, two minutes. Without AI, this is 30 minutes 
 
 ```
 Prompt: "Here is a 40-page vendor contract. Extract and summarise:
-1. Payment terms and amounts
+# Payment terms and amounts
 2. Termination clauses and notice periods
 3. Liability limitations
 4. Any auto-renewal provisions
@@ -175,7 +175,7 @@ Then recommend one with reasoning."
 ```
 Prompt: "Here is a CSV of monthly sales data for the past 3 years
 [paste data]. Identify:
-1. Overall trend (growing, declining, flat)
+# Overall trend (growing, declining, flat)
 2. Seasonal patterns
 3. Any anomalies or outliers
 4. Three possible explanations for the biggest anomaly

@@ -9,9 +9,9 @@ type: implementation-plan
 
 
 
-1. Complete OAuth SSO Implementation Plan for Wikantik
+# Complete OAuth SSO Implementation Plan for Wikantik
 
-  1. Table of Contents
+## Table of Contents
 
 1. [Executive Summary](#executive-summary)
 2. [Part A: Google Cloud Console Setup](#part-a-google-cloud-console-setup)
@@ -34,11 +34,11 @@ type: implementation-plan
 
 ---
 
-  1. Executive Summary
+## Executive Summary
 
 This document provides a complete implementation plan for adding OAuth 2.0 / OpenID Connect authentication to Wikantik as an **additional authentication option**. Users can choose to log in with their Google accounts OR continue using traditional Wikantik username/password accounts. The implementation leverages Wikantik's existing JAAS-based authentication architecture without replacing or removing any existing functionality.
 
-  - Key Benefits:**
+**Key Benefits:**
 - **User choice**: Users can authenticate via OAuth OR traditional wiki accounts
 - **Existing accounts preserved**: All current username/password accounts continue to work unchanged
 - **New user flexibility**: New users can register traditionally or sign in with Google
@@ -47,15 +47,15 @@ This document provides a complete implementation plan for adding OAuth 2.0 / Ope
 - Seamless integration with existing permission system
 - Optional: Extend to support GitHub, Microsoft, etc.
 
-  - Important Design Principle:** OAuth/SSO is purely additive. The traditional Wikantik authentication system (username/password registration, login, and account management) remains fully functional and is the primary authentication method. OAuth provides a convenient alternative for users who prefer it.
+**Important Design Principle:** OAuth/SSO is purely additive. The traditional Wikantik authentication system (username/password registration, login, and account management) remains fully functional and is the primary authentication method. OAuth provides a convenient alternative for users who prefer it.
 
-  - Estimated Effort:** 8-10 developer days
+**Estimated Effort:** 8-10 developer days
 
 ---
 
-  1. Part A: Google Cloud Console Setup
+## Part A: Google Cloud Console Setup
 
-    1. A.1 Prerequisites
+### A.1 Prerequisites
 
 Before starting, ensure you have:
 - A Google account with access to Google Cloud Console
@@ -63,7 +63,7 @@ Before starting, ensure you have:
 - HTTPS configured on your server (required for production OAuth)
 - Admin access to your Wikantik deployment
 
-    1. A.2 Create a Google Cloud Project
+### A.2 Create a Google Cloud Project
 
 1. **Navigate to Google Cloud Console**
    - Go to https://console.cloud.google.com/
@@ -82,7 +82,7 @@ Before starting, ensure you have:
 3. **Select Your New Project**
    - Use the project dropdown to switch to your newly created project
 
-    1. A.3 Configure the OAuth Consent Screen
+### A.3 Configure the OAuth Consent Screen
 
 1. **Navigate to OAuth Consent Screen**
    - In the left sidebar, go to "APIs & Services" → "OAuth consent screen"
@@ -118,7 +118,7 @@ Before starting, ensure you have:
 
 7. **Click "Save and Continue"**
 
-    1. A.4 Configure Scopes
+### A.4 Configure Scopes
 
 1. **Add Required Scopes**
    - Click "Add or Remove Scopes"
@@ -137,7 +137,7 @@ Before starting, ensure you have:
 
 3. **Click "Save and Continue"**
 
-    1. A.5 Add Test Users (External Apps Only)
+### A.5 Add Test Users (External Apps Only)
 
 If you selected "External" user type:
 
@@ -148,7 +148,7 @@ If you selected "External" user type:
 
 2. **Click "Save and Continue"**
 
-    1. A.6 Create OAuth 2.0 Credentials
+### A.6 Create OAuth 2.0 Credentials
 
 1. **Navigate to Credentials**
    - Go to "APIs & Services" → "Credentials"
@@ -192,7 +192,7 @@ If you selected "External" user type:
    Client Secret: GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
    ```
 
-    1. A.7 Enable Required APIs
+### A.7 Enable Required APIs
 
 1. **Navigate to API Library**
    - Go to "APIs & Services" → "Library"
@@ -202,7 +202,7 @@ If you selected "External" user type:
    - Click on it
    - Click "Enable"
 
-    1. A.8 App Verification (Production Only)
+### A.8 App Verification (Production Only)
 
 For external apps, you must complete verification:
 
@@ -217,7 +217,7 @@ For external apps, you must complete verification:
    - Complete the verification form
    - Submit and wait for review (can take several weeks)
 
-    1. A.9 Checklist: Google Cloud Setup Complete
+### A.9 Checklist: Google Cloud Setup Complete
 
 - [ ]() Google Cloud project created
 - [ ]() OAuth consent screen configured
@@ -229,9 +229,9 @@ For external apps, you must complete verification:
 
 ---
 
-  1. Part B: Architecture Overview
+## Part B: Architecture Overview
 
-    1. B.0 Authentication Options Overview
+### B.0 Authentication Options Overview
 
 Wikantik supports multiple authentication methods that coexist seamlessly:
 
@@ -285,7 +285,7 @@ permissions and capabilities. The authentication method is transparent
 to the rest of the wiki system.
 ```
 
-  - Key Points:**
+**Key Points:**
 - The existing login form, registration page, and password management remain unchanged
 - OAuth buttons are added below/beside the existing login form
 - Users with traditional accounts can continue using username/password forever
@@ -293,7 +293,7 @@ to the rest of the wiki system.
 - All existing JAAS LoginModules continue to work
 - New OAuthLoginModule is added to the JAAS chain, not replacing anything
 
-    1. B.1 High-Level OAuth Flow
+### B.1 High-Level OAuth Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -354,7 +354,7 @@ to the rest of the wiki system.
  └──────────┘                                       └──────────────────────────┘
 ```
 
-    1. B.2 Component Architecture
+### B.2 Component Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -381,7 +381,7 @@ com.wikantik.auth.oauth/
     └── OAuthCallbackServlet.java     # Handles callback (/oauth/callback)
 ```
 
-    1. B.3 Integration Points
+### B.3 Integration Points
 
 | Component | Integration Method | Description | Impact on Existing |
 |-----------|-------------------|-------------|-------------------|
@@ -394,7 +394,7 @@ com.wikantik.auth.oauth/
 | NewGroup.jsp | No changes | Traditional registration unchanged | **No changes** |
 | UserPreferences.jsp | No changes | Password management unchanged | **No changes** |
 
-  - Backward Compatibility Guarantee:**
+**Backward Compatibility Guarantee:**
 - All existing authentication flows continue to work identically
 - Existing user accounts require no migration or changes
 - If OAuth is disabled, the wiki functions exactly as before
@@ -402,9 +402,9 @@ com.wikantik.auth.oauth/
 
 ---
 
-  1. Part C: Implementation Plan
+## Part C: Implementation Plan
 
-    1. C.1 New Dependencies (pom.xml)
+### C.1 New Dependencies (pom.xml)
 
 Add to `wikantik-main/pom.xml`:
 
@@ -458,13 +458,13 @@ Or, add version properties to root `pom.xml`:
 <auth0-jwks-rsa.version>0.22.1</auth0-jwks-rsa.version>
 ```
 
-    1. C.2 File-by-File Implementation
+### C.2 File-by-File Implementation
 
-      1. C.2.1 OAuthConfiguration.java
+#### C.2.1 OAuthConfiguration.java
 
-  - Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/oauth/OAuthConfiguration.java`
+**Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/oauth/OAuthConfiguration.java`
 
-  - Purpose:** Centralized configuration management for OAuth settings
+**Purpose:** Centralized configuration management for OAuth settings
 
 ```java
 package com.wikantik.auth.oauth;
@@ -541,11 +541,11 @@ public class OAuthConfiguration {
 }
 ```
 
-      1. C.2.2 OAuthUserInfo.java
+#### C.2.2 OAuthUserInfo.java
 
-  - Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/oauth/OAuthUserInfo.java`
+**Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/oauth/OAuthUserInfo.java`
 
-  - Purpose:** Data transfer object for OAuth user information
+**Purpose:** Data transfer object for OAuth user information
 
 ```java
 package com.wikantik.auth.oauth;
@@ -639,9 +639,9 @@ public class OAuthUserInfo implements Serializable {
 }
 ```
 
-      1. C.2.3 OAuthProvider.java (Interface)
+#### C.2.3 OAuthProvider.java (Interface)
 
-  - Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/oauth/provider/OAuthProvider.java`
+**Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/oauth/provider/OAuthProvider.java`
 
 ```java
 package com.wikantik.auth.oauth.provider;
@@ -718,9 +718,9 @@ public interface OAuthProvider {
 }
 ```
 
-      1. C.2.4 GoogleOAuthProvider.java
+#### C.2.4 GoogleOAuthProvider.java
 
-  - Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/oauth/provider/GoogleOAuthProvider.java`
+**Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/oauth/provider/GoogleOAuthProvider.java`
 
 ```java
 package com.wikantik.auth.oauth.provider;
@@ -914,9 +914,9 @@ public class GoogleOAuthProvider implements OAuthProvider {
 }
 ```
 
-      1. C.2.5 OAuthCallback.java
+#### C.2.5 OAuthCallback.java
 
-  - Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/login/OAuthCallback.java`
+**Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/login/OAuthCallback.java`
 
 ```java
 package com.wikantik.auth.login;
@@ -941,9 +941,9 @@ public class OAuthCallback implements Callback {
 }
 ```
 
-      1. C.2.6 OAuthCallbackHandler.java
+#### C.2.6 OAuthCallbackHandler.java
 
-  - Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/login/OAuthCallbackHandler.java`
+**Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/login/OAuthCallbackHandler.java`
 
 ```java
 package com.wikantik.auth.login;
@@ -995,9 +995,9 @@ public class OAuthCallbackHandler implements CallbackHandler {
 }
 ```
 
-      1. C.2.7 OAuthLoginModule.java
+#### C.2.7 OAuthLoginModule.java
 
-  - Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/login/OAuthLoginModule.java`
+**Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/login/OAuthLoginModule.java`
 
 ```java
 package com.wikantik.auth.login;
@@ -1149,9 +1149,9 @@ public class OAuthLoginModule extends AbstractLoginModule {
 }
 ```
 
-      1. C.2.8 OAuthStartServlet.java
+#### C.2.8 OAuthStartServlet.java
 
-  - Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/oauth/servlet/OAuthStartServlet.java`
+**Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/oauth/servlet/OAuthStartServlet.java`
 
 ```java
 package com.wikantik.auth.oauth.servlet;
@@ -1275,9 +1275,9 @@ public class OAuthStartServlet extends HttpServlet {
 }
 ```
 
-      1. C.2.9 OAuthCallbackServlet.java
+#### C.2.9 OAuthCallbackServlet.java
 
-  - Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/oauth/servlet/OAuthCallbackServlet.java`
+**Location:** `wikantik-main/src/main/java/org/apache/wiki/auth/oauth/servlet/OAuthCallbackServlet.java`
 
 ```java
 package com.wikantik.auth.oauth.servlet;
@@ -1488,9 +1488,9 @@ public class OAuthCallbackServlet extends HttpServlet {
 }
 ```
 
-      1. C.2.10 web.xml Updates
+#### C.2.10 web.xml Updates
 
-  - Location:** `wikantik-war/src/main/webapp/WEB-INF/web.xml`
+**Location:** `wikantik-war/src/main/webapp/WEB-INF/web.xml`
 
 Add the following servlet definitions:
 
@@ -1518,13 +1518,13 @@ Add the following servlet definitions:
 </servlet-mapping>
 ```
 
-  - Note:** The callback mapping must come before the general `/oauth/*` mapping to ensure proper routing.
+**Note:** The callback mapping must come before the general `/oauth/*` mapping to ensure proper routing.
 
-      1. C.2.11 LoginContent.jsp Updates
+#### C.2.11 LoginContent.jsp Updates
 
-  - Location:** `wikantik-war/src/main/webapp/templates/default/LoginContent.jsp`
+**Location:** `wikantik-war/src/main/webapp/templates/default/LoginContent.jsp`
 
-  - Important:** The existing login form (username/password fields, submit button, and "Register" link) remains completely unchanged. We are adding OAuth buttons as an **additional option** below the existing form.
+**Important:** The existing login form (username/password fields, submit button, and "Register" link) remains completely unchanged. We are adding OAuth buttons as an **additional option** below the existing form.
 
 Add OAuth login buttons after the regular login form (around line 98, after the `<hr />`):
 
@@ -1601,7 +1601,7 @@ login.oauth.or=Or sign in with
 login.oauth.google=Continue with Google
 ```
 
-      1. C.2.12 Set JSP Variables
+#### C.2.12 Set JSP Variables
 
 Update the beginning of `LoginContent.jsp` to set OAuth configuration variables:
 
@@ -1627,70 +1627,70 @@ Update the beginning of `LoginContent.jsp` to set OAuth configuration variables:
 
 ---
 
-  1. Part D: Configuration Guide
+## Part D: Configuration Guide
 
-    1. D.1 wikantik.properties Configuration
+### D.1 wikantik.properties Configuration
 
 Add these properties to your `wikantik-custom.properties` file:
 
 ```properties
                                                                                                                                                         1. 
-1. OAuth 2.0 / OpenID Connect Configuration
+# OAuth 2.0 / OpenID Connect Configuration
 1. 
-1. IMPORTANT: OAuth is an OPTIONAL, ADDITIONAL authentication method.
-1. When enabled, users can choose to:
-1. 1. Log in with username/password (traditional - always available)
-1. 2. Register a new account with username/password (traditional - always available)
-1. 3. Log in with an OAuth provider like Google (if enabled below)
+# IMPORTANT: OAuth is an OPTIONAL, ADDITIONAL authentication method.
+# When enabled, users can choose to:
+# 1. Log in with username/password (traditional - always available)
+# 2. Register a new account with username/password (traditional - always available)
+# 3. Log in with an OAuth provider like Google (if enabled below)
 1. 
-1. Setting jspwiki.oauth.enabled = false completely hides OAuth options
-1. and the wiki functions exactly as it did before OAuth was added.
+# Setting jspwiki.oauth.enabled = false completely hides OAuth options
+# and the wiki functions exactly as it did before OAuth was added.
                                                                                                                                                         1. 
 
-1. Master switch for OAuth authentication
-1. Set to 'true' to show OAuth login options alongside traditional login
-1. Set to 'false' to hide OAuth entirely (traditional login only)
+# Master switch for OAuth authentication
+# Set to 'true' to show OAuth login options alongside traditional login
+# Set to 'false' to hide OAuth entirely (traditional login only)
 jspwiki.oauth.enabled = true
 
-1. Automatically create user accounts for new OAuth users
-1. - true: First-time OAuth users get an account created automatically
-1. - false: OAuth users must have a pre-existing account (matched by email)
+# Automatically create user accounts for new OAuth users
+# - true: First-time OAuth users get an account created automatically
+# - false: OAuth users must have a pre-existing account (matched by email)
 1. 
-1. Note: This only affects OAuth. Traditional registration (username/password)
-1. is controlled separately by existing Wikantik settings.
+# Note: This only affects OAuth. Traditional registration (username/password)
+# is controlled separately by existing Wikantik settings.
 jspwiki.oauth.autoCreateUsers = true
 
-1. ---------------------------------------------------------------------------
-1. Google OAuth 2.0 / OpenID Connect
-1. ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Google OAuth 2.0 / OpenID Connect
+# ---------------------------------------------------------------------------
 
-1. Enable Google authentication
+# Enable Google authentication
 jspwiki.oauth.google.enabled = true
 
-1. OAuth client credentials from Google Cloud Console
-1. SECURITY: Consider using environment variables or secrets management
+# OAuth client credentials from Google Cloud Console
+# SECURITY: Consider using environment variables or secrets management
 jspwiki.oauth.google.clientId = YOUR_CLIENT_ID.apps.googleusercontent.com
 jspwiki.oauth.google.clientSecret = GOCSPX-YOUR_CLIENT_SECRET
 
-1. OAuth scopes (space-separated)
-1. Default: openid email profile
+# OAuth scopes (space-separated)
+# Default: openid email profile
 jspwiki.oauth.google.scopes = openid email profile
 
-1. ---------------------------------------------------------------------------
-1. Future: GitHub OAuth 2.0
-1. ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Future: GitHub OAuth 2.0
+# ---------------------------------------------------------------------------
 
-1. jspwiki.oauth.github.enabled = false
-1. jspwiki.oauth.github.clientId =
-1. jspwiki.oauth.github.clientSecret =
+# jspwiki.oauth.github.enabled = false
+# jspwiki.oauth.github.clientId =
+# jspwiki.oauth.github.clientSecret =
 ```
 
-    1. D.2 Environment Variable Configuration (Recommended for Production)
+### D.2 Environment Variable Configuration (Recommended for Production)
 
 For security, use environment variables for secrets:
 
 ```properties
-1. In wikantik-custom.properties
+# In wikantik-custom.properties
 jspwiki.oauth.google.clientId = ${env:JSPWIKI_OAUTH_GOOGLE_CLIENT_ID}
 jspwiki.oauth.google.clientSecret = ${env:JSPWIKI_OAUTH_GOOGLE_CLIENT_SECRET}
 ```
@@ -1702,22 +1702,22 @@ export JSPWIKI_OAUTH_GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com
 export JSPWIKI_OAUTH_GOOGLE_CLIENT_SECRET="GOCSPX-your-secret"
 ```
 
-    1. D.3 Tomcat Configuration for Environment Variables
+### D.3 Tomcat Configuration for Environment Variables
 
 In `catalina.properties` or `setenv.sh`:
 
 ```bash
-1. setenv.sh
+# setenv.sh
 export JSPWIKI_OAUTH_GOOGLE_CLIENT_ID="your-client-id"
 export JSPWIKI_OAUTH_GOOGLE_CLIENT_SECRET="your-secret"
 ```
 
-    1. D.4 Security Policy Updates
+### D.4 Security Policy Updates
 
 If using JAAS security policy, ensure OAuth classes have appropriate permissions:
 
 ```
-1. In wikantik.policy
+# In wikantik.policy
 grant codeBase "file:${jspwiki.home}/WEB-INF/lib/wikantik-main-*.jar" {
     // Allow OAuth to make HTTPS connections
     permission java.net.SocketPermission "accounts.google.com:443", "connect,resolve";
@@ -1729,13 +1729,13 @@ grant codeBase "file:${jspwiki.home}/WEB-INF/lib/wikantik-main-*.jar" {
 
 ---
 
-  1. Part E: Testing Strategy
+## Part E: Testing Strategy
 
-    1. E.1 Unit Tests
+### E.1 Unit Tests
 
-      1. E.1.1 OAuthConfigurationTest.java
+#### E.1.1 OAuthConfigurationTest.java
 
-  - Location:** `wikantik-main/src/test/java/org/apache/wiki/auth/oauth/OAuthConfigurationTest.java`
+**Location:** `wikantik-main/src/test/java/org/apache/wiki/auth/oauth/OAuthConfigurationTest.java`
 
 ```java
 package com.wikantik.auth.oauth;
@@ -1801,7 +1801,7 @@ class OAuthConfigurationTest {
 }
 ```
 
-      1. E.1.2 OAuthUserInfoTest.java
+#### E.1.2 OAuthUserInfoTest.java
 
 ```java
 package com.wikantik.auth.oauth;
@@ -1850,7 +1850,7 @@ class OAuthUserInfoTest {
 }
 ```
 
-      1. E.1.3 OAuthLoginModuleTest.java
+#### E.1.3 OAuthLoginModuleTest.java
 
 ```java
 package com.wikantik.auth.login;
@@ -1947,11 +1947,11 @@ class OAuthLoginModuleTest {
 }
 ```
 
-    1. E.2 Integration Tests
+### E.2 Integration Tests
 
-      1. E.2.1 OAuthFlowIntegrationTest.java
+#### E.2.1 OAuthFlowIntegrationTest.java
 
-  - Location:** `jspwiki-it-tests/src/test/java/org/apache/wiki/its/OAuthFlowIntegrationTest.java`
+**Location:** `jspwiki-it-tests/src/test/java/org/apache/wiki/its/OAuthFlowIntegrationTest.java`
 
 ```java
 package com.wikantik.its;
@@ -2005,16 +2005,16 @@ class OAuthFlowIntegrationTest {
 }
 ```
 
-    1. E.3 Manual Testing Checklist
+### E.3 Manual Testing Checklist
 
-      1. E.3.1 Pre-Flight Checks
+#### E.3.1 Pre-Flight Checks
 
 - [ ]() OAuth properties configured in `wikantik-custom.properties`
 - [ ]() Redirect URIs match between Google Console and Wikantik URL
 - [ ]() HTTPS configured (or localhost for development)
 - [ ]() Test user added to Google OAuth consent screen (if external app)
 
-      1. E.3.2 Traditional Authentication Still Works (CRITICAL)
+#### E.3.2 Traditional Authentication Still Works (CRITICAL)
 
   - These tests verify that existing functionality is not broken by OAuth additions.**
 
@@ -2044,7 +2044,7 @@ class OAuthFlowIntegrationTest {
    - [ ]() "Register" link still visible and functional
    - [ ]() Clear visual separation between traditional and OAuth options
 
-      1. E.3.3 OAuth Happy Path Testing
+#### E.3.3 OAuth Happy Path Testing
 
 1. **Initial Login Flow**
    - [ ]() Open login page
@@ -2067,7 +2067,7 @@ class OAuthFlowIntegrationTest {
    - [ ]() Reopen browser and navigate to wiki
    - [ ]() Verify session restored (if cookie auth enabled)
 
-      1. E.3.3 Error Path Testing
+#### E.3.3 Error Path Testing
 
 1. **User Cancels OAuth**
    - [ ]() Start OAuth flow
@@ -2091,9 +2091,9 @@ class OAuthFlowIntegrationTest {
    - [ ]() Attempt OAuth login
    - [ ]() Verify login rejected with appropriate message
 
-      1. E.3.4 OAuth Disabled Mode
+#### E.3.4 OAuth Disabled Mode
 
-  - When `jspwiki.oauth.enabled = false`, verify complete backward compatibility:**
+**When `jspwiki.oauth.enabled = false`, verify complete backward compatibility:**
 
 1. **UI Verification**
    - [ ]() No OAuth buttons visible on login page
@@ -2112,7 +2112,7 @@ class OAuthFlowIntegrationTest {
    - [ ]() No prompts to "link" OAuth accounts
    - [ ]() User profiles unchanged
 
-      1. E.3.5 Security Testing
+#### E.3.5 Security Testing
 
 1. **CSRF Protection**
    - [ ]() Verify state parameter is validated
@@ -2132,11 +2132,11 @@ class OAuthFlowIntegrationTest {
 
 ---
 
-  1. Part F: Security Considerations
+## Part F: Security Considerations
 
-    1. F.0 Traditional Authentication Security (Unchanged)
+### F.0 Traditional Authentication Security (Unchanged)
 
-  - OAuth additions do not affect the security of traditional accounts:**
+**OAuth additions do not affect the security of traditional accounts:**
 
 - Password hashing: Existing password storage and verification unchanged
 - Session management: Same session handling for all authentication methods
@@ -2146,7 +2146,7 @@ class OAuthFlowIntegrationTest {
 
   - Users choosing traditional accounts get the same security they always had.**
 
-    1. F.1 HTTPS Requirement
+### F.1 HTTPS Requirement
 
 OAuth 2.0 requires HTTPS for production deployments:
 
@@ -2154,9 +2154,9 @@ OAuth 2.0 requires HTTPS for production deployments:
 - Tokens transmitted over HTTP can be intercepted
 - Session cookies should be marked Secure
 
-  - Configuration:** Ensure your Tomcat or reverse proxy is configured for SSL/TLS.
+**Configuration:** Ensure your Tomcat or reverse proxy is configured for SSL/TLS.
 
-    1. F.2 Secret Management
+### F.2 Secret Management
 
   - Never commit OAuth secrets to source control.**
 
@@ -2166,14 +2166,14 @@ Best practices:
 - Rotate secrets periodically
 - Use different credentials for dev/staging/production
 
-    1. F.3 CSRF Protection
+### F.3 CSRF Protection
 
 The implementation includes CSRF protection via:
 - Random state parameter in OAuth flow
 - State validation in callback
 - State cleared after use
 
-    1. F.4 Token Validation
+### F.4 Token Validation
 
 ID tokens are validated for:
 - Signature (using Google's public keys from JWKS endpoint)
@@ -2181,20 +2181,20 @@ ID tokens are validated for:
 - Audience (must match client ID)
 - Expiration (must not be expired)
 
-    1. F.5 User Verification
+### F.5 User Verification
 
 Only users with verified email addresses can authenticate:
 - Prevents impersonation with unverified emails
 - `email_verified` claim is checked
 
-    1. F.6 Account Linking Security
+### F.6 Account Linking Security
 
 When linking OAuth accounts to existing users:
 - Matching is done by email address only
 - Consider adding confirmation step for existing accounts
 - Admin can manually link accounts if needed
 
-    1. F.7 Session Security
+### F.7 Session Security
 
 - OAuth tokens are not stored in the session (only user info)
 - WikiSession is used for authorization after initial auth
@@ -2202,15 +2202,15 @@ When linking OAuth accounts to existing users:
 
 ---
 
-  1. Part G: Troubleshooting
+## Part G: Troubleshooting
 
-    1. G.1 Common Issues
+### G.1 Common Issues
 
       1. "OAuth is not enabled"
 
-  - Cause:** OAuth configuration is missing or disabled.
+**Cause:** OAuth configuration is missing or disabled.
 
-  - Solution:**
+**Solution:**
 ```properties
 jspwiki.oauth.enabled = true
 jspwiki.oauth.google.enabled = true
@@ -2218,9 +2218,9 @@ jspwiki.oauth.google.enabled = true
 
       1. "Invalid redirect URI"
 
-  - Cause:** Callback URL doesn't match Google Console configuration.
+**Cause:** Callback URL doesn't match Google Console configuration.
 
-  - Solution:**
+**Solution:**
 1. Check your Wikantik base URL
 2. Ensure Google Console has the exact redirect URI:
    `https://your-domain.com/Wikantik/oauth/callback`
@@ -2228,45 +2228,45 @@ jspwiki.oauth.google.enabled = true
 
       1. "Security validation failed" (CSRF error)
 
-  - Cause:** State parameter mismatch.
+**Cause:** State parameter mismatch.
 
-  - Possible causes:**
+**Possible causes:**
 - Session expired during OAuth flow
 - User has multiple tabs open
 - Cookies disabled
 
-  - Solution:**
+**Solution:**
 - Check session timeout settings
 - Ensure cookies are enabled
 - Increase session timeout if needed
 
       1. "User not found and auto-registration is disabled"
 
-  - Cause:** User doesn't exist and `autoCreateUsers` is false.
+**Cause:** User doesn't exist and `autoCreateUsers` is false.
 
-  - Solution:**
+**Solution:**
 - Enable auto-create: `jspwiki.oauth.autoCreateUsers = true`
 - Or pre-create the user account
 
       1. "Email address not verified by provider"
 
-  - Cause:** Google account has unverified email.
+**Cause:** Google account has unverified email.
 
-  - Solution:**
+**Solution:**
 - Have user verify their email with Google
 - This is a security feature and should not be disabled
 
-    1. G.2 Debugging
+### G.2 Debugging
 
 Enable debug logging for OAuth:
 
 ```properties
-1. In log4j2.xml
+# In log4j2.xml
 <Logger name="com.wikantik.auth.oauth" level="DEBUG" />
 <Logger name="com.wikantik.auth.login.OAuthLoginModule" level="DEBUG" />
 ```
 
-    1. G.3 Support Resources
+### G.3 Support Resources
 
 - Google OAuth Documentation: https://developers.google.com/identity/protocols/oauth2
 - OpenID Connect Spec: https://openid.net/connect/
@@ -2274,9 +2274,9 @@ Enable debug logging for OAuth:
 
 ---
 
-  1. Appendix: File Summary
+## Appendix: File Summary
 
-    1. New Files (OAuth-Specific)
+### New Files (OAuth-Specific)
 
 | File | Location | Purpose |
 |------|----------|---------|
@@ -2290,7 +2290,7 @@ Enable debug logging for OAuth:
 | `OAuthStartServlet.java` | `wikantik-main/.../auth/oauth/servlet/` | Starts OAuth flow |
 | `OAuthCallbackServlet.java` | `wikantik-main/.../auth/oauth/servlet/` | Handles callback |
 
-    1. Modified Files (Additive Changes Only)
+### Modified Files (Additive Changes Only)
 
 | File | Location | Change Type |
 |------|----------|-------------|
@@ -2299,7 +2299,7 @@ Enable debug logging for OAuth:
 | `pom.xml` | `wikantik-main/` | Add OAuth dependencies |
 | `wikantik-custom.properties` | Deployment | Add OAuth configuration properties |
 
-    1. Unchanged Files (Traditional Auth)
+### Unchanged Files (Traditional Auth)
 
 These files are NOT modified and continue to function exactly as before:
 
@@ -2316,11 +2316,11 @@ These files are NOT modified and continue to function exactly as before:
 
 ---
 
-  1. Part H: Cloudflare Tunnel & SquareSpace DNS Setup
+## Part H: Cloudflare Tunnel & SquareSpace DNS Setup
 
 This section covers specific considerations for deployments using **Cloudflare Tunnel (cloudflared)** for exposing a privately-hosted server and **SquareSpace** for DNS management.
 
-    1. H.1 Architecture Overview
+### H.1 Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -2363,9 +2363,9 @@ This section covers specific considerations for deployments using **Cloudflare T
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-    1. H.2 SquareSpace DNS Configuration
+### H.2 SquareSpace DNS Configuration
 
-      1. H.2.1 Setting Up DNS Records
+#### H.2.1 Setting Up DNS Records
 
 1. **Log in to SquareSpace**
    - Go to your domain settings
@@ -2400,15 +2400,15 @@ This section covers specific considerations for deployments using **Cloudflare T
    nslookup wiki.yourdomain.com
    ```
 
-      1. H.2.2 DNS Propagation Time
+#### H.2.2 DNS Propagation Time
 
 - SquareSpace DNS changes typically propagate within 1-48 hours
 - During initial setup, Google OAuth configuration should wait until DNS is fully propagated
 - Test with: `curl -I https://wiki.yourdomain.com`
 
-    1. H.3 Cloudflare Tunnel Configuration
+### H.3 Cloudflare Tunnel Configuration
 
-      1. H.3.1 Tunnel Configuration File
+#### H.3.1 Tunnel Configuration File
 
 Your `~/.cloudflared/config.yml` should route traffic to Tomcat:
 
@@ -2430,7 +2430,7 @@ ingress:
   - service: http_status:404
 ```
 
-      1. H.3.2 Critical Settings for OAuth
+#### H.3.2 Critical Settings for OAuth
 
 1. **Preserve Host Header**
 
@@ -2447,37 +2447,37 @@ ingress:
      connectTimeout: 30s
    ```
 
-      1. H.3.3 Running Cloudflared as a Service
+#### H.3.3 Running Cloudflared as a Service
 
 ```bash
-1. Install as system service
+# Install as system service
 sudo cloudflared service install
 
-1. Or run manually for testing
+# Or run manually for testing
 cloudflared tunnel run your-tunnel-name
 ```
 
-    1. H.4 Wikantik Configuration for Cloudflare Tunnel
+### H.4 Wikantik Configuration for Cloudflare Tunnel
 
-      1. H.4.1 Base URL Configuration
+#### H.4.1 Base URL Configuration
 
-  - Critical:** Wikantik must know its external URL for generating correct OAuth callback URLs.
+**Critical:** Wikantik must know its external URL for generating correct OAuth callback URLs.
 
 In `wikantik-custom.properties`:
 
 ```properties
                                                                                                                                                         1. 
-1. Base URL Configuration (Required for Cloudflare Tunnel)
+# Base URL Configuration (Required for Cloudflare Tunnel)
                                                                                                                                                         1. 
 
-1. The external URL users access (through Cloudflare)
+# The external URL users access (through Cloudflare)
 jspwiki.baseURL = https://wiki.yourdomain.com/Wikantik/
 
-1. Alternative: If you mount at root context
-1. jspwiki.baseURL = https://wiki.yourdomain.com/
+# Alternative: If you mount at root context
+# jspwiki.baseURL = https://wiki.yourdomain.com/
 ```
 
-      1. H.4.2 Proxy Headers Configuration
+#### H.4.2 Proxy Headers Configuration
 
 Cloudflare adds headers that Wikantik should recognize. In Tomcat's `server.xml`, add a RemoteIpValve:
 
@@ -2500,7 +2500,7 @@ Or simpler, trust all proxies (only if your server is not directly accessible):
 />
 ```
 
-      1. H.4.3 OAuth Callback URL Generation Fix
+#### H.4.3 OAuth Callback URL Generation Fix
 
 The OAuth servlets build callback URLs dynamically. With Cloudflare Tunnel, the servlet sees `localhost:8080` internally but needs to generate `https://wiki.yourdomain.com/...` externally.
 
@@ -2513,7 +2513,7 @@ Ensure `cloudflared` passes these headers and Tomcat's RemoteIpValve processes t
 Add to `wikantik-custom.properties`:
 
 ```properties
-1. Explicit OAuth callback URL (overrides auto-detection)
+# Explicit OAuth callback URL (overrides auto-detection)
 jspwiki.oauth.callbackUrl = https://wiki.yourdomain.com/Wikantik/oauth/callback
 ```
 
@@ -2533,28 +2533,28 @@ private String getCallbackUrl(HttpServletRequest request) {
 }
 ```
 
-    1. H.5 Google OAuth Console Settings for Cloudflare
+### H.5 Google OAuth Console Settings for Cloudflare
 
-      1. H.5.1 Authorized Redirect URIs
+#### H.5.1 Authorized Redirect URIs
 
 In Google Cloud Console → Credentials → OAuth 2.0 Client IDs:
 
 ```
-1. Production (Cloudflare Tunnel URL)
+# Production (Cloudflare Tunnel URL)
 https://wiki.yourdomain.com/Wikantik/oauth/callback
 
-1. Development (local testing, bypassing tunnel)
+# Development (local testing, bypassing tunnel)
 http://localhost:8080/Wikantik/oauth/callback
 ```
 
-      1. H.5.2 Authorized JavaScript Origins
+#### H.5.2 Authorized JavaScript Origins
 
 ```
 https://wiki.yourdomain.com
 http://localhost:8080
 ```
 
-      1. H.5.3 Authorized Domains
+#### H.5.3 Authorized Domains
 
 In OAuth consent screen:
 
@@ -2562,9 +2562,9 @@ In OAuth consent screen:
 yourdomain.com
 ```
 
-    1. H.6 SSL/TLS Considerations
+### H.6 SSL/TLS Considerations
 
-      1. H.6.1 Cloudflare SSL Modes
+#### H.6.1 Cloudflare SSL Modes
 
 Cloudflare offers several SSL modes. For OAuth, use:
 
@@ -2574,9 +2574,9 @@ Cloudflare offers several SSL modes. For OAuth, use:
 | **Full** | Encrypts but doesn't validate | Good if origin has self-signed cert |
 | **Flexible** | HTTPS to Cloudflare, HTTP to origin | Works but less secure |
 
-  - For OAuth:** "Full" or "Full (Strict)" is recommended since OAuth tokens transit through the tunnel.
+**For OAuth:** "Full" or "Full (Strict)" is recommended since OAuth tokens transit through the tunnel.
 
-      1. H.6.2 Cloudflare Dashboard Settings
+#### H.6.2 Cloudflare Dashboard Settings
 
 1. **SSL/TLS → Overview**
    - Set encryption mode to "Full" or "Full (Strict)"
@@ -2589,9 +2589,9 @@ Cloudflare offers several SSL modes. For OAuth, use:
    - Create Origin Certificate for your server
    - Install on Tomcat (optional with tunnel, but adds security)
 
-    1. H.7 Cloudflare Security Settings
+### H.7 Cloudflare Security Settings
 
-      1. H.7.1 WAF Rules for OAuth
+#### H.7.1 WAF Rules for OAuth
 
 Cloudflare's WAF might block OAuth callbacks. Create exceptions:
 
@@ -2609,7 +2609,7 @@ Cloudflare's WAF might block OAuth callbacks. Create exceptions:
    - The `code` and `state` parameters in OAuth callbacks might trigger security rules
    - Monitor Firewall Events after implementation
 
-      1. H.7.2 Rate Limiting
+#### H.7.2 Rate Limiting
 
 OAuth endpoints should have reasonable rate limits:
 
@@ -2619,73 +2619,73 @@ Rate Limit: 20 requests per minute per IP
 Action: Challenge or Block
 ```
 
-      1. H.7.3 Bot Protection
+#### H.7.3 Bot Protection
 
 Ensure Cloudflare's bot protection doesn't block OAuth flows:
 - OAuth callbacks are legitimate automated requests from Google
 - May need to allow Google's IP ranges
 
-    1. H.8 Troubleshooting Cloudflare + OAuth
+### H.8 Troubleshooting Cloudflare + OAuth
 
-      1. H.8.1 "Redirect URI Mismatch"
+#### H.8.1 "Redirect URI Mismatch"
 
-  - Symptoms:** Google rejects the OAuth callback.
+**Symptoms:** Google rejects the OAuth callback.
 
-  - Causes:**
+**Causes:**
 1. URL in Google Console doesn't match what Wikantik generates
 2. Cloudflare is modifying the URL
 
-  - Diagnosis:**
+**Diagnosis:**
 ```bash
-1. Check what URL Wikantik sees
+# Check what URL Wikantik sees
 curl -v https://wiki.yourdomain.com/Wikantik/oauth/google 2>&1 | grep -i location
 ```
 
-  - Solutions:**
+**Solutions:**
 - Verify `jspwiki.baseURL` is set correctly
 - Check Tomcat RemoteIpValve configuration
 - Use explicit `jspwiki.oauth.callbackUrl`
 
-      1. H.8.2 "Connection Refused" or Timeout
+#### H.8.2 "Connection Refused" or Timeout
 
-  - Symptoms:** OAuth flow hangs or fails.
+**Symptoms:** OAuth flow hangs or fails.
 
-  - Causes:**
+**Causes:**
 1. `cloudflared` not running
 2. Tunnel not connected
 3. Tomcat not running on expected port
 
-  - Diagnosis:**
+**Diagnosis:**
 ```bash
-1. Check tunnel status
+# Check tunnel status
 cloudflared tunnel info your-tunnel-name
 
-1. Check if Tomcat is listening
+# Check if Tomcat is listening
 netstat -tlnp | grep 8080
 
-1. Test direct connection
+# Test direct connection
 curl http://localhost:8080/Wikantik/
 ```
 
-      1. H.8.3 "SSL Handshake Failed"
+#### H.8.3 "SSL Handshake Failed"
 
-  - Symptoms:** 525 or 526 errors from Cloudflare.
+**Symptoms:** 525 or 526 errors from Cloudflare.
 
-  - Causes:**
+**Causes:**
 1. SSL mode mismatch
 2. Origin certificate issues
 
-  - Solutions:**
+**Solutions:**
 - Set Cloudflare SSL mode to "Full" (not "Full Strict") if no origin cert
 - Or install Cloudflare Origin Certificate on Tomcat
 
-      1. H.8.4 OAuth State Mismatch with Cloudflare Caching
+#### H.8.4 OAuth State Mismatch with Cloudflare Caching
 
-  - Symptoms:** "Security validation failed" errors intermittently.
+**Symptoms:** "Security validation failed" errors intermittently.
 
-  - Cause:** Cloudflare might cache pages that shouldn't be cached.
+**Cause:** Cloudflare might cache pages that shouldn't be cached.
 
-  - Solutions:**
+**Solutions:**
 
 1. **Page Rules:**
    ```
@@ -2699,76 +2699,76 @@ curl http://localhost:8080/Wikantik/
    Then: Bypass cache
    ```
 
-      1. H.8.5 Real IP Address Logging
+#### H.8.5 Real IP Address Logging
 
-  - Issue:** Wikantik logs show Cloudflare IPs instead of real user IPs.
+**Issue:** Wikantik logs show Cloudflare IPs instead of real user IPs.
 
-  - Solution:** Configure Tomcat to use `CF-Connecting-IP` header (see H.4.2).
+**Solution:** Configure Tomcat to use `CF-Connecting-IP` header (see H.4.2).
 
 Verify in Wikantik logs:
 ```
-1. Should show real user IP, not Cloudflare edge IP
+# Should show real user IP, not Cloudflare edge IP
 grep "login" jspwiki.log | head -5
 ```
 
-    1. H.9 Complete Configuration Checklist
+### H.9 Complete Configuration Checklist
 
-      1. H.9.1 SquareSpace DNS
+#### H.9.1 SquareSpace DNS
 
 - [ ]() CNAME record created: `wiki` → `<tunnel-id>.cfargotunnel.com`
 - [ ]() DNS propagation verified: `dig wiki.yourdomain.com`
 
-      1. H.9.2 Cloudflare Tunnel
+#### H.9.2 Cloudflare Tunnel
 
 - [ ]() Tunnel created and credentials file present
 - [ ]() `config.yml` routes `wiki.yourdomain.com` → `localhost:8080`
 - [ ]() `httpHostHeader` configured to preserve hostname
 - [ ]() `cloudflared` running as service or in background
 
-      1. H.9.3 Cloudflare Dashboard
+#### H.9.3 Cloudflare Dashboard
 
 - [ ]() SSL mode set to "Full" or "Full (Strict)"
 - [ ]() "Always Use HTTPS" enabled
 - [ ]() WAF exception for `/Wikantik/oauth/*` (if needed)
 - [ ]() Cache bypass for OAuth paths
 
-      1. H.9.4 Tomcat
+#### H.9.4 Tomcat
 
 - [ ]() RemoteIpValve configured for `CF-Connecting-IP` and `X-Forwarded-Proto`
 - [ ]() Listening on port matching tunnel config
 
-      1. H.9.5 Wikantik
+#### H.9.5 Wikantik
 
 - [ ]() `jspwiki.baseURL` set to `https://wiki.yourdomain.com/Wikantik/`
 - [ ]() OAuth properties configured
 - [ ]() (Optional) `jspwiki.oauth.callbackUrl` explicitly set
 
-      1. H.9.6 Google Cloud Console
+#### H.9.6 Google Cloud Console
 
 - [ ]() Redirect URI: `https://wiki.yourdomain.com/Wikantik/oauth/callback`
 - [ ]() Authorized domain: `yourdomain.com`
 - [ ]() JavaScript origin: `https://wiki.yourdomain.com`
 
-    1. H.10 Testing Your Setup
+### H.10 Testing Your Setup
 
-      1. H.10.1 Pre-OAuth Tests
+#### H.10.1 Pre-OAuth Tests
 
 ```bash
-1. 1. Verify DNS
+# 1. Verify DNS
 dig wiki.yourdomain.com CNAME
 
-1. 2. Verify tunnel connectivity
+# 2. Verify tunnel connectivity
 curl -I https://wiki.yourdomain.com/Wikantik/
 
-1. 3. Verify headers are passed correctly
+# 3. Verify headers are passed correctly
 curl -I https://wiki.yourdomain.com/Wikantik/Wiki.jsp 2>&1 | grep -i "x-forwarded"
 
-1. 4. Verify Wikantik sees correct URL
-1. Check the page source for any generated URLs
+# 4. Verify Wikantik sees correct URL
+# Check the page source for any generated URLs
 curl -s https://wiki.yourdomain.com/Wikantik/Wiki.jsp | grep -o 'href="[^"]*"' | head -10
 ```
 
-      1. H.10.2 OAuth Flow Test
+#### H.10.2 OAuth Flow Test
 
 1. Open browser developer tools (Network tab)
 2. Navigate to login page
@@ -2781,7 +2781,7 @@ curl -s https://wiki.yourdomain.com/Wikantik/Wiki.jsp | grep -o 'href="[^"]*"' |
 
 ---
 
-  1. Document History
+## Document History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|

@@ -4,24 +4,24 @@ tags:
 - uncategorized
 summary: Wikantik Reader UI - Implementation Plan
 ---
-1. Wikantik Reader UI - Implementation Plan
+# Wikantik Reader UI - Implementation Plan
 
 A modern, Medium.com-inspired reading experience built with React.
 
-  1. Overview
+## Overview
 
 Build a standalone React SPA that consumes Wikantik's existing REST API, providing a modern reading experience while the traditional JSP templates handle editing/administration.
 
-  1. Architecture
+## Architecture
 
-    1. Core Concept
+### Core Concept
 
 - **Standalone React SPA** (recommended approach)
 - Consumes Wikantik REST API (`/api/`)
 - Can be hosted at `/reader/` context or separate domain
 - Clean separation of concerns
 
-    1. Technology Stack
+### Technology Stack
 
 | Layer | Choice | Rationale |
 |-------|--------|-----------|
@@ -36,7 +36,7 @@ Build a standalone React SPA that consumes Wikantik's existing REST API, providi
 | Code Highlighting | Shiki | Accurate, VSCode-quality |
 | Mobile Gestures | @use-gesture/react | Swipe navigation |
 
-  1. Project Structure
+## Project Structure
 
 ```
 jspwiki-reader/                    # New Maven module
@@ -102,11 +102,11 @@ jspwiki-reader/                    # New Maven module
     └── fonts/                     # Self-hosted fonts
 ```
 
-  1. Design System
+## Design System
 
-    1. Typography
+### Typography
 
-  - Font Stack:**
+**Font Stack:**
 ```css
 /* Body - Georgia-based stack (no licensing needed) */
 --font-body: Charter, 'Bitstream Charter', 'Sitka Text', Cambria, serif;
@@ -118,7 +118,7 @@ jspwiki-reader/                    # New Maven module
 --font-code: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
 ```
 
-  - Type Scale (Major Third - 1.25):**
+**Type Scale (Major Third - 1.25):**
 ```css
 --text-sm: 0.875rem;    /* 14px - metadata */
 --text-base: 1.25rem;   /* 20px - body (larger than typical) */
@@ -132,9 +132,9 @@ jspwiki-reader/                    # New Maven module
 --letter-spacing-body: -0.003em;
 ```
 
-    1. Layout
+### Layout
 
-  - Content Container:**
+**Content Container:**
 ```css
 .article-content {
     max-width: 680px;           /* Medium's magic number */
@@ -153,14 +153,14 @@ jspwiki-reader/                    # New Maven module
 }
 ```
 
-  - Responsive Breakpoints:**
+**Responsive Breakpoints:**
 ```css
 --breakpoint-sm: 480px;   /* Mobile */
 --breakpoint-md: 728px;   /* Tablet */
 --breakpoint-lg: 1080px;  /* Desktop */
 ```
 
-    1. Color System
+### Color System
 
 ```css
 :root {
@@ -195,9 +195,9 @@ jspwiki-reader/                    # New Maven module
 }
 ```
 
-  1. Component Design
+## Component Design
 
-    1. Header (responsive)
+### Header (responsive)
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -208,7 +208,7 @@ jspwiki-reader/                    # New Maven module
 - Hides when scrolling down, reveals on scroll up
 - Progress bar along bottom edge
 
-    1. Article Header
+### Article Header
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -226,7 +226,7 @@ jspwiki-reader/                    # New Maven module
 └────────────────────────────────────────────────────────┘
 ```
 
-    1. Mobile Navigation (bottom bar)
+### Mobile Navigation (bottom bar)
 
 ```
 ┌─────────┬─────────┬─────────┬─────────┐
@@ -234,7 +234,7 @@ jspwiki-reader/                    # New Maven module
 └─────────┴─────────┴─────────┴─────────┘
 ```
 
-    1. Table of Contents (slide-in)
+### Table of Contents (slide-in)
 
 ```
 ┌─────────────────────┐
@@ -252,7 +252,7 @@ jspwiki-reader/                    # New Maven module
 - Slide-out panel on narrower screens
 - Highlights current section
 
-  1. API Integration
+## API Integration
 
 ```typescript
 // src/api/types.ts
@@ -286,7 +286,7 @@ export async function searchPages(query: string): Promise<SearchResult[]> {
 }
 ```
 
-  1. Key React Hooks
+## Key React Hooks
 
 ```typescript
 // src/hooks/useArticle.ts
@@ -359,7 +359,7 @@ export function useReadingTime(content?: string) {
 }
 ```
 
-  1. Wiki Content Processing
+## Wiki Content Processing
 
 ```typescript
 // src/utils/wikiParser.ts
@@ -393,7 +393,7 @@ export function processWikiContent(html: string): string {
 }
 ```
 
-  1. Maven Build Integration
+## Maven Build Integration
 
 ```xml
 <!-- jspwiki-reader/pom.xml -->
@@ -465,34 +465,34 @@ export function processWikiContent(html: string): string {
 </project>
 ```
 
-  1. Implementation Phases
+## Implementation Phases
 
-    1. Phase 1: Project Setup (3-4 days)
+### Phase 1: Project Setup (3-4 days)
 - Create jspwiki-reader module
 - Configure Vite + TypeScript + React
 - Set up CSS architecture
 - Implement API client
 - Basic routing
 
-    1. Phase 2: Core Reading Experience (5-7 days)
+### Phase 2: Core Reading Experience (5-7 days)
 - ArticleView component
 - ArticleBody with wiki content processing
 - Typography and spacing
 - Mobile-first responsive layout
 
-    1. Phase 3: Navigation & Chrome (4-5 days)
+### Phase 3: Navigation & Chrome (4-5 days)
 - Header with scroll behavior
 - Mobile bottom navigation
 - Table of Contents (sidebar + slide-out)
 - Reading progress bar
 
-    1. Phase 4: Search & Discovery (3-4 days)
+### Phase 4: Search & Discovery (3-4 days)
 - Search modal (Cmd+K)
 - Search results page
 - Related pages component
 - Home page with recent content
 
-    1. Phase 5: Polish (4-5 days)
+### Phase 5: Polish (4-5 days)
 - Dark mode
 - Loading skeletons
 - Error states
@@ -500,23 +500,23 @@ export function processWikiContent(html: string): string {
 - Image lightbox
 - Code syntax highlighting
 
-    1. Phase 6: Integration (2-3 days)
+### Phase 6: Integration (2-3 days)
 - Maven build integration
 - Deployment configuration
 - CORS setup if needed
 - Documentation
 
-  1. Deployment Options
+## Deployment Options
 
 1. **Embedded in WAR** - Serve from `/reader/` path
 2. **Separate static hosting** - CDN with API proxy
 3. **Hybrid** - Static assets on CDN, API calls to wiki server
 
-  1. Pre-Implementation Checklist
+## Pre-Implementation Checklist
 
 Before starting implementation, the following decisions and information are needed:
 
-    1. Required Information
+### Required Information
 
 | Item | Description | Status |
 |------|-------------|--------|
@@ -524,7 +524,7 @@ Before starting implementation, the following decisions and information are need
 | Sample Content | Example pages with various content types | Pending |
 | Node.js | Confirm v18+ installed | Pending |
 
-    1. Architectural Decisions
+### Architectural Decisions
 
 | Decision | Options | Choice |
 |----------|---------|--------|
@@ -533,23 +533,23 @@ Before starting implementation, the following decisions and information are need
 | Authentication | Public only vs respect ACLs | TBD |
 | v1 Feature Scope | Reading only? Search? Dark mode? | TBD |
 
-    1. Commands to Gather Information
+### Commands to Gather Information
 
 ```bash
-1. Check Node availability
+# Check Node availability
 node --version && npm --version
 
-1. Show API structure
+# Show API structure
 find . -path "*/api/*" -name "*.java" | head -20
 
-1. Fetch a sample page via API (if server is running)
+# Fetch a sample page via API (if server is running)
 curl -s http://localhost:8080/Wikantik/api/pages/Main
 
-1. Show existing REST controller
+# Show existing REST controller
 grep -r "RestController\|@Path\|@GET" --include="*.java" | head -30
 ```
 
-  1. Risks & Mitigations
+## Risks & Mitigations
 
 | Risk | Mitigation |
 |------|------------|

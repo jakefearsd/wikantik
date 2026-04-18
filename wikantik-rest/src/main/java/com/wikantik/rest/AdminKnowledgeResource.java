@@ -96,10 +96,110 @@ public class AdminKnowledgeResource extends RestServletBase {
         return service;
     }
 
+    /**
+     * One action for one HTTP verb on one resource. See {@link #resources}.
+     */
+    @FunctionalInterface
+    private interface ResourceAction {
+        void invoke( KnowledgeGraphService service, HttpServletRequest request,
+                     HttpServletResponse response, String[] segments ) throws IOException;
+    }
+
+    /**
+     * Declarative binding of a URL resource (e.g. {@code nodes}) to the actions it supports.
+     * A {@code null} slot means the verb is not supported for that resource; the dispatcher
+     * returns 404 "Unknown resource" rather than 405, which matches the pre-refactor behavior
+     * where unsupported verbs simply fell through the switch's {@code default} case.
+     */
+    private record Resource( ResourceAction get, ResourceAction post, ResourceAction delete ) {
+        static Resource get( final ResourceAction a )    { return new Resource( a, null, null ); }
+        static Resource post( final ResourceAction a )   { return new Resource( null, a, null ); }
+    }
+
+    /**
+     * Dispatch table: the single source of truth for which URL resources and verbs this
+     * servlet supports. Adding a new endpoint is a one-line change here plus one handler
+     * method. Lambdas adapt each handler's specific signature to the common
+     * {@link ResourceAction} contract.
+     */
+    private final Map< String, Resource > resources = buildResources();
+
+    private Map< String, Resource > buildResources() {
+        final Map< String, Resource > m = new LinkedHashMap<>();
+        m.put( "schema", Resource.get(
+                ( svc, req, resp, seg ) -> handleGetSchema( svc, resp ) ) );
+        m.put( "nodes", new Resource(
+                this::handleGetNodes,
+                this::handlePostNode,
+                ( svc, req, resp, seg ) -> handleDeleteNode( svc, resp, seg[ 1 ] ) ) );
+        m.put( "edges", new Resource(
+                this::handleGetEdges,
+                ( svc, req, resp, seg ) -> handlePostEdge( svc, req, resp ),
+                ( svc, req, resp, seg ) -> handleDeleteEdge( svc, resp, seg[ 1 ] ) ) );
+        m.put( "proposals", new Resource(
+                ( svc, req, resp, seg ) -> handleGetProposals( svc, req, resp ),
+                this::handlePostProposal,
+                null ) );
+        m.put( "embeddings", new Resource(
+                ( svc, req, resp, seg ) -> handleGetEmbeddings( req, resp, seg ),
+                ( svc, req, resp, seg ) -> handlePostEmbeddings( resp, seg ),
+                null ) );
+        m.put( "pages-without-frontmatter", Resource.get(
+                ( svc, req, resp, seg ) -> handleGetPagesWithoutFrontmatter( req, resp ) ) );
+        m.put( "hub-proposals", new Resource(
+                ( svc, req, resp, seg ) -> handleGetHubProposals( req, resp ),
+                ( svc, req, resp, seg ) -> handlePostHubProposals( req, resp, seg ),
+                null ) );
+        m.put( "backfill-frontmatter", new Resource(
+                ( svc, req, resp, seg ) -> handleGetBackfillStatus( resp ),
+                ( svc, req, resp, seg ) -> handlePostBackfillFrontmatter( resp ),
+                null ) );
+        m.put( "project-all", Resource.post(
+                ( svc, req, resp, seg ) -> handleProjectAll( resp ) ) );
+        m.put( "clear-all", Resource.post(
+                ( svc, req, resp, seg ) -> handleClearAll( svc, resp ) ) );
+        m.put( "sync-hub-memberships", Resource.post(
+                ( svc, req, resp, seg ) -> handlePostSyncHubMemberships( resp ) ) );
+        return Map.copyOf( m );
+    }
+
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
+        dispatch( request, response, Resource::get );
+    }
 
+    @Override
+    protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
+            throws ServletException, IOException {
+        dispatch( request, response, Resource::post );
+    }
+
+    @Override
+    protected void doDelete( final HttpServletRequest request, final HttpServletResponse response )
+            throws ServletException, IOException {
+        dispatch( request, response, Resource::delete, segments -> {
+            if ( segments.length < 2 ) {
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST, "ID required in path" );
+                return false;
+            }
+            return true;
+        } );
+    }
+
+    private void dispatch( final HttpServletRequest request, final HttpServletResponse response,
+                           final java.util.function.Function< Resource, ResourceAction > verbPicker )
+            throws IOException {
+        dispatch( request, response, verbPicker, segments -> true );
+    }
+
+    /** Shared routing for all verbs. {@code precondition} is run after segments are parsed
+     *  but before resource lookup; returning {@code false} skips dispatch (the precondition
+     *  has already written its own error response). */
+    private void dispatch( final HttpServletRequest request, final HttpServletResponse response,
+                           final java.util.function.Function< Resource, ResourceAction > verbPicker,
+                           final SegmentPrecondition precondition )
+            throws IOException {
         final KnowledgeGraphService service = getKnowledgeService( response );
         if ( service == null ) return;
 
@@ -110,77 +210,21 @@ public class AdminKnowledgeResource extends RestServletBase {
         }
 
         final String[] segments = pathInfo.substring( 1 ).split( "/" );
-        final String resource = segments[0];
+        if ( !precondition.check( segments ) ) return;
 
-        switch ( resource ) {
-            case "schema" -> handleGetSchema( service, response );
-            case "nodes" -> handleGetNodes( service, request, response, segments );
-            case "edges" -> handleGetEdges( service, request, response, segments );
-            case "proposals" -> handleGetProposals( service, request, response );
-            case "embeddings" -> handleGetEmbeddings( request, response, segments );
-            case "pages-without-frontmatter" -> handleGetPagesWithoutFrontmatter( request, response );
-            case "hub-proposals" -> handleGetHubProposals( request, response );
-            case "backfill-frontmatter" -> handleGetBackfillStatus( response );
-            default -> sendNotFound( response, "Unknown resource: " + resource );
+        final String resourceName = segments[ 0 ];
+        final Resource resource = resources.get( resourceName );
+        final ResourceAction action = resource == null ? null : verbPicker.apply( resource );
+        if ( action == null ) {
+            sendNotFound( response, "Unknown resource: " + resourceName );
+            return;
         }
+        action.invoke( service, request, response, segments );
     }
 
-    @Override
-    protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
-            throws ServletException, IOException {
-
-        final KnowledgeGraphService service = getKnowledgeService( response );
-        if ( service == null ) return;
-
-        final String pathInfo = request.getPathInfo();
-        if ( pathInfo == null ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Path required" );
-            return;
-        }
-
-        final String[] segments = pathInfo.substring( 1 ).split( "/" );
-        final String resource = segments[0];
-
-        switch ( resource ) {
-            case "proposals" -> handlePostProposal( service, request, response, segments );
-            case "nodes" -> handlePostNode( service, request, response, segments );
-            case "edges" -> handlePostEdge( service, request, response );
-            case "project-all" -> handleProjectAll( response );
-            case "clear-all" -> handleClearAll( service, response );
-            case "embeddings" -> handlePostEmbeddings( response, segments );
-            case "hub-proposals" -> handlePostHubProposals( request, response, segments );
-            case "backfill-frontmatter" -> handlePostBackfillFrontmatter( response );
-            case "sync-hub-memberships" -> handlePostSyncHubMemberships( response );
-            default -> sendNotFound( response, "Unknown resource: " + resource );
-        }
-    }
-
-    @Override
-    protected void doDelete( final HttpServletRequest request, final HttpServletResponse response )
-            throws ServletException, IOException {
-
-        final KnowledgeGraphService service = getKnowledgeService( response );
-        if ( service == null ) return;
-
-        final String pathInfo = request.getPathInfo();
-        if ( pathInfo == null ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Path required" );
-            return;
-        }
-
-        final String[] segments = pathInfo.substring( 1 ).split( "/" );
-        final String resource = segments[0];
-
-        if ( segments.length < 2 ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "ID required in path" );
-            return;
-        }
-
-        switch ( resource ) {
-            case "nodes" -> handleDeleteNode( service, response, segments[1] );
-            case "edges" -> handleDeleteEdge( service, response, segments[1] );
-            default -> sendNotFound( response, "Unknown resource: " + resource );
-        }
+    @FunctionalInterface
+    private interface SegmentPrecondition {
+        boolean check( String[] segments ) throws IOException;
     }
 
     // --- GET handlers ---

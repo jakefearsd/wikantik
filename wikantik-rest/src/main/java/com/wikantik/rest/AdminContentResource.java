@@ -64,6 +64,7 @@ import java.util.Set;
  *   <li>{@code POST /admin/content/reindex} — force full search index rebuild (deprecated — use {@code /rebuild-indexes})</li>
  *   <li>{@code GET  /admin/content/index-status} — unified Lucene + chunk index snapshot</li>
  *   <li>{@code POST /admin/content/rebuild-indexes} — trigger async rebuild of Lucene + chunks</li>
+ *   <li>{@code POST /admin/content/reindex-embeddings} — force full embedding reindex</li>
  *   <li>{@code POST /admin/content/refresh-news} — trigger immediate news page update from git</li>
  *   <li>{@code POST /admin/content/cache/flush} — flush caches</li>
  * </ul>
@@ -126,6 +127,8 @@ public class AdminContentResource extends RestServletBase {
             handleReindex( response );
         } else if ( "rebuild-indexes".equals( action ) ) {
             handleRebuildIndexes( response );
+        } else if ( "reindex-embeddings".equals( action ) ) {
+            handleReindexEmbeddings( response );
         } else if ( "cache/flush".equals( action ) ) {
             handleCacheFlush( request, response );
         } else if ( "refresh-news".equals( action ) ) {
@@ -366,6 +369,42 @@ public class AdminContentResource extends RestServletBase {
         }
     }
 
+    /**
+     * Force-starts a full embedding reindex via
+     * {@link com.wikantik.search.embedding.BootstrapEmbeddingIndexer#forceStart()}.
+     * Returns 202 on dispatch, 409 when a run is already in flight, 503 when
+     * hybrid retrieval is disabled.
+     */
+    private void handleReindexEmbeddings( final HttpServletResponse response ) throws IOException {
+        final com.wikantik.search.embedding.BootstrapEmbeddingIndexer boot =
+            getEngine().getManager( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
+        if ( boot == null ) {
+            sendJsonWithStatus( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                Map.of(
+                    "error", true,
+                    "status", HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    "message", "Embedding reindex unavailable — hybrid search is disabled.",
+                    "flag", "wikantik.search.hybrid.enabled" ) );
+            return;
+        }
+        try {
+            boot.forceStart();
+            LOG.info( "Embedding reindex force-started via admin UI (model={})", boot.modelCode() );
+            sendJsonWithStatus( response, 202,
+                Map.of( "state", boot.progress().state().name(),
+                        "model_code", boot.modelCode() ) );
+        } catch( final IllegalStateException e ) {
+            LOG.warn( "Embedding reindex rejected — already running: {}", e.getMessage() );
+            sendJsonWithStatus( response, HttpServletResponse.SC_CONFLICT,
+                Map.of(
+                    "error", true,
+                    "status", HttpServletResponse.SC_CONFLICT,
+                    "message", "Embedding reindex is already running.",
+                    "state", boot.progress().state().name(),
+                    "model_code", boot.modelCode() ) );
+        }
+    }
+
     // ---- Chunk inspector ----
 
     /**
@@ -463,6 +502,76 @@ public class AdminContentResource extends RestServletBase {
             new com.google.gson.GsonBuilder().serializeNulls().create().toJson( payload ) );
     }
 
+    /**
+     * Builds the {@code embeddings.embedder} sub-block from the live
+     * {@link com.wikantik.search.hybrid.QueryEmbedder} manager. Returns a
+     * {@code DISABLED} shape when hybrid retrieval is off so the UI can
+     * render a stable table without null-checks.
+     */
+    private Map< String, Object > embedderMap() {
+        final Map< String, Object > m = new LinkedHashMap<>();
+        final com.wikantik.search.hybrid.QueryEmbedder qe =
+            getEngine().getManager( com.wikantik.search.hybrid.QueryEmbedder.class );
+        if ( qe == null ) {
+            m.put( "circuit_state", "DISABLED" );
+            m.put( "call_success", 0L );
+            m.put( "call_failure", 0L );
+            m.put( "call_timeout", 0L );
+            m.put( "cache_hit", 0L );
+            m.put( "cache_miss", 0L );
+            m.put( "breaker_open", 0L );
+            m.put( "breaker_close", 0L );
+            m.put( "breaker_half_open_probe", 0L );
+            m.put( "breaker_call_rejected", 0L );
+            return m;
+        }
+        final com.wikantik.search.hybrid.QueryEmbedderMetrics mt = qe.metrics();
+        m.put( "circuit_state", qe.circuitState().name() );
+        m.put( "call_success", mt.callSuccess() );
+        m.put( "call_failure", mt.callFailure() );
+        m.put( "call_timeout", mt.callTimeout() );
+        m.put( "cache_hit", mt.cacheHit() );
+        m.put( "cache_miss", mt.cacheMiss() );
+        m.put( "breaker_open", mt.breakerOpen() );
+        m.put( "breaker_close", mt.breakerClose() );
+        m.put( "breaker_half_open_probe", mt.breakerHalfOpenProbe() );
+        m.put( "breaker_call_rejected", mt.breakerCallRejected() );
+        return m;
+    }
+
+    /**
+     * Builds the {@code embeddings.bootstrap} sub-block from the live
+     * {@link com.wikantik.search.embedding.BootstrapEmbeddingIndexer} manager.
+     * Returns a stable shape even when hybrid retrieval is disabled (state =
+     * {@code "DISABLED"}) so the UI can drive off it unconditionally.
+     *
+     * <p>{@code chunks_processed} is the live embeddings row count, not a value
+     * tracked inside the bootstrap indexer — joining the two avoids lying while
+     * the batch is in-flight.</p>
+     */
+    private Map< String, Object > bootstrapMap( final int liveRowCount ) {
+        final Map< String, Object > m = new LinkedHashMap<>();
+        final com.wikantik.search.embedding.BootstrapEmbeddingIndexer boot =
+            getEngine().getManager( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
+        if ( boot == null ) {
+            m.put( "state", "DISABLED" );
+            m.put( "chunks_total", 0L );
+            m.put( "chunks_processed", liveRowCount );
+            m.put( "started_at", null );
+            m.put( "completed_at", null );
+            m.put( "error_message", null );
+            return m;
+        }
+        final com.wikantik.search.embedding.BootstrapEmbeddingIndexer.Progress p = boot.progress();
+        m.put( "state", p.state().name() );
+        m.put( "chunks_total", p.chunksTotal() );
+        m.put( "chunks_processed", liveRowCount );
+        m.put( "started_at", p.startedAt() == null ? null : p.startedAt().toString() );
+        m.put( "completed_at", p.completedAt() == null ? null : p.completedAt().toString() );
+        m.put( "error_message", p.errorMessage() );
+        return m;
+    }
+
     /** Serialises an {@link IndexStatusSnapshot} into the JSON shape the REST contract promises. */
     private Map< String, Object > snapshotToMap( final IndexStatusSnapshot s ) {
         final Map< String, Object > out = new LinkedHashMap<>();
@@ -495,6 +604,8 @@ public class AdminContentResource extends RestServletBase {
         embeddings.put( "row_count", s.embeddings().rowCount() );
         embeddings.put( "last_update",
             s.embeddings().lastUpdate() == null ? null : s.embeddings().lastUpdate().toString() );
+        embeddings.put( "bootstrap", bootstrapMap( s.embeddings().rowCount() ) );
+        embeddings.put( "embedder", embedderMap() );
         out.put( "embeddings", embeddings );
 
         // Rebuild block has 9 fields — Map.of caps at 10 entries; use LinkedHashMap

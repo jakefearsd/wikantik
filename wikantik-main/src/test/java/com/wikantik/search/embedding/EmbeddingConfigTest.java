@@ -37,7 +37,7 @@ class EmbeddingConfigTest {
         assertEquals( EmbeddingConfig.DEFAULT_BACKEND, c.backend() );
         assertEquals( EmbeddingConfig.DEFAULT_BASE_URL, c.baseUrl() );
         assertNull( c.apiKey() );
-        assertEquals( EmbeddingModel.NOMIC_EMBED_V1_5, c.model() );
+        assertEquals( EmbeddingModel.QWEN3_EMBEDDING_06B, c.model() );
         assertNull( c.ollamaTagOverride() );
         assertEquals( EmbeddingConfig.DEFAULT_TIMEOUT_MS, c.timeoutMs() );
         assertEquals( EmbeddingConfig.DEFAULT_BATCH_SIZE, c.batchSize() );

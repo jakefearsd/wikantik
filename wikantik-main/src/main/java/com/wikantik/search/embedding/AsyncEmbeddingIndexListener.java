@@ -52,6 +52,7 @@ public class AsyncEmbeddingIndexListener implements Consumer< List< UUID > >, Au
     private final String modelCode;
     private final ExecutorService executor;
     private final boolean ownsExecutor;
+    private volatile Runnable postIndexCallback;
 
     /**
      * Builds a listener backed by a private single-thread executor. Caller
@@ -93,6 +94,18 @@ public class AsyncEmbeddingIndexListener implements Consumer< List< UUID > >, Au
         this.ownsExecutor = ownsExecutor;
     }
 
+    /**
+     * Registers a callback invoked on the executor thread after a successful
+     * batch {@code indexChunks} call. Use this to refresh downstream caches —
+     * e.g., {@code InMemoryChunkVectorIndex.reload()} — without coupling the
+     * indexer to the consumer. Pass {@code null} to clear. Exceptions from the
+     * callback are logged at warn and swallowed so a broken downstream does not
+     * poison subsequent reindex tasks.
+     */
+    public void setPostIndexCallback( final Runnable callback ) {
+        this.postIndexCallback = callback;
+    }
+
     private static ExecutorService defaultExecutor() {
         return Executors.newSingleThreadExecutor( r -> {
             final Thread t = new Thread( r, "wikantik-embedding-index" );
@@ -119,15 +132,28 @@ public class AsyncEmbeddingIndexListener implements Consumer< List< UUID > >, Au
     }
 
     private void runIndex( final List< UUID > chunkIds ) {
+        boolean indexed = false;
         try {
-            final int indexed = indexer.indexChunks( chunkIds, modelCode );
+            final int upserted = indexer.indexChunks( chunkIds, modelCode );
+            indexed = true;
             if ( LOG.isDebugEnabled() ) {
                 LOG.debug( "Async embedding reindex upserted {} of {} chunks (model={})",
-                    indexed, chunkIds.size(), modelCode );
+                    upserted, chunkIds.size(), modelCode );
             }
         } catch( final RuntimeException e ) {
             LOG.warn( "Async embedding reindex failed (model={}, chunks={}): {}",
                 modelCode, chunkIds.size(), e.getMessage(), e );
+        }
+        if ( indexed ) {
+            final Runnable cb = this.postIndexCallback;
+            if ( cb != null ) {
+                try {
+                    cb.run();
+                } catch( final RuntimeException e ) {
+                    LOG.warn( "Post-index callback failed (model={}): {}",
+                        modelCode, e.getMessage(), e );
+                }
+            }
         }
     }
 

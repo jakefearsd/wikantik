@@ -18,16 +18,22 @@
  */
 package com.wikantik.mcp;
 
+import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
+import com.wikantik.auth.apikeys.ApiKeyService;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.Instant;
+import java.util.Optional;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -335,5 +341,140 @@ class McpAccessFilterTest {
         verify( response ).setStatus( 429 );
         verify( response ).setHeader( "Retry-After", "1" );
         verify( chain, never() ).doFilter( request, response );
+    }
+
+    // ----- DB-backed API key path -----
+
+    private ApiKeyService.Record dbRecord( final int id, final String principal,
+                                           final ApiKeyService.Scope scope ) {
+        return new ApiKeyService.Record(
+                id, "hash-" + id, principal, "label", scope,
+                Instant.now(), "admin", null, null, null );
+    }
+
+    private McpAccessFilter createFilterWithDbService( final ApiKeyService svc,
+                                                       final Properties extraProps ) {
+        final Properties props = extraProps != null ? extraProps : new Properties();
+        return new McpAccessFilter( new McpConfig( props ), new McpRateLimiter( 0, 0 ), svc );
+    }
+
+    @Test
+    void dbKeyVerifiedAndInstallsPrincipalOnRequest() throws Exception {
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        final ApiKeyService.Record record = dbRecord( 1, "alice", ApiKeyService.Scope.MCP );
+        when( svc.verify( "wkk_good" ) ).thenReturn( Optional.of( record ) );
+        final McpAccessFilter filter = createFilterWithDbService( svc, null );
+        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_good" );
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+
+        filter.doFilter( request, response, chain );
+
+        final ArgumentCaptor< HttpServletRequest > captor = ArgumentCaptor.forClass( HttpServletRequest.class );
+        verify( chain ).doFilter( captor.capture(), eq( response ) );
+        assertInstanceOf( ApiKeyPrincipalRequest.class, captor.getValue(),
+                "Filter must wrap the request so downstream JAAS/ACL checks run as the key's principal" );
+        assertEquals( "alice", captor.getValue().getUserPrincipal().getName() );
+        verify( request ).setAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD, record );
+    }
+
+    @Test
+    void dbKeyWithAllScopeAlsoMatchesMcp() throws Exception {
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        when( svc.verify( "wkk_all" ) )
+                .thenReturn( Optional.of( dbRecord( 2, "bob", ApiKeyService.Scope.ALL ) ) );
+        final McpAccessFilter filter = createFilterWithDbService( svc, null );
+        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_all" );
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( any( HttpServletRequest.class ), eq( response ) );
+    }
+
+    @Test
+    void dbKeyWithToolsScopeRejectedForMcpWith403() throws Exception {
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        when( svc.verify( "wkk_tools" ) )
+                .thenReturn( Optional.of( dbRecord( 3, "carol", ApiKeyService.Scope.TOOLS ) ) );
+        final McpAccessFilter filter = createFilterWithDbService( svc, null );
+        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_tools" );
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+        final StringWriter body = new StringWriter();
+        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+        assertTrue( body.toString().toLowerCase().contains( "not authorized" )
+                        || body.toString().toLowerCase().contains( "mcp" ),
+                "403 body should explain the scope mismatch: " + body );
+    }
+
+    @Test
+    void unknownDbKeyFallsThroughToLegacyKeyList() throws Exception {
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        when( svc.verify( anyString() ) ).thenReturn( Optional.empty() );
+
+        final Properties props = new Properties();
+        props.setProperty( "mcp.access.keys", "legacy-key" );
+        final McpAccessFilter filter = createFilterWithDbService( svc, props );
+        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer legacy-key" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+    }
+
+    @Test
+    void dbKeyServiceAloneSatisfiesFailClosedGate() throws Exception {
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        when( svc.verify( anyString() ) ).thenReturn( Optional.empty() );
+        final McpAccessFilter filter = createFilterWithDbService( svc, null );
+        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_wrong" );
+        when( request.getRemoteAddr() ).thenReturn( "1.2.3.4" );
+        final StringWriter body = new StringWriter();
+        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+        verify( response, never() ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+    }
+
+    @Test
+    void dbServicePresentWithAllowUnrestrictedDoesNotBlockUnauthenticatedRequests() throws Exception {
+        // Regression: when an operator wires up a datasource (so ApiKeyService
+        // is non-null) but has not configured legacy keys or CIDRs and has
+        // explicitly set mcp.access.allowUnrestricted=true, the filter must
+        // run open. Otherwise IT environments that boot with a datasource but
+        // no minted keys fail every MCP call with 403.
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        final Properties props = new Properties();
+        props.setProperty( "mcp.access.allowUnrestricted", "true" );
+        final McpAccessFilter filter = createFilterWithDbService( svc, props );
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+        verify( svc, never() ).verify( anyString() );
+    }
+
+    @Test
+    void missingBearerHeaderIsNotVerifiedAgainstDbService() throws Exception {
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        final Properties props = new Properties();
+        props.setProperty( "mcp.access.keys", "legacy-key" );
+        final McpAccessFilter filter = createFilterWithDbService( svc, props );
+        when( request.getHeader( "Authorization" ) ).thenReturn( null );
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+        final StringWriter body = new StringWriter();
+        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
+
+        filter.doFilter( request, response, chain );
+
+        verify( svc, never() ).verify( anyString() );
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
     }
 }

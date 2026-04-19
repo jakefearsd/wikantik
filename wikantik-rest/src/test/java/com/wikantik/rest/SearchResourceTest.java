@@ -298,6 +298,95 @@ class SearchResourceTest {
         }
     }
 
+    // ----- Hybrid rerank integration -----
+
+    @Test
+    void hybridDisabledLeavesBm25OrderUntouched() throws Exception {
+        final com.wikantik.search.hybrid.HybridSearchService hybrid =
+            Mockito.mock( com.wikantik.search.hybrid.HybridSearchService.class );
+        Mockito.doReturn( false ).when( hybrid ).isEnabled();
+        engine.setManager( com.wikantik.search.hybrid.HybridSearchService.class, hybrid );
+
+        final String json = doSearch( "search", null );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        assertTrue( obj.has( "results" ) );
+        // rerank() must NOT be invoked at all when hybrid is off — the BM25
+        // names list must never reach the disabled service.
+        Mockito.verify( hybrid, Mockito.never() ).rerank( Mockito.anyString(), Mockito.anyList() );
+    }
+
+    @Test
+    void hybridEnabledReordersBm25Results() throws Exception {
+        final com.wikantik.search.hybrid.HybridSearchService hybrid =
+            Mockito.mock( com.wikantik.search.hybrid.HybridSearchService.class );
+        Mockito.doReturn( true ).when( hybrid ).isEnabled();
+        // Force Beta ahead of Alpha regardless of BM25 ordering.
+        Mockito.doReturn( java.util.List.of( "RestSearchBeta", "RestSearchAlpha" ) )
+                .when( hybrid ).rerank( Mockito.eq( "search" ), Mockito.anyList() );
+        engine.setManager( com.wikantik.search.hybrid.HybridSearchService.class, hybrid );
+
+        final String json = doSearch( "search", null );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        final JsonArray results = obj.getAsJsonArray( "results" );
+        assertTrue( results.size() >= 2, "Expected both pages back, got: " + results );
+        assertEquals( "RestSearchBeta", results.get( 0 ).getAsJsonObject().get( "name" ).getAsString() );
+        assertEquals( "RestSearchAlpha", results.get( 1 ).getAsJsonObject().get( "name" ).getAsString() );
+    }
+
+    @Test
+    void hybridAppendsDenseOnlyPageWithZeroScoreAndNoContexts() throws Exception {
+        // Dense-only page: exists in PageManager but BM25 didn't surface it.
+        engine.saveText( "RestSearchDenseOnly", "Dense only page body." );
+        try {
+            final com.wikantik.search.hybrid.HybridSearchService hybrid =
+                Mockito.mock( com.wikantik.search.hybrid.HybridSearchService.class );
+            Mockito.doReturn( true ).when( hybrid ).isEnabled();
+            Mockito.doReturn( java.util.List.of(
+                    "RestSearchAlpha", "RestSearchBeta", "RestSearchDenseOnly" ) )
+                    .when( hybrid ).rerank( Mockito.eq( "search" ), Mockito.anyList() );
+            engine.setManager( com.wikantik.search.hybrid.HybridSearchService.class, hybrid );
+
+            final String json = doSearch( "search", null );
+            final JsonObject obj = gson.fromJson( json, JsonObject.class );
+            final JsonArray results = obj.getAsJsonArray( "results" );
+            JsonObject denseEntry = null;
+            for ( int i = 0; i < results.size(); i++ ) {
+                final JsonObject e = results.get( i ).getAsJsonObject();
+                if ( "RestSearchDenseOnly".equals( e.get( "name" ).getAsString() ) ) {
+                    denseEntry = e;
+                    break;
+                }
+            }
+            assertNotNull( denseEntry, "Dense-only page must be appended to results" );
+            assertEquals( 0, denseEntry.get( "score" ).getAsInt(),
+                    "Dense-only DenseOnlySearchResult must report score=0" );
+        } finally {
+            try { engine.getManager( PageManager.class ).deletePage( "RestSearchDenseOnly" ); }
+            catch ( final Exception e ) { /* ignore */ }
+        }
+    }
+
+    @Test
+    void hybridSkipsDenseOnlyNamesThatPageManagerCannotResolve() throws Exception {
+        final com.wikantik.search.hybrid.HybridSearchService hybrid =
+            Mockito.mock( com.wikantik.search.hybrid.HybridSearchService.class );
+        Mockito.doReturn( true ).when( hybrid ).isEnabled();
+        // Inject a name that doesn't exist as a page; should be silently dropped.
+        Mockito.doReturn( java.util.List.of(
+                "RestSearchAlpha", "RestSearchBeta", "GhostPageDoesNotExist" ) )
+                .when( hybrid ).rerank( Mockito.eq( "search" ), Mockito.anyList() );
+        engine.setManager( com.wikantik.search.hybrid.HybridSearchService.class, hybrid );
+
+        final String json = doSearch( "search", null );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        final JsonArray results = obj.getAsJsonArray( "results" );
+        for ( int i = 0; i < results.size(); i++ ) {
+            assertNotEquals( "GhostPageDoesNotExist",
+                    results.get( i ).getAsJsonObject().get( "name" ).getAsString(),
+                    "Phantom dense-only page must not appear in serialized results" );
+        }
+    }
+
     // ----- Helper methods -----
 
     private String doSearch( final String query, final String limit ) throws Exception {

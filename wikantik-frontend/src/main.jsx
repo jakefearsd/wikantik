@@ -11,6 +11,7 @@ import AdminUsersPage from './components/admin/AdminUsersPage';
 import AdminContentPage from './components/admin/AdminContentPage';
 import AdminSecurityPage from './components/admin/AdminSecurityPage';
 import AdminKnowledgePage from './components/admin/AdminKnowledgePage';
+import AdminApiKeysPage from './components/admin/AdminApiKeysPage';
 import DiffViewer from './components/DiffViewer';
 import UserPreferencesPage from './components/UserPreferencesPage';
 import ResetPasswordPage from './components/ResetPasswordPage';
@@ -50,6 +51,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="content" element={<AdminContentPage />} />
               <Route path="security" element={<AdminSecurityPage />} />
               <Route path="knowledge" element={<AdminKnowledgePage />} />
+              <Route path="apikeys" element={<AdminApiKeysPage />} />
             </Route>
             <Route path="/blog" element={<BlogDiscovery />} />
             <Route path="/blog/create" element={<CreateBlog />} />

@@ -149,6 +149,11 @@ public class WikiEngine implements Engine {
     /** Stores WikiEngine's associated managers. */
     protected final Map< Class< ? >, Object > managers = new ConcurrentHashMap<>();
 
+    /** Hybrid-retrieval lifecycle handles; null when hybrid is disabled. */
+    private com.wikantik.search.embedding.AsyncEmbeddingIndexListener hybridIndexListener;
+    private com.wikantik.search.hybrid.QueryEmbedder hybridQueryEmbedder;
+    private com.wikantik.search.embedding.BootstrapEmbeddingIndexer hybridBootstrapIndexer;
+
     /**
      *  Gets a WikiEngine related to this servlet.  Since this method is only called from JSP pages (and JspInit()) to be specific,
      *  we throw a RuntimeException if things don't work.
@@ -595,6 +600,7 @@ public class WikiEngine implements Engine {
             // in a half-broken state. When Lucene is disabled/unsupported we skip
             // wiring the service so the admin UI surfaces a clean "not available"
             // instead of NPE'ing; the rest of the knowledge graph still starts.
+            com.wikantik.admin.ContentIndexRebuildService rebuildService = null;
             if ( searchMgr != null && searchMgr.getSearchEngine() instanceof LuceneSearchProvider lsp ) {
                 final com.wikantik.admin.LuceneReindexQueue queue =
                     new com.wikantik.admin.LuceneSearchProviderAdapter( lsp );
@@ -605,7 +611,7 @@ public class WikiEngine implements Engine {
                             TextUtil.getIntegerProperty( props, "wikantik.chunker.max_tokens", 512 ),
                             TextUtil.getIntegerProperty( props, "wikantik.chunker.min_tokens", 80 ),
                             TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 8 ) ) );
-                final com.wikantik.admin.ContentIndexRebuildService rebuildService =
+                rebuildService =
                     meterRegistry != null
                         ? new com.wikantik.admin.ContentIndexRebuildService(
                             getManager( PageManager.class ),
@@ -629,6 +635,8 @@ public class WikiEngine implements Engine {
             } else {
                 LOG.info( "ContentIndexRebuildService NOT registered — no LuceneSearchProvider in use" );
             }
+
+            wireHybridRetrieval( props, ds, svcs.chunkProjector(), rebuildService );
 
             // Register filters (priority order preserved from the original initializer).
             // PriorityList is descending: higher priority runs first, so -1005 runs
@@ -658,6 +666,120 @@ public class WikiEngine implements Engine {
             // continues to start; only KG-dependent features go offline).
             LOG.warn( "Knowledge graph initialization failed: {}", e.getMessage(), e );
         }
+    }
+
+    /**
+     * Wires the Phase 5 hybrid-retrieval infrastructure: embedding client,
+     * batch indexer, async listener on {@code ChunkProjector}, in-memory vector
+     * index, and the query-side {@link com.wikantik.search.hybrid.QueryEmbedder}.
+     * Every wiring step is flag-gated — when
+     * {@link com.wikantik.search.embedding.EmbeddingConfig#PROP_ENABLED} is
+     * {@code false} the factory returns {@link java.util.Optional#empty()} and
+     * this method is a no-op, guaranteeing zero background cost for deployments
+     * that have not opted in.
+     */
+    private void wireHybridRetrieval( final Properties props,
+                                      final javax.sql.DataSource ds,
+                                      final com.wikantik.knowledge.chunking.ChunkProjector chunkProjector,
+                                      final com.wikantik.admin.ContentIndexRebuildService rebuildService ) {
+        final com.wikantik.search.embedding.EmbeddingConfig cfg;
+        try {
+            cfg = com.wikantik.search.embedding.EmbeddingConfig.fromProperties( props );
+        } catch( final IllegalArgumentException e ) {
+            LOG.warn( "Invalid embedding configuration; hybrid retrieval disabled: {}", e.getMessage() );
+            return;
+        }
+        final java.util.Optional< com.wikantik.search.embedding.TextEmbeddingClient > clientOpt =
+            com.wikantik.search.embedding.EmbeddingClientFactory.create( cfg );
+        if ( clientOpt.isEmpty() ) {
+            // Master flag off — nothing to wire.
+            return;
+        }
+        final com.wikantik.search.embedding.TextEmbeddingClient client = clientOpt.get();
+        final String modelCode = cfg.model().code();
+
+        final com.wikantik.search.embedding.EmbeddingIndexService indexService =
+            new com.wikantik.search.embedding.EmbeddingIndexService( ds, client, cfg.batchSize() );
+        managers.put( com.wikantik.search.embedding.EmbeddingIndexService.class, indexService );
+
+        // In-memory vector index loads current embeddings at construction time.
+        // An empty table is fine — the index reloads after each indexing batch.
+        final com.wikantik.search.hybrid.InMemoryChunkVectorIndex vectorIndex;
+        try {
+            vectorIndex = new com.wikantik.search.hybrid.InMemoryChunkVectorIndex( ds, modelCode );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Failed to initialize InMemoryChunkVectorIndex (model={}); "
+                + "hybrid retrieval disabled: {}", modelCode, e.getMessage(), e );
+            return;
+        }
+        managers.put( com.wikantik.search.hybrid.ChunkVectorIndex.class, vectorIndex );
+        managers.put( com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class, vectorIndex );
+
+        // Async listener that reindexes per-page saves and refreshes the vector
+        // index snapshot afterward. postIndexCallback failures must not cascade.
+        final com.wikantik.search.embedding.AsyncEmbeddingIndexListener listener =
+            new com.wikantik.search.embedding.AsyncEmbeddingIndexListener( indexService, modelCode );
+        listener.setPostIndexCallback( vectorIndex::reload );
+        chunkProjector.setPostChunkSink( listener );
+        this.hybridIndexListener = listener;
+
+        // Rebuild-path hook: after a full content rebuild, walk all chunks and
+        // upsert embeddings via EmbeddingIndexService.indexAll(modelCode).
+        if ( rebuildService != null ) {
+            rebuildService.setEmbeddingHook( indexService, modelCode );
+        }
+
+        // Query-side wrapper with cache + timeout + circuit breaker.
+        final com.wikantik.search.hybrid.QueryEmbedderConfig qeCfg =
+            com.wikantik.search.hybrid.QueryEmbedderConfig.fromProperties( props );
+        final com.wikantik.search.hybrid.QueryEmbedder embedder =
+            new com.wikantik.search.hybrid.QueryEmbedder( client, qeCfg, java.time.Clock.systemUTC() );
+        managers.put( com.wikantik.search.hybrid.QueryEmbedder.class, embedder );
+        this.hybridQueryEmbedder = embedder;
+
+        // Retrieval-side orchestrator: embed the query, run dense retrieval,
+        // fuse with BM25 via RRF. Fails closed to BM25-only when the embedding
+        // backend is unavailable. Reads the winner eval defaults directly so a
+        // fresh install gets the best-measured config with zero knobs.
+        final com.wikantik.search.hybrid.HybridConfig hybridCfg;
+        try {
+            hybridCfg = com.wikantik.search.hybrid.HybridConfig.fromProperties( props );
+        } catch( final IllegalArgumentException e ) {
+            LOG.warn( "Invalid hybrid retrieval configuration; hybrid search disabled: {}", e.getMessage() );
+            LOG.info( "Hybrid retrieval wired (embedding-only; search path NOT enabled)" );
+            return;
+        }
+        final com.wikantik.search.hybrid.DenseRetriever denseRetriever =
+            new com.wikantik.search.hybrid.DenseRetriever( vectorIndex,
+                hybridCfg.pageAggregation(), hybridCfg.denseChunkTop(), hybridCfg.densePageTop() );
+        final com.wikantik.search.hybrid.HybridFuser fuser =
+            new com.wikantik.search.hybrid.HybridFuser( hybridCfg.rrfK(),
+                hybridCfg.bm25Weight(), hybridCfg.denseWeight(), hybridCfg.rrfTruncate() );
+        final com.wikantik.search.hybrid.HybridSearchService hybridSearch =
+            new com.wikantik.search.hybrid.HybridSearchService( embedder, denseRetriever, fuser,
+                hybridCfg.enabled() );
+        managers.put( com.wikantik.search.hybrid.HybridSearchService.class, hybridSearch );
+
+        // One-shot bootstrap: if the embeddings table is empty for this model,
+        // kick off indexAll(modelCode) on a background thread. Idempotent —
+        // safe to call on every engine init; it latches after the first run.
+        final com.wikantik.search.embedding.BootstrapEmbeddingIndexer bootstrap =
+            new com.wikantik.search.embedding.BootstrapEmbeddingIndexer(
+                ds, indexService, modelCode, vectorIndex::reload );
+        managers.put( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class, bootstrap );
+        this.hybridBootstrapIndexer = bootstrap;
+        try {
+            bootstrap.startIfNeeded();
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Embedding bootstrap start failed (model={}): {}", modelCode, e.getMessage(), e );
+        }
+
+        com.wikantik.search.hybrid.HybridMetricsBridge.register(
+            com.wikantik.api.observability.MeterRegistryHolder.get(),
+            embedder, bootstrap, vectorIndex );
+
+        LOG.info( "Hybrid retrieval wired (model={}, backend={}, vectorIndex.size={})",
+            modelCode, cfg.backend(), vectorIndex.size() );
     }
 
     /** {@inheritDoc} */
@@ -808,6 +930,18 @@ public class WikiEngine implements Engine {
         fireEvent( WikiEngineEvent.SHUTDOWN );
         getManager( CachingManager.class ).shutdown();
         getManager( FilterManager.class ).destroy();
+        if ( hybridIndexListener != null ) {
+            try { hybridIndexListener.close(); }
+            catch( final RuntimeException e ) { LOG.warn( "hybridIndexListener close failed: {}", e.getMessage(), e ); }
+        }
+        if ( hybridQueryEmbedder != null ) {
+            try { hybridQueryEmbedder.close(); }
+            catch( final RuntimeException e ) { LOG.warn( "hybridQueryEmbedder close failed: {}", e.getMessage(), e ); }
+        }
+        if ( hybridBootstrapIndexer != null ) {
+            try { hybridBootstrapIndexer.close(); }
+            catch( final RuntimeException e ) { LOG.warn( "hybridBootstrapIndexer close failed: {}", e.getMessage(), e ); }
+        }
         WikiEventManager.unregisterListenersFor( this );
     }
 

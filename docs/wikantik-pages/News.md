@@ -6,6 +6,80 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-18** — docs(wiki): update News.md
+
+**2026-04-18** — refactor(rest): replace imperative verb handlers with declarative Resource dispatch in AdminKnowledgeResource
+
+**2026-04-18** — refactor(ui): extract ValidationType enum, replace switch in InputValidator
+
+**2026-04-18** — refactor(attachment): extract UploadFormParser and UploadFormData from AttachmentServlet
+
+**2026-04-18** — docs(wiki): repair heading markup damaged by automated conversion
+
+**2026-04-18** — feat(tools): bin/search-eval — standalone retrieval-quality evaluator
+
+**2026-04-18** — fix(test): guard TestEngine.emptyWikiDir against deleting real corpora
+
+**2026-04-18** — fix(markdown): preserve `[text](#anchor)` as same-page fragment link
+
+**2026-04-18** — docs(wiki): add Wikantik Search Refinement — eval-set iteration guide
+
+**2026-04-17** — feat(search): retrieval evaluation harness with BM25 baseline
+
+**2026-04-17** — feat(admin): chunk inspector tab for ad-hoc chunker inspection
+
+**2026-04-17** — refactor(auth): extract PermissionFilter as a reusable ACL decision point
+
+**2026-04-17** — docs(chunking): reconcile spec with mergeForwardTokens implementation
+
+**2026-04-17** — fix(db): install-fresh bootstraps migrate role and transfers ownership
+
+**2026-04-17** — fix(admin): justify LOG.error calls in rebuild service
+
+**2026-04-17** — feat(frontend): wire Index Status tab; remove legacy reindex button
+
+**2026-04-17** — feat(frontend): IndexStatusTab with polling, stat cards, rebuild
+
+**2026-04-17** — feat(frontend): api.admin.getIndexStatus and rebuildIndexes
+
+**2026-04-17** — fix(chunking): wire production MeterRegistry to chunker and rebuild
+
+**2026-04-17** — feat(chunking): Prometheus metrics for chunker and rebuild
+
+**2026-04-17** — feat(rest): GET /admin/content/index-status + POST /admin/content/rebuild-indexes
+
+**2026-04-17** — feat(admin): wire ContentIndexRebuildService into the engine
+
+**2026-04-17** — feat(admin): rebuild run loop with system-page handling
+
+**2026-04-17** — feat(admin): ContentIndexRebuildService state machine scaffold
+
+**2026-04-17** — feat(chunking): save-time ChunkProjector PageFilter
+
+**2026-04-17** — feat(chunking): ContentChunkRepository with diff apply and stats
+
+**2026-04-17** — feat(chunking): ChunkDiff classifies inserts, updates, deletes
+
+**2026-04-17** — refactor(chunking): explicit mergeForwardTokens Config field
+
+**2026-04-17** — feat(chunking): token budget, atomic blocks, merge-forward
+
+**2026-04-17** — fix(chunking): preserve full heading title across inline markup
+
+**2026-04-17** — feat(chunking): heading-aware splitting with heading_path
+
+**2026-04-17** — feat(chunking): Chunk record and minimal ContentChunker
+
+**2026-04-17** — feat(db): add kg_content_chunks table (V008)
+
+**2026-04-17** — fix(search): complete system-page filter across all entry points
+
+**2026-04-17** — feat(search): filter system pages from Lucene indexing
+
+**2026-04-17** — docs(chunking): content chunking spec and plan
+
+**2026-04-16** — feat(search): field boosts, recency decay, search metrics, queue depth
+
 **2026-04-16** — docs(spec): production db deployment workflow plan
 
 **2026-04-16** — feat(rest): support wildcard origins in cors allowedOrigins

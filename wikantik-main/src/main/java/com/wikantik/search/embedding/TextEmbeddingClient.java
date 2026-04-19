@@ -35,7 +35,7 @@ public interface TextEmbeddingClient {
      * Embeds the given texts in order. The returned list has one vector per input.
      * Each vector has exactly {@link #dimension()} elements.
      *
-     * @throws RuntimeException if the backend call fails or returns an unexpected shape
+     * @throws EmbeddingException if the backend call fails or returns an unexpected shape
      */
     List< float[] > embed( List< String > texts, EmbeddingKind kind );
 

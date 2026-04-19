@@ -1,0 +1,106 @@
+Grand-finale sweep: aggregation × fusion strategies
+Queries: 40
+Models: [qwen3-embedding-0.6b, bge-m3, nomic-embed-v1.5]
+
+==================== qwen3-embedding-0.6b ====================
+  aggregation   fusion                  r@5     r@20      MRR
+  ----------------------------------------------------------------
+  MAX           dense-only            0.750    0.900    0.490
+  MAX           RRF_EQUAL             0.750    0.925    0.602
+  MAX           RRF_TUNED             0.700    0.900    0.565
+  MAX           RRF_RECALL            0.700    0.925    0.598
+  MAX           SCORE_EQUAL           0.725    0.925    0.603
+  MAX           SCORE_DENSE_HEAVY     0.750    0.950    0.607
+  MAX           SCORE_BM25_HEAVY      0.725    0.925    0.585
+  MEAN_TOP_3    dense-only            0.750    0.950    0.576
+  MEAN_TOP_3    RRF_EQUAL             0.775    0.925    0.624
+  MEAN_TOP_3    RRF_TUNED             0.750    0.950    0.620
+  MEAN_TOP_3    RRF_RECALL            0.725    0.975    0.615
+  MEAN_TOP_3    SCORE_EQUAL           0.750    0.950    0.610
+  MEAN_TOP_3    SCORE_DENSE_HEAVY     0.800    0.950    0.622
+  MEAN_TOP_3    SCORE_BM25_HEAVY      0.725    0.950    0.594
+  SUM_TOP_3     dense-only            0.800    0.975    0.602
+  SUM_TOP_3     RRF_EQUAL             0.750    0.925    0.636
+  SUM_TOP_3     RRF_TUNED             0.775    0.975    0.650
+  SUM_TOP_3     RRF_RECALL            0.750    1.000    0.637
+  SUM_TOP_3     SCORE_EQUAL           0.725    0.975    0.615
+  SUM_TOP_3     SCORE_DENSE_HEAVY     0.775    0.975    0.644
+  SUM_TOP_3     SCORE_BM25_HEAVY      0.725    0.925    0.587
+  SUM_TOP_5     dense-only            0.775    0.925    0.612
+  SUM_TOP_5     RRF_EQUAL             0.750    0.925    0.627
+  SUM_TOP_5     RRF_TUNED             0.725    0.925    0.620
+  SUM_TOP_5     RRF_RECALL            0.725    0.975    0.627
+  SUM_TOP_5     SCORE_EQUAL           0.775    0.950    0.617
+  SUM_TOP_5     SCORE_DENSE_HEAVY     0.775    0.950    0.651
+  SUM_TOP_5     SCORE_BM25_HEAVY      0.750    0.950    0.588
+  bm25-only     —                     0.550    0.800    0.519
+  BEST  SUM_TOP_3  dense-only  r@5=0.800  r@20=0.975  MRR=0.602
+
+==================== bge-m3 ====================
+  aggregation   fusion                  r@5     r@20      MRR
+  ----------------------------------------------------------------
+  MAX           dense-only            0.700    0.875    0.503
+  MAX           RRF_EQUAL             0.750    0.900    0.615
+  MAX           RRF_TUNED             0.750    0.875    0.604
+  MAX           RRF_RECALL            0.700    0.900    0.604
+  MAX           SCORE_EQUAL           0.700    0.875    0.593
+  MAX           SCORE_DENSE_HEAVY     0.725    0.875    0.599
+  MAX           SCORE_BM25_HEAVY      0.675    0.900    0.567
+  MEAN_TOP_3    dense-only            0.650    0.875    0.491
+  MEAN_TOP_3    RRF_EQUAL             0.750    0.900    0.609
+  MEAN_TOP_3    RRF_TUNED             0.700    0.875    0.555
+  MEAN_TOP_3    RRF_RECALL            0.700    0.875    0.604
+  MEAN_TOP_3    SCORE_EQUAL           0.725    0.900    0.581
+  MEAN_TOP_3    SCORE_DENSE_HEAVY     0.775    0.900    0.622
+  MEAN_TOP_3    SCORE_BM25_HEAVY      0.700    0.875    0.589
+  SUM_TOP_3     dense-only            0.750    0.925    0.561
+  SUM_TOP_3     RRF_EQUAL             0.750    0.900    0.619
+  SUM_TOP_3     RRF_TUNED             0.725    0.925    0.616
+  SUM_TOP_3     RRF_RECALL            0.700    0.925    0.614
+  SUM_TOP_3     SCORE_EQUAL           0.700    0.900    0.604
+  SUM_TOP_3     SCORE_DENSE_HEAVY     0.700    0.900    0.623
+  SUM_TOP_3     SCORE_BM25_HEAVY      0.700    0.875    0.583
+  SUM_TOP_5     dense-only            0.750    0.850    0.589
+  SUM_TOP_5     RRF_EQUAL             0.725    0.900    0.588
+  SUM_TOP_5     RRF_TUNED             0.700    0.850    0.576
+  SUM_TOP_5     RRF_RECALL            0.675    0.925    0.575
+  SUM_TOP_5     SCORE_EQUAL           0.725    0.925    0.584
+  SUM_TOP_5     SCORE_DENSE_HEAVY     0.725    0.900    0.607
+  SUM_TOP_5     SCORE_BM25_HEAVY      0.650    0.900    0.569
+  bm25-only     —                     0.550    0.800    0.519
+  BEST  MEAN_TOP_3  SCORE_DENSE_HEAVY  r@5=0.775  r@20=0.900  MRR=0.622
+
+==================== nomic-embed-v1.5 ====================
+  aggregation   fusion                  r@5     r@20      MRR
+  ----------------------------------------------------------------
+  MAX           dense-only            0.625    0.800    0.474
+  MAX           RRF_EQUAL             0.650    0.900    0.530
+  MAX           RRF_TUNED             0.650    0.800    0.523
+  MAX           RRF_RECALL            0.675    0.825    0.536
+  MAX           SCORE_EQUAL           0.700    0.925    0.589
+  MAX           SCORE_DENSE_HEAVY     0.675    0.875    0.554
+  MAX           SCORE_BM25_HEAVY      0.675    0.900    0.590
+  MEAN_TOP_3    dense-only            0.650    0.775    0.453
+  MEAN_TOP_3    RRF_EQUAL             0.725    0.900    0.563
+  MEAN_TOP_3    RRF_TUNED             0.675    0.775    0.547
+  MEAN_TOP_3    RRF_RECALL            0.725    0.850    0.564
+  MEAN_TOP_3    SCORE_EQUAL           0.750    0.900    0.574
+  MEAN_TOP_3    SCORE_DENSE_HEAVY     0.750    0.900    0.562
+  MEAN_TOP_3    SCORE_BM25_HEAVY      0.675    0.875    0.572
+  SUM_TOP_3     dense-only            0.675    0.825    0.500
+  SUM_TOP_3     RRF_EQUAL             0.725    0.875    0.555
+  SUM_TOP_3     RRF_TUNED             0.700    0.825    0.559
+  SUM_TOP_3     RRF_RECALL            0.700    0.900    0.572
+  SUM_TOP_3     SCORE_EQUAL           0.725    0.900    0.586
+  SUM_TOP_3     SCORE_DENSE_HEAVY     0.725    0.875    0.587
+  SUM_TOP_3     SCORE_BM25_HEAVY      0.650    0.900    0.560
+  SUM_TOP_5     dense-only            0.675    0.800    0.479
+  SUM_TOP_5     RRF_EQUAL             0.725    0.850    0.522
+  SUM_TOP_5     RRF_TUNED             0.700    0.800    0.551
+  SUM_TOP_5     RRF_RECALL            0.750    0.925    0.558
+  SUM_TOP_5     SCORE_EQUAL           0.750    0.875    0.592
+  SUM_TOP_5     SCORE_DENSE_HEAVY     0.750    0.875    0.570
+  SUM_TOP_5     SCORE_BM25_HEAVY      0.700    0.875    0.566
+  bm25-only     —                     0.550    0.800    0.519
+  BEST  SUM_TOP_5  RRF_RECALL  r@5=0.750  r@20=0.925  MRR=0.558
+

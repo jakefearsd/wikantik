@@ -1,0 +1,47 @@
+Joint aggregation × RRF sweep — model: qwen3-embedding-0.6b  dim=1024  queries=40
+
+Dense-only baselines by aggregation:
+  MAX         r@5=0.750  r@20=0.900  MRR=0.490
+  MEAN_TOP_3  r@5=0.750  r@20=0.950  MRR=0.576
+  SUM_TOP_3   r@5=0.800  r@20=0.975  MRR=0.602
+
+Top 10 hybrid combos by recall@5 (tiebreak MRR):
+  agg=SUM_TOP_3  k= 60 wD=1.50 trunc=100  r@5=0.800  r@20=0.925  MRR=0.649
+  agg=SUM_TOP_3  k= 40 wD=1.50 trunc=100  r@5=0.800  r@20=0.925  MRR=0.645
+  agg=SUM_TOP_3  k= 40 wD=2.00 trunc=100  r@5=0.800  r@20=0.975  MRR=0.622
+  agg=SUM_TOP_3  k= 60 wD=2.00 trunc=100  r@5=0.800  r@20=0.925  MRR=0.620
+  agg=MEAN_TOP_3 k= 60 wD=1.50 trunc=100  r@5=0.800  r@20=0.925  MRR=0.620
+  agg=SUM_TOP_3  k=100 wD=2.00 trunc=100  r@5=0.800  r@20=0.925  MRR=0.619
+  agg=MEAN_TOP_3 k= 40 wD=1.50 trunc=100  r@5=0.800  r@20=0.925  MRR=0.619
+  agg=MEAN_TOP_3 k=100 wD=1.50 trunc=100  r@5=0.800  r@20=0.925  MRR=0.619
+  agg=MEAN_TOP_3 k= 40 wD=2.00 trunc=100  r@5=0.800  r@20=0.950  MRR=0.600
+  agg=MEAN_TOP_3 k= 40 wD=2.00 trunc= 50  r@5=0.800  r@20=0.950  MRR=0.595
+
+Top 10 hybrid combos by MRR (tiebreak r@5):
+  agg=SUM_TOP_3  k= 60 wD=1.50 trunc= 20  r@5=0.775  r@20=0.975  MRR=0.650
+  agg=SUM_TOP_3  k=100 wD=1.25 trunc= 20  r@5=0.775  r@20=0.975  MRR=0.650
+  agg=SUM_TOP_3  k=100 wD=1.50 trunc= 20  r@5=0.775  r@20=0.975  MRR=0.650
+  agg=SUM_TOP_3  k= 60 wD=1.50 trunc=100  r@5=0.800  r@20=0.925  MRR=0.649
+  agg=SUM_TOP_3  k= 60 wD=1.50 trunc= 50  r@5=0.775  r@20=0.925  MRR=0.647
+  agg=SUM_TOP_3  k= 40 wD=1.50 trunc= 20  r@5=0.775  r@20=0.975  MRR=0.646
+  agg=SUM_TOP_3  k= 60 wD=1.25 trunc= 20  r@5=0.775  r@20=0.975  MRR=0.646
+  agg=SUM_TOP_3  k=100 wD=1.50 trunc=100  r@5=0.775  r@20=0.925  MRR=0.645
+  agg=SUM_TOP_3  k= 40 wD=1.50 trunc=100  r@5=0.800  r@20=0.925  MRR=0.645
+  agg=SUM_TOP_3  k=100 wD=1.50 trunc= 50  r@5=0.750  r@20=0.925  MRR=0.645
+
+Top 10 hybrid combos by recall@20 (tiebreak r@5):
+  agg=SUM_TOP_3  k= 40 wD=1.00 trunc= 20  r@5=0.750  r@20=1.000  MRR=0.637
+  agg=SUM_TOP_3  k= 60 wD=1.00 trunc= 20  r@5=0.750  r@20=1.000  MRR=0.637
+  agg=SUM_TOP_3  k=100 wD=1.00 trunc= 20  r@5=0.750  r@20=1.000  MRR=0.637
+  agg=SUM_TOP_3  k= 40 wD=2.00 trunc=100  r@5=0.800  r@20=0.975  MRR=0.622
+  agg=SUM_TOP_3  k= 40 wD=1.25 trunc= 20  r@5=0.775  r@20=0.975  MRR=0.644
+  agg=SUM_TOP_3  k= 40 wD=1.50 trunc= 20  r@5=0.775  r@20=0.975  MRR=0.646
+  agg=SUM_TOP_3  k= 40 wD=1.50 trunc= 50  r@5=0.775  r@20=0.975  MRR=0.643
+  agg=SUM_TOP_3  k= 40 wD=2.00 trunc= 20  r@5=0.775  r@20=0.975  MRR=0.621
+  agg=SUM_TOP_3  k= 40 wD=2.00 trunc= 50  r@5=0.775  r@20=0.975  MRR=0.620
+  agg=SUM_TOP_3  k= 60 wD=1.25 trunc= 20  r@5=0.775  r@20=0.975  MRR=0.646
+
+Best combo per aggregation (lexicographic r@5, r@20, MRR):
+  agg=MAX        k=100 wD=1.25 trunc=100  →  r@5=0.775  r@20=0.925  MRR=0.590
+  agg=MEAN_TOP_3 k= 40 wD=2.00 trunc=100  →  r@5=0.800  r@20=0.950  MRR=0.600
+  agg=SUM_TOP_3  k= 40 wD=2.00 trunc=100  →  r@5=0.800  r@20=0.975  MRR=0.622

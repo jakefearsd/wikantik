@@ -28,6 +28,7 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.search.SearchManager;
+import com.wikantik.search.hybrid.HybridSearchService;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,6 +38,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -92,7 +94,13 @@ public class SearchResource extends RestServletBase {
 
         final PageManager pm = engine.getManager( PageManager.class );
 
-        final List< Map< String, Object > > resultList = safeResults.stream()
+        // Hybrid path: when HybridSearchService is present and enabled, fuse
+        // BM25 + dense rankings. On any failure the service returns the BM25
+        // names unchanged so search degrades gracefully, never breaks.
+        final List< SearchResult > orderedResults = applyHybridRerank(
+            engine, pm, query, safeResults );
+
+        final List< Map< String, Object > > resultList = orderedResults.stream()
                 .limit( limit )
                 .map( sr -> {
                     final Map< String, Object > entry = new LinkedHashMap<>();
@@ -146,4 +154,62 @@ public class SearchResource extends RestServletBase {
         sendJson( response, result );
     }
 
+    /**
+     * When {@link HybridSearchService} is present and enabled, reorder the BM25
+     * {@link SearchResult} collection by the fused BM25+dense ranking and
+     * append dense-only hits as minimal results (no contexts, score 0). When
+     * hybrid is disabled or the embedder fails closed, returns the original
+     * BM25 order verbatim.
+     */
+    private List< SearchResult > applyHybridRerank( final Engine engine,
+                                                    final PageManager pm,
+                                                    final String query,
+                                                    final Collection< SearchResult > bm25 ) {
+        final List< SearchResult > asList = new ArrayList<>( bm25 );
+        final HybridSearchService hybrid = engine.getManager( HybridSearchService.class );
+        if ( hybrid == null || !hybrid.isEnabled() ) {
+            return asList;
+        }
+        final List< String > bm25Names = new ArrayList<>( asList.size() );
+        final Map< String, SearchResult > byName = new LinkedHashMap<>();
+        for ( final SearchResult sr : asList ) {
+            final String name = sr.getPage() != null ? sr.getPage().getName() : null;
+            if ( name == null ) continue;
+            bm25Names.add( name );
+            byName.putIfAbsent( name, sr );
+        }
+        final List< String > fused = hybrid.rerank( query, bm25Names );
+        if ( fused == bm25Names || fused.equals( bm25Names ) ) {
+            return asList;
+        }
+        final List< SearchResult > out = new ArrayList<>( fused.size() );
+        for ( final String name : fused ) {
+            final SearchResult existing = byName.get( name );
+            if ( existing != null ) {
+                out.add( existing );
+                continue;
+            }
+            final Page page = pm.getPage( name );
+            if ( page == null ) {
+                // Dense index referenced a page that no longer exists — skip.
+                LOG.debug( "Hybrid rerank: dense-only page '{}' not found by PageManager; skipping", name );
+                continue;
+            }
+            out.add( new DenseOnlySearchResult( page ) );
+        }
+        return out;
+    }
+
+    /**
+     * Minimal {@link SearchResult} for pages surfaced only via the dense index.
+     * BM25 did not score these pages so we report {@code score = 0} and no
+     * context snippets — the UI treats these as plain ranked hits.
+     */
+    private static final class DenseOnlySearchResult implements SearchResult {
+        private final Page page;
+        DenseOnlySearchResult( final Page page ) { this.page = page; }
+        @Override public Page getPage() { return page; }
+        @Override public int getScore() { return 0; }
+        @Override public String[] getContexts() { return new String[ 0 ]; }
+    }
 }

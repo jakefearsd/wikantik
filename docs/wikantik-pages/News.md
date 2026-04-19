@@ -6,6 +6,52 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-19** — docs(wiki): update News.md
+
+**2026-04-19** — feat(search): retrieval experiment harness and eval reports
+
+**2026-04-19** — feat(search): Ollama embedding client and model registry
+
+**2026-04-18** — test(hybrid): InMemoryChunkVectorIndex — cold-start, reload, multi-model, dim/arg guards
+
+**2026-04-18** — feat(hybrid): InMemoryChunkVectorIndex for dense top-k over content_chunk_embeddings
+
+**2026-04-18** — Merge phase 4: QueryEmbedder with cache, timeout, circuit breaker
+
+**2026-04-18** — Merge phase 3: hybrid retrieval core (PageAggregation, HybridFuser, DenseRetriever)
+
+**2026-04-18** — Merge phase 1: dense-embedding data layer (V009, EmbeddingIndexService, async listener)
+
+**2026-04-18** — feat(hybrid): QueryEmbedder wraps embedding client with cache, timeout, breaker
+
+**2026-04-18** — feat(hybrid): hand-rolled CLOSED/OPEN/HALF_OPEN circuit breaker
+
+**2026-04-18** — feat(hybrid): QueryEmbedderConfig record, CircuitState enum, metrics snapshot
+
+**2026-04-18** — build(hybrid): fix Caffeine groupId to com.github.ben-manes.caffeine
+
+**2026-04-18** — feat(search): async page-save listener for incremental embedding reindex
+
+**2026-04-18** — feat(admin): wire EmbeddingIndexService hook into rebuild pipeline
+
+**2026-04-18** — feat(search): add HybridConfig with defaults matching the winning experiment
+
+**2026-04-18** — feat(search): add DenseRetriever and placeholder ChunkVectorIndex interface
+
+**2026-04-18** — feat(search): add HybridFuser for weighted RRF of BM25 and dense lists
+
+**2026-04-18** — feat(search): add PageAggregation + PageAggregator for hybrid retrieval
+
+**2026-04-18** — feat(search): EmbeddingIndexService — production data layer for chunk embeddings
+
+**2026-04-18** — feat(db): V009 content_chunk_embeddings — dense-vector projection of chunks
+
+**2026-04-18** — build(hybrid): stub TextEmbeddingClient + EmbeddingKind for Phase 1
+
+**2026-04-18** — build(hybrid): add Caffeine dep and TextEmbeddingClient stub for Phase 4
+
+**2026-04-18** — docs(search): hybrid retrieval rollout plan — models, hardware, TEI setup
+
 **2026-04-18** — docs(wiki): update News.md
 
 **2026-04-18** — refactor(rest): replace imperative verb handlers with declarative Resource dispatch in AdminKnowledgeResource

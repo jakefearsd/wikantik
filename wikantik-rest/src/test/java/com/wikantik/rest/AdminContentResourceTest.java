@@ -468,6 +468,174 @@ class AdminContentResourceTest {
         verify( mockGen, times( 1 ) ).generateNow();
     }
 
+    // ----- Embedding reindex endpoint -----
+
+    @Test
+    void reindexEmbeddingsReturns503WhenIndexerNotWired() throws Exception {
+        // No BootstrapEmbeddingIndexer manager registered — hybrid disabled path.
+        final HttpServletRequest request = createRequest( "/reindex-embeddings" );
+        Mockito.doReturn( new BufferedReader( new StringReader( "{}" ) ) ).when( request ).getReader();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPost( request, response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( "Embedding reindex unavailable — hybrid search is disabled.",
+                obj.get( "message" ).getAsString() );
+        assertEquals( "wikantik.search.hybrid.enabled", obj.get( "flag" ).getAsString() );
+    }
+
+    @Test
+    void reindexEmbeddingsReturns202OnDispatch() throws Exception {
+        final com.wikantik.search.embedding.BootstrapEmbeddingIndexer boot =
+            Mockito.mock( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
+        Mockito.doReturn( "qwen3-embedding-0.6b" ).when( boot ).modelCode();
+        Mockito.doReturn( new com.wikantik.search.embedding.BootstrapEmbeddingIndexer.Progress(
+                com.wikantik.search.embedding.BootstrapEmbeddingIndexer.State.RUNNING,
+                42L, java.time.Instant.now(), null, null ) ).when( boot ).progress();
+        engine.setManager( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class, boot );
+
+        final HttpServletRequest request = createRequest( "/reindex-embeddings" );
+        Mockito.doReturn( new BufferedReader( new StringReader( "{}" ) ) ).when( request ).getReader();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPost( request, response );
+
+        verify( boot ).forceStart();
+        verify( response ).setStatus( 202 );
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertEquals( "RUNNING", obj.get( "state" ).getAsString() );
+        assertEquals( "qwen3-embedding-0.6b", obj.get( "model_code" ).getAsString() );
+    }
+
+    @Test
+    void reindexEmbeddingsReturns409WhenAlreadyRunning() throws Exception {
+        final com.wikantik.search.embedding.BootstrapEmbeddingIndexer boot =
+            Mockito.mock( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
+        Mockito.doReturn( "qwen3-embedding-0.6b" ).when( boot ).modelCode();
+        Mockito.doReturn( new com.wikantik.search.embedding.BootstrapEmbeddingIndexer.Progress(
+                com.wikantik.search.embedding.BootstrapEmbeddingIndexer.State.RUNNING,
+                42L, java.time.Instant.now(), null, null ) ).when( boot ).progress();
+        Mockito.doThrow( new IllegalStateException( "Bootstrap indexer already running" ) )
+                .when( boot ).forceStart();
+        engine.setManager( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class, boot );
+
+        final HttpServletRequest request = createRequest( "/reindex-embeddings" );
+        Mockito.doReturn( new BufferedReader( new StringReader( "{}" ) ) ).when( request ).getReader();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPost( request, response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_CONFLICT );
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( "Embedding reindex is already running.",
+                obj.get( "message" ).getAsString() );
+        assertEquals( "RUNNING", obj.get( "state" ).getAsString() );
+    }
+
+    // ----- index-status embedding sub-blocks -----
+
+    @Test
+    void indexStatusEmbeddingsBlocksRenderDisabledShapeWhenManagersAbsent() throws Exception {
+        // ContentIndexRebuildService is required for the endpoint to render anything;
+        // BootstrapEmbeddingIndexer + QueryEmbedder are intentionally NOT wired so we
+        // verify the disabled-shape fallback in bootstrapMap()/embedderMap().
+        engine.setManager( com.wikantik.admin.ContentIndexRebuildService.class,
+            stubRebuildServiceWithEmbeddingRowCount( 0 ) );
+
+        final String json = doGet( "/index-status" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        final JsonObject embeddings = obj.getAsJsonObject( "embeddings" );
+        assertNotNull( embeddings, "embeddings block must be present" );
+
+        final JsonObject bootstrap = embeddings.getAsJsonObject( "bootstrap" );
+        assertEquals( "DISABLED", bootstrap.get( "state" ).getAsString() );
+        assertEquals( 0, bootstrap.get( "chunks_total" ).getAsLong() );
+        assertEquals( 0, bootstrap.get( "chunks_processed" ).getAsInt() );
+        assertTrue( bootstrap.get( "started_at" ).isJsonNull() );
+        assertTrue( bootstrap.get( "completed_at" ).isJsonNull() );
+
+        final JsonObject embedder = embeddings.getAsJsonObject( "embedder" );
+        assertEquals( "DISABLED", embedder.get( "circuit_state" ).getAsString() );
+        assertEquals( 0, embedder.get( "call_success" ).getAsLong() );
+        assertEquals( 0, embedder.get( "cache_hit" ).getAsLong() );
+        assertEquals( 0, embedder.get( "breaker_open" ).getAsLong() );
+    }
+
+    @Test
+    void indexStatusEmbeddingsBlocksReflectLiveManagerState() throws Exception {
+        engine.setManager( com.wikantik.admin.ContentIndexRebuildService.class,
+            stubRebuildServiceWithEmbeddingRowCount( 17 ) );
+
+        final java.time.Instant started = java.time.Instant.parse( "2026-04-19T12:00:00Z" );
+        final java.time.Instant completed = java.time.Instant.parse( "2026-04-19T12:05:00Z" );
+        final com.wikantik.search.embedding.BootstrapEmbeddingIndexer boot =
+            Mockito.mock( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
+        Mockito.doReturn( new com.wikantik.search.embedding.BootstrapEmbeddingIndexer.Progress(
+                com.wikantik.search.embedding.BootstrapEmbeddingIndexer.State.COMPLETED,
+                42L, started, completed, null ) ).when( boot ).progress();
+        engine.setManager( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class, boot );
+
+        final com.wikantik.search.hybrid.QueryEmbedder qe =
+            Mockito.mock( com.wikantik.search.hybrid.QueryEmbedder.class );
+        Mockito.doReturn( com.wikantik.search.hybrid.CircuitState.HALF_OPEN ).when( qe ).circuitState();
+        Mockito.doReturn( new com.wikantik.search.hybrid.QueryEmbedderMetrics(
+                100L, 5L, 2L, 80L, 25L, 1L, 1L, 1L, 3L ) ).when( qe ).metrics();
+        engine.setManager( com.wikantik.search.hybrid.QueryEmbedder.class, qe );
+
+        final String json = doGet( "/index-status" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        final JsonObject embeddings = obj.getAsJsonObject( "embeddings" );
+
+        final JsonObject bootstrap = embeddings.getAsJsonObject( "bootstrap" );
+        assertEquals( "COMPLETED", bootstrap.get( "state" ).getAsString() );
+        assertEquals( 42L, bootstrap.get( "chunks_total" ).getAsLong() );
+        // chunks_processed must come from the live embedding row count, not Progress.
+        assertEquals( 17, bootstrap.get( "chunks_processed" ).getAsInt() );
+        assertEquals( started.toString(), bootstrap.get( "started_at" ).getAsString() );
+        assertEquals( completed.toString(), bootstrap.get( "completed_at" ).getAsString() );
+
+        final JsonObject embedder = embeddings.getAsJsonObject( "embedder" );
+        assertEquals( "HALF_OPEN", embedder.get( "circuit_state" ).getAsString() );
+        assertEquals( 100L, embedder.get( "call_success" ).getAsLong() );
+        assertEquals( 5L, embedder.get( "call_failure" ).getAsLong() );
+        assertEquals( 80L, embedder.get( "cache_hit" ).getAsLong() );
+        assertEquals( 25L, embedder.get( "cache_miss" ).getAsLong() );
+        assertEquals( 3L, embedder.get( "breaker_call_rejected" ).getAsLong() );
+    }
+
+    /**
+     * Builds a minimal {@link com.wikantik.admin.ContentIndexRebuildService} stub
+     * whose {@code snapshot()} returns a record with the specified embeddings
+     * row count and otherwise zero values. The endpoint only needs valid shapes
+     * to drive snapshotToMap; the inner sub-block contents are what these tests
+     * assert against.
+     */
+    private com.wikantik.admin.ContentIndexRebuildService stubRebuildServiceWithEmbeddingRowCount(
+            final int embeddingRowCount ) {
+        final com.wikantik.admin.ContentIndexRebuildService svc =
+            Mockito.mock( com.wikantik.admin.ContentIndexRebuildService.class );
+        final com.wikantik.admin.IndexStatusSnapshot snap = new com.wikantik.admin.IndexStatusSnapshot(
+            new com.wikantik.admin.IndexStatusSnapshot.Pages( 0, 0, 0 ),
+            new com.wikantik.admin.IndexStatusSnapshot.Lucene( 0, 0, null ),
+            new com.wikantik.admin.IndexStatusSnapshot.Chunks( 0, 0, 0, 0, 0, 0 ),
+            new com.wikantik.admin.IndexStatusSnapshot.Embeddings(
+                "qwen3-embedding-0.6b", 768, embeddingRowCount, null ),
+            new com.wikantik.admin.IndexStatusSnapshot.Rebuild(
+                "IDLE", null, 0, 0, 0, 0, 0, 0, java.util.List.of() ) );
+        Mockito.doReturn( snap ).when( svc ).snapshot();
+        return svc;
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String pathInfo ) throws Exception {

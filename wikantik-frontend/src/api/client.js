@@ -340,6 +340,37 @@ export const api = {
         body: JSON.stringify({ cache: cache || null }),
       }),
 
+    reindexEmbeddings: async () => {
+      const resp = await fetch(`${BASE}/admin/content/reindex-embeddings`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      });
+      if (resp.status === 409) {
+        const body = await resp.json().catch(() => ({}));
+        throw Object.assign(new Error(body.message || 'Embedding bootstrap already running'), {
+          status: 409,
+          code: 'embedding_bootstrap_running',
+          body,
+        });
+      }
+      if (resp.status === 503) {
+        const body = await resp.json().catch(() => ({}));
+        throw Object.assign(new Error(body.message || 'Hybrid search disabled (wikantik.search.hybrid.enabled=false)'), {
+          status: 503,
+          code: 'hybrid_disabled',
+          body,
+        });
+      }
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({ message: resp.statusText }));
+        throw Object.assign(new Error(body.message || resp.statusText), { status: resp.status, body });
+      }
+      if (resp.status === 204 || resp.headers.get('Content-Length') === '0') return null;
+      const text = await resp.text();
+      return text ? JSON.parse(text) : null;
+    },
+
     // Group Management
     listGroups: () => request('/admin/groups'),
 
@@ -374,6 +405,20 @@ export const api = {
 
     deletePolicyGrant: (id) =>
       request(`/admin/policy/${id}`, {
+        method: 'DELETE',
+      }),
+
+    // API Key Management (MCP + OpenAPI tool server)
+    listApiKeys: () => request('/admin/apikeys'),
+
+    createApiKey: (data) =>
+      request('/admin/apikeys', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    revokeApiKey: (id) =>
+      request(`/admin/apikeys/${id}`, {
         method: 'DELETE',
       }),
   },

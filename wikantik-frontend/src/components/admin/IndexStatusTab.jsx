@@ -8,9 +8,11 @@ export default function IndexStatusTab() {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
   const [confirming, setConfirming] = useState(false);
+  const [reindexMessage, setReindexMessage] = useState(null);
   const pollRef = useRef(null);
   const stateRef = useRef('IDLE');
   const hasErrorsRef = useRef(false);
+  const bootstrapStateRef = useRef('IDLE');
 
   const fetchStatus = async () => {
     try {
@@ -18,6 +20,7 @@ export default function IndexStatusTab() {
       setStatus(s);
       stateRef.current = s.rebuild?.state || 'IDLE';
       hasErrorsRef.current = (s.rebuild?.errors?.length || 0) > 0;
+      bootstrapStateRef.current = s.embeddings?.bootstrap?.state || 'IDLE';
     } catch (e) {
       setError(e.message || 'Failed to fetch status');
     }
@@ -30,7 +33,9 @@ export default function IndexStatusTab() {
       if (cancelled) return;
       await fetchStatus();
       if (cancelled) return;
-      const active = stateRef.current !== 'IDLE' || hasErrorsRef.current;
+      const active = stateRef.current !== 'IDLE'
+        || hasErrorsRef.current
+        || bootstrapStateRef.current === 'RUNNING';
       clearInterval(pollRef.current);
       pollRef.current = setInterval(tick, active ? FAST_POLL_MS : SLOW_POLL_MS);
     };
@@ -62,11 +67,35 @@ export default function IndexStatusTab() {
     }
   };
 
+  const doReindexEmbeddings = async () => {
+    setError(null);
+    setReindexMessage(null);
+    try {
+      const r = await api.admin.reindexEmbeddings();
+      setReindexMessage(`Embedding reindex dispatched (state: ${r?.state || 'RUNNING'})`);
+      bootstrapStateRef.current = 'RUNNING';
+      fetchStatus();
+    } catch (e) {
+      if (e.code === 'embedding_bootstrap_running' || e.status === 409) {
+        setError('An embedding bootstrap is already running');
+      } else if (e.code === 'hybrid_disabled' || e.status === 503) {
+        setError('Hybrid search disabled via wikantik.search.hybrid.enabled flag');
+      } else {
+        setError(e.message || 'Reindex embeddings failed');
+      }
+    }
+  };
+
   if (!status) return <div className="admin-loading">Loading index status…</div>;
 
   const rebuild = status.rebuild || {};
   const isIdle = rebuild.state === 'IDLE';
   const errors = rebuild.errors || [];
+  const embeddings = status.embeddings || {};
+  const bootstrap = embeddings.bootstrap || {};
+  const embedder = embeddings.embedder || {};
+  const embeddingsEnabled = !!embeddings.model_code;
+  const bootstrapRunning = bootstrap.state === 'RUNNING';
 
   return (
     <div className="index-status-tab">
@@ -90,7 +119,41 @@ export default function IndexStatusTab() {
           label="Lucene Queue Depth"
           value={status.lucene?.queue_depth ?? 0}
         />
+        {embeddingsEnabled && (
+          <StatCard
+            label="Embeddings"
+            value={`${embeddings.row_count ?? 0}`}
+            subtitle={`${embeddings.model_code} · dim ${embeddings.dim ?? 0}`}
+          />
+        )}
       </div>
+
+      {embeddingsEnabled && bootstrap.state && bootstrap.state !== 'DISABLED' && (
+        <BootstrapProgress bootstrap={bootstrap} />
+      )}
+
+      {embeddingsEnabled && (
+        <>
+          <div className="admin-section-header">
+            <h3>Embeddings</h3>
+          </div>
+          <div className="admin-actions-row">
+            <button
+              className="btn btn-primary btn-danger"
+              onClick={doReindexEmbeddings}
+              disabled={bootstrapRunning}
+            >
+              {bootstrapRunning ? 'Embedding Bootstrap Running…' : 'Reindex Embeddings'}
+            </button>
+          </div>
+          {reindexMessage && (
+            <div className="admin-message info" style={{ marginTop: 'var(--space-sm)' }}>
+              {reindexMessage}
+            </div>
+          )}
+          <EmbedderMetrics embedder={embedder} />
+        </>
+      )}
 
       <div className="admin-section-header">
         <h3>Rebuild</h3>
@@ -169,6 +232,77 @@ function RebuildProgress({ rebuild, luceneQueueDepth }) {
           <progress value={luceneDrained} max={rebuild.lucene_queued || 1} style={{ width: '100%' }} />
         </div>
       )}
+    </div>
+  );
+}
+
+function BootstrapProgress({ bootstrap }) {
+  const state = bootstrap.state;
+  const total = bootstrap.chunks_total || 0;
+  const processed = bootstrap.chunks_processed || 0;
+  const pct = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
+  const stateLabel = {
+    IDLE: 'Idle',
+    SKIPPED_ALREADY_POPULATED: 'Already populated — skipped',
+    SKIPPED_NO_CHUNKS: 'No chunks to embed — skipped',
+    RUNNING: 'Running',
+    COMPLETED: 'Completed',
+    FAILED: 'Failed',
+  }[state] || state;
+  return (
+    <div className="admin-section" style={{ marginTop: 'var(--space-md)' }}>
+      <div className="admin-section-header"><h3>Embedding Bootstrap</h3></div>
+      <div><strong>State:</strong> {stateLabel}</div>
+      {state === 'RUNNING' && total > 0 && (
+        <>
+          <progress value={processed} max={total} style={{ width: '100%' }} />
+          <div className="stat-subtitle" style={{ fontSize: '0.85em', color: 'var(--text-muted)' }}>
+            {processed}/{total} chunks embedded ({pct}%)
+          </div>
+        </>
+      )}
+      {(state === 'COMPLETED' || state === 'SKIPPED_ALREADY_POPULATED' || state === 'SKIPPED_NO_CHUNKS') && bootstrap.completed_at && (
+        <div className="stat-subtitle" style={{ fontSize: '0.85em', color: 'var(--text-muted)' }}>
+          Finished at {bootstrap.completed_at}
+        </div>
+      )}
+      {state === 'FAILED' && bootstrap.error_message && (
+        <div className="admin-message error" role="alert" style={{ marginTop: 'var(--space-sm)' }}>
+          {bootstrap.error_message}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmbedderMetrics({ embedder }) {
+  const state = embedder.circuit_state || 'DISABLED';
+  const hit = Number(embedder.cache_hit || 0);
+  const miss = Number(embedder.cache_miss || 0);
+  const total = hit + miss;
+  const hitRate = total > 0 ? ((hit / total) * 100).toFixed(1) + '%' : '—';
+  const stateColor = {
+    CLOSED: 'var(--color-success, #2e7d32)',
+    HALF_OPEN: 'var(--color-warning, #ed6c02)',
+    OPEN: 'var(--color-error, #c62828)',
+    DISABLED: 'var(--text-muted)',
+  }[state] || 'var(--text-muted)';
+  return (
+    <div className="admin-section" style={{ marginTop: 'var(--space-md)' }}>
+      <div style={{ marginBottom: 'var(--space-sm)' }}>
+        <strong>Circuit:</strong>{' '}
+        <span style={{ color: stateColor, fontWeight: 600 }}>{state}</span>
+      </div>
+      <div className="stats-grid">
+        <StatCard label="Cache Hit Rate" value={hitRate} subtitle={`${hit} hits / ${miss} miss`} />
+        <StatCard label="Call Success" value={embedder.call_success ?? 0} />
+        <StatCard label="Call Failure" value={embedder.call_failure ?? 0} />
+        <StatCard label="Call Timeout" value={embedder.call_timeout ?? 0} />
+        <StatCard label="Breaker Open" value={embedder.breaker_open ?? 0} />
+        <StatCard label="Breaker Close" value={embedder.breaker_close ?? 0} />
+        <StatCard label="Half-Open Probe" value={embedder.breaker_half_open_probe ?? 0} />
+        <StatCard label="Calls Rejected" value={embedder.breaker_call_rejected ?? 0} />
+      </div>
     </div>
   );
 }

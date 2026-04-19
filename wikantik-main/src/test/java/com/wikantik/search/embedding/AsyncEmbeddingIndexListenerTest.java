@@ -25,6 +25,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -98,5 +99,51 @@ class AsyncEmbeddingIndexListenerTest {
     void constructorRejectsNullIndexer() {
         assertThrows( IllegalArgumentException.class,
             () -> new AsyncEmbeddingIndexListener( null, MODEL ) );
+    }
+
+    @Test
+    void postIndexCallbackRunsAfterSuccessfulIndex() throws InterruptedException {
+        final EmbeddingIndexService indexer = mock( EmbeddingIndexService.class );
+        when( indexer.indexChunks( any(), eq( MODEL ) ) ).thenReturn( 1 );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        final AtomicInteger cbCalls = new AtomicInteger();
+        try( final AsyncEmbeddingIndexListener listener =
+                 new AsyncEmbeddingIndexListener( indexer, MODEL, ex ) ) {
+            listener.setPostIndexCallback( cbCalls::incrementAndGet );
+            listener.accept( List.of( UUID.randomUUID() ) );
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
+            assertEquals( 1, cbCalls.get() );
+        }
+    }
+
+    @Test
+    void postIndexCallbackSkippedWhenIndexFails() throws InterruptedException {
+        final EmbeddingIndexService indexer = mock( EmbeddingIndexService.class );
+        when( indexer.indexChunks( any(), any() ) ).thenThrow( new RuntimeException( "boom" ) );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        final AtomicInteger cbCalls = new AtomicInteger();
+        try( final AsyncEmbeddingIndexListener listener =
+                 new AsyncEmbeddingIndexListener( indexer, MODEL, ex ) ) {
+            listener.setPostIndexCallback( cbCalls::incrementAndGet );
+            listener.accept( List.of( UUID.randomUUID() ) );
+            ex.shutdown();
+            ex.awaitTermination( 5, TimeUnit.SECONDS );
+            assertEquals( 0, cbCalls.get() );
+        }
+    }
+
+    @Test
+    void postIndexCallbackExceptionIsSwallowed() throws InterruptedException {
+        final EmbeddingIndexService indexer = mock( EmbeddingIndexService.class );
+        when( indexer.indexChunks( any(), eq( MODEL ) ) ).thenReturn( 1 );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        try( final AsyncEmbeddingIndexListener listener =
+                 new AsyncEmbeddingIndexListener( indexer, MODEL, ex ) ) {
+            listener.setPostIndexCallback( () -> { throw new RuntimeException( "callback blew up" ); } );
+            assertDoesNotThrow( () -> listener.accept( List.of( UUID.randomUUID() ) ) );
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
+        }
     }
 }

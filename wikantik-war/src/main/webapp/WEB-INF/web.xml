@@ -249,6 +249,11 @@
        <listener-class>com.wikantik.knowledge.mcp.KnowledgeMcpInitializer</listener-class>
    </listener>
 
+   <!-- OpenAPI tool server bootstrap — must come after WikiBootstrapServletContextListener -->
+   <listener>
+       <listener-class>com.wikantik.tools.ToolsServerInitializer</listener-class>
+   </listener>
+
 
    <!--
        Attachment exchange handler.
@@ -369,6 +374,10 @@
    <servlet>
        <servlet-name>AdminHubDiscoveryResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminHubDiscoveryResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>AdminApiKeysResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminApiKeysResource</servlet-class>
    </servlet>
 
    <!-- Observability -->
@@ -523,6 +532,14 @@
    <servlet-mapping>
        <servlet-name>AdminHubDiscoveryResource</servlet-name>
        <url-pattern>/admin/knowledge/hub-discovery/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminApiKeysResource</servlet-name>
+       <url-pattern>/admin/apikeys/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminApiKeysResource</servlet-name>
+       <url-pattern>/admin/apikeys</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

@@ -35,6 +35,8 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.auth.apikeys.ApiKeyService;
+import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.mcp.completions.WikiCompletions;
 import com.wikantik.mcp.prompts.WikiPrompts;
 import com.wikantik.mcp.resources.WikiEventSubscriptionBridge;
@@ -86,7 +88,13 @@ public class McpServerInitializer implements ServletContextListener {
                     config.rateLimitGlobal(), config.rateLimitPerClient() );
             LOG.info( "MCP rate limiting: global={}/s, perClient={}/s",
                     config.rateLimitGlobal(), config.rateLimitPerClient() );
-            final McpAccessFilter accessFilter = new McpAccessFilter( config, rateLimiter );
+            final ApiKeyService apiKeyService = ApiKeyServiceHolder.get( engine.getWikiProperties() );
+            if ( apiKeyService != null ) {
+                LOG.info( "MCP server: DB-backed API keys enabled — bearer tokens resolve to principals." );
+            } else {
+                LOG.info( "MCP server: DB-backed API keys unavailable (no datasource) — legacy property keys only." );
+            }
+            final McpAccessFilter accessFilter = new McpAccessFilter( config, rateLimiter, apiKeyService );
             final FilterRegistration.Dynamic filterReg =
                     servletContext.addFilter( "McpAccessFilter", accessFilter );
             filterReg.addMappingForUrlPatterns( EnumSet.of( DispatcherType.REQUEST ), false, "/mcp" );

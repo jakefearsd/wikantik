@@ -1,0 +1,17 @@
+Chunk→page aggregation sweep — model: qwen3-embedding-0.6b  dim=1024  queries=40
+Fusion: RRF k=60, wD=1.0, wB=1.0, trunc=50
+
+  aggregation             retriever       r@5     r@20      MRR
+  -----------------------------------------------------------------
+  MAX                     dense         0.750    0.900    0.490
+  MAX                     hybrid        0.750    0.950    0.601
+  MEAN_TOP_3              dense         0.750    0.950    0.576
+  MEAN_TOP_3              hybrid        0.750    0.950    0.622
+  MEAN_TOP_5              dense         0.750    0.900    0.589
+  MEAN_TOP_5              hybrid        0.750    0.950    0.596
+  SUM_TOP_3               dense         0.800    0.975    0.602
+  SUM_TOP_3               hybrid        0.750    0.950    0.636
+  SUM_TOP_5               dense         0.775    0.925    0.612
+  SUM_TOP_5               hybrid        0.750    0.950    0.627
+  MEAN_TOP_3_LOG_NORM     dense         0.350    0.850    0.175
+  MEAN_TOP_3_LOG_NORM     hybrid        0.750    0.875    0.581

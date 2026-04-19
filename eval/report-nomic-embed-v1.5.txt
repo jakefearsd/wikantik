@@ -1,0 +1,76 @@
+Retrieval evaluation — model: nomic-embed-v1.5  dim=768
+Date: 2026-04-18T10:48:57.669156024Z
+Queries: 40
+
+Overall:
+  retriever  recall@5  recall@20       MRR
+  bm25         0.550     0.800     0.519
+  dense        0.625     0.800     0.474
+  hybrid       0.650     0.900     0.530
+
+Per-category:
+  category                n  retriever  recall@5  recall@20       MRR
+  business-process        5  bm25         0.400     0.600     0.263
+  business-process        5  dense        0.600     0.800     0.621
+  business-process        5  hybrid       0.600     0.800     0.523
+  general                 5  bm25         0.200     0.800     0.266
+  general                 5  dense        0.400     0.600     0.189
+  general                 5  hybrid       0.400     0.800     0.319
+  hard                    5  bm25         0.400     0.600     0.318
+  hard                    5  dense        0.400     0.600     0.315
+  hard                    5  hybrid       0.200     0.800     0.272
+  indirect                8  bm25         0.500     0.625     0.458
+  indirect                8  dense        0.625     0.875     0.512
+  indirect                8  hybrid       0.625     0.875     0.532
+  multi-word-concept      5  bm25         0.800     1.000     0.710
+  multi-word-concept      5  dense        0.800     0.800     0.476
+  multi-word-concept      5  hybrid       0.800     1.000     0.720
+  specific                5  bm25         0.800     1.000     0.829
+  specific                5  dense        1.000     1.000     0.740
+  specific                5  hybrid       1.000     1.000     0.767
+  synonym-drift           7  bm25         0.714     1.000     0.739
+  synonym-drift           7  dense        0.571     0.857     0.452
+  synonym-drift           7  hybrid       0.857     1.000     0.563
+
+Per-query (rank of ideal_page; 0 = miss):
+  bm25  dens  hybrid  category              ideal_page                                          query
+     —    95     163  indirect              JspwikiDeployment                                   how do I deploy the wiki locally
+    14     2       2  synonym-drift         EmbeddingsVectorDB                                  which embedding model should we pick for local RAG
+     1     1       1  specific              OllamaSetup                                         Ollama installation
+     1    12       2  synonym-drift         WikantikOnDocker                                    running Wikantik in a container
+     9     3       1  indirect              PostgreSQLLocalDeployment                           setting up postgres on my laptop
+     1     1       1  specific              CorsDeepDive                                        cors preflight handling
+     2     2       1  multi-word-concept    FullTextSearchInPostgresql                          full text search in relational database
+     1     2       1  multi-word-concept    LocalRAG                                            local retrieval augmented generation
+     1    76       9  synonym-drift         BlueGreenDeployments                                blue green release strategy
+     2     1       2  indirect              CanaryDeployments                                   gradual rollout with traffic shifting
+     7     5       3  specific              OAuthImplementation                                 oauth authorization code flow
+    32    12      12  indirect              FullOAuth                                           single sign on with identity providers
+     1    15       2  synonym-drift         ObjectStoragePatterns                               storage patterns for files
+     5     1       1  business-process      SupplyChainSecurity                                 how do we protect against supply chain attacks
+    28    15      10  business-process      CustomerRelationshipManagement                      onboarding a new client
+     1     1       1  business-process      SprintPlanning                                      how to plan a sprint
+     —    26      65  business-process      IncidentManagement                                  handling a production outage
+    13     1       2  business-process      ProductRoadmapping                                  roadmap planning process
+     1     2       2  specific              CodeReviewPractices                                 code review best practices
+     1     1       1  multi-word-concept    AdminSecurityUi                                     admin ui for security settings
+     1     2       2  indirect              DatabaseBackedPermissions                           role based access permissions stored in the database
+     —    17      32  hard                  KubernetesBasics                                    k8s
+     1     —      12  hard                  CiCdPipelines                                       ci cd
+     1     3       2  multi-word-concept    DatabaseBackupStrategies                            backup strategy for the database
+     1     1       1  synonym-drift         DatabaseMigrationStrategies                         schema migration approach
+    10     1       3  synonym-drift         AiPoweredSearch                                     semantic search with embeddings
+    15    14       8  general               GraphRAG                                            knowledge graph retrieval
+     1     1       1  indirect              MultimodalEmbeddings                                images and text embeddings together
+    51     6       6  indirect              AgentMemory                                         how agents remember things
+    20    22      10  multi-word-concept    AgentObservability                                  evaluating and monitoring llm agents in production
+     1     1       1  specific              AgentPromptEngineering                              prompt engineering for agents
+     1     2       1  general               TestDrivenDevelopmentGuide                          test driven development
+     1     2       1  synonym-drift         TechnicalWritingGuide                               writing technical docs
+     8     —      41  general               DockerSetup                                         setting up docker for development
+    39     2       6  hard                  ArtificialIntelligence                              ai
+     2     1       1  hard                  JavaMemoryManagement                                jvm gc
+    26     3       9  general               AgenticArchitecture                                 overview of agent architectures
+    10    24       3  general               OkrsAndGoalSetting                                  objectives and key results
+     1     1       1  indirect              OkrsAndGoalSetting                                  setting goals for the quarter
+    15    73      13  hard                  BusinessMetricsAndKpis                              measuring what matters

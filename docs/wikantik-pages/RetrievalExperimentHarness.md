@@ -207,3 +207,100 @@ After a model is chosen, the sandbox table is dropped, a pgvector column sized
 to the winning dimension is added, the `wikantik.search.hybrid.enabled` flag is
 wired through `SearchManager`/REST, and the experiment code stays in place for
 future regression runs.
+
+---
+
+## 7. Chunker improvement results (2026-04-19)
+
+Two targeted changes to the chunking + embedding pipeline landed together and
+were evaluated against the frozen `qwen3-embedding-0.6b` baseline. Both are
+structural — no retriever, fusion weights, or query-side logic changed.
+
+### What changed
+
+1. **Atomic list chunking.** `ContentChunker.isAtomic(Node)` now treats
+   `BulletList` and `OrderedList` as indivisible up to `maxTokens × 4` (≈ 2048
+   tokens). Previously, Flexmark emitted each list item as a separate block
+   and the merge pass sometimes split related items across chunks. Lists of
+   command flags, step-by-step instructions, and config options now live in
+   one chunk with their siblings.
+2. **Heading path prepended at embed time.** A new `EmbeddingTextBuilder`
+   renders `"<Top> > <Mid> > <Leaf>\n\n<body>"` and is the single rendering
+   point for both `EmbeddingIndexService` (production) and `ExperimentIndexer`
+   (sandbox). The stored chunk text in `kg_content_chunks.text` stays
+   body-only; the heading-path-aware string only exists on the wire to the
+   embedder. Chunk identity (`content_hash` = sha256(heading_path + text))
+   is unchanged.
+
+### Corpus impact
+
+| | Before | After |
+|---|---|---|
+| `kg_content_chunks` rows | 23,656 | 39,264 |
+| Avg tokens / chunk | ~230 | 103 |
+
+More, smaller chunks — atomic lists stop the merge pass from gluing unrelated
+blocks together, so prose paragraphs are no longer inflated by adjacent list
+content.
+
+### Retrieval metrics (40 queries, 7 categories)
+
+**Overall:**
+
+| retriever | recall@5 | recall@20 | MRR |
+|---|---|---|---|
+| bm25   | 0.550 → **0.775** (+0.225) | 0.800 → **0.975** (+0.175) | 0.519 → **0.650** (+0.131) |
+| dense  | 0.750 → 0.750 (+0.000)     | 0.900 → **0.950** (+0.050) | 0.490 → **0.627** (+0.137) |
+| hybrid | 0.750 → **0.850** (+0.100) | 0.925 → **0.975** (+0.050) | 0.602 → **0.667** (+0.065) |
+
+**Categories that moved the most:**
+
+- `business-process` bm25 recall@5: 0.400 → 0.800
+- `hard` bm25 recall@20: 0.600 → 1.000; dense recall@20: 0.800 → 1.000
+- `indirect` bm25 MRR: 0.458 → 0.614 (every retriever now recall@20 = 1.000)
+- `general` dense MRR: 0.461 → 0.667
+
+### Why the gains break down this way
+
+- **BM25 jumped more than expected.** BM25 in this harness indexes over the
+  chunk table, not pages. When a query's answer is "item 3 of the `--force`
+  options list," splitting that list across chunks left BM25 with a diluted
+  hit. Atomic lists put every related term in one chunk and BM25 lights up
+  cleanly. The `hard`, `indirect`, and `business-process` categories — all
+  heavy on flag/step/option queries — moved the most.
+- **Dense recall@5 was already saturated at 0.750 and didn't move, but dense
+  MRR jumped +0.137.** Heading-path context doesn't widen the net; it pulls
+  the correct chunk up in rank. That's exactly the precision-not-recall win
+  the change was designed to produce.
+- **Hybrid is the winner** at recall@5 = 0.850 and recall@20 = 0.975 — best
+  across every category. Because BM25 and dense both improved but on different
+  axes (recall vs. rank), RRF compounds the gains.
+
+### What this means for overlap
+
+Overlap (replaying the last N tokens of chunk *i* as the first N tokens of
+chunk *i+1*) was the obvious next lever — until these two changes absorbed
+most of what overlap was meant to fix:
+
+- Boundary bleed on list items → gone; lists are atomic.
+- Context-poor chunks → gone; heading path is on the wire.
+
+Recall@20 hybrid is 0.975. There are 39 of 40 queries recovered; the miss
+budget for overlap to improve against is one query. If overlap is worth
+revisiting, the signal will show up in **dense recall@5** (stuck at 0.750),
+not in the hybrid overall.
+
+### Reports on disk
+
+| Path | What |
+|---|---|
+| `eval/report-qwen3-embedding-0.6b-baseline-prechunk.txt` | Before, 2026-04-18 |
+| `eval/report-qwen3-embedding-0.6b-2026-04-19T20-01-22-331504860Z.txt` | After, 2026-04-19 |
+
+Reproduce with:
+
+```
+mvn -pl wikantik-main exec:java \
+    -Dexec.mainClass=com.wikantik.search.embedding.experiment.ExperimentCompare \
+    -Dexec.args="<before.txt> <after.txt>"
+```

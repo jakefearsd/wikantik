@@ -93,6 +93,42 @@ class QueryEmbedderTest {
     }
 
     @Test
+    void cacheKeyCollapsesInternalWhitespace() {
+        final FakeClient client = new FakeClient( new float[]{ 0.5f } );
+        embedder = new QueryEmbedder( client, testConfig(), clock );
+        embedder.embed( "hello world" );
+        embedder.embed( "hello   world" );
+        embedder.embed( "hello\tworld" );
+        embedder.embed( "hello\nworld" );
+        assertEquals( 1, client.calls.get(),
+            "spacing variants of the same query should share one cache slot" );
+    }
+
+    @Test
+    void cacheKeyStripsTrailingPunctuation() {
+        final FakeClient client = new FakeClient( new float[]{ 0.7f } );
+        embedder = new QueryEmbedder( client, testConfig(), clock );
+        embedder.embed( "hello world" );
+        embedder.embed( "hello world!" );
+        embedder.embed( "hello world?" );
+        embedder.embed( "hello world..." );
+        embedder.embed( "hello world.,;:" );
+        assertEquals( 1, client.calls.get(),
+            "punctuation-suffixed variants should share one cache slot" );
+    }
+
+    @Test
+    void cacheKeyDoesNotCollapseDistinctQueries() {
+        final FakeClient client = new FakeClient( new float[]{ 0.9f } );
+        embedder = new QueryEmbedder( client, testConfig(), clock );
+        embedder.embed( "hello world" );
+        embedder.embed( "world hello" );
+        embedder.embed( "hello world today" );
+        assertEquals( 3, client.calls.get(),
+            "different queries must NOT collide in the cache after normalization" );
+    }
+
+    @Test
     void nullQueryReturnsEmptyWithoutCallingClient() {
         final AssertiveClient ac = new AssertiveClient();
         embedder = new QueryEmbedder( ac, testConfig(), clock );

@@ -22,11 +22,10 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
-import com.wikantik.api.frontmatter.FrontmatterParser;
-import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.search.FrontmatterMetadataCache;
 import com.wikantik.search.SearchManager;
 import com.wikantik.search.hybrid.HybridSearchService;
 
@@ -43,6 +42,11 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * REST servlet for full-text search.
@@ -78,11 +82,20 @@ public class SearchResource extends RestServletBase {
         final Context context = Wiki.context().create( engine, request,
                 ContextEnum.WIKI_FIND.getRequestContext() );
 
+        // Kick off the query embedding in parallel with BM25. By the time
+        // findPages returns the embedding is usually warm, so the dense
+        // pass adds near-zero latency on top of BM25.
+        final HybridSearchService hybrid = engine.getManager( HybridSearchService.class );
+        final CompletableFuture< Optional< float[] > > embedFuture = hybrid != null
+            ? hybrid.prefetchQueryEmbedding( query )
+            : CompletableFuture.completedFuture( Optional.empty() );
+
         final Collection< SearchResult > searchResults;
         try {
             searchResults = searchManager.findPages( query, context );
         } catch ( final Exception e ) {
             LOG.error( "Error executing search for '{}': {}", query, e.getMessage() );
+            embedFuture.cancel( true );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Error executing search: " + e.getMessage() );
             return;
@@ -93,12 +106,14 @@ public class SearchResource extends RestServletBase {
                 : List.of();
 
         final PageManager pm = engine.getManager( PageManager.class );
+        final FrontmatterMetadataCache fmCache = engine.getManager( FrontmatterMetadataCache.class );
 
         // Hybrid path: when HybridSearchService is present and enabled, fuse
-        // BM25 + dense rankings. On any failure the service returns the BM25
-        // names unchanged so search degrades gracefully, never breaks.
+        // BM25 + dense rankings using the prefetched embedding. On any failure
+        // the service returns the BM25 names unchanged so search degrades
+        // gracefully, never breaks.
         final List< SearchResult > orderedResults = applyHybridRerank(
-            engine, pm, query, safeResults );
+            hybrid, pm, query, safeResults, embedFuture );
 
         final List< Map< String, Object > > resultList = orderedResults.stream()
                 .limit( limit )
@@ -116,24 +131,20 @@ public class SearchResource extends RestServletBase {
                         entry.put( "lastModified", page.getLastModified() );
                     }
 
-                    // Frontmatter metadata (summary, tags, cluster)
-                    try {
-                        final String rawText = pm.getPureText( page.getName(), -1 );
-                        if ( rawText != null && !rawText.isEmpty() ) {
-                            final ParsedPage parsed = FrontmatterParser.parse( rawText );
-                            final var metadata = parsed.metadata();
-                            if ( metadata.get( "summary" ) != null ) {
-                                entry.put( "summary", metadata.get( "summary" ).toString() );
-                            }
-                            if ( metadata.get( "tags" ) != null ) {
-                                entry.put( "tags", metadata.get( "tags" ) );
-                            }
-                            if ( metadata.get( "cluster" ) != null ) {
-                                entry.put( "cluster", metadata.get( "cluster" ).toString() );
-                            }
-                        }
-                    } catch ( final Exception e ) {
-                        LOG.debug( "Could not parse frontmatter for {}: {}", page.getName(), e.getMessage() );
+                    // Frontmatter metadata (summary, tags, cluster) — served from a
+                    // (pageName, lastModified)-keyed Caffeine cache so a /api/search call
+                    // with 20 hits doesn't re-read and re-parse 20 markdown files.
+                    final Map< String, Object > metadata = fmCache != null
+                        ? fmCache.get( page.getName(), page.getLastModified() )
+                        : Map.of();
+                    if ( metadata.get( "summary" ) != null ) {
+                        entry.put( "summary", metadata.get( "summary" ).toString() );
+                    }
+                    if ( metadata.get( "tags" ) != null ) {
+                        entry.put( "tags", metadata.get( "tags" ) );
+                    }
+                    if ( metadata.get( "cluster" ) != null ) {
+                        entry.put( "cluster", metadata.get( "cluster" ).toString() );
                     }
 
                     // Lucene context snippets (highlighted match fragments)
@@ -159,15 +170,18 @@ public class SearchResource extends RestServletBase {
      * {@link SearchResult} collection by the fused BM25+dense ranking and
      * append dense-only hits as minimal results (no contexts, score 0). When
      * hybrid is disabled or the embedder fails closed, returns the original
-     * BM25 order verbatim.
+     * BM25 order verbatim. The {@code embedFuture} is the in-flight query
+     * embedding kicked off in parallel with BM25; we await it here so the dense
+     * pass overlaps with BM25 instead of running serially after it.
      */
-    private List< SearchResult > applyHybridRerank( final Engine engine,
+    private List< SearchResult > applyHybridRerank( final HybridSearchService hybrid,
                                                     final PageManager pm,
                                                     final String query,
-                                                    final Collection< SearchResult > bm25 ) {
+                                                    final Collection< SearchResult > bm25,
+                                                    final CompletableFuture< Optional< float[] > > embedFuture ) {
         final List< SearchResult > asList = new ArrayList<>( bm25 );
-        final HybridSearchService hybrid = engine.getManager( HybridSearchService.class );
         if ( hybrid == null || !hybrid.isEnabled() ) {
+            embedFuture.cancel( true );
             return asList;
         }
         final List< String > bm25Names = new ArrayList<>( asList.size() );
@@ -178,7 +192,8 @@ public class SearchResource extends RestServletBase {
             bm25Names.add( name );
             byName.putIfAbsent( name, sr );
         }
-        final List< String > fused = hybrid.rerank( query, bm25Names );
+        final Optional< float[] > vec = awaitEmbedding( embedFuture );
+        final List< String > fused = hybrid.rerankWith( query, bm25Names, vec );
         if ( fused == bm25Names || fused.equals( bm25Names ) ) {
             return asList;
         }
@@ -198,6 +213,30 @@ public class SearchResource extends RestServletBase {
             out.add( new DenseOnlySearchResult( page ) );
         }
         return out;
+    }
+
+    /**
+     * Block briefly on the in-flight query embedding. The embedding RPC has its
+     * own internal timeout/circuit-breaker via {@link com.wikantik.search.hybrid.QueryEmbedder};
+     * this outer wait is a request-side guard so a bug there can never wedge a
+     * search request. On any failure or timeout we degrade to BM25-only.
+     */
+    private static final long EMBEDDING_AWAIT_MS = 2_500L;
+
+    private static Optional< float[] > awaitEmbedding( final CompletableFuture< Optional< float[] > > f ) {
+        try {
+            return f.get( EMBEDDING_AWAIT_MS, TimeUnit.MILLISECONDS );
+        } catch ( final TimeoutException te ) {
+            f.cancel( true );
+            LOG.debug( "Query embedding await timed out after {} ms; falling back to BM25", EMBEDDING_AWAIT_MS );
+            return Optional.empty();
+        } catch ( final InterruptedException ie ) {
+            Thread.currentThread().interrupt();
+            return Optional.empty();
+        } catch ( final ExecutionException ee ) {
+            LOG.warn( "Query embedding await failed: {}", ee.getCause() != null ? ee.getCause().toString() : ee.toString() );
+            return Optional.empty();
+        }
     }
 
     /**

@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 import javax.sql.DataSource;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -62,10 +63,10 @@ public class EmbeddingIndexService {
     public static final int DEFAULT_BATCH_SIZE = 32;
 
     private static final String SELECT_ALL_SQL =
-        "SELECT id, text FROM kg_content_chunks ORDER BY page_name, chunk_index";
+        "SELECT id, text, heading_path FROM kg_content_chunks ORDER BY page_name, chunk_index";
 
     private static final String SELECT_BY_IDS_SQL =
-        "SELECT id, text FROM kg_content_chunks WHERE id = ANY( ? ) "
+        "SELECT id, text, heading_path FROM kg_content_chunks WHERE id = ANY( ? ) "
       + "ORDER BY page_name, chunk_index";
 
     /**
@@ -144,7 +145,8 @@ public class EmbeddingIndexService {
                     final List< String > batchTexts = new ArrayList<>( batchSize );
                     while( rs.next() ) {
                         batchIds.add( rs.getObject( 1, UUID.class ) );
-                        batchTexts.add( rs.getString( 2 ) );
+                        batchTexts.add( EmbeddingTextBuilder.forDocument(
+                            readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
                         if ( batchIds.size() >= batchSize ) {
                             upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
                             batchIds.clear();
@@ -199,7 +201,8 @@ public class EmbeddingIndexService {
                     final List< String > batchTexts = new ArrayList<>( batchSize );
                     while( rs.next() ) {
                         batchIds.add( rs.getObject( 1, UUID.class ) );
-                        batchTexts.add( rs.getString( 2 ) );
+                        batchTexts.add( EmbeddingTextBuilder.forDocument(
+                            readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
                         if ( batchIds.size() >= batchSize ) {
                             upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
                             batchIds.clear();
@@ -323,6 +326,18 @@ public class EmbeddingIndexService {
                 texts.size() - poisoned, poisoned );
         }
         return out;
+    }
+
+    /**
+     * Reads a PostgreSQL {@code text[]} column as an immutable {@link List}.
+     * Treats null columns as empty so root-level chunks (no heading context)
+     * fall through to body-only embedding via {@link EmbeddingTextBuilder}.
+     */
+    private static List< String > readHeadingPath( final ResultSet rs, final int col ) throws SQLException {
+        final Array arr = rs.getArray( col );
+        if ( arr == null ) return List.of();
+        final String[] raw = (String[]) arr.getArray();
+        return raw == null ? List.of() : List.of( raw );
     }
 
     /**

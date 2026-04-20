@@ -234,6 +234,115 @@ class InMemoryChunkVectorIndexTest {
             () -> new InMemoryChunkVectorIndex( dataSource, MODEL ) );
     }
 
+    @Test
+    void topK_largeNUsesHeapAndReturnsTrueTopByDot() throws SQLException {
+        // Seed 50 vectors aligned variously to the x-axis. Ranking by dot with (1,0,0,0)
+        // collapses to ranking by the first component / vector L2 norm. We pick scores
+        // so the expected top-5 is unambiguous, exercising heap insert/replace paths.
+        final UUID[] ids = new UUID[ 50 ];
+        for( int i = 0; i < 50; i++ ) {
+            ids[ i ] = seedChunk( "Page" + i, 0 );
+            // x-axis alignment varies from 0.02..1.0 in 50 steps; small y/z noise for variety
+            final float xComp = ( i + 1 ) / 50f;
+            final float[] v = new float[]{ xComp, 0.01f, 0.0f, 0.0f };
+            insertEmbedding( ids[ i ], MODEL, v );
+        }
+
+        final InMemoryChunkVectorIndex idx = new InMemoryChunkVectorIndex( dataSource, MODEL );
+        assertEquals( 50, idx.size() );
+
+        final List< ScoredChunk > top5 = idx.topKChunks( new float[]{ 1f, 0f, 0f, 0f }, 5 );
+        assertEquals( 5, top5.size() );
+        // Top 5 must be the last five seeded (highest x-component → highest cosine).
+        for( int i = 0; i < 5; i++ ) {
+            assertEquals( ids[ 49 - i ], top5.get( i ).chunkId(),
+                "rank " + i + " should be the (49-i)th-seeded vector" );
+        }
+        // Strictly descending scores
+        for( int i = 1; i < top5.size(); i++ ) {
+            assertTrue( top5.get( i - 1 ).score() >= top5.get( i ).score() );
+        }
+    }
+
+    @Test
+    void upsertChunks_addsNewRows() throws SQLException {
+        final UUID a = seedChunk( "PageA", 0 );
+        insertEmbedding( a, MODEL, new float[]{ 1f, 0f, 0f, 0f } );
+        final InMemoryChunkVectorIndex idx = new InMemoryChunkVectorIndex( dataSource, MODEL );
+        assertEquals( 1, idx.size() );
+
+        // Add a new chunk + embedding outside the index, then upsert just that chunkId.
+        final UUID b = seedChunk( "PageB", 0 );
+        insertEmbedding( b, MODEL, new float[]{ 0f, 1f, 0f, 0f } );
+        idx.upsertChunks( List.of( b ) );
+
+        assertEquals( 2, idx.size() );
+        assertEquals( b, idx.topKChunks( new float[]{ 0f, 1f, 0f, 0f }, 1 ).get( 0 ).chunkId() );
+        assertEquals( a, idx.topKChunks( new float[]{ 1f, 0f, 0f, 0f }, 1 ).get( 0 ).chunkId() );
+    }
+
+    @Test
+    void upsertChunks_replacesExistingRows() throws SQLException {
+        final UUID a = seedChunk( "PageA", 0 );
+        insertEmbedding( a, MODEL, new float[]{ 1f, 0f, 0f, 0f } );
+        final InMemoryChunkVectorIndex idx = new InMemoryChunkVectorIndex( dataSource, MODEL );
+
+        // Replace embedding for chunk a in the database — flip orientation to y-axis.
+        try( final Connection c = dataSource.getConnection();
+             final PreparedStatement ps = c.prepareStatement(
+                 "UPDATE content_chunk_embeddings SET vec = ? WHERE chunk_id = ? AND model_code = ?" ) ) {
+            ps.setBytes( 1, encode( new float[]{ 0f, 1f, 0f, 0f } ) );
+            ps.setObject( 2, a );
+            ps.setString( 3, MODEL );
+            ps.executeUpdate();
+        }
+        idx.upsertChunks( List.of( a ) );
+
+        assertEquals( 1, idx.size(), "row count must not double after replace" );
+        // After replace, the y-axis query should match a with score 1.0.
+        final List< ScoredChunk > top = idx.topKChunks( new float[]{ 0f, 1f, 0f, 0f }, 1 );
+        assertEquals( a, top.get( 0 ).chunkId() );
+        assertEquals( 1.0, top.get( 0 ).score(), EPS );
+    }
+
+    @Test
+    void upsertChunks_removesRowsAbsentFromDatabase() throws SQLException {
+        final UUID a = seedChunk( "PageA", 0 );
+        final UUID b = seedChunk( "PageB", 0 );
+        insertEmbedding( a, MODEL, new float[]{ 1f, 0f, 0f, 0f } );
+        insertEmbedding( b, MODEL, new float[]{ 0f, 1f, 0f, 0f } );
+        final InMemoryChunkVectorIndex idx = new InMemoryChunkVectorIndex( dataSource, MODEL );
+        assertEquals( 2, idx.size() );
+
+        // Delete chunk a's embedding row, then upsert a — listener should observe it as gone.
+        try( final Connection c = dataSource.getConnection();
+             final PreparedStatement ps = c.prepareStatement(
+                 "DELETE FROM content_chunk_embeddings WHERE chunk_id = ? AND model_code = ?" ) ) {
+            ps.setObject( 1, a );
+            ps.setString( 2, MODEL );
+            ps.executeUpdate();
+        }
+        idx.upsertChunks( List.of( a ) );
+
+        assertEquals( 1, idx.size() );
+        assertEquals( b, idx.topKChunks( new float[]{ 0f, 1f, 0f, 0f }, 1 ).get( 0 ).chunkId() );
+    }
+
+    @Test
+    void upsertChunks_emptyOrNullIsNoOp() throws SQLException {
+        final UUID a = seedChunk( "PageA", 0 );
+        insertEmbedding( a, MODEL, new float[]{ 1f, 0f, 0f, 0f } );
+        final InMemoryChunkVectorIndex idx = new InMemoryChunkVectorIndex( dataSource, MODEL );
+        final long beforeRefresh = idx.lastRefreshMillis();
+
+        idx.upsertChunks( List.of() );
+        idx.upsertChunks( null );
+
+        assertEquals( 1, idx.size() );
+        assertEquals( beforeRefresh, idx.lastRefreshMillis(),
+            "no-op upserts should not bump the refresh timestamp" );
+    }
+
     // ---- helpers ----
 
     private UUID seedChunk( final String pageName, final int idx ) throws SQLException {

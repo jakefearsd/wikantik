@@ -197,9 +197,9 @@ class PageDirectoryWatcherTest {
         // Wait for the internal save guard to expire
         Thread.sleep( 6000 );
 
-        // Modify the file externally
+        // Modify the file externally (new pages are written as .md)
         final String dir = getPageDir();
-        final File f = new File( dir, "ModTestPage.txt" );
+        final File f = new File( dir, "ModTestPage.md" );
         Assertions.assertTrue( f.exists(), "Page file should exist" );
 
         try( final PrintWriter out = new PrintWriter( new FileWriter( f ) ) ) {
@@ -232,9 +232,9 @@ class PageDirectoryWatcherTest {
         // Wait for the internal save guard to expire
         Thread.sleep( 6000 );
 
-        // Delete the file externally
+        // Delete the file externally (new pages are written as .md)
         final String dir = getPageDir();
-        final File f = new File( dir, "DeleteTestPage.txt" );
+        final File f = new File( dir, "DeleteTestPage.md" );
         Assertions.assertTrue( f.exists(), "Page file should exist before deletion" );
         Assertions.assertTrue( f.delete(), "File should be deleted successfully" );
 
@@ -369,6 +369,72 @@ class PageDirectoryWatcherTest {
         // The watcher should not have created a page for this .properties file
         final Page p = engine.getManager( PageManager.class ).getPage( "SomePage.properties" );
         Assertions.assertNull( p, "Properties file should not create a wiki page" );
+    }
+
+    /**
+     * Internal page deletes (admin UI delete button → PageManager.deletePage →
+     * CachingProvider.deletePage) must register the page in the watcher's
+     * internal-save guard so the subsequent ENTRY_DELETE filesystem event is
+     * suppressed instead of being logged as "External deletion detected".
+     */
+    @Test
+    void testDeletePageRegistersInternalSaveGuard() throws Exception {
+        engine = buildEngine();
+        final PageDirectoryWatcher watcher = getWatcher();
+        Assertions.assertNotNull( watcher );
+
+        final String pageName = "InternalDeleteGuardPage";
+        final CachingProvider provider = getCachingProvider();
+        provider.deletePage( pageName );
+
+        Assertions.assertTrue( watcher.isRecentInternalSave( pageName ),
+                "deletePage should register the page in the internal-save guard so the watcher does not log it as an external deletion" );
+    }
+
+    /**
+     * Same contract for {@link CachingProvider#deleteVersion(String, int)} —
+     * removing the latest version through the API must not surface as an
+     * external deletion in the watcher log.
+     */
+    @Test
+    void testDeleteVersionRegistersInternalSaveGuard() throws Exception {
+        engine = buildEngine();
+        final PageDirectoryWatcher watcher = getWatcher();
+        Assertions.assertNotNull( watcher );
+
+        final String pageName = "InternalDeleteVersionGuardPage";
+        final CachingProvider provider = getCachingProvider();
+        provider.deleteVersion( pageName, com.wikantik.api.providers.PageProvider.LATEST_VERSION );
+
+        Assertions.assertTrue( watcher.isRecentInternalSave( pageName ),
+                "deleteVersion should register the page in the internal-save guard" );
+    }
+
+    /**
+     * Same contract for {@link CachingProvider#movePage(String, String)} — the
+     * source name disappears from the directory; the watcher must treat that
+     * as an internal change rather than an external deletion.
+     */
+    @Test
+    void testMovePageRegistersInternalSaveGuardForSource() throws Exception {
+        engine = buildEngine();
+        final PageDirectoryWatcher watcher = getWatcher();
+        Assertions.assertNotNull( watcher );
+
+        final String fromName = "InternalMoveGuardFrom";
+        final String toName = "InternalMoveGuardTo";
+        final CachingProvider provider = getCachingProvider();
+        try {
+            provider.movePage( fromName, toName );
+        } catch( final Exception ignored ) {
+            // movePage may throw because the source doesn't exist; the guard
+            // registration must still happen before the delegate call.
+        }
+
+        Assertions.assertTrue( watcher.isRecentInternalSave( fromName ),
+                "movePage should register the source page in the internal-save guard" );
+        Assertions.assertTrue( watcher.isRecentInternalSave( toName ),
+                "movePage should register the target page in the internal-save guard" );
     }
 
     // ============== Debounce Tests ==============

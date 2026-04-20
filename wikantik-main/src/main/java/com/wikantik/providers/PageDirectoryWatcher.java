@@ -319,7 +319,7 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
     /**
      * Checks if a page was recently saved through JSPWiki's internal API.
      */
-    private boolean isRecentInternalSave( final String pageName ) {
+    boolean isRecentInternalSave( final String pageName ) {
         final Long timestamp = recentInternalSaves.get( pageName );
         if( timestamp == null ) {
             return false;

@@ -345,6 +345,12 @@ public class WikiEngine implements Engine {
             // Phase 8: ReferenceManager scans all pages for cross-references.
             initReferenceManager();
 
+            // Frontmatter metadata cache used by the search response path so we
+            // don't re-read and re-parse every result on every /api/search call.
+            // Keyed on (pageName, lastModified) so a page edit naturally invalidates.
+            managers.put( com.wikantik.search.FrontmatterMetadataCache.class,
+                new com.wikantik.search.FrontmatterMetadataCache( getManager( PageManager.class ) ) );
+
             //  Hook the different manager routines into the system.
             getManager( FilterManager.class ).addPageFilter( getManager( ReferenceManager.class ), -1001 );
             getManager( FilterManager.class ).addPageFilter( getManager( SearchManager.class ), -1002 );
@@ -719,7 +725,7 @@ public class WikiEngine implements Engine {
         // index snapshot afterward. postIndexCallback failures must not cascade.
         final com.wikantik.search.embedding.AsyncEmbeddingIndexListener listener =
             new com.wikantik.search.embedding.AsyncEmbeddingIndexListener( indexService, modelCode );
-        listener.setPostIndexCallback( vectorIndex::reload );
+        listener.setPostIndexCallback( vectorIndex::upsertChunks );
         chunkProjector.setPostChunkSink( listener );
         this.hybridIndexListener = listener;
 

@@ -305,14 +305,16 @@ class SearchResourceTest {
         final com.wikantik.search.hybrid.HybridSearchService hybrid =
             Mockito.mock( com.wikantik.search.hybrid.HybridSearchService.class );
         Mockito.doReturn( false ).when( hybrid ).isEnabled();
+        Mockito.doReturn( java.util.concurrent.CompletableFuture.completedFuture( java.util.Optional.empty() ) )
+                .when( hybrid ).prefetchQueryEmbedding( Mockito.anyString() );
         engine.setManager( com.wikantik.search.hybrid.HybridSearchService.class, hybrid );
 
         final String json = doSearch( "search", null );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
         assertTrue( obj.has( "results" ) );
-        // rerank() must NOT be invoked at all when hybrid is off — the BM25
-        // names list must never reach the disabled service.
-        Mockito.verify( hybrid, Mockito.never() ).rerank( Mockito.anyString(), Mockito.anyList() );
+        // rerankWith() must NOT be invoked when hybrid is off — the BM25 names
+        // list must never reach the disabled service.
+        Mockito.verify( hybrid, Mockito.never() ).rerankWith( Mockito.anyString(), Mockito.anyList(), Mockito.any() );
     }
 
     @Test
@@ -320,9 +322,11 @@ class SearchResourceTest {
         final com.wikantik.search.hybrid.HybridSearchService hybrid =
             Mockito.mock( com.wikantik.search.hybrid.HybridSearchService.class );
         Mockito.doReturn( true ).when( hybrid ).isEnabled();
+        Mockito.doReturn( java.util.concurrent.CompletableFuture.completedFuture( java.util.Optional.of( new float[]{ 1f } ) ) )
+                .when( hybrid ).prefetchQueryEmbedding( Mockito.anyString() );
         // Force Beta ahead of Alpha regardless of BM25 ordering.
         Mockito.doReturn( java.util.List.of( "RestSearchBeta", "RestSearchAlpha" ) )
-                .when( hybrid ).rerank( Mockito.eq( "search" ), Mockito.anyList() );
+                .when( hybrid ).rerankWith( Mockito.eq( "search" ), Mockito.anyList(), Mockito.any() );
         engine.setManager( com.wikantik.search.hybrid.HybridSearchService.class, hybrid );
 
         final String json = doSearch( "search", null );
@@ -341,9 +345,11 @@ class SearchResourceTest {
             final com.wikantik.search.hybrid.HybridSearchService hybrid =
                 Mockito.mock( com.wikantik.search.hybrid.HybridSearchService.class );
             Mockito.doReturn( true ).when( hybrid ).isEnabled();
+            Mockito.doReturn( java.util.concurrent.CompletableFuture.completedFuture( java.util.Optional.of( new float[]{ 1f } ) ) )
+                    .when( hybrid ).prefetchQueryEmbedding( Mockito.anyString() );
             Mockito.doReturn( java.util.List.of(
                     "RestSearchAlpha", "RestSearchBeta", "RestSearchDenseOnly" ) )
-                    .when( hybrid ).rerank( Mockito.eq( "search" ), Mockito.anyList() );
+                    .when( hybrid ).rerankWith( Mockito.eq( "search" ), Mockito.anyList(), Mockito.any() );
             engine.setManager( com.wikantik.search.hybrid.HybridSearchService.class, hybrid );
 
             final String json = doSearch( "search", null );
@@ -371,10 +377,12 @@ class SearchResourceTest {
         final com.wikantik.search.hybrid.HybridSearchService hybrid =
             Mockito.mock( com.wikantik.search.hybrid.HybridSearchService.class );
         Mockito.doReturn( true ).when( hybrid ).isEnabled();
+        Mockito.doReturn( java.util.concurrent.CompletableFuture.completedFuture( java.util.Optional.of( new float[]{ 1f } ) ) )
+                .when( hybrid ).prefetchQueryEmbedding( Mockito.anyString() );
         // Inject a name that doesn't exist as a page; should be silently dropped.
         Mockito.doReturn( java.util.List.of(
                 "RestSearchAlpha", "RestSearchBeta", "GhostPageDoesNotExist" ) )
-                .when( hybrid ).rerank( Mockito.eq( "search" ), Mockito.anyList() );
+                .when( hybrid ).rerankWith( Mockito.eq( "search" ), Mockito.anyList(), Mockito.any() );
         engine.setManager( com.wikantik.search.hybrid.HybridSearchService.class, hybrid );
 
         final String json = doSearch( "search", null );

@@ -47,7 +47,7 @@ public record QueryEmbedderConfig(
     public static final String PREFIX = "wikantik.search.hybrid.embedder.";
 
     public static final long DEFAULT_TIMEOUT_MS = 2000L;
-    public static final long DEFAULT_CACHE_TTL_SECONDS = 600L;
+    public static final long DEFAULT_CACHE_TTL_SECONDS = 14_400L;
     public static final long DEFAULT_CACHE_MAX_ENTRIES = 1000L;
     public static final int DEFAULT_BREAKER_WINDOW_SIZE = 20;
     public static final int DEFAULT_BREAKER_MIN_CALLS = 10;

@@ -31,14 +31,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 
 /**
@@ -74,7 +72,6 @@ public final class QueryEmbedder {
     private final QueryEmbedderConfig config;
 
     private final Cache< String, float[] > cache;
-    private final ExecutorService timeoutPool;
     private final Breaker breaker;
 
     /* Counters — mutated from many threads, snapshot-read from admin. */
@@ -98,7 +95,6 @@ public final class QueryEmbedder {
                 .expireAfterWrite( Duration.ofSeconds( config.cacheTtlSeconds() ) )
                 .maximumSize( config.cacheMaxEntries() )
                 .build();
-        this.timeoutPool = Executors.newCachedThreadPool( namedDaemonFactory() );
         this.breaker = new Breaker( config, clock );
     }
 
@@ -110,7 +106,7 @@ public final class QueryEmbedder {
         if( query == null ) {
             return Optional.empty();
         }
-        final String normalized = query.trim().toLowerCase( Locale.ROOT );
+        final String normalized = normalizeForCache( query );
         if( normalized.isEmpty() ) {
             return Optional.empty();
         }
@@ -189,19 +185,43 @@ public final class QueryEmbedder {
     }
 
     /**
-     * Stops the internal timeout pool. Safe to call multiple times. Not required
-     * for correctness — the pool uses daemon threads — but useful when lifecycle
-     * management wants deterministic shutdown.
+     * No-op kept for binary/source compatibility with earlier versions that owned
+     * a dedicated timeout pool. Async I/O is now driven by the embedding client's
+     * own non-blocking transport, so there is nothing for this class to shut down.
      */
     public void close() {
-        timeoutPool.shutdownNow();
+        // intentionally empty
     }
 
     /* ---------- internals ---------- */
 
+    /**
+     * Cache-key normalization. Folds case, strips trailing punctuation, and
+     * collapses any run of whitespace to a single space so trivial spelling
+     * variants of the same query share a slot. Two queries that differ only in
+     * punctuation, capitalization, or whitespace will hit the same Caffeine
+     * entry; semantically distinct queries keep their own slots.
+     */
+    static String normalizeForCache( final String raw ) {
+        if( raw == null ) {
+            return "";
+        }
+        final String lower = raw.toLowerCase( Locale.ROOT );
+        // Collapse internal whitespace (tabs, newlines, multiple spaces) to single spaces,
+        // then strip leading/trailing whitespace and trailing punctuation. We preserve
+        // punctuation that sits *inside* the query (e.g. "c++") because it carries meaning.
+        final String collapsed = WHITESPACE.matcher( lower ).replaceAll( " " ).strip();
+        return TRAILING_PUNCT.matcher( collapsed ).replaceAll( "" );
+    }
+
+    private static final java.util.regex.Pattern WHITESPACE =
+        java.util.regex.Pattern.compile( "\\s+" );
+    private static final java.util.regex.Pattern TRAILING_PUNCT =
+        java.util.regex.Pattern.compile( "[\\p{Punct}\\s]+$" );
+
     private float[] invokeWithTimeout( final String query ) throws Exception {
-        final Future< List< float[] > > future = timeoutPool.submit(
-                () -> client.embed( List.of( query ), EmbeddingKind.QUERY ) );
+        final CompletableFuture< List< float[] > > future =
+                client.embedAsync( List.of( query ), EmbeddingKind.QUERY );
         try {
             final List< float[] > vecs = future.get( config.timeoutMs(), TimeUnit.MILLISECONDS );
             if( vecs == null || vecs.isEmpty() || vecs.get( 0 ) == null ) {
@@ -209,11 +229,20 @@ public final class QueryEmbedder {
             }
             return vecs.get( 0 );
         } catch( final TimeoutException te ) {
+            // Cancel propagates to native HttpClient.sendAsync where overridden;
+            // for the default supplyAsync wrapper it merely marks the future cancelled,
+            // which is acceptable — the worker eventually finishes and is reclaimed.
             future.cancel( true );
             throw te;
+        } catch( final CancellationException ce ) {
+            throw new TimeoutException( "Query embedding cancelled: " + ce.getMessage() );
         } catch( final ExecutionException ee ) {
             // Unwrap to the underlying failure so logs and tests see the real cause.
-            final Throwable cause = ee.getCause();
+            // CompletionException nesting is common when sendAsync chains .handle().
+            Throwable cause = ee.getCause();
+            while( cause instanceof CompletionException && cause.getCause() != null ) {
+                cause = cause.getCause();
+            }
             if( cause instanceof Exception ex ) {
                 throw ex;
             }
@@ -237,12 +266,4 @@ public final class QueryEmbedder {
         LOG.warn( "Query embedder circuit breaker CLOSED (recovered from {})", previous );
     }
 
-    private ThreadFactory namedDaemonFactory() {
-        final AtomicInteger idx = new AtomicInteger();
-        return r -> {
-            final Thread t = new Thread( r, "query-embedder-" + idx.incrementAndGet() );
-            t.setDaemon( true );
-            return t;
-        };
-    }
 }

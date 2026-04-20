@@ -52,7 +52,7 @@ public class AsyncEmbeddingIndexListener implements Consumer< List< UUID > >, Au
     private final String modelCode;
     private final ExecutorService executor;
     private final boolean ownsExecutor;
-    private volatile Runnable postIndexCallback;
+    private volatile Consumer< List< UUID > > postIndexCallback;
 
     /**
      * Builds a listener backed by a private single-thread executor. Caller
@@ -96,13 +96,14 @@ public class AsyncEmbeddingIndexListener implements Consumer< List< UUID > >, Au
 
     /**
      * Registers a callback invoked on the executor thread after a successful
-     * batch {@code indexChunks} call. Use this to refresh downstream caches —
-     * e.g., {@code InMemoryChunkVectorIndex.reload()} — without coupling the
-     * indexer to the consumer. Pass {@code null} to clear. Exceptions from the
+     * batch {@code indexChunks} call. The callback receives the list of chunk ids
+     * that were just upserted so downstream consumers can apply incremental
+     * updates — e.g., {@code InMemoryChunkVectorIndex.upsertChunks(ids)} — instead
+     * of triggering a full reload. Pass {@code null} to clear. Exceptions from the
      * callback are logged at warn and swallowed so a broken downstream does not
      * poison subsequent reindex tasks.
      */
-    public void setPostIndexCallback( final Runnable callback ) {
+    public void setPostIndexCallback( final Consumer< List< UUID > > callback ) {
         this.postIndexCallback = callback;
     }
 
@@ -145,10 +146,10 @@ public class AsyncEmbeddingIndexListener implements Consumer< List< UUID > >, Au
                 modelCode, chunkIds.size(), e.getMessage(), e );
         }
         if ( indexed ) {
-            final Runnable cb = this.postIndexCallback;
+            final Consumer< List< UUID > > cb = this.postIndexCallback;
             if ( cb != null ) {
                 try {
-                    cb.run();
+                    cb.accept( chunkIds );
                 } catch( final RuntimeException e ) {
                     LOG.warn( "Post-index callback failed (model={}): {}",
                         modelCode, e.getMessage(), e );

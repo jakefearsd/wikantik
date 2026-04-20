@@ -18,8 +18,10 @@
  */
 package com.wikantik.knowledge.chunking;
 
+import com.vladsch.flexmark.ast.BulletList;
 import com.vladsch.flexmark.ast.FencedCodeBlock;
 import com.vladsch.flexmark.ast.Heading;
+import com.vladsch.flexmark.ast.OrderedList;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.wikantik.api.frontmatter.ParsedPage;
@@ -170,6 +172,15 @@ public class ContentChunker {
     private boolean isAtomic(Node block) {
         if (block instanceof FencedCodeBlock) {
             return true;
+        }
+        if (block instanceof BulletList || block instanceof OrderedList) {
+            // Keep lists intact when they're within a reasonable budget. Splitting
+            // a bulleted API reference or ACL table mid-list fragments context that
+            // the items only make sense as a group. If a list is pathologically
+            // large (> maxTokens*4), fall through so the non-atomic path can split
+            // it on item-terminating sentence boundaries rather than emit one
+            // chunk larger than the embedder's window.
+            return estimateTokens(block.getChars().toString()) <= config.maxTokens() * 4;
         }
         try {
             Class<?> tableBlock = Class.forName("com.vladsch.flexmark.ext.tables.TableBlock");

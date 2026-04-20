@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -102,18 +103,25 @@ class AsyncEmbeddingIndexListenerTest {
     }
 
     @Test
-    void postIndexCallbackRunsAfterSuccessfulIndex() throws InterruptedException {
+    void postIndexCallbackRunsWithChunkIdsAfterSuccessfulIndex() throws InterruptedException {
         final EmbeddingIndexService indexer = mock( EmbeddingIndexService.class );
         when( indexer.indexChunks( any(), eq( MODEL ) ) ).thenReturn( 1 );
         final ExecutorService ex = Executors.newSingleThreadExecutor();
         final AtomicInteger cbCalls = new AtomicInteger();
+        final AtomicReference< List< UUID > > observed = new AtomicReference<>();
+        final UUID id = UUID.randomUUID();
         try( final AsyncEmbeddingIndexListener listener =
                  new AsyncEmbeddingIndexListener( indexer, MODEL, ex ) ) {
-            listener.setPostIndexCallback( cbCalls::incrementAndGet );
-            listener.accept( List.of( UUID.randomUUID() ) );
+            listener.setPostIndexCallback( ids -> {
+                observed.set( ids );
+                cbCalls.incrementAndGet();
+            } );
+            listener.accept( List.of( id ) );
             ex.shutdown();
             assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
             assertEquals( 1, cbCalls.get() );
+            assertEquals( List.of( id ), observed.get(),
+                "callback must receive the same chunk ids that were indexed" );
         }
     }
 
@@ -125,7 +133,7 @@ class AsyncEmbeddingIndexListenerTest {
         final AtomicInteger cbCalls = new AtomicInteger();
         try( final AsyncEmbeddingIndexListener listener =
                  new AsyncEmbeddingIndexListener( indexer, MODEL, ex ) ) {
-            listener.setPostIndexCallback( cbCalls::incrementAndGet );
+            listener.setPostIndexCallback( ids -> cbCalls.incrementAndGet() );
             listener.accept( List.of( UUID.randomUUID() ) );
             ex.shutdown();
             ex.awaitTermination( 5, TimeUnit.SECONDS );
@@ -140,7 +148,7 @@ class AsyncEmbeddingIndexListenerTest {
         final ExecutorService ex = Executors.newSingleThreadExecutor();
         try( final AsyncEmbeddingIndexListener listener =
                  new AsyncEmbeddingIndexListener( indexer, MODEL, ex ) ) {
-            listener.setPostIndexCallback( () -> { throw new RuntimeException( "callback blew up" ); } );
+            listener.setPostIndexCallback( ids -> { throw new RuntimeException( "callback blew up" ); } );
             assertDoesNotThrow( () -> listener.accept( List.of( UUID.randomUUID() ) ) );
             ex.shutdown();
             assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );

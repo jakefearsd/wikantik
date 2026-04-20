@@ -91,7 +91,7 @@
     <tribuo.version>4.3.2</tribuo.version>
     <xmemcached.version>2.4.8</xmemcached.version>
     <micrometer.version>1.14.6</micrometer.version>
-    <testcontainers.version>1.20.4</testcontainers.version>
+    <testcontainers.version>1.21.4</testcontainers.version>
     <caffeine.version>3.2.3</caffeine.version>
 
     <plugin.antrun.version>3.1.0</plugin.antrun.version>

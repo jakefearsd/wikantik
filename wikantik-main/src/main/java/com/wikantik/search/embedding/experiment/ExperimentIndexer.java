@@ -22,12 +22,14 @@ import com.wikantik.search.embedding.EmbeddingClientFactory;
 import com.wikantik.search.embedding.EmbeddingConfig;
 import com.wikantik.search.embedding.EmbeddingKind;
 import com.wikantik.search.embedding.EmbeddingModel;
+import com.wikantik.search.embedding.EmbeddingTextBuilder;
 import com.wikantik.search.embedding.TextEmbeddingClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -140,7 +142,7 @@ public final class ExperimentIndexer {
     private static int indexAll( final Connection conn, final TextEmbeddingClient client, final String modelCode )
             throws SQLException {
         final String selectSql = """
-            SELECT c.id, c.text
+            SELECT c.id, c.text, c.heading_path
             FROM kg_content_chunks c
             WHERE NOT EXISTS (
                 SELECT 1 FROM experiment_embeddings e
@@ -167,7 +169,8 @@ public final class ExperimentIndexer {
                 final List< String > batchTexts = new ArrayList<>();
                 while( rs.next() ) {
                     batchIds.add( (UUID) rs.getObject( 1 ) );
-                    batchTexts.add( rs.getString( 2 ) );
+                    batchTexts.add( EmbeddingTextBuilder.forDocument(
+                        readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
                     if( batchIds.size() >= 32 ) {
                         embedded += flushBatch( client, ins, modelCode, batchIds, batchTexts );
                         batchIds.clear(); batchTexts.clear();
@@ -240,4 +243,16 @@ public final class ExperimentIndexer {
     }
 
     private static int poisonedChunks = 0;
+
+    /**
+     * Reads a PostgreSQL {@code text[]} column as an immutable {@link List}.
+     * Null columns map to an empty list so chunks without heading context
+     * degrade to body-only embedding via {@link EmbeddingTextBuilder}.
+     */
+    private static List< String > readHeadingPath( final ResultSet rs, final int col ) throws SQLException {
+        final Array arr = rs.getArray( col );
+        if( arr == null ) return List.of();
+        final String[] raw = (String[]) arr.getArray();
+        return raw == null ? List.of() : List.of( raw );
+    }
 }

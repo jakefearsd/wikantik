@@ -526,6 +526,12 @@ public class CachingProvider implements PageProvider {
                 cachingManager.remove( CachingManager.CACHE_PAGES_TEXT, pageName );
             }
 
+            // Register the page in the watcher's guard so the upcoming
+            // ENTRY_DELETE event is not logged as an external deletion.
+            if( pageDirectoryWatcher != null ) {
+                pageDirectoryWatcher.notifyInternalSave( pageName );
+            }
+
             provider.deleteVersion( pageName, version );
             cachingManager.remove( CachingManager.CACHE_PAGES_HISTORY, pageName );
         } finally {
@@ -546,6 +552,13 @@ public class CachingProvider implements PageProvider {
             cachingManager.put( CachingManager.CACHE_PAGES, pageName, null );
             cachingManager.put( CachingManager.CACHE_PAGES_TEXT, pageName, null );
             cachingManager.put( CachingManager.CACHE_PAGES_HISTORY, pageName, null );
+
+            // Register the page in the watcher's guard so the upcoming
+            // ENTRY_DELETE event is not logged as an external deletion.
+            if( pageDirectoryWatcher != null ) {
+                pageDirectoryWatcher.notifyInternalSave( pageName );
+            }
+
             provider.deletePage( pageName );
         } finally {
             rwLock.writeLock().unlock();
@@ -560,6 +573,13 @@ public class CachingProvider implements PageProvider {
     public void movePage( final String from, final String to ) throws ProviderException {
         rwLock.writeLock().lock();
         try {
+            // Both names are about to change on disk (from disappears, to appears) —
+            // register both in the watcher's guard so neither is logged as an external event.
+            if( pageDirectoryWatcher != null ) {
+                pageDirectoryWatcher.notifyInternalSave( from );
+                pageDirectoryWatcher.notifyInternalSave( to );
+            }
+
             provider.movePage( from, to );
             // Clear any cached version of the old page and new page
             cachingManager.remove( CachingManager.CACHE_PAGES, from );

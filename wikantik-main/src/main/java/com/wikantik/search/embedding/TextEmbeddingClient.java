@@ -19,6 +19,8 @@
 package com.wikantik.search.embedding;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 
 /**
  * Turns text into dense vectors via a remote embedding service. Implementations
@@ -38,6 +40,20 @@ public interface TextEmbeddingClient {
      * @throws EmbeddingException if the backend call fails or returns an unexpected shape
      */
     List< float[] > embed( List< String > texts, EmbeddingKind kind );
+
+    /**
+     * Asynchronous variant of {@link #embed}. Default implementation wraps the
+     * synchronous call on the common ForkJoinPool; backends with native non-blocking
+     * I/O (e.g. {@link java.net.http.HttpClient#sendAsync}) should override to avoid
+     * pinning a worker thread per in-flight request.
+     *
+     * <p>Failures surface via the returned future's exceptional completion. The
+     * cause matches what {@link #embed} would have thrown synchronously.</p>
+     */
+    default CompletableFuture< List< float[] > > embedAsync( final List< String > texts,
+                                                              final EmbeddingKind kind ) {
+        return CompletableFuture.supplyAsync( () -> embed( texts, kind ), ForkJoinPool.commonPool() );
+    }
 
     /** Output dimension of every vector produced by this client. */
     int dimension();

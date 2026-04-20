@@ -180,6 +180,63 @@ class ContentChunkerTest {
     }
 
     @Test
+    void bulletListStaysAtomicUnderBudget() {
+        String body = """
+            # Options
+
+            - `--force` bypasses the safety check
+            - `--dry-run` prints actions without executing
+            - `--verbose` emits debug-level logging
+            - `--output` sets the output path
+            - `--help` shows this usage message
+            """;
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body);
+        List<Chunk> chunks = chunker.chunk("Opts", page);
+        assertEquals(1, chunks.size(), "small list should survive as one chunk");
+        String text = chunks.get(0).text();
+        assertTrue(text.contains("--force"), text);
+        assertTrue(text.contains("--help"), "last item present: " + text);
+    }
+
+    @Test
+    void orderedListStaysAtomicUnderBudget() {
+        String body = """
+            ## Steps
+
+            1. Create the database schema.
+            2. Build the WAR file with maven.
+            3. Copy it into the tomcat webapps directory.
+            4. Start tomcat and wait for the deploy to finish.
+            5. Verify the admin panel loads at port 8080.
+            """;
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body);
+        List<Chunk> chunks = chunker.chunk("Steps", page);
+        assertEquals(1, chunks.size());
+        assertTrue(chunks.get(0).text().contains("1."));
+        assertTrue(chunks.get(0).text().contains("5."));
+    }
+
+    @Test
+    void oversizedListFallsThroughToSplit() {
+        // Build a bulleted list large enough to exceed maxTokens*4 (512*4 = 2048
+        // tokens ≈ 8192 chars). Each item ~80 chars, so 160 items clears the
+        // threshold with margin.
+        StringBuilder body = new StringBuilder("## Long\n\n");
+        for (int i = 0; i < 160; i++) {
+            body.append("- item ").append(i)
+                .append(" with enough filler prose on the line to push the bytes.\n");
+        }
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body.toString());
+        List<Chunk> chunks = chunker.chunk("Huge", page);
+        assertTrue(chunks.size() > 1,
+            "oversize list should split; got " + chunks.size() + " chunks");
+        for (Chunk c : chunks) {
+            assertTrue(c.tokenCountEstimate() <= 512,
+                "chunk " + c.chunkIndex() + " exceeds max: " + c.tokenCountEstimate());
+        }
+    }
+
+    @Test
     void contentHashIsDeterministicAndSensitiveToHeadingPath() {
         String body = "## A\n\nSame body text repeated across two sections.\n\n"
                     + "## B\n\nSame body text repeated across two sections.\n";

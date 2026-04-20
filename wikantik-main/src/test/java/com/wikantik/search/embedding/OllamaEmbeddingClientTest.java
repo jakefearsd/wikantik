@@ -33,6 +33,7 @@ import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -252,6 +253,54 @@ class OllamaEmbeddingClientTest {
         texts.add( null );
         assertThrows( IllegalArgumentException.class,
             () -> client.embed( texts, EmbeddingKind.QUERY ) );
+    }
+
+    @Test
+    void embedAsyncReturnsSameVectorsAsSyncEmbed() throws Exception {
+        handleWithFixedDim( 1024, 0 );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final CompletableFuture< List< float[] > > future =
+            client.embedAsync( List.of( "alpha", "beta" ), EmbeddingKind.QUERY );
+        assertNotNull( future );
+        final List< float[] > out = future.get( 5, java.util.concurrent.TimeUnit.SECONDS );
+        assertEquals( 2, out.size() );
+        assertArrayEquals( makeVec( 0, 1024 ), out.get( 0 ), 1e-6f );
+        assertArrayEquals( makeVec( 1, 1024 ), out.get( 1 ), 1e-6f );
+        assertEquals( "/api/embed", lastPath.get() );
+    }
+
+    @Test
+    void embedAsyncOnEmptyInputCompletesWithEmptyList() throws Exception {
+        server.createContext( "/api/embed", exchange -> {
+            throw new AssertionError( "no HTTP call expected for empty input" );
+        } );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final CompletableFuture< List< float[] > > future =
+            client.embedAsync( List.of(), EmbeddingKind.QUERY );
+        assertEquals( List.of(), future.get( 1, java.util.concurrent.TimeUnit.SECONDS ) );
+    }
+
+    @Test
+    void embedAsyncSurfacesNonTwoHundredAsCompletionFailure() {
+        server.createContext( "/api/embed", exchange -> {
+            final byte[] body = "model not found".getBytes( StandardCharsets.UTF_8 );
+            exchange.sendResponseHeaders( 404, body.length );
+            try( final OutputStream os = exchange.getResponseBody() ) { os.write( body ); }
+        } );
+        final OllamaEmbeddingClient client = new OllamaEmbeddingClient(
+            HttpClient.newHttpClient(), config( EmbeddingModel.BGE_M3, 32 ) );
+
+        final CompletableFuture< List< float[] > > future =
+            client.embedAsync( List.of( "x" ), EmbeddingKind.QUERY );
+        final java.util.concurrent.ExecutionException ex = assertThrows(
+            java.util.concurrent.ExecutionException.class,
+            () -> future.get( 5, java.util.concurrent.TimeUnit.SECONDS ) );
+        assertTrue( ex.getCause() instanceof EmbeddingException );
+        assertTrue( ex.getCause().getMessage().contains( "404" ) );
     }
 
     @Test

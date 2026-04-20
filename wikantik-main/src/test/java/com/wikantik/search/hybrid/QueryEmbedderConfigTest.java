@@ -31,7 +31,9 @@ class QueryEmbedderConfigTest {
     void defaultsProduceSaneValues() {
         final QueryEmbedderConfig c = QueryEmbedderConfig.defaults();
         assertEquals( 2000L, c.timeoutMs() );
-        assertEquals( 600L, c.cacheTtlSeconds() );
+        assertEquals( 14_400L, c.cacheTtlSeconds(),
+            "default TTL should hold popular queries for several hours; "
+            + "the cache key includes the model name so a model swap invalidates naturally" );
         assertEquals( 1000L, c.cacheMaxEntries() );
         assertEquals( 20, c.breakerWindowSize() );
         assertEquals( 10, c.breakerMinCalls() );

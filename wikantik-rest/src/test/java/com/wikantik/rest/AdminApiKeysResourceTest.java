@@ -72,7 +72,16 @@ class AdminApiKeysResourceTest {
         final Properties props = TestEngine.getTestProperties();
         engine = new TestEngine( props );
 
-        servlet = new AdminApiKeysResource();
+        // Override principalExists so tests can freely use "janne" as a body principal
+        // without requiring the XML user database resource to be on the REST test
+        // classpath. The phantom-principal test below re-injects a false-returning
+        // override to exercise the rejection path explicitly.
+        servlet = new AdminApiKeysResource() {
+            @Override
+            boolean principalExists( final String login ) {
+                return "janne".equals( login );
+            }
+        };
         final ServletConfig config = Mockito.mock( ServletConfig.class );
         Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
         servlet.init( config );
@@ -145,7 +154,7 @@ class AdminApiKeysResourceTest {
                 .thenReturn( new ApiKeyService.Generated( "wkk_plaintext-once", record ) );
 
         final JsonObject body = new JsonObject();
-        body.addProperty( "principalLogin", "alice" );
+        body.addProperty( "principalLogin", "janne" );
         body.addProperty( "label", "laptop" );
         body.addProperty( "scope", "all" );
 
@@ -187,10 +196,30 @@ class AdminApiKeysResourceTest {
         Mockito.verifyNoInteractions( mockService );
     }
 
+    /**
+     * Regression guard: admins must not be able to mint a key bound to a principal
+     * that does not exist in the user database. A phantom principal would either
+     * authenticate as a guest (silent downgrade that confuses auditing) or, worse,
+     * might be accepted by some future loose-matching policy evaluator. Reject at
+     * creation time so the wire never sees a non-existent identity.
+     */
+    @Test
+    void createRejectsPrincipalLoginThatDoesNotResolveToAUser() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "principalLogin", "ghost-user-that-does-not-exist" );
+        body.addProperty( "scope", "tools" );
+
+        final JsonObject obj = gson.fromJson( doPost( body.toString() ), JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().toLowerCase().contains( "principal" ),
+                "Error should name the principalLogin field so admins can see what went wrong" );
+        Mockito.verifyNoInteractions( mockService );
+    }
+
     @Test
     void createRejectsUnknownScope() throws Exception {
         final JsonObject body = new JsonObject();
-        body.addProperty( "principalLogin", "alice" );
+        body.addProperty( "principalLogin", "janne" );
         body.addProperty( "scope", "bogus" );
 
         final JsonObject obj = gson.fromJson( doPost( body.toString() ), JsonObject.class );
@@ -208,12 +237,12 @@ class AdminApiKeysResourceTest {
                 .thenReturn( new ApiKeyService.Generated( "wkk_t", record ) );
 
         final JsonObject body = new JsonObject();
-        body.addProperty( "principalLogin", "alice" );
+        body.addProperty( "principalLogin", "janne" );
 
         doPost( body.toString() );
 
         verify( mockService ).generate(
-                Mockito.eq( "alice" ), Mockito.isNull(),
+                Mockito.eq( "janne" ), Mockito.isNull(),
                 Mockito.eq( ApiKeyService.Scope.ALL ), any() );
     }
 
@@ -230,7 +259,7 @@ class AdminApiKeysResourceTest {
                 .thenThrow( new IllegalArgumentException( "principalLogin is required" ) );
 
         final JsonObject body = new JsonObject();
-        body.addProperty( "principalLogin", "alice" );
+        body.addProperty( "principalLogin", "janne" );
         final JsonObject obj = gson.fromJson( doPost( body.toString() ), JsonObject.class );
         assertEquals( 400, obj.get( "status" ).getAsInt() );
     }
@@ -241,7 +270,7 @@ class AdminApiKeysResourceTest {
                 .thenThrow( new IllegalStateException( "db down" ) );
 
         final JsonObject body = new JsonObject();
-        body.addProperty( "principalLogin", "alice" );
+        body.addProperty( "principalLogin", "janne" );
         final JsonObject obj = gson.fromJson( doPost( body.toString() ), JsonObject.class );
         assertEquals( 500, obj.get( "status" ).getAsInt() );
     }
@@ -255,7 +284,7 @@ class AdminApiKeysResourceTest {
                 .thenReturn( new ApiKeyService.Generated( "wkk_t", record ) );
 
         final JsonObject body = new JsonObject();
-        body.addProperty( "principalLogin", "alice" );
+        body.addProperty( "principalLogin", "janne" );
         body.addProperty( "scope", "tools" );
 
         final HttpServletRequest request = createRequest( null, body.toString() );
@@ -268,7 +297,7 @@ class AdminApiKeysResourceTest {
 
         servlet.doPost( request, response );
 
-        verify( mockService ).generate( Mockito.eq( "alice" ), Mockito.isNull(),
+        verify( mockService ).generate( Mockito.eq( "janne" ), Mockito.isNull(),
                 Mockito.eq( ApiKeyService.Scope.TOOLS ), Mockito.eq( "ops-user" ) );
     }
 

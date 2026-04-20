@@ -66,9 +66,10 @@ class ToolsMetricsBridgeTest {
         assertFunctionCounter( reg, PFX + ".requests", "endpoint", "search_wiki", "status", "success" );
         assertFunctionCounter( reg, PFX + ".requests", "endpoint", "search_wiki", "status", "error" );
 
-        // get_page: success + not_found + error
+        // get_page: success + not_found + forbidden + error
         assertFunctionCounter( reg, PFX + ".requests", "endpoint", "get_page", "status", "success" );
         assertFunctionCounter( reg, PFX + ".requests", "endpoint", "get_page", "status", "not_found" );
+        assertFunctionCounter( reg, PFX + ".requests", "endpoint", "get_page", "status", "forbidden" );
         assertFunctionCounter( reg, PFX + ".requests", "endpoint", "get_page", "status", "error" );
 
         // openapi served
@@ -153,9 +154,10 @@ class ToolsMetricsBridgeTest {
         ToolsMetricsBridge.register( reg, new ToolsMetrics() );
 
         final List< Meter > meters = reg.getMeters();
-        // 6 request counters + results_returned + truncated = 8
-        assertEquals( 8, meters.size(),
-                "ToolsMetricsBridge publishes exactly 8 meters; update this test when the contract changes intentionally" );
+        // 7 request counters (search: success/error; get_page: success/not_found/forbidden/error; openapi: success)
+        //   + results_returned + truncated = 9
+        assertEquals( 9, meters.size(),
+                "ToolsMetricsBridge publishes exactly 9 meters; update this test when the contract changes intentionally" );
     }
 
     private static void assertFunctionCounter( final MeterRegistry reg,

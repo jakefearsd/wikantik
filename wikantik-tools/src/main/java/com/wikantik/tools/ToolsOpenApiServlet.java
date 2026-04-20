@@ -81,6 +81,21 @@ public class ToolsOpenApiServlet extends HttpServlet {
         this.getPageTool = engine != null && config != null ? new GetPageTool( engine, config ) : null;
     }
 
+    /**
+     * Package-visible injection constructor used by unit tests that need to swap
+     * in tool-specific stubs (e.g. a {@link GetPageTool} that raises
+     * {@link PageAccessDeniedException} to exercise the 403 path) without standing
+     * up a real engine.
+     */
+    ToolsOpenApiServlet( final ToolsConfig config, final ToolsMetrics metrics,
+                         final SearchWikiTool searchTool, final GetPageTool getPageTool ) {
+        this.engine = null;
+        this.config = config;
+        this.metrics = metrics != null ? metrics : new ToolsMetrics();
+        this.searchTool = searchTool;
+        this.getPageTool = getPageTool;
+    }
+
     @Override
     protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
         final String path = req.getPathInfo();
@@ -175,6 +190,10 @@ public class ToolsOpenApiServlet extends HttpServlet {
             final boolean truncated = Boolean.TRUE.equals( result.get( "truncated" ) );
             metrics.recordGetPageSuccess( truncated );
             writeJson( resp, HttpServletResponse.SC_OK, result );
+        } catch ( final PageAccessDeniedException e ) {
+            metrics.recordGetPageForbidden();
+            LOG.warn( "get_page denied for '{}': ACL check failed", e.getMessage() );
+            writeJsonError( resp, HttpServletResponse.SC_FORBIDDEN, "Access denied: " + e.getMessage() );
         } catch ( final Exception e ) {
             metrics.recordGetPageError();
             LOG.warn( "get_page failed for '{}': {}", pageName, e.getMessage() );

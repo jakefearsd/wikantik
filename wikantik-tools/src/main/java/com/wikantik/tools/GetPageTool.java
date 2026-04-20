@@ -20,7 +20,10 @@ package com.wikantik.tools;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.core.Session;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.permissions.PermissionFilter;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -36,8 +39,14 @@ import java.util.Map;
  *
  * <p>The truncation bound keeps LLM context budgets predictable. Callers can override
  * the default via {@code maxChars} up to {@value #HARD_MAX_CHARS}.</p>
+ *
+ * <p>Enforces view-level ACLs via {@link PermissionFilter} — tool-server callers must
+ * pass the same access check a logged-in REST client would see for the page, so inline
+ * {@code [{ALLOW view ...}]} blocks and policy-level grants are honoured. ACL failures
+ * raise {@link PageAccessDeniedException} before any page body is loaded, so restricted
+ * pages don't even reach the frontmatter/text shaping stage.</p>
  */
-final class GetPageTool {
+class GetPageTool {
 
     private static final Logger LOG = LogManager.getLogger( GetPageTool.class );
     private static final int HARD_MAX_CHARS = 20_000;
@@ -70,9 +79,14 @@ final class GetPageTool {
             return null;
         }
 
+        final String resolvedName = page.getName();
+        if ( !canView( request, resolvedName ) ) {
+            throw new PageAccessDeniedException( resolvedName );
+        }
+
         final String raw;
         try {
-            raw = pm.getPureText( page.getName(), -1 );
+            raw = pm.getPureText( resolvedName, -1 );
         } catch ( final Exception e ) {
             LOG.warn( "get_page body load failed for '{}': {}", pageName, e.getMessage() );
             return null;
@@ -100,6 +114,16 @@ final class GetPageTool {
             out.put( "truncatedAt", limit );
         }
         return out;
+    }
+
+    /**
+     * Evaluates whether the principal bound to {@code request} may view {@code pageName}.
+     * Package-visible so tests can override with a stub permission gate; production path
+     * resolves the wiki session and asks {@link PermissionFilter}.
+     */
+    boolean canView( final HttpServletRequest request, final String pageName ) {
+        final Session session = Wiki.session().find( engine, request );
+        return new PermissionFilter( engine ).canAccess( session, pageName, "view" );
     }
 
     private static int resolveLimit( final int requested ) {

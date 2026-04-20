@@ -34,6 +34,7 @@ public final class ToolsMetrics {
     private final AtomicLong searchError = new AtomicLong();
     private final AtomicLong getPageSuccess = new AtomicLong();
     private final AtomicLong getPageNotFound = new AtomicLong();
+    private final AtomicLong getPageForbidden = new AtomicLong();
     private final AtomicLong getPageError = new AtomicLong();
     private final AtomicLong openapiServed = new AtomicLong();
     private final AtomicLong resultsReturned = new AtomicLong();
@@ -57,6 +58,8 @@ public final class ToolsMetrics {
 
     public void recordGetPageNotFound() { getPageNotFound.incrementAndGet(); }
 
+    public void recordGetPageForbidden() { getPageForbidden.incrementAndGet(); }
+
     public void recordGetPageError() { getPageError.incrementAndGet(); }
 
     public void recordOpenapiServed() { openapiServed.incrementAndGet(); }
@@ -65,6 +68,7 @@ public final class ToolsMetrics {
     public long searchError() { return searchError.get(); }
     public long getPageSuccess() { return getPageSuccess.get(); }
     public long getPageNotFound() { return getPageNotFound.get(); }
+    public long getPageForbidden() { return getPageForbidden.get(); }
     public long getPageError() { return getPageError.get(); }
     public long openapiServed() { return openapiServed.get(); }
     public long resultsReturned() { return resultsReturned.get(); }

@@ -20,8 +20,11 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 
+import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.UserManager;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
+import com.wikantik.auth.user.UserDatabase;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -101,6 +104,16 @@ public class AdminApiKeysResource extends RestServletBase {
             return;
         }
 
+        if ( !principalExists( principal ) ) {
+            // Reject phantom principals at the front door so we never persist a key whose
+            // bearer resolves to "nobody". A silent no-match would either authenticate as
+            // guest (confusing audit trails) or accidentally match a future loose-matching
+            // policy evaluator; forcing an explicit UserDatabase lookup removes both risks.
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "Unknown principalLogin '" + principal + "' — no such user in the user database" );
+            return;
+        }
+
         final ApiKeyService.Scope scope;
         try {
             scope = ApiKeyService.Scope.fromWire( scopeWire );
@@ -161,6 +174,32 @@ public class AdminApiKeysResource extends RestServletBase {
     private static String currentLogin( final HttpServletRequest request ) {
         final Principal p = request.getUserPrincipal();
         return p != null ? p.getName() : null;
+    }
+
+    /**
+     * Returns {@code true} iff {@code login} resolves to a real account in the user
+     * database. A missing {@link UserManager} (fresh deployment with no users table
+     * wired yet) counts as "cannot validate, fail closed" so a misconfigured admin
+     * panel can't silently mint keys against a non-existent identity.
+     *
+     * <p>Package-visible so unit tests running without a populated user database can
+     * swap in a deterministic predicate, mirroring the override-for-tests pattern
+     * used by {@code GetPageTool.canView}.</p>
+     */
+    boolean principalExists( final String login ) {
+        final UserManager userManager = getEngine().getManager( UserManager.class );
+        if ( userManager == null ) {
+            return false;
+        }
+        final UserDatabase db = userManager.getUserDatabase();
+        if ( db == null ) {
+            return false;
+        }
+        try {
+            return db.findByLoginName( login ) != null;
+        } catch ( final NoSuchPrincipalException e ) {
+            return false;
+        }
     }
 
     /** Converts a Record to the API shape. The key_hash is exposed as a short fingerprint only. */

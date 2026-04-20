@@ -110,4 +110,28 @@ class ToolsOpenApiServletTest {
         verify( response ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
         assertTrue( body.toString().contains( "not initialized" ), body.toString() );
     }
+
+    @Test
+    void getPageReturns403WhenPermissionDenied() throws Exception {
+        final GetPageTool denying = new GetPageTool( null, new ToolsConfig( new Properties() ) ) {
+            @Override
+            java.util.Map< String, Object > execute( final String pageName, final int maxChars,
+                                                     final HttpServletRequest request ) {
+                throw new PageAccessDeniedException( "SecretPage" );
+            }
+        };
+        final ToolsMetrics metrics = new ToolsMetrics();
+        final ToolsOpenApiServlet servlet = new ToolsOpenApiServlet(
+                new ToolsConfig( new Properties() ), metrics, null, denying );
+
+        when( request.getPathInfo() ).thenReturn( "/page/SecretPage" );
+        final StringWriter body = new StringWriter();
+        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
+
+        servlet.doGet( request, response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+        assertEquals( 1, metrics.getPageForbidden(),
+                "403 must be counted distinctly from 500 so dashboards can alert on real errors only" );
+    }
 }

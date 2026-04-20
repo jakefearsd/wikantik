@@ -69,6 +69,10 @@ public final class ToolsMetricsBridge {
                 .tags( "endpoint", "get_page", "status", "not_found" )
                 .description( "Tool server requests by endpoint and outcome" )
                 .register( registry );
+        FunctionCounter.builder( PFX + ".requests", metrics, ToolsMetrics::getPageForbidden )
+                .tags( "endpoint", "get_page", "status", "forbidden" )
+                .description( "Tool server requests by endpoint and outcome" )
+                .register( registry );
         FunctionCounter.builder( PFX + ".requests", metrics, ToolsMetrics::getPageError )
                 .tags( "endpoint", "get_page", "status", "error" )
                 .description( "Tool server requests by endpoint and outcome" )

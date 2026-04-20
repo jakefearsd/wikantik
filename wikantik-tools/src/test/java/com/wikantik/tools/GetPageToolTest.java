@@ -31,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -43,12 +44,26 @@ class GetPageToolTest {
     @Mock Page page;
     @Mock HttpServletRequest request;
 
+    /**
+     * Builds a tool whose permission gate always allows. Mirrors SearchWikiToolTest's
+     * stub-context pattern so existing body/frontmatter assertions don't require a
+     * real engine wiring.
+     */
+    private GetPageTool allowingTool( final Engine engine, final ToolsConfig config ) {
+        return new GetPageTool( engine, config ) {
+            @Override
+            boolean canView( final HttpServletRequest request, final String pageName ) {
+                return true;
+            }
+        };
+    }
+
     @Test
     void returnsNullWhenPageMissing() {
         when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
         when( pageManager.getPage( "Missing" ) ).thenReturn( null );
 
-        final GetPageTool tool = new GetPageTool( engine, new ToolsConfig( new Properties() ) );
+        final GetPageTool tool = allowingTool( engine, new ToolsConfig( new Properties() ) );
         assertNull( tool.execute( "Missing", 0, request ) );
     }
 
@@ -63,7 +78,7 @@ class GetPageToolTest {
         final Properties props = new Properties();
         props.setProperty( "wikantik.public.baseURL", "https://wiki.example.com" );
 
-        final GetPageTool tool = new GetPageTool( engine, new ToolsConfig( props ) );
+        final GetPageTool tool = allowingTool( engine, new ToolsConfig( props ) );
         final Map< String, Object > out = tool.execute( "Main", 0, request );
 
         assertEquals( "Main", out.get( "name" ) );
@@ -83,7 +98,7 @@ class GetPageToolTest {
         final String body = "x".repeat( 500 );
         when( pageManager.getPureText( "Big", -1 ) ).thenReturn( body );
 
-        final GetPageTool tool = new GetPageTool( engine, new ToolsConfig( new Properties() ) );
+        final GetPageTool tool = allowingTool( engine, new ToolsConfig( new Properties() ) );
         final Map< String, Object > out = tool.execute( "Big", 100, request );
 
         assertEquals( Boolean.TRUE, out.get( "truncated" ) );
@@ -100,10 +115,50 @@ class GetPageToolTest {
         final String body = "x".repeat( 30_000 );
         when( pageManager.getPureText( "Big", -1 ) ).thenReturn( body );
 
-        final GetPageTool tool = new GetPageTool( engine, new ToolsConfig( new Properties() ) );
+        final GetPageTool tool = allowingTool( engine, new ToolsConfig( new Properties() ) );
         final Map< String, Object > out = tool.execute( "Big", 50_000, request );
 
         assertEquals( Boolean.TRUE, out.get( "truncated" ) );
         assertEquals( 20_000, out.get( "truncatedAt" ) );
+    }
+
+    @Test
+    void throwsPageAccessDeniedWhenPermissionCheckFails() {
+        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
+        when( pageManager.getPage( "SecretAdminRunbook" ) ).thenReturn( page );
+        when( page.getName() ).thenReturn( "SecretAdminRunbook" );
+
+        final GetPageTool tool = new GetPageTool( engine, new ToolsConfig( new Properties() ) ) {
+            @Override
+            boolean canView( final HttpServletRequest request, final String pageName ) {
+                return false;
+            }
+        };
+
+        final PageAccessDeniedException thrown = assertThrows( PageAccessDeniedException.class,
+                () -> tool.execute( "SecretAdminRunbook", 0, request ) );
+        assertEquals( "SecretAdminRunbook", thrown.getMessage() );
+        verify( pageManager, never() ).getPureText( anyString(), anyInt() );
+    }
+
+    @Test
+    void permissionCheckedBeforeBodyLoadedUsingResolvedPageName() {
+        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
+        when( pageManager.getPage( "some-alias" ) ).thenReturn( page );
+        when( page.getName() ).thenReturn( "CanonicalName" );
+
+        final AtomicBoolean calledWithCanonical = new AtomicBoolean( false );
+        final GetPageTool tool = new GetPageTool( engine, new ToolsConfig( new Properties() ) ) {
+            @Override
+            boolean canView( final HttpServletRequest request, final String pageName ) {
+                calledWithCanonical.set( "CanonicalName".equals( pageName ) );
+                return false;
+            }
+        };
+
+        assertThrows( PageAccessDeniedException.class, () -> tool.execute( "some-alias", 0, request ) );
+        assertTrue( calledWithCanonical.get(),
+                "ACL check should run against the resolved page name, not the request alias, "
+                        + "so rename aliases can't bypass ACLs." );
     }
 }

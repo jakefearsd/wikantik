@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-19** — chore(release): v1.1.6 — hybrid retrieval, MCP access hardening, admin content ops
+
 **2026-04-19** — docs(wiki): update News.md
 
 **2026-04-19** — feat(search): retrieval experiment harness and eval reports

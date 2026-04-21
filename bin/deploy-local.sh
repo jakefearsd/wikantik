@@ -22,6 +22,7 @@ CONFIG_DIR="${PROJECT_ROOT}/wikantik-war/src/main/config/tomcat"
 SEED_SQL="${SCRIPT_DIR}/db/seed-users.sql"
 CONTEXT_DEST="${TOMCAT_DIR}/conf/Catalina/localhost/ROOT.xml"
 PROPS_DEST="${TOMCAT_DIR}/lib/wikantik-custom.properties"
+MCP_PROPS_DEST="${TOMCAT_DIR}/lib/wikantik-mcp.properties"
 LOG4J2_DEST="${TOMCAT_DIR}/lib/log4j2.xml"
 LOG_DIR="${TOMCAT_DIR}/logs/wikantik"
 JDBC_DRIVER="${TOMCAT_DIR}/lib/postgresql.jar"
@@ -107,6 +108,16 @@ else
     print_status "PostgreSQL JDBC driver already present"
 fi
 
+# Remove stale versioned copies of the JDBC driver (e.g. postgresql-42.7.4.jar).
+# Historically the driver was dropped in manually under its versioned name; the
+# script now canonically manages ${JDBC_DRIVER}, so any sibling postgresql-*.jar
+# is a duplicate that risks classloader ambiguity.
+STALE_JDBC=( "${TOMCAT_DIR}"/lib/postgresql-*.jar )
+if [[ -e "${STALE_JDBC[0]}" ]]; then
+    rm -f "${STALE_JDBC[@]}"
+    print_status "Removed stale versioned postgresql-*.jar copies"
+fi
+
 # Create context directory if needed
 mkdir -p "${TOMCAT_DIR}/conf/Catalina/localhost"
 
@@ -143,6 +154,16 @@ if [[ ! -f "${LOG4J2_DEST}" ]]; then
     echo "         Uses portable path: \${sys:catalina.base}/logs/wikantik"
 else
     print_status "Log4j2 config already exists (not overwritten)"
+fi
+
+# Copy MCP properties template if destination doesn't exist. This file overrides
+# the classpath defaults from wikantik-mcp.jar — mainly rate limits tuned low
+# for interactive testing.
+if [[ ! -f "${MCP_PROPS_DEST}" ]]; then
+    cp "${CONFIG_DIR}/wikantik-mcp.properties.template" "${MCP_PROPS_DEST}"
+    print_status "Created ${MCP_PROPS_DEST}"
+else
+    print_status "MCP properties file already exists (not overwritten)"
 fi
 
 # Create log directory if needed

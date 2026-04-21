@@ -80,6 +80,29 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
         return sharedRegistry;
     }
 
+    /**
+     * Lazily create the shared registry and bind JVM metrics to it. Synchronizes
+     * on the class monitor because the registry is a static field and the
+     * extension instance is, in principle, callable from multiple engine host
+     * threads (test harnesses that tear down and recreate engines are the
+     * realistic trigger). Callers hold the instance-level {@link #jvmGcMetrics}
+     * reference so shutdown can close the binder cleanly.
+     */
+    private void ensureSharedRegistry() {
+        synchronized ( ObservabilityLifecycleExtension.class ) {
+            if ( sharedRegistry == null ) {
+                final PrometheusMeterRegistry created = new PrometheusMeterRegistry( PrometheusConfig.DEFAULT );
+                new JvmMemoryMetrics().bindTo( created );
+                jvmGcMetrics = new JvmGcMetrics();
+                jvmGcMetrics.bindTo( created );
+                new JvmThreadMetrics().bindTo( created );
+                new ClassLoaderMetrics().bindTo( created );
+                sharedRegistry = created;
+                MeterRegistryHolder.set( created );
+            }
+        }
+    }
+
     @Override
     public void onInit( final Properties properties ) {
         // Create the registry early so components that wire up during
@@ -87,16 +110,8 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
         // service) can register meters against the same registry that later
         // gets scraped at /observability/metrics. JVM binders are attached
         // here too so they publish regardless of onStart ordering.
-        if ( sharedRegistry == null ) {
-            sharedRegistry = new PrometheusMeterRegistry( PrometheusConfig.DEFAULT );
-            new JvmMemoryMetrics().bindTo( sharedRegistry );
-            jvmGcMetrics = new JvmGcMetrics();
-            jvmGcMetrics.bindTo( sharedRegistry );
-            new JvmThreadMetrics().bindTo( sharedRegistry );
-            new ClassLoaderMetrics().bindTo( sharedRegistry );
-            MeterRegistryHolder.set( sharedRegistry );
-            LOG.info( "Shared Prometheus meter registry created in onInit" );
-        }
+        ensureSharedRegistry();
+        LOG.info( "Shared Prometheus meter registry ready after onInit" );
     }
 
     @Override
@@ -108,13 +123,7 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
         if ( sharedRegistry == null ) {
             LOG.warn( "onStart reached without onInit — creating registry late; "
                     + "meters registered during Engine#initialize will not publish to /metrics" );
-            sharedRegistry = new PrometheusMeterRegistry( PrometheusConfig.DEFAULT );
-            new JvmMemoryMetrics().bindTo( sharedRegistry );
-            jvmGcMetrics = new JvmGcMetrics();
-            jvmGcMetrics.bindTo( sharedRegistry );
-            new JvmThreadMetrics().bindTo( sharedRegistry );
-            new ClassLoaderMetrics().bindTo( sharedRegistry );
-            MeterRegistryHolder.set( sharedRegistry );
+            ensureSharedRegistry();
         }
         registry = sharedRegistry;
 
@@ -149,11 +158,14 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
         if ( registry != null ) {
             registry.close();
         }
-        // Clear the static holder so a subsequent engine restart (e.g. in
-        // integration tests that tear down and re-create the container) does
-        // not leave a closed registry in place.
-        sharedRegistry = null;
-        MeterRegistryHolder.clear();
+        // Clear the static holder under the class monitor so a subsequent
+        // engine restart (e.g. in integration tests that tear down and
+        // re-create the container) does not race with ensureSharedRegistry()
+        // and does not leave a closed registry in place.
+        synchronized ( ObservabilityLifecycleExtension.class ) {
+            sharedRegistry = null;
+            MeterRegistryHolder.clear();
+        }
         LOG.info( "Observability subsystem shut down" );
     }
 

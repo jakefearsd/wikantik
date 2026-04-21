@@ -50,6 +50,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -1122,15 +1123,15 @@ public class AdminKnowledgeResource extends RestServletBase {
 
     private volatile boolean backfillRunning = false;
     private volatile int backfillTotal = 0;
-    private volatile int backfillProcessed = 0;
-    private volatile int backfillErrors = 0;
+    private final AtomicInteger backfillProcessed = new AtomicInteger();
+    private final AtomicInteger backfillErrors = new AtomicInteger();
 
     private void handleGetBackfillStatus( final HttpServletResponse response ) throws IOException {
         sendJson( response, Map.of(
             "running", backfillRunning,
             "total", backfillTotal,
-            "processed", backfillProcessed,
-            "errors", backfillErrors
+            "processed", backfillProcessed.get(),
+            "errors", backfillErrors.get()
         ) );
     }
 
@@ -1148,8 +1149,8 @@ public class AdminKnowledgeResource extends RestServletBase {
 
     private void runBackfill() {
         backfillRunning = true;
-        backfillProcessed = 0;
-        backfillErrors = 0;
+        backfillProcessed.set( 0 );
+        backfillErrors.set( 0 );
         try {
             final PageManager pm = getEngine().getManager( PageManager.class );
             final SystemPageRegistry spr = getEngine().getManager( SystemPageRegistry.class );
@@ -1161,13 +1162,13 @@ public class AdminKnowledgeResource extends RestServletBase {
             for ( final Page page : allPages ) {
                 try {
                     if ( spr != null && spr.isSystemPage( page.getName() ) ) {
-                        backfillProcessed++;
+                        backfillProcessed.incrementAndGet();
                         continue;
                     }
                     final String content = pm.getPureText( page );
                     final ParsedPage parsed = FrontmatterParser.parse( content != null ? content : "" );
                     if ( !parsed.metadata().isEmpty() ) {
-                        backfillProcessed++;
+                        backfillProcessed.incrementAndGet();
                         continue;
                     }
 
@@ -1182,9 +1183,9 @@ public class AdminKnowledgeResource extends RestServletBase {
                     final String updated = FrontmatterWriter.write( metadata, body );
                     saveHelper.saveText( page.getName(), updated,
                         SaveOptions.builder().changeNote( "Backfill default frontmatter" ).build() );
-                    backfillProcessed++;
+                    backfillProcessed.incrementAndGet();
                 } catch ( final Exception e ) {
-                    backfillErrors++;
+                    backfillErrors.incrementAndGet();
                     LOG.warn( "Backfill failed for page '{}': {}", page.getName(), e.getMessage() );
                 }
             }

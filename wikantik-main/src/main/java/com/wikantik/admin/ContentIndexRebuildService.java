@@ -94,16 +94,17 @@ public class ContentIndexRebuildService {
 
     private final AtomicReference< State > state = new AtomicReference<>( State.IDLE );
 
-    // Progress counters — reset on each trigger. Volatile so snapshot() reads
-    // are fresh without taking a lock. Protected so Task 10's run-loop body
-    // (which lands in this same class) can mutate directly.
+    // Progress counters — reset on each trigger. Atomic so snapshot() reads are
+    // fresh without taking a lock and so the increments are race-safe even
+    // though only the rebuild thread writes in the current design. Protected
+    // so subclass tests (Task 10's run-loop body) can mutate directly.
     protected volatile Instant startedAt;
     protected volatile int pagesTotal;
-    protected volatile int pagesIterated;
-    protected volatile int pagesChunked;
-    protected volatile int systemPagesSkipped;
-    protected volatile int luceneQueued;
-    protected volatile int chunksWritten;
+    protected final AtomicInteger pagesIterated = new AtomicInteger();
+    protected final AtomicInteger pagesChunked = new AtomicInteger();
+    protected final AtomicInteger systemPagesSkipped = new AtomicInteger();
+    protected final AtomicInteger luceneQueued = new AtomicInteger();
+    protected final AtomicInteger chunksWritten = new AtomicInteger();
     protected final List< IndexStatusSnapshot.RebuildError > errors = new CopyOnWriteArrayList<>();
 
     // --- embedding hook (Phase 1 of hybrid retrieval) --------------------
@@ -197,9 +198,9 @@ public class ContentIndexRebuildService {
 
     // Micrometer gauge callbacks — kept package-private so the registry can
     // reach them without widening the public surface.
-    int getPagesIterated() { return pagesIterated; }
-    int getPagesChunked() { return pagesChunked; }
-    int getSystemPagesSkipped() { return systemPagesSkipped; }
+    int getPagesIterated() { return pagesIterated.get(); }
+    int getPagesChunked() { return pagesChunked.get(); }
+    int getSystemPagesSkipped() { return systemPagesSkipped.get(); }
 
     /**
      * Atomically starts a rebuild if the service is idle and not kill-switched.
@@ -260,11 +261,11 @@ public class ContentIndexRebuildService {
                 state.get().name(),
                 startedAt,
                 pagesTotal,
-                pagesIterated,
-                pagesChunked,
-                systemPagesSkipped,
-                luceneQueued,
-                chunksWritten,
+                pagesIterated.get(),
+                pagesChunked.get(),
+                systemPagesSkipped.get(),
+                luceneQueued.get(),
+                chunksWritten.get(),
                 List.copyOf( errors ) ) );
     }
 
@@ -317,11 +318,11 @@ public class ContentIndexRebuildService {
             setState( State.RUNNING );
 
             for ( final Page page : all ) {
-                pagesIterated++;
+                pagesIterated.incrementAndGet();
                 final String name = page.getName();
                 final boolean isSystem = systemPages.isSystemPage( name );
                 if ( isSystem ) {
-                    systemPagesSkipped++;
+                    systemPagesSkipped.incrementAndGet();
                 } else {
                     try {
                         final String content = pages.getPureText( page );
@@ -331,8 +332,8 @@ public class ContentIndexRebuildService {
                         final List< ChunkDiff.Stored > existing = chunkRepo.findByPage( name );
                         final ChunkDiff.Diff diff = ChunkDiff.compute( existing, produced );
                         chunkRepo.apply( name, diff );
-                        pagesChunked++;
-                        chunksWritten += produced.size();
+                        pagesChunked.incrementAndGet();
+                        chunksWritten.addAndGet( produced.size() );
                     } catch ( final Exception e ) {
                         LOG.warn( "Chunker failed for page '{}': {}", name, e.getMessage(), e );
                         recordError( name, e );
@@ -340,7 +341,7 @@ public class ContentIndexRebuildService {
                 }
                 try {
                     lucene.reindexPage( page );
-                    luceneQueued++;
+                    luceneQueued.incrementAndGet();
                 } catch ( final Exception e ) {
                     LOG.warn( "Lucene enqueue failed for page '{}': {}", name, e.getMessage(), e );
                     recordError( name, e );
@@ -472,11 +473,11 @@ public class ContentIndexRebuildService {
 
     private void resetCounters() {
         pagesTotal = 0;
-        pagesIterated = 0;
-        pagesChunked = 0;
-        systemPagesSkipped = 0;
-        luceneQueued = 0;
-        chunksWritten = 0;
+        pagesIterated.set( 0 );
+        pagesChunked.set( 0 );
+        systemPagesSkipped.set( 0 );
+        luceneQueued.set( 0 );
+        chunksWritten.set( 0 );
         embeddingsIndexed = 0;
         errors.clear();
     }

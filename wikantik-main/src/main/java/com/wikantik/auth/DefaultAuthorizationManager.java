@@ -103,7 +103,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
     private DatabasePolicy databasePolicy;
     private String bootstrapAdmin;
-    private long bootstrapExpiresAt;
+    private volatile long bootstrapExpiresAt;
     private LongSupplier clock = System::currentTimeMillis;
 
     // Manager dependencies — populated in initialize() (production) or via test constructor

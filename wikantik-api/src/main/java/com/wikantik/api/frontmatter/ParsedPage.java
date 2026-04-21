@@ -27,4 +27,7 @@ import java.util.Map;
  * @param body     the page content after the frontmatter block
  */
 public record ParsedPage( Map< String, Object > metadata, String body ) {
+    public ParsedPage {
+        metadata = metadata == null ? Map.of() : Map.copyOf( metadata );
+    }
 }

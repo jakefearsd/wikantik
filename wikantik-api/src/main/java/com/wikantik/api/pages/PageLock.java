@@ -77,7 +77,7 @@ public class PageLock implements Serializable {
      * @return The acquisition time.
      */
     public Date getAcquisitionTime() {
-        return lockAcquired;
+        return (Date) lockAcquired.clone();
     }
 
     /**
@@ -86,7 +86,7 @@ public class PageLock implements Serializable {
      * @return The expiry date.
      */
     public Date getExpiryTime() {
-        return lockExpiry;
+        return (Date) lockExpiry.clone();
     }
 
     /**

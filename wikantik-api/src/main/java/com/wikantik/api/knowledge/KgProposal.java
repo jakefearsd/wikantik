@@ -15,4 +15,8 @@ public record KgProposal(
     String reviewedBy,
     Instant created,
     Instant reviewedAt
-) {}
+) {
+    public KgProposal {
+        proposedData = proposedData == null ? Map.of() : Map.copyOf( proposedData );
+    }
+}

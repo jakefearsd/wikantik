@@ -29,6 +29,10 @@ import java.util.Map;
  */
 public record HealthResult( HealthStatus status, long responseTimeMs, Map<String, String> detail ) {
 
+    public HealthResult {
+        detail = detail == null ? Map.of() : Map.copyOf( detail );
+    }
+
     public static HealthResult up() {
         return new HealthResult( HealthStatus.UP, -1, Map.of() );
     }

@@ -18,12 +18,16 @@
  */
 package com.wikantik.api.search;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 
 /**
  * This simple class just fulfils the role of a container for searches.  It tells the word and whether it is requested or not.
  */
+@SuppressFBWarnings( value = { "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD", "UUF_UNUSED_PUBLIC_OR_PROTECTED_FIELD" },
+        justification = "Fields are populated by callers in wikantik-main (SearchMatcher, provider tests); SpotBugs only analyses wikantik-api and cannot see those reads." )
 public class QueryItem {
-	
+
     /** The word is required to be in the pages */
     public static final int REQUIRED  = 1;
 

@@ -21,6 +21,7 @@ package com.wikantik.api.events;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.engine.Initializable;
 import com.wikantik.event.WikiEventListener;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,6 +40,8 @@ public interface CustomWikiEventListener< T > extends WikiEventListener, Initial
      * to strong-reference custom event listeners. Not directly exposed; use {@link #listeners()},
      * {@link #addListener(CustomWikiEventListener)}, and {@link #clearListeners()} instead.
      */
+    @SuppressFBWarnings( value = "MS_OOI_PKGPROTECT",
+            justification = "Interface static mutable state is the registry for custom listeners; access is mediated by addListener/clearListeners/listeners()." )
     List< CustomWikiEventListener< ? > > LISTENERS = new ArrayList<>();
 
     /**

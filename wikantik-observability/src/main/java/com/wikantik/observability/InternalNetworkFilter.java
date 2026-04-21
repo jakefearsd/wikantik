@@ -126,7 +126,7 @@ public class InternalNetworkFilter implements Filter {
     /**
      * Represents an IPv4 CIDR range for efficient bit-masking checks.
      */
-    static class CidrRange {
+    static final class CidrRange {
 
         private final int networkInt;
         private final int maskInt;

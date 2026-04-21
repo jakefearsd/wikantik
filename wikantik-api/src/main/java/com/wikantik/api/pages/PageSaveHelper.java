@@ -29,6 +29,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.ParsedPage;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -45,6 +46,8 @@ public class PageSaveHelper {
 
     private final Engine engine;
 
+    @SuppressFBWarnings( value = "EI_EXPOSE_REP2",
+            justification = "Engine is the shared runtime singleton; the helper is intentionally bound to it, not a private copy." )
     public PageSaveHelper( final Engine engine ) {
         this.engine = engine;
     }

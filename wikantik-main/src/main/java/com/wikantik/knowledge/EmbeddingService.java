@@ -34,6 +34,7 @@ import org.apache.logging.log4j.Logger;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -85,14 +86,17 @@ public class EmbeddingService {
     private final AtomicReference< TfidfModel > currentContentModel = new AtomicReference<>();
     private final AtomicReference< Instant > lastTrained = new AtomicReference<>();
     private final AtomicReference< Instant > contentLastTrained = new AtomicReference<>();
-    private volatile int modelVersion = 0;
-    private volatile int contentModelVersion = 0;
+    private final AtomicInteger modelVersion = new AtomicInteger( 0 );
+    private final AtomicInteger contentModelVersion = new AtomicInteger( 0 );
     private volatile boolean training = false;
     private volatile boolean contentTraining = false;
     private ScheduledExecutorService scheduler;
 
-    // Hyperparameters (defaults, overridable via properties)
-    private int dimension = 50;
+    // Hyperparameters (defaults, overridable via properties). All reads on the
+    // retrain path happen inside synchronized retrain*() methods; configure()
+    // is synchronized too so writes balance the reads. dimension is also read
+    // from getStatus() without the lock, hence volatile there.
+    private volatile int dimension = 50;
     private int epochs = 100;
     private float learningRate = 0.01f;
     private int negSamples = 10;
@@ -119,19 +123,19 @@ public class EmbeddingService {
         final ComplExModel saved = embeddingRepo.loadLatestModel();
         if( saved != null ) {
             currentModel.set( saved );
-            modelVersion = embeddingRepo.getLatestModelVersion();
-            LOG.info( "Loaded saved ComplEx model (version {}, {} entities)", modelVersion, saved.getEntityCount() );
+            modelVersion.set( embeddingRepo.getLatestModelVersion() );
+            LOG.info( "Loaded saved ComplEx model (version {}, {} entities)", modelVersion.get(), saved.getEntityCount() );
         }
         final TfidfModel savedContent = contentEmbeddingRepo.loadLatestModel();
         if( savedContent != null ) {
             currentContentModel.set( savedContent );
-            contentModelVersion = contentEmbeddingRepo.getLatestModelVersion();
-            LOG.info( "Loaded saved content model (version {}, {} entities)", contentModelVersion, savedContent.getEntityCount() );
+            contentModelVersion.set( contentEmbeddingRepo.getLatestModelVersion() );
+            LOG.info( "Loaded saved content model (version {}, {} entities)", contentModelVersion.get(), savedContent.getEntityCount() );
         }
     }
 
     /** Applies configuration from wiki properties. */
-    public void configure( final Properties props ) {
+    public synchronized void configure( final Properties props ) {
         dimension = Integer.parseInt( props.getProperty( PROP_DIMENSION, "50" ) );
         epochs = Integer.parseInt( props.getProperty( PROP_EPOCHS, "100" ) );
         learningRate = Float.parseFloat( props.getProperty( PROP_LEARNING_RATE, "0.01" ) );
@@ -236,15 +240,15 @@ public class EmbeddingService {
                 learningRate, negSamples, margin );
 
             // Persist and swap ComplEx model
-            modelVersion++;
-            embeddingRepo.saveEmbeddings( modelVersion, model, entityUuids );
-            embeddingRepo.deleteOldVersions( modelVersion );
+            final int newVersion = modelVersion.incrementAndGet();
+            embeddingRepo.saveEmbeddings( newVersion, model, entityUuids );
+            embeddingRepo.deleteOldVersions( newVersion );
             currentModel.set( model );
             lastTrained.set( Instant.now() );
 
             final long complexElapsed = System.currentTimeMillis() - start;
             LOG.info( "ComplEx trained in {}ms: {} entities, {} relations, {} triples (version {})",
-                complexElapsed, entityNames.size(), relationNames.size(), triples.size(), modelVersion );
+                complexElapsed, entityNames.size(), relationNames.size(), triples.size(), newVersion );
         } finally {
             training = false;
         }
@@ -255,7 +259,7 @@ public class EmbeddingService {
         final ComplExModel m = currentModel.get();
         final TfidfModel cm = currentContentModel.get();
         return new Status(
-            modelVersion,
+            modelVersion.get(),
             m != null ? m.getDimension() : dimension,
             m != null ? m.getEntityCount() : 0,
             m != null ? m.getRelationCount() : 0,
@@ -568,15 +572,15 @@ public class EmbeddingService {
             // Build entity UUID map — pages with KG nodes get their UUID, others get null
             final Map< String, UUID > pageUuids = new HashMap<>( entityUuids );
 
-            contentModelVersion++;
-            contentEmbeddingRepo.saveEmbeddings( contentModelVersion, contentModel, pageUuids );
-            contentEmbeddingRepo.deleteOldVersions( contentModelVersion );
+            final int newVersion = contentModelVersion.incrementAndGet();
+            contentEmbeddingRepo.saveEmbeddings( newVersion, contentModel, pageUuids );
+            contentEmbeddingRepo.deleteOldVersions( newVersion );
             currentContentModel.set( contentModel );
             contentLastTrained.set( Instant.now() );
 
             final long elapsed = System.currentTimeMillis() - start;
             LOG.info( "Content retrain finished in {}ms: {} pages, dim {}, version {}",
-                elapsed, names.size(), TfidfModel.DIMENSION, contentModelVersion );
+                elapsed, names.size(), TfidfModel.DIMENSION, newVersion );
         } catch( final Exception e ) {
             // LOG.error justified: admin-triggered retrain failed unexpectedly, must be visible in logs
             LOG.error( "Content retrain FAILED: {}", e.getMessage(), e );
@@ -593,8 +597,8 @@ public class EmbeddingService {
         currentContentModel.set( null );
         lastTrained.set( null );
         contentLastTrained.set( null );
-        modelVersion = 0;
-        contentModelVersion = 0;
+        modelVersion.set( 0 );
+        contentModelVersion.set( 0 );
         entityUuids.clear();
         existingTriples.clear();
         LOG.info( "Embedding models reset" );

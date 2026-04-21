@@ -215,12 +215,12 @@ public class SpamFilter implements PageFilter {
     private final int             scoreLimit = 1;
 
     /** If set to true, will ignore anyone who is in Authenticated role. */
-    private boolean         ignoreAuthenticated;
+    private volatile boolean ignoreAuthenticated;
 
     /** Groups allowed to bypass the filter */
     private String[]         allowedGroups;
 
-    private boolean         stopAtFirstMatch = true;
+    private volatile boolean stopAtFirstMatch = true;
 
     private static volatile String   hashName;
     private static volatile long     lastUpdate;

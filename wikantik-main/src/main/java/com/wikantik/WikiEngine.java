@@ -117,7 +117,7 @@ public class WikiEngine implements Engine {
     private boolean saveUserInfo = true;
 
     /** If true, uses UTF8 encoding for all data */
-    private boolean useUTF8 = true;
+    private volatile boolean useUTF8 = true;
 
     /** Store the file path to the basic URL.  When we're not running as a servlet, it defaults to the user's current directory. */
     private String rootPath = System.getProperty( "user.dir" );

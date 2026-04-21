@@ -483,7 +483,9 @@ public final class WikiEventManager {
         }
     }
 
-    private static class WikiEventListenerComparator implements Comparator< WikiEventListener > {
+    private static class WikiEventListenerComparator implements Comparator< WikiEventListener >, java.io.Serializable {
+        private static final long serialVersionUID = 1L;
+
         // TODO: This method is a critical performance bottleneck
         @Override
         public int compare( final WikiEventListener w0, final WikiEventListener w1 ) {

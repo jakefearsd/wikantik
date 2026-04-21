@@ -198,7 +198,9 @@ public class LinkParsingOperations {
     /**
      * Compares two Strings, and if one starts with the other, then returns 0. Otherwise just like the normal Comparator for strings.
      */
-    private static final class StartingComparator implements Comparator< String > {
+    private static final class StartingComparator implements Comparator< String >, java.io.Serializable {
+
+        private static final long serialVersionUID = 1L;
 
         /**
          * {@inheritDoc}

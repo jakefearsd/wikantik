@@ -183,8 +183,8 @@ public class FileSystemProvider extends AbstractFileProvider {
     public void deletePage( final String pageName) throws ProviderException {
         super.deletePage( pageName );
         final File file = new File( getPageDirectory(), mangleName(pageName)+PROP_EXT );
-        if( file.exists() ) {
-            file.delete();
+        if( file.exists() && !file.delete() ) {
+            LOG.warn( "Failed to delete properties file: {}", file.getAbsolutePath() );
         }
     }
 
@@ -195,13 +195,15 @@ public class FileSystemProvider extends AbstractFileProvider {
     public void movePage( final String from, final String to ) throws ProviderException {
         final File fromPage = findPage( from );
         final File toPage = findPage( to );
-        fromPage.renameTo( toPage );
+        if( !fromPage.renameTo( toPage ) ) {
+            LOG.warn( "Failed to rename page file {} to {}", fromPage, toPage );
+        }
 
         // Also move the properties file
         final File fromProps = new File( getPageDirectory(), mangleName( from ) + PROP_EXT );
         final File toProps = new File( getPageDirectory(), mangleName( to ) + PROP_EXT );
-        if( fromProps.exists() ) {
-            fromProps.renameTo( toProps );
+        if( fromProps.exists() && !fromProps.renameTo( toProps ) ) {
+            LOG.warn( "Failed to rename properties file {} to {}", fromProps, toProps );
         }
     }
 

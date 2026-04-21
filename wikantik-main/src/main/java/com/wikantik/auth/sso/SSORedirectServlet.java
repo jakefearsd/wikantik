@@ -52,6 +52,8 @@ import java.util.Optional;
  */
 public class SSORedirectServlet extends HttpServlet {
 
+    private static final long serialVersionUID = 1L;
+
     private static final Logger LOG = LogManager.getLogger( SSORedirectServlet.class );
 
     private transient Engine engine;

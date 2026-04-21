@@ -48,7 +48,7 @@ public class MarkdownDocument extends WikiDocument {
 
     private static final long serialVersionUID = 1L;
 
-    private final Node md;
+    private final transient Node md;
 
     public MarkdownDocument( final Page page, final Node md ) {
         super( page );

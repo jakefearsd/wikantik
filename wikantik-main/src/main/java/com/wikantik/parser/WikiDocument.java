@@ -38,10 +38,10 @@ public class WikiDocument extends Document {
 
     private static final long serialVersionUID = 1L;
 
-    private final Page page;
+    private final transient Page page;
     private String wikiText;
     private String pageDataHash;
-    private WeakReference< Context > context;
+    private transient WeakReference< Context > context;
     
     /**
      *  Creates a new WikiDocument for a specific page.

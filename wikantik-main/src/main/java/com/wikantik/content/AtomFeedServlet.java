@@ -70,7 +70,7 @@ public class AtomFeedServlet extends HttpServlet {
     /** Property for explicit feed base URL (mirrors sitemap property pattern). */
     public static final String PROP_FEED_BASE_URL = "wikantik.feed.baseURL";
 
-    private Engine engine;
+    private transient Engine engine;
     private String configuredBaseUrl;
 
     @Override

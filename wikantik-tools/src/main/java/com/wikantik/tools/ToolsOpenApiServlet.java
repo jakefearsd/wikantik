@@ -47,6 +47,8 @@ import java.util.Map;
  */
 public class ToolsOpenApiServlet extends HttpServlet {
 
+    private static final long serialVersionUID = 1L;
+
     private static final Logger LOG = LogManager.getLogger( ToolsOpenApiServlet.class );
     private static final Gson GSON = new Gson();
 
@@ -62,11 +64,11 @@ public class ToolsOpenApiServlet extends HttpServlet {
         }
         """;
 
-    private final Engine engine;
-    private final ToolsConfig config;
-    private final ToolsMetrics metrics;
-    private final SearchWikiTool searchTool;
-    private final GetPageTool getPageTool;
+    private final transient Engine engine;
+    private final transient ToolsConfig config;
+    private final transient ToolsMetrics metrics;
+    private final transient SearchWikiTool searchTool;
+    private final transient GetPageTool getPageTool;
 
     public ToolsOpenApiServlet() {
         this( null, null, null );

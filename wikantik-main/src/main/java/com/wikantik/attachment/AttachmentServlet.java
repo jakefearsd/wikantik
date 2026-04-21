@@ -83,10 +83,10 @@ public class AttachmentServlet extends HttpServlet {
     private static final long serialVersionUID = 3257282552187531320L;
     private static final int BUFFER_SIZE = 8192;
 
-    private Engine engine;
-    private AttachmentManager attachmentManager;
-    private AuthorizationManager authorizationManager;
-    private ProgressManager progressManager;
+    private transient Engine engine;
+    private transient AttachmentManager attachmentManager;
+    private transient AuthorizationManager authorizationManager;
+    private transient ProgressManager progressManager;
 
     private static final Logger LOG = LogManager.getLogger( AttachmentServlet.class );
     private static final String HDR_VERSION = "version";
@@ -158,7 +158,9 @@ public class AttachmentServlet extends HttpServlet {
 
         final File tmpDirFile = new File( tmpDir );
         if( !tmpDirFile.exists() ) {
-            tmpDirFile.mkdirs();
+            if( !tmpDirFile.mkdirs() ) {
+                LOG.warn( "Failed to create temporary directory for attachments: {}", tmpDir );
+            }
         } else if( !tmpDirFile.isDirectory() ) {
             LOG.fatal( "A file already exists where the temporary dir is supposed to be: {}. Please remove it.", tmpDir );
         }

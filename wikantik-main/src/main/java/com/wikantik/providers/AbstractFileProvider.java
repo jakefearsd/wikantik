@@ -762,7 +762,9 @@ public abstract class AbstractFileProvider implements PageProvider {
     public void deleteVersion( final String pageName, final int version ) throws ProviderException {
         if( version == WikiProvider.LATEST_VERSION ) {
             final File f = findPage( pageName );
-            f.delete();
+            if( !f.delete() ) {
+                LOG.warn( "Failed to delete page file: {}", f.getAbsolutePath() );
+            }
             // Invalidate cache since the page file no longer exists
             final String cacheKey = isBlogPage( pageName ) ? normaliseBlogName( pageName ) : pageName;
             fileExtensionCache.remove( cacheKey );
@@ -780,7 +782,9 @@ public abstract class AbstractFileProvider implements PageProvider {
     @Override
     public void deletePage( final String pageName ) throws ProviderException {
         final File f = findPage( pageName );
-        f.delete();
+        if( !f.delete() ) {
+            LOG.warn( "Failed to delete page file: {}", f.getAbsolutePath() );
+        }
         // Invalidate cache since the page file no longer exists
         final String cacheKey = isBlogPage( pageName ) ? normaliseBlogName( pageName ) : pageName;
         fileExtensionCache.remove( cacheKey );

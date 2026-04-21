@@ -28,6 +28,8 @@ import java.util.Locale;
  */
 public class LocaleComparator extends CollatorComparator
 {
+    private static final long serialVersionUID = 1L;
+
     /**
      * Default constructor uses the current locale's collator.
      */

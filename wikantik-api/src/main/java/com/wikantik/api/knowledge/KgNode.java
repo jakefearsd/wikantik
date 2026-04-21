@@ -14,6 +14,10 @@ public record KgNode(
     Instant created,
     Instant modified
 ) {
+    public KgNode {
+        properties = properties == null ? Map.of() : Map.copyOf( properties );
+    }
+
     /** Returns true if this node is a stub (referenced but has no wiki page yet). */
     public boolean isStub() {
         return sourcePage == null;

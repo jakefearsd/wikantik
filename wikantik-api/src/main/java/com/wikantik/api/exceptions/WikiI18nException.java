@@ -40,16 +40,16 @@ public class WikiI18nException extends WikiException {
      */
     public WikiI18nException( final String key, final Object... args ) {
         super( key );
-        this.args = args;
+        this.args = args == null ? new Object[0] : args.clone();
     }
-    
+
     /**
-     * getter. 
-     * 
+     * getter.
+     *
      * @return arguments needed to construct the i18n message associated with the exception.
      */
     public Object[] getArgs() {
-        return args;
+        return args.clone();
     }
 
 }

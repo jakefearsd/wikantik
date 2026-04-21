@@ -13,4 +13,8 @@ public record KgEdge(
     Map< String, Object > properties,
     Instant created,
     Instant modified
-) {}
+) {
+    public KgEdge {
+        properties = properties == null ? Map.of() : Map.copyOf( properties );
+    }
+}

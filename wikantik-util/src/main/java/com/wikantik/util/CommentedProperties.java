@@ -26,6 +26,7 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Properties;
 
 /**
@@ -156,6 +157,40 @@ public class CommentedProperties extends Properties
     public synchronized String toString()
     {
         return propertyString;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Two {@code CommentedProperties} are equal when both the key/value map
+     * contents (per {@link Properties#equals(Object)}) and the preserved
+     * comment/whitespace representation in {@code propertyString} match.
+     */
+    @Override
+    public synchronized boolean equals( final Object o )
+    {
+        if ( this == o ) {
+            return true;
+        }
+        if ( !( o instanceof CommentedProperties ) ) {
+            return false;
+        }
+        if ( !super.equals( o ) ) {
+            return false;
+        }
+        final CommentedProperties other = (CommentedProperties) o;
+        // Access other.propertyString via its own synchronized accessor to avoid
+        // inconsistent synchronization (all writes to the field are lock-guarded).
+        return Objects.equals( propertyString, other.toString() );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public synchronized int hashCode()
+    {
+        return Objects.hash( super.hashCode(), propertyString );
     }
 
     private void deleteProperty(final Object arg0 )

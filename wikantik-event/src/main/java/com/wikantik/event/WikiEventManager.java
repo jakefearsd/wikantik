@@ -19,6 +19,7 @@
 
 package com.wikantik.event;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -142,6 +143,8 @@ public final class WikiEventManager {
     private static WikiEventManager c_instance;
 
     /** Constructor for a WikiEventManager. */
+    @SuppressFBWarnings( value = "ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD",
+            justification = "Intentional singleton self-registration; the constructor is private and invoked only from getInstance()." )
     private WikiEventManager() {
         c_instance = this;
         LOG.debug( "instantiated WikiEventManager" );
@@ -153,6 +156,8 @@ public final class WikiEventManager {
      *
      *  @return A shared instance of the WikiEventManager
      */
+    @SuppressFBWarnings( value = "MS_EXPOSE_REP",
+            justification = "Returning the shared singleton is the defined contract of this method." )
     public static WikiEventManager getInstance() {
         if( c_instance == null ) {
             synchronized( WikiEventManager.class ) {

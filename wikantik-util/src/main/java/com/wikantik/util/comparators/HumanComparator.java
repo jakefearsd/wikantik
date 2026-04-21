@@ -30,7 +30,7 @@ import java.util.Objects;
  * String.compareTo().
  * 
  */
-public class HumanComparator implements Comparator< String > {
+public final class HumanComparator implements Comparator< String > {
 
     // Constants for categorising characters and specifying category level
     // ordering
@@ -244,7 +244,7 @@ public class HumanComparator implements Comparator< String > {
 
     public CharType[] getSortOrder()
     {
-        return sortOrder;
+        return sortOrder.clone();
     }
 
     /**

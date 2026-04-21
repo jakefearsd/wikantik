@@ -32,6 +32,12 @@ public record SaveOptions(
         Map< String, Object > metadata,
         boolean replaceMetadata
 ) {
+    public SaveOptions {
+        // Preserve null — PageSaveHelper distinguishes "no metadata provided" (null)
+        // from "empty metadata" (Map.of()) to decide whether to touch frontmatter.
+        metadata = metadata == null ? null : Map.copyOf( metadata );
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -50,7 +56,10 @@ public record SaveOptions(
         public Builder markupSyntax( final String m ) { this.markupSyntax = m; return this; }
         public Builder expectedVersion( final int v ) { this.expectedVersion = v; return this; }
         public Builder expectedContentHash( final String h ) { this.expectedContentHash = h; return this; }
-        public Builder metadata( final Map< String, Object > m ) { this.metadata = m; return this; }
+        public Builder metadata( final Map< String, Object > m ) {
+            this.metadata = m == null ? null : Map.copyOf( m );
+            return this;
+        }
         public Builder replaceMetadata( final boolean r ) { this.replaceMetadata = r; return this; }
 
         public SaveOptions build() {

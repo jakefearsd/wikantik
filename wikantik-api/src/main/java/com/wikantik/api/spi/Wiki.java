@@ -20,6 +20,7 @@ package com.wikantik.api.spi;
 
 import com.wikantik.util.PropertyReader;
 import com.wikantik.util.TextUtil;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import jakarta.servlet.ServletContext;
 import java.nio.file.ProviderNotFoundException;
@@ -48,6 +49,8 @@ public class Wiki {
     private static EngineSPI engineSPI = getSPI( EngineSPI.class, properties, PROP_PROVIDER_IMPL_ENGINE, DEFAULT_PROVIDER_IMPL_ENGINE );
     private static SessionSPI sessionSPI = getSPI( SessionSPI.class, properties, PROP_PROVIDER_IMPL_SESSION, DEFAULT_PROVIDER_IMPL_SESSION );
 
+    @SuppressFBWarnings( value = "MS_EXPOSE_REP",
+            justification = "Intentional: init() returns the live shared Properties object so callers can observe subsequent runtime reconfiguration." )
     public static Properties init( final ServletContext context ) {
         properties = PropertyReader.loadWebAppProps( context );
         aclsSPI = getSPI( AclsSPI.class, properties, PROP_PROVIDER_IMPL_ACLS, DEFAULT_PROVIDER_IMPL_ACLS );
@@ -99,6 +102,8 @@ public class Wiki {
      *
      * @return {@link SessionSPI} operations.
      */
+    @SuppressFBWarnings( value = "MS_EXPOSE_REP",
+            justification = "Intentional: SessionSPI is a shared static service-provider instance by design." )
     public static SessionSPI session() {
         return sessionSPI;
     }

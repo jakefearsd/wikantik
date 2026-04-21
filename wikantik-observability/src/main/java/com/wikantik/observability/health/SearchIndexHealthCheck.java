@@ -21,6 +21,8 @@ package com.wikantik.observability.health;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.providers.PageProvider;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -35,6 +37,8 @@ public class SearchIndexHealthCheck implements HealthCheck {
 
     private final Engine engine;
 
+    @SuppressFBWarnings( value = "EI_EXPOSE_REP2",
+            justification = "Engine is the shared runtime singleton; the health check intentionally holds the live reference, not a copy." )
     public SearchIndexHealthCheck( final Engine engine ) {
         this.engine = engine;
     }

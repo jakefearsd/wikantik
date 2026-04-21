@@ -34,6 +34,8 @@ import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import jakarta.servlet.ServletContext;
 
 import org.apache.logging.log4j.LogManager;
@@ -76,6 +78,8 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
      * {@code Engine.start()}). Callers should fall back to a local
      * {@code SimpleMeterRegistry} with a WARN when this returns null.
      */
+    @SuppressFBWarnings( value = "MS_EXPOSE_REP",
+            justification = "Exposing the process-wide Prometheus registry is the contract of this holder method; callers scrape or bind meters to the same shared instance." )
     public static MeterRegistry getSharedRegistry() {
         return sharedRegistry;
     }
@@ -151,6 +155,8 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
     }
 
     @Override
+    @SuppressFBWarnings( value = "ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD",
+            justification = "Clearing the process-wide shared registry on engine shutdown from the lifecycle instance is intentional and guarded by the class monitor." )
     public void onShutdown( final Engine engine, final Properties properties ) {
         if ( jvmGcMetrics != null ) {
             jvmGcMetrics.close();

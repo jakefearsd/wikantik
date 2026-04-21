@@ -32,6 +32,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
@@ -349,7 +350,7 @@ public final class ClassUtil {
     }
 
     public static Map< String, String > getExtraClassMappings() {
-        return c_classMappingsExtra;
+        return Collections.unmodifiableMap( c_classMappingsExtra );
     }
 
     /**

@@ -18,6 +18,8 @@
  */
 package com.wikantik.observability.health;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -55,6 +57,8 @@ public class DatabaseHealthCheck implements HealthCheck {
      *
      * @param dataSource the DataSource to check
      */
+    @SuppressFBWarnings( value = "EI_EXPOSE_REP2",
+            justification = "DataSource is a shared runtime service (typically container-managed); the health check intentionally holds the live reference, not a copy." )
     public DatabaseHealthCheck( final DataSource dataSource ) {
         this.jndiName = null;
         this.directDataSource = dataSource;

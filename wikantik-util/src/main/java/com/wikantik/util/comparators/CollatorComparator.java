@@ -53,12 +53,12 @@ public class CollatorComparator implements Comparator<String>, Serializable
 
     /**
      * Construct with a specific collator.
-     * 
+     *
      * @param newCollator the collator to be used for comparisons
      */
     public CollatorComparator(final Collator newCollator )
     {
-        this.collator = newCollator;
+        this.collator = (Collator) newCollator.clone();
     }
 
     /*
@@ -82,12 +82,12 @@ public class CollatorComparator implements Comparator<String>, Serializable
 
     /**
      * Specify a new collator.
-     * 
+     *
      * @param newCollator the collator to be used from now on
      */
     public void setCollator(final Collator newCollator )
     {
-        this.collator = newCollator;
+        this.collator = (Collator) newCollator.clone();
     }
 
     private void readObject( final ObjectInputStream in ) throws IOException, ClassNotFoundException

@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 
 /**
@@ -233,18 +232,9 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
     @Override
     public boolean registerListener( final String cacheName, final String listener, final Object... args ) {
         if( enabled( cacheName ) && "expired".equals( listener ) ) {
-            final AtomicBoolean allRequested = ( AtomicBoolean ) args[ 0 ];
-            final Cache< Serializable, Object > cache = cacheMap.get( cacheName );
-
-            // In EhCache 3, we need to use the CacheEventListener interface
-            // Note: EhCache 3 requires listeners to be registered via configuration or RuntimeConfiguration
-            // For simplicity, we'll handle expiry tracking via the CacheInfo stats
-            // The allRequested flag will be set to false when cache is cleared or entries are removed
-
-            // EhCache 3.x event listener registration is more complex and typically done via XML config
-            // For programmatic registration, we would need access to the CacheConfiguration before cache creation
-            // As a workaround for the expiry notification, we'll track this differently
-
+            // EhCache 3.x event listener registration is typically done via XML config or the
+            // CacheConfiguration before cache creation, which we do not have access to here.
+            // Expiry is tracked indirectly via the CacheInfo stats instead.
             LOG.debug( "Expiry listener registered for cache {} (tracked via stats)", cacheName );
             return true;
         }

@@ -18,6 +18,7 @@
  */
 package com.wikantik.api.observability;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.micrometer.core.instrument.MeterRegistry;
 
 /**
@@ -46,11 +47,15 @@ public final class MeterRegistryHolder {
     private MeterRegistryHolder() {}
 
     /** Returns the shared registry, or {@code null} if none is installed. */
+    @SuppressFBWarnings( value = "MS_EXPOSE_REP",
+            justification = "Intentional: the holder exposes the process-wide MeterRegistry as a shared mutable service." )
     public static MeterRegistry get() {
         return registry;
     }
 
     /** Installs or replaces the shared registry. Called by the observability extension. */
+    @SuppressFBWarnings( value = "EI_EXPOSE_STATIC_REP2",
+            justification = "Intentional: the observability extension installs the process-wide registry here." )
     public static void set( final MeterRegistry r ) {
         registry = r;
     }

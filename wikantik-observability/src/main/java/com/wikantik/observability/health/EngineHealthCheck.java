@@ -20,6 +20,8 @@ package com.wikantik.observability.health;
 
 import com.wikantik.api.core.Engine;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Checks that the WikiEngine has been initialized and is configured.
  */
@@ -27,6 +29,8 @@ public class EngineHealthCheck implements HealthCheck {
 
     private final Engine engine;
 
+    @SuppressFBWarnings( value = "EI_EXPOSE_REP2",
+            justification = "Engine is the shared runtime singleton; the health check intentionally holds the live reference, not a copy." )
     public EngineHealthCheck( final Engine engine ) {
         this.engine = engine;
     }

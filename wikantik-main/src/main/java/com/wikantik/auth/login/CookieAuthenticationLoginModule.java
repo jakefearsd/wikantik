@@ -157,8 +157,8 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
      */
     private static File getCookieFile( final Engine engine, final String uid ) {
         final File cookieDir = new File( engine.getWorkDir(), COOKIE_DIR );
-        if( !cookieDir.exists() ) {
-            cookieDir.mkdirs();
+        if( !cookieDir.exists() && !cookieDir.mkdirs() ) {
+            LOG.warn( "Failed to create cookie directory: {}", cookieDir.getAbsolutePath() );
         }
         if( !cookieDir.canRead() ) {
             LOG.error( "Cannot read from cookie directory! {}", cookieDir.getAbsolutePath() );

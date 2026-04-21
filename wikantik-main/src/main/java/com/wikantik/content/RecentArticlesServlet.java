@@ -92,8 +92,8 @@ public class RecentArticlesServlet extends HttpServlet {
     private static final int DEFAULT_SINCE_DAYS = 30;
     private static final int DEFAULT_EXCERPT_LENGTH = 200;
 
-    private Engine engine;
-    private Gson gson;
+    private transient Engine engine;
+    private transient Gson gson;
 
     /**
      * {@inheritDoc}

@@ -48,6 +48,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -123,7 +124,7 @@ public class AdminKnowledgeResource extends RestServletBase {
      * method. Lambdas adapt each handler's specific signature to the common
      * {@link ResourceAction} contract.
      */
-    private final Map< String, Resource > resources = buildResources();
+    private transient Map< String, Resource > resources = buildResources();
 
     private Map< String, Resource > buildResources() {
         final Map< String, Resource > m = new LinkedHashMap<>();
@@ -162,6 +163,12 @@ public class AdminKnowledgeResource extends RestServletBase {
         m.put( "sync-hub-memberships", Resource.post(
                 ( svc, req, resp, seg ) -> handlePostSyncHubMemberships( resp ) ) );
         return Map.copyOf( m );
+    }
+
+    private void readObject( final ObjectInputStream in ) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        // Dispatch table holds non-serializable method references; rebuild after deserialization.
+        resources = buildResources();
     }
 
     @Override

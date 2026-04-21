@@ -114,7 +114,7 @@ public final class WikiSecurityEvent extends WikiEvent {
     /** The security logging service. */
     private static final Logger LOG = LogManager.getLogger( "SecurityLog" );
     
-    private final Principal principal;
+    private final transient Principal principal;
     
     private final Object      target;
 

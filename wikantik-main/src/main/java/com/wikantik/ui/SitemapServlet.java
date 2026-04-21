@@ -118,8 +118,8 @@ public class SitemapServlet extends HttpServlet {
         "jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"
     );
 
-    private Engine engine;
-    private SystemPageRegistry systemPageRegistry;
+    private transient Engine engine;
+    private transient SystemPageRegistry systemPageRegistry;
     private String configuredBaseUrl;
 
     @Override

@@ -119,8 +119,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 
         //  Check if the directory exists - if it doesn't, create it.
         final File f = new File( storageDir );
-        if( !f.exists() ) {
-            f.mkdirs();
+        if( !f.exists() && !f.mkdirs() ) {
+            LOG.warn( "Failed to create attachment storage directory: {}", storageDir );
         }
 
         // Some sanity checks
@@ -270,8 +270,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
     public void putAttachmentData( final Attachment att, final InputStream data ) throws ProviderException, IOException {
         final File attDir = findAttachmentDir( att );
 
-        if( !attDir.exists() ) {
-            attDir.mkdirs();
+        if( !attDir.exists() && !attDir.mkdirs() ) {
+            LOG.warn( "Failed to create attachment directory: {}", attDir.getAbsolutePath() );
         }
         final int latestVersion = findLatestVersion( att );
         final int versionNumber = latestVersion + 1;
@@ -528,9 +528,13 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         }
         for( final String filename : files ) {
             final File file = new File( dir.getAbsolutePath() + "/" + filename );
-            file.delete();
+            if( !file.delete() ) {
+                LOG.warn( "Failed to delete attachment file: {}", file.getAbsolutePath() );
+            }
         }
-        dir.delete();
+        if( !dir.delete() ) {
+            LOG.warn( "Failed to delete attachment directory: {}", dir.getAbsolutePath() );
+        }
     }
 
     /**
@@ -574,9 +578,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         // If it exists, we're overwriting an old page (this has already been confirmed at a higher level), so delete any existing attachments.
         if( destDir.exists() ) {
             LOG.error( "Page rename failed because target directory {} exists", destDir );
-        } else {
-            // destDir.getParentFile().mkdir();
-            srcDir.renameTo( destDir );
+        } else if( !srcDir.renameTo( destDir ) ) {
+            LOG.warn( "Failed to rename attachment dir {} to {}", srcDir, destDir );
         }
     }
 

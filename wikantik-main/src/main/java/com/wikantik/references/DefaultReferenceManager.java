@@ -111,7 +111,7 @@ import java.util.stream.Collectors;
 //        of problems that occur here...
 public class DefaultReferenceManager implements PageFilter, com.wikantik.api.managers.ReferenceManager, Serializable {
 
-    protected Engine engine;
+    protected transient Engine engine;
 
     /**
      *  Maps page wikiname to a Collection of pages it refers to. The Collection must contain Strings. The Collection may contain
@@ -177,8 +177,8 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         return ObjectInputFilter.Status.REJECTED;
     };
 
-    private final PageManager pageManager;
-    private final AttachmentManager attachmentManager;
+    private final transient PageManager pageManager;
+    private final transient AttachmentManager attachmentManager;
 
     /**
      *  Builds a new ReferenceManager with all dependencies injected directly.
@@ -458,8 +458,8 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         final String hashName = getHashFileName( p.getName() );
         if( hashName != null ) {
         	File f = new File( engine.getWorkDir(), SERIALIZATION_DIR );
-            if( !f.exists() ) {
-                f.mkdirs();
+            if( !f.exists() && !f.mkdirs() ) {
+                LOG.warn( "Failed to create reference serialization directory: {}", f.getAbsolutePath() );
             }
 
             //  Create a digest for the name
@@ -473,7 +473,9 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
                 if(entries.isEmpty()) {
                     //  Nothing to serialize, therefore we will just simply remove the serialization file so that the
                     //  next time we boot, we don't deserialize old data.
-                    f.delete();
+                    if( !f.delete() ) {
+                        LOG.warn( "Failed to delete stale reference serialization file: {}", f.getAbsolutePath() );
+                    }
                     return;
                 }
 
@@ -597,8 +599,8 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         if( hashName != null ) {
         	File f = new File( engine.getWorkDir(), SERIALIZATION_DIR );
             f = new File( f, getHashFileName( pageName ) );
-            if( f.exists() ) {
-                f.delete();
+            if( f.exists() && !f.delete() ) {
+                LOG.warn( "Failed to delete reference serialization file: {}", f.getAbsolutePath() );
             }
         }
     }

@@ -290,8 +290,9 @@ public class NewsPageGenerator extends WikiBackgroundThread {
             try {
                 final YearMonth ym = YearMonth.parse( date.substring( 0, 7 ) );
                 grouped.computeIfAbsent( ym, k -> new ArrayList<>() ).add( new String[]{ date, message } );
-            } catch( final Exception e ) {
-                // Skip malformed date
+            } catch( final java.time.format.DateTimeParseException e ) {
+                // Malformed date prefix — skip the line.
+                LOG.debug( "Skipping malformed date prefix in git log line: {}", date );
             }
         }
 

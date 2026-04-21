@@ -399,8 +399,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
         // This is a bit complicated.  We'll first need to copy the old file to be the newest file.
         final int  latest  = findLatestVersion( page.getName() );
         final File pageDir = findOldPageDir( page.getName() );
-        if( !pageDir.exists() ) {
-            pageDir.mkdirs();
+        if( !pageDir.exists() && !pageDir.mkdirs() ) {
+            LOG.warn( "Failed to create old version directory: {}", pageDir.getAbsolutePath() );
         }
 
         try {
@@ -420,7 +420,9 @@ public class VersioningFileProvider extends AbstractFileProvider {
                     FileUtil.copyContents( in, out );
 
                     // We need also to set the date, since we rely on this.
-                    pageFile.setLastModified( oldFile.lastModified() );
+                    if( !pageFile.setLastModified( oldFile.lastModified() ) ) {
+                        LOG.warn( "Failed to preserve last-modified timestamp on {}", pageFile.getAbsolutePath() );
+                    }
 
                     // Kludge to make the property code to work properly.
                     versionNumber++;
@@ -646,15 +648,19 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 return;
             }
             for( final File file : files ) {
-                file.delete();
+                if( !file.delete() ) {
+                    LOG.warn( "Failed to delete old version file: {}", file.getAbsolutePath() );
+                }
             }
 
             final File propfile = new File( dir, PROPERTYFILE );
-            if( propfile.exists() ) {
-                propfile.delete();
+            if( propfile.exists() && !propfile.delete() ) {
+                LOG.warn( "Failed to delete properties file: {}", propfile.getAbsolutePath() );
             }
 
-            dir.delete();
+            if( !dir.delete() ) {
+                LOG.warn( "Failed to delete versions directory: {}", dir.getAbsolutePath() );
+            }
         }
     }
 
@@ -695,7 +701,9 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 if( previousFile.exists() ) {
                     FileUtil.copyContents( in, out );
                     // We need also to set the date, since we rely on this.
-                    pageFile.setLastModified( previousFile.lastModified() );
+                    if( !pageFile.setLastModified( previousFile.lastModified() ) ) {
+                        LOG.warn( "Failed to preserve last-modified timestamp on {}", pageFile.getAbsolutePath() );
+                    }
                 }
             } catch( final IOException e ) {
                 LOG.fatal("Something wrong with the page directory - you may have just lost data!",e);
@@ -747,12 +755,16 @@ public class VersioningFileProvider extends AbstractFileProvider {
         // Move the file itself
         final File fromFile = findPage( from );
         final File toFile = findPage( to );
-        fromFile.renameTo( toFile );
+        if( !fromFile.renameTo( toFile ) ) {
+            LOG.warn( "Failed to rename page file {} to {}", fromFile, toFile );
+        }
 
         // Move any old versions
         final File fromOldDir = findOldPageDir( from );
         final File toOldDir = findOldPageDir( to );
-        fromOldDir.renameTo( toOldDir );
+        if( !fromOldDir.renameTo( toOldDir ) ) {
+            LOG.warn( "Failed to rename versions directory {} to {}", fromOldDir, toOldDir );
+        }
 
         // Invalidate file extension cache for both old and new page names
         invalidateFileExtensionCache( from );

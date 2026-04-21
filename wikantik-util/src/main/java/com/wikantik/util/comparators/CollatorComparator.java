@@ -19,6 +19,9 @@
 
 package com.wikantik.util.comparators;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.Serializable;
 import java.text.Collator;
 import java.util.Comparator;
 import java.util.Objects;
@@ -31,12 +34,14 @@ import java.util.Objects;
  * to <code>Comparator&lt;String&gt;</code>.
  * 
  */
-public class CollatorComparator implements Comparator<String>
+public class CollatorComparator implements Comparator<String>, Serializable
 {
+    private static final long serialVersionUID = 1L;
+
     // A special singleton instance for quick access
     public static final Comparator<String> DEFAULT_LOCALE_COMPARATOR = new CollatorComparator();
 
-    protected Collator collator;
+    protected transient Collator collator;
 
     /**
      * Default constructor uses the current locale's collator.
@@ -83,5 +88,12 @@ public class CollatorComparator implements Comparator<String>
     public void setCollator(final Collator newCollator )
     {
         this.collator = newCollator;
+    }
+
+    private void readObject( final ObjectInputStream in ) throws IOException, ClassNotFoundException
+    {
+        in.defaultReadObject();
+        // Collator is not Serializable; restore the default-locale instance on deserialization.
+        collator = Collator.getInstance();
     }
 }

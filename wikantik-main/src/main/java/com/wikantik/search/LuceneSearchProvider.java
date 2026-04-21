@@ -293,8 +293,8 @@ public class LuceneSearchProvider implements SearchProvider {
         final File dir = new File( luceneDirectory );
         LOG.info( "Lucene enabled, cache will be in: {}", dir.getAbsolutePath() );
         try {
-            if( !dir.exists() ) {
-                dir.mkdirs();
+            if( !dir.exists() && !dir.mkdirs() ) {
+                LOG.warn( "Failed to create Lucene directory: {}", dir.getAbsolutePath() );
             }
 
             if( !dir.exists() || !dir.canWrite() || !dir.canRead() ) {
@@ -351,8 +351,8 @@ public class LuceneSearchProvider implements SearchProvider {
      */
     protected void doFullLuceneReindex() throws IOException {
         final File dir = new File( luceneDirectory );
-        if( !dir.exists() ) {
-            dir.mkdirs();
+        if( !dir.exists() && !dir.mkdirs() ) {
+            LOG.warn( "Failed to create Lucene directory: {}", dir.getAbsolutePath() );
         }
         final String[] filelist = dir.list();
         if( filelist == null ) {

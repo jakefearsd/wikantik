@@ -42,6 +42,7 @@ import java.util.TreeSet;
  * java -cp classes TranslationsCheck fi
  * </code>
  */
+@SuppressWarnings("PMD.SystemPrintln")
 public class TranslationsCheck {
 
     private final static String[] LANGS = { "en", "es", "ru" };
@@ -59,7 +60,6 @@ public class TranslationsCheck {
     // Change these to your settings...
     String base = ".";
     String suffix;
-
     public static void main( final String[] args ) throws IOException {
         final TranslationsCheck translations = new TranslationsCheck();
         if( args.length == 0 ) {

@@ -227,9 +227,9 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         // Get the existing user; if not found, throws NoSuchPrincipalException
         findByLoginName( loginNameToDelete );
 
-        try( final Connection conn = ds.getConnection() ;
-             final PreparedStatement ps1 = conn.prepareStatement( DELETE_USER );
-             final PreparedStatement ps2 = conn.prepareStatement( DELETE_ROLES ) )
+        try( Connection conn = ds.getConnection() ;
+             PreparedStatement ps1 = conn.prepareStatement( DELETE_USER );
+             PreparedStatement ps2 = conn.prepareStatement( DELETE_ROLES ) )
         {
             // Open the database connection
             if( supportsCommits ) {
@@ -303,9 +303,9 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     @Override
     public Principal[] getWikiNames() throws WikiSecurityException {
         final Set<Principal> principals = new HashSet<>();
-        try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( FIND_ALL );
-             final ResultSet rs = ps.executeQuery() ) {
+        try( Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement( FIND_ALL );
+             ResultSet rs = ps.executeQuery() ) {
             while( rs.next() ) {
                 final String wikiNameValue = rs.getString( "wiki_name" );
                 if( StringUtils.isEmpty( wikiNameValue ) ) {
@@ -334,11 +334,11 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             ds = (DataSource) ctx.lookup( jndiName );
         } catch( final NamingException e ) {
             LOG.error( "JDBCUserDatabase initialization error: {}", e.getMessage() );
-            throw new NoRequiredPropertyException( AbstractJDBCDatabase.PROP_DATASOURCE, "JDBCUserDatabase initialization error: " + e.getMessage() );
+            throw new NoRequiredPropertyException( AbstractJDBCDatabase.PROP_DATASOURCE, "JDBCUserDatabase initialization error: " + e.getMessage(), e );
         }
 
         // Test connection by doing a quickie select
-        try( final Connection conn = ds.getConnection(); final PreparedStatement ps = conn.prepareStatement( FIND_ALL ) ) {
+        try( Connection conn = ds.getConnection(); final PreparedStatement ps = conn.prepareStatement( FIND_ALL ) ) {
         } catch( final SQLException e ) {
             LOG.error( "DB connectivity error: {}", e.getMessage() );
             throw new WikiSecurityException("DB connectivity error: " + e.getMessage(), e );
@@ -346,7 +346,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         LOG.info( "JDBCUserDatabase initialized from JNDI DataSource: {}", jndiName );
 
         // Determine if the datasource supports commits
-        try( final Connection conn = ds.getConnection() ) {
+        try( Connection conn = ds.getConnection() ) {
             final DatabaseMetaData dmd = conn.getMetaData();
             if( dmd.supportsTransactions() ) {
                 supportsCommits = true;
@@ -376,9 +376,9 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             // Good! That means it's safe to save using the new name
         }
 
-        try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps1 = conn.prepareStatement( RENAME_PROFILE );
-             final PreparedStatement ps2 = conn.prepareStatement( RENAME_ROLES ) ) {
+        try( Connection conn = ds.getConnection();
+             PreparedStatement ps1 = conn.prepareStatement( RENAME_PROFILE );
+             PreparedStatement ps2 = conn.prepareStatement( RENAME_ROLES ) ) {
             if( supportsCommits ) {
                 conn.setAutoCommit( false );
             }
@@ -443,11 +443,11 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             password = getHash( password );
         }
 
-        try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps1 = conn.prepareStatement( INSERT_PROFILE );
-             final PreparedStatement ps2 = conn.prepareStatement( FIND_ROLES );
-             final PreparedStatement ps3 = conn.prepareStatement( INSERT_ROLE );
-             final PreparedStatement ps4 = conn.prepareStatement( UPDATE_PROFILE ) ) {
+        try( Connection conn = ds.getConnection();
+             PreparedStatement ps1 = conn.prepareStatement( INSERT_PROFILE );
+             PreparedStatement ps2 = conn.prepareStatement( FIND_ROLES );
+             PreparedStatement ps3 = conn.prepareStatement( INSERT_ROLE );
+             PreparedStatement ps4 = conn.prepareStatement( UPDATE_PROFILE ) ) {
             if( supportsCommits ) {
                 conn.setAutoCommit( false );
             }
@@ -464,7 +464,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 // Insert new role record
                 ps2.setString( 1, profile.getLoginName() );
                 int roles = 0;
-                try ( final ResultSet rs = ps2.executeQuery() ) {
+                try ( ResultSet rs = ps2.executeQuery() ) {
                     while ( rs.next() ) {
                         roles++;
                     }
@@ -531,7 +531,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         UserProfile profile = null;
         boolean found = false;
         boolean unique = true;
-        try( final Connection conn = ds.getConnection(); final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = ds.getConnection(); final PreparedStatement ps = conn.prepareStatement( sql ) ) {
             if( supportsCommits ) {
                 conn.setAutoCommit( false );
             }
@@ -546,7 +546,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             }
             
             // Go and get the record!
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 while ( rs.next() ) {
                     if( profile != null ) {
                         unique = false;
@@ -583,7 +583,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 }
             }
         } catch( final SQLException e ) {
-            throw new NoSuchPrincipalException( e.getMessage() );
+            throw new NoSuchPrincipalException( e.getMessage(), e );
         }
 
         if( !found ) {

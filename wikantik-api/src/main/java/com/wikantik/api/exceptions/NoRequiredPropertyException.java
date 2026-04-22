@@ -40,4 +40,15 @@ public class NoRequiredPropertyException extends WikiException {
         super( msg + ": key=" + key );
     }
 
+    /**
+     *  Constructs an exception with a cause.
+     *
+     *  @param msg Message to show
+     *  @param key The key of the property in question.
+     *  @param cause Underlying cause.
+     */
+    public NoRequiredPropertyException( final String msg, final String key, final Throwable cause ) {
+        super( msg + ": key=" + key, cause );
+    }
+
 }

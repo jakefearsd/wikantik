@@ -125,18 +125,18 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         final String groupName = group.getName();
         try {
             runInTransaction( conn -> {
-                try( final PreparedStatement ps1 = conn.prepareStatement( DELETE_GROUP ) ) {
+                try( PreparedStatement ps1 = conn.prepareStatement( DELETE_GROUP ) ) {
                     ps1.setString( 1, groupName );
                     ps1.execute();
                 }
 
-                try( final PreparedStatement ps2 = conn.prepareStatement( DELETE_MEMBERS ) ) {
+                try( PreparedStatement ps2 = conn.prepareStatement( DELETE_MEMBERS ) ) {
                     ps2.setString( 1, groupName );
                     ps2.execute();
                 }
                 return null;
             } );
-        } catch( final WikiSecurityException e ) {
+        } catch( final WikiSecurityException e ) { //NOPMD - e.getCause() is explicitly passed as the chained cause below
             // Preserve the original error message format for delete failures
             if( e.getCause() instanceof SQLException ) {
                 throw new WikiSecurityException( "Could not delete group " + groupName + ": " + e.getCause().getMessage(), e.getCause() );
@@ -159,9 +159,9 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
     @Override public Group[] groups() throws WikiSecurityException
     {
         final Set<Group> groups = new HashSet<>();
-        try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( FIND_ALL );
-             final ResultSet rs = ps.executeQuery() )
+        try( Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement( FIND_ALL );
+             ResultSet rs = ps.executeQuery() )
         {
             while ( rs.next() )
             {
@@ -221,7 +221,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
             if( !exists )
             {
                 // Group is new: insert new group record
-                try( final PreparedStatement ps = conn.prepareStatement( INSERT_GROUP ) ) {
+                try( PreparedStatement ps = conn.prepareStatement( INSERT_GROUP ) ) {
                     ps.setString( 1, group.getName() );
                     ps.setTimestamp( 2, ts );
                     ps.setString( 3, modifier.getName() );
@@ -237,7 +237,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
             else
             {
                 // Modify existing group record
-                try( final PreparedStatement ps = conn.prepareStatement( UPDATE_GROUP ) ) {
+                try( PreparedStatement ps = conn.prepareStatement( UPDATE_GROUP ) ) {
                     ps.setTimestamp( 1, ts );
                     ps.setString( 2, modifier.getName() );
                     ps.setString( 3, group.getName() );
@@ -251,13 +251,13 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
             // Now, update the group member list
 
             // First, delete all existing member records
-            try( final PreparedStatement ps = conn.prepareStatement( DELETE_MEMBERS ) ) {
+            try( PreparedStatement ps = conn.prepareStatement( DELETE_MEMBERS ) ) {
                 ps.setString( 1, group.getName() );
                 ps.execute();
             }
 
             // Insert group member records
-            try( final PreparedStatement ps = conn.prepareStatement( INSERT_MEMBERS ) ) {
+            try( PreparedStatement ps = conn.prepareStatement( INSERT_MEMBERS ) ) {
                 final Principal[] members = group.members();
                 for( final Principal member : members ) {
                     ps.setString( 1, group.getName() );
@@ -292,12 +292,12 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         catch( final NamingException e )
         {
             LOG.error( "JDBCGroupDatabase initialization error: {}", e.toString() );
-            throw new NoRequiredPropertyException( PROP_DATASOURCE, "JDBCGroupDatabase initialization error: " + e);
+            throw new NoRequiredPropertyException( PROP_DATASOURCE, "JDBCGroupDatabase initialization error: " + e, e );
         }
 
         // Test connection
-        try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( FIND_ALL ) )
+        try( Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement( FIND_ALL ) )
         {
         }
         catch( final SQLException e )
@@ -308,7 +308,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         LOG.info( "JDBCGroupDatabase initialized from JNDI DataSource: {}", jndiName );
 
         // Determine if the datasource supports commits
-        try( final Connection conn = ds.getConnection() )
+        try( Connection conn = ds.getConnection() )
         {
             final DatabaseMetaData dmd = conn.getMetaData();
             if( dmd.supportsTransactions() )
@@ -358,11 +358,11 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         Group group = null;
         boolean found = false;
         boolean unique = true;
-        try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( FIND_GROUP ) )
+        try( Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement( FIND_GROUP ) )
         {
             ps.setString( 1, index );
-            try( final ResultSet rs = ps.executeQuery() )
+            try( ResultSet rs = ps.executeQuery() )
             {
                 while ( rs.next() )
                 {
@@ -383,7 +383,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
         }
         catch( final SQLException e )
         {
-            throw new NoSuchPrincipalException( e.getMessage() );
+            throw new NoSuchPrincipalException( e.getMessage(), e );
         }
 
         if( !found )
@@ -405,11 +405,11 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
      */
     private Group populateGroup( final Group group )
     {
-        try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( FIND_MEMBERS ) )
+        try( Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement( FIND_MEMBERS ) )
         {
             ps.setString( 1, group.getName() );
-            try( final ResultSet rs = ps.executeQuery() )
+            try( ResultSet rs = ps.executeQuery() )
             {
                 while ( rs.next() )
                 {

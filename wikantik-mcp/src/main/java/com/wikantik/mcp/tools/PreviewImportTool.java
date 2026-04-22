@@ -174,7 +174,7 @@ public class PreviewImportTool implements McpTool {
      */
     static Map< String, Path > collectMarkdownFiles( final Path dir ) throws IOException {
         final Map< String, Path > result = new TreeMap<>();
-        try ( final Stream< Path > files = Files.list( dir ) ) {
+        try ( Stream< Path > files = Files.list( dir ) ) {
             files.filter( p -> !Files.isDirectory( p ) )
                  .filter( p -> p.getFileName().toString().endsWith( ".md" ) )
                  .filter( p -> !p.getFileName().toString().startsWith( "_" ) )

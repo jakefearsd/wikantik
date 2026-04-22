@@ -77,6 +77,7 @@ public final class CryptoUtil {
      * @param args arguments for this method as described above
      * @throws Exception Catches nothing; throws everything up.
      */
+    @SuppressWarnings("PMD.SystemPrintln")
     public static void main( final String[] args ) throws Exception {
         // Print help if the user requested it, or if no arguments
         if( args.length == 0 || ( args.length == 1 && HELP.equals( args[0] ) ) ) {
@@ -160,7 +161,7 @@ public final class CryptoUtil {
         //The term SSHA is used as a password prefix for backwards compatibility, but we use SHA-1 when fetching an instance
         //of MessageDigest, as it is the guaranteed option. We also need to remove curly braces surrounding the string for
         //backwards compatibility.
-        final String algorithmToUse = algorithm.equals(SSHA) ? SHA1 : algorithm;
+        final String algorithmToUse = SSHA.equals(algorithm) ? SHA1 : algorithm;
         final MessageDigest digest = MessageDigest.getInstance( algorithmToUse.substring( 1, algorithmToUse.length() -1 ) );
         digest.update( password );
         final byte[] hash = digest.digest( salt );
@@ -190,14 +191,14 @@ public final class CryptoUtil {
         final byte[] challenge = Base64.getDecoder().decode( entry.substring( algorithm.length() ).getBytes( StandardCharsets.UTF_8 ) );
 
         // Extract the password hash and salt
-        final byte[] passwordHash = extractPasswordHash( challenge, algorithm.equals( SSHA ) ? 20 : 32 );
-        final byte[] salt = extractSalt( challenge, algorithm.equals( SSHA ) ? 20 : 32  );
+        final byte[] passwordHash = extractPasswordHash( challenge, SSHA.equals( algorithm ) ? 20 : 32 );
+        final byte[] salt = extractSalt( challenge, SSHA.equals( algorithm ) ? 20 : 32  );
 
         // Re-create the hash using the password and the extracted salt
         // The term SSHA is used as a password prefix for backwards compatibility, but we use SHA-1 when fetching an instance
         // of MessageDigest, as it is the guaranteed option. We also need to remove curly braces surrounding the string for
         // backwards compatibility.
-        final String algorithmToUse = algorithm.equals( SSHA ) ? SHA1 : algorithm;
+        final String algorithmToUse = SSHA.equals( algorithm ) ? SHA1 : algorithm;
         final MessageDigest digest = MessageDigest.getInstance( algorithmToUse.substring( 1, algorithmToUse.length() -1 ) );
         digest.update( password );
         final byte[] hash = digest.digest( salt );

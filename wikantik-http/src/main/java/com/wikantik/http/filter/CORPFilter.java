@@ -31,6 +31,7 @@ public class CORPFilter implements Filter {
 
     private String mode = "same-origin";
 
+    @Override
     public void init(FilterConfig filterConfig) {
         String configMode = filterConfig.getInitParameter("CORPValue");
         if (configMode != null) {

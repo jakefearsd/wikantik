@@ -33,6 +33,7 @@ public class STSFilter implements Filter {
 
     private String mode = "max-age=63072000; includeSubDomains; preload";
 
+    @Override
     public void init(FilterConfig filterConfig) {
         String configMode = filterConfig.getInitParameter("STSValue");
         if (configMode != null) {

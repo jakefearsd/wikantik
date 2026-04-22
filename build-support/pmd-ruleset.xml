@@ -38,6 +38,18 @@
         <exclude name="EmptyStatementNotInLoop"/>
         <!-- Beans/DTOs legitimately want mutable fields. -->
         <exclude name="DataflowAnomalyAnalysis"/>
+        <!-- Fires on idiomatic `while ((line = reader.readLine()) != null)`,
+             `ps.setString(idx++, ...)`, and `while ((n = in.read(buf)) > 0)` patterns
+             used throughout the tree. ~47 sites, almost all legitimate. -->
+        <exclude name="AssignmentInOperand"/>
+        <!-- Legacy java.util.Date is baked into public APIs (UserProfile, PageLock,
+             ArticleSummary) and JDBC column types. A full migration to java.time is
+             a separate API-breaking project, not a cleanup sweep — ~128 sites across
+             50 files. Suppress until scheduled. -->
+        <exclude name="ReplaceJavaUtilDate"/>
+        <!-- Same rationale as ReplaceJavaUtilDate — Calendar is used alongside Date
+             in the same legacy code paths. -->
+        <exclude name="ReplaceJavaUtilCalendar"/>
     </rule>
 
     <!-- EmptyCatchBlock: enforce project rule (log, don't swallow) but
@@ -58,15 +70,23 @@
     <rule ref="category/java/bestpractices.xml">
         <!-- Interface / servlet-override false positives. -->
         <exclude name="UnusedFormalParameter"/>
+        <!-- Flags legitimate uses of ConcurrentHashMap/ConcurrentLinkedDeque/TreeSet/
+             LinkedHashMap where the concrete type carries meaningful semantics
+             (thread-safety, ordering, insertion order). The ArrayList/HashMap cases
+             are mostly local-variable declarations where the concrete type is fine.
+             ~75 sites, low signal. -->
+        <exclude name="LooseCoupling"/>
         <!-- Log4j2 parameterized logging already handles this; rule fires on
              every LOG.debug("x {}", arg) call that PMD can't parse. -->
         <exclude name="GuardLogStatement"/>
-        <!-- Test-style rules — turn on once we have budget for it. -->
-        <exclude name="JUnitTestContainsTooManyAsserts"/>
-        <exclude name="JUnitTestsShouldIncludeAssert"/>
-        <exclude name="JUnitAssertionsShouldIncludeMessage"/>
-        <exclude name="JUnit4TestShouldUseTestAnnotation"/>
-        <exclude name="JUnit5TestShouldBePackagePrivate"/>
+        <!-- Test-style rules — turn on once we have budget for it.
+             Names below are the PMD 7 spellings (Unit*, not JUnit*). -->
+        <exclude name="UnitTestContainsTooManyAsserts"/>
+        <exclude name="UnitTestShouldIncludeAssert"/>
+        <exclude name="UnitTestAssertionsShouldIncludeMessage"/>
+        <exclude name="UnitTestShouldUseTestAnnotation"/>
+        <exclude name="UnitTestShouldUseBeforeAnnotation"/>
+        <exclude name="UnitTestShouldUseAfterAnnotation"/>
         <!-- Very noisy; subclasses override protected members across the tree. -->
         <exclude name="AccessorClassGeneration"/>
         <exclude name="AccessorMethodGeneration"/>
@@ -83,6 +103,14 @@
         <exclude name="AvoidInstantiatingObjectsInLoops"/>
         <!-- Style nit, not a perf issue. -->
         <exclude name="TooFewBranchesForSwitch"/>
+        <!-- StringBuilder micro-perf rules: ~330 sites across the tree, all
+             marginal (modern JIT elides the allocations these flag). Keep the
+             signal rule (AppendCharacterWithChar — cheap char vs string) and
+             drop the multi-line chain/capacity rules that generate yellow-sea
+             reports with no measurable gain. -->
+        <exclude name="ConsecutiveAppendsShouldReuse"/>
+        <exclude name="ConsecutiveLiteralAppends"/>
+        <exclude name="InsufficientStringBufferDeclaration"/>
     </rule>
 
     <!-- ================================================================ -->

@@ -49,7 +49,7 @@ public class BuildVersionFilter implements Filter {
 
     @Override
     public void init( final FilterConfig config ) throws ServletException {
-        try ( final InputStream in = config.getServletContext().getResourceAsStream( "/build-version.txt" ) ) {
+        try ( InputStream in = config.getServletContext().getResourceAsStream( "/build-version.txt" ) ) {
             if ( in != null ) {
                 buildVersion = new String( in.readAllBytes(), StandardCharsets.UTF_8 ).trim();
                 LOG.info( "Build version: {}", buildVersion );

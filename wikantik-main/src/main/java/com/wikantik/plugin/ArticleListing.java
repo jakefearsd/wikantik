@@ -122,7 +122,7 @@ public class ArticleListing implements Plugin {
 
         } catch ( final Exception e ) {
             LOG.warn( "Error executing ArticleListing plugin", e );
-            throw new PluginException( "Error listing blog entries: " + e.getMessage() );
+            throw new PluginException( "Error listing blog entries: " + e.getMessage(), e );
         }
     }
 

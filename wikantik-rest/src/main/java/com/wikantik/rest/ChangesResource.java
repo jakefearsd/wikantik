@@ -24,6 +24,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.util.BaseUrlResolver;
+import java.util.Locale;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -162,7 +163,7 @@ public class ChangesResource extends RestServletBase {
         };
         ParseException last = null;
         for ( final String p : patterns ) {
-            final SimpleDateFormat f = new SimpleDateFormat( p );
+            final SimpleDateFormat f = new SimpleDateFormat( p, Locale.ROOT );
             f.setTimeZone( TimeZone.getTimeZone( "UTC" ) );
             f.setLenient( false );
             try {

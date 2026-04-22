@@ -33,6 +33,7 @@ public class ClearSiteDataFilter implements Filter {
 
     private String mode = "\"cookies\", \"storage\"";
 
+    @Override
     public void init(FilterConfig filterConfig) {
         String configMode = filterConfig.getInitParameter("CSDValue");
         if (configMode != null) {

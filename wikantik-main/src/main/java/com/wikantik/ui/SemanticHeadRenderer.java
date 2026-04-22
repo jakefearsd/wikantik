@@ -20,6 +20,7 @@ package com.wikantik.ui;
 
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
+import java.util.Locale;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -233,7 +234,7 @@ public final class SemanticHeadRenderer {
         sb.append( "\"@context\":\"https://schema.org\"," );
         if ( isHub ) {
             sb.append( "\"@type\":\"CollectionPage\"," );
-            sb.append( "\"name\":" ).append( jsonStr( pageName ) ).append( "," );
+            sb.append( "\"name\":" ).append( jsonStr( pageName ) ).append(',');
             if ( !related.isEmpty() ) {
                 sb.append( "\"hasPart\":[" );
                 for ( int i = 0; i < related.size(); i++ ) {
@@ -243,7 +244,7 @@ public final class SemanticHeadRenderer {
                     }
                     sb.append( '{' );
                     sb.append( "\"@type\":\"Article\"," );
-                    sb.append( "\"name\":" ).append( jsonStr( rel ) ).append( "," );
+                    sb.append( "\"name\":" ).append( jsonStr( rel ) ).append(',');
                     sb.append( "\"url\":" ).append( jsonStr( baseUrl + "/wiki/" + rel ) );
                     sb.append( '}' );
                 }
@@ -252,31 +253,31 @@ public final class SemanticHeadRenderer {
         } else {
             sb.append( "\"@type\":\"Article\"," );
         }
-        sb.append( "\"headline\":" ).append( jsonStr( pageName ) ).append( "," );
+        sb.append( "\"headline\":" ).append( jsonStr( pageName ) ).append(',');
         if ( !description.isBlank() ) {
-            sb.append( "\"description\":" ).append( jsonStr( description ) ).append( "," );
+            sb.append( "\"description\":" ).append( jsonStr( description ) ).append(',');
         }
         if ( !keywords.isBlank() ) {
-            sb.append( "\"keywords\":" ).append( jsonStr( keywords ) ).append( "," );
+            sb.append( "\"keywords\":" ).append( jsonStr( keywords ) ).append(',');
         }
         if ( !datePublished.isBlank() ) {
-            sb.append( "\"datePublished\":" ).append( jsonStr( datePublished ) ).append( "," );
+            sb.append( "\"datePublished\":" ).append( jsonStr( datePublished ) ).append(',');
         }
         if ( modified != null ) {
-            final SimpleDateFormat modFmt = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" );
+            final SimpleDateFormat modFmt = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ROOT );
             modFmt.setTimeZone( TimeZone.getTimeZone( "UTC" ) );
-            sb.append( "\"dateModified\":" ).append( jsonStr( modFmt.format( modified ) ) ).append( "," );
+            sb.append( "\"dateModified\":" ).append( jsonStr( modFmt.format( modified ) ) ).append(',');
         }
         if ( !cluster.isBlank() ) {
-            sb.append( "\"articleSection\":" ).append( jsonStr( cluster ) ).append( "," );
+            sb.append( "\"articleSection\":" ).append( jsonStr( cluster ) ).append(',');
         }
         sb.append( "\"publisher\":{\"@type\":\"Organization\",\"name\":" )
           .append( jsonStr( appName ) ).append( "}," );
         sb.append( "\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":" )
-          .append( jsonStr( canonical ) ).append( "}" );
+          .append( jsonStr( canonical ) ).append('}');
         if ( !isHub && !cluster.isBlank() ) {
             sb.append( ",\"isPartOf\":{\"@type\":\"CollectionPage\",\"name\":" )
-              .append( jsonStr( cluster ) ).append( "}" );
+              .append( jsonStr( cluster ) ).append('}');
         }
         if ( !isHub && !related.isEmpty() ) {
             sb.append( ",\"relatedLink\":[" );
@@ -306,7 +307,7 @@ public final class SemanticHeadRenderer {
           .append( jsonStr( baseUrl + "/wiki/" + cluster ) ).append( "}," );
         sb.append( "{\"@type\":\"ListItem\",\"position\":3,\"name\":" )
           .append( jsonStr( pageName ) ).append( ",\"item\":" )
-          .append( jsonStr( canonical ) ).append( "}" );
+          .append( jsonStr( canonical ) ).append('}');
         sb.append( "]}" );
         return sb.toString();
     }
@@ -318,7 +319,7 @@ public final class SemanticHeadRenderer {
             return "";
         }
         if ( value instanceof Date date ) {
-            return new SimpleDateFormat( "yyyy-MM-dd" ).format( date );
+            return new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).format( date );
         }
         return value.toString();
     }
@@ -328,7 +329,7 @@ public final class SemanticHeadRenderer {
             return "";
         }
         if ( value instanceof Date date ) {
-            return new SimpleDateFormat( "yyyy-MM-dd" ).format( date );
+            return new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).format( date );
         }
         return value.toString();
     }

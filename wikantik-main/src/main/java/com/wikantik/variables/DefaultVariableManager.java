@@ -226,7 +226,7 @@ public class DefaultVariableManager implements VariableManager {
         // 8. Default empty values for well-known variables ("error", "msg").
         //    Uses the original name to preserve the original case-sensitive comparison.
         chain.add( ( lowerName, originalName, context ) -> {
-            if( originalName.equals( VAR_ERROR ) || originalName.equals( VAR_MSG ) ) {
+            if( VAR_ERROR.equals( originalName ) || VAR_MSG.equals( originalName ) ) {
                 return "";
             }
             return null;
@@ -350,7 +350,7 @@ public class DefaultVariableManager implements VariableManager {
      */
     private static String metadataToString( final Object value ) {
         if ( value instanceof Date date ) {
-            return new java.text.SimpleDateFormat( "yyyy-MM-dd" ).format( date );
+            return new java.text.SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).format( date );
         }
         if ( value instanceof List< ? > list ) {
             return list.stream()

@@ -61,6 +61,8 @@ public final class ExperimentFinalSweep {
 
     private ExperimentFinalSweep() {}
 
+    @SuppressWarnings("PMD.SystemPrintln")
+
     public static void main( final String[] args ) throws IOException, SQLException {
         if( args.length < 1 ) { System.err.println( "Usage: ExperimentFinalSweep <model-code>" ); System.exit( 2 ); }
         final String modelCode = args[ 0 ];
@@ -70,7 +72,7 @@ public final class ExperimentFinalSweep {
 
         final List< EvalQuery > queries = QueryCorpus.load( csv );
         final TextEmbeddingClient client = ExperimentHarness.buildClient( modelCode );
-        final Bm25Client bm25 = Bm25Client.fromSystemProperties();
+        Bm25Client bm25 = Bm25Client.fromSystemProperties();
 
         try( final Connection conn = ExperimentDb.open() ) {
             final ChunkCorpus corpus = ExperimentHarness.loadCorpus( conn, model.code(), client.dimension() );

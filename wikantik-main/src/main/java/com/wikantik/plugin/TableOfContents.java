@@ -127,13 +127,13 @@ public class TableOfContents implements Plugin, HeadingListener {
             switch( hd.level )
             {
             case Heading.HEADING_SMALL:
-                buf.append( prefix ).append( level1Index ).append( "." ).append( level2Index ).append( "." ).append( level3Index ).append( " " );
+                buf.append( prefix ).append( level1Index ).append('.').append( level2Index ).append('.').append( level3Index ).append(' ');
                 break;
             case Heading.HEADING_MEDIUM:
-                buf.append( prefix ).append( level1Index ).append( "." ).append( level2Index ).append( " " );
+                buf.append( prefix ).append( level1Index ).append('.').append( level2Index ).append(' ');
                 break;
             case Heading.HEADING_LARGE:
-                buf.append( prefix ).append( level1Index ).append( " " );
+                buf.append( prefix ).append( level1Index ).append(' ');
                 break;
             default:
                 throw new InternalWikiException("Unknown depth in toc! (Please submit a bug report.)");
@@ -176,9 +176,9 @@ public class TableOfContents implements Plugin, HeadingListener {
         usingNumberedList = false;
         if( params.containsKey( PARAM_NUMBERED ) ) {
             final String numbered = params.get( PARAM_NUMBERED );
-            if( numbered.equalsIgnoreCase( "true" ) ) {
+            if( "true".equalsIgnoreCase( numbered ) ) {
                 usingNumberedList = true;
-            } else if( numbered.equalsIgnoreCase( "yes" ) ) {
+            } else if( "yes".equalsIgnoreCase( numbered ) ) {
                 usingNumberedList = true;
             }
         }
@@ -213,7 +213,7 @@ public class TableOfContents implements Plugin, HeadingListener {
 
 				} catch( final Exception e ) {
 					LOG.error("Could not construct table of contents: Filter Error", e);
-					throw new PluginException("Unable to construct table of contents (see logs)");
+					throw new PluginException("Unable to construct table of contents (see logs)", e);
 				}
             }
 

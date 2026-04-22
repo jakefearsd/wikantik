@@ -220,6 +220,7 @@ public final class PagePermission extends Permission implements Serializable
      * @param obj {@inheritDoc}
      * @return {@inheritDoc}
      */
+    @Override
     public boolean equals( final Object obj ) {
         if ( !( obj instanceof PagePermission ) ) {
             return false;
@@ -265,6 +266,7 @@ public final class PagePermission extends Permission implements Serializable
      * Returns the hash code for this PagePermission.
      * @return {@inheritDoc}
      */
+    @Override
     public int hashCode() {
         //  If the wiki has not been set, uses a dummy value for the hashcode
         //  calculation.  This may occur if the page given does not refer
@@ -342,6 +344,7 @@ public final class PagePermission extends Permission implements Serializable
      * 
      * @return Something human-readable
      */
+    @Override
     public String toString()
     {
         final String wikiStr = ( wiki == null ) ? "" : wiki;
@@ -405,7 +408,7 @@ public final class PagePermission extends Permission implements Serializable
         }
 
         // If super is "*", it's a subset
-        if ( superSet.equals( WILDCARD ) )
+        if ( WILDCARD.equals( superSet ) )
         {
             return true;
         }
@@ -443,31 +446,31 @@ public final class PagePermission extends Permission implements Serializable
         final String[] actionList = StringUtils.split( actions, ACTION_SEPARATOR );
         for( final String action : actionList )
         {
-            if ( action.equalsIgnoreCase( VIEW_ACTION ) )
+            if ( VIEW_ACTION.equalsIgnoreCase( action ) )
             {
                 mask |= VIEW_MASK;
             }
-            else if ( action.equalsIgnoreCase( EDIT_ACTION ) )
+            else if ( EDIT_ACTION.equalsIgnoreCase( action ) )
             {
                 mask |= EDIT_MASK;
             }
-            else if ( action.equalsIgnoreCase( COMMENT_ACTION ) )
+            else if ( COMMENT_ACTION.equalsIgnoreCase( action ) )
             {
                 mask |= COMMENT_MASK;
             }
-            else if ( action.equalsIgnoreCase( MODIFY_ACTION ) )
+            else if ( MODIFY_ACTION.equalsIgnoreCase( action ) )
             {
                 mask |= MODIFY_MASK;
             }
-            else if ( action.equalsIgnoreCase( UPLOAD_ACTION ) )
+            else if ( UPLOAD_ACTION.equalsIgnoreCase( action ) )
             {
                 mask |= UPLOAD_MASK;
             }
-            else if ( action.equalsIgnoreCase( DELETE_ACTION ) )
+            else if ( DELETE_ACTION.equalsIgnoreCase( action ) )
             {
                 mask |= DELETE_MASK;
             }
-            else if ( action.equalsIgnoreCase( RENAME_ACTION ) )
+            else if ( RENAME_ACTION.equalsIgnoreCase( action ) )
             {
                 mask |= RENAME_MASK;
             }

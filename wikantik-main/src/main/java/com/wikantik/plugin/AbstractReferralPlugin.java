@@ -55,7 +55,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-import java.util.stream.Collectors;
 
 /**
  *  This is a base class for all plugins using referral things.
@@ -195,15 +194,15 @@ public abstract class AbstractReferralPlugin implements Plugin {
         // LOG.debug( "Requested maximum width is "+maxwidth );
         s = params.get(PARAM_SHOW);
         if ( s != null ) {
-            if ( s.equalsIgnoreCase( "count" ) ) {
+            if ( "count".equalsIgnoreCase( s ) ) {
                 show = "count";
             }
         }
 
         s = params.get( PARAM_LASTMODIFIED );
         if ( s != null ) {
-            if ( s.equalsIgnoreCase( "true" ) ) {
-                if ( show.equals( "count" ) ) {
+            if ( "true".equalsIgnoreCase( s ) ) {
+                if ( "count".equals( show ) ) {
                     lastModified = true;
                 } else {
                     throw new PluginException( "showLastModified=true is only valid if show=count is also specified" );
@@ -287,7 +286,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
             final char c = glob.charAt( i );
             switch( c ) {
                 case '*': regex.append( ".*" ); break;
-                case '?': regex.append( "." ); break;
+                case '?': regex.append('.'); break;
                 case '.': regex.append( "\\." ); break;
                 case '\\': regex.append( "\\\\" ); break;
                 case '(': regex.append( "\\(" ); break;
@@ -326,7 +325,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
             }
             return compiled;
         } catch ( final PatternSyntaxException e ) {
-            throw new PluginException( paramName + "-parameter has a malformed pattern: " + e.getMessage() );
+            throw new PluginException( paramName + "-parameter has a malformed pattern: " + e.getMessage(), e );
         }
     }
 
@@ -387,10 +386,10 @@ public abstract class AbstractReferralPlugin implements Plugin {
             final String title = engine.getManager( RenderingManager.class ).beautifyTitle( value );
             if( useMarkdownLinks ) {
                 // Markdown link: [title](pageName)
-                output.append( "[" ).append( title ).append( "](" ).append( value ).append( ")" );
+                output.append('[').append( title ).append( "](" ).append( value ).append(')');
             } else {
                 // Legacy wiki link: [title|pageName]
-                output.append( "[" ).append( title ).append( "|" ).append( value ).append( "]" );
+                output.append('[').append( title ).append('|').append( value ).append(']');
             }
             count++;
         }
@@ -470,13 +469,13 @@ public abstract class AbstractReferralPlugin implements Plugin {
         if( order == null || order.isEmpty() ) {
             // Use the configured comparator
             sorter = context.getEngine().getManager( PageManager.class ).getPageSorter();
-        } else if( order.equalsIgnoreCase( PARAM_SORTORDER_JAVA ) ) {
+        } else if( PARAM_SORTORDER_JAVA.equalsIgnoreCase( order ) ) {
             // use Java "natural" ordering
             sorter = new PageSorter( JavaNaturalComparator.DEFAULT_JAVA_COMPARATOR );
-        } else if( order.equalsIgnoreCase( PARAM_SORTORDER_LOCALE ) ) {
+        } else if( PARAM_SORTORDER_LOCALE.equalsIgnoreCase( order ) ) {
             // use this locale's ordering
             sorter = new PageSorter( LocaleComparator.DEFAULT_LOCALE_COMPARATOR );
-        } else if( order.equalsIgnoreCase( PARAM_SORTORDER_HUMAN ) ) {
+        } else if( PARAM_SORTORDER_HUMAN.equalsIgnoreCase( order ) ) {
             // use human ordering
             sorter = new PageSorter( HumanComparator.DEFAULT_HUMAN_COMPARATOR );
         } else {

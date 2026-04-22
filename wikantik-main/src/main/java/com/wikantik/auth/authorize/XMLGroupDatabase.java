@@ -32,6 +32,7 @@ import com.wikantik.util.XmlDomUtil;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
+import java.util.Locale;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
@@ -293,8 +294,8 @@ public class XMLGroupDatabase implements GroupDatabase {
         final String modifier = groupNode.getAttribute( MODIFIER );
         final String modified = groupNode.getAttribute( LAST_MODIFIED );
         try {
-            group.setCreated( new SimpleDateFormat( DATE_FORMAT ).parse( created ) );
-            group.setLastModified( new SimpleDateFormat( DATE_FORMAT ).parse( modified ) );
+            group.setCreated( new SimpleDateFormat( DATE_FORMAT, Locale.ROOT ).parse( created ) );
+            group.setLastModified( new SimpleDateFormat( DATE_FORMAT, Locale.ROOT ).parse( modified ) );
         } catch ( final ParseException e ) {
             // If parsing failed, use the platform default
             try {
@@ -328,11 +329,11 @@ public class XMLGroupDatabase implements GroupDatabase {
                     io.write( CREATOR );
                     io.write( "=\"" + StringEscapeUtils.escapeXml11( group.getCreator() ) + "\" " );
                     io.write( CREATED );
-                    io.write( "=\"" + new SimpleDateFormat( DATE_FORMAT ).format( group.getCreated() ) + "\" " );
+                    io.write( "=\"" + new SimpleDateFormat( DATE_FORMAT, Locale.ROOT ).format( group.getCreated() ) + "\" " );
                     io.write( MODIFIER );
                     io.write( "=\"" + group.getModifier() + "\" " );
                     io.write( LAST_MODIFIED );
-                    io.write( "=\"" + new SimpleDateFormat( DATE_FORMAT ).format( group.getLastModified() ) + "\"" );
+                    io.write( "=\"" + new SimpleDateFormat( DATE_FORMAT, Locale.ROOT ).format( group.getLastModified() ) + "\"" );
                     io.write( ">\n" );
 
                     // Write each member as a <member> node

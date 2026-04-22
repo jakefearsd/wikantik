@@ -41,7 +41,7 @@ public final class QueryCorpus {
     private QueryCorpus() {}
 
     public static List< EvalQuery > load( final Path csv ) throws IOException {
-        try( final Reader r = Files.newBufferedReader( csv ) ) {
+        try( Reader r = Files.newBufferedReader( csv ) ) {
             return parse( r );
         }
     }
@@ -57,7 +57,7 @@ public final class QueryCorpus {
     public static List< EvalQuery > parse( final Reader reader ) throws IOException {
         final List< EvalQuery > out = new ArrayList<>();
         boolean headerSeen = false;
-        try( final BufferedReader r = new BufferedReader( reader ) ) {
+        try( BufferedReader r = new BufferedReader( reader ) ) {
             String line;
             while( ( line = r.readLine() ) != null ) {
                 if( line.isBlank() ) continue;

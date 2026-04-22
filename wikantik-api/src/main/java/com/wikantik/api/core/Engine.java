@@ -279,8 +279,8 @@ public interface Engine {
             tmpFile.deleteOnExit();
             LogManager.getLogger( Engine.class ).info( "looking for /" + name + " on classpath" );
             //  create a tmp file of the policy loaded as an InputStream and return the URL to it
-            try( final InputStream is = Engine.class.getResourceAsStream( "/" + name );
-                final OutputStream os = Files.newOutputStream( tmpFile.toPath() ) ) {
+            try( InputStream is = Engine.class.getResourceAsStream( "/" + name );
+                OutputStream os = Files.newOutputStream( tmpFile.toPath() ) ) {
                 if( is == null ) {
                     throw new FileNotFoundException( name + " not found" );
                 }

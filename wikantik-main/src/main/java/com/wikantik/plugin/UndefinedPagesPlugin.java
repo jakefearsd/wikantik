@@ -53,7 +53,7 @@ public class UndefinedPagesPlugin extends AbstractReferralPlugin {
         }
 
         final String wikitext;
-        if( show.equals( PARAM_SHOW_VALUE_COUNT ) ) {
+        if( PARAM_SHOW_VALUE_COUNT.equals( show ) ) {
             wikitext = "" + links.size();
             return makeHTML( context, wikitext );
         } else {

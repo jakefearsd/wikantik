@@ -71,7 +71,7 @@ public abstract class AbstractJDBCDatabase {
         } catch( final NamingException e ) {
             LOG.error( "{} initialization error: {}", getClass().getSimpleName(), e.getMessage() );
             throw new NoRequiredPropertyException( datasourcePropertyName,
-                    getClass().getSimpleName() + " initialization error: " + e.getMessage() );
+                    getClass().getSimpleName() + " initialization error: " + e.getMessage(), e );
         }
     }
 
@@ -82,8 +82,8 @@ public abstract class AbstractJDBCDatabase {
      * @throws WikiSecurityException if the connection test fails
      */
     public void testConnection( final String testSql ) throws WikiSecurityException {
-        try( final Connection conn = ds.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( testSql ) ) {
+        try( Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement( testSql ) ) {
             // Just prepare the statement to test connectivity
         } catch( final SQLException e ) {
             LOG.error( "DB connectivity error: {}", e.getMessage() );
@@ -96,7 +96,7 @@ public abstract class AbstractJDBCDatabase {
      * Detects whether the database supports transactions and sets the supportsCommits flag.
      */
     public void detectTransactionSupport() {
-        try( final Connection conn = ds.getConnection() ) {
+        try( Connection conn = ds.getConnection() ) {
             final DatabaseMetaData dmd = conn.getMetaData();
             if( dmd.supportsTransactions() ) {
                 supportsCommits = true;

@@ -28,7 +28,6 @@ import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.UnsupportedCallbackException;
 import javax.security.auth.login.FailedLoginException;
 import javax.security.auth.login.LoginException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -78,7 +77,7 @@ public class CookieAssertionLoginModule extends AbstractLoginModule {
     public boolean login() throws LoginException {
         // Otherwise, let's go and look for the cookie!
         final HttpRequestCallback hcb = new HttpRequestCallback();
-        final Callback[] callbacks = new Callback[] { hcb };
+        final Callback[] callbacks = { hcb };
         try {
             handler.handle( callbacks );
             final HttpServletRequest request = hcb.getRequest();

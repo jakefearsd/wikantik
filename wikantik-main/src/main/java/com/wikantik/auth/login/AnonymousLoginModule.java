@@ -76,7 +76,7 @@ public class AnonymousLoginModule extends AbstractLoginModule
     {
         // Let's go and make a Principal based on the IP address
         final HttpRequestCallback hcb = new HttpRequestCallback();
-        final Callback[] callbacks = new Callback[]{ hcb };
+        final Callback[] callbacks = { hcb };
         try {
             handler.handle( callbacks );
             final HttpServletRequest request = hcb.getRequest();

@@ -109,7 +109,7 @@ public class ReferringPagesPlugin extends AbstractReferralPlugin {
                           .append( "<a class='morelink' href='" )
                           .append( context.getURL( ContextEnum.PAGE_INFO.getRequestContext(), page.getName() ) )
                           .append( "' " )
-                          .append( ">" )
+                          .append('>')
                           .append( extras )
                           .append( "</a><br />" );
                 }
@@ -119,11 +119,11 @@ public class ReferringPagesPlugin extends AbstractReferralPlugin {
             if( links == null || links.isEmpty()) {
                 wikitext = rb.getString( "referringpagesplugin.nobody" );
                 result.append( makeHTML( context, wikitext ) );
-            } else  if( show.equals( PARAM_SHOW_VALUE_COUNT ) ) {
+            } else  if( PARAM_SHOW_VALUE_COUNT.equals( show ) ) {
                 result = new StringBuilder();
                 result.append( links.size() );
                 if( lastModified ) {
-                    result.append( " (" ).append( dateFormat.format( dateLastModified ) ).append( ")" );
+                    result.append( " (" ).append( dateFormat.format( dateLastModified ) ).append(')');
                 }
             }
 

@@ -269,7 +269,7 @@ public class DefaultPageRenamer implements PageRenamer {
             text = TextUtil.replaceString( text, from, to );
 
             sb.append( sourceText, start, matcher.start() );
-            sb.append( "[" ).append( text ).append( "](" ).append( link ).append( ")" );
+            sb.append('[').append( text ).append( "](" ).append( link ).append(')');
 
             start = matcher.end();
         }

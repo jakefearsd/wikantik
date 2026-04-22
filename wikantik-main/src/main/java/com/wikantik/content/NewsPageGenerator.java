@@ -136,7 +136,7 @@ public class NewsPageGenerator extends WikiBackgroundThread {
         try {
             final Process process = pb.start();
             // Drain output so the process doesn't block on a full pipe buffer
-            try( final InputStream is = process.getInputStream() ) {
+            try( InputStream is = process.getInputStream() ) {
                 is.transferTo( OutputStream.nullOutputStream() );
             }
             if( !process.waitFor( GIT_TIMEOUT_SECONDS, TimeUnit.SECONDS ) ) {
@@ -238,7 +238,7 @@ public class NewsPageGenerator extends WikiBackgroundThread {
         final Process process = pb.start();
         final List< String > lines = new ArrayList<>();
 
-        try( final BufferedReader reader = new BufferedReader(
+        try( BufferedReader reader = new BufferedReader(
                 new InputStreamReader( process.getInputStream(), StandardCharsets.UTF_8 ) ) ) {
             String line;
             while( ( line = reader.readLine() ) != null ) {

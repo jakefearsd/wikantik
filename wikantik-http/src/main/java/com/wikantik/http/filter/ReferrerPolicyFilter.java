@@ -32,6 +32,7 @@ public class ReferrerPolicyFilter implements Filter {
 
     private String mode = "no-referrer-when-downgrade";
 
+    @Override
     public void init(FilterConfig filterConfig) {
         String configMode = filterConfig.getInitParameter("ReferrerPolicyPValue");
         if (configMode != null) {

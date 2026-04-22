@@ -26,7 +26,6 @@ import com.wikantik.auth.AuthenticationManager;
 import org.pac4j.core.config.Config;
 import org.pac4j.core.engine.CallbackLogic;
 import org.pac4j.core.engine.DefaultCallbackLogic;
-import org.pac4j.jee.context.JEEContext;
 import org.pac4j.jee.context.JEEFrameworkParameters;
 
 import jakarta.servlet.ServletConfig;

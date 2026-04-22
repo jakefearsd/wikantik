@@ -68,7 +68,7 @@ public class TfidfModel {
         final List< Map< String, Integer > > docTermFreqs = new ArrayList<>( n );
         final Map< String, Integer > docFreq = new HashMap<>(); // term -> # docs containing it
 
-        try( final Analyzer analyzer = new EnglishAnalyzer() ) {
+        try( Analyzer analyzer = new EnglishAnalyzer() ) {
             for( final String doc : documents ) {
                 final Map< String, Integer > tf = tokenize( analyzer, doc );
                 docTermFreqs.add( tf );
@@ -183,7 +183,7 @@ public class TfidfModel {
     private Map< String, Integer > tokenize( final Analyzer analyzer, final String text ) {
         final Map< String, Integer > tf = new HashMap<>();
         if( text == null || text.isBlank() ) return tf;
-        try( final TokenStream stream = analyzer.tokenStream( "content", new StringReader( text ) ) ) {
+        try( TokenStream stream = analyzer.tokenStream( "content", new StringReader( text ) ) ) {
             final CharTermAttribute termAttr = stream.addAttribute( CharTermAttribute.class );
             stream.reset();
             while( stream.incrementToken() ) {

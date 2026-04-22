@@ -110,7 +110,7 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
         // Otherwise, let's go and look for the cookie!
         final HttpRequestCallback hcb = new HttpRequestCallback();
         final WikiEngineCallback wcb = new WikiEngineCallback();
-        final Callback[] callbacks = new Callback[] { hcb, wcb };
+        final Callback[] callbacks = { hcb, wcb };
 
         try {
             handler.handle( callbacks );
@@ -121,7 +121,7 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
                 final Engine engine = wcb.getEngine();
                 final File cookieFile = getCookieFile( engine, uid );
                 if( cookieFile != null && cookieFile.exists() && cookieFile.canRead() ) {
-                    try( final Reader in = new BufferedReader( new InputStreamReader( Files.newInputStream( cookieFile.toPath() ), StandardCharsets.UTF_8 ) ) ) {
+                    try( Reader in = new BufferedReader( new InputStreamReader( Files.newInputStream( cookieFile.toPath() ), StandardCharsets.UTF_8 ) ) ) {
                         final String username = FileUtil.readContents( in );
                         LOG.debug( "Logged in cookie authenticated name={}", username );
 
@@ -225,7 +225,7 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
         final File cf = getCookieFile( engine, uid.toString() );
         if( cf != null ) {
             //  Write the cookie content to the cookie store file.
-            try( final Writer out = new BufferedWriter( new OutputStreamWriter( Files.newOutputStream( cf.toPath() ), StandardCharsets.UTF_8 ) ) ) {
+            try( Writer out = new BufferedWriter( new OutputStreamWriter( Files.newOutputStream( cf.toPath() ), StandardCharsets.UTF_8 ) ) ) {
                 FileUtil.copyContents( new StringReader( username ), out );
                 LOG.debug( "Created login cookie for user {} for {} days", username, days );
             } catch( final IOException ex ) {

@@ -69,6 +69,7 @@ public final class GroupPrincipal implements Principal, Serializable
      * @return the result of the equality test
      * @see java.lang.Object#equals(java.lang.Object)
      */
+    @Override
     public boolean equals(final Object obj )
     {
         if ( !( obj instanceof GroupPrincipal p ) )
@@ -83,6 +84,7 @@ public final class GroupPrincipal implements Principal, Serializable
      * @return the hash code
      * @see java.lang.Object#hashCode()
      */
+    @Override
     public int hashCode()
     {
         return name.hashCode();
@@ -93,6 +95,7 @@ public final class GroupPrincipal implements Principal, Serializable
      * @return the string
      * @see java.lang.Object#toString()
      */
+    @Override
     public String toString()
     {
         return "[GroupPrincipal " + name + "]";

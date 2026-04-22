@@ -25,6 +25,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
+import java.util.Locale;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -106,7 +107,7 @@ public final class FrontmatterPreloader {
             } else if ( value instanceof Date date ) {
                 // SnakeYAML parses dates like 2026-03-20 into java.util.Date;
                 // convert back to ISO format for template use
-                page.setAttribute( key, new SimpleDateFormat( "yyyy-MM-dd" ).format( date ) );
+                page.setAttribute( key, new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).format( date ) );
             } else if ( value != null ) {
                 page.setAttribute( key, value.toString() );
             }

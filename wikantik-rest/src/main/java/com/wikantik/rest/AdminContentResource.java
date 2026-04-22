@@ -28,7 +28,6 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
-import com.wikantik.api.spi.Wiki;
 import com.wikantik.cache.CacheInfo;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.content.NewsPageGenerator;

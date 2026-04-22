@@ -38,7 +38,6 @@ import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import org.freshcookies.security.policy.PolicyReader;
 
-import javax.security.auth.Subject;
 import javax.security.auth.spi.LoginModule;
 import java.io.File;
 import java.io.IOException;
@@ -50,7 +49,6 @@ import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
-import java.util.concurrent.Callable;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -128,7 +126,7 @@ public final class SecurityVerifier {
     /** Message topic for JAAS information messages. */
     public static final String    INFO_JAAS                    = "Info.Jaas";
 
-    private static final String[] CONTAINER_ACTIONS            = new String[] { "View pages",
+    private static final String[] CONTAINER_ACTIONS            = { "View pages",
                                                                                 "Comment on existing pages",
                                                                                 "Edit pages",
                                                                                 "Upload attachments",
@@ -137,7 +135,7 @@ public final class SecurityVerifier {
                                                                                 "Delete pages"
                                                                               };
 
-    private static final String[] CONTAINER_PATHS               = new String[] { "/attach/*",
+    private static final String[] CONTAINER_PATHS               = { "/attach/*",
                                                                                 "/attach/*",
                                                                                 "/api/*",
                                                                                 "/api/attachments/*",
@@ -220,15 +218,11 @@ public final class SecurityVerifier {
         final Principal[] roles = policyPrincipals;
         final String wiki = engine.getApplicationName();
 
-        final String[] pages = new String[]
-        { "Main", "Index", "GroupTest", "GroupAdmin" };
-        final String[] pageActions = new String[]
-        { "view", "edit", "modify", "rename", "delete" };
+        final String[] pages = { "Main", "Index", "GroupTest", "GroupAdmin" };
+        final String[] pageActions = { "view", "edit", "modify", "rename", "delete" };
 
-        final String[] groups = new String[]
-        { "Admin", "TestGroup", "Foo" };
-        final String[] groupActions = new String[]
-        { "view", "edit", null, null, "delete" };
+        final String[] groups = { "Admin", "TestGroup", "Foo" };
+        final String[] groupActions = { "view", "edit", null, null, "delete" };
 
 
         final int rolesLength = roles.length;
@@ -269,7 +263,7 @@ public final class SecurityVerifier {
         // Write page permission tests first
         for( final String page : pages ) {
             table.append( "  <tr>\n" );
-            table.append( "    <td>PagePermission \"" ).append( wiki ).append( ":" ).append( page ).append( "\"</td>\n" );
+            table.append( "    <td>PagePermission \"" ).append( wiki ).append(':').append( page ).append( "\"</td>\n" );
             for( final Principal role : roles ) {
                 for( final String pageAction : pageActions ) {
                     final Permission permission = PermissionFactory.getPagePermission( wiki + ":" + page, pageAction );
@@ -282,7 +276,7 @@ public final class SecurityVerifier {
         // Now do the group tests
         for( final String group : groups ) {
             table.append( "  <tr>\n" );
-            table.append( "    <td>GroupPermission \"" ).append( wiki ).append( ":" ).append( group ).append( "\"</td>\n" );
+            table.append( "    <td>GroupPermission \"" ).append( wiki ).append(':').append( group ).append( "\"</td>\n" );
             for( final Principal role : roles ) {
                 for( final String groupAction : groupActions ) {
                     Permission permission = null;
@@ -297,7 +291,7 @@ public final class SecurityVerifier {
 
 
         // Now check the wiki-wide permissions
-        final String[] wikiPerms = new String[] { "createGroups", "createPages", "login", "editPreferences", "editProfile" };
+        final String[] wikiPerms = { "createGroups", "createPages", "login", "editPreferences", "editProfile" };
         for( final String wikiPerm : wikiPerms ) {
             table.append( "  <tr>\n" );
             table.append( "    <td>WikiPermission \"" ).append( wiki ).append( "\",\"" ).append( wikiPerm ).append( "\"</td>\n" );
@@ -348,12 +342,12 @@ public final class SecurityVerifier {
                 cell.append( permission.getActions() );
                 cell.append( "&quot;" );
             }
-            cell.append( " " );
+            cell.append(' ');
             cell.append( principal.getClass().getName() );
             cell.append( " &quot;" );
             cell.append( principal.getName() );
             cell.append( "&quot;" );
-            cell.append( "\"" );
+            cell.append('\"');
             cell.append( allowed ? BG_GREEN + ">" : BG_RED + ">" );
             cell.append( "&nbsp;</td>\n" );
         }
@@ -410,7 +404,7 @@ public final class SecurityVerifier {
             containerTable.append( allowsAnonymous ? "ALLOW: " : "DENY: " );
             containerTable.append( path );
             containerTable.append( " Anonymous" );
-            containerTable.append( "\"" );
+            containerTable.append('\"');
             containerTable.append( allowsAnonymous ? BG_GREEN + ">" : BG_RED + ">" );
             containerTable.append( "&nbsp;</td>\n" );
             for( final Principal role : roles )
@@ -419,12 +413,12 @@ public final class SecurityVerifier {
                 containerTable.append( "    <td title=\"" );
                 containerTable.append( allowed ? "ALLOW: " : "DENY: " );
                 containerTable.append( path );
-                containerTable.append( " " );
+                containerTable.append(' ');
                 containerTable.append( role.getClass().getName() );
                 containerTable.append( " &quot;" );
                 containerTable.append( role.getName() );
                 containerTable.append( "&quot;" );
-                containerTable.append( "\"" );
+                containerTable.append('\"');
                 containerTable.append( allowed ? BG_GREEN + ">" : BG_RED + ">" );
                 containerTable.append( "&nbsp;</td>\n" );
             }
@@ -732,7 +726,7 @@ public final class SecurityVerifier {
         // Note: JVM-wide security policy via AccessController is deprecated and removed.
         // JSPWiki now relies solely on its local policy for authorization.
         // Check local policy directly
-        final Principal[] principals = new Principal[]{ principal };
+        final Principal[] principals = { principal };
         return authorizationManager.allowedByLocalPolicy( principals, permission );
     }
 

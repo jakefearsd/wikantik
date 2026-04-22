@@ -46,11 +46,11 @@ public class ProfanityFilter implements PageFilter {
     
     static {
         final ClassLoader loader = ProfanityFilter.class.getClassLoader();
-        try( final InputStream in = loader.getResourceAsStream( PROPERTYFILE ) ) {
+        try( InputStream in = loader.getResourceAsStream( PROPERTYFILE ) ) {
             if( in == null ) {
                 throw new IOException( "No property file found! (Check the installation, it should be there.)" );
             }
-            try( final BufferedReader br =  new BufferedReader( new InputStreamReader( in, StandardCharsets.UTF_8 ) ) ) {
+            try( BufferedReader br =  new BufferedReader( new InputStreamReader( in, StandardCharsets.UTF_8 ) ) ) {
 
                 // allow comments on profanities file
                 profanities = br.lines().filter(str -> !str.isEmpty() && !str.startsWith("#")).toArray(String[]::new);

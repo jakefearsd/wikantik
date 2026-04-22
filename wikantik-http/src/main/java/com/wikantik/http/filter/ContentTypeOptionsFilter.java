@@ -33,6 +33,7 @@ public class ContentTypeOptionsFilter implements Filter {
 
     private String mode = "nosniff";
 
+    @Override
     public void init(FilterConfig filterConfig) {
         String configMode = filterConfig.getInitParameter("ContentTypeOptionsValue");
         if (configMode != null) {

@@ -187,6 +187,7 @@ public final class GroupPermission extends Permission implements Serializable
      * @return the result of the comparison
      * @see java.lang.Object#equals(java.lang.Object)
      */
+    @Override
     public boolean equals(final Object obj )
     {
         if ( !( obj instanceof GroupPermission ) )
@@ -234,6 +235,7 @@ public final class GroupPermission extends Permission implements Serializable
      * @return the hash code
      * @see java.lang.Object#hashCode()
      */
+    @Override
     public int hashCode()
     {
         // If the wiki has not been set, uses a dummy value for the hashcode
@@ -312,6 +314,7 @@ public final class GroupPermission extends Permission implements Serializable
      * @return the string
      * @see java.lang.Object#toString()
      */
+    @Override
     public String toString()
     {
         final String wikiStr = ( wiki == null ) ? "" : wiki;
@@ -354,15 +357,15 @@ public final class GroupPermission extends Permission implements Serializable
         final String[] actionList = actions.split( ACTION_SEPARATOR );
         for( final String action : actionList )
         {
-            if ( action.equalsIgnoreCase( VIEW_ACTION ) )
+            if ( VIEW_ACTION.equalsIgnoreCase( action ) )
             {
                 mask |= VIEW_MASK;
             }
-            else if ( action.equalsIgnoreCase( EDIT_ACTION ) )
+            else if ( EDIT_ACTION.equalsIgnoreCase( action ) )
             {
                 mask |= EDIT_MASK;
             }
-            else if ( action.equalsIgnoreCase( DELETE_ACTION ) )
+            else if ( DELETE_ACTION.equalsIgnoreCase( action ) )
             {
                 mask |= DELETE_MASK;
             }

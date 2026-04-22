@@ -136,7 +136,7 @@ public class AclImpl implements com.wikantik.api.core.Acl, Serializable {
             } else {
                 sb.append( "  user = null: " );
             }
-            sb.append( "(" );
+            sb.append('(');
             for( final Enumeration< Permission > perms = entry.permissions(); perms.hasMoreElements(); ) {
                 final Permission perm = perms.nextElement();
                 sb.append( perm.toString() );

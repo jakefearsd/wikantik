@@ -23,7 +23,6 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
@@ -151,7 +150,7 @@ public class AdminGroupResource extends RestServletBase {
             if ( body.has( "members" ) && body.get( "members" ).isJsonArray() ) {
                 final JsonArray membersArray = body.getAsJsonArray( "members" );
                 for ( int i = 0; i < membersArray.size(); i++ ) {
-                    if ( i > 0 ) memberLine.append( "\n" );
+                    if ( i > 0 ) memberLine.append('\n');
                     memberLine.append( membersArray.get( i ).getAsString() );
                 }
             }

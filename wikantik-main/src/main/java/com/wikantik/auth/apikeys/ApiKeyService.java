@@ -128,8 +128,8 @@ public class ApiKeyService {
         final String sql = "INSERT INTO " + TABLE
                 + " (key_hash, principal_login, label, scope, created_at, created_by)"
                 + " VALUES (?, ?, ?, ?, ?, ?)";
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
             ps.setString( 1, hash );
             ps.setString( 2, principalLogin );
             ps.setString( 3, label );
@@ -137,7 +137,7 @@ public class ApiKeyService {
             ps.setTimestamp( 5, Timestamp.from( createdAt ) );
             ps.setString( 6, createdBy );
             ps.executeUpdate();
-            try ( final ResultSet rs = ps.getGeneratedKeys() ) {
+            try ( ResultSet rs = ps.getGeneratedKeys() ) {
                 if ( !rs.next() ) {
                     throw new SQLException( "INSERT yielded no generated key" );
                 }
@@ -165,10 +165,10 @@ public class ApiKeyService {
         final String sql = "SELECT id, key_hash, principal_login, label, scope,"
                 + " created_at, created_by, last_used_at, revoked_at, revoked_by"
                 + " FROM " + TABLE + " WHERE key_hash = ? AND revoked_at IS NULL";
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, hash );
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 if ( !rs.next() ) {
                     return Optional.empty();
                 }
@@ -188,9 +188,9 @@ public class ApiKeyService {
                 + " created_at, created_by, last_used_at, revoked_at, revoked_by"
                 + " FROM " + TABLE + " ORDER BY created_at DESC";
         final List< Record > out = new ArrayList<>();
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql );
-              final ResultSet rs = ps.executeQuery() ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql );
+              ResultSet rs = ps.executeQuery() ) {
             while ( rs.next() ) {
                 out.add( readRow( rs ) );
             }
@@ -208,8 +208,8 @@ public class ApiKeyService {
         final String sql = "UPDATE " + TABLE
                 + " SET revoked_at = ?, revoked_by = ?"
                 + " WHERE id = ? AND revoked_at IS NULL";
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setTimestamp( 1, Timestamp.from( Instant.now() ) );
             ps.setString( 2, revokedBy );
             ps.setInt( 3, id );
@@ -248,8 +248,8 @@ public class ApiKeyService {
 
     private void touchLastUsed( final int id ) {
         final String sql = "UPDATE " + TABLE + " SET last_used_at = ? WHERE id = ?";
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setTimestamp( 1, Timestamp.from( Instant.now() ) );
             ps.setInt( 2, id );
             ps.executeUpdate();

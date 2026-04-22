@@ -28,7 +28,6 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
-import com.wikantik.render.RenderingManager;
 import com.wikantik.util.TextUtil;
 import com.wikantik.util.XHTML;
 import com.wikantik.util.XhtmlUtil;
@@ -384,8 +383,8 @@ public class JDBCPlugin implements Plugin {
         final String limitedSql = addResultLimit( sql, config.getDatabaseType(), maxResults );
 
         try ( final Connection conn = config.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( limitedSql );
-              final ResultSet rs = ps.executeQuery() ) {
+              PreparedStatement ps = conn.prepareStatement( limitedSql );
+              ResultSet rs = ps.executeQuery() ) {
 
             return buildHtmlTable( rs, showHeader );
         }

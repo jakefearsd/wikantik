@@ -235,8 +235,8 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
         spec = spec.substring( 0, spec.length() - length ) + resourceLocation;
     
         final URL url = URI.create( spec ).toURL();
-        try( final BufferedInputStream in = new BufferedInputStream( url.openStream() );
-             final ByteArrayOutputStream out = new ByteArrayOutputStream(1024) ) {
+        try( BufferedInputStream in = new BufferedInputStream( url.openStream() );
+             ByteArrayOutputStream out = new ByteArrayOutputStream(1024) ) {
             FileUtil.copyContents( in, out );
             return out.toString( StandardCharsets.UTF_8 );
         }

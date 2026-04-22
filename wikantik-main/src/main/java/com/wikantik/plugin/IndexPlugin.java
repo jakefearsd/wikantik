@@ -97,7 +97,7 @@ public class IndexPlugin extends AbstractReferralPlugin implements Plugin {
             
         } catch( final ProviderException e ) {
             LOG.warn("could not load page index",e);
-            throw new PluginException( e.getMessage() );
+            throw new PluginException( e.getMessage(), e );
         }
         // serialize to raw format string (no changes to whitespace)
         final XMLOutputter out = new XMLOutputter(Format.getRawFormat());

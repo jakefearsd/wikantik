@@ -124,7 +124,7 @@ public class LatestArticle implements Plugin {
 
         } catch ( final Exception e ) {
             LOG.warn( "Error executing LatestArticle plugin", e );
-            throw new PluginException( "Error retrieving latest article: " + e.getMessage() );
+            throw new PluginException( "Error retrieving latest article: " + e.getMessage(), e );
         }
     }
 

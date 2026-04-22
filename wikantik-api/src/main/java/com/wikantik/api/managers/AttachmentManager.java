@@ -224,7 +224,7 @@ public interface AttachmentManager {
      *  @throws ProviderException If something else went wrong.
      */
     default void storeAttachment( final Attachment att, final File source ) throws IOException, ProviderException {
-        try( final InputStream in = Files.newInputStream( source.toPath() ) ) {
+        try( InputStream in = Files.newInputStream( source.toPath() ) ) {
             storeAttachment( att, in );
         }
     }

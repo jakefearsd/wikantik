@@ -31,9 +31,6 @@ import org.ehcache.config.builders.CacheConfigurationBuilder;
 import org.ehcache.config.builders.CacheManagerBuilder;
 import org.ehcache.config.builders.ExpiryPolicyBuilder;
 import org.ehcache.config.builders.ResourcePoolsBuilder;
-import org.ehcache.event.CacheEvent;
-import org.ehcache.event.CacheEventListener;
-import org.ehcache.event.EventType;
 import org.ehcache.xml.XmlConfiguration;
 
 import java.io.Serializable;

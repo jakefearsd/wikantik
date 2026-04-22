@@ -39,6 +39,7 @@ import com.wikantik.util.TextUtil;
 import com.wikantik.util.XHTML;
 import com.wikantik.util.XhtmlUtil;
 import org.jdom2.Element;
+import java.util.Locale;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -241,7 +242,7 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
             return Preferences.getDateFormat( context, TimeFormat.TIME );
         }
 
-        return new SimpleDateFormat( formatString );
+        return new SimpleDateFormat( formatString, Locale.ROOT );
     }
 
     private DateFormat getDateFormat( final Context context, final Map< String, String > params ) {
@@ -250,7 +251,7 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
             return Preferences.getDateFormat( context, TimeFormat.DATE );
         }
 
-        return new SimpleDateFormat( formatString );
+        return new SimpleDateFormat( formatString, Locale.ROOT );
     }
     
     private String get( final Map< String, String > params, final String defaultValue, final String paramName ) {

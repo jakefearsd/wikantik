@@ -73,6 +73,8 @@ public final class ExperimentGrandFinale {
 
     private ExperimentGrandFinale() {}
 
+    @SuppressWarnings("PMD.SystemPrintln")
+
     public static void main( final String[] args ) throws IOException, SQLException {
         if( args.length < 1 ) {
             System.err.println( "Usage: ExperimentGrandFinale <model-code> [<model-code> ...]" );
@@ -103,7 +105,7 @@ public final class ExperimentGrandFinale {
                                        final StringBuilder sb ) throws IOException, SQLException {
         final EmbeddingModel model = EmbeddingModel.fromCode( modelCode );
         final TextEmbeddingClient client = ExperimentHarness.buildClient( modelCode );
-        final Bm25Client bm25 = Bm25Client.fromSystemProperties();
+        Bm25Client bm25 = Bm25Client.fromSystemProperties();
 
         try( final Connection conn = ExperimentDb.open() ) {
             final ChunkCorpus corpus = ExperimentHarness.loadCorpus( conn, model.code(), client.dimension() );

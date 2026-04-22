@@ -141,7 +141,7 @@ public class LuceneSearchProvider implements SearchProvider {
     private static final String LUCENE_DIR = "lucene";
 
     /** These attachment file suffixes will be indexed. */
-    public static final String[] SEARCHABLE_FILE_SUFFIXES = new String[] { ".txt", ".ini", ".xml", ".html", "htm", ".mm", ".htm",
+    public static final String[] SEARCHABLE_FILE_SUFFIXES = { ".txt", ".ini", ".xml", ".html", "htm", ".mm", ".htm",
                                                                            ".xhtml", ".java", ".c", ".cpp", ".php", ".asm", ".sh",
                                                                            ".properties", ".kml", ".gpx", ".loc", ".md", ".xml" };
 
@@ -369,7 +369,7 @@ public class LuceneSearchProvider implements SearchProvider {
                 LOG.info( "Starting Lucene reindexing, this can take a couple of minutes..." );
 
                 final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
-                try( final IndexWriter writer = getIndexWriter( luceneDir ) ) {
+                try( IndexWriter writer = getIndexWriter( luceneDir ) ) {
                     long pagesIndexed = 0L;
                     long systemPagesSkipped = 0L;
                     final Collection< Page > allPages = pageManager.getAllPages();
@@ -456,7 +456,7 @@ public class LuceneSearchProvider implements SearchProvider {
         boolean searchSuffix = Arrays.stream(SEARCHABLE_FILE_SUFFIXES).anyMatch(filename::endsWith);
 
         if( searchSuffix ) {
-            try( final InputStream attStream = attachmentManager.getAttachmentStream( att ); final StringWriter sout = new StringWriter() ) {
+            try( InputStream attStream = attachmentManager.getAttachmentStream( att ); final StringWriter sout = new StringWriter() ) {
                 FileUtil.copyContents( new InputStreamReader( attStream, StandardCharsets.UTF_8 ), sout );
                 return filename + " " + sout;
             } catch( final ProviderException | IOException e ) {
@@ -482,8 +482,8 @@ public class LuceneSearchProvider implements SearchProvider {
         pageRemoved( page );
 
         // Now add back the new version.
-        try( final Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
-             final IndexWriter writer = getIndexWriter( luceneDir ) ) {
+        try( Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
+             IndexWriter writer = getIndexWriter( luceneDir ) ) {
             luceneIndexPage( page, text, writer );
         } catch( final IOException e ) {
             LOG.error( "Unable to update page '{}' from Lucene index", page.getName(), e );
@@ -603,8 +603,8 @@ public class LuceneSearchProvider implements SearchProvider {
      */
     @Override
     public synchronized void pageRemoved( final Page page ) {
-        try( final Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
-             final IndexWriter writer = getIndexWriter( luceneDir ) ) {
+        try( Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
+             IndexWriter writer = getIndexWriter( luceneDir ) ) {
             final Query query = new TermQuery( new Term( LUCENE_ID, page.getName() ) );
             writer.deleteDocuments( query );
         } catch( final Exception e ) {
@@ -633,8 +633,8 @@ public class LuceneSearchProvider implements SearchProvider {
             return indexedPages;
         }
 
-        try( final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
-             final IndexReader reader = DirectoryReader.open( luceneDir ) ) {
+        try( Directory luceneDir = new NIOFSDirectory( dir.toPath() );
+             IndexReader reader = DirectoryReader.open( luceneDir ) ) {
             final StoredFields storedFields = reader.storedFields();
             for( int i = 0; i < reader.maxDoc(); i++ ) {
                 final Document doc = storedFields.document( i );
@@ -693,8 +693,8 @@ public class LuceneSearchProvider implements SearchProvider {
             if( !missingPages.isEmpty() ) {
                 LOG.info( "Found {} pages missing from Lucene index, indexing...", missingPages.size() );
 
-                try( final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
-                     final IndexWriter writer = getIndexWriter( luceneDir ) ) {
+                try( Directory luceneDir = new NIOFSDirectory( dir.toPath() );
+                     IndexWriter writer = getIndexWriter( luceneDir ) ) {
                     for( final Page page : missingPages ) {
                         try {
                             final String text = pageManager
@@ -719,8 +719,8 @@ public class LuceneSearchProvider implements SearchProvider {
             if( !missingAttachments.isEmpty() ) {
                 LOG.info( "Found {} attachments missing from Lucene index, indexing...", missingAttachments.size() );
 
-                try( final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
-                     final IndexWriter writer = getIndexWriter( luceneDir ) ) {
+                try( Directory luceneDir = new NIOFSDirectory( dir.toPath() );
+                     IndexWriter writer = getIndexWriter( luceneDir ) ) {
                     int attachmentsIndexed = 0;
                     for( final Attachment att : missingAttachments ) {
                         try {
@@ -804,8 +804,8 @@ public class LuceneSearchProvider implements SearchProvider {
         ArrayList< SearchResult > list = new ArrayList<>();
         Highlighter highlighter = null;
 
-        try( final Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
-             final IndexReader reader = DirectoryReader.open( luceneDir ) ) {
+        try( Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
+             IndexReader reader = DirectoryReader.open( luceneDir ) ) {
             final String[] queryfields = { LUCENE_PAGE_CONTENTS, LUCENE_PAGE_NAME, LUCENE_AUTHOR, LUCENE_ATTACHMENTS,
                     LUCENE_PAGE_KEYWORDS, LUCENE_PAGE_TAGS, LUCENE_PAGE_CLUSTER, LUCENE_PAGE_SUMMARY };
             final java.util.Map< String, Float > boosts = new java.util.HashMap<>();
@@ -890,7 +890,7 @@ public class LuceneSearchProvider implements SearchProvider {
             LOG.error( "Failed during lucene search", e );
         } catch( final ParseException e ) {
             LOG.error( "Broken query; cannot parse query: {}", query, e );
-            throw new ProviderException( "You have entered a query Lucene cannot process [" + query + "]: " + e.getMessage() );
+            throw new ProviderException( "You have entered a query Lucene cannot process [" + query + "]: " + e.getMessage(), e );
         } catch( final InvalidTokenOffsetsException e ) {
             LOG.error( "Tokens are incompatible with provided text ", e );
         }
@@ -943,8 +943,8 @@ public class LuceneSearchProvider implements SearchProvider {
         if ( !dir.exists() || dirFiles == null || dirFiles.length == 0 ) {
             return 0;
         }
-        try ( final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
-              final IndexReader reader = DirectoryReader.open( luceneDir ) ) {
+        try ( Directory luceneDir = new NIOFSDirectory( dir.toPath() );
+              IndexReader reader = DirectoryReader.open( luceneDir ) ) {
             return reader.numDocs();
         } catch ( final IOException e ) {
             LOG.warn( "Could not read Lucene index for documentCount: {}", e.getMessage(), e );
@@ -981,8 +981,8 @@ public class LuceneSearchProvider implements SearchProvider {
         if ( !dir.exists() ) {
             return;
         }
-        try ( final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
-              final IndexWriter writer = getIndexWriter( luceneDir ) ) {
+        try ( Directory luceneDir = new NIOFSDirectory( dir.toPath() );
+              IndexWriter writer = getIndexWriter( luceneDir ) ) {
             writer.deleteAll();
             writer.commit();
             lastUpdateInstant = Instant.now();
@@ -1097,8 +1097,8 @@ public class LuceneSearchProvider implements SearchProvider {
         }
         final Set< String > excludes = excludeNames == null
             ? Collections.emptySet() : excludeNames;
-        try ( final Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
-              final IndexReader reader = DirectoryReader.open( luceneDir ) ) {
+        try ( Directory luceneDir = new NIOFSDirectory( new File( luceneDirectory ).toPath() );
+              IndexReader reader = DirectoryReader.open( luceneDir ) ) {
             final IndexSearcher searcher = new IndexSearcher( reader, searchExecutor );
             // Locate the seed document by id.
             final TopDocs seedHits = searcher.search(

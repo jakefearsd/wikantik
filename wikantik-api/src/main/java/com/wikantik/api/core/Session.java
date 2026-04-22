@@ -253,7 +253,7 @@ public interface Session extends WikiEventListener {
             return Subject.callAs( session.getSubject(), action::run );
         } catch ( final Exception e ) {
             if ( e instanceof RuntimeException rte ) {
-                throw rte;
+                throw rte; //NOPMD - rte is the caught exception re-thrown as-is
             }
             throw new RuntimeException( "Error executing privileged action", e );
         }

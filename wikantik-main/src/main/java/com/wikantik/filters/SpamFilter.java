@@ -50,7 +50,6 @@ import org.suigeneris.jrcs.diff.myers.MyersDiff;
 import java.util.Locale;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -280,7 +279,7 @@ public class SpamFilter implements PageFilter {
         urlPattern = Pattern.compile( URL_REGEXP );
 
         akismetAPIKey = TextUtil.getStringProperty( properties, PROP_AKISMET_API_KEY, akismetAPIKey );
-        stopAtFirstMatch = TextUtil.getStringProperty( properties, PROP_FILTERSTRATEGY, STRATEGY_EAGER ).equals( STRATEGY_EAGER );
+        stopAtFirstMatch = STRATEGY_EAGER.equals( TextUtil.getStringProperty( properties, PROP_FILTERSTRATEGY, STRATEGY_EAGER ) );
 
         LOG.info( "# Spam filter initialized.  Temporary ban time {} mins, max page changes/minute: {}",
                   banTime, limitSinglePageChanges );
@@ -624,7 +623,7 @@ public class SpamFilter implements PageFilter {
         final HttpServletRequest request = context.getHttpRequest();
         if( request != null ) {
             final String utf8field = request.getParameter( "encodingcheck" );
-            if( utf8field != null && !utf8field.equals( "\u3041" ) ) {
+            if( utf8field != null && !"\u3041".equals( utf8field ) ) {
                 final String uid = log( context, REJECT, REASON_UTF8_TRAP, change.toString() );
 
                 LOG.info( "SPAM:UTF8Trap ({}).  Wildly posting dumb bot detected.", uid );

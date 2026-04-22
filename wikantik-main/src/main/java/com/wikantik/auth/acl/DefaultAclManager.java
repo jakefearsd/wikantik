@@ -241,12 +241,12 @@ public class DefaultAclManager implements AclManager {
             final String action = entry.getKey();
             final List< Principal > principals = entry.getValue();
             principals.sort( new PrincipalComparator() );
-            aclText.append( "[{ALLOW " ).append( action ).append( " " );
+            aclText.append( "[{ALLOW " ).append( action ).append(' ');
             for( int i = 0; i < principals.size(); i++ ) {
                 final Principal principal = principals.get( i );
                 aclText.append( principal.getName() );
                 if( i < ( principals.size() - 1 ) ) {
-                    aclText.append( "," );
+                    aclText.append(',');
                 }
             }
             aclText.append( "}]\n" );

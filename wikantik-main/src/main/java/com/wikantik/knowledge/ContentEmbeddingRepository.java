@@ -51,13 +51,13 @@ public class ContentEmbeddingRepository {
         final String sql = "INSERT INTO kg_content_embeddings (entity_id, entity_name, " +
             "embedding, model_version) VALUES (?, ?, ?, ?)";
 
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
 
             conn.setAutoCommit( false );
 
             // Remove any partial/stale rows for this version before inserting
-            try( final PreparedStatement del = conn.prepareStatement(
+            try( PreparedStatement del = conn.prepareStatement(
                     "DELETE FROM kg_content_embeddings WHERE model_version = ?" ) ) {
                 del.setInt( 1, modelVersion );
                 del.executeUpdate();
@@ -98,10 +98,10 @@ public class ContentEmbeddingRepository {
         final String sql = "SELECT entity_name, embedding " +
             "FROM kg_content_embeddings WHERE model_version = ? ORDER BY entity_name";
 
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setInt( 1, version );
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 while( rs.next() ) {
                     names.add( rs.getString( 1 ) );
                     vectors.add( getVector( rs, 2 ) );
@@ -123,9 +123,9 @@ public class ContentEmbeddingRepository {
     /** Returns the highest model_version in the table, or -1 if none. */
     public int getLatestModelVersion() {
         final String sql = "SELECT MAX(model_version) FROM kg_content_embeddings";
-        try( final Connection conn = dataSource.getConnection();
-             final Statement st = conn.createStatement();
-             final ResultSet rs = st.executeQuery( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery( sql ) ) {
             if( rs.next() ) {
                 final int v = rs.getInt( 1 );
                 return rs.wasNull() ? -1 : v;
@@ -140,8 +140,8 @@ public class ContentEmbeddingRepository {
     /** Deletes all embedding rows for versions older than {@code keepVersion}. */
     public void deleteOldVersions( final int keepVersion ) {
         final String sql = "DELETE FROM kg_content_embeddings WHERE model_version < ?";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setInt( 1, keepVersion );
             final int deleted = ps.executeUpdate();
             if( deleted > 0 ) {

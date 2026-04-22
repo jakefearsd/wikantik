@@ -89,9 +89,9 @@ public class DatabasePolicy
         final Map<String, List<Permission>> newGrants = new HashMap<>();
         final String sql = "SELECT principal_name, permission_type, target, actions FROM " + tableName;
 
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql );
-             final ResultSet rs = ps.executeQuery() )
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql );
+             ResultSet rs = ps.executeQuery() )
         {
             while( rs.next() )
             {

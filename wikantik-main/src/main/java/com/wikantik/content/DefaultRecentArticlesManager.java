@@ -288,7 +288,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         // Build a simple list for the template
         final StringBuilder articleList = new StringBuilder();
         for ( final ArticleSummary article : articles ) {
-            articleList.append( "* [" ).append( article.getTitle() ).append( "|" ).append( article.getName() ).append( "]\n" );
+            articleList.append( "* [" ).append( article.getTitle() ).append('|').append( article.getName() ).append( "]\n" );
         }
         result = result.replace( "%%ARTICLE_LIST%%", articleList.toString() );
 

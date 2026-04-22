@@ -60,7 +60,7 @@ public class UnusedPagesPlugin extends AbstractReferralPlugin {
         links = filterAndSortCollection( links );
 
         String wikitext;
-        if( show.equals( PARAM_SHOW_VALUE_COUNT ) ) {
+        if( PARAM_SHOW_VALUE_COUNT.equals( show ) ) {
             wikitext = "" + links.size();
             if( lastModified && !links.isEmpty()) {
                 wikitext = links.size() + " (" + dateFormat.format( dateLastModified ) + ")";

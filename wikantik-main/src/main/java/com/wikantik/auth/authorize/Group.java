@@ -60,7 +60,7 @@ import java.util.List;
  */
 public class Group {
 
-    static final String[]  RESTRICTED_GROUPNAMES = new String[] { "Anonymous", "All", "Asserted", "Authenticated" };
+    static final String[]  RESTRICTED_GROUPNAMES = { "Anonymous", "All", "Asserted", "Authenticated" };
 
     private final List<Principal>    members = new ArrayList<>();
 

@@ -19,6 +19,7 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
+import java.util.Locale;
 
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiSecurityException;
@@ -280,7 +281,7 @@ public class AdminUserResource extends RestServletBase {
             final String expiryStr = getJsonString( body, "expiry" );
             final Date expiry;
             if ( expiryStr != null && !expiryStr.isBlank() ) {
-                expiry = new SimpleDateFormat( "yyyy-MM-dd" ).parse( expiryStr );
+                expiry = new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).parse( expiryStr );
             } else {
                 // Lock indefinitely — set expiry far in the future
                 expiry = new Date( Long.MAX_VALUE );

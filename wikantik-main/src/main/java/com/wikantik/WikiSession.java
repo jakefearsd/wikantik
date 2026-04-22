@@ -297,7 +297,7 @@ public final class WikiSession implements Session {
 
     private void handlePrincipalAdd( final WikiSecurityEvent e ) {
         final WikiSession targetPA = ( WikiSession )e.getTarget();
-        if( this.equals( targetPA ) && status.equals( AUTHENTICATED ) ) {
+        if( this.equals( targetPA ) && AUTHENTICATED.equals( status ) ) {
             subject.getPrincipals().add( ( Principal )e.getPrincipal() );
         }
     }
@@ -351,7 +351,7 @@ public final class WikiSession implements Session {
     private void handleProfileNameChanged( final WikiSecurityEvent e ) {
         // Refresh user principals based on new user profile
         final WikiSession sourcePNC = e.getSrc();
-        if( this.equals( sourcePNC ) && status.equals( AUTHENTICATED ) ) {
+        if( this.equals( sourcePNC ) && AUTHENTICATED.equals( status ) ) {
             // To prepare for refresh, set the new full name as the primary principal
             final UserProfile[] profiles = ( UserProfile[] )e.getTarget();
             final UserProfile newProfile = profiles[ 1 ];
@@ -433,7 +433,7 @@ public final class WikiSession implements Session {
 
                 // Set the user principal if needed; we prefer FullName, but the WikiName will also work
                 final boolean isFullNamePrincipal = ( principal instanceof WikiPrincipal &&
-                                                      ( ( WikiPrincipal )principal ).getType().equals( WikiPrincipal.FULL_NAME ) );
+                                                      WikiPrincipal.FULL_NAME.equals( ( ( WikiPrincipal )principal ).getType() ) );
                 if ( isFullNamePrincipal ) {
                    userPrincipal = principal;
                 } else if ( !( userPrincipal instanceof WikiPrincipal ) ) {

@@ -32,6 +32,7 @@ public class CSPFilter implements Filter {
 
     private String mode = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self';";
 
+    @Override
     public void init(FilterConfig filterConfig) {
         String configMode = filterConfig.getInitParameter("CSPValue");
         if (configMode != null) {

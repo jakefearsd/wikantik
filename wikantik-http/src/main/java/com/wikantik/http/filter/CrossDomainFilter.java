@@ -32,6 +32,7 @@ public class CrossDomainFilter implements Filter {
 
     private String mode = "none";
 
+    @Override
     public void init(FilterConfig filterConfig) {
         String configMode = filterConfig.getInitParameter("XDomainValue");
         if (configMode != null) {

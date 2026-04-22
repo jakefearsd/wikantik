@@ -203,14 +203,14 @@ public class DefaultBlogManager implements BlogManager {
         final StringBuilder sb = new StringBuilder();
         sb.append( "---\n" )
           .append( "title: \"" ).append( title ).append( "\"\n" )
-          .append( "date: " ).append( date ).append( "\n" )
+          .append( "date: " ).append( date ).append('\n')
           .append( "author: \"" ).append( author ).append( "\"\n" )
           .append( "---\n" )
-          .append( "\n" )
-          .append( "# " ).append( title ).append( "\n" );
+          .append('\n')
+          .append( "# " ).append( title ).append('\n');
 
         if ( content != null && !content.isBlank() ) {
-            sb.append( "\n" ).append( content.strip() ).append( "\n" );
+            sb.append('\n').append( content.strip() ).append('\n');
         }
 
         final Page page = Wiki.contents().page( engine, pageName );
@@ -392,7 +392,7 @@ public class DefaultBlogManager implements BlogManager {
      * Loads the blog template from the classpath and replaces the {@code {username}} placeholder.
      */
     private String loadTemplate( final String username ) throws WikiException {
-        try ( final InputStream is = getClass().getResourceAsStream( TEMPLATE_RESOURCE ) ) {
+        try ( InputStream is = getClass().getResourceAsStream( TEMPLATE_RESOURCE ) ) {
             if ( is == null ) {
                 throw new WikiException( "Blog template not found on classpath: " + TEMPLATE_RESOURCE );
             }
@@ -465,7 +465,7 @@ public class DefaultBlogManager implements BlogManager {
         if ( !Files.exists( directory ) ) {
             return;
         }
-        try ( final Stream< Path > walk = Files.walk( directory ) ) {
+        try ( Stream< Path > walk = Files.walk( directory ) ) {
             walk.sorted( Comparator.reverseOrder() )
                 .forEach( path -> {
                     try {

@@ -194,7 +194,7 @@ public class InsertPage implements Plugin {
             try {
                 pageData = TextUtil.getSection( pageData, section );
             } catch ( final IllegalArgumentException e ) {
-                throw new PluginException( e.getMessage() );
+                throw new PluginException( e.getMessage(), e );
             }
         }
 
@@ -209,7 +209,7 @@ public class InsertPage implements Plugin {
         final StringBuilder res = new StringBuilder();
         res.append( "<div class=\"inserted-page " );
         if ( clazz != null ) res.append( clazz );
-        if ( !style.equals( DEFAULT_STYLE ) ) res.append( "\" style=\"" ).append( style );
+        if ( !DEFAULT_STYLE.equals( style ) ) res.append( "\" style=\"" ).append( style );
         if ( showOnce ) res.append( "\" data-once=\"" ).append( cookieName );
         res.append( "\" >" );
         res.append( engine.getManager( RenderingManager.class ).textToHTML( includedContext, pageData ) );

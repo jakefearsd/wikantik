@@ -108,10 +108,10 @@ public class ContentChunkRepository {
     public List< ChunkDiff.Stored > findByPage( final String pageName ) {
         final String sql = "SELECT id, chunk_index, content_hash FROM kg_content_chunks "
                          + "WHERE page_name = ? ORDER BY chunk_index";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, pageName );
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 final List< ChunkDiff.Stored > out = new ArrayList<>();
                 while( rs.next() ) {
                     out.add( new ChunkDiff.Stored(
@@ -139,10 +139,10 @@ public class ContentChunkRepository {
         final String sql = "SELECT id, chunk_index, heading_path, text, char_count, "
                          + "token_count_estimate, content_hash, created, modified "
                          + "FROM kg_content_chunks WHERE page_name = ? ORDER BY chunk_index";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, pageName );
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 final List< FullChunk > out = new ArrayList<>();
                 while( rs.next() ) {
                     final Array hp = rs.getArray( 3 );
@@ -208,7 +208,7 @@ public class ContentChunkRepository {
           + "WHERE token_count_estimate > 512 "
           + "ORDER BY token_count_estimate DESC LIMIT 10";
 
-        try( final Connection conn = dataSource.getConnection() ) {
+        try( Connection conn = dataSource.getConnection() ) {
             readOutlierRows( conn, mostSql, most );
             readOutlierRows( conn, largeSql, largeSingles );
             readOutlierRows( conn, oversizedSql, oversized );
@@ -221,8 +221,8 @@ public class ContentChunkRepository {
 
     private static void readOutlierRows( final Connection conn, final String sql,
                                          final List< OutlierEntry > sink ) throws SQLException {
-        try( final PreparedStatement ps = conn.prepareStatement( sql );
-             final ResultSet rs = ps.executeQuery() ) {
+        try( PreparedStatement ps = conn.prepareStatement( sql );
+             ResultSet rs = ps.executeQuery() ) {
             while( rs.next() ) {
                 sink.add( new OutlierEntry(
                     rs.getString( 1 ),
@@ -242,7 +242,7 @@ public class ContentChunkRepository {
      * @param diff     the computed diff to apply
      */
     public void apply( final String pageName, final ChunkDiff.Diff diff ) {
-        try( final Connection conn = dataSource.getConnection() ) {
+        try( Connection conn = dataSource.getConnection() ) {
             conn.setAutoCommit( false );
             try {
                 for( final UUID id : diff.deletes() ) {
@@ -271,8 +271,8 @@ public class ContentChunkRepository {
      * service to wipe the table before a full re-index.
      */
     public void deleteAll() {
-        try( final Connection conn = dataSource.getConnection();
-             final Statement st = conn.createStatement() ) {
+        try( Connection conn = dataSource.getConnection();
+             Statement st = conn.createStatement() ) {
             st.executeUpdate( "DELETE FROM kg_content_chunks" );
         } catch( final SQLException e ) {
             LOG.warn( "Failed to delete all chunks: {}", e.getMessage(), e );
@@ -295,9 +295,9 @@ public class ContentChunkRepository {
                          + "COALESCE( MIN( token_count_estimate ), 0 ), "
                          + "COALESCE( MAX( token_count_estimate ), 0 ) "
                          + "FROM kg_content_chunks";
-        try( final Connection conn = dataSource.getConnection();
-             final Statement st = conn.createStatement();
-             final ResultSet rs = st.executeQuery( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery( sql ) ) {
             if( !rs.next() ) {
                 return new AggregateStats( 0, 0, 0, 0, 0, 0 );
             }
@@ -318,7 +318,7 @@ public class ContentChunkRepository {
             + "( page_name, chunk_index, heading_path, text, char_count, "
             + "  token_count_estimate, content_hash ) "
             + "VALUES ( ?, ?, ?, ?, ?, ?, ? )";
-        try( final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( PreparedStatement ps = conn.prepareStatement( sql ) ) {
             final Array headingArray = conn.createArrayOf( "text", ch.headingPath().toArray() );
             ps.setString( 1, ch.pageName() );
             ps.setInt( 2, ch.chunkIndex() );
@@ -336,7 +336,7 @@ public class ContentChunkRepository {
             + "heading_path = ?, text = ?, char_count = ?, "
             + "token_count_estimate = ?, content_hash = ?, modified = CURRENT_TIMESTAMP "
             + "WHERE id = ?";
-        try( final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( PreparedStatement ps = conn.prepareStatement( sql ) ) {
             final Chunk r = u.replacement();
             final Array headingArray = conn.createArrayOf( "text", r.headingPath().toArray() );
             ps.setArray( 1, headingArray );
@@ -350,7 +350,7 @@ public class ContentChunkRepository {
     }
 
     private void deleteById( final Connection conn, final UUID id ) throws SQLException {
-        try( final PreparedStatement ps = conn.prepareStatement(
+        try( PreparedStatement ps = conn.prepareStatement(
                 "DELETE FROM kg_content_chunks WHERE id = ?" ) ) {
             ps.setObject( 1, id );
             ps.executeUpdate();

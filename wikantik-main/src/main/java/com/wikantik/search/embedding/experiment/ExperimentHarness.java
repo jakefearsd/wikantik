@@ -89,10 +89,10 @@ final class ExperimentHarness {
         final List< float[] > vectors  = new ArrayList<>();
         final List< Double >  norms    = new ArrayList<>();
         final Map< UUID, String > pagesForChunk = new HashMap<>();
-        try( final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, modelCode );
             ps.setFetchSize( 500 );
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 while( rs.next() ) {
                     final UUID id = (UUID) rs.getObject( 1 );
                     final int dim = rs.getInt( 2 );
@@ -122,7 +122,7 @@ final class ExperimentHarness {
      */
     static TextEmbeddingClient buildClient( final String modelCode ) throws IOException {
         final Properties p = new Properties();
-        try( final InputStream in = ExperimentHarness.class.getResourceAsStream( "/ini/wikantik.properties" ) ) {
+        try( InputStream in = ExperimentHarness.class.getResourceAsStream( "/ini/wikantik.properties" ) ) {
             if( in != null ) p.load( in );
         }
         for( final String key : List.of(

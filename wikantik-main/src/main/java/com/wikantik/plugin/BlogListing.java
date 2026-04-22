@@ -109,7 +109,7 @@ public class BlogListing implements Plugin {
 
         } catch ( final Exception e ) {
             LOG.warn( "Error executing BlogListing plugin", e );
-            throw new PluginException( "Error listing blogs: " + e.getMessage() );
+            throw new PluginException( "Error listing blogs: " + e.getMessage(), e );
         }
     }
 

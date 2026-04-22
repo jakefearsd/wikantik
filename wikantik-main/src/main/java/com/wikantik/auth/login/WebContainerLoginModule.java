@@ -73,7 +73,7 @@ public class WebContainerLoginModule extends AbstractLoginModule {
     public boolean login() throws LoginException
     {
         final HttpRequestCallback rcb = new HttpRequestCallback();
-        final Callback[] callbacks = new Callback[] { rcb };
+        final Callback[] callbacks = { rcb };
         final String userId;
 
         try

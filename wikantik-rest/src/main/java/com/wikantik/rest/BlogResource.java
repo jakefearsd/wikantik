@@ -95,7 +95,7 @@ public class BlogResource extends RestServletBase {
      */
     private BlogPath parsePath( final HttpServletRequest request ) {
         final String pathInfo = request.getPathInfo();
-        if ( pathInfo == null || pathInfo.equals( "/" ) || pathInfo.isEmpty() ) {
+        if ( pathInfo == null || "/".equals( pathInfo ) || pathInfo.isEmpty() ) {
             return null;
         }
 

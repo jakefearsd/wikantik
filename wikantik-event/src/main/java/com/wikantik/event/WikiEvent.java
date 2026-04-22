@@ -178,6 +178,7 @@ public abstract sealed class WikiEvent extends EventObject
      * @see java.lang.Object#toString()
      * @return the String representation
      */
+    @Override
     public String toString() {
         return "WikiEvent." + eventName() + " [source=" + getSource().toString() + "]";
     }

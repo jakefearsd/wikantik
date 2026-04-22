@@ -19,7 +19,6 @@
 package com.wikantik.mcp.tools;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Strategy interface for page validation checks (Gang of Four: Strategy pattern).

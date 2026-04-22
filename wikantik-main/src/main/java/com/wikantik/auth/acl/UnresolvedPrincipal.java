@@ -62,6 +62,7 @@ public final class UnresolvedPrincipal implements Principal, Serializable
      * Returns a String representation of the UnresolvedPrincipal.
      * @return the String
      */
+    @Override
     public String toString()
     {
         return "[UnresolvedPrincipal: " + name + "]";
@@ -74,6 +75,7 @@ public final class UnresolvedPrincipal implements Principal, Serializable
      * @return the result of the equality test
      * @see java.lang.Object#equals(java.lang.Object)
      */
+    @Override
     public boolean equals(final Object obj )
     {
         if ( obj instanceof UnresolvedPrincipal other )
@@ -87,6 +89,7 @@ public final class UnresolvedPrincipal implements Principal, Serializable
      *  The hashCode of this object is equal to the hash code of its name.
      *  @return the hash code
      */
+    @Override
     public int hashCode()
     {
         return name.hashCode();

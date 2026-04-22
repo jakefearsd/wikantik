@@ -197,7 +197,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         }
 
         final AcceptProposalRequest body;
-        try ( final BufferedReader reader = request.getReader() ) {
+        try ( BufferedReader reader = request.getReader() ) {
             body = GSON.fromJson( reader, AcceptProposalRequest.class );
         } catch ( final Exception e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body" );
@@ -327,7 +327,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         }
 
         final BulkDeleteDismissedRequest body;
-        try ( final BufferedReader reader = request.getReader() ) {
+        try ( BufferedReader reader = request.getReader() ) {
             body = GSON.fromJson( reader, BulkDeleteDismissedRequest.class );
         } catch ( final Exception e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body" );
@@ -464,7 +464,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         }
 
         final com.wikantik.rest.dto.RemoveHubMemberRequest body;
-        try ( final BufferedReader reader = request.getReader() ) {
+        try ( BufferedReader reader = request.getReader() ) {
             body = GSON.fromJson( reader, com.wikantik.rest.dto.RemoveHubMemberRequest.class );
         } catch ( final Exception e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body" );

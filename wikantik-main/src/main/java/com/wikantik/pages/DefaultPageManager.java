@@ -258,7 +258,7 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
         final boolean allowEmpty = TextUtil.getBooleanProperty( engine.getWikiProperties(),
                                                                 Engine.PROP_ALLOW_CREATION_OF_EMPTY_PAGES,
                                                          false );
-        if ( !allowEmpty && !wikiPageExists( page ) && text.trim().equals( "" ) ) {
+        if ( !allowEmpty && !wikiPageExists( page ) && text.trim().isEmpty() ) {
             return;
         }
 
@@ -732,7 +732,7 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
 
         if( se.getType() == WikiSecurityEvent.PROFILE_NAME_CHANGED ) {
             final UserProfile[] profiles = (UserProfile[]) se.getTarget();
-            final Principal[] oldPrincipals = new Principal[] { new WikiPrincipal( profiles[ 0 ].getLoginName() ),
+            final Principal[] oldPrincipals = { new WikiPrincipal( profiles[ 0 ].getLoginName() ),
                                                                 new WikiPrincipal( profiles[ 0 ].getFullname()),
                                                                 new WikiPrincipal( profiles[ 0 ].getWikiName() ) };
             final Principal newPrincipal = new WikiPrincipal( profiles[ 1 ].getFullname() );

@@ -216,7 +216,7 @@ public class ToolsOpenApiServlet extends HttpServlet {
     }
 
     private static JsonObject readJsonBody( final HttpServletRequest req ) {
-        try ( final BufferedReader reader = req.getReader() ) {
+        try ( BufferedReader reader = req.getReader() ) {
             final StringBuilder buf = new StringBuilder();
             final char[] chunk = new char[ 1024 ];
             int n;

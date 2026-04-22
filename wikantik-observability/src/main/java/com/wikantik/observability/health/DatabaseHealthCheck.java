@@ -74,9 +74,9 @@ public class DatabaseHealthCheck implements HealthCheck {
         final long start = System.currentTimeMillis();
         try {
             final DataSource ds = resolveDataSource();
-            try ( final Connection conn = ds.getConnection();
-                  final Statement stmt = conn.createStatement();
-                  final ResultSet rs = stmt.executeQuery( "SELECT 1" ) ) {
+            try ( Connection conn = ds.getConnection();
+                  Statement stmt = conn.createStatement();
+                  ResultSet rs = stmt.executeQuery( "SELECT 1" ) ) {
                 rs.next();
             }
             return HealthResult.up( System.currentTimeMillis() - start );

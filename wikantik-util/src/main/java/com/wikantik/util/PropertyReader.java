@@ -130,7 +130,7 @@ public final class PropertyReader {
      */
     public static Properties loadWebAppProps( final ServletContext context ) {
         final String propertyFile = getInitParameter( context, PARAM_CUSTOMCONFIG );
-        try( final InputStream propertyStream = loadCustomPropertiesFile(context, propertyFile) ) {
+        try( InputStream propertyStream = loadCustomPropertiesFile(context, propertyFile) ) {
             final Properties props = getDefaultProperties();
 
             // add system env properties beginning with wikantik...
@@ -207,7 +207,7 @@ public final class PropertyReader {
      */
     public static Properties getDefaultProperties() {
         final Properties props = new Properties();
-        try( final InputStream in = PropertyReader.class.getResourceAsStream( DEFAULT_WIKANTIK_CONFIG ) ) {
+        try( InputStream in = PropertyReader.class.getResourceAsStream( DEFAULT_WIKANTIK_CONFIG ) ) {
             if( in != null ) {
                 props.load( in );
             }
@@ -227,7 +227,7 @@ public final class PropertyReader {
      */
     public static Properties getCombinedProperties( final String fileName ) {
         final Properties newPropertySet = getDefaultProperties();
-        try( final InputStream in = PropertyReader.class.getResourceAsStream( fileName ) ) {
+        try( InputStream in = PropertyReader.class.getResourceAsStream( fileName ) ) {
             if( in != null ) {
                 newPropertySet.load( in );
             } else {
@@ -272,7 +272,7 @@ public final class PropertyReader {
                 break;
             }
 
-            try( final InputStream propertyStream = Files.newInputStream(Paths.get(( propertyFile ) ))) {
+            try( InputStream propertyStream = Files.newInputStream(Paths.get(( propertyFile ) ))) {
                 LOG.info( " Reading additional properties from {} and merge to cascade.", propertyFile );
                 final Properties additionalProps = new Properties();
                 additionalProps.load( propertyStream );
@@ -457,11 +457,11 @@ public final class PropertyReader {
         // append the optional path
         if( sanitizedPath != null && !sanitizedPath.isEmpty() ) {
             if( !sanitizedPath.startsWith( "/" ) ) {
-                result.append( "/" );
+                result.append('/');
             }
             result.append( sanitizedPath );
         }
-        result.append( "/" );
+        result.append('/');
 
         // append the name
         result.append( sanitizedName );

@@ -207,6 +207,7 @@ public class ContextualDiffProvider implements DiffProvider {
      * whole change process is threadsafe by encapsulating
      * all necessary variables.
      */
+    @SuppressWarnings( "PMD.AvoidStringBufferField" ) // ChangeMerger is constructed per diff traversal and discarded; no long-lived owner.
     private final class ChangeMerger implements RevisionVisitor {
         private final StringBuffer sb;
 

@@ -58,7 +58,6 @@ public class ReferredPagesPlugin implements Plugin {
     private Engine engine;
     private int depth;
     private final HashSet< String > exists  = new HashSet<>();
-    private final StringBuilder result  = new StringBuilder( 1024 );
     private Pattern includePattern;
     private Pattern excludePattern;
     private int items;
@@ -152,6 +151,7 @@ public class ReferredPagesPlugin implements Plugin {
                              "] format[" + ( formatCompact ? "compact" : "full" ) +
                              ( formatSort ? " sort" : "" ) + "]";
 
+        final StringBuilder result = new StringBuilder( 1024 );
         if( items > 1 ) {
             result.append( "<div class=\"ReferredPagesPlugin\" style=\"" )
                     .append( "columns:" ).append( columns ).append(';')
@@ -188,7 +188,7 @@ public class ReferredPagesPlugin implements Plugin {
         }
 
         // go get all referred links
-        getReferredPages(context,rootname, 0);
+        getReferredPages( context, rootname, 0, result );
 
         // close and finish
         result.append ("</div>\n" ) ;
@@ -199,7 +199,7 @@ public class ReferredPagesPlugin implements Plugin {
     /**
      * Retrieves a list of all referred pages. Is called recursively depending on the depth parameter.
      */
-    private void getReferredPages( final Context context, final String pagename, int depth ) {
+    private void getReferredPages( final Context context, final String pagename, int depth, final StringBuilder result ) {
         if( depth >= this.depth ) {
             return;  // end of recursion
         }
@@ -212,10 +212,10 @@ public class ReferredPagesPlugin implements Plugin {
 
         final ReferenceManager mgr = engine.getManager( ReferenceManager.class );
         final Collection< String > allPages = mgr.findRefersTo( pagename );
-        handleLinks( context, allPages, ++depth, pagename );
+        handleLinks( context, allPages, ++depth, pagename, result );
     }
 
-    private void handleLinks( final Context context, final Collection<String> links, final int depth, final String pagename ) {
+    private void handleLinks( final Context context, final Collection<String> links, final int depth, final String pagename, final StringBuilder result ) {
         boolean isUL = false;
         final var localLinkSet = new HashSet< String >();  // needed to skip multiple links to the same page
         localLinkSet.add( pagename );
@@ -251,7 +251,7 @@ public class ReferredPagesPlugin implements Plugin {
 
                     //See https://www.w3.org/wiki/HTML_lists  for proper nesting of UL and LI
                     result.append( "<li> " ).append( TextUtil.replaceEntities( link ) ).append('\n');
-                    getReferredPages( context, link, depth );  // added recursive call - on general request
+                    getReferredPages( context, link, depth, result );  // added recursive call - on general request
                     result.append( "\n</li>\n" );
                 }
             } else {
@@ -263,7 +263,7 @@ public class ReferredPagesPlugin implements Plugin {
                 final String href = context.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), link );
                 result.append( "<li><a class=\"wikipage\" href=\"" ).append( href ).append( "\">" ).append( TextUtil.replaceEntities( link ) ).append( "</a>\n" );
                 exists.add( link );
-                getReferredPages( context, link, depth );
+                getReferredPages( context, link, depth, result );
                 result.append( "\n</li>\n" );
             }
         }

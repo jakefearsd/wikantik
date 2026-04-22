@@ -121,6 +121,7 @@ public class TraditionalDiffProvider implements DiffProvider {
     }
 
 
+    @SuppressWarnings( "PMD.AvoidStringBufferField" ) // RevisionPrint is constructed per diff traversal and discarded; no long-lived owner.
     private static final class RevisionPrint implements RevisionVisitor {
 
         private final StringBuffer result;

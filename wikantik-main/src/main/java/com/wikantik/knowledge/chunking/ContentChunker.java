@@ -159,6 +159,7 @@ public class ContentChunker {
      * when the merge-forward buffer first captured content; it "wins" for the
      * merged chunk.
      */
+    @SuppressWarnings( "PMD.AvoidStringBufferField" ) // State is constructed per chunking pass and discarded; no long-lived owner.
     private static final class State {
         final List<Node> blocks = new ArrayList<>();
         final StringBuilder pending = new StringBuilder();

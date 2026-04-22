@@ -1,0 +1,126 @@
+<?xml version="1.0"?>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements. Licensed under the Apache License,
+    Version 2.0 (the "License"); you may not use this file except in
+    compliance with the License. You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+-->
+<ruleset name="wikantik"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0
+                             https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>
+        Wikantik PMD ruleset: keeps high-signal bug / API-misuse / perf rules
+        and drops style/complexity noise. Favors exposure — excluded rules are
+        only the ones that fire constantly on this codebase with little payoff.
+        See docs at https://pmd.github.io/pmd/pmd_rules_java.html
+    </description>
+
+    <!-- ================================================================ -->
+    <!-- errorprone — real bug classes: resource leaks, broken null checks,
+         exception handling mistakes, switch/serialization hazards.         -->
+    <!-- ================================================================ -->
+    <rule ref="category/java/errorprone.xml">
+        <!-- Pure noise on a codebase this size: -->
+        <exclude name="AvoidDuplicateLiterals"/>
+        <exclude name="AvoidFieldNameMatchingMethodName"/>
+        <exclude name="AvoidFieldNameMatchingTypeName"/>
+        <exclude name="AvoidLiteralsInIfCondition"/>
+        <exclude name="NullAssignment"/>
+        <!-- Fires on every servlet/filter inner class that's trivially serializable. -->
+        <exclude name="NonSerializableClass"/>
+        <!-- Theoretical; rarely a real bug, high false-positive rate. -->
+        <exclude name="ConstructorCallsOverridableMethod"/>
+        <!-- Deprecated / superseded. -->
+        <exclude name="EmptyStatementNotInLoop"/>
+        <!-- Beans/DTOs legitimately want mutable fields. -->
+        <exclude name="DataflowAnomalyAnalysis"/>
+    </rule>
+
+    <!-- EmptyCatchBlock: enforce project rule (log, don't swallow) but
+         allow "ignored" / "expected" variable names to mark intentional drops. -->
+    <rule ref="category/java/errorprone.xml/EmptyCatchBlock">
+        <properties>
+            <property name="allowCommentedBlocks" value="true"/>
+            <property name="allowExceptionNameRegex">
+                <value>^(ignored|expected)$</value>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- ================================================================ -->
+    <!-- bestpractices — unused code, stack-trace preservation, try-with-
+         resources, Locale sanity, logging format strings, etc.             -->
+    <!-- ================================================================ -->
+    <rule ref="category/java/bestpractices.xml">
+        <!-- Interface / servlet-override false positives. -->
+        <exclude name="UnusedFormalParameter"/>
+        <!-- Log4j2 parameterized logging already handles this; rule fires on
+             every LOG.debug("x {}", arg) call that PMD can't parse. -->
+        <exclude name="GuardLogStatement"/>
+        <!-- Test-style rules — turn on once we have budget for it. -->
+        <exclude name="JUnitTestContainsTooManyAsserts"/>
+        <exclude name="JUnitTestsShouldIncludeAssert"/>
+        <exclude name="JUnitAssertionsShouldIncludeMessage"/>
+        <exclude name="JUnit4TestShouldUseTestAnnotation"/>
+        <exclude name="JUnit5TestShouldBePackagePrivate"/>
+        <!-- Very noisy; subclasses override protected members across the tree. -->
+        <exclude name="AccessorClassGeneration"/>
+        <exclude name="AccessorMethodGeneration"/>
+        <!-- Android-only. -->
+        <exclude name="AvoidReassigningLoopVariables"/>
+    </rule>
+
+    <!-- ================================================================ -->
+    <!-- performance — autobox / wrapper instantiation, StringBuffer abuse,
+         Files vs FileInputStream, redundant toString, etc.                 -->
+    <!-- ================================================================ -->
+    <rule ref="category/java/performance.xml">
+        <!-- Famously noisy; nearly every loop allocates something. -->
+        <exclude name="AvoidInstantiatingObjectsInLoops"/>
+        <!-- Style nit, not a perf issue. -->
+        <exclude name="TooFewBranchesForSwitch"/>
+    </rule>
+
+    <!-- ================================================================ -->
+    <!-- design — cherry-pick a handful of real structural smells, skip the
+         complexity/metrics rules that just produce yellow-sea reports.     -->
+    <!-- ================================================================ -->
+    <rule ref="category/java/design.xml/SimplifyBooleanExpressions"/>
+    <rule ref="category/java/design.xml/SimplifyBooleanReturns"/>
+    <rule ref="category/java/design.xml/SimplifyConditional"/>
+    <rule ref="category/java/design.xml/CollapsibleIfStatements"/>
+    <rule ref="category/java/design.xml/UselessOverridingMethod"/>
+    <rule ref="category/java/design.xml/SingularField"/>
+    <rule ref="category/java/design.xml/FinalFieldCouldBeStatic"/>
+    <rule ref="category/java/design.xml/ImmutableField"/>
+    <rule ref="category/java/design.xml/LogicInversion"/>
+
+    <!-- ================================================================ -->
+    <!-- multithreading — high-value concurrency traps.                     -->
+    <!-- ================================================================ -->
+    <rule ref="category/java/multithreading.xml/DoubleCheckedLocking"/>
+    <rule ref="category/java/multithreading.xml/AvoidThreadGroup"/>
+    <rule ref="category/java/multithreading.xml/DontCallThreadRun"/>
+    <rule ref="category/java/multithreading.xml/NonThreadSafeSingleton"/>
+    <rule ref="category/java/multithreading.xml/UnsynchronizedStaticFormatter"/>
+    <rule ref="category/java/multithreading.xml/UseNotifyAllInsteadOfNotify"/>
+    <!-- AvoidUsingVolatile deliberately omitted — volatile is an intentional choice. -->
+
+    <!-- ================================================================ -->
+    <!-- codestyle — we skip the bulk of this category (naming, variable
+         length, etc.); only pull in rules that catch real mistakes.        -->
+    <!-- ================================================================ -->
+    <rule ref="category/java/codestyle.xml/UnnecessaryReturn"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryModifier"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
+    <rule ref="category/java/codestyle.xml/UnnecessaryBoxing"/>
+    <rule ref="category/java/codestyle.xml/UselessParentheses"/>
+    <rule ref="category/java/codestyle.xml/UseDiamondOperator"/>
+    <rule ref="category/java/codestyle.xml/UseShortArrayInitializer"/>
+    <rule ref="category/java/codestyle.xml/EmptyControlStatement"/>
+
+</ruleset>

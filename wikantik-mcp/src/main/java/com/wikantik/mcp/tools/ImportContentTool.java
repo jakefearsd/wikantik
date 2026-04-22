@@ -97,29 +97,28 @@ public class ImportContentTool implements McpTool, AuthorConfigurable {
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         final String directoryArg = McpToolUtils.getString( arguments, "directory" );
-        final String author = McpToolUtils.getString( arguments, "author" );
-        final String changeNote = McpToolUtils.getString( arguments, "changeNote" );
-        final boolean deleteMissing = McpToolUtils.getBoolean( arguments, "deleteMissing" );
-        final boolean skipConflicts = McpToolUtils.getBoolean( arguments, "skipConflicts" );
-
         if ( directoryArg == null || directoryArg.isBlank() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "directory is required" );
         }
-
         final Path dir = Path.of( directoryArg );
         if ( !Files.isDirectory( dir ) ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Directory does not exist: " + directoryArg );
         }
 
+        final String author = McpToolUtils.getString( arguments, "author" );
         final String effectiveAuthor = author != null ? author : defaultAuthor;
+        final ImportOptions opts = new ImportOptions(
+                effectiveAuthor,
+                McpToolUtils.getString( arguments, "changeNote" ),
+                McpToolUtils.getBoolean( arguments, "deleteMissing" ),
+                McpToolUtils.getBoolean( arguments, "skipConflicts" ) );
 
         try {
             final ExportManifest manifest = ExportManifest.readFrom( dir );
             final Map< String, Integer > manifestVersions = manifest != null
                     ? manifest.getPageVersions()
                     : Map.of();
-
             final Map< String, Path > mdFiles = PreviewImportTool.collectMarkdownFiles( dir );
 
             if ( mdFiles.isEmpty() ) {
@@ -129,116 +128,157 @@ public class ImportContentTool implements McpTool, AuthorConfigurable {
             }
 
             final List< Map< String, Object > > results = new ArrayList<>();
-            int added = 0, modified = 0, skipped = 0, deleted = 0, errors = 0;
+            final Tally tally = new Tally();
 
-            // Process each .md file
             for ( final Map.Entry< String, Path > entry : mdFiles.entrySet() ) {
-                final String pageName = entry.getKey();
-                final String fileContent = Files.readString( entry.getValue(), StandardCharsets.UTF_8 );
-                final Page currentPage = pageManager.getPage( pageName );
-
-                // Check for version conflict
-                if ( currentPage != null && manifestVersions.containsKey( pageName ) ) {
-                    final int exportedVersion = manifestVersions.get( pageName );
-                    final int currentVersion = McpToolUtils.normalizeVersion( currentPage.getVersion() );
-                    if ( currentVersion != exportedVersion ) {
-                        if ( skipConflicts ) {
-                            results.add( Map.of( "pageName", pageName, "action", "skipped",
-                                    "success", false, "reason", "Version conflict: exported v" + exportedVersion
-                                                                + ", current v" + currentVersion ) );
-                            skipped++;
-                            continue;
-                        } else {
-                            results.add( Map.of( "pageName", pageName, "action", "conflict",
-                                    "success", false, "error", "Version conflict: exported v" + exportedVersion
-                                                               + ", current v" + currentVersion ) );
-                            errors++;
-                            continue;
-                        }
-                    }
-                }
-
-                // Skip if content unchanged
-                if ( currentPage != null ) {
-                    final String currentText = pageManager.getPureText( pageName, -1 );
-                    if ( fileContent.equals( currentText ) ) {
-                        results.add( Map.of( "pageName", pageName, "action", "unchanged", "success", true ) );
-                        skipped++;
-                        continue;
-                    }
-                }
-
-                // Save the page
-                final String action = currentPage == null ? "created" : "updated";
-                try {
-                    final ParsedPage parsed = FrontmatterParser.parse( fileContent );
-                    final Map< String, Object > metadata = parsed.metadata().isEmpty() ? null : new LinkedHashMap<>( parsed.metadata() );
-
-                    pageSaveHelper.saveText( pageName, parsed.body(),
-                            SaveOptions.builder()
-                                    .author( effectiveAuthor )
-                                    .changeNote( changeNote )
-                                    .markupSyntax( "markdown" )
-                                    .metadata( metadata )
-                                    .replaceMetadata( true )   // file content is authoritative
-                                    .build() );
-
-                    McpAudit.logWrite( TOOL_NAME, action, pageName, effectiveAuthor );
-                    results.add( Map.of( "pageName", pageName, "action", action, "success", true ) );
-                    if ( "created".equals( action ) ) {
-                        added++;
-                    } else {
-                        modified++;
-                    }
-                } catch ( final VersionConflictException e ) {
-                    results.add( Map.of( "pageName", pageName, "action", "conflict",
-                            "success", false, "error", e.getMessage() ) );
-                    errors++;
-                } catch ( final Exception e ) {
-                    LOG.error( "Failed to import page {}: {}", pageName, e.getMessage(), e );
-                    results.add( Map.of( "pageName", pageName, "action", "error",
-                            "success", false, "error", e.getMessage() ) );
-                    errors++;
-                }
+                results.add( importOne( entry.getKey(), entry.getValue(), manifestVersions, opts, tally ) );
             }
 
-            // Handle deletions
-            if ( deleteMissing && manifest != null ) {
-                for ( final String pageName : manifestVersions.keySet() ) {
-                    if ( !mdFiles.containsKey( pageName ) && pageManager.pageExists( pageName ) ) {
-                        try {
-                            pageManager.deletePage( pageName );
-                            McpAudit.logWrite( TOOL_NAME, "deleted", pageName, effectiveAuthor );
-                            results.add( Map.of( "pageName", pageName, "action", "deleted", "success", true ) );
-                            deleted++;
-                        } catch ( final Exception e ) {
-                            LOG.error( "Failed to delete page {}: {}", pageName, e.getMessage(), e );
-                            results.add( Map.of( "pageName", pageName, "action", "delete_failed",
-                                    "success", false, "error", e.getMessage() ) );
-                            errors++;
-                        }
-                    }
-                }
+            if ( opts.deleteMissing() && manifest != null ) {
+                deleteMissingPages( manifestVersions, mdFiles, opts.author(), results, tally );
             }
 
-            final Map< String, Object > response = new LinkedHashMap<>();
-            response.put( "results", results );
-
-            final Map< String, Object > summary = new LinkedHashMap<>();
-            summary.put( "totalProcessed", mdFiles.size() );
-            summary.put( "created", added );
-            summary.put( "updated", modified );
-            summary.put( "skipped", skipped );
-            summary.put( "deleted", deleted );
-            summary.put( "errors", errors );
-            response.put( "summary", summary );
-
-            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, response );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, buildResponse( results, mdFiles.size(), tally ) );
 
         } catch ( final IOException | ProviderException e ) {
             LOG.error( "Failed to import content from {}: {}", directoryArg, e.getMessage(), e );
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Import failed: " + e.getMessage() );
         }
+    }
+
+    /** Processes a single markdown file: conflict check → unchanged check → save. */
+    private Map< String, Object > importOne( final String pageName, final Path file,
+                                             final Map< String, Integer > manifestVersions,
+                                             final ImportOptions opts, final Tally tally )
+            throws IOException, ProviderException {
+        final String fileContent = Files.readString( file, StandardCharsets.UTF_8 );
+        final Page currentPage = pageManager.getPage( pageName );
+
+        final Map< String, Object > conflict = detectConflict( pageName, currentPage, manifestVersions, opts.skipConflicts(), tally );
+        if ( conflict != null ) {
+            return conflict;
+        }
+
+        if ( currentPage != null && fileContent.equals( pageManager.getPureText( pageName, -1 ) ) ) {
+            tally.skipped++;
+            return Map.of( "pageName", pageName, "action", "unchanged", "success", true );
+        }
+
+        return savePage( pageName, fileContent, currentPage == null, opts, tally );
+    }
+
+    /**
+     * Returns a pre-built conflict/skipped result when the manifest version disagrees with the live page,
+     * or {@code null} when there is no conflict.
+     */
+    private Map< String, Object > detectConflict( final String pageName, final Page currentPage,
+                                                  final Map< String, Integer > manifestVersions,
+                                                  final boolean skipConflicts, final Tally tally ) {
+        if ( currentPage == null || !manifestVersions.containsKey( pageName ) ) {
+            return null;
+        }
+        final int exportedVersion = manifestVersions.get( pageName );
+        final int currentVersion = McpToolUtils.normalizeVersion( currentPage.getVersion() );
+        if ( currentVersion == exportedVersion ) {
+            return null;
+        }
+
+        final String detail = "Version conflict: exported v" + exportedVersion + ", current v" + currentVersion;
+        if ( skipConflicts ) {
+            tally.skipped++;
+            return Map.of( "pageName", pageName, "action", "skipped", "success", false, "reason", detail );
+        }
+        tally.errors++;
+        return Map.of( "pageName", pageName, "action", "conflict", "success", false, "error", detail );
+    }
+
+    /** Writes the parsed frontmatter/body through {@link PageSaveHelper}, tracking the outcome in {@code tally}. */
+    private Map< String, Object > savePage( final String pageName, final String fileContent, final boolean isNew,
+                                            final ImportOptions opts, final Tally tally ) {
+        final String action = isNew ? "created" : "updated";
+        try {
+            final ParsedPage parsed = FrontmatterParser.parse( fileContent );
+            final Map< String, Object > metadata = parsed.metadata().isEmpty()
+                    ? null
+                    : new LinkedHashMap<>( parsed.metadata() );
+
+            pageSaveHelper.saveText( pageName, parsed.body(),
+                    SaveOptions.builder()
+                            .author( opts.author() )
+                            .changeNote( opts.changeNote() )
+                            .markupSyntax( "markdown" )
+                            .metadata( metadata )
+                            .replaceMetadata( true )   // file content is authoritative
+                            .build() );
+
+            McpAudit.logWrite( TOOL_NAME, action, pageName, opts.author() );
+            if ( isNew ) {
+                tally.created++;
+            } else {
+                tally.updated++;
+            }
+            return Map.of( "pageName", pageName, "action", action, "success", true );
+        } catch ( final VersionConflictException e ) {
+            tally.errors++;
+            return Map.of( "pageName", pageName, "action", "conflict",
+                    "success", false, "error", e.getMessage() );
+        } catch ( final Exception e ) {
+            LOG.error( "Failed to import page {}: {}", pageName, e.getMessage(), e );
+            tally.errors++;
+            return Map.of( "pageName", pageName, "action", "error",
+                    "success", false, "error", e.getMessage() );
+        }
+    }
+
+    /** Deletes pages that are in the manifest but no longer present on disk, appending each outcome to {@code results}. */
+    private void deleteMissingPages( final Map< String, Integer > manifestVersions,
+                                     final Map< String, Path > mdFiles, final String author,
+                                     final List< Map< String, Object > > results, final Tally tally )
+            throws ProviderException {
+        for ( final String pageName : manifestVersions.keySet() ) {
+            if ( mdFiles.containsKey( pageName ) || !pageManager.pageExists( pageName ) ) {
+                continue;
+            }
+            try {
+                pageManager.deletePage( pageName );
+                McpAudit.logWrite( TOOL_NAME, "deleted", pageName, author );
+                results.add( Map.of( "pageName", pageName, "action", "deleted", "success", true ) );
+                tally.deleted++;
+            } catch ( final Exception e ) {
+                LOG.error( "Failed to delete page {}: {}", pageName, e.getMessage(), e );
+                results.add( Map.of( "pageName", pageName, "action", "delete_failed",
+                        "success", false, "error", e.getMessage() ) );
+                tally.errors++;
+            }
+        }
+    }
+
+    private static Map< String, Object > buildResponse( final List< Map< String, Object > > results,
+                                                        final int totalProcessed, final Tally tally ) {
+        final Map< String, Object > summary = new LinkedHashMap<>();
+        summary.put( "totalProcessed", totalProcessed );
+        summary.put( "created", tally.created );
+        summary.put( "updated", tally.updated );
+        summary.put( "skipped", tally.skipped );
+        summary.put( "deleted", tally.deleted );
+        summary.put( "errors", tally.errors );
+
+        final Map< String, Object > response = new LinkedHashMap<>();
+        response.put( "results", results );
+        response.put( "summary", summary );
+        return response;
+    }
+
+    /** Per-invocation caller options bundled so the helper signatures stay narrow. */
+    private record ImportOptions( String author, String changeNote, boolean deleteMissing, boolean skipConflicts ) {}
+
+    /** Per-invocation counter bag. Values are merged into the final {@code summary} map. */
+    private static final class Tally {
+        int created;
+        int updated;
+        int skipped;
+        int deleted;
+        int errors;
     }
 }

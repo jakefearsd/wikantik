@@ -70,7 +70,7 @@ public class ConvertResource extends RestServletBase {
 
         // Parse JSON body
         final JsonObject body;
-        try( final BufferedReader reader = request.getReader() ) {
+        try( BufferedReader reader = request.getReader() ) {
             body = JsonParser.parseReader( reader ).getAsJsonObject();
         } catch( final Exception e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body" );

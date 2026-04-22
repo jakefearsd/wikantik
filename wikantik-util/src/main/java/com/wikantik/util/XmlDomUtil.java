@@ -180,7 +180,7 @@ public final class XmlDomUtil {
     public static void saveXmlFile( final File file, final XmlContentWriter contentWriter ) throws IOException {
         final File newFile = new File( file.getAbsolutePath() + ".new" );
 
-        try( final BufferedWriter io = new BufferedWriter(
+        try( BufferedWriter io = new BufferedWriter(
                 new OutputStreamWriter( Files.newOutputStream( newFile.toPath() ), StandardCharsets.UTF_8 ) ) ) {
             contentWriter.write( io );
         }

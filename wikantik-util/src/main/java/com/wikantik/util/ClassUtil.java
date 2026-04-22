@@ -239,7 +239,7 @@ public final class ClassUtil {
      * @param rootPackage base package.
      */
     static void jarEntriesUnder( final List< String > results, final JarURLConnection jurlcon, final String rootPackage ) {
-        try( final JarFile jar = jurlcon.getJarFile() ) {
+        try( JarFile jar = jurlcon.getJarFile() ) {
             LOG.debug( "scanning [{}]", jar.getName() );
             final Enumeration< JarEntry > entries = jar.entries();
             while( entries.hasMoreElements() ) {

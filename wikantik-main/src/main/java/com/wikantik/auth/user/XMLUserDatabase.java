@@ -32,6 +32,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
+import java.util.Locale;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
@@ -302,7 +303,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         for( int i = 0; i < users.getLength(); i++ ) {
             final Element user = ( Element )users.item( i );
             if( user.getAttribute( LOGIN_NAME ).equals( loginName ) ) {
-                final DateFormat dateFormat = new SimpleDateFormat( DATE_FORMAT );
+                final DateFormat dateFormat = new SimpleDateFormat( DATE_FORMAT, Locale.ROOT );
                 final Date modDate = new Date( System.currentTimeMillis() );
                 setAttribute( user, LOGIN_NAME, newName );
                 setAttribute( user, LAST_MODIFIED, dateFormat.format( modDate ) );
@@ -326,7 +327,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
 
         checkForRefresh();
 
-        final DateFormat dateFormat = new SimpleDateFormat( DATE_FORMAT );
+        final DateFormat dateFormat = new SimpleDateFormat( DATE_FORMAT, Locale.ROOT );
         final String index = profile.getLoginName();
         final NodeList users = dom.getElementsByTagName( USER_TAG );
         Element user = IntStream.range(0, users.getLength()).mapToObj(i -> (Element) users.item(i)).filter(currentUser -> currentUser.getAttribute(LOGIN_NAME).equals(index)).findFirst().orElse(null);
@@ -361,7 +362,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
 
         // Hash and save the new password if it's different from old one
         final String newPassword = profile.getPassword();
-        if( newPassword != null && !newPassword.equals( "" ) ) {
+        if( newPassword != null && !newPassword.isEmpty() ) {
             final String oldPassword = user.getAttribute( PASSWORD );
             if( !oldPassword.equals( newPassword ) ) {
                 setAttribute( user, PASSWORD, getHash( newPassword ) );
@@ -411,7 +412,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         }
 
         // check if we have to do a case-insensitive compare
-        final boolean caseSensitiveCompare = !matchAttribute.equals( EMAIL );
+        final boolean caseSensitiveCompare = !EMAIL.equals( matchAttribute );
 
         for( int i = 0; i < users.getLength(); i++ ) {
             final Element user = (Element) users.item( i );
@@ -490,7 +491,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
      */
     private Date parseDate( final UserProfile profile, final String date ) {
         try {
-            final DateFormat dateFormat = new SimpleDateFormat( DATE_FORMAT );
+            final DateFormat dateFormat = new SimpleDateFormat( DATE_FORMAT, Locale.ROOT );
             return dateFormat.parse( date );
         } catch( final ParseException e ) {
             try {
@@ -527,7 +528,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
             final String loginName = user.getAttribute( LOGIN_NAME );
             String created = user.getAttribute( CREATED );
             String modified = user.getAttribute( LAST_MODIFIED );
-            final DateFormat dateFormat = new SimpleDateFormat( DATE_FORMAT );
+            final DateFormat dateFormat = new SimpleDateFormat( DATE_FORMAT, Locale.ROOT );
             try {
                 created = dateFormat.format( dateFormat.parse( created ) );
                 modified = dateFormat.format( dateFormat.parse( modified ) );

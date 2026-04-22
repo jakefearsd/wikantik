@@ -37,4 +37,14 @@ public class FilterException extends WikiException {
         super( msg );
     }
 
+    /**
+     *  Constructs an exception with a cause.
+     *
+     *  @param msg exception message.
+     *  @param cause underlying cause.
+     */
+    public FilterException( final String msg, final Throwable cause ) {
+        super( msg, cause );
+    }
+
 }

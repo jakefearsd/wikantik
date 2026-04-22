@@ -216,7 +216,7 @@ public class ExportContentTool implements McpTool {
 
         int count = 0;
         for ( final Attachment att : attachments ) {
-            try ( final InputStream is = attachmentManager.getAttachmentStream( null, att ) ) {
+            try ( InputStream is = attachmentManager.getAttachmentStream( null, att ) ) {
                 if ( is != null ) {
                     Files.copy( is, attachDir.resolve( att.getFileName() ) );
                     count++;

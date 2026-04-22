@@ -202,7 +202,7 @@ public class CommentResource extends RestServletBase {
             boolean inBlockquote = false;
 
             for ( final String line : lines ) {
-                if ( line.startsWith( "> " ) || line.equals( ">" ) ) {
+                if ( line.startsWith( "> " ) || ">".equals( line ) ) {
                     if ( !pastHeader ) {
                         // First blockquote line is the header — skip it
                         pastHeader = true;
@@ -214,7 +214,7 @@ public class CommentResource extends RestServletBase {
                     final String content = line.length() > 2 ? line.substring( 2 ) : "";
                     if ( !content.isEmpty() || textBuilder.length() > 0 ) {
                         if ( textBuilder.length() > 0 ) {
-                            textBuilder.append( "\n" );
+                            textBuilder.append('\n');
                         }
                         textBuilder.append( content );
                     }
@@ -268,7 +268,7 @@ public class CommentResource extends RestServletBase {
         // Handle multiline comment text
         final String[] lines = text.split( "\n" );
         for ( final String line : lines ) {
-            sb.append( "> " ).append( line ).append( "\n" );
+            sb.append( "> " ).append( line ).append('\n');
         }
 
         return sb.toString();

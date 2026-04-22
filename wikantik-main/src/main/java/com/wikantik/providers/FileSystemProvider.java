@@ -105,7 +105,7 @@ public class FileSystemProvider extends AbstractFileProvider {
         getCustomProperties( page, props );
 
         final File file = new File( getPageDirectory(), mangleName( page.getName() ) + PROP_EXT );
-        try( final OutputStream out = Files.newOutputStream( file.toPath() ) ) {
+        try( OutputStream out = Files.newOutputStream( file.toPath() ) ) {
             props.store( out, "JSPWiki page properties for page "+page.getName() );
         }
     }
@@ -116,7 +116,7 @@ public class FileSystemProvider extends AbstractFileProvider {
     private void getPageProperties( final Page page ) throws IOException {
         final File file = new File( getPageDirectory(), mangleName( page.getName() ) + PROP_EXT );
         if( file.exists() ) {
-            try( final InputStream in = Files.newInputStream( file.toPath() ) ) {
+            try( InputStream in = Files.newInputStream( file.toPath() ) ) {
                 final Properties  props = new Properties();
                 props.load( in );
                 page.setAuthor( props.getProperty( Page.AUTHOR ) );

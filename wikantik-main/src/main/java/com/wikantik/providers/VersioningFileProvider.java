@@ -289,7 +289,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
      * Loads properties from a file. Used as a supplier for the cache strategy.
      */
     private Properties loadPropertiesFromFile( final File propertyFile ) {
-        try( final InputStream in = new BufferedInputStream( Files.newInputStream( propertyFile.toPath() ) ) ) {
+        try( InputStream in = new BufferedInputStream( Files.newInputStream( propertyFile.toPath() ) ) ) {
             final Properties props = new Properties();
             props.load( in );
             return props;
@@ -305,7 +305,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
      */
     private void putPageProperties( final String page, final Properties properties ) throws IOException {
         final File propertyFile = new File( findOldPageDir(page), PROPERTYFILE );
-        try( final OutputStream out = Files.newOutputStream( propertyFile.toPath() ) ) {
+        try( OutputStream out = Files.newOutputStream( propertyFile.toPath() ) ) {
             properties.store( out, " JSPWiki page properties for "+page+". DO NOT MODIFY!" );
         }
 
@@ -362,11 +362,11 @@ public class VersioningFileProvider extends AbstractFileProvider {
         String result = null;
         if( pagedata.exists() ) {
             if( pagedata.canRead() ) {
-                try( final InputStream in = new BufferedInputStream( Files.newInputStream( pagedata.toPath() ) ) ) {
+                try( InputStream in = new BufferedInputStream( Files.newInputStream( pagedata.toPath() ) ) ) {
                     result = FileUtil.readContents( in, encoding );
                 } catch( final IOException e ) {
                     LOG.error("Failed to read", e);
-                    throw new ProviderException("I/O error: "+e.getMessage());
+                    throw new ProviderException("I/O error: "+e.getMessage(), e);
                 }
             } else {
                 LOG.warn("Failed to read page from '{}', possibly a permissions problem", pagedata.getAbsolutePath());
@@ -416,8 +416,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
 
             if( oldFile != null && oldFile.exists() ) {
                 final File pageFile = new File( pageDir, versionNumber + FILE_EXT );
-                try( final InputStream in = new BufferedInputStream( Files.newInputStream( oldFile.toPath() ) );
-                     final OutputStream out = new BufferedOutputStream( Files.newOutputStream( pageFile.toPath() ) ) ) {
+                try( InputStream in = new BufferedInputStream( Files.newInputStream( oldFile.toPath() ) );
+                     OutputStream out = new BufferedOutputStream( Files.newOutputStream( pageFile.toPath() ) ) ) {
                     FileUtil.copyContents( in, out );
 
                     // We need also to set the date, since we rely on this.
@@ -472,7 +472,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
             putPageProperties( page.getName(), props );
         } catch( final IOException e ) {
             LOG.error( "Saving failed", e );
-            throw new ProviderException("Could not save page text: "+e.getMessage());
+            throw new ProviderException("Could not save page text: "+e.getMessage(), e);
         }
     }
 
@@ -614,7 +614,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
      * Loads heritage properties from a file and transforms them for versioning compatibility.
      */
     private Properties loadHeritageProperties( final File propertyFile, final String cacheKey, final long lastModified ) {
-        try( final InputStream in = new BufferedInputStream( Files.newInputStream( propertyFile.toPath() ) ) ) {
+        try( InputStream in = new BufferedInputStream( Files.newInputStream( propertyFile.toPath() ) ) ) {
             final Properties props = new Properties();
             props.load( in );
 
@@ -685,7 +685,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 putPageProperties( page, props );
             } catch( final IOException e ) {
                 LOG.error("Unable to modify page properties",e);
-                throw new ProviderException("Could not modify page properties: " + e.getMessage());
+                throw new ProviderException("Could not modify page properties: " + e.getMessage(), e);
             }
 
             // We can let the FileSystemProvider take care of the actual deletion
@@ -697,8 +697,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
             final File pageDir = findOldPageDir( page );
             final File previousFile = new File( pageDir, latest + FILE_EXT );
             final File pageFile = findPage(page);
-            try( final InputStream in = new BufferedInputStream( Files.newInputStream( previousFile.toPath() ) );
-                 final OutputStream out = new BufferedOutputStream( Files.newOutputStream( pageFile.toPath() ) ) ) {
+            try( InputStream in = new BufferedInputStream( Files.newInputStream( previousFile.toPath() ) );
+                 OutputStream out = new BufferedOutputStream( Files.newOutputStream( pageFile.toPath() ) ) ) {
                 if( previousFile.exists() ) {
                     FileUtil.copyContents( in, out );
                     // We need also to set the date, since we rely on this.

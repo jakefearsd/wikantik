@@ -77,7 +77,7 @@ public class CachingAttachmentProvider implements AttachmentProvider {
         try {
             classname = TextUtil.getRequiredProperty( properties, AttachmentManager.PROP_PROVIDER, "wikantik.attachmentProvider" );
         } catch( final NoSuchElementException e ) {
-            throw new NoRequiredPropertyException( e.getMessage(), AttachmentManager.PROP_PROVIDER );
+            throw new NoRequiredPropertyException( e.getMessage(), AttachmentManager.PROP_PROVIDER, e );
         }
 
         try {

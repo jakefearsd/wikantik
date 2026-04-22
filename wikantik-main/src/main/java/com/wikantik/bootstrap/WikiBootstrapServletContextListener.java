@@ -41,7 +41,7 @@ import jakarta.servlet.ServletContextListener;
 public class WikiBootstrapServletContextListener implements ServletContextListener {
 
     private static final Logger LOG = LogManager.getLogger( WikiBootstrapServletContextListener.class );
-    private static final String[] LOG4J_CONF = new String[] { "appender", "logger", "rootLogger", "filter", "status", "dest", "name", "properties", "property", "log4j2" };
+    private static final String[] LOG4J_CONF = { "appender", "logger", "rootLogger", "filter", "status", "dest", "name", "properties", "property", "log4j2" };
 
     /** {@inheritDoc} */
     @Override
@@ -70,7 +70,7 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
      */
     boolean initWikiLoggingFramework( final Properties properties ) {
         final String useExternalLogConfig = TextUtil.getStringProperty( properties, "wikantik.use.external.logconfig", "false" );
-        if ( useExternalLogConfig.equals( "false" ) ) {
+        if ( "false".equals( useExternalLogConfig ) ) {
             final ConfigurationSource source = createConfigurationSource( properties );
             if( source != null ) {
                 final PropertiesConfigurationFactory factory = new PropertiesConfigurationFactory();
@@ -81,7 +81,7 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
                 LOG.info( "Log configuration reloaded from Wiki properties" );
             }
         }
-        return useExternalLogConfig.equals( "false" );
+        return "false".equals( useExternalLogConfig );
     }
 
     ConfigurationSource createConfigurationSource( final Properties properties ) {

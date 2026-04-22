@@ -23,7 +23,6 @@ import org.apache.logging.log4j.Logger;
 import com.wikantik.WikiBackgroundThread;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
-import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.cache.CachingManager;
@@ -34,7 +33,6 @@ import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.search.SearchManager;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;

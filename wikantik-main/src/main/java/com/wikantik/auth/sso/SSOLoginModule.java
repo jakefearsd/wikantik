@@ -96,7 +96,7 @@ public class SSOLoginModule extends AbstractLoginModule {
     public boolean login() throws LoginException {
         final HttpRequestCallback rcb = new HttpRequestCallback();
         final WikiEngineCallback ecb = new WikiEngineCallback();
-        final Callback[] callbacks = new Callback[] { rcb, ecb };
+        final Callback[] callbacks = { rcb, ecb };
 
         try {
             handler.handle( callbacks );

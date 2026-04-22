@@ -197,10 +197,10 @@ public final class WikiSecurityEvent extends WikiEvent {
         msg.append( " [source=" ).append( obj.toString() );
         if( principal != null ) {
             msg.append( ", principal=" ).append( principal.getClass().getName() );
-            msg.append( " " ).append( principal.getName() );
+            msg.append(' ').append( principal.getName() );
         }
         msg.append( ", target=" ).append( target );
-        msg.append( "]" );
+        msg.append(']');
         return msg.toString();
     }
     

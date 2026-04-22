@@ -26,7 +26,6 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.api.exceptions.WikiException;
-import com.wikantik.api.filters.PageFilter;
 import com.wikantik.auth.validate.PasswordValidator;
 import com.wikantik.auth.permissions.WikiPermission;
 import com.wikantik.auth.user.DummyUserDatabase;
@@ -244,7 +243,7 @@ public class DefaultUserManager implements UserManager {
 
             if( nameChanged ) {
                 // Fire an event if the login name or full name changed
-                final UserProfile[] profiles = new UserProfile[] { oldProfile, profile };
+                final UserProfile[] profiles = { oldProfile, profile };
                 fireEvent( WikiSecurityEvent.PROFILE_NAME_CHANGED, session, profiles );
             } else {
                 // Fire an event that says we have new a new profile (new principals)
@@ -395,8 +394,8 @@ public class DefaultUserManager implements UserManager {
             // Password strength validation (NIST 800-63B)
             final List<String> passwordErrors = PasswordValidator.validate( password, engine.getWikiProperties() );
             for ( final String key : passwordErrors ) {
-                if ( key.contains( "{0}" ) || key.equals( PasswordValidator.KEY_TOO_SHORT ) || key.equals( PasswordValidator.KEY_TOO_LONG ) ) {
-                    final int limit = key.equals( PasswordValidator.KEY_TOO_SHORT )
+                if ( key.contains( "{0}" ) || PasswordValidator.KEY_TOO_SHORT.equals( key ) || PasswordValidator.KEY_TOO_LONG.equals( key ) ) {
+                    final int limit = PasswordValidator.KEY_TOO_SHORT.equals( key )
                             ? TextUtil.getIntegerProperty( engine.getWikiProperties(), PasswordValidator.PROP_MIN_LENGTH, PasswordValidator.DEFAULT_MIN_LENGTH )
                             : TextUtil.getIntegerProperty( engine.getWikiProperties(), PasswordValidator.PROP_MAX_LENGTH, PasswordValidator.DEFAULT_MAX_LENGTH );
                     session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( key ), limit ) );

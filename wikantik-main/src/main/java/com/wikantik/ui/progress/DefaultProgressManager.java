@@ -49,6 +49,7 @@ public class DefaultProgressManager implements ProgressManager {
      *
      *  @return A new random value
      */
+    @Override
     public String getNewProgressIdentifier()
     {
         return UUID.randomUUID().toString();

@@ -309,11 +309,11 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
         final List< float[] > vecs = new ArrayList<>();
         int dim = 0;
 
-        try( final Connection c = dataSource.getConnection();
-             final PreparedStatement ps = c.prepareStatement( LOAD_SQL ) ) {
+        try( Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement( LOAD_SQL ) ) {
             ps.setString( 1, modelCode );
             ps.setFetchSize( 500 );
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 while( rs.next() ) {
                     final UUID id = rs.getObject( 1, UUID.class );
                     final String page = rs.getString( 2 );
@@ -355,13 +355,13 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
         final Map< UUID, float[] > vecs = new HashMap<>( ids.size() * 2 );
         final Map< UUID, String > pages = new HashMap<>( ids.size() * 2 );
         int dim = 0;
-        try( final Connection c = dataSource.getConnection();
-             final PreparedStatement ps = c.prepareStatement( LOAD_BY_IDS_SQL ) ) {
+        try( Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement( LOAD_BY_IDS_SQL ) ) {
             ps.setString( 1, modelCode );
             // PostgreSQL ANY(?) array binding — UUID maps to the postgres uuid[] type.
             final UUID[] arr = ids.toArray( new UUID[ 0 ] );
             ps.setArray( 2, c.createArrayOf( "uuid", arr ) );
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 while( rs.next() ) {
                     final UUID id = rs.getObject( 1, UUID.class );
                     final String page = rs.getString( 2 );

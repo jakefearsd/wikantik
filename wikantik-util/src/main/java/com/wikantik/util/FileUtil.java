@@ -72,8 +72,8 @@ public final class FileUtil {
      */
     public static File newTmpFile( final String content, final Charset encoding ) throws IOException {
         final File f = File.createTempFile( "wikantik", null );
-        try( final Reader in = new StringReader( content );
-            final Writer out = new OutputStreamWriter( Files.newOutputStream( f.toPath() ), encoding ) ) {
+        try( Reader in = new StringReader( content );
+            Writer out = new OutputStreamWriter( Files.newOutputStream( f.toPath() ), encoding ) ) {
             copyContents( in, out );
         }
 
@@ -112,17 +112,17 @@ public final class FileUtil {
         pb.directory( new File( directory ) );
         final Process process = pb.start();
 
-        try( final BufferedReader stdout = new BufferedReader( new InputStreamReader( process.getInputStream(), StandardCharsets.UTF_8 ) );
-             final BufferedReader stderr = new BufferedReader( new InputStreamReader( process.getErrorStream(), StandardCharsets.UTF_8 ) ) ) {
+        try( BufferedReader stdout = new BufferedReader( new InputStreamReader( process.getInputStream(), StandardCharsets.UTF_8 ) );
+             BufferedReader stderr = new BufferedReader( new InputStreamReader( process.getErrorStream(), StandardCharsets.UTF_8 ) ) ) {
             String line;
 
             while( (line = stdout.readLine()) != null ) {
-                result.append( line ).append( "\n" );
+                result.append( line ).append('\n');
             }
 
             final StringBuilder error = new StringBuilder();
             while( (line = stderr.readLine()) != null ) {
-                error.append( line ).append( "\n" );
+                error.append( line ).append('\n');
             }
 
             if( error.length() > 0 ) {
@@ -231,7 +231,7 @@ public final class FileUtil {
             }
             catch( final CharacterCodingException ex )
             {
-                throw (CharacterCodingException) ex.fillInStackTrace();
+                throw (CharacterCodingException) ex.fillInStackTrace(); //NOPMD - re-throwing the caught exception with a refreshed trace
             }
         }
     }
@@ -245,7 +245,7 @@ public final class FileUtil {
      *  @throws IOException If reading fails.
      */
     public static String readContents( final Reader in ) throws IOException {
-        try(final Writer out = new StringWriter() ) {
+        try( Writer out = new StringWriter() ) {
             copyContents( in, out );
             return out.toString();
         }
@@ -272,7 +272,7 @@ public final class FileUtil {
         {
             sb.append( trace[0].isNativeMethod() ? "native method" : "" );
             sb.append( trace[0].getClassName() );
-            sb.append(".");
+            sb.append('.');
             sb.append( trace[0].getMethodName() ).append( "(), line " ).append( trace[0].getLineNumber() );
         }
         return sb.toString();

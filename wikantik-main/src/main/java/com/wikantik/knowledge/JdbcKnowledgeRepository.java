@@ -72,8 +72,8 @@ public class JdbcKnowledgeRepository {
                 + "ON CONFLICT ( name ) DO UPDATE SET node_type = EXCLUDED.node_type, "
                 + "source_page = EXCLUDED.source_page, provenance = EXCLUDED.provenance, "
                 + "properties = EXCLUDED.properties, modified = CURRENT_TIMESTAMP";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, name );
             ps.setString( 2, nodeType );
             ps.setString( 3, sourcePage );
@@ -95,10 +95,10 @@ public class JdbcKnowledgeRepository {
      */
     public KgNode getNode( final UUID id ) {
         final String sql = "SELECT * FROM kg_nodes WHERE id = ?";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setObject( 1, id );
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 return rs.next() ? mapNode( rs ) : null;
             }
         } catch( final SQLException e ) {
@@ -115,10 +115,10 @@ public class JdbcKnowledgeRepository {
      */
     public KgNode getNodeByName( final String name ) {
         final String sql = "SELECT * FROM kg_nodes WHERE name = ?";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, name );
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 return rs.next() ? mapNode( rs ) : null;
             }
         } catch( final SQLException e ) {
@@ -134,8 +134,8 @@ public class JdbcKnowledgeRepository {
      */
     public void deleteNode( final UUID id ) {
         final String sql = "DELETE FROM kg_nodes WHERE id = ?";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setObject( 1, id );
             ps.executeUpdate();
         } catch( final SQLException e ) {
@@ -188,7 +188,7 @@ public class JdbcKnowledgeRepository {
                 params.add( p.value() );
             }
             sql.append( sj );
-            sql.append( ")" );
+            sql.append(')');
         }
 
         sql.append( " ORDER BY name LIMIT ? OFFSET ?" );
@@ -196,12 +196,12 @@ public class JdbcKnowledgeRepository {
         params.add( offset );
 
         final List< KgNode > results = new ArrayList<>();
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
             for( int i = 0; i < params.size(); i++ ) {
                 ps.setObject( i + 1, params.get( i ) );
             }
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 while( rs.next() ) {
                     results.add( mapNode( rs ) );
                 }
@@ -240,19 +240,19 @@ public class JdbcKnowledgeRepository {
                 params.add( p.value() );
             }
             sql.append( sj );
-            sql.append( ")" );
+            sql.append(')');
         }
 
         sql.append( " ORDER BY name LIMIT ?" );
         params.add( limit );
 
         final List< KgNode > results = new ArrayList<>();
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
             for( int i = 0; i < params.size(); i++ ) {
                 ps.setObject( i + 1, params.get( i ) );
             }
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 while( rs.next() ) {
                     results.add( mapNode( rs ) );
                 }
@@ -284,8 +284,8 @@ public class JdbcKnowledgeRepository {
                 + "ON CONFLICT ( source_id, target_id, relationship_type ) DO UPDATE SET "
                 + "provenance = EXCLUDED.provenance, properties = EXCLUDED.properties, "
                 + "modified = CURRENT_TIMESTAMP";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setObject( 1, sourceId );
             ps.setObject( 2, targetId );
             ps.setString( 3, relationshipType );
@@ -299,12 +299,12 @@ public class JdbcKnowledgeRepository {
 
         // Re-query to return the upserted edge
         final String selectSql = "SELECT * FROM kg_edges WHERE source_id = ? AND target_id = ? AND relationship_type = ?";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( selectSql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( selectSql ) ) {
             ps.setObject( 1, sourceId );
             ps.setObject( 2, targetId );
             ps.setString( 3, relationshipType );
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 return rs.next() ? mapEdge( rs ) : null;
             }
         } catch( final SQLException e ) {
@@ -320,8 +320,8 @@ public class JdbcKnowledgeRepository {
      */
     public void deleteEdge( final UUID id ) {
         final String sql = "DELETE FROM kg_edges WHERE id = ?";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setObject( 1, id );
             ps.executeUpdate();
         } catch( final SQLException e ) {
@@ -337,9 +337,9 @@ public class JdbcKnowledgeRepository {
      */
     public List< KgNode > getAllNodes() {
         final List< KgNode > results = new ArrayList<>();
-        try( final Connection conn = dataSource.getConnection();
-             final Statement st = conn.createStatement();
-             final ResultSet rs = st.executeQuery( "SELECT * FROM kg_nodes ORDER BY id" ) ) {
+        try( Connection conn = dataSource.getConnection();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery( "SELECT * FROM kg_nodes ORDER BY id" ) ) {
             while( rs.next() ) {
                 results.add( mapNode( rs ) );
             }
@@ -357,9 +357,9 @@ public class JdbcKnowledgeRepository {
      */
     public List< KgEdge > getAllEdges() {
         final List< KgEdge > results = new ArrayList<>();
-        try( final Connection conn = dataSource.getConnection();
-             final Statement st = conn.createStatement();
-             final ResultSet rs = st.executeQuery( "SELECT * FROM kg_edges ORDER BY id" ) ) {
+        try( Connection conn = dataSource.getConnection();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery( "SELECT * FROM kg_edges ORDER BY id" ) ) {
             while( rs.next() ) {
                 results.add( mapEdge( rs ) );
             }
@@ -386,13 +386,13 @@ public class JdbcKnowledgeRepository {
         };
 
         final List< KgEdge > results = new ArrayList<>();
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setObject( 1, nodeId );
             if( "both".equals( direction ) ) {
                 ps.setObject( 2, nodeId );
             }
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 while( rs.next() ) {
                     results.add( mapEdge( rs ) );
                 }
@@ -417,11 +417,11 @@ public class JdbcKnowledgeRepository {
         final String sql = "SELECT e.*, n.name AS target_name "
                          + "FROM kg_edges e JOIN kg_nodes n ON e.target_id = n.id "
                          + "WHERE e.source_id = ?";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setObject( 1, sourceId );
             final List< UUID > toDelete = new ArrayList<>();
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 while( rs.next() ) {
                     final String provValue = rs.getString( "provenance" );
                     final Provenance prov = Provenance.fromValue( provValue );
@@ -462,15 +462,15 @@ public class JdbcKnowledgeRepository {
                                       final double confidence, final String reasoning ) {
         final String sql = "INSERT INTO kg_proposals ( proposal_type, source_page, proposed_data, confidence, reasoning ) "
                 + "VALUES ( ?, ?, ?::jsonb, ?, ? )";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
             ps.setString( 1, proposalType );
             ps.setString( 2, sourcePage );
             ps.setString( 3, GSON.toJson( proposedData != null ? proposedData : Map.of() ) );
             ps.setDouble( 4, confidence );
             ps.setString( 5, reasoning );
             ps.executeUpdate();
-            try( final ResultSet keys = ps.getGeneratedKeys() ) {
+            try( ResultSet keys = ps.getGeneratedKeys() ) {
                 if( keys.next() ) {
                     final UUID id = keys.getObject( 1, UUID.class );
                     return getProposal( id );
@@ -491,10 +491,10 @@ public class JdbcKnowledgeRepository {
      */
     public KgProposal getProposal( final UUID id ) {
         final String sql = "SELECT * FROM kg_proposals WHERE id = ?";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setObject( 1, id );
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 return rs.next() ? mapProposal( rs ) : null;
             }
         } catch( final SQLException e ) {
@@ -531,12 +531,12 @@ public class JdbcKnowledgeRepository {
         params.add( offset );
 
         final List< KgProposal > results = new ArrayList<>();
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
             for( int i = 0; i < params.size(); i++ ) {
                 ps.setObject( i + 1, params.get( i ) );
             }
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 while( rs.next() ) {
                     results.add( mapProposal( rs ) );
                 }
@@ -557,8 +557,8 @@ public class JdbcKnowledgeRepository {
      */
     public void updateProposalStatus( final UUID id, final String status, final String reviewedBy ) {
         final String sql = "UPDATE kg_proposals SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, status );
             ps.setString( 2, reviewedBy );
             ps.setObject( 3, id );
@@ -588,8 +588,8 @@ public class JdbcKnowledgeRepository {
                 + "VALUES ( ?, ?, ?, ?, ? ) "
                 + "ON CONFLICT ( proposed_source, proposed_target, proposed_relationship ) DO UPDATE SET "
                 + "rejected_by = EXCLUDED.rejected_by, reason = EXCLUDED.reason";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, proposedSource );
             ps.setString( 2, proposedTarget );
             ps.setString( 3, proposedRelationship );
@@ -614,12 +614,12 @@ public class JdbcKnowledgeRepository {
                                final String relationshipType ) {
         final String sql = "SELECT COUNT(*) FROM kg_rejections "
                          + "WHERE proposed_source = ? AND proposed_target = ? AND proposed_relationship = ?";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, sourceName );
             ps.setString( 2, targetName );
             ps.setString( 3, relationshipType );
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 return rs.next() && rs.getInt( 1 ) > 0;
             }
         } catch( final SQLException e ) {
@@ -657,12 +657,12 @@ public class JdbcKnowledgeRepository {
         sql.append( " ORDER BY created DESC" );
 
         final List< KgRejection > results = new ArrayList<>();
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
             for( int i = 0; i < params.size(); i++ ) {
                 ps.setObject( i + 1, params.get( i ) );
             }
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 while( rs.next() ) {
                     results.add( mapRejection( rs ) );
                 }
@@ -689,13 +689,13 @@ public class JdbcKnowledgeRepository {
         final String placeholders = String.join( ", ", Collections.nCopies( ids.size(), "?" ) );
         final String sql = "SELECT id, name FROM kg_nodes WHERE id IN ( " + placeholders + " )";
         final Map< UUID, String > result = new HashMap<>();
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             int idx = 1;
             for ( final UUID id : ids ) {
                 ps.setObject( idx++, id );
             }
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 while ( rs.next() ) {
                     result.put( rs.getObject( "id", UUID.class ), rs.getString( "name" ) );
                 }
@@ -741,12 +741,12 @@ public class JdbcKnowledgeRepository {
         params.add( offset );
 
         final List< Map< String, Object > > results = new ArrayList<>();
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
             for ( int i = 0; i < params.size(); i++ ) {
                 ps.setObject( i + 1, params.get( i ) );
             }
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 while ( rs.next() ) {
                     final Map< String, Object > map = new LinkedHashMap<>();
                     map.put( "id", rs.getObject( "id", UUID.class ).toString() );
@@ -887,9 +887,9 @@ public class JdbcKnowledgeRepository {
 
     private List< String > queryDistinct( final String sql ) {
         final List< String > results = new ArrayList<>();
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql );
-             final ResultSet rs = ps.executeQuery() ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql );
+             ResultSet rs = ps.executeQuery() ) {
             while( rs.next() ) {
                 results.add( rs.getString( 1 ) );
             }
@@ -901,9 +901,9 @@ public class JdbcKnowledgeRepository {
     }
 
     private long queryCount( final String sql ) {
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql );
-             final ResultSet rs = ps.executeQuery() ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql );
+             ResultSet rs = ps.executeQuery() ) {
             return rs.next() ? rs.getLong( 1 ) : 0;
         } catch( final SQLException e ) {
             LOG.warn( "Failed to execute count query: {}", e.getMessage(), e );
@@ -920,8 +920,8 @@ public class JdbcKnowledgeRepository {
             "kg_embeddings", "kg_content_embeddings",
             "kg_edges", "kg_proposals", "kg_rejections", "kg_nodes"
         };
-        try( final Connection conn = dataSource.getConnection();
-             final var stmt = conn.createStatement() ) {
+        try( Connection conn = dataSource.getConnection();
+             var stmt = conn.createStatement() ) {
             for( final String table : tables ) {
                 stmt.execute( "DELETE FROM " + table );
             }

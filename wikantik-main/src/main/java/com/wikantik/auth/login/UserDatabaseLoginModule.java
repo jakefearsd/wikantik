@@ -68,8 +68,7 @@ public class UserDatabaseLoginModule extends AbstractLoginModule {
         final UserDatabaseCallback ucb = new UserDatabaseCallback();
         final NameCallback ncb = new NameCallback( "User name" );
         final PasswordCallback pcb = new PasswordCallback( "Password", false );
-        final Callback[] callbacks = new Callback[]
-        { ucb, ncb, pcb };
+        final Callback[] callbacks = { ucb, ncb, pcb };
         try
         {
             handler.handle( callbacks );

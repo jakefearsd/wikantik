@@ -107,11 +107,11 @@ public final class Serializer
         
         // Deserialize from the input stream to the Map
         final InputStream bytesIn = new ByteArrayInputStream( decodedBytes );
-        try(final ObjectInputStream in = new ObjectInputStream( bytesIn ) ) {
+        try( ObjectInputStream in = new ObjectInputStream( bytesIn ) ) {
             in.setObjectInputFilter( SAFE_FILTER );
             return ( HashMap< String, Serializable > )in.readObject();
         } catch ( final ClassNotFoundException e ) {
-            throw new IOException( "Could not deserialiaze user profile attributes. Reason: " + e.getMessage() );
+            throw new IOException( "Could not deserialiaze user profile attributes. Reason: " + e.getMessage(), e );
         }
     }
 

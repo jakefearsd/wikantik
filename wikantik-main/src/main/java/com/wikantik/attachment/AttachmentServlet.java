@@ -254,7 +254,7 @@ public class AttachmentServlet extends HttpServlet {
         // getContentDisposition(), this blocks stored-XSS via uploaded HTML/SVG/XML.
         res.setHeader( "X-Content-Type-Options", "nosniff" );
 
-        try( final OutputStream out = res.getOutputStream() ) {
+        try( OutputStream out = res.getOutputStream() ) {
             LOG.debug("Attempting to download att {}, version {}", page, version);
             if( version != null ) {
                 ver = Integer.parseInt( version );
@@ -299,7 +299,7 @@ public class AttachmentServlet extends HttpServlet {
                     res.setContentLength( (int)att.getSize() );
                 }
 
-                try( final InputStream  in = mgr.getAttachmentStream( context, att ) ) {
+                try( InputStream  in = mgr.getAttachmentStream( context, att ) ) {
                     int read;
                     final byte[] buffer = new byte[ BUFFER_SIZE ];
 
@@ -500,7 +500,7 @@ public class AttachmentServlet extends HttpServlet {
                 for( final FileItem actualFile : form.fileItems() ) {
                     final String filename = actualFile.getName();
                     final long   fileSize = actualFile.getSize();
-                    try( final InputStream in  = actualFile.getInputStream() ) {
+                    try( InputStream in  = actualFile.getInputStream() ) {
                         executeUpload( context, in, filename, nextPage, form.wikipage(), form.changeNote(), fileSize );
                     }
                 }
@@ -558,8 +558,8 @@ public class AttachmentServlet extends HttpServlet {
         } catch( final WikiException e ) {
             // this is a kludge, the exception that is caught here contains the i18n key
             // here we have the context available, so we can internationalize it properly :
-            throw new RedirectException (Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE )
-                    .getString( e.getMessage() ), errorPage );
+            throw new RedirectException( Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE )
+                    .getString( e.getMessage() ), errorPage, e );
         }
 
         //
@@ -616,7 +616,7 @@ public class AttachmentServlet extends HttpServlet {
             } catch( final ProviderException pe ) {
                 // this is a kludge, the exception that is caught here contains the i18n key
                 // here we have the context available, so we can internationalize it properly :
-                throw new ProviderException( Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE ).getString( pe.getMessage() ) );
+                throw new ProviderException( Preferences.getBundle( context, InternationalizationManager.CORE_BUNDLE ).getString( pe.getMessage() ), pe );
             }
 
             LOG.info( "User {} uploaded attachment to {} called {}, size {}", user, parentPage, filename, att.getSize() );

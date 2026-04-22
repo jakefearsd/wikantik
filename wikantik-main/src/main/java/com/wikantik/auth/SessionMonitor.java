@@ -34,9 +34,7 @@ import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionListener;
 import java.security.Principal;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  *  <p>Manages Sessions for different Engines.</p>

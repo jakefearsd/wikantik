@@ -154,9 +154,9 @@ public class ReferredPagesPlugin implements Plugin {
 
         if( items > 1 ) {
             result.append( "<div class=\"ReferredPagesPlugin\" style=\"" )
-                    .append( "columns:" ).append( columns ).append( ";" )
-                    .append( "moz-columns:" ).append( columns ).append( ";" )
-                    .append( "webkit-columns:" ).append( columns ).append( ";" )
+                    .append( "columns:" ).append( columns ).append(';')
+                    .append( "moz-columns:" ).append( columns ).append(';')
+                    .append( "webkit-columns:" ).append( columns ).append(';')
                     .append( "\">\n" );
         } else {
             result.append( "<div class=\"ReferredPagesPlugin\">\n" );
@@ -250,7 +250,7 @@ public class ReferredPagesPlugin implements Plugin {
                     }
 
                     //See https://www.w3.org/wiki/HTML_lists  for proper nesting of UL and LI
-                    result.append( "<li> " ).append( TextUtil.replaceEntities( link ) ).append( "\n" );
+                    result.append( "<li> " ).append( TextUtil.replaceEntities( link ) ).append('\n');
                     getReferredPages( context, link, depth );  // added recursive call - on general request
                     result.append( "\n</li>\n" );
                 }

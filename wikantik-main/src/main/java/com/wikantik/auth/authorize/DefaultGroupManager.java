@@ -393,7 +393,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         if( se.getType() == WikiSecurityEvent.PROFILE_NAME_CHANGED ) {
             final Session session = se.getSrc();
             final UserProfile[] profiles = ( UserProfile[] )se.getTarget();
-            final Principal[] oldPrincipals = new Principal[] { new WikiPrincipal( profiles[ 0 ].getLoginName() ),
+            final Principal[] oldPrincipals = { new WikiPrincipal( profiles[ 0 ].getLoginName() ),
                     new WikiPrincipal( profiles[ 0 ].getFullname() ), new WikiPrincipal( profiles[ 0 ].getWikiName() ) };
             final Principal newPrincipal = new WikiPrincipal( profiles[ 1 ].getFullname() );
 

@@ -313,9 +313,9 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
     }
 
     private long countChunks() {
-        try( final Connection c = dataSource.getConnection();
-             final PreparedStatement ps = c.prepareStatement( COUNT_CHUNKS_SQL );
-             final ResultSet rs = ps.executeQuery() ) {
+        try( Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement( COUNT_CHUNKS_SQL );
+             ResultSet rs = ps.executeQuery() ) {
             return rs.next() ? rs.getLong( 1 ) : 0L;
         } catch( final SQLException e ) {
             LOG.warn( "Bootstrap indexer: count-chunks query failed: {}", e.getMessage(), e );

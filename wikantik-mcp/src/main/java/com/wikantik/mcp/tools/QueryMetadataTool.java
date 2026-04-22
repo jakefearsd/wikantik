@@ -29,7 +29,6 @@ import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * MCP tool that queries pages by YAML frontmatter metadata fields.

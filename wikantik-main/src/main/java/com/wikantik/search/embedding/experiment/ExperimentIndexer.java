@@ -52,6 +52,8 @@ public final class ExperimentIndexer {
 
     private ExperimentIndexer() {}
 
+    @SuppressWarnings("PMD.SystemPrintln")
+
     public static void main( final String[] args ) throws SQLException, IOException {
         if( args.length < 1 ) {
             System.err.println( """
@@ -114,7 +116,7 @@ public final class ExperimentIndexer {
         return p;
     }
 
-    private static int countAllChunks( final Connection conn ) throws SQLException {
+    private static int countAllChunks( Connection conn ) throws SQLException {
         try( final PreparedStatement ps = conn.prepareStatement( "SELECT COUNT(*) FROM kg_content_chunks" );
              final ResultSet rs = ps.executeQuery() ) {
             rs.next();
@@ -130,7 +132,7 @@ public final class ExperimentIndexer {
                 WHERE e.chunk_id = c.id AND e.model_code = ?
             )
             """;
-        try( final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, modelCode );
             try( final ResultSet rs = ps.executeQuery() ) {
                 rs.next();

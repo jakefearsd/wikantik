@@ -136,6 +136,7 @@ public class AclEntryImpl implements com.wikantik.api.core.AclEntry, Serializabl
      *
      * @return a string representation of the contents.
      */
+    @Override
     public String toString() {
         final Principal entryPrincipal = getPrincipal();
 

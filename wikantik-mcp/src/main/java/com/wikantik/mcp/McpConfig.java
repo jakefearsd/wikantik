@@ -172,7 +172,7 @@ public class McpConfig {
         // Try thread-context classloader first (picks up external overrides), then our own
         final ClassLoader tccl = Thread.currentThread().getContextClassLoader();
         if ( tccl != null ) {
-            try ( final InputStream is = tccl.getResourceAsStream( resourceName ) ) {
+            try ( InputStream is = tccl.getResourceAsStream( resourceName ) ) {
                 if ( is != null ) {
                     return new String( is.readAllBytes(), StandardCharsets.UTF_8 ).strip();
                 }
@@ -182,7 +182,7 @@ public class McpConfig {
         }
         final ClassLoader ownCl = McpConfig.class.getClassLoader();
         if ( ownCl != null ) {
-            try ( final InputStream is = ownCl.getResourceAsStream( resourceName ) ) {
+            try ( InputStream is = ownCl.getResourceAsStream( resourceName ) ) {
                 if ( is != null ) {
                     return new String( is.readAllBytes(), StandardCharsets.UTF_8 ).strip();
                 }
@@ -194,7 +194,7 @@ public class McpConfig {
     }
 
     private static void loadFromClasspath( final ClassLoader cl, final Properties target ) {
-        try ( final InputStream is = cl.getResourceAsStream( RESOURCE_NAME ) ) {
+        try ( InputStream is = cl.getResourceAsStream( RESOURCE_NAME ) ) {
             if ( is != null ) {
                 target.load( is );
             }

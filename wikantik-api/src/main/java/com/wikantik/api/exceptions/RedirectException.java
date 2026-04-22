@@ -42,6 +42,18 @@ public class RedirectException extends FilterException {
     }
 
     /**
+     *  Constructs a new RedirectException with a cause.
+     *
+     *  @param msg The message for the exception
+     *  @param redirect The redirect URI.
+     *  @param cause Underlying cause.
+     */
+    public RedirectException( final String msg, final String redirect, final Throwable cause ) {
+        super( msg, cause );
+        where = redirect;
+    }
+
+    /**
      *  Get the URI for redirection.
      *  
      *  @return The URI given in the constructor.

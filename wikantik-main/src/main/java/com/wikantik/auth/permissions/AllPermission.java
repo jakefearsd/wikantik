@@ -59,6 +59,7 @@ public final class AllPermission extends Permission implements Serializable {
      * @return {@inheritDoc}
      * @see java.lang.Object#equals(java.lang.Object)
      */
+    @Override
     public boolean equals( final Object obj ) {
         if( !( obj instanceof AllPermission p ) ) {
             return false;
@@ -93,6 +94,7 @@ public final class AllPermission extends Permission implements Serializable {
      * @return {@inheritDoc}
      * @see java.lang.Object#hashCode()
      */
+    @Override
     public int hashCode() {
         return wiki.hashCode();
     }
@@ -149,6 +151,7 @@ public final class AllPermission extends Permission implements Serializable {
      * @return {@inheritDoc}
      * @see java.lang.Object#toString()
      */
+    @Override
     public String toString() {
         return "(\"" + this.getClass().getName() + "\",\"" + wiki + "\")";
     }

@@ -20,6 +20,7 @@ package com.wikantik.rest;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import java.util.Locale;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
@@ -336,7 +337,7 @@ public abstract class RestServletBase extends HttpServlet {
      * @return the parsed JSON object
      * @throws IOException if reading or parsing fails
      */
-    protected JsonObject readJsonBody( final HttpServletRequest request ) throws IOException {
+    protected JsonObject readJsonBody( HttpServletRequest request ) throws IOException {
         try ( final BufferedReader reader = request.getReader() ) {
             return JsonParser.parseReader( reader ).getAsJsonObject();
         }
@@ -379,7 +380,7 @@ public abstract class RestServletBase extends HttpServlet {
      */
     protected String formatDate( final Date date ) {
         if ( date == null ) return null;
-        return new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" ).format( date );
+        return new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ROOT ).format( date );
     }
 
     /**

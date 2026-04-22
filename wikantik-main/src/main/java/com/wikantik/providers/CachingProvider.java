@@ -136,7 +136,7 @@ public class CachingProvider implements PageProvider {
         try {
             classname = TextUtil.getRequiredProperty( properties, PageManager.PROP_PAGEPROVIDER );
         } catch( final NoSuchElementException e ) {
-            throw new NoRequiredPropertyException( e.getMessage(), PageManager.PROP_PAGEPROVIDER );
+            throw new NoRequiredPropertyException( e.getMessage(), PageManager.PROP_PAGEPROVIDER, e );
         }
 
         try {

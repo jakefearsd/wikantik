@@ -235,7 +235,9 @@ public final class QueryEmbedder {
             future.cancel( true );
             throw te;
         } catch( final CancellationException ce ) {
-            throw new TimeoutException( "Query embedding cancelled: " + ce.getMessage() );
+            final TimeoutException te2 = new TimeoutException( "Query embedding cancelled: " + ce.getMessage() );
+            te2.initCause( ce );
+            throw te2;
         } catch( final ExecutionException ee ) {
             // Unwrap to the underlying failure so logs and tests see the real cause.
             // CompletionException nesting is common when sendAsync chains .handle().
@@ -244,10 +246,10 @@ public final class QueryEmbedder {
                 cause = cause.getCause();
             }
             if( cause instanceof Exception ex ) {
-                throw ex;
+                throw ex; //NOPMD - ex is the unwrapped cause of ee, already preserved
             }
             if( cause instanceof Error err ) {
-                throw err;
+                throw err; //NOPMD - err is the unwrapped cause of ee, already preserved
             }
             throw ee;
         }

@@ -30,7 +30,6 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.filters.PageFilter;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.providers.WikiProvider;
-import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventManager;
@@ -313,6 +312,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
      *
      * @return true if initialization has completed, false otherwise
      */
+    @Override
     public boolean isInitialized() {
         return initialized.get();
     }
@@ -335,7 +335,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         final long saved;
 
         final File serializationFile = new File( engine.getWorkDir(), SERIALIZATION_FILE );
-        try( final ObjectInputStream in = new ObjectInputStream( new BufferedInputStream( Files.newInputStream( serializationFile.toPath() ) ) ) ) {
+        try( ObjectInputStream in = new ObjectInputStream( new BufferedInputStream( Files.newInputStream( serializationFile.toPath() ) ) ) ) {
             in.setObjectInputFilter( SAFE_DESERIALIZE_FILTER );
             final StopWatch sw = new StopWatch();
             sw.start();
@@ -365,7 +365,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
      */
     private synchronized void serializeToDisk() {
         final File serializationFile = new File( engine.getWorkDir(), SERIALIZATION_FILE );
-        try( final ObjectOutputStream out = new ObjectOutputStream( new BufferedOutputStream( Files.newOutputStream( serializationFile.toPath() ) ) ) ) {
+        try( ObjectOutputStream out = new ObjectOutputStream( new BufferedOutputStream( Files.newOutputStream( serializationFile.toPath() ) ) ) ) {
             final StopWatch sw = new StopWatch();
             sw.start();
 
@@ -412,7 +412,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
                 return 0L;
             }
 
-            try( final ObjectInputStream in = new ObjectInputStream( new BufferedInputStream( Files.newInputStream( f.toPath() ) ) ) ) {
+            try( ObjectInputStream in = new ObjectInputStream( new BufferedInputStream( Files.newInputStream( f.toPath() ) ) ) ) {
                 in.setObjectInputFilter( SAFE_DESERIALIZE_FILTER );
                 final StopWatch sw = new StopWatch();
                 sw.start();
@@ -465,7 +465,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
             //  Create a digest for the name
             f = new File( f, hashName );
 
-            try( final ObjectOutputStream out =  new ObjectOutputStream( new BufferedOutputStream( Files.newOutputStream( f.toPath() ) ) ) ) {
+            try( ObjectOutputStream out =  new ObjectOutputStream( new BufferedOutputStream( Files.newOutputStream( f.toPath() ) ) ) ) {
                 // snapshot the attributes map to avoid ConcurrentModificationException
                 final Map< String, Object > attrSnapshot = new java.util.LinkedHashMap<>( p.getAttributes() );
                 final Set< Map.Entry < String, Object > > entries = attrSnapshot.entrySet();

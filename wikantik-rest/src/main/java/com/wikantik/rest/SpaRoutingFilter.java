@@ -229,7 +229,7 @@ public class SpaRoutingFilter implements Filter {
                                   final String contextPath, final String pageName ) throws IOException {
         setNoCacheHeaders( resp );
         final ServletContext ctx = req.getServletContext();
-        try ( final InputStream in = ctx != null ? ctx.getResourceAsStream( "/index.html" ) : null ) {
+        try ( InputStream in = ctx != null ? ctx.getResourceAsStream( "/index.html" ) : null ) {
             if ( in == null ) {
                 resp.sendError( HttpServletResponse.SC_NOT_FOUND, "index.html not found" );
                 return;

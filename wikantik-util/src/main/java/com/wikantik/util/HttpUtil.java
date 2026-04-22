@@ -27,7 +27,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -260,7 +259,7 @@ public final class HttpUtil {
             return false;
         }
 
-        final int[] addr = new int[] { 0, 0, 0, 0 };
+        final int[] addr = { 0, 0, 0, 0 };
         int currentOctet = 0;
         for( int i = 0; i < name.length(); i++ ) {
             if( currentOctet > 3 ) {

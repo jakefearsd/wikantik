@@ -23,6 +23,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.Locale;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,7 +32,6 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.frontmatter.FrontmatterParser;
-import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.util.BaseUrlResolver;
 import com.wikantik.util.TextUtil;
@@ -109,7 +109,7 @@ public class AtomFeedServlet extends HttpServlet {
         final PageManager pageManager = engine.getManager( PageManager.class );
         final String baseUrl = BaseUrlResolver.resolve( engine, req, configuredBaseUrl );
 
-        final SimpleDateFormat atomDate = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" );
+        final SimpleDateFormat atomDate = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ROOT );
         atomDate.setTimeZone( TimeZone.getTimeZone( "UTC" ) );
         final String feedUpdated = determineFeedUpdated( articles, atomDate );
 

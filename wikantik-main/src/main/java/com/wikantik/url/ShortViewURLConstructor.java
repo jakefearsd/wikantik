@@ -21,7 +21,6 @@ package com.wikantik.url;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
 
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.Properties;
 
 /**

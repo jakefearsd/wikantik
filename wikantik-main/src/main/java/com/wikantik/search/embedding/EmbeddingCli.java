@@ -33,10 +33,10 @@ import java.util.Properties;
  * L2 norm, and the head of the vector — enough to confirm that a model tag
  * is pullable, the network path is open, and prefixes are reaching the server.
  */
+@SuppressWarnings("PMD.SystemPrintln")
 public final class EmbeddingCli {
 
     private EmbeddingCli() {}
-
     public static void main( final String[] args ) throws IOException {
         if( args.length < 3 ) {
             usage();

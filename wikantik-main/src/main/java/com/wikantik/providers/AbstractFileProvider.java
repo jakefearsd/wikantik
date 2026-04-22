@@ -442,7 +442,7 @@ public abstract class AbstractFileProvider implements PageProvider {
         final File pagedata = findPage( page );
         if( pagedata.exists() ) {
             if( pagedata.canRead() ) {
-                try( final InputStream in = new BufferedInputStream( Files.newInputStream( pagedata.toPath() ) ) ) {
+                try( InputStream in = new BufferedInputStream( Files.newInputStream( pagedata.toPath() ) ) ) {
                     result = FileUtil.readContents( in, encoding );
                 } catch( final IOException e ) {
                     LOG.error( "Failed to read", e );
@@ -502,7 +502,7 @@ public abstract class AbstractFileProvider implements PageProvider {
             }
         }
 
-        try( final PrintWriter out = new PrintWriter( new OutputStreamWriter( Files.newOutputStream( file.toPath() ), encoding ) ) ) {
+        try( PrintWriter out = new PrintWriter( new OutputStreamWriter( Files.newOutputStream( file.toPath() ), encoding ) ) ) {
             out.print( text );
         } catch( final IOException e ) {
             LOG.error( "Saving failed", e );
@@ -683,7 +683,7 @@ public abstract class AbstractFileProvider implements PageProvider {
                 }
 
                 final String wikiname = unmangleName( filename.substring( 0, cutpoint ) );
-                try( final InputStream input = new BufferedInputStream( Files.newInputStream( wikipage.toPath() ) ) ) {
+                try( InputStream input = new BufferedInputStream( Files.newInputStream( wikipage.toPath() ) ) ) {
                     final String pagetext = FileUtil.readContents( input, encoding );
                     final SearchResult comparison = matcher.matchPageContent( wikiname, pagetext );
                     if( comparison != null ) {
@@ -800,7 +800,7 @@ public abstract class AbstractFileProvider implements PageProvider {
         final Enumeration< ? > propertyNames = properties.propertyNames();
     	while( propertyNames.hasMoreElements() ) {
             final String key = ( String )propertyNames.nextElement();
-            if( !key.equals( Page.AUTHOR ) && !key.equals( Page.CHANGENOTE ) && !key.equals( Page.VIEWCOUNT ) ) {
+            if( !Page.AUTHOR.equals( key ) && !Page.CHANGENOTE.equals( key ) && !Page.VIEWCOUNT.equals( key ) ) {
                 page.setAttribute( key, properties.get( key ) );
             }
     	}

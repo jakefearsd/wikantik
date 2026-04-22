@@ -43,6 +43,8 @@ public final class ExperimentCompare {
 
     private ExperimentCompare() {}
 
+    @SuppressWarnings("PMD.SystemPrintln")
+
     public static void main( final String[] args ) throws IOException {
         if( args.length == 0 ) {
             System.err.println( """

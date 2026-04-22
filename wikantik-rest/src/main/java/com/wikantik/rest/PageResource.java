@@ -301,6 +301,7 @@ public class PageResource extends RestServletBase {
      * </ul>
      */
     @SuppressWarnings( "unchecked" )
+    @Override
     protected void doPatch( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
 

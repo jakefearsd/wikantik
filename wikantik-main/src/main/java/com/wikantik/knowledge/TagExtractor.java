@@ -64,8 +64,8 @@ public final class TagExtractor {
         if( stripped.isBlank() ) return List.of();
 
         final Map< String, Integer > termFreqs = new HashMap<>();
-        try( final Analyzer analyzer = new EnglishAnalyzer() ) {
-            try( final TokenStream stream = analyzer.tokenStream( "content", new StringReader( stripped ) ) ) {
+        try( Analyzer analyzer = new EnglishAnalyzer() ) {
+            try( TokenStream stream = analyzer.tokenStream( "content", new StringReader( stripped ) ) ) {
                 final CharTermAttribute termAttr = stream.addAttribute( CharTermAttribute.class );
                 stream.reset();
                 while( stream.incrementToken() ) {

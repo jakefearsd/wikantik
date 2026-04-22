@@ -97,6 +97,7 @@ public final class Role implements Principal, Serializable
      * Returns a unique hashcode for the Role.
      * @return the hashcode
      */
+    @Override
     public int hashCode()
     {
         return name.hashCode();
@@ -108,6 +109,7 @@ public final class Role implements Principal, Serializable
      * @return <code>true</code> if both objects are of type Role and have identical names
      * @see java.lang.Object#equals(java.lang.Object)
      */
+    @Override
     public boolean equals(final Object obj )
     {
         if ( obj == null || !( obj instanceof Role ) ) return false;
@@ -129,6 +131,7 @@ public final class Role implements Principal, Serializable
      * @return the string representation of the role
      * @see java.lang.Object#toString()
      */
+    @Override
     public String toString()
     {
         return "[" + this.getClass().getName() + ": " + name + "]";

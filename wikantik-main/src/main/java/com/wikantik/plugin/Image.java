@@ -21,7 +21,6 @@ package com.wikantik.plugin;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
-import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.plugin.Plugin;
@@ -149,7 +148,7 @@ public class Image implements Plugin {
             }
             return src;
         } catch( final ProviderException e ) {
-            throw new PluginException( "Attachment info failed: " + e.getMessage() );
+            throw new PluginException( "Attachment info failed: " + e.getMessage(), e );
         }
     }
 
@@ -183,25 +182,25 @@ public class Image implements Plugin {
         if( style != null ) {
             sb.append( " style=\"" ).append( style );
             if( !style.endsWith( ";" ) ) {
-                sb.append( ";" );
+                sb.append(';');
             }
-            sb.append( "\"" );
+            sb.append('\"');
         }
-        sb.append( ">" );
+        sb.append('>');
     }
 
     private static void buildLinkOpen( final StringBuilder sb, final String link, final String target ) {
         if( link != null ) {
-            sb.append( "<a href=\"" ).append( TextUtil.replaceEntities( link ) ).append( "\"" );
+            sb.append( "<a href=\"" ).append( TextUtil.replaceEntities( link ) ).append('\"');
             appendAttr( sb, "target", target );
-            sb.append( ">" );
+            sb.append('>');
         }
     }
 
     private static void buildImgTag( final StringBuilder sb, final String src,
                                       final String ht, final String wt,
                                       final String alt, final String border ) {
-        sb.append( "<img src=\"" ).append( TextUtil.replaceEntities( src ) ).append( "\"" );
+        sb.append( "<img src=\"" ).append( TextUtil.replaceEntities( src ) ).append('\"');
         appendAttr( sb, "height", ht );
         appendAttr( sb, "width", wt );
         appendAttr( sb, "alt", alt );
@@ -211,15 +210,15 @@ public class Image implements Plugin {
 
     private static void appendAttr( final StringBuilder sb, final String name, final String value ) {
         if( value != null ) {
-            sb.append( " " ).append( name ).append( "=\"" ).append( TextUtil.replaceEntities( value ) ).append( "\"" );
+            sb.append(' ').append( name ).append( "=\"" ).append( TextUtil.replaceEntities( value ) ).append('\"');
         }
     }
 
     private boolean validTargetValue( final String s ) {
-        if( s.equals("_blank")
-            || s.equals("_self")
-            || s.equals("_parent")
-            || s.equals("_top") ) {
+        if( "_blank".equals(s)
+            || "_self".equals(s)
+            || "_parent".equals(s)
+            || "_top".equals(s) ) {
             return true;
         } else if( !s.isEmpty() ) { // check [a-zA-z]
             final char c = s.charAt(0);

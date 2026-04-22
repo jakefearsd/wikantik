@@ -187,8 +187,8 @@ public class AttachmentResource extends RestServletBase {
             response.setContentType( contentType );
             response.setHeader( "Content-Disposition", "attachment; filename=\"" + fileName + "\"" );
 
-            try ( final InputStream in = am.getAttachmentStream( att );
-                  final OutputStream out = response.getOutputStream() ) {
+            try ( InputStream in = am.getAttachmentStream( att );
+                  OutputStream out = response.getOutputStream() ) {
                 if ( in != null ) {
                     in.transferTo( out );
                 }
@@ -258,7 +258,7 @@ public class AttachmentResource extends RestServletBase {
             final AttachmentManager am = engine.getManager( AttachmentManager.class );
 
             final Attachment att = Wiki.contents().attachment( engine, pageName, fileName );
-            try ( final InputStream in = filePart.getInputStream() ) {
+            try ( InputStream in = filePart.getInputStream() ) {
                 am.storeAttachment( att, in );
             }
 
@@ -337,7 +337,7 @@ public class AttachmentResource extends RestServletBase {
 
             // Copy data to new name, then delete old
             final Attachment newAtt = Wiki.contents().attachment( engine, pageName, newName );
-            try ( final InputStream in = am.getAttachmentStream( oldAtt ) ) {
+            try ( InputStream in = am.getAttachmentStream( oldAtt ) ) {
                 am.storeAttachment( newAtt, in );
             }
             am.deleteAttachment( oldAtt );

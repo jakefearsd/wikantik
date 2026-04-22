@@ -145,9 +145,9 @@ public class AdminPolicyResource extends RestServletBase {
         final String sql = "SELECT id, principal_type, principal_name, permission_type, target, actions FROM "
                 + tableName + " ORDER BY id";
 
-        try ( final Connection conn = ds.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql );
-              final ResultSet rs = ps.executeQuery() ) {
+        try ( Connection conn = ds.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql );
+              ResultSet rs = ps.executeQuery() ) {
 
             final List< Map< String, Object > > grants = new ArrayList<>();
             while ( rs.next() ) {
@@ -220,8 +220,8 @@ public class AdminPolicyResource extends RestServletBase {
         final String sql = "INSERT INTO " + tableName
                 + " (principal_type, principal_name, permission_type, target, actions) VALUES (?, ?, ?, ?, ?)";
 
-        try ( final Connection conn = ds.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql, PreparedStatement.RETURN_GENERATED_KEYS ) ) {
+        try ( Connection conn = ds.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql, PreparedStatement.RETURN_GENERATED_KEYS ) ) {
 
             ps.setString( 1, gf.principalType );
             ps.setString( 2, gf.principalName );
@@ -231,7 +231,7 @@ public class AdminPolicyResource extends RestServletBase {
             ps.executeUpdate();
 
             int generatedId = -1;
-            try ( final ResultSet keys = ps.getGeneratedKeys() ) {
+            try ( ResultSet keys = ps.getGeneratedKeys() ) {
                 if ( keys.next() ) {
                     generatedId = keys.getInt( 1 );
                 }
@@ -282,8 +282,8 @@ public class AdminPolicyResource extends RestServletBase {
         final String sql = "UPDATE " + tableName
                 + " SET principal_type = ?, principal_name = ?, permission_type = ?, target = ?, actions = ? WHERE id = ?";
 
-        try ( final Connection conn = ds.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = ds.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
 
             ps.setString( 1, gf.principalType );
             ps.setString( 2, gf.principalName );
@@ -337,8 +337,8 @@ public class AdminPolicyResource extends RestServletBase {
         final String tableName = dbPolicy.getTableName();
         final String sql = "DELETE FROM " + tableName + " WHERE id = ?";
 
-        try ( final Connection conn = ds.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = ds.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
 
             ps.setInt( 1, id );
             final int rows = ps.executeUpdate();

@@ -32,9 +32,10 @@ public class ClickJackFilter implements Filter {
 
     private String mode = "DENY";
 
+    @Override
     public void init(FilterConfig filterConfig) {
         String configMode = filterConfig.getInitParameter("mode");
-        if (configMode != null && (configMode.equals("DENY") || configMode.equals("SAMEORIGIN"))) {
+        if (configMode != null && ("DENY".equals(configMode) || "SAMEORIGIN".equals(configMode))) {
             mode = configMode;
         }
     }

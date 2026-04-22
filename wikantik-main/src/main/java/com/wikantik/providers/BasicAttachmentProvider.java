@@ -242,7 +242,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
     private void putPageProperties( final Attachment att, final Properties properties ) throws IOException, ProviderException {
         final File attDir = findAttachmentDir( att );
         final File propertyFile = new File( attDir, PROPERTY_FILE );
-        try( final OutputStream out = Files.newOutputStream( propertyFile.toPath() ) ) {
+        try( OutputStream out = Files.newOutputStream( propertyFile.toPath() ) ) {
             properties.store( out, " JSPWiki page properties for " + att.getName() + ". DO NOT MODIFY!" );
         }
     }
@@ -254,7 +254,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         final Properties props = new Properties();
         final File propertyFile = new File( findAttachmentDir(att), PROPERTY_FILE );
         if( propertyFile.exists() ) {
-            try( final InputStream in = Files.newInputStream( propertyFile.toPath() ) ) {
+            try( InputStream in = Files.newInputStream( propertyFile.toPath() ) ) {
                 props.load( in );
             } catch( final IOException ioe ) {
                 LOG.error( ioe.getMessage() );
@@ -278,7 +278,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         final int versionNumber = latestVersion + 1;
 
         final File newfile = new File( attDir, versionNumber + "." + getFileExtension( att.getFileName() ) );
-        try( final OutputStream out = Files.newOutputStream( newfile.toPath() ) ) {
+        try( OutputStream out = Files.newOutputStream( newfile.toPath() ) ) {
             LOG.info( "Uploading attachment {} to page {}", att.getFileName(), att.getParentName() );
             LOG.info( "Saving attachment contents to {}", newfile.getAbsolutePath() );
             FileUtil.copyContents( data, out );
@@ -480,7 +480,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
             return null;
         } catch( final IOException e ) {
             LOG.error("Can't read page properties", e );
-            throw new ProviderException("Cannot read page properties: "+e.getMessage());
+            throw new ProviderException("Cannot read page properties: "+e.getMessage(), e);
         }
         // FIXME: Check for existence of this particular version.
 
@@ -562,7 +562,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         @Override
         public boolean accept( final File dir, final String name )
         {
-            return !name.equals( PROPERTY_FILE );
+            return !PROPERTY_FILE.equals( name );
         }
     }
 

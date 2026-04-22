@@ -70,14 +70,14 @@ public class HubDiscoveryRepository {
         final String sql = "INSERT INTO hub_discovery_proposals "
             + "(suggested_name, exemplar_page, member_pages, coherence_score) "
             + "VALUES (?, ?, ?::jsonb, ?)";
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
             ps.setString( 1, suggestedName );
             ps.setString( 2, exemplarPage );
             ps.setString( 3, GSON.toJson( memberPages ) );
             ps.setDouble( 4, coherenceScore );
             ps.executeUpdate();
-            try ( final ResultSet keys = ps.getGeneratedKeys() ) {
+            try ( ResultSet keys = ps.getGeneratedKeys() ) {
                 if ( keys.next() ) return keys.getInt( 1 );
             }
             throw new SQLException( "No generated key returned" );
@@ -90,10 +90,10 @@ public class HubDiscoveryRepository {
     public HubDiscoveryProposal findById( final int id ) {
         final String sql = "SELECT id, suggested_name, exemplar_page, member_pages::text, "
             + "coherence_score, created FROM hub_discovery_proposals WHERE id = ?";
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setInt( 1, id );
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 return rs.next() ? mapRow( rs ) : null;
             }
         } catch ( final SQLException e ) {
@@ -108,11 +108,11 @@ public class HubDiscoveryRepository {
             + "WHERE status = 'pending' "
             + "ORDER BY created DESC LIMIT ? OFFSET ?";
         final List< HubDiscoveryProposal > out = new ArrayList<>();
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setInt( 1, limit );
             ps.setInt( 2, offset );
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 while ( rs.next() ) out.add( mapRow( rs ) );
             }
         } catch ( final SQLException e ) {
@@ -123,9 +123,9 @@ public class HubDiscoveryRepository {
 
     public int count() {
         final String sql = "SELECT COUNT(*) FROM hub_discovery_proposals WHERE status = 'pending'";
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql );
-              final ResultSet rs = ps.executeQuery() ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql );
+              ResultSet rs = ps.executeQuery() ) {
             return rs.next() ? rs.getInt( 1 ) : 0;
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to count hub discovery proposals: {}", e.getMessage() );
@@ -141,8 +141,8 @@ public class HubDiscoveryRepository {
      */
     public boolean delete( final int id ) {
         final String sql = "DELETE FROM hub_discovery_proposals WHERE id = ?";
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setInt( 1, id );
             return ps.executeUpdate() > 0;
         } catch ( final SQLException e ) {
@@ -161,8 +161,8 @@ public class HubDiscoveryRepository {
         final String sql = "UPDATE hub_discovery_proposals "
             + "SET status = 'dismissed', reviewed_by = ?, reviewed_at = NOW() "
             + "WHERE id = ? AND status = 'pending'";
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, reviewedBy );
             ps.setInt( 2, id );
             return ps.executeUpdate() > 0;
@@ -180,11 +180,11 @@ public class HubDiscoveryRepository {
             + "ORDER BY reviewed_at DESC NULLS LAST, id DESC "
             + "LIMIT ? OFFSET ?";
         final List< DismissedProposal > out = new ArrayList<>();
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setInt( 1, limit );
             ps.setInt( 2, offset );
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 while ( rs.next() ) out.add( mapDismissedRow( rs ) );
             }
         } catch ( final SQLException e ) {
@@ -195,9 +195,9 @@ public class HubDiscoveryRepository {
 
     public int countDismissed() {
         final String sql = "SELECT COUNT(*) FROM hub_discovery_proposals WHERE status = 'dismissed'";
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql );
-              final ResultSet rs = ps.executeQuery() ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql );
+              ResultSet rs = ps.executeQuery() ) {
             return rs.next() ? rs.getInt( 1 ) : 0;
         } catch ( final SQLException e ) {
             LOG.warn( "Failed to count dismissed hub discovery proposals: {}", e.getMessage() );
@@ -211,8 +211,8 @@ public class HubDiscoveryRepository {
      */
     public boolean deleteDismissed( final int id ) {
         final String sql = "DELETE FROM hub_discovery_proposals WHERE id = ? AND status = 'dismissed'";
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setInt( 1, id );
             return ps.executeUpdate() > 0;
         } catch ( final SQLException e ) {
@@ -229,8 +229,8 @@ public class HubDiscoveryRepository {
         if ( ids == null || ids.isEmpty() ) return 0;
         final String sql = "DELETE FROM hub_discovery_proposals "
             + "WHERE status = 'dismissed' AND id = ANY (?)";
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             final Integer[] idArray = ids.toArray( new Integer[ 0 ] );
             ps.setArray( 1, conn.createArrayOf( "INTEGER", idArray ) );
             return ps.executeUpdate();
@@ -252,10 +252,10 @@ public class HubDiscoveryRepository {
     public boolean findDismissedMatchingMembers( final List< String > sortedMembers ) {
         final String sql = "SELECT 1 FROM hub_discovery_proposals "
             + "WHERE status = 'dismissed' AND member_pages = ?::jsonb LIMIT 1";
-        try ( final Connection conn = dataSource.getConnection();
-              final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, GSON.toJson( sortedMembers ) );
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 return rs.next();
             }
         } catch ( final SQLException e ) {

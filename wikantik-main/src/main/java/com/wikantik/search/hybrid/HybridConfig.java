@@ -72,8 +72,8 @@ public record HybridConfig(
     private static boolean boolProp( final Properties p, final String key, final boolean def ) {
         final String v = trimmed( p, key );
         if( v == null ) return def;
-        if( v.equalsIgnoreCase( "true" )  ) return true;
-        if( v.equalsIgnoreCase( "false" ) ) return false;
+        if( "true".equalsIgnoreCase( v )  ) return true;
+        if( "false".equalsIgnoreCase( v ) ) return false;
         throw new IllegalArgumentException( key + " must be 'true' or 'false', got: " + v );
     }
 

@@ -24,6 +24,7 @@ import com.wikantik.api.plugin.Plugin;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.preferences.Preferences.TimeFormat;
 import com.wikantik.util.TextUtil;
+import java.util.Locale;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -53,7 +54,7 @@ public class CurrentTimePlugin implements Plugin {
         try {
             final SimpleDateFormat fmt;
             if( formatString != null ) {
-                fmt = new SimpleDateFormat( formatString );
+                fmt = new SimpleDateFormat( formatString, Locale.ROOT );
             } else {
                 fmt = Preferences.getDateFormat( context, TimeFormat.DATETIME );
             }
@@ -64,7 +65,7 @@ public class CurrentTimePlugin implements Plugin {
 
         } catch( final IllegalArgumentException e ) {
             final ResourceBundle rb = Preferences.getBundle( context, Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
-            throw new PluginException( rb.getString( "currenttimeplugin.badformat" ) + e.getMessage() );
+            throw new PluginException( rb.getString( "currenttimeplugin.badformat" ) + e.getMessage(), e );
         }
     }
 

@@ -18,7 +18,6 @@
  */
 package com.wikantik.util;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -485,9 +484,9 @@ public final class TextUtil {
         	return false;
         }
         val = val.trim();
-        return val.equalsIgnoreCase( "true" )
-               || val.equalsIgnoreCase( "on" )
-               || val.equalsIgnoreCase( "yes" );
+        return "true".equalsIgnoreCase( val )
+               || "on".equalsIgnoreCase( val )
+               || "yes".equalsIgnoreCase( val );
     }
 
     /**
@@ -525,7 +524,7 @@ public final class TextUtil {
             }
         }
 
-        if( sb.length() < 2 || !sb.substring( sb.length()-2 ).equals( "\r\n" ) ) {
+        if( sb.length() < 2 || !"\r\n".equals( sb.substring( sb.length()-2 ) ) ) {
             sb.append( "\r\n" );
         }
 

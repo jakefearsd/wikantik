@@ -117,10 +117,10 @@ public class RecentArticles implements Plugin {
 
         } catch ( final IllegalArgumentException e ) {
             LOG.warn( "Invalid plugin parameters: {}", e.getMessage() );
-            throw new PluginException( "Invalid parameters: " + e.getMessage() );
+            throw new PluginException( "Invalid parameters: " + e.getMessage(), e );
         } catch ( final Exception e ) {
             LOG.error( "Error executing RecentArticles plugin", e );
-            throw new PluginException( "Error retrieving recent articles: " + e.getMessage() );
+            throw new PluginException( "Error retrieving recent articles: " + e.getMessage(), e );
         }
     }
 

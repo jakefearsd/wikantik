@@ -119,7 +119,9 @@ public abstract class SimpleMBean implements DynamicMBean {
                 }
                 catch (final IntrospectionException e)
                 {
-                    throw new NotCompliantMBeanException( e.getMessage() );
+                    final NotCompliantMBeanException ex = new NotCompliantMBeanException( e.getMessage() );
+                    ex.initCause( e );
+                    throw ex;
                 }
 
                 attributes[i] = info;
@@ -289,7 +291,9 @@ public abstract class SimpleMBean implements DynamicMBean {
         }
         catch (final IllegalArgumentException e)
         {
-            throw new InvalidAttributeValueException( "Faulty argument: "+e.getMessage() );
+            final InvalidAttributeValueException ex = new InvalidAttributeValueException( "Faulty argument: "+e.getMessage() );
+            ex.initCause( e );
+            throw ex;
         }
         catch (final IllegalAccessException e)
         {

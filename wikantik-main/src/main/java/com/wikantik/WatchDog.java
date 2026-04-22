@@ -287,7 +287,7 @@ public final class WatchDog {
                 }
                 final StackTraceElement[] ste = stackTraces.get( t );
                 for( final StackTraceElement stackTraceElement : ste ) {
-                    stacktrace.append( "\n" ).append( stackTraceElement );
+                    stacktrace.append('\n').append( stackTraceElement );
                 }
             }
         }

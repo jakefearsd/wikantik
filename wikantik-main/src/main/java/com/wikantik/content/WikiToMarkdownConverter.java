@@ -109,7 +109,7 @@ public final class WikiToMarkdownConverter {
         for( final String line : wikiText.split( "\n", -1 ) ) {
             // --- Code block handling ---
             if( state == State.CODE_BLOCK ) {
-                if( line.trim().equals( "}}}" ) ) {
+                if( "}}}".equals( line.trim() ) ) {
                     result.append( "```\n" );
                     state = State.NORMAL;
                 } else {
@@ -324,7 +324,7 @@ public final class WikiToMarkdownConverter {
             // First row is the header
             appendTableRow( result, rows.get( 0 ), maxCols );
             // Separator row
-            result.append( "|" );
+            result.append('|');
             for( int c = 0; c < maxCols; c++ ) {
                 result.append( " --- |" );
             }
@@ -335,12 +335,12 @@ public final class WikiToMarkdownConverter {
             }
         } else {
             // No header — create an empty header row
-            result.append( "|" );
+            result.append('|');
             for( int c = 0; c < maxCols; c++ ) {
                 result.append( "   |" );
             }
             result.append( '\n' );
-            result.append( "|" );
+            result.append('|');
             for( int c = 0; c < maxCols; c++ ) {
                 result.append( " --- |" );
             }

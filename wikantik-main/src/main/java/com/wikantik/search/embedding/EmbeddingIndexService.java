@@ -135,12 +135,12 @@ public class EmbeddingIndexService {
         requireModelCode( modelCode );
         int upserted = 0;
         int progress = 200;
-        try( final Connection conn = dataSource.getConnection() ) {
+        try( Connection conn = dataSource.getConnection() ) {
             conn.setAutoCommit( false );
-            try( final PreparedStatement sel = conn.prepareStatement( SELECT_ALL_SQL );
-                 final PreparedStatement ins = conn.prepareStatement( UPSERT_SQL ) ) {
+            try( PreparedStatement sel = conn.prepareStatement( SELECT_ALL_SQL );
+                 PreparedStatement ins = conn.prepareStatement( UPSERT_SQL ) ) {
                 sel.setFetchSize( 500 );
-                try( final ResultSet rs = sel.executeQuery() ) {
+                try( ResultSet rs = sel.executeQuery() ) {
                     final List< UUID > batchIds = new ArrayList<>( batchSize );
                     final List< String > batchTexts = new ArrayList<>( batchSize );
                     while( rs.next() ) {
@@ -190,13 +190,13 @@ public class EmbeddingIndexService {
             return 0;
         }
         int upserted = 0;
-        try( final Connection conn = dataSource.getConnection() ) {
+        try( Connection conn = dataSource.getConnection() ) {
             conn.setAutoCommit( false );
-            try( final PreparedStatement sel = conn.prepareStatement( SELECT_BY_IDS_SQL );
-                 final PreparedStatement ins = conn.prepareStatement( UPSERT_SQL ) ) {
+            try( PreparedStatement sel = conn.prepareStatement( SELECT_BY_IDS_SQL );
+                 PreparedStatement ins = conn.prepareStatement( UPSERT_SQL ) ) {
                 final UUID[] idArray = chunkIds.toArray( UUID[]::new );
                 sel.setArray( 1, conn.createArrayOf( "uuid", idArray ) );
-                try( final ResultSet rs = sel.executeQuery() ) {
+                try( ResultSet rs = sel.executeQuery() ) {
                     final List< UUID > batchIds = new ArrayList<>( batchSize );
                     final List< String > batchTexts = new ArrayList<>( batchSize );
                     while( rs.next() ) {
@@ -236,8 +236,8 @@ public class EmbeddingIndexService {
      */
     public int deleteByModel( final String modelCode ) {
         requireModelCode( modelCode );
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( DELETE_BY_MODEL_SQL ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( DELETE_BY_MODEL_SQL ) ) {
             ps.setString( 1, modelCode );
             final int removed = ps.executeUpdate();
             LOG.info( "Embedding deleteByModel removed {} rows (model={})", removed, modelCode );
@@ -257,10 +257,10 @@ public class EmbeddingIndexService {
         requireModelCode( modelCode );
         final String sql = "SELECT COUNT(*), MAX(dim), MAX(updated) "
                          + "FROM content_chunk_embeddings WHERE model_code = ?";
-        try( final Connection conn = dataSource.getConnection();
-             final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, modelCode );
-            try( final ResultSet rs = ps.executeQuery() ) {
+            try( ResultSet rs = ps.executeQuery() ) {
                 if ( !rs.next() ) {
                     return new Status( modelCode, 0, 0, null );
                 }

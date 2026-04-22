@@ -33,6 +33,7 @@ public class COEPFilter implements Filter {
 
     private String mode = "require-corp";
 
+    @Override
     public void init(FilterConfig filterConfig) {
         String configMode = filterConfig.getInitParameter("CORPValue");
         if (configMode != null) {

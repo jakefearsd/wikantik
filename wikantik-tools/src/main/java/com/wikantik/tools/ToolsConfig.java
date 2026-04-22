@@ -123,7 +123,7 @@ public class ToolsConfig {
     }
 
     private static void loadFromClasspath( final ClassLoader cl, final Properties target ) {
-        try ( final InputStream is = cl.getResourceAsStream( RESOURCE_NAME ) ) {
+        try ( InputStream is = cl.getResourceAsStream( RESOURCE_NAME ) ) {
             if ( is != null ) {
                 target.load( is );
             }

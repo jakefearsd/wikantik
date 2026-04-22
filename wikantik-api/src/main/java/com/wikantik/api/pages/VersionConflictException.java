@@ -25,6 +25,8 @@ import com.wikantik.api.exceptions.WikiException;
  */
 public class VersionConflictException extends WikiException {
 
+    private static final long serialVersionUID = 1L;
+
     private final int currentVersion;
     private final int expectedVersion;
     private final boolean hashConflict;

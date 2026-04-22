@@ -55,6 +55,7 @@ import java.util.Optional;
  * After authentication, requests are subject to rate limiting. Failed access
  * attempts and rate limit violations are logged to the {@code SecurityLog} logger.
  */
+@SuppressWarnings( "PMD.MoreThanOneLogger" ) // SecurityLog and LOG route to different log destinations by design.
 public class ToolsAccessFilter implements Filter {
 
     private static final Logger LOG = LogManager.getLogger( ToolsAccessFilter.class );

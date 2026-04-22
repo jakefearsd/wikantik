@@ -86,7 +86,6 @@ public class Preferences extends HashMap< String,String > {
 
         // parse language and construct valid Locale object
         if( langSetting != null ) {
-            String language = "";
             String country  = "";
             String variant  = "";
 
@@ -99,8 +98,7 @@ public class Preferences extends HashMap< String,String > {
                 country = res[ 1 ];
             }
             if( resLength > 0 ) {
-                language = res[ 0 ];
-                loc = Locale.of( language, country, variant );
+                loc = Locale.of( res[ 0 ], country, variant );
             }
         }
 

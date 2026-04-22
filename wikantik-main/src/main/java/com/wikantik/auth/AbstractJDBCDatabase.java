@@ -81,6 +81,7 @@ public abstract class AbstractJDBCDatabase {
      * @param testSql the SQL statement to execute for testing (e.g., "SELECT * FROM users")
      * @throws WikiSecurityException if the connection test fails
      */
+    @SuppressWarnings( "PMD.UnusedLocalVariable" ) // try-with-resources holds the prepared statement only for its side effect.
     public void testConnection( final String testSql ) throws WikiSecurityException {
         try( Connection conn = ds.getConnection();
              PreparedStatement ps = conn.prepareStatement( testSql ) ) {
@@ -208,9 +209,7 @@ public abstract class AbstractJDBCDatabase {
      * @since 3.0.7
      */
     protected <T> T runInTransaction( final TransactionalOperation<T> operation ) throws WikiSecurityException {
-        Connection conn = null;
-        try {
-            conn = ds.getConnection();
+        try ( Connection conn = ds.getConnection() ) {
             if( supportsCommits ) {
                 conn.setAutoCommit( false );
             }
@@ -223,8 +222,6 @@ public abstract class AbstractJDBCDatabase {
             throw e;
         } catch( final Exception e ) {
             throw new WikiSecurityException( "Database operation failed: " + e.getMessage(), e );
-        } finally {
-            closeQuietly( conn, null, null );
         }
     }
 

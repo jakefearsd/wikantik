@@ -63,7 +63,7 @@ public final class HttpUtil {
                                                                                           req.getRemoteAddr();
         // can be a comma-separated list of IPs
         if (realIP.contains(","))
-                realIP = realIP.substring(realIP.indexOf(","));
+                realIP = realIP.substring(realIP.indexOf(','));
 
         return realIP;
 	

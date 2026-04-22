@@ -235,14 +235,11 @@ public class CachingProvider implements PageProvider {
         }
 
         //  If we have a list of all pages in memory, then any page not in the cache must be non-existent.
-        if( pages.get() < cachingManager.info( CachingManager.CACHE_PAGES ).getMaxElementsAllowed() ) {
-            return false;
-        }
-
-        //  We could add the page to the cache here as well, but in order to understand whether that is a good thing or not we would
-        //  need to analyze the JSPWiki calling patterns extensively.  Presumably it would be a good thing if pageExists() is called
-        //  many times before the first getPageText() is called, and the whole page is cached.
-        return provider.pageExists( pageName );
+        //  Otherwise we could add the page to the cache here as well, but in order to understand whether that is a good thing or
+        //  not we would need to analyze the JSPWiki calling patterns extensively.  Presumably it would be a good thing if
+        //  pageExists() is called many times before the first getPageText() is called, and the whole page is cached.
+        return pages.get() >= cachingManager.info( CachingManager.CACHE_PAGES ).getMaxElementsAllowed()
+                && provider.pageExists( pageName );
     }
 
     /**
@@ -318,10 +315,8 @@ public class CachingProvider implements PageProvider {
      */
     private boolean isAllPagesCacheExpired() {
         final long lastRefresh = allPagesLastRefresh.get();
-        if ( lastRefresh == 0L ) {
-            return true; // Never populated
-        }
-        return ( System.currentTimeMillis() - lastRefresh ) > allPagesTTLMillis;
+        // Never populated, or past TTL.
+        return lastRefresh == 0L || ( System.currentTimeMillis() - lastRefresh ) > allPagesTTLMillis;
     }
 
     /**

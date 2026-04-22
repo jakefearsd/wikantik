@@ -338,7 +338,7 @@ public abstract class RestServletBase extends HttpServlet {
      * @throws IOException if reading or parsing fails
      */
     protected JsonObject readJsonBody( HttpServletRequest request ) throws IOException {
-        try ( final BufferedReader reader = request.getReader() ) {
+        try ( BufferedReader reader = request.getReader() ) {
             return JsonParser.parseReader( reader ).getAsJsonObject();
         }
     }
@@ -355,7 +355,7 @@ public abstract class RestServletBase extends HttpServlet {
      */
     protected JsonObject parseJsonBody( final HttpServletRequest request, final HttpServletResponse response )
             throws IOException {
-        try ( final BufferedReader reader = request.getReader() ) {
+        try ( BufferedReader reader = request.getReader() ) {
             return JsonParser.parseReader( reader ).getAsJsonObject();
         } catch ( final Exception e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + e.getMessage() );

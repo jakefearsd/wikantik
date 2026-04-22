@@ -255,10 +255,8 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
         final String uid = getLoginCookie( request );
         if( uid != null ) {
             final File cf = getCookieFile( engine, uid );
-            if( cf != null ) {
-                if( !cf.delete() ) {
-                    LOG.debug( "Error deleting cookie login {}", uid );
-                }
+            if( cf != null && !cf.delete() ) {
+                LOG.debug( "Error deleting cookie login {}", uid );
             }
         }
     }

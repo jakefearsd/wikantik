@@ -177,12 +177,9 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
 
         // Get the group we're examining
         final Group group = groups.get( groupPrincipal );
-        if( group == null ) {
-            return false;
-        }
-
         // Check each user principal to see if it belongs to the group
-        return Arrays.stream(session.getPrincipals()).anyMatch(principal -> AuthenticationManager.isUserPrincipal(principal) && group.isMember(principal));
+        return group != null
+                && Arrays.stream(session.getPrincipals()).anyMatch(principal -> AuthenticationManager.isUserPrincipal(principal) && group.isMember(principal));
     }
 
     /** {@inheritDoc} */

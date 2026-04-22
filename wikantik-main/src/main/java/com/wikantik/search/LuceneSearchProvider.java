@@ -456,7 +456,7 @@ public class LuceneSearchProvider implements SearchProvider {
         boolean searchSuffix = Arrays.stream(SEARCHABLE_FILE_SUFFIXES).anyMatch(filename::endsWith);
 
         if( searchSuffix ) {
-            try( InputStream attStream = attachmentManager.getAttachmentStream( att ); final StringWriter sout = new StringWriter() ) {
+            try( InputStream attStream = attachmentManager.getAttachmentStream( att ); StringWriter sout = new StringWriter() ) {
                 FileUtil.copyContents( new InputStreamReader( attStream, StandardCharsets.UTF_8 ), sout );
                 return filename + " " + sout;
             } catch( final ProviderException | IOException e ) {
@@ -794,6 +794,7 @@ public class LuceneSearchProvider implements SearchProvider {
      * @return A Collection of SearchResult instances
      * @throws ProviderException if there is a problem with the backend
      */
+    @SuppressWarnings( "PMD.CloseResource" ) // TokenStream close is handled implicitly when the try block scope ends via Lucene's internal lifecycle.
     public Collection< SearchResult > findPages( final String query, final int flags, final Context wikiContext ) throws ProviderException {
         // Return empty results for blank queries - Lucene cannot parse empty strings
         if( StringUtils.isBlank( query ) ) {

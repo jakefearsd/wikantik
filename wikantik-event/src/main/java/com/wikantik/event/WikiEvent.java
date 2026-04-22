@@ -45,7 +45,7 @@ public abstract sealed class WikiEvent extends EventObject
     private final long when;
 
     /** objects associated to src which only make sense in the context of a given WikiEvent */
-    private Object[] args;
+    private final Object[] args;
 
     // ............
 
@@ -56,10 +56,7 @@ public abstract sealed class WikiEvent extends EventObject
      * @param newType the event type.
      */
     public WikiEvent( final Object src, final int type ) {
-        super( src );
-        when = System.currentTimeMillis();
-        args = new Object[]{};
-        setType( type );
+        this( src, type, new Object[]{} );
     }
 
     /**
@@ -70,8 +67,10 @@ public abstract sealed class WikiEvent extends EventObject
      * @param args typically the first arg is the page name that triggered the event.
      */
     public WikiEvent( final Object src, final int type, final Object... args ) {
-        this( src, type );
+        super( src );
+        when = System.currentTimeMillis();
         this.args = args != null ? args : new Object[]{};
+        setType( type );
     }
     
     /**

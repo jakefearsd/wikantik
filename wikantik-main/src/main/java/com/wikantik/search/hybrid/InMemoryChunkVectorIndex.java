@@ -180,8 +180,8 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
         }
 
         final int n = ids.size();
-        final UUID[] idArr = ids.toArray( new UUID[ n ] );
-        final String[] pageArr = pages.toArray( new String[ n ] );
+        final UUID[] idArr = ids.toArray( new UUID[ 0 ] );
+        final String[] pageArr = pages.toArray( new String[ 0 ] );
         final float[] flat = new float[ n * dim ];
         for( int i = 0; i < n; i++ ) {
             System.arraycopy( vecs.get( i ), 0, flat, i * dim, dim );
@@ -339,8 +339,8 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
         }
 
         final int n = ids.size();
-        final UUID[] idArr = ids.toArray( new UUID[ n ] );
-        final String[] pageArr = pages.toArray( new String[ n ] );
+        final UUID[] idArr = ids.toArray( new UUID[ 0 ] );
+        final String[] pageArr = pages.toArray( new String[ 0 ] );
         // Flatten N row vectors into one contiguous float[] of length N*dim. The
         // hot path then walks consecutive memory and the JIT can keep the dot
         // product entirely in registers without per-row pointer-chase overhead.

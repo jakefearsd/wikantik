@@ -88,7 +88,7 @@ public final class EmbeddingCli {
 
     private static Properties loadProperties() throws IOException {
         final Properties p = new Properties();
-        try( final InputStream in = EmbeddingCli.class.getResourceAsStream( "/ini/wikantik.properties" ) ) {
+        try( InputStream in = EmbeddingCli.class.getResourceAsStream( "/ini/wikantik.properties" ) ) {
             if( in != null ) p.load( in );
         }
         // Overlay -D system properties so the CLI can be retargeted without a build.

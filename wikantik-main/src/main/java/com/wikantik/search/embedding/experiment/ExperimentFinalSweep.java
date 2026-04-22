@@ -74,7 +74,7 @@ public final class ExperimentFinalSweep {
         final TextEmbeddingClient client = ExperimentHarness.buildClient( modelCode );
         Bm25Client bm25 = Bm25Client.fromSystemProperties();
 
-        try( final Connection conn = ExperimentDb.open() ) {
+        try( Connection conn = ExperimentDb.open() ) {
             final ChunkCorpus corpus = ExperimentHarness.loadCorpus( conn, model.code(), client.dimension() );
             LOG.info( "loaded corpus: {} chunks", corpus.vectors.size() );
 

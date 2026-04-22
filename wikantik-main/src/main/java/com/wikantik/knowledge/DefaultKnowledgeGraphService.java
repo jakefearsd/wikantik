@@ -297,12 +297,11 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
             final String source = Objects.toString( proposedData.get( "source" ), null );
             final String target = Objects.toString( proposedData.get( "target" ), null );
             final String relationship = Objects.toString( proposedData.get( "relationship" ), null );
-            if( source != null && target != null && relationship != null ) {
-                if( repo.isRejected( source, target, relationship ) ) {
-                    LOG.info( "Proposal rejected: {}->{} [{}] was previously rejected",
-                            source, target, relationship );
-                    return null;
-                }
+            if( source != null && target != null && relationship != null
+                    && repo.isRejected( source, target, relationship ) ) {
+                LOG.info( "Proposal rejected: {}->{} [{}] was previously rejected",
+                        source, target, relationship );
+                return null;
             }
         }
         return repo.insertProposal( proposalType, sourcePage, proposedData, confidence, reasoning );

@@ -136,7 +136,7 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
                 }
                 return null;
             } );
-        } catch( final WikiSecurityException e ) { //NOPMD - e.getCause() is explicitly passed as the chained cause below
+        } catch( final WikiSecurityException e ) {
             // Preserve the original error message format for delete failures
             if( e.getCause() instanceof SQLException ) {
                 throw new WikiSecurityException( "Could not delete group " + groupName + ": " + e.getCause().getMessage(), e.getCause() );
@@ -278,7 +278,9 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
      *             successfully
      * @throws NoRequiredPropertyException if a required property is not present
      */
-    @Override public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, WikiSecurityException
+    @Override
+    @SuppressWarnings( "PMD.UnusedLocalVariable" ) // try-with-resources below holds the prepared statement only for its side effect.
+    public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, WikiSecurityException
     {
         this.engine = engine;
 

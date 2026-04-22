@@ -40,7 +40,7 @@ public class AliasPlugin implements Plugin {
     @Override
     public String execute( final Context context, final Map<String, String> params ) throws PluginException {
         final String targetPage = params.get( PluginManager.PARAM_CMDLINE );
-        if ( targetPage == null || targetPage.trim().isEmpty() ) {
+        if ( targetPage == null || targetPage.isBlank() ) {
             throw new PluginException( "ALIAS plugin requires a target page name" );
         }
 

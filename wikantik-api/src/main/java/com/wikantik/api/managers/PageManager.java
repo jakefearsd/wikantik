@@ -305,10 +305,7 @@ public interface PageManager extends WikiEventListener {
      *  @since 2.0
      */
     default boolean pageExists( final Page page ) throws ProviderException {
-        if( page != null ) {
-            return pageExists( page.getName(), page.getVersion() );
-        }
-        return false;
+        return page != null && pageExists( page.getName(), page.getVersion() );
     }
 
     /**
@@ -341,10 +338,7 @@ public interface PageManager extends WikiEventListener {
      *  @since 2.0
      */
     default boolean wikiPageExists( final Page page ) throws ProviderException {
-        if( page != null ) {
-            return wikiPageExists( page.getName(), page.getVersion() );
-        }
-        return false;
+        return page != null && wikiPageExists( page.getName(), page.getVersion() );
     }
 
     /**

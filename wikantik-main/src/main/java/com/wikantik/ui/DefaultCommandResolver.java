@@ -326,10 +326,8 @@ public class DefaultCommandResolver implements CommandResolver {
      * throws an exception
      */
     protected boolean simplePageExists( final String page ) throws ProviderException {
-        if ( specialPages.containsKey( page ) ) {
-            return true;
-        }
-        return engine.getManager( PageManager.class ).pageExists( page );
+        return specialPages.containsKey( page )
+                || engine.getManager( PageManager.class ).pageExists( page );
     }
 
 }

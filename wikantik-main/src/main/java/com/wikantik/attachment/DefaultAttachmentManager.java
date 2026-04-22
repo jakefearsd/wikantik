@@ -58,7 +58,7 @@ import java.util.Properties;
 public class DefaultAttachmentManager implements com.wikantik.api.managers.AttachmentManager {
 
     /** List of attachment types which are forced to be downloaded */
-    private String[] forceDownloadPatterns;
+    private final String[] forceDownloadPatterns;
 
     private static final Logger LOG = LogManager.getLogger( DefaultAttachmentManager.class );
     private AttachmentProvider provider;
@@ -76,6 +76,11 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
     public DefaultAttachmentManager( final Engine engine, final Properties props ) {
         this.engine = engine;
         cachingManager = this.engine.getManager( CachingManager.class );
+        final String forceDownload = TextUtil.getStringProperty( props, PROP_FORCEDOWNLOAD, null );
+        forceDownloadPatterns = StringUtils.isNotEmpty( forceDownload )
+                ? forceDownload.toLowerCase( Locale.ROOT ).split( "\\s" )
+                : new String[ 0 ];
+
         final String classname;
         if( cachingManager.enabled( CachingManager.CACHE_ATTACHMENTS_DYNAMIC ) ) {
             classname = "com.wikantik.providers.CachingAttachmentProvider";
@@ -101,13 +106,6 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
         } catch( final IOException e ) {
             LOG.error( "Attachment provider reports IO error", e );
             provider = null;
-        }
-
-        final String forceDownload = TextUtil.getStringProperty( props, PROP_FORCEDOWNLOAD, null );
-        if( StringUtils.isNotEmpty( forceDownload ) ) {
-            forceDownloadPatterns = forceDownload.toLowerCase( Locale.ROOT ).split( "\\s" );
-        } else {
-            forceDownloadPatterns = new String[ 0 ];
         }
     }
 

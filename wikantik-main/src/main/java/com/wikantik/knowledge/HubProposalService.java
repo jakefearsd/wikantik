@@ -45,6 +45,7 @@ public class HubProposalService {
 
     private final JdbcKnowledgeRepository kgRepo;
     private final HubProposalRepository proposalRepo;
+    @SuppressWarnings( "PMD.UnusedPrivateField" ) // Repo retained for validation/DI wiring; consumed once vector-backed proposals land.
     private final ContentEmbeddingRepository contentRepo;
     private final int reviewPercentile;
     private final Supplier< TfidfModel > contentModelSupplier;

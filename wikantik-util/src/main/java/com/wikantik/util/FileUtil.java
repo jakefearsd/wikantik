@@ -165,6 +165,7 @@ public final class FileUtil {
      *  @param out The outputstream to copy to
      *  @throws IOException In case reading or writing fails.
      */
+    @SuppressWarnings( "PMD.CloseResource" ) // `fos` is a pattern-binding on a caller-owned OutputStream; the caller closes it.
     public static void copyContents( final InputStream in, final OutputStream out ) throws IOException {
         final byte[] buf = new byte[BUFFER_SIZE];
         int bytesRead;

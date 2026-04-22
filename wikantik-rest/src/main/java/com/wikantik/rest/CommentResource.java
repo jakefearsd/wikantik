@@ -82,7 +82,6 @@ public class CommentResource extends RestServletBase {
      * Pattern to extract quoted comment text lines following a marker.
      * Matches lines starting with {@code > } (blockquote) after the header line.
      */
-    private static final Pattern BLOCKQUOTE_LINE = Pattern.compile( "^> (.*)$", Pattern.MULTILINE );
 
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
@@ -218,10 +217,10 @@ public class CommentResource extends RestServletBase {
                         }
                         textBuilder.append( content );
                     }
-                } else if ( line.trim().isEmpty() && !inBlockquote ) {
+                } else if ( line.isBlank() && !inBlockquote ) {
                     // Skip blank lines before blockquote starts
                     continue;
-                } else if ( inBlockquote && line.trim().isEmpty() ) {
+                } else if ( inBlockquote && line.isBlank() ) {
                     // End of blockquote
                     break;
                 } else if ( pastHeader ) {

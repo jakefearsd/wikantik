@@ -153,10 +153,9 @@ public class Image implements Plugin {
     }
 
     private static String sanitizeSrc( final Context context, final String src ) {
-        if( !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) ) {
-            if( src.startsWith( "data:" ) || src.startsWith( "javascript:" ) ) {
-                return "http://invalid_url" + src;
-            }
+        if( !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false )
+                && ( src.startsWith( "data:" ) || src.startsWith( "javascript:" ) ) ) {
+            return "http://invalid_url" + src;
         }
         return src;
     }

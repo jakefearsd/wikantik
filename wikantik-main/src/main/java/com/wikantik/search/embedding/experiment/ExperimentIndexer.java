@@ -70,7 +70,7 @@ public final class ExperimentIndexer {
         final TextEmbeddingClient client = buildClient( modelCode );
         LOG.info( "Indexer starting: model={} dim={}", client.modelName(), client.dimension() );
 
-        try( final Connection conn = ExperimentDb.open() ) {
+        try( Connection conn = ExperimentDb.open() ) {
             conn.setAutoCommit( false );
 
             final int toEmbed = countPendingChunks( conn, model.code() );
@@ -104,7 +104,7 @@ public final class ExperimentIndexer {
 
     private static Properties loadDefaults() throws IOException {
         final Properties p = new Properties();
-        try( final InputStream in = ExperimentIndexer.class.getResourceAsStream( "/ini/wikantik.properties" ) ) {
+        try( InputStream in = ExperimentIndexer.class.getResourceAsStream( "/ini/wikantik.properties" ) ) {
             if( in != null ) p.load( in );
         }
         for( final String key : List.of(
@@ -117,10 +117,9 @@ public final class ExperimentIndexer {
     }
 
     private static int countAllChunks( Connection conn ) throws SQLException {
-        try( final PreparedStatement ps = conn.prepareStatement( "SELECT COUNT(*) FROM kg_content_chunks" );
-             final ResultSet rs = ps.executeQuery() ) {
-            rs.next();
-            return rs.getInt( 1 );
+        try( PreparedStatement ps = conn.prepareStatement( "SELECT COUNT(*) FROM kg_content_chunks" );
+             ResultSet rs = ps.executeQuery() ) {
+            return rs.next() ? rs.getInt( 1 ) : 0;
         }
     }
 
@@ -134,9 +133,8 @@ public final class ExperimentIndexer {
             """;
         try( PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, modelCode );
-            try( final ResultSet rs = ps.executeQuery() ) {
-                rs.next();
-                return rs.getInt( 1 );
+            try( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() ? rs.getInt( 1 ) : 0;
             }
         }
     }
@@ -161,11 +159,11 @@ public final class ExperimentIndexer {
         int embedded = 0;
         int logEvery = 200;
 
-        try( final PreparedStatement sel = conn.prepareStatement( selectSql ) ) {
+        try( PreparedStatement sel = conn.prepareStatement( selectSql ) ) {
             sel.setString( 1, modelCode );
             sel.setFetchSize( 500 );
-            try( final ResultSet rs = sel.executeQuery();
-                 final PreparedStatement ins = conn.prepareStatement( insertSql ) ) {
+            try( ResultSet rs = sel.executeQuery();
+                 PreparedStatement ins = conn.prepareStatement( insertSql ) ) {
 
                 final List< UUID >   batchIds   = new ArrayList<>();
                 final List< String > batchTexts = new ArrayList<>();

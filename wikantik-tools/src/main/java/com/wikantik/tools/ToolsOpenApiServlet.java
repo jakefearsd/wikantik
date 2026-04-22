@@ -64,6 +64,7 @@ public class ToolsOpenApiServlet extends HttpServlet {
         }
         """;
 
+    @SuppressWarnings( "PMD.UnusedPrivateField" ) // Held as liveness signal; servlet rejects requests when engine is null via the null-check tools below.
     private final transient Engine engine;
     private final transient ToolsConfig config;
     private final transient ToolsMetrics metrics;

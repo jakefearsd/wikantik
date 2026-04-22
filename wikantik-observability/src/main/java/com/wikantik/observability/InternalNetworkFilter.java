@@ -51,6 +51,7 @@ import java.util.List;
  * real client IP after Tomcat's {@code RemoteIpValve} processes the {@code CF-Connecting-IP}
  * header from Cloudflare.</p>
  */
+@SuppressWarnings( "PMD.AvoidUsingHardCodedIP" ) // RFC 1918 private ranges are the canonical internal-network allowlist — hardcoding is the point.
 public class InternalNetworkFilter implements Filter {
 
     private static final Logger LOG = LogManager.getLogger( InternalNetworkFilter.class );

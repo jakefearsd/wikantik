@@ -119,10 +119,7 @@ public final class WikiPrincipal implements Principal, Comparable< Principal >, 
      */
     @Override
     public boolean equals( final Object obj ) {
-        if( !( obj instanceof WikiPrincipal p ) ) {
-            return false;
-        }
-        return name.equals( p.getName() );
+        return obj instanceof WikiPrincipal p && name.equals( p.getName() );
     }
 
     /**

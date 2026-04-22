@@ -258,7 +258,7 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
         final boolean allowEmpty = TextUtil.getBooleanProperty( engine.getWikiProperties(),
                                                                 Engine.PROP_ALLOW_CREATION_OF_EMPTY_PAGES,
                                                          false );
-        if ( !allowEmpty && !wikiPageExists( page ) && text.trim().isEmpty() ) {
+        if ( !allowEmpty && !wikiPageExists( page ) && text.isBlank() ) {
             return;
         }
 

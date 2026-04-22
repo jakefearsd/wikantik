@@ -190,17 +190,12 @@ public class IfPlugin implements Plugin {
     }
 
     private static boolean checkExists( final Context context, final String page, final String exists ) {
-        if( exists == null ) {
-            return false;
-        }
-        return !context.getEngine().getManager( PageManager.class ).wikiPageExists( page ) ^ TextUtil.isPositive(exists);
+        return exists != null
+                && !context.getEngine().getManager( PageManager.class ).wikiPageExists( page ) ^ TextUtil.isPositive( exists );
     }
 
     private static boolean checkVarExists( final String varContent, final String exists ) {
-        if( exists == null ) {
-            return false;
-        }
-        return varContent == null ^ TextUtil.isPositive( exists );
+        return exists != null && varContent == null ^ TextUtil.isPositive( exists );
     }
 
     private static boolean checkGroup( final Context context, final String group ) {

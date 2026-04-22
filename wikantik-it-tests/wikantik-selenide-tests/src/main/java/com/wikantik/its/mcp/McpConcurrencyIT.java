@@ -31,6 +31,7 @@ import java.util.concurrent.*;
  */
 public class McpConcurrencyIT extends WithMcpTestSetup {
 
+    @SuppressWarnings( "PMD.CloseResource" ) // ExecutorService is explicitly shutdown + awaitTermination below.
     @Test
     public void parallelReadsDoNotInterfere() throws Exception {
         final String pageName = uniquePageName( "ConcRead" );
@@ -65,6 +66,7 @@ public class McpConcurrencyIT extends WithMcpTestSetup {
         }
     }
 
+    @SuppressWarnings( "PMD.CloseResource" ) // ExecutorService is explicitly shutdown + awaitTermination below.
     @Test
     public void parallelWritesToDifferentPages() throws Exception {
         final int threads = 5;
@@ -94,6 +96,7 @@ public class McpConcurrencyIT extends WithMcpTestSetup {
         }
     }
 
+    @SuppressWarnings( "PMD.CloseResource" ) // ExecutorService is explicitly shutdown + awaitTermination below.
     @Test
     public void multipleClientsCanCoexist() throws Exception {
         final int clientCount = 3;
@@ -103,7 +106,7 @@ public class McpConcurrencyIT extends WithMcpTestSetup {
         for ( int c = 0; c < clientCount; c++ ) {
             final int clientIdx = c;
             futures.add( executor.submit( () -> {
-                try ( final McpTestClient client = McpTestClient.create() ) {
+                try ( McpTestClient client = McpTestClient.create() ) {
                     final String pageName = uniquePageName( "MultiClient" + clientIdx );
                     client.importPage( pageName, "Client " + clientIdx );
                     final Map< String, Object > result = client.readPage( pageName );

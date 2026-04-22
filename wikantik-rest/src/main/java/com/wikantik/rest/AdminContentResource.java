@@ -374,6 +374,7 @@ public class AdminContentResource extends RestServletBase {
      * Returns 202 on dispatch, 409 when a run is already in flight, 503 when
      * hybrid retrieval is disabled.
      */
+    @SuppressWarnings( "PMD.CloseResource" ) // BootstrapEmbeddingIndexer runs on a background thread and shuts itself down once bootstrap completes.
     private void handleReindexEmbeddings( final HttpServletResponse response ) throws IOException {
         final com.wikantik.search.embedding.BootstrapEmbeddingIndexer boot =
             getEngine().getManager( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
@@ -548,6 +549,7 @@ public class AdminContentResource extends RestServletBase {
      * tracked inside the bootstrap indexer — joining the two avoids lying while
      * the batch is in-flight.</p>
      */
+    @SuppressWarnings( "PMD.CloseResource" ) // BootstrapEmbeddingIndexer runs on a background thread and shuts itself down once bootstrap completes.
     private Map< String, Object > bootstrapMap( final int liveRowCount ) {
         final Map< String, Object > m = new LinkedHashMap<>();
         final com.wikantik.search.embedding.BootstrapEmbeddingIndexer boot =

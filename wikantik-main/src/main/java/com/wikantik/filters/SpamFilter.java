@@ -107,6 +107,7 @@ import net.thauvin.erik.akismet.AkismetComment;
  *
  *  @since 2.1.112
  */
+@SuppressWarnings( "PMD.MoreThanOneLogger" ) // SpamLog and LOG route to different log destinations by design.
 public class SpamFilter implements PageFilter {
 	
     private static final String ATTR_SPAMFILTER_SCORE = "spamfilter.score";
@@ -404,8 +405,7 @@ public class SpamFilter implements PageFilter {
         final var compiledpatterns = new ArrayList< Pattern >();
 
         if( list != null ) {
-            try {
-                final BufferedReader in = new BufferedReader( new StringReader(list) );
+            try ( BufferedReader in = new BufferedReader( new StringReader( list ) ) ) {
                 String line;
                 while( (line = in.readLine() ) != null ) {
                     line = line.trim();
@@ -681,24 +681,21 @@ public class SpamFilter implements PageFilter {
 
             //  Rebuild, if the spam words page, the attachment or the IP ban page has changed since.
             final Page sourceSpam = pageManager.getPage( forbiddenWordsPage );
-            if( sourceSpam != null ) {
-                if( spamPatterns == null || spamPatterns.isEmpty() || sourceSpam.getLastModified().after( lastRebuild ) ) {
-                    rebuild = true;
-                }
+            if( sourceSpam != null
+                    && ( spamPatterns == null || spamPatterns.isEmpty() || sourceSpam.getLastModified().after( lastRebuild ) ) ) {
+                rebuild = true;
             }
 
             final Attachment att = attachmentManager.getAttachmentInfo( context, blacklist );
-            if( att != null ) {
-                if( spamPatterns == null || spamPatterns.isEmpty() || att.getLastModified().after( lastRebuild ) ) {
-                    rebuild = true;
-                }
+            if( att != null
+                    && ( spamPatterns == null || spamPatterns.isEmpty() || att.getLastModified().after( lastRebuild ) ) ) {
+                rebuild = true;
             }
 
             final Page sourceIPs = pageManager.getPage( forbiddenIPsPage );
-            if( sourceIPs != null ) {
-                if( IPPatterns == null || IPPatterns.isEmpty() || sourceIPs.getLastModified().after( lastRebuild ) ) {
-                    rebuild = true;
-                }
+            if( sourceIPs != null
+                    && ( IPPatterns == null || IPPatterns.isEmpty() || sourceIPs.getLastModified().after( lastRebuild ) ) ) {
+                rebuild = true;
             }
 
             //  Do the actual rebuilding.  For simplicity's sake, we always rebuild the complete filter list regardless of what changed.
@@ -712,12 +709,13 @@ public class SpamFilter implements PageFilter {
                 LOG.info( "IP filter reloaded - recognizing {} patterns from page {}", IPPatterns.size(), forbiddenIPsPage );
 
                 if( att != null ) {
-                    final InputStream in = attachmentManager.getAttachmentStream(att);
-                    final StringWriter out = new StringWriter();
-                    FileUtil.copyContents( new InputStreamReader( in, StandardCharsets.UTF_8 ), out );
-                    final Collection< Pattern > blackList = parseBlacklist( out.toString() );
-                    LOG.info( "...recognizing additional {} patterns from blacklist {}", blackList.size(), blacklist );
-                    spamPatterns.addAll( blackList );
+                    try ( InputStream in = attachmentManager.getAttachmentStream( att ) ) {
+                        final StringWriter out = new StringWriter();
+                        FileUtil.copyContents( new InputStreamReader( in, StandardCharsets.UTF_8 ), out );
+                        final Collection< Pattern > blackList = parseBlacklist( out.toString() );
+                        LOG.info( "...recognizing additional {} patterns from blacklist {}", blackList.size(), blacklist );
+                        spamPatterns.addAll( blackList );
+                    }
                 }
             }
         } catch( final IOException ex ) {
@@ -865,11 +863,8 @@ public class SpamFilter implements PageFilter {
             return true;
         }
 
-        if( ignoreAuthenticated && context.getWikiSession().isAuthenticated() ) {
-            return true;
-        }
-
-        return context.getVariable("captcha") != null;
+        return ( ignoreAuthenticated && context.getWikiSession().isAuthenticated() )
+                || context.getVariable( "captcha" ) != null;
     }
 
     /**
@@ -947,6 +942,7 @@ public class SpamFilter implements PageFilter {
      *  @return The name to be used in the hash field
      *  @since  2.6
      */
+    @SuppressWarnings( "PMD.NonThreadSafeSingleton" ) // hashName is refreshed idempotently; a race only causes a harmless extra ID generation.
     public static String getHashFieldName( final HttpServletRequest request ) {
         String hash = null;
 
@@ -993,10 +989,7 @@ public class SpamFilter implements PageFilter {
 
         @Override
         public boolean equals( final Object o ) {
-            if( o instanceof Change c ) {
-                return change.equals( c.change );
-            }
-            return false;
+            return o instanceof Change c && change.equals( c.change );
         }
 
         @Override

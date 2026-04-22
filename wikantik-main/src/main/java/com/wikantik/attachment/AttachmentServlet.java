@@ -440,12 +440,10 @@ public class AttachmentServlet extends HttpServlet {
      *  Fixes [JSPWIKI-46].
      */
     private String validateNextPage( String nextPage, final String errorPage ) {
-        if( nextPage.contains( "://" ) ) {
-            // It's an absolute link, so unless it starts with our address, we'll log an error.
-            if( !nextPage.startsWith( engine.getBaseURL() ) ) {
-                LOG.warn("Detected phishing attempt by redirecting to an unsecure location: {}", nextPage);
-                nextPage = errorPage;
-            }
+        // It's an absolute link, so unless it starts with our address, we'll log an error.
+        if( nextPage.contains( "://" ) && !nextPage.startsWith( engine.getBaseURL() ) ) {
+            LOG.warn( "Detected phishing attempt by redirecting to an unsecure location: {}", nextPage );
+            nextPage = errorPage;
         }
 
         return nextPage;

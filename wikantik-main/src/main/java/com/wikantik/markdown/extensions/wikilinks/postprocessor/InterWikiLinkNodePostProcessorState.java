@@ -46,7 +46,7 @@ public class InterWikiLinkNodePostProcessorState extends AbstractLinkState imple
     private static final Logger LOG = LogManager.getLogger( InterWikiLinkNodePostProcessorState.class );
     private final Document document;
     private final boolean wysiwygEditorMode;
-    private boolean useOutlinkImage = true;
+    private final boolean useOutlinkImage;
 
     public InterWikiLinkNodePostProcessorState( final Context wikiContext,
                                                 final Document document,
@@ -54,7 +54,7 @@ public class InterWikiLinkNodePostProcessorState extends AbstractLinkState imple
                                                 final List< Pattern > inlineImagePatterns ) {
         super( wikiContext, isImageInlining, inlineImagePatterns );
         this.document = document;
-        this.useOutlinkImage = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USEOUTLINKIMAGE, useOutlinkImage );
+        this.useOutlinkImage = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USEOUTLINKIMAGE, true );
         final Boolean wysiwygVariable = wikiContext.getVariable( Context.VAR_WYSIWYG_EDITOR_MODE );
         wysiwygEditorMode = wysiwygVariable != null ? wysiwygVariable : false;
     }

@@ -19,8 +19,6 @@
 package com.wikantik.auth;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.WikiException;
@@ -148,7 +146,6 @@ public final class SecurityVerifier {
 
     private static final String   BG_RED                       = "bgcolor=\"#ffc0c0\"";
 
-    private static final Logger LOG = LogManager.getLogger( SecurityVerifier.class.getName() );
 
     /**
      * Constructs a new SecurityVerifier for a supplied Engine and WikiSession.

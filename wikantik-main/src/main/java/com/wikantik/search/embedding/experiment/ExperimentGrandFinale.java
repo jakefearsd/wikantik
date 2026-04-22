@@ -107,7 +107,7 @@ public final class ExperimentGrandFinale {
         final TextEmbeddingClient client = ExperimentHarness.buildClient( modelCode );
         Bm25Client bm25 = Bm25Client.fromSystemProperties();
 
-        try( final Connection conn = ExperimentDb.open() ) {
+        try( Connection conn = ExperimentDb.open() ) {
             final ChunkCorpus corpus = ExperimentHarness.loadCorpus( conn, model.code(), client.dimension() );
 
             // Cache per-query: BM25 results with scores, and per-chunk cosines.

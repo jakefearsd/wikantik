@@ -76,6 +76,7 @@ public final class WikiSession implements Session {
     // Managers stored at construction time to avoid repeated engine.getManager() lookups.
     private GroupManager groupManager;
     private UserManager userManager;
+    @SuppressWarnings( "PMD.UnusedPrivateField" ) // Held for upcoming event-registration work; wiring lands in the next auth refactor.
     private AuthenticationManager authenticationManager;
 
     private String antiCsrfToken;

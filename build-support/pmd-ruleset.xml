@@ -50,6 +50,17 @@
         <!-- Same rationale as ReplaceJavaUtilDate — Calendar is used alongside Date
              in the same legacy code paths. -->
         <exclude name="ReplaceJavaUtilCalendar"/>
+        <!-- `Class.getClassLoader()` is intentional throughout — ClassUtil/McpConfig/
+             ToolsConfig/XmlUtil use the wiki's own loader to load bundled resources
+             and plugin classes. TCCL would pick up whatever thread context is active
+             (often the container's), which is the opposite of what we want here.
+             ~18 sites, all deliberate. -->
+        <exclude name="UseProperClassLoader"/>
+        <!-- Codebase uses `null` as a sentinel meaning "absent / not found / failed",
+             which is semantically distinct from "present but empty". Flexmark/JSR API
+             contracts also specify null returns (getAfterDependents, getDelegates).
+             Converting to empty collections would mask legitimate error paths. ~14 sites. -->
+        <exclude name="ReturnEmptyCollectionRatherThanNull"/>
     </rule>
 
     <!-- EmptyCatchBlock: enforce project rule (log, don't swallow) but
@@ -87,6 +98,21 @@
         <exclude name="UnitTestShouldUseTestAnnotation"/>
         <exclude name="UnitTestShouldUseBeforeAnnotation"/>
         <exclude name="UnitTestShouldUseAfterAnnotation"/>
+        <!-- JUnit 5 allows public; package-private is a style preference, not a
+             correctness signal. 70 sites, all ITs. -->
+        <exclude name="JUnit5TestShouldBePackagePrivate"/>
+        <!-- Idiomatic parameter normalization (`if (x == null) x = default;`) and
+             loop-scratch reassignment are pervasive and intentional here. ~47 sites. -->
+        <exclude name="AvoidReassigningParameters"/>
+        <!-- API-shape suggestion, not a bug. Changing `method(T[] xs)` to varargs is
+             a signature change; many flagged methods are in public APIs where varargs
+             would alter call-site resolution. ~40 sites. -->
+        <exclude name="UseVarargs"/>
+        <!-- @FunctionalInterface is optional; adding it locks the interface against
+             ever gaining a second abstract method. ~15 sites, all intentional. -->
+        <exclude name="ImplicitFunctionalInterface"/>
+        <!-- Pure style — `int x, y;` vs two lines — no functional difference. ~15 sites. -->
+        <exclude name="OneDeclarationPerLine"/>
         <!-- Very noisy; subclasses override protected members across the tree. -->
         <exclude name="AccessorClassGeneration"/>
         <exclude name="AccessorMethodGeneration"/>
@@ -111,6 +137,11 @@
         <exclude name="ConsecutiveAppendsShouldReuse"/>
         <exclude name="ConsecutiveLiteralAppends"/>
         <exclude name="InsufficientStringBufferDeclaration"/>
+        <!-- Minor idiom (`"" + x`), not a real perf problem at modern JIT level. ~7 sites. -->
+        <exclude name="AddEmptyString"/>
+        <!-- `= 0`, `= null`, `= false` on field declarations is clearer than relying
+             on default init; style preference, no perf impact. ~5 sites. -->
+        <exclude name="RedundantFieldInitializer"/>
     </rule>
 
     <!-- ================================================================ -->
@@ -146,7 +177,9 @@
     <rule ref="category/java/codestyle.xml/UnnecessaryModifier"/>
     <rule ref="category/java/codestyle.xml/UnnecessaryImport"/>
     <rule ref="category/java/codestyle.xml/UnnecessaryBoxing"/>
-    <rule ref="category/java/codestyle.xml/UselessParentheses"/>
+    <!-- UselessParentheses deliberately omitted — parens around ternaries, bit ops,
+         and mixed-precedence expressions are frequently kept for readability. 25 sites
+         were almost entirely legitimate clarity wins. -->
     <rule ref="category/java/codestyle.xml/UseDiamondOperator"/>
     <rule ref="category/java/codestyle.xml/UseShortArrayInitializer"/>
     <rule ref="category/java/codestyle.xml/EmptyControlStatement"/>

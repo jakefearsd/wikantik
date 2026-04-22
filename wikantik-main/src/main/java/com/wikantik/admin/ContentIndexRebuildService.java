@@ -71,6 +71,7 @@ public class ContentIndexRebuildService {
 
     /** Thrown when a trigger is rejected because a rebuild is already in flight. */
     public static class ConflictException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
         private final IndexStatusSnapshot current;
         public ConflictException( final IndexStatusSnapshot current ) {
             super( "rebuild already in state " + current.rebuild().state() );
@@ -81,6 +82,7 @@ public class ContentIndexRebuildService {
 
     /** Thrown when a trigger is rejected by the kill-switch flag. */
     public static class DisabledException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
         public DisabledException() { super( "rebuild is disabled by configuration" ); }
     }
 
@@ -232,10 +234,9 @@ public class ContentIndexRebuildService {
     public IndexStatusSnapshot snapshot() {
         final ContentChunkRepository.AggregateStats agg = chunkRepo.stats();
 
-        int totalPages = 0;
         int systemPageCount = 0;
         final Collection< Page > all = safeGetAllPages();
-        totalPages = all.size();
+        final int totalPages = all.size();
         for ( final Page p : all ) {
             if ( systemPages.isSystemPage( p.getName() ) ) {
                 systemPageCount++;

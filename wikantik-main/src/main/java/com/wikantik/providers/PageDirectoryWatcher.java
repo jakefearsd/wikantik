@@ -319,10 +319,7 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
      */
     boolean isRecentInternalSave( final String pageName ) {
         final Long timestamp = recentInternalSaves.get( pageName );
-        if( timestamp == null ) {
-            return false;
-        }
-        return ( System.currentTimeMillis() - timestamp ) < INTERNAL_SAVE_GUARD_MILLIS;
+        return timestamp != null && ( System.currentTimeMillis() - timestamp ) < INTERNAL_SAVE_GUARD_MILLIS;
     }
 
     /**

@@ -1154,6 +1154,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         sendJson( response, Map.of( "status", "started" ) );
     }
 
+    @SuppressWarnings( "PMD.UnusedAssignment" ) // `backfillRunning` is read by the backfill status endpoint on other threads.
     private void runBackfill() {
         backfillRunning = true;
         backfillProcessed.set( 0 );

@@ -83,7 +83,7 @@ public final class ExperimentRrfSweep {
         final TextEmbeddingClient client = ExperimentHarness.buildClient( modelCode );
         Bm25Client bm25 = Bm25Client.fromSystemProperties();
 
-        try( final Connection conn = ExperimentDb.open() ) {
+        try( Connection conn = ExperimentDb.open() ) {
             final ChunkCorpus corpus = ExperimentHarness.loadCorpus( conn, model.code(), client.dimension() );
             LOG.info( "loaded corpus: {} chunks across {} pages (dim={})",
                       corpus.vectors.size(), corpus.pagesForChunk.values().stream().distinct().count(),

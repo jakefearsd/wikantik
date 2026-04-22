@@ -73,7 +73,6 @@ public class InlineMathParser implements InlineParserExtension {
         final BasedSequence remaining = input.subSequence( index );
         final Matcher matcher = INLINE_MATH.matcher( remaining );
         if ( matcher.lookingAt() ) {
-            final BasedSequence fullMatch = remaining.subSequence( 0, matcher.end() );
             final BasedSequence openMarker = remaining.subSequence( 0, 1 );
             final BasedSequence content = remaining.subSequence( 1, matcher.end() - 1 );
             final BasedSequence closeMarker = remaining.subSequence( matcher.end() - 1, matcher.end() );

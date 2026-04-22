@@ -25,8 +25,6 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.util.TextUtil;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Map;
@@ -46,7 +44,6 @@ import java.util.Map;
  */
 public class HubSetPlugin extends AbstractReferralPlugin {
 
-    private static final Logger LOG = LogManager.getLogger( HubSetPlugin.class );
 
     public static final String PARAM_HUB    = "hub";
     public static final String PARAM_MAX    = "max";

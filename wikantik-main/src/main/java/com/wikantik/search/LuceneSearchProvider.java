@@ -414,7 +414,7 @@ public class LuceneSearchProvider implements SearchProvider {
             LOG.error( "Problem while creating Lucene index - not using Lucene.", e );
         } catch( final ProviderException e ) {
             LOG.error( "Problem reading pages while creating Lucene index (JSPWiki won't start.)", e );
-            throw new IllegalArgumentException( "unable to create Lucene index" );
+            throw new IllegalArgumentException( "unable to create Lucene index", e );
         } catch( final Exception e ) {
             LOG.error( "Unable to start lucene", e );
         }

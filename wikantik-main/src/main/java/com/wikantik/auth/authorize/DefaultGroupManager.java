@@ -223,7 +223,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         } catch( final NoSuchPrincipalException e ) {
             // It's a new group.... throw error if we don't create new ones
             if( !create ) {
-                throw new NoSuchPrincipalException( "Group '" + name + "' does not exist." );
+                throw new NoSuchPrincipalException( "Group '" + name + "' does not exist.", e );
             }
         }
 
@@ -324,6 +324,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         try {
             checkGroupName( context, group.getName() );
         } catch( final WikiSecurityException e ) {
+            LOG.debug( "validateGroup: group name '{}' failed checkGroupName — {}", group.getName(), e.getMessage() );
         }
 
         // Member names must be "safe" strings

@@ -35,4 +35,14 @@ public final class NoSuchPrincipalException
     {
         super(msg);
     }
+
+    /**
+     * Constructs a new exception object with a supplied message and cause.
+     * @param msg the message
+     * @param cause the underlying cause
+     */
+    public NoSuchPrincipalException(final String msg, final Throwable cause )
+    {
+        super( msg, cause );
+    }
 }

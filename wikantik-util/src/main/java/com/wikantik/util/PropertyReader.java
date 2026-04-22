@@ -27,6 +27,7 @@ import java.nio.file.Paths;
 import java.util.AbstractMap;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -172,7 +173,7 @@ public final class PropertyReader {
 
     static Map< String, String > collectPropertiesFrom( final Map< String, String > map ) {
         return map.entrySet().stream()
-                  .filter( entry -> entry.getKey().toLowerCase().startsWith( "wikantik" ) )
+                  .filter( entry -> entry.getKey().toLowerCase( Locale.ROOT ).startsWith( "wikantik" ) )
                   .map( entry -> new AbstractMap.SimpleEntry<>( entry.getKey().replace( "_", "." ), entry.getValue() ) )
                   .collect( Collectors.toMap( Map.Entry::getKey, Map.Entry::getValue ) );
     }

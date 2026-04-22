@@ -93,7 +93,9 @@ public class AnonymousLoginModule extends AbstractLoginModule
         } catch( final UnsupportedCallbackException e ) {
             final String message = "Unable to handle callback, disallowing login.";
             LOG.error( message, e );
-            throw new LoginException( message );
+            final LoginException le = new LoginException( message );
+            le.initCause( e );
+            throw le;
         }
     }
 

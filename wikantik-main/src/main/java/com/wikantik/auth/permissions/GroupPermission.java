@@ -21,6 +21,7 @@ package com.wikantik.auth.permissions;
 import java.io.Serializable;
 import java.security.Permission;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Set;
 
 import javax.security.auth.Subject;
@@ -163,7 +164,7 @@ public final class GroupPermission extends Permission implements Serializable
         this.group = groupName;
 
         // Parse actions
-        final String[] groupActions = actions.toLowerCase().split( ACTION_SEPARATOR );
+        final String[] groupActions = actions.toLowerCase( Locale.ROOT ).split( ACTION_SEPARATOR );
         Arrays.sort( groupActions, String.CASE_INSENSITIVE_ORDER );
         mask = createMask( actions );
         final StringBuilder buffer = new StringBuilder();

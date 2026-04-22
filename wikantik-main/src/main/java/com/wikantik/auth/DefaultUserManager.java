@@ -159,7 +159,9 @@ public class DefaultUserManager implements UserManager {
             try {
                 profile = getUserDatabase().find( user.getName() );
                 newProfile = false;
-            } catch( final NoSuchPrincipalException e ) { }
+            } catch( final NoSuchPrincipalException e ) {
+                LOG.debug( "No stored profile for authenticated principal '{}' — will create a new one", user.getName() );
+            }
         }
 
         if ( newProfile ) {
@@ -202,6 +204,7 @@ public class DefaultUserManager implements UserManager {
                 throw new DuplicateUserException( "security.error.login.taken", profile.getLoginName() );
             }
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug( "Login name '{}' is available (no existing profile found)", profile.getLoginName() );
         }
         try {
             otherProfile = getUserDatabase().findByFullName( profile.getFullname() );
@@ -209,6 +212,7 @@ public class DefaultUserManager implements UserManager {
                 throw new DuplicateUserException( "security.error.fullname.taken", profile.getFullname() );
             }
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug( "Full name '{}' is available (no existing profile found)", profile.getFullname() );
         }
 
         // For new accounts, create approval workflow for user profile save.

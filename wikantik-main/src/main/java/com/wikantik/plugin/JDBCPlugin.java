@@ -43,6 +43,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -260,7 +261,7 @@ public class JDBCPlugin implements Plugin {
      */
     String validateAndGetSql( final String sqlParam ) throws PluginException {
         final String sql = StringUtils.defaultIfBlank( sqlParam, DEFAULT_SQL ).trim();
-        final String lowerSql = sql.toLowerCase();
+        final String lowerSql = sql.toLowerCase( Locale.ROOT );
 
         if ( !lowerSql.startsWith( "select" ) ) {
             throw new PluginException( "Only SELECT queries are allowed. Query must start with 'SELECT'." );
@@ -403,7 +404,7 @@ public class JDBCPlugin implements Plugin {
             normalizedSql = normalizedSql.substring( 0, normalizedSql.length() - 1 ).trim();
         }
 
-        final String lowerSql = normalizedSql.toLowerCase();
+        final String lowerSql = normalizedSql.toLowerCase( Locale.ROOT );
 
         switch ( dbType.getLimitStyle() ) {
             case LIMIT:

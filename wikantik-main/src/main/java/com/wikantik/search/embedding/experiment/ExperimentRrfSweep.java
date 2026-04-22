@@ -18,34 +18,26 @@
  */
 package com.wikantik.search.embedding.experiment;
 
-import com.wikantik.search.embedding.EmbeddingClientFactory;
-import com.wikantik.search.embedding.EmbeddingConfig;
 import com.wikantik.search.embedding.EmbeddingKind;
 import com.wikantik.search.embedding.EmbeddingModel;
 import com.wikantik.search.embedding.TextEmbeddingClient;
+import com.wikantik.search.embedding.experiment.ExperimentHarness.ChunkCorpus;
 import com.wikantik.search.embedding.experiment.QueryCorpus.EvalQuery;
 import com.wikantik.search.embedding.experiment.ReciprocalRankFusion.Ranking;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
 
 /**
  * Sweeps weighted-RRF hyperparameters (k, dense weight, per-list truncation)
@@ -86,11 +78,11 @@ public final class ExperimentRrfSweep {
         final EmbeddingModel model = EmbeddingModel.fromCode( modelCode );
 
         final List< EvalQuery > queries = QueryCorpus.load( csv );
-        final TextEmbeddingClient client = buildClient( modelCode );
+        final TextEmbeddingClient client = ExperimentHarness.buildClient( modelCode );
         final Bm25Client bm25 = Bm25Client.fromSystemProperties();
 
         try( final Connection conn = ExperimentDb.open() ) {
-            final ChunkCorpus corpus = loadCorpus( conn, model.code(), client.dimension() );
+            final ChunkCorpus corpus = ExperimentHarness.loadCorpus( conn, model.code(), client.dimension() );
             LOG.info( "loaded corpus: {} chunks across {} pages (dim={})",
                       corpus.vectors.size(), corpus.pagesForChunk.values().stream().distinct().count(),
                       client.dimension() );
@@ -124,8 +116,7 @@ public final class ExperimentRrfSweep {
             final String text = formatReport( modelCode, client.dimension(), queries.size(),
                                               bm25Only, denseOnly, baseline, all );
             System.out.print( text );
-            Files.createDirectories( out.getParent() );
-            Files.writeString( out, text );
+            ExperimentHarness.writeReport( out, text );
             LOG.info( "sweep report written to {}", out.toAbsolutePath() );
         }
     }
@@ -141,7 +132,7 @@ public final class ExperimentRrfSweep {
             final List< String > fused = ReciprocalRankFusion.fuseWeighted(
                 List.of( new Ranking( cr.bm25Ranked ), new Ranking( cr.denseRanked ) ),
                 new double[]{ wBm25, wDense }, k, trunc );
-            ranks[ i ] = rankOf( cr.query.idealPage(), fused );
+            ranks[ i ] = ExperimentHarness.rankOf( cr.query.idealPage(), fused );
         }
         return new GridResult( k, wDense, wBm25, trunc,
             recallAt( ranks, 5 ), recallAt( ranks, 20 ), mrr( ranks ) );
@@ -151,7 +142,7 @@ public final class ExperimentRrfSweep {
         final int[] ranks = new int[ cache.size() ];
         for( int i = 0; i < cache.size(); i++ ) {
             final CachedRankings cr = cache.get( i );
-            ranks[ i ] = rankOf( cr.query.idealPage(), dense ? cr.denseRanked : cr.bm25Ranked );
+            ranks[ i ] = ExperimentHarness.rankOf( cr.query.idealPage(), dense ? cr.denseRanked : cr.bm25Ranked );
         }
         return new GridResult( 0, 0, 0, 0,
             recallAt( ranks, 5 ), recallAt( ranks, 20 ), mrr( ranks ) );
@@ -167,13 +158,6 @@ public final class ExperimentRrfSweep {
         double sum = 0;
         for( final int r : ranks ) if( r > 0 ) sum += 1.0 / r;
         return sum / ranks.length;
-    }
-
-    private static int rankOf( final String target, final List< String > ranked ) {
-        for( int i = 0; i < ranked.size(); i++ ) {
-            if( ranked.get( i ).equals( target ) ) return i + 1;
-        }
-        return 0;
     }
 
     // ---- dense-ranking helpers (copied from ExperimentEvaluator) ----
@@ -202,46 +186,6 @@ public final class ExperimentRrfSweep {
         for( final Map.Entry< String, Double > e : entries ) out.add( e.getKey() );
         return out.size() > DENSE_TOP ? out.subList( 0, DENSE_TOP ) : out;
     }
-
-    private static ChunkCorpus loadCorpus( final Connection conn, final String modelCode, final int expectedDim )
-            throws SQLException {
-        final String sql = """
-            SELECT e.chunk_id, e.dim, e.vec, c.page_name
-            FROM experiment_embeddings e
-            JOIN kg_content_chunks c ON c.id = e.chunk_id
-            WHERE e.model_code = ?
-            """;
-        final List< UUID >    chunkIds = new ArrayList<>();
-        final List< float[] > vectors  = new ArrayList<>();
-        final List< Double >  norms    = new ArrayList<>();
-        final Map< UUID, String > pagesForChunk = new HashMap<>();
-        try( final PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, modelCode );
-            ps.setFetchSize( 500 );
-            try( final ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
-                    final UUID id = (UUID) rs.getObject( 1 );
-                    final int dim = rs.getInt( 2 );
-                    if( dim != expectedDim ) {
-                        throw new IllegalStateException( "dim mismatch for chunk " + id
-                            + ": stored=" + dim + " expected=" + expectedDim );
-                    }
-                    final float[] v = VectorCodec.decode( rs.getBytes( 3 ), dim );
-                    chunkIds.add( id );
-                    vectors.add( v );
-                    norms.add( CosineSimilarity.norm( v ) );
-                    pagesForChunk.put( id, rs.getString( 4 ) );
-                }
-            }
-        }
-        if( chunkIds.isEmpty() ) {
-            throw new IllegalStateException( "no embeddings found for model_code=" + modelCode );
-        }
-        return new ChunkCorpus( chunkIds, vectors, norms, pagesForChunk );
-    }
-
-    private record ChunkCorpus( List< UUID > chunkIds, List< float[] > vectors,
-                                List< Double > norms, Map< UUID, String > pagesForChunk ) {}
 
     private record CachedRankings( EvalQuery query, List< String > bm25Ranked, List< String > denseRanked ) {}
 
@@ -309,21 +253,4 @@ public final class ExperimentRrfSweep {
         }
     }
 
-    // ---- client build ----
-
-    private static TextEmbeddingClient buildClient( final String modelCode ) throws IOException {
-        final Properties p = new Properties();
-        try( final InputStream in = ExperimentRrfSweep.class.getResourceAsStream( "/ini/wikantik.properties" ) ) {
-            if( in != null ) p.load( in );
-        }
-        for( final String key : List.of(
-            EmbeddingConfig.PROP_BACKEND, EmbeddingConfig.PROP_BASE_URL, EmbeddingConfig.PROP_API_KEY,
-            EmbeddingConfig.PROP_OLLAMA_TAG, EmbeddingConfig.PROP_TIMEOUT_MS, EmbeddingConfig.PROP_BATCH_SIZE ) ) {
-            final String v = System.getProperty( key );
-            if( v != null && !v.isBlank() ) p.setProperty( key, v );
-        }
-        p.setProperty( EmbeddingConfig.PROP_ENABLED, "true" );
-        p.setProperty( EmbeddingConfig.PROP_MODEL, modelCode );
-        return EmbeddingClientFactory.create( EmbeddingConfig.fromProperties( p ) ).orElseThrow();
-    }
 }

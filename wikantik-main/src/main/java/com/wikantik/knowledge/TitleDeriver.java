@@ -18,6 +18,8 @@
  */
 package com.wikantik.knowledge;
 
+import java.util.Locale;
+
 /**
  * Derives a human-readable title from a wiki page name by splitting CamelCase,
  * underscores, and hyphens into separate words and capitalizing each word.
@@ -69,7 +71,7 @@ public final class TitleDeriver {
                 continue;
             }
             // If the word is already all-uppercase (acronym), leave it as-is
-            if ( word.equals( word.toUpperCase() ) ) {
+            if ( word.equals( word.toUpperCase( Locale.ROOT ) ) ) {
                 sb.append( word );
             } else {
                 sb.append( Character.toUpperCase( word.charAt( 0 ) ) );

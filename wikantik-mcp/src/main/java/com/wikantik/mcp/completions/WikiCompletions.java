@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
@@ -69,13 +70,13 @@ public final class WikiCompletions {
             final String prefix = argument.value() != null ? argument.value() : "";
             final Collection< String > allPages = referenceManager.findCreated();
             final List< String > matches = allPages.stream()
-                    .filter( name -> name.toLowerCase().startsWith( prefix.toLowerCase() ) )
+                    .filter( name -> name.toLowerCase( Locale.ROOT ).startsWith( prefix.toLowerCase( Locale.ROOT ) ) )
                     .sorted()
                     .limit( MAX_COMPLETIONS )
                     .collect( Collectors.toList() );
 
             final long totalMatches = allPages.stream()
-                    .filter( name -> name.toLowerCase().startsWith( prefix.toLowerCase() ) )
+                    .filter( name -> name.toLowerCase( Locale.ROOT ).startsWith( prefix.toLowerCase( Locale.ROOT ) ) )
                     .count();
 
             return new McpSchema.CompleteResult(

@@ -47,6 +47,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -305,7 +306,7 @@ public class BlogResource extends RestServletBase {
             final BlogManager blogManager = getEngine().getManager( BlogManager.class );
             final Page blogPage = blogManager.createBlog( session );
 
-            final String username = session.getLoginPrincipal().getName().toLowerCase();
+            final String username = session.getLoginPrincipal().getName().toLowerCase( Locale.ROOT );
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );

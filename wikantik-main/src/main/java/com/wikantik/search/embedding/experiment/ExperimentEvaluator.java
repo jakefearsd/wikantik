@@ -18,36 +18,28 @@
  */
 package com.wikantik.search.embedding.experiment;
 
-import com.wikantik.search.embedding.EmbeddingClientFactory;
-import com.wikantik.search.embedding.EmbeddingConfig;
 import com.wikantik.search.embedding.EmbeddingKind;
 import com.wikantik.search.embedding.EmbeddingModel;
 import com.wikantik.search.embedding.TextEmbeddingClient;
+import com.wikantik.search.embedding.experiment.ExperimentHarness.ChunkCorpus;
 import com.wikantik.search.embedding.experiment.QueryCorpus.EvalQuery;
 import com.wikantik.search.embedding.experiment.ReciprocalRankFusion.Ranking;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Properties;
 import java.util.TreeMap;
-import java.util.UUID;
 
 /**
  * Scores a single embedding model against the seed eval set and a running
@@ -84,11 +76,11 @@ public final class ExperimentEvaluator {
         final List< EvalQuery > queries = QueryCorpus.load( csv );
         LOG.info( "loaded {} queries from {}", queries.size(), csv );
 
-        final TextEmbeddingClient client = buildClient( modelCode );
+        final TextEmbeddingClient client = ExperimentHarness.buildClient( modelCode );
         final Bm25Client bm25 = Bm25Client.fromSystemProperties();
 
         try( final Connection conn = ExperimentDb.open() ) {
-            final ChunkCorpus corpus = loadCorpus( conn, model.code(), client.dimension() );
+            final ChunkCorpus corpus = ExperimentHarness.loadCorpus( conn, model.code(), client.dimension() );
             LOG.info( "loaded corpus: {} chunks across {} pages (dim={})",
                       corpus.vectors.size(), corpus.pagesForChunk.values().stream().distinct().count(),
                       client.dimension() );
@@ -102,8 +94,7 @@ public final class ExperimentEvaluator {
             final String text = report.format();
             System.out.print( text );
             final Path out = args.length >= 3 ? Paths.get( args[ 2 ] ) : defaultOutputPath( modelCode );
-            Files.createDirectories( out.getParent() );
-            Files.writeString( out, text );
+            ExperimentHarness.writeReport( out, text );
             LOG.info( "report written to {}", out.toAbsolutePath() );
         }
     }
@@ -123,9 +114,9 @@ public final class ExperimentEvaluator {
             ReciprocalRankFusion.DEFAULT_K );
 
         return new QueryResult( q,
-            rankOf( q.idealPage(), bm25Ranked ),
-            rankOf( q.idealPage(), densePagesRanked ),
-            rankOf( q.idealPage(), hybridRanked ) );
+            ExperimentHarness.rankOf( q.idealPage(), bm25Ranked ),
+            ExperimentHarness.rankOf( q.idealPage(), densePagesRanked ),
+            ExperimentHarness.rankOf( q.idealPage(), hybridRanked ) );
     }
 
     private static List< String > denseRanking( final ChunkCorpus corpus, final float[] queryVec, final double queryNorm ) {
@@ -153,74 +144,6 @@ public final class ExperimentEvaluator {
         final List< String > out = new ArrayList<>( entries.size() );
         for( final Map.Entry< String, Double > e : entries ) out.add( e.getKey() );
         return out.size() > DENSE_TOP ? out.subList( 0, DENSE_TOP ) : out;
-    }
-
-    private static int rankOf( final String target, final List< String > ranked ) {
-        for( int i = 0; i < ranked.size(); i++ ) {
-            if( ranked.get( i ).equals( target ) ) return i + 1; // 1-based; 0 = not found
-        }
-        return 0;
-    }
-
-    // ---- corpus loading ----
-
-    private static ChunkCorpus loadCorpus( final Connection conn, final String modelCode, final int expectedDim )
-            throws SQLException {
-        final String sql = """
-            SELECT e.chunk_id, e.dim, e.vec, c.page_name
-            FROM experiment_embeddings e
-            JOIN kg_content_chunks c ON c.id = e.chunk_id
-            WHERE e.model_code = ?
-            """;
-        final List< UUID >    chunkIds = new ArrayList<>();
-        final List< float[] > vectors  = new ArrayList<>();
-        final List< Double >  norms    = new ArrayList<>();
-        final Map< UUID, String > pagesForChunk = new HashMap<>();
-        try( final PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, modelCode );
-            ps.setFetchSize( 500 );
-            try( final ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
-                    final UUID id = (UUID) rs.getObject( 1 );
-                    final int dim = rs.getInt( 2 );
-                    if( dim != expectedDim ) {
-                        throw new IllegalStateException( "dim mismatch for chunk " + id
-                            + ": stored=" + dim + " expected=" + expectedDim );
-                    }
-                    final float[] v = VectorCodec.decode( rs.getBytes( 3 ), dim );
-                    chunkIds.add( id );
-                    vectors.add( v );
-                    norms.add( CosineSimilarity.norm( v ) );
-                    pagesForChunk.put( id, rs.getString( 4 ) );
-                }
-            }
-        }
-        if( chunkIds.isEmpty() ) {
-            throw new IllegalStateException( "no embeddings found for model_code=" + modelCode
-                + " — did you run ExperimentIndexer first?" );
-        }
-        return new ChunkCorpus( chunkIds, vectors, norms, pagesForChunk );
-    }
-
-    private record ChunkCorpus( List< UUID > chunkIds, List< float[] > vectors,
-                                List< Double > norms, Map< UUID, String > pagesForChunk ) {}
-
-    // ---- client helpers ----
-
-    private static TextEmbeddingClient buildClient( final String modelCode ) throws IOException {
-        final Properties p = new Properties();
-        try( final InputStream in = ExperimentEvaluator.class.getResourceAsStream( "/ini/wikantik.properties" ) ) {
-            if( in != null ) p.load( in );
-        }
-        for( final String key : List.of(
-            EmbeddingConfig.PROP_BACKEND, EmbeddingConfig.PROP_BASE_URL, EmbeddingConfig.PROP_API_KEY,
-            EmbeddingConfig.PROP_OLLAMA_TAG, EmbeddingConfig.PROP_TIMEOUT_MS, EmbeddingConfig.PROP_BATCH_SIZE ) ) {
-            final String v = System.getProperty( key );
-            if( v != null && !v.isBlank() ) p.setProperty( key, v );
-        }
-        p.setProperty( EmbeddingConfig.PROP_ENABLED, "true" );
-        p.setProperty( EmbeddingConfig.PROP_MODEL, modelCode );
-        return EmbeddingClientFactory.create( EmbeddingConfig.fromProperties( p ) ).orElseThrow();
     }
 
     private static Path defaultOutputPath( final String modelCode ) {

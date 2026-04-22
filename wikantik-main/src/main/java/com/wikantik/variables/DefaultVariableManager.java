@@ -38,6 +38,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.lang.reflect.Method;
 import java.security.Principal;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -324,7 +325,7 @@ public class DefaultVariableManager implements VariableManager {
             throw new IllegalArgumentException( "Zero length variable name." );
         }
         // Faster than doing equalsIgnoreCase()
-        final String name = varName.toLowerCase();
+        final String name = varName.toLowerCase( Locale.ROOT );
 
         for( final String prohibited : THE_BIG_NO_NO_LIST ) {
             if( name.equals( prohibited ) ) {

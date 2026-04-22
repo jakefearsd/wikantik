@@ -18,24 +18,19 @@
  */
 package com.wikantik.search.embedding.experiment;
 
-import com.wikantik.search.embedding.EmbeddingClientFactory;
-import com.wikantik.search.embedding.EmbeddingConfig;
 import com.wikantik.search.embedding.EmbeddingKind;
 import com.wikantik.search.embedding.EmbeddingModel;
 import com.wikantik.search.embedding.TextEmbeddingClient;
+import com.wikantik.search.embedding.experiment.ExperimentHarness.ChunkCorpus;
 import com.wikantik.search.embedding.experiment.QueryCorpus.EvalQuery;
 import com.wikantik.search.embedding.experiment.ReciprocalRankFusion.Ranking;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,8 +40,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
 
 /**
  * End-to-end experiment that:
@@ -102,19 +95,18 @@ public final class ExperimentGrandFinale {
 
         System.out.print( sb.toString() );
         final Path out = Paths.get( "eval", "grand-finale.txt" );
-        Files.createDirectories( out.getParent() );
-        Files.writeString( out, sb.toString() );
+        ExperimentHarness.writeReport( out, sb.toString() );
         LOG.info( "grand-finale written to {}", out.toAbsolutePath() );
     }
 
     private static void evaluateModel( final String modelCode, final List< EvalQuery > queries,
                                        final StringBuilder sb ) throws IOException, SQLException {
         final EmbeddingModel model = EmbeddingModel.fromCode( modelCode );
-        final TextEmbeddingClient client = buildClient( modelCode );
+        final TextEmbeddingClient client = ExperimentHarness.buildClient( modelCode );
         final Bm25Client bm25 = Bm25Client.fromSystemProperties();
 
         try( final Connection conn = ExperimentDb.open() ) {
-            final ChunkCorpus corpus = loadCorpus( conn, model.code(), client.dimension() );
+            final ChunkCorpus corpus = ExperimentHarness.loadCorpus( conn, model.code(), client.dimension() );
 
             // Cache per-query: BM25 results with scores, and per-chunk cosines.
             final List< CachedQuery > cache = new ArrayList<>( queries.size() );
@@ -148,7 +140,7 @@ public final class ExperimentGrandFinale {
                 {
                     final int[] ranks = new int[ cache.size() ];
                     for( int i = 0; i < cache.size(); i++ ) {
-                        ranks[ i ] = rankOf( cache.get( i ).query.idealPage(), namesOf( denseRankings.get( i ) ) );
+                        ranks[ i ] = ExperimentHarness.rankOf( cache.get( i ).query.idealPage(), namesOf( denseRankings.get( i ) ) );
                     }
                     results.add( new Result( agg, null, Metrics.of( ranks ) ) );
                 }
@@ -157,7 +149,7 @@ public final class ExperimentGrandFinale {
                     for( int i = 0; i < cache.size(); i++ ) {
                         final List< String > fused = applyFusion( f,
                             cache.get( i ).bm25Scored, denseRankings.get( i ) );
-                        ranks[ i ] = rankOf( cache.get( i ).query.idealPage(), fused );
+                        ranks[ i ] = ExperimentHarness.rankOf( cache.get( i ).query.idealPage(), fused );
                     }
                     results.add( new Result( agg, f, Metrics.of( ranks ) ) );
                 }
@@ -169,7 +161,7 @@ public final class ExperimentGrandFinale {
                 for( int i = 0; i < cache.size(); i++ ) {
                     final List< String > names = new ArrayList<>( cache.get( i ).bm25Scored.size() );
                     for( final Bm25Client.Scored s : cache.get( i ).bm25Scored ) names.add( s.name() );
-                    ranks[ i ] = rankOf( cache.get( i ).query.idealPage(), names );
+                    ranks[ i ] = ExperimentHarness.rankOf( cache.get( i ).query.idealPage(), names );
                 }
                 results.add( new Result( null, null, Metrics.of( ranks ) ) );
             }
@@ -314,17 +306,7 @@ public final class ExperimentGrandFinale {
         return out;
     }
 
-    private static int rankOf( final String target, final List< String > ranked ) {
-        for( int i = 0; i < ranked.size(); i++ ) {
-            if( ranked.get( i ).equals( target ) ) return i + 1;
-        }
-        return 0;
-    }
-
     private record ScoredPage( String name, double score ) {}
-
-    private record ChunkCorpus( List< UUID > chunkIds, List< float[] > vectors,
-                                List< Double > norms, Map< UUID, String > pagesForChunk ) {}
 
     private record CachedQuery( EvalQuery query,
                                 List< Bm25Client.Scored > bm25Scored, double[] chunkScores ) {}
@@ -344,49 +326,4 @@ public final class ExperimentGrandFinale {
 
     private record Result( Agg agg, Fusion fusion, Metrics m ) {}
 
-    private static ChunkCorpus loadCorpus( final Connection conn, final String modelCode, final int expectedDim )
-            throws SQLException {
-        final String sql = """
-            SELECT e.chunk_id, e.dim, e.vec, c.page_name
-            FROM experiment_embeddings e
-            JOIN kg_content_chunks c ON c.id = e.chunk_id
-            WHERE e.model_code = ?
-            """;
-        final List< UUID >    chunkIds = new ArrayList<>();
-        final List< float[] > vectors  = new ArrayList<>();
-        final List< Double >  norms    = new ArrayList<>();
-        final Map< UUID, String > pagesForChunk = new HashMap<>();
-        try( final PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, modelCode );
-            ps.setFetchSize( 500 );
-            try( final ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
-                    final UUID id = (UUID) rs.getObject( 1 );
-                    final int dim = rs.getInt( 2 );
-                    if( dim != expectedDim ) throw new IllegalStateException( "dim mismatch" );
-                    chunkIds.add( id );
-                    vectors.add( VectorCodec.decode( rs.getBytes( 3 ), dim ) );
-                    norms.add( CosineSimilarity.norm( vectors.get( vectors.size() - 1 ) ) );
-                    pagesForChunk.put( id, rs.getString( 4 ) );
-                }
-            }
-        }
-        return new ChunkCorpus( chunkIds, vectors, norms, pagesForChunk );
-    }
-
-    private static TextEmbeddingClient buildClient( final String modelCode ) throws IOException {
-        final Properties p = new Properties();
-        try( final InputStream in = ExperimentGrandFinale.class.getResourceAsStream( "/ini/wikantik.properties" ) ) {
-            if( in != null ) p.load( in );
-        }
-        for( final String key : List.of(
-            EmbeddingConfig.PROP_BACKEND, EmbeddingConfig.PROP_BASE_URL, EmbeddingConfig.PROP_API_KEY,
-            EmbeddingConfig.PROP_OLLAMA_TAG, EmbeddingConfig.PROP_TIMEOUT_MS, EmbeddingConfig.PROP_BATCH_SIZE ) ) {
-            final String v = System.getProperty( key );
-            if( v != null && !v.isBlank() ) p.setProperty( key, v );
-        }
-        p.setProperty( EmbeddingConfig.PROP_ENABLED, "true" );
-        p.setProperty( EmbeddingConfig.PROP_MODEL, modelCode );
-        return EmbeddingClientFactory.create( EmbeddingConfig.fromProperties( p ) ).orElseThrow();
-    }
 }

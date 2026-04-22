@@ -192,8 +192,8 @@ public class AuthenticationManagerTest {
         try {
             m_groupMgr.removeGroup( "Test1" );
             m_groupMgr.removeGroup( "Test2" );
-        } catch( final NoSuchPrincipalException e ) {
-
+        } catch( final NoSuchPrincipalException ignored ) {
+            // expected if groups don't exist yet
         }
 
         // Log in 'janne' and verify there are 5 principals in the subject

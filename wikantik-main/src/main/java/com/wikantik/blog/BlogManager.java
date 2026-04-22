@@ -25,6 +25,7 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Manager for user blog lifecycle: creation, entry management, listing, and deletion.
@@ -52,7 +53,7 @@ public interface BlogManager extends Initializable {
      * @return the full wiki page name
      */
     static String blogPagePath( final String username, final String slug ) {
-        return BLOG_DIR + "/" + username.toLowerCase() + "/" + slug;
+        return BLOG_DIR + "/" + username.toLowerCase( Locale.ROOT ) + "/" + slug;
     }
 
     /**

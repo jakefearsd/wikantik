@@ -25,6 +25,7 @@ import java.io.Serializable;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.util.Arrays;
+import java.util.Locale;
 
 /**
  * <p>
@@ -187,7 +188,7 @@ public final class PagePermission extends Permission implements Serializable
         this.page = ( pos == -1 ) ? pageName : pageName.substring( 0, pos );
 
         // Parse actions
-        final String[] pageActions = StringUtils.split( actions.toLowerCase(), ACTION_SEPARATOR );
+        final String[] pageActions = StringUtils.split( actions.toLowerCase( Locale.ROOT ), ACTION_SEPARATOR );
         Arrays.sort( pageActions, String.CASE_INSENSITIVE_ORDER );
         mask = createMask( actions );
         final  int pageActionsLength = pageActions.length;

@@ -29,4 +29,8 @@ public class BlogAlreadyExistsException extends WikiException {
     public BlogAlreadyExistsException( final String username ) {
         super( "Blog already exists for user: " + username );
     }
+
+    public BlogAlreadyExistsException( final String username, final Throwable cause ) {
+        super( "Blog already exists for user: " + username, cause );
+    }
 }

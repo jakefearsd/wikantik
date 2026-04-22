@@ -27,6 +27,7 @@ import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.html.Attribute;
 import com.vladsch.flexmark.util.html.MutableAttributes;
 
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -70,7 +71,7 @@ public class SafeLinkAttributeProvider implements AttributeProvider {
         if ( colonIdx <= 0 ) {
             return;
         }
-        final String scheme = value.substring( 0, colonIdx ).toLowerCase().trim();
+        final String scheme = value.substring( 0, colonIdx ).toLowerCase( Locale.ROOT ).trim();
         if ( !SAFE_SCHEMES.contains( scheme ) ) {
             attributes.replaceValue( name, BLOCKED_REPLACEMENT );
         }

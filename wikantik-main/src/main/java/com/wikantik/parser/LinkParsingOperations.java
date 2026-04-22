@@ -26,6 +26,7 @@ import com.wikantik.api.exceptions.ProviderException;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 
@@ -148,7 +149,7 @@ public class LinkParsingOperations {
      */
     public boolean isImageLink( String link, final boolean isImageInlining, final List< Pattern > inlineImagePatterns ) {
         if( isImageInlining ) {
-            link = link.toLowerCase();
+            link = link.toLowerCase( Locale.ROOT );
             for( final Pattern p : inlineImagePatterns ) {
                 if( p.matcher( link ).matches() ) {
                     return true;

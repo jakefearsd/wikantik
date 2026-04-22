@@ -179,11 +179,11 @@ public class ReferredPagesPlugin implements Plugin {
             excludePattern = Pattern.compile( excludePatternStr );
         } catch( final PatternSyntaxException e ) {
             if( includePattern == null ) {
-                throw new PluginException( "Illegal include pattern detected." );
+                throw new PluginException( "Illegal include pattern detected.", e );
             } else if( excludePattern == null ) {
-                throw new PluginException( "Illegal exclude pattern detected." );
+                throw new PluginException( "Illegal exclude pattern detected.", e );
             } else {
-                throw new PluginException( "Illegal internal pattern detected." );
+                throw new PluginException( "Illegal internal pattern detected.", e );
             }
         }
 

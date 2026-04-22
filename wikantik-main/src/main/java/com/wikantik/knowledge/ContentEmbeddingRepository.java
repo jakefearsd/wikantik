@@ -164,7 +164,11 @@ public class ContentEmbeddingRepository {
         if( obj instanceof PGvector pgvec ) {
             return pgvec.toArray();
         } else if( obj instanceof org.postgresql.util.PGobject pgo ) {
-            return EmbeddingRepository.parseVectorString( pgo.getValue() );
+            final String raw = pgo.getValue();
+            if( raw == null ) {
+                throw new SQLException( "PGobject returned null vector value at column " + idx );
+            }
+            return EmbeddingRepository.parseVectorString( raw );
         }
         throw new SQLException( "Unexpected vector type: " + ( obj == null ? "null" : obj.getClass() ) );
     }

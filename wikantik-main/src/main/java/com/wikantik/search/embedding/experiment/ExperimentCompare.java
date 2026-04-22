@@ -67,7 +67,8 @@ public final class ExperimentCompare {
     record Summary( String model, Map< String, double[] > metrics ) {}
 
     static Summary parse( final Path file ) throws IOException {
-        String model = file.getFileName().toString();
+        final Path fileName = file.getFileName();
+        String model = fileName != null ? fileName.toString() : file.toString();
         final Map< String, double[] > metrics = new LinkedHashMap<>();
         for( final String line : Files.readAllLines( file ) ) {
             final Matcher mh = HEADER_MODEL.matcher( line );

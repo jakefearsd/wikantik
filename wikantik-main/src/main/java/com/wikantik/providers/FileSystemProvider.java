@@ -169,7 +169,7 @@ public class FileSystemProvider extends AbstractFileProvider {
                 getPageProperties( pageInfo );
             } catch( final IOException e ) {
                 LOG.error( "Unable to read page properties", e );
-                throw new ProviderException( "Unable to read page properties, check logs." );
+                throw new ProviderException( "Unable to read page properties, check logs.", e );
             }
         }
 

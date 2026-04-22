@@ -628,7 +628,9 @@ public class WikiContext implements Context, Command {
             copy.realPage    = realPage;
             // commandResolver is final — super.clone() already copies it
             return copy;
-        } catch( final CloneNotSupportedException e ){} // Never happens
+        } catch( final CloneNotSupportedException e ) {
+            LOG.warn( "WikiContext.clone() failed unexpectedly: {}", e.getMessage() );
+        }
 
         return null;
     }
@@ -661,7 +663,9 @@ public class WikiContext implements Context, Command {
             copy.realPage    = realPage.clone();
             return copy;
         }
-        catch( final CloneNotSupportedException e ){} // Never happens
+        catch( final CloneNotSupportedException e ) {
+            LOG.warn( "WikiContext.deepClone() failed unexpectedly: {}", e.getMessage() );
+        }
 
         return null;
     }

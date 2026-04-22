@@ -48,6 +48,7 @@ import java.security.Principal;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -354,7 +355,7 @@ public class AuthResource extends RestServletBase {
 
         // Rate limiting: clean up old entries, then check count
         RESET_ATTEMPTS.cleanup( ONE_HOUR_MS );
-        if ( RESET_ATTEMPTS.count( email.toLowerCase() ) >= MAX_RESET_PER_HOUR ) {
+        if ( RESET_ATTEMPTS.count( email.toLowerCase( Locale.ROOT ) ) >= MAX_RESET_PER_HOUR ) {
             LOG.warn( "Rate limit exceeded for password reset: {}", email );
             // Still return generic success to prevent enumeration
             sendJson( response, Map.of( "success", true, "message", RESET_GENERIC_MESSAGE ) );
@@ -362,7 +363,7 @@ public class AuthResource extends RestServletBase {
         }
 
         // Record this attempt
-        RESET_ATTEMPTS.add( email.toLowerCase() );
+        RESET_ATTEMPTS.add( email.toLowerCase( Locale.ROOT ) );
 
         final Engine engine = getEngine();
         final UserDatabase db = engine.getManager( UserManager.class ).getUserDatabase();

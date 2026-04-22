@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -177,7 +178,7 @@ public class DatabasePolicy
             return new AllPermission( target );
         }
 
-        return switch( permType.toLowerCase() )
+        return switch( permType.toLowerCase( Locale.ROOT ) )
         {
             case "page" -> new PagePermission( qualifyTarget( target ), actions );
             case "wiki" -> new WikiPermission( target, actions );

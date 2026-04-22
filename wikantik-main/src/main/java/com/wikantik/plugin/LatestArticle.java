@@ -38,6 +38,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -141,7 +142,7 @@ public class LatestArticle implements Plugin {
         // Check explicit user parameter first
         final String userParam = params.get( PARAM_USER );
         if ( userParam != null && !userParam.isEmpty() ) {
-            return userParam.toLowerCase();
+            return userParam.toLowerCase( Locale.ROOT );
         }
 
         // Infer from current page name: blog/<username>/...
@@ -152,7 +153,7 @@ public class LatestArticle implements Plugin {
                 final String remainder = pageName.substring( "blog/".length() );
                 final int slashIndex = remainder.indexOf( '/' );
                 if ( slashIndex > 0 ) {
-                    return remainder.substring( 0, slashIndex ).toLowerCase();
+                    return remainder.substring( 0, slashIndex ).toLowerCase( Locale.ROOT );
                 }
             }
         }

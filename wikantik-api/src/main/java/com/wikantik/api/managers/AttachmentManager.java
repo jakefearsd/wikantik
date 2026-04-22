@@ -36,6 +36,7 @@ import java.nio.file.Files;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 
@@ -333,7 +334,7 @@ public interface AttachmentManager {
 
         final int dot = filename.lastIndexOf( '.' );
         if ( dot >= 0 && dot < filename.length() - 1 ) {
-            final String ext = filename.substring( dot + 1 ).toLowerCase();
+            final String ext = filename.substring( dot + 1 ).toLowerCase( Locale.ROOT );
             if ( BLOCKED_UPLOAD_EXTENSIONS.contains( ext ) ) {
                 LogManager.getLogger( AttachmentManager.class )
                           .info( "Attempt to upload a file with a blocked active-content extension '.{}'. " +

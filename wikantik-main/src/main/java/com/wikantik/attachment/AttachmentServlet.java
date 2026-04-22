@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.Permission;
 import java.security.Principal;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 
 import org.apache.commons.fileupload2.core.DiskFileItemFactory;
@@ -144,14 +145,14 @@ public class AttachmentServlet extends HttpServlet {
         maxSize = TextUtil.getIntegerProperty( props, AttachmentManager.PROP_MAXSIZE, Integer.MAX_VALUE );
 
         if( allowed != null && !allowed.isEmpty() ) {
-            allowedPatterns = allowed.toLowerCase().split( "\\s" );
+            allowedPatterns = allowed.toLowerCase( Locale.ROOT ).split( "\\s" );
         } else {
             allowedPatterns = new String[ 0 ];
         }
 
         final String forbidden = TextUtil.getStringProperty( props, AttachmentManager.PROP_FORBIDDENEXTENSIONS,null );
         if( forbidden != null && !forbidden.isEmpty() ) {
-            forbiddenPatterns = forbidden.toLowerCase().split("\\s");
+            forbiddenPatterns = forbidden.toLowerCase( Locale.ROOT ).split("\\s");
         } else {
             forbiddenPatterns = new String[0];
         }
@@ -198,7 +199,7 @@ public class AttachmentServlet extends HttpServlet {
     {
         if( name == null || name.isEmpty() ) return false;
 
-        name = name.toLowerCase();
+        name = name.toLowerCase( Locale.ROOT );
 
         for( final String m_forbiddenPattern : forbiddenPatterns ) {
             if( name.endsWith( m_forbiddenPattern ) && !m_forbiddenPattern.isEmpty() )
@@ -368,7 +369,7 @@ public class AttachmentServlet extends HttpServlet {
         if ( fileName == null ) {
             return false;
         }
-        final String lower = fileName.toLowerCase();
+        final String lower = fileName.toLowerCase( Locale.ROOT );
         return lower.endsWith( ".html" ) || lower.endsWith( ".htm" )
                 || lower.endsWith( ".xhtml" ) || lower.endsWith( ".svg" )
                 || lower.endsWith( ".xml" );
@@ -378,7 +379,7 @@ public class AttachmentServlet extends HttpServlet {
         try {
             res.sendError( HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message );
         } catch( final IllegalStateException e ) {
-            // ignore
+            LOG.debug( "sendError: response already committed — cannot send error '{}'", message );
         }
     }
 
@@ -397,7 +398,7 @@ public class AttachmentServlet extends HttpServlet {
             final ServletContext servletContext = req.getSession().getServletContext();
 
             if( servletContext != null ) {
-                mimetype = servletContext.getMimeType( fileName.toLowerCase() );
+                mimetype = servletContext.getMimeType( fileName.toLowerCase( Locale.ROOT ) );
             }
         }
 
@@ -509,7 +510,7 @@ public class AttachmentServlet extends HttpServlet {
             msg = "Upload failed because the provider failed: "+e.getMessage();
             LOG.warn( "{} (attachment: {})", msg, attName, e );
 
-            throw new IOException( msg );
+            throw new IOException( msg, e );
         } catch( final FileUploadException e ) {
             // Show the submit page again, but with a bit more intimidating output.
             msg = "Upload failure: " + e.getMessage();

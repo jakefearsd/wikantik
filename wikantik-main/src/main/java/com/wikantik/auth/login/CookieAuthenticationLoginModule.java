@@ -139,11 +139,15 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
         } catch( final IOException e ) {
             final String message = "IO exception; disallowing login.";
             LOG.error( message, e );
-            throw new LoginException( message );
+            final LoginException le = new LoginException( message );
+            le.initCause( e );
+            throw le;
         } catch( final UnsupportedCallbackException e ) {
             final String message = "Unable to handle callback; disallowing login.";
             LOG.error( message, e );
-            throw new LoginException( message );
+            final LoginException le = new LoginException( message );
+            le.initCause( e );
+            throw le;
         }
         return false;
     }

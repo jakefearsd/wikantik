@@ -226,7 +226,7 @@ public class TableOfContents implements Plugin, HeadingListener {
             sb.append( "<ul>\n" ).append( buf ).append( "</ul>\n" );
         } catch( final IOException e ) {
             LOG.error("Could not construct table of contents", e);
-            throw new PluginException("Unable to construct table of contents (see logs)");
+            throw new PluginException("Unable to construct table of contents (see logs)", e );
         }
 
         sb.append("</div>\n</div>\n");

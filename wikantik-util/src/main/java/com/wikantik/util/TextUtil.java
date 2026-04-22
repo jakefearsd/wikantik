@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.Random;
@@ -134,7 +135,7 @@ public final class TextUtil {
             }
 
         } catch( final IndexOutOfBoundsException ae ) {
-            throw new IllegalArgumentException( "Malformed UTF-8 string?" );
+            throw new IllegalArgumentException( "Malformed UTF-8 string?", ae );
         }
 
         return new String(decodeBytes, 0, decodedByteCount, Charset.forName( encoding ) );
@@ -294,8 +295,8 @@ public final class TextUtil {
         int end = 0;
         int last = 0;
 
-        final String origCaseUnsn = orig.toLowerCase();
-        final String srcCaseUnsn = src.toLowerCase();
+        final String origCaseUnsn = orig.toLowerCase( Locale.ROOT );
+        final String srcCaseUnsn = src.toLowerCase( Locale.ROOT );
         while( ( start = origCaseUnsn.indexOf( srcCaseUnsn, end ) ) != -1 ) {
             res.append( orig, last, start );
             res.append( dest );
@@ -317,7 +318,9 @@ public final class TextUtil {
     public static int parseIntParameter( final String value, final int defvalue ) {
         try {
             return Integer.parseInt( value.trim() );
-        } catch( final Exception e ) {}
+        } catch( final Exception e ) {
+            LOG.debug( "parseIntParameter: cannot parse '{}' — returning default {}", value, defvalue );
+        }
 
         return defvalue;
     }

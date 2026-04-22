@@ -29,6 +29,7 @@ import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.auth.permissions.WikiPermission;
 
 import java.security.Permission;
+import java.util.Locale;
 import java.util.function.Function;
 
 /**
@@ -116,7 +117,7 @@ public final class GenericCommand implements Command {
         this.nameExtractor = nameExtractor;
         this.kind = kind;
 
-        if ( urlPattern.toUpperCase().startsWith( "HTTP://" ) || urlPattern.toUpperCase().startsWith( "HTTPS://" ) ) {
+        if ( urlPattern.toUpperCase( Locale.ROOT ).startsWith( "HTTP://" ) || urlPattern.toUpperCase( Locale.ROOT ).startsWith( "HTTPS://" ) ) {
             routePath = urlPattern;
             routeFriendlyName = "Special Page";
         } else {

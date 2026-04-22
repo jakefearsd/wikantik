@@ -35,6 +35,7 @@ import java.util.*;
 public class ComplExModel {
 
     /** A scored prediction result. */
+    @SuppressWarnings( "PMD.OverrideBothEqualsAndHashCodeOnComparable" ) // Record: equals/hashCode are compiler-generated from components.
     public record Prediction( int entityId, String entityName, double score ) implements Comparable< Prediction > {
         @Override public int compareTo( final Prediction o ) {
             return Double.compare( o.score, this.score ); // descending

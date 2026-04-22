@@ -88,6 +88,7 @@ public final class WatchDog {
      *  @param engine The Engine.
      *  @param watch A Watchable object.
      */
+    @SuppressWarnings( "PMD.AssignmentToNonFinalStatic" ) // One-time lazy init of the shared watcher thread, guarded by the WatchDog.class monitor.
     public WatchDog( final Engine engine, final Watchable watch ) {
         this.engine = engine;
         this.watchable = watch;

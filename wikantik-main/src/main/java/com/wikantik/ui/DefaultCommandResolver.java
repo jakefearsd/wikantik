@@ -184,12 +184,9 @@ public class DefaultCommandResolver implements CommandResolver {
         String  finalName = page;
 
         if ( !isThere && matchEnglishPlurals ) {
-            if ( page.endsWith( "s" ) ) {
-                finalName = page.substring( 0, page.length() - 1 );
-            } else {
-                finalName += "s";
-            }
-
+            finalName = page.endsWith( "s" )
+                    ? page.substring( 0, page.length() - 1 )
+                    : page + "s";
             isThere = simplePageExists( finalName );
         }
 
@@ -198,12 +195,9 @@ public class DefaultCommandResolver implements CommandResolver {
             isThere = simplePageExists(finalName);
 
             if( !isThere && matchEnglishPlurals ) {
-                if( finalName.endsWith( "s" ) ) {
-                    finalName = finalName.substring( 0, finalName.length() - 1 );
-                } else {
-                    finalName += "s";
-                }
-
+                finalName = finalName.endsWith( "s" )
+                        ? finalName.substring( 0, finalName.length() - 1 )
+                        : finalName + "s";
                 isThere = simplePageExists( finalName );
             }
         }

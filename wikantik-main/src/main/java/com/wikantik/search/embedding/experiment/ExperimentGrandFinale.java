@@ -85,7 +85,7 @@ public final class ExperimentGrandFinale {
 
         final StringBuilder sb = new StringBuilder();
         sb.append( "Grand-finale sweep: aggregation × fusion strategies\n" );
-        sb.append( "Queries: " ).append( queries.size() ).append( "\n" );
+        sb.append( "Queries: " ).append( queries.size() ).append( '\n' );
         sb.append( "Models: " ).append( Arrays.toString( args ) ).append( "\n\n" );
 
         for( final String modelCode : args ) {

@@ -56,7 +56,7 @@ public abstract sealed class WikiEvent extends EventObject
      * @param newType the event type.
      */
     public WikiEvent( final Object src, final int type ) {
-        this( src, type, new Object[]{} );
+        this( src, type, (Object[]) null );
     }
 
     /**

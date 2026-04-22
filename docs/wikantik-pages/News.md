@@ -6,6 +6,36 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-22** — chore(pmd): clear AvoidStringBufferField — 59 → 47 violations
+
+**2026-04-22** — chore(pmd): second-pass sweep — 401 → 59 violations (85% reduction)
+
+**2026-04-22** — chore(pmd): cleanup sweep — 1,888 → 401 PMD violations (79% reduction)
+
+**2026-04-22** — chore(build): scoped PMD ruleset — high-signal rules only
+
+**2026-04-22** — chore(quality): PMD + SpotBugs sweep — empty catches, locale, stack traces, CPD
+
+**2026-04-21** — chore(quality): clear remaining SpotBugs MALICIOUS_CODE / BAD_PRACTICE findings
+
+**2026-04-21** — chore(quality): SpotBugs BAD_PRACTICE cleanup — low-risk subset
+
+**2026-04-21** — fix(concurrency): clear 24/25 SpotBugs MT_CORRECTNESS findings
+
+**2026-04-21** — chore(deps): minor/patch upgrades + SpotBugs 4.9.8.3; deploy-local covers MCP props and stale JDBC jars
+
+**2026-04-20** — fix(security): enforce view ACLs on tool get_page; reject unknown principals on API-key mint
+
+**2026-04-20** — chore(deps): upgrade Testcontainers 1.20.4 → 1.21.4
+
+**2026-04-20** — docs(wiki): News.md roll-up for v1.1.6; retire HygieneOnLongTrips
+
+**2026-04-20** — feat(tools): OpenAPI 3.1 tool server for OpenWebUI and other MCP-less LLM clients
+
+**2026-04-20** — feat(search): hybrid retrieval perf pass — parallelized embedding, incremental index, heading-aware context
+
+**2026-04-20** — feat(auth): unified API-key admin for MCP and OpenAPI tool-server access
+
 **2026-04-19** — chore(release): v1.1.6 — hybrid retrieval, MCP access hardening, admin content ops
 
 **2026-04-19** — docs(wiki): update News.md

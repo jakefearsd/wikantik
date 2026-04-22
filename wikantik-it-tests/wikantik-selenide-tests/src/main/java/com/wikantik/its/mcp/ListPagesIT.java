@@ -38,7 +38,7 @@ public class ListPagesIT extends WithMcpTestSetup {
         Assertions.assertFalse( pages.isEmpty(), "Should have at least the pre-seeded pages" );
 
         // Main is a system page and may be filtered by list_pages; just verify we have pages
-        Assertions.assertTrue( pages.size() >= 1, "Should list at least one page" );
+        Assertions.assertFalse( pages.isEmpty(), "Should list at least one page" );
 
         // Check all fields present
         final Map< String, Object > firstPage = pages.get( 0 );

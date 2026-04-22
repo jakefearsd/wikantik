@@ -145,6 +145,7 @@ public final class WikiEventManager {
     /** Constructor for a WikiEventManager. */
     @SuppressFBWarnings( value = "ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD",
             justification = "Intentional singleton self-registration; the constructor is private and invoked only from getInstance()." )
+    @SuppressWarnings( "PMD.AssignmentToNonFinalStatic" ) // Deliberate singleton self-registration in the private constructor.
     private WikiEventManager() {
         c_instance = this;
         LOG.debug( "instantiated WikiEventManager" );
@@ -158,6 +159,7 @@ public final class WikiEventManager {
      */
     @SuppressFBWarnings( value = "MS_EXPOSE_REP",
             justification = "Returning the shared singleton is the defined contract of this method." )
+    @SuppressWarnings( "PMD.SingletonClassReturningNewInstance" ) // `new` runs once on first call; subsequent calls return the cached instance via c_instance (set in the ctor).
     public static WikiEventManager getInstance() {
         if( c_instance == null ) {
             synchronized( WikiEventManager.class ) {

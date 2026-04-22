@@ -422,7 +422,7 @@ public class ContentIndexRebuildService {
     private void recordError( final String page, final Exception e ) {
         errors.add( new IndexStatusSnapshot.RebuildError(
             page,
-            e.getClass().getSimpleName() + ": " + String.valueOf( e.getMessage() ),
+            e.getClass().getSimpleName() + ": " + e.getMessage(),
             Instant.now() ) );
     }
 

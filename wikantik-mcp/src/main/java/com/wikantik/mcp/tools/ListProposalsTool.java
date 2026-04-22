@@ -80,7 +80,7 @@ public class ListProposalsTool implements McpTool {
         try {
             final List< KgProposal > proposals = service.listProposals( status, sourcePage, limit, offset );
             final List< Map< String, Object > > results = proposals.stream().map( p -> {
-                final Map< String, Object > map = new LinkedHashMap< String, Object >();
+                final Map< String, Object > map = new LinkedHashMap<>();
                 map.put( "id", p.id().toString() );
                 map.put( "proposal_type", p.proposalType() );
                 map.put( "source_page", p.sourcePage() );

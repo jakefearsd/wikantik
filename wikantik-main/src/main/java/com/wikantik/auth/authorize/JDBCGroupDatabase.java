@@ -137,9 +137,9 @@ public class JDBCGroupDatabase extends AbstractJDBCDatabase implements GroupData
                 return null;
             } );
         } catch( final WikiSecurityException e ) {
-            // Preserve the original error message format for delete failures
+            // Preserve the original error message format for delete failures.
             if( e.getCause() instanceof SQLException ) {
-                throw new WikiSecurityException( "Could not delete group " + groupName + ": " + e.getCause().getMessage(), e.getCause() );
+                throw new WikiSecurityException( "Could not delete group " + groupName + ": " + e.getCause().getMessage(), e );
             }
             throw e;
         }

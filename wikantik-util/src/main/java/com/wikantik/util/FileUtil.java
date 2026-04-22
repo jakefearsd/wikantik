@@ -112,8 +112,12 @@ public final class FileUtil {
         pb.directory( new File( directory ) );
         final Process process = pb.start();
 
-        try( BufferedReader stdout = new BufferedReader( new InputStreamReader( process.getInputStream(), StandardCharsets.UTF_8 ) );
+        // stdout/stderr readers close the underlying process streams; process.getOutputStream() is also closed
+        // so the child can't block on writes that we will never consume. See JDK-4784692 for the original issue.
+        try( OutputStream stdin = process.getOutputStream();
+             BufferedReader stdout = new BufferedReader( new InputStreamReader( process.getInputStream(), StandardCharsets.UTF_8 ) );
              BufferedReader stderr = new BufferedReader( new InputStreamReader( process.getErrorStream(), StandardCharsets.UTF_8 ) ) ) {
+            stdin.close();
             String line;
 
             while( (line = stdout.readLine()) != null ) {
@@ -130,9 +134,6 @@ public final class FileUtil {
             }
 
             process.waitFor();
-        } finally {
-            // we must close all by exec(..) opened streams: http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4784692
-            process.getInputStream().close();
         }
 
         return result.toString();

@@ -28,7 +28,7 @@ import com.wikantik.api.knowledge.Provenance;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.HashSet;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -88,7 +88,7 @@ final class KnowledgeMcpUtils {
         if ( values.isEmpty() ) {
             return null;
         }
-        final Set< Provenance > result = new HashSet<>();
+        final Set< Provenance > result = EnumSet.noneOf( Provenance.class );
         for ( final String v : values ) {
             result.add( Provenance.fromValue( v ) );
         }

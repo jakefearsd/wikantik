@@ -478,6 +478,7 @@ public class AttachmentServlet extends HttpServlet {
 
             progressManager.startProgress( pl, progressId );
 
+            @SuppressWarnings( { "rawtypes", "PMD.UseDiamondOperator" } ) // JakartaServletFileUpload's self-typed generic params make parameterizing here awkward at the call sites below.
             final JakartaServletFileUpload upload = new JakartaServletFileUpload( factory );
             upload.setHeaderCharset(StandardCharsets.UTF_8);
             if( !context.hasAdminPermissions() ) {

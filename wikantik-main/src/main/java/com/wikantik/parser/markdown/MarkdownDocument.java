@@ -29,7 +29,6 @@ import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.parser.ParserEmulationProfile;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.data.MutableDataSet;
-import com.vladsch.flexmark.util.misc.Extension;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.markdown.MarkdownForWikantikExtension;
@@ -85,13 +84,13 @@ public class MarkdownDocument extends WikiDocument {
         options.set( GitLabExtension.RENDER_VIDEO_IMAGES, false );
         options.set( GitLabExtension.RENDER_VIDEO_LINK, false );
         options.set( GitLabExtension.RENDER_BLOCK_MERMAID, false );
-        options.set( Parser.EXTENSIONS, Arrays.asList( new Extension[] { new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),
-                                                                         AttributesExtension.create(),
-                                                                         DefinitionExtension.create(),
-                                                                         FootnoteExtension.create(),
-                                                                         GitLabExtension.create(),
-                                                                         TablesExtension.create(),
-                                                                         TocExtension.create() } ) );
+        options.set( Parser.EXTENSIONS, Arrays.asList( new MarkdownForWikantikExtension( context, isImageInlining, inlineImagePatterns ),
+                                                       AttributesExtension.create(),
+                                                       DefinitionExtension.create(),
+                                                       FootnoteExtension.create(),
+                                                       GitLabExtension.create(),
+                                                       TablesExtension.create(),
+                                                       TocExtension.create() ) );
         return options;
     }
 

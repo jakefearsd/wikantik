@@ -229,17 +229,14 @@ public class CachingProvider implements PageProvider {
             return false;
         }
 
-        //  A null item means that the page either does not exist, or has not yet been cached; a non-null means that the page does exist.
-        if( p != null ) {
-            return true;
-        }
-
-        //  If we have a list of all pages in memory, then any page not in the cache must be non-existent.
-        //  Otherwise we could add the page to the cache here as well, but in order to understand whether that is a good thing or
-        //  not we would need to analyze the JSPWiki calling patterns extensively.  Presumably it would be a good thing if
-        //  pageExists() is called many times before the first getPageText() is called, and the whole page is cached.
-        return pages.get() >= cachingManager.info( CachingManager.CACHE_PAGES ).getMaxElementsAllowed()
-                && provider.pageExists( pageName );
+        //  A non-null item means the page exists and is cached. Otherwise, if the page cache has room and the page isn't in it,
+        //  any missing page must actually be non-existent. Beyond that point we fall through to the provider — we could add
+        //  the page to the cache here as well, but in order to understand whether that is a good thing or not we would need
+        //  to analyze the JSPWiki calling patterns extensively. Presumably it would be a good thing if pageExists() is called
+        //  many times before the first getPageText() is called, and the whole page is cached.
+        return p != null
+                || ( pages.get() >= cachingManager.info( CachingManager.CACHE_PAGES ).getMaxElementsAllowed()
+                        && provider.pageExists( pageName ) );
     }
 
     /**

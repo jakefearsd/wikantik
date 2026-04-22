@@ -353,16 +353,10 @@ public class WikiPageFormatFilter implements Filter {
     }
 
     private static boolean isInternalTarget( final String t ) {
-        if ( t == null || t.isEmpty() ) {
-            return false;
-        }
-        if ( t.contains( "/" ) ) {
-            return false;
-        }
-        if ( t.contains( ":" ) ) {
-            return false;
-        }
-        return !t.startsWith( "#" );
+        return t != null && !t.isEmpty()
+                && !t.contains( "/" )
+                && !t.contains( ":" )
+                && !t.startsWith( "#" );
     }
 
     @Override

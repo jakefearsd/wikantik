@@ -112,8 +112,7 @@ public final class Role implements Principal, Serializable
     @Override
     public boolean equals(final Object obj )
     {
-        if ( obj == null || !( obj instanceof Role ) ) return false;
-        return name.equals( ( (Role) obj ).getName() );
+        return obj instanceof Role other && name.equals( other.getName() );
     }
 
     /**

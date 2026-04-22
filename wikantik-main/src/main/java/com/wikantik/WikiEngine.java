@@ -104,6 +104,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *  <p>
  *  {@inheritDoc}
  */
+@SuppressWarnings( { "PMD.SingleMethodSingleton", "PMD.SingletonClassReturningNewInstance" } )
+// WikiEngine is one-per-ServletContext, not a global singleton: getInstance(...) overloads look up or create the
+// engine keyed on the context, and the "new" call PMD flags only runs when no engine is cached for that context.
 public class WikiEngine implements Engine {
 
     private static final String ATTR_WIKIENGINE = "com.wikantik.WikiEngine";

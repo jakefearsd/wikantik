@@ -121,9 +121,7 @@ public class MarkdownParser extends MarkupParser {
 
             if( linkParsingOperations.isExternalLink( url ) ) {
                 callMutatorChain( externalLinkMutatorChain, url );
-            } else if( url.startsWith( "#" ) ) {
-                // Anchor/footnote — not a page reference
-            } else {
+            } else if( !url.startsWith( "#" ) ) { // skip anchors/footnotes — not page references
                 final String attachment = context.getEngine()
                         .getManager( AttachmentManager.class )
                         .getAttachmentInfoName( context, url );

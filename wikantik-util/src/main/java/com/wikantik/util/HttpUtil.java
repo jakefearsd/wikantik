@@ -139,13 +139,12 @@ public final class HttpUtil {
      *  @return the result of the check
      */
     public static boolean checkFor304( final HttpServletRequest req, final String pageName, final Date lastModified ) {
-        // We'll do some handling for CONDITIONAL GET (and return a 304). If the client has set the following headers, do not try for a 304.
+        // We'll do some handling for CONDITIONAL GET (and return a 304). If the client has set the following headers, do not try
+        // for a 304 — they want specifically a fresh copy.
         //    pragma: no-cache
         //    cache-control: no-cache
-        if( "no-cache".equalsIgnoreCase( req.getHeader( "Pragma" ) )
-            || "no-cache".equalsIgnoreCase( req.getHeader( "cache-control" ) ) ) {
-            // Wants specifically a fresh copy
-        } else {
+        if( !"no-cache".equalsIgnoreCase( req.getHeader( "Pragma" ) )
+            && !"no-cache".equalsIgnoreCase( req.getHeader( "cache-control" ) ) ) {
             //  HTTP 1.1 ETags go first
             final String thisTag = createETag( pageName, lastModified );
             final String eTag = req.getHeader( "If-None-Match" );
@@ -236,12 +235,12 @@ public final class HttpUtil {
             //
             final int pos1 = res.indexOf( "page=" );
             if( pos1 >= 0 ) {
-                String tmpRes = res.substring( 0, pos1 );
+                final StringBuilder tmpRes = new StringBuilder( res.substring( 0, pos1 ) );
                 final int pos2 = res.indexOf( '&', pos1 ) + 1;
                 if( ( pos2 > 0 ) && ( pos2 < res.length() ) ) {
-                    tmpRes = tmpRes + res.substring( pos2 );
+                    tmpRes.append( res.substring( pos2 ) );
                 }
-                res = tmpRes;
+                res = tmpRes.toString();
             }
         }
 

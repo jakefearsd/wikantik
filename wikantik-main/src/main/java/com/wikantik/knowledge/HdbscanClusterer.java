@@ -123,6 +123,7 @@ public class HdbscanClusterer {
      * Feature names are {@code "f0", "f1", ..., "fN"} — they just need to be
      * unique and stable per dimension.
      */
+    @SuppressWarnings( "PMD.AvoidArrayLoops" ) // float → double widening; Arrays.copyOf/System.arraycopy don't handle the type change.
     private static List<ArrayExample<ClusterID>> buildExamples(
             final float[][] vectors, final ClusteringFactory factory ) {
 

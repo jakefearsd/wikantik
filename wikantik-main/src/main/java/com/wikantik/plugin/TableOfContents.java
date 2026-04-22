@@ -70,7 +70,10 @@ public class TableOfContents implements Plugin, HeadingListener {
 
     private static final String VAR_ALREADY_PROCESSING = "__TableOfContents.processing";
 
-    final StringBuilder buf = new StringBuilder();
+    /** Rebuilt at the start of each {@link #execute} call so the backing array is not retained across invocations.
+     *  Must be a field because {@link #headingAdded} is invoked as a parser callback and cannot receive it as a parameter. */
+    @SuppressWarnings( "PMD.AvoidStringBufferField" ) // Reset to a fresh instance per execute(); see javadoc.
+    StringBuilder buf = new StringBuilder();
     private boolean usingNumberedList;
     private String prefix = "";
     private int starting;
@@ -158,6 +161,8 @@ public class TableOfContents implements Plugin, HeadingListener {
             return "<a href=\"#section-TOC\" class=\"toc\">"+rb.getString("tableofcontents.title")+"</a>";
         }
 
+        // Fresh buffer per invocation — drops the prior run's retained char[].
+        buf = new StringBuilder();
         final StringBuilder sb = new StringBuilder();
 
         sb.append("<div class=\"toc\">\n");

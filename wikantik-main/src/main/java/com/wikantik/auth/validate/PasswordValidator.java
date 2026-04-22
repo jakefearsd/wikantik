@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.Set;
 
@@ -127,7 +128,7 @@ public final class PasswordValidator {
      * Case-insensitive comparison.
      */
     static boolean isBlocklisted( final String password ) {
-        return getBlocklist().contains( password.toLowerCase() );
+        return getBlocklist().contains( password.toLowerCase( Locale.ROOT ) );
     }
 
     /**
@@ -156,7 +157,7 @@ public final class PasswordValidator {
                 while ( ( line = reader.readLine() ) != null ) {
                     final String trimmed = line.trim();
                     if ( !trimmed.isEmpty() && !trimmed.startsWith( "#" ) ) {
-                        set.add( trimmed.toLowerCase() );
+                        set.add( trimmed.toLowerCase( Locale.ROOT ) );
                     }
                 }
             }

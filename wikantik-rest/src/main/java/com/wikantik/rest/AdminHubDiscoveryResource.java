@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -228,7 +229,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         } catch ( final IllegalArgumentException e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, e.getMessage() );
         } catch ( final HubDiscoveryException e ) {
-            final String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            final String msg = e.getMessage() != null ? e.getMessage().toLowerCase( Locale.ROOT ) : "";
             if ( msg.contains( "not found" ) ) {
                 sendError( response, HttpServletResponse.SC_NOT_FOUND, e.getMessage() );
             } else {
@@ -485,7 +486,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         } catch ( final IllegalArgumentException e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, e.getMessage() );
         } catch ( final com.wikantik.knowledge.HubOverviewException e ) {
-            final String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            final String msg = e.getMessage() != null ? e.getMessage().toLowerCase( Locale.ROOT ) : "";
             if ( msg.contains( "not found" ) ) {
                 sendError( response, HttpServletResponse.SC_NOT_FOUND, e.getMessage() );
             } else if ( msg.contains( "fewer than 2" ) ) {

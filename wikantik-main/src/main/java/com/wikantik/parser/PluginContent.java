@@ -235,11 +235,11 @@ public class PluginContent extends Text implements PluginElement {
         } catch( final NoSuchElementException e ) {
             final String msg = "Missing parameter in plugin definition: " + commandline;
             LOG.warn( msg, e );
-            throw new PluginException( msg );
+            throw new PluginException( msg, e );
         } catch( final IOException e ) {
             final String msg = "Zyrf.  Problems with parsing arguments: " + commandline;
             LOG.warn( msg, e );
-            throw new PluginException( msg );
+            throw new PluginException( msg, e );
         }
 
         return null;

@@ -44,6 +44,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 
 
@@ -104,7 +105,7 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
 
         final String forceDownload = TextUtil.getStringProperty( props, PROP_FORCEDOWNLOAD, null );
         if( StringUtils.isNotEmpty( forceDownload ) ) {
-            forceDownloadPatterns = forceDownload.toLowerCase().split( "\\s" );
+            forceDownloadPatterns = forceDownload.toLowerCase( Locale.ROOT ).split( "\\s" );
         } else {
             forceDownloadPatterns = new String[ 0 ];
         }
@@ -205,7 +206,7 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
             return false;
         }
 
-        name = name.toLowerCase();
+        name = name.toLowerCase( Locale.ROOT );
         if( name.indexOf( '.' ) == -1 ) {
             return true;  // force download on attachments without extension or type indication
         }

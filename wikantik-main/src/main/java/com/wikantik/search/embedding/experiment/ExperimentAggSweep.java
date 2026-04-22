@@ -18,24 +18,19 @@
  */
 package com.wikantik.search.embedding.experiment;
 
-import com.wikantik.search.embedding.EmbeddingClientFactory;
-import com.wikantik.search.embedding.EmbeddingConfig;
 import com.wikantik.search.embedding.EmbeddingKind;
 import com.wikantik.search.embedding.EmbeddingModel;
 import com.wikantik.search.embedding.TextEmbeddingClient;
+import com.wikantik.search.embedding.experiment.ExperimentHarness.ChunkCorpus;
 import com.wikantik.search.embedding.experiment.QueryCorpus.EvalQuery;
 import com.wikantik.search.embedding.experiment.ReciprocalRankFusion.Ranking;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -44,7 +39,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Properties;
 import java.util.UUID;
 
 /**
@@ -90,11 +84,11 @@ public final class ExperimentAggSweep {
         final EmbeddingModel model = EmbeddingModel.fromCode( modelCode );
 
         final List< EvalQuery > queries = QueryCorpus.load( csv );
-        final TextEmbeddingClient client = buildClient( modelCode );
+        final TextEmbeddingClient client = ExperimentHarness.buildClient( modelCode );
         final Bm25Client bm25 = Bm25Client.fromSystemProperties();
 
         try( final Connection conn = ExperimentDb.open() ) {
-            final ChunkCorpus corpus = loadCorpus( conn, model.code(), client.dimension() );
+            final ChunkCorpus corpus = ExperimentHarness.loadCorpus( conn, model.code(), client.dimension() );
             LOG.info( "loaded corpus: {} chunks across {} pages",
                       corpus.vectors.size(), corpus.pagesForChunk.values().stream().distinct().count() );
 
@@ -122,12 +116,12 @@ public final class ExperimentAggSweep {
                 for( int i = 0; i < cache.size(); i++ ) {
                     final CachedQuery cq = cache.get( i );
                     final List< String > denseRanked = denseRankingWithAgg( corpus, cq.chunkScores, agg );
-                    denseRanks[ i ] = rankOf( cq.query.idealPage(), denseRanked );
+                    denseRanks[ i ] = ExperimentHarness.rankOf( cq.query.idealPage(), denseRanked );
 
                     final List< String > hybridRanked = ReciprocalRankFusion.fuseWeighted(
                         List.of( new Ranking( cq.bm25Ranked ), new Ranking( denseRanked ) ),
                         new double[]{ W_BM25, W_DENSE }, RRF_K, RRF_TRUNCATE );
-                    hybridRanks[ i ] = rankOf( cq.query.idealPage(), hybridRanked );
+                    hybridRanks[ i ] = ExperimentHarness.rankOf( cq.query.idealPage(), hybridRanked );
                 }
                 denseMetrics.put( agg, Metrics.of( denseRanks ) );
                 hybridMetrics.put( agg, Metrics.of( hybridRanks ) );
@@ -136,8 +130,7 @@ public final class ExperimentAggSweep {
             final String text = formatReport( modelCode, client.dimension(), queries.size(),
                                               denseMetrics, hybridMetrics );
             System.out.print( text );
-            Files.createDirectories( out.getParent() );
-            Files.writeString( out, text );
+            ExperimentHarness.writeReport( out, text );
             LOG.info( "agg-sweep report written to {}", out.toAbsolutePath() );
         }
     }
@@ -221,54 +214,6 @@ public final class ExperimentAggSweep {
 
     // ---- corpus + helpers ----
 
-    private static List< String > ignored( final List< String > bm25Ranked ) { return bm25Ranked; } // unused
-
-    private static int rankOf( final String target, final List< String > ranked ) {
-        for( int i = 0; i < ranked.size(); i++ ) {
-            if( ranked.get( i ).equals( target ) ) return i + 1;
-        }
-        return 0;
-    }
-
-    private static ChunkCorpus loadCorpus( final Connection conn, final String modelCode, final int expectedDim )
-            throws SQLException {
-        final String sql = """
-            SELECT e.chunk_id, e.dim, e.vec, c.page_name
-            FROM experiment_embeddings e
-            JOIN kg_content_chunks c ON c.id = e.chunk_id
-            WHERE e.model_code = ?
-            """;
-        final List< UUID >    chunkIds = new ArrayList<>();
-        final List< float[] > vectors  = new ArrayList<>();
-        final List< Double >  norms    = new ArrayList<>();
-        final Map< UUID, String > pagesForChunk = new HashMap<>();
-        try( final PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, modelCode );
-            ps.setFetchSize( 500 );
-            try( final ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
-                    final UUID id = (UUID) rs.getObject( 1 );
-                    final int dim = rs.getInt( 2 );
-                    if( dim != expectedDim ) {
-                        throw new IllegalStateException( "dim mismatch" );
-                    }
-                    final float[] v = VectorCodec.decode( rs.getBytes( 3 ), dim );
-                    chunkIds.add( id );
-                    vectors.add( v );
-                    norms.add( CosineSimilarity.norm( v ) );
-                    pagesForChunk.put( id, rs.getString( 4 ) );
-                }
-            }
-        }
-        if( chunkIds.isEmpty() ) {
-            throw new IllegalStateException( "no embeddings for " + modelCode );
-        }
-        return new ChunkCorpus( chunkIds, vectors, norms, pagesForChunk );
-    }
-
-    private record ChunkCorpus( List< UUID > chunkIds, List< float[] > vectors,
-                                List< Double > norms, Map< UUID, String > pagesForChunk ) {}
-
     private record CachedQuery( EvalQuery query, List< String > bm25Ranked, double[] chunkScores ) {}
 
     private record Metrics( double recall5, double recall20, double mrr ) {
@@ -307,19 +252,4 @@ public final class ExperimentAggSweep {
         return sb.toString();
     }
 
-    private static TextEmbeddingClient buildClient( final String modelCode ) throws IOException {
-        final Properties p = new Properties();
-        try( final InputStream in = ExperimentAggSweep.class.getResourceAsStream( "/ini/wikantik.properties" ) ) {
-            if( in != null ) p.load( in );
-        }
-        for( final String key : List.of(
-            EmbeddingConfig.PROP_BACKEND, EmbeddingConfig.PROP_BASE_URL, EmbeddingConfig.PROP_API_KEY,
-            EmbeddingConfig.PROP_OLLAMA_TAG, EmbeddingConfig.PROP_TIMEOUT_MS, EmbeddingConfig.PROP_BATCH_SIZE ) ) {
-            final String v = System.getProperty( key );
-            if( v != null && !v.isBlank() ) p.setProperty( key, v );
-        }
-        p.setProperty( EmbeddingConfig.PROP_ENABLED, "true" );
-        p.setProperty( EmbeddingConfig.PROP_MODEL, modelCode );
-        return EmbeddingClientFactory.create( EmbeddingConfig.fromProperties( p ) ).orElseThrow();
-    }
 }

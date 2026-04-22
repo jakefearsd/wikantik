@@ -382,11 +382,11 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
         } catch( final NoSuchElementException e ) {
             final String msg =  "Missing parameter in plugin definition: " + commandline;
             LOG.warn( msg, e );
-            throw new PluginException( MessageFormat.format( rb.getString( "plugin.error.missingparameter" ), commandline ) );
+            throw new PluginException( MessageFormat.format( rb.getString( "plugin.error.missingparameter" ), commandline ), e );
         } catch( final IOException e ) {
             final String msg = "Zyrf.  Problems with parsing arguments: " + commandline;
             LOG.warn( msg, e );
-            throw new PluginException( MessageFormat.format( rb.getString( "plugin.error.parsingarguments" ), commandline ) );
+            throw new PluginException( MessageFormat.format( rb.getString( "plugin.error.parsingarguments" ), commandline ), e );
         }
 
         // FIXME: We could either return an empty string "", or the original line.  If we want unsuccessful requests

@@ -120,7 +120,7 @@ public abstract class RestServletBase extends HttpServlet {
         response.setHeader( "Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS" );
         response.setHeader( "Access-Control-Allow-Headers", "Content-Type, Authorization" );
         final String origin = request.getHeader( "Origin" );
-        if ( origin == null || origin.isEmpty() ) {
+        if ( origin == null || origin.isEmpty() || !isSafeHeaderValue( origin ) ) {
             return;
         }
         response.setHeader( "Vary", "Origin" );
@@ -134,6 +134,21 @@ public abstract class RestServletBase extends HttpServlet {
                 return;
             }
         }
+    }
+
+    /**
+     * Rejects Origin header values that contain CR, LF, or other control chars.
+     * Prevents header-injection attacks where an attacker smuggles additional
+     * response headers (HRS) via a malicious {@code Origin} request header.
+     */
+    static boolean isSafeHeaderValue( final String value ) {
+        for ( int i = 0; i < value.length(); i++ ) {
+            final char c = value.charAt( i );
+            if ( c < 0x20 || c == 0x7F ) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

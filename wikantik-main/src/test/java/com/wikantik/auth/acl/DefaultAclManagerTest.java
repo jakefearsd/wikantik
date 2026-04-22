@@ -51,7 +51,8 @@ public class DefaultAclManagerTest
         try {
             m_engine.getManager( PageManager.class ).deletePage( "TestDefaultPage" );
             m_engine.getManager( PageManager.class ).deletePage( "TestAclPage" );
-        } catch ( final ProviderException e ) {
+        } catch ( final ProviderException ignored ) {
+            // test cleanup — page may not exist
         }
     }
 

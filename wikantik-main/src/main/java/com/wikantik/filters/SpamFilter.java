@@ -47,6 +47,8 @@ import org.suigeneris.jrcs.diff.delta.DeleteDelta;
 import org.suigeneris.jrcs.diff.delta.Delta;
 import org.suigeneris.jrcs.diff.myers.MyersDiff;
 
+import java.util.Locale;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
@@ -959,7 +961,7 @@ public class SpamFilter implements PageFilter {
         }
 
         if( hashName == null || lastUpdate < ( System.currentTimeMillis() - HASH_DELAY * 60 * 60 * 1000 ) ) {
-            hashName = getUniqueID().toLowerCase();
+            hashName = getUniqueID().toLowerCase( Locale.ROOT );
             lastUpdate = System.currentTimeMillis();
         }
 

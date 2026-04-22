@@ -281,7 +281,7 @@ public class IfPlugin implements Plugin {
             final Pattern matchp = Pattern.compile( pattern, Pattern.DOTALL );
             return matchp.matcher( content ).matches();
         } catch( final PatternSyntaxException e ) {
-            throw new PluginException( "Faulty pattern " + pattern );
+            throw new PluginException( "Faulty pattern " + pattern, e );
         }
     }
 

@@ -220,7 +220,7 @@ public class RecentArticlesServlet extends HttpServlet {
             }
             return java.util.OptionalInt.of( value );
         } catch ( final NumberFormatException e ) {
-            throw new IllegalArgumentException( "Invalid " + name + " parameter: " + raw );
+            throw new IllegalArgumentException( "Invalid " + name + " parameter: " + raw, e );
         }
     }
 

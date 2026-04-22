@@ -21,6 +21,7 @@ package com.wikantik.knowledge;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.wikantik.api.knowledge.*;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -152,6 +153,8 @@ public class JdbcKnowledgeRepository {
      * @param offset           number of results to skip
      * @return list of matching nodes
      */
+    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
+            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     public List< KgNode > queryNodes( final Map< String, Object > filters,
                                       final Set< Provenance > provenanceFilter,
                                       final int limit, final int offset ) {
@@ -169,7 +172,7 @@ public class JdbcKnowledgeRepository {
             }
             if( filters.containsKey( "name" ) ) {
                 sql.append( " AND LOWER( name ) LIKE ?" );
-                params.add( "%" + filters.get( "name" ).toString().toLowerCase() + "%" );
+                params.add( "%" + filters.get( "name" ).toString().toLowerCase( Locale.ROOT ) + "%" );
             }
             if( filters.containsKey( "status" ) ) {
                 sql.append( " AND properties->>'status' = ?" );
@@ -218,12 +221,14 @@ public class JdbcKnowledgeRepository {
      * @param limit            maximum number of results
      * @return list of matching nodes
      */
+    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
+            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     public List< KgNode > searchNodes( final String query, final Set< Provenance > provenanceFilter,
                                        final int limit ) {
         final StringBuilder sql = new StringBuilder(
                 "SELECT * FROM kg_nodes WHERE ( LOWER( name ) LIKE ? OR LOWER( properties::text ) LIKE ? )" );
         final List< Object > params = new ArrayList<>();
-        final String pattern = "%" + query.toLowerCase() + "%";
+        final String pattern = "%" + query.toLowerCase( Locale.ROOT ) + "%";
         params.add( pattern );
         params.add( pattern );
 
@@ -727,7 +732,7 @@ public class JdbcKnowledgeRepository {
         }
         if ( searchName != null && !searchName.isBlank() ) {
             sql.append( " AND ( LOWER( sn.name ) LIKE ? OR LOWER( tn.name ) LIKE ? )" );
-            final String pattern = "%" + searchName.toLowerCase() + "%";
+            final String pattern = "%" + searchName.toLowerCase( Locale.ROOT ) + "%";
             params.add( pattern );
             params.add( pattern );
         }

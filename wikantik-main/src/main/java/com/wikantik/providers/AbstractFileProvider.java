@@ -48,6 +48,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Locale;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
@@ -270,7 +271,7 @@ public abstract class AbstractFileProvider implements PageProvider {
         // The username segment is lowercased to provide case-insensitive lookup.
         if( isBlogPage( pagename ) ) {
             final int secondSlash = pagename.indexOf( '/', BLOG_PREFIX.length() );
-            final String username = pagename.substring( BLOG_PREFIX.length(), secondSlash ).toLowerCase();
+            final String username = pagename.substring( BLOG_PREFIX.length(), secondSlash ).toLowerCase( Locale.ROOT );
             final String slug = pagename.substring( secondSlash + 1 );
             // URL-encode only the slug portion (username is already a simple directory name)
             final String encodedSlug = TextUtil.urlEncode( slug, encoding );
@@ -353,7 +354,7 @@ public abstract class AbstractFileProvider implements PageProvider {
      */
     private static String normaliseBlogName( final String pagename ) {
         final int secondSlash = pagename.indexOf( '/', BLOG_PREFIX.length() );
-        final String username = pagename.substring( BLOG_PREFIX.length(), secondSlash ).toLowerCase();
+        final String username = pagename.substring( BLOG_PREFIX.length(), secondSlash ).toLowerCase( Locale.ROOT );
         final String slug = pagename.substring( secondSlash + 1 );
         return BLOG_PREFIX + username + "/" + slug;
     }

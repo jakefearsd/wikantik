@@ -18,6 +18,7 @@
  */
 package com.wikantik.api.attachment;
 
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
@@ -54,7 +55,7 @@ public final class AttachmentNameValidator {
     public static String getExtension( final String name ) {
         if ( name == null ) return "";
         final int dot = name.lastIndexOf( '.' );
-        return ( dot >= 0 ) ? name.substring( dot + 1 ).toLowerCase() : "";
+        return ( dot >= 0 ) ? name.substring( dot + 1 ).toLowerCase( Locale.ROOT ) : "";
     }
 
     public static boolean extensionsMatch( final String originalName, final String desiredName ) {

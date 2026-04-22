@@ -209,7 +209,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
                     version = res;
                 }
             } catch( final NumberFormatException e ) {
-            } // It's okay to skip these.
+                LOG.debug( "skipping non-numeric version entry '{}' while computing latest version", pageNum );
+            }
         }
 
         return version;
@@ -345,7 +346,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
             return Files.newInputStream( f.toPath() );
         } catch( final FileNotFoundException e ) {
             LOG.error( "File not found: {}", e.getMessage() );
-            throw new ProviderException( "No such page was found." );
+            throw new ProviderException( "No such page was found.", e );
         }
     }
 

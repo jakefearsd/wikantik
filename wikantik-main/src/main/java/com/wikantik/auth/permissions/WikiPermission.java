@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.util.Arrays;
+import java.util.Locale;
 
 /**
  * <p> Permission to perform an global wiki operation, such as self-registering
@@ -96,7 +97,7 @@ public final class WikiPermission extends Permission implements Serializable
     public WikiPermission(final String wiki, final String actions )
     {
         super( wiki );
-        final String[] pageActions = actions.toLowerCase().split( "," );
+        final String[] pageActions = actions.toLowerCase( Locale.ROOT ).split( "," );
         Arrays.sort( pageActions, String.CASE_INSENSITIVE_ORDER );
         mask = createMask( actions );
         final StringBuilder buffer = new StringBuilder();

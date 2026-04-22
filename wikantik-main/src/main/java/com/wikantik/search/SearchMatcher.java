@@ -27,6 +27,7 @@ import com.wikantik.api.spi.Wiki;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.Locale;
 
 
 /**
@@ -74,7 +75,7 @@ public class SearchMatcher {
         String line;
 
         while( (line = in.readLine() ) != null ) {
-            line = line.toLowerCase();
+            line = line.toLowerCase( Locale.ROOT );
 
             for( int j = 0; j < queries.length; j++ ) {
                 int index = -1;
@@ -95,7 +96,7 @@ public class SearchMatcher {
 
         for( int j = 0; j < scores.length; j++ ) {
             // Give five points for each occurrence of the word in the wiki name.
-            if( wikiname.toLowerCase().contains( queries[ j ].word ) && queries[j].type != QueryItem.FORBIDDEN ) {
+            if( wikiname.toLowerCase( Locale.ROOT ).contains( queries[ j ].word ) && queries[j].type != QueryItem.FORBIDDEN ) {
                 scores[j] += 5;
             }
 

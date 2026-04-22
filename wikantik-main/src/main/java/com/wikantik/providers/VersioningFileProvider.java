@@ -260,7 +260,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
                                 version = res;
                             }
                         } catch( final NumberFormatException e ) {
-                        } // It's okay to skip these.
+                            LOG.debug( "skipping non-numeric version key '{}' while computing latest version", pageNum );
+                        }
                     }
                 }
             }

@@ -43,6 +43,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -103,11 +104,15 @@ public class DefaultBlogManager implements BlogManager {
 
         // Create the blog directory atomically
         final Path blogDirPath = Path.of( pageDir, BLOG_DIR, username );
+        final Path parentDir = blogDirPath.getParent();
+        if ( parentDir == null ) {
+            throw new WikiException( "Blog path has no parent directory: " + blogDirPath );
+        }
         try {
-            Files.createDirectories( blogDirPath.getParent() );
+            Files.createDirectories( parentDir );
             Files.createDirectory( blogDirPath );
         } catch ( final FileAlreadyExistsException e ) {
-            throw new BlogAlreadyExistsException( username );
+            throw new BlogAlreadyExistsException( username, e );
         } catch ( final IOException e ) {
             throw new WikiException( "Failed to create blog directory for " + username + ": " + e.getMessage(), e );
         }
@@ -127,7 +132,7 @@ public class DefaultBlogManager implements BlogManager {
     /** {@inheritDoc} */
     @Override
     public void deleteBlog( final Session session, final String username ) throws WikiException {
-        final String normalizedUsername = username.toLowerCase();
+        final String normalizedUsername = username.toLowerCase( Locale.ROOT );
 
         // Validate ownership or admin role
         final String callerUsername = extractUsername( session );
@@ -221,7 +226,7 @@ public class DefaultBlogManager implements BlogManager {
     /** {@inheritDoc} */
     @Override
     public Page getBlog( final String username ) throws ProviderException {
-        final String normalizedUsername = username.toLowerCase();
+        final String normalizedUsername = username.toLowerCase( Locale.ROOT );
         final String pageName = BlogManager.blogPagePath( normalizedUsername, BLOG_HOME_PAGE );
 
         if ( pageManager.wikiPageExists( pageName ) ) {
@@ -233,7 +238,7 @@ public class DefaultBlogManager implements BlogManager {
     /** {@inheritDoc} */
     @Override
     public List< Page > listEntries( final String username ) throws ProviderException {
-        final String normalizedUsername = username.toLowerCase();
+        final String normalizedUsername = username.toLowerCase( Locale.ROOT );
         final Path blogDirPath = Path.of( pageDir, BLOG_DIR, normalizedUsername );
 
         if ( !Files.isDirectory( blogDirPath ) ) {
@@ -274,7 +279,7 @@ public class DefaultBlogManager implements BlogManager {
     /** {@inheritDoc} */
     @Override
     public boolean blogExists( final String username ) {
-        final String normalizedUsername = username.toLowerCase();
+        final String normalizedUsername = username.toLowerCase( Locale.ROOT );
         final Path blogDirPath = Path.of( pageDir, BLOG_DIR, normalizedUsername );
         return Files.isDirectory( blogDirPath );
     }
@@ -282,7 +287,7 @@ public class DefaultBlogManager implements BlogManager {
     /** {@inheritDoc} */
     @Override
     public BlogInfo getBlogInfo( final String username ) throws ProviderException {
-        final String normalizedUsername = username.toLowerCase();
+        final String normalizedUsername = username.toLowerCase( Locale.ROOT );
         final String blogPageName = BlogManager.blogPagePath( normalizedUsername, BLOG_HOME_PAGE );
 
         if ( !pageManager.wikiPageExists( blogPageName ) ) {
@@ -365,7 +370,7 @@ public class DefaultBlogManager implements BlogManager {
         if ( name == null || name.isBlank() ) {
             throw new WikiException( "Session login principal has no name" );
         }
-        return name.toLowerCase();
+        return name.toLowerCase( Locale.ROOT );
     }
 
     /**

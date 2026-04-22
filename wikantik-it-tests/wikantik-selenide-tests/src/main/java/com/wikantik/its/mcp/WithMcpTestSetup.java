@@ -38,6 +38,7 @@ public class WithMcpTestSetup {
     }
 
     @AfterAll
+    @SuppressWarnings( "PMD.NonThreadSafeSingleton" ) // JUnit 5 runs @AfterAll after parallel tests finish; no concurrent access at teardown.
     public static void tearDownMcpClient() {
         if ( mcp != null ) {
             mcp.close();

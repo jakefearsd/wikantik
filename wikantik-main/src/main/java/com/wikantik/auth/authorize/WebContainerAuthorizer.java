@@ -233,13 +233,10 @@ public class WebContainerAuthorizer implements WebAuthorizer  {
             return true;
         }
 
-        // If no roles, we must not be constrained
-        if(roles.isEmpty()) {
-            return false;
-        }
-
-        // If a constraint is contained in both lists, we must be constrained
-        return constraints.stream().anyMatch(constraint -> roles.stream().anyMatch(constraint::equals));
+        // If no roles, we must not be constrained.
+        // Otherwise, we're constrained iff a constraint is contained in both lists.
+        return !roles.isEmpty()
+                && constraints.stream().anyMatch(constraint -> roles.stream().anyMatch(constraint::equals));
     }
 
     /**

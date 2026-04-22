@@ -173,7 +173,7 @@ class SearchWikiTool {
             byName.putIfAbsent( name, sr );
         }
         final List< String > fused = hybrid.rerank( query, bm25Names );
-        if ( fused == bm25Names || fused.equals( bm25Names ) ) {
+        if ( fused.equals( bm25Names ) ) {
             return asList;
         }
         final List< SearchResult > out = new ArrayList<>( fused.size() );

@@ -382,7 +382,7 @@ public class JDBCPlugin implements Plugin {
                                   final String sql, final int maxResults, final boolean showHeader ) throws SQLException, PluginException {
         final String limitedSql = addResultLimit( sql, config.getDatabaseType(), maxResults );
 
-        try ( final Connection conn = config.getConnection();
+        try ( Connection conn = config.getConnection();
               PreparedStatement ps = conn.prepareStatement( limitedSql );
               ResultSet rs = ps.executeQuery() ) {
 

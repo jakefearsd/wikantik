@@ -176,6 +176,7 @@ public class EmbeddingService {
      * Retrains the ComplEx model on the current graph.
      * Safe to call from multiple threads — only one train runs at a time.
      */
+    @SuppressWarnings( "PMD.UnusedAssignment" ) // `training` is volatile and read by snapshot() on other threads.
     public synchronized void retrain() {
         if( training ) return;
         training = true;
@@ -509,6 +510,7 @@ public class EmbeddingService {
      * Each page's text is stripped of markdown and vectorized. Pages that are also
      * KG nodes get their entity_id stored; others have null entity_id.
      */
+    @SuppressWarnings( "PMD.UnusedAssignment" ) // `contentTraining` is volatile and read by snapshot() on other threads.
     public synchronized void retrainContentModel() {
         if( pageManager == null ) {
             LOG.warn( "Content retrain skipped: no PageManager available" );

@@ -63,6 +63,7 @@ public class HubDiscoveryService {
 
     private final JdbcKnowledgeRepository kgRepo;
     private final HubDiscoveryRepository  discoveryRepo;
+    @SuppressWarnings( "PMD.UnusedPrivateField" ) // Repo retained for validation/DI wiring; the service will read it once vector-backed discovery lands.
     private final ContentEmbeddingRepository contentRepo;
     private final HdbscanClusterer        clusterer;
     private final int                     minClusterSize;

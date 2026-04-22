@@ -85,6 +85,7 @@ public class WikiServletFilter implements Filter {
     * @throws ServletException if {@link com.wikantik.auth.AuthenticationManager#login(HttpServletRequest)} fails for any reason
     * @throws IOException If writing to the servlet response fails. 
     */
+    @SuppressWarnings( "PMD.CloseResource" ) // PrintWriter from HttpServletResponse is container-managed; closing it is harmful.
     @Override
     public void doFilter( final ServletRequest request, final ServletResponse response, final FilterChain chain ) throws IOException, ServletException {
         //  Sanity check; it might be true in some conditions, but we need to know where.

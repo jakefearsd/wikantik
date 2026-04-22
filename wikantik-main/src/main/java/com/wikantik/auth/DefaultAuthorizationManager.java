@@ -447,10 +447,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     public boolean checkStaticPermission( final Session session, final Permission permission ) {
         // Non-JSPWiki permissions (like PropertyPermission used as DUMMY_PERMISSION in WikiContext)
         // are always allowed. JSPWiki's local policy only handles wiki-specific permissions.
-        if ( !PermissionChecks.isJSPWikiPermission( permission ) ) {
-            return true;
-        }
-        return Session.doPrivileged( session, ( PrivilegedAction< Boolean > )() -> {
+        return !PermissionChecks.isJSPWikiPermission( permission ) || Session.doPrivileged( session, ( PrivilegedAction< Boolean > )() -> {
             // Check the local policy - check each Role/Group and User Principal
             // Note: JVM-wide security policy via AccessController is deprecated and removed.
             // JSPWiki now relies solely on its local policy for authorization.

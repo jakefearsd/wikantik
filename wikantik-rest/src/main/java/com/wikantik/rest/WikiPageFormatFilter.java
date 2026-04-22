@@ -362,10 +362,7 @@ public class WikiPageFormatFilter implements Filter {
         if ( t.contains( ":" ) ) {
             return false;
         }
-        if ( t.startsWith( "#" ) ) {
-            return false;
-        }
-        return true;
+        return !t.startsWith( "#" );
     }
 
     @Override

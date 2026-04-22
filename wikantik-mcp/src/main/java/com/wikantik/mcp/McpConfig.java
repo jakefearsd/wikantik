@@ -51,6 +51,7 @@ public class McpConfig {
      * {@code tomcat/lib/}) is checked separately so that admin overrides placed in
      * {@code tomcat/lib/wikantik-mcp.properties} are overlaid on top of the defaults.</p>
      */
+    @SuppressWarnings( "PMD.CompareObjectsWithEquals" ) // ClassLoader identity, not equality — we skip only the exact same loader instances.
     public McpConfig() {
         props = new Properties();
         final ClassLoader ownCl = McpConfig.class.getClassLoader();

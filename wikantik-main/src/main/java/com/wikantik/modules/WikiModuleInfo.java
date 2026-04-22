@@ -67,11 +67,7 @@ public class WikiModuleInfo implements Comparable< WikiModuleInfo > {
      */
     @Override
     public boolean equals( final Object obj) {
-        if( obj instanceof WikiModuleInfo info ) {
-            return info.name.equals( name );
-        }
-
-        return false;
+        return obj instanceof WikiModuleInfo info && info.name.equals( name );
     }
 
     /**

@@ -409,10 +409,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
     @Override
     public List< Attachment > listAllChanged( final Date timestamp ) throws ProviderException {
         final File attDir = new File( storageDir );
-        if( !attDir.exists() ) {
-            if (!attDir.mkdirs()) {
-                throw new ProviderException( "Specified attachment directory " + storageDir + " does not exist!" );
-            }
+        if( !attDir.exists() && !attDir.mkdirs() ) {
+            throw new ProviderException( "Specified attachment directory " + storageDir + " does not exist!" );
         }
 
         final var list = new ArrayList< Attachment >();

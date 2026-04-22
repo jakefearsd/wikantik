@@ -68,7 +68,7 @@ public class SearchResource extends RestServletBase {
             throws ServletException, IOException {
 
         final String query = request.getParameter( "q" );
-        if ( query == null || query.trim().isEmpty() ) {
+        if ( query == null || query.isBlank() ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Query parameter 'q' is required" );
             return;
         }
@@ -194,7 +194,7 @@ public class SearchResource extends RestServletBase {
         }
         final Optional< float[] > vec = awaitEmbedding( embedFuture );
         final List< String > fused = hybrid.rerankWith( query, bm25Names, vec );
-        if ( fused == bm25Names || fused.equals( bm25Names ) ) {
+        if ( fused.equals( bm25Names ) ) {
             return asList;
         }
         final List< SearchResult > out = new ArrayList<>( fused.size() );

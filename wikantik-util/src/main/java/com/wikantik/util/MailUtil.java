@@ -312,6 +312,7 @@ public final class MailUtil {
      * @param pSession <code>Session</code>
      * @param pProperties <code>Properties</code>
      */
+    @SuppressWarnings( "PMD.NonThreadSafeSingleton" ) // Idempotent lazy init — all callers derive the same address from the same Session+Properties.
     static void setSenderEmailAddress( final Session pSession, final Properties pProperties ) {
         if( c_fromAddress == null ) {
             // First, attempt to get the email address from the JNDI Mail Session.

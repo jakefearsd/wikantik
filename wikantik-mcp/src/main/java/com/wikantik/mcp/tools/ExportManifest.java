@@ -42,7 +42,7 @@ public class ExportManifest {
 
     private String wikiName;
     private String exportedAt;
-    private Map< String, Integer > pageVersions;
+    private final Map< String, Integer > pageVersions;
 
     public ExportManifest() {
         this.pageVersions = new LinkedHashMap<>();

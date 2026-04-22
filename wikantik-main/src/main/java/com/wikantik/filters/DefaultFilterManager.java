@@ -155,46 +155,41 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
      *  @throws WikiException If something goes wrong.
      */
     private void initialize( final Properties props ) throws WikiException {
-        InputStream xmlStream = null;
-        final String xmlFile = props.getProperty( PROP_FILTERXML ) ;
+        registerFilters();
 
-        try {
-            registerFilters();
-
-            if( engine.getServletContext() != null ) {
-                LOG.debug( "Attempting to locate {} from servlet context.", DEFAULT_XMLFILE );
-                xmlStream = engine.getServletContext().getResourceAsStream(Objects.requireNonNullElse(xmlFile, DEFAULT_XMLFILE));
-            }
-
-            if( xmlStream == null ) {
-                // just a fallback element to the old behaviour prior to 2.5.8
-                LOG.debug( "Attempting to locate filters.xml from class path." );
-
-                xmlStream = getClass().getResourceAsStream(Objects.requireNonNullElse(xmlFile, "/filters.xml"));
-            }
-
-            if( (xmlStream == null) && (xmlFile != null) ) {
-                LOG.debug("Attempting to load property file {}", xmlFile);
-                xmlStream = Files.newInputStream( new File(xmlFile).toPath() );
-            }
-
-            if( xmlStream == null ) {
+        final String xmlFile = props.getProperty( PROP_FILTERXML );
+        try ( InputStream xmlStream = openFilterConfig( xmlFile ) ) {
+            if ( xmlStream == null ) {
                 LOG.info( "Cannot find property file for filters (this is okay, expected to find it as: '{}')", DEFAULT_XMLFILE );
                 return;
             }
-
             parseConfigFile( xmlStream );
-        } catch( final IOException e ) {
-            LOG.error("Unable to read property file", e);
-        } finally {
-            try {
-                if( xmlStream != null ) {
-                    xmlStream.close();
-                }
-            } catch( final IOException ioe ) {
-                // ignore
+        } catch ( final IOException e ) {
+            LOG.error( "Unable to read property file", e );
+        }
+    }
+
+    /** Locate the filter XML in the servlet context, then on the classpath, then on the filesystem. */
+    private InputStream openFilterConfig( final String xmlFile ) throws IOException {
+        if ( engine.getServletContext() != null ) {
+            LOG.debug( "Attempting to locate {} from servlet context.", DEFAULT_XMLFILE );
+            final InputStream fromContext = engine.getServletContext()
+                    .getResourceAsStream( Objects.requireNonNullElse( xmlFile, DEFAULT_XMLFILE ) );
+            if ( fromContext != null ) {
+                return fromContext;
             }
         }
+        LOG.debug( "Attempting to locate filters.xml from class path." );
+        final InputStream fromClasspath = getClass()
+                .getResourceAsStream( Objects.requireNonNullElse( xmlFile, "/filters.xml" ) );
+        if ( fromClasspath != null ) {
+            return fromClasspath;
+        }
+        if ( xmlFile != null ) {
+            LOG.debug( "Attempting to load property file {}", xmlFile );
+            return Files.newInputStream( new File( xmlFile ).toPath() );
+        }
+        return null;
     }
 
     /**

@@ -139,6 +139,7 @@ public class SitemapServlet extends HttpServlet {
         }
     }
 
+    @SuppressWarnings( "PMD.CloseResource" ) // PrintWriter from HttpServletResponse is container-managed; closing it is harmful.
     @Override
     protected void doGet( final HttpServletRequest req, final HttpServletResponse resp )
             throws ServletException, IOException {

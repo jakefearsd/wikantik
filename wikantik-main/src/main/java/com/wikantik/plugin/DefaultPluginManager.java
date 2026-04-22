@@ -244,6 +244,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
 
     /** {@inheritDoc} */
     @Override
+    @SuppressWarnings( "PMD.AvoidCatchingThrowable" ) // Plugins are third-party code; we must not let Errors propagate and tear down the wiki.
     public String execute( final Context context, final String classname, final Map< String, String > params ) throws PluginException {
         if( !pluginsEnabled ) {
             return "";
@@ -284,6 +285,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
     }
 
     /** {@inheritDoc} */
+    @SuppressWarnings( "PMD.CloseResource" ) // StringReader wraps an in-memory string; no resource to release.
     @Override
     public Map< String, String > parseArgs( final String argstring ) throws IOException {
         final Map< String, String > arglist = new HashMap<>();

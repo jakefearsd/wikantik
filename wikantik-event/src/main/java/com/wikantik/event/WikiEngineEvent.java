@@ -88,7 +88,7 @@ public final class WikiEngineEvent extends WikiEvent {
      * @return a String representation of the type
      */
     @Override
-    public final String eventName() {
+    public String eventName() {
         return switch ( getType() ) {
             case INITIALIZING -> "INITIALIZING";
             case INITIALIZED  -> "INITIALIZED";
@@ -104,7 +104,7 @@ public final class WikiEngineEvent extends WikiEvent {
      * @return a String description of the type
      */
     @Override
-    public final String getTypeDescription() {
+    public String getTypeDescription() {
         return switch ( getType() ) {
             case INITIALIZING -> "wiki engine initializing";
             case INITIALIZED  -> "wiki engine initialized";

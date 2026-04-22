@@ -301,7 +301,7 @@ public final class PropertyReader {
             String propertyValue = properties.getProperty( propertyName );
             while( propertyValue.contains( "${" ) && propertyValue.contains( "}" ) ) {
                 final int start = propertyValue.indexOf( "${" );
-                final int end = propertyValue.indexOf( "}", start );
+                final int end = propertyValue.indexOf( '}', start );
                 if( start >= 0 && end >= 0 && end > start ) {
                     final String substring = propertyValue.substring( start, end ).replace( "${", "" ).replace( "}", "" );
                     // Handle Log4j2 lookup prefixes like ${sys:property.name} or ${env:VAR_NAME}

@@ -192,21 +192,17 @@ public abstract class AbstractReferralPlugin implements Plugin {
         includeSystemPages = TextUtil.isPositive( params.get( PARAM_INCLUDE_SYSTEM_PAGES ) );
 
         // LOG.debug( "Requested maximum width is "+maxwidth );
-        s = params.get(PARAM_SHOW);
-        if ( s != null ) {
-            if ( "count".equalsIgnoreCase( s ) ) {
-                show = "count";
-            }
+        s = params.get( PARAM_SHOW );
+        if ( "count".equalsIgnoreCase( s ) ) {
+            show = "count";
         }
 
         s = params.get( PARAM_LASTMODIFIED );
-        if ( s != null ) {
-            if ( "true".equalsIgnoreCase( s ) ) {
-                if ( "count".equals( show ) ) {
-                    lastModified = true;
-                } else {
-                    throw new PluginException( "showLastModified=true is only valid if show=count is also specified" );
-                }
+        if ( "true".equalsIgnoreCase( s ) ) {
+            if ( "count".equals( show ) ) {
+                lastModified = true;
+            } else {
+                throw new PluginException( "showLastModified=true is only valid if show=count is also specified" );
             }
         }
 
@@ -248,11 +244,10 @@ public abstract class AbstractReferralPlugin implements Plugin {
                 includeThis = Arrays.stream(include).anyMatch(pattern -> pattern.matcher(pageName).matches());
             }
 
-            if( exclude.length > 0 ) {
-                // The inner loop, continue on the next item
-                if (Arrays.stream(exclude).anyMatch(pattern -> pattern.matcher(pageName).matches())) {
-                    includeThis = false;
-                }
+            // The inner loop, continue on the next item
+            if( exclude.length > 0
+                    && Arrays.stream( exclude ).anyMatch( pattern -> pattern.matcher( pageName ).matches() ) ) {
+                includeThis = false;
             }
 
             if( includeThis ) {

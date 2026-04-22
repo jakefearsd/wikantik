@@ -206,22 +206,19 @@ public class CommentedProperties extends Properties
         int idx = 0;
         while( ( idx < propertyString.length() ) && ( ( idx = propertyString.indexOf( key, idx ) ) != -1 ) )
         {
-            final int prevret = propertyString.lastIndexOf( "\n", idx );
-            if ( prevret != -1 )
+            final int prevret = propertyString.lastIndexOf( '\n', idx );
+            // Commented lines are skipped
+            if ( prevret != -1 && propertyString.charAt( prevret + 1 ) == '#' )
             {
-                // Commented lines are skipped
-                if ( propertyString.charAt( prevret + 1 ) == '#' )
-                {
-                    idx += key.length();
-                    continue;
-                }
+                idx += key.length();
+                continue;
             }
 
             // If "=" present, delete the entire line
-            final int eqsign = propertyString.indexOf( "=", idx );
+            final int eqsign = propertyString.indexOf( '=', idx );
             if ( eqsign != -1 )
             {
-                final int ret = propertyString.indexOf( "\n", eqsign );
+                final int ret = propertyString.indexOf( '\n', eqsign );
                 propertyString = TextUtil.replaceString( propertyString, prevret, ret, "" );
                 return;
             }
@@ -246,22 +243,19 @@ public class CommentedProperties extends Properties
         int idx = 0;
         while( ( idx < propertyString.length() ) && ( ( idx = propertyString.indexOf( key, idx ) ) != -1 ) )
         {
-            final int prevret = propertyString.lastIndexOf( "\n", idx );
-            if ( prevret != -1 )
+            final int prevret = propertyString.lastIndexOf( '\n', idx );
+            // Commented lines are skipped
+            if ( prevret != -1 && propertyString.charAt( prevret + 1 ) == '#' )
             {
-                // Commented lines are skipped
-                if ( propertyString.charAt( prevret + 1 ) == '#' )
-                {
-                    idx += key.length();
-                    continue;
-                }
+                idx += key.length();
+                continue;
             }
 
             // If "=" present, replace everything in line after it
-            final int eqsign = propertyString.indexOf( "=", idx );
+            final int eqsign = propertyString.indexOf( '=', idx );
             if ( eqsign != -1 )
             {
-                int ret = propertyString.indexOf( "\n", eqsign );
+                int ret = propertyString.indexOf( '\n', eqsign );
                 if ( ret == -1 )
                 {
                     ret = propertyString.length();

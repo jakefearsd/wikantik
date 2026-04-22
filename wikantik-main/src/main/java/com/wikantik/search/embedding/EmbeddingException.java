@@ -21,6 +21,8 @@ package com.wikantik.search.embedding;
 /** Raised when an embedding backend call fails or returns an unexpected shape. */
 public class EmbeddingException extends RuntimeException {
 
+    private static final long serialVersionUID = 1L;
+
     public EmbeddingException( final String message ) {
         super( message );
     }

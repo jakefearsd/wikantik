@@ -42,6 +42,7 @@ public class ToolsConfig {
 
     private final Properties props;
 
+    @SuppressWarnings( "PMD.CompareObjectsWithEquals" ) // ClassLoader identity, not equality — we skip only the exact same loader instances.
     public ToolsConfig() {
         props = new Properties();
         final ClassLoader ownCl = ToolsConfig.class.getClassLoader();

@@ -41,7 +41,7 @@ public class WikiPage implements Page {
 
     private final String     name;
     private final Engine     engine;
-    private       String     wiki;
+    private final String     wiki;
     private Date             lastModified;
     private long             fileSize = -1;
     private int              version = PageProvider.LATEST_VERSION;
@@ -315,6 +315,7 @@ public class WikiPage implements Page {
      *  @return -1, 0 or 1
      */
     @Override
+    @SuppressWarnings( "PMD.CompareObjectsWithEquals" ) // Standard compareTo fast-path for identical references.
     public int compareTo( final Page page ) {
         if( this == page ) {
             return 0; // the same object
@@ -334,13 +335,9 @@ public class WikiPage implements Page {
      */
     @Override
     public boolean equals( final Object o ) {
-        if( o instanceof WikiPage wp ) {
-            if( wp.getName().equals( getName() ) ) {
-                return wp.getVersion() == getVersion();
-            }
-        }
-
-        return false;
+        return o instanceof WikiPage wp
+                && wp.getName().equals( getName() )
+                && wp.getVersion() == getVersion();
     }
 
     /**

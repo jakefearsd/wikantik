@@ -71,21 +71,21 @@ public class SearchMatcher {
         }
 
         final int[] scores = new int[ queries.length ];
-        final BufferedReader in = new BufferedReader( new StringReader( pageText ) );
-        String line;
+        try ( BufferedReader in = new BufferedReader( new StringReader( pageText ) ) ) {
+            String line;
+            while( ( line = in.readLine() ) != null ) {
+                line = line.toLowerCase( Locale.ROOT );
 
-        while( (line = in.readLine() ) != null ) {
-            line = line.toLowerCase( Locale.ROOT );
+                for( int j = 0; j < queries.length; j++ ) {
+                    int index = -1;
 
-            for( int j = 0; j < queries.length; j++ ) {
-                int index = -1;
-
-                while( (index = line.indexOf( queries[j].word, index + 1 ) ) != -1 ) {
-                    if( queries[j].type != QueryItem.FORBIDDEN ) {
-                        scores[j]++; // Mark, found this word n times
-                    } else {
-                        // Found something that was forbidden.
-                        return null;
+                    while( ( index = line.indexOf( queries[j].word, index + 1 ) ) != -1 ) {
+                        if( queries[j].type != QueryItem.FORBIDDEN ) {
+                            scores[j]++; // Mark, found this word n times
+                        } else {
+                            // Found something that was forbidden.
+                            return null;
+                        }
                     }
                 }
             }

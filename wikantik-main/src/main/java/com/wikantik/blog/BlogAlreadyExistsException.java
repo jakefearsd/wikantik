@@ -26,6 +26,8 @@ import com.wikantik.api.exceptions.WikiException;
  */
 public class BlogAlreadyExistsException extends WikiException {
 
+    private static final long serialVersionUID = 1L;
+
     public BlogAlreadyExistsException( final String username ) {
         super( "Blog already exists for user: " + username );
     }

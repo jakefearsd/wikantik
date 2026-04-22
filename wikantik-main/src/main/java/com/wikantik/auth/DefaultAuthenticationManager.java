@@ -488,11 +488,9 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                 fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session );
                 LOG.debug( "Added authorizer role {}.", role.getName() );
             // If web authorizer, test the request.isInRole() method also
-            } else if ( request != null && authorizer instanceof WebAuthorizer wa ) {
-                if ( wa.isUserInRole( request, role ) ) {
-                    fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session );
-                    LOG.debug( "Added container role {}.",role.getName() );
-                }
+            } else if ( request != null && authorizer instanceof WebAuthorizer wa && wa.isUserInRole( request, role ) ) {
+                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session );
+                LOG.debug( "Added container role {}.",role.getName() );
             }
         }
     }

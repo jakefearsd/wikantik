@@ -137,7 +137,6 @@ public class WikiEngine implements Engine {
     private String           workDir;
 
     /** Each engine has their own application id. */
-    private String           appid = "";
 
     /** engine is up and running or not */
     private volatile boolean isConfigured;
@@ -238,7 +237,6 @@ public class WikiEngine implements Engine {
      */
     protected WikiEngine( final ServletContext context, final String appid ) throws WikiException {
         this.servletContext = context;
-        this.appid          = appid;
 
         // Stash the WikiEngine in the servlet context
         if ( context != null ) {
@@ -683,6 +681,7 @@ public class WikiEngine implements Engine {
      * this method is a no-op, guaranteeing zero background cost for deployments
      * that have not opted in.
      */
+    @SuppressWarnings( "PMD.CloseResource" ) // AsyncEmbeddingIndexListener / BootstrapEmbeddingIndexer are stored as managers; their lifecycles follow the engine shutdown.
     private void wireHybridRetrieval( final Properties props,
                                       final javax.sql.DataSource ds,
                                       final com.wikantik.knowledge.chunking.ChunkProjector chunkProjector,
@@ -852,7 +851,7 @@ public class WikiEngine implements Engine {
         for( final Enumeration< ? > i = properties.propertyNames(); i.hasMoreElements(); ) {
             final String prop = ( String )i.nextElement();
             if( prop.startsWith( PROP_INTERWIKIREF ) ) {
-                list.add( prop.substring( prop.lastIndexOf( "." ) + 1 ) );
+                list.add( prop.substring( prop.lastIndexOf( '.' ) + 1 ) );
             }
         }
 

@@ -63,11 +63,10 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
      */
     @Override
     public final void actionPerformed( final WikiEvent event ) {
-        if ( event instanceof WikiEngineEvent engineEvent ) {
-            if ( engineEvent.getType() == WikiEngineEvent.SHUTDOWN ) {
-                LOG.info( "Detected wiki engine shutdown: killing {}.", getName() );
-                killMe = true;
-            }
+        if ( event instanceof WikiEngineEvent engineEvent
+                && engineEvent.getType() == WikiEngineEvent.SHUTDOWN ) {
+            LOG.info( "Detected wiki engine shutdown: killing {}.", getName() );
+            killMe = true;
         }
     }
     
@@ -106,6 +105,7 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
      * @see java.lang.Thread#run()
      */
     @Override
+    @SuppressWarnings( "PMD.AvoidCatchingThrowable" ) // Top-level runloop: must survive OutOfMemoryError/AssertionError so the thread can drain and report.
     public final void run() {
         try {
             // Perform the initial startup task

@@ -89,6 +89,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
     /** Regex pattern for numeric HTML entities (&#123; or &#x1F4A1;). */
     private static final Pattern NUMERIC_ENTITY_PATTERN = Pattern.compile( "&#(x?)([0-9a-fA-F]+);" );
 
+    @SuppressWarnings( "PMD.UnusedPrivateField" ) // Held for late-bound manager lookups; not yet consumed on the read path.
     private Engine engine;
     private PageManager pageManager;
     private RenderingManager renderingManager;
@@ -617,17 +618,9 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
             }
         }
 
-        // Check query-specific exclude pattern
-        if ( excludePattern != null && excludePattern.matcher( pageName ).matches() ) {
-            return true;
-        }
-
-        // Check query-specific include pattern (if set, page must match)
-        if ( includePattern != null && !includePattern.matcher( pageName ).matches() ) {
-            return true;
-        }
-
-        return false;
+        // Excluded if either exclude pattern matches, or include pattern is set and doesn't match.
+        return ( excludePattern != null && excludePattern.matcher( pageName ).matches() )
+                || ( includePattern != null && !includePattern.matcher( pageName ).matches() );
     }
 
     /**

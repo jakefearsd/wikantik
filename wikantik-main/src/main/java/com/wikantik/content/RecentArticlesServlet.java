@@ -85,9 +85,6 @@ public class RecentArticlesServlet extends HttpServlet {
     private static final Logger LOG = LogManager.getLogger( RecentArticlesServlet.class );
 
     private static final int MAX_COUNT = 100;
-    private static final int DEFAULT_COUNT = 10;
-    private static final int DEFAULT_SINCE_DAYS = 30;
-    private static final int DEFAULT_EXCERPT_LENGTH = 200;
 
     private transient Engine engine;
     private transient Gson gson;
@@ -112,6 +109,7 @@ public class RecentArticlesServlet extends HttpServlet {
     /**
      * {@inheritDoc}
      */
+    @SuppressWarnings( "PMD.CloseResource" ) // PrintWriter from HttpServletResponse is container-managed; closing it is harmful.
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
@@ -249,6 +247,7 @@ public class RecentArticlesServlet extends HttpServlet {
     /**
      * Sends an error response as JSON.
      */
+    @SuppressWarnings( "PMD.CloseResource" ) // PrintWriter from HttpServletResponse is container-managed; closing it is harmful.
     private void sendError( final HttpServletResponse response, final int status, final String message )
             throws IOException {
         response.setStatus( status );

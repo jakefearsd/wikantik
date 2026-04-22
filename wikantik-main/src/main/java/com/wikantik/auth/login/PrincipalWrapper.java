@@ -69,11 +69,7 @@ public final class PrincipalWrapper implements Principal
     @Override
     public boolean equals(final Object obj )
     {
-        if ( ! ( obj instanceof PrincipalWrapper ) )
-        {
-            return false;
-        }
-        return principal.equals( ( (PrincipalWrapper)obj ).getPrincipal() );
+        return obj instanceof PrincipalWrapper pw && principal.equals( pw.getPrincipal() );
     }
 
     /**

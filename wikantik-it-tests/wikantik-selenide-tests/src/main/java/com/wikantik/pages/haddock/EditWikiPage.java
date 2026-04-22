@@ -19,7 +19,6 @@
 package com.wikantik.pages.haddock;
 
 import com.codeborne.selenide.Condition;
-import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
 import com.codeborne.selenide.WebDriverRunner;
 import com.wikantik.pages.Page;

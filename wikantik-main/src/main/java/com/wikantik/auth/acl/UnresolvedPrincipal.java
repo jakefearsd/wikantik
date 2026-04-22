@@ -78,11 +78,7 @@ public final class UnresolvedPrincipal implements Principal, Serializable
     @Override
     public boolean equals(final Object obj )
     {
-        if ( obj instanceof UnresolvedPrincipal other )
-        {
-            return name.equals( other.name );
-        }
-        return false;
+        return obj instanceof UnresolvedPrincipal other && name.equals( other.name );
     }
 
     /**

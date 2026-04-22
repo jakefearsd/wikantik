@@ -333,13 +333,12 @@ public final class WikiEventManager {
                 // then see if any of the cached delegates match the class of the incoming client
                 for( int i = preloadCache.size()-1 ; i >= 0 ; i-- ) { // start with most-recently added
                     final WikiEventDelegate delegate = preloadCache.get( i );
-                    if( delegate.getClientClass() == null || delegate.getClientClass().equals( client.getClass() ) ) {
-                        // we have a hit, so use it, but only on a client we haven't seen before
-                        if( !delegates.containsKey( client ) ) {
-                            preloadCache.remove( delegate );
-                            delegates.put( client, delegate );
-                            return delegate;
-                        }
+                    // we have a hit, so use it, but only on a client we haven't seen before
+                    if( ( delegate.getClientClass() == null || delegate.getClientClass().equals( client.getClass() ) )
+                            && !delegates.containsKey( client ) ) {
+                        preloadCache.remove( delegate );
+                        delegates.put( client, delegate );
+                        return delegate;
                     }
                 }
             }
@@ -413,6 +412,7 @@ public final class WikiEventManager {
          * @param listener the WikiEventListener to be added
          * @return true if the listener was added (i.e., it was not already in the list and was added)
          */
+        @SuppressWarnings( "PMD.CompareObjectsWithEquals" ) // Listener identity — duplicates mean the same instance, not equal instances.
         public boolean addWikiEventListener( final WikiEventListener listener ) {
             synchronized( m_listenerList ) {
                 final boolean listenerAlreadyContained = m_listenerList.stream()
@@ -431,6 +431,7 @@ public final class WikiEventManager {
          * @param listener   the WikiEventListener to be removed
          * @return true if the listener was removed (i.e., it was actually in the list and was removed)
          */
+        @SuppressWarnings( "PMD.CompareObjectsWithEquals" ) // Listener identity — we remove the exact instance the caller registered.
         public boolean removeWikiEventListener( final WikiEventListener listener ) {
             synchronized( m_listenerList ) {
                 for( final Iterator< WeakReference< WikiEventListener > > i = m_listenerList.iterator(); i.hasNext(); ) {
@@ -494,7 +495,7 @@ public final class WikiEventManager {
         // TODO: This method is a critical performance bottleneck
         @Override
         public int compare( final WikiEventListener w0, final WikiEventListener w1 ) {
-            if( w1 == w0 || w0.equals( w1 ) ) {
+            if( w0.equals( w1 ) ) {
                 return 0;
             }
 

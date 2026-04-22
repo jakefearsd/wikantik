@@ -460,7 +460,7 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
         try {
             assertEquals( 200, conn.getResponseCode(),
                     "Expected HTTP 200 for " + path + " but got " + conn.getResponseCode() );
-            try ( final BufferedReader reader = new BufferedReader(
+            try ( BufferedReader reader = new BufferedReader(
                     new InputStreamReader( conn.getInputStream(), StandardCharsets.UTF_8 ) ) ) {
                 return reader.lines().collect( Collectors.joining( "\n" ) );
             }

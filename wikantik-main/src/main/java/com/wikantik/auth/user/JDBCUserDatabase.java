@@ -326,6 +326,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      * @see com.wikantik.auth.user.UserDatabase#initialize(com.wikantik.api.core.Engine, java.util.Properties)
      */
     @Override
+    @SuppressWarnings( "PMD.UnusedLocalVariable" ) // try-with-resources below holds the prepared statement only for its side effect.
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, WikiSecurityException {
         final String jndiName = props.getProperty( AbstractJDBCDatabase.PROP_DATASOURCE, AbstractJDBCDatabase.DEFAULT_DATASOURCE );
         try {
@@ -338,7 +339,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         }
 
         // Test connection by doing a quickie select
-        try( Connection conn = ds.getConnection(); final PreparedStatement ps = conn.prepareStatement( FIND_ALL ) ) {
+        try( Connection conn = ds.getConnection(); PreparedStatement ps = conn.prepareStatement( FIND_ALL ) ) {
         } catch( final SQLException e ) {
             LOG.error( "DB connectivity error: {}", e.getMessage() );
             throw new WikiSecurityException("DB connectivity error: " + e.getMessage(), e );
@@ -531,7 +532,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         UserProfile profile = null;
         boolean found = false;
         boolean unique = true;
-        try( Connection conn = ds.getConnection(); final PreparedStatement ps = conn.prepareStatement( sql ) ) {
+        try( Connection conn = ds.getConnection(); PreparedStatement ps = conn.prepareStatement( sql ) ) {
             if( supportsCommits ) {
                 conn.setAutoCommit( false );
             }

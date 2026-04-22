@@ -126,7 +126,7 @@ public record EmbeddingConfig(
     }
 
     private static int parsePositiveInt( final String value, final int fallback, final String key ) {
-        if( value == null || value.trim().isEmpty() ) return fallback;
+        if( value == null || value.isBlank() ) return fallback;
         final int parsed;
         try {
             parsed = Integer.parseInt( value.trim() );

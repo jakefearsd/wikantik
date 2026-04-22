@@ -77,7 +77,9 @@ public class DatabaseHealthCheck implements HealthCheck {
             try ( Connection conn = ds.getConnection();
                   Statement stmt = conn.createStatement();
                   ResultSet rs = stmt.executeQuery( "SELECT 1" ) ) {
-                rs.next();
+                if ( !rs.next() ) {
+                    return HealthResult.down( System.currentTimeMillis() - start, "Database returned no rows for SELECT 1" );
+                }
             }
             return HealthResult.up( System.currentTimeMillis() - start );
         } catch ( final Exception e ) {

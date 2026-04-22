@@ -191,7 +191,7 @@ public class McpTestClient implements AutoCloseable {
         if ( dir == null || !Files.exists( dir ) ) {
             return;
         }
-        try ( final Stream< Path > stream = Files.walk( dir ) ) {
+        try ( Stream< Path > stream = Files.walk( dir ) ) {
             stream.sorted( Comparator.reverseOrder() ).forEach( p -> {
                 try {
                     Files.deleteIfExists( p );
@@ -296,6 +296,7 @@ public class McpTestClient implements AutoCloseable {
     }
 
     public static class McpToolError extends RuntimeException {
+        private static final long serialVersionUID = 1L;
         private final String toolName;
         private final String responseText;
 

@@ -102,6 +102,7 @@ public final class QueryEmbedder {
      * Embed a single query and return {@code Optional.of(vector)} on success,
      * {@code Optional.empty()} on any failure. Never throws.
      */
+    @SuppressWarnings( "PMD.AvoidCatchingThrowable" ) // Callers must fall back to BM25-only on any embedding failure, including JVM-level Errors.
     public Optional< float[] > embed( final String query ) {
         if( query == null ) {
             return Optional.empty();

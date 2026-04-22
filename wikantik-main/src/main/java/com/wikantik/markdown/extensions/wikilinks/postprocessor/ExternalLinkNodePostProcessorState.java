@@ -35,13 +35,13 @@ import java.util.regex.Pattern;
  */
 public class ExternalLinkNodePostProcessorState extends AbstractLinkState implements NodePostProcessorState< WikantikLink > {
 
-    private boolean useOutlinkImage = true;
+    private final boolean useOutlinkImage;
 
     public ExternalLinkNodePostProcessorState( final Context wikiContext,
                                                final boolean isImageInlining,
                                                final List< Pattern > inlineImagePatterns ) {
         super( wikiContext, isImageInlining, inlineImagePatterns );
-        this.useOutlinkImage = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USEOUTLINKIMAGE, useOutlinkImage );
+        this.useOutlinkImage = wikiContext.getBooleanWikiProperty( MarkupParser.PROP_USEOUTLINKIMAGE, true );
     }
 
     /**

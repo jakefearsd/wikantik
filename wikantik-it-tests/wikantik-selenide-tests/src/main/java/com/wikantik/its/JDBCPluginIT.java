@@ -103,7 +103,7 @@ public class JDBCPluginIT extends WithIntegrationTestSetup {
     @Test
     @DisabledOnOs( OS.WINDOWS )
     void testJDBCPluginCustomCssClass() {
-        final ViewWikiPage page = ViewWikiPage.open( "JDBCPluginTest" );
+        ViewWikiPage.open( "JDBCPluginTest" );
 
         // Find the electronics table with custom CSS class
         final SelenideElement electronicsDiv = $( ".electronics-table" );
@@ -127,7 +127,7 @@ public class JDBCPluginIT extends WithIntegrationTestSetup {
     @Test
     @DisabledOnOs( OS.WINDOWS )
     void testJDBCPluginNoHeader() {
-        final ViewWikiPage page = ViewWikiPage.open( "JDBCPluginTest" );
+        ViewWikiPage.open( "JDBCPluginTest" );
 
         // Find all jdbc-results divs
         final ElementsCollection jdbcDivs = $$( ".jdbc-results" );
@@ -159,7 +159,7 @@ public class JDBCPluginIT extends WithIntegrationTestSetup {
     @Test
     @DisabledOnOs( OS.WINDOWS )
     void testMultipleJDBCPluginInvocations() {
-        final ViewWikiPage page = ViewWikiPage.open( "JDBCPluginTest" );
+        ViewWikiPage.open( "JDBCPluginTest" );
 
         // Count all jdbc-related divs
         final ElementsCollection jdbcDivs = $$( ".jdbc-results" );

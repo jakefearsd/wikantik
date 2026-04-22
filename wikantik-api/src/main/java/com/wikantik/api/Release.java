@@ -116,10 +116,7 @@ public final class Release {
 
         if( VERSION == reqVersion ) {
             if( REVISION == reqRevision ) {
-                if( MINORREVISION == reqMinorRevision ) {
-                    return true;
-                }
-                return MINORREVISION > reqMinorRevision;
+                return MINORREVISION == reqMinorRevision || MINORREVISION > reqMinorRevision;
             }
             return REVISION > reqRevision;
         }
@@ -147,10 +144,7 @@ public final class Release {
 
         if( VERSION == reqVersion ) {
             if( REVISION == reqRevision ) {
-                if( MINORREVISION == reqMinorRevision ) {
-                    return true;
-                }
-                return MINORREVISION < reqMinorRevision;
+                return MINORREVISION == reqMinorRevision || MINORREVISION < reqMinorRevision;
             }
             return REVISION < reqRevision;
         }

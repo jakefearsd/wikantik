@@ -68,6 +68,7 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
      * @param properties JSPWiki configuration properties.
      * @return {@code true} if configuration was read from wikantik.properties, {@code false} otherwise.
      */
+    @SuppressWarnings( "PMD.CloseResource" ) // LoggerContext is container-managed; closing it would tear down Log4j2 for the whole container.
     boolean initWikiLoggingFramework( final Properties properties ) {
         final String useExternalLogConfig = TextUtil.getStringProperty( properties, "wikantik.use.external.logconfig", "false" );
         if ( "false".equals( useExternalLogConfig ) ) {

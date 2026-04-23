@@ -241,6 +241,7 @@ Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeploymen
 - [MathematicalNotation.md](docs/MathematicalNotation.md) — LaTeX math rendering (`$…$`, `$$…$$`, ```` ```math ````) via Flexmark + KaTeX
 - [NewUI.md](docs/NewUI.md) — React SPA design and architecture (reader, editor, admin, knowledge graph)
 - [DatabaseUpdates.md](docs/DatabaseUpdates.md) — Knowledge graph schema and index layout
+- [KnowledgeGraphRerank.md](docs/KnowledgeGraphRerank.md) — Configuration, verification, and tuning guide for the entity extractor, unified embeddings, and graph-aware search rerank
 - [RelationalUserDatabase.md](docs/RelationalUserDatabase.md) — PostgreSQL user and group database configuration
 - [Sitemap.md](docs/Sitemap.md) — Sitemap.xml and Atom feed servlets
 - [OAuthImplementation.md](docs/OAuthImplementation.md) — OAuth SSO implementation plan (Google, GitHub)

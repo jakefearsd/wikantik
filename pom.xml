@@ -161,6 +161,7 @@
     <module>wikantik-knowledge</module>
     <module>wikantik-observability</module>
     <module>wikantik-rest</module>
+    <module>wikantik-extract-cli</module>
     <module>wikantik-war</module>
     <module>wikantik-it-tests</module><!-- IT tests are launched only if -Pintegration-tests is given -->
     <module>wikantik-bom</module>

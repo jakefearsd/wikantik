@@ -126,6 +126,9 @@ public class AdminExtractionResource extends RestServletBase {
         m.put( "totalPages", s.totalPages() );
         m.put( "processedPages", s.processedPages() );
         m.put( "failedPages", s.failedPages() );
+        m.put( "totalChunks", s.totalChunks() );
+        m.put( "processedChunks", s.processedChunks() );
+        m.put( "failedChunks", s.failedChunks() );
         m.put( "mentionsWritten", s.mentionsWritten() );
         m.put( "proposalsFiled", s.proposalsFiled() );
         m.put( "elapsedMs", s.elapsedMs() );

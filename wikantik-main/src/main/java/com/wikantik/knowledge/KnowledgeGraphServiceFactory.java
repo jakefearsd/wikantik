@@ -27,6 +27,8 @@ import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.knowledge.chunking.ChunkProjector;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.chunking.ContentChunker;
+import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
+import com.wikantik.search.embedding.EmbeddingConfig;
 import com.wikantik.util.TextUtil;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.logging.log4j.LogManager;
@@ -62,7 +64,7 @@ public final class KnowledgeGraphServiceFactory {
         GraphProjector graphProjector,
         FrontmatterDefaultsFilter frontmatterDefaultsFilter,
         HubSyncFilter hubSyncFilter,
-        EmbeddingService embeddingService,
+        NodeMentionSimilarity nodeMentionSimilarity,
         HubProposalRepository hubProposalRepo,
         HubProposalService hubProposalService,
         HubDiscoveryRepository hubDiscoveryRepo,
@@ -102,7 +104,7 @@ public final class KnowledgeGraphServiceFactory {
      * empty MLT list.
      *
      * @param dataSource JNDI-resolved wiki database
-     * @param props      engine properties (used for retrain interval, review percentile, etc.)
+     * @param props      engine properties (used for review percentile, chunker tuning, etc.)
      * @param spr        system-page registry (may be null — HubSyncFilter tolerates it)
      * @param pageManager page manager used by HubSyncFilter to fetch current page text
      * @param saveHelper save helper used by HubSyncFilter to write updated hub pages
@@ -146,31 +148,25 @@ public final class KnowledgeGraphServiceFactory {
             }
         );
 
-        final EmbeddingRepository embeddingRepo = new EmbeddingRepository( dataSource );
-        final ContentEmbeddingRepository contentEmbeddingRepo = new ContentEmbeddingRepository( dataSource );
-        final EmbeddingService embeddingService = new EmbeddingService(
-            repo, embeddingRepo, contentEmbeddingRepo, pageManager, spr );
-        embeddingService.configure( props );
+        // Share the search-side embedding model code so the mention-centroid
+        // reader picks the same vectors the hybrid retriever already stores.
+        final String modelCode = EmbeddingConfig.fromProperties( props ).model().code();
+        final NodeMentionSimilarity similarity = new NodeMentionSimilarity( dataSource, modelCode );
 
         final HubProposalRepository hubProposalRepo = new HubProposalRepository( dataSource );
-
-        // Supplier indirection lets the service always see the latest trained content
-        // model after EmbeddingService retrains, rather than capturing a stale reference.
         final HubProposalService hubProposalService = HubProposalService.builder()
             .kgRepo( repo )
             .proposalRepo( hubProposalRepo )
-            .contentRepo( contentEmbeddingRepo )
+            .similarity( similarity )
             .reviewPercentileFromProperties( props )
-            .contentModelSupplier( embeddingService::getCurrentContentModel )
             .build();
 
         final HubDiscoveryRepository hubDiscoveryRepo = new HubDiscoveryRepository( dataSource );
         final HubDiscoveryService hubDiscoveryService = HubDiscoveryService.builder()
             .kgRepo( repo )
             .discoveryRepo( hubDiscoveryRepo )
-            .contentRepo( contentEmbeddingRepo )
+            .similarity( similarity )
             .propsFrom( props )
-            .contentModelSupplier( embeddingService::getCurrentContentModel )
             .pageWriter( ( name, content ) -> saveHelper.saveText( name, content,
                 SaveOptions.builder().changeNote( "Hub discovery: stub created" ).build() ) )
             .pageExists( name -> {
@@ -187,7 +183,7 @@ public final class KnowledgeGraphServiceFactory {
 
         final HubOverviewService hubOverviewService = HubOverviewService.builder()
             .kgRepo( repo )
-            .contentModelSupplier( embeddingService::getCurrentContentModel )
+            .similarity( similarity )
             .pageManager( pageManager )
             .pageWriter( ( name, content ) -> saveHelper.saveText( name, content,
                 SaveOptions.builder().changeNote( "Hub overview: member removed" ).build() ) )
@@ -197,10 +193,8 @@ public final class KnowledgeGraphServiceFactory {
 
         final ContentChunkRepository contentChunkRepo = new ContentChunkRepository( dataSource );
         final ContentChunker chunker = new ContentChunker( new ContentChunker.Config(
-            TextUtil.getIntegerProperty( props, "wikantik.chunker.target_tokens", 300 ),
             TextUtil.getIntegerProperty( props, "wikantik.chunker.max_tokens", 512 ),
-            TextUtil.getIntegerProperty( props, "wikantik.chunker.min_tokens", 80 ),
-            TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 8 ) ) );
+            TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 150 ) ) );
         final ChunkProjector chunkProjector = meterRegistry != null
             ? new ChunkProjector( chunker, contentChunkRepo,
                 () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ),
@@ -209,7 +203,7 @@ public final class KnowledgeGraphServiceFactory {
                 () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ) );
 
         return new Services( kgService, projector, fmDefaults, hubSync,
-            embeddingService, hubProposalRepo, hubProposalService,
+            similarity, hubProposalRepo, hubProposalService,
             hubDiscoveryRepo, hubDiscoveryService, hubOverviewService,
             chunkProjector, contentChunkRepo );
     }

@@ -24,6 +24,7 @@ import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,14 +37,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.function.Supplier;
 
 /**
  * Read-focused service that surfaces health statistics for already-accepted Hub pages.
  *
  * <p>Backs the "Existing Hubs" panel in the Hub Discovery admin tab. All statistics are
- * computed on demand from the live KG snapshot and the current TF-IDF content model —
- * nothing is persisted, no caching, one round-trip per call.
+ * computed on demand from the live KG snapshot and the unified mention-centroid vectors
+ * ({@link NodeMentionSimilarity}) — nothing is persisted, no caching, one round-trip per
+ * {@code allCentroids()} fetch per call.
  *
  * <p>The only mutation exposed is per-member removal: it parses the hub page's
  * frontmatter, drops the named member from {@code related:}, and saves the page back
@@ -65,7 +66,7 @@ public class HubOverviewService {
     private static final int    DEFAULT_MLT_MAX             = 10;
 
     private final JdbcKnowledgeRepository    kgRepo;
-    private final Supplier< TfidfModel >     contentModelSupplier;
+    private final NodeMentionSimilarity      similarity;
     private final PageManager                pageManager;
     private final HubDiscoveryService.PageWriter pageWriter;
     private final LuceneMlt                  luceneMlt;
@@ -76,7 +77,7 @@ public class HubOverviewService {
 
     private HubOverviewService( final Builder b ) {
         this.kgRepo                = b.kgRepo;
-        this.contentModelSupplier  = b.contentModelSupplier;
+        this.similarity            = b.similarity;
         this.pageManager           = b.pageManager;
         this.pageWriter            = b.pageWriter;
         this.luceneMlt             = b.luceneMlt != null ? b.luceneMlt
@@ -120,11 +121,11 @@ public class HubOverviewService {
     /** See spec section "listHubOverviews algorithm". */
     public List< HubOverviewSummary > listHubOverviews() {
         final long start = System.currentTimeMillis();
-        final TfidfModel resolved = resolveModel();
-        if ( resolved == null ) {
-            LOG.info( "Hub overview list: skipped — content model unavailable" );
-            return Collections.emptyList();
-        }
+        // When no mentions exist yet (e.g. Phase 1 with the extractor still disabled) the
+        // vectors map is empty. Downstream computeHubShapes / nearMisses tolerate that
+        // path — shapes come back with NaN coherence and nearMiss counts are 0 — so the
+        // admin panel still lists every hub with its member count and inbound links.
+        final Map< String, float[] > vectors = similarity.allCentroids();
 
         final Map< String, com.wikantik.api.knowledge.KgNode > hubsByName = loadHubNodes();
         if ( hubsByName.isEmpty() ) {
@@ -133,8 +134,8 @@ public class HubOverviewService {
         }
 
         final Map< String, Set< String > > hubMembers   = loadAllHubMembers();
-        final Map< String, HubShape >      shapes       = computeHubShapes( resolved, hubsByName, hubMembers );
-        final Map< String, Integer >       nearMisses   = computeNearMissCounts( resolved, hubsByName, hubMembers, shapes );
+        final Map< String, HubShape >      shapes       = computeHubShapes( vectors, hubsByName, hubMembers );
+        final Map< String, Integer >       nearMisses   = computeNearMissCounts( vectors, hubsByName, hubMembers, shapes );
         final Map< String, Set< String > > inboundByHub = computeInboundLinkSources( hubsByName, hubMembers );
 
         final List< HubOverviewSummary > summaries = buildSummaries(
@@ -162,14 +163,14 @@ public class HubOverviewService {
         static HubShape empty() { return new HubShape( null, Double.NaN ); }
     }
 
-    /** Step 3: per-hub centroid + coherence over model-backed members. */
+    /** Step 3: per-hub centroid + coherence over members that have mention-centroid vectors. */
     private Map< String, HubShape > computeHubShapes(
-            final TfidfModel model,
+            final Map< String, float[] > vectors,
             final Map< String, com.wikantik.api.knowledge.KgNode > hubsByName,
             final Map< String, Set< String > > hubMembers ) {
         final Map< String, HubShape > shapes = new LinkedHashMap<>();
         for ( final String hubName : hubsByName.keySet() ) {
-            final List< float[] > vecs = vectorsFor( model, hubMembers.getOrDefault( hubName, Set.of() ) );
+            final List< float[] > vecs = vectorsFor( vectors, hubMembers.getOrDefault( hubName, Set.of() ) );
             if ( vecs.size() < 2 ) {
                 shapes.put( hubName, HubShape.empty() );
                 continue;
@@ -183,7 +184,7 @@ public class HubOverviewService {
 
     /** Step 4: per-hub count of non-member non-hub entities whose cosine ≥ threshold. */
     private Map< String, Integer > computeNearMissCounts(
-            final TfidfModel model,
+            final Map< String, float[] > vectors,
             final Map< String, com.wikantik.api.knowledge.KgNode > hubsByName,
             final Map< String, Set< String > > hubMembers,
             final Map< String, HubShape > shapes ) {
@@ -191,12 +192,11 @@ public class HubOverviewService {
         for ( final Set< String > set : hubMembers.values() ) allMemberNames.addAll( set );
         final Map< String, Integer > counts = new HashMap<>();
         for ( final String hubName : hubsByName.keySet() ) counts.put( hubName, 0 );
-        for ( final String entityName : model.getEntityNames() ) {
+        for ( final Map.Entry< String, float[] > entry : vectors.entrySet() ) {
+            final String entityName = entry.getKey();
             if ( hubsByName.containsKey( entityName ) ) continue;
             if ( allMemberNames.contains( entityName ) ) continue;
-            final int eid = model.entityId( entityName );
-            if ( eid < 0 ) continue;
-            final float[] vec = model.getVector( eid );
+            final float[] vec = entry.getValue();
             for ( final String hubName : hubsByName.keySet() ) {
                 final float[] centroid = shapes.get( hubName ).centroid();
                 if ( centroid != null && cosine( vec, centroid ) >= nearMissThreshold ) {
@@ -268,12 +268,6 @@ public class HubOverviewService {
 
     // ---- private helpers ----
 
-    private TfidfModel resolveModel() {
-        final TfidfModel m = contentModelSupplier.get();
-        if ( m == null || m.getEntityCount() == 0 ) return null;
-        return m;
-    }
-
     private boolean pageExists( final String name ) {
         try {
             return pageManager.pageExists( name );
@@ -310,17 +304,20 @@ public class HubOverviewService {
         return out;
     }
 
-    private List< float[] > vectorsFor( final TfidfModel m, final Set< String > names ) {
+    private static List< float[] > vectorsFor( final Map< String, float[] > vectors,
+                                                final Set< String > names ) {
         final List< float[] > out = new ArrayList<>();
         for ( final String name : names ) {
-            final int eid = m.entityId( name );
-            if ( eid >= 0 ) out.add( m.getVector( eid ) );
+            final float[] v = vectors.get( name );
+            if ( v != null ) out.add( v );
         }
         return out;
     }
 
     private static double cosine( final float[] a, final float[] b ) {
-        // Both vectors are L2-normalised in the TF-IDF model, so dot product == cosine.
+        // Mention centroids are unit-normalized when produced by NodeMentionSimilarity,
+        // so dot product == cosine without an explicit renormalization step.
+        if ( a.length != b.length ) return 0.0;
         double dot = 0;
         for ( int i = 0; i < a.length; i++ ) dot += a[ i ] * b[ i ];
         return dot;
@@ -333,16 +330,16 @@ public class HubOverviewService {
 
         if ( !hubNodeExists( hubName ) ) return null;
 
-        final TfidfModel resolved = resolveModel();
+        final Map< String, float[] > vectors = similarity.allCentroids();
         final Map< String, Set< String > > allHubMembers = loadAllHubMembers();
         final Set< String > rawMembers = allHubMembers.getOrDefault( hubName, Set.of() );
 
         final MemberPartition partition = partitionMembers( rawMembers );
-        final HubShape shape = hubShapeOf( resolved, rawMembers );
-        final List< MemberDetail > memberDetails = buildMemberDetails( resolved, shape.centroid(), partition.existing() );
+        final HubShape shape = hubShapeOf( vectors, rawMembers );
+        final List< MemberDetail > memberDetails = buildMemberDetails( vectors, shape.centroid(), partition.existing() );
 
-        final List< NearMissTfidf > nearMissList = computeNearMissTfidf( resolved, shape.centroid(), allHubMembers.keySet(), rawMembers );
-        final List< OverlapHub >    overlapHubs  = computeOverlapHubs ( resolved, shape.centroid(), allHubMembers, hubName, rawMembers );
+        final List< NearMissTfidf > nearMissList = computeNearMissTfidf( vectors, shape.centroid(), allHubMembers.keySet(), rawMembers );
+        final List< OverlapHub >    overlapHubs  = computeOverlapHubs ( vectors, shape.centroid(), allHubMembers, hubName, rawMembers );
         final List< MoreLikeThisLucene > mltList = fetchMoreLikeThis  ( hubName, rawMembers, memberDetails );
 
         final boolean hasBackingPage = pageExists( hubName );
@@ -384,30 +381,30 @@ public class HubOverviewService {
     }
 
     /** Step 4: centroid + coherence for an explicit member set (used by drilldown). */
-    private HubShape hubShapeOf( final TfidfModel model, final Set< String > members ) {
-        if ( model == null || members.size() < 2 ) return HubShape.empty();
-        final List< float[] > vecs = vectorsFor( model, members );
+    private HubShape hubShapeOf( final Map< String, float[] > vectors, final Set< String > members ) {
+        if ( vectors.isEmpty() || members.size() < 2 ) return HubShape.empty();
+        final List< float[] > vecs = vectorsFor( vectors, members );
         if ( vecs.size() < 2 ) return HubShape.empty();
         final float[][] arr = vecs.toArray( new float[ 0 ][] );
         final float[] centroid = HubDiscoveryService.normalizedCentroid( arr );
         return new HubShape( centroid, HubDiscoveryService.meanDot( arr, centroid ) );
     }
 
-    /** Step 5: per-member cosine to centroid, NaN when centroid or entity id is unavailable, sorted ascending. */
+    /** Step 5: per-member cosine to centroid, NaN when vector or centroid is missing, sorted ascending. */
     private List< MemberDetail > buildMemberDetails(
-            final TfidfModel model, final float[] centroid, final List< String > existing ) {
+            final Map< String, float[] > vectors, final float[] centroid, final List< String > existing ) {
         final List< MemberDetail > out = new ArrayList<>();
         for ( final String m : existing ) {
-            out.add( new MemberDetail( m, memberCosine( model, centroid, m ), true ) );
+            out.add( new MemberDetail( m, memberCosine( vectors, centroid, m ), true ) );
         }
         out.sort( HubOverviewService::compareByCosineAsc );
         return out;
     }
 
-    private static double memberCosine( final TfidfModel model, final float[] centroid, final String name ) {
-        if ( model == null || centroid == null ) return Double.NaN;
-        final int eid = model.entityId( name );
-        return eid >= 0 ? cosine( model.getVector( eid ), centroid ) : Double.NaN;
+    private static double memberCosine( final Map< String, float[] > vectors, final float[] centroid, final String name ) {
+        if ( centroid == null ) return Double.NaN;
+        final float[] vec = vectors.get( name );
+        return vec != null ? cosine( vec, centroid ) : Double.NaN;
     }
 
     private static int compareByCosineAsc( final MemberDetail a, final MemberDetail b ) {
@@ -421,16 +418,15 @@ public class HubOverviewService {
 
     /** Step 6: top-N non-member non-hub entities with cosine ≥ nearMissThreshold, descending. */
     private List< NearMissTfidf > computeNearMissTfidf(
-            final TfidfModel model, final float[] centroid,
+            final Map< String, float[] > vectors, final float[] centroid,
             final Set< String > allHubNames, final Set< String > rawMembers ) {
-        if ( model == null || centroid == null ) return List.of();
+        if ( centroid == null ) return List.of();
         final List< NearMissTfidf > scored = new ArrayList<>();
-        for ( final String entityName : model.getEntityNames() ) {
+        for ( final Map.Entry< String, float[] > entry : vectors.entrySet() ) {
+            final String entityName = entry.getKey();
             if ( allHubNames.contains( entityName ) ) continue;
             if ( rawMembers.contains( entityName ) ) continue;
-            final int eid = model.entityId( entityName );
-            if ( eid < 0 ) continue;
-            final double cos = cosine( model.getVector( eid ), centroid );
+            final double cos = cosine( entry.getValue(), centroid );
             if ( cos >= nearMissThreshold ) {
                 scored.add( new NearMissTfidf( entityName, cos ) );
             }
@@ -441,15 +437,15 @@ public class HubOverviewService {
 
     /** Step 7: other hubs whose centroid cosine with this one is ≥ overlapThreshold. */
     private List< OverlapHub > computeOverlapHubs(
-            final TfidfModel model, final float[] centroid,
+            final Map< String, float[] > vectors, final float[] centroid,
             final Map< String, Set< String > > allHubMembers,
             final String hubName, final Set< String > rawMembers ) {
-        if ( model == null || centroid == null ) return List.of();
+        if ( centroid == null ) return List.of();
         final List< OverlapHub > overlapHubs = new ArrayList<>();
         for ( final var entry : allHubMembers.entrySet() ) {
             final String otherHub = entry.getKey();
             if ( otherHub.equals( hubName ) ) continue;
-            final List< float[] > otherVecs = vectorsFor( model, entry.getValue() );
+            final List< float[] > otherVecs = vectorsFor( vectors, entry.getValue() );
             if ( otherVecs.size() < 2 ) continue;
             final float[][] arr = otherVecs.toArray( new float[ 0 ][] );
             final float[] otherCentroid = HubDiscoveryService.normalizedCentroid( arr );
@@ -581,7 +577,7 @@ public class HubOverviewService {
 
     public static final class Builder {
         private JdbcKnowledgeRepository    kgRepo;
-        private Supplier< TfidfModel >     contentModelSupplier;
+        private NodeMentionSimilarity      similarity;
         private PageManager                pageManager;
         private HubDiscoveryService.PageWriter pageWriter;
         private LuceneMlt                  luceneMlt;
@@ -593,8 +589,7 @@ public class HubOverviewService {
         private Builder() {}
 
         public Builder kgRepo( final JdbcKnowledgeRepository v ) { this.kgRepo = v; return this; }
-        public Builder contentModel( final TfidfModel v ) { this.contentModelSupplier = () -> v; return this; }
-        public Builder contentModelSupplier( final Supplier< TfidfModel > v ) { this.contentModelSupplier = v; return this; }
+        public Builder similarity( final NodeMentionSimilarity v ) { this.similarity = v; return this; }
         public Builder pageManager( final PageManager v ) { this.pageManager = v; return this; }
         public Builder pageWriter( final HubDiscoveryService.PageWriter v ) { this.pageWriter = v; return this; }
         public Builder luceneMlt( final LuceneMlt v ) { this.luceneMlt = v; return this; }
@@ -617,9 +612,9 @@ public class HubOverviewService {
         }
 
         public HubOverviewService build() {
-            if ( kgRepo == null || contentModelSupplier == null || pageManager == null ) {
+            if ( kgRepo == null || similarity == null || pageManager == null ) {
                 throw new IllegalStateException(
-                    "HubOverviewService.Builder: kgRepo, content model, and pageManager are required" );
+                    "HubOverviewService.Builder: kgRepo, similarity, and pageManager are required" );
             }
             return new HubOverviewService( this );
         }

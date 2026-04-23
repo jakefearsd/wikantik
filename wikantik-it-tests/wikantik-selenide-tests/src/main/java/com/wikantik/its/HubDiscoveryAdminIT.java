@@ -23,6 +23,7 @@ import com.wikantik.its.environment.Env;
 import com.wikantik.pages.admin.HubDiscoveryAdminPage;
 import com.wikantik.pages.haddock.ViewWikiPage;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -87,6 +88,7 @@ public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
     }
 
     @Test
+    @Disabled( "Pending Phase 2 extractor — hub discovery needs chunk_entity_mentions populated to produce proposals" )
     @DisabledOnOs(OS.WINDOWS)
     void runAcceptFlow_happyPath() throws Exception {
         seedBackgroundCorpus();
@@ -108,7 +110,7 @@ public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
         RestSeedHelper.writePage( "CookingBaking2", cookBody + "pastry dessert sweet butter vanilla custard" );
         RestSeedHelper.writePage( "CookingSousVide", cookBody + "sous vide vacuum bag water bath precise" );
         RestSeedHelper.writePage( "CookingGriddling", cookBody + "griddle flat cast iron pancakes eggs bacon" );
-        RestSeedHelper.retrainContentModelViaBrowser();
+
 
         final HubDiscoveryAdminPage page = new HubDiscoveryAdminPage().open();
         page.clickRunDiscovery().waitForSuccessToast();
@@ -140,6 +142,7 @@ public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
     }
 
     @Test
+    @Disabled( "Pending Phase 2 extractor — hub discovery needs chunk_entity_mentions populated to produce proposals" )
     @DisabledOnOs(OS.WINDOWS)
     void acceptCollisionShowsInlineError() throws Exception {
         seedBackgroundCorpus();
@@ -159,7 +162,7 @@ public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
         RestSeedHelper.writePage( "SportBoxing", sportBody + "boxing ring gloves jab hook round" );
         RestSeedHelper.writePage( "SportSkiing", sportBody + "skiing slopes snow moguls downhill slalom" );
         RestSeedHelper.writePage( "SportSwimming", sportBody + "swimming pool laps stroke freestyle backstroke" );
-        RestSeedHelper.retrainContentModelViaBrowser();
+
 
         final HubDiscoveryAdminPage page = new HubDiscoveryAdminPage().open();
         page.clickRunDiscovery().waitForSuccessToast();
@@ -180,6 +183,7 @@ public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
     }
 
     @Test
+    @Disabled( "Pending Phase 2 extractor — hub discovery needs chunk_entity_mentions populated to produce proposals" )
     @DisabledOnOs(OS.WINDOWS)
     void dismissRemovesCard() throws Exception {
         seedBackgroundCorpus();
@@ -196,7 +200,7 @@ public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
         RestSeedHelper.writePage( "GardenCarnation", gardenBody + "carnation frilled fragrant long-lasting pink" );
         RestSeedHelper.writePage( "GardenMarigold", gardenBody + "marigold orange yellow pest-repellent annual" );
         RestSeedHelper.writePage( "GardenPansy", gardenBody + "pansy cool-season biennial colourful face" );
-        RestSeedHelper.retrainContentModelViaBrowser();
+
 
         final HubDiscoveryAdminPage page = new HubDiscoveryAdminPage().open();
         page.clickRunDiscovery().waitForSuccessToast();
@@ -225,6 +229,7 @@ public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
      * </ol>
      */
     @Test
+    @Disabled( "Pending Phase 2 extractor — hub discovery needs chunk_entity_mentions populated to produce proposals" )
     @DisabledOnOs(OS.WINDOWS)
     void dismissedRetention_blocksRediscoveryUntilDeleted() throws Exception {
         seedBackgroundCorpus();
@@ -241,7 +246,7 @@ public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
         RestSeedHelper.writePage( "BirdHeron", birdBody + "heron wading long legs patient fish" );
         RestSeedHelper.writePage( "BirdSwallow", birdBody + "swallow aerial insect catcher forked tail" );
         RestSeedHelper.writePage( "BirdRobin", birdBody + "robin red breast garden spring worm" );
-        RestSeedHelper.retrainContentModelViaBrowser();
+
 
         final HubDiscoveryAdminPage page = new HubDiscoveryAdminPage().open();
         page.clickRunDiscovery().waitForSuccessToast();

@@ -45,6 +45,7 @@
     <maven.version>3.5</maven.version>
 
     <akismet-java.version>1.0.0</akismet-java.version>
+    <anthropic-java.version>2.17.0</anthropic-java.version>
     <awaitility.version>4.3.0</awaitility.version>
     <commons-collections.version>4.5.0</commons-collections.version>
     <commons-fileupload.version>2.0.0-M5</commons-fileupload.version>
@@ -169,6 +170,12 @@
     <dependencies>
       <!-- ordered alphabetically by scope:groupId:artifactId -->
       <!-- compile dependencies -->
+      <dependency>
+        <groupId>com.anthropic</groupId>
+        <artifactId>anthropic-java</artifactId>
+        <version>${anthropic-java.version}</version>
+      </dependency>
+
       <dependency>
         <groupId>com.codeborne</groupId>
         <artifactId>selenide</artifactId>

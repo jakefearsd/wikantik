@@ -46,8 +46,9 @@ import java.util.List;
  *
  * <h3>Input assumption</h3>
  * <p>Vectors are expected to be L2-normalized (unit vectors), as emitted by
- * {@link TfidfModel}. L2-normalization ensures that Euclidean distance is a faithful
- * proxy for cosine similarity and avoids scale bias across dimensions.</p>
+ * {@code NodeMentionSimilarity}'s centroid pass. L2-normalization ensures that
+ * Euclidean distance is a faithful proxy for cosine similarity and avoids
+ * scale bias across dimensions.</p>
  *
  * <h3>Short-circuit behaviour</h3>
  * <ul>

@@ -20,6 +20,7 @@ package com.wikantik.knowledge;
 
 import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.Provenance;
+import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import org.junit.jupiter.api.*;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -32,11 +33,12 @@ import static org.junit.jupiter.api.Assertions.*;
 @Testcontainers( disabledWithoutDocker = true )
 class HubProposalServiceTest {
 
+    private static final String MODEL = "test-model";
+
     private static DataSource dataSource;
     private JdbcKnowledgeRepository kgRepo;
-    private ContentEmbeddingRepository contentRepo;
-    private EmbeddingRepository embeddingRepo;
     private HubProposalRepository proposalRepo;
+    private NodeMentionSimilarity similarity;
     private HubProposalService service;
 
     @BeforeAll
@@ -49,68 +51,63 @@ class HubProposalServiceTest {
         try ( final Connection conn = dataSource.getConnection() ) {
             conn.createStatement().execute( "DELETE FROM hub_proposals" );
             conn.createStatement().execute( "DELETE FROM hub_centroids" );
-            conn.createStatement().execute( "DELETE FROM kg_content_embeddings" );
-            conn.createStatement().execute( "DELETE FROM kg_embeddings" );
+            conn.createStatement().execute( "DELETE FROM chunk_entity_mentions" );
+            conn.createStatement().execute( "DELETE FROM content_chunk_embeddings" );
+            conn.createStatement().execute( "DELETE FROM kg_content_chunks" );
             conn.createStatement().execute( "DELETE FROM kg_edges" );
             conn.createStatement().execute( "DELETE FROM kg_proposals" );
             conn.createStatement().execute( "DELETE FROM kg_rejections" );
             conn.createStatement().execute( "DELETE FROM kg_nodes" );
         }
         kgRepo = new JdbcKnowledgeRepository( dataSource );
-        contentRepo = new ContentEmbeddingRepository( dataSource );
-        embeddingRepo = new EmbeddingRepository( dataSource );
         proposalRepo = new HubProposalRepository( dataSource );
+        similarity = new NodeMentionSimilarity( dataSource, MODEL );
     }
+
+    // Hand-crafted vectors so programming languages cluster tightly and Cooking is an outlier.
+    private static final float[] JAVA    = { 1.0f,  0.0f, 0.02f, 0.0f, 0.0f };
+    private static final float[] PYTHON  = { 0.98f, 0.0f, 0.05f, 0.0f, 0.0f };
+    private static final float[] KOTLIN  = { 0.97f, 0.0f, 0.08f, 0.0f, 0.0f };
+    private static final float[] RUST    = { 0.96f, 0.0f, 0.10f, 0.0f, 0.0f };
+    private static final float[] COOKING = { 0.0f,  1.0f, 0.0f,  0.0f, 0.0f };
+    private static final float[] HUB_VEC = { 0.97f, 0.0f, 0.05f, 0.0f, 0.0f };
 
     @Test
     void generateProposals_createsProposalsAboveThreshold() {
-        // Create a Hub node with 3 members. Production stores membership as kg_edges
-        // of type 'related', not as a node property — see GraphProjector +
-        // FrontmatterRelationshipDetector. Mirror that data path here.
-        final var techHub = kgRepo.upsertNode( "TechHub", "hub", "TechHub", Provenance.HUMAN_AUTHORED,
-            Map.of( "type", "hub" ) );
-        final var java = kgRepo.upsertNode( "Java", "article", "Java", Provenance.HUMAN_AUTHORED, Map.of() );
-        final var python = kgRepo.upsertNode( "Python", "article", "Python", Provenance.HUMAN_AUTHORED, Map.of() );
-        final var kotlin = kgRepo.upsertNode( "Kotlin", "article", "Kotlin", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertNode( "Rust", "article", "Rust", Provenance.HUMAN_AUTHORED, Map.of() );
+        // Hub + 3 member articles, wired by related edges (mirrors GraphProjector).
+        final var techHub = kgRepo.upsertNode( "TechHub", "hub", "TechHub",
+            Provenance.HUMAN_AUTHORED, Map.of( "type", "hub" ) );
+        final var java    = kgRepo.upsertNode( "Java",    "article", "Java",    Provenance.HUMAN_AUTHORED, Map.of() );
+        final var python  = kgRepo.upsertNode( "Python",  "article", "Python",  Provenance.HUMAN_AUTHORED, Map.of() );
+        final var kotlin  = kgRepo.upsertNode( "Kotlin",  "article", "Kotlin",  Provenance.HUMAN_AUTHORED, Map.of() );
+        kgRepo.upsertNode( "Rust",    "article", "Rust",    Provenance.HUMAN_AUTHORED, Map.of() );
         kgRepo.upsertNode( "Cooking", "article", "Cooking", Provenance.HUMAN_AUTHORED, Map.of() );
 
-        kgRepo.upsertEdge( techHub.id(), java.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgRepo.upsertEdge( techHub.id(), java.id(),   "related", Provenance.HUMAN_AUTHORED, Map.of() );
         kgRepo.upsertEdge( techHub.id(), python.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
         kgRepo.upsertEdge( techHub.id(), kotlin.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
 
-        // Train a content model with similar docs for programming languages
-        final var embService = new EmbeddingService( kgRepo, embeddingRepo, contentRepo, null, null );
-        final TfidfModel model = new TfidfModel();
-        model.build(
-            List.of( "Java", "Python", "Kotlin", "Rust", "Cooking", "TechHub" ),
-            List.of(
-                "Java programming language object oriented JVM bytecode",
-                "Python programming language dynamic typing scripting",
-                "Kotlin programming language JVM coroutines android",
-                "Rust programming language memory safety systems",
-                "Cooking recipes food baking kitchen ingredients",
-                "Technology hub programming languages software development"
-            )
-        );
-        contentRepo.saveEmbeddings( 1, model, Map.of() );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "Java",    JAVA );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "Python",  PYTHON );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "Kotlin",  KOTLIN );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "Rust",    RUST );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "Cooking", COOKING );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "TechHub", HUB_VEC );
 
         // With only 2 candidates (Rust and Cooking), Rust scores at the 50th percentile;
-        // use a threshold of 49 so it passes
+        // threshold of 49 so Rust passes but Cooking (low similarity) is still eligible
+        // to be below the threshold — we verify "at least one proposal generated".
         service = HubProposalService.builder()
             .kgRepo( kgRepo )
             .proposalRepo( proposalRepo )
-            .contentRepo( contentRepo )
+            .similarity( similarity )
             .reviewPercentile( 49 )
-            .contentModel( model )
             .build();
         service.generateProposals();
 
-        // Should have at least one proposal (Rust is similar to programming Hubs)
         final List< HubProposalRepository.HubProposal > proposals =
             proposalRepo.listProposals( "pending", null, 50, 0 );
         assertFalse( proposals.isEmpty(), "Should generate at least one proposal" );
-        // Existing members should not be proposed
         for ( final var p : proposals ) {
             assertFalse( List.of( "Java", "Python", "Kotlin" ).contains( p.pageName() ),
                 "Should not propose existing members" );
@@ -119,21 +116,19 @@ class HubProposalServiceTest {
 
     @Test
     void generateProposals_skipsRejectedPairs() {
-        final var techHub = kgRepo.upsertNode( "TechHub", "hub", "TechHub", Provenance.HUMAN_AUTHORED,
-            Map.of( "type", "hub" ) );
-        final var java = kgRepo.upsertNode( "Java", "article", "Java", Provenance.HUMAN_AUTHORED, Map.of() );
+        final var techHub = kgRepo.upsertNode( "TechHub", "hub", "TechHub",
+            Provenance.HUMAN_AUTHORED, Map.of( "type", "hub" ) );
+        final var java   = kgRepo.upsertNode( "Java",   "article", "Java",   Provenance.HUMAN_AUTHORED, Map.of() );
         final var python = kgRepo.upsertNode( "Python", "article", "Python", Provenance.HUMAN_AUTHORED, Map.of() );
         kgRepo.upsertNode( "Kotlin", "article", "Kotlin", Provenance.HUMAN_AUTHORED, Map.of() );
 
-        kgRepo.upsertEdge( techHub.id(), java.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgRepo.upsertEdge( techHub.id(), java.id(),   "related", Provenance.HUMAN_AUTHORED, Map.of() );
         kgRepo.upsertEdge( techHub.id(), python.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
 
-        final TfidfModel model = new TfidfModel();
-        model.build(
-            List.of( "Java", "Python", "Kotlin", "TechHub" ),
-            List.of( "Java programming", "Python programming", "Kotlin programming", "Tech hub" )
-        );
-        contentRepo.saveEmbeddings( 1, model, Map.of() );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "Java",    JAVA );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "Python",  PYTHON );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "Kotlin",  KOTLIN );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "TechHub", HUB_VEC );
 
         // Reject Kotlin for TechHub
         proposalRepo.insertProposal( "TechHub", "Kotlin", 0.9, 95.0 );
@@ -143,9 +138,8 @@ class HubProposalServiceTest {
         service = HubProposalService.builder()
             .kgRepo( kgRepo )
             .proposalRepo( proposalRepo )
-            .contentRepo( contentRepo )
+            .similarity( similarity )
             .reviewPercentile( 0 )
-            .contentModel( model )
             .build();
         service.generateProposals();
 

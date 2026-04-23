@@ -33,7 +33,7 @@ import com.wikantik.api.Release;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.knowledge.EmbeddingService;
+import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.mcp.tools.McpTool;
 
 import java.util.ArrayList;
@@ -90,7 +90,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             registration.setAsyncSupported( true );
             registration.setLoadOnStartup( 3 );
 
-            // Create consumption tools (5 core + optional embedding tools)
+            // Create consumption tools (5 core + optional similarity tool)
             final List< McpTool > tools = new ArrayList<>( List.of(
                     new DiscoverSchemaTool( kgService ),
                     new QueryNodesTool( kgService ),
@@ -99,11 +99,10 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                     new SearchKnowledgeTool( kgService )
             ) );
 
-            // Add embedding tools if the service is available
-            final EmbeddingService embSvc = engine.getManager( EmbeddingService.class );
-            if ( embSvc != null ) {
-                tools.add( new FindSimilarTool( embSvc ) );
-                tools.add( new PredictEdgesTool( embSvc ) );
+            // Register find_similar when the mention-centroid similarity service is wired.
+            final NodeMentionSimilarity similarity = engine.getManager( NodeMentionSimilarity.class );
+            if ( similarity != null ) {
+                tools.add( new FindSimilarTool( similarity ) );
             }
 
             final var serverImpl = new McpSchema.Implementation(

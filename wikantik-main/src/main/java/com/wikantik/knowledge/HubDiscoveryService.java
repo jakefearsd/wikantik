@@ -18,12 +18,12 @@
  */
 package com.wikantik.knowledge;
 
+import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 /**
  * Batch service that discovers candidate Hub topics from orphan articles using HDBSCAN clustering.
@@ -31,8 +31,9 @@ import java.util.function.Supplier;
  * <p>Algorithm:
  * <ol>
  *   <li>Load the candidate pool — all article-typed KG nodes that are <em>not</em> already targets
- *       of a {@code related} edge from any hub-typed node.</li>
- *   <li>Retrieve TF-IDF vectors for each candidate from the content model.</li>
+ *       of a {@code related} edge from any hub-typed node, and that have at least one mention in
+ *       {@code chunk_entity_mentions} with an Ollama-backed content chunk embedding.</li>
+ *   <li>Retrieve each candidate's centroid vector from {@link NodeMentionSimilarity}.</li>
  *   <li>Run HDBSCAN over those vectors ({@code minClusterSize}, {@code minPts} from builder).</li>
  *   <li>For each non-noise cluster, compute a normalised centroid, identify the exemplar page
  *       (the member whose vector has the highest dot-product with the centroid), and score the
@@ -42,12 +43,9 @@ import java.util.function.Supplier;
  *
  * <p>Short-circuit conditions (logged at INFO, return zero-filled {@link RunSummary}):
  * <ul>
- *   <li>Content model is null or has 0 entities.</li>
+ *   <li>{@link NodeMentionSimilarity#isReady()} is false (no embeddings indexed yet).</li>
  *   <li>Candidate pool is smaller than {@code minCandidatePool}.</li>
  * </ul>
- *
- * <p>Use {@link #builder()} to construct — production callers should pass a
- * {@link #contentModelSupplier(Supplier)} so retrains are picked up without re-wiring the service.
  */
 public class HubDiscoveryService {
 
@@ -63,13 +61,11 @@ public class HubDiscoveryService {
 
     private final JdbcKnowledgeRepository kgRepo;
     private final HubDiscoveryRepository  discoveryRepo;
-    @SuppressWarnings( "PMD.UnusedPrivateField" ) // Repo retained for validation/DI wiring; the service will read it once vector-backed discovery lands.
-    private final ContentEmbeddingRepository contentRepo;
+    private final NodeMentionSimilarity   similarity;
     private final HdbscanClusterer        clusterer;
     private final int                     minClusterSize;
     private final int                     minPts;
     private final int                     minCandidatePool;
-    private final Supplier< TfidfModel >  contentModelSupplier;
     // Optional — only required when acceptProposal / dismissProposal are called.
     private final PageWriter              pageWriter;
     private final Predicate< String >     pageExists;
@@ -77,12 +73,11 @@ public class HubDiscoveryService {
     private HubDiscoveryService( final Builder b ) {
         this.kgRepo               = b.kgRepo;
         this.discoveryRepo        = b.discoveryRepo;
-        this.contentRepo          = b.contentRepo;
+        this.similarity           = b.similarity;
         this.clusterer            = b.clusterer != null ? b.clusterer : new HdbscanClusterer();
         this.minClusterSize       = b.minClusterSize   != null ? b.minClusterSize   : DEFAULT_MIN_CLUSTER_SIZE;
         this.minPts               = b.minPts           != null ? b.minPts           : DEFAULT_MIN_PTS;
         this.minCandidatePool     = b.minCandidatePool != null ? b.minCandidatePool : DEFAULT_MIN_CANDIDATE_POOL;
-        this.contentModelSupplier = b.contentModelSupplier;
         this.pageWriter           = b.pageWriter;
         this.pageExists           = b.pageExists;
     }
@@ -122,14 +117,21 @@ public class HubDiscoveryService {
             minClusterSize, minPts, minCandidatePool );
         final long start = System.currentTimeMillis();
 
-        final TfidfModel model = resolveModel();
-        if ( model == null ) {
+        if ( !similarity.isReady() ) {
+            LOG.info( "Hub discovery: skipped — chunk embeddings not yet indexed" );
             return new RunSummary( 0, 0, 0, 0, elapsed( start ) );
         }
 
         try {
+            // Load the full name→centroid map once so we don't issue one SQL per candidate.
+            final Map< String, float[] > centroids = similarity.allCentroids();
+            if ( centroids.isEmpty() ) {
+                LOG.info( "Hub discovery: skipped — no mentioned entities have embeddings yet" );
+                return new RunSummary( 0, 0, 0, 0, elapsed( start ) );
+            }
+
             // Step 1 — candidate pool
-            final List< String > candidates = loadCandidatePool( model );
+            final List< String > candidates = loadCandidatePool( centroids.keySet() );
             if ( candidates.size() < minCandidatePool ) {
                 LOG.info( "Hub discovery: short-circuit — candidate pool size {} < minCandidatePool {}",
                     candidates.size(), minCandidatePool );
@@ -138,7 +140,7 @@ public class HubDiscoveryService {
             LOG.info( "Hub discovery step 1: {} candidates in pool", candidates.size() );
 
             // Step 2 — vectors
-            final float[][] vectors = buildVectorMatrix( model, candidates );
+            final float[][] vectors = buildVectorMatrix( centroids, candidates );
 
             // Step 3 — HDBSCAN
             final int[] labels = clusterer.cluster( vectors, minClusterSize, minPts );
@@ -323,27 +325,11 @@ public class HubDiscoveryService {
 
     // ---- Private helpers ----
 
-    /** Resolves the content model; logs and returns null when not ready. */
-    private TfidfModel resolveModel() {
-        final TfidfModel model = contentModelSupplier.get();
-        if ( model == null ) {
-            LOG.info( "Hub discovery: skipped — content model supplier returned null" );
-            return null;
-        }
-        if ( model.getEntityCount() == 0 ) {
-            LOG.info( "Hub discovery: skipped — content model has 0 entities (not trained yet)" );
-            return null;
-        }
-        LOG.info( "Hub discovery: content model has {} entities, dimension {}",
-            model.getEntityCount(), model.getDimension() );
-        return model;
-    }
-
     /**
      * Returns names of article-typed KG nodes that are NOT already targets of a {@code related}
-     * edge from any hub-typed node, AND that are present in the content model.
+     * edge from any hub-typed node, AND that have a centroid available ({@code mentionedNames}).
      */
-    private List< String > loadCandidatePool( final TfidfModel model ) {
+    private List< String > loadCandidatePool( final Set< String > mentionedNames ) {
         // Load all node names that are targets of 'related' edges (i.e., existing hub members).
         final List< Map< String, Object > > relatedEdges =
             kgRepo.queryEdgesWithNames( "related", null, 100_000, 0 );
@@ -368,24 +354,29 @@ public class HubDiscoveryService {
             }
         }
 
-        // Candidate = entity in model, NOT a hub, NOT already a hub member
+        // Candidate = mentioned node, NOT a hub, NOT already a hub member. We iterate
+        // mentionedNames (an arbitrary-order Set) and sort afterward so results are
+        // deterministic across runs irrespective of the underlying HashMap iteration.
         final List< String > candidates = new ArrayList<>();
-        for ( final String name : model.getEntityNames() ) {
+        for ( final String name : mentionedNames ) {
             if ( hubNames.contains( name ) ) continue;
             if ( hubMemberNames.contains( name ) ) continue;
             candidates.add( name );
         }
+        Collections.sort( candidates );
         LOG.info( "Hub discovery loadCandidatePool: {} hub members excluded, {} candidates",
             hubMemberNames.size(), candidates.size() );
         return candidates;
     }
 
     /** Builds the vector matrix for the given candidate names, in the same order. */
-    private float[][] buildVectorMatrix( final TfidfModel model, final List< String > candidates ) {
+    private float[][] buildVectorMatrix( final Map< String, float[] > centroids,
+                                         final List< String > candidates ) {
+        // Assumes every candidate name exists in centroids because loadCandidatePool
+        // derived the pool from the centroid keys — no zero-vector fallback needed.
         final float[][] matrix = new float[ candidates.size() ][];
         for ( int i = 0; i < candidates.size(); i++ ) {
-            final int entityId = model.entityId( candidates.get( i ) );
-            matrix[ i ] = entityId >= 0 ? model.getVector( entityId ) : new float[ model.getDimension() ];
+            matrix[ i ] = centroids.get( candidates.get( i ) );
         }
         return matrix;
     }
@@ -465,8 +456,7 @@ public class HubDiscoveryService {
     /**
      * Fluent builder for {@link HubDiscoveryService}.
      *
-     * <p>Required: {@code kgRepo}, {@code discoveryRepo}, {@code contentRepo}, and a content model
-     * (via {@link #contentModel(TfidfModel)} or {@link #contentModelSupplier(Supplier)}).
+     * <p>Required: {@code kgRepo}, {@code discoveryRepo}, {@code similarity}.
      *
      * <p>Optional: {@code clusterer}, {@code minClusterSize}, {@code minPts},
      * {@code minCandidatePool}, {@code pageWriter}, {@code pageExists}.
@@ -476,12 +466,11 @@ public class HubDiscoveryService {
     public static final class Builder {
         private JdbcKnowledgeRepository  kgRepo;
         private HubDiscoveryRepository   discoveryRepo;
-        private ContentEmbeddingRepository contentRepo;
+        private NodeMentionSimilarity    similarity;
         private HdbscanClusterer         clusterer;
         private Integer                  minClusterSize;
         private Integer                  minPts;
         private Integer                  minCandidatePool;
-        private Supplier< TfidfModel >   contentModelSupplier;
         private PageWriter               pageWriter;
         private Predicate< String >      pageExists;
 
@@ -493,8 +482,8 @@ public class HubDiscoveryService {
         public Builder discoveryRepo( final HubDiscoveryRepository discoveryRepo ) {
             this.discoveryRepo = discoveryRepo; return this;
         }
-        public Builder contentRepo( final ContentEmbeddingRepository contentRepo ) {
-            this.contentRepo = contentRepo; return this;
+        public Builder similarity( final NodeMentionSimilarity similarity ) {
+            this.similarity = similarity; return this;
         }
         public Builder clusterer( final HdbscanClusterer clusterer ) {
             this.clusterer = clusterer; return this;
@@ -507,14 +496,6 @@ public class HubDiscoveryService {
         }
         public Builder minCandidatePool( final int minCandidatePool ) {
             this.minCandidatePool = minCandidatePool; return this;
-        }
-        /** Wraps a fixed model in a constant supplier — useful for tests. */
-        public Builder contentModel( final TfidfModel contentModel ) {
-            this.contentModelSupplier = () -> contentModel; return this;
-        }
-        /** Production use — called fresh each run so retrains are picked up. */
-        public Builder contentModelSupplier( final Supplier< TfidfModel > supplier ) {
-            this.contentModelSupplier = supplier; return this;
         }
         public Builder pageWriter( final PageWriter v ) { this.pageWriter = v; return this; }
         public Builder pageExists( final Predicate< String > v ) { this.pageExists = v; return this; }
@@ -530,11 +511,9 @@ public class HubDiscoveryService {
         }
 
         public HubDiscoveryService build() {
-            if ( kgRepo == null || discoveryRepo == null
-                    || contentRepo == null || contentModelSupplier == null ) {
+            if ( kgRepo == null || discoveryRepo == null || similarity == null ) {
                 throw new IllegalStateException(
-                    "HubDiscoveryService.Builder: kgRepo, discoveryRepo, contentRepo, and a content "
-                    + "model (contentModel or contentModelSupplier) are all required" );
+                    "HubDiscoveryService.Builder: kgRepo, discoveryRepo, and similarity are all required" );
             }
             return new HubDiscoveryService( this );
         }

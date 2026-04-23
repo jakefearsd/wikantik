@@ -3,7 +3,6 @@ import { api } from '../../api/client';
 import ProposalReviewQueue from './ProposalReviewQueue';
 import GraphExplorer from './GraphExplorer';
 import EdgeExplorer from './EdgeExplorer';
-import KgEmbeddingsTab from './KgEmbeddingsTab';
 import ContentEmbeddingsTab from './ContentEmbeddingsTab';
 import HubProposalsTab from './HubProposalsTab';
 import HubDiscoveryTab from './HubDiscoveryTab';
@@ -16,10 +15,8 @@ const TABS = [
     description: 'Browse, search, and inspect all nodes in the knowledge graph. Filter by node type or status, view detailed properties for any node, and project page frontmatter into the graph to keep nodes in sync with wiki content.' },
   { id: 'edge-explorer', label: 'Edge Explorer',
     description: 'Browse and search all edges (relationships) in the knowledge graph. Filter by relationship type, inspect how nodes are connected, and review provenance information showing where each edge originated.' },
-  { id: 'kg-embeddings', label: 'KG Embeddings',
-    description: 'Train and manage the knowledge graph embedding model that learns vector representations of entities and relationship types. Once trained, view predicted missing edges, flag low-plausibility edges for review, and identify merge candidates where structurally similar nodes may represent the same concept.' },
   { id: 'content-embeddings', label: 'Content Embeddings',
-    description: 'Train and manage the content embedding model that computes page similarity from text. Identify pages missing frontmatter and bulk-backfill it, and review the most similar page pairs to spot duplicates or candidates for cross-linking.' },
+    description: 'Inspect the shared Ollama-backed mention-centroid index that powers both hybrid search and KG-node similarity. Identify pages missing frontmatter and bulk-backfill it.' },
   { id: 'hub-proposals', label: 'Hub Proposals',
     description: 'Generate and manage hub membership proposals that suggest which pages belong to topic hubs based on content similarity. Approve or reject proposals individually, in bulk, or by setting a percentile threshold to auto-approve the strongest matches.' },
   { id: 'hub-discovery', label: 'Hub Discovery',
@@ -72,7 +69,6 @@ export default function AdminKnowledgePage() {
       {activeTab === 'proposals' && <ProposalReviewQueue />}
       {activeTab === 'node-explorer' && <GraphExplorer />}
       {activeTab === 'edge-explorer' && <EdgeExplorer />}
-      {activeTab === 'kg-embeddings' && <KgEmbeddingsTab />}
       {activeTab === 'content-embeddings' && <ContentEmbeddingsTab />}
       {activeTab === 'hub-proposals' && <HubProposalsTab />}
       {activeTab === 'hub-discovery' && <HubDiscoveryTab />}

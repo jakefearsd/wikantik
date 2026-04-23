@@ -20,8 +20,7 @@ package com.wikantik.knowledge;
 
 import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.Provenance;
-import com.wikantik.knowledge.HubDiscoveryException;
-import com.wikantik.knowledge.HubNameCollisionException;
+import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +28,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -37,11 +37,12 @@ import static org.junit.jupiter.api.Assertions.*;
 @Testcontainers( disabledWithoutDocker = true )
 class HubDiscoveryServiceTest {
 
+    private static final String MODEL = "test-model";
+
     private static DataSource dataSource;
     private JdbcKnowledgeRepository kgRepo;
-    private ContentEmbeddingRepository contentRepo;
     private HubDiscoveryRepository discoveryRepo;
-    private TfidfModel model;
+    private NodeMentionSimilarity similarity;
 
     @BeforeAll
     static void initDataSource() {
@@ -54,72 +55,78 @@ class HubDiscoveryServiceTest {
             conn.createStatement().execute( "DELETE FROM hub_discovery_proposals" );
             conn.createStatement().execute( "DELETE FROM hub_proposals" );
             conn.createStatement().execute( "DELETE FROM hub_centroids" );
-            conn.createStatement().execute( "DELETE FROM kg_content_embeddings" );
-            conn.createStatement().execute( "DELETE FROM kg_embeddings" );
+            conn.createStatement().execute( "DELETE FROM chunk_entity_mentions" );
+            conn.createStatement().execute( "DELETE FROM content_chunk_embeddings" );
+            conn.createStatement().execute( "DELETE FROM kg_content_chunks" );
             conn.createStatement().execute( "DELETE FROM kg_edges" );
             conn.createStatement().execute( "DELETE FROM kg_proposals" );
             conn.createStatement().execute( "DELETE FROM kg_rejections" );
             conn.createStatement().execute( "DELETE FROM kg_nodes" );
         }
         kgRepo = new JdbcKnowledgeRepository( dataSource );
-        contentRepo = new ContentEmbeddingRepository( dataSource );
         discoveryRepo = new HubDiscoveryRepository( dataSource );
+        similarity = new NodeMentionSimilarity( dataSource, MODEL );
     }
+
+    // Hand-crafted 8-dim vectors that create two tight clusters (cooking + sports) plus an outlier.
+    // Each article's vector is unit-normalized by NodeMentionSimilarity's centroid pass, so cluster
+    // geometry is faithful.
+    private static final Map< String, float[] > COOKING = new LinkedHashMap<>();
+    static {
+        COOKING.put( "Baking",   new float[]{ 1.0f,  0.0f, 0.02f, 0.0f,  0.01f, 0.0f, 0.0f, 0.0f } );
+        COOKING.put( "Roasting", new float[]{ 0.98f, 0.0f, 0.03f, 0.01f, 0.0f,  0.0f, 0.0f, 0.0f } );
+        COOKING.put( "Grilling", new float[]{ 0.99f, 0.0f, 0.01f, 0.02f, 0.0f,  0.0f, 0.0f, 0.0f } );
+    }
+    private static final Map< String, float[] > SPORTS = new LinkedHashMap<>();
+    static {
+        SPORTS.put( "Soccer",     new float[]{ 0.0f,  1.0f, 0.01f, 0.0f,  0.02f, 0.0f, 0.0f, 0.0f } );
+        SPORTS.put( "Basketball", new float[]{ 0.0f,  0.99f, 0.0f, 0.03f, 0.01f, 0.0f, 0.0f, 0.0f } );
+        SPORTS.put( "Tennis",     new float[]{ 0.0f,  0.98f, 0.02f, 0.01f, 0.03f, 0.0f, 0.0f, 0.0f } );
+    }
+    private static final Map< String, float[] > TECH_MEMBERS = new LinkedHashMap<>();
+    static {
+        TECH_MEMBERS.put( "Java",   new float[]{ 0.0f, 0.0f, 1.0f,  0.0f, 0.0f, 0.0f, 0.0f, 0.0f } );
+        TECH_MEMBERS.put( "Python", new float[]{ 0.0f, 0.0f, 0.98f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f } );
+    }
+    private static final float[] OUTLIER_VEC = new float[]{ 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f };
 
     @Test
     void generateClusterProposals_findsClusterOfNonMembers() {
         // Existing TechHub with 2 members (Java, Python).
         final var techHub = kgRepo.upsertNode( "TechHub", "hub", "TechHub",
             Provenance.HUMAN_AUTHORED, Map.of( "type", "hub" ) );
-        final var java = kgRepo.upsertNode( "Java", "article", "Java",
-            Provenance.HUMAN_AUTHORED, Map.of() );
-        final var python = kgRepo.upsertNode( "Python", "article", "Python",
-            Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertEdge( techHub.id(), java.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertEdge( techHub.id(), python.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
-
-        // Non-members: 3 cooking pages forming a tight cluster, 3 sports pages forming another,
-        // and one standalone outlier.
-        final String[] pages = {
-            "Baking", "Roasting", "Grilling",
-            "Soccer", "Basketball", "Tennis",
-            "Miscellaneous"
-        };
-        for ( final String name : pages ) {
+        for ( final String name : TECH_MEMBERS.keySet() ) {
             kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
         }
-        model = new TfidfModel();
-        model.build(
-            List.of( "Java", "Python", "Baking", "Roasting", "Grilling",
-                     "Soccer", "Basketball", "Tennis", "Miscellaneous", "TechHub" ),
-            List.of(
-                // Hub members — programming (kept so they are in the model but excluded from candidates)
-                "Java programming language JVM bytecode compile run execute runtime",
-                "Python programming language script execute runtime bytecode dynamic",
-                // Cooking cluster — lots of shared cooking vocabulary, no sports words
-                "baking bread cake flour sugar butter oven recipe dough knead bake baking",
-                "roasting roast oven meat chicken beef pork temperature seasoning oven baking",
-                "grilling grill barbecue charcoal meat chicken beef outdoor fire baking roasting",
-                // Sports cluster — lots of shared sports vocabulary, no cooking words
-                "soccer football pitch goal player team league kick score match field stadium",
-                "basketball hoop court player team league score dribble slam match field stadium",
-                "tennis court racquet player serve volley match score grand slam stadium league",
-                // Outlier — no shared vocabulary with any cluster
-                "quantum xylophone abstract topology divergent perpendicular",
-                // Hub node
-                "Technology hub programming languages software development"
-            )
-        );
-        contentRepo.saveEmbeddings( 1, model, Map.of() );
+        kgRepo.upsertEdge( techHub.id(),
+            kgRepo.upsertNode( "Java", "article", "Java", Provenance.HUMAN_AUTHORED, Map.of() ).id(),
+            "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgRepo.upsertEdge( techHub.id(),
+            kgRepo.upsertNode( "Python", "article", "Python", Provenance.HUMAN_AUTHORED, Map.of() ).id(),
+            "related", Provenance.HUMAN_AUTHORED, Map.of() );
+
+        // Non-members: 3 cooking, 3 sports, and one outlier.
+        for ( final String name : COOKING.keySet() ) {
+            kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
+        }
+        for ( final String name : SPORTS.keySet() ) {
+            kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
+        }
+        kgRepo.upsertNode( "Miscellaneous", "article", "Miscellaneous",
+            Provenance.HUMAN_AUTHORED, Map.of() );
+
+        MentionFixtures.seedAllByName( dataSource, MODEL, COOKING );
+        MentionFixtures.seedAllByName( dataSource, MODEL, SPORTS );
+        MentionFixtures.seedAllByName( dataSource, MODEL, TECH_MEMBERS );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "Miscellaneous", OUTLIER_VEC );
 
         final HubDiscoveryService service = HubDiscoveryService.builder()
             .kgRepo( kgRepo )
             .discoveryRepo( discoveryRepo )
-            .contentRepo( contentRepo )
+            .similarity( similarity )
             .minClusterSize( 3 )
             .minPts( 3 )
             .minCandidatePool( 5 )
-            .contentModel( model )
             .build();
 
         final int created = service.generateClusterProposals();
@@ -144,18 +151,17 @@ class HubDiscoveryServiceTest {
 
     @Test
     void generateClusterProposals_emptyCorpus_noProposals() {
-        model = new TfidfModel();
-        model.build( List.of( "Nothing" ), List.of( "nothing here" ) );
-        contentRepo.saveEmbeddings( 1, model, Map.of() );
+        kgRepo.upsertNode( "Nothing", "article", "Nothing", Provenance.HUMAN_AUTHORED, Map.of() );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "Nothing",
+            new float[]{ 0f, 0f, 0f, 0f, 0f, 0f, 0f, 1f } );
 
         final HubDiscoveryService service = HubDiscoveryService.builder()
             .kgRepo( kgRepo )
             .discoveryRepo( discoveryRepo )
-            .contentRepo( contentRepo )
+            .similarity( similarity )
             .minClusterSize( 3 )
             .minPts( 3 )
             .minCandidatePool( 6 )
-            .contentModel( model )
             .build();
 
         assertEquals( 0, service.generateClusterProposals() );
@@ -168,20 +174,17 @@ class HubDiscoveryServiceTest {
         for ( final String name : new String[]{ "A", "B", "C" } ) {
             kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
         }
-        model = new TfidfModel();
-        model.build(
-            List.of( "A", "B", "C" ),
-            List.of( "alpha beta", "alpha gamma", "beta gamma" ) );
-        contentRepo.saveEmbeddings( 1, model, Map.of() );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "A", new float[]{ 1f, 0f, 0f, 0f, 0f, 0f, 0f, 0f } );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "B", new float[]{ 0f, 1f, 0f, 0f, 0f, 0f, 0f, 0f } );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "C", new float[]{ 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f } );
 
         final HubDiscoveryService service = HubDiscoveryService.builder()
             .kgRepo( kgRepo )
             .discoveryRepo( discoveryRepo )
-            .contentRepo( contentRepo )
+            .similarity( similarity )
             .minClusterSize( 3 )
             .minPts( 3 )
             .minCandidatePool( 6 )
-            .contentModel( model )
             .build();
 
         assertEquals( 0, service.generateClusterProposals() );
@@ -190,39 +193,25 @@ class HubDiscoveryServiceTest {
 
     @Test
     void generateClusterProposals_exemplarIsClosestToCentroid() {
-        // Two tight clusters (cooking + sports) with very distinct vocabularies,
-        // mirroring the happy-path approach so HDBSCAN reliably finds at least one cluster.
-        final String[] members = { "Baking", "Roasting", "Grilling", "Soccer", "Basketball", "Tennis" };
-        for ( final String name : members ) {
+        for ( final String name : new String[]{ "Baking", "Roasting", "Grilling",
+                                                 "Soccer", "Basketball", "Tennis" } ) {
             kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
         }
-        model = new TfidfModel();
-        model.build(
-            List.of( members ),
-            List.of(
-                "baking bread cake flour sugar butter oven recipe dough knead bake baking cookies pastry",
-                "roasting roast oven meat chicken beef pork temperature seasoning oven baking roast crispy",
-                "grilling grill barbecue charcoal meat chicken beef outdoor fire baking roasting cookout",
-                "soccer football pitch goal player team league kick score match field stadium tackle dribble",
-                "basketball hoop court player team league score dribble slam dunk match field stadium rebound",
-                "tennis court racquet player serve volley match score grand slam stadium league forehand backhand"
-            ) );
-        contentRepo.saveEmbeddings( 1, model, Map.of() );
+        MentionFixtures.seedAllByName( dataSource, MODEL, COOKING );
+        MentionFixtures.seedAllByName( dataSource, MODEL, SPORTS );
 
         final HubDiscoveryService service = HubDiscoveryService.builder()
             .kgRepo( kgRepo )
             .discoveryRepo( discoveryRepo )
-            .contentRepo( contentRepo )
+            .similarity( similarity )
             .minClusterSize( 3 )
             .minPts( 3 )
             .minCandidatePool( 6 )
-            .contentModel( model )
             .build();
 
         service.generateClusterProposals();
         final var proposals = discoveryRepo.list( 10, 0 );
         assertFalse( proposals.isEmpty() );
-        // Exemplar must be one of the cluster members.
         for ( final var p : proposals ) {
             assertTrue( p.memberPages().contains( p.exemplarPage() ),
                 "Exemplar must be in its cluster's member list" );
@@ -236,14 +225,9 @@ class HubDiscoveryServiceTest {
         for ( final String name : members ) {
             kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
         }
-        model = new TfidfModel();
-        model.build( List.of( members ),
-            List.of( "java jvm oop", "kotlin jvm coroutines", "scala jvm fp" ) );
-        contentRepo.saveEmbeddings( 1, model, Map.of() );
 
         final com.wikantik.knowledge.test.InMemoryPageManager pages =
             new com.wikantik.knowledge.test.InMemoryPageManager();
-        // Pre-populate member pages so pageExists returns true for each member
         for ( final String name : members ) {
             pages.putText( name, "# " + name );
         }
@@ -252,11 +236,10 @@ class HubDiscoveryServiceTest {
         final HubDiscoveryService service = HubDiscoveryService.builder()
             .kgRepo( kgRepo )
             .discoveryRepo( discoveryRepo )
-            .contentRepo( contentRepo )
+            .similarity( similarity )
             .minClusterSize( 3 )
             .minPts( 3 )
             .minCandidatePool( 3 )
-            .contentModel( model )
             .pageWriter( helper::saveText )
             .pageExists( pages::exists )
             .build();
@@ -292,9 +275,8 @@ class HubDiscoveryServiceTest {
         final HubDiscoveryService service = HubDiscoveryService.builder()
             .kgRepo( kgRepo )
             .discoveryRepo( discoveryRepo )
-            .contentRepo( contentRepo )
+            .similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
-            .contentModel( new TfidfModel() )
             .pageWriter( helper::saveText )
             .pageExists( pages::exists )
             .build();
@@ -319,9 +301,8 @@ class HubDiscoveryServiceTest {
         final HubDiscoveryService service = HubDiscoveryService.builder()
             .kgRepo( kgRepo )
             .discoveryRepo( discoveryRepo )
-            .contentRepo( contentRepo )
+            .similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
-            .contentModel( new TfidfModel() )
             .pageWriter( helper::saveText )
             .pageExists( pages::exists )
             .build();
@@ -346,9 +327,8 @@ class HubDiscoveryServiceTest {
         final HubDiscoveryService service = HubDiscoveryService.builder()
             .kgRepo( kgRepo )
             .discoveryRepo( discoveryRepo )
-            .contentRepo( contentRepo )
+            .similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
-            .contentModel( new TfidfModel() )
             .pageWriter( helper::saveText )
             .pageExists( name -> kgRepo.queryNodes( Map.of( "name", name ), null, 1, 0 ).size() > 0 )
             .build();
@@ -367,9 +347,8 @@ class HubDiscoveryServiceTest {
         final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
         final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).contentRepo( contentRepo )
+            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
-            .contentModel( new TfidfModel() )
             .pageWriter( helper::saveText )
             .pageExists( name -> false )
             .build();
@@ -387,9 +366,8 @@ class HubDiscoveryServiceTest {
         final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
         final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).contentRepo( contentRepo )
+            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
-            .contentModel( new TfidfModel() )
             .pageWriter( helper::saveText )
             .pageExists( name -> false )
             .build();
@@ -398,11 +376,8 @@ class HubDiscoveryServiceTest {
             List.of( "Java", "Kotlin", "Scala" ), 0.9 );
         service.dismissProposal( id, "reviewer1" );
 
-        // Row must still exist: the dismissed list keeps rediscovery in check.
         assertNotNull( discoveryRepo.findById( id ) );
-        // It must no longer be in the pending list.
         assertFalse( discoveryRepo.list( 50, 0 ).stream().anyMatch( p -> p.id() == id ) );
-        // It must show up in the dismissed list with the reviewer recorded.
         final var dismissed = discoveryRepo.listDismissed( 50, 0 );
         assertEquals( 1, dismissed.size() );
         assertEquals( id, dismissed.get( 0 ).id() );
@@ -415,9 +390,8 @@ class HubDiscoveryServiceTest {
         final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
         final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).contentRepo( contentRepo )
+            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
-            .contentModel( new TfidfModel() )
             .pageWriter( helper::saveText )
             .pageExists( name -> false )
             .build();
@@ -425,7 +399,6 @@ class HubDiscoveryServiceTest {
         final int id = discoveryRepo.insert( "JavaHub", "Java",
             List.of( "Java", "Kotlin", "Scala" ), 0.9 );
         service.dismissProposal( id, "admin" );
-        // Second dismiss is not allowed: the row is no longer pending.
         assertThrows( HubDiscoveryException.class,
             () -> service.dismissProposal( id, "admin" ) );
     }
@@ -437,41 +410,25 @@ class HubDiscoveryServiceTest {
             List.of( "Baking", "Grilling", "Roasting" ), 0.9 );
         assertTrue( discoveryRepo.markDismissed( dismissedId, "admin" ) );
 
-        // Now set up a candidate pool that HDBSCAN will cluster into that same triad.
-        final String[] pages = { "Baking", "Roasting", "Grilling",
-            "Soccer", "Basketball", "Tennis", "Miscellaneous" };
-        for ( final String name : pages ) {
+        for ( final String name : new String[]{ "Baking", "Roasting", "Grilling",
+                                                 "Soccer", "Basketball", "Tennis", "Miscellaneous" } ) {
             kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
         }
-        model = new TfidfModel();
-        model.build(
-            List.of( "Baking", "Roasting", "Grilling",
-                     "Soccer", "Basketball", "Tennis", "Miscellaneous" ),
-            List.of(
-                "baking bread cake flour sugar butter oven recipe dough knead bake baking",
-                "roasting roast oven meat chicken beef pork temperature seasoning oven baking",
-                "grilling grill barbecue charcoal meat chicken beef outdoor fire baking roasting",
-                "soccer football pitch goal player team league kick score match field stadium",
-                "basketball hoop court player team league score dribble slam match field stadium",
-                "tennis court racquet player serve volley match score grand slam stadium league",
-                "quantum xylophone abstract topology divergent perpendicular"
-            )
-        );
-        contentRepo.saveEmbeddings( 1, model, Map.of() );
+        MentionFixtures.seedAllByName( dataSource, MODEL, COOKING );
+        MentionFixtures.seedAllByName( dataSource, MODEL, SPORTS );
+        MentionFixtures.seedMentionByName( dataSource, MODEL, "Miscellaneous", OUTLIER_VEC );
 
         final HubDiscoveryService service = HubDiscoveryService.builder()
             .kgRepo( kgRepo )
             .discoveryRepo( discoveryRepo )
-            .contentRepo( contentRepo )
+            .similarity( similarity )
             .minClusterSize( 3 )
             .minPts( 3 )
             .minCandidatePool( 5 )
-            .contentModel( model )
             .build();
 
         final HubDiscoveryService.RunSummary summary = service.runDiscovery();
 
-        // The cooking cluster matches the dismissed signature and must not be re-created.
         assertTrue( summary.skippedDismissed() >= 1,
             "Expected at least one skippedDismissed in summary, got " + summary.skippedDismissed() );
         final var pending = discoveryRepo.list( 50, 0 );
@@ -486,9 +443,8 @@ class HubDiscoveryServiceTest {
         final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
         final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).contentRepo( contentRepo )
+            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
-            .contentModel( new TfidfModel() )
             .pageWriter( helper::saveText )
             .pageExists( name -> false )
             .build();
@@ -502,9 +458,8 @@ class HubDiscoveryServiceTest {
         final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
         final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).contentRepo( contentRepo )
+            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
-            .contentModel( new TfidfModel() )
             .pageWriter( helper::saveText )
             .pageExists( name -> false )
             .build();

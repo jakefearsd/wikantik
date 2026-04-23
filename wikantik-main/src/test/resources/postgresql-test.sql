@@ -194,6 +194,24 @@ CREATE TABLE IF NOT EXISTS content_chunk_embeddings (
 CREATE INDEX IF NOT EXISTS ix_cce_model
     ON content_chunk_embeddings (model_code);
 
+-- Chunk → KG node mention bridge (V011). Populated by the extractor in Phase 2;
+-- readers tolerate an empty table in Phase 1 by returning empty results.
+CREATE TABLE IF NOT EXISTS chunk_entity_mentions (
+    chunk_id     UUID        NOT NULL REFERENCES kg_content_chunks(id) ON DELETE CASCADE,
+    node_id      UUID        NOT NULL REFERENCES kg_nodes(id)           ON DELETE CASCADE,
+    confidence   REAL        NOT NULL DEFAULT 1.0,
+    extractor    TEXT        NOT NULL,
+    extracted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (chunk_id, node_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chunk_entity_mentions_node
+    ON chunk_entity_mentions (node_id);
+CREATE INDEX IF NOT EXISTS idx_chunk_entity_mentions_chunk
+    ON chunk_entity_mentions (chunk_id);
+CREATE INDEX IF NOT EXISTS idx_chunk_entity_mentions_extractor
+    ON chunk_entity_mentions (extractor);
+
 -- ============================================================
 -- Test seed data
 -- ============================================================

@@ -41,17 +41,26 @@ public class ContentChunker {
 
     private static final Logger LOG = LogManager.getLogger(ContentChunker.class);
 
-    public record Config(int targetTokens, int maxTokens, int minTokens, int mergeForwardTokens) {
-        /**
-         * Backward-compatible constructor that applies the default
-         * {@code mergeForwardTokens} of 8. Prefer the canonical 4-arg
-         * constructor in new call sites so the merge-forward threshold is
-         * explicit.
-         */
-        public Config(int targetTokens, int maxTokens, int minTokens) {
-            this(targetTokens, maxTokens, minTokens, 8);
-        }
-    }
+    /**
+     * Chunker tuning. Only two knobs actually change behaviour:
+     * <ul>
+     *   <li>{@code maxTokens} — hard upper bound on a non-atomic chunk's size.
+     *       When appending a block would exceed this, the current buffer is
+     *       emitted first. Oversized atomic blocks (code/tables/lists within
+     *       budget) pass through intact; oversized paragraphs fall back to
+     *       sentence-level splitting.</li>
+     *   <li>{@code mergeForwardTokens} — minimum size at which a section's
+     *       accumulated text is eligible to emit. Below this threshold the
+     *       buffer is held and merges into the next section's content. This
+     *       is the effective "floor": raising it coalesces small sibling
+     *       sections into larger chunks without changing the max ceiling.</li>
+     * </ul>
+     *
+     * <p>Earlier releases also exposed {@code targetTokens} and {@code
+     * minTokens}. Those knobs were never wired to any behaviour in this class;
+     * they have been removed to stop advertising levers that do nothing.</p>
+     */
+    public record Config(int maxTokens, int mergeForwardTokens) {}
 
     private final Config config;
 
@@ -154,10 +163,10 @@ public class ContentChunker {
      * Mutable accumulation state threaded across heading-boundary flushes.
      * {@code blocks} holds AST nodes waiting to be turned into chunks within the
      * current heading scope; {@code pending} holds already-rendered text whose
-     * size was below {@code minTokens} and is awaiting merge-forward into the
-     * next flush. {@code pendingHeadingPath} is the heading_path that was active
-     * when the merge-forward buffer first captured content; it "wins" for the
-     * merged chunk.
+     * size was below {@code mergeForwardTokens} and is awaiting merge-forward
+     * into the next flush. {@code pendingHeadingPath} is the heading_path that
+     * was active when the merge-forward buffer first captured content; it
+     * "wins" for the merged chunk.
      */
     @SuppressWarnings( "PMD.AvoidStringBufferField" ) // State is constructed per chunking pass and discarded; no long-lived owner.
     private static final class State {
@@ -236,7 +245,7 @@ public class ContentChunker {
         }
         state.blocks.clear();
         // At end of a section flush, attempt to emit whatever's pending. If
-        // it's below minTokens it stays in the buffer for merge-forward.
+        // it's below mergeForwardTokens it stays in the buffer for merge-forward.
         emitPending(pageName, idx, headingPath, state, out);
     }
 

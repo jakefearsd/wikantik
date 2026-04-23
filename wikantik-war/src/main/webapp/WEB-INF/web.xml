@@ -71,6 +71,21 @@
      <url-pattern>/wiki/*</url-pattern>
    </filter-mapping>
 
+   <!-- HTTP Basic authentication: converts Authorization: Basic headers into
+        real wiki logins so automation (curl, CI, scripts) can exercise /api/*
+        and /admin/* endpoints as an authenticated principal. No Authorization
+        header → pass through. Must run before AdminAuthFilter so the session
+        is authenticated before AllPermission is checked. -->
+   <filter>
+     <filter-name>BasicAuthFilter</filter-name>
+     <filter-class>com.wikantik.rest.BasicAuthFilter</filter-class>
+   </filter>
+   <filter-mapping>
+     <filter-name>BasicAuthFilter</filter-name>
+     <url-pattern>/api/*</url-pattern>
+     <url-pattern>/admin/*</url-pattern>
+   </filter-mapping>
+
    <!-- Admin authorization: enforces AllPermission on /admin/* endpoints -->
    <filter>
      <filter-name>AdminAuthFilter</filter-name>
@@ -379,6 +394,10 @@
        <servlet-name>AdminApiKeysResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminApiKeysResource</servlet-class>
    </servlet>
+   <servlet>
+       <servlet-name>AdminExtractionResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminExtractionResource</servlet-class>
+   </servlet>
 
    <!-- Observability -->
    <servlet>
@@ -540,6 +559,14 @@
    <servlet-mapping>
        <servlet-name>AdminApiKeysResource</servlet-name>
        <url-pattern>/admin/apikeys</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminExtractionResource</servlet-name>
+       <url-pattern>/admin/knowledge/extract-mentions</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminExtractionResource</servlet-name>
+       <url-pattern>/admin/knowledge/extract-mentions/*</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

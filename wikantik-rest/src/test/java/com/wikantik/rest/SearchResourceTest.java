@@ -395,6 +395,81 @@ class SearchResourceTest {
         }
     }
 
+    @Test
+    void negativeLimitReturns400NotHtml500() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/search" );
+        Mockito.doReturn( "Alpha" ).when( request ).getParameter( "q" );
+        Mockito.doReturn( "-5" ).when( request ).getParameter( "limit" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+        Mockito.verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+        final JsonObject body = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( body.has( "error" ) && body.get( "error" ).getAsBoolean() );
+        assertTrue( body.get( "message" ).getAsString().contains( "limit" ) );
+    }
+
+    @Test
+    void limitAboveCapReturns400() throws Exception {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/search" );
+        Mockito.doReturn( "Alpha" ).when( request ).getParameter( "q" );
+        Mockito.doReturn( "9999" ).when( request ).getParameter( "limit" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+        Mockito.verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+    }
+
+    @Test
+    void luceneParseFailureReturns400NotServerError() throws Exception {
+        final SearchManager throwingSm = Mockito.mock( SearchManager.class );
+        final com.wikantik.api.exceptions.ProviderException wrap =
+            new com.wikantik.api.exceptions.ProviderException(
+                "You have entered a query Lucene cannot process [...]: parse fail",
+                new org.apache.lucene.queryparser.classic.ParseException( "bad syntax" ) );
+        Mockito.doThrow( wrap ).when( throwingSm )
+                .findPages( Mockito.anyString(), Mockito.any() );
+        engine.setManager( SearchManager.class, throwingSm );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/search" );
+        Mockito.doReturn( "[a-z]+.*" ).when( request ).getParameter( "q" );
+        Mockito.doReturn( null ).when( request ).getParameter( "limit" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+        Mockito.verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+        final JsonObject body = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( body.get( "message" ).getAsString().startsWith( "Invalid search query" ) );
+    }
+
+    @Test
+    void nonParseSearchFailureStillReturns500() throws Exception {
+        final SearchManager throwingSm = Mockito.mock( SearchManager.class );
+        Mockito.doThrow( new RuntimeException( "disk offline" ) )
+                .when( throwingSm ).findPages( Mockito.anyString(), Mockito.any() );
+        engine.setManager( SearchManager.class, throwingSm );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/search" );
+        Mockito.doReturn( "Alpha" ).when( request ).getParameter( "q" );
+        Mockito.doReturn( null ).when( request ).getParameter( "limit" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+        Mockito.verify( response ).setStatus( HttpServletResponse.SC_INTERNAL_SERVER_ERROR );
+    }
+
     // ----- Helper methods -----
 
     private String doSearch( final String query, final String limit ) throws Exception {

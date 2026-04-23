@@ -100,6 +100,52 @@ public class ContentChunkRepository {
     }
 
     /**
+     * Enumerates every distinct page name that currently has at least one
+     * chunk row. Used by the admin batch-extraction job to walk the corpus
+     * without loading all chunk bodies up-front.
+     *
+     * @return alphabetically-sorted list of page names
+     */
+    public List< String > listDistinctPageNames() {
+        final String sql = "SELECT DISTINCT page_name FROM kg_content_chunks "
+                         + "WHERE page_name IS NOT NULL ORDER BY page_name";
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql );
+             ResultSet rs = ps.executeQuery() ) {
+            final List< String > names = new ArrayList<>();
+            while( rs.next() ) {
+                names.add( rs.getString( 1 ) );
+            }
+            return names;
+        } catch( final SQLException e ) {
+            LOG.warn( "Failed to list distinct page names: {}", e.getMessage(), e );
+            throw new RuntimeException( "listDistinctPageNames failed", e );
+        }
+    }
+
+    /**
+     * Returns every chunk id on the given page, ordered by {@code chunk_index}.
+     * A thin form of {@link #findByPage} used by callers that will re-hydrate
+     * through {@link #findByIds} anyway (e.g. the batch extractor).
+     */
+    public List< UUID > listChunkIdsForPage( final String pageName ) {
+        final String sql = "SELECT id FROM kg_content_chunks "
+                         + "WHERE page_name = ? ORDER BY chunk_index";
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setString( 1, pageName );
+            try( ResultSet rs = ps.executeQuery() ) {
+                final List< UUID > out = new ArrayList<>();
+                while( rs.next() ) out.add( rs.getObject( 1, UUID.class ) );
+                return out;
+            }
+        } catch( final SQLException e ) {
+            LOG.warn( "Failed to list chunk ids for '{}': {}", pageName, e.getMessage(), e );
+            throw new RuntimeException( "listChunkIdsForPage failed for " + pageName, e );
+        }
+    }
+
+    /**
      * Returns all stored chunks for a page ordered by {@code chunk_index}.
      *
      * @param pageName the wiki page name
@@ -126,6 +172,62 @@ public class ContentChunkRepository {
             throw new RuntimeException( "findByPage failed for " + pageName, e );
         }
     }
+
+    /**
+     * Loads chunks keyed by id (as emitted by the post-chunk sink). Missing
+     * ids are silently skipped. Result order is unspecified.
+     *
+     * @param ids chunk ids to fetch; empty list returns empty list
+     * @return a row per id that exists in {@code kg_content_chunks}, with the
+     *     page name included so downstream consumers don't need a second query
+     */
+    public List< MentionableChunk > findByIds( final List< UUID > ids ) {
+        if( ids == null || ids.isEmpty() ) {
+            return List.of();
+        }
+        final String sql = "SELECT id, page_name, chunk_index, heading_path, text "
+                         + "FROM kg_content_chunks WHERE id = ANY( ? )";
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            final UUID[] arr = ids.toArray( new UUID[ 0 ] );
+            ps.setArray( 1, conn.createArrayOf( "uuid", arr ) );
+            try( ResultSet rs = ps.executeQuery() ) {
+                final List< MentionableChunk > out = new ArrayList<>();
+                while( rs.next() ) {
+                    final Array hp = rs.getArray( 4 );
+                    final List< String > headingPath;
+                    if( hp == null ) {
+                        headingPath = List.of();
+                    } else {
+                        final String[] parts = (String[]) hp.getArray();
+                        headingPath = parts == null ? List.of() : List.of( parts );
+                    }
+                    out.add( new MentionableChunk(
+                        rs.getObject( 1, UUID.class ),
+                        rs.getString( 2 ),
+                        rs.getInt( 3 ),
+                        headingPath,
+                        rs.getString( 5 ) ) );
+                }
+                return out;
+            }
+        } catch( final SQLException e ) {
+            LOG.warn( "Failed to find chunks by ids (count={}): {}", ids.size(), e.getMessage(), e );
+            throw new RuntimeException( "findByIds failed", e );
+        }
+    }
+
+    /**
+     * Chunk projection returned by {@link #findByIds(List)}: id + page + text,
+     * which is exactly what the extractor pipeline needs.
+     */
+    public record MentionableChunk(
+        UUID id,
+        String pageName,
+        int chunkIndex,
+        List< String > headingPath,
+        String text
+    ) {}
 
     /**
      * Returns every chunk for a page with full contents (text, timestamps,

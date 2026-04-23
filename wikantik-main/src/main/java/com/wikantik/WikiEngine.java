@@ -54,7 +54,7 @@ import com.wikantik.search.LuceneSearchProvider;
 import com.wikantik.search.SearchManager;
 import com.wikantik.search.SearchProvider;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
-import com.wikantik.knowledge.EmbeddingService;
+import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubDiscoveryService;
@@ -154,6 +154,9 @@ public class WikiEngine implements Engine {
     private com.wikantik.search.embedding.AsyncEmbeddingIndexListener hybridIndexListener;
     private com.wikantik.search.hybrid.QueryEmbedder hybridQueryEmbedder;
     private com.wikantik.search.embedding.BootstrapEmbeddingIndexer hybridBootstrapIndexer;
+
+    /** Entity-extraction lifecycle handle; null when the extractor is disabled. */
+    private com.wikantik.knowledge.extraction.AsyncEntityExtractionListener entityExtractionListener;
 
     /**
      *  Gets a WikiEngine related to this servlet.  Since this method is only called from JSP pages (and JspInit()) to be specific,
@@ -591,7 +594,7 @@ public class WikiEngine implements Engine {
             // Register services with the engine's manager map.
             managers.put( KnowledgeGraphService.class, svcs.kgService() );
             managers.put( GraphProjector.class, svcs.graphProjector() );
-            managers.put( EmbeddingService.class, svcs.embeddingService() );
+            managers.put( NodeMentionSimilarity.class, svcs.nodeMentionSimilarity() );
             managers.put( HubProposalRepository.class, svcs.hubProposalRepo() );
             managers.put( HubProposalService.class, svcs.hubProposalService() );
             managers.put( HubDiscoveryRepository.class, svcs.hubDiscoveryRepo() );
@@ -613,10 +616,8 @@ public class WikiEngine implements Engine {
                 final com.wikantik.knowledge.chunking.ContentChunker rebuildChunker =
                     new com.wikantik.knowledge.chunking.ContentChunker(
                         new com.wikantik.knowledge.chunking.ContentChunker.Config(
-                            TextUtil.getIntegerProperty( props, "wikantik.chunker.target_tokens", 300 ),
                             TextUtil.getIntegerProperty( props, "wikantik.chunker.max_tokens", 512 ),
-                            TextUtil.getIntegerProperty( props, "wikantik.chunker.min_tokens", 80 ),
-                            TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 8 ) ) );
+                            TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 150 ) ) );
                 rebuildService =
                     meterRegistry != null
                         ? new com.wikantik.admin.ContentIndexRebuildService(
@@ -643,6 +644,8 @@ public class WikiEngine implements Engine {
             }
 
             wireHybridRetrieval( props, ds, svcs.chunkProjector(), rebuildService );
+            wireEntityExtraction( props, ds, svcs.chunkProjector(), svcs.contentChunkRepo() );
+            wireGraphRerank( props, ds );
 
             // Register filters (priority order preserved from the original initializer).
             // PriorityList is descending: higher priority runs first, so -1005 runs
@@ -652,11 +655,6 @@ public class WikiEngine implements Engine {
             filterManager.addPageFilter( svcs.chunkProjector(), -1005 );
             filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), -1004 );
             filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );
-
-            // Start background retraining only after managers are wired up.
-            final long retrainMinutes = Long.parseLong(
-                props.getProperty( EmbeddingService.PROP_RETRAIN_MINUTES, "60" ) );
-            svcs.embeddingService().startPeriodicRetraining( retrainMinutes );
 
             LOG.info( "HubProposalService registered (reviewPercentile property='{}')",
                 props.getProperty( HubProposalService.PROP_REVIEW_PERCENTILE, "default" ) );
@@ -787,6 +785,130 @@ public class WikiEngine implements Engine {
 
         LOG.info( "Hybrid retrieval wired (model={}, backend={}, vectorIndex.size={})",
             modelCode, cfg.backend(), vectorIndex.size() );
+    }
+
+    /**
+     * Wires the Phase 2 entity-extraction pipeline: extractor backend (Claude
+     * or Ollama), async listener on {@code ChunkProjector}'s post-chunk sink,
+     * and the mention repository. Opt-in via
+     * {@code wikantik.knowledge.extractor.backend=claude|ollama|disabled}
+     * (default {@code disabled}) — a fresh deploy emits no proposals until an
+     * operator flips the flag.
+     */
+    @SuppressWarnings( "PMD.CloseResource" ) // Listener is stored as a field; lifecycle follows engine shutdown.
+    private void wireEntityExtraction( final Properties props,
+                                       final javax.sql.DataSource ds,
+                                       final com.wikantik.knowledge.chunking.ChunkProjector chunkProjector,
+                                       final com.wikantik.knowledge.chunking.ContentChunkRepository contentChunkRepo ) {
+        final com.wikantik.knowledge.extraction.EntityExtractorConfig extractorCfg =
+            com.wikantik.knowledge.extraction.EntityExtractorConfig.fromProperties( props );
+        if ( !extractorCfg.enabled() ) {
+            LOG.info( "Entity extraction disabled (wikantik.knowledge.extractor.backend=disabled)" );
+            return;
+        }
+        final java.util.Optional< com.wikantik.api.knowledge.EntityExtractor > extractorOpt =
+            com.wikantik.knowledge.extraction.EntityExtractorFactory.create( extractorCfg );
+        if ( extractorOpt.isEmpty() ) {
+            LOG.warn( "Entity extraction configured ({}), but no usable backend; skipping wiring",
+                      extractorCfg.backend() );
+            return;
+        }
+        final com.wikantik.knowledge.extraction.ChunkEntityMentionRepository mentionRepo =
+            new com.wikantik.knowledge.extraction.ChunkEntityMentionRepository( ds );
+        final com.wikantik.knowledge.JdbcKnowledgeRepository kgRepo =
+            new com.wikantik.knowledge.JdbcKnowledgeRepository( ds );
+        final io.micrometer.core.instrument.MeterRegistry meter =
+            io.micrometer.core.instrument.Metrics.globalRegistry;
+
+        final com.wikantik.knowledge.extraction.AsyncEntityExtractionListener listener =
+            new com.wikantik.knowledge.extraction.AsyncEntityExtractionListener(
+                extractorOpt.get(), extractorCfg, contentChunkRepo, mentionRepo, kgRepo, meter );
+        this.entityExtractionListener = listener;
+        managers.put( com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class, mentionRepo );
+        managers.put( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class, listener );
+
+        // Admin-triggered full-corpus extraction: re-runs the extractor for
+        // every chunk. Shares the listener's extractor + persistence logic so
+        // there's exactly one code path for how mentions / proposals land.
+        final com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer bootstrap =
+            new com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer(
+                listener, contentChunkRepo, mentionRepo, extractorCfg.concurrency() );
+        managers.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class, bootstrap );
+
+        // Compose with any existing post-chunk sink so embedding indexing and
+        // entity extraction both run on every save. Consumer.andThen catches
+        // exceptions from the first and still invokes the second? No — andThen
+        // propagates. Wrap the first so a listener crash can't poison the chain.
+        final java.util.function.Consumer< java.util.List< java.util.UUID > > prior =
+            this.hybridIndexListener;
+        final java.util.function.Consumer< java.util.List< java.util.UUID > > safePrior = prior == null
+            ? null
+            : ids -> {
+                try {
+                    prior.accept( ids );
+                } catch( final RuntimeException e ) {
+                    LOG.warn( "Hybrid index listener failed; entity extraction will still run: {}",
+                              e.getMessage(), e );
+                }
+            };
+        final java.util.function.Consumer< java.util.List< java.util.UUID > > composite =
+            safePrior == null ? listener : safePrior.andThen( listener );
+        chunkProjector.setPostChunkSink( composite );
+
+        final String modelLabel = "claude".equalsIgnoreCase( extractorCfg.backend() )
+            ? extractorCfg.claudeModel()
+            : extractorCfg.ollamaModel();
+        LOG.info( "Entity extraction wired (backend={}, model={}, threshold={}, timeoutMs={}, batchConcurrency={})",
+                  extractorCfg.backend(), modelLabel, extractorCfg.confidenceThreshold(),
+                  extractorCfg.timeoutMs(), extractorCfg.concurrency() );
+    }
+
+    /**
+     * Wires the Phase 3 graph-aware rerank step: loads {@code kg_edges} into
+     * an {@link com.wikantik.search.hybrid.InMemoryGraphNeighborIndex}, builds
+     * the name-based {@link com.wikantik.search.hybrid.QueryEntityResolver},
+     * and registers a {@link com.wikantik.search.hybrid.GraphRerankStep} for
+     * {@link com.wikantik.rest.SearchResource} to pick up. The feature is
+     * config-gated: {@code wikantik.search.graph.boost=0} skips wiring
+     * entirely so a fresh deploy pays zero cost until an operator opts in.
+     */
+    private void wireGraphRerank( final Properties props, final javax.sql.DataSource ds ) {
+        final com.wikantik.search.hybrid.GraphRerankConfig cfg;
+        try {
+            cfg = com.wikantik.search.hybrid.GraphRerankConfig.fromProperties( props );
+        } catch ( final IllegalArgumentException e ) {
+            LOG.warn( "Invalid graph rerank config; feature disabled: {}", e.getMessage() );
+            return;
+        }
+        if ( !cfg.enabled() ) {
+            LOG.info( "Graph rerank disabled (wikantik.search.graph.boost=0)" );
+            return;
+        }
+        final com.wikantik.search.hybrid.InMemoryGraphNeighborIndex neighborIndex;
+        try {
+            neighborIndex = new com.wikantik.search.hybrid.InMemoryGraphNeighborIndex( ds, cfg.neighborIndexMaxEdges() );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Graph neighbor index failed to initialize; graph rerank disabled: {}", e.getMessage(), e );
+            return;
+        }
+        final com.wikantik.search.hybrid.GraphProximityScorer scorer =
+            new com.wikantik.search.hybrid.GraphProximityScorer( neighborIndex );
+        final com.wikantik.search.hybrid.QueryEntityResolver resolver =
+            new com.wikantik.search.hybrid.QueryEntityResolver( ds, cfg );
+        final com.wikantik.search.hybrid.PageMentionsLoader mentionsLoader =
+            new com.wikantik.search.hybrid.PageMentionsLoader( ds );
+        final com.wikantik.search.hybrid.GraphRerankStep step =
+            new com.wikantik.search.hybrid.GraphRerankStep( resolver, mentionsLoader, scorer, neighborIndex, cfg );
+
+        managers.put( com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class, neighborIndex );
+        managers.put( com.wikantik.search.hybrid.GraphNeighborIndex.class, neighborIndex );
+        managers.put( com.wikantik.search.hybrid.GraphProximityScorer.class, scorer );
+        managers.put( com.wikantik.search.hybrid.QueryEntityResolver.class, resolver );
+        managers.put( com.wikantik.search.hybrid.PageMentionsLoader.class, mentionsLoader );
+        managers.put( com.wikantik.search.hybrid.GraphRerankStep.class, step );
+
+        LOG.info( "Graph rerank wired (boost={}, maxHops={}, indexNodes={})",
+            cfg.boost(), cfg.maxHops(), neighborIndex.nodeCount() );
     }
 
     /** {@inheritDoc} */
@@ -940,6 +1062,10 @@ public class WikiEngine implements Engine {
         if ( hybridIndexListener != null ) {
             try { hybridIndexListener.close(); }
             catch( final RuntimeException e ) { LOG.warn( "hybridIndexListener close failed: {}", e.getMessage(), e ); }
+        }
+        if ( entityExtractionListener != null ) {
+            try { entityExtractionListener.close(); }
+            catch( final RuntimeException e ) { LOG.warn( "entityExtractionListener close failed: {}", e.getMessage(), e ); }
         }
         if ( hybridQueryEmbedder != null ) {
             try { hybridQueryEmbedder.close(); }

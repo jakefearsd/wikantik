@@ -19,14 +19,14 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.api.knowledge.KgNode;
+import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.*;
-import java.util.function.Supplier;
 
 /**
- * Batch service that computes Hub membership proposals using TF-IDF content embeddings.
+ * Batch service that computes Hub membership proposals using mention-centroid content embeddings.
  *
  * <p>Algorithm:
  * <ol>
@@ -45,27 +45,17 @@ public class HubProposalService {
 
     private final JdbcKnowledgeRepository kgRepo;
     private final HubProposalRepository proposalRepo;
-    @SuppressWarnings( "PMD.UnusedPrivateField" ) // Repo retained for validation/DI wiring; consumed once vector-backed proposals land.
-    private final ContentEmbeddingRepository contentRepo;
+    private final NodeMentionSimilarity similarity;
     private final int reviewPercentile;
-    private final Supplier< TfidfModel > contentModelSupplier;
 
-    /**
-     * Use {@link #builder()} to construct. The content-model supplier is invoked fresh
-     * on every call to {@link #generateProposals()} so production callers that pass
-     * {@code EmbeddingService::getCurrentContentModel} always see the latest trained
-     * model without needing to re-register the service after a retrain.
-     */
     private HubProposalService( final JdbcKnowledgeRepository kgRepo,
                                  final HubProposalRepository proposalRepo,
-                                 final ContentEmbeddingRepository contentRepo,
-                                 final int reviewPercentile,
-                                 final Supplier< TfidfModel > contentModelSupplier ) {
+                                 final NodeMentionSimilarity similarity,
+                                 final int reviewPercentile ) {
         this.kgRepo = kgRepo;
         this.proposalRepo = proposalRepo;
-        this.contentRepo = contentRepo;
+        this.similarity = similarity;
         this.reviewPercentile = reviewPercentile;
-        this.contentModelSupplier = contentModelSupplier;
     }
 
     public static Builder builder() {
@@ -73,17 +63,15 @@ public class HubProposalService {
     }
 
     /**
-     * Fluent builder for {@link HubProposalService}. Required parameters
-     * ({@code kgRepo}, {@code proposalRepo}, {@code contentRepo}, and a content model
-     * either via {@link #contentModel(TfidfModel)} or {@link #contentModelSupplier(Supplier)})
-     * are validated in {@link #build()}.
+     * Fluent builder for {@link HubProposalService}. Required parameters are
+     * ({@code kgRepo}, {@code proposalRepo}, {@code similarity}); the review
+     * percentile defaults to {@value DEFAULT_REVIEW_PERCENTILE} if not set.
      */
     public static final class Builder {
         private JdbcKnowledgeRepository kgRepo;
         private HubProposalRepository proposalRepo;
-        private ContentEmbeddingRepository contentRepo;
+        private NodeMentionSimilarity similarity;
         private Integer reviewPercentile;
-        private Supplier< TfidfModel > contentModelSupplier;
 
         private Builder() {}
 
@@ -93,8 +81,8 @@ public class HubProposalService {
         public Builder proposalRepo( final HubProposalRepository proposalRepo ) {
             this.proposalRepo = proposalRepo; return this;
         }
-        public Builder contentRepo( final ContentEmbeddingRepository contentRepo ) {
-            this.contentRepo = contentRepo; return this;
+        public Builder similarity( final NodeMentionSimilarity similarity ) {
+            this.similarity = similarity; return this;
         }
         public Builder reviewPercentile( final int reviewPercentile ) {
             this.reviewPercentile = reviewPercentile; return this;
@@ -105,26 +93,15 @@ public class HubProposalService {
                 String.valueOf( DEFAULT_REVIEW_PERCENTILE ) ) );
             return this;
         }
-        /** Wraps a fixed model in a constant supplier — useful for tests. */
-        public Builder contentModel( final TfidfModel contentModel ) {
-            this.contentModelSupplier = () -> contentModel; return this;
-        }
-        /** Production use — called fresh each generation so retrains are picked up. */
-        public Builder contentModelSupplier( final Supplier< TfidfModel > supplier ) {
-            this.contentModelSupplier = supplier; return this;
-        }
 
         public HubProposalService build() {
-            if ( kgRepo == null || proposalRepo == null
-                || contentRepo == null || contentModelSupplier == null ) {
+            if ( kgRepo == null || proposalRepo == null || similarity == null ) {
                 throw new IllegalStateException( "HubProposalService.Builder: kgRepo, "
-                    + "proposalRepo, contentRepo, and a content model (contentModel or "
-                    + "contentModelSupplier) are all required" );
+                    + "proposalRepo, and similarity are all required" );
             }
             final int percentile = reviewPercentile != null
                 ? reviewPercentile : DEFAULT_REVIEW_PERCENTILE;
-            return new HubProposalService( kgRepo, proposalRepo, contentRepo,
-                percentile, contentModelSupplier );
+            return new HubProposalService( kgRepo, proposalRepo, similarity, percentile );
         }
     }
 
@@ -138,21 +115,26 @@ public class HubProposalService {
         LOG.info( "Hub proposals: generation starting (reviewPercentile={})", reviewPercentile );
         final long start = System.currentTimeMillis();
 
-        final TfidfModel contentModel = resolveReadyContentModel();
-        if ( contentModel == null ) return 0;
+        final Map< String, float[] > vectors = similarity.allCentroids();
+        if ( vectors.isEmpty() ) {
+            LOG.warn( "Hub proposals skipped: no mention-backed centroids available yet" );
+            return 0;
+        }
+        LOG.info( "Hub proposals: using {} mention-centroid vectors (dim={})",
+            vectors.size(), similarity.dimension() );
 
         try {
             final HubMembership membership = loadHubMembership();
             if ( membership.hubMembers().isEmpty() ) return 0;
 
-            final Map< String, float[] > centroids = computeAndSaveCentroids( contentModel, membership.hubMembers() );
+            final Map< String, float[] > centroids = computeAndSaveCentroids( vectors, membership.hubMembers() );
             if ( centroids.isEmpty() ) {
                 LOG.warn( "Hub proposals ending early: no computable centroids "
                     + "— ensure hub members have been indexed by the content model" );
                 return 0;
             }
 
-            final List< Score > allScores = scoreCandidates( contentModel, membership, centroids );
+            final List< Score > allScores = scoreCandidates( vectors, membership, centroids );
             if ( allScores.isEmpty() ) {
                 LOG.warn( "Hub proposals ending early: no candidate scores computed "
                     + "— no non-hub, non-member pages in the content model" );
@@ -176,22 +158,6 @@ public class HubProposalService {
 
     /** Candidate (hub × page) similarity score, populated in step 3 and consumed in step 4. */
     private record Score( String hubName, String pageName, double rawSimilarity ) {}
-
-    /** Returns the content model if ready, logging and returning null otherwise. */
-    private TfidfModel resolveReadyContentModel() {
-        final TfidfModel contentModel = contentModelSupplier.get();
-        if ( contentModel == null ) {
-            LOG.warn( "Hub proposals skipped: content model is null (EmbeddingService not ready or not wired)" );
-            return null;
-        }
-        if ( contentModel.getEntityCount() == 0 ) {
-            LOG.warn( "Hub proposals skipped: content model has 0 entities (not trained yet)" );
-            return null;
-        }
-        LOG.info( "Hub proposals: using content model with {} entities, dimension {}",
-            contentModel.getEntityCount(), contentModel.getDimension() );
-        return contentModel;
-    }
 
     /**
      * Step 1 — Load every hub's membership from `related` edges.
@@ -282,7 +248,7 @@ public class HubProposalService {
     }
 
     /** Step 2 — compute and persist hub centroid embeddings. */
-    private Map< String, float[] > computeAndSaveCentroids( final TfidfModel contentModel,
+    private Map< String, float[] > computeAndSaveCentroids( final Map< String, float[] > vectors,
                                                               final Map< String, List< String > > hubMembers ) {
         final Map< String, float[] > centroids = new LinkedHashMap<>();
         int centroidsSaved = 0;
@@ -290,7 +256,7 @@ public class HubProposalService {
         for ( final var entry : hubMembers.entrySet() ) {
             final String hubName = entry.getKey();
             final List< String > members = entry.getValue();
-            final float[] centroid = computeCentroid( contentModel, members );
+            final float[] centroid = computeCentroid( vectors, members );
             if ( centroid == null ) {
                 centroidsSkipped++;
                 LOG.warn( "Hub proposals: could not compute centroid for hub '{}' — "
@@ -307,32 +273,29 @@ public class HubProposalService {
     }
 
     /** Step 3 — score every non-hub, non-member page against every hub centroid. */
-    private List< Score > scoreCandidates( final TfidfModel contentModel,
+    private List< Score > scoreCandidates( final Map< String, float[] > vectors,
                                              final HubMembership membership,
                                              final Map< String, float[] > centroids ) {
         final List< Score > allScores = new ArrayList<>();
         int skippedBecauseIsHub = 0;
         int skippedBecauseExistingMember = 0;
-        int skippedBecauseUnknownInModel = 0;
         for ( final var hubEntry : centroids.entrySet() ) {
             final String hubName = hubEntry.getKey();
             final float[] centroid = hubEntry.getValue();
             final Set< String > existingMembers = new HashSet<>( membership.hubMembers().get( hubName ) );
 
-            for ( final String pageName : contentModel.getEntityNames() ) {
+            for ( final Map.Entry< String, float[] > page : vectors.entrySet() ) {
+                final String pageName = page.getKey();
                 if ( membership.allHubNames().contains( pageName ) ) { skippedBecauseIsHub++; continue; }
                 if ( existingMembers.contains( pageName ) ) { skippedBecauseExistingMember++; continue; }
-                final int pageId = contentModel.entityId( pageName );
-                if ( pageId < 0 ) { skippedBecauseUnknownInModel++; continue; }
 
-                final double sim = cosineSimilarity( contentModel.getVector( pageId ), centroid );
+                final double sim = cosineSimilarity( page.getValue(), centroid );
                 allScores.add( new Score( hubName, pageName, sim ) );
             }
         }
         LOG.info( "Hub proposals step 3 summary: {} scores computed "
-            + "(skipped: {} hubs, {} existing members, {} unknown-in-model)",
-            allScores.size(), skippedBecauseIsHub,
-            skippedBecauseExistingMember, skippedBecauseUnknownInModel );
+            + "(skipped: {} hubs, {} existing members)",
+            allScores.size(), skippedBecauseIsHub, skippedBecauseExistingMember );
         return allScores;
     }
 
@@ -378,42 +341,41 @@ public class HubProposalService {
         }
     }
 
-    private float[] computeCentroid( final TfidfModel contentModel, final List< String > memberNames ) {
-        final List< float[] > vectors = new ArrayList<>();
+    /**
+     * Mean of member vectors, then L2-normalized. Returns null if fewer than 2
+     * members have vectors in the name→vector map.
+     */
+    private static float[] computeCentroid( final Map< String, float[] > vectors,
+                                              final List< String > memberNames ) {
+        final List< float[] > picked = new ArrayList<>();
         for ( final String name : memberNames ) {
-            final int id = contentModel.entityId( name );
-            if ( id >= 0 ) {
-                vectors.add( contentModel.getVector( id ) );
-            }
+            final float[] v = vectors.get( name );
+            if ( v != null ) picked.add( v );
         }
-        if ( vectors.size() < 2 ) return null;
+        if ( picked.size() < 2 ) return null;
 
-        final float[] centroid = new float[ TfidfModel.DIMENSION ];
-        for ( final float[] v : vectors ) {
-            for ( int i = 0; i < centroid.length; i++ ) {
-                centroid[ i ] += v[ i ];
-            }
+        final int dim = picked.get( 0 ).length;
+        final float[] centroid = new float[ dim ];
+        for ( final float[] v : picked ) {
+            if ( v.length != dim ) continue;
+            for ( int i = 0; i < dim; i++ ) centroid[ i ] += v[ i ];
         }
-        // Average
-        for ( int i = 0; i < centroid.length; i++ ) {
-            centroid[ i ] /= vectors.size();
-        }
-        // Normalize for cosine similarity
+        for ( int i = 0; i < dim; i++ ) centroid[ i ] /= picked.size();
+
         double norm = 0;
-        for ( final float v : centroid ) norm += v * v;
+        for ( final float v : centroid ) norm += (double) v * v;
         if ( norm > 0 ) {
             norm = Math.sqrt( norm );
-            for ( int i = 0; i < centroid.length; i++ ) centroid[ i ] /= (float) norm;
+            for ( int i = 0; i < dim; i++ ) centroid[ i ] /= (float) norm;
         }
         return centroid;
     }
 
     private static double cosineSimilarity( final float[] a, final float[] b ) {
+        if ( a.length != b.length ) return 0.0;
         double dot = 0;
-        for ( int i = 0; i < a.length; i++ ) {
-            dot += a[ i ] * b[ i ];
-        }
-        return dot; // vectors are L2-normalized
+        for ( int i = 0; i < a.length; i++ ) dot += a[ i ] * b[ i ];
+        return dot;    // vectors are L2-normalized
     }
 
     static double computePercentile( final double[] sortedValues, final double value ) {

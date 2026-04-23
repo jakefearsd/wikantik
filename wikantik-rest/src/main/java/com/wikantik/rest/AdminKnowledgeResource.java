@@ -24,7 +24,7 @@ import com.google.gson.reflect.TypeToken;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.api.frontmatter.FrontmatterParser;
-import com.wikantik.knowledge.EmbeddingService;
+import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.SummaryExtractor;
 import com.wikantik.knowledge.TagExtractor;
 import com.wikantik.knowledge.TitleDeriver;
@@ -249,11 +249,6 @@ public class AdminKnowledgeResource extends RestServletBase {
         if ( segments.length >= 3 && "similar".equals( segments[2] ) ) {
             // GET /admin/knowledge/nodes/{name}/similar?limit=10
             handleGetSimilarNodes( request, response, segments[1] );
-            return;
-        }
-        if ( segments.length >= 2 && "merge-candidates".equals( segments[1] ) ) {
-            // GET /admin/knowledge/nodes/merge-candidates?limit=10
-            handleGetMergeCandidates( request, response );
             return;
         }
         if ( segments.length >= 2 ) {
@@ -494,10 +489,6 @@ public class AdminKnowledgeResource extends RestServletBase {
         LOG.info( "Knowledge graph clearAll requested" );
         try {
             service.clearAll();
-            final EmbeddingService embSvc = getEmbeddingService();
-            if ( embSvc != null ) {
-                embSvc.reset();
-            }
             LOG.info( "Knowledge graph clearAll completed" );
             sendJson( response, Map.of( "message", "All knowledge graph data cleared" ) );
         } catch ( final Exception e ) {
@@ -737,8 +728,8 @@ public class AdminKnowledgeResource extends RestServletBase {
 
     // --- Embedding handlers ---
 
-    private EmbeddingService getEmbeddingService() {
-        return getEngine().getManager( EmbeddingService.class );
+    private NodeMentionSimilarity getSimilarity() {
+        return getEngine().getManager( NodeMentionSimilarity.class );
     }
 
     private void handleGetPagesWithoutFrontmatter( final HttpServletRequest request,
@@ -782,40 +773,16 @@ public class AdminKnowledgeResource extends RestServletBase {
     private void handleGetEmbeddings( final HttpServletRequest request,
                                       final HttpServletResponse response,
                                       final String[] segments ) throws IOException {
-        final EmbeddingService embSvc = getEmbeddingService();
-        if ( embSvc == null ) {
-            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Embedding service not available" );
-            return;
-        }
+        final NodeMentionSimilarity sim = getSimilarity();
         if ( segments.length >= 2 && "status".equals( segments[1] ) ) {
-            // GET /admin/knowledge/embeddings/status
-            final var status = embSvc.getStatus();
+            // GET /admin/knowledge/embeddings/status — reports the shared Ollama-backed
+            // mention-centroid index. The ComplEx/TF-IDF fields are gone with this migration.
             final Map< String, Object > result = new LinkedHashMap<>();
-            result.put( "model_version", status.modelVersion() );
-            result.put( "dimension", status.dimension() );
-            result.put( "entity_count", status.entityCount() );
-            result.put( "relation_count", status.relationCount() );
-            result.put( "last_trained", status.lastTrained() != null ? status.lastTrained().toString() : null );
-            result.put( "training", status.training() );
-            result.put( "ready", embSvc.isReady() );
-            result.put( "content_ready", status.contentReady() );
-            result.put( "content_dimension", status.contentDimension() );
-            result.put( "content_entity_count", status.contentEntityCount() );
-            result.put( "content_last_trained", status.contentLastTrained() != null ? status.contentLastTrained().toString() : null );
-            result.put( "content_training", status.contentTraining() );
+            final boolean ready = sim != null && sim.isReady();
+            result.put( "ready", ready );
+            result.put( "dimension", ready ? sim.dimension() : 0 );
+            result.put( "mentioned_node_count", ready ? sim.mentionedNodeNames().size() : 0 );
             sendJson( response, result );
-        } else if ( segments.length >= 2 && "predicted".equals( segments[1] ) ) {
-            // GET /admin/knowledge/embeddings/predicted?limit=20
-            final int limit = parseIntParam( request, "limit", 20 );
-            sendJson( response, Map.of( "predictions", embSvc.predictMissingEdges( limit ) ) );
-        } else if ( segments.length >= 2 && "anomalous".equals( segments[1] ) ) {
-            // GET /admin/knowledge/embeddings/anomalous?limit=20
-            final int limit = parseIntParam( request, "limit", 20 );
-            sendJson( response, Map.of( "anomalous", embSvc.getAnomalousEdges( limit ) ) );
-        } else if ( segments.length >= 2 && "similar-pages".equals( segments[1] ) ) {
-            // GET /admin/knowledge/embeddings/similar-pages?limit=50
-            final int limit = parseIntParam( request, "limit", 50 );
-            sendJson( response, Map.of( "pairs", embSvc.getTopSimilarPagePairs( limit ) ) );
         } else {
             sendNotFound( response, "Unknown embeddings sub-resource" );
         }
@@ -823,131 +790,26 @@ public class AdminKnowledgeResource extends RestServletBase {
 
     private void handlePostEmbeddings( final HttpServletResponse response,
                                        final String[] segments ) throws IOException {
-        final EmbeddingService embSvc = getEmbeddingService();
-        if ( embSvc == null ) {
-            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Embedding service not available" );
-            return;
-        }
-        if ( segments.length >= 2 && "retrain".equals( segments[1] ) ) {
-            // POST /admin/knowledge/embeddings/retrain
-            // If the graph is sparse, project all pages first so there's data to train on
-            final KnowledgeGraphService kgSvc = getKnowledgeService( response );
-            if ( kgSvc == null ) return;
-            final long nodeCount = kgSvc.queryNodes( null, null, 1, 0 ).size();
-            int projected = 0;
-            if ( nodeCount < 2 ) {
-                final PageManager pm = getEngine().getManager( PageManager.class );
-                final GraphProjector projector = getEngine().getManager( GraphProjector.class );
-                if ( pm != null && projector != null ) {
-                    try {
-                        for ( final Page page : pm.getAllPages() ) {
-                            if ( projector.isSystemPage( page.getName() ) ) {
-                                continue;
-                            }
-                            try {
-                                final String text = pm.getPureText( page );
-                                final ParsedPage parsed = FrontmatterParser.parse( text );
-                                projector.projectPage( page.getName(), parsed.metadata(), parsed.body() );
-                                projected++;
-                            } catch ( final Exception e ) {
-                                LOG.warn( "Failed to project page '{}': {}", page.getName(), e.getMessage() );
-                            }
-                        }
-                    } catch ( final Exception e ) {
-                        LOG.warn( "Auto-projection before KGE retrain failed: {}", e.getMessage() );
-                    }
-                    LOG.info( "Auto-projected {} pages before KGE retrain", projected );
-                }
-            }
-            embSvc.retrain();
-            final var status = embSvc.getStatus();
-            final Map< String, Object > result = new LinkedHashMap<>();
-            result.put( "message", "Retrained" );
-            result.put( "model_version", status.modelVersion() );
-            result.put( "entity_count", status.entityCount() );
-            result.put( "relation_count", status.relationCount() );
-            if ( projected > 0 ) result.put( "auto_projected", projected );
-            sendJson( response, result );
-        } else if ( segments.length >= 2 && "retrain-content".equals( segments[1] ) ) {
-            // POST /admin/knowledge/embeddings/retrain-content
-            LOG.info( "Content retrain requested via REST" );
-            try {
-                embSvc.retrainContentModel();
-                final var cStatus = embSvc.getStatus();
-                final Map< String, Object > cResult = new LinkedHashMap<>();
-                cResult.put( "message", "Content model retrained" );
-                cResult.put( "content_entity_count", cStatus.contentEntityCount() );
-                cResult.put( "content_dimension", cStatus.contentDimension() );
-                cResult.put( "content_last_trained",
-                        cStatus.contentLastTrained() != null ? cStatus.contentLastTrained().toString() : null );
-                sendJson( response, cResult );
-            } catch ( final Exception e ) {
-                LOG.error( "Content retrain failed via REST: {}", e.getMessage(), e );
-                sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                        "Content retrain failed: " + e.getMessage() );
-            }
-        } else {
-            sendNotFound( response, "Unknown embeddings sub-resource" );
-        }
+        // No post actions remain on /admin/knowledge/embeddings — retrain/retrain-content
+        // were ComplEx/TF-IDF specific and the chunk embedding indexer runs continuously
+        // via AsyncEmbeddingIndexListener, so there is nothing to manually retrigger here.
+        sendNotFound( response, "Unknown embeddings sub-resource" );
     }
 
     private void handleGetSimilarNodes( final HttpServletRequest request,
                                         final HttpServletResponse response,
                                         final String nodeName ) throws IOException {
-        final EmbeddingService embSvc = getEmbeddingService();
-        if ( embSvc == null || !embSvc.isReady() ) {
-            sendJson( response, Map.of( "structural", List.of(), "content", List.of() ) );
+        final NodeMentionSimilarity sim = getSimilarity();
+        if ( sim == null || !sim.isReady() ) {
+            sendJson( response, Map.of( "similar", List.of() ) );
             return;
         }
         final int limit = parseIntParam( request, "limit", 10 );
-        final String type = request.getParameter( "type" ) != null ? request.getParameter( "type" ) : "both";
-
-        final Map< String, Object > result = new LinkedHashMap<>();
-
-        if ( "structural".equals( type ) || "both".equals( type ) ) {
-            final var structural = embSvc.getSimilarNodes( nodeName, limit );
-            result.put( "structural", structural.stream().map( p -> {
-                final Map< String, Object > m = new LinkedHashMap<>();
-                m.put( "name", p.entityName() );
-                m.put( "similarity", p.score() );
-                return m;
-            } ).toList() );
-        }
-
-        if ( "content".equals( type ) || "both".equals( type ) ) {
-            final var content = embSvc.getContentSimilarNodes( nodeName, limit );
-            result.put( "content", content.stream().map( cs -> {
-                final Map< String, Object > m = new LinkedHashMap<>();
-                m.put( "name", cs.name() );
-                m.put( "similarity", cs.similarity() );
-                return m;
-            } ).toList() );
-        }
-
-        // Backward compat: also include "similar" key for old clients
-        if ( "structural".equals( type ) ) {
-            result.put( "similar", result.get( "structural" ) );
-        }
-
-        sendJson( response, result );
-    }
-
-    private void handleGetMergeCandidates( final HttpServletRequest request,
-                                           final HttpServletResponse response ) throws IOException {
-        final EmbeddingService embSvc = getEmbeddingService();
-        if ( embSvc == null || !embSvc.isReady() ) {
-            sendJson( response, Map.of( "candidates", List.of() ) );
-            return;
-        }
-        final int limit = parseIntParam( request, "limit", 10 );
-        final var candidates = embSvc.getMergeCandidatesEnhanced( limit, 0.3 );
-        sendJson( response, Map.of( "candidates", candidates.stream().map( mc -> {
+        final var ranked = sim.similarTo( nodeName, limit );
+        sendJson( response, Map.of( "similar", ranked.stream().map( s -> {
             final Map< String, Object > m = new LinkedHashMap<>();
-            m.put( "name_a", mc.nameA() );
-            m.put( "name_b", mc.nameB() );
-            m.put( "structural", mc.structural() );
-            m.put( "content", mc.content() );
-            m.put( "combined", mc.combined() );
+            m.put( "name", s.name() );
+            m.put( "similarity", s.score() );
             return m;
         } ).toList() ) );
     }
@@ -1015,18 +877,18 @@ public class AdminKnowledgeResource extends RestServletBase {
 
     private void handleHubProposalsGenerate( final HttpServletResponse response ) throws IOException {
         LOG.info( "Hub proposals: generate endpoint invoked" );
-        final EmbeddingService emb = getEngine().getManager( EmbeddingService.class );
-        if ( emb == null ) {
-            LOG.warn( "Hub proposals generate rejected: EmbeddingService not registered "
+        final NodeMentionSimilarity sim = getEngine().getManager( NodeMentionSimilarity.class );
+        if ( sim == null ) {
+            LOG.warn( "Hub proposals generate rejected: NodeMentionSimilarity not registered "
                 + "(knowledge graph initialization likely failed — see earlier WARN)" );
             sendError( response, HttpServletResponse.SC_PRECONDITION_FAILED,
-                "EmbeddingService not available — knowledge graph not initialized" );
+                "NodeMentionSimilarity not available — knowledge graph not initialized" );
             return;
         }
-        if ( !emb.isContentReady() ) {
-            LOG.warn( "Hub proposals generate rejected: content model not trained yet" );
+        if ( !sim.isReady() ) {
+            LOG.warn( "Hub proposals generate rejected: mention-centroid index not populated yet" );
             sendError( response, HttpServletResponse.SC_PRECONDITION_FAILED,
-                "Content model must be trained before generating proposals" );
+                "Chunk embedding index must be populated before generating proposals" );
             return;
         }
         final HubProposalService service = getEngine().getManager( HubProposalService.class );

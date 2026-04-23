@@ -160,7 +160,7 @@ final class RebuildTestFactory {
             .thenReturn( new ContentChunkRepository.AggregateStats( 0, 0, 0, 0, 0, 0 ) );
 
         final ContentChunker chunker =
-            new ContentChunker( new ContentChunker.Config( 600, 900, 180, 8 ) );
+            new ContentChunker( new ContentChunker.Config( 900, 8 ) );
 
         return new Builder( pm, sp, lucene, chunkRepo, chunker, enabled, 25L );
     }
@@ -269,7 +269,7 @@ final class RebuildTestFactory {
         final LuceneReindexQueue lucene = fakeLuceneQueue();
 
         final ContentChunker chunker =
-            new ContentChunker( new ContentChunker.Config( 600, 900, 180, 8 ) );
+            new ContentChunker( new ContentChunker.Config( 900, 8 ) );
 
         return new ContentIndexRebuildService(
             pm, sp, lucene, repo, chunker, () -> true, 10L );
@@ -302,7 +302,7 @@ final class RebuildTestFactory {
         final LuceneReindexQueue lucene = fakeLuceneQueue();
 
         final ContentChunker chunker = new ContentChunker(
-                new ContentChunker.Config( 600, 900, 180, 8 ) ) {
+                new ContentChunker.Config( 900, 8 ) ) {
             @Override
             public List< Chunk > chunk( final String pageName, final ParsedPage page ) {
                 if ( throwingPageName.equals( pageName ) ) {
@@ -352,7 +352,7 @@ final class RebuildTestFactory {
         final LuceneReindexQueue lucene = fakeLuceneQueue();
 
         final ContentChunker chunker =
-            new ContentChunker( new ContentChunker.Config( 600, 900, 180, 8 ) );
+            new ContentChunker( new ContentChunker.Config( 900, 8 ) );
 
         return new ContentIndexRebuildService(
             pm, sp, lucene, repo, chunker, () -> true, 10L );

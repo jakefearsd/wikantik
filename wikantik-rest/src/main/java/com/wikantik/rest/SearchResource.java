@@ -27,6 +27,7 @@ import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.search.FrontmatterMetadataCache;
 import com.wikantik.search.SearchManager;
+import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridSearchService;
 
 import jakarta.servlet.ServletException;
@@ -62,6 +63,7 @@ public class SearchResource extends RestServletBase {
     private static final Logger LOG = LogManager.getLogger( SearchResource.class );
 
     private static final int DEFAULT_LIMIT = 20;
+    private static final int MAX_LIMIT = 1_000;
 
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
@@ -74,6 +76,15 @@ public class SearchResource extends RestServletBase {
         }
 
         final int limit = parseIntParam( request, "limit", DEFAULT_LIMIT );
+        // A negative limit blows up Stream.limit with IllegalArgumentException; a
+        // ridiculously large limit forces a full-corpus serialization. Both are
+        // user-input errors, not server faults — reject them with a clear 400
+        // rather than leaking an HTML 500 stack trace.
+        if ( limit < 0 || limit > MAX_LIMIT ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                "Query parameter 'limit' must be in [0, " + MAX_LIMIT + "]" );
+            return;
+        }
 
         LOG.debug( "GET search: q={}, limit={}", query, limit );
 
@@ -94,8 +105,18 @@ public class SearchResource extends RestServletBase {
         try {
             searchResults = searchManager.findPages( query, context );
         } catch ( final Exception e ) {
-            LOG.error( "Error executing search for '{}': {}", query, e.getMessage() );
             embedFuture.cancel( true );
+            // Malformed user queries (e.g. unbalanced brackets, Lucene-reserved
+            // operator misuse) surface here as ProviderException wrapping a
+            // Lucene ParseException. These are user-input errors — return 400
+            // rather than 500 so the client treats them as correctable input.
+            if ( isLuceneParseError( e ) ) {
+                LOG.debug( "Lucene parse error for query '{}': {}", query, e.getMessage() );
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Invalid search query: " + e.getMessage() );
+                return;
+            }
+            LOG.error( "Error executing search for '{}': {}", query, e.getMessage() );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Error executing search: " + e.getMessage() );
             return;
@@ -111,9 +132,12 @@ public class SearchResource extends RestServletBase {
         // Hybrid path: when HybridSearchService is present and enabled, fuse
         // BM25 + dense rankings using the prefetched embedding. On any failure
         // the service returns the BM25 names unchanged so search degrades
-        // gracefully, never breaks.
+        // gracefully, never breaks. When a GraphRerankStep is registered, a
+        // graph-proximity boost is applied to the fused ordering as an extra
+        // feature (Phase 3) — fails closed to the fused order.
+        final GraphRerankStep graphStep = engine.getManager( GraphRerankStep.class );
         final List< SearchResult > orderedResults = applyHybridRerank(
-            hybrid, pm, query, safeResults, embedFuture );
+            hybrid, graphStep, pm, query, safeResults, embedFuture );
 
         final List< Map< String, Object > > resultList = orderedResults.stream()
                 .limit( limit )
@@ -175,6 +199,7 @@ public class SearchResource extends RestServletBase {
      * pass overlaps with BM25 instead of running serially after it.
      */
     private List< SearchResult > applyHybridRerank( final HybridSearchService hybrid,
+                                                    final GraphRerankStep graphStep,
                                                     final PageManager pm,
                                                     final String query,
                                                     final Collection< SearchResult > bm25,
@@ -193,7 +218,16 @@ public class SearchResource extends RestServletBase {
             byName.putIfAbsent( name, sr );
         }
         final Optional< float[] > vec = awaitEmbedding( embedFuture );
-        final List< String > fused = hybrid.rerankWith( query, bm25Names, vec );
+        List< String > fused = hybrid.rerankWith( query, bm25Names, vec );
+        // Phase 3: graph-aware rerank runs only after hybrid fusion so the boost
+        // layers on top of the fused ordering. Never adds or removes pages.
+        if ( graphStep != null ) {
+            try {
+                fused = graphStep.rerank( query, fused );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Graph rerank failed; using hybrid fused order: {}", e.getMessage(), e );
+            }
+        }
         if ( fused.equals( bm25Names ) ) {
             return asList;
         }
@@ -222,6 +256,22 @@ public class SearchResource extends RestServletBase {
      * search request. On any failure or timeout we degrade to BM25-only.
      */
     private static final long EMBEDDING_AWAIT_MS = 2_500L;
+
+    /**
+     * Walks the cause chain looking for a Lucene {@code ParseException} — the
+     * marker that a user's search query is syntactically invalid (not a server
+     * fault). Returns true for any such wrapped exception so the servlet can
+     * translate it to a 400 response.
+     */
+    private static boolean isLuceneParseError( final Throwable t ) {
+        Throwable cur = t;
+        while ( cur != null ) {
+            if ( cur instanceof org.apache.lucene.queryparser.classic.ParseException ) return true;
+            if ( cur == cur.getCause() ) return false;
+            cur = cur.getCause();
+        }
+        return false;
+    }
 
     private static Optional< float[] > awaitEmbedding( final CompletableFuture< Optional< float[] > > f ) {
         try {

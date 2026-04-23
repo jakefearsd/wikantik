@@ -18,29 +18,33 @@
  */
 package com.wikantik.knowledge.mcp;
 
-import com.wikantik.knowledge.EmbeddingService;
-import com.wikantik.knowledge.EmbeddingService.ContentSimilarity;
-import com.wikantik.knowledge.ComplExModel.Prediction;
+import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
+import com.wikantik.knowledge.embedding.NodeMentionSimilarity.ScoredName;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * MCP tool that finds structurally similar nodes using ComplEx KGE embeddings.
+ * MCP tool that finds similar nodes by cosine similarity over the unified
+ * mention-centroid embedding space ({@link NodeMentionSimilarity}). Each node's
+ * vector is the centroid of the chunks that mention it, drawn from the same
+ * Ollama-backed content_chunk_embeddings table as hybrid search.
  */
 public class FindSimilarTool implements McpTool {
 
     private static final Logger LOG = LogManager.getLogger( FindSimilarTool.class );
     public static final String TOOL_NAME = "find_similar";
 
-    private final EmbeddingService embeddingService;
+    private final NodeMentionSimilarity similarity;
 
-    public FindSimilarTool( final EmbeddingService embeddingService ) {
-        this.embeddingService = embeddingService;
+    public FindSimilarTool( final NodeMentionSimilarity similarity ) {
+        this.similarity = similarity;
     }
 
     @Override
@@ -59,17 +63,13 @@ public class FindSimilarTool implements McpTool {
             "type", "integer",
             "description", "Maximum number of similar nodes to return (default: 10)"
         ) );
-        properties.put( "type", Map.of(
-            "type", "string",
-            "description", "Similarity type: 'structural' (graph topology), 'content' (text similarity), or 'both' (default: structural)",
-            "enum", List.of( "structural", "content", "both" )
-        ) );
 
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
-            .description( "Find similar nodes using knowledge graph embeddings. " +
-                "Supports structural similarity (graph topology), content similarity " +
-                "(TF-IDF text analysis), or both." )
+            .description( "Find similar nodes by cosine similarity over the unified "
+                + "mention-centroid embedding space. Each node's vector is the centroid "
+                + "of the chunks that mention it; results are ordered by descending "
+                + "similarity to the input node." )
             .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "node" ), null, null, null ) )
             .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
             .build();
@@ -78,43 +78,26 @@ public class FindSimilarTool implements McpTool {
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         try {
-            if ( !embeddingService.isReady() ) {
+            if ( !similarity.isReady() ) {
                 return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
-                    "Embedding model not trained yet. Ask an admin to trigger retraining." );
+                    "Embedding index not populated yet. Ask an admin to wait for the chunk embedding indexer to run." );
             }
 
             final String node = McpToolUtils.getString( arguments, "node" );
             final int limit = McpToolUtils.getInt( arguments, "limit", 10 );
-            final String type = McpToolUtils.getString( arguments, "type", "structural" );
 
-            final Map< String, Object > response = new LinkedHashMap<>();
-
-            if ( "structural".equals( type ) || "both".equals( type ) ) {
-                final List< Prediction > structural = embeddingService.getSimilarNodes( node, limit );
-                response.put( "structural", structural.stream().map( p -> {
-                    final Map< String, Object > m = new LinkedHashMap<>();
-                    m.put( "name", p.entityName() );
-                    m.put( "similarity", Math.round( p.score() * 1000.0 ) / 1000.0 );
-                    return m;
-                } ).toList() );
-            }
-
-            if ( "content".equals( type ) || "both".equals( type ) ) {
-                final List< ContentSimilarity > content = embeddingService.getContentSimilarNodes( node, limit );
-                response.put( "content", content.stream().map( cs -> {
-                    final Map< String, Object > m = new LinkedHashMap<>();
-                    m.put( "name", cs.name() );
-                    m.put( "similarity", Math.round( cs.similarity() * 1000.0 ) / 1000.0 );
-                    return m;
-                } ).toList() );
-            }
-
-            if ( response.isEmpty() || response.values().stream().allMatch( v ->
-                    v instanceof List< ? > l && l.isEmpty() ) ) {
+            final List< ScoredName > ranked = similarity.similarTo( node, limit );
+            if ( ranked.isEmpty() ) {
                 return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
-                    "Node not found in embedding model: " + node );
+                    "No mention-centroid vector for node (either unknown or without chunk mentions): " + node );
             }
-
+            final Map< String, Object > response = new LinkedHashMap<>();
+            response.put( "similar", ranked.stream().map( s -> {
+                final Map< String, Object > m = new LinkedHashMap<>();
+                m.put( "name", s.name() );
+                m.put( "similarity", Math.round( s.score() * 1000.0 ) / 1000.0 );
+                return m;
+            } ).toList() );
             return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, response );
         } catch ( final Exception e ) {
             LOG.warn( "find_similar failed: {}", e.getMessage(), e );

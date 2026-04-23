@@ -35,7 +35,7 @@ import com.wikantik.api.pages.VersionConflictException;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.content.PageRenamer;
-import com.wikantik.knowledge.EmbeddingService;
+import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.content.WikiToMarkdownConverter;
 import com.wikantik.render.RenderingManager;
 
@@ -443,23 +443,24 @@ public class PageResource extends RestServletBase {
     }
 
     /**
-     * Returns similar pages based on KGE embedding similarity.
-     * Degrades gracefully — returns empty list when the embedding model is unavailable.
+     * Returns similar pages based on mention-centroid similarity (same embedding
+     * stack as hybrid search). Degrades gracefully to an empty list when the
+     * embedding index isn't populated or the page has no chunk mentions.
      */
     private void handleGetSimilarPages( final HttpServletRequest request,
                                         final HttpServletResponse response,
                                         final String pageName ) throws IOException {
-        final EmbeddingService embSvc = getEngine().getManager( EmbeddingService.class );
-        if ( embSvc == null || !embSvc.isReady() ) {
+        final NodeMentionSimilarity similarity = getEngine().getManager( NodeMentionSimilarity.class );
+        if ( similarity == null || !similarity.isReady() ) {
             sendJson( response, Map.of( "similar", List.of() ) );
             return;
         }
         final int limit = parseIntParam( request, "limit", 5 );
-        final var similar = embSvc.getSimilarNodes( pageName, limit );
-        sendJson( response, Map.of( "similar", similar.stream().map( p -> {
+        final var similar = similarity.similarTo( pageName, limit );
+        sendJson( response, Map.of( "similar", similar.stream().map( s -> {
             final Map< String, Object > m = new LinkedHashMap<>();
-            m.put( "name", p.entityName() );
-            m.put( "similarity", p.score() );
+            m.put( "name", s.name() );
+            m.put( "similarity", s.score() );
             return m;
         } ).toList() ) );
     }

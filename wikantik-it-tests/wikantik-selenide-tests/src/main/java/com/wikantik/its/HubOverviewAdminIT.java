@@ -33,7 +33,7 @@ import org.junit.jupiter.api.condition.OS;
  *
  * <p>The test seeds three real hub pages by writing markdown files via the page
  * REST API (so the on-save filters create the corresponding KG nodes and edges),
- * waits for the next content-model retrain to pick them up, then exercises the
+ * exercises the
  * panel: expand → assert all three hubs are listed → drill into one → assert the
  * sections render → remove a member → confirm the row disappears → attempt a
  * removal that would leave fewer than 2 members and verify the 409 toast.
@@ -74,9 +74,11 @@ public class HubOverviewAdminIT extends WithIntegrationTestSetup {
             # OvCookingHub
             Cooking related articles.
             """ );
-        // Force a content-model retrain so the TfidfModel knows about the
-        // seeded articles before the Existing Hubs panel queries them.
-        RestSeedHelper.retrainContentModelViaBrowser();
+        // Post-Phase-1 the content model isn't a retrainable TF-IDF build: the
+        // hub overview now derives coherence/nearMiss from mention-centroid
+        // vectors, which the extractor pipeline in Phase 2 will populate.
+        // listHubOverviews degrades gracefully (NaN coherence, 0 near-miss)
+        // until mentions exist, so no synchronous barrier is needed here.
 
         // 2. Open the Hub Discovery admin tab and expand the Existing Hubs panel.
         new HubDiscoveryAdminPage().open();

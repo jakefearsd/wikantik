@@ -294,7 +294,7 @@ multiple hours, either pick a faster model (lower-parameter instruct tag) or
 disable the batch and rely on save-time catch-up.
 
 **Safety.** Only one batch may run at a time (a second POST returns 409).
-Cancellation is between pages only — a timeout-bound chunk can take up to
+Cancellation is between chunks — a timeout-bound chunk can take up to
 `wikantik.knowledge.extractor.timeout_ms` to clear after DELETE. Restart
 Tomcat for an immediate hard-stop.
 
@@ -302,6 +302,64 @@ Tomcat for an immediate hard-stop.
 so re-running without `force=true` is safe; it just refreshes confidence /
 timestamp on existing rows. `force=true` deletes each chunk's mention rows
 first and is only useful when swapping extractor backends.
+
+### Standalone CLI — run the batch without a running Tomcat
+
+For multi-hour / multi-day extractor runs, a fat-jar CLI ships the same
+`BootstrapEntityExtractionIndexer` wiring without the servlet container —
+so Tomcat can be stopped, rebuilt, or repeatedly redeployed during local
+development while extraction continues against the shared PostgreSQL
+database.
+
+Build and launch:
+
+```bash
+# One-line launch — the wrapper builds the jar on first run, reads JDBC
+# credentials from the local Tomcat deploy (tomcat-11/conf/Catalina/localhost/ROOT.xml),
+# and tails progress to stdout.
+bin/runextractor.sh
+
+# Force-overwrite every chunk's prior mentions first (swap extractor backends):
+bin/runextractor.sh --force
+
+# Single-in-flight if you want minimal GPU pressure:
+bin/runextractor.sh --concurrency 1
+
+# See every knob the jar accepts:
+bin/runextractor.sh --help
+```
+
+Progress line format (logged every `--poll-seconds`, default 30):
+
+```
+Extract-CLI progress: state=RUNNING pages=42/957 chunks=1043/23256 (4.5%)
+  failedChunks=3 mentions=187 proposals=1204 elapsed=4200s perChunkMs=4027
+```
+
+Ctrl-C / SIGTERM requests a graceful cancel — the in-flight chunk finishes
+(the Ollama RPC is blocking and not aborted mid-call), then the CLI exits.
+Exit codes: `0` for COMPLETED, `1` for ERROR or refused-start, `2` for bad
+arguments.
+
+Direct invocation (bypasses the wrapper; useful in CI / systemd):
+
+```bash
+java -jar wikantik-extract-cli/target/wikantik-extract-cli.jar \
+     --jdbc-url jdbc:postgresql://host/jspwiki \
+     --jdbc-user jspwiki \
+     --jdbc-password-env PG_PASSWORD \
+     --ollama-url http://inference.jakefear.com:11434 \
+     --ollama-model gemma4-assist:latest \
+     --concurrency 2 \
+     --force
+```
+
+Coordination with the running server: if `wikantik.knowledge.extractor.backend`
+is also enabled on the Tomcat instance, save-time and CLI extraction will
+both try to write to `chunk_entity_mentions`. The upsert is idempotent so
+there's no corruption risk — both paths just compete for GPU time on the
+inference host. For a clean batch run, set `backend=disabled` in
+`wikantik-custom.properties` and restart Tomcat, or stop it entirely.
 
 ---
 

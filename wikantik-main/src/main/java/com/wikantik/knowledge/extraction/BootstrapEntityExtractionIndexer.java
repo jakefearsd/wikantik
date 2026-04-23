@@ -75,6 +75,9 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         int totalPages,
         int processedPages,
         int failedPages,
+        int totalChunks,
+        int processedChunks,
+        int failedChunks,
         int mentionsWritten,
         int proposalsFiled,
         Instant startedAt,
@@ -100,6 +103,9 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
     private final AtomicInteger totalPages = new AtomicInteger();
     private final AtomicInteger processedPages = new AtomicInteger();
     private final AtomicInteger failedPages = new AtomicInteger();
+    private final AtomicInteger totalChunks = new AtomicInteger();
+    private final AtomicInteger processedChunks = new AtomicInteger();
+    private final AtomicInteger failedChunks = new AtomicInteger();
     private final AtomicInteger mentionsWritten = new AtomicInteger();
     private final AtomicInteger proposalsFiled = new AtomicInteger();
     private final AtomicLong startedNs = new AtomicLong();
@@ -209,6 +215,9 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         totalPages.set( 0 );
         processedPages.set( 0 );
         failedPages.set( 0 );
+        totalChunks.set( 0 );
+        processedChunks.set( 0 );
+        failedChunks.set( 0 );
         mentionsWritten.set( 0 );
         proposalsFiled.set( 0 );
         startedNs.set( System.nanoTime() );
@@ -237,6 +246,9 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
             totalPages.get(),
             processedPages.get(),
             failedPages.get(),
+            totalChunks.get(),
+            processedChunks.get(),
+            failedChunks.get(),
             mentionsWritten.get(),
             proposalsFiled.get(),
             startedAt.get(),
@@ -292,8 +304,17 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
     private void runBatch( final boolean overwrite ) throws InterruptedException {
         final List< String > pages = chunkRepo.listDistinctPageNames();
         totalPages.set( pages.size() );
-        LOG.info( "Bootstrap entity extraction starting: pages={}, forceOverwrite={}",
-            pages.size(), overwrite );
+        // One COUNT(*) up front so progress can report chunks processed against
+        // a fixed denominator. If chunks are added mid-run (they shouldn't be),
+        // processedChunks can briefly overshoot; that's better than a moving
+        // target in operator logs.
+        try {
+            totalChunks.set( chunkRepo.stats().totalChunks() );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Bootstrap extraction: failed to precompute total chunk count: {}", e.getMessage() );
+        }
+        LOG.info( "Bootstrap entity extraction starting: pages={}, chunks={}, forceOverwrite={}",
+            pages.size(), totalChunks.get(), overwrite );
 
         int completed = 0;
         int failed = 0;
@@ -391,8 +412,9 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                     page, chunksProcessed, chunkIds.size() );
             }
 
-            mentionsWritten.addAndGet( pageMentions );
-            proposalsFiled.addAndGet( pageProposals );
+            // mentionsWritten / proposalsFiled are now incremented inside runChunk
+            // for real-time progress visibility; the page loop keeps per-page
+            // tallies only for the per-page summary log line below.
             if( pageFailed ) {
                 failed++;
                 failedPages.incrementAndGet();
@@ -416,12 +438,16 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         final long elapsedMs = finishedNs.get() > 0L
             ? ( finishedNs.get() - startedNs.get() ) / 1_000_000L
             : 0L;
-        final int done = processedPages.get();
-        final long meanPerPageMs = done > 0 ? elapsedMs / (long) done : 0L;
+        final int donePages = processedPages.get();
+        final int doneChunks = processedChunks.get();
+        final long meanPerPageMs = donePages > 0 ? elapsedMs / (long) donePages : 0L;
+        final long meanPerChunkMs = doneChunks > 0 ? elapsedMs / (long) doneChunks : 0L;
         LOG.info( "Bootstrap entity extraction {}: processedPages={}/{}, failedPages={}, "
-                + "mentionsWritten={}, proposalsFiled={}, totalMs={}, meanPerPageMs={}",
-            state.get(), done, totalPages.get(), failedPages.get(),
-            mentionsWritten.get(), proposalsFiled.get(), elapsedMs, meanPerPageMs );
+                + "processedChunks={}/{}, failedChunks={}, "
+                + "mentionsWritten={}, proposalsFiled={}, totalMs={}, meanPerPageMs={}, meanPerChunkMs={}",
+            state.get(), donePages, totalPages.get(), failedPages.get(),
+            doneChunks, totalChunks.get(), failedChunks.get(),
+            mentionsWritten.get(), proposalsFiled.get(), elapsedMs, meanPerPageMs, meanPerChunkMs );
     }
 
     @Override
@@ -458,10 +484,19 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         try {
             final AsyncEntityExtractionListener.RunResult res = listener.runExtractionSync( List.of( chunkId ) );
             final long elapsedMs = ( System.nanoTime() - chunkStartNs ) / 1_000_000L;
-            LOG.info( "Bootstrap extraction: chunk={} page='{}' mentions={} proposals={} elapsedMs={}",
-                chunkId, page, res.mentionsWritten(), res.proposalsFiled(), elapsedMs );
+            processedChunks.incrementAndGet();
+            // Increment aggregate counters per-chunk so status() reflects real-time
+            // progress, not page-granular. A poll between chunks of a 40-chunk page
+            // previously showed mentions=0 proposals=0 until the whole page finished.
+            mentionsWritten.addAndGet( res.mentionsWritten() );
+            proposalsFiled.addAndGet( res.proposalsFiled() );
+            LOG.info( "Bootstrap extraction: chunk={} page='{}' mentions={} proposals={} elapsedMs={} done={}/{}",
+                chunkId, page, res.mentionsWritten(), res.proposalsFiled(), elapsedMs,
+                processedChunks.get(), totalChunks.get() );
             return new ChunkOutcome( res.mentionsWritten(), res.proposalsFiled(), false );
         } catch( final RuntimeException e ) {
+            processedChunks.incrementAndGet();
+            failedChunks.incrementAndGet();
             lastError.set( "page=" + page + " chunk=" + chunkId + ": " + e.getMessage() );
             LOG.warn( "Bootstrap extraction: chunk {} on page '{}' failed: {}",
                 chunkId, page, e.getMessage() );

@@ -6,6 +6,20 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-23** — docs(wiki): capture April 2026 KG extractor benchmarks on wiki
+
+**2026-04-23** — feat(extract-cli): standalone entity-extractor CLI for Tomcat-less batch runs
+
+**2026-04-23** — docs(kg): knowledge-graph-aware rerank configuration and tuning guide
+
+**2026-04-23** — feat(kg-rag): phase 1-3 uplift — unified embeddings, extractor pipeline, graph-aware rerank
+
+**2026-04-22** — docs(plan): KG uplift for RAG — unified embeddings, extractor, graph-aware rerank
+
+**2026-04-22** — refactor(complexity): extract helpers in ReferredPagesPlugin + ImportContentTool
+
+**2026-04-22** — chore(pmd): mechanical batch + singleton suppressions — 47 → 21 violations
+
 **2026-04-22** — chore(pmd): clear AvoidStringBufferField — 59 → 47 violations
 
 **2026-04-22** — chore(pmd): second-pass sweep — 401 → 59 violations (85% reduction)
@@ -1832,6 +1846,4 @@ A log of recent development activity on the JSPWiki project.
 **2025-10-29** — JSPWIKI-1213 adds jacoco to the build
 
 **2025-10-27** — JSPWIKI-1211 minor tweak to fix a bootup issue when the rss directory path does not exist
-
-**2025-10-22** — JSPWIKI-1207 temporary fix for the ehcache causing bootup crashes on the portable builds
 

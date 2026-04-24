@@ -192,6 +192,36 @@ class DefaultContextRetrievalServiceTest {
     }
 
     @Test
+    void retrieve_populatesRelatedPages() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Alpha", "---\n---\n\n", "a", new java.util.Date() );
+        pm.addPage( "Beta",  "---\n---\n\n", "a", new java.util.Date() );
+        pm.addPage( "Gamma", "---\n---\n\n", "a", new java.util.Date() );
+
+        final FakeSearchManager sm = new FakeSearchManager();
+        sm.setResults( java.util.List.of(
+            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "Alpha", 5 ) ) );
+
+        final var similarity = new com.wikantik.knowledge.testfakes.FakeNodeMentionSimilarity();
+        similarity.setRelated( "Alpha",
+            java.util.List.of(
+                new com.wikantik.knowledge.embedding.NodeMentionSimilarity.ScoredName( "Beta", 0.9 ),
+                new com.wikantik.knowledge.embedding.NodeMentionSimilarity.ScoredName( "Gamma", 0.7 ) ) );
+
+        final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
+            sm, null, null, null, null, similarity, pm, null, "" );
+
+        final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
+            "q", 5, 3, null ) );
+
+        assertEquals( 1, result.pages().size() );
+        final var relatedPages = result.pages().get( 0 ).relatedPages();
+        assertEquals( 2, relatedPages.size() );
+        assertEquals( "Beta", relatedPages.get( 0 ).name() );
+        assertNotNull( relatedPages.get( 0 ).reason() );
+    }
+
+    @Test
     void retrieve_populatesContributingChunksFromDenseIndex() {
         final FakePageManager pm = new FakePageManager();
         pm.addPage( "Alpha", "---\n---\nbody", "a", new java.util.Date() );

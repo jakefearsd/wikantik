@@ -40,7 +40,7 @@ import java.util.function.Consumer;
 /**
  * Save-time {@link PageFilter} that drives {@link ContentChunker} and persists
  * the resulting chunks via {@link ContentChunkRepository}. Registered by the
- * engine after {@link com.wikantik.knowledge.GraphProjector} so the graph is
+ * engine after the legacy frontmatter projector (now retired) so the graph is
  * updated first, then content chunks are diffed against what's in the database
  * and applied transactionally.
  *

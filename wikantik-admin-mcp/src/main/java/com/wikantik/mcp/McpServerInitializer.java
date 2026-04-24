@@ -52,7 +52,7 @@ import java.util.EnumSet;
 /**
  * Bootstraps the MCP server on application startup. Retrieves the shared WikiEngine
  * from the ServletContext, creates MCP tool instances, resources, and prompts, and
- * registers a Streamable HTTP transport servlet at {@code /mcp}.
+ * registers a Streamable HTTP transport servlet at {@code /wikantik-admin-mcp}.
  */
 public class McpServerInitializer implements ServletContextListener {
 
@@ -97,19 +97,19 @@ public class McpServerInitializer implements ServletContextListener {
             final McpAccessFilter accessFilter = new McpAccessFilter( config, rateLimiter, apiKeyService );
             final FilterRegistration.Dynamic filterReg =
                     servletContext.addFilter( "McpAccessFilter", accessFilter );
-            filterReg.addMappingForUrlPatterns( EnumSet.of( DispatcherType.REQUEST ), false, "/mcp" );
+            filterReg.addMappingForUrlPatterns( EnumSet.of( DispatcherType.REQUEST ), false, "/wikantik-admin-mcp" );
             filterReg.setAsyncSupported( true );
 
             // Create transport provider (which is itself a Servlet)
             final HttpServletStreamableServerTransportProvider transportProvider =
                     HttpServletStreamableServerTransportProvider.builder()
-                            .mcpEndpoint( "/mcp" )
+                            .mcpEndpoint( "/wikantik-admin-mcp" )
                             .build();
 
             // Register the transport servlet programmatically
             final ServletRegistration.Dynamic registration =
                     servletContext.addServlet( "McpTransportServlet", transportProvider );
-            registration.addMapping( "/mcp" );
+            registration.addMapping( "/wikantik-admin-mcp" );
             registration.setAsyncSupported( true );
             registration.setLoadOnStartup( 2 );
 
@@ -171,7 +171,7 @@ public class McpServerInitializer implements ServletContextListener {
 
             servletContext.setAttribute( ATTR_MCP_SERVER, mcpServer );
             final int totalTools = toolRegistry.readOnlyTools().size() + toolRegistry.authorConfigurableTools().size();
-            LOG.info( "MCP server started with {} tools, 6 resources, 8 prompts, and 3 completions at /mcp", totalTools );
+            LOG.info( "MCP server started with {} tools, 6 resources, 8 prompts, and 3 completions at /wikantik-admin-mcp", totalTools );
 
         } catch ( final Exception e ) {
             LOG.error( "Failed to start MCP server: {}", e.getMessage(), e );

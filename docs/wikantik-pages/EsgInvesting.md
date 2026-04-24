@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q6J8PXDZCEM2MSJWH3
 title: Esg Investing
 type: article
 tags:

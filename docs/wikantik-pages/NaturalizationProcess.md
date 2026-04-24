@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SYQZN3TC2FE2VNJ9MS
 title: Naturalization Process
 type: article
 tags:

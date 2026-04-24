@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YAMZWWPHBR2WSKR5AE
 title: Van Interior Lighting
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PGPECEPJJN3E57HDR0
 title: Defense Sector Investing
 type: article
 tags:

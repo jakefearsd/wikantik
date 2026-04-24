@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RANZ15BBDJFRH6BDPS
 title: JavaMemoryManagement Hub
 type: hub
 auto-generated: true

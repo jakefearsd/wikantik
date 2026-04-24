@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QSZSY9VWFA3MN53S29
 title: Graph Ql Fundamentals
 type: article
 tags:

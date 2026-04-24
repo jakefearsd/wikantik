@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RV8DSY7SH451QN4DE8
 title: Linked Data And Triple Stores
 type: article
 tags:

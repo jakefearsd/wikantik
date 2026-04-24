@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S8FVHP84G01ASDS7T0
 title: Markov Chain Fundamentals
 type: article
 tags:

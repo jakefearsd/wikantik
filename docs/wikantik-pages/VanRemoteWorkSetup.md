@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YBMG1FDV2ATZEYS6Y8
 title: Van Remote Work Setup
 type: article
 tags:

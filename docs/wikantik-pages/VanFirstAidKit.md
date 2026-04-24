@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y9K6R9KTBKVNH71Y71
 title: Van First Aid Kit
 type: article
 tags:

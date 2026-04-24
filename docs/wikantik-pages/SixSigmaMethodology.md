@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WG5XG4B5D1WX0J5K2A
 title: Six Sigma Methodology
 type: article
 tags:

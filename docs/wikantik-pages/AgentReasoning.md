@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44JYZSCM9VN71SM7JV73
 title: Agent Reasoning
 type: article
 tags:

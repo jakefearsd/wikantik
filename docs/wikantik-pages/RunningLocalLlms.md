@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VYWDW79C3YMGKHVYFQ
 date: 2026-03-14T00:00:00Z
 status: active
 summary: Why running your own LLM locally — even a small, limited one — teaches you

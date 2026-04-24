@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KT9B375J27YDZG262M
 title: Apache Kafka Fundamentals
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44W607X28HSHE50HJAS9
 title: Security Compliance Frameworks
 type: article
 tags:

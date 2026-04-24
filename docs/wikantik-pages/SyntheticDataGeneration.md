@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X52Q9CY5WAJRF9F3EF
 title: Synthetic Data Generation
 type: article
 tags:

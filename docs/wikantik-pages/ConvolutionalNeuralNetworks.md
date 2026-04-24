@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P116F8QD1BW4Y4H5NW
 title: Convolutional Neural Networks
 type: article
 tags:

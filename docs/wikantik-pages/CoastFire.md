@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NJSKDH4GF0KGVJEBZ6
 type: article
 tags: [retirement, FIRE, coast-fire, compound-growth, financial-planning]
 date: 2026-03-21

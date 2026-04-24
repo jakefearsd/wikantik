@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44T9S7BYCJ5J13MWMYCT
 title: Ollama Setup
 type: article
 tags:

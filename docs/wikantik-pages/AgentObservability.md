@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44JSVSFBVM2JYTXJJW1Z
 title: Agent Observability
 type: article
 tags:

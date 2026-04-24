@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MJJVQBJKBA070HER5M
 title: Berlin In The Industrial Revolution
 type: article
 tags:

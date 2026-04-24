@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VGYBZRN98HE0Z09YW2
 title: Repository Pattern
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YKQTTF1M0KS2X7DB0Z
 type: hub
 cluster: warehouse-automation
 tags: [warehouse, automation, robotics, logistics, supply-chain]

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44V6YY71F6E8GE82698Y
 title: Read Replicas And Replication
 type: article
 tags:

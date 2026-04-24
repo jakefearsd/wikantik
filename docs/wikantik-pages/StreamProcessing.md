@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X0FP4KR5P9YBCQG5JY
 title: Stream Processing
 type: article
 tags:

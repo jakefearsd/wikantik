@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TYETZXD312AGPK59ZE
 title: Property Graph Model
 type: article
 tags:

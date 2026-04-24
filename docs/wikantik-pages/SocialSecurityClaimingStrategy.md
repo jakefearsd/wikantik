@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WP7ACK88FQ77QPPBCC
 summary: When and how to claim Social Security — breakeven analysis, spousal and survivor
   benefits, the bridge strategy, and coordination with portfolio withdrawals
 date: 2026-03-14T00:00:00Z

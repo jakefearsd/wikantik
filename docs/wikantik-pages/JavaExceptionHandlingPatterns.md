@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R9W6RAHG237ZG08CBZ
 title: Java Exception Handling Patterns
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S4Y86MVCMAK9KJ3P9Y
 title: LowCostIndexFundInvesting Hub
 type: hub
 auto-generated: true

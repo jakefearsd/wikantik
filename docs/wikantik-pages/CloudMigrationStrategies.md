@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NERXFVWJNMY869DVK9
 title: Cloud Migration Strategies
 type: article
 tags:

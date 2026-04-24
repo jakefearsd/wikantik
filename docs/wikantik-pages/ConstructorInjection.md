@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NXNZ4RNF95JAC2TABN
 summary: Testability refactor from service locator pattern to constructor dependency injection
 tags:
 - development

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QWAA4M1VPFRKA6C33F
 title: Health Savings Accounts
 type: article
 tags: [retirement, taxes, HSA, healthcare, investing]

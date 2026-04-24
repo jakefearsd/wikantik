@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NH6753GDGWHP9EEAVJ
 date: '2026-03-20'
 summary: 'Desktop CNC routers for hobbyists: machines, software, capabilities, and
   how they fit into a woodworking workflow'

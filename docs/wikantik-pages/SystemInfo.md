@@ -1,3 +1,6 @@
+---
+canonical_id: 01KQ0P44X6E61P0ND4YF43RWYJ
+---
 Here are some strategical figures and other interesting things about this particular Wiki. All this information is available in [WikiVariables](Wikantik:WikiVariables) as well, if you want to use them on some other page.
 
 | Property | Value |

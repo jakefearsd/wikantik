@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S0ZHBGACMEN6RJXJHE
 title: Load Balancing Strategies
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NGTSHSTM2TKGRW2KFP
 title: Cloud Networking
 type: article
 tags:

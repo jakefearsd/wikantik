@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XAR5WCZTGTCSK2YQCZ
 title: Tax Bracket Management In Retirement
 type: article
 tags:

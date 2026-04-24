@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VK4FG0J29X4THBNXPZ
 title: Responsive Design Principles
 type: article
 tags:

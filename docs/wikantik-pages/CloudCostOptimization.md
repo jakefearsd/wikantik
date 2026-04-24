@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44ND5KEHPR35H4581CPK
 title: Cloud Cost Optimization
 type: article
 tags:

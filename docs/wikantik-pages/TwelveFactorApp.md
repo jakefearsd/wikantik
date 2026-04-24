@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y2W5GB0XM16P3SZBNT
 title: Twelve Factor App
 type: article
 tags:

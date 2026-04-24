@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MCDCQNDHCX00XVJ7HC
 title: Batch Api Design
 type: article
 tags:

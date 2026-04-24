@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Z1AZESNHTQDJANTSB1
 title: Wiki Migration Strategies
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RB0EC2WE3DW85CTDWS
 title: Java Module System
 type: article
 tags:

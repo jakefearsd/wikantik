@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X1DSX621T62H1GPJ9A
 title: String Matching Algorithms
 type: article
 tags:

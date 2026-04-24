@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XCQ51WQ5AMZG3704E3
 title: Taxonomy Design Principles
 type: article
 tags:

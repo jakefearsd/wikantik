@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SBG2CF3EAWZF9SYJND
 summary: Model Context Protocol server enabling AI agents to read, write, search, and propose knowledge through 50+ tools
 tags:
 - development

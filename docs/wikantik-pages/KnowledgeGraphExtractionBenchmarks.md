@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RJB1S0M1ZPBSYKQ7KT
 title: Knowledge-Graph Extraction Benchmarks — April 2026
 cluster: wikantik-development
 type: article

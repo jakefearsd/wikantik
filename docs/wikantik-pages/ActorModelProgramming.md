@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44GZ38CMD1XSCWFQBB60
 title: Actor Model Programming
 type: article
 tags:

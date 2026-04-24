@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Z7FPQ014FNT4T0DC2E
 title: Wood Finishing Guide
 type: article
 tags:

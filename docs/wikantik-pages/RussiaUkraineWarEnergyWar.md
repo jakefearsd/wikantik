@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VYPZ8476AVA9DV9NSB
 summary: Russia's systematic campaign against Ukraine's energy infrastructure and
   its devastating impact
 date: '2026-03-13'

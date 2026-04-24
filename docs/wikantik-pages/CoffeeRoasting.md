@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NKVZ1P9TY1JZVDDD0G
 title: Coffee Roasting
 type: article
 tags:

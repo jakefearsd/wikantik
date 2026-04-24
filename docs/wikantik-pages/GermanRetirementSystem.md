@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QP9C29XPRG590G0Y6T
 date: '2026-03-15T00:00:00Z'
 status: active
 cluster: retirement-planning/eu-retirement

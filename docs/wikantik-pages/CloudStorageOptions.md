@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NGM0PV4D7CTA1XVXDW
 title: Cloud Storage Options
 type: article
 tags:

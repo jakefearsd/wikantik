@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NK9P7Y12JV0E18PWJB
 title: Code Review Practices
 type: article
 tags:

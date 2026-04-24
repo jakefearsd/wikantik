@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VZR75RD299X7YXRNXP
 summary: International military support and the European defense response to the Russia-Ukraine
   war as of March 2026
 date: '2026-03-13'

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Z4JH82M2KYBEME5M2H
 title: Wiki Permission Model Guide
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QJTG4MR5M81CRQMK7A
 title: Full Text Search In Postgresql
 type: article
 tags:

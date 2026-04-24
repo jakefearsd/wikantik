@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NAX6V7B52WT96YRM73
 title: Clean Code Principles
 type: article
 tags:

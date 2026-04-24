@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SS21YT1S42ATRD7VWA
 title: Mortgage Strategies
 type: article
 tags:

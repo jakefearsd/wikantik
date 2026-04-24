@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PY70Y15J7FFKE5YF8Y
 title: Domain Driven Design
 type: article
 tags:

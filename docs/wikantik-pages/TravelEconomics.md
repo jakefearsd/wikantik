@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XY0847P6P0SWR3G2WF
 title: Travel Economics
 type: article
 tags:

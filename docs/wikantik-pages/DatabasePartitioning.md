@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PD67D3Q6J50DMSVQ4W
 title: Database Partitioning
 type: article
 tags:

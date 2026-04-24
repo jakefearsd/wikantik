@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YD3DV67W3X8SB1WKEA
 title: Variable Percentage Withdrawal
 type: article
 tags:

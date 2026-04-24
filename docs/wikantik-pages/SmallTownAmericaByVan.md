@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WNGP0HW1394JFS0FJ2
 title: Small Town America By Van
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y9N53GSXAHCP448G7W
 title: Van Entertainment Setup
 type: article
 tags:

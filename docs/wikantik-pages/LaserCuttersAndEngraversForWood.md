@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RPCNAYG7Q684CNB3NK
 date: '2026-03-20'
 summary: 'CO2 and diode lasers for hobby woodworking: cutting thin stock, engraving,
   inlay preparation, and choosing between laser and CNC'

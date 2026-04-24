@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RP1513YV8Z141WF639
 title: Lamport Clocks
 type: article
 tags:

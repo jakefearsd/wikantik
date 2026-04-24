@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RQ9XTZT2ERA1ZCVXWY
 title: Leader Election Algorithms
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WH61CKXHGPC05BW1AK
 title: Skill Integration
 type: article
 tags:

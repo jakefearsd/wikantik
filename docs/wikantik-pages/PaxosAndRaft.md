@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TG1J95JKD3X255X8ST
 title: Paxos And Raft
 type: article
 tags:

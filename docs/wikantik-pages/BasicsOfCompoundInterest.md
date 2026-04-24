@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MCSZ0P6K7NKBZFB1CR
 title: Basics of Compound Interest
 type: article
 tags: [investing, compound-interest, mathematics, financial-literacy]

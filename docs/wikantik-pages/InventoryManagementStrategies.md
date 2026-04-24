@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R7PJZXQ2B9S007Q4GR
 title: Inventory Management Strategies
 type: article
 tags:

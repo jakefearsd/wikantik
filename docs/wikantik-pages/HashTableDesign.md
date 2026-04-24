@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QVJ5WPG6NQKNSRNP0Q
 title: Hash Table Design
 type: article
 tags:

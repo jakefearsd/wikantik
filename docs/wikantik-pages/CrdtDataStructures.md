@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P30XWDX3W1RY1DMB96
 title: Crdt Data Structures
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RB6G7KD29957V7XSEC
 title: Java Reflection And Proxies
 type: article
 tags:

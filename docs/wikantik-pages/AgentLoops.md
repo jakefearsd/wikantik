@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44JRTBGW4BF703EM7YAX
 title: Agent Loops
 type: article
 tags:

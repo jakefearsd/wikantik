@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44REFP9483SXP4P9S0FG
 summary: Migration from JSP server-rendered templates to a React SPA with Vite, React Router, and a REST API backend
 tags:
 - development

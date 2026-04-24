@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VXGRJWXQXJFE9QSNTX
 summary: Strategic framework for Roth conversions — when to convert, how much, tax
   bracket targeting, IRMAA implications, and the gap-years opportunity
 date: 2026-03-14T00:00:00Z

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R0P72PA8ZA375J1HBH
 title: Identity And Access Management
 type: article
 tags:

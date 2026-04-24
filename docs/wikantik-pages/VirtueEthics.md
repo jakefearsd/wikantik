@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YGQVXDCGCFFZV5P7C8
 title: Virtue Ethics
 type: article
 tags:

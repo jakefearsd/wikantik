@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44T1BEFJ2ZAE0WKKCQWM
 title: Neural Network Architectures
 type: article
 tags:

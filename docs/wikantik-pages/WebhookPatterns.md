@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YVR5EHVTJH8ZSR5W6X
 title: Webhook Patterns
 type: article
 tags:

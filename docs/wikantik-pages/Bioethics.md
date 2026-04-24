@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MK3PAKPT7X9E70EA25
 title: Bioethics
 type: article
 tags:

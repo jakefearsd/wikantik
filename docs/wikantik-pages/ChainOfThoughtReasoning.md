@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44N0SBSHY5HGPR6PHABG
 title: Chain Of Thought Reasoning
 type: article
 tags:

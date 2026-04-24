@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RMTA9YY6DXN54MJ6PZ
 title: Knowledge Management With Obsidian
 type: article
 tags:

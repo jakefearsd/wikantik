@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SXS1M8RCKWS201C8J7
 title: NP Complete And NP Hard Computability
 type: article
 tags:

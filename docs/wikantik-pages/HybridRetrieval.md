@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QZYNK9BZ0FV5NQ9CF8
 title: Hybrid Retrieval
 cluster: wikantik-development
 type: article

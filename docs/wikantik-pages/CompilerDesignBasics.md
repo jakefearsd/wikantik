@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NQW11HFTVBAYSJQAVK
 title: Compiler Design Basics
 type: article
 tags:

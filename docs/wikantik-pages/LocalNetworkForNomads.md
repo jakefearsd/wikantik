@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S1YY2TQ2JHS43C7GD1
 title: Local Network For Nomads
 type: article
 tags:

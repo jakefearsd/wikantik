@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YA8B23FMKHDNADG3HR
 title: Van Fresh Food Storage
 type: article
 tags:

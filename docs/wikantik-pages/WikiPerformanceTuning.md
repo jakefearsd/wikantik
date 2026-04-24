@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Z3K0P2E7GKKQ4MJJ5M
 title: Wiki Performance Tuning
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q0D7QA3HR52TFCZ8KF
 summary: Year-by-year blueprint from first invested dollar to early retirement, covering
   savings rates, account filling order, and withdrawal planning
 date: 2026-03-21T00:00:00Z

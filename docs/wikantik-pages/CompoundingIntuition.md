@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NRCJ3NCAWTAE7RZF2V
 summary: A layperson's guide to compound interest — how it works, why it feels counterintuitive,
   the Rule of 72 and other mental shortcuts for estimating growth, and why starting
   early matters more than investing well

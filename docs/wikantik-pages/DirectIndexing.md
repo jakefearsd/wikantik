@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PQEV7G152J0VAGVBFA
 title: Direct Indexing
 type: article
 tags:

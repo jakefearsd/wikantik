@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PXG39QNES88DP629S9
 title: Dollar Cost Averaging
 type: article
 tags:

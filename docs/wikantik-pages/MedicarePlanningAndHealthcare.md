@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SDB8R1HSQQEHDXG5YT
 summary: Healthcare planning for retirement — the pre-Medicare ACA bridge, Medicare
   enrollment, IRMAA surcharges, and how healthcare costs connect to Roth conversion
   and income management decisions

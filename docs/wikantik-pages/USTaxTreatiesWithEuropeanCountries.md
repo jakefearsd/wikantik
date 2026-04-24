@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y5GZ7T1PVRHQQBCKHN
 title: US Tax Treaties With European Countries
 type: article
 tags:

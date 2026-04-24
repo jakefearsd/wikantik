@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WVKSF174X3AVK9SDVK
 title: Ssl Tls Deep Dive
 type: article
 tags:

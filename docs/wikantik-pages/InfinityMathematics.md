@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R49AEN39WXXCKWPTTT
 title: Infinity Mathematics
 type: article
 tags:

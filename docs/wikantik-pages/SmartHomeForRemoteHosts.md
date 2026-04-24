@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WNMWH2J5EMHKP3NEWK
 title: Smart Home For Remote Hosts
 type: article
 tags:

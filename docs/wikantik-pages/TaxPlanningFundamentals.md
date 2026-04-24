@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XBDN1PHND9NY3JBSZ5
 title: Tax Planning Fundamentals
 type: article
 tags:

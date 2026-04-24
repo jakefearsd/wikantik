@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44N1N3VJ6JHQBXXTPW8M
 title: Chaos Dynamical
 type: article
 tags:

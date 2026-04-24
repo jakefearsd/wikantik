@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q9A1DVQANM03FYX83N
 date: 2026-03-15T00:00:00Z
 summary: Detailed analysis of how fund expense ratios compound against investors over
   time, with specific dollar-cost examples and strategies for minimizing fee drag.

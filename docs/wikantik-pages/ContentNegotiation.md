@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NZ0KV78BS9XW50VZDX
 title: Content Negotiation
 type: article
 tags:

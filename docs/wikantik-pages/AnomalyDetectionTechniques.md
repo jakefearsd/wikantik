@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KTD1J1NF6BTMNGN383
 title: Anomaly Detection Techniques
 type: article
 tags:

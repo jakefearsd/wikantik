@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RGHXJN4VZN8DZBRR1G
 title: Kantian Ethics
 type: article
 tags:

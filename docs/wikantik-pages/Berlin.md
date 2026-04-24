@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MFPCNAVMXA25W7T3GS
 type: hub
 status: active
 cluster: berlin-history

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MQJ5T5JDVVPRFSTA26
 summary: The Bucket Strategy, at its core, is not a predictive model; it is a risk management framework.
 tags:
 - bucket

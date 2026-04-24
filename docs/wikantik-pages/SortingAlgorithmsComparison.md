@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WR167W6YC0EYX9J7ZH
 title: Sorting Algorithms Comparison
 type: article
 tags:

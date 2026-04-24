@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QCR2P2AYH32DTPYBJ6
 title: Federated Knowledge Graphs
 type: article
 tags:

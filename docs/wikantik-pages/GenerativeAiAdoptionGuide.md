@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QNX1DH6SZB0709Y823
 summary: Hub page for adopting generative AI as an individual contributor or at a
   very small company — practical guidance on tools, workflows, local LLMs, and accelerating
   your learning

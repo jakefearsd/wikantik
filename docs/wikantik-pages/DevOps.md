@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PKEXG59N0S01B5FHX1
 title: Dev Ops
 type: article
 tags:

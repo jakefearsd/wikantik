@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MZ8C2W84BXAB1R8FS0
 title: Cdn Architecture
 type: article
 tags:

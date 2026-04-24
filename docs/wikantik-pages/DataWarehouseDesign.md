@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PBZW9QRFV0S3W9NFA7
 title: Data Warehouse Design
 type: article
 tags:

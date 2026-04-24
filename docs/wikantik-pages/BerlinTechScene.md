@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MJTB0AQR49976YAWGN
 title: Berlin Tech Scene
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X1943YF2DY88JN37EK
 title: Structured Logging
 type: article
 tags:

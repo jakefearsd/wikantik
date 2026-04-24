@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44V43C8KJHXQJWQ27GYM
 title: Rag Implementation Patterns
 type: article
 tags:

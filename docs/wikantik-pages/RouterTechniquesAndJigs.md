@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VXTZVKYP3W50YA1W4A
 title: Router Techniques And Jigs
 type: article
 tags:

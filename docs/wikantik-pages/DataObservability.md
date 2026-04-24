@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P9WJ5V1Y78K1ETXRFF
 title: Data Observability
 type: article
 tags:

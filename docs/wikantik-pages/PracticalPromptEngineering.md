@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TPAYZRNPQS9H6M8183
 summary: How to communicate with LLMs effectively — the principles behind good prompts,
   common patterns, iteration techniques, and why specificity beats cleverness
 date: 2026-03-14T00:00:00Z

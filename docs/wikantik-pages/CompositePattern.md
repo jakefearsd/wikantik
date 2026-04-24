@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NQRBAKEZ4ZY5M9BMER
 title: Composite Pattern
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WY3QKK4CKQFRV5QCFW
 title: Status Page Best Practices
 type: article
 tags:

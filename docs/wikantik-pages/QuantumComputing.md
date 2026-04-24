@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44V2T7HE5X0A9ATF9H87
 title: Quantum Computing
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MRHW2Q2D8VK3M1Y5TG
 title: Builder Pattern And Fluent Apis
 type: article
 tags:

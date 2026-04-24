@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MXABK0GYBHM7CD57Q6
 title: Cap Theorem
 type: article
 tags:

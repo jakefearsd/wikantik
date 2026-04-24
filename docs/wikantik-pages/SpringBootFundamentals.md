@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WTS6Q8E11NMTNJCCE4
 title: Spring Boot Fundamentals
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TVBE770R5QS2YNS9FM
 title: Progressive Web Apps
 type: article
 tags:

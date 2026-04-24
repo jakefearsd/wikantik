@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PP4126N42S5H9SHNDP
 title: DimensionalModeling Hub
 type: hub
 auto-generated: true

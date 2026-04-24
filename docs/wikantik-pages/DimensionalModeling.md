@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PP2JT1AGY6TM70J6FR
 title: Dimensional Modeling
 type: article
 tags:

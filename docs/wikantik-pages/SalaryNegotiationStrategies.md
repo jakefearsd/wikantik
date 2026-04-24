@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44W1STBN7KDCMM7458KG
 title: Salary Negotiation Strategies
 type: article
 tags:

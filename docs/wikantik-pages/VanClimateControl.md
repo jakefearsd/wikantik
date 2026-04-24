@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y8K1YM9DXZ69AD3XP4
 title: Van Climate Control
 type: article
 tags:

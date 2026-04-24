@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QEQ7X0P00N8H1J65AA
 type: article
 tags: [retirement, FIRE, financial-independence, early-retirement, index-funds]
 date: 2026-03-21

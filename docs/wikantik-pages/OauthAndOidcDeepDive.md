@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44T64WE8NRD94H3MS2Z5
 title: Oauth And Oidc Deep Dive
 type: article
 tags:

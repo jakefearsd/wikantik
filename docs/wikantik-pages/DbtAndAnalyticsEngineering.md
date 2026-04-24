@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PFK6PNPFVF9E9ZV4V5
 title: Dbt And Analytics Engineering
 type: article
 tags:

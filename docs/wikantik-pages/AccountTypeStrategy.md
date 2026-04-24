@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44GXB0KV6SBXTF1GABZ0
 summary: Why early retirees need taxable brokerage accounts alongside tax-advantaged
   accounts, the optimal funding order, and asset location strategy
 date: '2026-03-14'

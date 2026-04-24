@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R52JTTBPTP20B15TN3
 title: Inner Source Practices
 type: article
 tags:

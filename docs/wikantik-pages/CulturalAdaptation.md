@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P59FH89PZK7TWW3RRC
 title: Cultural Adaptation
 type: article
 tags:

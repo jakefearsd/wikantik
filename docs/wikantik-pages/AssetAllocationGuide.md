@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44M4YMBMM144GMECFYC4
 summary: Practical guide to asset allocation — how to divide your portfolio between
   stocks, bonds, and cash, how that mix should shift over your lifetime, and how to
   think honestly about your risk tolerance

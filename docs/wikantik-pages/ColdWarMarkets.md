@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NMWXH7JVGM0EN403SE
 date: '2026-03-14'
 summary: How 44 years of Cold War shaped defence sector investing, oil-geopolitics
   linkage, and the peace dividend

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44N4BGK9S1ZQM1X93VG8
 summary: How to choose your first Linux distribution — the major families, what differentiates
   them, and recommendations by use case
 date: 2026-03-14T00:00:00Z

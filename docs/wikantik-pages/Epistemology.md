@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q5MA40901AGZV2KS5Z
 title: Epistemology
 type: article
 tags:

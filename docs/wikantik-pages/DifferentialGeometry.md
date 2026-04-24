@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PNH5Z7WQQMY43G947G
 title: Differential Geometry
 type: article
 tags:

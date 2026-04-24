@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XWV2CPAYD99SW0HVQF
 title: Transformer Architecture
 type: article
 tags:

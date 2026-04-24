@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QRKREJBW4VZ326B1F7
 summary: PageFilter that synchronizes YAML frontmatter to the knowledge graph on every page save
 tags:
 - development

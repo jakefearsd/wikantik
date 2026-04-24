@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NWS5PXSNGM4DFMM55M
 title: Connection Pooling
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R6826C3W9G6K2ZX1H9
 title: Internationalization And Localization
 type: article
 tags:

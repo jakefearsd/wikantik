@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44V3X2HAGB6VWV24TAMT
 title: Query Optimization
 type: article
 tags:

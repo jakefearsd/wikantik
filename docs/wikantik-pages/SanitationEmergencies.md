@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44W22ENQM1RFX6EWQVDF
 title: Sanitation Emergencies
 type: article
 tags:

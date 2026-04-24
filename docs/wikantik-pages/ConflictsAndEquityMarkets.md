@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NWKXBXJ0KB3SMAE0QY
 date: '2026-03-14'
 status: active
 summary: Hub page for research on how large-scale international conflicts have impacted

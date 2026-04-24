@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q7XSTJT11T5EQ84PG0
 title: Etl Vs Elt
 type: article
 tags:

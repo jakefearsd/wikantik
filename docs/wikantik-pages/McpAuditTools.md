@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SB1JGDBZKMCYXWCNA0
 summary: Designed MCP tools that would power automated content auditing
 tags:
 - development

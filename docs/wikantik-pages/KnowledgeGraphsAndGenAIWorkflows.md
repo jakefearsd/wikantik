@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RKP1F4C39GEATQ5M3Y
 title: Knowledge Graphs And Gen AI Workflows
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P40EG8EYKE2B4EXE0C
 title: Css Architecture Patterns
 type: article
 tags:

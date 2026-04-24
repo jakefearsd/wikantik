@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YNBCX03E93WPSJ4QM5
 summary: Warehouse Management Systems — the software layer that controls inventory,
   orders, labour, and equipment across a distribution centre
 date: 2026-03-18T00:00:00Z

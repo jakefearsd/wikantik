@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X2319KR5ZEAM39W7TD
 summary: OR applied to supply chains — economic order quantity, transportation problems,
   inventory theory, vehicle routing, and multi-echelon networks
 date: 2026-03-17T00:00:00Z

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RA8J70Y4M6CMRBMBKD
 title: Java Logging Best Practices
 type: article
 tags:

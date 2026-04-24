@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44V0P5BHCQ8FDA3B6G3E
 title: Proxy Pattern
 type: article
 tags:

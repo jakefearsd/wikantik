@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QK9X522B9ZAEKS835N
 title: GPU Acceleration
 type: article
 tags:

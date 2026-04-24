@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RKJFBW0VVRE1BNSP5X
 title: Knowledge Graphs And Management
 type: article
 tags:

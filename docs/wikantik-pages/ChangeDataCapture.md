@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44N02ZE9M3WGCVNG091N
 title: Change Data Capture
 type: article
 tags:

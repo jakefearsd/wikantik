@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R64AWHV6C1WTYJJ1NV
 summary: Integer programming, branch and bound, cutting planes, network flows, and
   the combinatorial optimization problems that define practical OR
 date: 2026-03-17T00:00:00Z

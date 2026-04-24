@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WC15BBHEDPRSEP3JW2
 summary: The Axiomatic Crucible This tutorial is not intended for those merely seeking to use mathematics; it is designed for those who seek to understand the scaffolding upon which mathematics is built.
 title: Set Theory Logic
 auto-generated: true

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VTH8PPQSR3KZQ639N2
 title: Reverse Proxy Patterns
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MSD0WDREXDH3WM49Z3
 title: Business Intelligence Fundamentals
 type: article
 tags:

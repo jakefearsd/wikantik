@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S4DQQ8WSQWKXG457QA
 date: 2026-03-15T01:00:00Z
 summary: Why low-cost index funds consistently outperform actively managed funds,
   how to select them, and how to build a simple, effective portfolio.

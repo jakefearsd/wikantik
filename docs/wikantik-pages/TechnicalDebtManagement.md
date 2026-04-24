@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XD3AZTN24YHW1ZZP6D
 title: Technical Debt Management
 type: article
 tags:

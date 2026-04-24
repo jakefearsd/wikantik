@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TGSWWB00WYP3EY4KHF
 title: Penetration Testing Methodology
 type: article
 tags:

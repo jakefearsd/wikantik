@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TS9ZRPT1C9MY1AABAJ
 title: Procurement Strategies
 type: article
 tags:

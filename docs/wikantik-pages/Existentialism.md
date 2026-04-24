@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q933V8X5A26HHEHY3F
 title: Existentialism
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44W03Q7AZVT7NR37RTD5
 summary: How much you can spend from your portfolio each year — the 4% rule, sequence
   of returns risk, and modern dynamic strategies like guardrails and VPW
 date: 2026-03-21T00:00:00Z

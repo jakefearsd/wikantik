@@ -1,5 +1,5 @@
 ---
-title: Retrieval Experiment Harness
+canonical_id: 01KQ0P44VRJJ07S7EPD99G8CBA
 type: article
 tags:
 - search
@@ -8,8 +8,12 @@ tags:
 - bm25
 - hybrid
 - evaluation
+- lucene
+- information retreival
+title: Retrieval Experiment Harness
 summary: How to run the offline harness that compares BM25, dense, and hybrid retrieval across three candidate embedding models.
 ---
+
 # Retrieval Experiment Harness
 
 The harness at `com.wikantik.search.embedding.experiment` scores three candidate

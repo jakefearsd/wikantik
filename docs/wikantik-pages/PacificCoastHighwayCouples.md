@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TECVZEMQ8JJWKW8BZ7
 title: Pacific Coast Highway Couples
 type: article
 tags:

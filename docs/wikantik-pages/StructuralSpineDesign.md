@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P60Q4PP4BXR1WQKBPV1WS
 title: Structural Spine Design
 cluster: wikantik-development
 type: design

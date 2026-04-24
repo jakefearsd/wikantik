@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QMR81PS8MA9FB4MF59
 title: Game Theory Fundamentals
 type: article
 tags:

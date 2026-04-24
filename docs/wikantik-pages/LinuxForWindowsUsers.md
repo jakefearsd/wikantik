@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RXMZBD1705M8DV3X2T
 type: hub
 tags: [linux, windows, operating-systems, tutorial, career]
 date: 2026-03-21

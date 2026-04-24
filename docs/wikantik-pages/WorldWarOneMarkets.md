@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44ZB18NF0ZR8D999B0QH
 summary: How WWI triggered global exchange closures, ended the gold standard, and
   shifted financial power from London to New York
 date: '2026-03-14'

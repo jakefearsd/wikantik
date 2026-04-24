@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RA716VK4MYYAJE3WMS
 title: Java Memory Management
 type: article
 tags:

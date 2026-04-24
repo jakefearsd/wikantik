@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VGY08Z06TE936CPZCJ
 summary: Final removal of JSP templates and the /app/ URL prefix for a single SPA entry point
 tags:
 - development

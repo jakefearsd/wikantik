@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QG244NCE3SC0M5EM18
 title: Frontmatter And Knowledge Graphs
 type: article
 tags:

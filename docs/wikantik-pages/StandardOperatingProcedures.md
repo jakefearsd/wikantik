@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WW5BQ93T7KS8CW74DJ
 title: Standard Operating Procedures
 type: article
 tags:

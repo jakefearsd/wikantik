@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X4AWQY22RHVHXZ57HK
 title: Supply Chain Visibility
 type: article
 tags:

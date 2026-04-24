@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44K1D4XC5N8RB6VGYRJD
 title: Agile Methodology Deep Dive
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SHM9HX3ZWKVY2M2T30
 title: Military Retirement Benefits
 type: article
 tags:

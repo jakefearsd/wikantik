@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NFST15NVWTXRXWPJM7
 title: Cloud Monitoring
 type: article
 tags:

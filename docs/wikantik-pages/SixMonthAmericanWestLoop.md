@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WFNXMR7P2S7YD9GSKE
 title: Six Month American West Loop
 type: article
 tags:

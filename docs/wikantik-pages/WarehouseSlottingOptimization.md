@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YPQ3H2TDPSP7JRGGX9
 title: Warehouse Slotting Optimization
 type: article
 tags:

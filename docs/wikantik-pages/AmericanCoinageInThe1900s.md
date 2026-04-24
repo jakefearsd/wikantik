@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KQ0F75PRFBYGEX7S9Y
 title: American Coinage In The1900s
 type: article
 tags:

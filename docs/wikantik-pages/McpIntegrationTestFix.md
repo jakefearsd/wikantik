@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SBC89GJTS2N47SMG8N
 summary: Fixed WikiEngine lazy initialization and failsafe reporting for MCP integration tests
 tags:
 - development

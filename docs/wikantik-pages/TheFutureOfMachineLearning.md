@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XNV18K6ERCY48S21QX
 summary: Where machine learning is headed — foundation models, data efficiency, edge
   AI, AI safety, neurosymbolic approaches, and the engineering challenges of deploying
   ML at scale

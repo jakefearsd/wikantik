@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MR86VN6RYKJ2Q9FZQC
 title: Burnout Prevention In Tech
 type: article
 tags:

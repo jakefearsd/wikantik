@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MYDVFEFKRJ6TCKKNHQ
 title: Category Theory
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P1WS7ZYP0CX83XE14M
 title: Cost Benefit Analysis
 type: article
 tags:

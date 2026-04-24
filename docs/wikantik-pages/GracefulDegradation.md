@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QQ0MHAB159XYZTCW9J
 title: Graceful Degradation
 type: article
 tags:

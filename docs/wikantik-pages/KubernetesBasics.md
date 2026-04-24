@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RN4JQ8FHGVS5RHS1RS
 title: Kubernetes Basics
 type: article
 tags:

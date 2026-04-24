@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VW76C0E6HNSB8R6EJ8
 summary: Step-by-step mechanics of the Roth conversion ladder, SEPP/72(t), Rule of
   55, and 0% capital gains strategies for accessing retirement funds before 59.5
 date: '2026-03-14'

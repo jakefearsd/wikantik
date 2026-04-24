@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RD0W7H088EW5N6NGTP
 title: Java Twenty One Features
 type: article
 tags:

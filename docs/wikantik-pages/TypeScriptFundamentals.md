@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y39E5EY1XSMGSVJ2BQ
 title: Type Script Fundamentals
 type: article
 tags:

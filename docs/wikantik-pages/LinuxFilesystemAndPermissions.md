@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RWT33DYRH11AB5MRGN
 summary: How the Linux filesystem works — the directory tree, everything-is-a-file
   philosophy, users and groups, and the permission model explained for Windows users
 date: 2026-03-14T00:00:00Z

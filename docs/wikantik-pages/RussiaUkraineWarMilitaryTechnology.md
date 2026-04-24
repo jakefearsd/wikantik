@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VZ4DSG7VB4JH4Z1YWW
 summary: How drone warfare and military technology innovation have transformed the
   Russia-Ukraine conflict
 date: '2026-03-13'

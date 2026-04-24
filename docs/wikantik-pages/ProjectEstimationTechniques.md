@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TWA0SYDHD67R20G9ZK
 title: Project Estimation Techniques
 type: article
 tags:

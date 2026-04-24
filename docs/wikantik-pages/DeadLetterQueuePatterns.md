@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PFPJB7WC1M7EC8E2V9
 title: Dead Letter Queue Patterns
 type: article
 tags:

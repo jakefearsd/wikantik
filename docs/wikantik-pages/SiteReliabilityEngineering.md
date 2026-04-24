@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WE0GVZNGYFJ0NT6TXJ
 title: Site Reliability Engineering
 type: article
 tags:

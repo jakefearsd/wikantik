@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SNYJ0EE1SQ0VXQB4C1
 date: '2026-03-20'
 summary: 'The revival of hand tool woodworking: premium toolmakers, online instruction,
   and why hobbyists choose hand planes alongside CNC routers'

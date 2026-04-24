@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RZGC2N51EXZYR2WDT0
 summary: The evolution of large language models from GPT-3 through modern frontier models — scaling laws, RLHF, multimodal capabilities, the open-weight movement, and what it means for practitioners
 date: 2026-03-17T01:00:00Z
 tags:

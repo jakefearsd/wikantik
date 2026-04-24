@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KDAASEVQCRDNWVJXE0
 title: Ai Pair Programming
 type: article
 tags:

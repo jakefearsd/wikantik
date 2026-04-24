@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XN4AKBMBZ9RAJYNZQW
 summary: What to expect at the green card interview — preparation, common questions,
   evidence to bring, and how officers evaluate bona fide marriages
 date: 2026-03-14T00:00:00Z

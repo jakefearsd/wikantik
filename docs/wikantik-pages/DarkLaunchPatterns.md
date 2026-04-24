@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P7C0Q8AWTYZBPXXXPD
 title: Dark Launch Patterns
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NVFH6WVSSJ39P1PVPB
 title: ConflictMarketPatterns Hub
 type: hub
 auto-generated: true

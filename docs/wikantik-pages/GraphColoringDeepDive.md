@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QR8603J6PDP9AKV8RH
 title: Graph Coloring Deep Dive
 type: article
 tags:

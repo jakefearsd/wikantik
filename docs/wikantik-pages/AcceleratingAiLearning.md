@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44GVAPDVWRTPM4EE0M5P
 summary: Strategies for rapidly building generative AI competence through deliberate
   practice, community engagement, and structured experimentation
 date: 2026-03-14T00:00:00Z

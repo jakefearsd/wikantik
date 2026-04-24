@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S6PZX90JH1NN5C11AE
 title: Maillard Reaction
 type: article
 tags:

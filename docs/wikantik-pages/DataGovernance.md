@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P78V3M6WB3QX9KEM5C
 title: Data Governance
 type: article
 tags:

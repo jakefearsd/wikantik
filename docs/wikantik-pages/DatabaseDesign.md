@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PCWGYD71BF8FXJVY2J
 title: Database Design
 type: article
 tags:

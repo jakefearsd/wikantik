@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MWST629VMK60FC9H79
 title: Caching Strategies
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VJDBC2Q1TTDNTNYAH5
 title: Responsible Ai Deployment
 type: article
 tags:

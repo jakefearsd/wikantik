@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PHST4J295PTSHTA0JK
 title: Demand Planning And Sop
 type: article
 tags:

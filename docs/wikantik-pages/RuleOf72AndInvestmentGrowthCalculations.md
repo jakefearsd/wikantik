@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VXPX33W4Y1JF9WKJA8
 title: Rule of 72 and Investment Growth Calculations
 type: article
 tags: [investing, compound-interest, mathematics, financial-planning, mental-math]

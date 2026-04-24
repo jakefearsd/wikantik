@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44M7KAV7YS4D1M261D3F
 title: Aws Fundamentals
 type: article
 tags:

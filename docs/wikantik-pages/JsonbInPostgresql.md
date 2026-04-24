@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44REHTAS4HKQ9X0NBD8E
 title: Jsonb In Postgresql
 type: article
 tags:

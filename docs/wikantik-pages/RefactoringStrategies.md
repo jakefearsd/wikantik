@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44V9G8XCDZ50GTT4V4VB
 title: Refactoring Strategies
 type: article
 tags:

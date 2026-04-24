@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YRV3CYD5BFYA8W1TTW
 title: Web Components
 type: article
 tags:

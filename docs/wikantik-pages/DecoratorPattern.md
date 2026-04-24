@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PGJVGY24R0ZS8XYCM3
 title: Decorator Pattern
 type: article
 tags:

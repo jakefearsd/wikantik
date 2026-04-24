@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y3JQQV1VH2ZC2Y19VM
 title: Two Phase Commit Protocol
 type: article
 tags:

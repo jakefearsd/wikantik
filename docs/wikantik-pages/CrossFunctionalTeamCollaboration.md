@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P4K6RBF59HFEGT95N2
 title: Cross Functional Team Collaboration
 type: article
 tags:

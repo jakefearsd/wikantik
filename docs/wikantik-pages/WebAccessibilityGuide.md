@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YQNR6NWP1MB9111W9Q
 title: Web Accessibility Guide
 type: article
 tags:

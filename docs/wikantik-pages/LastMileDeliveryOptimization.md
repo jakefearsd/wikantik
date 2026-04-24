@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RQWXE676639HTNEJYM
 title: Last Mile Delivery Optimization
 type: article
 tags:

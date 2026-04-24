@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XDSMA8TVGCH2ZNCQHR
 title: Technical Leadership Skills
 type: article
 tags:

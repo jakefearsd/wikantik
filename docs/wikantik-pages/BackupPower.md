@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44M9DMT3AH5EVMQ6RS0P
 title: Backup Power
 type: article
 tags:

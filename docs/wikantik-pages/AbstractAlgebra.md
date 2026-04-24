@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44GGXZAK41R97GNN0TBC
 title: Abstract Algebra
 type: article
 tags:

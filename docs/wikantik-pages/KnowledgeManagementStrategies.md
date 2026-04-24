@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RM3PX6ZZMAQ3SEZMFF
 title: Knowledge Management Strategies
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PQZARVE7QAKF5Y2SSZ
 title: Disability Insurance
 type: article
 tags:

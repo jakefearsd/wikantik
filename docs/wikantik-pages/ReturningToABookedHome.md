@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VSRHDN0K8E3G46MEZP
 title: Returning To A Booked Home
 type: article
 tags:

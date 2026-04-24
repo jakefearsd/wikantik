@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44GYQVKPXXFRY7TTW69C
 title: Acid Transactions And Isolation
 type: article
 tags:

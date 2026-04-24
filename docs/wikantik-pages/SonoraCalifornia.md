@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WR96S8T08TCCFGCTRV
 title: Sonora California
 type: article
 tags:

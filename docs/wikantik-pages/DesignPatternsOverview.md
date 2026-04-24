@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PHMATE616FK5CT4A1A
 title: Design Patterns Overview
 type: article
 tags:

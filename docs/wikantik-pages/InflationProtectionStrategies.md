@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R4DGV6SSW18BBE4A18
 title: Inflation Protection Strategies
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SJ7VQ028GSR46ZZYV5
 title: Modal Logic
 type: article
 tags:

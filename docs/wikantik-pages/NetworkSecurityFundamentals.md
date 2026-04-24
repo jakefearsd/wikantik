@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SZQC20CSFG3GG5S1JM
 title: Network Security Fundamentals
 type: article
 tags:

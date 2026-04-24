@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NWG145YDWHQGTS70QA
 title: Consistent Hashing
 type: article
 tags:

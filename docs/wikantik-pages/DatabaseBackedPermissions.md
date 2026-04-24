@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PBJAD0YB3EB2MHX9AH
 type: article
 related:
 - WikantikDevelopment

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QM57HBHH4XXMX5ZYJJ
 title: Gearing Systems
 type: article
 tags:

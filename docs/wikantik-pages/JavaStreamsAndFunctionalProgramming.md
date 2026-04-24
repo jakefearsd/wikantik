@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RC5PNRJWCHJW6MMNDY
 title: Java Streams And Functional Programming
 type: article
 tags:

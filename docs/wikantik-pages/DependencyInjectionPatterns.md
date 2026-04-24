@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PH044M4T08CZ5W1NBJ
 title: Dependency Injection Patterns
 type: article
 tags:

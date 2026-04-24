@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XRMNZNFNKCPJSY669A
 title: Toil Reduction Strategies
 type: article
 tags:

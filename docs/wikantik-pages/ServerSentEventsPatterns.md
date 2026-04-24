@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44W96EZAFXN94VF1AAX9
 title: Server Sent Events Patterns
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WDEPWFAG4XJM8JN0GY
 title: Siem Fundamentals
 type: article
 tags:

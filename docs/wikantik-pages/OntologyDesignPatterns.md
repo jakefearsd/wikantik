@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TAHGQG1BCTCNFME1RE
 title: Ontology Design Patterns
 type: article
 tags:

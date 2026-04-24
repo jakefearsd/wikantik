@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P2RTSTPVGVX1EPPBES
 title: Cost Effective Inference
 type: article
 tags:

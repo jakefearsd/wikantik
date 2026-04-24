@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PT7QV6B86QPCHXM2NH
 title: Distributed Tracing
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TCXSYBADCM83AE8YDJ
 title: Operational Excellence
 type: article
 tags:

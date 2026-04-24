@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QJ9Q8EW5JH7CSZKPDZ
 title: Functional Programming Principles
 type: article
 tags:

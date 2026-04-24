@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RG9F6EFB0MPVN81K6S
 summary: Three-tab admin panel for reviewing proposals, browsing nodes, and exploring edges
 tags:
 - development

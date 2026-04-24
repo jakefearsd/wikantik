@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VW6X87E768W5M6KWRT
 title: Robo Advisor Comparison
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QNVH2212FXF5BSANYX
 title: Geopolitical Risk And Investing
 type: article
 tags:

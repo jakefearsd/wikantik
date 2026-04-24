@@ -1,3 +1,6 @@
+---
+canonical_id: 01KQ0P44M084DB1NFX0FZ3JACS
+---
 
 New user profiles require approval before they become active. Your request has been submitted and will approved or rejected.
 

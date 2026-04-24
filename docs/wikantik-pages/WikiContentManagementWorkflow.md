@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Z0MP877C2FD1NT8HNK
 title: Wiki Content Management Workflow
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NNSB64CQ00HDDTVW4K
 title: Command Pattern
 type: article
 tags:

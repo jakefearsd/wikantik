@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VQKGWP72NVPZ3SC0ZZ
 title: Retirement Spending Patterns
 type: article
 tags:

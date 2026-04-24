@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QT8PRMQTD8Q1XKVVR7
 summary: Adaptive retirement spending using Guyton-Klinger decision rules and Kitces-Pfau
   ratcheting — start higher than 4% with lower risk of ruin
 date: 2026-03-21T00:00:00Z

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KP6BPKC8WV7C2JG6H5
 title: Alternative Energy
 type: article
 tags:

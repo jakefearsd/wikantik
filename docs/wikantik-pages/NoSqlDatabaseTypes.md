@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44T4NRQ3XDTW5J9KJMF2
 title: No Sql Database Types
 type: article
 tags:

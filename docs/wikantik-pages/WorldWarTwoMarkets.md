@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44ZBQM2QW4FJJG3HD5KS
 date: '2026-03-14'
 summary: How WWII markets stayed open unlike WWI, the 1942 turning point, and the
   post-war Bretton Woods bull market

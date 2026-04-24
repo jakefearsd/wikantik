@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y4A0DPESG2KMM32D5K
 title: TypesofInvestmentAccountsTutorial Hub
 type: hub
 auto-generated: true

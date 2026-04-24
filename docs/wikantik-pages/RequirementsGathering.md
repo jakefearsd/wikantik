@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VHNK9Y4GJ9CDJAY8H0
 title: Requirements Gathering
 type: article
 tags:

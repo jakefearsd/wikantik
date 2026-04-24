@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44M5M2DTE4DVXXG55H81
 title: Authentication And Authorization
 type: article
 tags:

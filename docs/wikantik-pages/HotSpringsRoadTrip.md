@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QYDFF8CTRP1DYTEARF
 title: Hot Springs Road Trip
 type: article
 tags:

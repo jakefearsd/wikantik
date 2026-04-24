@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44K2EKSHQKZ7ESYCTXHQ
 title: Ai Agent Architectures
 type: article
 tags:

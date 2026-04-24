@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QADM98JDF5E508DNRR
 title: Factory Pattern
 type: article
 tags:

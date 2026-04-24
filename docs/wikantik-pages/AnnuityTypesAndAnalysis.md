@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KS3SH4952R6RA4RN5V
 title: Annuity Types And Analysis
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44T0R07N7DE30089MGNW
 title: Network Segmentation
 type: article
 tags:

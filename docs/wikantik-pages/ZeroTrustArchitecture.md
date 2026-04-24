@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44ZBTB26G1T0B1NJ68D9
 title: Zero Trust Architecture
 type: article
 tags:

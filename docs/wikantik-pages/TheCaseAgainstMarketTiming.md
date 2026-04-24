@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XM8Z6HYS4KX4MR6DE0
 title: The Case Against Market Timing
 type: article
 tags:

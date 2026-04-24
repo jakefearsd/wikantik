@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NS4B9EZ91K2D8JZ7QG
 title: Concurrency Distributed
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P3MMMB1CTESQ6G1JXX
 title: Credit Score Optimization
 type: article
 tags:

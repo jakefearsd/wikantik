@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44JH68H0RQ7Z5XF7RGEH
 summary: The adjustment of status pathway for spouses already in the United States
   — concurrent filing, work permits, travel authorization, and what to expect
 date: 2026-03-14T00:00:00Z

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q0844HD4VJC2309YEN
 title: Early American Coins
 type: article
 tags:

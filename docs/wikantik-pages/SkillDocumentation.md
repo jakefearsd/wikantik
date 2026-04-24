@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WHDY2QRXCW5CDE3364
 title: Skill Documentation
 type: article
 tags:

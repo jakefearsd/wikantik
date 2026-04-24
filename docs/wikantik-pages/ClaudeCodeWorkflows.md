@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44N9ZF2ZEV7FJ4WXWN8K
 title: Claude Code Workflows
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QS5NQ1PNHCBP52ZJ1Q
 title: Grpc Fundamentals
 type: article
 tags:

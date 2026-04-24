@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44V57BYZBWDR5V10CMKK
 title: Reactive Programming
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QGMYG8P9BB8ND9G2AM
 title: Frontend Testing Strategies
 type: article
 tags:

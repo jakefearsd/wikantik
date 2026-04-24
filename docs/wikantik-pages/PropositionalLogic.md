@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TYD1JZNQE1MXEVJ34H
 title: Propositional Logic
 type: article
 tags:

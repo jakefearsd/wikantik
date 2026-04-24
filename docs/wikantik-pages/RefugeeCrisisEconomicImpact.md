@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VBT6YYP6WABA9QRQAJ
 title: Refugee Crisis Economic Impact
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VV8KXPXR75K15NAS9M
 title: Road Friendships
 type: article
 tags:

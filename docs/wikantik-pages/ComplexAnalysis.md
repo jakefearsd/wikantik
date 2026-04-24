@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NQE9W6EZ70M8AYY95Z
 title: Complex Analysis
 type: article
 tags:

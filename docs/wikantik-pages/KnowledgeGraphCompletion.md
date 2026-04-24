@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RHPX80667DZ8BDNVPY
 title: Knowledge Graph Completion
 type: article
 tags:

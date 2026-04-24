@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q3M85P40GPRDYZZP5S
 title: Embeddings In Gen AI
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XGE1NREJH8TF6TEFYM
 summary: Welcome to SITE NAME ("we," "us," or "our"). By accessing or using our website
   at URL (the "Service"), you agree to be bound by these Terms of Service. If you
   do not agree, please do not use our...

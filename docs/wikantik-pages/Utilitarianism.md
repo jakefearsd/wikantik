@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y8CCDK8K5J06AHB3TK
 title: Utilitarianism
 type: article
 tags:

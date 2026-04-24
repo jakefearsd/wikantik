@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P5BDN73BS38KS0FZN5
 title: Current Semantic Web
 type: article
 tags:

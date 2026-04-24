@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QT7248W7PF6MFZC5HE
 title: Hand Plane Setup And Sharpening
 type: article
 tags:

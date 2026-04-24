@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RTW9DD24RKN9GJ9987
 title: Life Insurance Types
 type: article
 tags:

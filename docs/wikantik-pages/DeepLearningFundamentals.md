@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PGHBN28K8K7S493Z7S
 title: Deep Learning Fundamentals
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TZMB0TWR020ASY4NP5
 summary: Three-tier trust model tracking the origin and review status of knowledge graph content
 tags:
 - development

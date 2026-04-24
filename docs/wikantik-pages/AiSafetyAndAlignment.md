@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KNXAEJJ7KSA6KKRJH2
 title: Ai Safety And Alignment
 type: article
 tags:

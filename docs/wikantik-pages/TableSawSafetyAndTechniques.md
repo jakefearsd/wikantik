@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X7WVSDVK1SYYFK3NYR
 title: Table Saw Safety And Techniques
 type: article
 tags:

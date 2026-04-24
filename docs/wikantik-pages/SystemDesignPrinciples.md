@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X66GR63Q528CVZZY16
 title: System Design Principles
 type: article
 tags:

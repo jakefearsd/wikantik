@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44V392J9YVXVM2TNN3AQ
 title: Queueing Theory
 type: article
 tags:

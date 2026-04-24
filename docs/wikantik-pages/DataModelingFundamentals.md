@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P9WDGC8990M3AQS80V
 title: Data Modeling Fundamentals
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RJFAXM1B1CC04WTN8Q
 title: Knowledge Graph Vs Relational Database
 type: article
 tags:

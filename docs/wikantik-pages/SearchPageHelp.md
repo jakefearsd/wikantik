@@ -1,3 +1,6 @@
+---
+canonical_id: 01KQ0P44W4SBY0Z3WXEQWVQ6JY
+---
 
 This page gives a quick overview of the search engine query syntax.This page is called [Search Page Help](SearchPageHelp).
 

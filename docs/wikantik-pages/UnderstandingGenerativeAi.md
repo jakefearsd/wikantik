@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y6X5XYXSTWV2KKNM54
 summary: What generative AI actually is, how it works at a useful level of abstraction,
   what it's genuinely good and bad at, and the mental models that prevent expensive
   mistakes

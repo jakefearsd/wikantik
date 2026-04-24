@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q0956FK8VFJPDJN3NB
 title: Dynamic Programming Patterns
 type: article
 tags:

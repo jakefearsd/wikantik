@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NE6QPMAR3QVZXETZ8J
 title: Cloud Disaster Recovery
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WYDPSG1PWPCKV74V5C
 title: Staying Connected Rural US
 type: article
 tags:

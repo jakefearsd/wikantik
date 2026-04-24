@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RE042D7VP9DMCMGB2D
 title: Junit Five Advanced Features
 type: article
 tags:

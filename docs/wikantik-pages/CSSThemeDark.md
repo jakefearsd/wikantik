@@ -1,3 +1,6 @@
+---
+canonical_id: 01KQ0P44MVQSM7E65FF2XKF89V
+---
 
 
 /* Inspired by: [https://medium.com/@mwichary/dark-theme-in-a-day-3518dde2955a](). Adapted for JSPWIKI, as delta on top of haddock.css. */

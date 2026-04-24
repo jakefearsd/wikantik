@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MTAXE77VEN5ARES10A
 title: Byzantine Fault Tolerance
 type: article
 tags:

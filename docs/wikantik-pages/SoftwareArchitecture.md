@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WQHVES95QKN9731B08
 title: Software Architecture
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RXHY4EAP3R95RSWAAB
 summary: How software installation works on Linux — package managers, repositories,
   updates, and why you rarely download installers from websites
 date: 2026-03-14T00:00:00Z

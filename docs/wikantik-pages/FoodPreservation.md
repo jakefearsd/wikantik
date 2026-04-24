@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QF9VB5SEQ6X4W6EAKD
 title: Food Preservation
 type: article
 tags:

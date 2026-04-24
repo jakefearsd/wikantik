@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X51Q8RCW9GRHB00QYK
 title: Symbolic Logic
 type: article
 tags:

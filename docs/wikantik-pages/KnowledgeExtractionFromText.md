@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RGS372VM7798R97Z3R
 title: Knowledge Extraction From Text
 type: article
 tags:

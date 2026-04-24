@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WAAH701D2MEHT1602C
 title: Serverless Architecture
 type: article
 tags:

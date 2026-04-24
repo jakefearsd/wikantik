@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QGFRYPTQM5C4B78S33
 type: article
 tags: [algorithms, computer-science, data-structures, complexity, programming]
 date: 2026-03-21

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44W13PXEMM7YZW7PJTG1
 title: Saga Pattern
 type: article
 tags:

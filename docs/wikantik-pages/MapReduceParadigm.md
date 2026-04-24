@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S7P5DN7H4JT82TQZPK
 title: Map Reduce Paradigm
 type: article
 tags:

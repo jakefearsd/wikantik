@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44T93791XXN6WF0T0ZD1
 title: On Call Practices
 type: article
 tags:

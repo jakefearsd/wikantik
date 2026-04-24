@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X3SC9XBFJRV9TPWHG7
 title: Supply Chain Security
 type: article
 tags:

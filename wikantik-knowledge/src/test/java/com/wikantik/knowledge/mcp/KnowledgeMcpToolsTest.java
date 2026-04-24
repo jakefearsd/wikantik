@@ -23,6 +23,7 @@ import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.MentionIndex;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.*;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -31,6 +32,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -53,6 +55,8 @@ class KnowledgeMcpToolsTest {
     @AfterEach
     void cleanUp() throws Exception {
         try ( final Connection conn = dataSource.getConnection() ) {
+            conn.createStatement().execute( "DELETE FROM chunk_entity_mentions" );
+            conn.createStatement().execute( "DELETE FROM kg_content_chunks" );
             conn.createStatement().execute( "DELETE FROM kg_edges" );
             conn.createStatement().execute( "DELETE FROM kg_proposals" );
             conn.createStatement().execute( "DELETE FROM kg_rejections" );
@@ -127,5 +131,32 @@ class KnowledgeMcpToolsTest {
         ) );
         final String text = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "OrderProcessing" ) );
+    }
+
+    @Test
+    void searchKnowledge_filtersToMentionedNodesOnly() throws Exception {
+        final UUID mentioned = service.upsertNode( "MentionedNode", "t", null,
+            Provenance.HUMAN_AUTHORED, Map.of() ).id();
+        service.upsertNode( "UnmentionedNode", "t", null,
+            Provenance.HUMAN_AUTHORED, Map.of() );
+
+        final UUID chunkId = UUID.randomUUID();
+        try ( final Connection c = dataSource.getConnection() ) {
+            c.createStatement().execute(
+                "INSERT INTO kg_content_chunks (id, page_name, chunk_index, heading_path, text, "
+              + "char_count, token_count_estimate, content_hash) VALUES "
+              + "('" + chunkId + "', 'P', 0, ARRAY['H'], 'x', 1, 1, 'h1')" );
+            c.createStatement().execute(
+                "INSERT INTO chunk_entity_mentions (chunk_id, node_id, confidence, extractor, extracted_at) VALUES "
+              + "('" + chunkId + "', '" + mentioned + "', 0.9, 't', NOW())" );
+        }
+
+        final MentionIndex idx = new MentionIndex( dataSource );
+        final SearchKnowledgeTool tool = new SearchKnowledgeTool( service, idx );
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "query", "Node" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+
+        assertTrue( text.contains( "MentionedNode" ) );
+        assertFalse( text.contains( "UnmentionedNode" ) );
     }
 }

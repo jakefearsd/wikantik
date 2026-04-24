@@ -20,6 +20,7 @@ package com.wikantik.knowledge;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.knowledge.ContextQuery;
@@ -38,9 +39,14 @@ import com.wikantik.search.SearchManager;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
 import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridSearchService;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Composes the retrieval singletons into the agent-facing contract defined
@@ -52,6 +58,8 @@ import java.util.List;
  * with fakes.</p>
  */
 public final class DefaultContextRetrievalService implements ContextRetrievalService {
+
+    private static final Logger LOG = LogManager.getLogger( DefaultContextRetrievalService.class );
 
     private final SearchManager searchManager;
     private final HybridSearchService hybridSearch;
@@ -164,6 +172,32 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
 
     @Override
     public List< MetadataValue > listMetadataValues( final String field ) {
-        throw new UnsupportedOperationException( "implemented in task 7" );
+        if ( field == null || field.isBlank() ) return List.of();
+        final Collection< Page > allPages;
+        try {
+            allPages = pageManager.getAllPages();
+        } catch ( final ProviderException e ) {
+            LOG.warn( "getAllPages failed: {}", e.getMessage(), e );
+            return List.of();
+        }
+        final Map< String, Integer > counts = new LinkedHashMap<>();
+        for ( final Page page : allPages ) {
+            final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
+            if ( text == null ) continue;
+            final ParsedPage parsed = FrontmatterParser.parse( text );
+            final Object raw = parsed.metadata().get( field );
+            if ( raw == null ) continue;
+            if ( raw instanceof List< ? > listVal ) {
+                for ( final Object v : listVal ) {
+                    if ( v != null ) counts.merge( v.toString(), 1, Integer::sum );
+                }
+            } else {
+                counts.merge( raw.toString(), 1, Integer::sum );
+            }
+        }
+        return counts.entrySet().stream()
+            .map( e -> new MetadataValue( e.getKey(), e.getValue() ) )
+            .sorted( ( a, b ) -> Integer.compare( b.count(), a.count() ) )
+            .toList();
     }
 }

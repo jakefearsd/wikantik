@@ -59,4 +59,36 @@ class DefaultContextRetrievalServiceTest {
         assertEquals( java.util.Date.from( java.time.Instant.parse( "2026-04-23T00:00:00Z" ) ),
             p.lastModified() );
     }
+
+    @Test
+    void listMetadataValues_countsDistinctClusters() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "A", "---\ncluster: search\n---\n\n", "bob", new java.util.Date() );
+        pm.addPage( "B", "---\ncluster: search\n---\n\n", "bob", new java.util.Date() );
+        pm.addPage( "C", "---\ncluster: kg\n---\n\n", "bob", new java.util.Date() );
+        pm.addPage( "D", "---\n---\n\n", "bob", new java.util.Date() );
+
+        final DefaultContextRetrievalService svc = FakeDeps.minimal().pageManager( pm ).build();
+        final var values = svc.listMetadataValues( "cluster" );
+
+        assertEquals( 2, values.size() );
+        assertEquals( "search", values.get( 0 ).value() );
+        assertEquals( 2, values.get( 0 ).count() );
+        assertEquals( "kg", values.get( 1 ).value() );
+        assertEquals( 1, values.get( 1 ).count() );
+    }
+
+    @Test
+    void listMetadataValues_expandsListFields() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "A", "---\ntags: [retrieval, search]\n---\n\n", "b", new java.util.Date() );
+        pm.addPage( "B", "---\ntags: [search, kg]\n---\n\n", "b", new java.util.Date() );
+
+        final DefaultContextRetrievalService svc = FakeDeps.minimal().pageManager( pm ).build();
+        final var values = svc.listMetadataValues( "tags" );
+
+        assertEquals( 3, values.size() );
+        assertEquals( "search", values.get( 0 ).value() );
+        assertEquals( 2, values.get( 0 ).count() );
+    }
 }

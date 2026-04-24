@@ -21,6 +21,7 @@ package com.wikantik.knowledge.mcp;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
+import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -28,6 +29,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.*;
+import java.util.ArrayList;
 
 /**
  * MCP tool that searches for nodes by type, properties, and provenance.
@@ -38,9 +40,16 @@ public class QueryNodesTool implements McpTool {
     public static final String TOOL_NAME = "query_nodes";
 
     private final KnowledgeGraphService service;
+    private final MentionIndex mentionIndex;
 
     public QueryNodesTool( final KnowledgeGraphService service ) {
+        this( service, null );
+    }
+
+    public QueryNodesTool( final KnowledgeGraphService service,
+                           final MentionIndex mentionIndex ) {
         this.service = service;
+        this.mentionIndex = mentionIndex;
     }
 
     @Override
@@ -73,7 +82,9 @@ public class QueryNodesTool implements McpTool {
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Search for nodes by type, properties, and provenance. " +
-                        "Use discover_schema first to understand available types and properties." )
+                        "Use discover_schema first to understand available types and properties." +
+                        " Results are filtered to nodes the entity extractor has actually found in wiki content;" +
+                        " nodes present only from legacy frontmatter/link projection are hidden." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of(), null, null, null ) )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
@@ -89,7 +100,16 @@ public class QueryNodesTool implements McpTool {
             final int offset = McpToolUtils.getInt( arguments, "offset", 0 );
 
             final List< KgNode > nodes = service.queryNodes( filters, provenanceFilter, limit, offset );
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, Map.of( "nodes", nodes ) );
+            final List< KgNode > filtered;
+            if ( mentionIndex == null ) {
+                filtered = nodes;
+            } else {
+                filtered = new ArrayList<>( nodes.size() );
+                for ( final KgNode n : nodes ) {
+                    if ( mentionIndex.isMentioned( n.id() ) ) filtered.add( n );
+                }
+            }
+            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, Map.of( "results", filtered ) );
         } catch ( final Exception e ) {
             LOG.error( "Query nodes failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );

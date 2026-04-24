@@ -134,6 +134,35 @@ class KnowledgeMcpToolsTest {
     }
 
     @Test
+    void queryNodes_filtersToMentionedNodesOnly() throws Exception {
+        final UUID mentioned = service.upsertNode( "QNMentioned", "kind", null,
+            Provenance.HUMAN_AUTHORED, Map.of() ).id();
+        service.upsertNode( "QNUnmentioned", "kind", null,
+            Provenance.HUMAN_AUTHORED, Map.of() );
+
+        final UUID chunkId = UUID.randomUUID();
+        try ( final Connection c = dataSource.getConnection() ) {
+            c.createStatement().execute(
+                "INSERT INTO kg_content_chunks (id, page_name, chunk_index, heading_path, text, "
+              + "char_count, token_count_estimate, content_hash) VALUES "
+              + "('" + chunkId + "', 'P', 0, ARRAY['H'], 'x', 1, 1, 'h2')" );
+            c.createStatement().execute(
+                "INSERT INTO chunk_entity_mentions (chunk_id, node_id, confidence, extractor, extracted_at) VALUES "
+              + "('" + chunkId + "', '" + mentioned + "', 0.9, 't', NOW())" );
+        }
+
+        final MentionIndex idx = new MentionIndex( dataSource );
+        final QueryNodesTool tool = new QueryNodesTool( service, idx );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "filters", Map.of( "node_type", "kind" ),
+            "limit", 50 ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+
+        assertTrue( text.contains( "QNMentioned" ) );
+        assertFalse( text.contains( "QNUnmentioned" ) );
+    }
+
+    @Test
     void searchKnowledge_filtersToMentionedNodesOnly() throws Exception {
         final UUID mentioned = service.upsertNode( "MentionedNode", "t", null,
             Provenance.HUMAN_AUTHORED, Map.of() ).id();

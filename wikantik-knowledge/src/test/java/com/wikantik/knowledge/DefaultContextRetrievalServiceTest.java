@@ -21,6 +21,7 @@ package com.wikantik.knowledge;
 import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.knowledge.testfakes.FakeDeps;
 import com.wikantik.knowledge.testfakes.FakePageManager;
+import com.wikantik.knowledge.testfakes.FakeSearchManager;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -136,5 +137,57 @@ class DefaultContextRetrievalServiceTest {
         assertEquals( 3, result.pages().size() );
         assertEquals( "P4", result.pages().get( 0 ).name() );
         assertEquals( "P6", result.pages().get( 2 ).name() );
+    }
+
+    @Test
+    void retrieve_returnsPagesInBm25Order_whenHybridDisabled() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Alpha", "---\nsummary: alpha summary\n---\n\nbody", "a", new java.util.Date() );
+        pm.addPage( "Beta",  "---\nsummary: beta summary\n---\n\nbody", "a", new java.util.Date() );
+        pm.addPage( "Gamma", "---\nsummary: gamma summary\n---\n\nbody", "a", new java.util.Date() );
+
+        final FakeSearchManager sm = new FakeSearchManager();
+        sm.setResults( java.util.List.of(
+            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "Beta", 5 ),
+            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "Alpha", 3 ) ) );
+
+        final DefaultContextRetrievalService svc = FakeDeps.minimal()
+            .search( sm ).pageManager( pm ).build();
+
+        final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
+            "bm25 hit terms", 5, 3, null ) );
+
+        assertEquals( "bm25 hit terms", result.query() );
+        assertEquals( 2, result.totalMatched() );
+        assertEquals( 2, result.pages().size() );
+        assertEquals( "Beta", result.pages().get( 0 ).name() );
+        assertEquals( "Alpha", result.pages().get( 1 ).name() );
+        assertEquals( "beta summary", result.pages().get( 0 ).summary() );
+        assertTrue( result.pages().get( 0 ).contributingChunks().isEmpty(),
+            "chunks populated in later task" );
+        assertTrue( result.pages().get( 0 ).relatedPages().isEmpty(),
+            "relatedPages populated in later task" );
+    }
+
+    @Test
+    void retrieve_respectsMaxPages() {
+        final FakePageManager pm = new FakePageManager();
+        for ( int i = 0; i < 8; i++ ) {
+            pm.addPage( "P" + i, "---\n---\n\n", "a", new java.util.Date() );
+        }
+        final FakeSearchManager sm = new FakeSearchManager();
+        final var srs = new java.util.ArrayList< com.wikantik.api.search.SearchResult >();
+        for ( int i = 0; i < 8; i++ ) {
+            srs.add( com.wikantik.knowledge.testfakes.FakeSearchResult.of( "P" + i, 8 - i ) );
+        }
+        sm.setResults( srs );
+
+        final DefaultContextRetrievalService svc = FakeDeps.minimal()
+            .search( sm ).pageManager( pm ).build();
+
+        final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery( "q", 3, 3, null ) );
+
+        assertEquals( 8, result.totalMatched() );
+        assertEquals( 3, result.pages().size() );
     }
 }

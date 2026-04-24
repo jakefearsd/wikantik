@@ -49,7 +49,10 @@ class KnowledgeMcpToolsTest {
 
     @BeforeEach
     void setUp() {
-        service = new DefaultKnowledgeGraphService( new JdbcKnowledgeRepository( dataSource ) );
+        service = new DefaultKnowledgeGraphService(
+            new JdbcKnowledgeRepository( dataSource ),
+            null,
+            new MentionIndex( dataSource ) );
     }
 
     @AfterEach
@@ -90,20 +93,29 @@ class KnowledgeMcpToolsTest {
     }
 
     @Test
-    void traverse_returnsSubgraph() {
-        final KgNode order = service.upsertNode( "Order", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode customer = service.upsertNode( "Customer", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        service.upsertEdge( order.id(), customer.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
+    void traverse_returnsSubgraph() throws Exception {
+        final UUID nodeA = service.upsertNode( "Order", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() ).id();
+        final UUID nodeB = service.upsertNode( "Customer", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() ).id();
+        final UUID chunk = UUID.randomUUID();
+        try ( final Connection c = dataSource.getConnection() ) {
+            c.createStatement().execute(
+                "INSERT INTO kg_content_chunks (id, page_name, chunk_index, heading_path, text, "
+              + "char_count, token_count_estimate, content_hash) VALUES "
+              + "('" + chunk + "', 'P', 0, ARRAY['H'], 'x', 1, 1, 'h0')" );
+            c.createStatement().execute(
+                "INSERT INTO chunk_entity_mentions (chunk_id, node_id, confidence, extractor, extracted_at) VALUES "
+              + "('" + chunk + "', '" + nodeA + "', 0.9, 't', NOW()), "
+              + "('" + chunk + "', '" + nodeB + "', 0.9, 't', NOW())" );
+        }
         final TraverseTool tool = new TraverseTool( service );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "start_node", "Order",
-            "direction", "outbound",
-            "max_depth", 3
+            "max_depth", 1
         ) );
         final String text = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "Order" ) );
         assertTrue( text.contains( "Customer" ) );
-        assertTrue( text.contains( "depends-on" ) );
+        assertTrue( text.contains( "co-mentions" ) );
     }
 
     @Test
@@ -187,5 +199,32 @@ class KnowledgeMcpToolsTest {
 
         assertTrue( text.contains( "MentionedNode" ) );
         assertFalse( text.contains( "UnmentionedNode" ) );
+    }
+
+    @Test
+    void traverse_walksCoMentionGraph() throws Exception {
+        final UUID alpha = service.upsertNode( "TrvAlpha", "t", null,
+            Provenance.HUMAN_AUTHORED, Map.of() ).id();
+        final UUID beta = service.upsertNode( "TrvBeta", "t", null,
+            Provenance.HUMAN_AUTHORED, Map.of() ).id();
+        final UUID chunk = UUID.randomUUID();
+        try ( final Connection c = dataSource.getConnection() ) {
+            c.createStatement().execute(
+                "INSERT INTO kg_content_chunks (id, page_name, chunk_index, heading_path, text, "
+              + "char_count, token_count_estimate, content_hash) VALUES "
+              + "('" + chunk + "', 'P', 0, ARRAY['H'], 'x', 1, 1, 'ht')" );
+            c.createStatement().execute(
+                "INSERT INTO chunk_entity_mentions (chunk_id, node_id, confidence, extractor, extracted_at) VALUES "
+              + "('" + chunk + "', '" + alpha + "', 0.9, 't', NOW()), "
+              + "('" + chunk + "', '" + beta  + "', 0.9, 't', NOW())" );
+        }
+
+        final TraverseTool tool = new TraverseTool( service );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "start_node", "TrvAlpha",
+            "max_depth", 1 ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "TrvBeta" ) );
+        assertTrue( text.contains( "co-mentions" ) );
     }
 }

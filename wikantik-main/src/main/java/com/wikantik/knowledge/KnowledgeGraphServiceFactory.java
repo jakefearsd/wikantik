@@ -122,7 +122,8 @@ public final class KnowledgeGraphServiceFactory {
                                     final HubOverviewService.LuceneMlt luceneMlt,
                                     final MeterRegistry meterRegistry ) {
         final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( dataSource );
-        final DefaultKnowledgeGraphService kgService = new DefaultKnowledgeGraphService( repo );
+        final MentionIndex mentionIndex = new MentionIndex( dataSource );
+        final DefaultKnowledgeGraphService kgService = new DefaultKnowledgeGraphService( repo, null, mentionIndex );
         final GraphProjector projector = new GraphProjector( kgService, spr );
 
         final FrontmatterDefaultsFilter fmDefaults = new FrontmatterDefaultsFilter(

@@ -145,7 +145,7 @@
       <dependency>
         <groupId>com.github.f4b6a3</groupId>
         <artifactId>ulid-creator</artifactId>
-        <version>5.2.3</version>
+        <version>${ulid-creator.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

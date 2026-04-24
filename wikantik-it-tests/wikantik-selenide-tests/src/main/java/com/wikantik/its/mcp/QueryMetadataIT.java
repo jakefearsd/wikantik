@@ -19,6 +19,7 @@
 package com.wikantik.its.mcp;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -27,7 +28,14 @@ import java.util.Map;
 
 /**
  * Integration tests for the {@code query_metadata} MCP tool.
+ *
+ * <p><b>Disabled:</b> {@code query_metadata} was replaced by
+ * {@code list_metadata_values} + {@code list_pages} (with filter map) on
+ * {@code /knowledge-mcp} during the 2026-04-24 redesign. Re-enabling
+ * requires a knowledge-MCP test client and assertions against the two-step
+ * lookup shape.</p>
  */
+@Disabled( "Needs migration to /knowledge-mcp list_metadata_values / list_pages — query_metadata removed on 2026-04-24" )
 public class QueryMetadataIT extends WithMcpTestSetup {
 
     @Test

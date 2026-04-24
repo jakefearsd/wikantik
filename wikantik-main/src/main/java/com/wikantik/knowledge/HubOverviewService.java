@@ -145,7 +145,21 @@ public class HubOverviewService {
         return summaries;
     }
 
-    /** Step 1: load every KG node and keep only those typed {@code hub}, preserving insertion order. */
+    /**
+     * Step 1: collect every page that should appear as a hub. Two sources are
+     * merged so the panel works both before and after the entity extractor has
+     * populated the KG:
+     * <ol>
+     *   <li>KG nodes typed {@code type=hub} (populated by the extractor).</li>
+     *   <li>Wiki pages whose YAML frontmatter declares {@code type: hub} —
+     *       the source of truth now that {@code GraphProjector} no longer
+     *       projects frontmatter into the graph. For these we synthesize a
+     *       placeholder {@link com.wikantik.api.knowledge.KgNode} so downstream
+     *       steps that iterate {@code hubsByName.keySet()} keep working.</li>
+     * </ol>
+     * Insertion order is preserved — KG nodes first, then any additional
+     * frontmatter-only hubs, so existing deployments see stable row order.
+     */
     private Map< String, com.wikantik.api.knowledge.KgNode > loadHubNodes() {
         final List< com.wikantik.api.knowledge.KgNode > allNodes =
             kgRepo.queryNodes( null, null, 100_000, 0 );
@@ -155,7 +169,82 @@ public class HubOverviewService {
                 hubsByName.put( node.name(), node );
             }
         }
+        for ( final Map.Entry< String, List< String > > e : loadFrontmatterHubs().entrySet() ) {
+            hubsByName.putIfAbsent( e.getKey(), synthesizeHubNode( e.getKey() ) );
+        }
         return hubsByName;
+    }
+
+    /**
+     * Scan every wiki page for a {@code type: hub} frontmatter declaration.
+     * Returns a map of hub name to its declared {@code related:} member list
+     * (empty when the list is missing or non-string-valued). Returned list is
+     * order-preserving.
+     */
+    private Map< String, List< String > > loadFrontmatterHubs() {
+        final Map< String, List< String > > hubs = new LinkedHashMap<>();
+        if ( pageManager == null ) return hubs;
+        final java.util.Collection< com.wikantik.api.core.Page > pages;
+        try {
+            pages = pageManager.getAllPages();
+        } catch ( final ProviderException e ) {
+            LOG.warn( "HubOverviewService.loadFrontmatterHubs: getAllPages failed: {}", e.getMessage() );
+            return hubs;
+        }
+        for ( final com.wikantik.api.core.Page p : pages ) {
+            final String name = p.getName();
+            final String raw;
+            try {
+                raw = pageManager.getPureText( name, PageProvider.LATEST_VERSION );
+            } catch ( final Exception e ) {
+                LOG.info( "HubOverviewService: skipping '{}' — getPureText failed: {}",
+                    name, e.getMessage() );
+                continue;
+            }
+            if ( raw == null || raw.isEmpty() ) continue;
+            final ParsedPage parsed;
+            try {
+                parsed = FrontmatterParser.parse( raw );
+            } catch ( final Exception e ) {
+                LOG.info( "HubOverviewService: skipping '{}' — frontmatter parse failed: {}",
+                    name, e.getMessage() );
+                continue;
+            }
+            final Map< String, Object > meta = parsed.metadata();
+            if ( meta == null || !"hub".equals( meta.get( "type" ) ) ) continue;
+            final List< String > related = coerceStringList( meta.get( "related" ) );
+            hubs.put( name, related );
+        }
+        return hubs;
+    }
+
+    @SuppressWarnings( "unchecked" )
+    private static List< String > coerceStringList( final Object value ) {
+        if ( !( value instanceof List< ? > list ) ) return List.of();
+        final List< String > out = new ArrayList<>( list.size() );
+        for ( final Object item : list ) {
+            if ( item != null ) out.add( item.toString() );
+        }
+        return out;
+    }
+
+    /**
+     * Synthesize a placeholder {@link com.wikantik.api.knowledge.KgNode} for a
+     * hub that exists only in page frontmatter. The admin panel only consumes
+     * {@code name()} and {@code properties()} from the node, so a synthetic
+     * UUID and minimal {@code type=hub} property bag are sufficient.
+     */
+    private static com.wikantik.api.knowledge.KgNode synthesizeHubNode( final String hubName ) {
+        return new com.wikantik.api.knowledge.KgNode(
+            java.util.UUID.nameUUIDFromBytes( ( "frontmatter-hub:" + hubName ).getBytes() ),
+            hubName,
+            "hub",
+            hubName,
+            com.wikantik.api.knowledge.Provenance.HUMAN_AUTHORED,
+            Map.of( "type", "hub" ),
+            null,
+            null
+        );
     }
 
     /** Normalized centroid and mean-dot coherence for a hub; centroid is null and coherence NaN if &lt;2 vectors. */
@@ -278,8 +367,11 @@ public class HubOverviewService {
     }
 
     /**
-     * Loads every {@code related} edge from the KG and groups targets by hub source name.
-     * Only sources whose KG node is hub-typed are included.
+     * Builds the {@code hub → members} index from both the KG and page
+     * frontmatter. KG {@code related} edges are the authoritative source when
+     * present; pages declaring {@code type: hub} in frontmatter contribute
+     * their {@code related:} list so fresh hubs appear before the entity
+     * extractor has run.
      */
     private Map< String, Set< String > > loadAllHubMembers() {
         final List< com.wikantik.api.knowledge.KgNode > allNodes =
@@ -290,16 +382,23 @@ public class HubOverviewService {
                 hubNames.add( node.name() );
             }
         }
-        final List< Map< String, Object > > edges =
-            kgRepo.queryEdgesWithNames( "related", null, 100_000, 0 );
+        final Map< String, List< String > > frontmatterHubs = loadFrontmatterHubs();
+        hubNames.addAll( frontmatterHubs.keySet() );
+
         final Map< String, Set< String > > out = new LinkedHashMap<>();
         for ( final String hub : hubNames ) out.put( hub, new HashSet<>() );
+
+        final List< Map< String, Object > > edges =
+            kgRepo.queryEdgesWithNames( "related", null, 100_000, 0 );
         for ( final Map< String, Object > edge : edges ) {
             final String src = (String) edge.get( "source_name" );
             final String tgt = (String) edge.get( "target_name" );
             if ( src == null || tgt == null ) continue;
             if ( !hubNames.contains( src ) ) continue;
             out.get( src ).add( tgt );
+        }
+        for ( final Map.Entry< String, List< String > > e : frontmatterHubs.entrySet() ) {
+            out.get( e.getKey() ).addAll( e.getValue() );
         }
         return out;
     }
@@ -352,9 +451,9 @@ public class HubOverviewService {
     }
 
     /**
-     * Step 1: is {@code hubName} a node of type=hub? We filter by node_type only and
-     * match exactly in Java because queryNodes' name filter is a substring LIKE and
-     * would match neighboring hubs sharing a substring.
+     * Step 1: is {@code hubName} either a KG node of type=hub or a wiki page
+     * whose frontmatter declares {@code type: hub}? The KG filter uses
+     * substring LIKE matching on name, so we still match exactly in Java.
      */
     private boolean hubNodeExists( final String hubName ) {
         final List< com.wikantik.api.knowledge.KgNode > hubNodes =
@@ -362,7 +461,7 @@ public class HubOverviewService {
         for ( final var n : hubNodes ) {
             if ( hubName.equals( n.name() ) ) return true;
         }
-        return false;
+        return loadFrontmatterHubs().containsKey( hubName );
     }
 
     /** Step 3: sort members alphabetically and split existing pages from stubs. */

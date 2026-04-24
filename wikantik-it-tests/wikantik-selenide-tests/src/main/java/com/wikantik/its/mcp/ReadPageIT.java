@@ -19,6 +19,7 @@
 package com.wikantik.its.mcp;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -26,7 +27,13 @@ import java.util.Map;
 
 /**
  * Integration tests for the {@code read_page} MCP tool.
+ *
+ * <p><b>Disabled:</b> {@code read_page} was replaced by {@code get_page} on the
+ * read-only {@code /knowledge-mcp} endpoint during the 2026-04-24 surface
+ * redesign. Re-enabling requires a dedicated knowledge-MCP test client and
+ * updated assertions against the {@code RetrievedPage} response shape.</p>
  */
+@Disabled( "Needs migration to /knowledge-mcp get_page — read_page removed from admin MCP on 2026-04-24" )
 public class ReadPageIT extends WithMcpTestSetup {
 
     @Test

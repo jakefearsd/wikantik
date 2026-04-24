@@ -19,6 +19,7 @@
 package com.wikantik.its.mcp;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -27,7 +28,14 @@ import java.util.Map;
 
 /**
  * Integration tests for the {@code recent_changes} MCP tool.
+ *
+ * <p><b>Disabled:</b> {@code recent_changes} was removed during the
+ * 2026-04-24 surface redesign — the {@code list_pages} tool on
+ * {@code /knowledge-mcp} with {@code modifiedAfter}/{@code modifiedBefore}
+ * filters now serves this use case. Re-enabling requires a knowledge-MCP
+ * test client and a rewrite around the filtered-list API.</p>
  */
+@Disabled( "Needs migration to /knowledge-mcp list_pages (modifiedAfter/Before) — recent_changes removed on 2026-04-24" )
 public class RecentChangesIT extends WithMcpTestSetup {
 
     @Test

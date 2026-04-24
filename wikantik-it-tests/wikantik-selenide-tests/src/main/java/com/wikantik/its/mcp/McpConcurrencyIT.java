@@ -19,6 +19,7 @@
 package com.wikantik.its.mcp;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -28,7 +29,12 @@ import java.util.concurrent.*;
 
 /**
  * Concurrency integration tests exercising parallel MCP access.
+ *
+ * <p><b>Disabled:</b> exercises {@code read_page}, which moved to {@code get_page}
+ * on {@code /knowledge-mcp} during the 2026-04-24 surface redesign. Re-enabling
+ * requires a knowledge-MCP test client capable of concurrent requests.</p>
  */
+@Disabled( "Needs migration to /knowledge-mcp get_page — read_page removed from admin MCP on 2026-04-24" )
 public class McpConcurrencyIT extends WithMcpTestSetup {
 
     @SuppressWarnings( "PMD.CloseResource" ) // ExecutorService is explicitly shutdown + awaitTermination below.

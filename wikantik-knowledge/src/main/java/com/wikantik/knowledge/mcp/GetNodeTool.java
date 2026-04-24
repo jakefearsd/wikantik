@@ -77,8 +77,9 @@ public class GetNodeTool implements McpTool {
                 try {
                     final UUID id = UUID.fromString( nodeRef );
                     node = service.getNode( id );
-                } catch ( final IllegalArgumentException ignored ) {
-                    // Not a valid UUID, that's fine
+                } catch ( final IllegalArgumentException e ) {
+                    LOG.info( "get_node ref '{}' did not resolve by name and is not a UUID — "
+                        + "returning not-found: {}", nodeRef, e.getMessage() );
                 }
             }
 

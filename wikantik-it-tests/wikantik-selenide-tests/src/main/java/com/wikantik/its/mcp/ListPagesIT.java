@@ -19,6 +19,7 @@
 package com.wikantik.its.mcp;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -26,7 +27,14 @@ import java.util.Map;
 
 /**
  * Integration tests for the {@code list_pages} MCP tool.
+ *
+ * <p><b>Disabled:</b> {@code list_pages} was moved from the admin MCP to the
+ * read-only {@code /knowledge-mcp} endpoint during the 2026-04-24 surface
+ * redesign (cycle 2). Re-enabling requires a dedicated knowledge-MCP test
+ * client and updated assertions against the new {@code PageList} response
+ * shape (page summaries with frontmatter-derived fields, not author/size).</p>
  */
+@Disabled( "Needs migration to /knowledge-mcp client — list_pages moved off admin MCP on 2026-04-24" )
 public class ListPagesIT extends WithMcpTestSetup {
 
     @Test

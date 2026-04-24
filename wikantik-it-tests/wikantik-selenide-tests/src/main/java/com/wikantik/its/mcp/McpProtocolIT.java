@@ -33,17 +33,15 @@ import java.util.stream.Collectors;
 public class McpProtocolIT extends WithMcpTestSetup {
 
     private static final Set< String > EXPECTED_TOOLS = Set.of(
-            // Read/query tools
-            "read_page", "search_pages", "list_pages", "get_backlinks",
-            "recent_changes", "query_metadata", "get_page_history", "diff_page",
+            // Admin read/query (still on /wikantik-admin-mcp)
+            "get_backlinks", "get_page_history", "diff_page",
             "get_outbound_links", "get_broken_links", "get_orphaned_pages",
-            "get_wiki_stats", "list_metadata_values",
-            // Export/import workflow (replaces per-page CRUD)
-            "export_content", "preview_import", "import_content",
-            // Structured/metadata/SEO helpers
-            "rename_page", "ping_search_engines", "preview_structured_data", "verify_pages",
-            // Knowledge graph proposals
-            "propose_knowledge", "list_proposals"
+            "get_wiki_stats", "verify_pages", "preview_structured_data",
+            "ping_search_engines", "list_proposals",
+            // Admin write surface (per-page CRUD replaces the old filesystem import/export)
+            "write_pages", "update_page", "rename_page",
+            // Knowledge graph proposal writer
+            "propose_knowledge"
     );
 
     @Test
@@ -79,10 +77,11 @@ public class McpProtocolIT extends WithMcpTestSetup {
         final Map< String, List< String > > toolRequiredParams = result.tools().stream()
                 .collect( Collectors.toMap( McpSchema.Tool::name, t -> t.inputSchema().required() != null ? t.inputSchema().required() : List.of() ) );
 
-        Assertions.assertTrue( toolRequiredParams.get( "read_page" ).contains( "pageName" ) );
-        Assertions.assertTrue( toolRequiredParams.get( "search_pages" ).contains( "query" ) );
         Assertions.assertTrue( toolRequiredParams.get( "get_backlinks" ).contains( "pageName" ) );
-        Assertions.assertTrue( toolRequiredParams.get( "import_content" ).contains( "directory" ) );
+        Assertions.assertTrue( toolRequiredParams.get( "write_pages" ).contains( "pages" ) );
+        Assertions.assertTrue( toolRequiredParams.get( "update_page" ).contains( "pageName" ) );
+        Assertions.assertTrue( toolRequiredParams.get( "update_page" ).contains( "content" ) );
+        Assertions.assertTrue( toolRequiredParams.get( "update_page" ).contains( "expectedContentHash" ) );
     }
 
     @Test

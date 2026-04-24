@@ -20,6 +20,7 @@ package com.wikantik.its.mcp;
 
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -30,7 +31,13 @@ import java.util.UUID;
 /**
  * Integration tests for the {@code search_pages} MCP tool.
  * Uses Awaitility to poll for async search index updates.
+ *
+ * <p><b>Disabled:</b> {@code search_pages} was superseded by
+ * {@code retrieve_context} on {@code /knowledge-mcp} during the 2026-04-24
+ * redesign. Re-enabling requires a knowledge-MCP client and updated
+ * assertions against the hybrid-retrieval {@code RetrievalResult} shape.</p>
  */
+@Disabled( "Needs migration to /knowledge-mcp retrieve_context — search_pages removed from admin MCP on 2026-04-24" )
 public class SearchPagesIT extends WithMcpTestSetup {
 
     private static final Duration SEARCH_TIMEOUT = Duration.ofSeconds( 30 );

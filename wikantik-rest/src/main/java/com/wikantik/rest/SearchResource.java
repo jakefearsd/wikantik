@@ -18,17 +18,11 @@
  */
 package com.wikantik.rest;
 
-import com.wikantik.api.core.Context;
-import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
-import com.wikantik.api.core.Page;
-import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.search.SearchResult;
-import com.wikantik.api.spi.Wiki;
-import com.wikantik.search.FrontmatterMetadataCache;
-import com.wikantik.search.SearchManager;
-import com.wikantik.search.hybrid.GraphRerankStep;
-import com.wikantik.search.hybrid.HybridSearchService;
+import com.wikantik.api.knowledge.ContextQuery;
+import com.wikantik.api.knowledge.ContextRetrievalService;
+import com.wikantik.api.knowledge.RetrievalResult;
+import com.wikantik.api.knowledge.RetrievedPage;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,15 +33,9 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * REST servlet for full-text search.
@@ -56,6 +44,11 @@ import java.util.concurrent.TimeoutException;
  * <ul>
  *   <li>{@code GET /api/search?q=...&limit=20} - Full-text search</li>
  * </ul>
+ * <p>
+ * Retrieval logic (BM25 + hybrid rerank + graph rerank) is delegated to
+ * {@link ContextRetrievalService}. The {@code contexts} field in the JSON
+ * response carries chunk text with heading-path context rather than Lucene
+ * highlight fragments — intentional change; chunks are higher-signal.
  */
 public class SearchResource extends RestServletBase {
 
@@ -89,23 +82,19 @@ public class SearchResource extends RestServletBase {
         LOG.debug( "GET search: q={}, limit={}", query, limit );
 
         final Engine engine = getEngine();
-        final SearchManager searchManager = engine.getManager( SearchManager.class );
-        final Context context = Wiki.context().create( engine, request,
-                ContextEnum.WIKI_FIND.getRequestContext() );
 
-        // Kick off the query embedding in parallel with BM25. By the time
-        // findPages returns the embedding is usually warm, so the dense
-        // pass adds near-zero latency on top of BM25.
-        final HybridSearchService hybrid = engine.getManager( HybridSearchService.class );
-        final CompletableFuture< Optional< float[] > > embedFuture = hybrid != null
-            ? hybrid.prefetchQueryEmbedding( query )
-            : CompletableFuture.completedFuture( Optional.empty() );
-
-        final Collection< SearchResult > searchResults;
+        // Delegate retrieval to ContextRetrievalService. The service owns
+        // BM25 → hybrid rerank → graph rerank → page shaping.
+        final ContextRetrievalService ctxService = engine.getManager( ContextRetrievalService.class );
+        if ( ctxService == null ) {
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                "ContextRetrievalService not configured" );
+            return;
+        }
+        final RetrievalResult retrieval;
         try {
-            searchResults = searchManager.findPages( query, context );
-        } catch ( final Exception e ) {
-            embedFuture.cancel( true );
+            retrieval = ctxService.retrieve( new ContextQuery( query, Math.min( limit > 0 ? limit : DEFAULT_LIMIT, ContextQuery.MAX_PAGES_CAP ), 3, null ) );
+        } catch ( final RuntimeException e ) {
             // Malformed user queries (e.g. unbalanced brackets, Lucene-reserved
             // operator misuse) surface here as ProviderException wrapping a
             // Lucene ParseException. These are user-input errors — return 400
@@ -116,70 +105,33 @@ public class SearchResource extends RestServletBase {
                         "Invalid search query: " + e.getMessage() );
                 return;
             }
-            LOG.error( "Error executing search for '{}': {}", query, e.getMessage() );
+            LOG.error( "Retrieval failed for '{}': {}", query, e.getMessage(), e );
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Error executing search: " + e.getMessage() );
+                "retrieval failed: " + e.getMessage() );
             return;
         }
 
-        final Collection< SearchResult > safeResults = searchResults != null
-                ? searchResults
-                : List.of();
-
-        final PageManager pm = engine.getManager( PageManager.class );
-        final FrontmatterMetadataCache fmCache = engine.getManager( FrontmatterMetadataCache.class );
-
-        // Hybrid path: when HybridSearchService is present and enabled, fuse
-        // BM25 + dense rankings using the prefetched embedding. On any failure
-        // the service returns the BM25 names unchanged so search degrades
-        // gracefully, never breaks. When a GraphRerankStep is registered, a
-        // graph-proximity boost is applied to the fused ordering as an extra
-        // feature (Phase 3) — fails closed to the fused order.
-        final GraphRerankStep graphStep = engine.getManager( GraphRerankStep.class );
-        final List< SearchResult > orderedResults = applyHybridRerank(
-            hybrid, graphStep, pm, query, safeResults, embedFuture );
-
-        final List< Map< String, Object > > resultList = orderedResults.stream()
-                .limit( limit )
-                .map( sr -> {
-                    final Map< String, Object > entry = new LinkedHashMap<>();
-                    final Page page = sr.getPage();
-                    entry.put( "name", page.getName() );
-                    entry.put( "score", sr.getScore() );
-
-                    // Author and date from page metadata
-                    if ( page.getAuthor() != null ) {
-                        entry.put( "author", page.getAuthor() );
-                    }
-                    if ( page.getLastModified() != null ) {
-                        entry.put( "lastModified", page.getLastModified() );
-                    }
-
-                    // Frontmatter metadata (summary, tags, cluster) — served from a
-                    // (pageName, lastModified)-keyed Caffeine cache so a /api/search call
-                    // with 20 hits doesn't re-read and re-parse 20 markdown files.
-                    final Map< String, Object > metadata = fmCache != null
-                        ? fmCache.get( page.getName(), page.getLastModified() )
-                        : Map.of();
-                    if ( metadata.get( "summary" ) != null ) {
-                        entry.put( "summary", metadata.get( "summary" ).toString() );
-                    }
-                    if ( metadata.get( "tags" ) != null ) {
-                        entry.put( "tags", metadata.get( "tags" ) );
-                    }
-                    if ( metadata.get( "cluster" ) != null ) {
-                        entry.put( "cluster", metadata.get( "cluster" ).toString() );
-                    }
-
-                    // Lucene context snippets (highlighted match fragments)
-                    final String[] contexts = sr.getContexts();
-                    if ( contexts != null && contexts.length > 0 ) {
-                        entry.put( "contexts", List.of( contexts ) );
-                    }
-
-                    return entry;
-                } )
-                .toList();
+        final List< Map< String, Object > > resultList = new ArrayList<>();
+        for ( final RetrievedPage p : retrieval.pages() ) {
+            final Map< String, Object > entry = new LinkedHashMap<>();
+            entry.put( "name", p.name() );
+            entry.put( "score", p.score() );
+            if ( !p.summary().isEmpty() ) entry.put( "summary", p.summary() );
+            if ( !p.tags().isEmpty() ) entry.put( "tags", p.tags() );
+            if ( p.cluster() != null ) entry.put( "cluster", p.cluster() );
+            if ( p.author() != null ) entry.put( "author", p.author() );
+            if ( p.lastModified() != null ) entry.put( "lastModified", p.lastModified() );
+            // contexts: previously Lucene highlight fragments; now chunk text.
+            // Intentional change — chunks carry heading-path context and are
+            // higher-signal than Lucene snippets.
+            if ( !p.contributingChunks().isEmpty() ) {
+                entry.put( "contexts", p.contributingChunks().stream()
+                    .map( com.wikantik.api.knowledge.RetrievedChunk::text ).toList() );
+            }
+            if ( resultList.size() < limit ) {
+                resultList.add( entry );
+            }
+        }
 
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "query", query );
@@ -188,74 +140,6 @@ public class SearchResource extends RestServletBase {
 
         sendJson( response, result );
     }
-
-    /**
-     * When {@link HybridSearchService} is present and enabled, reorder the BM25
-     * {@link SearchResult} collection by the fused BM25+dense ranking and
-     * append dense-only hits as minimal results (no contexts, score 0). When
-     * hybrid is disabled or the embedder fails closed, returns the original
-     * BM25 order verbatim. The {@code embedFuture} is the in-flight query
-     * embedding kicked off in parallel with BM25; we await it here so the dense
-     * pass overlaps with BM25 instead of running serially after it.
-     */
-    private List< SearchResult > applyHybridRerank( final HybridSearchService hybrid,
-                                                    final GraphRerankStep graphStep,
-                                                    final PageManager pm,
-                                                    final String query,
-                                                    final Collection< SearchResult > bm25,
-                                                    final CompletableFuture< Optional< float[] > > embedFuture ) {
-        final List< SearchResult > asList = new ArrayList<>( bm25 );
-        if ( hybrid == null || !hybrid.isEnabled() ) {
-            embedFuture.cancel( true );
-            return asList;
-        }
-        final List< String > bm25Names = new ArrayList<>( asList.size() );
-        final Map< String, SearchResult > byName = new LinkedHashMap<>();
-        for ( final SearchResult sr : asList ) {
-            final String name = sr.getPage() != null ? sr.getPage().getName() : null;
-            if ( name == null ) continue;
-            bm25Names.add( name );
-            byName.putIfAbsent( name, sr );
-        }
-        final Optional< float[] > vec = awaitEmbedding( embedFuture );
-        List< String > fused = hybrid.rerankWith( query, bm25Names, vec );
-        // Phase 3: graph-aware rerank runs only after hybrid fusion so the boost
-        // layers on top of the fused ordering. Never adds or removes pages.
-        if ( graphStep != null ) {
-            try {
-                fused = graphStep.rerank( query, fused );
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "Graph rerank failed; using hybrid fused order: {}", e.getMessage(), e );
-            }
-        }
-        if ( fused.equals( bm25Names ) ) {
-            return asList;
-        }
-        final List< SearchResult > out = new ArrayList<>( fused.size() );
-        for ( final String name : fused ) {
-            final SearchResult existing = byName.get( name );
-            if ( existing != null ) {
-                out.add( existing );
-                continue;
-            }
-            final Page page = pm.getPage( name );
-            if ( page == null ) {
-                // Dense index referenced a page that no longer exists — skip.
-                LOG.debug( "Hybrid rerank: dense-only page '{}' not found by PageManager; skipping", name );
-                continue;
-            }
-            out.add( new DenseOnlySearchResult( page ) );
-        }
-        return out;
-    }
-
-    /**
-     * Block briefly on the in-flight query embedding. The embedding RPC has its
-     * own internal timeout/circuit-breaker via {@link com.wikantik.search.hybrid.QueryEmbedder};
-     * this outer wait is a request-side guard so a bug there can never wedge a
-     * search request. On any failure or timeout we degrade to BM25-only.
-     */
-    private static final long EMBEDDING_AWAIT_MS = 2_500L;
 
     /**
      * Walks the cause chain looking for a Lucene {@code ParseException} — the
@@ -271,34 +155,5 @@ public class SearchResource extends RestServletBase {
             cur = cur.getCause();
         }
         return false;
-    }
-
-    private static Optional< float[] > awaitEmbedding( final CompletableFuture< Optional< float[] > > f ) {
-        try {
-            return f.get( EMBEDDING_AWAIT_MS, TimeUnit.MILLISECONDS );
-        } catch ( final TimeoutException te ) {
-            f.cancel( true );
-            LOG.debug( "Query embedding await timed out after {} ms; falling back to BM25", EMBEDDING_AWAIT_MS );
-            return Optional.empty();
-        } catch ( final InterruptedException ie ) {
-            Thread.currentThread().interrupt();
-            return Optional.empty();
-        } catch ( final ExecutionException ee ) {
-            LOG.warn( "Query embedding await failed: {}", ee.getCause() != null ? ee.getCause().toString() : ee.toString() );
-            return Optional.empty();
-        }
-    }
-
-    /**
-     * Minimal {@link SearchResult} for pages surfaced only via the dense index.
-     * BM25 did not score these pages so we report {@code score = 0} and no
-     * context snippets — the UI treats these as plain ranked hits.
-     */
-    private static final class DenseOnlySearchResult implements SearchResult {
-        private final Page page;
-        DenseOnlySearchResult( final Page page ) { this.page = page; }
-        @Override public Page getPage() { return page; }
-        @Override public int getScore() { return 0; }
-        @Override public String[] getContexts() { return new String[ 0 ]; }
     }
 }

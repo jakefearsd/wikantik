@@ -91,4 +91,28 @@ class RetrieveContextToolTest {
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "error" ) );
     }
+
+    @Test
+    void execute_returnsErrorOnRuntimeExceptionFromService() {
+        final ContextRetrievalService svc = mock( ContextRetrievalService.class );
+        when( svc.retrieve( any( ContextQuery.class ) ) )
+            .thenThrow( new RuntimeException( "DB offline" ) );
+        final RetrieveContextTool t = new RetrieveContextTool( svc );
+        final McpSchema.CallToolResult result = t.execute( Map.of( "query", "anything" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "DB offline" ),
+            "runtime error should surface in the error payload" );
+    }
+
+    @Test
+    void execute_rejectsInvalidIsoInstantInFilter() {
+        final ContextRetrievalService svc = mock( ContextRetrievalService.class );
+        final RetrieveContextTool t = new RetrieveContextTool( svc );
+        final McpSchema.CallToolResult result = t.execute( Map.of(
+            "query", "q",
+            "filters", Map.of( "modifiedAfter", "not-a-date" ) ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.toLowerCase().contains( "invalid iso-8601 instant" ),
+            "bad ISO-8601 should surface as error text" );
+    }
 }

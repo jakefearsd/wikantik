@@ -185,7 +185,8 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         try {
             embedding = hybridSearch.prefetchQueryEmbedding( query ).get( 2500, TimeUnit.MILLISECONDS );
         } catch ( final Exception e ) {
-            LOG.debug( "Embedding fetch for chunks failed: {}", e.getMessage() );
+            LOG.info( "Embedding fetch for contributing-chunk scoring failed — continuing with unscored chunks: {}",
+                e.getMessage() );
             return Map.of();
         }
         if ( embedding.isEmpty() ) return Map.of();
@@ -255,7 +256,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         try {
             return com.wikantik.api.spi.Wiki.context().create( engine, anchor );
         } catch ( final Exception e ) {
-            LOG.debug( "Context build failed: {}", e.getMessage() );
+            LOG.info( "WikiContext build failed for retrieval — returning null context: {}", e.getMessage() );
             return null;
         }
     }
@@ -386,7 +387,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         try {
             matches = mentionIndex.findRelatedPages( pageName, RELATED_PAGES_LIMIT );
         } catch ( final RuntimeException e ) {
-            LOG.debug( "MentionIndex.findRelatedPages failed for '{}': {}",
+            LOG.info( "MentionIndex.findRelatedPages failed for '{}' — returning no related pages: {}",
                 pageName, e.getMessage() );
             return List.of();
         }

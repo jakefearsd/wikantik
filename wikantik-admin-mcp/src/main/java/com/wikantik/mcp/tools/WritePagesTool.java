@@ -36,25 +36,17 @@ import java.util.Map;
  * exist (callers should use {@code update_page} for those). Best-effort —
  * one page's failure doesn't stop the rest.
  */
-public class WritePagesTool implements McpTool, AuthorConfigurable {
+public class WritePagesTool extends DefaultAuthorTool implements McpTool {
 
     private static final Logger LOG = LogManager.getLogger( WritePagesTool.class );
     public static final String TOOL_NAME = "write_pages";
 
     private final PageSaveHelper saveHelper;
     private final PageManager pageManager;
-    private String defaultAuthor = "mcp-agent";
 
     public WritePagesTool( final PageSaveHelper saveHelper, final PageManager pageManager ) {
         this.saveHelper = saveHelper;
         this.pageManager = pageManager;
-    }
-
-    @Override
-    public void setDefaultAuthor( final String author ) {
-        if ( author != null && !author.isBlank() ) {
-            this.defaultAuthor = author;
-        }
     }
 
     @Override

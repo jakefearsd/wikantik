@@ -106,6 +106,8 @@ public class PageResource extends RestServletBase {
             try {
                 version = Integer.parseInt( versionParam );
             } catch ( final NumberFormatException e ) {
+                LOG.info( "Rejecting page request for '{}' with non-numeric version '{}': {}",
+                    pageName, versionParam, e.getMessage() );
                 sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid version number: " + versionParam );
                 return;
             }

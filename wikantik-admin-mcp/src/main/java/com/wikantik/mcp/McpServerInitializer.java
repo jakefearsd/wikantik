@@ -23,20 +23,15 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.FilterRegistration;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
-import jakarta.servlet.ServletRegistration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.SystemPageRegistry;
-import com.wikantik.auth.apikeys.ApiKeyService;
-import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.mcp.completions.WikiCompletions;
 import com.wikantik.mcp.prompts.WikiPrompts;
 import com.wikantik.mcp.resources.WikiEventSubscriptionBridge;
@@ -45,8 +40,6 @@ import com.wikantik.mcp.tools.AuthorConfigurable;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
-
-import java.util.EnumSet;
 
 
 /**
@@ -76,44 +69,37 @@ public class McpServerInitializer implements ServletContextListener {
             return;
         }
 
+        final McpEndpointBootstrapper bootstrapper = McpEndpointBootstrapper.builder()
+                .logTag( "MCP" )
+                .endpointPath( "/wikantik-admin-mcp" )
+                .filterName( "McpAccessFilter" )
+                .servletName( "McpTransportServlet" )
+                .loadOnStartup( 2 )
+                .engine( engine )
+                .build();
+
+        // Phase 1: register the access-control filter (config + rate limiter + API-key service).
         try {
-            // Load MCP configuration
+            bootstrapper.registerAccessFilter( servletContext );
+        } catch ( final Exception e ) {
+            LOG.error( "MCP server startup failed during config/access-filter setup — endpoint will be unavailable: {}",
+                    e.getMessage(), e );
+            return;
+        }
+
+        // Phase 2: create the streamable HTTP transport and register it as a servlet.
+        final HttpServletStreamableServerTransportProvider transportProvider;
+        try {
+            transportProvider = bootstrapper.registerTransport( servletContext );
+        } catch ( final Exception e ) {
+            LOG.error( "MCP server startup failed during transport servlet registration — " +
+                    "access filter was registered but endpoint has no servlet: {}", e.getMessage(), e );
+            return;
+        }
+
+        // Phase 3: build the MCP server (tools, resources, prompts, completions, event bridge).
+        try {
             final McpConfig config = new McpConfig();
-            LOG.info( "MCP config: name={}, title={}, version={}, instructions={}",
-                    config.serverName(), config.serverTitle(), config.serverVersion(),
-                    config.instructions() != null ? config.instructions().length() + " chars" : "none" );
-
-            // Register access control filter with rate limiter
-            final McpRateLimiter rateLimiter = new McpRateLimiter(
-                    config.rateLimitGlobal(), config.rateLimitPerClient() );
-            LOG.info( "MCP rate limiting: global={}/s, perClient={}/s",
-                    config.rateLimitGlobal(), config.rateLimitPerClient() );
-            final ApiKeyService apiKeyService = ApiKeyServiceHolder.get( engine.getWikiProperties() );
-            if ( apiKeyService != null ) {
-                LOG.info( "MCP server: DB-backed API keys enabled — bearer tokens resolve to principals." );
-            } else {
-                LOG.info( "MCP server: DB-backed API keys unavailable (no datasource) — legacy property keys only." );
-            }
-            final McpAccessFilter accessFilter = new McpAccessFilter( config, rateLimiter, apiKeyService );
-            final FilterRegistration.Dynamic filterReg =
-                    servletContext.addFilter( "McpAccessFilter", accessFilter );
-            filterReg.addMappingForUrlPatterns( EnumSet.of( DispatcherType.REQUEST ), false, "/wikantik-admin-mcp" );
-            filterReg.setAsyncSupported( true );
-
-            // Create transport provider (which is itself a Servlet)
-            final HttpServletStreamableServerTransportProvider transportProvider =
-                    HttpServletStreamableServerTransportProvider.builder()
-                            .mcpEndpoint( "/wikantik-admin-mcp" )
-                            .build();
-
-            // Register the transport servlet programmatically
-            final ServletRegistration.Dynamic registration =
-                    servletContext.addServlet( "McpTransportServlet", transportProvider );
-            registration.addMapping( "/wikantik-admin-mcp" );
-            registration.setAsyncSupported( true );
-            registration.setLoadOnStartup( 2 );
-
-            // Build MCP server with all tools, resources, and prompts
             final McpToolRegistry toolRegistry = new McpToolRegistry( engine );
 
             final PageManager pageManager = engine.getManager( PageManager.class );
@@ -121,7 +107,6 @@ public class McpServerInitializer implements ServletContextListener {
             final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );
             final SystemPageRegistry systemPageRegistry = engine.getManager( SystemPageRegistry.class );
 
-            // Resources
             final WikiResources wikiResources = new WikiResources(
                     pageManager, referenceManager, attachmentManager, systemPageRegistry );
 
@@ -141,13 +126,11 @@ public class McpServerInitializer implements ServletContextListener {
                 builder.instructions( instructions );
             }
 
-            // Register read-only tools (no author resolution needed)
             for ( final McpTool tool : toolRegistry.readOnlyTools() ) {
                 builder.toolCall( tool.definition(), ( exchange, request ) ->
                         tool.execute( request.arguments() ) );
             }
 
-            // Register tools that need author resolution from the MCP exchange
             for ( final McpTool tool : toolRegistry.authorConfigurableTools() ) {
                 builder.toolCall( tool.definition(), ( exchange, request ) -> {
                     resolveAuthor( exchange, tool );
@@ -156,25 +139,21 @@ public class McpServerInitializer implements ServletContextListener {
             }
 
             mcpServer = builder
-                    // Register resources
                     .resources( wikiResources.staticResources() )
                     .resourceTemplates( wikiResources.resourceTemplates() )
-                    // Register prompts
                     .prompts( WikiPrompts.all() )
-                    // Register completions
                     .completions( WikiCompletions.all( referenceManager ) )
                     .build();
 
-            // Wire WikiEvent → MCP resource subscriptions
             final WikiEventSubscriptionBridge subscriptionBridge = new WikiEventSubscriptionBridge( mcpServer );
             subscriptionBridge.register( pageManager );
 
             servletContext.setAttribute( ATTR_MCP_SERVER, mcpServer );
             final int totalTools = toolRegistry.readOnlyTools().size() + toolRegistry.authorConfigurableTools().size();
             LOG.info( "MCP server started with {} tools, 6 resources, 8 prompts, and 3 completions at /wikantik-admin-mcp", totalTools );
-
         } catch ( final Exception e ) {
-            LOG.error( "Failed to start MCP server: {}", e.getMessage(), e );
+            LOG.error( "MCP server startup failed while wiring tools/resources/prompts — " +
+                    "transport servlet is registered but will return protocol errors: {}", e.getMessage(), e );
         }
     }
 
@@ -198,7 +177,8 @@ public class McpServerInitializer implements ServletContextListener {
                 ( ( AuthorConfigurable ) tool ).setDefaultAuthor( clientInfo.name() );
             }
         } catch ( final Exception e ) {
-            // Ignore — fall back to default
+            LOG.info( "Could not resolve MCP client name for tool {} — falling back to default author: {}",
+                    tool.name(), e.getMessage() );
         }
     }
 

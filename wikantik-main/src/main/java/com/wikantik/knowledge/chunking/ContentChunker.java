@@ -42,6 +42,22 @@ public class ContentChunker {
     private static final Logger LOG = LogManager.getLogger(ContentChunker.class);
 
     /**
+     * Flexmark's tables extension is optional — cache the probe so we don't
+     * attempt the classpath lookup (and log about it) on every block.
+     */
+    private static final Class<?> TABLE_BLOCK_CLASS = loadTableBlockClass();
+
+    private static Class<?> loadTableBlockClass() {
+        try {
+            return Class.forName("com.vladsch.flexmark.ext.tables.TableBlock");
+        } catch (ClassNotFoundException e) {
+            LOG.info("Flexmark tables extension not on classpath — table blocks will "
+                    + "fall through the non-atomic budget path: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Chunker tuning. Only two knobs actually change behaviour:
      * <ul>
      *   <li>{@code maxTokens} — hard upper bound on a non-atomic chunk's size.
@@ -192,13 +208,8 @@ public class ContentChunker {
             // chunk larger than the embedder's window.
             return estimateTokens(block.getChars().toString()) <= config.maxTokens() * 4;
         }
-        try {
-            Class<?> tableBlock = Class.forName("com.vladsch.flexmark.ext.tables.TableBlock");
-            if (tableBlock.isInstance(block)) {
-                return true;
-            }
-        } catch (ClassNotFoundException ignored) {
-            // Tables extension not on classpath — fine, we'll fall through the budget path.
+        if (TABLE_BLOCK_CLASS != null && TABLE_BLOCK_CLASS.isInstance(block)) {
+            return true;
         }
         return false;
     }

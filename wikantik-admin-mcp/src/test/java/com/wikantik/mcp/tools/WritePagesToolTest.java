@@ -109,4 +109,56 @@ class WritePagesToolTest {
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "error" ) );
     }
+
+    @Test
+    void execute_reportsPerPageFailureForBlankPageName() {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final WritePagesTool tool = new WritePagesTool( helper, pm );
+        tool.setDefaultAuthor( "bot" );
+
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pages", List.of(
+                Map.of( "pageName", "", "content", "body" ) ) ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "pageName must not be blank" ) );
+        assertTrue( text.contains( "\"failedCount\":1" ) );
+    }
+
+    @Test
+    void execute_reportsPerPageFailureForMissingContent() {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        when( pm.getPage( anyString() ) ).thenReturn( null );
+        final WritePagesTool tool = new WritePagesTool( helper, pm );
+        tool.setDefaultAuthor( "bot" );
+
+        final Map< String, Object > badPage = new java.util.HashMap<>();
+        badPage.put( "pageName", "NoBody" );
+        // content intentionally absent (null)
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pages", List.of( badPage ) ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "content must not be null" ) );
+        assertTrue( text.contains( "\"failedCount\":1" ) );
+    }
+
+    @Test
+    void execute_capturesSaveHelperExceptionPerPage() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        when( pm.getPage( anyString() ) ).thenReturn( null );
+        doThrow( new RuntimeException( "disk full" ) )
+            .when( helper ).saveText( anyString(), anyString(), any( SaveOptions.class ) );
+
+        final WritePagesTool tool = new WritePagesTool( helper, pm );
+        tool.setDefaultAuthor( "bot" );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pages", List.of(
+                Map.of( "pageName", "P", "content", "body" ) ) ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "disk full" ),
+            "per-page save exception should land in the entry's error field" );
+        assertTrue( text.contains( "\"failedCount\":1" ) );
+    }
 }

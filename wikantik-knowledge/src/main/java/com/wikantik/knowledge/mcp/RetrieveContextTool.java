@@ -28,8 +28,6 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.time.Instant;
-import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,6 +92,7 @@ public class RetrieveContextTool implements McpTool {
             final RetrievalResult result = service.retrieve( q );
             return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, result );
         } catch ( final IllegalArgumentException e ) {
+            LOG.info( "retrieve_context rejected invalid argument: {}", e.getMessage() );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
         } catch ( final RuntimeException e ) {
             LOG.error( "retrieve_context failed: {}", e.getMessage(), e );
@@ -107,32 +106,12 @@ public class RetrieveContextTool implements McpTool {
         if ( !( rawFilters instanceof Map< ?, ? > ) ) return null;
         final Map< String, Object > filters = (Map< String, Object >) rawFilters;
         return new PageListFilter(
-            asString( filters.get( "cluster" ) ),
-            asStringList( filters.get( "tags" ) ),
-            asString( filters.get( "type" ) ),
-            asString( filters.get( "author" ) ),
-            asInstant( filters.get( "modifiedAfter" ) ),
-            asInstant( filters.get( "modifiedBefore" ) ),
+            KnowledgeMcpUtils.asString( filters.get( "cluster" ) ),
+            KnowledgeMcpUtils.asStringList( filters.get( "tags" ) ),
+            KnowledgeMcpUtils.asString( filters.get( "type" ) ),
+            KnowledgeMcpUtils.asString( filters.get( "author" ) ),
+            KnowledgeMcpUtils.asInstant( filters.get( "modifiedAfter" ) ),
+            KnowledgeMcpUtils.asInstant( filters.get( "modifiedBefore" ) ),
             50, 0 );
-    }
-
-    private static String asString( final Object o ) {
-        return o == null ? null : o.toString();
-    }
-
-    @SuppressWarnings( "unchecked" )
-    private static List< String > asStringList( final Object o ) {
-        if ( !( o instanceof List< ? > ) ) return null;
-        return ( (List< Object >) o ).stream().filter( java.util.Objects::nonNull )
-            .map( Object::toString ).toList();
-    }
-
-    private static Instant asInstant( final Object o ) {
-        if ( !( o instanceof String ) || ( (String) o ).isBlank() ) return null;
-        try {
-            return Instant.parse( (String) o );
-        } catch ( final DateTimeParseException e ) {
-            throw new IllegalArgumentException( "Invalid ISO-8601 instant: " + o );
-        }
     }
 }

@@ -63,4 +63,14 @@ class GetPageToolTest {
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "error" ) );
     }
+
+    @Test
+    void execute_returnsErrorOnRuntimeExceptionFromService() {
+        final ContextRetrievalService svc = mock( ContextRetrievalService.class );
+        when( svc.getPage( anyString() ) )
+            .thenThrow( new RuntimeException( "DB offline" ) );
+        final McpSchema.CallToolResult result = new GetPageTool( svc ).execute( Map.of( "pageName", "Alpha" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "DB offline" ) );
+    }
 }

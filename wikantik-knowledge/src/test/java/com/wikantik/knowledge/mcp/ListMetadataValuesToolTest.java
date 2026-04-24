@@ -67,4 +67,15 @@ class ListMetadataValuesToolTest {
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "error" ) );
     }
+
+    @Test
+    void execute_returnsErrorOnRuntimeExceptionFromService() {
+        final ContextRetrievalService svc = mock( ContextRetrievalService.class );
+        when( svc.listMetadataValues( anyString() ) )
+            .thenThrow( new RuntimeException( "DB offline" ) );
+        final McpSchema.CallToolResult result = new ListMetadataValuesTool( svc )
+            .execute( Map.of( "field", "cluster" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "DB offline" ) );
+    }
 }

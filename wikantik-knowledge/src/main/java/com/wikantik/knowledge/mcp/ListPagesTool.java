@@ -27,8 +27,6 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.time.Instant;
-import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -91,6 +89,7 @@ public class ListPagesTool implements McpTool {
             final PageList result = service.listPages( filter );
             return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, result );
         } catch ( final IllegalArgumentException e ) {
+            LOG.info( "list_pages rejected invalid argument: {}", e.getMessage() );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
         } catch ( final RuntimeException e ) {
             LOG.error( "list_pages failed: {}", e.getMessage(), e );
@@ -100,33 +99,13 @@ public class ListPagesTool implements McpTool {
 
     private PageListFilter buildFilter( final Map< String, Object > arguments ) {
         return new PageListFilter(
-            asString( arguments.get( "cluster" ) ),
-            asStringList( arguments.get( "tags" ) ),
-            asString( arguments.get( "type" ) ),
-            asString( arguments.get( "author" ) ),
-            asInstant( arguments.get( "modifiedAfter" ) ),
-            asInstant( arguments.get( "modifiedBefore" ) ),
+            KnowledgeMcpUtils.asString( arguments.get( "cluster" ) ),
+            KnowledgeMcpUtils.asStringList( arguments.get( "tags" ) ),
+            KnowledgeMcpUtils.asString( arguments.get( "type" ) ),
+            KnowledgeMcpUtils.asString( arguments.get( "author" ) ),
+            KnowledgeMcpUtils.asInstant( arguments.get( "modifiedAfter" ) ),
+            KnowledgeMcpUtils.asInstant( arguments.get( "modifiedBefore" ) ),
             McpToolUtils.getInt( arguments, "limit", 50 ),
             McpToolUtils.getInt( arguments, "offset", 0 ) );
-    }
-
-    private static String asString( final Object o ) {
-        return o == null ? null : o.toString();
-    }
-
-    @SuppressWarnings( "unchecked" )
-    private static List< String > asStringList( final Object o ) {
-        if ( !( o instanceof List< ? > ) ) return null;
-        return ( (List< Object >) o ).stream().filter( java.util.Objects::nonNull )
-            .map( Object::toString ).toList();
-    }
-
-    private static Instant asInstant( final Object o ) {
-        if ( !( o instanceof String ) || ( (String) o ).isBlank() ) return null;
-        try {
-            return Instant.parse( (String) o );
-        } catch ( final DateTimeParseException e ) {
-            throw new IllegalArgumentException( "Invalid ISO-8601 instant: " + o );
-        }
     }
 }

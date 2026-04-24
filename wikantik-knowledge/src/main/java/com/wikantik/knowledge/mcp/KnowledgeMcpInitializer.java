@@ -23,12 +23,9 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.FilterRegistration;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
-import jakarta.servlet.ServletRegistration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.Release;
@@ -37,17 +34,12 @@ import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AbstractJDBCDatabase;
-import com.wikantik.auth.apikeys.ApiKeyService;
-import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
-import com.wikantik.mcp.McpAccessFilter;
-import com.wikantik.mcp.McpConfig;
-import com.wikantik.mcp.McpRateLimiter;
+import com.wikantik.mcp.McpEndpointBootstrapper;
 import com.wikantik.mcp.tools.McpTool;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 
 
@@ -98,63 +90,40 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             return;
         }
 
+        final McpEndpointBootstrapper bootstrapper = McpEndpointBootstrapper.builder()
+                .logTag( "Knowledge MCP" )
+                .endpointPath( "/knowledge-mcp" )
+                .filterName( "KnowledgeMcpAccessFilter" )
+                .servletName( "KnowledgeMcpTransportServlet" )
+                .loadOnStartup( 3 )
+                .engine( engine )
+                .build();
+
+        // Phase 1: register the access-control filter so /knowledge-mcp requires
+        // the same bearer-token / API-key auth as /wikantik-admin-mcp.
         try {
-            // Register McpAccessFilter so /knowledge-mcp requires the same
-            // bearer-token / API-key auth as /wikantik-admin-mcp. Shares the
-            // McpConfig + McpRateLimiter + ApiKeyService wiring used by the
-            // admin-mcp initializer so both endpoints honour the same rate
-            // limits and key scope.
-            final McpConfig config = new McpConfig();
-            final McpRateLimiter rateLimiter = new McpRateLimiter(
-                    config.rateLimitGlobal(), config.rateLimitPerClient() );
-            final ApiKeyService apiKeyService = ApiKeyServiceHolder.get( engine.getWikiProperties() );
-            if ( apiKeyService != null ) {
-                LOG.info( "Knowledge MCP: DB-backed API keys enabled — bearer tokens resolve to principals." );
-            } else {
-                LOG.info( "Knowledge MCP: DB-backed API keys unavailable (no datasource) — legacy property keys only." );
-            }
-            final McpAccessFilter accessFilter = new McpAccessFilter( config, rateLimiter, apiKeyService );
-            final FilterRegistration.Dynamic filterReg =
-                    servletContext.addFilter( "KnowledgeMcpAccessFilter", accessFilter );
-            filterReg.addMappingForUrlPatterns( EnumSet.of( DispatcherType.REQUEST ), false, "/knowledge-mcp" );
-            filterReg.setAsyncSupported( true );
+            bootstrapper.registerAccessFilter( servletContext );
+        } catch ( final Exception e ) {
+            LOG.error( "Knowledge MCP startup failed during access-filter setup — /knowledge-mcp will be unavailable: {}",
+                    e.getMessage(), e );
+            return;
+        }
 
-            final HttpServletStreamableServerTransportProvider transportProvider =
-                    HttpServletStreamableServerTransportProvider.builder()
-                            .mcpEndpoint( "/knowledge-mcp" )
-                            .build();
+        // Phase 2: create and register the streamable HTTP transport as a servlet.
+        final HttpServletStreamableServerTransportProvider transportProvider;
+        try {
+            transportProvider = bootstrapper.registerTransport( servletContext );
+        } catch ( final Exception e ) {
+            LOG.error( "Knowledge MCP startup failed during transport servlet registration — " +
+                    "access filter was registered but endpoint has no servlet: {}", e.getMessage(), e );
+            return;
+        }
 
-            final ServletRegistration.Dynamic registration =
-                    servletContext.addServlet( "KnowledgeMcpTransportServlet", transportProvider );
-            registration.addMapping( "/knowledge-mcp" );
-            registration.setAsyncSupported( true );
-            registration.setLoadOnStartup( 3 );
-
-            final List< McpTool > tools = new ArrayList<>();
-
+        // Phase 3: assemble the tool list from whichever services are configured.
+        final List< McpTool > tools = new ArrayList<>();
+        try {
             if ( kgService != null ) {
-                // Resolve the shared JNDI DataSource so MentionIndex can filter and
-                // report coverage statistics. Uses the same property + default as
-                // WikiEngine.initKnowledgeGraph. If JNDI lookup fails (e.g. in a
-                // lightweight test harness) we fall back to null and the tools still
-                // function — they just skip the mention-coverage filter/stats.
-                MentionIndex mentionIndex = null;
-                try {
-                    final String jndiName = engine.getWikiProperties().getProperty(
-                        AbstractJDBCDatabase.PROP_DATASOURCE,
-                        AbstractJDBCDatabase.DEFAULT_DATASOURCE );
-                    final javax.naming.Context initCtx = new javax.naming.InitialContext();
-                    final javax.naming.Context envCtx =
-                        ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
-                    final javax.sql.DataSource dataSource =
-                        ( javax.sql.DataSource ) envCtx.lookup( jndiName );
-                    mentionIndex = new MentionIndex( dataSource );
-                    LOG.debug( "MentionIndex wired to JNDI DataSource '{}'", jndiName );
-                } catch ( final javax.naming.NamingException e ) {
-                    LOG.warn( "MentionIndex not available — JNDI DataSource lookup failed: {}; " +
-                        "KG tools will run without mention-coverage filter/stats", e.getMessage() );
-                }
-
+                final MentionIndex mentionIndex = resolveMentionIndex( engine );
                 tools.add( new DiscoverSchemaTool( kgService, mentionIndex ) );
                 tools.add( new QueryNodesTool( kgService, mentionIndex ) );
                 tools.add( new GetNodeTool( kgService ) );
@@ -165,14 +134,20 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                     tools.add( new FindSimilarTool( similarity ) );
                 }
             }
-
             if ( ctxService != null ) {
                 tools.add( new RetrieveContextTool( ctxService ) );
                 tools.add( new GetPageTool( ctxService ) );
                 tools.add( new ListPagesTool( ctxService ) );
                 tools.add( new ListMetadataValuesTool( ctxService ) );
             }
+        } catch ( final Exception e ) {
+            LOG.error( "Knowledge MCP startup failed while assembling tools — transport servlet is registered " +
+                    "but the server will have no tools to dispatch: {}", e.getMessage(), e );
+            return;
+        }
 
+        // Phase 4: build the MCP sync server and wire it to the transport.
+        try {
             final var serverImpl = new McpSchema.Implementation(
                     "wikantik-knowledge", "Wikantik Knowledge Graph", Release.getVersionString() );
 
@@ -193,12 +168,37 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             }
 
             mcpServer = builder.build();
-
             servletContext.setAttribute( ATTR_KNOWLEDGE_MCP_SERVER, mcpServer );
             LOG.info( "Knowledge MCP server started successfully with {} tools at /knowledge-mcp", tools.size() );
-
         } catch ( final Exception e ) {
-            LOG.error( "Failed to start Knowledge MCP server: {}", e.getMessage(), e );
+            LOG.error( "Knowledge MCP startup failed during server build — transport servlet is registered " +
+                    "but will return protocol errors: {}", e.getMessage(), e );
+        }
+    }
+
+    /**
+     * Resolves the shared JNDI DataSource so MentionIndex can filter and report
+     * coverage statistics. Uses the same property + default as
+     * {@code WikiEngine.initKnowledgeGraph}. If JNDI lookup fails (e.g. in a
+     * lightweight test harness) the KG tools still run — they just skip the
+     * mention-coverage filter/stats.
+     */
+    private static MentionIndex resolveMentionIndex( final Engine engine ) {
+        try {
+            final String jndiName = engine.getWikiProperties().getProperty(
+                AbstractJDBCDatabase.PROP_DATASOURCE,
+                AbstractJDBCDatabase.DEFAULT_DATASOURCE );
+            final javax.naming.Context initCtx = new javax.naming.InitialContext();
+            final javax.naming.Context envCtx =
+                ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
+            final javax.sql.DataSource dataSource =
+                ( javax.sql.DataSource ) envCtx.lookup( jndiName );
+            LOG.debug( "MentionIndex wired to JNDI DataSource '{}'", jndiName );
+            return new MentionIndex( dataSource );
+        } catch ( final javax.naming.NamingException e ) {
+            LOG.warn( "MentionIndex not available — JNDI DataSource lookup failed: {}; " +
+                "KG tools will run without mention-coverage filter/stats", e.getMessage() );
+            return null;
         }
     }
 

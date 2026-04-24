@@ -19,6 +19,8 @@
 package com.wikantik.mcp.tools;
 
 import io.modelcontextprotocol.spec.McpSchema;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.URI;
@@ -37,6 +39,7 @@ import java.util.*;
  */
 public class PingSearchEnginesTool implements McpTool {
 
+    private static final Logger LOG = LogManager.getLogger( PingSearchEnginesTool.class );
     public static final String TOOL_NAME = "ping_search_engines";
 
     private static final Duration TIMEOUT = Duration.ofSeconds( 10 );
@@ -123,6 +126,7 @@ public class PingSearchEnginesTool implements McpTool {
             entry.put( "status", response.statusCode() );
             entry.put( "sitemapUrl", sitemapUrl );
         } catch ( final Exception e ) {
+            LOG.info( "Google sitemap ping failed for baseUrl={}: {}", baseUrl, e.getMessage() );
             entry.put( "success", false );
             entry.put( "error", "Google ping failed: " + e.getMessage() );
         }
@@ -184,6 +188,10 @@ public class PingSearchEnginesTool implements McpTool {
             entry.put( "status", response.statusCode() );
             entry.put( "urlsSubmitted", submitUrls.size() );
         } catch ( final IOException | InterruptedException e ) {
+            LOG.info( "IndexNow ping failed for host={}: {}", extractHost( baseUrl ), e.getMessage() );
+            if ( e instanceof InterruptedException ) {
+                Thread.currentThread().interrupt();
+            }
             entry.put( "success", false );
             entry.put( "error", "IndexNow ping failed: " + e.getMessage() );
         }
@@ -208,6 +216,7 @@ public class PingSearchEnginesTool implements McpTool {
             }
             return base.getPort() == candidate.getPort();
         } catch ( final IllegalArgumentException e ) {
+            LOG.info( "Rejecting malformed URL '{}' against baseUrl '{}': {}", url, baseUrl, e.getMessage() );
             return false;
         }
     }
@@ -217,6 +226,7 @@ public class PingSearchEnginesTool implements McpTool {
         try {
             return URI.create( url ).getHost();
         } catch ( final Exception e ) {
+            LOG.info( "Could not extract host from URL '{}' — defaulting to localhost: {}", url, e.getMessage() );
             return "localhost";
         }
     }

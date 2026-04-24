@@ -31,6 +31,7 @@ import com.wikantik.api.knowledge.MetadataValue;
 import com.wikantik.api.knowledge.PageList;
 import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievalResult;
+import com.wikantik.api.knowledge.RelatedPage;
 import com.wikantik.api.knowledge.RetrievedChunk;
 import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.api.managers.PageManager;
@@ -156,6 +157,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             if ( f != null && !matchesFilter( page, parsed, f ) ) continue;
             final List< RetrievedChunk > chunks = chunksByPage.getOrDefault(
                 page.getName(), List.of() );
+            final List< RelatedPage > related = fetchRelatedPages( page.getName() );
             pages.add( new RetrievedPage(
                 page.getName(),
                 buildUrl( page.getName() ),
@@ -164,7 +166,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
                 stringOrNull( parsed.metadata().get( "cluster" ) ),
                 stringList( parsed.metadata().get( "tags" ) ),
                 chunks,
-                List.of(),  // relatedPages: task 11
+                related,
                 page.getAuthor(),
                 page.getLastModified()
             ) );
@@ -324,6 +326,30 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         final List< String > out = new ArrayList<>( raw.size() );
         for ( final Object item : raw ) if ( item != null ) out.add( item.toString() );
         return List.copyOf( out );
+    }
+
+    private static final int RELATED_PAGES_LIMIT = 5;
+
+    private List< RelatedPage > fetchRelatedPages( final String pageName ) {
+        if ( similarity == null || !similarity.isReady() ) return List.of();
+        final List< NodeMentionSimilarity.ScoredName > neighbors;
+        try {
+            neighbors = similarity.similarTo( pageName, RELATED_PAGES_LIMIT );
+        } catch ( final RuntimeException e ) {
+            LOG.debug( "NodeMentionSimilarity failed for '{}': {}", pageName, e.getMessage() );
+            return List.of();
+        }
+        if ( neighbors.isEmpty() ) return List.of();
+        final List< RelatedPage > out = new ArrayList<>( neighbors.size() );
+        for ( final var n : neighbors ) {
+            if ( pageName.equals( n.name() ) ) continue;
+            out.add( new RelatedPage( n.name(), describeReason( n ) ) );
+        }
+        return out;
+    }
+
+    private String describeReason( final NodeMentionSimilarity.ScoredName n ) {
+        return String.format( "similarity %.2f", n.score() );
     }
 
     @Override

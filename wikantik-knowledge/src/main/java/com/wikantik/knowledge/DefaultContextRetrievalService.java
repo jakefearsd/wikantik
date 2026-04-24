@@ -147,7 +147,6 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             return new RetrievalResult( query.query(), List.of(), 0 );
         }
         final List< SearchResult > ordered = applyHybridAndGraphRerank( query.query(), bm25 );
-
         final Map< String, List< RetrievedChunk > > chunksByPage =
             fetchContributingChunks( query.query(), ordered, query.chunksPerPage() );
 
@@ -156,24 +155,14 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         for ( final SearchResult sr : ordered ) {
             final Page page = sr.getPage();
             if ( page == null ) continue;
-            final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
-            final ParsedPage parsed = FrontmatterParser.parse( text == null ? "" : text );
+            final ParsedPage parsed = parseCurrentText( page );
             if ( f != null && !matchesFilter( page, parsed, f ) ) continue;
-            final List< RetrievedChunk > chunks = chunksByPage.getOrDefault(
-                page.getName(), List.of() );
-            final List< RelatedPage > related = fetchRelatedPages( page.getName() );
-            pages.add( new RetrievedPage(
-                page.getName(),
-                buildUrl( page.getName() ),
+            pages.add( buildRetrievedPage(
+                page,
+                parsed,
                 sr.getScore(),
-                stringOrEmpty( parsed.metadata().get( "summary" ) ),
-                stringOrNull( parsed.metadata().get( "cluster" ) ),
-                stringList( parsed.metadata().get( "tags" ) ),
-                chunks,
-                related,
-                page.getAuthor(),
-                page.getLastModified()
-            ) );
+                chunksByPage.getOrDefault( page.getName(), List.of() ),
+                fetchRelatedPages( page.getName() ) ) );
             if ( pages.size() >= query.maxPages() ) break;
         }
         return new RetrievalResult( query.query(), pages, ordered.size() );
@@ -198,36 +187,57 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         final List< ScoredChunk > topChunks = chunkIndex.topKChunks( embedding.get(), 200 );
         if ( topChunks.isEmpty() ) return Map.of();
 
-        final Set< String > interestingPages = new HashSet<>();
+        final Map< String, List< ScoredChunk > > grouped =
+            groupChunksByInterestingPage( topChunks, interestingPageNames( ordered ), chunksPerPage );
+        return shapeChunkOutput( grouped );
+    }
+
+    private static Set< String > interestingPageNames( final List< SearchResult > ordered ) {
+        final Set< String > out = new HashSet<>();
         for ( final SearchResult sr : ordered ) {
-            if ( sr.getPage() != null ) interestingPages.add( sr.getPage().getName() );
+            if ( sr.getPage() != null ) out.add( sr.getPage().getName() );
         }
+        return out;
+    }
+
+    /**
+     * Groups scored chunks by page name, pre-truncating each per-page list to
+     * {@code chunksPerPage} so downstream callers don't re-slice.
+     */
+    private static Map< String, List< ScoredChunk > > groupChunksByInterestingPage(
+            final List< ScoredChunk > topChunks,
+            final Set< String > interestingPages,
+            final int chunksPerPage ) {
         final Map< String, List< ScoredChunk > > grouped = new LinkedHashMap<>();
         for ( final ScoredChunk sc : topChunks ) {
             if ( !interestingPages.contains( sc.pageName() ) ) continue;
-            grouped.computeIfAbsent( sc.pageName(), k -> new ArrayList<>() ).add( sc );
+            final List< ScoredChunk > list = grouped.computeIfAbsent(
+                sc.pageName(), k -> new ArrayList<>() );
+            if ( list.size() < chunksPerPage ) list.add( sc );
         }
-        final List< UUID > allIds = new ArrayList<>();
-        for ( final var entry : grouped.entrySet() ) {
-            final List< ScoredChunk > list = entry.getValue();
-            final int take = Math.min( chunksPerPage, list.size() );
-            for ( int i = 0; i < take; i++ ) allIds.add( list.get( i ).chunkId() );
-        }
-        final List< ContentChunkRepository.MentionableChunk > loaded = chunkRepo.findByIds( allIds );
-        final Map< UUID, ContentChunkRepository.MentionableChunk > byId = new HashMap<>();
-        for ( final var mc : loaded ) byId.put( mc.id(), mc );
+        return grouped;
+    }
 
+    /** Loads chunk bodies via {@link ContentChunkRepository} and shapes per-page RetrievedChunk lists. */
+    private Map< String, List< RetrievedChunk > > shapeChunkOutput(
+            final Map< String, List< ScoredChunk > > grouped ) {
+        final List< UUID > allIds = new ArrayList<>();
+        for ( final List< ScoredChunk > list : grouped.values() ) {
+            for ( final ScoredChunk sc : list ) allIds.add( sc.chunkId() );
+        }
+        final Map< UUID, ContentChunkRepository.MentionableChunk > byId = new HashMap<>();
+        for ( final ContentChunkRepository.MentionableChunk mc : chunkRepo.findByIds( allIds ) ) {
+            byId.put( mc.id(), mc );
+        }
         final Map< String, List< RetrievedChunk > > out = new LinkedHashMap<>();
-        for ( final var entry : grouped.entrySet() ) {
-            final List< ScoredChunk > list = entry.getValue();
-            final int take = Math.min( chunksPerPage, list.size() );
-            final List< RetrievedChunk > pageChunks = new ArrayList<>( take );
-            for ( int i = 0; i < take; i++ ) {
-                final ScoredChunk sc = list.get( i );
+        for ( final Map.Entry< String, List< ScoredChunk > > entry : grouped.entrySet() ) {
+            final List< RetrievedChunk > pageChunks = new ArrayList<>( entry.getValue().size() );
+            for ( final ScoredChunk sc : entry.getValue() ) {
                 final ContentChunkRepository.MentionableChunk mc = byId.get( sc.chunkId() );
-                if ( mc == null ) continue;
-                pageChunks.add( new RetrievedChunk(
-                    mc.headingPath(), mc.text(), sc.score(), List.of() ) );
+                if ( mc != null ) {
+                    pageChunks.add( new RetrievedChunk(
+                        mc.headingPath(), mc.text(), sc.score(), List.of() ) );
+                }
             }
             out.put( entry.getKey(), pageChunks );
         }
@@ -292,17 +302,39 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         if ( pageName == null || pageName.isBlank() ) return null;
         final Page page = pageManager.getPage( pageName );
         if ( page == null ) return null;
-        final String rawText = pageManager.getPureText( pageName, PageProvider.LATEST_VERSION );
-        final ParsedPage parsed = FrontmatterParser.parse( rawText == null ? "" : rawText );
+        return buildRetrievedPage( page, parseCurrentText( page ), 0.0, List.of(), List.of() );
+    }
+
+    /**
+     * Reads the latest-version raw text for the given page and parses its
+     * frontmatter. Null / missing text is treated as empty content.
+     */
+    private ParsedPage parseCurrentText( final Page page ) {
+        final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
+        return FrontmatterParser.parse( text == null ? "" : text );
+    }
+
+    /**
+     * Builds a {@link RetrievedPage} from the given page + its parsed
+     * frontmatter, filling in URL, summary, cluster, tags, author, and
+     * lastModified from the canonical sources. Callers supply score,
+     * contributing chunks, and related pages for their context.
+     */
+    private RetrievedPage buildRetrievedPage(
+            final Page page,
+            final ParsedPage parsed,
+            final double score,
+            final List< RetrievedChunk > chunks,
+            final List< RelatedPage > related ) {
         return new RetrievedPage(
             page.getName(),
             buildUrl( page.getName() ),
-            0.0,
+            score,
             stringOrEmpty( parsed.metadata().get( "summary" ) ),
             stringOrNull( parsed.metadata().get( "cluster" ) ),
             stringList( parsed.metadata().get( "tags" ) ),
-            List.of(),
-            List.of(),
+            chunks,
+            related,
             page.getAuthor(),
             page.getLastModified() );
     }
@@ -368,20 +400,9 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         final List< RetrievedPage > matched = new ArrayList<>();
         for ( final Page page : allPages ) {
             if ( page == null ) continue;
-            final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
-            final ParsedPage parsed = FrontmatterParser.parse( text == null ? "" : text );
+            final ParsedPage parsed = parseCurrentText( page );
             if ( !matchesFilter( page, parsed, f ) ) continue;
-            matched.add( new RetrievedPage(
-                page.getName(),
-                buildUrl( page.getName() ),
-                0.0,
-                stringOrEmpty( parsed.metadata().get( "summary" ) ),
-                stringOrNull( parsed.metadata().get( "cluster" ) ),
-                stringList( parsed.metadata().get( "tags" ) ),
-                List.of(),
-                List.of(),
-                page.getAuthor(),
-                page.getLastModified() ) );
+            matched.add( buildRetrievedPage( page, parsed, 0.0, List.of(), List.of() ) );
         }
         final int total = matched.size();
         final int from = Math.min( f.offset(), total );

@@ -31,6 +31,7 @@ import com.wikantik.api.knowledge.MetadataValue;
 import com.wikantik.api.knowledge.PageList;
 import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievalResult;
+import com.wikantik.api.knowledge.RetrievedChunk;
 import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
@@ -41,15 +42,22 @@ import com.wikantik.search.SearchManager;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
 import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridSearchService;
+import com.wikantik.search.hybrid.ScoredChunk;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Composes the retrieval singletons into the agent-facing contract defined
@@ -125,14 +133,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
     public RetrievalResult retrieve( final ContextQuery query ) {
         if ( query == null ) throw new IllegalArgumentException( "query required" );
 
-        // Phase 1: BM25 pass. Anchor-page-based Context is how SearchResource
-        // does it; tests use a FakeSearchManager that ignores context, so
-        // null context is fine in tests. enginePlaceholder() returns null
-        // for now — task 12 wires a real engine into the service.
-        final Page anchor = pageManager.getPage( "Main" );
-        final Context ctx = anchor != null
-            ? com.wikantik.api.spi.Wiki.context().create( enginePlaceholder(), anchor )
-            : null;
+        final Context ctx = buildContext();
         final Collection< SearchResult > bm25;
         try {
             bm25 = searchManager.findPages( query.query(), ctx );
@@ -142,7 +143,9 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         }
         final List< SearchResult > ordered = applyHybridAndGraphRerank( query.query(), bm25 );
 
-        // Phase 2: filter + shape into RetrievedPage envelopes.
+        final Map< String, List< RetrievedChunk > > chunksByPage =
+            fetchContributingChunks( query.query(), ordered, query.chunksPerPage() );
+
         final PageListFilter f = query.filter();
         final List< RetrievedPage > pages = new ArrayList<>();
         for ( final SearchResult sr : ordered ) {
@@ -151,6 +154,8 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
             final ParsedPage parsed = FrontmatterParser.parse( text == null ? "" : text );
             if ( f != null && !matchesFilter( page, parsed, f ) ) continue;
+            final List< RetrievedChunk > chunks = chunksByPage.getOrDefault(
+                page.getName(), List.of() );
             pages.add( new RetrievedPage(
                 page.getName(),
                 buildUrl( page.getName() ),
@@ -158,14 +163,80 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
                 stringOrEmpty( parsed.metadata().get( "summary" ) ),
                 stringOrNull( parsed.metadata().get( "cluster" ) ),
                 stringList( parsed.metadata().get( "tags" ) ),
-                List.of(),  // chunks filled in task 10
-                List.of(),  // relatedPages filled in task 11
+                chunks,
+                List.of(),  // relatedPages: task 11
                 page.getAuthor(),
                 page.getLastModified()
             ) );
             if ( pages.size() >= query.maxPages() ) break;
         }
         return new RetrievalResult( query.query(), pages, ordered.size() );
+    }
+
+    private Map< String, List< RetrievedChunk > > fetchContributingChunks(
+            final String query,
+            final List< SearchResult > ordered,
+            final int chunksPerPage ) {
+        if ( chunkIndex == null || !chunkIndex.isReady()
+                || chunkRepo == null || hybridSearch == null ) {
+            return Map.of();
+        }
+        final Optional< float[] > embedding;
+        try {
+            embedding = hybridSearch.prefetchQueryEmbedding( query ).get( 2500, TimeUnit.MILLISECONDS );
+        } catch ( final Exception e ) {
+            LOG.debug( "Embedding fetch for chunks failed: {}", e.getMessage() );
+            return Map.of();
+        }
+        if ( embedding.isEmpty() ) return Map.of();
+        final List< ScoredChunk > topChunks = chunkIndex.topKChunks( embedding.get(), 200 );
+        if ( topChunks.isEmpty() ) return Map.of();
+
+        final Set< String > interestingPages = new HashSet<>();
+        for ( final SearchResult sr : ordered ) {
+            if ( sr.getPage() != null ) interestingPages.add( sr.getPage().getName() );
+        }
+        final Map< String, List< ScoredChunk > > grouped = new LinkedHashMap<>();
+        for ( final ScoredChunk sc : topChunks ) {
+            if ( !interestingPages.contains( sc.pageName() ) ) continue;
+            grouped.computeIfAbsent( sc.pageName(), k -> new ArrayList<>() ).add( sc );
+        }
+        final List< UUID > allIds = new ArrayList<>();
+        for ( final var entry : grouped.entrySet() ) {
+            final List< ScoredChunk > list = entry.getValue();
+            final int take = Math.min( chunksPerPage, list.size() );
+            for ( int i = 0; i < take; i++ ) allIds.add( list.get( i ).chunkId() );
+        }
+        final List< ContentChunkRepository.MentionableChunk > loaded = chunkRepo.findByIds( allIds );
+        final Map< UUID, ContentChunkRepository.MentionableChunk > byId = new HashMap<>();
+        for ( final var mc : loaded ) byId.put( mc.id(), mc );
+
+        final Map< String, List< RetrievedChunk > > out = new LinkedHashMap<>();
+        for ( final var entry : grouped.entrySet() ) {
+            final List< ScoredChunk > list = entry.getValue();
+            final int take = Math.min( chunksPerPage, list.size() );
+            final List< RetrievedChunk > pageChunks = new ArrayList<>( take );
+            for ( int i = 0; i < take; i++ ) {
+                final ScoredChunk sc = list.get( i );
+                final ContentChunkRepository.MentionableChunk mc = byId.get( sc.chunkId() );
+                if ( mc == null ) continue;
+                pageChunks.add( new RetrievedChunk(
+                    mc.headingPath(), mc.text(), sc.score(), List.of() ) );
+            }
+            out.put( entry.getKey(), pageChunks );
+        }
+        return out;
+    }
+
+    private Context buildContext() {
+        final Page anchor = pageManager.getPage( "Main" );
+        if ( anchor == null ) return null;
+        try {
+            return com.wikantik.api.spi.Wiki.context().create( enginePlaceholder(), anchor );
+        } catch ( final Exception e ) {
+            LOG.debug( "Context build failed: {}", e.getMessage() );
+            return null;
+        }
     }
 
     private List< SearchResult > applyHybridAndGraphRerank( final String query,

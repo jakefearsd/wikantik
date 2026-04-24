@@ -190,4 +190,51 @@ class DefaultContextRetrievalServiceTest {
         assertEquals( 8, result.totalMatched() );
         assertEquals( 3, result.pages().size() );
     }
+
+    @Test
+    void retrieve_populatesContributingChunksFromDenseIndex() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Alpha", "---\n---\nbody", "a", new java.util.Date() );
+        pm.addPage( "Beta", "---\n---\nbody", "a", new java.util.Date() );
+
+        final FakeSearchManager sm = new FakeSearchManager();
+        sm.setResults( java.util.List.of(
+            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "Alpha", 5 ),
+            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "Beta", 3 ) ) );
+
+        final java.util.UUID alphaC1 = java.util.UUID.randomUUID();
+        final java.util.UUID alphaC2 = java.util.UUID.randomUUID();
+        final java.util.UUID betaC1  = java.util.UUID.randomUUID();
+
+        final var chunkIndex = new com.wikantik.knowledge.testfakes.FakeChunkVectorIndex();
+        chunkIndex.setEnabled( true );
+        chunkIndex.setDim( 8 );
+        chunkIndex.setTopK( java.util.List.of(
+            new com.wikantik.search.hybrid.ScoredChunk( alphaC1, "Alpha", 0.9 ),
+            new com.wikantik.search.hybrid.ScoredChunk( alphaC2, "Alpha", 0.8 ),
+            new com.wikantik.search.hybrid.ScoredChunk( betaC1,  "Beta",  0.7 ) ) );
+
+        final var chunkRepo = new com.wikantik.knowledge.testfakes.FakeChunkRepository();
+        chunkRepo.addChunk( alphaC1, "Alpha", 0, java.util.List.of( "Alpha", "Intro" ), "first chunk of Alpha" );
+        chunkRepo.addChunk( alphaC2, "Alpha", 1, java.util.List.of( "Alpha", "Details" ), "second chunk of Alpha" );
+        chunkRepo.addChunk( betaC1,  "Beta",  0, java.util.List.of( "Beta"  ), "beta chunk one" );
+
+        final var hybrid = com.wikantik.knowledge.testfakes.FakeHybridSearch.enabledReturning(
+            java.util.List.of( "Alpha", "Beta" ) );
+
+        final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
+            sm, hybrid, null, chunkIndex, chunkRepo, null, pm, null, "https://wiki.example" );
+
+        final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
+            "alpha query", 5, 2, null ) );
+
+        final var alphaPage = result.pages().stream()
+            .filter( p -> "Alpha".equals( p.name() ) ).findFirst().orElseThrow();
+        assertEquals( 2, alphaPage.contributingChunks().size() );
+        assertEquals( java.util.List.of( "Alpha", "Intro" ),
+            alphaPage.contributingChunks().get( 0 ).headingPath() );
+        assertEquals( "first chunk of Alpha",
+            alphaPage.contributingChunks().get( 0 ).text() );
+        assertEquals( 0.9, alphaPage.contributingChunks().get( 0 ).chunkScore(), 0.0001 );
+    }
 }

@@ -41,26 +41,36 @@ Wikantik began as a fork of Apache JSPWiki, a traditional Java wiki engine with 
 - **Frontend**: JSP templates replaced with a React SPA (Vite + React Router)
 - **Storage**: File-based providers augmented with PostgreSQL for users, groups, permissions, and the knowledge graph
 - **Security**: XML policy files migrated to database-backed `policy_grants` table with admin UI
-- **AI Integration**: Model Context Protocol (MCP) server with 47+ tools for AI-assisted content authoring
-- **Knowledge Graph**: Property graph over wiki content with proposal-based enrichment workflow
+- **AI Integration**: Two dedicated Model Context Protocol (MCP) servers — `/wikantik-admin-mcp` for writes and analytics (16 tools) and `/knowledge-mcp` for read-only retrieval and graph traversal (10 tools) — plus an OpenAPI tool server at `/tools/*` for OpenWebUI-compatible non-MCP clients (2 tools)
+- **Knowledge Graph**: Property graph over wiki content with proposal-based enrichment workflow, backed by PostgreSQL + pgvector
 
 ## Module Architecture
 
-The system is organized into 16 Maven modules with clear separation of concerns:
+The system is organized into 18 Maven modules with clear separation of concerns:
 
 | Module | Responsibility |
 |--------|---------------|
+| `wikantik-bom` | Dependency BOM |
 | `wikantik-api` | Public interfaces, data models, frontmatter parsing |
-| `wikantik-main` | Core engine, rendering, providers, knowledge graph service |
-| `wikantik-mcp` | MCP server for content authoring (47+ tools) |
-| `wikantik-knowledge` | Read-only knowledge MCP endpoint (5 tools) |
-| `wikantik-rest` | REST API and admin endpoints |
-| `wikantik-http` | Servlet filters — CSRF, CORS, CSP |
-| `wikantik-war` | WAR packaging, React frontend, deployment config |
+| `wikantik-main` | Core engine, rendering, providers, knowledge-graph service, entity extraction |
+| `wikantik-admin-mcp` | Admin MCP server (writes + analytics) — 16 tools, 6 resources, 8 prompts, 3 completions at `/wikantik-admin-mcp` |
+| `wikantik-knowledge` | Knowledge MCP server (hybrid retrieval + graph) — 10 tools at `/knowledge-mcp`; also hosts the knowledge-graph service |
+| `wikantik-tools` | OpenAPI 3.1 tool server (2 tools) at `/tools/*` |
+| `wikantik-extract-cli` | Offline entity-extractor CLI |
+| `wikantik-rest` | REST API (`/api/*`) and admin endpoints (`/admin/*`) |
+| `wikantik-http` | Servlet filters — CSRF, CORS, CSP, SPA routing, `/wiki/{slug}?format=*` |
+| `wikantik-event` | Event system for decoupled communication |
+| `wikantik-util` | Utilities |
+| `wikantik-cache` / `wikantik-cache-memcached` | Caching layers |
+| `wikantik-observability` | Health, Prometheus, correlation |
+| `wikantik-frontend` | React SPA (Vite) |
+| `wikantik-war` | WAR packaging, bundles frontend and wires servlets/filters |
+| `wikantik-wikipages` | Default pages for fresh installs |
+| `wikantik-it-tests` | Integration tests |
 
 ## Key Design Decisions
 
-1. **ADR-001: Extract Manager Interfaces to API** — Decoupled `wikantik-mcp` from `wikantik-main` by moving 8 interfaces to `wikantik-api`, reducing cross-module imports from 15 to 5.
+1. **ADR-001: Extract Manager Interfaces to API** — Decoupled the MCP modules from `wikantik-main` by moving 8 interfaces to `wikantik-api`, reducing cross-module imports from 15 to 5.
 
 2. **Frontmatter as Source of Truth** — Wiki page YAML frontmatter is the canonical source for knowledge graph relationships. The GraphProjector synchronizes frontmatter to graph nodes/edges on every page save.
 

@@ -45,8 +45,12 @@ forwards SPA paths to `/index.html` so the React router can take over.
 | `/graph` | Knowledge graph visualiser |
 | `/admin/*` | Admin panel (users, content, security, knowledge) |
 
-The REST API lives under `/api/` and the MCP server under `/mcp/` — both are
-serviced by `wikantik-rest` / `wikantik-mcp` rather than the SPA.
+The REST API lives under `/api/` (and admin endpoints under `/admin/`), and
+there are two MCP servers: `/wikantik-admin-mcp` (writes + analytics, 16 tools)
+and `/knowledge-mcp` (read-only retrieval + graph, 10 tools). An OpenAPI tool
+server for non-MCP clients lives at `/tools/*`. All are serviced by
+`wikantik-rest`, `wikantik-admin-mcp`, `wikantik-knowledge`, and
+`wikantik-tools` rather than the SPA.
 
 ## Project Layout
 

@@ -1,79 +1,107 @@
-
 # Gemini Development Guide for Wikantik
 
-This document provides a guide for developing extensions for Apache Wikantik using this Gemini agent.
+This document orients the Gemini agent to the Wikantik codebase. For authoritative project rules (coding conventions, test policy, token-efficiency rules, commit etiquette) read **[CLAUDE.md](CLAUDE.md)** — it is the canonical agent-development guide and the rules there apply to every agent working in this repo.
 
-## Project Overview
+## Project overview
 
-Wikantik is a feature-rich WikiWiki engine built on Java and Java Servlets. Its modular architecture allows for extensive customization through plugins, themes, and providers.
+Wikantik is a modular Java 21 / Jakarta EE wiki-and-knowledge-base engine. It serves 1000+ Markdown pages from a version-controlled content root (`docs/wikantik-pages/`) through:
 
-### Key Directories
+- A **React SPA** (`wikantik-frontend`, Vite) served at `/`
+- A **REST/JSON API** (`wikantik-rest`) at `/api/*` and admin endpoints at `/admin/*`
+- Two independent **MCP servers** at `/wikantik-admin-mcp` (writes + analytics) and `/knowledge-mcp` (read-only retrieval + graph)
+- An **OpenAPI 3.1 tool server** (`wikantik-tools`) at `/tools/*` for OpenWebUI-compatible non-MCP clients
+- A **Tomcat 11** servlet container with **PostgreSQL 15+ and pgvector** as the primary datastore
 
-*   `jspwiki-api`: Defines the core interfaces for Wikantik's components, including plugins, providers, and managers.
-*   `wikantik-main`: Contains the main implementation of the Wikantik engine, including the default managers and providers.
-*   `wikantik-war`: The web application module, containing the JSP files and other web resources.
-*   `jspwiki-plugins`: A directory for contributed plugins.
+Unit tests use JUnit 5 with in-memory H2. Integration tests use Selenide + Cargo against PostgreSQL + pgvector.
 
-## Extension Development
+## Module map (authoritative)
 
-### Core Concepts
+| Module | Role |
+|--------|------|
+| `wikantik-bom` | Dependency BOM |
+| `wikantik-api` | Core interfaces and contracts (`com.wikantik.api.*`) |
+| `wikantik-main` | Main engine: rendering, providers, auth, search, references, math parser, entity extraction |
+| `wikantik-event` | Event system (`WikiEvent`, listeners) |
+| `wikantik-util` | Utilities and helpers |
+| `wikantik-cache` | EhCache-based caching |
+| `wikantik-cache-memcached` | Memcached adapter |
+| `wikantik-http` | Servlet filters (CSRF, CORS, CSP, SPA routing, `/wiki/{slug}?format=*` content filter) |
+| `wikantik-rest` | REST `/api/*` and admin `/admin/*` endpoints |
+| `wikantik-admin-mcp` | Admin MCP server (16 tools + 6 resources + 8 prompts + 3 completions) |
+| `wikantik-knowledge` | Knowledge MCP server (10 tools) + knowledge-graph service (pgvector, co-mention graph, hub discovery) |
+| `wikantik-tools` | OpenAPI 3.1 tool server (2 tools) |
+| `wikantik-extract-cli` | Offline entity-extractor CLI |
+| `wikantik-observability` | Health, Prometheus, correlation |
+| `wikantik-frontend` | React SPA (Vite) |
+| `wikantik-war` | WAR packaging |
+| `wikantik-wikipages` | Default pages for a fresh install |
+| `wikantik-it-tests` | Selenide + REST + Cargo integration tests |
 
-Wikantik's functionality can be extended by implementing various interfaces. The most common extension points are:
+## Extension points
 
-*   **Plugins**: Implement the `com.wikantik.api.plugin.Plugin` interface to add new dynamic content to wiki pages.
-*   **Providers**: Implement `com.wikantik.api.providers.PageProvider` or `com.wikantik.api.providers.AttachmentProvider` to change how wiki pages and attachments are stored and retrieved.
-*   **Filters**: Implement `com.wikantik.api.filters.PageFilter` to intercept and modify page content before it is displayed or saved.
+Extend Wikantik by implementing interfaces from `wikantik-api` (not `jspwiki-api` — the JSPWiki rebrand is complete; see [docs/full_rebrand_project.md](docs/full_rebrand_project.md)):
 
-### Creating a "Hello World" Plugin
+- **Plugins** — `com.wikantik.api.plugin.Plugin`: dynamic content rendered from `[{PluginName param=value}]` markup
+- **Providers** — `com.wikantik.api.providers.PageProvider`, `AttachmentProvider`, `WikiProvider`: swap how pages/attachments are stored
+- **Filters** — `com.wikantik.api.filters.PageFilter`: intercept and mutate page content before display or save
+- **MCP tools** — implement `com.wikantik.mcp.tools.McpTool` (admin) or add to `com.wikantik.knowledge.mcp.*` (read-only retrieval)
+- **REST resources** — extend `com.wikantik.rest.RestServletBase` (enforces ACLs + policy grants)
 
-This example demonstrates how to create a simple plugin that greets the user.
+### Example: a minimal `Plugin`
 
-1.  **Create the Plugin Class**:
+```java
+package com.example.wiki.plugins;
 
-    Create a new Java class that implements the `com.wikantik.api.plugin.Plugin` interface.
+import java.util.Map;
+import com.wikantik.api.core.Context;
+import com.wikantik.api.plugin.Plugin;
+import com.wikantik.api.plugin.PluginException;
 
-    ```java
-    package com.example.wiki.plugins;
-
-    import java.util.Map;
-    import com.wikantik.api.plugin.Plugin;
-    import com.wikantik.api.plugin.PluginException;
-    import com.wikantik.api.core.Context;
-
-    public class HelloWorldPlugin implements Plugin {
-        public String execute(Context context, Map<String, String> params) throws PluginException {
-            String name = params.get("name");
-            if (name == null) {
-                name = "World";
-            }
-            return "Hello " + name + "!";
-        }
+public class HelloWorldPlugin implements Plugin {
+    @Override
+    public String execute(Context context, Map<String, String> params) throws PluginException {
+        String name = params.getOrDefault("name", "World");
+        return "Hello " + name + "!";
     }
-    ```
+}
+```
 
-2.  **Compile and Package**:
+1. Compile and JAR as usual.
+2. Drop the JAR into `tomcat/tomcat-11/webapps/ROOT/WEB-INF/lib/` (or add as a Maven dep to `wikantik-war`).
+3. Add your package to `jspwiki.plugin.searchPath` in `wikantik-custom.properties`.
+4. Restart Tomcat.
+5. Use on any wiki page: `[{HelloWorldPlugin name='Wikantik Developer'}]`.
 
-    Compile the Java class and package it into a JAR file.
+## Commands you actually need
 
-3.  **Installation**:
+```bash
+# Build everything (React frontend + WAR + tests)
+mvn clean install
 
-    *   Copy the generated JAR file to the `WEB-INF/lib/` directory of your Wikantik installation.
-    *   Update the `jspwiki.plugin.searchPath` property in your `wikantik-custom.properties` file to include the package of your new plugin (e.g., `com.example.wiki.plugins`).
-    *   Restart your Wikantik instance.
+# Fast compile-check of a single module
+mvn compile -pl wikantik-admin-mcp -am -q
 
-4.  **Usage**:
+# Unit tests only, parallel
+mvn clean install -T 1C -DskipITs
 
-    To use the plugin, add the following to a wiki page:
+# Integration tests — MUST be sequential (no -T flag)
+mvn clean install -Pintegration-tests -fae
 
-    ```
-    [{HelloWorldPlugin name='Wikantik Developer'}]
-    ```
+# Single test method
+mvn test -pl wikantik-main -Dtest=MarkdownRendererTest#testMarkupSimpleMarkdown
 
-    This will render the output: "Hello Wikantik Developer!"
+# Deploy to the local Tomcat 11 (never use Cargo outside of IT tests)
+bin/deploy-local.sh
+tomcat/tomcat-11/bin/startup.sh
+```
 
-## Important Commands
+**Do not use `cargo:run`** to bring the app up for manual testing. Cargo is reserved for integration-test harnesses in `wikantik-it-tests`. For local dev, the `tomcat/tomcat-11/` instance deployed by `bin/deploy-local.sh` is the only supported path.
 
-*   **Build the project**: `mvn clean install`
-*   **Run the tests**: `mvn test`
-*   **Run integration tests**: `mvn verify -Pintegration-tests`
-*   **Start Wikantik in a container**: `mvn -P tomcat9x cargo:run -Dcargo.wait=true`
+## See also
+
+- [CLAUDE.md](CLAUDE.md) — the canonical agent-development guide (rules, token-efficiency, test policy, security model, architecture overview)
+- [README.md](README.md) — user-facing overview and quick-start
+- [docs/wikantik-pages/GoodMcpDesign.md](docs/wikantik-pages/GoodMcpDesign.md) — design principles for MCP tool authors
+- [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md) — retrieval architecture
+- [docs/wikantik-pages/StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md) — planned structural-index surface
+- [docs/wikantik-pages/AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md) — planned agent-grade content layer and retrieval-quality CI

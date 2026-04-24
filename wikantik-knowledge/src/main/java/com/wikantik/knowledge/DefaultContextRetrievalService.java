@@ -19,6 +19,9 @@
 package com.wikantik.knowledge;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Page;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.MetadataValue;
@@ -27,6 +30,7 @@ import com.wikantik.api.knowledge.PageListFilter;
 import com.wikantik.api.knowledge.RetrievalResult;
 import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.providers.PageProvider;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.search.FrontmatterMetadataCache;
@@ -35,6 +39,7 @@ import com.wikantik.search.hybrid.ChunkVectorIndex;
 import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridSearchService;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -112,7 +117,44 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
 
     @Override
     public RetrievedPage getPage( final String pageName ) {
-        throw new UnsupportedOperationException( "implemented in task 6" );
+        if ( pageName == null || pageName.isBlank() ) return null;
+        final Page page = pageManager.getPage( pageName );
+        if ( page == null ) return null;
+        final String rawText = pageManager.getPureText( pageName, PageProvider.LATEST_VERSION );
+        final ParsedPage parsed = FrontmatterParser.parse( rawText == null ? "" : rawText );
+        return new RetrievedPage(
+            page.getName(),
+            buildUrl( page.getName() ),
+            0.0,
+            stringOrEmpty( parsed.metadata().get( "summary" ) ),
+            stringOrNull( parsed.metadata().get( "cluster" ) ),
+            stringList( parsed.metadata().get( "tags" ) ),
+            List.of(),
+            List.of(),
+            page.getAuthor(),
+            page.getLastModified() );
+    }
+
+    private String buildUrl( final String pageName ) {
+        if ( publicBaseUrl == null || publicBaseUrl.isBlank() ) return pageName;
+        final String base = publicBaseUrl.endsWith( "/" ) ? publicBaseUrl : publicBaseUrl + "/";
+        return base + pageName;
+    }
+
+    private static String stringOrEmpty( final Object o ) {
+        return o == null ? "" : o.toString();
+    }
+
+    private static String stringOrNull( final Object o ) {
+        return o == null ? null : o.toString();
+    }
+
+    @SuppressWarnings( "unchecked" )
+    private static List< String > stringList( final Object o ) {
+        if ( !( o instanceof List< ? > raw ) ) return List.of();
+        final List< String > out = new ArrayList<>( raw.size() );
+        for ( final Object item : raw ) if ( item != null ) out.add( item.toString() );
+        return List.copyOf( out );
     }
 
     @Override

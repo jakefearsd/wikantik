@@ -19,7 +19,6 @@
 package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.knowledge.KnowledgeGraphService;
-import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.knowledge.TraversalResult;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
@@ -30,8 +29,9 @@ import org.apache.logging.log4j.Logger;
 import java.util.*;
 
 /**
- * MCP tool that traverses the knowledge graph from a starting node,
- * following relationships outward, inward, or both.
+ * MCP tool that traverses the co-mention graph from a seed node via BFS.
+ * Nodes are connected when they appear together in the same content chunk
+ * as recorded by the entity extractor.
  */
 public class TraverseTool implements McpTool {
 
@@ -53,58 +53,38 @@ public class TraverseTool implements McpTool {
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "start_node", Map.of(
-                "type", "string",
-                "description", "Name of the node to start traversal from"
-        ) );
-        properties.put( "direction", Map.of(
-                "type", "string",
-                "description", "Traversal direction: outbound, inbound, or both (default outbound)",
-                "enum", List.of( "outbound", "inbound", "both" )
-        ) );
-        properties.put( "relationship_types", Map.of(
-                "type", "array",
-                "items", Map.of( "type", "string" ),
-                "description", "Only follow edges of these relationship types (omit for all)"
-        ) );
+            "type", "string",
+            "description", "Name of the seed node to traverse from." ) );
         properties.put( "max_depth", Map.of(
-                "type", "integer",
-                "description", "Maximum traversal depth (default 3)"
-        ) );
-        properties.put( "provenance_filter", Map.of(
-                "type", "array",
-                "items", Map.of( "type", "string" ),
-                "description", "Provenance values to include (e.g. human-authored, ai-reviewed, ai-inferred)"
-        ) );
+            "type", "integer",
+            "description", "BFS depth limit (default 2; 1 = direct co-mentions only)." ) );
+        properties.put( "min_shared_chunks", Map.of(
+            "type", "integer",
+            "description", "Minimum shared-chunk count required to follow an edge (default 1)." ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Traverse the knowledge graph from a starting node, following " +
-                        "relationships outward, inward, or both." )
-                .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "start_node" ), null, null, null ) )
+                .description( "Walk the co-mention graph from a seed node. Nodes are connected " +
+                        "when they appear in the same chunk per the entity extractor. Returns " +
+                        "{nodes, edges} with each edge carrying its 'sharedChunks' count." )
+                .inputSchema( new McpSchema.JsonSchema(
+                    "object", properties, List.of( "start_node" ), null, null, null ) )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }
 
     @Override
-    @SuppressWarnings( "unchecked" )
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         try {
             final String startNode = McpToolUtils.getString( arguments, "start_node" );
-            final String direction = McpToolUtils.getString( arguments, "direction", "outbound" );
-            final int maxDepth = McpToolUtils.getInt( arguments, "max_depth", 3 );
-            final Set< Provenance > provenanceFilter = KnowledgeMcpUtils.parseProvenanceFilter( arguments );
+            final int maxDepth = McpToolUtils.getInt( arguments, "max_depth", 2 );
+            final int minSharedChunks = McpToolUtils.getInt( arguments, "min_shared_chunks", 1 );
 
-            Set< String > relationshipTypes = null;
-            final Object rawRelTypes = arguments.get( "relationship_types" );
-            if ( rawRelTypes instanceof List ) {
-                relationshipTypes = new HashSet<>( ( List< String > ) rawRelTypes );
-            }
-
-            final TraversalResult result = service.traverse( startNode, direction,
-                    relationshipTypes, maxDepth, provenanceFilter );
+            final TraversalResult result = service.traverseByCoMention(
+                startNode, maxDepth, minSharedChunks );
             return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, result );
         } catch ( final Exception e ) {
-            LOG.error( "Traversal failed: {}", e.getMessage(), e );
+            LOG.error( "Traverse failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
         }
     }

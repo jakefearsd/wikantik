@@ -31,6 +31,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.Release;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
@@ -42,12 +43,21 @@ import java.util.List;
 
 /**
  * Bootstraps the read-only Knowledge MCP server on application startup.
- * Retrieves the shared WikiEngine from the ServletContext, obtains the
- * {@link KnowledgeGraphService} manager, and registers a Streamable HTTP
- * transport servlet at {@code /knowledge-mcp} with the five consumption tools.
+ * Retrieves the shared WikiEngine from the ServletContext, obtains
+ * {@link KnowledgeGraphService} and {@link ContextRetrievalService} managers,
+ * and registers a Streamable HTTP transport servlet at {@code /knowledge-mcp}
+ * with tools from whichever services are configured.
  *
- * <p>If the knowledge graph datasource is not configured, the initializer
- * logs an informational message and returns without starting the server.</p>
+ * <p>The server starts if at least one service is configured. KG tools
+ * ({@code discover_schema}, {@code query_nodes}, {@code get_node},
+ * {@code traverse}, {@code search_knowledge}, {@code find_similar}) are
+ * registered when {@link KnowledgeGraphService} is present; context retrieval
+ * tools ({@code retrieve_context}, {@code get_page}, {@code list_pages},
+ * {@code list_metadata_values}) are registered when
+ * {@link ContextRetrievalService} is present.</p>
+ *
+ * <p>If neither service is configured, the initializer logs an informational
+ * message and returns without starting the server.</p>
  */
 public class KnowledgeMcpInitializer implements ServletContextListener {
 
@@ -69,40 +79,46 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             return;
         }
 
-        // Obtain KnowledgeGraphService; if null the datasource was not configured.
         final KnowledgeGraphService kgService = engine.getManager( KnowledgeGraphService.class );
-        if ( kgService == null ) {
-            LOG.info( "Knowledge graph not configured — Knowledge MCP server not started" );
+        final ContextRetrievalService ctxService = engine.getManager( ContextRetrievalService.class );
+
+        if ( kgService == null && ctxService == null ) {
+            LOG.info( "Neither KnowledgeGraphService nor ContextRetrievalService configured — " +
+                "Knowledge MCP server not started" );
             return;
         }
 
         try {
-            // Create transport provider (which is itself a Servlet)
             final HttpServletStreamableServerTransportProvider transportProvider =
                     HttpServletStreamableServerTransportProvider.builder()
                             .mcpEndpoint( "/knowledge-mcp" )
                             .build();
 
-            // Register the transport servlet programmatically
             final ServletRegistration.Dynamic registration =
                     servletContext.addServlet( "KnowledgeMcpTransportServlet", transportProvider );
             registration.addMapping( "/knowledge-mcp" );
             registration.setAsyncSupported( true );
             registration.setLoadOnStartup( 3 );
 
-            // Create consumption tools (5 core + optional similarity tool)
-            final List< McpTool > tools = new ArrayList<>( List.of(
-                    new DiscoverSchemaTool( kgService ),
-                    new QueryNodesTool( kgService ),
-                    new GetNodeTool( kgService ),
-                    new TraverseTool( kgService ),
-                    new SearchKnowledgeTool( kgService )
-            ) );
+            final List< McpTool > tools = new ArrayList<>();
 
-            // Register find_similar when the mention-centroid similarity service is wired.
-            final NodeMentionSimilarity similarity = engine.getManager( NodeMentionSimilarity.class );
-            if ( similarity != null ) {
-                tools.add( new FindSimilarTool( similarity ) );
+            if ( kgService != null ) {
+                tools.add( new DiscoverSchemaTool( kgService ) );
+                tools.add( new QueryNodesTool( kgService ) );
+                tools.add( new GetNodeTool( kgService ) );
+                tools.add( new TraverseTool( kgService ) );
+                tools.add( new SearchKnowledgeTool( kgService ) );
+                final NodeMentionSimilarity similarity = engine.getManager( NodeMentionSimilarity.class );
+                if ( similarity != null ) {
+                    tools.add( new FindSimilarTool( similarity ) );
+                }
+            }
+
+            if ( ctxService != null ) {
+                tools.add( new RetrieveContextTool( ctxService ) );
+                tools.add( new GetPageTool( ctxService ) );
+                tools.add( new ListPagesTool( ctxService ) );
+                tools.add( new ListMetadataValuesTool( ctxService ) );
             }
 
             final var serverImpl = new McpSchema.Implementation(
@@ -110,14 +126,15 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
 
             final var builder = McpServer.sync( transportProvider )
                     .serverInfo( serverImpl )
-                    .instructions( "This is a read-only knowledge graph endpoint. Use discover_schema first " +
-                            "to understand the shape of the knowledge base, then use query_nodes, get_node, " +
-                            "traverse, or search_knowledge to explore." )
+                    .instructions( "Agent-facing MCP endpoint. For wiki content use " +
+                        "retrieve_context (primary RAG), get_page (pinned fetch), " +
+                        "list_pages (browse), or list_metadata_values (discovery). " +
+                        "For knowledge graph structure use discover_schema, query_nodes, " +
+                        "get_node, traverse, search_knowledge, or find_similar." )
                     .capabilities( ServerCapabilities.builder()
                             .tools( true )
                             .build() );
 
-            // Register all tools
             for ( final McpTool tool : tools ) {
                 builder.toolCall( tool.definition(), ( exchange, request ) ->
                         tool.execute( request.arguments() ) );

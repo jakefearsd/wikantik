@@ -56,5 +56,7 @@ class DefaultContextRetrievalServiceTest {
         assertTrue( p.contributingChunks().isEmpty() );
         assertTrue( p.relatedPages().isEmpty() );
         assertEquals( "alice", p.author() );
+        assertEquals( java.util.Date.from( java.time.Instant.parse( "2026-04-23T00:00:00Z" ) ),
+            p.lastModified() );
     }
 }

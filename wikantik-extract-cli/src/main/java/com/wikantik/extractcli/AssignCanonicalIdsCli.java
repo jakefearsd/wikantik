@@ -19,6 +19,7 @@
 package com.wikantik.extractcli;
 
 import com.github.f4b6a3.ulid.UlidCreator;
+import com.wikantik.api.frontmatter.FrontmatterParser;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -59,7 +60,11 @@ public class AssignCanonicalIdsCli {
             for ( final Path file : mdFiles ) {
                 scanned++;
                 final String content = Files.readString( file );
-                if ( content.contains( "canonical_id:" ) ) {
+                // Parse the real frontmatter block — a substring check would false-positive on
+                // any body that *mentions* canonical_id (design docs, code examples, runbooks).
+                final var parsed = FrontmatterParser.parse( content );
+                final Object existing = parsed.metadata().get( "canonical_id" );
+                if ( existing != null && !existing.toString().isBlank() ) {
                     continue;
                 }
                 missing++;

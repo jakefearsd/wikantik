@@ -61,6 +61,7 @@ import com.wikantik.knowledge.HubOverviewService;
 import com.wikantik.knowledge.structure.DefaultStructuralIndexService;
 import com.wikantik.knowledge.structure.PageCanonicalIdsDao;
 import com.wikantik.knowledge.structure.StructuralIndexEventListener;
+import com.wikantik.knowledge.structure.StructuralIndexMetrics;
 import com.wikantik.api.structure.StructuralIndexService;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
@@ -611,8 +612,10 @@ public class WikiEngine implements Engine {
             // Page-save events trigger incremental rebuilds; bootstrap rebuild runs
             // in the background so Engine.start() does not block on a ~1000-page scan.
             final PageCanonicalIdsDao canonicalIdsDao = new PageCanonicalIdsDao( ds );
+            final StructuralIndexMetrics structuralMetrics = StructuralIndexMetrics.resolveAndBind();
             final DefaultStructuralIndexService structuralIndex =
-                new DefaultStructuralIndexService( getManager( PageManager.class ), canonicalIdsDao );
+                new DefaultStructuralIndexService(
+                    getManager( PageManager.class ), canonicalIdsDao, structuralMetrics );
             managers.put( StructuralIndexService.class, structuralIndex );
             new StructuralIndexEventListener( structuralIndex )
                 .register( getManager( PageManager.class ) );

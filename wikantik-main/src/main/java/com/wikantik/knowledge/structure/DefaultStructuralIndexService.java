@@ -59,6 +59,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
     private final PageManager pageManager;
     private final PageCanonicalIdsDao dao;
+    private final StructuralIndexMetrics metrics;
 
     private final AtomicReference< StructuralProjection > current =
             new AtomicReference<>( new StructuralProjectionBuilder().build() );
@@ -67,9 +68,17 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
     private volatile int unclaimed = 0;
 
     public DefaultStructuralIndexService( final PageManager pageManager,
-                                          final PageCanonicalIdsDao dao ) {
+                                          final PageCanonicalIdsDao dao,
+                                          final StructuralIndexMetrics metrics ) {
         this.pageManager = pageManager;
         this.dao = dao;
+        this.metrics = metrics == null ? new StructuralIndexMetrics() : metrics;
+    }
+
+    /** Convenience constructor for tests — uses a no-op metrics holder. */
+    public DefaultStructuralIndexService( final PageManager pageManager,
+                                          final PageCanonicalIdsDao dao ) {
+        this( pageManager, dao, new StructuralIndexMetrics() );
     }
 
     @Override
@@ -135,10 +144,13 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         this.unclaimed = missing;
 
         final Instant finish = Instant.now();
+        final long durationMs = finish.toEpochMilli() - start.toEpochMilli();
         this.health = new IndexHealth( IndexHealth.Status.UP, indexed, missing,
-                start, finish, finish.toEpochMilli() - start.toEpochMilli(), 0L );
+                start, finish, durationMs, 0L );
+        metrics.update( snapshot(), health );
+        metrics.recordRebuildMillis( durationMs );
         LOG.info( "Structural index rebuilt: {} pages indexed ({} without canonical_id) in {} ms",
-                  indexed, missing, finish.toEpochMilli() - start.toEpochMilli() );
+                  indexed, missing, durationMs );
     }
 
     @Override

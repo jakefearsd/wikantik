@@ -50,17 +50,19 @@ Wikantik follows a modular architecture organized around a central `WikiEngine` 
 The codebase is organized into focused modules:
 
 - **wikantik-api** — Core interfaces and contracts that define the wiki engine's public API
-- **wikantik-main** — Primary implementation of all wiki functionality including page management, rendering, search, and security
+- **wikantik-main** — Primary implementation of all wiki functionality including page management, rendering, search, entity extraction, and security
 - **wikantik-event** — Event system for decoupled inter-component communication
 - **wikantik-util** — Shared utility classes and helpers
 - **wikantik-cache** — Ehcache-based caching layer for page content and metadata
-- **wikantik-markdown** — Markdown syntax support with CommonMark parsing
-- **wikantik-mcp** — Model Context Protocol server for AI-assisted operations
+- **wikantik-rest** — REST API (`/api/*`) and admin endpoints (`/admin/*`)
+- **wikantik-admin-mcp** — Admin MCP server at `/wikantik-admin-mcp` for writes and analytics (16 tools, 6 resources, 8 prompts, 3 completions)
+- **wikantik-knowledge** — Knowledge MCP server at `/knowledge-mcp` for read-only retrieval and knowledge-graph queries (10 tools); also hosts the knowledge-graph service (pgvector-backed)
+- **wikantik-tools** — OpenAPI 3.1 tool server at `/tools/*` for OpenWebUI-compatible non-MCP clients (2 tools)
 - **wikantik-war** — WAR packaging for deployment to servlet containers
 
 ## The MCP Integration
 
-The `wikantik-mcp` module exposes this wiki as an MCP server, allowing AI agents to read, write, search, and manage wiki content through a standardized protocol. This is the mechanism by which articles on this wiki are researched and published.
+The `wikantik-admin-mcp` and `wikantik-knowledge` modules expose this wiki as two independent MCP servers, allowing AI agents to read, write, search, and manage wiki content through the standardized protocol. `/wikantik-admin-mcp` is the write surface (authoring, audits, knowledge-graph proposals); `/knowledge-mcp` is the read surface optimised for retrieval by coding agents. This is the mechanism by which articles on this wiki are researched and published.
 
 ### What is MCP?
 

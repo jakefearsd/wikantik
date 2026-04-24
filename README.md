@@ -22,7 +22,7 @@ The license file can be found in LICENSE.
 
 ## What is Wikantik?
 
-Wikantik is a modular Java-based knowledge base platform built on JEE technologies. It combines a Markdown-native authoring system with a React single-page application, a REST API, a Model Context Protocol server for AI agent integration, a knowledge graph visualiser, and a full observability stack. Content is organised into thematic clusters with structured frontmatter metadata, indexed by Lucene for full-text and faceted search.
+Wikantik is a modular Java-based knowledge base platform built on JEE technologies. It combines a Markdown-native authoring system with a React single-page application, a REST API, two dedicated Model Context Protocol (MCP) servers for AI agent integration, an OpenAPI tool server for non-MCP clients, a knowledge graph visualiser, and a full observability stack. Content is organised into thematic clusters with structured frontmatter metadata, indexed by Lucene for full-text and faceted search, and ranked by a hybrid BM25 + dense-vector + graph retrieval pipeline.
 
 Key capabilities:
 
@@ -30,7 +30,11 @@ Key capabilities:
 - **React SPA** served at `/` — editorial magazine aesthetic with dark mode, metadata chips, change history, similar-pages panel, and inline editing
 - **Knowledge graph** at `/graph` — interactive Cytoscape visualisation of page relationships (backlinks, frontmatter, clusters) with semantic zoom, edge-type filtering, and parallel-edge merging
 - **REST API** at `/api/` — full CRUD for pages, attachments, search, history, diffs, backlinks, and the knowledge graph snapshot, with ACL-based permission enforcement
-- **MCP server** at `/mcp/` — 22 tools (page read/search, export/import workflow, link analysis, metadata queries, knowledge proposals) plus resources, prompts, and completions for AI-assisted wiki operations
+- **Admin MCP server** at `/wikantik-admin-mcp` — 16 tools (page writes, link analysis, metadata queries, knowledge proposals, structural audits), 6 resources, 8 prompts, 3 completions. Bearer-token / API-key authenticated.
+- **Knowledge MCP server** at `/knowledge-mcp` — 10 read-only tools for hybrid retrieval (BM25 + dense), knowledge-graph traversal, schema discovery, and metadata enumeration. Same auth scheme.
+- **OpenAPI tool server** at `/tools/*` — OpenWebUI-compatible OpenAPI 3.1 endpoint exposing `search_wiki` and `get_page` for non-MCP LLM clients
+- **Raw content and change feed** — `GET /wiki/{slug}?format=md|json` and `GET /api/changes?since=…` for search-engine crawlers and RAG ingestion pipelines (see [IndexingSupport.md](IndexingSupport.md))
+- **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60), with graph-aware rerank; fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
 - **Admin panel** at `/admin/` — user management, content management (orphaned pages, broken links, version purging, cache stats), security management (groups and policy grants)
 - **Database-backed authorisation** — policy grants and groups stored in PostgreSQL, manageable through the admin UI, with bootstrap admin override for recovery
 - **Observability** — health checks, Prometheus metrics at `/metrics`, structured logging with request correlation, IP-restricted to internal networks
@@ -208,14 +212,16 @@ Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeploymen
 | `wikantik-cache` | EhCache-based caching layer |
 | `wikantik-cache-memcached` | Distributed cache adapter for Memcached |
 | `wikantik-http` | Servlet filters — CSRF, CORS, CSP, security headers, SPA routing |
-| `wikantik-rest` | REST/JSON API and admin panel endpoints |
-| `wikantik-mcp` | MCP server for AI agent integration (22 tools plus resources, prompts, completions) |
-| `wikantik-knowledge` | Knowledge graph service — page-relationship snapshot generation and proposals |
+| `wikantik-rest` | REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`) |
+| `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 16 tools (writes + analytics), 6 resources, 8 prompts, 3 completions |
+| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 10 read-only retrieval + KG tools; also hosts the knowledge-graph service (pgvector embeddings, co-mention graph, hub discovery) |
+| `wikantik-tools` | OpenAPI 3.1 tool server at `/tools/*` — 2 tools for OpenWebUI-compatible non-MCP clients |
+| `wikantik-extract-cli` | Standalone entity-extractor CLI for offline batch extraction |
 | `wikantik-observability` | Health checks, Prometheus metrics, request correlation |
 | `wikantik-frontend` | React SPA (Vite build) — reader, editor, admin panel, knowledge graph viewer |
 | `wikantik-war` | WAR packaging and deployment config; bundles the frontend build output |
 | `wikantik-wikipages` | Default wiki pages shipped with a fresh install |
-| `wikantik-it-tests` | Integration tests (Selenide browser automation, REST API, custom providers) |
+| `wikantik-it-tests` | Integration tests (Selenide browser automation, REST API, Cargo-launched Tomcat against PostgreSQL + pgvector) |
 
 ## Documentation
 
@@ -268,7 +274,19 @@ Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeploymen
 
 ### MCP Integration
 
-The `wikantik-mcp` module provides a Model Context Protocol server at `/mcp/` for AI-assisted wiki operations — reading, searching, link and backlink analysis, history and diffs, metadata querying, recent changes, an export/import workflow for bulk editing (replacing legacy per-page CRUD), structural-verification checks, and knowledge-graph proposals. The server exposes 22 tools plus resource templates, prompts, and completions. See `wikantik-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java` for the authoritative tool list.
+Wikantik exposes two independent Model Context Protocol servers (both using the Streamable HTTP transport), plus an OpenAPI 3.1 tool server for non-MCP clients:
+
+**`/wikantik-admin-mcp`** — `wikantik-admin-mcp` module. Admin / write surface for AI-assisted wiki operations: structural-verification checks, link and backlink analysis, history and diffs, metadata querying, recent changes, an export/import workflow for bulk editing, knowledge-graph proposals, and page writes. Exposes **16 tools, 6 resources, 8 prompts, 3 completions**. Authoritative tool list: `wikantik-admin-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java`. Initializer: `com.wikantik.mcp.McpServerInitializer`.
+
+**`/knowledge-mcp`** — `wikantik-knowledge` module. Read-only retrieval surface designed for coding agents consuming the wiki as a knowledge base: hybrid search (BM25 + dense), knowledge-graph schema discovery, node querying, graph traversal, similarity search, and page/metadata lookup. Exposes **10 tools**. Authoritative tool list: `wikantik-knowledge/src/main/java/com/wikantik/knowledge/mcp/`. Initializer: `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
+
+**`/tools/*`** — `wikantik-tools` module. OpenAPI 3.1 tool server (OpenWebUI-compatible) exposing two tools (`search_wiki`, `get_page`) for LLM clients that cannot speak MCP.
+
+Both MCP endpoints share the same bearer-token / API-key authentication scheme (`McpAccessFilter`, `KnowledgeMcpAccessFilter`). Tool naming is `snake_case` across all three endpoints. See [docs/wikantik-pages/GoodMcpDesign.md](docs/wikantik-pages/GoodMcpDesign.md) for the design principles these servers follow.
+
+**Planned structural-spine additions** (see [docs/wikantik-pages/StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md)): `list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id`, and typed cross-reference traversal — all mirrored at `/api/structure/*`.
+
+**Planned agent-grade content layer** (see [docs/wikantik-pages/AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md)): `type: runbook` pages, verification metadata (`verified_at`, `confidence`), a token-optimised `/api/pages/{id}/for-agent` projection, and a scheduled retrieval-quality CI loop using `RetrievalExperimentHarness`.
 
 ### Research
 

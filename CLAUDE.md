@@ -85,8 +85,8 @@ mvn test -Dtest=MarkdownRendererTest#testMarkupSimpleMarkdown
 mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug
 
 # Run integration tests (MUST run without parallelism - see critical note below)
-# Always use -fae (fail at end) so all 3 IT modules run even if one has failures
-# (wikantik-it-test-custom, wikantik-it-test-custom-jdbc, wikantik-it-test-rest)
+# Always use -fae (fail at end) so all IT submodules run even if one has failures.
+# The integration tests all live under wikantik-it-tests (Selenide browser + REST + custom provider suites).
 mvn clean install -Pintegration-tests -fae
 
 # Run memory profiling test (from wikantik-main module)
@@ -204,17 +204,36 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 
 ### Module Structure
 
-- **wikantik-api**: Core interfaces and contracts (manager interfaces, frontmatter, page save)
-- **wikantik-main**: Main implementation — rendering, providers, auth, search, references
+- **wikantik-bom**: Bill-of-materials POM pinning shared dependency versions
+- **wikantik-api**: Core interfaces and contracts (manager interfaces, frontmatter, page save, knowledge graph service)
+- **wikantik-main**: Main implementation — rendering, providers, auth, search, references, entity extraction, math parser
 - **wikantik-event**: Event system for decoupled communication
 - **wikantik-util**: Utility classes and helpers
 - **wikantik-cache**: EhCache-based caching layer (1-hour TTL for render caches, 10K entry capacity)
 - **wikantik-cache-memcached**: Distributed cache adapter for Memcached
-- **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers
-- **wikantik-rest**: REST/JSON API and admin panel endpoints
-- **wikantik-mcp**: MCP server for AI agent integration (37 tools, 6 resources, 8 prompts)
+- **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers, SPA routing, `/wiki/{slug}?format=md|json` content filter
+- **wikantik-rest**: REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`)
+- **wikantik-admin-mcp**: Admin MCP server at `/wikantik-admin-mcp` — 16 tools (writes + link/metadata analytics), 6 resources, 8 prompts, 3 completions. See `com.wikantik.mcp.McpServerInitializer`.
+- **wikantik-knowledge**: Knowledge MCP server at `/knowledge-mcp` — 10 read-only tools (hybrid retrieval, knowledge-graph traversal, schema discovery) plus the knowledge-graph service (pgvector-backed embeddings, co-mention graph, hub discovery). See `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
+- **wikantik-tools**: OpenAPI 3.1 tool server at `/tools/*` — 2 tools (`search_wiki`, `get_page`) for OpenWebUI-compatible non-MCP clients.
+- **wikantik-extract-cli**: Standalone entity-extractor CLI (offline/batch extraction against the knowledge-graph pipeline)
 - **wikantik-observability**: Health checks, Prometheus metrics, request correlation
-- **wikantik-war**: WAR packaging, React frontend build, deployment config
+- **wikantik-frontend**: React SPA (Vite build) — reader, editor, admin panel, knowledge-graph viewer
+- **wikantik-war**: WAR packaging — bundles the React build and wires all servlets/filters
+- **wikantik-wikipages**: Default wiki pages shipped with a fresh install
+- **wikantik-it-tests**: Integration tests (Selenide browser automation, REST API, Cargo-launched Tomcat against PostgreSQL + pgvector)
+
+#### Agent-facing surface summary
+
+| Endpoint | Module | Protocol | Tools | Auth |
+|----------|--------|----------|-------|------|
+| `/wikantik-admin-mcp` | wikantik-admin-mcp | MCP (Streamable HTTP) | 16 write/analytics tools | `McpAccessFilter` (bearer token / API key) |
+| `/knowledge-mcp` | wikantik-knowledge | MCP (Streamable HTTP) | 10 read-only retrieval + KG tools | `KnowledgeMcpAccessFilter` (same scheme) |
+| `/tools/*` | wikantik-tools | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) | API key |
+| `/api/*` | wikantik-rest | REST/JSON | 23 Resource classes | `RestServletBase.checkPagePermission()` (ACL + policy grants) |
+| `/admin/*` | wikantik-rest | REST/JSON | 8 admin resources | `AdminAuthFilter` (`AllPermission`) |
+| `/wiki/{slug}?format=md\|json` | wikantik-rest | HTTP | Raw content for RAG ingestion / crawlers | Public (same ACL as page view) |
+| `/api/changes?since=…` | wikantik-rest | REST/JSON | Incremental change feed for sync pipelines | Public |
 
 ### Key Design Patterns
 
@@ -273,6 +292,16 @@ When implementing new features, consider these extension mechanisms:
 - **Providers**: For custom storage backends
 - **Modules**: For larger feature additions
 - **Templates**: For UI customization
+
+### Active Design Documents
+
+Living design docs for in-flight architectural work (read before touching the relevant subsystem):
+
+- **[docs/wikantik-pages/StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md)** — Machine-queryable structural index for the wiki (clusters, tags, canonical IDs, typed cross-references, `/api/structure/*`, matching MCP tools, generated `Main.md`). Addresses: agents can only discover content via full-text search today.
+- **[docs/wikantik-pages/AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md)** — Agent-grade content layer (`type: runbook`, verification metadata, `/api/pages/{id}/for-agent` token-optimised projection, scheduled retrieval-quality CI using `RetrievalExperimentHarness`). Addresses: content is narrative, not shaped for programmatic consumers, and retrieval quality isn't measured.
+- **[docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md)** — Implemented. BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.
+- **[docs/wikantik-pages/RetrievalExperimentHarness.md](docs/wikantik-pages/RetrievalExperimentHarness.md)** — Implemented but not yet scheduled; targeted by `AgentGradeContentDesign.md` for CI integration.
+- **[IndexingSupport.md](IndexingSupport.md)** — Implemented. Raw content + change feed + sitemap for RAG ingestion and SEO.
 
 ### Testing Approach
 

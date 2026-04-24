@@ -6,7 +6,9 @@
 
 ## Context
 
-The MCP module (`wikantik-mcp`) depended directly on manager interfaces and utility types defined in `wikantik-main`. This meant MCP couldn't compile without the full engine implementation, preventing alternative engine implementations, lightweight testing, and clean module boundaries.
+The MCP module (then `wikantik-mcp`, since renamed to `wikantik-admin-mcp` and joined by `wikantik-knowledge` for read-only retrieval) depended directly on manager interfaces and utility types defined in `wikantik-main`. This meant MCP couldn't compile without the full engine implementation, preventing alternative engine implementations, lightweight testing, and clean module boundaries.
+
+> **Historical note (2026-04):** After this ADR was implemented, the single `wikantik-mcp` module was split. Writes and analytics moved to `wikantik-admin-mcp` at the endpoint `/wikantik-admin-mcp`; read-only retrieval and knowledge-graph traversal moved to `wikantik-knowledge` at `/knowledge-mcp`. The API-extraction decision recorded here applies to both successor modules.
 
 ## What was done
 

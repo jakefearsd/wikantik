@@ -12,7 +12,11 @@ The deployed Wikantik instance includes the following endpoints:
 | `/graph` | Knowledge graph visualiser |
 | `/admin/` | Admin panel (user, content, and security management) |
 | `/api/` | REST API (pages, attachments, search, history, knowledge graph) |
-| `/mcp/` | MCP server for AI agent integration |
+| `/wiki/{slug}?format=md\|json` | Raw content for crawlers and RAG ingestion |
+| `/api/changes?since=…` | Incremental change feed for sync pipelines |
+| `/wikantik-admin-mcp` | Admin MCP server (writes + analytics) — 16 tools |
+| `/knowledge-mcp` | Knowledge MCP server (read-only retrieval + graph) — 10 tools |
+| `/tools/*` | OpenAPI 3.1 tool server (OpenWebUI-compatible) — 2 tools |
 
 The `wikantik-observability` module provides additional endpoints:
 

@@ -102,7 +102,7 @@ The `docker/entrypoint.sh` script runs every time the wikantik container starts.
 
 1. **`wikantik-custom.properties`** — Wiki settings: base URL, page directory, PostgreSQL JDBC database names, SMTP config, column mappings
 2. **`ROOT.xml`** — Tomcat context with a single JNDI DataSource (`jdbc/WikiDatabase`) pointing to the PostgreSQL container
-3. **`wikantik-mcp.properties`** — MCP server rate limits and access keys
+3. **`wikantik-mcp.properties`** — MCP server rate limits and access keys. This single properties file configures **both** MCP endpoints (`/wikantik-admin-mcp` and `/knowledge-mcp`); the filename is retained from the original module name for backward compatibility.
 
 This means you never edit config files inside the container. Change an environment variable, restart the container, and the new config takes effect.
 

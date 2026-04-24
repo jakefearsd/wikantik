@@ -24,7 +24,19 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.knowledge.ContextQuery;
+import com.wikantik.api.knowledge.ContextRetrievalService;
+import com.wikantik.api.knowledge.MetadataValue;
+import com.wikantik.api.knowledge.PageList;
+import com.wikantik.api.knowledge.PageListFilter;
+import com.wikantik.api.knowledge.RetrievalResult;
+import com.wikantik.api.knowledge.RetrievedChunk;
+import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.search.SearchResult;
+import com.wikantik.search.FrontmatterMetadataCache;
 import com.wikantik.search.SearchManager;
 
 import jakarta.servlet.ServletConfig;
@@ -38,6 +50,10 @@ import org.mockito.Mockito;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -65,6 +81,10 @@ class SearchResourceTest {
 
         // Wait for Lucene indexer — it runs on a background thread
         Thread.sleep( 500 );
+
+        // Register a ContextRetrievalService that delegates to the real SearchManager
+        // so tests exercise the full HTTP layer without requiring pgvector or embeddings.
+        engine.setManager( ContextRetrievalService.class, new BridgingContextRetrievalService( engine ) );
 
         servlet = new SearchResource();
         final ServletConfig config = Mockito.mock( ServletConfig.class );
@@ -193,7 +213,7 @@ class SearchResourceTest {
                     final JsonObject entry = results.get( i ).getAsJsonObject();
                     if ( "RestSearchFrontmatter".equals( entry.get( "name" ).getAsString() ) ) {
                         assertTrue( entry.has( "score" ), "Result should have score" );
-                        assertTrue( entry.get( "score" ).getAsInt() > 0,
+                        assertTrue( entry.get( "score" ).getAsDouble() > 0,
                                 "Score should be positive" );
                         // Frontmatter fields should be extracted
                         if ( entry.has( "summary" ) ) {
@@ -252,9 +272,10 @@ class SearchResourceTest {
             // Core fields that SearchResource always sets
             assertTrue( entry.has( "name" ), "Result entry should have 'name'" );
             assertTrue( entry.has( "score" ), "Result entry should have 'score'" );
+            // lastModified comes from the page — present when BridgingContextRetrievalService populates it
             assertTrue( entry.has( "lastModified" ), "Result entry should have 'lastModified'" );
             assertFalse( entry.get( "name" ).getAsString().isEmpty(), "Name should not be empty" );
-            assertTrue( entry.get( "score" ).getAsInt() > 0, "Score should be positive" );
+            assertTrue( entry.get( "score" ).getAsDouble() > 0, "Score should be positive" );
         }
     }
 
@@ -298,36 +319,21 @@ class SearchResourceTest {
         }
     }
 
-    // ----- Hybrid rerank integration -----
+    // ----- ContextRetrievalService integration -----
 
     @Test
-    void hybridDisabledLeavesBm25OrderUntouched() throws Exception {
-        final com.wikantik.search.hybrid.HybridSearchService hybrid =
-            Mockito.mock( com.wikantik.search.hybrid.HybridSearchService.class );
-        Mockito.doReturn( false ).when( hybrid ).isEnabled();
-        Mockito.doReturn( java.util.concurrent.CompletableFuture.completedFuture( java.util.Optional.empty() ) )
-                .when( hybrid ).prefetchQueryEmbedding( Mockito.anyString() );
-        engine.setManager( com.wikantik.search.hybrid.HybridSearchService.class, hybrid );
-
-        final String json = doSearch( "search", null );
-        final JsonObject obj = gson.fromJson( json, JsonObject.class );
-        assertTrue( obj.has( "results" ) );
-        // rerankWith() must NOT be invoked when hybrid is off — the BM25 names
-        // list must never reach the disabled service.
-        Mockito.verify( hybrid, Mockito.never() ).rerankWith( Mockito.anyString(), Mockito.anyList(), Mockito.any() );
-    }
-
-    @Test
-    void hybridEnabledReordersBm25Results() throws Exception {
-        final com.wikantik.search.hybrid.HybridSearchService hybrid =
-            Mockito.mock( com.wikantik.search.hybrid.HybridSearchService.class );
-        Mockito.doReturn( true ).when( hybrid ).isEnabled();
-        Mockito.doReturn( java.util.concurrent.CompletableFuture.completedFuture( java.util.Optional.of( new float[]{ 1f } ) ) )
-                .when( hybrid ).prefetchQueryEmbedding( Mockito.anyString() );
-        // Force Beta ahead of Alpha regardless of BM25 ordering.
-        Mockito.doReturn( java.util.List.of( "RestSearchBeta", "RestSearchAlpha" ) )
-                .when( hybrid ).rerankWith( Mockito.eq( "search" ), Mockito.anyList(), Mockito.any() );
-        engine.setManager( com.wikantik.search.hybrid.HybridSearchService.class, hybrid );
+    void crsReturnsOrderedResultsAsJsonArray() throws Exception {
+        // Mock CRS returning a controlled ordered list.
+        final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );
+        final RetrievedPage beta = new RetrievedPage(
+            "RestSearchBeta", null, 2.0, "", null, null, null, null, null,
+            engine.getManager( PageManager.class ).getPage( "RestSearchBeta" ).getLastModified() );
+        final RetrievedPage alpha = new RetrievedPage(
+            "RestSearchAlpha", null, 1.0, "", null, null, null, null, null,
+            engine.getManager( PageManager.class ).getPage( "RestSearchAlpha" ).getLastModified() );
+        Mockito.doReturn( new RetrievalResult( "search", List.of( beta, alpha ), 2 ) )
+               .when( mockCrs ).retrieve( Mockito.any() );
+        engine.setManager( ContextRetrievalService.class, mockCrs );
 
         final String json = doSearch( "search", null );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
@@ -338,61 +344,141 @@ class SearchResourceTest {
     }
 
     @Test
-    void hybridAppendsDenseOnlyPageWithZeroScoreAndNoContexts() throws Exception {
-        // Dense-only page: exists in PageManager but BM25 didn't surface it.
-        engine.saveText( "RestSearchDenseOnly", "Dense only page body." );
-        try {
-            final com.wikantik.search.hybrid.HybridSearchService hybrid =
-                Mockito.mock( com.wikantik.search.hybrid.HybridSearchService.class );
-            Mockito.doReturn( true ).when( hybrid ).isEnabled();
-            Mockito.doReturn( java.util.concurrent.CompletableFuture.completedFuture( java.util.Optional.of( new float[]{ 1f } ) ) )
-                    .when( hybrid ).prefetchQueryEmbedding( Mockito.anyString() );
-            Mockito.doReturn( java.util.List.of(
-                    "RestSearchAlpha", "RestSearchBeta", "RestSearchDenseOnly" ) )
-                    .when( hybrid ).rerankWith( Mockito.eq( "search" ), Mockito.anyList(), Mockito.any() );
-            engine.setManager( com.wikantik.search.hybrid.HybridSearchService.class, hybrid );
+    void crsResultWithChunksExposesContextsField() throws Exception {
+        // Verify that contributingChunks are serialized as the 'contexts' field.
+        final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );
+        final RetrievedChunk chunk = new RetrievedChunk( List.of( "Intro" ), "Alpha chunk body.", 1.5, List.of() );
+        final RetrievedPage alpha = new RetrievedPage(
+            "RestSearchAlpha", null, 3.0, "", null, null, List.of( chunk ), null, null, null );
+        Mockito.doReturn( new RetrievalResult( "Alpha", List.of( alpha ), 1 ) )
+               .when( mockCrs ).retrieve( Mockito.any() );
+        engine.setManager( ContextRetrievalService.class, mockCrs );
 
-            final String json = doSearch( "search", null );
-            final JsonObject obj = gson.fromJson( json, JsonObject.class );
-            final JsonArray results = obj.getAsJsonArray( "results" );
-            JsonObject denseEntry = null;
-            for ( int i = 0; i < results.size(); i++ ) {
-                final JsonObject e = results.get( i ).getAsJsonObject();
-                if ( "RestSearchDenseOnly".equals( e.get( "name" ).getAsString() ) ) {
-                    denseEntry = e;
-                    break;
-                }
-            }
-            assertNotNull( denseEntry, "Dense-only page must be appended to results" );
-            assertEquals( 0, denseEntry.get( "score" ).getAsInt(),
-                    "Dense-only DenseOnlySearchResult must report score=0" );
-        } finally {
-            try { engine.getManager( PageManager.class ).deletePage( "RestSearchDenseOnly" ); }
-            catch ( final Exception e ) { /* ignore */ }
-        }
+        final String json = doSearch( "Alpha", null );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        final JsonArray results = obj.getAsJsonArray( "results" );
+        assertEquals( 1, results.size() );
+        final JsonObject entry = results.get( 0 ).getAsJsonObject();
+        assertTrue( entry.has( "contexts" ), "contexts field should be present when chunks exist" );
+        final JsonArray contexts = entry.getAsJsonArray( "contexts" );
+        assertEquals( "Alpha chunk body.", contexts.get( 0 ).getAsString() );
     }
 
     @Test
-    void hybridSkipsDenseOnlyNamesThatPageManagerCannotResolve() throws Exception {
-        final com.wikantik.search.hybrid.HybridSearchService hybrid =
-            Mockito.mock( com.wikantik.search.hybrid.HybridSearchService.class );
-        Mockito.doReturn( true ).when( hybrid ).isEnabled();
-        Mockito.doReturn( java.util.concurrent.CompletableFuture.completedFuture( java.util.Optional.of( new float[]{ 1f } ) ) )
-                .when( hybrid ).prefetchQueryEmbedding( Mockito.anyString() );
-        // Inject a name that doesn't exist as a page; should be silently dropped.
-        Mockito.doReturn( java.util.List.of(
-                "RestSearchAlpha", "RestSearchBeta", "GhostPageDoesNotExist" ) )
-                .when( hybrid ).rerankWith( Mockito.eq( "search" ), Mockito.anyList(), Mockito.any() );
-        engine.setManager( com.wikantik.search.hybrid.HybridSearchService.class, hybrid );
+    void crsZeroScorePageIncludedInResults() throws Exception {
+        // Dense-only page: exists in results with score 0, no chunks — mirrors old DenseOnlySearchResult.
+        final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );
+        final RetrievedPage denseOnly = new RetrievedPage(
+            "RestSearchAlpha", null, 0.0, "", null, null, null, null, null, null );
+        Mockito.doReturn( new RetrievalResult( "search", List.of( denseOnly ), 1 ) )
+               .when( mockCrs ).retrieve( Mockito.any() );
+        engine.setManager( ContextRetrievalService.class, mockCrs );
 
         final String json = doSearch( "search", null );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
         final JsonArray results = obj.getAsJsonArray( "results" );
-        for ( int i = 0; i < results.size(); i++ ) {
-            assertNotEquals( "GhostPageDoesNotExist",
-                    results.get( i ).getAsJsonObject().get( "name" ).getAsString(),
-                    "Phantom dense-only page must not appear in serialized results" );
+        assertFalse( results.isEmpty(), "Zero-score page must still appear in results" );
+        assertEquals( "RestSearchAlpha", results.get( 0 ).getAsJsonObject().get( "name" ).getAsString() );
+        assertEquals( 0.0, results.get( 0 ).getAsJsonObject().get( "score" ).getAsDouble(), 0.0001 );
+    }
+
+    @Test
+    void limitCapsCrsResults() throws Exception {
+        // CRS returns 3 pages; limit=1 → only 1 in the response.
+        final ContextRetrievalService mockCrs = Mockito.mock( ContextRetrievalService.class );
+        final List< RetrievedPage > pages = List.of(
+            new RetrievedPage( "RestSearchAlpha", null, 3.0, "", null, null, null, null, null, null ),
+            new RetrievedPage( "RestSearchBeta", null, 2.0, "", null, null, null, null, null, null ),
+            new RetrievedPage( "ExtraPage", null, 1.0, "", null, null, null, null, null, null )
+        );
+        Mockito.doReturn( new RetrievalResult( "search", pages, 3 ) )
+               .when( mockCrs ).retrieve( Mockito.any() );
+        engine.setManager( ContextRetrievalService.class, mockCrs );
+
+        final String json = doSearch( "search", "1" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        final JsonArray results = obj.getAsJsonArray( "results" );
+        assertEquals( 1, results.size(), "limit=1 should cap results to 1" );
+        assertEquals( "RestSearchAlpha", results.get( 0 ).getAsJsonObject().get( "name" ).getAsString() );
+    }
+
+    @Test
+    void crsNotConfiguredReturns500() throws Exception {
+        // Simulate CRS not registered by using a mock engine that returns null for CRS.
+        // We can't put null into the manager map, so we install a stub that signals absence
+        // via a fresh engine instance that has no CRS registered.
+        final Properties props = TestEngine.getTestProperties();
+        TestEngine engineWithoutCrs = null;
+        try {
+            engineWithoutCrs = new TestEngine( props );
+            // Do NOT register a ContextRetrievalService — engine.getManager returns null.
+
+            final SearchResource nocrsSvl = new SearchResource();
+            final ServletConfig config = Mockito.mock( ServletConfig.class );
+            Mockito.doReturn( engineWithoutCrs.getServletContext() ).when( config ).getServletContext();
+            nocrsSvl.init( config );
+
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/search" );
+            Mockito.doReturn( "Alpha" ).when( request ).getParameter( "q" );
+            Mockito.doReturn( null ).when( request ).getParameter( "limit" );
+
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter sw = new StringWriter();
+            Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+            nocrsSvl.doGet( request, response );
+            Mockito.verify( response ).setStatus( HttpServletResponse.SC_INTERNAL_SERVER_ERROR );
+            final JsonObject body = gson.fromJson( sw.toString(), JsonObject.class );
+            assertTrue( body.get( "error" ).getAsBoolean() );
+        } finally {
+            if ( engineWithoutCrs != null ) engineWithoutCrs.stop();
         }
+    }
+
+    @Test
+    void luceneParseFailureReturns400NotServerError() throws Exception {
+        // CRS throws a RuntimeException wrapping a ProviderException wrapping a Lucene
+        // ParseException → SearchResource.isLuceneParseError walks the cause chain → 400.
+        final ContextRetrievalService throwingCrs = Mockito.mock( ContextRetrievalService.class );
+        final ProviderException wrap = new ProviderException(
+            "You have entered a query Lucene cannot process [...]: parse fail",
+            new org.apache.lucene.queryparser.classic.ParseException( "bad syntax" ) );
+        Mockito.doThrow( new RuntimeException( "retrieval error", wrap ) )
+               .when( throwingCrs ).retrieve( Mockito.any() );
+        engine.setManager( ContextRetrievalService.class, throwingCrs );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/search" );
+        Mockito.doReturn( "[a-z]+.*" ).when( request ).getParameter( "q" );
+        Mockito.doReturn( null ).when( request ).getParameter( "limit" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+        Mockito.verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+        final JsonObject body = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( body.get( "message" ).getAsString().startsWith( "Invalid search query" ) );
+    }
+
+    @Test
+    void nonParseSearchFailureStillReturns500() throws Exception {
+        // CRS throws a plain RuntimeException → 500.
+        final ContextRetrievalService throwingCrs = Mockito.mock( ContextRetrievalService.class );
+        Mockito.doThrow( new RuntimeException( "disk offline" ) )
+               .when( throwingCrs ).retrieve( Mockito.any() );
+        engine.setManager( ContextRetrievalService.class, throwingCrs );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/search" );
+        Mockito.doReturn( "Alpha" ).when( request ).getParameter( "q" );
+        Mockito.doReturn( null ).when( request ).getParameter( "limit" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+        Mockito.verify( response ).setStatus( HttpServletResponse.SC_INTERNAL_SERVER_ERROR );
     }
 
     @Test
@@ -426,50 +512,6 @@ class SearchResourceTest {
         Mockito.verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
     }
 
-    @Test
-    void luceneParseFailureReturns400NotServerError() throws Exception {
-        final SearchManager throwingSm = Mockito.mock( SearchManager.class );
-        final com.wikantik.api.exceptions.ProviderException wrap =
-            new com.wikantik.api.exceptions.ProviderException(
-                "You have entered a query Lucene cannot process [...]: parse fail",
-                new org.apache.lucene.queryparser.classic.ParseException( "bad syntax" ) );
-        Mockito.doThrow( wrap ).when( throwingSm )
-                .findPages( Mockito.anyString(), Mockito.any() );
-        engine.setManager( SearchManager.class, throwingSm );
-
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/search" );
-        Mockito.doReturn( "[a-z]+.*" ).when( request ).getParameter( "q" );
-        Mockito.doReturn( null ).when( request ).getParameter( "limit" );
-
-        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
-        final StringWriter sw = new StringWriter();
-        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
-
-        servlet.doGet( request, response );
-        Mockito.verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
-        final JsonObject body = gson.fromJson( sw.toString(), JsonObject.class );
-        assertTrue( body.get( "message" ).getAsString().startsWith( "Invalid search query" ) );
-    }
-
-    @Test
-    void nonParseSearchFailureStillReturns500() throws Exception {
-        final SearchManager throwingSm = Mockito.mock( SearchManager.class );
-        Mockito.doThrow( new RuntimeException( "disk offline" ) )
-                .when( throwingSm ).findPages( Mockito.anyString(), Mockito.any() );
-        engine.setManager( SearchManager.class, throwingSm );
-
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/search" );
-        Mockito.doReturn( "Alpha" ).when( request ).getParameter( "q" );
-        Mockito.doReturn( null ).when( request ).getParameter( "limit" );
-
-        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
-        final StringWriter sw = new StringWriter();
-        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
-
-        servlet.doGet( request, response );
-        Mockito.verify( response ).setStatus( HttpServletResponse.SC_INTERNAL_SERVER_ERROR );
-    }
-
     // ----- Helper methods -----
 
     private String doSearch( final String query, final String limit ) throws Exception {
@@ -485,4 +527,86 @@ class SearchResourceTest {
         return sw.toString();
     }
 
+    /**
+     * A thin {@link ContextRetrievalService} adapter that delegates to the
+     * real {@link SearchManager} and {@link FrontmatterMetadataCache} already
+     * wired in the test {@link TestEngine}. This lets the basic search tests
+     * exercise the full HTTP layer (parameter parsing, JSON serialisation,
+     * limit capping) against a live Lucene index without requiring pgvector,
+     * embeddings, or any other optional service.
+     */
+    private static final class BridgingContextRetrievalService implements ContextRetrievalService {
+
+        private final TestEngine engine;
+
+        BridgingContextRetrievalService( final TestEngine engine ) {
+            this.engine = engine;
+        }
+
+        @Override
+        public RetrievalResult retrieve( final ContextQuery query ) {
+            final SearchManager sm = engine.getManager( SearchManager.class );
+            final FrontmatterMetadataCache fmCache = engine.getManager( FrontmatterMetadataCache.class );
+            final com.wikantik.api.core.Context ctx;
+            try {
+                ctx = com.wikantik.api.spi.Wiki.context().create(
+                    engine, null, com.wikantik.api.core.ContextEnum.WIKI_FIND.getRequestContext() );
+            } catch ( final Exception e ) {
+                throw new RuntimeException( "Context creation failed", e );
+            }
+            final Collection< SearchResult > raw;
+            try {
+                raw = sm.findPages( query.query(), ctx );
+            } catch ( final Exception e ) {
+                throw new RuntimeException( e );
+            }
+            if ( raw == null || raw.isEmpty() ) {
+                return new RetrievalResult( query.query(), List.of(), 0 );
+            }
+
+            final List< RetrievedPage > pages = new ArrayList<>();
+            for ( final SearchResult sr : raw ) {
+                final Page page = sr.getPage();
+                if ( page == null ) continue;
+                final Map< String, Object > fm = fmCache != null
+                    ? fmCache.get( page.getName(), page.getLastModified() )
+                    : Map.of();
+                final String summary = fm.get( "summary" ) != null ? fm.get( "summary" ).toString() : "";
+                @SuppressWarnings( "unchecked" )
+                final List< String > tags = fm.get( "tags" ) instanceof List
+                    ? (List< String >) fm.get( "tags" ) : null;
+                final String cluster = fm.get( "cluster" ) != null ? fm.get( "cluster" ).toString() : null;
+                // Translate Lucene context snippets to RetrievedChunk list so that
+                // 'contexts' field in the JSON response contains actual text.
+                final List< RetrievedChunk > chunks = new ArrayList<>();
+                final String[] ctxs = sr.getContexts();
+                if ( ctxs != null ) {
+                    for ( final String snippet : ctxs ) {
+                        if ( snippet != null && !snippet.isBlank() ) {
+                            chunks.add( new RetrievedChunk( List.of(), snippet, sr.getScore(), List.of() ) );
+                        }
+                    }
+                }
+                pages.add( new RetrievedPage(
+                    page.getName(), null, sr.getScore(), summary, cluster,
+                    tags, chunks, null, page.getAuthor(), page.getLastModified() ) );
+            }
+            return new RetrievalResult( query.query(), pages, pages.size() );
+        }
+
+        @Override
+        public RetrievedPage getPage( final String pageName ) {
+            return null;
+        }
+
+        @Override
+        public PageList listPages( final PageListFilter filter ) {
+            return new PageList( List.of(), 0, 0, 0 );
+        }
+
+        @Override
+        public List< MetadataValue > listMetadataValues( final String field ) {
+            return List.of();
+        }
+    }
 }

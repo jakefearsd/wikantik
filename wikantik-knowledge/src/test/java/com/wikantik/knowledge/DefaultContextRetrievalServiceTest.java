@@ -91,4 +91,50 @@ class DefaultContextRetrievalServiceTest {
         assertEquals( "search", values.get( 0 ).value() );
         assertEquals( 2, values.get( 0 ).count() );
     }
+
+    @Test
+    void listPages_filtersByCluster() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "S1", "---\ncluster: search\n---\n\n", "a", new java.util.Date() );
+        pm.addPage( "K1", "---\ncluster: kg\n---\n\n", "a", new java.util.Date() );
+        pm.addPage( "S2", "---\ncluster: search\n---\n\n", "a", new java.util.Date() );
+
+        final DefaultContextRetrievalService svc = FakeDeps.minimal().pageManager( pm ).build();
+        final var result = svc.listPages( new com.wikantik.api.knowledge.PageListFilter(
+            "search", null, null, null, null, null, 50, 0 ) );
+
+        assertEquals( 2, result.totalMatched() );
+        assertEquals( 2, result.pages().size() );
+        assertTrue( result.pages().stream().allMatch( p -> "search".equals( p.cluster() ) ) );
+    }
+
+    @Test
+    void listPages_filtersByTag() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "A", "---\ntags: [search, retrieval]\n---\n\n", "a", new java.util.Date() );
+        pm.addPage( "B", "---\ntags: [kg]\n---\n\n", "a", new java.util.Date() );
+
+        final DefaultContextRetrievalService svc = FakeDeps.minimal().pageManager( pm ).build();
+        final var result = svc.listPages( new com.wikantik.api.knowledge.PageListFilter(
+            null, java.util.List.of( "search" ), null, null, null, null, 50, 0 ) );
+
+        assertEquals( 1, result.pages().size() );
+        assertEquals( "A", result.pages().get( 0 ).name() );
+    }
+
+    @Test
+    void listPages_respectsLimitAndOffset() {
+        final FakePageManager pm = new FakePageManager();
+        for ( int i = 0; i < 10; i++ ) {
+            pm.addPage( "P" + i, "---\n---\n\n", "a", new java.util.Date() );
+        }
+        final DefaultContextRetrievalService svc = FakeDeps.minimal().pageManager( pm ).build();
+        final var result = svc.listPages( new com.wikantik.api.knowledge.PageListFilter(
+            null, null, null, null, null, null, 3, 4 ) );
+
+        assertEquals( 10, result.totalMatched() );
+        assertEquals( 3, result.pages().size() );
+        assertEquals( "P4", result.pages().get( 0 ).name() );
+        assertEquals( "P6", result.pages().get( 2 ).name() );
+    }
 }

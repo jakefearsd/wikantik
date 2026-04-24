@@ -101,10 +101,11 @@ final class OpenApiDocument {
                 "properties", orderedProps(
                         prop( "name", "string", "Wiki page name that matched the query" ),
                         prop( "url", "string", "Absolute URL to the page (use verbatim in citations)" ),
-                        prop( "score", "number", "BM25 relevance score; higher is better" ),
+                        prop( "score", "number", "Relevance score; higher is better" ),
                         prop( "summary", "string", "Page summary from frontmatter, when present" ),
                         prop( "tags", "array", "Page tags from frontmatter, when present" ),
-                        prop( "snippet", "string", "Highlighted matching excerpt or leading body text" ),
+                        prop( "cluster", "string", "Knowledge-graph cluster label, when present" ),
+                        prop( "snippet", "string", "Leading excerpt from the top matching chunk" ),
                         prop( "lastModified", "string", "ISO-8601 timestamp of the last edit" ),
                         prop( "author", "string", "Last author login, when recorded" ) ) ) );
 

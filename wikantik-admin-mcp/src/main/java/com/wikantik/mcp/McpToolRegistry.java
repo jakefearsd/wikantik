@@ -20,7 +20,6 @@ package com.wikantik.mcp;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
-import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.content.PageRenamer;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.diff.DifferenceManager;
@@ -44,9 +43,8 @@ import java.util.List;
  *       injected as the default author before each invocation.</li>
  * </ul>
  *
- * <p>Content editing uses an export/import workflow: agents export pages as Markdown files,
- * edit them with filesystem tools, then import changes back. This replaces the previous
- * per-page CRUD tools (write_page, patch_page, etc.).</p>
+ * <p>Content editing is handled by {@code write_pages} (create/replace) and
+ * {@code update_page} (patch), both of which are author-configurable.</p>
  */
 public class McpToolRegistry {
 
@@ -61,26 +59,19 @@ public class McpToolRegistry {
     public McpToolRegistry( final Engine engine ) {
         final PageManager pageManager = engine.getManager( PageManager.class );
         final ReferenceManager referenceManager = engine.getManager( ReferenceManager.class );
-        final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );
         final SystemPageRegistry systemPageRegistry = engine.getManager( SystemPageRegistry.class );
         final DifferenceManager differenceManager = engine.getManager( DifferenceManager.class );
         final PageRenamer pageRenamer = engine.getManager( PageRenamer.class );
         final PageSaveHelper pageSaveHelper = new PageSaveHelper( engine );
 
         // --- Read-only tools (no author resolution needed) ---
-        final ReadPageTool readPage = new ReadPageTool( pageManager, systemPageRegistry );
-        final SearchPagesTool searchPages = new SearchPagesTool( engine );
-        final ListPagesTool listPages = new ListPagesTool( pageManager, systemPageRegistry );
         final GetBacklinksTool getBacklinks = new GetBacklinksTool( referenceManager );
-        final RecentChangesTool recentChanges = new RecentChangesTool( pageManager, systemPageRegistry );
-        final QueryMetadataTool queryMetadata = new QueryMetadataTool( pageManager );
         final GetPageHistoryTool getPageHistory = new GetPageHistoryTool( pageManager );
         final DiffPageTool diffPage = new DiffPageTool( engine, pageManager, differenceManager );
         final GetOutboundLinksTool getOutboundLinks = new GetOutboundLinksTool( referenceManager );
         final GetBrokenLinksTool getBrokenLinks = new GetBrokenLinksTool( referenceManager );
         final GetOrphanedPagesTool getOrphanedPages = new GetOrphanedPagesTool( referenceManager, systemPageRegistry );
         final GetWikiStatsTool getWikiStats = new GetWikiStatsTool( pageManager, referenceManager );
-        final ListMetadataValuesTool listMetadataValues = new ListMetadataValuesTool( pageManager );
         final VerifyPagesTool verifyPages = new VerifyPagesTool( pageManager, referenceManager );
         final PreviewStructuredDataTool previewStructuredData = new PreviewStructuredDataTool(
                 pageManager, engine.getApplicationName(), engine.getBaseURL() );
@@ -88,24 +79,19 @@ public class McpToolRegistry {
         final PingSearchEnginesTool pingSearchEngines = new PingSearchEnginesTool(
                 engine.getBaseURL(), indexNowApiKey, java.net.http.HttpClient.newHttpClient() );
 
-        // --- Export/import workflow tools (read-only) ---
-        final ExportContentTool exportContent = new ExportContentTool( pageManager, attachmentManager, systemPageRegistry );
-        final PreviewImportTool previewImport = new PreviewImportTool( pageManager );
-
         final List< McpTool > readOnlyList = new ArrayList<>( List.of(
-                readPage, searchPages, listPages, getBacklinks, recentChanges,
-                queryMetadata, getPageHistory, diffPage,
+                getBacklinks, getPageHistory, diffPage,
                 getOutboundLinks, getBrokenLinks, getOrphanedPages, getWikiStats,
-                listMetadataValues, verifyPages, previewStructuredData, pingSearchEngines,
-                exportContent, previewImport
+                verifyPages, previewStructuredData, pingSearchEngines
         ) );
 
         // --- Author-configurable tools (need author resolution from MCP exchange) ---
         final RenamePageTool renamePage = new RenamePageTool( engine, pageManager, pageRenamer, systemPageRegistry );
-        final ImportContentTool importContent = new ImportContentTool( pageSaveHelper, pageManager );
+        final WritePagesTool writePages = new WritePagesTool( pageSaveHelper, pageManager );
+        final UpdatePageTool updatePage = new UpdatePageTool( pageSaveHelper, pageManager );
 
         final List< McpTool > authorConfigurableList = new ArrayList<>( List.of(
-                renamePage, importContent
+                renamePage, writePages, updatePage
         ) );
 
         // --- Knowledge proposal tools (only if KnowledgeGraphService is available) ---

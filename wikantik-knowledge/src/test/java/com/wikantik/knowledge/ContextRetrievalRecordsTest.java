@@ -117,4 +117,40 @@ class ContextRetrievalRecordsTest {
         assertNotNull( q.filter() );
         assertNull( q.filter().cluster() );
     }
+
+    @Test
+    void retrievedPage_rejectsBlankName() {
+        assertThrows( IllegalArgumentException.class,
+            () -> new RetrievedPage( "", "url", 0.0, "", null, List.of(),
+                List.of(), List.of(), null, null ) );
+    }
+
+    @Test
+    void retrievedPage_defaultsCollections() {
+        final RetrievedPage p = new RetrievedPage(
+            "P", "url", 0.5, "summary", null, null, null, null, null, null );
+        assertEquals( List.of(), p.tags() );
+        assertEquals( List.of(), p.contributingChunks() );
+        assertEquals( List.of(), p.relatedPages() );
+        assertNull( p.author() );
+        assertNull( p.lastModified() );
+    }
+
+    @Test
+    void retrievalResult_rejectsNullPages() {
+        assertThrows( IllegalArgumentException.class,
+            () -> new RetrievalResult( "q", null, 0 ) );
+    }
+
+    @Test
+    void retrievalResult_rejectsNegativeTotal() {
+        assertThrows( IllegalArgumentException.class,
+            () -> new RetrievalResult( "q", List.of(), -1 ) );
+    }
+
+    @Test
+    void pageList_defaultsPagesToEmpty() {
+        final PageList pl = new PageList( null, 0, 50, 0 );
+        assertEquals( List.of(), pl.pages() );
+    }
 }

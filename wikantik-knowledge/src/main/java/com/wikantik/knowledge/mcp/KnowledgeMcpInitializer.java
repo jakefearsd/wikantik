@@ -33,6 +33,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.api.structure.StructuralIndexService;
 import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
@@ -83,10 +84,11 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
 
         final KnowledgeGraphService kgService = engine.getManager( KnowledgeGraphService.class );
         final ContextRetrievalService ctxService = engine.getManager( ContextRetrievalService.class );
+        final StructuralIndexService structuralIndex = engine.getManager( StructuralIndexService.class );
 
-        if ( kgService == null && ctxService == null ) {
-            LOG.info( "Neither KnowledgeGraphService nor ContextRetrievalService configured — " +
-                "Knowledge MCP server not started" );
+        if ( kgService == null && ctxService == null && structuralIndex == null ) {
+            LOG.info( "Neither KnowledgeGraphService, ContextRetrievalService, nor " +
+                "StructuralIndexService configured — Knowledge MCP server not started" );
             return;
         }
 
@@ -140,6 +142,12 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 tools.add( new ListPagesTool( ctxService ) );
                 tools.add( new ListMetadataValuesTool( ctxService ) );
             }
+            if ( structuralIndex != null ) {
+                tools.add( new ListClustersTool( structuralIndex ) );
+                tools.add( new ListTagsTool( structuralIndex ) );
+                tools.add( new ListPagesByFilterTool( structuralIndex ) );
+                tools.add( new GetPageByIdTool( structuralIndex ) );
+            }
         } catch ( final Exception e ) {
             LOG.error( "Knowledge MCP startup failed while assembling tools — transport servlet is registered " +
                     "but the server will have no tools to dispatch: {}", e.getMessage(), e );
@@ -153,10 +161,11 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
 
             final var builder = McpServer.sync( transportProvider )
                     .serverInfo( serverImpl )
-                    .instructions( "Agent-facing MCP endpoint. For wiki content use " +
-                        "retrieve_context (primary RAG), get_page (pinned fetch), " +
-                        "list_pages (browse), or list_metadata_values (discovery). " +
-                        "For knowledge graph structure use discover_schema, query_nodes, " +
+                    .instructions( "Agent-facing MCP endpoint. For wiki structure (fastest, " +
+                        "no full-text search) use list_clusters, list_tags, list_pages_by_filter, " +
+                        "or get_page_by_id. For wiki content use retrieve_context (primary RAG), " +
+                        "get_page (pinned fetch), list_pages (browse), or list_metadata_values " +
+                        "(discovery). For knowledge graph structure use discover_schema, query_nodes, " +
                         "get_node, traverse, search_knowledge, or find_similar." )
                     .capabilities( ServerCapabilities.builder()
                             .tools( true )

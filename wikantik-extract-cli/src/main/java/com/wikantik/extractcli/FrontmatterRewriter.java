@@ -18,23 +18,28 @@
  */
 package com.wikantik.extractcli;
 
+import com.wikantik.api.frontmatter.FrontmatterParser;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * In-place canonical-id assignment for wiki Markdown files. Idempotent — a file
- * that already declares {@code canonical_id:} is returned unchanged.
+ * whose frontmatter already declares {@code canonical_id:} is returned unchanged.
+ * Presence is determined by {@link FrontmatterParser}, not a regex, so
+ * {@code canonical_id:} appearing in body code blocks or prose does not spuriously
+ * skip the file.
  */
 public final class FrontmatterRewriter {
 
-    private static final Pattern OPEN          = Pattern.compile( "\\A---(\\r?\\n)" );
-    private static final Pattern HAS_CANONICAL = Pattern.compile( "(?m)^canonical_id:\\s*\\S" );
+    private static final Pattern OPEN = Pattern.compile( "\\A---(\\r?\\n)" );
 
     private FrontmatterRewriter() {}
 
     public static String assignCanonicalId( final String input, final String canonicalId ) {
         if ( input == null ) return "---\ncanonical_id: " + canonicalId + "\n---\n";
-        if ( HAS_CANONICAL.matcher( input ).find() ) {
+        final Object existing = FrontmatterParser.parse( input ).metadata().get( "canonical_id" );
+        if ( existing != null && !existing.toString().isBlank() ) {
             return input;
         }
         final Matcher open = OPEN.matcher( input );

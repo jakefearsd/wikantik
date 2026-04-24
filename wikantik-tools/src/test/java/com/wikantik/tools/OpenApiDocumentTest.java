@@ -102,4 +102,28 @@ class OpenApiDocumentTest {
                 .get( 0 ).getAsJsonObject().get( "url" ).getAsString();
         assertEquals( "http://localhost:8080/tools", url );
     }
+
+    @Test
+    void searchResultSchemaIncludesContributingChunksAndRelatedPages() {
+        final String json = OpenApiDocument.render( request, new ToolsConfig( new Properties() ) );
+        final JsonObject root = JsonParser.parseString( json ).getAsJsonObject();
+        final JsonObject schemas = root.getAsJsonObject( "components" )
+                .getAsJsonObject( "schemas" );
+
+        assertTrue( schemas.has( "ContributingChunk" ), "ContributingChunk schema must be present" );
+        assertTrue( schemas.has( "RelatedPageHint" ), "RelatedPageHint schema must be present" );
+
+        final JsonObject searchResultProps = schemas.getAsJsonObject( "SearchResult" )
+                .getAsJsonObject( "properties" );
+        assertTrue( searchResultProps.has( "contributingChunks" ), "SearchResult must have contributingChunks" );
+        assertTrue( searchResultProps.has( "relatedPages" ), "SearchResult must have relatedPages" );
+
+        final String chunksRef = searchResultProps.getAsJsonObject( "contributingChunks" )
+                .getAsJsonObject( "items" ).get( "$ref" ).getAsString();
+        assertEquals( "#/components/schemas/ContributingChunk", chunksRef );
+
+        final String relatedRef = searchResultProps.getAsJsonObject( "relatedPages" )
+                .getAsJsonObject( "items" ).get( "$ref" ).getAsString();
+        assertEquals( "#/components/schemas/RelatedPageHint", relatedRef );
+    }
 }

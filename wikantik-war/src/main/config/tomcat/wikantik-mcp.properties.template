@@ -3,10 +3,14 @@
 # com/wikantik/mcp/resources/wikantik-mcp.properties (see that file for every
 # available key). Settings listed here override the classpath defaults.
 #
-# For manual testing the rate limits are intentionally low so throttling
-# behavior is easy to exercise from a browser or curl. Raise both values for
-# load testing or when running the suite non-interactively.
+# Rate limiting (requests per second; 0 = disabled).
+# Empirical measurements on this dev machine (2026-04-24):
+#   * retrieve_context: ~5 req/s sustained concurrent, ~2 req/s sequential
+#   * initialize / tools-list: ~300 req/s cheap-metadata concurrent
+# perClient=20 comfortably absorbs the metadata burst that every MCP
+# client fires at session open (initialize + notifications/initialized
+# + tools/list) and leaves headroom for a steady retrieve_context stream;
+# global=60 allows ~3 concurrent agents without surprises.
 
-# Rate limiting (requests per second, 0 = disabled)
-mcp.ratelimit.global = 3
-mcp.ratelimit.perClient = 1
+mcp.ratelimit.global = 60
+mcp.ratelimit.perClient = 20

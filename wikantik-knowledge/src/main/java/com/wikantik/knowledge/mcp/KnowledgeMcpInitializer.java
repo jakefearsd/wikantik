@@ -34,6 +34,8 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.AbstractJDBCDatabase;
+import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.mcp.tools.McpTool;
 
@@ -103,11 +105,33 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             final List< McpTool > tools = new ArrayList<>();
 
             if ( kgService != null ) {
-                tools.add( new DiscoverSchemaTool( kgService ) );
-                tools.add( new QueryNodesTool( kgService ) );
+                // Resolve the shared JNDI DataSource so MentionIndex can filter and
+                // report coverage statistics. Uses the same property + default as
+                // WikiEngine.initKnowledgeGraph. If JNDI lookup fails (e.g. in a
+                // lightweight test harness) we fall back to null and the tools still
+                // function — they just skip the mention-coverage filter/stats.
+                MentionIndex mentionIndex = null;
+                try {
+                    final String jndiName = engine.getWikiProperties().getProperty(
+                        AbstractJDBCDatabase.PROP_DATASOURCE,
+                        AbstractJDBCDatabase.DEFAULT_DATASOURCE );
+                    final javax.naming.Context initCtx = new javax.naming.InitialContext();
+                    final javax.naming.Context envCtx =
+                        ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
+                    final javax.sql.DataSource dataSource =
+                        ( javax.sql.DataSource ) envCtx.lookup( jndiName );
+                    mentionIndex = new MentionIndex( dataSource );
+                    LOG.debug( "MentionIndex wired to JNDI DataSource '{}'", jndiName );
+                } catch ( final javax.naming.NamingException e ) {
+                    LOG.warn( "MentionIndex not available — JNDI DataSource lookup failed: {}; " +
+                        "KG tools will run without mention-coverage filter/stats", e.getMessage() );
+                }
+
+                tools.add( new DiscoverSchemaTool( kgService, mentionIndex ) );
+                tools.add( new QueryNodesTool( kgService, mentionIndex ) );
                 tools.add( new GetNodeTool( kgService ) );
                 tools.add( new TraverseTool( kgService ) );
-                tools.add( new SearchKnowledgeTool( kgService ) );
+                tools.add( new SearchKnowledgeTool( kgService, mentionIndex ) );
                 final NodeMentionSimilarity similarity = engine.getManager( NodeMentionSimilarity.class );
                 if ( similarity != null ) {
                     tools.add( new FindSimilarTool( similarity ) );

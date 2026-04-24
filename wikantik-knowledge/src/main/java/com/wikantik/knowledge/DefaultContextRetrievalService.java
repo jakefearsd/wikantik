@@ -73,6 +73,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
 
     private static final Logger LOG = LogManager.getLogger( DefaultContextRetrievalService.class );
 
+    private final Engine engine;
     private final SearchManager searchManager;
     private final HybridSearchService hybridSearch;
     private final GraphRerankStep graphRerank;
@@ -84,6 +85,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
     private final String publicBaseUrl;
 
     public DefaultContextRetrievalService(
+            final Engine engine,
             final SearchManager searchManager,
             final HybridSearchService hybridSearch,
             final GraphRerankStep graphRerank,
@@ -93,10 +95,12 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             final PageManager pageManager,
             final FrontmatterMetadataCache fmCache,
             final String publicBaseUrl ) {
+        if ( engine == null ) throw new IllegalArgumentException( "engine required" );
         if ( searchManager == null ) throw new IllegalArgumentException( "searchManager required" );
         if ( pageManager == null ) throw new IllegalArgumentException( "pageManager required" );
         // hybridSearch, graphRerank, chunkIndex, chunkRepo, similarity, fmCache all nullable:
         // the service degrades rather than failing when optional deps are absent.
+        this.engine = engine;
         this.searchManager = searchManager;
         this.hybridSearch = hybridSearch;
         this.graphRerank = graphRerank;
@@ -119,7 +123,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         final SearchManager sm = engine.getManager( SearchManager.class );
         if ( sm == null ) return null;
         return new DefaultContextRetrievalService(
-            sm,
+            engine, sm,
             engine.getManager( HybridSearchService.class ),
             engine.getManager( GraphRerankStep.class ),
             engine.getManager( ChunkVectorIndex.class ),
@@ -234,7 +238,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         final Page anchor = pageManager.getPage( "Main" );
         if ( anchor == null ) return null;
         try {
-            return com.wikantik.api.spi.Wiki.context().create( enginePlaceholder(), anchor );
+            return com.wikantik.api.spi.Wiki.context().create( engine, anchor );
         } catch ( final Exception e ) {
             LOG.debug( "Context build failed: {}", e.getMessage() );
             return null;
@@ -282,9 +286,6 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         @Override public int getScore() { return 0; }
         @Override public String[] getContexts() { return new String[ 0 ]; }
     }
-
-    /** Placeholder: replaced with real engine handle once manager wiring lands (task 12). */
-    private Engine enginePlaceholder() { return null; }
 
     @Override
     public RetrievedPage getPage( final String pageName ) {

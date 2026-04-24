@@ -66,7 +66,7 @@ public class CsrfProtectionFilter implements Filter {
                 // REST endpoints use JSON and rely on Origin validation, not on the CSRF token.
                 if( !isOriginAllowed( httpRequest, allowedOrigins ) ) {
                     LOG.error( "Rejected state-changing request from Origin '{}' for {}",
-                               httpRequest.getHeader( "Origin" ), httpRequest.getPathInfo() );
+                               httpRequest.getHeader( "Origin" ), describePath( httpRequest ) );
                     ( ( HttpServletResponse ) response ).sendError( HttpServletResponse.SC_FORBIDDEN, "Cross-origin request refused" );
                     return;
                 }
@@ -74,7 +74,7 @@ public class CsrfProtectionFilter implements Filter {
                 final Session session = Wiki.session().find( engine, httpRequest );
                 if( !requestContainsValidCsrfToken( request, session ) ) {
                     LOG.error( "Incorrect {} param with value '{}' received for {}",
-                               ANTICSRF_PARAM, request.getParameter( ANTICSRF_PARAM ), httpRequest.getPathInfo() );
+                               ANTICSRF_PARAM, request.getParameter( ANTICSRF_PARAM ), describePath( httpRequest ) );
                     ( ( HttpServletResponse ) response ).sendRedirect( "/error/Forbidden.html" );
                     return;
                 }
@@ -172,6 +172,17 @@ public class CsrfProtectionFilter implements Filter {
         final String servletPath = request.getServletPath();
         return "/wikantik-admin-mcp".equals( servletPath )
             || "/knowledge-mcp".equals( servletPath );
+    }
+
+    /**
+     * Returns a human-readable path for error logging. {@link HttpServletRequest#getPathInfo}
+     * is {@code null} for exact-match servlet mappings (common for REST/MCP endpoints) and
+     * drops the context path, so falling back to it alone produces {@code "null"} in the log.
+     * Prefer the full request URI — unambiguous and always populated.
+     */
+    static String describePath( final HttpServletRequest request ) {
+        final String uri = request.getRequestURI();
+        return uri != null ? uri : request.getServletPath();
     }
 
     /**

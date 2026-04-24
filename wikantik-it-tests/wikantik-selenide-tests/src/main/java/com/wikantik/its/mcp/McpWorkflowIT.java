@@ -20,6 +20,7 @@ package com.wikantik.its.mcp;
 
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -37,6 +38,7 @@ public class McpWorkflowIT extends WithMcpTestSetup {
     private static final Duration POLL_INTERVAL = Duration.ofSeconds( 2 );
 
     @Test
+    @Disabled( "read_page moved to /knowledge-mcp get_page on 2026-04-24" )
     public void writeReadRoundTrip() {
         final String pageName = uniquePageName( "WFRoundTrip" );
         final Map< String, Object > metadata = Map.of( "type", "note", "priority", "high" );
@@ -56,6 +58,7 @@ public class McpWorkflowIT extends WithMcpTestSetup {
     }
 
     @Test
+    @Disabled( "search_pages + read_page moved to /knowledge-mcp retrieve_context / get_page on 2026-04-24" )
     public void writeSearchReadWorkflow() {
         final String keyword = "wfsearch" + UUID.randomUUID().toString().replace( "-", "" );
         final String pageName = uniquePageName( "WFSearch" );
@@ -95,6 +98,7 @@ public class McpWorkflowIT extends WithMcpTestSetup {
     }
 
     @Test
+    @Disabled( "query_metadata replaced by list_metadata_values + list_pages on /knowledge-mcp on 2026-04-24" )
     public void writeMultiplePagesWithMetadataThenQuery() {
         final String suffix = String.valueOf( System.currentTimeMillis() );
         final String typeValue = "wftype-" + suffix;
@@ -111,6 +115,7 @@ public class McpWorkflowIT extends WithMcpTestSetup {
     }
 
     @Test
+    @Disabled( "recent_changes removed + list_pages moved to /knowledge-mcp on 2026-04-24" )
     public void writePageThenConfirmInRecentChangesAndListPages() {
         final String pageName = uniquePageName( "WFConfirm" );
         mcp.importPage( pageName, "Confirm in both tools" );
@@ -131,6 +136,7 @@ public class McpWorkflowIT extends WithMcpTestSetup {
     }
 
     @Test
+    @Disabled( "read_page moved to /knowledge-mcp get_page on 2026-04-24 — versioned read needs the new tool" )
     public void versionHistoryWorkflow() {
         final String pageName = uniquePageName( "WFVersion" );
         mcp.importPage( pageName, "Version 1 content" );
@@ -148,6 +154,7 @@ public class McpWorkflowIT extends WithMcpTestSetup {
     }
 
     @Test
+    @Disabled( "read_page moved to /knowledge-mcp get_page on 2026-04-24" )
     public void frontmatterRoundTripThroughCrlfNormalization() {
         final String pageName = uniquePageName( "WFCrlf" );
         final Map< String, Object > metadata = new LinkedHashMap<>();

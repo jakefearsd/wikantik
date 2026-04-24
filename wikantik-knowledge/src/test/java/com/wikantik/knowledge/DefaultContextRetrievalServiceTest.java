@@ -18,7 +18,10 @@
  */
 package com.wikantik.knowledge;
 
+import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.RetrievedPage;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.search.SearchManager;
 import com.wikantik.knowledge.testfakes.FakeDeps;
 import com.wikantik.knowledge.testfakes.FakePageManager;
 import com.wikantik.knowledge.testfakes.FakeSearchManager;
@@ -28,6 +31,7 @@ import java.time.Instant;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class DefaultContextRetrievalServiceTest {
 
@@ -276,5 +280,32 @@ class DefaultContextRetrievalServiceTest {
         assertEquals( "first chunk of Alpha",
             alphaPage.contributingChunks().get( 0 ).text() );
         assertEquals( 0.9, alphaPage.contributingChunks().get( 0 ).chunkScore(), 0.0001 );
+    }
+
+    @Test
+    void fromEngine_returnsNullWhenPageManagerMissing() {
+        final Engine engine = mock( Engine.class );
+        when( engine.getManager( PageManager.class ) ).thenReturn( null );
+        assertNull( DefaultContextRetrievalService.fromEngine( engine ) );
+    }
+
+    @Test
+    void fromEngine_returnsNullWhenSearchManagerMissing() {
+        final Engine engine = mock( Engine.class );
+        when( engine.getManager( PageManager.class ) ).thenReturn( mock( PageManager.class ) );
+        when( engine.getManager( SearchManager.class ) ).thenReturn( null );
+        assertNull( DefaultContextRetrievalService.fromEngine( engine ) );
+    }
+
+    @Test
+    void fromEngine_buildsServiceWhenCoreManagersPresent() {
+        final Engine engine = mock( Engine.class );
+        final PageManager pm = mock( PageManager.class );
+        final SearchManager sm = mock( SearchManager.class );
+        when( engine.getManager( PageManager.class ) ).thenReturn( pm );
+        when( engine.getManager( SearchManager.class ) ).thenReturn( sm );
+        when( engine.getBaseURL() ).thenReturn( "https://wiki.example" );
+        // optional managers left null — fromEngine tolerates that
+        assertNotNull( DefaultContextRetrievalService.fromEngine( engine ) );
     }
 }

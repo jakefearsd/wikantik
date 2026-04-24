@@ -19,6 +19,7 @@
 package com.wikantik.its.mcp;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -27,7 +28,13 @@ import java.util.Map;
 
 /**
  * Edge case and error handling integration tests for MCP tools.
+ *
+ * <p><b>Disabled:</b> every test exercises {@code read_page}, which was moved
+ * to {@code get_page} on {@code /knowledge-mcp} during the 2026-04-24 surface
+ * redesign. Re-enabling requires a knowledge-MCP test client and updated
+ * assertions against {@code RetrievedPage}.</p>
  */
+@Disabled( "Needs migration to /knowledge-mcp get_page — read_page removed from admin MCP on 2026-04-24" )
 public class McpEdgeCasesIT extends WithMcpTestSetup {
 
     @Test

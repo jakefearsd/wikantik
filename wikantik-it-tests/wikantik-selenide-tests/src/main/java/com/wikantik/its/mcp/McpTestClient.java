@@ -56,13 +56,15 @@ public class McpTestClient implements AutoCloseable {
     }
 
     public static McpTestClient create() {
-        // Use trailing slash so that the relative endpoint "mcp" resolves correctly
-        // under the context path (e.g. http://host:8080/context/ + "mcp" = http://host:8080/context/mcp).
-        // The SDK defaults endpoint to "/mcp" (absolute path) which would lose the context path.
+        // Use trailing slash so that the relative endpoint resolves correctly under the
+        // context path (e.g. http://host:8080/context/ + "wikantik-admin-mcp" =
+        // http://host:8080/context/wikantik-admin-mcp). The SDK defaults endpoint to
+        // "/mcp" (absolute path) which would both lose the context path and miss the
+        // renamed admin-MCP servlet.
         final String baseUrl = Env.TESTS_BASE_URL.endsWith( "/" ) ? Env.TESTS_BASE_URL : Env.TESTS_BASE_URL + "/";
         final HttpClientStreamableHttpTransport transport =
                 HttpClientStreamableHttpTransport.builder( baseUrl )
-                        .endpoint( "mcp" )
+                        .endpoint( "wikantik-admin-mcp" )
                         .connectTimeout( Duration.ofSeconds( 10 ) )
                         .build();
 
@@ -113,14 +115,11 @@ public class McpTestClient implements AutoCloseable {
     }
 
     /**
-     * Write a single page through the {@code import_content} MCP tool. Creates
-     * a throwaway temp directory with a single {@code <pageName>.md} file and
-     * calls {@code import_content} on it. The temp directory is removed before
-     * returning. Returns the per-page result entry (status, action, etc.).
-     *
-     * <p>The server-side {@code import_content} tool reads files from the local
-     * filesystem. Since IT tests and the Cargo-managed Tomcat share the same
-     * host, creating a temp file works for both processes.
+     * Write a single page through the {@code write_pages} MCP tool. Returns the
+     * per-page result entry (created boolean, error message on failure).
+     * {@code write_pages} replaced the filesystem-based {@code import_content}
+     * tool during the 2026-04-24 MCP surface redesign — content and metadata
+     * are supplied in the request body rather than read from a temp directory.
      */
     public Map< String, Object > importPage( final String pageName, final String content ) {
         return importPage( pageName, content, null, null );
@@ -133,34 +132,20 @@ public class McpTestClient implements AutoCloseable {
 
     public Map< String, Object > importPage( final String pageName, final String content,
                                                final Map< String, Object > metadata, final String changeNote ) {
-        final Path dir;
-        try {
-            dir = Files.createTempDirectory( "wikantik-it-import-" );
-        } catch ( final IOException e ) {
-            throw new RuntimeException( "Failed to create temp dir for import_content", e );
+        final Map< String, Object > pageEntry = new LinkedHashMap<>();
+        pageEntry.put( "pageName", pageName );
+        pageEntry.put( "content", content );
+        if ( metadata != null && !metadata.isEmpty() ) {
+            pageEntry.put( "metadata", metadata );
         }
-        try {
-            final String fileBody = buildMarkdownFile( content, metadata );
-            final Path pageFile = dir.resolve( pageName + ".md" );
-            Files.writeString( pageFile, fileBody, StandardCharsets.UTF_8 );
-
-            final Map< String, Object > args = new LinkedHashMap<>();
-            args.put( "directory", dir.toAbsolutePath().toString() );
-            if ( changeNote != null ) {
-                args.put( "changeNote", changeNote );
-            }
-            final Map< String, Object > response = callTool( "import_content", args );
-            @SuppressWarnings( "unchecked" )
-            final List< Map< String, Object > > results = ( List< Map< String, Object > > ) response.get( "results" );
-            if ( results == null || results.isEmpty() ) {
-                throw new AssertionError( "import_content returned no results for " + pageName + ": " + response );
-            }
-            return results.get( 0 );
-        } catch ( final IOException e ) {
-            throw new RuntimeException( "Failed to write temp .md file for import_content", e );
-        } finally {
-            deleteRecursively( dir );
+        final Map< String, Object > response = callTool( "write_pages",
+            Map.of( "pages", List.of( pageEntry ) ) );
+        @SuppressWarnings( "unchecked" )
+        final List< Map< String, Object > > results = ( List< Map< String, Object > > ) response.get( "results" );
+        if ( results == null || results.isEmpty() ) {
+            throw new AssertionError( "write_pages returned no results for " + pageName + ": " + response );
         }
+        return results.get( 0 );
     }
 
     /**

@@ -141,7 +141,7 @@ class CsrfProtectionFilterTest {
     }
 
     @ParameterizedTest
-    @ValueSource( strings = { "/mcp", "/knowledge-mcp" } )
+    @ValueSource( strings = { "/wikantik-admin-mcp", "/knowledge-mcp" } )
     void testIsMcpEndpointReturnsTrue( final String servletPath ) {
         final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
         Mockito.doReturn( servletPath ).when( request ).getServletPath();
@@ -164,7 +164,7 @@ class CsrfProtectionFilterTest {
     }
 
     @ParameterizedTest
-    @ValueSource( strings = { "/mcp", "/wiki/Main", "/login", "/edit/Main" } )
+    @ValueSource( strings = { "/wikantik-admin-mcp", "/wiki/Main", "/login", "/edit/Main" } )
     void testIsRestApiEndpointReturnsFalseForOther( final String servletPath ) {
         final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
         Mockito.doReturn( servletPath ).when( request ).getServletPath();

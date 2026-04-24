@@ -23,6 +23,8 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.FilterRegistration;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
@@ -35,11 +37,17 @@ import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AbstractJDBCDatabase;
+import com.wikantik.auth.apikeys.ApiKeyService;
+import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
+import com.wikantik.mcp.McpAccessFilter;
+import com.wikantik.mcp.McpConfig;
+import com.wikantik.mcp.McpRateLimiter;
 import com.wikantik.mcp.tools.McpTool;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 
 
@@ -91,6 +99,26 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         }
 
         try {
+            // Register McpAccessFilter so /knowledge-mcp requires the same
+            // bearer-token / API-key auth as /wikantik-admin-mcp. Shares the
+            // McpConfig + McpRateLimiter + ApiKeyService wiring used by the
+            // admin-mcp initializer so both endpoints honour the same rate
+            // limits and key scope.
+            final McpConfig config = new McpConfig();
+            final McpRateLimiter rateLimiter = new McpRateLimiter(
+                    config.rateLimitGlobal(), config.rateLimitPerClient() );
+            final ApiKeyService apiKeyService = ApiKeyServiceHolder.get( engine.getWikiProperties() );
+            if ( apiKeyService != null ) {
+                LOG.info( "Knowledge MCP: DB-backed API keys enabled — bearer tokens resolve to principals." );
+            } else {
+                LOG.info( "Knowledge MCP: DB-backed API keys unavailable (no datasource) — legacy property keys only." );
+            }
+            final McpAccessFilter accessFilter = new McpAccessFilter( config, rateLimiter, apiKeyService );
+            final FilterRegistration.Dynamic filterReg =
+                    servletContext.addFilter( "KnowledgeMcpAccessFilter", accessFilter );
+            filterReg.addMappingForUrlPatterns( EnumSet.of( DispatcherType.REQUEST ), false, "/knowledge-mcp" );
+            filterReg.setAsyncSupported( true );
+
             final HttpServletStreamableServerTransportProvider transportProvider =
                     HttpServletStreamableServerTransportProvider.builder()
                             .mcpEndpoint( "/knowledge-mcp" )

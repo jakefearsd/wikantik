@@ -20,12 +20,14 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.SchemaDescription;
+import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,9 +42,16 @@ public class DiscoverSchemaTool implements McpTool {
     public static final String TOOL_NAME = "discover_schema";
 
     private final KnowledgeGraphService service;
+    private final MentionIndex mentionIndex;
 
     public DiscoverSchemaTool( final KnowledgeGraphService service ) {
+        this( service, null );
+    }
+
+    public DiscoverSchemaTool( final KnowledgeGraphService service,
+                                final MentionIndex mentionIndex ) {
         this.service = service;
+        this.mentionIndex = mentionIndex;
     }
 
     @Override
@@ -67,9 +76,15 @@ public class DiscoverSchemaTool implements McpTool {
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         try {
             final SchemaDescription schema = service.discoverSchema();
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, schema );
+            if ( mentionIndex == null ) {
+                return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, schema );
+            }
+            final Map< String, Object > payload = new LinkedHashMap<>();
+            payload.put( "schema", schema );
+            payload.put( "mentionedNodeCount", mentionIndex.getMentionedIds().size() );
+            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, payload );
         } catch ( final Exception e ) {
-            LOG.error( "Failed to discover schema: {}", e.getMessage(), e );
+            LOG.error( "Discover schema failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
         }
     }

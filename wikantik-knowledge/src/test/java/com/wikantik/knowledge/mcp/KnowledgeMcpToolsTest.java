@@ -227,4 +227,30 @@ class KnowledgeMcpToolsTest {
         assertTrue( text.contains( "TrvBeta" ) );
         assertTrue( text.contains( "co-mentions" ) );
     }
+
+    @Test
+    void discoverSchema_reportsMentionCoverageStats() throws Exception {
+        final UUID mentioned = service.upsertNode( "SchAlpha", "kind", null,
+            Provenance.HUMAN_AUTHORED, Map.of() ).id();
+        service.upsertNode( "SchBeta", "kind", null,
+            Provenance.HUMAN_AUTHORED, Map.of() );
+
+        final UUID chunk = UUID.randomUUID();
+        try ( final Connection c = dataSource.getConnection() ) {
+            c.createStatement().execute(
+                "INSERT INTO kg_content_chunks (id, page_name, chunk_index, heading_path, text, "
+              + "char_count, token_count_estimate, content_hash) VALUES "
+              + "('" + chunk + "', 'P', 0, ARRAY['H'], 'x', 1, 1, 'hs')" );
+            c.createStatement().execute(
+                "INSERT INTO chunk_entity_mentions (chunk_id, node_id, confidence, extractor, extracted_at) VALUES "
+              + "('" + chunk + "', '" + mentioned + "', 0.9, 't', NOW())" );
+        }
+
+        final MentionIndex idx = new MentionIndex( dataSource );
+        final DiscoverSchemaTool tool = new DiscoverSchemaTool( service, idx );
+        final McpSchema.CallToolResult result = tool.execute( Map.of() );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "mentionedNodeCount" ) );
+        assertTrue( text.contains( "\"mentionedNodeCount\":1" ) );
+    }
 }

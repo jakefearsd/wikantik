@@ -537,7 +537,7 @@ Each cycle is a self-contained spec → plan → implementation unit.
    `/knowledge-mcp` work during the transition so the MCP client can be
    switched over without downtime.
 
-3. **Cycle 3 — KG tools rebacked onto mention graph.**
+3. **Cycle 3 — KG tools rebacked onto mention graph. ✓**
    `DefaultKnowledgeGraphService.queryNodes` / `traverse` /
    `searchKnowledge` switch to reading the mention-derived edges. New
    tests verify the returned node set matches the extractor's output

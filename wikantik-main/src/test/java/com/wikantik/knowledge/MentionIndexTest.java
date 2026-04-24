@@ -24,6 +24,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -120,6 +121,80 @@ class MentionIndexTest {
         final UUID nodeId = UUID.randomUUID();
         final MentionIndex idx = new MentionIndex( dataSource );
         assertTrue( idx.getCoMentionCounts( nodeId ).isEmpty() );
+    }
+
+    @Test
+    void findRelatedPages_returnsPagesSharingEntityMentions() throws Exception {
+        // Page graph (via shared node mentions):
+        //   Alpha  mentions BM25, Qwen3       (chunk a1)
+        //   Beta   mentions BM25, Qwen3, RRF  (chunks b1, b2) — shares 2 with Alpha
+        //   Gamma  mentions BM25              (chunk g1)      — shares 1 with Alpha
+        //   Delta  mentions UnrelatedEntity   (chunk d1)      — shares 0
+        final UUID bm25    = UUID.randomUUID();
+        final UUID qwen3   = UUID.randomUUID();
+        final UUID rrf     = UUID.randomUUID();
+        final UUID unrel   = UUID.randomUUID();
+        seedNode( bm25,  "BM25" );
+        seedNode( qwen3, "Qwen3" );
+        seedNode( rrf,   "RRF" );
+        seedNode( unrel, "UnrelatedEntity" );
+
+        final UUID a1 = UUID.randomUUID();
+        final UUID b1 = UUID.randomUUID();
+        final UUID b2 = UUID.randomUUID();
+        final UUID g1 = UUID.randomUUID();
+        final UUID d1 = UUID.randomUUID();
+        seedChunk( a1, "Alpha", 0 );
+        seedChunk( b1, "Beta",  0 );
+        seedChunk( b2, "Beta",  1 );
+        seedChunk( g1, "Gamma", 0 );
+        seedChunk( d1, "Delta", 0 );
+
+        seedMention( a1, bm25,  0.9 ); seedMention( a1, qwen3, 0.9 );
+        seedMention( b1, bm25,  0.9 ); seedMention( b2, qwen3, 0.8 ); seedMention( b2, rrf, 0.8 );
+        seedMention( g1, bm25,  0.9 );
+        seedMention( d1, unrel, 0.9 );
+
+        final MentionIndex idx = new MentionIndex( dataSource );
+        final var related = idx.findRelatedPages( "Alpha", 5 );
+
+        assertEquals( 2, related.size(),
+            "Delta shares 0 entities; Beta and Gamma are the only matches" );
+        assertEquals( "Beta", related.get( 0 ).pageName(),
+            "Beta shares 2 entities (BM25 + Qwen3) — highest count first" );
+        assertEquals( 2, related.get( 0 ).sharedCount() );
+        assertEquals( java.util.Set.of( "BM25", "Qwen3" ),
+            new java.util.HashSet<>( related.get( 0 ).sharedEntityNames() ),
+            "shared entity names should be the actual node names" );
+
+        assertEquals( "Gamma", related.get( 1 ).pageName() );
+        assertEquals( 1, related.get( 1 ).sharedCount() );
+        assertEquals( List.of( "BM25" ), related.get( 1 ).sharedEntityNames() );
+    }
+
+    @Test
+    void findRelatedPages_excludesSelf() throws Exception {
+        final UUID node = UUID.randomUUID();
+        seedNode( node, "OnlyEntity" );
+        final UUID c1 = UUID.randomUUID();
+        final UUID c2 = UUID.randomUUID();
+        seedChunk( c1, "SelfPage", 0 );
+        seedChunk( c2, "SelfPage", 1 );
+        seedMention( c1, node, 0.9 );
+        seedMention( c2, node, 0.9 );
+
+        final MentionIndex idx = new MentionIndex( dataSource );
+        assertTrue( idx.findRelatedPages( "SelfPage", 5 ).isEmpty(),
+            "a page that only shares mentions with its own chunks has no related pages" );
+    }
+
+    @Test
+    void findRelatedPages_rejectsNullOrBlankInput() {
+        final MentionIndex idx = new MentionIndex( dataSource );
+        assertTrue( idx.findRelatedPages( null, 5 ).isEmpty() );
+        assertTrue( idx.findRelatedPages( "", 5 ).isEmpty() );
+        assertTrue( idx.findRelatedPages( "Foo", 0 ).isEmpty(),
+            "zero limit returns empty" );
     }
 
     private static void seedChunk( UUID id, String page, int idx ) throws Exception {

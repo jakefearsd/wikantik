@@ -22,13 +22,16 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -117,5 +120,92 @@ public class MentionIndex {
             } )
             .forEach( e -> sorted.put( e.getKey(), e.getValue() ) );
         return sorted;
+    }
+
+    /**
+     * A page that shares at least one extractor-mention with the query page,
+     * along with the names of the shared entity nodes and the count of distinct
+     * shared entities. Result ordering in {@link #findRelatedPages} uses
+     * {@code sharedCount} DESC, then {@code pageName} ASC for determinism.
+     */
+    public record RelatedByMention(
+        String pageName,
+        List< String > sharedEntityNames,
+        int sharedCount
+    ) {
+        public RelatedByMention {
+            if ( pageName == null || pageName.isBlank() ) {
+                throw new IllegalArgumentException( "pageName must not be blank" );
+            }
+            sharedEntityNames = sharedEntityNames == null
+                ? List.of() : List.copyOf( sharedEntityNames );
+            if ( sharedCount < 0 ) {
+                throw new IllegalArgumentException( "sharedCount must not be negative" );
+            }
+        }
+    }
+
+    /**
+     * Finds pages connected to {@code pageName} via shared entity mentions.
+     * Joins {@code kg_content_chunks} → {@code chunk_entity_mentions} for both
+     * sides and groups the other-side rows by page, counting distinct
+     * co-mentioned entities. Returns up to {@code limit} pages ordered by
+     * descending shared-entity count (ties broken by page name).
+     *
+     * <p>Unlike {@link com.wikantik.knowledge.embedding.NodeMentionSimilarity#similarTo(String, int)},
+     * this reads the mention table directly and does not require a KG node
+     * keyed by the page name. It matches the post-cycle-6 data model where
+     * pages exist only as {@code kg_content_chunks.page_name} values and
+     * related-ness is evidenced by co-mention of extractor-found entities.</p>
+     */
+    public List< RelatedByMention > findRelatedPages( final String pageName, final int limit ) {
+        if ( pageName == null || pageName.isBlank() || limit <= 0 ) {
+            return List.of();
+        }
+        final String sql =
+            "SELECT other_c.page_name, "
+          + "       ARRAY_AGG( DISTINCT n.name ) AS shared_entities, "
+          + "       COUNT( DISTINCT my_m.node_id ) AS shared_count "
+          + "  FROM kg_content_chunks my_c "
+          + "  JOIN chunk_entity_mentions my_m ON my_m.chunk_id = my_c.id "
+          + "  JOIN chunk_entity_mentions other_m ON other_m.node_id = my_m.node_id "
+          + "  JOIN kg_content_chunks other_c ON other_c.id = other_m.chunk_id "
+          + "  JOIN kg_nodes n ON n.id = my_m.node_id "
+          + " WHERE my_c.page_name = ? "
+          + "   AND other_c.page_name <> my_c.page_name "
+          + " GROUP BY other_c.page_name "
+          + " ORDER BY shared_count DESC, other_c.page_name ASC "
+          + " LIMIT ?";
+        final List< RelatedByMention > out = new ArrayList<>();
+        try ( final Connection c = dataSource.getConnection();
+              final PreparedStatement ps = c.prepareStatement( sql ) ) {
+            ps.setString( 1, pageName );
+            ps.setInt( 2, limit );
+            try ( final ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) {
+                    final String otherPage = rs.getString( 1 );
+                    final Array arr = rs.getArray( 2 );
+                    final List< String > shared = arrayToStringList( arr );
+                    final int count = rs.getInt( 3 );
+                    out.add( new RelatedByMention( otherPage, shared, count ) );
+                }
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "MentionIndex.findRelatedPages failed for '{}': {}",
+                pageName, e.getMessage(), e );
+            return List.of();
+        }
+        return out;
+    }
+
+    private static List< String > arrayToStringList( final Array array ) throws SQLException {
+        if ( array == null ) return List.of();
+        final Object raw = array.getArray();
+        if ( !( raw instanceof String[] items ) ) return List.of();
+        final List< String > out = new ArrayList<>( items.length );
+        for ( final String s : items ) {
+            if ( s != null ) out.add( s );
+        }
+        return List.copyOf( out );
     }
 }

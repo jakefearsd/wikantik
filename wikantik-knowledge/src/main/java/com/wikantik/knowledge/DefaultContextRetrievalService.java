@@ -37,6 +37,7 @@ import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
+import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.search.FrontmatterMetadataCache;
 import com.wikantik.search.SearchManager;
@@ -80,6 +81,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
     private final ChunkVectorIndex chunkIndex;
     private final ContentChunkRepository chunkRepo;
     private final NodeMentionSimilarity similarity;
+    private final MentionIndex mentionIndex;
     private final PageManager pageManager;
     private final FrontmatterMetadataCache fmCache;
     private final String publicBaseUrl;
@@ -92,14 +94,15 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             final ChunkVectorIndex chunkIndex,
             final ContentChunkRepository chunkRepo,
             final NodeMentionSimilarity similarity,
+            final MentionIndex mentionIndex,
             final PageManager pageManager,
             final FrontmatterMetadataCache fmCache,
             final String publicBaseUrl ) {
         if ( engine == null ) throw new IllegalArgumentException( "engine required" );
         if ( searchManager == null ) throw new IllegalArgumentException( "searchManager required" );
         if ( pageManager == null ) throw new IllegalArgumentException( "pageManager required" );
-        // hybridSearch, graphRerank, chunkIndex, chunkRepo, similarity, fmCache all nullable:
-        // the service degrades rather than failing when optional deps are absent.
+        // hybridSearch, graphRerank, chunkIndex, chunkRepo, similarity, mentionIndex, fmCache
+        // all nullable: the service degrades rather than failing when optional deps are absent.
         this.engine = engine;
         this.searchManager = searchManager;
         this.hybridSearch = hybridSearch;
@@ -107,6 +110,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         this.chunkIndex = chunkIndex;
         this.chunkRepo = chunkRepo;
         this.similarity = similarity;
+        this.mentionIndex = mentionIndex;
         this.pageManager = pageManager;
         this.fmCache = fmCache;
         this.publicBaseUrl = publicBaseUrl == null ? "" : publicBaseUrl;
@@ -129,6 +133,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             engine.getManager( ChunkVectorIndex.class ),
             engine.getManager( ContentChunkRepository.class ),
             engine.getManager( NodeMentionSimilarity.class ),
+            engine.getManager( MentionIndex.class ),
             pm,
             engine.getManager( FrontmatterMetadataCache.class ),
             engine.getBaseURL() );
@@ -362,27 +367,46 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
     }
 
     private static final int RELATED_PAGES_LIMIT = 5;
+    private static final int REASON_ENTITY_LIMIT = 3;
 
+    /**
+     * Finds pages related to {@code pageName} via shared extractor mentions.
+     * Uses {@link MentionIndex#findRelatedPages} which walks
+     * {@code chunk_entity_mentions} directly — no reliance on a KG node
+     * keyed by page name (those stopped existing after the cycle-6
+     * GraphProjector retirement).
+     *
+     * <p>The {@code reason} string lists the top shared entity names, so
+     * the agent sees concrete evidence ("shared entities: BM25, Qwen3")
+     * instead of an opaque similarity score.</p>
+     */
     private List< RelatedPage > fetchRelatedPages( final String pageName ) {
-        if ( similarity == null || !similarity.isReady() ) return List.of();
-        final List< NodeMentionSimilarity.ScoredName > neighbors;
+        if ( mentionIndex == null ) return List.of();
+        final List< MentionIndex.RelatedByMention > matches;
         try {
-            neighbors = similarity.similarTo( pageName, RELATED_PAGES_LIMIT );
+            matches = mentionIndex.findRelatedPages( pageName, RELATED_PAGES_LIMIT );
         } catch ( final RuntimeException e ) {
-            LOG.debug( "NodeMentionSimilarity failed for '{}': {}", pageName, e.getMessage() );
+            LOG.debug( "MentionIndex.findRelatedPages failed for '{}': {}",
+                pageName, e.getMessage() );
             return List.of();
         }
-        if ( neighbors.isEmpty() ) return List.of();
-        final List< RelatedPage > out = new ArrayList<>( neighbors.size() );
-        for ( final var n : neighbors ) {
-            if ( pageName.equals( n.name() ) ) continue;
-            out.add( new RelatedPage( n.name(), describeReason( n ) ) );
+        if ( matches.isEmpty() ) return List.of();
+        final List< RelatedPage > out = new ArrayList<>( matches.size() );
+        for ( final MentionIndex.RelatedByMention m : matches ) {
+            out.add( new RelatedPage( m.pageName(), describeSharedEntities( m ) ) );
         }
         return out;
     }
 
-    private String describeReason( final NodeMentionSimilarity.ScoredName n ) {
-        return String.format( "similarity %.2f", n.score() );
+    private static String describeSharedEntities( final MentionIndex.RelatedByMention m ) {
+        final List< String > names = m.sharedEntityNames();
+        if ( names.isEmpty() ) {
+            return "shared entities: " + m.sharedCount();
+        }
+        final int take = Math.min( names.size(), REASON_ENTITY_LIMIT );
+        final String joined = String.join( ", ", names.subList( 0, take ) );
+        final String more = names.size() > take ? " (+" + ( names.size() - take ) + " more)" : "";
+        return "shared entities: " + joined + more;
     }
 
     @Override

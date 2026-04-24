@@ -64,6 +64,7 @@ public final class KnowledgeGraphServiceFactory {
         FrontmatterDefaultsFilter frontmatterDefaultsFilter,
         HubSyncFilter hubSyncFilter,
         NodeMentionSimilarity nodeMentionSimilarity,
+        MentionIndex mentionIndex,
         HubProposalRepository hubProposalRepo,
         HubProposalService hubProposalService,
         HubDiscoveryRepository hubDiscoveryRepo,
@@ -201,7 +202,7 @@ public final class KnowledgeGraphServiceFactory {
                 () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ) );
 
         return new Services( kgService, fmDefaults, hubSync,
-            similarity, hubProposalRepo, hubProposalService,
+            similarity, mentionIndex, hubProposalRepo, hubProposalService,
             hubDiscoveryRepo, hubDiscoveryService, hubOverviewService,
             chunkProjector, contentChunkRepo );
     }

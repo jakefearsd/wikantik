@@ -202,15 +202,21 @@ class DefaultContextRetrievalServiceTest {
         sm.setResults( java.util.List.of(
             com.wikantik.knowledge.testfakes.FakeSearchResult.of( "Alpha", 5 ) ) );
 
-        final var similarity = new com.wikantik.knowledge.testfakes.FakeNodeMentionSimilarity();
-        similarity.setRelated( "Alpha",
+        final var mentionIndex = com.wikantik.knowledge.testfakes.FakeMentionIndex.relating(
+            "Alpha",
             java.util.List.of(
-                new com.wikantik.knowledge.embedding.NodeMentionSimilarity.ScoredName( "Beta", 0.9 ),
-                new com.wikantik.knowledge.embedding.NodeMentionSimilarity.ScoredName( "Gamma", 0.7 ) ) );
+                new com.wikantik.knowledge.MentionIndex.RelatedByMention(
+                    "Beta",
+                    java.util.List.of( "BM25", "Qwen3" ),
+                    2 ),
+                new com.wikantik.knowledge.MentionIndex.RelatedByMention(
+                    "Gamma",
+                    java.util.List.of( "BM25" ),
+                    1 ) ) );
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, null, null, null, null, similarity, pm, null, "" );
+            sm, null, null, null, null, null, mentionIndex, pm, null, "" );
 
         final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
             "q", 5, 3, null ) );
@@ -219,7 +225,9 @@ class DefaultContextRetrievalServiceTest {
         final var relatedPages = result.pages().get( 0 ).relatedPages();
         assertEquals( 2, relatedPages.size() );
         assertEquals( "Beta", relatedPages.get( 0 ).name() );
-        assertNotNull( relatedPages.get( 0 ).reason() );
+        assertTrue( relatedPages.get( 0 ).reason().contains( "BM25" ),
+            "reason should name the shared entities, not an opaque similarity score" );
+        assertTrue( relatedPages.get( 0 ).reason().contains( "Qwen3" ) );
     }
 
     @Test
@@ -255,7 +263,7 @@ class DefaultContextRetrievalServiceTest {
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, hybrid, null, chunkIndex, chunkRepo, null, pm, null, "https://wiki.example" );
+            sm, hybrid, null, chunkIndex, chunkRepo, null, null, pm, null, "https://wiki.example" );
 
         final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
             "alpha query", 5, 2, null ) );

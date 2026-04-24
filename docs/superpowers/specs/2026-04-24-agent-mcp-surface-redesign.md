@@ -557,7 +557,7 @@ Each cycle is a self-contained spec → plan → implementation unit.
    chunks-with-relatedPages envelope. OpenAPI document regenerated.
    Tests updated.
 
-6. **Cycle 6 — `GraphProjector` retirement.** Confirm no callers, delete
+6. **Cycle 6 — `GraphProjector` retirement. ✓** Confirm no callers, delete
    `GraphProjector.java` and the `ChunkProjector` path it fed. Any
    migration / rebuild scripts that relied on it are replaced or
    removed.

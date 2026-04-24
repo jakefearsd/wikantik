@@ -162,9 +162,9 @@ public class HubProposalService {
     /**
      * Step 1 — Load every hub's membership from `related` edges.
      *
-     * <p>Membership is the single source of truth stored in kg_edges — the GraphProjector routes
-     * any frontmatter key whose value is a List&lt;String&gt; into edges, not node properties, so
-     * reading node.properties().get("related") would always be null for real data.
+     * <p>Membership is the single source of truth stored in kg_edges — admin
+     * tooling and the proposal-approval flow route canonical "member-of"
+     * relationships into it; hub discovery reads from there.
      */
     private HubMembership loadHubMembership() {
         final Set< String > allHubNames = loadHubNames();

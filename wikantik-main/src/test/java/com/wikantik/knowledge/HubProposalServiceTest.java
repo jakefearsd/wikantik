@@ -74,7 +74,7 @@ class HubProposalServiceTest {
 
     @Test
     void generateProposals_createsProposalsAboveThreshold() {
-        // Hub + 3 member articles, wired by related edges (mirrors GraphProjector).
+        // Hub + 3 member articles, wired via upsertEdge (manual admin/API path).
         final var techHub = kgRepo.upsertNode( "TechHub", "hub", "TechHub",
             Provenance.HUMAN_AUTHORED, Map.of( "type", "hub" ) );
         final var java    = kgRepo.upsertNode( "Java",    "article", "Java",    Provenance.HUMAN_AUTHORED, Map.of() );

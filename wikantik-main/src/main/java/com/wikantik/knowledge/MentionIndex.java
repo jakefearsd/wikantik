@@ -36,10 +36,10 @@ import java.util.UUID;
 /**
  * Read-only view over {@code chunk_entity_mentions} — answers "is this node
  * mentioned by the extractor?" and "what nodes share chunks with this one?"
- * Provides the mention-covered subset that agent-facing MCP tools surface,
- * hiding nodes that exist in {@code kg_nodes} only because the legacy
- * {@code GraphProjector} put them there from frontmatter/links but no
- * extractor has confirmed them in real content.
+ * Provides the mention-covered subset that agent-facing MCP tools surface.
+ * Nodes that exist in {@code kg_nodes} but have no extractor mention are
+ * hidden — typically legacy frontmatter/link-derived nodes left over from
+ * the retired projection pipeline.
  */
 public class MentionIndex {
 

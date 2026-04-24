@@ -27,9 +27,10 @@ import java.util.*;
 
 /**
  * Test fake that stores the written markdown in an {@link InMemoryPageManager} and
- * projects frontmatter directly into {@link JdbcKnowledgeRepository}, simulating what
- * GraphProjector.postSave does in production. Lets accept-path tests verify both the
- * written page and the resulting kg_nodes/kg_edges rows without spinning up a full engine.
+ * projects frontmatter directly into {@link JdbcKnowledgeRepository}, mirroring
+ * production's save-time behaviour (without the retired GraphProjector projection).
+ * Lets accept-path tests verify both the written page and the resulting
+ * kg_nodes/kg_edges rows without spinning up a full engine.
  */
 public class InMemoryPageSaveHelper {
 

@@ -18,9 +18,11 @@
  */
 package com.wikantik.knowledge;
 
+import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.knowledge.ContextQuery;
@@ -121,8 +123,95 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
 
     @Override
     public RetrievalResult retrieve( final ContextQuery query ) {
-        throw new UnsupportedOperationException( "implemented in task 9" );
+        if ( query == null ) throw new IllegalArgumentException( "query required" );
+
+        // Phase 1: BM25 pass. Anchor-page-based Context is how SearchResource
+        // does it; tests use a FakeSearchManager that ignores context, so
+        // null context is fine in tests. enginePlaceholder() returns null
+        // for now — task 12 wires a real engine into the service.
+        final Page anchor = pageManager.getPage( "Main" );
+        final Context ctx = anchor != null
+            ? com.wikantik.api.spi.Wiki.context().create( enginePlaceholder(), anchor )
+            : null;
+        final Collection< SearchResult > bm25;
+        try {
+            bm25 = searchManager.findPages( query.query(), ctx );
+        } catch ( final Exception e ) {
+            LOG.warn( "BM25 search failed: {}", e.getMessage(), e );
+            return new RetrievalResult( query.query(), List.of(), 0 );
+        }
+        final List< SearchResult > ordered = applyHybridAndGraphRerank( query.query(), bm25 );
+
+        // Phase 2: filter + shape into RetrievedPage envelopes.
+        final PageListFilter f = query.filter();
+        final List< RetrievedPage > pages = new ArrayList<>();
+        for ( final SearchResult sr : ordered ) {
+            final Page page = sr.getPage();
+            if ( page == null ) continue;
+            final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
+            final ParsedPage parsed = FrontmatterParser.parse( text == null ? "" : text );
+            if ( f != null && !matchesFilter( page, parsed, f ) ) continue;
+            pages.add( new RetrievedPage(
+                page.getName(),
+                buildUrl( page.getName() ),
+                sr.getScore(),
+                stringOrEmpty( parsed.metadata().get( "summary" ) ),
+                stringOrNull( parsed.metadata().get( "cluster" ) ),
+                stringList( parsed.metadata().get( "tags" ) ),
+                List.of(),  // chunks filled in task 10
+                List.of(),  // relatedPages filled in task 11
+                page.getAuthor(),
+                page.getLastModified()
+            ) );
+            if ( pages.size() >= query.maxPages() ) break;
+        }
+        return new RetrievalResult( query.query(), pages, ordered.size() );
     }
+
+    private List< SearchResult > applyHybridAndGraphRerank( final String query,
+                                                            final Collection< SearchResult > bm25 ) {
+        final List< SearchResult > asList = new ArrayList<>( bm25 == null ? List.of() : bm25 );
+        if ( hybridSearch == null || !hybridSearch.isEnabled() ) {
+            return asList;
+        }
+        final List< String > names = new ArrayList<>();
+        final Map< String, SearchResult > byName = new LinkedHashMap<>();
+        for ( final SearchResult sr : asList ) {
+            if ( sr.getPage() == null ) continue;
+            names.add( sr.getPage().getName() );
+            byName.putIfAbsent( sr.getPage().getName(), sr );
+        }
+        List< String > fused = hybridSearch.rerank( query, names );
+        if ( graphRerank != null ) {
+            try {
+                fused = graphRerank.rerank( query, fused );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Graph rerank failed; using hybrid fused order: {}", e.getMessage(), e );
+            }
+        }
+        if ( fused.equals( names ) ) return asList;
+        final List< SearchResult > out = new ArrayList<>( fused.size() );
+        for ( final String name : fused ) {
+            final SearchResult existing = byName.get( name );
+            if ( existing != null ) { out.add( existing ); continue; }
+            final Page p = pageManager.getPage( name );
+            if ( p == null ) continue;
+            out.add( new DenseOnlySearchResult( p ) );
+        }
+        return out;
+    }
+
+    /** Mirrors the DenseOnlySearchResult in SearchResource. */
+    private static final class DenseOnlySearchResult implements SearchResult {
+        private final Page page;
+        DenseOnlySearchResult( final Page p ) { this.page = p; }
+        @Override public Page getPage() { return page; }
+        @Override public int getScore() { return 0; }
+        @Override public String[] getContexts() { return new String[ 0 ]; }
+    }
+
+    /** Placeholder: replaced with real engine handle once manager wiring lands (task 12). */
+    private Engine enginePlaceholder() { return null; }
 
     @Override
     public RetrievedPage getPage( final String pageName ) {

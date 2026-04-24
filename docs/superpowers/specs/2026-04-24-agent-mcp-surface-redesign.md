@@ -553,7 +553,7 @@ Each cycle is a self-contained spec → plan → implementation unit.
    `ImportContentTool`. MCP client configuration updated to the new
    URL.
 
-5. **Cycle 5 — tool-server upgrade.** `SearchWikiTool` returns the new
+5. **Cycle 5 — tool-server upgrade. ✓** `SearchWikiTool` returns the new
    chunks-with-relatedPages envelope. OpenAPI document regenerated.
    Tests updated.
 

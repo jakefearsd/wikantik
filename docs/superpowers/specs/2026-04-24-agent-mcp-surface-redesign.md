@@ -544,7 +544,7 @@ Each cycle is a self-contained spec → plan → implementation unit.
    for a frozen fixture corpus. `find_similar` and `discover_schema`
    audited for the same alignment.
 
-4. **Cycle 4 — admin-mcp rename + writes.** Module directory rename
+4. **Cycle 4 — admin-mcp rename + writes. ✓** Module directory rename
    `wikantik-mcp` → `wikantik-admin-mcp`, pom artifactId updated,
    endpoint `/mcp` → `/wikantik-admin-mcp`. New `write_pages` and
    `update_page` tools. Delete `ReadPageTool`, `SearchPagesTool`,

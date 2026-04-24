@@ -96,6 +96,24 @@ final class OpenApiDocument {
                 "description", "DB-backed API key issued via the admin API-keys page; bound to a Wikantik principal" ) );
 
         final Map< String, Object > schemas = new LinkedHashMap<>();
+        schemas.put( "ContributingChunk", Map.of(
+                "type", "object",
+                "description", "One chunk of wiki content that contributed to the page's score",
+                "properties", orderedProps(
+                        Map.entry( "headingPath", Map.of(
+                                "type", "array",
+                                "items", Map.of( "type", "string" ),
+                                "description", "Section breadcrumb (top to leaf)" ) ),
+                        prop( "text", "string", "Chunk body text" ),
+                        prop( "chunkScore", "number", "Retriever-specific chunk score; treat as ordinal" ) ) ) );
+
+        schemas.put( "RelatedPageHint", Map.of(
+                "type", "object",
+                "description", "A page connected via knowledge-graph mention co-occurrence",
+                "properties", orderedProps(
+                        prop( "name", "string", "Wiki page name" ),
+                        prop( "reason", "string", "Short human-readable explanation of the link" ) ) ) );
+
         schemas.put( "SearchResult", Map.of(
                 "type", "object",
                 "properties", orderedProps(
@@ -105,7 +123,15 @@ final class OpenApiDocument {
                         prop( "summary", "string", "Page summary from frontmatter, when present" ),
                         prop( "tags", "array", "Page tags from frontmatter, when present" ),
                         prop( "cluster", "string", "Knowledge-graph cluster label, when present" ),
-                        prop( "snippet", "string", "Leading excerpt from the top matching chunk" ),
+                        Map.entry( "contributingChunks", Map.of(
+                                "type", "array",
+                                "items", Map.of( "$ref", "#/components/schemas/ContributingChunk" ),
+                                "description", "Top chunks that drove this page's rank, when available" ) ),
+                        Map.entry( "relatedPages", Map.of(
+                                "type", "array",
+                                "items", Map.of( "$ref", "#/components/schemas/RelatedPageHint" ),
+                                "description", "Pages linked via KG-mention co-occurrence" ) ),
+                        prop( "snippet", "string", "Leading excerpt from the top contributing chunk (legacy field — use contributingChunks for richer context)" ),
                         prop( "lastModified", "string", "ISO-8601 timestamp of the last edit" ),
                         prop( "author", "string", "Last author login, when recorded" ) ) ) );
 

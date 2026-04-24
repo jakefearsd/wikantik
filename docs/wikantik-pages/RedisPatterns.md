@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44V86TYBBTSBZZMCP0KD
 title: Redis Patterns
 type: article
 tags:

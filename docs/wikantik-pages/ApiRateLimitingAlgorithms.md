@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KYYAM69ENPEDGCFYGD
 title: Api Rate Limiting Algorithms
 type: article
 tags:

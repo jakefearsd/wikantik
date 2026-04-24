@@ -1,3 +1,6 @@
+---
+canonical_id: 01KQ0P44Z2KAVGKRS5ZFG27X4E
+---
 
 [WikiNames](WikiName) are traditionally written using~ InterCapping, also known as~ CamelCase (starting with uppercase letter, and at least another uppercase letter in the wiki link word). This makes the creation of internal hyperlinks really easy.
 

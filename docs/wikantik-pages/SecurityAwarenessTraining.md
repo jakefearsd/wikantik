@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44W5ZHHYJYP02JG08WZY
 title: Security Awareness Training
 type: article
 tags:

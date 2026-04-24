@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P89N3KZVGRX6XJHEQ7
 title: Data Mesh Architecture
 type: article
 tags:

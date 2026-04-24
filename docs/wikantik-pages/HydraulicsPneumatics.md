@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QZKW4SN4MV0PN179YP
 title: Hydraulics Pneumatics
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NXRKKHQRWBWHJAT4K2
 summary: The consular processing pathway for spouses living abroad — from I-130 approval
   through the National Visa Center to the embassy interview and entry
 date: 2026-03-14T00:00:00Z

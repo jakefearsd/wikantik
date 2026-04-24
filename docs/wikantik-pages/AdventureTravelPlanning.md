@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44JNHY77D135B3KYE4Z4
 title: Adventure Travel Planning
 type: article
 tags:

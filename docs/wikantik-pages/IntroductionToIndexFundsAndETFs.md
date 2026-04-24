@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R7RQT18645YAXBZY2D
 date: 2026-03-15T00:00:00Z
 summary: Beginner-friendly introduction to index funds and ETFs — what they are, how
   they work, the key differences between them, and why they form the foundation of

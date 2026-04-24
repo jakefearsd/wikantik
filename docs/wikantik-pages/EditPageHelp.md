@@ -1,3 +1,6 @@
+---
+canonical_id: 01KQ0P44Q1A992BXEZWGVTFYH4
+---
 
 Here's a short reminder on what elements you have at your disposal:
 

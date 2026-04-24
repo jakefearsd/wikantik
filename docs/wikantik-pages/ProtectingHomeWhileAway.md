@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TZ38CSB2Y5RP94H0TE
 title: Protecting Home While Away
 type: article
 tags:

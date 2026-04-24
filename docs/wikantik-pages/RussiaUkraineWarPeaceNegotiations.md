@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44W06EFE76VF5C45QJNQ
 summary: Status of peace negotiations and diplomatic efforts to end the Russia-Ukraine
   war as of March 2026
 date: '2026-03-13'

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q8XWWYFRN2F2Y9KJXF
 title: Event Driven Architecture
 type: article
 tags:

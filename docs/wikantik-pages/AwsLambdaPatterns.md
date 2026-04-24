@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44M78CMR11YT041AD48Y
 title: Aws Lambda Patterns
 type: article
 tags:

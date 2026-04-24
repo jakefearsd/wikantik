@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NGWEMX0BF3Y86T9WYR
 title: Cloud Security Fundamentals
 type: article
 tags:

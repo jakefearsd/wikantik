@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MNJBW441PKHX5AYGY0
 title: Bloom Filters
 type: article
 tags:

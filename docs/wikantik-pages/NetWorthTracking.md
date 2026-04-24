@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SZE8KANR12S3W8QDHS
 title: Net Worth Tracking
 type: article
 tags:

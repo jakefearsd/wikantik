@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QKPFGZ719QH89CHH84
 title: Fuzzy Logic
 type: article
 tags:

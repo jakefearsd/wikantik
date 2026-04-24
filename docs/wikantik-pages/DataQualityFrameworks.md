@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PAPWYE8K5CZE33HAYK
 title: Data Quality Frameworks
 type: article
 tags:

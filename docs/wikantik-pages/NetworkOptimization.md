@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SZC14KWQSCBKEZWH4H
 title: Network Optimization
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QFDAD0XC57FKGWMCF0
 title: Food Science
 type: article
 tags:

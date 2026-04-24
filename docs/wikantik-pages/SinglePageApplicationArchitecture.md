@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WDNWC7TWE4XVBFFZ5A
 title: Single Page Application Architecture
 type: article
 tags:

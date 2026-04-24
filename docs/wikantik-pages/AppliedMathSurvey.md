@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KZWNJPTF8W2F7NTRFR
 title: Applied Math Survey
 type: article
 tags:

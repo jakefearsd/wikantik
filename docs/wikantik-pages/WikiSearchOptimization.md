@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Z5D81GQV4GNZ896036
 title: Wiki Search Optimization
 type: article
 tags:

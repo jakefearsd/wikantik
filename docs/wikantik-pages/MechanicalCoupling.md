@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SC0F3WES6RJ8X0VSXJ
 title: Mechanical Coupling
 type: article
 tags:

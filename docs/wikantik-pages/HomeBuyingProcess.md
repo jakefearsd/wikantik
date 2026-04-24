@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QXNTT0VG6XTEFFP2XQ
 title: Home Buying Process
 type: article
 tags:

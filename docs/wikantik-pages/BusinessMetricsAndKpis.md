@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MSXHJQMSTXW9A5YN7Y
 title: Business Metrics And Kpis
 type: article
 tags:

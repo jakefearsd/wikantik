@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WSNAHQSBHZXYCXQEBY
 title: Specification Pattern
 type: article
 tags:

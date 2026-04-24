@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QX6DFKSZY622GF8BDP
 summary: The history of operations research from its WWII origins through post-war
   industrialization to the modern discipline
 date: 2026-03-17T00:00:00Z

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NVEKCRM3FA3EDTA9KQ
 date: '2026-03-14'
 summary: 'Cross-cutting analysis of recurring market patterns across all major conflicts:
   uncertainty premium, sector rotation, recovery speed, policy response importance'

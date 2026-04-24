@@ -1,3 +1,6 @@
+---
+canonical_id: 01KQ0P44S61S5AYQJVF4EBFAMM
+---
 # Jake's Personal Knowledge Base
 
 A curated collection of in-depth research articles, organized into topic clusters. Each cluster has a hub page that introduces the topic and links to detailed sub-articles. Articles are interlinked across clusters where topics overlap.

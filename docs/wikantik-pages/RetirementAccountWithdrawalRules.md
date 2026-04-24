@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VK5A43Y2SZ7RCZ2FG3
 title: Retirement Account Withdrawal Rules
 type: article
 tags: [retirement, taxes, withdrawals, IRA, 401k, penalties]

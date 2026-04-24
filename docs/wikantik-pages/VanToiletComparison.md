@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YC8K9P6SRRQS5MWWS0
 title: Van Toilet Comparison
 type: article
 tags:

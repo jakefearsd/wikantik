@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RBMJ37JR1J1PXPDC57
 title: Java Records And Sealed Classes
 type: article
 tags:

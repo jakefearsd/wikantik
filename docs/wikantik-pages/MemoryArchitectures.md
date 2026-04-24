@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SDTD7847AZ2Z0FECB2
 title: Memory Architectures
 type: article
 tags:

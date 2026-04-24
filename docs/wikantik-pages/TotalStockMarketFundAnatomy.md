@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XV3GA037AWMSDPG257
 title: Total Stock Market Fund Anatomy
 type: article
 tags:

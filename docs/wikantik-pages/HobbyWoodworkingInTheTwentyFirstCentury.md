@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QX7VBB9GES0CDM9EPQ
 status: active
 cluster: hobby-woodworking
 type: hub

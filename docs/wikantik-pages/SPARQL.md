@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44W0756TFH40THPJ75RE
 title: SPARQL
 type: article
 tags:

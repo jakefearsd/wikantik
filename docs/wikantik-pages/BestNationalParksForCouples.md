@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MK67P6XRCQQDQHS6DH
 title: Best National Parks For Couples
 type: article
 tags:

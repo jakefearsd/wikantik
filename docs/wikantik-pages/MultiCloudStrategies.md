@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44STVNKF97FYZ81YPBTJ
 title: Multi Cloud Strategies
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PDMZE2JAC1Y3XBFB90
 title: Database Migration Strategies
 type: article
 tags:

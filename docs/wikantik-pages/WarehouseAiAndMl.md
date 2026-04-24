@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YJZ6JZKFTNWNC5F825
 summary: AI and machine learning in warehousing — demand forecasting, slotting optimisation,
   computer vision picking, and autonomous decision-making
 date: 2026-03-18T00:00:00Z

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YSQ6V7YQCK1CJX8HZQ
 title: Web Ontology Language
 type: article
 tags:

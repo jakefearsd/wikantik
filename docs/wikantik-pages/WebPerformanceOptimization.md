@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YS2PTR5TR2H2JQAGY9
 title: Web Performance Optimization
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VAZDJJSPZ2KQ3FV399
 type: article
 tags: [history, berlin, reformation, lutheranism, religion]
 date: 2026-03-21

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SEQSJA988GG55DSKAM
 title: Memory Management Fundamentals
 type: article
 tags:

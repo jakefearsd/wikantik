@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q3G4ZEDTKP12F8M8G5
 title: Emergency Communication
 type: article
 tags:

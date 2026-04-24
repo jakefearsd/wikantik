@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PZ9KM7G02VW3MRYXS3
 title: Dual Citizenship Considerations
 type: article
 tags:

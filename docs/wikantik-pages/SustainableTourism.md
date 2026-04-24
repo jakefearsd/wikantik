@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X46MVVM8NQH28FE5QQ
 title: Sustainable Tourism
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44T771NATW10QVZEVR5Y
 summary: Wikantik Observability System Design
 tags:
 - uncategorized

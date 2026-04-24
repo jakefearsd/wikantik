@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TPSVECSFV5DVVVBS9S
 title: Postgresql Advanced Features
 type: article
 tags:

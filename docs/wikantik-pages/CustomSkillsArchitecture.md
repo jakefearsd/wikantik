@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P5CT60RTSMCKA1C4GD
 title: Custom Skills Architecture
 type: article
 tags:

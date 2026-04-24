@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WTZC4RJ3S7PJM1VRXR
 date: 2026-03-14T00:00:00Z
 status: active
 summary: Complete guide to obtaining a US green card for your spouse — two pathways,

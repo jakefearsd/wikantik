@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X0812TY4262DRAY5ZV
 title: Strategy Pattern
 type: article
 tags:

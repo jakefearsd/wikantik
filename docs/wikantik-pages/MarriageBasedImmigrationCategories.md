@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S8HP77Q0MRBRDHY3CQ
 summary: Understanding the visa categories for marriage-based immigration — IR-1,
   CR-1, K-1, and K-3, and why the distinction matters
 date: 2026-03-14T00:00:00Z

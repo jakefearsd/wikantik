@@ -1,3 +1,6 @@
+---
+canonical_id: 01KQ0P44XMGA8E1E7GAT4AYV43
+---
 
 This page describes the wiki syntax used by Wikantik. For details about how this differs from the syntax used by Wikipedia, please see [MigratingFromMediaWiki](Wikantik:MigratingFromMediaWiki).
 

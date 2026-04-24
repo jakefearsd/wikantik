@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R4PPR5C2BAXMJJ4871
 title: Inference Serving
 type: article
 tags:

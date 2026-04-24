@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R8ZYCFXY653GF484RA
 summary: Why investors in their 20s should strongly consider 100% equities, and how
   risk tolerance changes as you age
 date: 2026-03-21T00:00:00Z

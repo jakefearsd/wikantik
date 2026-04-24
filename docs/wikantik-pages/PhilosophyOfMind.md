@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TJ5MZ3FBSJ8X2NRX9K
 title: Philosophy Of Mind
 type: article
 tags:

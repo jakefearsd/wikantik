@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44REX4RD20SRJ4298ENV
 title: Jpa And Hibernate Patterns
 type: article
 tags:

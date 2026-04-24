@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WXHERWG8P8664W6JV4
 title: State Machine Pattern
 type: article
 tags:

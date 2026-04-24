@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NTBSV74VHGGH4W8APV
 summary: Removing conditions on a 2-year green card — the I-751 process, filing window,
   evidence requirements, and what happens if the marriage ends before filing
 date: 2026-03-14T00:00:00Z

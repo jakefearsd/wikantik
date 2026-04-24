@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QKC8W2XECGN4HJ7SH3
 date: 2026-03-14T00:00:00Z
 status: active
 summary: What programming fundamentals still matter in the age of agentic software

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44N4H56EJBDDCWV3T36V
 title: Choosing A Financial Advisor
 type: article
 tags:

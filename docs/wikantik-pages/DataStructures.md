@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PAS455NSVN42RGMDB9
 title: Data Structures
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P6ZHDJHZZ9T0V85YF8
 title: Customer Relationship Management
 type: article
 tags:

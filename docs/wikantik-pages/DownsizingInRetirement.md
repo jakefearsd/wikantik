@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PZS32XYG1G0BV3Q1DH
 title: Downsizing In Retirement
 type: article
 tags:

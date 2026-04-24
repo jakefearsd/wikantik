@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QW0ZSA2E6MXS9KXBC2
 title: Heap And Priority Queues
 type: article
 tags:

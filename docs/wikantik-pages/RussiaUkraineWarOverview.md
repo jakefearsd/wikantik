@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VZN6EV310SWYP621WF
 tags:
 - Russia
 - Ukraine

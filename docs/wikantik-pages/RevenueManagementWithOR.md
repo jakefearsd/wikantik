@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VSKC4C7SY8JRAW733T
 summary: How airlines, hotels, and other industries use OR to dynamically optimize
   pricing and capacity allocation under uncertain demand
 date: 2026-03-17T00:00:00Z

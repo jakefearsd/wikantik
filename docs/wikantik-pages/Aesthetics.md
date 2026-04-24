@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44JPA5V1W8JVP6JJ0Q9F
 title: Aesthetics
 type: article
 tags:

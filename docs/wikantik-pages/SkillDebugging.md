@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WGNMNYTWEPMG96H112
 title: Skill Debugging
 type: article
 tags:

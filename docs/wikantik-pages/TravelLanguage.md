@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XYR0R6JK4NRRSNXJ9T
 title: Travel Language
 type: article
 tags:

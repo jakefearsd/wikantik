@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Z2HDXRY0F7FHWRHSYJ
 title: Wiki Page Templates
 type: article
 tags:

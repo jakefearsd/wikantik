@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QVR6F9KSQ13K5XSVYP
 title: Hateoas And Hypermedia Apis
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SVKVPXF84C6NQ06PVW
 title: Multimodal Embeddings
 type: article
 tags:

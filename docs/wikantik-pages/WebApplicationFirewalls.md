@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YR0BXN56PBQWNHB5VV
 title: Web Application Firewalls
 type: article
 tags:

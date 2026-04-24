@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44T8CZZD4EBRY83FE7Y5
 title: Observer Pattern
 type: article
 tags:

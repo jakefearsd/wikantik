@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QQ56YTY45PXQT873DR
 title: Gossip Protocol
 type: article
 tags:

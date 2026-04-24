@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MEW5915XES62BZJKTE
 title: Bearing Mechanics
 type: article
 tags:

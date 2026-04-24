@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QET50QZH5CGM3TW0GQ
 title: First Job Financial Checklist
 type: article
 tags:

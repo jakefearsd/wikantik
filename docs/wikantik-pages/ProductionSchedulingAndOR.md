@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TV0D7TE9GQ4SRSP0P3
 summary: OR techniques for production and project scheduling — CPM, PERT, job-shop
   scheduling, and resource-constrained project optimization
 date: 2026-03-17T00:00:00Z

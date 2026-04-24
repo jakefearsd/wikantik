@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RR2TYVXA2VNDPT81EE
 title: Lean Warehousing
 type: article
 tags:

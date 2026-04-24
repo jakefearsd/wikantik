@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TJB25KAPFPBS1WKDCV
 title: Philosophy Of Science
 type: article
 tags:

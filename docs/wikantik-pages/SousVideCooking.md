@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WSHD521FJG3HK696Q9
 title: Sous Vide Cooking
 type: article
 tags:

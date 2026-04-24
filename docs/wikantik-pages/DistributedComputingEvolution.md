@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PSDYPG5MY8RH2DM5GT
 type: article
 cluster: technology
 status: active

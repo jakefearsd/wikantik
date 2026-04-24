@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SFQM7F9TZXPEJTWMYG
 title: Metaheuristic Optimization
 type: article
 tags:

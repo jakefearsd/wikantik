@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44M3PD94EF445ZQW7JVW
 title: Asset Allocation
 type: article
 tags: [investing, asset-allocation, diversification, risk-management, portfolio]

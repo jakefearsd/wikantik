@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SG6Y0NC4YRN48W4XER
 title: Micro Fulfillment Centers
 type: article
 tags:

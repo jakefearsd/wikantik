@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SASYCPSB9MXC9X3C89
 title: Maven Multi Module Projects
 type: article
 tags:

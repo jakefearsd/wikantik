@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KRJ3VV5P4Y8TMTDRXE
 title: Annuities Vs Systematic Withdrawals
 type: article
 tags:

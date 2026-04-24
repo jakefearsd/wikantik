@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XVNB8EWNENAJF1JM0Q
 title: Tool Output Optimization
 type: article
 tags:

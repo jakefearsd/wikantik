@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WGM57JQEM98T9PQ9KT
 title: Skill Composition
 type: article
 tags:

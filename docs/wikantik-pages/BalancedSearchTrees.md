@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MCJA2WTGJB4NK967T6
 title: Balanced Search Trees
 type: article
 tags:

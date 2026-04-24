@@ -1,3 +1,6 @@
+---
+canonical_id: 01KQ0P44MVJCAQR0ATN50SS3FQ
+---
 
 /* fonts */@import url([https://fonts.googleapis.com/css?family=Titillium+Web](https://fonts.googleapis.com/css?family=Titillium Web):300,400,400italic,600,600italic,700|Source+Code+Pro:400,600);
 body { font-family: "Titillium Web", "Candara", "Verdana", "Arial", "Helvetica", sans-serif ; /*font-size: 90% ;*/ line-height: normal ; color: black; background: #fbfbfb;}h2, h3, h4 { margin: 1em 0 0.5em 0; padding: 0.25em 0; line-height: 1.2;}h2 { font-size: 180% }h3 { font-size: 150% }h4 { font-size: 130% }h2 .editsection, h2 .hashlink { font-size: 67% }h3 .editsection, h3 .hashlink { font-size: 76% }h4 .editsection, h4 .hashlink { font-size: 86% }

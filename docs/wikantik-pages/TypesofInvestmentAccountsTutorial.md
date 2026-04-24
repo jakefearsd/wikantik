@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y5CWP7WMW075WVWX1N
 date: 2026-04-02T00:00:00Z
 summary: Complete guide to every major US investment account type — who qualifies,
   contribution limits, tax treatment, withdrawal rules, and what each account is best

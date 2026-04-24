@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VQNR04JS1WACCZ54JZ
 summary: Which retirement accounts to draw from first and how the optimal withdrawal
   order changes across retirement phases — tax bracket management in practice
 date: 2026-03-14T00:00:00Z

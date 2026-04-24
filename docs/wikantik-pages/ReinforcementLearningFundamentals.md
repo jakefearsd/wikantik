@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VCJ2Q4A951GEM64S3A
 title: Reinforcement Learning Fundamentals
 type: article
 tags:

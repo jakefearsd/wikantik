@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44G6HMBMT7HVPT34FZWK
 type: intelligence-summary
 title: 2026 Iran War
 source: Wikipedia

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WJQ748P6FCF0R7D4DW
 title: Skill Libraries
 type: article
 tags:

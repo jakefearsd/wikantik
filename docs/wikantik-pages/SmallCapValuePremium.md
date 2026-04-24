@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WKZWZC5E72P3CVRBJQ
 title: Small Cap Value Premium
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R8VTQ8AJS4F10MBQBB
 title: Java Annotation Processing
 type: article
 tags:

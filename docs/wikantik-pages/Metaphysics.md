@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SFJJC4YPNFV5JJ939E
 title: Metaphysics
 type: article
 tags:

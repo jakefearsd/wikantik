@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SC3R1JCJ73X0G1CX5T
 title: Measure Theory
 type: article
 tags:

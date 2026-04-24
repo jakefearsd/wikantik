@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S2G8CQTDG63NPQV45C
 title: Logical Fallacies
 type: article
 tags:

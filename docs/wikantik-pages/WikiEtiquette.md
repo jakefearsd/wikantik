@@ -1,3 +1,6 @@
+---
+canonical_id: 01KQ0P44Z09244GF548RE6VKJZ
+---
 
 When [editing pages](TextFormattingRules) just keep the following rules in mind:
 

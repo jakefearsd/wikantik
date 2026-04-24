@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S1ET1HDVHPF785ET96
 title: Local RAG
 type: article
 tags:

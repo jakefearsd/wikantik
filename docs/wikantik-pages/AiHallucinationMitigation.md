@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KB0KE3T3JPVVH7TE1X
 title: Ai Hallucination Mitigation
 type: article
 tags:

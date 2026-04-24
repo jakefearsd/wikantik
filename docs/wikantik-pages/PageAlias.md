@@ -1,3 +1,6 @@
+---
+canonical_id: 01KQ0P44TER37Y12FDMJZ73ZMF
+---
 
 Sometimes it's useful to have one page _really_ mean some other page. For example, you might have a page called "Page Aliases", but you would also like people to have it available under "Aliases". In such a case, you can use a "page alias":
 

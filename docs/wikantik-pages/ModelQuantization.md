@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SK1Z1TXH80GD418GX1
 title: Model Quantization
 type: article
 tags:

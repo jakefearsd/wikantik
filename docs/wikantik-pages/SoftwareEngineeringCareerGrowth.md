@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WRMJ6GM244DDA2536W
 title: Software Engineering Career Growth
 type: article
 tags:

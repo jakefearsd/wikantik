@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TRZS26YNJNHK32EFF1
 summary: SITE NAME ("we," "us," or "our") operates URL (the "Service"). This Privacy
   Policy explains how we collect, use, disclose, and protect your personal information
   when you use our Service.

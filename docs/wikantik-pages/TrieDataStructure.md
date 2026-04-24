@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y1R0VZ1JKE48CF60GJ
 title: Trie Data Structure
 type: article
 tags:

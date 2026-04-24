@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NVJTTW6J2JNBN6FPMX
 date: '2026-03-21'
 summary: How historical conflict patterns inform index fund portfolio construction,
   asset allocation, and retirement withdrawal strategies during geopolitical crises

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NF1SCMZ0A1FGM7QMJ2
 title: Cloud Native Application Design
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QN4ET5D4QCZYVE7AYM
 date: 2026-03-14T00:00:00Z
 status: active
 summary: Current generative AI tools organised by use case for individuals and small

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44GFKMNEM5TV6M4VBXQJ
 summary: Comprehensive documentation about this Wikantik instance, its MCP integration,
   architecture, and the semantic agentic web vision
 tags:

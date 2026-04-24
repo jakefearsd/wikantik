@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QXJJ9FGY7EMGF5MKDK
 type: article
 tags: [retirement, four-percent-rule, withdrawal-rates, financial-history]
 date: 2026-03-21

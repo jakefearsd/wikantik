@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RY9C3007FJN65G51KD
 summary: Managing a Linux system — services, processes, logs, networking, SSH, and
   the operational knowledge that makes you self-sufficient
 date: 2026-03-14T00:00:00Z

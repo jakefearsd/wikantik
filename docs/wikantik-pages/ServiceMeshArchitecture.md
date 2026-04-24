@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WB2QYZ7CSMFH42FAZ0
 title: Service Mesh Architecture
 type: article
 tags:

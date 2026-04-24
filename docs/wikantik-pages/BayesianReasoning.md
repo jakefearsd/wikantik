@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MEFG44JJ162HKBZBMN
 title: Bayesian Reasoning
 type: article
 tags:

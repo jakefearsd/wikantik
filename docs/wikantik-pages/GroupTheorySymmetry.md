@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QSYVNHK8MZ6JFH4C39
 title: Group Theory Symmetry
 type: article
 tags:

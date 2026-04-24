@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XEF0GKGV8S11HK033R
 title: Technical Project Management
 type: article
 tags:

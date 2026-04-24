@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XFGA1ZZ7K4ZAVMJZ1A
 title: Temporal Logic
 type: article
 tags:

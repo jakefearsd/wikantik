@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MNDDAGS6RW6YX3QB73
 title: Blue Green Deployments
 type: article
 tags:

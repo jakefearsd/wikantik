@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XNR832JQ53AH2KVQX7
 title: Thermal Mechanics
 type: article
 tags:

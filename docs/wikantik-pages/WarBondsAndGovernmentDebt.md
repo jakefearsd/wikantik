@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YJAK5XWRCK4S4DJ47R
 title: War Bonds And Government Debt
 type: article
 tags:

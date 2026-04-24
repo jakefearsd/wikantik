@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q40E32SYBC8FB5YR1N
 title: Emergency Fund Strategies
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RCXTZ047G2Q3Y6YF9H
 title: Java Security Model
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44ZA6MV4K074BQGMCP4Q
 title: Workshop Layout And Dust Collection
 type: article
 tags:

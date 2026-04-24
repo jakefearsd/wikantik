@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q82T3GH73561ZE2JMR
 title: Eventual Consistency
 type: article
 tags:

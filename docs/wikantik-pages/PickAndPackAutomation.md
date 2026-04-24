@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TK4DRF1YCM6GMMR83Y
 title: Pick And Pack Automation
 type: article
 tags:

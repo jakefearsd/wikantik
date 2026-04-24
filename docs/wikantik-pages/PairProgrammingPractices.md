@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TFZ7S21HB4DGTSVMCB
 title: Pair Programming Practices
 type: article
 tags:

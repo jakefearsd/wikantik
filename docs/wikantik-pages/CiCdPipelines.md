@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44N8EYGZDNWNF37FQQSV
 title: Ci Cd Pipelines
 type: article
 tags:

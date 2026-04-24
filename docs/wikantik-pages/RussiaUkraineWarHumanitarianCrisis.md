@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VZDDN6YDKCHJCYTBRV
 summary: The humanitarian impact of the Russia-Ukraine war including refugees, displacement,
   and civilian suffering as of March 2026
 date: '2026-03-13'

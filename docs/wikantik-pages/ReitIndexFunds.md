@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VCE45JMTNYKZ4J3BN6
 title: Reit Index Funds
 type: article
 tags:

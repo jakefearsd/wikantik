@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TQZK0A9NCE9GSMSDCM
 title: Predicate Logic
 type: article
 tags:

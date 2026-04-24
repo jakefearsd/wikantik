@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RYN6XS7C7PB44CJ4Y6
 summary: Introduction to shell scripting — turning command sequences into reusable
   scripts, variables, conditionals, loops, and automating tasks with cron
 date: 2026-03-14T00:00:00Z

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YMW82QV731Q6AN1HHM
 title: Warehouse Layout Design
 type: article
 tags:

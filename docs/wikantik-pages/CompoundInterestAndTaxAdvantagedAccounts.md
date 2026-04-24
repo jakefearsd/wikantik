@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NRZVDVPR0ZSAF6AP3R
 date: 2026-03-15T00:00:00Z
 summary: How tax-advantaged accounts amplify the power of compound interest by eliminating
   annual tax drag, with quantitative comparisons across account types.

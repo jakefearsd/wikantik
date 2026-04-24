@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RMQK7627HQ0J02FE6K
 summary: Proposal workflow for AI-suggested knowledge enrichment with human approval and frontmatter write-back
 tags:
 - development

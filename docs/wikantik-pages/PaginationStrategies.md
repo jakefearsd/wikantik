@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TE1M3ATEEZ45SVW4BM
 title: Pagination Strategies
 type: article
 tags:

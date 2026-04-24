@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q8EETGG6ZT7S0BBB1G
 title: Event Sourcing
 type: article
 tags:

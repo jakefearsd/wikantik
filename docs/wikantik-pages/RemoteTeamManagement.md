@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VFJWE2H578KHZHQV5K
 title: Remote Team Management
 type: article
 tags:

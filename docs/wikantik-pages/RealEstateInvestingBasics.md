@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44V730YRH3RYRYRR4C5J
 title: Real Estate Investing Basics
 type: article
 tags:

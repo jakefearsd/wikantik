@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PDAWX5FD9R0S7MHKSM
 title: Database Indexing Strategies
 type: article
 tags:

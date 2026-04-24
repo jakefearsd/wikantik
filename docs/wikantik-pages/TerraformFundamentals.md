@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XGNSFNP7EDMCTSFEBY
 title: Terraform Fundamentals
 type: article
 tags:

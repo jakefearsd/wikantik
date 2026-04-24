@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Z76TPQE2AYAB02YVQF
 title: Winter Preparedness
 type: article
 tags:

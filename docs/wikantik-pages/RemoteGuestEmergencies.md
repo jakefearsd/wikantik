@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VEKEJR24ZH3Q6ZG85F
 title: Remote Guest Emergencies
 type: article
 tags:

@@ -1,3 +1,6 @@
+---
+canonical_id: 01KQ0P44T2TZRAAMD0KV60ZEA7
+---
 # JSPWiki Development News
 
 A log of recent development activity on the JSPWiki project.
@@ -5,6 +8,132 @@ A log of recent development activity on the JSPWiki project.
 ---
 
 ## April 2026
+
+**2026-04-24** — test(rest): lift wikantik-rest unit coverage from 67.7% to 80.7%
+
+**2026-04-24** — fix(mcp): repair IT suite after MCP surface rename + GraphProjector retirement
+
+**2026-04-24** — refactor(mcp): dedupe MCP initializer bootstrap + arg helpers, log all caught exceptions
+
+**2026-04-24** — fix(knowledge): relatedPages populated from chunk_entity_mentions
+
+**2026-04-24** — fix(mcp): close /knowledge-mcp auth gap, unblock admin-mcp, raise rate limits
+
+**2026-04-24** — refactor(knowledge): extract buildRetrievedPage + split chunk shaping
+
+**2026-04-24** — chore(spec): mark cycle 6 complete — GraphProjector retired; redesign done
+
+**2026-04-24** — feat(db): V012 — purge links_to edges written by retired GraphProjector
+
+**2026-04-24** — docs(knowledge): drop stale GraphProjector references from javadoc/tests
+
+**2026-04-24** — chore(knowledge): delete FrontmatterRelationshipDetector (unused after GraphProjector retirement)
+
+**2026-04-24** — chore(knowledge): delete GraphProjector + its test
+
+**2026-04-24** — chore(admin): remove /admin/knowledge/project-all endpoint (GraphProjector retired)
+
+**2026-04-24** — refactor(knowledge): unwire GraphProjector from WikiEngine + factory
+
+**2026-04-24** — docs(plan): cycle 6 plan — GraphProjector retirement (final cycle)
+
+**2026-04-24** — chore(spec): mark cycle 5 complete — tool-server shape parity
+
+**2026-04-24** — feat(tools): OpenAPI schema — contributingChunks + relatedPages on SearchResult
+
+**2026-04-24** — feat(tools): search_wiki emits contributingChunks + relatedPages arrays
+
+**2026-04-24** — docs(plan): cycle 5 plan — tool-server shape parity with MCP
+
+**2026-04-24** — chore(spec): mark cycle 4 complete — admin-mcp rename + writes
+
+**2026-04-24** — chore(admin-mcp): delete 9 absorbed tools — capabilities moved to /knowledge-mcp
+
+**2026-04-24** — refactor(admin-mcp): register write_pages/update_page, drop absorbed tools
+
+**2026-04-24** — feat(admin-mcp): add update_page tool with optimistic locking
+
+**2026-04-24** — feat(admin-mcp): add write_pages batch-create tool
+
+**2026-04-24** — refactor(admin-mcp): move endpoint /mcp to /wikantik-admin-mcp
+
+**2026-04-24** — refactor(build): rename wikantik-mcp module to wikantik-admin-mcp
+
+**2026-04-24** — docs(plan): cycle 4 plan — admin-mcp rename + write tools
+
+**2026-04-24** — chore(spec): mark cycle 3 complete — KG tools on mention-based graph
+
+**2026-04-24** — feat(knowledge-mcp): wire MentionIndex into rebacked KG tools
+
+**2026-04-24** — feat(knowledge-mcp): discover_schema reports mention-coverage stats
+
+**2026-04-24** — feat(knowledge-mcp): traverse tool walks co-mention graph
+
+**2026-04-24** — feat(knowledge-mcp): filter query_nodes to mention-covered nodes
+
+**2026-04-24** — feat(knowledge-mcp): filter search_knowledge to mention-covered nodes
+
+**2026-04-24** — feat(knowledge): add traverseByCoMention to KnowledgeGraphService
+
+**2026-04-24** — feat(knowledge): add MentionIndex read-only utility
+
+**2026-04-24** — docs(plan): cycle 3 plan — reback KG tools onto mention-based graph
+
+**2026-04-24** — chore(spec): mark cycle 2 complete — /knowledge-mcp 4 new tools
+
+**2026-04-24** — feat(knowledge-mcp): register 4 new context tools alongside KG tools
+
+**2026-04-24** — feat(knowledge-mcp): add list_metadata_values tool
+
+**2026-04-24** — feat(knowledge-mcp): add list_pages tool
+
+**2026-04-24** — feat(knowledge-mcp): add get_page tool
+
+**2026-04-24** — feat(knowledge-mcp): add retrieve_context tool
+
+**2026-04-24** — docs(plan): cycle 2 plan — 4 new /knowledge-mcp tools
+
+**2026-04-24** — chore(spec): mark cycle 1 complete — ContextRetrievalService extracted
+
+**2026-04-24** — refactor(tools): route SearchWikiTool through ContextRetrievalService
+
+**2026-04-24** — refactor(rest): route /api/search through ContextRetrievalService
+
+**2026-04-24** — test(knowledge): e2e integration test over seeded postgres corpus
+
+**2026-04-24** — feat(knowledge): register ContextRetrievalService as engine manager
+
+**2026-04-24** — feat(knowledge): populate relatedPages via NodeMentionSimilarity
+
+**2026-04-24** — feat(knowledge): populate contributingChunks on retrieved pages
+
+**2026-04-24** — feat(knowledge): implement retrieve() — pages only (chunks/related pending)
+
+**2026-04-24** — feat(knowledge): implement ContextRetrievalService.listPages()
+
+**2026-04-24** — feat(knowledge): implement ContextRetrievalService.listMetadataValues()
+
+**2026-04-24** — fix(plan+test): RAT header on records test; patch plan for getAllPages
+
+**2026-04-24** — fix(knowledge-test): RAT headers, mock caching, lastModified assertion
+
+**2026-04-24** — feat(knowledge): implement ContextRetrievalService.getPage()
+
+**2026-04-24** — feat(knowledge): scaffold DefaultContextRetrievalService
+
+**2026-04-24** — feat(api): add ContextRetrievalService interface
+
+**2026-04-24** — feat(api): add RetrievedPage/RetrievalResult/PageList records
+
+**2026-04-24** — feat(api): add PageListFilter/ContextQuery records
+
+**2026-04-24** — feat(api): add RetrievedChunk/RelatedPage/MetadataValue records
+
+**2026-04-24** — docs(plan): cycle 1 implementation plan — ContextRetrievalService extraction
+
+**2026-04-24** — docs(plan): agent MCP surface redesign — RAG-first consumption MCP + admin split
+
+**2026-04-23** — docs(wiki): fill in RetrievalExperimentHarness with real data + full evolution
 
 **2026-04-23** — docs(wiki): capture April 2026 KG extractor benchmarks on wiki
 

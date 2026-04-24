@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44T76SSF84NC0RMXA6MJ
 title: Object Storage Patterns
 type: article
 tags:

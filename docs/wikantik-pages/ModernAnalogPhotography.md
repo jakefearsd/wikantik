@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SMF28CGQDFMVQ4BWCC
 title: Modern Analog Photography
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44M29WSBRXEMNK1B8GHW
 summary: Comprehensive overview of artificial intelligence covering history, core
   techniques, current capabilities, major applications, ethical considerations, and
   key research organizations

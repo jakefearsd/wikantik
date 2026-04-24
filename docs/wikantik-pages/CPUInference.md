@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MV6PQB6DVJ6NST7SZ7
 title: CPU Inference
 type: article
 tags:

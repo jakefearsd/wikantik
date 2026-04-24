@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VHN0YZJXBTF6AJ990M
 status: published
 summary: Complete guide to required minimum distributions from retirement accounts,
   including age thresholds, calculation methods, and strategies to minimize tax impact.

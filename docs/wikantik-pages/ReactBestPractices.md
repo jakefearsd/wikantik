@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44V5A9ED4Z63NRB01160
 title: React Best Practices
 type: article
 tags:

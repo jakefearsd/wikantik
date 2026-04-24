@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q86KC8BPPJWCPKWC89
 date: '2026-03-20'
 summary: 'How hobby woodworking transformed from 2000 to 2026: YouTube, the maker
   movement, new materials, and the digital workshop'

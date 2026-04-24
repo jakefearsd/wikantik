@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S6KQEYKR82HXSFMRHC
 title: Mail And Domicile For Nomads
 type: article
 tags:

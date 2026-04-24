@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44K394DBQFP5ZTRTSJ6F
 summary: Concrete workflow patterns for using AI as a force multiplier in coding,
   writing, research, and analysis tasks
 date: 2026-03-21T00:00:00Z

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QRVMWAZP5Q26EMZ1YB
 title: Graph Database Fundamentals
 type: article
 tags:

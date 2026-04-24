@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YXH9WR0JWF0A6EBVMV
 title: Wikantik Knowledge Graph Administration
 type: article
 tags: [knowledge-graph, administration, embeddings, ai, graph-management, operations]

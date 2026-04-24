@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MDQ4BCTSQKVYX1NBFR
 title: Batch Vs Streaming
 type: article
 tags:

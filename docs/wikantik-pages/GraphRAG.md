@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QS3AFFX90J5XXAABJA
 title: Graph RAG
 type: article
 tags:

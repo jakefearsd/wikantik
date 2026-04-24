@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XP9QHVDGG6JGHFM4P9
 date: '2026-03-20'
 summary: How 3D printers create jigs, fixtures, workholding, and custom hardware that
   make woodworking projects easier and more precise

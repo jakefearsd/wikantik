@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PEJG4KBKH84YFQP91Z
 title: DatabasePerformanceMonitoring Hub
 type: hub
 auto-generated: true

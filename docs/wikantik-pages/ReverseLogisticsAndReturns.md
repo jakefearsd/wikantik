@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VS0K9MZCWK3E90V49W
 title: Reverse Logistics And Returns
 type: article
 tags:

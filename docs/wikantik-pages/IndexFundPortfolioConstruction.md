@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R3MBX5A75FD4W19QZD
 summary: How to build a three-fund portfolio with total market, international, and
   bond index funds at the lowest possible cost
 date: 2026-03-21T00:00:00Z

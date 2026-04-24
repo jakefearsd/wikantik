@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44T0JVWEDFSZA26A0248
 title: Network Troubleshooting
 type: article
 tags:

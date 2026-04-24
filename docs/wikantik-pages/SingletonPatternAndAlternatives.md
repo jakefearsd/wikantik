@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WENQBW6AEKPWRJPSJY
 title: Singleton Pattern And Alternatives
 type: article
 tags:

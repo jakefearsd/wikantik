@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RJSE08WJSB88N3A2JV
 summary: Property graph over wiki content with PostgreSQL storage, frontmatter synchronization,
   MCP tools, and proposal-based AI enrichment
 tags:

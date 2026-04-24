@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RWQQ0MBSWJYKC4XHHE
 summary: The essential Linux commands every Windows convert needs — navigation, file
   operations, text processing, piping, and building command-line fluency
 date: 2026-03-14T00:00:00Z

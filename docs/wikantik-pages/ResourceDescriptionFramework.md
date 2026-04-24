@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VJHYHZGVJV9ECB4MDE
 title: Resource Description Framework
 type: article
 tags:

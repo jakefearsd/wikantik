@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TT1XDG7NR610YMJK18
 title: Production Local AI
 type: article
 tags:

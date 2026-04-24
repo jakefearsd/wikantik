@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VMBD2J4E6X7DR6KCAT
 summary: Building a reliable retirement paycheck from Social Security, portfolio withdrawals,
   and other sources using the bucket strategy and floor-and-upside approach
 date: 2026-03-14T00:00:00Z

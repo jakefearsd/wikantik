@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KR05W9831EAHEXK7JT
 title: Amortized Analysis
 type: article
 tags:

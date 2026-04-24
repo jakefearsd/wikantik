@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TMXMG38JEJ3FVWV5MZ
 title: Political Philosophy
 type: article
 tags:

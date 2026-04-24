@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KVK0P9WNA7FYH0KB1N
 title: Apache Spark Fundamentals
 type: article
 tags:

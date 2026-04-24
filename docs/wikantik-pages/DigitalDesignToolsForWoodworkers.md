@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PNSPVTZXWWHQJWK16B
 date: '2026-03-20'
 summary: 'CAD, CAM, and laser software for hobby woodworkers: Fusion 360, SketchUp,
   VCarve Pro, LightBurn, and the design-to-cut workflow'

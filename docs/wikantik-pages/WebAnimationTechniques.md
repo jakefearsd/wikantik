@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YQ071MM9ZXXPPVVYSH
 title: Web Animation Techniques
 type: article
 tags:

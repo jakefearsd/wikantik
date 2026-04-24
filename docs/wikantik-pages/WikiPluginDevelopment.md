@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Z46M6NDJJNCJVF2B8N
 title: Wiki Plugin Development
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Z1F8H7ESYENAWA29AW
 title: Wiki Internationalization
 type: article
 tags:

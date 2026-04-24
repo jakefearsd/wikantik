@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QJ5QH64QB4M0V4WW1Q
 title: Functional Analysis
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YW9ADY48DW70R82WYC
 summary: The concrete career and technical advantages of deep Linux knowledge for
   software professionals and technical workers
 date: 2026-03-21T00:00:00Z

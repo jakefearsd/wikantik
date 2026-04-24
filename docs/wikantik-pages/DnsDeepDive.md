@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PVGNG31V5A3E2K29Z6
 title: Dns Deep Dive
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MDVRTNQYZE0ZNZ6XR8
 title: Batch Processing Patterns
 type: article
 tags:

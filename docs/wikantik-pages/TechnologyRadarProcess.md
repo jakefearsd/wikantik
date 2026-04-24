@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XFTB6VYT1HESK0KM2X
 title: Technology Radar Process
 type: article
 tags:

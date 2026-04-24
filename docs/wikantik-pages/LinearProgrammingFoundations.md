@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RVA4EE6MNBP440SPXX
 summary: The mathematical foundations of linear programming — formulation, the simplex
   method, duality theory, and why LP remains the workhorse of optimization
 date: 2026-03-17T00:00:00Z

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q23RDM9CPE551MZB7M
 title: Efficient Market Hypothesis
 type: article
 tags:

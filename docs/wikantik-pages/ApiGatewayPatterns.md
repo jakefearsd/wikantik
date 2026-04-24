@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44KW2Y93WSPZVD1MEJ3R
 title: Api Gateway Patterns
 type: article
 tags:

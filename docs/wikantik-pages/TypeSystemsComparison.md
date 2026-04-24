@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y4NM7D1346Y1C6WXPE
 title: Type Systems Comparison
 type: article
 tags:

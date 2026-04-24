@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44JM4CGZ3BJ3V961PGP0
 title: Advanced Skill Patterns
 type: article
 tags:

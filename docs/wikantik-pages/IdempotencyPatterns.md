@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R08SSJA60M78QBEMVF
 title: Idempotency Patterns
 type: article
 tags:

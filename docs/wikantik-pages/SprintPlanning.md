@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WV09A6KGT92QM81GCX
 title: Sprint Planning
 type: article
 tags:

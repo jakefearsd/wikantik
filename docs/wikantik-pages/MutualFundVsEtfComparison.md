@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SWNCZJWDWS035GS77J
 title: Mutual Fund Vs Etf Comparison
 type: article
 tags:

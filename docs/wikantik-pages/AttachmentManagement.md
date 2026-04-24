@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44M4DND319VRMF10RT6Z
 summary: Drag-and-drop file attachment UI with server-side image processing and inline Markdown references
 tags:
 - development

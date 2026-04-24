@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NTYHK82ZD3ZEB7RMXG
 title: Concurrency Patterns
 type: article
 tags:

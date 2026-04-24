@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QA6NCWP8RHD6SXPJ2Y
 title: Factor Investing
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R9KG70GP7TP45YESDY
 title: Java Collections Framework
 type: article
 tags:

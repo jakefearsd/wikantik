@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YA6SXDV1B6AS4GZW7C
 title: Van Outdoor Living Gear
 type: article
 tags:

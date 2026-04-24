@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44RJAHVGMNSEMFWA09NY
 summary: Using the wiki's own knowledge graph to document and drive its development
 tags:
 - development

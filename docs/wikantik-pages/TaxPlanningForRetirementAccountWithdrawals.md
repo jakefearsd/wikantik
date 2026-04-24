@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XBC06Z0096B6M9H545
 date: 2026-03-15T00:00:00Z
 summary: Advanced strategies for minimizing lifetime taxes on retirement account withdrawals,
   including bracket management, Roth conversions, and coordination with Social Security.

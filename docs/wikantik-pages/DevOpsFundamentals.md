@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PKG4DMYKKQZX58NC8V
 title: Dev Ops Fundamentals
 type: article
 tags:

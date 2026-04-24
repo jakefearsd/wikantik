@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S78Y0376YC8SXRQRYV
 title: Market Cap Vs Equal Weight Indexing
 type: article
 tags:

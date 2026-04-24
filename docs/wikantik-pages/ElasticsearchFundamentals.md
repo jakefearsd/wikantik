@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q2FPJEVFC9PGMPG9D1
 title: Elasticsearch Fundamentals
 type: article
 tags:

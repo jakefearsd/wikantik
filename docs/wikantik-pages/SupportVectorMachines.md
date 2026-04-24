@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X4R9569FGRE7CAGA6Q
 title: Support Vector Machines
 type: article
 tags:

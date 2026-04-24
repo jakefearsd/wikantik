@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44WDXQQ688JC5KVCGWJD
 title: Simulation Modeling
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TH23YHWB07DBCVWGM7
 title: Performance Profiling
 type: article
 tags:

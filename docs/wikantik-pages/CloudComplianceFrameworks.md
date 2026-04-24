@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NB405YK1AM109H79XY
 title: Cloud Compliance Frameworks
 type: article
 tags:

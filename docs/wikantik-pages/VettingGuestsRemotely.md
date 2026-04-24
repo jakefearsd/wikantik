@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YG5Z9VM10Z4MYSE27T
 title: Vetting Guests Remotely
 type: article
 tags:

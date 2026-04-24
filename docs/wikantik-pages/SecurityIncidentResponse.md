@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44W6YX7JCXHMQ4VS3HK2
 title: Security Incident Response
 type: article
 tags:

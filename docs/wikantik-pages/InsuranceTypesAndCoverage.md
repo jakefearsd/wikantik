@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R608QCN8X6RJ7ZS264
 title: Insurance Types And Coverage
 type: article
 tags:

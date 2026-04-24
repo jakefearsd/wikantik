@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44M9SHV741609F4SF2W4
 title: Backpacking Guide
 type: article
 tags:

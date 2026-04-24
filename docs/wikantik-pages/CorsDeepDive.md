@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P1P00XJ2ZA3A81T8NM
 title: Cors Deep Dive
 type: article
 tags:

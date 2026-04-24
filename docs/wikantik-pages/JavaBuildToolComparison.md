@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R8QT4QJK1TE0F9ANV0
 title: Java Build Tool Comparison
 type: article
 tags:

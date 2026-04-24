@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QDMMZT8X4PEQ5MWZMT
 summary: How to file Form I-130 Petition for Alien Relative — the foundational step
   in every spousal green card case
 date: 2026-03-14T00:00:00Z

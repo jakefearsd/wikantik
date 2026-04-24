@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44ME63AX1ETEBW9GJXWW
 title: Behavioral Finance For Investors
 type: article
 tags:

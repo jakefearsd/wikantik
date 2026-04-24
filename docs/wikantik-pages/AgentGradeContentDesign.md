@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P60JSKT204TXF6BTNEDDE
 title: Agent-Grade Content Design
 cluster: wikantik-development
 type: design

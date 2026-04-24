@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P3QG0GRXF7RXJJ32GB
 type: article
 auto-generated: true
 title: Crisis Resilience Mental

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XED3VY3PK9EX77MHD9
 title: Technical Writing Guide
 type: article
 tags:

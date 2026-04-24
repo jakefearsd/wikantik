@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XSABYVBV8XD205J88V
 title: Tolerances Precision
 type: article
 tags:

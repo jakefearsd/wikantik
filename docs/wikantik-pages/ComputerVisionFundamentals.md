@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44NSVGZ41KK1TFWTPJF1
 title: Computer Vision Fundamentals
 type: article
 tags:

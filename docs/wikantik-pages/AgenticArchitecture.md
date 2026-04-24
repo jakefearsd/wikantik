@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44K0XHNR75XFQDN26ZM7
 title: Agentic Architecture
 type: article
 tags:

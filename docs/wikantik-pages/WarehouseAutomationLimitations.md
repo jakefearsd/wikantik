@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YK708FN5TTETMFCD0Q
 summary: Known limitations of warehouse automation — capital cost, inflexibility,
   exception handling, SKU constraints, workforce impact, and technology gaps
 date: 2026-03-18T00:00:00Z

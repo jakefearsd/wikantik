@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44W9ND8RXB81QG5QXDJ8
 title: Server Side Rendering
 type: article
 tags:

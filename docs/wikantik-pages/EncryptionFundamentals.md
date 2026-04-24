@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q5W7FDH80J66C8Z2HA
 title: Encryption Fundamentals
 type: article
 tags:

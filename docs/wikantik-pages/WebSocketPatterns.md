@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YTRFCC2JVBK5FR45A2
 title: Web Socket Patterns
 type: article
 tags:

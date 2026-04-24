@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TDGH7ZESM085FP6PV2
 type: article
 cluster: warehouse-automation
 status: active

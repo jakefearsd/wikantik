@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44M6BMN9DTEWMR5219RF
 summary: Automated Storage and Retrieval Systems (AS/RS) — fixed high-density storage
   technologies including unit-load cranes, mini-loads, carousels, and shuttle systems
 date: 2026-03-18T00:00:00Z

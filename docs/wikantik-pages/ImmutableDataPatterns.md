@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R2YVNG5ZFC804AGDZP
 title: Immutable Data Patterns
 type: article
 tags:

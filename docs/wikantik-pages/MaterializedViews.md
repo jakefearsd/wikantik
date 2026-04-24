@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S9SFH1M8438KT1J0KX
 title: Materialized Views
 type: article
 tags:

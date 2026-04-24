@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44T49SNAZ23S0H2SSVD9
 title: Normalization And Denormalization
 type: article
 tags:

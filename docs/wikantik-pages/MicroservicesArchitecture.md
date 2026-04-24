@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SHHCE2HC0KQZVRG8P3
 title: Microservices Architecture
 type: article
 tags:

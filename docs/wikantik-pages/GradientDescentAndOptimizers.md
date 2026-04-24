@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QQC7J7AABQKN1RTZB7
 title: Gradient Descent And Optimizers
 type: article
 tags:

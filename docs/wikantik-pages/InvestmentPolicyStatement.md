@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R84C0BFKGQHVJKYHSM
 title: Investment Policy Statement
 type: article
 tags:

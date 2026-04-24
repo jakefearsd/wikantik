@@ -1,3 +1,6 @@
+---
+canonical_id: 01KQ0P44MV8MQJJKARB37A01B2
+---
 
 
 /* Based on prism.js, default theme by Lea Verou ([http://primsjs.com]()) */ .prettify pre.prettyprint { border-radius:0 4px 4px 0; } .prettify pre.prettylines { border-radius: 4px 0 0 4px; color: #999; border-right: 1px solid #ddd; } .prettify pre { color: black; background: #f5f2f0; border:none; text-shadow: 0 1px white; line-height:1.5; font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace; } .prettify pre::-moz-selection, .prettify pre ::-moz-selection { text-shadow: none; background: #b3d4fc; } .prettify pre::selection, .prettify pre ::selection { text-shadow: none; background: #b3d4fc; } @media print { .prettify pre { text-shadow: none; } }

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R5THAGF1KDWFWKXSQ7
 title: Inherited Ira Rules
 type: article
 tags:

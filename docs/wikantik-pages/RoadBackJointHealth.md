@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VTAR2Y9G3ES1XH7JZR
 title: Road Back Joint Health
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R1DZ0X4FSY6XPSFVW2
 summary: Understanding the I-864 Affidavit of Support — income thresholds, what counts
   as income, joint sponsors, and what to do when you fall short
 date: 2026-03-14T00:00:00Z

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XZ1MMYBFK83P3XP3XK
 title: Travel Safety
 type: article
 tags:

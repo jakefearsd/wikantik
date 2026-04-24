@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S0VCJCX2466XARQMZ5
 title: Load Testing Strategies
 type: article
 tags:

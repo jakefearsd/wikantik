@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QWK49X5W95W09SRWY4
 title: Hidden Destinations
 type: article
 tags:

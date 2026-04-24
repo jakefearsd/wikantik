@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44R7DY757HTQ5K9Q09JF
 title: Invention Of Knowledge Graph
 type: article
 tags:

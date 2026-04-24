@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MWHCZ3AM0K65NP8AW8
 title: Calculating Your Fi Number
 type: article
 tags:

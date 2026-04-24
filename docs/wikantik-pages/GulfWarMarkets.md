@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QT1DWPZ1D0T04PXGCJ
 date: '2026-03-14'
 summary: How the Gulf War established the buy-the-invasion pattern and the oil-price
   transmission mechanism

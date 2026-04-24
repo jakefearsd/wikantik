@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Q1GRZAM50GV1CFTN7B
 title: Efficient Context
 type: article
 tags:

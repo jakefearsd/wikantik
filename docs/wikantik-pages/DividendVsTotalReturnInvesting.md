@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PTBPSQW013TXGRYECH
 title: Dividend Vs Total Return Investing
 type: article
 tags:

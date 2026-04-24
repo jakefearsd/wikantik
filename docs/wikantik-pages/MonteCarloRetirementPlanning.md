@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SRPADVP4CV9AZFQ47T
 summary: How Monte Carlo simulation stress-tests retirement spending strategies across
   thousands of possible futures
 date: '2026-03-15T00:00:00Z'

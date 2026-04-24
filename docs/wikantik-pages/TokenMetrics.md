@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XSQEYR9AKGYH7MSJVQ
 title: Token Metrics
 type: article
 tags:

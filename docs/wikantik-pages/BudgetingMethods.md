@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44MQBVGP308R5025Z953
 title: Budgeting Methods
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44P962TNREGKV1782DA8
 title: Data Pipeline Design
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44XTMXCTG6NHTPKXS5RR
 title: Tool Calling
 type: article
 tags:

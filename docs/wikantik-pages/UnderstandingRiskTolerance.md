@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Y6QD7XBVT4AW7HHXR4
 title: Understanding Risk Tolerance
 type: article
 tags: [investing, risk, psychology, portfolio-management, behavioral-finance]

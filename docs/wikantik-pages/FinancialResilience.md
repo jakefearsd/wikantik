@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QD77APRYM52QSQ1FT3
 title: Financial Resilience
 type: article
 tags:

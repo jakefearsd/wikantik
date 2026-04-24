@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44X92XJV6H1YAR4FRT8T
 date: 2026-03-15T01:00:00Z
 summary: How different retirement account types provide tax advantages through deductions,
   tax-deferred growth, and tax-free withdrawals, with strategies for maximizing lifetime

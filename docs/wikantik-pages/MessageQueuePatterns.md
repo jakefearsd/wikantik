@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44SEC29SY26WNQKAG9HM
 title: Message Queue Patterns
 type: article
 tags:

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TMJWB90E7JXC9HC3AN
 title: Plant Proteins
 type: article
 tags:

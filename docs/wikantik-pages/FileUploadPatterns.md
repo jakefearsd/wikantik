@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44QD0AQWD7SJQPX43XT1
 title: File Upload Patterns
 type: article
 tags:

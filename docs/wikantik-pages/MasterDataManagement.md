@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44S9XYAYZ5WF57AQ9EWM
 title: Master Data Management
 type: article
 tags:

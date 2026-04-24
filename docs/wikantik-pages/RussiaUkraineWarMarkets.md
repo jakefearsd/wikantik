@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44VZJES9W3V44BYJ9X06
 part-of:
 - ConflictsAndEquityMarkets
 - RussiaUkraineWarOverview

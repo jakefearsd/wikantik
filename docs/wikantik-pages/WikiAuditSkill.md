@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44YZAEVHTS0BB2KS9ZQX
 summary: Designed but not yet built skill for automated wiki content quality auditing
 tags:
 - development

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44TK0X1J24ZP9ETMJ7ZG
 title: Pki And Certificates
 type: article
 tags:

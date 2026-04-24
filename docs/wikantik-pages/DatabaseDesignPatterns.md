@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44PC07W68QW05BK3TNBF
 title: Database Design Patterns
 type: article
 tags:

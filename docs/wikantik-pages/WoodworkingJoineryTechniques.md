@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQ0P44Z9ETEZGEE0TRDTYXBX
 title: Woodworking Joinery Techniques
 type: article
 tags:

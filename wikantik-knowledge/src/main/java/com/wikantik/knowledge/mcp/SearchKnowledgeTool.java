@@ -21,6 +21,7 @@ package com.wikantik.knowledge.mcp;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
+import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -40,9 +41,16 @@ public class SearchKnowledgeTool implements McpTool {
     public static final String TOOL_NAME = "search_knowledge";
 
     private final KnowledgeGraphService service;
+    private final MentionIndex mentionIndex;
 
     public SearchKnowledgeTool( final KnowledgeGraphService service ) {
+        this( service, null );
+    }
+
+    public SearchKnowledgeTool( final KnowledgeGraphService service,
+                                 final MentionIndex mentionIndex ) {
         this.service = service;
+        this.mentionIndex = mentionIndex;
     }
 
     @Override
@@ -70,7 +78,9 @@ public class SearchKnowledgeTool implements McpTool {
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Full-text search across node names and properties. Bridges the gap " +
-                        "between 'I don't know the exact name' and the structured query tools." )
+                        "between 'I don't know the exact name' and the structured query tools." +
+                        " Results are filtered to nodes the entity extractor has actually found in wiki content;" +
+                        " nodes present only from legacy frontmatter/link projection are hidden." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "query" ), null, null, null ) )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
@@ -84,10 +94,22 @@ public class SearchKnowledgeTool implements McpTool {
             final int limit = McpToolUtils.getInt( arguments, "limit", 20 );
 
             final List< KgNode > nodes = service.searchKnowledge( query, provenanceFilter, limit );
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, Map.of( "results", nodes ) );
+            final List< KgNode > filtered = filterToMentioned( nodes );
+            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, Map.of( "results", filtered ) );
         } catch ( final Exception e ) {
             LOG.error( "Search knowledge failed for query: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
         }
+    }
+
+    private List< KgNode > filterToMentioned( final List< KgNode > nodes ) {
+        if ( mentionIndex == null ) return nodes;
+        final List< KgNode > out = new ArrayList<>( nodes.size() );
+        for ( final KgNode n : nodes ) {
+            if ( mentionIndex.isMentioned( n.id() ) ) {
+                out.add( n );
+            }
+        }
+        return out;
     }
 }

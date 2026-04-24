@@ -386,6 +386,8 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                 try {
                     outcome = f.get();
                 } catch( final InterruptedException ie ) {
+                    LOG.info( "Bootstrap extraction: interrupted while awaiting chunk outcome on page '{}': {}",
+                        page, ie.getMessage() );
                     Thread.currentThread().interrupt();
                     pageFailed = true;
                     lastError.set( "page=" + page + ": interrupted awaiting chunk" );
@@ -468,6 +470,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                 pool.shutdownNow();
             }
         } catch( final InterruptedException ie ) {
+            LOG.info( "{} shutdown wait interrupted — forcing shutdownNow: {}", label, ie.getMessage() );
             Thread.currentThread().interrupt();
             pool.shutdownNow();
         }

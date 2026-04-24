@@ -209,6 +209,8 @@ public final class ExtractionResponseParser {
         try {
             return e.getAsDouble();
         } catch( final NumberFormatException ex ) {
+            LOG.info( "Extraction payload had non-numeric '{}' for key '{}' — using default {}: {}",
+                e, key, def, ex.getMessage() );
             return def;
         }
     }

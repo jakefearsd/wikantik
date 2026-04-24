@@ -28,9 +28,11 @@ import com.wikantik.api.knowledge.Provenance;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -93,5 +95,36 @@ final class KnowledgeMcpUtils {
             result.add( Provenance.fromValue( v ) );
         }
         return result;
+    }
+
+    /** Coerces any non-null value to its {@link Object#toString()}; returns {@code null} for null input. */
+    static String asString( final Object o ) {
+        return o == null ? null : o.toString();
+    }
+
+    /**
+     * Coerces a JSON array value (as an {@link Object}) to a list of non-null strings.
+     * Returns {@code null} if the value is absent or not a list, matching the filter
+     * "unset" semantics downstream.
+     */
+    @SuppressWarnings( "unchecked" )
+    static List< String > asStringList( final Object o ) {
+        if ( !( o instanceof List< ? > ) ) return null;
+        return ( (List< Object >) o ).stream().filter( Objects::nonNull )
+            .map( Object::toString ).toList();
+    }
+
+    /**
+     * Parses an ISO-8601 instant from a JSON string value. Returns {@code null}
+     * when the argument is absent, a non-string, or a blank string. Throws
+     * {@link IllegalArgumentException} for non-blank strings that fail to parse.
+     */
+    static Instant asInstant( final Object o ) {
+        if ( !( o instanceof String ) || ( (String) o ).isBlank() ) return null;
+        try {
+            return Instant.parse( (String) o );
+        } catch ( final DateTimeParseException e ) {
+            throw new IllegalArgumentException( "Invalid ISO-8601 instant: " + o );
+        }
     }
 }

@@ -111,4 +111,55 @@ class UpdatePageToolTest {
         assertTrue( text.contains( "\"updated\":false" ) );
         assertTrue( text.contains( "not found" ) );
     }
+
+    @Test
+    void execute_returnsErrorOnBlankPageName() {
+        final UpdatePageTool tool = new UpdatePageTool(
+            mock( PageSaveHelper.class ), mock( PageManager.class ) );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pageName", "",
+            "content", "body",
+            "expectedContentHash", "h" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "pageName must not be blank" ) );
+    }
+
+    @Test
+    void execute_returnsErrorOnMissingContent() {
+        final UpdatePageTool tool = new UpdatePageTool(
+            mock( PageSaveHelper.class ), mock( PageManager.class ) );
+        final java.util.Map< String, Object > args = new java.util.HashMap<>();
+        args.put( "pageName", "P" );
+        args.put( "expectedContentHash", "h" );
+        // content intentionally absent
+        final McpSchema.CallToolResult result = tool.execute( args );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "content must not be null" ) );
+    }
+
+    @Test
+    void execute_returnsErrorOnBlankHash() {
+        final UpdatePageTool tool = new UpdatePageTool(
+            mock( PageSaveHelper.class ), mock( PageManager.class ) );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pageName", "P",
+            "content", "body",
+            "expectedContentHash", "" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "expectedContentHash required" ) );
+    }
+
+    @Test
+    void execute_returnsErrorOnRuntimeExceptionFromPageManager() {
+        final PageManager pm = mock( PageManager.class );
+        when( pm.getPage( anyString() ) ).thenThrow( new RuntimeException( "DB offline" ) );
+        final UpdatePageTool tool = new UpdatePageTool(
+            mock( PageSaveHelper.class ), pm );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pageName", "P",
+            "content", "body",
+            "expectedContentHash", "h" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "DB offline" ) );
+    }
 }

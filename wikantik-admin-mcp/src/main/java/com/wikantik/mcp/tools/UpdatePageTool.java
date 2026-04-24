@@ -36,25 +36,17 @@ import java.util.Map;
  * {@code expectedContentHash}. On hash mismatch, returns {updated:false,
  * error:"hash mismatch", currentHash} so the agent can re-fetch and retry.
  */
-public class UpdatePageTool implements McpTool, AuthorConfigurable {
+public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
 
     private static final Logger LOG = LogManager.getLogger( UpdatePageTool.class );
     public static final String TOOL_NAME = "update_page";
 
     private final PageSaveHelper saveHelper;
     private final PageManager pageManager;
-    private String defaultAuthor = "mcp-agent";
 
     public UpdatePageTool( final PageSaveHelper saveHelper, final PageManager pageManager ) {
         this.saveHelper = saveHelper;
         this.pageManager = pageManager;
-    }
-
-    @Override
-    public void setDefaultAuthor( final String author ) {
-        if ( author != null && !author.isBlank() ) {
-            this.defaultAuthor = author;
-        }
     }
 
     @Override

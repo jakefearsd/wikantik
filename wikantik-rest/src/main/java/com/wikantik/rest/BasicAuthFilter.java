@@ -161,6 +161,7 @@ public class BasicAuthFilter implements Filter {
             if ( colon < 0 ) return new String[] { "", "" };
             return new String[] { raw.substring( 0, colon ), raw.substring( colon + 1 ) };
         } catch ( final IllegalArgumentException e ) {
+            LOG.info( "Rejecting Basic auth header — base64 decode failed: {}", e.getMessage() );
             return null;
         }
     }

@@ -391,6 +391,8 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
                 executor.shutdownNow();
             }
         } catch( final InterruptedException ie ) {
+            LOG.info( "Interrupted while awaiting entity-extraction executor shutdown — forcing shutdownNow: {}",
+                    ie.getMessage() );
             Thread.currentThread().interrupt();
             executor.shutdownNow();
         }

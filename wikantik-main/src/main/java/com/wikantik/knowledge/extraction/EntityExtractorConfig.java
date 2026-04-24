@@ -18,6 +18,9 @@
  */
 package com.wikantik.knowledge.extraction;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.Properties;
 
 /**
@@ -46,6 +49,8 @@ public record EntityExtractorConfig(
     long perPageMinIntervalMs,
     int concurrency
 ) {
+
+    private static final Logger LOG = LogManager.getLogger( EntityExtractorConfig.class );
 
     public static final String BACKEND_DISABLED = "disabled";
     public static final String BACKEND_CLAUDE = "claude";
@@ -97,6 +102,8 @@ public record EntityExtractorConfig(
         try {
             return Long.parseLong( v.trim() );
         } catch( final NumberFormatException e ) {
+            LOG.info( "Ignoring non-numeric value '{}' for property {}{} — using default {}: {}",
+                v, PREFIX, suffix, def, e.getMessage() );
             return def;
         }
     }
@@ -113,6 +120,8 @@ public record EntityExtractorConfig(
         try {
             return Double.parseDouble( v.trim() );
         } catch( final NumberFormatException e ) {
+            LOG.info( "Ignoring non-numeric value '{}' for property {}{} — using default {}: {}",
+                v, PREFIX, suffix, def, e.getMessage() );
             return def;
         }
     }

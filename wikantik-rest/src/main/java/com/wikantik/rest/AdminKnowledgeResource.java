@@ -760,6 +760,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         try {
             return UUID.fromString( str );
         } catch ( final IllegalArgumentException e ) {
+            LOG.info( "Rejecting request with malformed UUID '{}': {}", str, e.getMessage() );
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid UUID: " + str );
             return null;
         }
@@ -905,6 +906,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         try {
             id = Integer.parseInt( segments[1] );
         } catch ( final NumberFormatException e ) {
+            LOG.info( "Rejecting hub-proposal request with non-numeric ID '{}': {}", segments[1], e.getMessage() );
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid proposal ID" );
             return;
         }

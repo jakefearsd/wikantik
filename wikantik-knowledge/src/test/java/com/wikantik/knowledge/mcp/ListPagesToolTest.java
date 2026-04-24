@@ -101,4 +101,24 @@ class ListPagesToolTest {
         assertNull( captor.getValue().cluster() );
         assertEquals( 50, captor.getValue().limit() );
     }
+
+    @Test
+    void execute_returnsErrorOnRuntimeExceptionFromService() {
+        final ContextRetrievalService svc = mock( ContextRetrievalService.class );
+        when( svc.listPages( any( PageListFilter.class ) ) )
+            .thenThrow( new RuntimeException( "DB offline" ) );
+
+        final McpSchema.CallToolResult result = new ListPagesTool( svc ).execute( Map.of() );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "DB offline" ) );
+    }
+
+    @Test
+    void execute_rejectsInvalidIsoInstantFilter() {
+        final ContextRetrievalService svc = mock( ContextRetrievalService.class );
+        final McpSchema.CallToolResult result = new ListPagesTool( svc ).execute( Map.of(
+            "modifiedAfter", "garbage-date" ) );
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.toLowerCase().contains( "invalid iso-8601 instant" ) );
+    }
 }

@@ -22,6 +22,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.RetrievalResult;
+import com.wikantik.api.knowledge.RelatedPage;
 import com.wikantik.api.knowledge.RetrievedChunk;
 import com.wikantik.api.knowledge.RetrievedPage;
 
@@ -96,14 +97,37 @@ class SearchWikiTool {
             if ( !p.summary().isEmpty() ) entry.put( "summary", p.summary() );
             if ( !p.tags().isEmpty() ) entry.put( "tags", p.tags() );
             if ( p.cluster() != null ) entry.put( "cluster", p.cluster() );
-            // Snippet from top contributing chunk.
             if ( !p.contributingChunks().isEmpty() ) {
+                // Rich array for new consumers — matches MCP retrieve_context shape.
+                final List< Map< String, Object > > chunksOut = new ArrayList<>( p.contributingChunks().size() );
+                for ( final RetrievedChunk c : p.contributingChunks() ) {
+                    final Map< String, Object > chunkEntry = ResultShaper.orderedMap();
+                    chunkEntry.put( "headingPath", c.headingPath() );
+                    chunkEntry.put( "text", c.text() );
+                    chunkEntry.put( "chunkScore", c.chunkScore() );
+                    chunksOut.add( chunkEntry );
+                }
+                entry.put( "contributingChunks", chunksOut );
+
+                // Back-compat: single snippet from the top chunk, truncated to 320 chars.
                 final RetrievedChunk c0 = p.contributingChunks().get( 0 );
                 final String snippet = c0.text().length() > 320
                     ? c0.text().substring( 0, 320 ) + "…"
                     : c0.text();
                 entry.put( "snippet", snippet );
             }
+
+            if ( !p.relatedPages().isEmpty() ) {
+                final List< Map< String, Object > > relatedOut = new ArrayList<>( p.relatedPages().size() );
+                for ( final RelatedPage r : p.relatedPages() ) {
+                    final Map< String, Object > rEntry = ResultShaper.orderedMap();
+                    rEntry.put( "name", r.name() );
+                    rEntry.put( "reason", r.reason() );
+                    relatedOut.add( rEntry );
+                }
+                entry.put( "relatedPages", relatedOut );
+            }
+
             if ( p.lastModified() != null ) {
                 entry.put( "lastModified", p.lastModified().toInstant().toString() );
             }

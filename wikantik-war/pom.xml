@@ -40,7 +40,7 @@
 
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>wikantik-mcp</artifactId>
+            <artifactId>wikantik-admin-mcp</artifactId>
             <version>${project.version}</version>
         </dependency>
 

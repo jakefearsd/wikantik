@@ -23,6 +23,14 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.api.core.Session;
+import com.wikantik.api.spi.SessionSPI;
+import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.UserManager;
+import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.user.UserDatabase;
+import com.wikantik.auth.user.UserProfile;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,15 +39,19 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.security.Principal;
+import java.util.Date;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 
 class AuthResourceTest {
 
@@ -366,4 +378,196 @@ class AuthResourceTest {
         return sw.toString();
     }
 
+    // ----- Additional authenticated-path coverage (mocked session) -----
+
+    private static Session authedSession( final String login ) {
+        final Session s = Mockito.mock( Session.class );
+        Mockito.when( s.isAuthenticated() ).thenReturn( true );
+        final Principal p = Mockito.mock( Principal.class );
+        Mockito.when( p.getName() ).thenReturn( login );
+        Mockito.when( s.getUserPrincipal() ).thenReturn( p );
+        Mockito.when( s.getLoginPrincipal() ).thenReturn( p );
+        Mockito.when( s.getRoles() ).thenReturn( new Principal[]{ p } );
+        return s;
+    }
+
+    private static MockedStatic< Wiki > stubWikiSession( final Session session ) {
+        final MockedStatic< Wiki > wiki = Mockito.mockStatic( Wiki.class, Mockito.CALLS_REAL_METHODS );
+        final SessionSPI spi = Mockito.mock( SessionSPI.class );
+        Mockito.when( spi.find( any(), any() ) ).thenReturn( session );
+        wiki.when( Wiki::session ).thenReturn( spi );
+        return wiki;
+    }
+
+    private static UserProfile profileFor( final String login, final String email ) {
+        final UserProfile p = Mockito.mock( UserProfile.class );
+        Mockito.when( p.getLoginName() ).thenReturn( login );
+        Mockito.when( p.getFullname() ).thenReturn( "Full " + login );
+        Mockito.when( p.getEmail() ).thenReturn( email );
+        Mockito.when( p.getBio() ).thenReturn( "bio" );
+        Mockito.when( p.getWikiName() ).thenReturn( login );
+        Mockito.when( p.getCreated() ).thenReturn( new Date( 1_700_000_000_000L ) );
+        Mockito.when( p.getLastModified() ).thenReturn( new Date( 1_700_000_100_000L ) );
+        return p;
+    }
+
+    @Test
+    void handleGetUser_authenticatedReturnsPrincipalAndRoles() throws Exception {
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            final JsonObject obj = gson.fromJson( doGetUser(), JsonObject.class );
+            assertTrue( obj.get( "authenticated" ).getAsBoolean() );
+            assertEquals( "alice", obj.get( "username" ).getAsString() );
+            assertTrue( obj.has( "roles" ) );
+        }
+    }
+
+    @Test
+    void handleGetProfile_returnsProfileWhenFound() throws Exception {
+        final UserProfile profile = profileFor( "alice", "alice@x.com" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            final JsonObject obj = gson.fromJson( doGet( "profile" ), JsonObject.class );
+            assertEquals( "alice", obj.get( "loginName" ).getAsString() );
+            assertEquals( "alice@x.com", obj.get( "email" ).getAsString() );
+        }
+    }
+
+    @Test
+    void handleGetProfile_returns404WhenPrincipalNotFound() throws Exception {
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "ghost" ) ).thenThrow( new NoSuchPrincipalException( "no" ) );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "ghost" ) ) ) {
+            final JsonObject obj = gson.fromJson( doGet( "profile" ), JsonObject.class );
+            assertEquals( 404, obj.get( "status" ).getAsInt() );
+        }
+    }
+
+    @Test
+    void handleUpdateProfile_savesFullNameAndEmailAndBio() throws Exception {
+        final UserProfile profile = profileFor( "alice", "alice@x.com" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "fullName", "Alice Smith" );
+        body.addProperty( "email", "alice.smith@x.com" );
+        body.addProperty( "bio", "engineer" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            doPut( "profile", body );
+        }
+        Mockito.verify( profile ).setFullname( "Alice Smith" );
+        Mockito.verify( profile ).setEmail( "alice.smith@x.com" );
+        Mockito.verify( profile ).setBio( "engineer" );
+        Mockito.verify( db ).save( profile );
+    }
+
+    @Test
+    void handleUpdateProfile_rejectsBioOver1000Chars() throws Exception {
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "bio", "x".repeat( 1001 ) );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            final JsonObject obj = gson.fromJson( doPut( "profile", body ), JsonObject.class );
+            assertEquals( 400, obj.get( "status" ).getAsInt() );
+        }
+        Mockito.verify( db, Mockito.never() ).save( any() );
+    }
+
+    @Test
+    void handleUpdateProfile_rejectsPasswordChangeWithoutCurrent() throws Exception {
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "newPassword", "Str0ng!Pass#123" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            final JsonObject obj = gson.fromJson( doPut( "profile", body ), JsonObject.class );
+            assertEquals( 400, obj.get( "status" ).getAsInt() );
+        }
+    }
+
+    @Test
+    void handleUpdateProfile_rejectsPasswordChangeWithWrongCurrent() throws Exception {
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        Mockito.when( db.validatePassword( "alice", "bad" ) ).thenReturn( false );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "newPassword", "Str0ng!Pass#123" );
+        body.addProperty( "currentPassword", "bad" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            final JsonObject obj = gson.fromJson( doPut( "profile", body ), JsonObject.class );
+            assertEquals( 403, obj.get( "status" ).getAsInt() );
+        }
+    }
+
+    @Test
+    void handleUpdateProfile_rejectsWeakNewPassword() throws Exception {
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        Mockito.when( db.validatePassword( "alice", "ok" ) ).thenReturn( true );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "newPassword", "123" );
+        body.addProperty( "currentPassword", "ok" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            final JsonObject obj = gson.fromJson( doPut( "profile", body ), JsonObject.class );
+            assertEquals( 400, obj.get( "status" ).getAsInt() );
+        }
+        Mockito.verify( db, Mockito.never() ).save( any() );
+    }
+
+    @Test
+    void handleUpdateProfile_surfacesWikiSecurityExceptionAs500() throws Exception {
+        final UserProfile profile = profileFor( "alice", "a@x" );
+        final UserManager um = Mockito.mock( UserManager.class );
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        Mockito.when( db.findByLoginName( "alice" ) ).thenReturn( profile );
+        Mockito.doThrow( new WikiSecurityException( "db down" ) ).when( db ).save( any() );
+        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, um );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "fullName", "Alice" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "alice" ) ) ) {
+            final JsonObject obj = gson.fromJson( doPut( "profile", body ), JsonObject.class );
+            assertEquals( 500, obj.get( "status" ).getAsInt() );
+        }
+    }
 }

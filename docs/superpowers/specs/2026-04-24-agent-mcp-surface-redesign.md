@@ -524,7 +524,7 @@ wikantik-tools/
 
 Each cycle is a self-contained spec → plan → implementation unit.
 
-1. **Cycle 1 — `ContextRetrievalService` extraction.** Interface + records
+1. **Cycle 1 — `ContextRetrievalService` extraction. ✓** Interface + records
    in `wikantik-api`. `DefaultContextRetrievalService` in
    `wikantik-knowledge`. Refactor `SearchResource` and `SearchWikiTool`
    to call the service (no wire-level changes yet). Unit + integration

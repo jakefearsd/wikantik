@@ -530,7 +530,7 @@ Each cycle is a self-contained spec → plan → implementation unit.
    to call the service (no wire-level changes yet). Unit + integration
    tests lock the contract.
 
-2. **Cycle 2 — new `/knowledge-mcp` tools.** `retrieve_context`,
+2. **Cycle 2 — new `/knowledge-mcp` tools. ✓** `retrieve_context`,
    `get_page`, `list_pages`, `list_metadata_values` registered in
    `KnowledgeMcpInitializer` alongside the existing 6 KG tools. Both
    the old page tools in `wikantik-mcp` and the new ones in

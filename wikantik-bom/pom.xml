@@ -140,6 +140,13 @@
         <artifactId>wikantik-wikipages-ru</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
+
+      <!-- Canonical page IDs (ULIDs) -->
+      <dependency>
+        <groupId>com.github.f4b6a3</groupId>
+        <artifactId>ulid-creator</artifactId>
+        <version>5.2.3</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 </project>

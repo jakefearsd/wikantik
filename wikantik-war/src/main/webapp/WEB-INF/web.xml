@@ -328,6 +328,10 @@
        <servlet-class>com.wikantik.rest.BacklinksResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>StructureResource</servlet-name>
+       <servlet-class>com.wikantik.rest.StructureResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>KnowledgeGraphResource</servlet-name>
        <servlet-class>com.wikantik.rest.KnowledgeGraphResource</servlet-class>
    </servlet>
@@ -476,6 +480,10 @@
    <servlet-mapping>
        <servlet-name>BacklinksResource</servlet-name>
        <url-pattern>/api/backlinks/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>StructureResource</servlet-name>
+       <url-pattern>/api/structure/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>KnowledgeGraphResource</servlet-name>

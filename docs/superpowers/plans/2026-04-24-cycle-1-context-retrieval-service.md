@@ -1340,9 +1340,16 @@ Replace the method body in `DefaultContextRetrievalService.java`:
     @Override
     public List< MetadataValue > listMetadataValues( final String field ) {
         if ( field == null || field.isBlank() ) return List.of();
+        final Collection< Page > allPages;
+        try {
+            allPages = pageManager.getAllPages();
+        } catch ( final ProviderException e ) {
+            LOG.warn( "getAllPages failed: {}", e.getMessage(), e );
+            return List.of();
+        }
         final Map< String, Integer > counts = new LinkedHashMap<>();
-        for ( final String pageName : pageManager.getAllPages() ) {
-            final String text = pageManager.getPureText( pageName, PageProvider.LATEST_VERSION );
+        for ( final Page page : allPages ) {
+            final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
             if ( text == null ) continue;
             final ParsedPage parsed = FrontmatterParser.parse( text );
             final Object raw = parsed.metadata().get( field );
@@ -1362,11 +1369,22 @@ Replace the method body in `DefaultContextRetrievalService.java`:
     }
 ```
 
-Add import:
+Add imports (plus a class-level LOG if not already added in earlier tasks):
 
 ```java
+import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.ProviderException;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.Map;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+// Add as a static field at the top of the class body if not already present:
+private static final Logger LOG = LogManager.getLogger( DefaultContextRetrievalService.class );
 ```
+
+**Note:** `PageManager.getAllPages()` returns `Collection< Page >` (not `Collection< String >`) and throws `ProviderException`. The implementation iterates `Page` objects and calls `page.getName()` where needed.
 
 - [ ] **Step 4: Run test to verify pass**
 
@@ -1455,11 +1473,18 @@ Replace the method body in `DefaultContextRetrievalService.java`:
     public PageList listPages( final PageListFilter filter ) {
         final PageListFilter f = filter == null ? PageListFilter.unfiltered() : filter;
 
+        final Collection< Page > allPages;
+        try {
+            allPages = pageManager.getAllPages();
+        } catch ( final ProviderException e ) {
+            LOG.warn( "getAllPages failed: {}", e.getMessage(), e );
+            return new PageList( List.of(), 0, f.limit(), f.offset() );
+        }
+
         final List< RetrievedPage > matched = new ArrayList<>();
-        for ( final String pageName : pageManager.getAllPages() ) {
-            final Page page = pageManager.getPage( pageName );
+        for ( final Page page : allPages ) {
             if ( page == null ) continue;
-            final String text = pageManager.getPureText( pageName, PageProvider.LATEST_VERSION );
+            final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
             final ParsedPage parsed = FrontmatterParser.parse( text == null ? "" : text );
             if ( !matchesFilter( page, parsed, f ) ) continue;
             matched.add( new RetrievedPage(

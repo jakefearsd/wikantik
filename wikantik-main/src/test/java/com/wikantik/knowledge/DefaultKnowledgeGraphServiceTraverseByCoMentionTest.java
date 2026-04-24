@@ -1,0 +1,108 @@
+/*
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+ */
+package com.wikantik.knowledge;
+
+import com.wikantik.PostgresTestContainer;
+import com.wikantik.api.knowledge.Provenance;
+import com.wikantik.api.knowledge.TraversalResult;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.util.Map;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@Testcontainers( disabledWithoutDocker = true )
+class DefaultKnowledgeGraphServiceTraverseByCoMentionTest {
+
+    private static DataSource dataSource;
+    private DefaultKnowledgeGraphService service;
+
+    @BeforeAll
+    static void initDs() {
+        dataSource = PostgresTestContainer.createDataSource();
+    }
+
+    @BeforeEach
+    void setUp() {
+        service = new DefaultKnowledgeGraphService(
+            new JdbcKnowledgeRepository( dataSource ),
+            null,
+            new MentionIndex( dataSource ) );
+    }
+
+    @AfterEach
+    void cleanUp() throws Exception {
+        try ( final Connection c = dataSource.getConnection() ) {
+            c.createStatement().execute( "DELETE FROM chunk_entity_mentions" );
+            c.createStatement().execute( "DELETE FROM kg_content_chunks" );
+            c.createStatement().execute( "DELETE FROM kg_edges" );
+            c.createStatement().execute( "DELETE FROM kg_nodes" );
+        }
+    }
+
+    @Test
+    void traverseByCoMention_bfsFromStartNode() throws Exception {
+        final UUID alpha = service.upsertNode( "Alpha", "t", null,
+            Provenance.HUMAN_AUTHORED, Map.of() ).id();
+        final UUID beta  = service.upsertNode( "Beta", "t", null,
+            Provenance.HUMAN_AUTHORED, Map.of() ).id();
+        final UUID gamma = service.upsertNode( "Gamma", "t", null,
+            Provenance.HUMAN_AUTHORED, Map.of() ).id();
+        final UUID c1 = UUID.randomUUID();
+        final UUID c2 = UUID.randomUUID();
+        try ( final Connection c = dataSource.getConnection() ) {
+            c.createStatement().execute(
+                "INSERT INTO kg_content_chunks (id, page_name, chunk_index, heading_path, text, "
+              + "char_count, token_count_estimate, content_hash) VALUES "
+              + "('" + c1 + "', 'P', 0, ARRAY['H'], 'x', 1, 1, 'h1'), "
+              + "('" + c2 + "', 'P', 1, ARRAY['H'], 'x', 1, 1, 'h2')" );
+            c.createStatement().execute(
+                "INSERT INTO chunk_entity_mentions (chunk_id, node_id, confidence, extractor, extracted_at) VALUES "
+              + "('" + c1 + "', '" + alpha + "', 0.9, 't', NOW()), "
+              + "('" + c1 + "', '" + beta  + "', 0.9, 't', NOW()), "
+              + "('" + c2 + "', '" + alpha + "', 0.9, 't', NOW()), "
+              + "('" + c2 + "', '" + gamma + "', 0.9, 't', NOW())" );
+        }
+
+        final TraversalResult res = service.traverseByCoMention( "Alpha", 1, 1 );
+        assertEquals( 3, res.nodes().size() );
+        assertFalse( res.edges().isEmpty() );
+        assertTrue( res.edges().stream().allMatch(
+            e -> "co-mentions".equals( e.relationshipType() ) ) );
+    }
+
+    @Test
+    void traverseByCoMention_returnsEmptyWhenStartMissing() {
+        assertEquals( 0, service.traverseByCoMention( "Nonexistent", 2, 1 ).nodes().size() );
+    }
+
+    @Test
+    void traverseByCoMention_returnsEmptyWithoutMentionIndex() {
+        final DefaultKnowledgeGraphService noIdx = new DefaultKnowledgeGraphService(
+            new JdbcKnowledgeRepository( dataSource ), null, null );
+        assertTrue( noIdx.traverseByCoMention( "whatever", 1, 1 ).nodes().isEmpty() );
+    }
+}

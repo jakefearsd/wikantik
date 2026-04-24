@@ -49,18 +49,26 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     private final JdbcKnowledgeRepository repo;
     private Engine engine;
+    private final MentionIndex mentionIndex;
 
     private volatile GraphSnapshot cachedSnapshot;
     private volatile Instant cacheTimestamp;
     private static final long CACHE_TTL_SECONDS = 60;
 
     public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo ) {
-        this( repo, null );
+        this( repo, null, null );
     }
 
     public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo, final Engine engine ) {
+        this( repo, engine, null );
+    }
+
+    public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo,
+                                          final Engine engine,
+                                          final MentionIndex mentionIndex ) {
         this.repo = repo;
         this.engine = engine;
+        this.mentionIndex = mentionIndex;
     }
 
     public void setEngine( final Engine engine ) {
@@ -267,6 +275,63 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                 if( !visited.containsKey( neighborId ) ) {
                     final KgNode neighbor = repo.getNode( neighborId );
                     if( neighbor != null ) {
+                        visited.put( neighborId, neighbor );
+                        queue.add( neighborId );
+                        depthMap.put( neighborId, currentDepth + 1 );
+                    }
+                }
+            }
+        }
+
+        return new TraversalResult( new ArrayList<>( visited.values() ), collectedEdges );
+    }
+
+    @Override
+    public TraversalResult traverseByCoMention( final String startNodeName,
+                                                 final int maxDepth,
+                                                 final int minSharedChunks ) {
+        if ( mentionIndex == null ) {
+            LOG.warn( "traverseByCoMention called but MentionIndex is not configured" );
+            return new TraversalResult( List.of(), List.of() );
+        }
+        final KgNode startNode = repo.getNodeByName( startNodeName );
+        if ( startNode == null ) {
+            return new TraversalResult( List.of(), List.of() );
+        }
+        final int effectiveMin = Math.max( 1, minSharedChunks );
+
+        final Map< UUID, KgNode > visited = new LinkedHashMap<>();
+        final List< KgEdge > collectedEdges = new ArrayList<>();
+        final Queue< UUID > queue = new ArrayDeque<>();
+        final Map< UUID, Integer > depthMap = new HashMap<>();
+
+        visited.put( startNode.id(), startNode );
+        queue.add( startNode.id() );
+        depthMap.put( startNode.id(), 0 );
+
+        while ( !queue.isEmpty() ) {
+            final UUID currentId = queue.poll();
+            final int currentDepth = depthMap.get( currentId );
+            if ( currentDepth >= maxDepth ) continue;
+
+            final Map< UUID, Integer > neighbors = mentionIndex.getCoMentionCounts( currentId );
+            for ( final Map.Entry< UUID, Integer > e : neighbors.entrySet() ) {
+                if ( e.getValue() < effectiveMin ) continue;
+                final UUID neighborId = e.getKey();
+                final int shared = e.getValue();
+
+                collectedEdges.add( new KgEdge(
+                    UUID.randomUUID(),
+                    currentId, neighborId,
+                    "co-mentions",
+                    Provenance.AI_INFERRED,
+                    Map.of( "sharedChunks", shared ),
+                    Instant.now(),
+                    Instant.now() ) );
+
+                if ( !visited.containsKey( neighborId ) ) {
+                    final KgNode neighbor = repo.getNode( neighborId );
+                    if ( neighbor != null ) {
                         visited.put( neighborId, neighbor );
                         queue.add( neighborId );
                         depthMap.put( neighborId, currentDepth + 1 );

@@ -59,6 +59,25 @@ public interface KnowledgeGraphService {
                               Set< String > relationshipTypes, int maxDepth,
                               Set< Provenance > provenanceFilter );
 
+    /**
+     * Traverse the co-mention graph: starting from the named node, walk
+     * through nodes that share at least {@code minSharedChunks} chunks with
+     * the current frontier, up to {@code maxDepth} hops. Returns every
+     * visited node plus synthetic "co-mention" edges with the shared-chunk
+     * count as a property on each edge.
+     *
+     * <p>Replaces {@link #traverse} for agent-facing MCP use when the
+     * co-mention graph (from {@code chunk_entity_mentions}) is the
+     * authoritative relationship source. {@code traverse} remains for
+     * admin UI / REST paths that need the full {@code kg_edges} view.</p>
+     *
+     * @param startNodeName   name of the seed node
+     * @param maxDepth        BFS depth limit (1 = direct co-mentions only)
+     * @param minSharedChunks minimum count of shared chunks required to follow
+     *                        an edge (lower bound 1)
+     */
+    TraversalResult traverseByCoMention( String startNodeName, int maxDepth, int minSharedChunks );
+
     // --- Search ---
 
     List< KgNode > searchKnowledge( String query, Set< Provenance > provenanceFilter, int limit );

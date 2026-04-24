@@ -59,13 +59,8 @@ class McpToolRegistryTest {
                 .map( McpTool::name )
                 .collect( Collectors.toSet() );
 
-        // Wiki intelligence tools
-        assertTrue( names.contains( "read_page" ), "should contain read_page" );
-        assertTrue( names.contains( "search_pages" ), "should contain search_pages" );
-        assertTrue( names.contains( "list_pages" ), "should contain list_pages" );
+        // Wiki management tools
         assertTrue( names.contains( "get_backlinks" ), "should contain get_backlinks" );
-        assertTrue( names.contains( "recent_changes" ), "should contain recent_changes" );
-        assertTrue( names.contains( "query_metadata" ), "should contain query_metadata" );
         assertTrue( names.contains( "diff_page" ), "should contain diff_page" );
         assertTrue( names.contains( "get_outbound_links" ), "should contain get_outbound_links" );
         assertTrue( names.contains( "get_broken_links" ), "should contain get_broken_links" );
@@ -74,9 +69,14 @@ class McpToolRegistryTest {
         assertTrue( names.contains( "verify_pages" ), "should contain verify_pages" );
         assertTrue( names.contains( "preview_structured_data" ), "should contain preview_structured_data" );
 
-        // Export/import workflow
-        assertTrue( names.contains( "export_content" ), "should contain export_content" );
-        assertTrue( names.contains( "preview_import" ), "should contain preview_import" );
+        // Tools moved to wikantik-knowledge — must NOT be present here
+        assertFalse( names.contains( "read_page" ), "read_page moved to knowledge-mcp" );
+        assertFalse( names.contains( "search_pages" ), "search_pages moved to knowledge-mcp" );
+        assertFalse( names.contains( "list_pages" ), "list_pages moved to knowledge-mcp" );
+        assertFalse( names.contains( "recent_changes" ), "recent_changes moved to knowledge-mcp" );
+        assertFalse( names.contains( "query_metadata" ), "query_metadata moved to knowledge-mcp" );
+        assertFalse( names.contains( "export_content" ), "export_content moved to knowledge-mcp" );
+        assertFalse( names.contains( "preview_import" ), "preview_import moved to knowledge-mcp" );
     }
 
     @Test
@@ -122,7 +122,11 @@ class McpToolRegistryTest {
                 .collect( Collectors.toSet() );
 
         assertTrue( names.contains( "rename_page" ), "should contain rename_page" );
-        assertTrue( names.contains( "import_content" ), "should contain import_content" );
+        assertTrue( names.contains( "write_pages" ), "should contain write_pages" );
+        assertTrue( names.contains( "update_page" ), "should contain update_page" );
+
+        // import_content moved to wikantik-knowledge
+        assertFalse( names.contains( "import_content" ), "import_content moved to knowledge-mcp" );
     }
 
     @Test
@@ -139,8 +143,9 @@ class McpToolRegistryTest {
     void testTotalToolCount() {
         final int total = registry.readOnlyTools().size()
                 + registry.authorConfigurableTools().size();
-        // 18 read-only + 2 author-configurable = 20 base (+ KG tools if available)
-        assertTrue( total >= 20, "Expected at least 20 tools, found " + total );
+        // 10 read-only + 3 author-configurable = 13 base (+ KG tools if available)
+        // Read/search/list/query/export/import tools absorbed by wikantik-knowledge MCP
+        assertTrue( total >= 13, "Expected at least 13 tools, found " + total );
     }
 
     @Test

@@ -91,6 +91,12 @@
       <scope>provided</scope>
     </dependency>
 
+    <!-- Canonical page IDs (ULIDs) - version managed by parent BOM -->
+    <dependency>
+      <groupId>com.github.f4b6a3</groupId>
+      <artifactId>ulid-creator</artifactId>
+    </dependency>
+
     <!-- Test dependencies -->
     <dependency>
       <groupId>${project.groupId}</groupId>

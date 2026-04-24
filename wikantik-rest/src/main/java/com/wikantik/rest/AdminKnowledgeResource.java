@@ -28,7 +28,6 @@ import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.SummaryExtractor;
 import com.wikantik.knowledge.TagExtractor;
 import com.wikantik.knowledge.TitleDeriver;
-import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
@@ -75,7 +74,6 @@ import java.util.stream.Collectors;
  *   <li>{@code POST /admin/knowledge/nodes/merge} — merge two nodes (body: {sourceId, targetId})</li>
  *   <li>{@code POST /admin/knowledge/edges} — upsert edge (manual curation)</li>
  *   <li>{@code DELETE /admin/knowledge/edges/{id}} — delete an edge</li>
- *   <li>{@code POST /admin/knowledge/project-all} — project all pages into knowledge graph</li>
  * </ul>
  */
 public class AdminKnowledgeResource extends RestServletBase {
@@ -156,8 +154,6 @@ public class AdminKnowledgeResource extends RestServletBase {
                 ( svc, req, resp, seg ) -> handleGetBackfillStatus( resp ),
                 ( svc, req, resp, seg ) -> handlePostBackfillFrontmatter( resp ),
                 null ) );
-        m.put( "project-all", Resource.post(
-                ( svc, req, resp, seg ) -> handleProjectAll( resp ) ) );
         m.put( "clear-all", Resource.post(
                 ( svc, req, resp, seg ) -> handleClearAll( svc, resp ) ) );
         m.put( "sync-hub-memberships", Resource.post(
@@ -428,60 +424,6 @@ public class AdminKnowledgeResource extends RestServletBase {
         final KgEdge edge = service.upsertEdge( sourceId, targetId, relType,
                 Provenance.HUMAN_AUTHORED, properties );
         sendJson( response, edgeToMap( edge ) );
-    }
-
-    private void handleProjectAll( final HttpServletResponse response ) throws IOException {
-        final PageManager pm = getEngine().getManager( PageManager.class );
-        final GraphProjector projector = getEngine().getManager( GraphProjector.class );
-        if ( projector == null ) {
-            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                    "GraphProjector is not available" );
-            return;
-        }
-
-        try {
-            final Collection< ? extends Page > allPages = pm.getAllPages();
-            int scanned = 0;
-            int projected = 0;
-            int contentPageCount = 0;
-            final List< String > errors = new ArrayList<>();
-            for ( final Page page : allPages ) {
-                scanned++;
-                if ( projector.isSystemPage( page.getName() ) ) {
-                    continue;
-                }
-                contentPageCount++;
-                LOG.info( "Projecting page '{}' ({}/{})", page.getName(), scanned, allPages.size() );
-                try {
-                    final String text = pm.getPureText( page );
-                    final ParsedPage parsed = FrontmatterParser.parse( text );
-                    projector.projectPage( page.getName(), parsed.metadata(), parsed.body() );
-                    projected++;
-                } catch ( final Exception e ) {
-                    errors.add( page.getName() + ": " + e.getMessage() );
-                }
-            }
-
-            final int totalPageCount = pm.getTotalPageCount();
-            if ( scanned < totalPageCount ) {
-                throw new IllegalStateException(
-                        "getAllPages() returned " + scanned + " pages but getTotalPageCount() reports "
-                        + totalPageCount + "; projection is incomplete" );
-            }
-            if ( projected + errors.size() != contentPageCount ) {
-                throw new IllegalStateException(
-                        "Projection invariant violated: projected=" + projected
-                        + " errors=" + errors.size() + " contentPages=" + contentPageCount );
-            }
-
-            LOG.info( "Projected {} of {} pages into knowledge graph ({} errors)",
-                    projected, scanned, errors.size() );
-            sendJson( response, Map.of( "scanned", scanned, "projected", projected, "errors", errors ) );
-        } catch ( final Exception e ) {
-            LOG.error( "Failed to project all pages", e );
-            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Projection failed: " + e.getMessage() );
-        }
     }
 
     private void handleClearAll( final KnowledgeGraphService service,

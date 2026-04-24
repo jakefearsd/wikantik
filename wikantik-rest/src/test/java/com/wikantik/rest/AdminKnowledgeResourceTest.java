@@ -28,7 +28,6 @@ import com.wikantik.TestEngine;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
-import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
 
 import jakarta.servlet.ServletConfig;
@@ -74,10 +73,8 @@ class AdminKnowledgeResourceTest {
 
         final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( dataSource );
         final DefaultKnowledgeGraphService service = new DefaultKnowledgeGraphService( repo );
-        final GraphProjector projector = new GraphProjector( service, null );
 
         engine.setManager( KnowledgeGraphService.class, service );
-        engine.setManager( GraphProjector.class, projector );
 
         servlet = new AdminKnowledgeResource();
         final ServletConfig config = Mockito.mock( ServletConfig.class );
@@ -100,118 +97,13 @@ class AdminKnowledgeResourceTest {
     }
 
     @Test
-    void testProjectAllWithFrontmatter() throws Exception {
-        engine.saveText( "ProjectTestA",
-                "---\ntitle: Test A\nrelated:\n  - ProjectTestB\n---\nBody of A." );
-        engine.saveText( "ProjectTestB",
-                "---\ntitle: Test B\nmentions:\n  - ProjectTestA\n---\nBody of B." );
-
-        final String json = doPost( "/project-all" );
-        final JsonObject obj = gson.fromJson( json, JsonObject.class );
-
-        assertTrue( obj.has( "scanned" ), "Response should have 'scanned'" );
-        assertTrue( obj.has( "projected" ), "Response should have 'projected'" );
-        assertTrue( obj.has( "errors" ), "Response should have 'errors'" );
-
-        assertTrue( obj.get( "scanned" ).getAsInt() >= 2,
-                "Should have scanned at least the 2 test pages" );
-        assertTrue( obj.get( "projected" ).getAsInt() >= 2,
-                "Should have projected at least the 2 pages with frontmatter" );
-        assertEquals( 0, obj.getAsJsonArray( "errors" ).size(),
-                "Should have no errors" );
-
-        // Cleanup
-        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
-        try { pm.deletePage( "ProjectTestA" ); } catch ( final Exception e ) { /* ignore */ }
-        try { pm.deletePage( "ProjectTestB" ); } catch ( final Exception e ) { /* ignore */ }
-    }
-
-    @Test
-    void testProjectAllWithoutFrontmatter() throws Exception {
-        engine.saveText( "PlainPage", "No frontmatter here, just content." );
-
-        final String json = doPost( "/project-all" );
-        final JsonObject obj = gson.fromJson( json, JsonObject.class );
-
-        final int scanned = obj.get( "scanned" ).getAsInt();
-        final int projected = obj.get( "projected" ).getAsInt();
-
-        assertTrue( scanned >= 1, "Should have scanned at least the plain page" );
-        // All pages are now projected (even without frontmatter) so projected == scanned
-        assertEquals( scanned, projected,
-                "All pages should be projected, including those without frontmatter" );
-
-        // Cleanup
-        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
-        try { pm.deletePage( "PlainPage" ); } catch ( final Exception e ) { /* ignore */ }
-    }
-
-    @Test
-    void testProjectAllIsIdempotent() throws Exception {
-        engine.saveText( "IdempotentPage",
-                "---\ntitle: Idempotent\nrelated:\n  - TargetNode\n---\nBody." );
-
-        final String json1 = doPost( "/project-all" );
-        final JsonObject obj1 = gson.fromJson( json1, JsonObject.class );
-        final int projected1 = obj1.get( "projected" ).getAsInt();
-
-        // Get schema after first projection
-        final String schema1 = doGet( "/schema" );
-        final JsonObject s1 = gson.fromJson( schema1, JsonObject.class );
-        final JsonObject stats1 = s1.getAsJsonObject( "stats" );
-
-        // Project again
-        final String json2 = doPost( "/project-all" );
-        final JsonObject obj2 = gson.fromJson( json2, JsonObject.class );
-        final int projected2 = obj2.get( "projected" ).getAsInt();
-
-        assertEquals( projected1, projected2,
-                "Second projection should process the same number of pages" );
-
-        // Schema should have same counts — upserts don't create duplicates
-        final String schema2 = doGet( "/schema" );
-        final JsonObject s2 = gson.fromJson( schema2, JsonObject.class );
-        final JsonObject stats2 = s2.getAsJsonObject( "stats" );
-
-        assertEquals( stats1.get( "nodes" ).getAsInt(), stats2.get( "nodes" ).getAsInt(),
-                "Node count should not change after idempotent re-projection" );
-        assertEquals( stats1.get( "edges" ).getAsInt(), stats2.get( "edges" ).getAsInt(),
-                "Edge count should not change after idempotent re-projection" );
-
-        // Cleanup
-        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
-        try { pm.deletePage( "IdempotentPage" ); } catch ( final Exception e ) { /* ignore */ }
-    }
-
-    @Test
-    void testProjectAllCreatesNodesAndEdges() throws Exception {
-        engine.saveText( "SourcePage",
-                "---\ntitle: Source\nrelated:\n  - TargetA\n  - TargetB\n---\nBody." );
-
-        doPost( "/project-all" );
-
-        // Verify the source node was created
-        final String nodeJson = doGet( "/nodes/SourcePage" );
-        final JsonObject node = gson.fromJson( nodeJson, JsonObject.class );
-        assertNotNull( node.get( "id" ), "SourcePage node should exist" );
-        assertFalse( node.has( "error" ), "Should not be an error response, got: " + nodeJson );
-
-        // Verify edges were created
-        assertTrue( node.has( "edges" ), "Node response should include edges" );
-        final JsonArray edges = node.getAsJsonArray( "edges" );
-        assertTrue( edges.size() >= 2,
-                "SourcePage should have at least 2 edges (related → TargetA, TargetB)" );
-
-        // Cleanup
-        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
-        try { pm.deletePage( "SourcePage" ); } catch ( final Exception e ) { /* ignore */ }
-    }
-
-    @Test
     void testGetNodeReturnsEdgesWithNames() throws Exception {
-        engine.saveText( "EdgeNameSrc",
-                "---\ntitle: Source\nrelated:\n  - EdgeNameTgt\n---\nBody." );
-        doPost( "/project-all" );
+        final KnowledgeGraphService service = engine.getManager( KnowledgeGraphService.class );
+        final var srcNode = service.upsertNode( "EdgeNameSrc", "article", "EdgeNameSrc.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var tgtNode = service.upsertNode( "EdgeNameTgt", "article", "EdgeNameTgt.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( srcNode.id(), tgtNode.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
 
         final String json = doGet( "/nodes/EdgeNameSrc" );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
@@ -224,17 +116,16 @@ class AdminKnowledgeResourceTest {
         assertTrue( edge.has( "target_name" ), "Edge should have target_name" );
         assertEquals( "EdgeNameSrc", edge.get( "source_name" ).getAsString() );
         assertEquals( "EdgeNameTgt", edge.get( "target_name" ).getAsString() );
-
-        // Cleanup
-        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
-        try { pm.deletePage( "EdgeNameSrc" ); } catch ( final Exception e ) { /* ignore */ }
     }
 
     @Test
     void testListAllEdgesReturnsEdgesWithNames() throws Exception {
-        engine.saveText( "ListEdgeSrc",
-                "---\ntitle: Source\nrelated:\n  - ListEdgeTgt\n---\nBody." );
-        doPost( "/project-all" );
+        final KnowledgeGraphService service = engine.getManager( KnowledgeGraphService.class );
+        final var srcNode = service.upsertNode( "ListEdgeSrc", "article", "ListEdgeSrc.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var tgtNode = service.upsertNode( "ListEdgeTgt", "article", "ListEdgeTgt.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( srcNode.id(), tgtNode.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
 
         final String json = doGetWithParams( "/edges", Map.of( "limit", "50" ) );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
@@ -246,17 +137,19 @@ class AdminKnowledgeResourceTest {
         final JsonObject edge = edges.get( 0 ).getAsJsonObject();
         assertTrue( edge.has( "source_name" ), "Edge should have source_name" );
         assertTrue( edge.has( "target_name" ), "Edge should have target_name" );
-
-        // Cleanup
-        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
-        try { pm.deletePage( "ListEdgeSrc" ); } catch ( final Exception e ) { /* ignore */ }
     }
 
     @Test
     void testListAllEdgesFiltersByRelationshipType() throws Exception {
-        engine.saveText( "FilterSrc",
-                "---\ntitle: Source\nrelated:\n  - FilterTgtA\nmentions:\n  - FilterTgtB\n---\nBody." );
-        doPost( "/project-all" );
+        final KnowledgeGraphService svc = engine.getManager( KnowledgeGraphService.class );
+        final var filterSrc = svc.upsertNode( "FilterSrc", "article", "FilterSrc.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var filterTgtA = svc.upsertNode( "FilterTgtA", "article", null,
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var filterTgtB = svc.upsertNode( "FilterTgtB", "article", null,
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        svc.upsertEdge( filterSrc.id(), filterTgtA.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        svc.upsertEdge( filterSrc.id(), filterTgtB.id(), "mentions", Provenance.HUMAN_AUTHORED, Map.of() );
 
         final String allJson = doGetWithParams( "/edges", Map.of( "limit", "100" ) );
         final int allCount = gson.fromJson( allJson, JsonObject.class )
@@ -269,10 +162,6 @@ class AdminKnowledgeResourceTest {
 
         assertTrue( filteredCount > 0, "Should find at least 1 'related' edge" );
         assertTrue( filteredCount <= allCount, "Filtered count should be <= total" );
-
-        // Cleanup
-        final com.wikantik.api.managers.PageManager pm = engine.getManager( com.wikantik.api.managers.PageManager.class );
-        try { pm.deletePage( "FilterSrc" ); } catch ( final Exception e ) { /* ignore */ }
     }
 
     @Test
@@ -319,14 +208,18 @@ class AdminKnowledgeResourceTest {
                 "---\ntitle: Old\n---\nOld content." );
         engine.saveText( "NewNode",
                 "---\ntitle: New\n---\nNew content." );
-        doPost( "/project-all" );
 
-        // Get node UUIDs
+        // Seed the knowledge graph directly
         final KnowledgeGraphService service = engine.getManager( KnowledgeGraphService.class );
-        final var oldNode = service.getNodeByName( "OldNode" );
-        final var newNode = service.getNodeByName( "NewNode" );
-        assertNotNull( oldNode, "OldNode should exist after projection" );
-        assertNotNull( newNode, "NewNode should exist after projection" );
+        final var srcNode = service.upsertNode( "MergeSrcPage", "article", "MergeSrcPage.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var oldNode = service.upsertNode( "OldNode", "article", "OldNode.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var newNode = service.upsertNode( "NewNode", "article", "NewNode.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( srcNode.id(), oldNode.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        assertNotNull( oldNode, "OldNode should exist in the knowledge graph" );
+        assertNotNull( newNode, "NewNode should exist in the knowledge graph" );
 
         // Merge OldNode into NewNode
         final JsonObject mergeBody = new JsonObject();
@@ -368,11 +261,22 @@ class AdminKnowledgeResourceTest {
                 "---\ntitle: Old Target\n---\nContent." );
         engine.saveText( "NewTarget",
                 "---\ntitle: New Target\n---\nContent." );
-        doPost( "/project-all" );
 
+        // Seed the knowledge graph directly
         final KnowledgeGraphService service = engine.getManager( KnowledgeGraphService.class );
-        final var oldNode = service.getNodeByName( "OldTarget" );
-        final var newNode = service.getNodeByName( "NewTarget" );
+        final var nodeA = service.upsertNode( "MultiMergA", "article", "MultiMergA.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var nodeB = service.upsertNode( "MultiMergB", "article", "MultiMergB.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var oldNode = service.upsertNode( "OldTarget", "article", "OldTarget.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var newNode = service.upsertNode( "NewTarget", "article", "NewTarget.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final var otherNode = service.upsertNode( "OtherNode", "article", null,
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( nodeA.id(), oldNode.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( nodeB.id(), oldNode.id(), "mentions", Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertEdge( nodeB.id(), otherNode.id(), "mentions", Provenance.HUMAN_AUTHORED, Map.of() );
 
         final JsonObject mergeBody = new JsonObject();
         mergeBody.addProperty( "sourceId", oldNode.id().toString() );

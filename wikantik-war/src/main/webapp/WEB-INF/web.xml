@@ -259,6 +259,11 @@
        <listener-class>com.wikantik.mcp.McpServerInitializer</listener-class>
    </listener>
 
+   <!-- ContextRetrievalService — must come after WikiBootstrapServletContextListener, before KnowledgeMcpInitializer -->
+   <listener>
+       <listener-class>com.wikantik.knowledge.ContextRetrievalServiceInitializer</listener-class>
+   </listener>
+
    <!-- Knowledge MCP server bootstrap — must come after WikiBootstrapServletContextListener -->
    <listener>
        <listener-class>com.wikantik.knowledge.mcp.KnowledgeMcpInitializer</listener-class>

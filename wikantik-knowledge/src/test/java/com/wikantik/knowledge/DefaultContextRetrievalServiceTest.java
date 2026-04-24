@@ -209,6 +209,7 @@ class DefaultContextRetrievalServiceTest {
                 new com.wikantik.knowledge.embedding.NodeMentionSimilarity.ScoredName( "Gamma", 0.7 ) ) );
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
+            com.wikantik.knowledge.testfakes.FakeEngine.create(),
             sm, null, null, null, null, similarity, pm, null, "" );
 
         final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
@@ -253,6 +254,7 @@ class DefaultContextRetrievalServiceTest {
             java.util.List.of( "Alpha", "Beta" ) );
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
+            com.wikantik.knowledge.testfakes.FakeEngine.create(),
             sm, hybrid, null, chunkIndex, chunkRepo, null, pm, null, "https://wiki.example" );
 
         final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(

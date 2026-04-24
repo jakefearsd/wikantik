@@ -55,7 +55,6 @@ import com.wikantik.search.SearchManager;
 import com.wikantik.search.SearchProvider;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
-import com.wikantik.knowledge.GraphProjector;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubDiscoveryService;
 import com.wikantik.knowledge.HubOverviewService;
@@ -593,7 +592,6 @@ public class WikiEngine implements Engine {
 
             // Register services with the engine's manager map.
             managers.put( KnowledgeGraphService.class, svcs.kgService() );
-            managers.put( GraphProjector.class, svcs.graphProjector() );
             managers.put( NodeMentionSimilarity.class, svcs.nodeMentionSimilarity() );
             managers.put( HubProposalRepository.class, svcs.hubProposalRepo() );
             managers.put( HubProposalService.class, svcs.hubProposalService() );
@@ -647,11 +645,10 @@ public class WikiEngine implements Engine {
             wireEntityExtraction( props, ds, svcs.chunkProjector(), svcs.contentChunkRepo() );
             wireGraphRerank( props, ds );
 
-            // Register filters (priority order preserved from the original initializer).
-            // PriorityList is descending: higher priority runs first, so -1005 runs
-            // AFTER -1003 (GraphProjector). That's the intended save-time ordering.
+            // Register filters (priority order preserved; higher priority runs first).
+            // ChunkProjector at -1005 is the active save-time chunker for the
+            // embedding / entity-extraction pipelines.
             final FilterManager filterManager = getManager( FilterManager.class );
-            filterManager.addPageFilter( svcs.graphProjector(), -1003 );
             filterManager.addPageFilter( svcs.chunkProjector(), -1005 );
             filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), -1004 );
             filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );

@@ -61,7 +61,6 @@ public final class KnowledgeGraphServiceFactory {
      */
     public record Services(
         KnowledgeGraphService kgService,
-        GraphProjector graphProjector,
         FrontmatterDefaultsFilter frontmatterDefaultsFilter,
         HubSyncFilter hubSyncFilter,
         NodeMentionSimilarity nodeMentionSimilarity,
@@ -124,8 +123,6 @@ public final class KnowledgeGraphServiceFactory {
         final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( dataSource );
         final MentionIndex mentionIndex = new MentionIndex( dataSource );
         final DefaultKnowledgeGraphService kgService = new DefaultKnowledgeGraphService( repo, null, mentionIndex );
-        final GraphProjector projector = new GraphProjector( kgService, spr );
-
         final FrontmatterDefaultsFilter fmDefaults = new FrontmatterDefaultsFilter(
             name -> spr != null && spr.isSystemPage( name ), props );
 
@@ -203,7 +200,7 @@ public final class KnowledgeGraphServiceFactory {
             : new ChunkProjector( chunker, contentChunkRepo,
                 () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ) );
 
-        return new Services( kgService, projector, fmDefaults, hubSync,
+        return new Services( kgService, fmDefaults, hubSync,
             similarity, hubProposalRepo, hubProposalService,
             hubDiscoveryRepo, hubDiscoveryService, hubOverviewService,
             chunkProjector, contentChunkRepo );

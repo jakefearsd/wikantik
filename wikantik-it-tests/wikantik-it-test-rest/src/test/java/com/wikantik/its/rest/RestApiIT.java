@@ -494,4 +494,60 @@ public class RestApiIT {
                 "Without an Origin header, Access-Control-Allow-Origin should not be set" );
     }
 
+    // ---- Structural Spine (Phase 1) ----
+
+    /**
+     * The structural-spine service rebuilds asynchronously in a background thread
+     * at startup. Poll the health endpoint until it reports UP (or give up after
+     * 30 seconds — longer than a ~100-page test corpus would ever need).
+     */
+    private void waitForStructuralIndexUp() throws Exception {
+        for ( int attempt = 0; attempt < 30; attempt++ ) {
+            final HttpResponse< String > resp = get( "/api/health/structural-index" );
+            if ( resp.statusCode() == 200 && resp.body().contains( "\"status\":\"UP\"" ) ) {
+                return;
+            }
+            Thread.sleep( 1000 );
+        }
+        throw new AssertionError( "Structural index never reached UP within 30s" );
+    }
+
+    @Test
+    @Order( 20 )
+    void testStructuralIndexHealth() throws Exception {
+        waitForStructuralIndexUp();
+        final HttpResponse< String > resp = get( "/api/health/structural-index" );
+        assertEquals( 200, resp.statusCode() );
+        assertTrue( resp.body().contains( "\"status\":\"UP\"" ) );
+        assertTrue( resp.body().contains( "\"pages\":" ) );
+    }
+
+    @Test
+    @Order( 21 )
+    void testStructuralSitemapReturnsPages() throws Exception {
+        waitForStructuralIndexUp();
+        final HttpResponse< String > resp = get( "/api/structure/sitemap" );
+        assertEquals( 200, resp.statusCode() );
+        assertTrue( resp.body().contains( "\"count\":" ) );
+        assertTrue( resp.body().contains( "\"pages\"" ) );
+    }
+
+    @Test
+    @Order( 22 )
+    void testStructuralClustersReachable() throws Exception {
+        waitForStructuralIndexUp();
+        final HttpResponse< String > resp = get( "/api/structure/clusters" );
+        assertEquals( 200, resp.statusCode() );
+        assertTrue( resp.body().contains( "\"clusters\"" ) );
+    }
+
+    @Test
+    @Order( 23 )
+    void testStructuralTagsReachable() throws Exception {
+        waitForStructuralIndexUp();
+        final HttpResponse< String > resp = get( "/api/structure/tags" );
+        assertEquals( 200, resp.statusCode() );
+        assertTrue( resp.body().contains( "\"tags\"" ) );
+    }
+
 }

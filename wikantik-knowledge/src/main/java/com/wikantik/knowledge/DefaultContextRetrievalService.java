@@ -44,6 +44,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -167,7 +168,65 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
 
     @Override
     public PageList listPages( final PageListFilter filter ) {
-        throw new UnsupportedOperationException( "implemented in task 8" );
+        final PageListFilter f = filter == null ? PageListFilter.unfiltered() : filter;
+
+        final Collection< Page > allPages;
+        try {
+            allPages = pageManager.getAllPages();
+        } catch ( final ProviderException e ) {
+            LOG.warn( "getAllPages failed: {}", e.getMessage(), e );
+            return new PageList( List.of(), 0, f.limit(), f.offset() );
+        }
+
+        final List< RetrievedPage > matched = new ArrayList<>();
+        for ( final Page page : allPages ) {
+            if ( page == null ) continue;
+            final String text = pageManager.getPureText( page.getName(), PageProvider.LATEST_VERSION );
+            final ParsedPage parsed = FrontmatterParser.parse( text == null ? "" : text );
+            if ( !matchesFilter( page, parsed, f ) ) continue;
+            matched.add( new RetrievedPage(
+                page.getName(),
+                buildUrl( page.getName() ),
+                0.0,
+                stringOrEmpty( parsed.metadata().get( "summary" ) ),
+                stringOrNull( parsed.metadata().get( "cluster" ) ),
+                stringList( parsed.metadata().get( "tags" ) ),
+                List.of(),
+                List.of(),
+                page.getAuthor(),
+                page.getLastModified() ) );
+        }
+        final int total = matched.size();
+        final int from = Math.min( f.offset(), total );
+        final int to = Math.min( from + Math.max( f.limit(), 1 ), total );
+        return new PageList( matched.subList( from, to ), total, f.limit(), f.offset() );
+    }
+
+    private boolean matchesFilter( final Page page, final ParsedPage parsed, final PageListFilter f ) {
+        if ( f.cluster() != null
+                && !f.cluster().equals( parsed.metadata().get( "cluster" ) ) ) {
+            return false;
+        }
+        if ( f.type() != null
+                && !f.type().equals( parsed.metadata().get( "type" ) ) ) {
+            return false;
+        }
+        if ( f.author() != null && !f.author().equals( page.getAuthor() ) ) {
+            return false;
+        }
+        final List< String > tags = stringList( parsed.metadata().get( "tags" ) );
+        for ( final String required : f.tags() ) {
+            if ( !tags.contains( required ) ) return false;
+        }
+        if ( f.modifiedAfter() != null ) {
+            final Date d = page.getLastModified();
+            if ( d == null || d.toInstant().isBefore( f.modifiedAfter() ) ) return false;
+        }
+        if ( f.modifiedBefore() != null ) {
+            final Date d = page.getLastModified();
+            if ( d == null || d.toInstant().isAfter( f.modifiedBefore() ) ) return false;
+        }
+        return true;
     }
 
     @Override

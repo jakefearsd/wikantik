@@ -18,12 +18,12 @@
  */
 package com.wikantik.tools;
 
-import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
-import com.wikantik.api.core.Page;
-import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.search.SearchResult;
-import com.wikantik.search.SearchManager;
+import com.wikantik.api.knowledge.ContextQuery;
+import com.wikantik.api.knowledge.ContextRetrievalService;
+import com.wikantik.api.knowledge.RetrievalResult;
+import com.wikantik.api.knowledge.RetrievedChunk;
+import com.wikantik.api.knowledge.RetrievedPage;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -32,6 +32,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -44,27 +45,27 @@ import static org.mockito.Mockito.*;
 class SearchWikiToolTest {
 
     @Mock Engine engine;
-    @Mock PageManager pageManager;
-    @Mock SearchManager searchManager;
+    @Mock ContextRetrievalService ctxService;
     @Mock HttpServletRequest request;
-    @Mock Context stubContext;
 
-    private SearchWikiTool newTool( final Engine engine, final ToolsConfig config ) {
-        return new SearchWikiTool( engine, config ) {
-            @Override
-            Context createContext() {
-                return stubContext;
-            }
-        };
+    @Test
+    void returnsErrorPayloadWhenServiceNotConfigured() {
+        when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( null );
+
+        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
+        final Map< String, Object > result = tool.execute( "hello", 10, request );
+
+        assertEquals( "hello", result.get( "query" ) );
+        assertEquals( 0, result.get( "total" ) );
+        assertTrue( result.get( "error" ).toString().contains( "ContextRetrievalService not configured" ) );
     }
 
     @Test
-    void returnsErrorPayloadWhenSearchThrows() throws Exception {
-        when( engine.getManager( SearchManager.class ) ).thenReturn( searchManager );
-        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
-        when( searchManager.findPages( any(), any() ) ).thenThrow( new RuntimeException( "boom" ) );
+    void returnsErrorPayloadWhenSearchThrows() {
+        when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
+        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenThrow( new RuntimeException( "boom" ) );
 
-        final SearchWikiTool tool = newTool( engine, new ToolsConfig( new Properties() ) );
+        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
         final Map< String, Object > result = tool.execute( "hello", 10, request );
 
         assertEquals( "hello", result.get( "query" ) );
@@ -73,24 +74,25 @@ class SearchWikiToolTest {
     }
 
     @Test
-    void shapesResultsWithCitationAndSnippet() throws Exception {
-        when( engine.getManager( SearchManager.class ) ).thenReturn( searchManager );
-        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
-
-        final Page page = mock( Page.class );
-        when( page.getName() ).thenReturn( "OnePage" );
-        final SearchResult sr = mock( SearchResult.class );
-        when( sr.getPage() ).thenReturn( page );
-        when( sr.getScore() ).thenReturn( 42 );
-        when( sr.getContexts() ).thenReturn( new String[] { "matching <em>excerpt</em>" } );
-
-        when( searchManager.findPages( any(), any() ) ).thenReturn( List.of( sr ) );
-        when( pageManager.getPureText( "OnePage", -1 ) ).thenReturn(
-                "---\nsummary: A great page\n---\nFull body here" );
+    void shapesResultsWithCitationAndSnippet() {
+        when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
+        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
+            new RetrievalResult( "hello", List.of( new RetrievedPage(
+                "OnePage",
+                "",
+                42.0,
+                "A great page",
+                null,
+                List.of(),
+                List.of( new RetrievedChunk( List.of( "OnePage" ), "matching excerpt", 0.9, List.of() ) ),
+                List.of(),
+                null,
+                null
+            ) ), 1 ) );
 
         final Properties props = new Properties();
         props.setProperty( "wikantik.public.baseURL", "https://wiki.example.com" );
-        final SearchWikiTool tool = newTool( engine, new ToolsConfig( props ) );
+        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( props ) );
 
         final Map< String, Object > out = tool.execute( "hello", 5, request );
 
@@ -101,31 +103,56 @@ class SearchWikiToolTest {
         final Map< ?, ? > first = ( Map< ?, ? > ) results.get( 0 );
         assertEquals( "OnePage", first.get( "name" ) );
         assertEquals( "https://wiki.example.com/wiki/OnePage", first.get( "url" ) );
-        assertEquals( 42, first.get( "score" ) );
+        assertEquals( 42.0, first.get( "score" ) );
         assertEquals( "A great page", first.get( "summary" ) );
-        assertEquals( "matching <em>excerpt</em>", first.get( "snippet" ) );
+        assertEquals( "matching excerpt", first.get( "snippet" ) );
     }
 
     @Test
-    void clampsMaxResults() throws Exception {
-        when( engine.getManager( SearchManager.class ) ).thenReturn( searchManager );
-        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
+    void snippetIsTruncatedAt320Chars() {
+        when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
+        final String longText = "x".repeat( 400 );
+        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
+            new RetrievalResult( "q", List.of( new RetrievedPage(
+                "LongPage",
+                "",
+                1.0,
+                "",
+                null,
+                List.of(),
+                List.of( new RetrievedChunk( List.of(), longText, 0.5, List.of() ) ),
+                List.of(),
+                null,
+                null
+            ) ), 1 ) );
 
-        final List< SearchResult > many = new java.util.ArrayList<>();
-        for ( int i = 0; i < 40; i++ ) {
-            final Page p = mock( Page.class );
-            lenient().when( p.getName() ).thenReturn( "P" + i );
-            final SearchResult sr = mock( SearchResult.class );
-            lenient().when( sr.getPage() ).thenReturn( p );
-            lenient().when( sr.getContexts() ).thenReturn( new String[ 0 ] );
-            many.add( sr );
+        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
+        final Map< String, Object > out = tool.execute( "q", 5, request );
+
+        final List< ? > results = ( List< ? > ) out.get( "results" );
+        final Map< ?, ? > first = ( Map< ?, ? > ) results.get( 0 );
+        final String snippet = ( String ) first.get( "snippet" );
+        assertTrue( snippet.endsWith( "…" ), "should end with ellipsis" );
+        assertEquals( 321, snippet.length(), "320 chars + ellipsis" );
+    }
+
+    @Test
+    void clampsMaxResults() {
+        when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
+
+        // Build 20 pages (service hard cap) — tool clamps to 25 but service returns max 20
+        final List< RetrievedPage > manyPages = new ArrayList<>();
+        for ( int i = 0; i < 20; i++ ) {
+            manyPages.add( new RetrievedPage(
+                "P" + i, "", 1.0, "", null, List.of(), List.of(), List.of(), null, null ) );
         }
-        when( searchManager.findPages( any(), any() ) ).thenReturn( many );
-        lenient().when( pageManager.getPureText( any(), anyInt() ) ).thenReturn( "" );
+        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
+            new RetrievalResult( "q", manyPages, 20 ) );
 
-        final SearchWikiTool tool = newTool( engine, new ToolsConfig( new Properties() ) );
+        final SearchWikiTool tool = new SearchWikiTool( engine, new ToolsConfig( new Properties() ) );
         final Map< String, Object > out = tool.execute( "q", 100, request );
 
-        assertEquals( 25, out.get( "total" ) );
+        // clamped to 25, but service returned 20 — total should be 20
+        assertEquals( 20, out.get( "total" ) );
     }
 }

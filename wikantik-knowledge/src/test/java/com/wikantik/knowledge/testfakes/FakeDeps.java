@@ -38,6 +38,6 @@ public final class FakeDeps {
 
     public DefaultContextRetrievalService build() {
         return new DefaultContextRetrievalService(
-            engine, search, null, null, null, null, null, pageManager, null, baseUrl );
+            engine, search, null, null, null, null, null, null, pageManager, null, baseUrl );
     }
 }

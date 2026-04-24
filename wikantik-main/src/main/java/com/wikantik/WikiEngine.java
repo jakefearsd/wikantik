@@ -593,6 +593,7 @@ public class WikiEngine implements Engine {
             // Register services with the engine's manager map.
             managers.put( KnowledgeGraphService.class, svcs.kgService() );
             managers.put( NodeMentionSimilarity.class, svcs.nodeMentionSimilarity() );
+            managers.put( com.wikantik.knowledge.MentionIndex.class, svcs.mentionIndex() );
             managers.put( HubProposalRepository.class, svcs.hubProposalRepo() );
             managers.put( HubProposalService.class, svcs.hubProposalService() );
             managers.put( HubDiscoveryRepository.class, svcs.hubDiscoveryRepo() );

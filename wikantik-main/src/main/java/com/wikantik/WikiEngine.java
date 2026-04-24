@@ -58,6 +58,10 @@ import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubDiscoveryService;
 import com.wikantik.knowledge.HubOverviewService;
+import com.wikantik.knowledge.structure.DefaultStructuralIndexService;
+import com.wikantik.knowledge.structure.PageCanonicalIdsDao;
+import com.wikantik.knowledge.structure.StructuralIndexEventListener;
+import com.wikantik.api.structure.StructuralIndexService;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
 import com.wikantik.knowledge.KnowledgeGraphServiceFactory;
@@ -601,6 +605,19 @@ public class WikiEngine implements Engine {
             managers.put( HubOverviewService.class, svcs.hubOverviewService() );
             managers.put( com.wikantik.knowledge.chunking.ChunkProjector.class, svcs.chunkProjector() );
             managers.put( com.wikantik.knowledge.chunking.ContentChunkRepository.class, svcs.contentChunkRepo() );
+
+            // Structural spine — observe-only Phase 1. Builds an in-memory projection
+            // of wiki shape (clusters, tags, types, canonical_ids) over every page.
+            // Page-save events trigger incremental rebuilds; bootstrap rebuild runs
+            // in the background so Engine.start() does not block on a ~1000-page scan.
+            final PageCanonicalIdsDao canonicalIdsDao = new PageCanonicalIdsDao( ds );
+            final DefaultStructuralIndexService structuralIndex =
+                new DefaultStructuralIndexService( getManager( PageManager.class ), canonicalIdsDao );
+            managers.put( StructuralIndexService.class, structuralIndex );
+            new StructuralIndexEventListener( structuralIndex )
+                .register( getManager( PageManager.class ) );
+            new Thread( structuralIndex::rebuild, "structural-index-bootstrap" ).start();
+            LOG.info( "StructuralIndexService registered; initial rebuild dispatched" );
 
             // Content rebuild orchestrator — singleton wired against the live Lucene
             // provider (if any) so an admin-triggered rebuild can enqueue pages,

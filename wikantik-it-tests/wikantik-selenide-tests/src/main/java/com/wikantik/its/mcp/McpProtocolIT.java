@@ -39,9 +39,11 @@ public class McpProtocolIT extends WithMcpTestSetup {
             "get_wiki_stats", "verify_pages", "preview_structured_data",
             "ping_search_engines", "list_proposals",
             // Admin write surface (per-page CRUD replaces the old filesystem import/export)
-            "write_pages", "update_page", "rename_page",
+            "write_pages", "read_page", "update_page", "delete_pages", "rename_page",
             // Knowledge graph proposal writer
-            "propose_knowledge"
+            "propose_knowledge",
+            // Agent-grade content phase 1 — verification stamping
+            "mark_page_verified"
     );
 
     @Test

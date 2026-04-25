@@ -36,6 +36,7 @@ import com.wikantik.api.structure.StructuralFilter;
 import com.wikantik.api.structure.StructuralIndexService;
 import com.wikantik.api.structure.TagSummary;
 import com.wikantik.api.structure.TraversalSpec;
+import com.wikantik.api.structure.Verification;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -66,6 +67,8 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
     private final PageManager pageManager;
     private final PageCanonicalIdsDao dao;
     private final PageRelationsDao relationsDao;
+    private final PageVerificationDao verificationDao;
+    private final ConfidenceComputer confidenceComputer;
     private final StructuralIndexMetrics metrics;
 
     private final AtomicReference< StructuralProjection > current =
@@ -75,27 +78,43 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
     private volatile int unclaimed = 0;
     private volatile List< StructuralConflict > conflicts = List.of();
 
+    /** Full-fidelity ctor — used by the production WikiEngine bootstrap. */
+    public DefaultStructuralIndexService( final PageManager pageManager,
+                                          final PageCanonicalIdsDao dao,
+                                          final PageRelationsDao relationsDao,
+                                          final PageVerificationDao verificationDao,
+                                          final ConfidenceComputer confidenceComputer,
+                                          final StructuralIndexMetrics metrics ) {
+        this.pageManager        = pageManager;
+        this.dao                = dao;
+        this.relationsDao       = relationsDao;
+        this.verificationDao    = verificationDao;
+        this.confidenceComputer = confidenceComputer == null
+                ? new ConfidenceComputer( name -> false ) : confidenceComputer;
+        this.metrics            = metrics == null ? new StructuralIndexMetrics() : metrics;
+    }
+
+    /** Pre-A1 production ctor — kept for rollout safety; verification stays absent. */
     public DefaultStructuralIndexService( final PageManager pageManager,
                                           final PageCanonicalIdsDao dao,
                                           final PageRelationsDao relationsDao,
                                           final StructuralIndexMetrics metrics ) {
-        this.pageManager = pageManager;
-        this.dao = dao;
-        this.relationsDao = relationsDao;
-        this.metrics = metrics == null ? new StructuralIndexMetrics() : metrics;
+        this( pageManager, dao, relationsDao, null, null, metrics );
     }
 
     /** Three-arg ctor without explicit metrics — used by Phase-1 production path until WikiEngine wires Phase 2 in. */
     public DefaultStructuralIndexService( final PageManager pageManager,
                                           final PageCanonicalIdsDao dao,
                                           final StructuralIndexMetrics metrics ) {
-        this( pageManager, dao, /* relationsDao */ null, metrics );
+        this( pageManager, dao, /* relationsDao */ null, /* verificationDao */ null,
+                /* confidenceComputer */ null, metrics );
     }
 
-    /** Convenience constructor for tests — no relations DAO, no-op metrics. */
+    /** Convenience constructor for tests — no relations DAO, no verification, no-op metrics. */
     public DefaultStructuralIndexService( final PageManager pageManager,
                                           final PageCanonicalIdsDao dao ) {
-        this( pageManager, dao, /* relationsDao */ null, new StructuralIndexMetrics() );
+        this( pageManager, dao, /* relationsDao */ null, /* verificationDao */ null,
+                /* confidenceComputer */ null, new StructuralIndexMetrics() );
     }
 
     @Override
@@ -282,6 +301,14 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
     @Override
     public List< StructuralConflict > conflicts() { return conflicts; }
+
+    @Override
+    public Optional< Verification > verificationOf( final String canonicalId ) {
+        if ( verificationDao == null || canonicalId == null || canonicalId.isBlank() ) {
+            return Optional.empty();
+        }
+        return verificationDao.findByCanonicalId( canonicalId );
+    }
 
     @Override
     public StructuralProjectionSnapshot snapshot() {

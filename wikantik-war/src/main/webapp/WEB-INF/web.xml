@@ -344,6 +344,10 @@
        <servlet-class>com.wikantik.rest.PageRelationsResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>AdminStructuralConflictsResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminStructuralConflictsResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>KnowledgeGraphResource</servlet-name>
        <servlet-class>com.wikantik.rest.KnowledgeGraphResource</servlet-class>
    </servlet>
@@ -508,6 +512,10 @@
    <servlet-mapping>
        <servlet-name>PageRelationsResource</servlet-name>
        <url-pattern>/api/relations/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminStructuralConflictsResource</servlet-name>
+       <url-pattern>/admin/structural-conflicts</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>KnowledgeGraphResource</servlet-name>

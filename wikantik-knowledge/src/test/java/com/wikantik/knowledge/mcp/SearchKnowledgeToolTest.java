@@ -76,15 +76,20 @@ class SearchKnowledgeToolTest {
         final List< ? > outExamples = (List< ? >) def.outputSchema().get( "examples" );
         assertFalse( outExamples.isEmpty() );
 
-        // Phase 6 wire-JSON smoke: serialise the tool exactly as the MCP transport would
-        // and assert the canonical JSON Schema 'examples' keyword survives both ends.
-        final com.fasterxml.jackson.databind.ObjectMapper mapper =
-                new com.fasterxml.jackson.databind.ObjectMapper();
-        final String wireJson = mapper.writeValueAsString( def );
-        assertTrue( wireJson.contains( "\"examples\"" ),
-                "wire JSON must carry the 'examples' keyword for agents — got: " + wireJson );
-        assertTrue( wireJson.contains( "hybrid retrieval" ),
-                "wire JSON must include the design-doc canonical example value 'hybrid retrieval'" );
+        // Phase 6 wire-JSON smoke: serialise the tool's schema map exactly as the MCP
+        // transport carries it and assert the canonical JSON Schema 'examples' keyword
+        // survives end-to-end. Uses the same Gson the runtime tools use (KnowledgeMcpUtils.GSON);
+        // adding a Jackson ObjectMapper here would drag a non-test dependency into the
+        // module's test classpath. The Tool record itself is serialised by the MCP SDK
+        // upstream — the agent-facing payload is the schema maps below.
+        final String inputJson  = KnowledgeMcpUtils.GSON.toJson( def.inputSchema().properties() );
+        final String outputJson = KnowledgeMcpUtils.GSON.toJson( def.outputSchema() );
+        assertTrue( inputJson.contains( "\"examples\"" ),
+                "input schema JSON must carry the 'examples' keyword for agents — got: " + inputJson );
+        assertTrue( outputJson.contains( "\"examples\"" ),
+                "output schema JSON must carry the 'examples' keyword for agents — got: " + outputJson );
+        assertTrue( inputJson.contains( "hybrid retrieval" ),
+                "input schema JSON must include the design-doc canonical example value 'hybrid retrieval'" );
     }
 
     @Test

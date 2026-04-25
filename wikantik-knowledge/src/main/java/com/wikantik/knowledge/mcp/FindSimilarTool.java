@@ -86,10 +86,20 @@ public class FindSimilarTool implements McpTool {
             final String node = McpToolUtils.getString( arguments, "node" );
             final int limit = McpToolUtils.getInt( arguments, "limit", 10 );
 
+            // D30: previously the error message read "...for node ...: null" because the
+            // input was missing. Fail fast with a clearer message that mentions the
+            // expected argument name and what the index actually requires.
+            if ( node == null || node.isBlank() ) {
+                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                    "find_similar: required argument 'node' is missing or blank — pass the canonical "
+                            + "node name you want similar items for." );
+            }
+
             final List< ScoredName > ranked = similarity.similarTo( node, limit );
             if ( ranked.isEmpty() ) {
                 return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
-                    "No mention-centroid vector for node (either unknown or without chunk mentions): " + node );
+                    "find_similar: node '" + node + "' was not found in the mention index — "
+                            + "either the name is unknown or it has no chunk mentions yet." );
             }
             final Map< String, Object > response = new LinkedHashMap<>();
             response.put( "similar", ranked.stream().map( s -> {

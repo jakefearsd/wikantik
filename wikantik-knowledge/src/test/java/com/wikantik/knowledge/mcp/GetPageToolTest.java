@@ -20,9 +20,14 @@ class GetPageToolTest {
     }
 
     @Test
-    void definition_requiresPageName() {
+    void definition_advertisesSlugAndPageName() {
+        // D13: tool now accepts both `slug` (canonical) and `pageName` (deprecated alias).
+        // Required-field list is empty because at least one of the two must be supplied —
+        // enforcement happens at execute() time so we can emit a friendlier error.
         final GetPageTool t = new GetPageTool( mock( ContextRetrievalService.class ) );
-        assertTrue( t.definition().inputSchema().required().contains( "pageName" ) );
+        final var schema = t.definition().inputSchema();
+        assertTrue( schema.properties().containsKey( "slug" ) );
+        assertTrue( schema.properties().containsKey( "pageName" ) );
     }
 
     @Test

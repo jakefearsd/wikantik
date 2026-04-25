@@ -83,13 +83,15 @@ class FindSimilarToolTest {
 
     @Test
     void execute_returnsErrorWhenNoVectorForNode() {
+        // D30: error message no longer prints "...for node ...: null" — it now names
+        // the node and the mention index explicitly.
         final NodeMentionSimilarity sim = mock( NodeMentionSimilarity.class );
         when( sim.isReady() ).thenReturn( true );
         when( sim.similarTo( anyString(), anyInt() ) ).thenReturn( List.of() );
         final McpSchema.CallToolResult result =
             new FindSimilarTool( sim ).execute( Map.of( "node", "Unknown" ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
-        assertTrue( text.contains( "No mention-centroid vector for node" ) );
+        assertTrue( text.contains( "not found in the mention index" ) );
         assertTrue( text.contains( "Unknown" ) );
     }
 

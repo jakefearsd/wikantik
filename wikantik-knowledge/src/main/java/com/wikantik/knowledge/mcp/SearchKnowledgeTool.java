@@ -77,10 +77,13 @@ public class SearchKnowledgeTool implements McpTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Full-text search across node names and properties. Bridges the gap " +
-                        "between 'I don't know the exact name' and the structured query tools." +
-                        " Results are filtered to nodes the entity extractor has actually found in wiki content;" +
-                        " nodes present only from legacy frontmatter/link projection are hidden." )
+                .description( "Full-text search across knowledge-graph node names and properties. " +
+                        "Bridges 'I don't know the exact name' and the structured query tools. " +
+                        "Results are filtered to nodes the entity extractor has actually found in " +
+                        "wiki content; nodes present only from legacy frontmatter/link projection " +
+                        "are hidden. " +
+                        "D29: NOTE — this searches the knowledge-graph node table only. For " +
+                        "page-body content searches use retrieve_context (hybrid BM25+dense) instead." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "query" ), null, null, null ) )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
@@ -95,7 +98,16 @@ public class SearchKnowledgeTool implements McpTool {
 
             final List< KgNode > nodes = service.searchKnowledge( query, provenanceFilter, limit );
             final List< KgNode > filtered = filterToMentioned( nodes );
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, Map.of( "results", filtered ) );
+            // D29: surface the scope-difference up-front so callers know to fall back to
+            // retrieve_context for body-content matches when the KG returned nothing.
+            final Map< String, Object > payload = new LinkedHashMap<>();
+            payload.put( "results", filtered );
+            payload.put( "scope", "knowledge_graph_nodes_only" );
+            if ( filtered.isEmpty() ) {
+                payload.put( "hint", "search_knowledge searches knowledge-graph nodes only; "
+                        + "if you expected page-body matches, call retrieve_context with the same query." );
+            }
+            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, payload );
         } catch ( final Exception e ) {
             LOG.error( "Search knowledge failed for query: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );

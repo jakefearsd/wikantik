@@ -58,6 +58,36 @@ class SearchKnowledgeToolTest {
     }
 
     @Test
+    @SuppressWarnings( "unchecked" )
+    void definition_carriesPhase6WorkedExamples() throws Exception {
+        // AG-Phase 6: per-property inputSchema examples + top-level outputSchema examples.
+        // The search_knowledge tool is the design doc's canonical specimen — its example
+        // shape needs to land in the wire JSON or agents read a typed-only schema.
+        final McpSchema.Tool def = new SearchKnowledgeTool( mock( KnowledgeGraphService.class ) ).definition();
+
+        final Map< String, Object > queryProp = (Map< String, Object >) def.inputSchema().properties().get( "query" );
+        assertTrue( queryProp.containsKey( "examples" ),
+                "input property 'query' must advertise examples" );
+        final List< ? > queryExamples = (List< ? >) queryProp.get( "examples" );
+        assertFalse( queryExamples.isEmpty() );
+
+        assertNotNull( def.outputSchema(), "outputSchema must be populated for Phase 6" );
+        assertTrue( def.outputSchema().containsKey( "examples" ) );
+        final List< ? > outExamples = (List< ? >) def.outputSchema().get( "examples" );
+        assertFalse( outExamples.isEmpty() );
+
+        // Phase 6 wire-JSON smoke: serialise the tool exactly as the MCP transport would
+        // and assert the canonical JSON Schema 'examples' keyword survives both ends.
+        final com.fasterxml.jackson.databind.ObjectMapper mapper =
+                new com.fasterxml.jackson.databind.ObjectMapper();
+        final String wireJson = mapper.writeValueAsString( def );
+        assertTrue( wireJson.contains( "\"examples\"" ),
+                "wire JSON must carry the 'examples' keyword for agents — got: " + wireJson );
+        assertTrue( wireJson.contains( "hybrid retrieval" ),
+                "wire JSON must include the design-doc canonical example value 'hybrid retrieval'" );
+    }
+
+    @Test
     void execute_returnsUnfilteredWhenMentionIndexAbsent() {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
         final KgNode a = node( "Alpha", UUID.randomUUID() );

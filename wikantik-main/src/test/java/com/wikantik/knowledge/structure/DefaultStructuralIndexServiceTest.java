@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -145,6 +146,44 @@ class DefaultStructuralIndexServiceTest {
                 "01AAAAAAAAAAAAAAAAAAAAAAAA", Optional.empty() );
         assertEquals( 2, outgoing.size() );
         verify( relDao, times( 1 ) ).replaceFor( eq( "01AAAAAAAAAAAAAAAAAAAAAAAA" ), any() );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void rebuild_persists_verification_with_computed_confidence() throws Exception {
+        final java.time.Instant nowish = java.time.Instant.now().minus( java.time.Duration.ofDays( 1 ) );
+        final String iso = nowish.toString();
+        final Page auth = fakePage( "Auth",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\n" +
+                "title: Auth\ntype: article\n" +
+                "verified_at: " + iso + "\n" +
+                "verified_by: alice\n", "" );
+        final Page prov = fakePage( "Prov",
+                "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\n" +
+                "title: Prov\ntype: article\n" +
+                "verified_at: " + iso + "\n" +
+                "verified_by: bob\n", "" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( auth, prov ) );
+
+        final PageVerificationDao verificationDao = mock( PageVerificationDao.class );
+        final ConfidenceComputer computer = new ConfidenceComputer( "alice"::equals );
+        final var withVerification = new DefaultStructuralIndexService(
+                pageManager, dao, /* relationsDao */ null, verificationDao, computer,
+                new StructuralIndexMetrics() );
+
+        withVerification.rebuild();
+
+        final org.mockito.ArgumentCaptor< com.wikantik.api.structure.Verification > cap =
+                org.mockito.ArgumentCaptor.forClass( com.wikantik.api.structure.Verification.class );
+        verify( verificationDao, times( 2 ) ).upsert( anyString(), cap.capture() );
+
+        final var values = cap.getAllValues();
+        assertTrue( values.stream().anyMatch(
+                v -> v.confidence() == com.wikantik.api.structure.Confidence.AUTHORITATIVE ),
+                "alice is trusted → AUTHORITATIVE" );
+        assertTrue( values.stream().anyMatch(
+                v -> v.confidence() == com.wikantik.api.structure.Confidence.PROVISIONAL ),
+                "bob is not trusted → PROVISIONAL" );
     }
 
     @Test

@@ -180,6 +180,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                         LOG.warn( "DAO upsert failed for {} — in-memory projection will continue: {}",
                                   p.getName(), dbx.getMessage() );
                     }
+                    persistVerification( canonicalId, fm );
                 }
 
                 final Object relationsField = fm.get( "relations" );
@@ -339,6 +340,59 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
     synchronized void onPageDeleted( final String pageName ) {
         rebuild();
+    }
+
+    /**
+     * Project frontmatter verification fields into {@code page_verification}.
+     * No-op when the verification DAO isn't wired (older constructors). The
+     * confidence stored is the rule-engine's output — author overrides win,
+     * but otherwise it's a function of verified_at + trusted-authors.
+     */
+    private void persistVerification( final String canonicalId, final Map< String, Object > fm ) {
+        if ( verificationDao == null ) {
+            return;
+        }
+        try {
+            final Instant verifiedAt = parseInstant( fm.get( "verified_at" ) );
+            final String verifiedBy  = asString( fm.get( "verified_by" ) );
+            final var explicitOverride = com.wikantik.api.structure.Confidence
+                    .fromWire( fm.get( "confidence" ) );
+            final com.wikantik.api.structure.Audience audience =
+                    com.wikantik.api.structure.Audience.fromFrontmatter( fm.get( "audience" ) );
+            final com.wikantik.api.structure.Confidence confidence =
+                    confidenceComputer.compute( verifiedAt, verifiedBy, explicitOverride, Instant.now() );
+            verificationDao.upsert( canonicalId, new Verification( verifiedAt, verifiedBy, confidence, audience ) );
+        } catch ( final RuntimeException ex ) {
+            LOG.warn( "verification persistence failed for {}: {}", canonicalId, ex.getMessage() );
+        }
+    }
+
+    private static Instant parseInstant( final Object raw ) {
+        if ( raw == null ) {
+            return null;
+        }
+        if ( raw instanceof java.util.Date d ) {
+            // SnakeYAML parses ISO-8601 timestamps directly into java.util.Date.
+            return d.toInstant();
+        }
+        if ( raw instanceof Instant i ) {
+            return i;
+        }
+        final String s = raw.toString().trim();
+        if ( s.isEmpty() ) {
+            return null;
+        }
+        try {
+            return Instant.parse( s );
+        } catch ( final java.time.format.DateTimeParseException ex ) {
+            // Fall back to ISO_LOCAL_DATE_TIME or ISO_DATE — authors sometimes omit the trailing Z.
+            try {
+                return java.time.LocalDateTime.parse( s ).atZone( java.time.ZoneOffset.UTC ).toInstant();
+            } catch ( final java.time.format.DateTimeParseException ignored ) {
+                LOG.warn( "verified_at could not be parsed: '{}'", s );
+                return null;
+            }
+        }
     }
 
     private static String asString( final Object o ) {

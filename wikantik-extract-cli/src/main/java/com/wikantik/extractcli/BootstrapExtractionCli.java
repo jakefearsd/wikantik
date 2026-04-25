@@ -294,6 +294,11 @@ public final class BootstrapExtractionCli {
                 if( a.jdbcUrl.isBlank() ) throw new IllegalArgumentException( "--jdbc-url is required" );
                 if( a.jdbcUser.isBlank() ) throw new IllegalArgumentException( "--jdbc-user is required" );
                 if( a.pollSeconds < 1 ) throw new IllegalArgumentException( "--poll-seconds must be >= 1" );
+                if( ( !a.prefilterSkipCode || !a.prefilterSkipNoProper ) && !a.prefilterEnabled ) {
+                    throw new IllegalArgumentException(
+                        "--no-prefilter-skip-code / --no-prefilter-skip-nopn have no effect "
+                      + "without --prefilter (or --prefilter-dry-run); pass one of those too." );
+                }
             }
             return a;
         }

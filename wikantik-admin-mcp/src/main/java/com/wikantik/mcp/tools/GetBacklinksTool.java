@@ -45,13 +45,29 @@ public class GetBacklinksTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageName", Map.of( "type", "string", "description", "Name of the page to find backlinks for" ) );
+        properties.put( "pageName", Map.of(
+                "type", "string",
+                "description", "Name of the page to find backlinks for",
+                "examples", List.of( "HybridRetrieval" )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "properties", Map.of(
+                "pageName", Map.of( "type", "string" ),
+                "backlinks", Map.of( "type", "array", "items", Map.of( "type", "string" ) )
+        ) );
+        outputSchema.put( "examples", List.of( Map.of(
+                "pageName", "HybridRetrieval",
+                "backlinks", List.of( "AgentMemory", "Main", "RetrievalExperimentHarness" )
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Find pages that link to a given page. " +
                         "Returns {pageName, backlinks: [names]} sorted alphabetically." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

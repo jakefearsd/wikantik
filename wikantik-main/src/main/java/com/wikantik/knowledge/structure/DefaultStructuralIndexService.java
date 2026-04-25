@@ -31,6 +31,7 @@ import com.wikantik.api.structure.PageType;
 import com.wikantik.api.structure.RelationEdge;
 import com.wikantik.api.structure.RelationType;
 import com.wikantik.api.structure.Sitemap;
+import com.wikantik.api.structure.StructuralConflict;
 import com.wikantik.api.structure.StructuralFilter;
 import com.wikantik.api.structure.StructuralIndexService;
 import com.wikantik.api.structure.TagSummary;
@@ -72,6 +73,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
     private volatile IndexHealth health = new IndexHealth(
             IndexHealth.Status.DOWN, 0, 0, null, null, 0L, 0L );
     private volatile int unclaimed = 0;
+    private volatile List< StructuralConflict > conflicts = List.of();
 
     public DefaultStructuralIndexService( final PageManager pageManager,
                                           final PageCanonicalIdsDao dao,
@@ -113,9 +115,10 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         }
 
         // Pass 1: parse pages, record canonical_ids, defer relations until we know which targets resolve.
-        record PendingRelations( String sourceId, Object rawField, boolean authored ) {}
+        record PendingRelations( String sourceId, Object rawField, boolean authored, String slug ) {}
         final List< PendingRelations > pendingRelations = new ArrayList<>();
         final Set< String > knownAuthoredIds = new HashSet<>();
+        final List< StructuralConflict > foundConflicts = new ArrayList<>();
         int missing = 0;
         int indexed = 0;
 
@@ -130,6 +133,10 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 if ( !authored ) {
                     canonicalId = UlidCreator.getUlid().toString();
                     missing++;
+                    foundConflicts.add( new StructuralConflict(
+                            p.getName(), null, StructuralConflict.Kind.MISSING_CANONICAL_ID,
+                            "page indexed under synthesised id " + canonicalId
+                              + " — add canonical_id to frontmatter to make this stable" ) );
                 } else {
                     knownAuthoredIds.add( canonicalId );
                 }
@@ -158,7 +165,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
                 final Object relationsField = fm.get( "relations" );
                 if ( relationsField != null ) {
-                    pendingRelations.add( new PendingRelations( canonicalId, relationsField, authored ) );
+                    pendingRelations.add( new PendingRelations( canonicalId, relationsField, authored, p.getName() ) );
                 }
 
                 indexed++;
@@ -178,6 +185,10 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 for ( final var issue : result.issues() ) {
                     LOG.warn( "relations issue (source={}): {} — {}",
                               pr.sourceId(), issue.kind(), issue.detail() );
+                    foundConflicts.add( new StructuralConflict(
+                            pr.slug(), pr.sourceId(),
+                            StructuralConflict.Kind.RELATION_ISSUE,
+                            issue.kind() + ": " + issue.detail() ) );
                 }
             }
             for ( final var rel : result.valid() ) {
@@ -197,6 +208,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
         current.set( builder.build() );
         this.unclaimed = missing;
+        this.conflicts = List.copyOf( foundConflicts );
 
         final Instant finish = Instant.now();
         final long durationMs = finish.toEpochMilli() - start.toEpochMilli();
@@ -267,6 +279,9 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
     @Override
     public IndexHealth health() { return health; }
+
+    @Override
+    public List< StructuralConflict > conflicts() { return conflicts; }
 
     @Override
     public StructuralProjectionSnapshot snapshot() {

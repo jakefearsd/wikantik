@@ -95,6 +95,7 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
                         .withCache( CACHE_PAGES, getDefaultCacheConfig() )
                         .withCache( CACHE_PAGES_HISTORY, getDefaultCacheConfig() )
                         .withCache( CACHE_PAGES_TEXT, getDefaultCacheConfig() )
+                        .withCache( CACHE_FOR_AGENT, getDefaultCacheConfig() )
                         .build( true );
             }
             registerCache( CACHE_ATTACHMENTS );
@@ -104,6 +105,7 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
             registerCache( CACHE_PAGES );
             registerCache( CACHE_PAGES_HISTORY );
             registerCache( CACHE_PAGES_TEXT );
+            registerCache( CACHE_FOR_AGENT );
         }
     }
 

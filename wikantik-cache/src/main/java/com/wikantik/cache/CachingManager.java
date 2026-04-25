@@ -59,6 +59,9 @@ public interface CachingManager {
     /** Name of the HTML rendering cache (final HTML strings). */
     String CACHE_HTML = "wikantik.htmlCache";
 
+    /** Name of the agent-projection cache. Memoises {@code ForAgentProjectionService} responses by (canonical_id, updated_at). */
+    String CACHE_FOR_AGENT = "wikantik.forAgentCache";
+
     /**
      * Shuts down the underlying cache manager
      */

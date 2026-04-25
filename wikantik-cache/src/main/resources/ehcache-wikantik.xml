@@ -116,4 +116,14 @@
         <heap unit="entries">1000</heap>
     </cache>
 
+    <!-- /for-agent projection cache: keyed by (canonical_id, updated_at_millis). -->
+    <cache alias="wikantik.forAgentCache">
+        <key-type>java.io.Serializable</key-type>
+        <value-type>java.lang.Object</value-type>
+        <expiry>
+            <ttl unit="seconds">3600</ttl>
+        </expiry>
+        <heap unit="entries">5000</heap>
+    </cache>
+
 </config>

@@ -129,9 +129,10 @@ class McpToolRegistryTest {
                 .map( McpTool::name )
                 .collect( Collectors.toSet() );
 
-        assertTrue( names.contains( "rename_page" ), "should contain rename_page" );
-        assertTrue( names.contains( "write_pages" ), "should contain write_pages" );
-        assertTrue( names.contains( "update_page" ), "should contain update_page" );
+        assertTrue( names.contains( "rename_page" ),        "should contain rename_page" );
+        assertTrue( names.contains( "write_pages" ),        "should contain write_pages" );
+        assertTrue( names.contains( "update_page" ),        "should contain update_page" );
+        assertTrue( names.contains( "mark_page_verified" ), "should contain mark_page_verified" );
 
         // import_content moved to wikantik-knowledge
         assertFalse( names.contains( "import_content" ), "import_content moved to knowledge-mcp" );
@@ -151,11 +152,12 @@ class McpToolRegistryTest {
     void testTotalToolCount() {
         final int total = registry.readOnlyTools().size()
                 + registry.authorConfigurableTools().size();
-        // 12 read-only (10 base + read_page + delete_pages) + 3 author-configurable
-        // = 15 base (+ ListProposalsTool / ProposeKnowledgeTool when KG is wired).
+        // 12 read-only (10 base + read_page + delete_pages) + 4 author-configurable
+        // (rename, write, update, mark_page_verified) = 16 base
+        // (+ ListProposalsTool / ProposeKnowledgeTool when KG is wired).
         // Bulk-discovery, search, recent-changes, metadata, and import/export
         // tools live on /knowledge-mcp.
-        assertTrue( total >= 15, "Expected at least 15 tools, found " + total );
+        assertTrue( total >= 16, "Expected at least 16 tools, found " + total );
     }
 
     @Test

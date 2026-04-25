@@ -58,12 +58,15 @@ import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubDiscoveryService;
 import com.wikantik.knowledge.HubOverviewService;
+import com.wikantik.knowledge.structure.ConfidenceComputer;
 import com.wikantik.knowledge.structure.DefaultStructuralIndexService;
 import com.wikantik.knowledge.structure.PageCanonicalIdsDao;
 import com.wikantik.knowledge.structure.PageRelationsDao;
+import com.wikantik.knowledge.structure.PageVerificationDao;
 import com.wikantik.knowledge.structure.StructuralIndexEventListener;
 import com.wikantik.knowledge.structure.StructuralIndexMetrics;
 import com.wikantik.knowledge.structure.StructuralSpinePageFilter;
+import com.wikantik.knowledge.structure.TrustedAuthorsDao;
 import com.wikantik.api.structure.StructuralIndexService;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
@@ -615,10 +618,19 @@ public class WikiEngine implements Engine {
             // in the background so Engine.start() does not block on a ~1000-page scan.
             final PageCanonicalIdsDao canonicalIdsDao = new PageCanonicalIdsDao( ds );
             final PageRelationsDao pageRelationsDao = new PageRelationsDao( ds );
+            final PageVerificationDao pageVerificationDao = new PageVerificationDao( ds );
+            final TrustedAuthorsDao trustedAuthorsDao = new TrustedAuthorsDao( ds );
+            final int staleDays = TextUtil.getIntegerProperty( props,
+                "wikantik.verification.stale_days", ConfidenceComputer.DEFAULT_STALE_DAYS );
+            final ConfidenceComputer confidenceComputer =
+                new ConfidenceComputer( trustedAuthorsDao::contains, staleDays );
             final StructuralIndexMetrics structuralMetrics = StructuralIndexMetrics.resolveAndBind();
             final DefaultStructuralIndexService structuralIndex =
                 new DefaultStructuralIndexService(
-                    getManager( PageManager.class ), canonicalIdsDao, pageRelationsDao, structuralMetrics );
+                    getManager( PageManager.class ), canonicalIdsDao, pageRelationsDao,
+                    pageVerificationDao, confidenceComputer, structuralMetrics );
+            managers.put( PageVerificationDao.class, pageVerificationDao );
+            managers.put( TrustedAuthorsDao.class, trustedAuthorsDao );
             managers.put( StructuralIndexService.class, structuralIndex );
             new StructuralIndexEventListener( structuralIndex )
                 .register( getManager( PageManager.class ) );

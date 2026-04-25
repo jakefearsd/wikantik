@@ -67,14 +67,16 @@ class AdminExtractionResourceTest {
     private static BootstrapEntityExtractionIndexer.Status idleStatus() {
         return new BootstrapEntityExtractionIndexer.Status(
             BootstrapEntityExtractionIndexer.State.IDLE,
-            0, 0, 0, 0, 0, 0, 0, 0, null, null, 0, null, false, 4 );
+            0, 0, 0, 0, 0, 0, 0, 0, null, null, 0, null, false, 4,
+            0, java.util.Map.of() );
     }
 
     private static BootstrapEntityExtractionIndexer.Status runningStatus() {
         return new BootstrapEntityExtractionIndexer.Status(
             BootstrapEntityExtractionIndexer.State.RUNNING,
             10, 4, 0, 40, 12, 0, 5, 1,
-            Instant.parse( "2026-04-24T10:00:00Z" ), null, 1234L, null, true, 4 );
+            Instant.parse( "2026-04-24T10:00:00Z" ), null, 1234L, null, true, 4,
+            0, java.util.Map.of() );
     }
 
     @Test
@@ -216,7 +218,8 @@ class AdminExtractionResourceTest {
         Mockito.when( indexer.status() ).thenReturn( new BootstrapEntityExtractionIndexer.Status(
             BootstrapEntityExtractionIndexer.State.ERROR,
             5, 2, 1, 20, 6, 1, 0, 0, null, Instant.parse( "2026-04-24T11:00:00Z" ),
-            5000L, "disk full", false, 4 ) );
+            5000L, "disk full", false, 4,
+            0, java.util.Map.of() ) );
         installIndexer( indexer );
 
         final StringWriter sw = new StringWriter();

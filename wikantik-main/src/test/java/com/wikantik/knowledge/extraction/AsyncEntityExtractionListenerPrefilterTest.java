@@ -68,6 +68,9 @@ class AsyncEntityExtractionListenerPrefilterTest {
         final Properties p = new Properties();
         p.setProperty( "wikantik.knowledge.extractor.backend", "ollama" );
         p.setProperty( "wikantik.knowledge.extractor.prefilter.enabled", "true" );
+        // Pin the predicate under test so a future default flip in
+        // EntityExtractorConfig can't quietly turn this assertion into a no-op.
+        p.setProperty( "wikantik.knowledge.extractor.prefilter.skip_no_proper_noun", "true" );
         final EntityExtractorConfig cfg = EntityExtractorConfig.fromProperties( p );
 
         final ExecutorService inline = Executors.newSingleThreadExecutor();

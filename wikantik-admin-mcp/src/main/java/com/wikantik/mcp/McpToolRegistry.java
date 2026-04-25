@@ -95,9 +95,10 @@ public class McpToolRegistry {
         final RenamePageTool renamePage = new RenamePageTool( engine, pageManager, pageRenamer, systemPageRegistry );
         final WritePagesTool writePages = new WritePagesTool( pageSaveHelper, pageManager );
         final UpdatePageTool updatePage = new UpdatePageTool( pageSaveHelper, pageManager );
+        final MarkPageVerifiedTool markPageVerified = new MarkPageVerifiedTool( pageSaveHelper, pageManager );
 
         final List< McpTool > authorConfigurableList = new ArrayList<>( List.of(
-                renamePage, writePages, updatePage
+                renamePage, writePages, updatePage, markPageVerified
         ) );
 
         // --- Knowledge proposal tools (only if KnowledgeGraphService is available) ---

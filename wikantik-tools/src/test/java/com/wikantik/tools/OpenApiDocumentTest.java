@@ -104,6 +104,60 @@ class OpenApiDocumentTest {
     }
 
     @Test
+    void searchOperationCarriesWorkedExamplesForAgents() {
+        // AG-Phase 6: every tool's request/response carries a worked example so
+        // OpenAPI clients see a concrete payload, not just a typed schema.
+        final String json = OpenApiDocument.render( request, new ToolsConfig( new Properties() ) );
+        final JsonObject root = JsonParser.parseString( json ).getAsJsonObject();
+        final JsonObject searchOp = root.getAsJsonObject( "paths" )
+                .getAsJsonObject( "/search_wiki" )
+                .getAsJsonObject( "post" );
+
+        // Request body example
+        final JsonObject reqContent = searchOp.getAsJsonObject( "requestBody" )
+                .getAsJsonObject( "content" )
+                .getAsJsonObject( "application/json" );
+        assertTrue( reqContent.has( "example" ),
+                "search_wiki request body must include a worked example for agent first-call success" );
+
+        // 200 response example
+        final JsonObject okContent = searchOp.getAsJsonObject( "responses" )
+                .getAsJsonObject( "200" )
+                .getAsJsonObject( "content" )
+                .getAsJsonObject( "application/json" );
+        assertTrue( okContent.has( "example" ),
+                "search_wiki 200 response must include a worked example" );
+    }
+
+    @Test
+    void getPageOperationCarriesWorkedExamplesForAgents() {
+        final String json = OpenApiDocument.render( request, new ToolsConfig( new Properties() ) );
+        final JsonObject root = JsonParser.parseString( json ).getAsJsonObject();
+        final JsonObject getPageOp = root.getAsJsonObject( "paths" )
+                .getAsJsonObject( "/page/{name}" )
+                .getAsJsonObject( "get" );
+
+        // Path/query parameters carry per-parameter examples
+        final var params = getPageOp.getAsJsonArray( "parameters" );
+        boolean anyParamHasExample = false;
+        for ( int i = 0; i < params.size(); i++ ) {
+            if ( params.get( i ).getAsJsonObject().has( "example" ) ) {
+                anyParamHasExample = true;
+                break;
+            }
+        }
+        assertTrue( anyParamHasExample, "get_page parameters must include at least one example" );
+
+        // 200 response example
+        final JsonObject okContent = getPageOp.getAsJsonObject( "responses" )
+                .getAsJsonObject( "200" )
+                .getAsJsonObject( "content" )
+                .getAsJsonObject( "application/json" );
+        assertTrue( okContent.has( "example" ),
+                "get_page 200 response must include a worked example" );
+    }
+
+    @Test
     void searchResultSchemaIncludesContributingChunksAndRelatedPages() {
         final String json = OpenApiDocument.render( request, new ToolsConfig( new Properties() ) );
         final JsonObject root = JsonParser.parseString( json ).getAsJsonObject();

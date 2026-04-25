@@ -348,6 +348,10 @@
        <servlet-class>com.wikantik.rest.AdminStructuralConflictsResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>AdminVerificationResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminVerificationResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>KnowledgeGraphResource</servlet-name>
        <servlet-class>com.wikantik.rest.KnowledgeGraphResource</servlet-class>
    </servlet>
@@ -516,6 +520,10 @@
    <servlet-mapping>
        <servlet-name>AdminStructuralConflictsResource</servlet-name>
        <url-pattern>/admin/structural-conflicts</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminVerificationResource</servlet-name>
+       <url-pattern>/admin/verification</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>KnowledgeGraphResource</servlet-name>

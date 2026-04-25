@@ -63,6 +63,7 @@ import com.wikantik.knowledge.structure.PageCanonicalIdsDao;
 import com.wikantik.knowledge.structure.PageRelationsDao;
 import com.wikantik.knowledge.structure.StructuralIndexEventListener;
 import com.wikantik.knowledge.structure.StructuralIndexMetrics;
+import com.wikantik.knowledge.structure.StructuralSpinePageFilter;
 import com.wikantik.api.structure.StructuralIndexService;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
@@ -674,6 +675,17 @@ public class WikiEngine implements Engine {
             final FilterManager filterManager = getManager( FilterManager.class );
             filterManager.addPageFilter( svcs.chunkProjector(), -1005 );
             filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), -1004 );
+            // -1003 — runs after frontmatter defaulting so the page already has a
+            // frontmatter block, but before chunking and hub sync so the
+            // canonical_id this filter assigns is visible to downstream filters.
+            filterManager.addPageFilter(
+                new StructuralSpinePageFilter( structuralIndex,
+                    name -> {
+                        final SystemPageRegistry sys = getManager( SystemPageRegistry.class );
+                        return sys != null && sys.isSystemPage( name );
+                    },
+                    props ),
+                -1003 );
             filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );
 
             LOG.info( "HubProposalService registered (reviewPercentile property='{}')",

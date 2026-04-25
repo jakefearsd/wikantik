@@ -191,4 +191,55 @@ class CsrfProtectionFilterTest {
                 "Admin path '" + servletPath + "' should be recognized as a REST API endpoint" );
     }
 
+    // D3: Bearer-token requests are CSRF-exempt — Authorization headers cannot be forged
+    // by browsers cross-origin, so the token itself is the proof of intent. Without this
+    // exemption, /tools/* POSTs from API-key clients hit the synchronizer-token branch
+    // and get 302-redirected to /error/Forbidden.html.
+    @Test
+    void testHasBearerAuthRecognizesBearerToken() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "Bearer abc123" ).when( request ).getHeader( "Authorization" );
+        assertTrue( CsrfProtectionFilter.hasBearerAuth( request ) );
+    }
+
+    @Test
+    void testHasBearerAuthRecognizesLowercaseBearer() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "bearer abc123" ).when( request ).getHeader( "Authorization" );
+        assertTrue( CsrfProtectionFilter.hasBearerAuth( request ) );
+    }
+
+    @Test
+    void testHasBearerAuthIgnoresBasicAuth() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "Basic Zm9vOmJhcg==" ).when( request ).getHeader( "Authorization" );
+        assertFalse( CsrfProtectionFilter.hasBearerAuth( request ) );
+    }
+
+    @Test
+    void testHasBearerAuthFalseWhenAbsent() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( null ).when( request ).getHeader( "Authorization" );
+        assertFalse( CsrfProtectionFilter.hasBearerAuth( request ) );
+    }
+
+    /**
+     * D3 end-to-end: a POST to /tools/search_wiki carrying a Bearer token must pass through
+     * the filter without a CSRF token and without being redirected.
+     */
+    @Test
+    void testBearerAuthPostToolsEndpointPassesThrough() throws Exception {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "POST" ).when( request ).getMethod();
+        Mockito.doReturn( "/tools/search_wiki" ).when( request ).getServletPath();
+        Mockito.doReturn( "Bearer abc123" ).when( request ).getHeader( "Authorization" );
+
+        final jakarta.servlet.http.HttpServletResponse response = Mockito.mock( jakarta.servlet.http.HttpServletResponse.class );
+        final jakarta.servlet.FilterChain chain = Mockito.mock( jakarta.servlet.FilterChain.class );
+
+        new CsrfProtectionFilter().doFilter( request, response, chain );
+
+        Mockito.verify( chain ).doFilter( request, response );
+        Mockito.verify( response, Mockito.never() ).sendRedirect( Mockito.anyString() );
+    }
 }

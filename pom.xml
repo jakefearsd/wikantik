@@ -95,6 +95,7 @@
     <testcontainers.version>1.21.4</testcontainers.version>
     <caffeine.version>3.2.3</caffeine.version>
     <ulid-creator.version>5.2.3</ulid-creator.version>
+    <jmustache.version>1.16</jmustache.version>
 
     <plugin.antrun.version>3.1.0</plugin.antrun.version>
     <plugin.assembly.version>3.7.1</plugin.assembly.version>
@@ -319,6 +320,12 @@
         <groupId>com.github.f4b6a3</groupId>
         <artifactId>ulid-creator</artifactId>
         <version>${ulid-creator.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.samskivert</groupId>
+        <artifactId>jmustache</artifactId>
+        <version>${jmustache.version}</version>
       </dependency>
 
       <dependency>

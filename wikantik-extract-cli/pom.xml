@@ -78,6 +78,12 @@
             <artifactId>ulid-creator</artifactId>
         </dependency>
 
+        <!-- Mustache for the Main.md generator (Phase 3 of structural spine) -->
+        <dependency>
+            <groupId>com.samskivert</groupId>
+            <artifactId>jmustache</artifactId>
+        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

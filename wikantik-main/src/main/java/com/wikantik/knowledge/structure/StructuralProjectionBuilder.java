@@ -20,6 +20,7 @@ package com.wikantik.knowledge.structure;
 
 import com.wikantik.api.structure.PageDescriptor;
 import com.wikantik.api.structure.PageType;
+import com.wikantik.api.structure.Relation;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -42,6 +43,8 @@ public final class StructuralProjectionBuilder {
     private final Map< String, PageDescriptor > hubByCluster = new HashMap<>();
     private final Map< String, List< PageDescriptor > > byTag = new LinkedHashMap<>();
     private final Map< PageType, List< PageDescriptor > > byType = new EnumMap<>( PageType.class );
+    private final Map< String, List< Relation > > outgoingBySource = new HashMap<>();
+    private final Map< String, List< Relation > > incomingByTarget = new HashMap<>();
 
     public StructuralProjectionBuilder addPage( final PageDescriptor page ) {
         byCanonicalId.put( page.canonicalId(), page );
@@ -62,6 +65,18 @@ public final class StructuralProjectionBuilder {
         return this;
     }
 
+    /**
+     * Add an authored relation. Caller is responsible for resolving the target
+     * to a canonical_id; relations whose target is unknown can still be added,
+     * but they will surface as {@link com.wikantik.api.structure.RelationEdge}s
+     * with {@code targetSlug == null} on read.
+     */
+    public StructuralProjectionBuilder addRelation( final Relation relation ) {
+        outgoingBySource.computeIfAbsent( relation.sourceId(), k -> new ArrayList<>() ).add( relation );
+        incomingByTarget.computeIfAbsent( relation.targetId(), k -> new ArrayList<>() ).add( relation );
+        return this;
+    }
+
     public StructuralProjection build() {
         return new StructuralProjection(
                 byCanonicalId,
@@ -70,6 +85,8 @@ public final class StructuralProjectionBuilder {
                 hubByCluster,
                 byTag,
                 byType,
+                outgoingBySource,
+                incomingByTarget,
                 Instant.now() );
     }
 }

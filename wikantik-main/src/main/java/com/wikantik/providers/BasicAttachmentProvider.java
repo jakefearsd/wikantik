@@ -566,6 +566,23 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 
     /**
      *  {@inheritDoc}
+     *
+     *  D9: previously a failed rename merely logged a {@code WARN} and the API
+     *  reported success — leaving attachments orphaned under the old page
+     *  directory while the page itself moved. Now:
+     *  <ul>
+     *    <li>If the source attachment directory does not exist there's nothing
+     *        to move and we silently succeed (the typical case for pages
+     *        without attachments).</li>
+     *    <li>If the destination directory already exists we fail loudly with a
+     *        {@link ProviderException} — the caller is responsible for ensuring
+     *        the target slot is free.</li>
+     *    <li>If a single-syscall rename fails (e.g. a cross-filesystem move),
+     *        we fall back to a copy-then-delete using NIO. If the copy fails,
+     *        the partial copy is rolled back and a {@link ProviderException} is
+     *        thrown so the page rename pipeline can decide whether to abort
+     *        the whole operation.</li>
+     *  </ul>
      */
     @Override
     public void moveAttachmentsForPage( final String oldParent, final String newParent ) throws ProviderException {
@@ -574,12 +591,92 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 
         LOG.debug( "Trying to move all attachments from {} to {}", srcDir, destDir );
 
-        // If it exists, we're overwriting an old page (this has already been confirmed at a higher level), so delete any existing attachments.
+        if( !srcDir.exists() ) {
+            // Nothing to move — page had no attachments.
+            return;
+        }
+
         if( destDir.exists() ) {
             LOG.error( "Page rename failed because target directory {} exists", destDir );
-        } else if( !srcDir.renameTo( destDir ) ) {
-            LOG.warn( "Failed to rename attachment dir {} to {}", srcDir, destDir );
+            throw new ProviderException(
+                    "Cannot move attachments: target directory already exists for " + newParent );
         }
+
+        if( srcDir.renameTo( destDir ) ) {
+            return;
+        }
+
+        // Single-syscall rename failed (often a cross-device move on bind-mounted
+        // storage). Fall back to a recursive copy + delete.
+        LOG.warn( "Single-syscall rename of attachment dir {} -> {} failed; falling back to copy+delete",
+                srcDir, destDir );
+        try {
+            copyDirectoryRecursive( srcDir.toPath(), destDir.toPath() );
+            // Only delete the source if the copy succeeded in full.
+            deleteDirectoryRecursive( srcDir.toPath() );
+        } catch( final java.io.IOException e ) {
+            // Roll back the partial copy so we don't leave the attachments
+            // orphaned in two places at once.
+            try {
+                deleteDirectoryRecursive( destDir.toPath() );
+            } catch( final java.io.IOException cleanupErr ) {
+                LOG.warn( "Failed to roll back partial copy at {}: {}", destDir, cleanupErr.getMessage() );
+            }
+            throw new ProviderException(
+                    "Failed to move attachments from '" + oldParent + "' to '" + newParent
+                            + "': " + e.getMessage() );
+        }
+    }
+
+    /** D9: NIO-based recursive directory copy used by the rename fallback. */
+    private static void copyDirectoryRecursive( final java.nio.file.Path src, final java.nio.file.Path dst )
+            throws java.io.IOException {
+        java.nio.file.Files.walkFileTree( src, new java.nio.file.SimpleFileVisitor<>() {
+            @Override
+            public java.nio.file.FileVisitResult preVisitDirectory(
+                    final java.nio.file.Path dir,
+                    final java.nio.file.attribute.BasicFileAttributes attrs ) throws java.io.IOException {
+                final java.nio.file.Path target = dst.resolve( src.relativize( dir ) );
+                if( !java.nio.file.Files.exists( target ) ) {
+                    java.nio.file.Files.createDirectories( target );
+                }
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public java.nio.file.FileVisitResult visitFile(
+                    final java.nio.file.Path file,
+                    final java.nio.file.attribute.BasicFileAttributes attrs ) throws java.io.IOException {
+                final java.nio.file.Path target = dst.resolve( src.relativize( file ) );
+                java.nio.file.Files.copy( file, target,
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING );
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+        } );
+    }
+
+    /** D9: NIO-based recursive directory delete used after a successful copy fallback. */
+    private static void deleteDirectoryRecursive( final java.nio.file.Path root ) throws java.io.IOException {
+        if( !java.nio.file.Files.exists( root ) ) {
+            return;
+        }
+        java.nio.file.Files.walkFileTree( root, new java.nio.file.SimpleFileVisitor<>() {
+            @Override
+            public java.nio.file.FileVisitResult visitFile(
+                    final java.nio.file.Path file,
+                    final java.nio.file.attribute.BasicFileAttributes attrs ) throws java.io.IOException {
+                java.nio.file.Files.delete( file );
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public java.nio.file.FileVisitResult postVisitDirectory(
+                    final java.nio.file.Path dir, final java.io.IOException exc ) throws java.io.IOException {
+                if( exc != null ) throw exc;
+                java.nio.file.Files.delete( dir );
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+        } );
     }
 
 }

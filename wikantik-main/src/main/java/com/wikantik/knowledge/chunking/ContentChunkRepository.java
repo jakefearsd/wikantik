@@ -416,10 +416,23 @@ public class ContentChunkRepository {
     // ---- private helpers ----
 
     private void insert( final Connection conn, final Chunk ch ) throws SQLException {
+        // D4: Concurrent PUTs to the same page produced a unique-constraint violation on
+        // (page_name, chunk_index) because two threads computed independent diffs and
+        // each tried to insert chunk 0 while the other was already mid-transaction. Use
+        // an idempotent upsert keyed on the existing UNIQUE constraint so a parallel
+        // re-chunking of identical text is a no-op and a parallel re-chunking with new
+        // text simply refreshes the row's body, hash, and timestamps.
         final String sql = "INSERT INTO kg_content_chunks "
             + "( page_name, chunk_index, heading_path, text, char_count, "
             + "  token_count_estimate, content_hash ) "
-            + "VALUES ( ?, ?, ?, ?, ?, ?, ? )";
+            + "VALUES ( ?, ?, ?, ?, ?, ?, ? ) "
+            + "ON CONFLICT ON CONSTRAINT kg_content_chunks_page_index_uniq DO UPDATE SET "
+            + "  heading_path = EXCLUDED.heading_path, "
+            + "  text = EXCLUDED.text, "
+            + "  char_count = EXCLUDED.char_count, "
+            + "  token_count_estimate = EXCLUDED.token_count_estimate, "
+            + "  content_hash = EXCLUDED.content_hash, "
+            + "  modified = CURRENT_TIMESTAMP";
         try( PreparedStatement ps = conn.prepareStatement( sql ) ) {
             final Array headingArray = conn.createArrayOf( "text", ch.headingPath().toArray() );
             ps.setString( 1, ch.pageName() );

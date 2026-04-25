@@ -269,9 +269,10 @@ class DefaultKnowledgeGraphServiceTest {
     }
 
     @Test
-    void snapshotGraph_rejectsAnonymousViewer() {
-        assertThrows( IllegalArgumentException.class,
-                () -> service.snapshotGraph( null ) );
+    void snapshotGraph_acceptsAnonymousViewer() {
+        // D27: knowledge graph reads are now public — anonymous viewers must not be
+        // rejected. The redaction step still hides per-page restricted content.
+        assertDoesNotThrow( () -> service.snapshotGraph( null ) );
     }
 
     @Test

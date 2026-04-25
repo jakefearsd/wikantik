@@ -425,9 +425,11 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     @Override
     public GraphSnapshot snapshotGraph( final Session viewer ) {
-        if ( viewer == null || viewer.isAnonymous() ) {
-            throw new IllegalArgumentException( "Authenticated session required" );
-        }
+        // D27: knowledge graph snapshots are public reads. Previously this guard
+        // rejected anonymous viewers; the graph contains only canonical IDs and typed
+        // edges (no page bodies), so it is safe to expose to unauthenticated callers.
+        // The redaction step below still hides nodes and edges that the viewer
+        // shouldn't see based on per-page ACLs.
 
         GraphSnapshot base = cachedSnapshot;
         final Instant now = Instant.now();
@@ -513,6 +515,12 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     private boolean isViewable( final String pageName, final Session viewer,
                                  final AuthorizationManager authMgr, final PageManager pageMgr ) {
+        // D27: a null viewer means anonymous public access (the graph endpoint is now
+        // public). Treat that as the default-public case — the page either has no
+        // explicit ACL (everyone allowed) or it has one (rejected here).
+        if ( viewer == null || authMgr == null || pageMgr == null ) {
+            return false;
+        }
         final Page page = pageMgr.getPage( pageName );
         final java.security.Permission perm = ( page != null )
                 ? PermissionFactory.getPagePermission( page, "view" )

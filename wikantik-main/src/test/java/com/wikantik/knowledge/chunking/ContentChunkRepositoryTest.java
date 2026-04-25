@@ -88,12 +88,62 @@ class ContentChunkRepositoryTest {
     }
 
     @Test
-    void uniqueIndexConstraintEnforced() {
+    void duplicateInsertIsUpsertedIdempotently() {
+        // D4: Concurrent PUTs to the same page race on the (page_name, chunk_index)
+        // UNIQUE constraint. The repository now uses an upsert so a duplicate insert
+        // refreshes the body and hash rather than throwing.
         final Chunk c0 = new Chunk( "P", 0, List.of(), "a", 1, 1, "ha" );
-        final Chunk c0dup = new Chunk( "P", 0, List.of(), "b", 1, 1, "hb" );
+        final Chunk c0updated = new Chunk( "P", 0, List.of(), "b", 1, 1, "hb" );
         repo.apply( "P", new ChunkDiff.Diff( List.of( c0 ), List.of(), List.of() ) );
-        assertThrows( Exception.class, () ->
-            repo.apply( "P", new ChunkDiff.Diff( List.of( c0dup ), List.of(), List.of() ) ) );
+        // Should not throw — must be idempotent
+        repo.apply( "P", new ChunkDiff.Diff( List.of( c0updated ), List.of(), List.of() ) );
+
+        final List< ChunkDiff.Stored > stored = repo.findByPage( "P" );
+        assertEquals( 1, stored.size(), "upsert must keep exactly one row" );
+        assertEquals( "hb", stored.get( 0 ).contentHash(), "upsert must refresh the hash" );
+    }
+
+    @Test
+    void concurrentApplyDoesNotThrow() throws Exception {
+        // D4: Reproduces the parallel-PUT race directly. Two threads each apply a
+        // diff that inserts chunk 0; without the upsert, one of them throws
+        // "duplicate key value violates unique constraint kg_content_chunks_page_index_uniq".
+        final Chunk c0a = new Chunk( "Pq", 0, List.of(), "alpha", 5, 1, "ha" );
+        final Chunk c0b = new Chunk( "Pq", 0, List.of(), "beta",  4, 1, "hb" );
+
+        final java.util.concurrent.CountDownLatch barrier = new java.util.concurrent.CountDownLatch( 1 );
+        final java.util.concurrent.atomic.AtomicReference< Throwable > t1Err = new java.util.concurrent.atomic.AtomicReference<>();
+        final java.util.concurrent.atomic.AtomicReference< Throwable > t2Err = new java.util.concurrent.atomic.AtomicReference<>();
+        final Thread t1 = new Thread( () -> {
+            try { barrier.await(); repo.apply( "Pq", new ChunkDiff.Diff( List.of( c0a ), List.of(), List.of() ) ); }
+            catch( Throwable e ) { t1Err.set( e ); }
+        } );
+        final Thread t2 = new Thread( () -> {
+            try { barrier.await(); repo.apply( "Pq", new ChunkDiff.Diff( List.of( c0b ), List.of(), List.of() ) ); }
+            catch( Throwable e ) { t2Err.set( e ); }
+        } );
+        t1.start();
+        t2.start();
+        barrier.countDown();
+        t1.join( 5_000 );
+        t2.join( 5_000 );
+
+        // At most one of the two threads can experience a serialization failure, but
+        // neither should see a unique-constraint violation. Accept retry-on-conflict
+        // exceptions only.
+        if ( t1Err.get() != null ) {
+            assertFalse( t1Err.get().getMessage().contains( "kg_content_chunks_page_index_uniq" ),
+                "Concurrent inserts must not surface unique-constraint violations" );
+        }
+        if ( t2Err.get() != null ) {
+            assertFalse( t2Err.get().getMessage().contains( "kg_content_chunks_page_index_uniq" ),
+                "Concurrent inserts must not surface unique-constraint violations" );
+        }
+
+        // Final row exists and has one of the two valid hashes (whichever committed last).
+        final List< ChunkDiff.Stored > stored = repo.findByPage( "Pq" );
+        assertEquals( 1, stored.size() );
+        assertTrue( "ha".equals( stored.get( 0 ).contentHash() ) || "hb".equals( stored.get( 0 ).contentHash() ) );
     }
 
     @Test

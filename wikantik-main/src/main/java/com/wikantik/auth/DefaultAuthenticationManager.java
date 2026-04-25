@@ -247,7 +247,11 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             return false;
         }
 
-        // Protect against brute-force password guessing if configured to do so
+        // Protect against brute-force password guessing if configured to do so.
+        // D2: only delay when there have been FAILED attempts. The previous implementation
+        // counted every login (success or failure) and grew the delay to the 20-second
+        // cap after ~14 successful logins, making every subsequent legitimate login take
+        // 20 seconds. The bucket is cleared on a successful authentication below.
         if ( throttleLogins ) {
             delayLogin( username );
         }
@@ -257,6 +261,8 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         // Execute the user's specified login module
         final Set< Principal > principals = doJAASLogin( loginModuleClass, handler, loginModuleOptions );
         if(!principals.isEmpty()) {
+            // D2: clear the throttle bucket so subsequent legitimate logins are not delayed.
+            clearLoginAttempts( username );
             fireEvent(WikiSecurityEvent.LOGIN_AUTHENTICATED, getLoginPrincipal( principals ), session );
             for ( final Principal principal : principals ) {
                 fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
@@ -273,6 +279,9 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 
             return true;
         }
+        // D2: track only failed attempts so the next try is throttled, but a single
+        // successful login resets the counter.
+        registerFailedLogin( username );
         return false;
     }
 
@@ -289,14 +298,46 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             lastLoginAttempts.cleanup( LASTLOGINS_CLEANUP_TIME );
             final int count = lastLoginAttempts.count( username );
 
-            final long delay = Math.min( 1L << count, MAX_LOGIN_DELAY );
-            LOG.debug( "Sleeping for {} ms to allow login.", delay );
-            Thread.sleep( delay );
-
-            lastLoginAttempts.add( username );
+            // D2: no delay on the first attempt. Only repeated failed attempts (recorded
+            // by registerFailedLogin) accumulate count, so legitimate logins after a
+            // success-cleared bucket take 0ms.
+            if ( count > 0 ) {
+                final long delay = Math.min( 1L << count, MAX_LOGIN_DELAY );
+                LOG.debug( "Sleeping for {} ms to allow login.", delay );
+                Thread.sleep( delay );
+            }
         } catch( final InterruptedException e ) {
             // FALLTHROUGH is fine
+            Thread.currentThread().interrupt();
         }
+    }
+
+    /**
+     * D2: register a failed login attempt for throttling. Called when {@code doJAASLogin}
+     * does not produce any principals.
+     */
+    private void registerFailedLogin( final String username ) {
+        lastLoginAttempts.add( username );
+    }
+
+    /**
+     * D2: clear all previously-recorded login attempts for {@code username}. Called
+     * after a successful authentication so the throttle does not penalise legitimate
+     * users whose password is correct on the first try after several failures.
+     */
+    private void clearLoginAttempts( final String username ) {
+        // TimedCounterList exposes only add/remove(index)/count; rebuild without the
+        // matching entries by walking the list backward and dropping each match.
+        for ( int i = lastLoginAttempts.size() - 1; i >= 0; i-- ) {
+            if ( username.equals( lastLoginAttempts.get( i ) ) ) {
+                lastLoginAttempts.remove( i );
+            }
+        }
+    }
+
+    /** Visible for testing — returns the current attempt count for {@code username}. */
+    int loginAttemptCount( final String username ) {
+        return lastLoginAttempts.count( username );
     }
 
     /**

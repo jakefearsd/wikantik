@@ -28,10 +28,13 @@ import com.wikantik.api.structure.ClusterSummary;
 import com.wikantik.api.structure.IndexHealth;
 import com.wikantik.api.structure.PageDescriptor;
 import com.wikantik.api.structure.PageType;
+import com.wikantik.api.structure.RelationEdge;
+import com.wikantik.api.structure.RelationType;
 import com.wikantik.api.structure.Sitemap;
 import com.wikantik.api.structure.StructuralFilter;
 import com.wikantik.api.structure.StructuralIndexService;
 import com.wikantik.api.structure.TagSummary;
+import com.wikantik.api.structure.TraversalSpec;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -190,6 +193,23 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
     @Override
     public Optional< String > resolveCanonicalIdFromSlug( final String slug ) {
         return current.get().resolveCanonicalIdFromSlug( slug );
+    }
+
+    @Override
+    public List< RelationEdge > outgoingRelations( final String canonicalId,
+                                                    final Optional< RelationType > typeFilter ) {
+        return current.get().outgoingRelations( canonicalId, typeFilter );
+    }
+
+    @Override
+    public List< RelationEdge > incomingRelations( final String canonicalId,
+                                                    final Optional< RelationType > typeFilter ) {
+        return current.get().incomingRelations( canonicalId, typeFilter );
+    }
+
+    @Override
+    public List< RelationEdge > traverse( final String canonicalId, final TraversalSpec spec ) {
+        return current.get().traverse( canonicalId, spec == null ? TraversalSpec.outOnce() : spec );
     }
 
     @Override

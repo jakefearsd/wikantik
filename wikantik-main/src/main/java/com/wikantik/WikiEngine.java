@@ -712,6 +712,13 @@ public class WikiEngine implements Engine {
                     },
                     props ),
                 -1003 );
+            // Phase 3: schema-validate type: runbook frontmatter at save time.
+            // Same priority band as the structural-spine filter — both validate
+            // frontmatter; both reject invalid saves with FilterException.
+            filterManager.addPageFilter(
+                new com.wikantik.knowledge.agent.RunbookValidationPageFilter(
+                    structuralIndex, getManager( PageManager.class ), props ),
+                -1003 );
             filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );
 
             LOG.info( "HubProposalService registered (reviewPercentile property='{}')",

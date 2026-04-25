@@ -64,12 +64,34 @@ public class PingSearchEnginesTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "service", Map.of( "type", "string",
+        properties.put( "service", Map.of(
+                "type", "string",
                 "enum", List.of( "indexnow", "google_ping", "all" ),
-                "description", "Which search engine notification service to use" ) );
-        properties.put( "urls", Map.of( "type", "array",
+                "description", "Which search engine notification service to use",
+                "examples", List.of( "indexnow" )
+        ) );
+        properties.put( "urls", Map.of(
+                "type", "array",
                 "items", Map.of( "type", "string" ),
-                "description", "Specific page URLs to submit (IndexNow). If omitted, submits sitemap URL." ) );
+                "description", "Specific page URLs to submit (IndexNow). If omitted, submits sitemap URL.",
+                "examples", List.of( List.of(
+                        "https://wiki.example.com/HybridRetrieval",
+                        "https://wiki.example.com/AgentMemory"
+                ) )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "results", List.of(
+                        Map.of(
+                                "service", "indexnow",
+                                "success", true,
+                                "submittedUrls", 2,
+                                "httpStatus", 200
+                        )
+                )
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -77,6 +99,7 @@ public class PingSearchEnginesTool implements McpTool {
                         "(submits sitemap URL) and IndexNow (submits specific page URLs). " +
                         "Use after publishing a cluster or making significant content updates." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "service" ), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

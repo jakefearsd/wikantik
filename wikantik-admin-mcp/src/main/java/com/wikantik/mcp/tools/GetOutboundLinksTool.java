@@ -46,7 +46,18 @@ public class GetOutboundLinksTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageName", Map.of( "type", "string", "description", "Name of the page to find outbound links for" ) );
+        properties.put( "pageName", Map.of(
+                "type", "string",
+                "description", "Name of the page to find outbound links for",
+                "examples", List.of( "AgentMemory" )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "pageName", "AgentMemory",
+                "links", List.of( "HybridRetrieval", "Main", "VectorEmbeddings" )
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -54,6 +65,7 @@ public class GetOutboundLinksTool implements McpTool {
                         "Returns {pageName, links: [names]} sorted alphabetically. " +
                         "Use get_backlinks for the reverse direction (who links to this page)." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

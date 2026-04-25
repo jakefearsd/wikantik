@@ -71,12 +71,35 @@ public class RenamePageTool implements McpTool, AuthorConfigurable {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "oldName", Map.of( "type", "string", "description", "Current name of the page to rename" ) );
-        properties.put( "newName", Map.of( "type", "string", "description", "New name for the page (CamelCase)" ) );
-        properties.put( "updateLinks", Map.of( "type", "boolean", "description",
-                "If true (default), update all pages that reference the old name to point to the new name" ) );
-        properties.put( "confirm", Map.of( "type", "boolean", "description",
-                "Must be set to true to confirm the rename. This is a safety guard." ) );
+        properties.put( "oldName", Map.of(
+                "type", "string",
+                "description", "Current name of the page to rename",
+                "examples", List.of( "OldRunbookName" )
+        ) );
+        properties.put( "newName", Map.of(
+                "type", "string",
+                "description", "New name for the page (CamelCase)",
+                "examples", List.of( "HandlingEmbeddingServiceOutages" )
+        ) );
+        properties.put( "updateLinks", Map.of(
+                "type", "boolean",
+                "description", "If true (default), update all pages that reference the old name to point to the new name",
+                "examples", List.of( true )
+        ) );
+        properties.put( "confirm", Map.of(
+                "type", "boolean",
+                "description", "Must be set to true to confirm the rename. This is a safety guard.",
+                "examples", List.of( true )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "success", true,
+                "oldName", "OldRunbookName",
+                "newName", "HandlingEmbeddingServiceOutages",
+                "finalName", "HandlingEmbeddingServiceOutages"
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -85,6 +108,7 @@ public class RenamePageTool implements McpTool, AuthorConfigurable {
                         "Returns {success, oldName, newName, finalName}." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties,
                         List.of( "oldName", "newName", "confirm" ), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, false, true, false, null, null ) )
                 .build();
     }

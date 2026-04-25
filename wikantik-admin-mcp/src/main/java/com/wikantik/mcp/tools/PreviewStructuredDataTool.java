@@ -60,8 +60,26 @@ public class PreviewStructuredDataTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageName", Map.of( "type", "string",
-                "description", "Page name to preview structured data for" ) );
+        properties.put( "pageName", Map.of(
+                "type", "string",
+                "description", "Page name to preview structured data for",
+                "examples", List.of( "HybridRetrieval" )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "pageName", "HybridRetrieval",
+                "exists", true,
+                "metaDescription", "Hybrid Retrieval — BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.",
+                "metaKeywords", "retrieval, search, agents",
+                "openGraph", Map.of(
+                        "og:title", "Hybrid Retrieval",
+                        "og:type", "article",
+                        "og:url", "https://wiki.example.com/HybridRetrieval"
+                ),
+                "googleNewsEligible", false
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -70,6 +88,7 @@ public class PreviewStructuredDataTool implements McpTool {
                         "inclusion, and Google News Sitemap eligibility. Use to verify SEO impact " +
                         "before moving on." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

@@ -59,19 +59,49 @@ public class ProposeKnowledgeTool implements McpTool, AuthorConfigurable {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "proposal_type", Map.of( "type", "string", "description",
-                "Type of proposal: new-node, new-edge, new-property, or modify-property",
-                "enum", List.of( "new-node", "new-edge", "new-property", "modify-property" ) ) );
-        properties.put( "proposed_data", Map.of( "type", "object", "description",
-                "The full proposal data — node definition, edge definition, or property change. " +
-                "For new-edge: {source, target, relationship}. For new-node: {name, node_type, properties}. " +
-                "For new-property/modify-property: {node_name, key, value}." ) );
-        properties.put( "source_page", Map.of( "type", "string", "description",
-                "The wiki page that motivated this proposal" ) );
-        properties.put( "confidence", Map.of( "type", "number", "description",
-                "Agent's self-assessed confidence (0.0 to 1.0)" ) );
-        properties.put( "reasoning", Map.of( "type", "string", "description",
-                "Why the agent believes this is correct, citing specific evidence from page content" ) );
+        properties.put( "proposal_type", Map.of(
+                "type", "string",
+                "description", "Type of proposal: new-node, new-edge, new-property, or modify-property",
+                "enum", List.of( "new-node", "new-edge", "new-property", "modify-property" ),
+                "examples", List.of( "new-edge" )
+        ) );
+        properties.put( "proposed_data", Map.of(
+                "type", "object",
+                "description", "The full proposal data — node definition, edge definition, or property change. " +
+                        "For new-edge: {source, target, relationship}. For new-node: {name, node_type, properties}. " +
+                        "For new-property/modify-property: {node_name, key, value}.",
+                "examples", List.of( Map.of(
+                        "source", "HybridRetrieval",
+                        "target", "BM25",
+                        "relationship", "falls_back_to"
+                ) )
+        ) );
+        properties.put( "source_page", Map.of(
+                "type", "string",
+                "description", "The wiki page that motivated this proposal",
+                "examples", List.of( "HybridRetrieval" )
+        ) );
+        properties.put( "confidence", Map.of(
+                "type", "number",
+                "description", "Agent's self-assessed confidence (0.0 to 1.0)",
+                "examples", List.of( 0.86 )
+        ) );
+        properties.put( "reasoning", Map.of(
+                "type", "string",
+                "description", "Why the agent believes this is correct, citing specific evidence from page content",
+                "examples", List.of( "Page body says 'BM25 fallback is engaged when the embedding service is unreachable'." )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "id", "8f3c2a1b-7e4d-4f5a-9b6c-1d2e3f4a5b6c",
+                "proposal_type", "new-edge",
+                "source_page", "HybridRetrieval",
+                "status", "pending",
+                "confidence", 0.86,
+                "created", "2026-04-25T14:30:00Z"
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -82,6 +112,7 @@ public class ProposeKnowledgeTool implements McpTool, AuthorConfigurable {
                 .inputSchema( new McpSchema.JsonSchema( "object", properties,
                         List.of( "proposal_type", "proposed_data", "source_page", "confidence", "reasoning" ),
                         null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, false, true, false, null, null ) )
                 .build();
     }

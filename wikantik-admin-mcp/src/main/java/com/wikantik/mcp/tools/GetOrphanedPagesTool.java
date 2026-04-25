@@ -50,6 +50,13 @@ public class GetOrphanedPagesTool implements McpTool {
 
     @Override
     public McpSchema.Tool definition() {
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "orphanedPages", List.of( "AbandonedDraft", "OrphanNotebook" ),
+                "count", 2
+        ) ) );
+
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Find orphaned pages — pages that exist but have no incoming links " +
@@ -57,6 +64,7 @@ public class GetOrphanedPagesTool implements McpTool {
                         "Returns {orphanedPages: [...], count}. " +
                         "Use this for wiki maintenance to find disconnected content." )
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

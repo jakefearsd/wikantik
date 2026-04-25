@@ -51,21 +51,56 @@ public class ListProposalsTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "status", Map.of( "type", "string", "description",
-                "Filter by status: pending, approved, or rejected (optional)",
-                "enum", List.of( "pending", "approved", "rejected" ) ) );
-        properties.put( "source_page", Map.of( "type", "string", "description",
-                "Filter by source page name (optional)" ) );
-        properties.put( "limit", Map.of( "type", "integer", "description",
-                "Maximum number of results (default 50)" ) );
-        properties.put( "offset", Map.of( "type", "integer", "description",
-                "Number of results to skip (default 0)" ) );
+        properties.put( "status", Map.of(
+                "type", "string",
+                "description", "Filter by status: pending, approved, or rejected (optional)",
+                "enum", List.of( "pending", "approved", "rejected" ),
+                "examples", List.of( "pending" )
+        ) );
+        properties.put( "source_page", Map.of(
+                "type", "string",
+                "description", "Filter by source page name (optional)",
+                "examples", List.of( "HybridRetrieval" )
+        ) );
+        properties.put( "limit", Map.of(
+                "type", "integer",
+                "description", "Maximum number of results (default 50)",
+                "examples", List.of( 10 )
+        ) );
+        properties.put( "offset", Map.of(
+                "type", "integer",
+                "description", "Number of results to skip (default 0)",
+                "examples", List.of( 0 )
+        ) );
+
+        final Map< String, Object > exampleProposal = new LinkedHashMap<>();
+        exampleProposal.put( "id", "8f3c2a1b-7e4d-4f5a-9b6c-1d2e3f4a5b6c" );
+        exampleProposal.put( "proposal_type", "new-edge" );
+        exampleProposal.put( "source_page", "HybridRetrieval" );
+        exampleProposal.put( "proposed_data", Map.of(
+                "source", "HybridRetrieval",
+                "target", "BM25",
+                "relationship", "falls_back_to"
+        ) );
+        exampleProposal.put( "confidence", 0.86 );
+        exampleProposal.put( "reasoning", "Page body says 'BM25 fallback is engaged when the embedding service is unreachable'." );
+        exampleProposal.put( "status", "pending" );
+        exampleProposal.put( "reviewed_by", null );
+        exampleProposal.put( "created", "2026-04-24T11:22:33Z" );
+        exampleProposal.put( "reviewed_at", null );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "proposals", List.of( exampleProposal )
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Query knowledge proposals to check for duplicates or review history. " +
                         "Returns proposals with their status, confidence, reasoning, and review details." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of(), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

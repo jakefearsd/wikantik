@@ -46,6 +46,22 @@ public class GetBrokenLinksTool implements McpTool {
 
     @Override
     public McpSchema.Tool definition() {
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "brokenLinks", List.of(
+                        Map.of(
+                                "pageName", "MissingDesignDoc",
+                                "referencedBy", List.of( "HybridRetrieval", "AgentMemory" )
+                        ),
+                        Map.of(
+                                "pageName", "OldRunbook",
+                                "referencedBy", List.of( "Main" )
+                        )
+                ),
+                "count", 2
+        ) ) );
+
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Find all broken links across the wiki — pages that are referenced " +
@@ -53,6 +69,7 @@ public class GetBrokenLinksTool implements McpTool {
                         "Use this for wiki maintenance to identify pages that need to be created or " +
                         "links that need to be fixed." )
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

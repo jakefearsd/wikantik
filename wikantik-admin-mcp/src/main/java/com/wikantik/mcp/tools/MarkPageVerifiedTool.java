@@ -72,21 +72,47 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool implements McpTool {
         properties.put( "pageNames", Map.of(
             "type", "array",
             "items", Map.of( "type", "string" ),
-            "description", "Slugs of the pages to mark verified."
+            "description", "Slugs of the pages to mark verified.",
+            "examples", List.of( List.of( "HybridRetrieval", "AgentMemory" ) )
         ) );
         properties.put( "verifier", Map.of(
             "type", "string",
-            "description", "Login_name of the verifying author. Defaults to the MCP exchange author."
+            "description", "Login_name of the verifying author. Defaults to the MCP exchange author.",
+            "examples", List.of( "jakefear" )
         ) );
         properties.put( "confidence", Map.of(
             "type", "string",
             "description", "Optional explicit confidence override (authoritative | provisional | stale). " +
-                "Omit to let the rule engine compute it from verified_at + trusted-authors."
+                "Omit to let the rule engine compute it from verified_at + trusted-authors.",
+            "examples", List.of( "authoritative" )
         ) );
         properties.put( "changeNote", Map.of(
             "type", "string",
-            "description", "Optional change note recorded with the save."
+            "description", "Optional change note recorded with the save.",
+            "examples", List.of( "quarterly content review — pages reread end-to-end" )
         ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "results", List.of(
+                        Map.of(
+                                "pageName", "HybridRetrieval",
+                                "marked", true,
+                                "verified_at", "2026-04-25T14:30:00Z",
+                                "verified_by", "jakefear",
+                                "confidence", "authoritative"
+                        ),
+                        Map.of(
+                                "pageName", "AgentMemory",
+                                "marked", true,
+                                "verified_at", "2026-04-25T14:30:00Z",
+                                "verified_by", "jakefear",
+                                "confidence", "authoritative"
+                        )
+                ),
+                "summary", Map.of( "markedCount", 2, "failedCount", 0 )
+        ) ) );
 
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
@@ -97,6 +123,7 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool implements McpTool {
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties,
                 List.of( "pageNames" ), null, null, null ) )
+            .outputSchema( outputSchema )
             .annotations( new McpSchema.ToolAnnotations( null, false, false, true, null, null ) )
             .build();
     }

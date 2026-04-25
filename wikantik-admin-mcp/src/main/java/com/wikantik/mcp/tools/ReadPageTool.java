@@ -54,10 +54,27 @@ public class ReadPageTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageName", Map.of( "type", "string",
-                "description", "Name of the page to read (no .md extension)." ) );
-        properties.put( "version", Map.of( "type", "integer",
-                "description", "Optional version number. Omit for latest." ) );
+        properties.put( "pageName", Map.of(
+                "type", "string",
+                "description", "Name of the page to read (no .md extension).",
+                "examples", List.of( "HybridRetrieval" )
+        ) );
+        properties.put( "version", Map.of(
+                "type", "integer",
+                "description", "Optional version number. Omit for latest.",
+                "examples", List.of( 7 )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "pageName", "HybridRetrieval",
+                "exists", true,
+                "content", "---\ntitle: Hybrid Retrieval\nsummary: BM25 + dense + graph-aware rerank.\n---\n\n# Hybrid Retrieval\n\n...",
+                "contentHash", "sha256:9c3f8a1d4b6e7c2a5f8e1d3b7a9c0e2d4f6a8b1c3e5d7f9a0b2c4d6e8f0a2b4d",
+                "version", 7,
+                "lastModified", "2026-04-25T14:30:00Z"
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -66,6 +83,7 @@ public class ReadPageTool implements McpTool {
                         "Pass the contentHash back to update_page as expectedContentHash to edit the page." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties,
                         List.of( "pageName" ), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

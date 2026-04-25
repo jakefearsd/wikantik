@@ -67,7 +67,27 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
         properties.put( "pages", Map.of(
             "type", "array",
             "items", pageSchema,
-            "description", "Pages to create. Each item: {pageName, content, metadata?}." ) );
+            "description", "Pages to create. Each item: {pageName, content, metadata?}.",
+            "examples", List.of( List.of(
+                    Map.of(
+                            "pageName", "AgentMemoryRunbook",
+                            "content", "---\ntitle: Agent Memory Runbook\nsummary: How to recover stuck agents.\n---\n\n# Agent Memory Runbook\n\n...",
+                            "metadata", Map.of(
+                                    "type", "runbook",
+                                    "tags", List.of( "agents", "memory", "ops" )
+                            )
+                    )
+            ) )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "results", List.of(
+                        Map.of( "pageName", "AgentMemoryRunbook", "created", true )
+                ),
+                "summary", Map.of( "createdCount", 1, "failedCount", 0 )
+        ) ) );
 
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
@@ -76,6 +96,7 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
                 "retry only the failures." )
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties, List.of( "pages" ), null, null, null ) )
+            .outputSchema( outputSchema )
             .annotations( new McpSchema.ToolAnnotations( null, false, false, true, null, null ) )
             .build();
     }

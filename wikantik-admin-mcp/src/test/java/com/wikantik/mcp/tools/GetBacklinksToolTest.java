@@ -92,6 +92,7 @@ class GetBacklinksToolTest {
     }
 
     @Test
+    @SuppressWarnings( "unchecked" )
     void testToolDefinition() {
         final McpSchema.Tool def = tool.definition();
         assertEquals( "get_backlinks", def.name() );
@@ -99,6 +100,16 @@ class GetBacklinksToolTest {
         assertTrue( def.description().contains( "backlinks" ) );
         assertNotNull( def.inputSchema() );
         assertTrue( def.inputSchema().required().contains( "pageName" ) );
+        // Phase 6: per-property examples present on input schema.
+        final Map< String, Object > props = def.inputSchema().properties();
+        final Map< String, Object > pageNameProp = ( Map< String, Object > ) props.get( "pageName" );
+        assertTrue( pageNameProp.containsKey( "examples" ),
+                "input schema property 'pageName' should advertise examples for agent first-call success" );
+        assertFalse( ( ( List< ? > ) pageNameProp.get( "examples" ) ).isEmpty() );
+        // Phase 6: top-level examples on output schema.
+        assertNotNull( def.outputSchema(), "outputSchema should be populated for Phase 6" );
+        assertTrue( def.outputSchema().containsKey( "examples" ) );
+        assertFalse( ( ( List< ? > ) def.outputSchema().get( "examples" ) ).isEmpty() );
     }
 
     @Test

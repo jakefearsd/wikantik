@@ -111,7 +111,7 @@ public final class PinsParser {
                     throw new IllegalArgumentException(
                             "Main.pins.yaml: sections[" + sectionIndex + "].pages[" + i + "] is blank" );
                 }
-                out.add( new PinsConfig.PinsPage( shortForm.trim(), null ) );
+                out.add( new PinsConfig.PinsPage( shortForm.trim(), null, null ) );
                 continue;
             }
             if ( !( item instanceof Map ) ) {
@@ -126,8 +126,9 @@ public final class PinsParser {
                 throw new IllegalArgumentException(
                         "Main.pins.yaml: sections[" + sectionIndex + "].pages[" + i + "] is missing id/canonical_id" );
             }
+            final String title   = stringOrNull( page.get( "title" ) );
             final String summary = stringOrNull( page.get( "summary" ) );
-            out.add( new PinsConfig.PinsPage( id, summary ) );
+            out.add( new PinsConfig.PinsPage( id, title, summary ) );
         }
         return out;
     }

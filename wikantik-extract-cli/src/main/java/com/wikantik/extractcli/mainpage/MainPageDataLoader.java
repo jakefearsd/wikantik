@@ -73,10 +73,13 @@ public final class MainPageDataLoader {
                             + pp.canonicalId() + " does not resolve to any page (skipped)" );
                     continue;
                 }
+                final String title = pp.titleOverride() != null
+                        ? pp.titleOverride()
+                        : r.title();
                 final String summary = pp.summaryOverride() != null
                         ? pp.summaryOverride()
                         : r.summary();
-                pages.add( new MainPageData.Page( pp.canonicalId(), r.slug(), r.title(), summary ) );
+                pages.add( new MainPageData.Page( pp.canonicalId(), r.slug(), title, summary ) );
             }
             sections.add( new MainPageData.Section( ps.label(), ps.cluster(), pages ) );
         }

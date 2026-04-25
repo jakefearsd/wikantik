@@ -213,8 +213,8 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 - **wikantik-cache-memcached**: Distributed cache adapter for Memcached
 - **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers, SPA routing, `/wiki/{slug}?format=md|json` content filter
 - **wikantik-rest**: REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`)
-- **wikantik-admin-mcp**: Admin MCP server at `/wikantik-admin-mcp` — 16 tools (writes + link/metadata analytics), 6 resources, 8 prompts, 3 completions. See `com.wikantik.mcp.McpServerInitializer`.
-- **wikantik-knowledge**: Knowledge MCP server at `/knowledge-mcp` — 16 read-only tools (hybrid retrieval, knowledge-graph traversal, schema discovery, structural-spine navigation, agent-grade page projection) plus the knowledge-graph service (pgvector-backed embeddings, co-mention graph, hub discovery). See `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
+- **wikantik-admin-mcp**: Admin MCP server at `/wikantik-admin-mcp` — 18 tools (writes + link/metadata analytics), 6 resources, 8 prompts, 3 completions. See `com.wikantik.mcp.McpServerInitializer`. (D28: counts reconciled with the live registry 2026-04-25.)
+- **wikantik-knowledge**: Knowledge MCP server at `/knowledge-mcp` — 15 read-only tools (hybrid retrieval, knowledge-graph traversal, schema discovery, structural-spine navigation, agent-grade page projection) plus the knowledge-graph service (pgvector-backed embeddings, co-mention graph, hub discovery). See `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
 - **wikantik-tools**: OpenAPI 3.1 tool server at `/tools/*` — 2 tools (`search_wiki`, `get_page`) for OpenWebUI-compatible non-MCP clients.
 - **wikantik-extract-cli**: Standalone entity-extractor CLI (offline/batch extraction against the knowledge-graph pipeline)
 - **wikantik-observability**: Health checks, Prometheus metrics, request correlation
@@ -227,8 +227,8 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 
 | Endpoint | Module | Protocol | Tools | Auth |
 |----------|--------|----------|-------|------|
-| `/wikantik-admin-mcp` | wikantik-admin-mcp | MCP (Streamable HTTP) | 16 write/analytics tools | `McpAccessFilter` (bearer token / API key) |
-| `/knowledge-mcp` | wikantik-knowledge | MCP (Streamable HTTP) | 16 read-only retrieval + KG + structural-spine + agent-projection tools | `KnowledgeMcpAccessFilter` (same scheme) |
+| `/wikantik-admin-mcp` | wikantik-admin-mcp | MCP (Streamable HTTP) | 18 write/analytics tools | `McpAccessFilter` (bearer token / API key) |
+| `/knowledge-mcp` | wikantik-knowledge | MCP (Streamable HTTP) | 15 read-only retrieval + KG + structural-spine + agent-projection tools | `KnowledgeMcpAccessFilter` (same scheme) |
 | `/tools/*` | wikantik-tools | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) | API key |
 | `/api/*` | wikantik-rest | REST/JSON | 24 Resource classes | `RestServletBase.checkPagePermission()` (ACL + policy grants) |
 | `/admin/*` | wikantik-rest | REST/JSON | 8 admin resources | `AdminAuthFilter` (`AllPermission`) |

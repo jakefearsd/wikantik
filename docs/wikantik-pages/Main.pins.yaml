@@ -1,0 +1,121 @@
+# Editorial layout for the generated docs/wikantik-pages/Main.md.
+#
+# Edit this file (not Main.md) to change what appears on the wiki front page.
+# After editing, run:
+#
+#   java -cp wikantik-extract-cli/target/wikantik-extract-cli.jar \
+#        com.wikantik.extractcli.GenerateMainPageCli docs/wikantik-pages --write
+#
+# CI runs the same command in --check mode and fails the build if Main.md
+# diverges from what this file would produce.
+#
+# Page references are by canonical_id (the ULID in each page's frontmatter)
+# rather than slug, so renames don't break Main.md. Override title or
+# summary per-page when the frontmatter lacks one or the editorial voice
+# differs from the page's own self-description.
+
+intro: |
+  A curated collection of in-depth research articles, organized into topic clusters. Each cluster has a hub page that introduces the topic and links to detailed sub-articles. Articles are interlinked across clusters where topics overlap.
+
+  You can read the [site blogs here]( ../blog/) and learn about the [Wikantik Knowledge Graph Admin](WikantikKnowledgeGraphAdmin) if you want to be a power user.
+
+footer: |
+  Powered by [Wikantik](About). Articles are written as AI-assisted research — drafted with Claude, reviewed and edited by a human, and published via the [MCP API](https://modelcontextprotocol.io/). Content is organized using YAML frontmatter metadata for programmatic discovery and cross-referencing.
+
+sections:
+  - label: "Finance & Retirement"
+    cluster: personal-finance
+    pages:
+      - id: 01KQ0P44R3DT6V9W45AD06JFRW
+        title: "Index Fund Investing for Early Retirement"
+        summary: "Building wealth with low-cost index funds: expense ratios, three-fund portfolios, account strategy, Roth conversion ladders, and a complete early retirement blueprint"
+      - id: 01KQ0P44VPKV01K0CMG0RNZ71A
+        title: "Retirement Planning Guide"
+        summary: "Strategic decision frameworks for decumulation: Roth conversions, Social Security claiming, withdrawal sequencing, Medicare planning, RMDs, and building reliable retirement income"
+      - id: 01KQ0P44Q77D4ZERJ5ZN2N571W
+        title: "EU Retirement Savings Guide"
+        summary: "How EU retirement savings and investing law differs from the US: three-pillar system, capital gains tax, and country deep dives (Germany, France, Netherlands, Italy, Spain)"
+
+  - label: "Geopolitics & Conflict"
+    cluster: geopolitics
+    pages:
+      - id: 01KQ0P44NWKXBXJ0KB3SMAE0QY
+        title: "Conflicts and Global Equity Markets"
+        summary: "How major international conflicts from WWI through the Russia-Ukraine war have shaped global equity markets, with cross-cutting pattern analysis and investment lessons"
+      - id: 01KQ0P44VZN6EV310SWYP621WF
+        title: "The Russia-Ukraine War: Overview"
+        summary: "The state of the conflict in its fourth year: territorial situation, peace negotiations, humanitarian crisis, drone warfare, the energy infrastructure war, and international military support"
+
+  - label: "Technology"
+    cluster: technology
+    pages:
+      - id: 01KQ0P44QNX1DH6SZB0709Y823
+        title: "Generative AI Adoption Guide"
+        summary: "A practitioner's roadmap for adopting generative AI: understanding LLMs, evaluating tools, prompt engineering, running local models, integrating AI into workflows, and accelerating your learning"
+      - id: 01KQ0P44RXMZBD1705M8DV3X2T
+        title: "Linux for Windows Users"
+        summary: "Transitioning from Windows to Linux: choosing a distribution, command line essentials, filesystem and permissions, package management, shell scripting, and system administration"
+      - id: 01KQ0P44RZGC2N51EXZYR2WDT0
+        title: "LLMs Since 2020"
+        summary: "The evolution of large language models from GPT-3 through modern frontier models: scaling laws, RLHF, multimodal capabilities, the open-weight movement, and what it means for practitioners"
+      - id: 01KQ0P44XNV18K6ERCY48S21QX
+        title: "The Future of Machine Learning"
+        summary: "Where [machine learning](MachineLearning) is headed: foundation models, data efficiency, edge AI, AI safety, neurosymbolic approaches, and the engineering challenges of deploying ML at scale"
+      - id: 01KQ0P44QGFRYPTQM5C4B78S33
+        title: "Foundational Algorithms for Computer Scientists"
+        summary: "The essential algorithms every computer scientist should know: sorting, graph algorithms, dynamic programming, greedy methods, cryptographic primitives, and compression"
+      - id: 01KQ0P44PSDYPG5MY8RH2DM5GT
+        title: "Distributed Computing Evolution"
+        summary: "Thirty years of distributed systems: from CORBA and client-server to cloud-native microservices, event-driven architecture, and modern best practices for reliability, observability, and scale"
+      - id: 01KQ0P44Q20H1X4B9FJ82DB4F7
+        title: "Embedded AI on Limited Hardware"
+        summary: "Running AI models on microcontrollers, phones, and edge devices: proven use cases, quantization, TinyML, and the economics of on-device inference"
+      - id: 01KQ0P44SAH60A7F88VHYD18BP
+        title: "Mathematical Foundations of Machine Learning"
+        summary: "The math that underpins ML: [linear algebra](LinearAlgebra), calculus, probability, optimization, and information theory, with concrete examples of how each concept drives real techniques"
+
+  - label: "Hobby Woodworking"
+    cluster: hobby-woodworking
+    pages:
+      - id: 01KQ0P44QX7VBB9GES0CDM9EPQ
+        title: "Hobby Woodworking in the Twenty-First Century"
+        summary: "How computer-controlled tools, digital design, and a hand tool revival have transformed hobby woodworking since 2000"
+      - id: 01KQ0P44Q86KC8BPPJWCPKWC89
+        title: "Evolution of Hobby Woodworking"
+        summary: "How the craft has changed in tools, materials, knowledge access, and community since 2000"
+      - id: 01KQ0P44NH6753GDGWHP9EEAVJ
+        title: "CNC Routers for the Hobby Workshop"
+        summary: "Desktop CNC routers for hobbyists: machines, software, capabilities, and workflow"
+      - id: 01KQ0P44XP9QHVDGG6JGHFM4P9
+        title: "3D Printing Meets Woodworking"
+        summary: "Jigs, fixtures, workholding, and custom hardware from a 3D printer"
+      - id: 01KQ0P44RPCNAYG7Q684CNB3NK
+        title: "Laser Cutters and Engravers for Wood"
+        summary: "CO2 and diode lasers for cutting, engraving, and inlay in a home shop"
+      - id: 01KQ0P44PNSPVTZXWWHQJWK16B
+        title: "Digital Design Tools for Woodworkers"
+        summary: "CAD, CAM, and laser software: Fusion 360, VCarve Pro, LightBurn, and more"
+      - id: 01KQ0P44SNYJ0EE1SQ0VXQB4C1
+        title: "The Modern Hand Tool Renaissance"
+        summary: "Premium hand tools and a global maker community brought traditional craft back"
+
+  - label: "Warehouse Automation"
+    cluster: warehouse-automation
+    pages:
+      - id: 01KQ0P44YKQTTF1M0KS2X7DB0Z
+        title: "Warehouse Automation Hub"
+        summary: "The technology stack behind modern warehouse automation: robotics, conveyor systems, WMS platforms, AI-driven optimization, and the practical limits of automation"
+
+  - label: "Berlin History"
+    cluster: berlin
+    pages:
+      - id: 01KQ0P44MFPCNAVMXA25W7T3GS
+        title: "Berlin"
+        summary: "The history of Berlin from medieval margraviate to modern capital: Reformation-era urban development, Prussian transformation, and the city's evolving identity"
+
+  - label: "Immigration"
+    cluster: immigration
+    pages:
+      - id: 01KQ0P44WTZC4RJ3S7PJM1VRXR
+        title: "Spousal Green Card Guide"
+        summary: "The complete process for marriage-based US immigration: petition filing, adjustment of status vs. consular processing, financial requirements, interview preparation, and removing conditions"

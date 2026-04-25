@@ -51,17 +51,25 @@ public record PinsConfig(
         }
     }
 
-    /** A single bullet-list entry in a section. */
+    /**
+     * A single bullet-list entry in a section. Both {@code titleOverride} and
+     * {@code summaryOverride} default to {@code null}; when null, the renderer
+     * falls back to the page's frontmatter {@code title} / {@code summary}.
+     * Title override is the practical default for the bootstrap migration —
+     * many pages carry no frontmatter title and would otherwise render their
+     * raw slug.
+     */
     public record PinsPage(
             String canonicalId,
+            String titleOverride,
             String summaryOverride
     ) {
         public PinsPage {
             if ( canonicalId == null || canonicalId.isBlank() ) {
                 throw new IllegalArgumentException( "canonical_id required" );
             }
-            summaryOverride = summaryOverride == null || summaryOverride.isBlank()
-                    ? null : summaryOverride;
+            titleOverride   = titleOverride   == null || titleOverride.isBlank()   ? null : titleOverride;
+            summaryOverride = summaryOverride == null || summaryOverride.isBlank() ? null : summaryOverride;
         }
     }
 }

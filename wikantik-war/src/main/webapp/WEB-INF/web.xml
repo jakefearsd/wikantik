@@ -639,10 +639,45 @@
        <url-pattern>/metrics</url-pattern>
    </servlet-mapping>
 
+   <!-- D10: container error-page handler returning JSON for /api/* + /admin/* errors -->
+   <servlet>
+       <servlet-name>JsonErrorServlet</servlet-name>
+       <servlet-class>com.wikantik.rest.JsonErrorServlet</servlet-class>
+   </servlet>
+   <servlet-mapping>
+       <servlet-name>JsonErrorServlet</servlet-name>
+       <url-pattern>/api-error</url-pattern>
+   </servlet-mapping>
+
    <!-- Error pages -->
    <error-page>
      <error-code>403</error-code>
      <location>/error/Forbidden.html</location>
+   </error-page>
+   <!-- D10: route Tomcat-level errors to a JSON handler so /api/* and /admin/*
+        consumers never see Apache Tomcat HTML error pages with the version footer.
+        These mappings also catch URI-validation errors (encoded slash, null byte)
+        that fire before servlet dispatch — Tomcat falls back to web.xml error-page
+        entries for container-level errors too. -->
+   <error-page>
+     <error-code>400</error-code>
+     <location>/api-error</location>
+   </error-page>
+   <error-page>
+     <error-code>404</error-code>
+     <location>/api-error</location>
+   </error-page>
+   <error-page>
+     <error-code>405</error-code>
+     <location>/api-error</location>
+   </error-page>
+   <error-page>
+     <error-code>415</error-code>
+     <location>/api-error</location>
+   </error-page>
+   <error-page>
+     <error-code>500</error-code>
+     <location>/api-error</location>
    </error-page>
 
    <!-- Require TLS across the board (set to CONFIDENTIAL for production) -->

@@ -36,7 +36,11 @@ import java.util.Properties;
  * @param confidenceThreshold  Proposals below this are dropped, not filed
  * @param maxExistingNodes     Cap on existing-node dictionary size included in prompt
  * @param perPageMinIntervalMs Minimum interval between extraction runs for the same page
- * @param concurrency          Max parallel extraction RPCs for the admin batch job
+ * @param concurrency                  Max parallel extraction RPCs for the admin batch job
+ * @param prefilterEnabled             Master switch; when {@code false} the prefilter is a no-op
+ * @param prefilterDryRun              Log skips but do not actually suppress extraction
+ * @param prefilterSkipPureCode        Skip pages whose content is predominantly code fences
+ * @param prefilterSkipNoProperNoun    Skip pages with no detectable proper noun tokens
  */
 public record EntityExtractorConfig(
     String backend,
@@ -47,7 +51,11 @@ public record EntityExtractorConfig(
     double confidenceThreshold,
     int maxExistingNodes,
     long perPageMinIntervalMs,
-    int concurrency
+    int concurrency,
+    boolean prefilterEnabled,
+    boolean prefilterDryRun,
+    boolean prefilterSkipPureCode,
+    boolean prefilterSkipNoProperNoun
 ) {
 
     private static final Logger LOG = LogManager.getLogger( EntityExtractorConfig.class );
@@ -76,7 +84,11 @@ public record EntityExtractorConfig(
             getDouble( props, "confidence_threshold", 0.6 ),
             getInt( props, "max_existing_nodes", 200 ),
             getLong( props, "per_page_min_interval_ms", 5_000L ),
-            clampConcurrency( getInt( props, "concurrency", 2 ) )
+            clampConcurrency( getInt( props, "concurrency", 2 ) ),
+            getBoolean( props, "prefilter.enabled", false ),
+            getBoolean( props, "prefilter.dry_run", false ),
+            getBoolean( props, "prefilter.skip_pure_code", true ),
+            getBoolean( props, "prefilter.skip_no_proper_noun", true )
         );
     }
 
@@ -124,5 +136,22 @@ public record EntityExtractorConfig(
                 v, PREFIX, suffix, def, e.getMessage() );
             return def;
         }
+    }
+
+    private static boolean getBoolean( final Properties p, final String suffix, final boolean def ) {
+        final String v = p == null ? null : p.getProperty( PREFIX + suffix );
+        if( v == null || v.isBlank() ) {
+            return def;
+        }
+        final String trimmed = v.trim();
+        if( trimmed.equalsIgnoreCase( "true" ) || trimmed.equals( "1" ) || trimmed.equalsIgnoreCase( "yes" ) ) {
+            return true;
+        }
+        if( trimmed.equalsIgnoreCase( "false" ) || trimmed.equals( "0" ) || trimmed.equalsIgnoreCase( "no" ) ) {
+            return false;
+        }
+        LOG.info( "Ignoring non-boolean value '{}' for property {}{} — using default {}",
+            v, PREFIX, suffix, def );
+        return def;
     }
 }

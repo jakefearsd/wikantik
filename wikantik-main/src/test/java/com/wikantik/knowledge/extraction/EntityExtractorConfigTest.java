@@ -101,4 +101,28 @@ class EntityExtractorConfigTest {
         assertFalse( cfg.enabled() );
         assertEquals( "claude-haiku-4-5", cfg.claudeModel() );
     }
+
+    @Test
+    void parsesBooleanFlagsCaseInsensitively() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.knowledge.extractor.prefilter.enabled", "TRUE" );
+        p.setProperty( "wikantik.knowledge.extractor.prefilter.dry_run", "yes" );
+        p.setProperty( "wikantik.knowledge.extractor.prefilter.skip_pure_code", "1" );
+        p.setProperty( "wikantik.knowledge.extractor.prefilter.skip_no_proper_noun", "no" );
+
+        final EntityExtractorConfig cfg = EntityExtractorConfig.fromProperties( p );
+        assertTrue( cfg.prefilterEnabled() );
+        assertTrue( cfg.prefilterDryRun() );
+        assertTrue( cfg.prefilterSkipPureCode() );
+        assertFalse( cfg.prefilterSkipNoProperNoun() );
+    }
+
+    @Test
+    void prefilterFlagsDefaultToReadyState() {
+        final EntityExtractorConfig cfg = EntityExtractorConfig.fromProperties( new Properties() );
+        assertFalse( cfg.prefilterEnabled(),     "feature is opt-in" );
+        assertFalse( cfg.prefilterDryRun(),      "dry-run only kicks in when explicitly requested" );
+        assertTrue(  cfg.prefilterSkipPureCode(), "sub-predicates default on so the master switch alone enables both rules" );
+        assertTrue(  cfg.prefilterSkipNoProperNoun() );
+    }
 }

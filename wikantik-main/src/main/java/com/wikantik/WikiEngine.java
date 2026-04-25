@@ -694,6 +694,7 @@ public class WikiEngine implements Engine {
             wireHybridRetrieval( props, ds, svcs.chunkProjector(), rebuildService );
             wireEntityExtraction( props, ds, svcs.chunkProjector(), svcs.contentChunkRepo() );
             wireGraphRerank( props, ds );
+            wireRetrievalQualityRunner( props, ds, structuralIndex );
 
             // Register filters (priority order preserved; higher priority runs first).
             // ChunkProjector at -1005 is the active save-time chunker for the
@@ -974,6 +975,105 @@ public class WikiEngine implements Engine {
 
         LOG.info( "Graph rerank wired (boost={}, maxHops={}, indexNodes={})",
             cfg.boost(), cfg.maxHops(), neighborIndex.nodeCount() );
+    }
+
+    /**
+     * Phase 5 of the Agent-Grade Content design — registers the
+     * {@link com.wikantik.api.eval.RetrievalQualityRunner} so the
+     * {@code /admin/retrieval-quality} endpoint and the nightly schedule
+     * have a backend. The runner pulls one query at a time through BM25,
+     * HYBRID, or HYBRID_GRAPH via the live {@link SearchManager} /
+     * {@link com.wikantik.search.hybrid.HybridSearchService} /
+     * {@link com.wikantik.search.hybrid.GraphRerankStep} stack.
+     *
+     * <p>The schedule activates only when {@code wikantik.retrieval.cron.enabled=true}
+     * (default). Disable the cron in test harnesses without a live search
+     * index to avoid noisy failures.</p>
+     */
+    private void wireRetrievalQualityRunner( final Properties props,
+                                              final javax.sql.DataSource ds,
+                                              final com.wikantik.api.structure.StructuralIndexService structuralIndex ) {
+        try {
+            final com.wikantik.knowledge.eval.RetrievalQualityDao rqDao =
+                new com.wikantik.knowledge.eval.RetrievalQualityDao( ds );
+            final com.wikantik.knowledge.eval.RetrievalQualityMetrics rqMetrics =
+                com.wikantik.knowledge.eval.RetrievalQualityMetrics.resolveAndBind();
+            final com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner.Retriever retriever =
+                buildRetriever();
+            final com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner.CanonicalIdResolver resolver =
+                slug -> structuralIndex.resolveCanonicalIdFromSlug( slug );
+            final int hour = TextUtil.getIntegerProperty( props, "wikantik.retrieval.cron.hour_utc", 3 );
+            final com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner runner =
+                new com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner(
+                    rqDao, retriever, resolver, rqMetrics, hour );
+            managers.put( com.wikantik.api.eval.RetrievalQualityRunner.class, runner );
+
+            if ( TextUtil.getBooleanProperty( props, "wikantik.retrieval.cron.enabled", true ) ) {
+                runner.scheduleNightly();
+                LOG.info( "RetrievalQualityRunner registered with nightly schedule (hour={}Z)", hour );
+            } else {
+                LOG.info( "RetrievalQualityRunner registered (nightly schedule disabled by config)" );
+            }
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "RetrievalQualityRunner wiring failed; /admin/retrieval-quality will return 503: {}",
+                e.getMessage(), e );
+        }
+    }
+
+    /**
+     * Bridge the live search stack to the {@link
+     * com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner.Retriever}
+     * functional interface. BM25 calls {@link SearchManager#findPages} and
+     * extracts page-name strings; HYBRID passes those through the hybrid
+     * fuser; HYBRID_GRAPH adds the graph rerank step. Any throw collapses to
+     * an empty list — the runner records {@code degraded=true} on the row.
+     */
+    private com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner.Retriever buildRetriever() {
+        return ( mode, query ) -> {
+            final SearchManager sm = getManager( SearchManager.class );
+            if ( sm == null ) return java.util.List.of();
+            final com.wikantik.api.core.Context ctx;
+            try {
+                final PageManager pm = getManager( PageManager.class );
+                final com.wikantik.api.core.Page front = pm == null ? null : pm.getPage( getFrontPage() );
+                ctx = front == null ? null : new WikiContext( this, front );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Could not build evaluation Context; aborting query: {}", e.getMessage() );
+                return java.util.List.of();
+            }
+            if ( ctx == null ) return java.util.List.of();
+            final java.util.List< String > bm25Names;
+            try {
+                final java.util.Collection< com.wikantik.api.search.SearchResult > raw =
+                    sm.findPages( query, ctx );
+                bm25Names = new java.util.ArrayList<>( raw.size() );
+                for ( final com.wikantik.api.search.SearchResult sr : raw ) {
+                    if ( sr.getPage() != null ) bm25Names.add( sr.getPage().getName() );
+                }
+            } catch ( final Exception e ) {
+                LOG.warn( "BM25 findPages failed for '{}': {}", query, e.getMessage(), e );
+                return java.util.List.of();
+            }
+            switch ( mode ) {
+                case BM25:
+                    return bm25Names;
+                case HYBRID: {
+                    final com.wikantik.search.hybrid.HybridSearchService hs =
+                        getManager( com.wikantik.search.hybrid.HybridSearchService.class );
+                    return hs == null ? bm25Names : hs.rerank( query, bm25Names );
+                }
+                case HYBRID_GRAPH: {
+                    final com.wikantik.search.hybrid.HybridSearchService hs =
+                        getManager( com.wikantik.search.hybrid.HybridSearchService.class );
+                    final java.util.List< String > fused = hs == null ? bm25Names : hs.rerank( query, bm25Names );
+                    final com.wikantik.search.hybrid.GraphRerankStep gr =
+                        getManager( com.wikantik.search.hybrid.GraphRerankStep.class );
+                    return gr == null ? fused : gr.rerank( query, fused );
+                }
+                default:
+                    return bm25Names;
+            }
+        };
     }
 
     /** {@inheritDoc} */

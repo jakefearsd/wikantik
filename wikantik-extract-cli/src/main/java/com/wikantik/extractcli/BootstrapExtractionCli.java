@@ -166,12 +166,15 @@ public final class BootstrapExtractionCli {
             : 0.0;
         final long elapsedSec = s.elapsedMs() / 1000L;
         final long perChunkMs = doneChunks > 0 ? s.elapsedMs() / doneChunks : 0L;
+        final String skipSuffix = s.skippedChunks() > 0
+            ? String.format( Locale.ROOT, " skipped=%d %s", s.skippedChunks(), s.skipReasons() )
+            : "";
         return String.format( Locale.ROOT,
             "state=%s pages=%d/%d chunks=%d/%d (%.1f%%) failedChunks=%d "
-          + "mentions=%d proposals=%d elapsed=%ds perChunkMs=%d",
+          + "mentions=%d proposals=%d elapsed=%ds perChunkMs=%d%s",
             s.state(), s.processedPages(), s.totalPages(),
             doneChunks, totalChunks, pct, s.failedChunks(),
-            s.mentionsWritten(), s.proposalsFiled(), elapsedSec, perChunkMs );
+            s.mentionsWritten(), s.proposalsFiled(), elapsedSec, perChunkMs, skipSuffix );
     }
 
     private static String modelLabel( final EntityExtractorConfig cfg ) {

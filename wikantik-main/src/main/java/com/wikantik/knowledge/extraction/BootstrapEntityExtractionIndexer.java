@@ -25,8 +25,11 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -85,7 +88,9 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         long elapsedMs,
         String lastError,
         boolean forceOverwrite,
-        int concurrency
+        int concurrency,
+        int skippedChunks,
+        Map< String, Integer > skipReasons
     ) {}
 
     private final AsyncEntityExtractionListener listener;
@@ -96,6 +101,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
     private final ExecutorService workerPool;
     private final boolean ownsWorkerPool;
     private final int concurrency;
+    private final ChunkExtractionPrefilter prefilter;
 
     private final AtomicBoolean running = new AtomicBoolean( false );
     private final AtomicBoolean cancelRequested = new AtomicBoolean( false );
@@ -114,6 +120,8 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
     private final AtomicReference< Instant > finishedAt = new AtomicReference<>();
     private final AtomicReference< String > lastError = new AtomicReference<>();
     private final AtomicBoolean forceOverwrite = new AtomicBoolean();
+    private final AtomicInteger skippedChunks = new AtomicInteger();
+    private final Map< String, Integer > skipReasonCounts = new ConcurrentHashMap<>();
 
     public BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
                                              final ContentChunkRepository chunkRepo,
@@ -127,7 +135,8 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                                              final int concurrency ) {
         this( listener, chunkRepo, mentionRepo, defaultExecutor(), /*ownsExecutor*/ true,
               defaultWorkerPool( concurrency ), /*ownsWorkerPool*/ true,
-              EntityExtractorConfig.clampConcurrency( concurrency ) );
+              EntityExtractorConfig.clampConcurrency( concurrency ),
+              ChunkExtractionPrefilter.passthrough() );
     }
 
     public BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
@@ -135,7 +144,8 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                                              final ChunkEntityMentionRepository mentionRepo,
                                              final ExecutorService executor ) {
         this( listener, chunkRepo, mentionRepo, executor, /*ownsExecutor*/ false,
-              executor, /*ownsWorkerPool*/ false, /*concurrency*/ 1 );
+              executor, /*ownsWorkerPool*/ false, /*concurrency*/ 1,
+              ChunkExtractionPrefilter.passthrough() );
     }
 
     public BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
@@ -146,7 +156,17 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                                              final int concurrency ) {
         this( listener, chunkRepo, mentionRepo, executor, /*ownsExecutor*/ false,
               workerPool, /*ownsWorkerPool*/ false,
-              EntityExtractorConfig.clampConcurrency( concurrency ) );
+              EntityExtractorConfig.clampConcurrency( concurrency ),
+              ChunkExtractionPrefilter.passthrough() );
+    }
+
+    public BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
+                                             final ContentChunkRepository chunkRepo,
+                                             final ChunkEntityMentionRepository mentionRepo,
+                                             final ExecutorService executor,
+                                             final ChunkExtractionPrefilter prefilter ) {
+        this( listener, chunkRepo, mentionRepo, executor, /*ownsExecutor*/ false,
+              executor, /*ownsWorkerPool*/ false, /*concurrency*/ 1, prefilter );
     }
 
     private BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
@@ -156,12 +176,14 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                                               final boolean ownsExecutor,
                                               final ExecutorService workerPool,
                                               final boolean ownsWorkerPool,
-                                              final int concurrency ) {
+                                              final int concurrency,
+                                              final ChunkExtractionPrefilter prefilter ) {
         if( listener == null ) throw new IllegalArgumentException( "listener must not be null" );
         if( chunkRepo == null ) throw new IllegalArgumentException( "chunkRepo must not be null" );
         if( mentionRepo == null ) throw new IllegalArgumentException( "mentionRepo must not be null" );
         if( executor == null ) throw new IllegalArgumentException( "executor must not be null" );
         if( workerPool == null ) throw new IllegalArgumentException( "workerPool must not be null" );
+        if( prefilter == null ) throw new IllegalArgumentException( "prefilter must not be null" );
         this.listener = listener;
         this.chunkRepo = chunkRepo;
         this.mentionRepo = mentionRepo;
@@ -170,6 +192,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         this.workerPool = workerPool;
         this.ownsWorkerPool = ownsWorkerPool;
         this.concurrency = concurrency;
+        this.prefilter = prefilter;
     }
 
     private static ExecutorService defaultExecutor() {
@@ -226,6 +249,8 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         finishedAt.set( null );
         lastError.set( null );
         this.forceOverwrite.set( forceOverwrite );
+        skippedChunks.set( 0 );
+        skipReasonCounts.clear();
         state.set( State.RUNNING );
 
         executor.submit( () -> runSafely( forceOverwrite ) );
@@ -256,7 +281,9 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
             Math.max( 0L, elapsedMs ),
             lastError.get(),
             forceOverwrite.get(),
-            concurrency
+            concurrency,
+            skippedChunks.get(),
+            Map.copyOf( skipReasonCounts )
         );
     }
 
@@ -359,6 +386,24 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                 }
             }
 
+            // Hydrate chunks for the prefilter when enabled; skip the DB round-trip
+            // when the filter is passthrough so the legacy path is byte-identical.
+            final List< ContentChunkRepository.MentionableChunk > hydrated;
+            final boolean useFilter = prefilter.isEnabled();
+            if( useFilter ) {
+                try {
+                    hydrated = chunkRepo.findByIds( chunkIds );
+                } catch( final RuntimeException e ) {
+                    failed++;
+                    failedPages.incrementAndGet();
+                    LOG.warn( "Bootstrap extraction: failed to hydrate chunks for page '{}': {}",
+                        page, e.getMessage() );
+                    continue;
+                }
+            } else {
+                hydrated = List.of();
+            }
+
             // Fan chunks out across the worker pool up to `concurrency`. The
             // fixed-size pool naturally throttles admission — every submitted
             // Future waits for a slot rather than piling up, so the inference
@@ -367,14 +412,38 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
             // run doesn't keep queuing new work; in-flight futures still
             // complete because we never abort the RPC mid-call.
             final List< Future< ChunkOutcome > > futures = new ArrayList<>( chunkIds.size() );
+            final Map< String, Integer > pageSkipReasons = new HashMap<>();
             boolean cancelledMidPage = false;
-            for( final UUID chunkId : chunkIds ) {
-                if( cancelRequested.get() ) {
-                    cancelledMidPage = true;
-                    break;
+
+            if( !useFilter ) {
+                for( final UUID chunkId : chunkIds ) {
+                    if( cancelRequested.get() ) { cancelledMidPage = true; break; }
+                    final String pageForTask = page;
+                    futures.add( workerPool.submit( () -> runChunk( chunkId, pageForTask ) ) );
                 }
-                final String pageForTask = page;
-                futures.add( workerPool.submit( () -> runChunk( chunkId, pageForTask ) ) );
+            } else {
+                final Map< UUID, ContentChunkRepository.MentionableChunk > byId = new HashMap<>();
+                for( final ContentChunkRepository.MentionableChunk c : hydrated ) {
+                    byId.put( c.id(), c );
+                }
+                for( final UUID chunkId : chunkIds ) {
+                    if( cancelRequested.get() ) { cancelledMidPage = true; break; }
+                    final ContentChunkRepository.MentionableChunk mc = byId.get( chunkId );
+                    if( mc == null ) {
+                        // Chunk vanished between listChunkIdsForPage and findByIds — skip and count as failed.
+                        failedChunks.incrementAndGet();
+                        continue;
+                    }
+                    final ChunkExtractionPrefilter.Decision d = prefilter.evaluate( mc.text(), mc.headingPath() );
+                    if( !d.shouldExtract() ) {
+                        skippedChunks.incrementAndGet();
+                        skipReasonCounts.merge( d.reason(), 1, Integer::sum );
+                        pageSkipReasons.merge( d.reason(), 1, Integer::sum );
+                        continue;
+                    }
+                    final String pageForTask = page;
+                    futures.add( workerPool.submit( () -> runChunk( chunkId, pageForTask ) ) );
+                }
             }
 
             int pageMentions = 0;
@@ -427,6 +496,11 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
             final long elapsedMs = ( System.nanoTime() - pageStartNs ) / 1_000_000L;
             LOG.info( "Bootstrap extraction: page='{}' chunks={}/{} mentions={} proposals={} elapsedMs={} concurrency={}",
                 page, chunksProcessed, chunkIds.size(), pageMentions, pageProposals, elapsedMs, concurrency );
+            if( !pageSkipReasons.isEmpty() ) {
+                LOG.info( "Bootstrap extraction: page='{}' prefilter skipped {} chunks: {}",
+                    page, pageSkipReasons.values().stream().mapToInt( Integer::intValue ).sum(),
+                    pageSkipReasons );
+            }
 
             if( cancelledMidPage ) break;
         }
@@ -445,10 +519,11 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         final long meanPerPageMs = donePages > 0 ? elapsedMs / (long) donePages : 0L;
         final long meanPerChunkMs = doneChunks > 0 ? elapsedMs / (long) doneChunks : 0L;
         LOG.info( "Bootstrap entity extraction {}: processedPages={}/{}, failedPages={}, "
-                + "processedChunks={}/{}, failedChunks={}, "
+                + "processedChunks={}/{}, failedChunks={}, skippedChunks={}, skipReasons={}, "
                 + "mentionsWritten={}, proposalsFiled={}, totalMs={}, meanPerPageMs={}, meanPerChunkMs={}",
             state.get(), donePages, totalPages.get(), failedPages.get(),
             doneChunks, totalChunks.get(), failedChunks.get(),
+            skippedChunks.get(), Map.copyOf( skipReasonCounts ),
             mentionsWritten.get(), proposalsFiled.get(), elapsedMs, meanPerPageMs, meanPerChunkMs );
     }
 

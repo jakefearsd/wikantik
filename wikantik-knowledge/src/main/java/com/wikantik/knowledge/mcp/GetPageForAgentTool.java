@@ -55,8 +55,46 @@ public class GetPageForAgentTool implements McpTool {
         final Map< String, Object > props = new LinkedHashMap<>();
         props.put( "canonical_id", Map.of(
                 "type", "string",
-                "description", "26-character ULID canonical identifier for the page."
+                "description", "26-character ULID canonical identifier for the page.",
+                "examples", List.of( "01H8G3Z1K6Q5W7P9X2V4R0T8MN" )
         ) );
+
+        final Map< String, Object > exampleProjection = new LinkedHashMap<>();
+        exampleProjection.put( "canonical_id", "01H8G3Z1K6Q5W7P9X2V4R0T8MN" );
+        exampleProjection.put( "slug", "HybridRetrieval" );
+        exampleProjection.put( "title", "Hybrid Retrieval" );
+        exampleProjection.put( "type", "design" );
+        exampleProjection.put( "summary", "BM25 + dense + graph-aware rerank with fail-closed BM25 fallback." );
+        exampleProjection.put( "key_facts", List.of(
+                "Hybrid retrieval combines BM25 lexical scores with dense-vector cosine similarity.",
+                "When the embedding service is unreachable, the system fails closed to BM25-only results."
+        ) );
+        exampleProjection.put( "headings", List.of( "Failure modes", "Graph rerank step", "Configuration" ) );
+        exampleProjection.put( "relations", List.of( Map.of(
+                "type", "part-of",
+                "target_id", "01H8G3Z2E7FD8R1Q4V9X2T0NMP",
+                "target_slug", "RetrievalExperimentHarness"
+        ) ) );
+        exampleProjection.put( "verification", Map.of(
+                "verified_at", "2026-04-25T14:30:00Z",
+                "verified_by", "jakefear",
+                "confidence", "authoritative"
+        ) );
+        exampleProjection.put( "recent_changes", List.of( Map.of(
+                "version", 7,
+                "author", "testbot",
+                "lastModified", "2026-04-25T14:30:00Z",
+                "changeNote", "fix: typo in BM25 fallback section"
+        ) ) );
+        exampleProjection.put( "tool_hints", List.of(
+                "call get_page for the full body",
+                "call traverse_relations to expand the neighborhood"
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( exampleProjection ) );
+
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Return a token-budgeted projection of a wiki page for agent " +
@@ -66,6 +104,7 @@ public class GetPageForAgentTool implements McpTool {
                         "needs to orient itself; follow up with get_page for the full body." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of( "canonical_id" ),
                         null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

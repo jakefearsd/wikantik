@@ -58,10 +58,27 @@ public class GetPageTool implements McpTool {
         // were generated from older tool definitions.
         properties.put( "slug", Map.of(
             "type", "string",
-            "description", "Name (slug) of the wiki page to fetch." ) );
+            "description", "Name (slug) of the wiki page to fetch.",
+            "examples", List.of( "HybridRetrieval" )
+        ) );
         properties.put( "pageName", Map.of(
             "type", "string",
-            "description", "Deprecated alias for `slug`. Prefer `slug` for new code." ) );
+            "description", "Deprecated alias for `slug`. Prefer `slug` for new code.",
+            "examples", List.of( "HybridRetrieval" )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "name", "HybridRetrieval",
+                "url", "https://wiki.example.com/HybridRetrieval",
+                "score", 0,
+                "summary", "BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.",
+                "cluster", "retrieval",
+                "tags", List.of( "retrieval", "search" ),
+                "author", "jakefear",
+                "lastModified", "2026-04-25T14:30:00Z"
+        ) ) );
 
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
@@ -70,6 +87,7 @@ public class GetPageTool implements McpTool {
                 "metadata and a URL. Use retrieve_context instead when querying by topic." )
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties, List.of(), null, null, null ) )
+            .outputSchema( outputSchema )
             .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
             .build();
     }

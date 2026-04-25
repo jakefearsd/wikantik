@@ -54,13 +54,30 @@ public class TraverseTool implements McpTool {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "start_node", Map.of(
             "type", "string",
-            "description", "Name of the seed node to traverse from." ) );
+            "description", "Name of the seed node to traverse from.",
+            "examples", List.of( "HybridRetrieval" ) ) );
         properties.put( "max_depth", Map.of(
             "type", "integer",
-            "description", "BFS depth limit (default 2; 1 = direct co-mentions only)." ) );
+            "description", "BFS depth limit (default 2; 1 = direct co-mentions only).",
+            "examples", List.of( 2 ) ) );
         properties.put( "min_shared_chunks", Map.of(
             "type", "integer",
-            "description", "Minimum shared-chunk count required to follow an edge (default 1)." ) );
+            "description", "Minimum shared-chunk count required to follow an edge (default 1).",
+            "examples", List.of( 2 ) ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "nodes", List.of(
+                        Map.of( "name", "HybridRetrieval", "depth", 0 ),
+                        Map.of( "name", "BM25", "depth", 1 ),
+                        Map.of( "name", "VectorEmbeddings", "depth", 1 )
+                ),
+                "edges", List.of(
+                        Map.of( "source", "HybridRetrieval", "target", "BM25", "sharedChunks", 6 ),
+                        Map.of( "source", "HybridRetrieval", "target", "VectorEmbeddings", "sharedChunks", 4 )
+                )
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -69,6 +86,7 @@ public class TraverseTool implements McpTool {
                         "{nodes, edges} with each edge carrying its 'sharedChunks' count." )
                 .inputSchema( new McpSchema.JsonSchema(
                     "object", properties, List.of( "start_node" ), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

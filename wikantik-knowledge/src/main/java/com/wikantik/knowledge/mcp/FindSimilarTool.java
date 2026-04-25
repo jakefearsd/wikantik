@@ -57,12 +57,24 @@ public class FindSimilarTool implements McpTool {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "node", Map.of(
             "type", "string",
-            "description", "Node name to find similar nodes for"
+            "description", "Node name to find similar nodes for",
+            "examples", List.of( "HybridRetrieval" )
         ) );
         properties.put( "limit", Map.of(
             "type", "integer",
-            "description", "Maximum number of similar nodes to return (default: 10)"
+            "description", "Maximum number of similar nodes to return (default: 10)",
+            "examples", List.of( 5 )
         ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "similar", List.of(
+                        Map.of( "name", "RetrievalExperimentHarness", "similarity", 0.872 ),
+                        Map.of( "name", "VectorEmbeddings", "similarity", 0.811 ),
+                        Map.of( "name", "BM25", "similarity", 0.764 )
+                )
+        ) ) );
 
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
@@ -71,6 +83,7 @@ public class FindSimilarTool implements McpTool {
                 + "of the chunks that mention it; results are ordered by descending "
                 + "similarity to the input node." )
             .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "node" ), null, null, null ) )
+            .outputSchema( outputSchema )
             .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
             .build();
     }

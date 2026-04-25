@@ -55,21 +55,43 @@ public class ListPagesTool implements McpTool {
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "cluster", Map.of( "type", "string",
-            "description", "Filter by frontmatter cluster value (exact match)." ) );
+            "description", "Filter by frontmatter cluster value (exact match).",
+            "examples", List.of( "retrieval" ) ) );
         properties.put( "tags", Map.of( "type", "array", "items", Map.of( "type", "string" ),
-            "description", "Filter to pages that have ALL listed tags." ) );
+            "description", "Filter to pages that have ALL listed tags.",
+            "examples", List.of( List.of( "agents", "search" ) ) ) );
         properties.put( "type", Map.of( "type", "string",
-            "description", "Filter by frontmatter type value." ) );
+            "description", "Filter by frontmatter type value.",
+            "examples", List.of( "runbook" ) ) );
         properties.put( "author", Map.of( "type", "string",
-            "description", "Filter by page author." ) );
+            "description", "Filter by page author.",
+            "examples", List.of( "jakefear" ) ) );
         properties.put( "modifiedAfter", Map.of( "type", "string",
-            "description", "ISO-8601 instant — include only pages modified after this time." ) );
+            "description", "ISO-8601 instant — include only pages modified after this time.",
+            "examples", List.of( "2026-01-01T00:00:00Z" ) ) );
         properties.put( "modifiedBefore", Map.of( "type", "string",
-            "description", "ISO-8601 instant — include only pages modified before this time." ) );
+            "description", "ISO-8601 instant — include only pages modified before this time.",
+            "examples", List.of( "2026-04-25T23:59:59Z" ) ) );
         properties.put( "limit", Map.of( "type", "integer",
-            "description", "Max rows (default 50, max 200)." ) );
+            "description", "Max rows (default 50, max 200).",
+            "examples", List.of( 50 ) ) );
         properties.put( "offset", Map.of( "type", "integer",
-            "description", "Pagination offset (default 0)." ) );
+            "description", "Pagination offset (default 0).",
+            "examples", List.of( 0 ) ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "pages", List.of( Map.of(
+                        "name", "HybridRetrieval",
+                        "url", "https://wiki.example.com/HybridRetrieval",
+                        "summary", "BM25 + dense + graph-aware rerank.",
+                        "cluster", "retrieval",
+                        "tags", List.of( "retrieval", "search" ),
+                        "lastModified", "2026-04-25T14:30:00Z"
+                ) ),
+                "totalMatched", 1
+        ) ) );
 
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
@@ -78,6 +100,7 @@ public class ListPagesTool implements McpTool {
                 "Use retrieve_context for query-driven retrieval." )
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties, List.of(), null, null, null ) )
+            .outputSchema( outputSchema )
             .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
             .build();
     }

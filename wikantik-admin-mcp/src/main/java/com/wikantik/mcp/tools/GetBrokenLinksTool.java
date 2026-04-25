@@ -63,6 +63,12 @@ public class GetBrokenLinksTool implements McpTool {
         final List< String > sorted = new ArrayList<>( uncreated );
         Collections.sort( sorted );
 
+        // D16: filter out targets that aren't valid wiki page names. Source-file paths
+        // (e.g. "../wikantik-main/src/main/java/.../JDBCGroupDatabase.java") leaked
+        // into the link graph and surfaced as broken-link false positives. A real wiki
+        // page name never contains a '/' or '\\' and never starts with '..'.
+        sorted.removeIf( GetBrokenLinksTool::isNonWikiTarget );
+
         final List< Map< String, Object > > brokenLinks = new ArrayList<>();
         for ( final String pageName : sorted ) {
             final Set< String > referrers = referenceManager.findReferrers( pageName );
@@ -79,5 +85,30 @@ public class GetBrokenLinksTool implements McpTool {
         result.put( "brokenLinks", brokenLinks );
         result.put( "count", brokenLinks.size() );
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
+    }
+
+    /**
+     * D16: returns true when {@code target} cannot be a wiki page name. A valid wiki
+     * page name is non-blank and contains no path separators or relative-path
+     * indicators. Anything else is a stray source-file or external-URL reference
+     * that bled into the reference graph.
+     */
+    static boolean isNonWikiTarget( final String target ) {
+        if ( target == null || target.isBlank() ) {
+            return true;
+        }
+        if ( target.startsWith( ".." ) || target.startsWith( "./" ) ) {
+            return true;
+        }
+        if ( target.indexOf( '/' ) >= 0 || target.indexOf( '\\' ) >= 0 ) {
+            return true;
+        }
+        // schemes (http://, https://, file://) — already excluded by the slash check,
+        // but explicitly exclude file extensions that would never be a wiki page.
+        if ( target.endsWith( ".java" ) || target.endsWith( ".sql" )
+                || target.endsWith( ".xml" ) || target.endsWith( ".html" ) ) {
+            return true;
+        }
+        return false;
     }
 }

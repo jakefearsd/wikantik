@@ -201,6 +201,72 @@ class BootstrapEntityExtractionIndexerTest {
         }
     }
 
+    @Test
+    void prefilterSkipsChunksAndIncrementsCounters() {
+        final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
+        final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
+        final AsyncEntityExtractionListener listener = Mockito.mock( AsyncEntityExtractionListener.class );
+
+        final UUID keep = UUID.randomUUID();
+        final UUID skipCode = UUID.randomUUID();
+        final UUID skipNoProper = UUID.randomUUID();
+
+        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "PageOne" ) );
+        when( chunkRepo.listChunkIdsForPage( "PageOne" ) )
+                .thenReturn( List.of( keep, skipCode, skipNoProper ) );
+        when( chunkRepo.findByIds( List.of( keep, skipCode, skipNoProper ) ) ).thenReturn( List.of(
+            new ContentChunkRepository.MentionableChunk( keep, "PageOne", 0, List.of(),
+                "PostgreSQL is a database." ),
+            new ContentChunkRepository.MentionableChunk( skipCode, "PageOne", 1, List.of(),
+                "```\nselect 1;\n```" ),
+            new ContentChunkRepository.MentionableChunk( skipNoProper, "PageOne", 2, List.of(),
+                "lower case prose only." )
+        ) );
+        when( listener.runExtractionSync( List.of( keep ) ) )
+                .thenReturn( new AsyncEntityExtractionListener.RunResult( 1, 0 ) );
+
+        final ChunkExtractionPrefilter filter = new ChunkExtractionPrefilter(
+            /*enabled*/ true, /*dryRun*/ false, /*skipPureCode*/ true, /*skipNoProperNoun*/ true );
+
+        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
+                listener, chunkRepo, mentionRepo, directExecutor(), filter );
+        assertTrue( indexer.start( /*forceOverwrite*/ false ) );
+
+        final BootstrapEntityExtractionIndexer.Status s = indexer.status();
+        assertEquals( BootstrapEntityExtractionIndexer.State.COMPLETED, s.state() );
+        assertEquals( 1, s.processedChunks(), "only one chunk reaches the extractor" );
+        assertEquals( 2, s.skippedChunks() );
+        assertEquals( 1, s.skipReasons().getOrDefault( "pure_code", 0 ).intValue() );
+        assertEquals( 1, s.skipReasons().getOrDefault( "no_proper_noun", 0 ).intValue() );
+        verify( listener, times( 1 ) ).runExtractionSync( List.of( keep ) );
+        verify( listener, never() ).runExtractionSync( List.of( skipCode ) );
+        verify( listener, never() ).runExtractionSync( List.of( skipNoProper ) );
+    }
+
+    @Test
+    void prefilterDisabledByDefaultMatchesLegacyBehaviour() {
+        final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
+        final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
+        final AsyncEntityExtractionListener listener = Mockito.mock( AsyncEntityExtractionListener.class );
+
+        final UUID c = UUID.randomUUID();
+        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "P" ) );
+        when( chunkRepo.listChunkIdsForPage( "P" ) ).thenReturn( List.of( c ) );
+        when( listener.runExtractionSync( List.of( c ) ) )
+                .thenReturn( new AsyncEntityExtractionListener.RunResult( 0, 0 ) );
+
+        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
+                listener, chunkRepo, mentionRepo, directExecutor() );
+        assertTrue( indexer.start( /*forceOverwrite*/ false ) );
+
+        final BootstrapEntityExtractionIndexer.Status s = indexer.status();
+        assertEquals( 0, s.skippedChunks() );
+        assertTrue( s.skipReasons().isEmpty() );
+        // No findByIds call when filter is passthrough — legacy path is byte-identical.
+        verify( chunkRepo, never() ).findByIds( any() );
+        verify( listener ).runExtractionSync( List.of( c ) );
+    }
+
     // ---- helpers ----
 
     private static ExecutorService directExecutor() {

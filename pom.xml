@@ -58,6 +58,7 @@
     <flexmark.version>0.64.8</flexmark.version>
     <freshcookies-security.version>0.60</freshcookies-security.version>
     <gson.version>2.13.2</gson.version>
+    <guice.version>7.0.0</guice.version>
     <pgvector.image>pgvector/pgvector:pg17</pgvector.image>
     <postgresql-jdbc.version>42.7.10</postgresql-jdbc.version>
     <jakarta-activation.version>2.0.1</jakarta-activation.version>
@@ -212,6 +213,12 @@
         <groupId>com.google.code.gson</groupId>
         <artifactId>gson</artifactId>
         <version>${gson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.inject</groupId>
+        <artifactId>guice</artifactId>
+        <version>${guice.version}</version>
       </dependency>
 
       <dependency>

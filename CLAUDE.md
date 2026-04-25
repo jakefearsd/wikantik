@@ -297,9 +297,11 @@ When implementing new features, consider these extension mechanisms:
 
 Living design docs for in-flight architectural work (read before touching the relevant subsystem):
 
-- **[docs/wikantik-pages/StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md)** — Machine-queryable structural index for the wiki (clusters, tags, canonical IDs, typed cross-references, `/api/structure/*`, matching MCP tools, generated `Main.md`). Phases 1, 2, and 3 are implemented; Phase 4 (enforcement) pending.
+- **[docs/wikantik-pages/StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md)** — Machine-queryable structural index for the wiki (clusters, tags, canonical IDs, typed cross-references, `/api/structure/*`, matching MCP tools, generated `Main.md`, save-time enforcement). All four phases implemented.
 
 **`Main.md` is generated.** Edit `docs/wikantik-pages/Main.pins.yaml` instead, then run `mvn package -pl wikantik-extract-cli -am -DskipTests -q && java -cp wikantik-extract-cli/target/wikantik-extract-cli.jar com.wikantik.extractcli.GenerateMainPageCli docs/wikantik-pages --write`. Hand-edits to `Main.md` will be reverted by the next regeneration and will fail `MainPageRegressionTest` on CI.
+
+**Save-time enforcement is on.** `StructuralSpinePageFilter` runs in `preSave`: pages saved without `canonical_id` get one auto-assigned and injected into frontmatter; pages with invalid `relations:` (unknown type or unresolvable target) are rejected with a `FilterException`. Toggle with `wikantik.structural_spine.enforcement.enabled=false` (default `true`). Operators triage lingering issues at `GET /admin/structural-conflicts`.
 - **[docs/wikantik-pages/AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md)** — Agent-grade content layer (`type: runbook`, verification metadata, `/api/pages/{id}/for-agent` token-optimised projection, scheduled retrieval-quality CI using `RetrievalExperimentHarness`). Addresses: content is narrative, not shaped for programmatic consumers, and retrieval quality isn't measured.
 - **[docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md)** — Implemented. BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.
 - **[docs/wikantik-pages/RetrievalExperimentHarness.md](docs/wikantik-pages/RetrievalExperimentHarness.md)** — Implemented but not yet scheduled; targeted by `AgentGradeContentDesign.md` for CI integration.

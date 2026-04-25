@@ -19,6 +19,7 @@
 package com.wikantik.observability.health;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,12 +33,15 @@ import static org.mockito.Mockito.*;
 class SearchIndexHealthCheckTest {
 
     @Mock private Engine engine;
+    @Mock private PageManager pageManager;
     @Mock private PageProvider pageProvider;
 
     @Test
-    void reportsUpWhenProviderIsAvailable() {
-        when( engine.getManager( PageProvider.class ) ).thenReturn( pageProvider );
-        when( pageProvider.getProviderInfo() ).thenReturn( "TestProvider" );
+    void reportsUpWhenPageManagerIsAvailable() {
+        // D1: previously the probe asked the engine for PageProvider.class which is never
+        // registered as a manager, returning null and reporting DOWN even on a healthy system.
+        when( engine.getManager( PageManager.class ) ).thenReturn( pageManager );
+        when( pageManager.getProvider() ).thenReturn( pageProvider );
 
         final SearchIndexHealthCheck check = new SearchIndexHealthCheck( engine );
         final HealthResult result = check.check();
@@ -47,7 +51,10 @@ class SearchIndexHealthCheckTest {
     }
 
     @Test
-    void reportsDownWhenProviderIsNull() {
+    void reportsDownWhenPageManagerIsNullAndNoProvider() {
+        // D1: probe must report DOWN with an accurate message when neither the registered
+        // PageManager nor the legacy PageProvider is present.
+        when( engine.getManager( PageManager.class ) ).thenReturn( null );
         when( engine.getManager( PageProvider.class ) ).thenReturn( null );
 
         final SearchIndexHealthCheck check = new SearchIndexHealthCheck( engine );
@@ -58,8 +65,8 @@ class SearchIndexHealthCheckTest {
     }
 
     @Test
-    void reportsDownWhenProviderThrows() {
-        when( engine.getManager( PageProvider.class ) ).thenThrow( new RuntimeException( "provider error" ) );
+    void reportsDownWhenPageManagerThrows() {
+        when( engine.getManager( PageManager.class ) ).thenThrow( new RuntimeException( "manager error" ) );
 
         final SearchIndexHealthCheck check = new SearchIndexHealthCheck( engine );
         final HealthResult result = check.check();

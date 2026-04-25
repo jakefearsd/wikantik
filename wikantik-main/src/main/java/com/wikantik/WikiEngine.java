@@ -637,6 +637,20 @@ public class WikiEngine implements Engine {
             new Thread( structuralIndex::rebuild, "structural-index-bootstrap" ).start();
             LOG.info( "StructuralIndexService registered; initial rebuild dispatched" );
 
+            // Agent-Grade Content Phase 2: token-budgeted /for-agent projection.
+            // Reads from the structural index + PageManager, memoises in CACHE_FOR_AGENT,
+            // emits wikantik_for_agent_response_bytes histogram.
+            final com.wikantik.knowledge.agent.ForAgentMetrics forAgentMetrics =
+                com.wikantik.knowledge.agent.ForAgentMetrics.resolveAndBind();
+            final com.wikantik.knowledge.agent.DefaultForAgentProjectionService forAgentService =
+                new com.wikantik.knowledge.agent.DefaultForAgentProjectionService(
+                    structuralIndex,
+                    getManager( PageManager.class ),
+                    getManager( CachingManager.class ),
+                    forAgentMetrics );
+            managers.put( com.wikantik.api.agent.ForAgentProjectionService.class, forAgentService );
+            LOG.info( "ForAgentProjectionService registered" );
+
             // Content rebuild orchestrator — singleton wired against the live Lucene
             // provider (if any) so an admin-triggered rebuild can enqueue pages,
             // observe queue depth, and wipe the index without leaving the filesystem

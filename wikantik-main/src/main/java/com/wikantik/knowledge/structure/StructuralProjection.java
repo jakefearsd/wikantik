@@ -159,6 +159,26 @@ public final class StructuralProjection {
         return Optional.ofNullable( byCanonicalId.get( canonicalId ) );
     }
 
+    /**
+     * Snapshot of every {@link PageDescriptor} known to this projection. Used by callers
+     * that need to splice an updated page into a fresh projection (e.g. the
+     * post-save patch path in {@code DefaultStructuralIndexService}).
+     */
+    public java.util.Collection< PageDescriptor > allPages() {
+        return byCanonicalId.values();
+    }
+
+    /**
+     * Snapshot of every relation in the projection (each relation appears once,
+     * sourced from the outgoing index). Used by post-save patch paths that need to
+     * reconstruct a projection without losing edges.
+     */
+    public java.util.Collection< Relation > allRelations() {
+        final List< Relation > out = new ArrayList<>();
+        outgoingBySource.values().forEach( out::addAll );
+        return out;
+    }
+
     public Optional< String > resolveSlugFromCanonicalId( final String canonicalId ) {
         return Optional.ofNullable( byCanonicalId.get( canonicalId ) ).map( PageDescriptor::slug );
     }

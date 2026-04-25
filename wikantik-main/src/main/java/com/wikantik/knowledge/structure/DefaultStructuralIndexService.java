@@ -333,8 +333,86 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             // projection of ~2000 pages rebuilds in well under a second. Phase 2
             // will make this properly incremental.
             rebuild();
+            // D6 fix: rebuild() reads pages via the bulk getAllPages() / getPureText()
+            // path, which can hit a stale cache for the just-saved page. The
+            // StructuralSpinePageFilter injected a canonical_id at preSave time, but
+            // if the rebuild reads pre-rewrite content the synthesised in-memory id
+            // ≠ the id authored to disk, so get_page_by_id can't resolve the user-
+            // visible canonical_id. Re-read the named page directly here and patch
+            // the DB + projection so the just-saved page is always findable by the
+            // canonical_id its frontmatter actually carries.
+            patchProjectionForJustSavedPage( page );
         } catch ( final Exception e ) {
             LOG.warn( "onPageSaved({}) failed: {}", pageName, e.getMessage() );
+        }
+    }
+
+    /**
+     * After a rebuild, re-read the named page's frontmatter directly (bypassing whatever
+     * stale snapshot getAllPages() served) and ensure its canonical_id is reflected in
+     * both the durable DAO and the in-memory projection. No-op when the page has no
+     * frontmatter canonical_id, or when the projection already has the id mapped to
+     * this slug.
+     */
+    private void patchProjectionForJustSavedPage( final Page page ) {
+        try {
+            final String raw = pageManager.getPureText( page );
+            final ParsedPage parsed = FrontmatterParser.parse( raw );
+            final Map< String, Object > fm = parsed.metadata();
+            final String canonicalId = asString( fm.get( "canonical_id" ) );
+            if ( canonicalId == null || canonicalId.isBlank() ) {
+                return;
+            }
+            final String slug = page.getName();
+            final StructuralProjection proj = current.get();
+            // If the projection already resolves this id to this slug, the rebuild saw
+            // fresh content and there's nothing to patch.
+            final Optional< String > existingSlug = proj.resolveSlugFromCanonicalId( canonicalId );
+            if ( existingSlug.isPresent() && existingSlug.get().equals( slug ) ) {
+                return;
+            }
+
+            final PageType type = PageType.fromFrontmatter( fm.get( "type" ) );
+            final String cluster = asString( fm.get( "cluster" ) );
+            final String title = firstNonBlank( asString( fm.get( "title" ) ), slug );
+            final String summary = asString( fm.get( "summary" ) );
+            final List< String > tags = stringList( fm.get( "tags" ) );
+            final Instant updated = page.getLastModified() == null
+                    ? null : page.getLastModified().toInstant();
+
+            // Persist the canonical_id durably.
+            try {
+                dao.upsert( canonicalId, slug, title, type.asFrontmatterValue(), cluster );
+            } catch ( final RuntimeException dbx ) {
+                LOG.warn( "patchProjectionForJustSavedPage: DAO upsert failed for {}: {}",
+                          slug, dbx.getMessage() );
+            }
+            persistVerification( canonicalId, fm );
+
+            // Splice the descriptor into a fresh projection so getByCanonicalId resolves it.
+            final StructuralProjectionBuilder builder = new StructuralProjectionBuilder();
+            // First, copy over every page from the current projection EXCEPT any stale
+            // entry that points to this slug under a synthesised id, and except the
+            // canonical_id we're about to (re)write.
+            for ( final PageDescriptor existing : proj.allPages() ) {
+                if ( existing.slug().equals( slug ) ) {
+                    continue;
+                }
+                if ( existing.canonicalId().equals( canonicalId ) ) {
+                    continue;
+                }
+                builder.addPage( existing );
+            }
+            builder.addPage( new PageDescriptor(
+                    canonicalId, slug, title, type, cluster, tags, summary, updated ) );
+            // Preserve relations from the old projection.
+            for ( final com.wikantik.api.structure.Relation rel : proj.allRelations() ) {
+                builder.addRelation( rel );
+            }
+            current.set( builder.build() );
+        } catch ( final RuntimeException ex ) {
+            LOG.warn( "patchProjectionForJustSavedPage failed for {}: {}",
+                      page.getName(), ex.getMessage() );
         }
     }
 

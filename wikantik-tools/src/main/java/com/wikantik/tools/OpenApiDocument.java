@@ -171,6 +171,10 @@ final class OpenApiDocument {
                         + "(e.g. quotes for phrases, + for required terms)." ),
                 prop( "maxResults", "integer",
                         "Maximum result rows (1-25). Default 10 when omitted." ) ) );
+        bodySchema.put( "examples", List.of( Map.of(
+                "query", "hybrid retrieval",
+                "maxResults", 5
+        ) ) );
 
         final Map< String, Object > op = new LinkedHashMap<>();
         op.put( "operationId", "search_wiki" );
@@ -186,7 +190,13 @@ final class OpenApiDocument {
                 When NOT to use: the user already specified an exact page name (use get_page instead).""" );
         op.put( "requestBody", Map.of(
                 "required", true,
-                "content", Map.of( "application/json", Map.of( "schema", bodySchema ) ) ) );
+                "content", Map.of( "application/json", Map.of(
+                        "schema", bodySchema,
+                        "example", Map.of(
+                                "query", "hybrid retrieval",
+                                "maxResults", 5
+                        )
+                ) ) ) );
 
         final Map< String, Object > responseSchema = new LinkedHashMap<>();
         responseSchema.put( "type", "object" );
@@ -197,10 +207,37 @@ final class OpenApiDocument {
                         "items", Map.of( "$ref", "#/components/schemas/SearchResult" ),
                         "description", "Results ordered best-first" ) ),
                 prop( "total", "integer", "Number of results in this response" ) ) );
+
+        final Map< String, Object > responseExample = Map.of(
+                "query", "hybrid retrieval",
+                "results", List.of(
+                        Map.of(
+                                "name", "HybridRetrieval",
+                                "url", "https://wiki.example.com/HybridRetrieval",
+                                "score", 0.87,
+                                "summary", "BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.",
+                                "tags", List.of( "retrieval", "search" ),
+                                "cluster", "retrieval",
+                                "snippet", "Hybrid retrieval combines BM25 with dense vector similarity..."
+                        ),
+                        Map.of(
+                                "name", "RetrievalExperimentHarness",
+                                "url", "https://wiki.example.com/RetrievalExperimentHarness",
+                                "score", 0.71,
+                                "summary", "Offline harness for replaying canned queries against snapshots.",
+                                "tags", List.of( "retrieval", "evaluation" ),
+                                "cluster", "retrieval"
+                        )
+                ),
+                "total", 2
+        );
         op.put( "responses", Map.of(
                 "200", Map.of(
                         "description", "Search results",
-                        "content", Map.of( "application/json", Map.of( "schema", responseSchema ) ) ),
+                        "content", Map.of( "application/json", Map.of(
+                                "schema", responseSchema,
+                                "example", responseExample
+                        ) ) ),
                 "400", Map.of( "description", "Missing or blank query" ),
                 "403", Map.of( "description", "Invalid or missing Bearer token" ),
                 "429", Map.of( "description", "Rate limit exceeded" ),
@@ -215,6 +252,7 @@ final class OpenApiDocument {
         nameParam.put( "required", true );
         nameParam.put( "description", "Wiki page name, URL-encoded. Case sensitive." );
         nameParam.put( "schema", Map.of( "type", "string" ) );
+        nameParam.put( "example", "HybridRetrieval" );
 
         final Map< String, Object > maxCharsParam = new LinkedHashMap<>();
         maxCharsParam.put( "name", "maxChars" );
@@ -222,6 +260,7 @@ final class OpenApiDocument {
         maxCharsParam.put( "required", false );
         maxCharsParam.put( "description", "Override the body truncation limit (hard cap 20000)." );
         maxCharsParam.put( "schema", Map.of( "type", "integer" ) );
+        maxCharsParam.put( "example", 6000 );
 
         final Map< String, Object > op = new LinkedHashMap<>();
         op.put( "operationId", "get_page" );
@@ -235,11 +274,24 @@ final class OpenApiDocument {
                 When to use: the user referenced a specific page by name, or a prior search_wiki call
                 produced a result the model wants to read in full.""" );
         op.put( "parameters", List.of( nameParam, maxCharsParam ) );
+
+        final Map< String, Object > pageExample = Map.of(
+                "name", "HybridRetrieval",
+                "url", "https://wiki.example.com/HybridRetrieval",
+                "summary", "BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.",
+                "tags", List.of( "retrieval", "search" ),
+                "text", "# Hybrid Retrieval\n\nHybrid retrieval combines BM25 lexical scoring with dense-vector cosine similarity...",
+                "truncated", false,
+                "lastModified", "2026-04-25T14:30:00Z",
+                "author", "jakefear"
+        );
         op.put( "responses", Map.of(
                 "200", Map.of(
                         "description", "Page contents",
                         "content", Map.of( "application/json", Map.of(
-                                "schema", Map.of( "$ref", "#/components/schemas/PageContent" ) ) ) ),
+                                "schema", Map.of( "$ref", "#/components/schemas/PageContent" ),
+                                "example", pageExample
+                        ) ) ),
                 "403", Map.of( "description", "Invalid or missing Bearer token" ),
                 "404", Map.of( "description", "Page does not exist" ),
                 "429", Map.of( "description", "Rate limit exceeded" ),

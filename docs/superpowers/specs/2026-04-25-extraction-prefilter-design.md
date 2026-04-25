@@ -29,9 +29,9 @@ Heuristic: trim the text, check that it starts with ` ``` ` (with or without a l
 
 ### 2. No proper-noun candidate
 
-A chunk with no token matching `\b[A-Z][a-z]{2,}\b` is skipped.
+A chunk with no token matching `\b[A-Z]\w{2,}\b` is skipped.
 
-Rationale: the extractor's prompt explicitly asks for "named entities … explicitly named in the chunk." A chunk with no capitalised multi-letter words has nothing for it to find. A two-letter `[A-Z][a-z]+` match is excluded to avoid firing on `Of`, `In`, `On`, etc.; three-or-more is the threshold.
+Rationale: the extractor's prompt explicitly asks for "named entities … explicitly named in the chunk." A chunk with no capitalised multi-letter words has nothing for it to find. The 3-character minimum (capital + 2 word chars) excludes `Of`, `In`, `On`, etc. The post-capital class is `\w` rather than `[a-z]` so that mid-word capitals (e.g. `PostgreSQL`, `JavaScript`, `OpenAI`) are correctly matched — `[a-z]{2,}` would have failed to match the lowercase run between the leading capital and an interior capital.
 
 False-positive cost (we filter and miss a real entity): low — entities almost always include a 3+ character capitalised token.
 

@@ -159,13 +159,14 @@ public final class BootstrapExtractionCli {
      * "how many of what total" at a glance without opening the JSON.
      */
     private static String formatProgress( final BootstrapEntityExtractionIndexer.Status s ) {
-        final int totalChunks = s.totalChunks();
-        final int doneChunks  = s.processedChunks();
+        final int totalChunks    = s.totalChunks();
+        final int extractedChunks = s.processedChunks(); // includes failed; skipped are disjoint
+        final int doneChunks     = extractedChunks + s.skippedChunks();
         final double pct = totalChunks > 0
             ? ( 100.0 * doneChunks / totalChunks )
             : 0.0;
         final long elapsedSec = s.elapsedMs() / 1000L;
-        final long perChunkMs = doneChunks > 0 ? s.elapsedMs() / doneChunks : 0L;
+        final long perChunkMs = extractedChunks > 0 ? s.elapsedMs() / extractedChunks : 0L;
         final String skipSuffix = s.skippedChunks() > 0
             ? String.format( Locale.ROOT, " skipped=%d %s", s.skippedChunks(), s.skipReasons() )
             : "";

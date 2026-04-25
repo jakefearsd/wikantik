@@ -58,7 +58,7 @@ public class CsrfProtectionFilter implements Filter {
     @Override
     public void doFilter( final ServletRequest request, final ServletResponse response, final FilterChain chain ) throws IOException, ServletException {
         final HttpServletRequest httpRequest = ( HttpServletRequest ) request;
-        if( isStateChanging( httpRequest ) && !isMcpEndpoint( httpRequest ) ) {
+        if( isStateChanging( httpRequest ) && !isMcpEndpoint( httpRequest ) && !hasBearerAuth( httpRequest ) ) {
             final Engine engine = Wiki.engine().find( request.getServletContext(), null );
             final String allowedOrigins = engine.getWikiProperties().getProperty( PROP_ALLOWED_ORIGINS, "" );
 
@@ -166,6 +166,18 @@ public class CsrfProtectionFilter implements Filter {
         }
         final String expected = scheme + "://" + host;
         return expected.equalsIgnoreCase( origin );
+    }
+
+    /**
+     * D3: Bearer-authenticated requests (API key tokens) are CSRF-exempt. The Authorization
+     * header cannot be forged by a browser via a cross-origin form-style request, so the
+     * presence of a Bearer token is itself a proof of intent equivalent to the synchronizer
+     * token. Downstream filters validate the token; this filter only needs to skip the
+     * cookie-based protection so token-bearing /tools/* and similar callers aren't 302-bounced.
+     */
+    static boolean hasBearerAuth( final HttpServletRequest request ) {
+        final String auth = request.getHeader( "Authorization" );
+        return auth != null && auth.regionMatches( true, 0, "Bearer ", 0, "Bearer ".length() );
     }
 
     static boolean isMcpEndpoint( final HttpServletRequest request ) {

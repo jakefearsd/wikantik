@@ -1,266 +1,177 @@
 ---
-canonical_id: 01KQ0P44Q8XWWYFRN2F2Y9KJXF
+canonical_id: 01KQ12YDTV1P29FG8NWTY40E9K
 title: Event Driven Architecture
 type: article
+cluster: software-architecture
+status: active
+date: '2026-04-25'
 tags:
-- event
-- servic
-- stream
-summary: Event-Driven Architecture and Reactive Systems Welcome.
-auto-generated: true
+- event-driven
+- messaging
+- kafka
+- saga
+- outbox-pattern
+summary: Events vs commands, the outbox pattern, and how to keep an event-driven
+  system from becoming an unprovable mess.
+related:
+- DomainAndIntegrationEvents
+- ApacheKafkaFundamentals
+- MicroservicesArchitecture
+- CqrsPattern
+- DistributedTracing
+hubs:
+- SoftwareArchitecture Hub
 ---
-# Event-Driven Architecture and Reactive Systems
+# Event-Driven Architecture
 
-Welcome. If you are reading this, you are likely already familiar with the limitations of synchronous, request-response paradigms in modern, high-throughput, distributed environments. You understand that the monolithic, tightly coupled service mesh of the past is a performance bottleneck masquerading as an architectural pattern.
+In an event-driven architecture, components communicate primarily by publishing events ("OrderPlaced") rather than calling each other directly. Subscribers react. The benefit is decoupling: the publisher doesn't need to know who reacts. The cost is that the system's behaviour is now spread across N services and inferable only by tracing.
 
-This tutorial is not a refresher on what an event is. It is a deep, rigorous exploration into the confluence of **Event-Driven Architecture (EDA)** and **[Reactive Programming](ReactiveProgramming)**—a necessary pairing for building systems that don't just *respond* to load, but fundamentally *thrive* within the chaos of real-time data streams.
+Get it right and you have a flexible system that scales. Get it wrong and you have a distributed monolith with worse observability. The difference is mostly discipline around three or four patterns.
 
-We are moving beyond mere "asynchronous communication." We are discussing systemic resilience, temporal consistency guarantees, and the mathematical modeling of state change in highly distributed, non-deterministic systems. Consider this your advanced reference guide for architecting the next generation of mission-critical, real-time infrastructure.
+## Events vs commands vs messages
 
-***
+These get conflated; they shouldn't.
 
-## I. EDA vs. MDA vs. Reactive
+- **Command** — "Do this." A directed instruction. Single intended recipient. Fails if recipient is unavailable or rejects. Synchronous or async, but conceptually request/response.
+- **Event** — "This happened." A statement of fact about the past. Many possible reactors. Doesn't fail (the past doesn't unhappen). Consumers each decide what to do.
+- **Message** — the umbrella term. Both commands and events are messages.
 
-Before diving into the implementation details, we must establish a precise taxonomy. The terms "Event-Driven," "Message-Driven," and "Reactive" are often used interchangeably by practitioners who have never actually built a system under extreme load. For experts, this ambiguity is a liability.
+A common mistake: treating events as commands. "OrderPlaced" really means "now, do the rest of the order processing" — that's a command pretending to be an event. The smell: the publisher cares whether the consumer succeeded.
 
-### A. Event-Driven Architecture (EDA)
+Healthy heuristic: if you'd be okay with no consumer reacting (because the event is a fact and reactions are optional), it's an event. If you'd alert on no reaction, it's a command misnamed.
 
-At its heart, EDA is a *design paradigm* centered on the concept of the **Event**.
+## The patterns that earn their keep
 
-**Definition:** An event is an immutable, historical fact—a record that something *has happened* at a specific point in time. It is a declaration of state transition, not a command to perform an action.
+### Outbox pattern
 
-*   **Event vs. Command:** This distinction is non-negotiable. A *Command* is imperative ("Change the user's status to 'Active'"). An *Event* is declarative ("UserStatusChangedToActive"). Producers emit events; consumers react to the facts.
-*   **Decoupling Mechanism:** EDA achieves unparalleled decoupling. The **Event Producer** (the source of truth) has zero knowledge of, or dependency on, the **Event Consumers**. It simply publishes the fact to a durable, ordered intermediary (the Event Broker/Stream).
-*   **The Backbone:** The central component is the **Event Broker** (e.g., Apache Kafka, Pulsar). This broker is not merely a queue; it is a durable, ordered, replayable, partitioned commit log. This log structure is what grants the system its temporal resilience.
+The classic problem: you want to atomically (a) update the database and (b) publish an event. Doing (a) and then (b) means crashes between them lose events; doing (b) and then (a) means events for never-committed state.
 
-### B. Message-Driven Architecture (MDA)
+Solution: write the event into a table in the same transaction as the data change. A separate process reads the outbox table and publishes to the message broker, marking rows as published once confirmed.
 
-MDA is often conflated with EDA, but the distinction lies in the *intent* and *durability* of the message payload.
-
-*   **Message:** A message often implies a *request* or a *task*. It suggests a potential future action. If you send a message, you are implicitly asking the recipient to *do* something.
-*   **The Difference in Focus:**
-    *   **MDA Focus:** Reliable delivery of a task payload from Point A to Point B, often involving acknowledgments and retries (Think traditional JMS queues). The focus is on *guaranteed delivery* of the *intent*.
-    *   **EDA Focus:** Broadcasting a fact that *has already occurred*. The focus is on *systemic reaction* to the *state change*.
-
-**Expert Insight:** While a message *can* represent an event (e.g., "ProcessPaymentRequest"), the moment you treat it as an immutable fact ("PaymentProcessedSuccessfully"), you are operating in the EDA domain. Modern systems leverage the *structure* of EDA (the immutable log) while using the *payload* to carry the necessary context, making the boundary porous but the principle clear.
-
-### C. Reactive Programming
-
-If EDA provides the *nervous system* (the communication backbone), Reactive Programming provides the *neurological processing* (the logic engine).
-
-**Definition:** Reactive programming is a paradigm focused on composing asynchronous data streams and handling change over time. It treats everything—user clicks, database writes, network packets, timer ticks—as an observable stream of data.
-
-*   **The Observable Pattern:** The core abstraction is the `Observable` (or `Flowable`/`Flux`). An Observable is a sequence of values emitted asynchronously over time. It is a lazy construct; nothing happens until a consumer *subscribes* to it.
-*   **Compositionality:** The power lies in operators (`map`, `filter`, `flatMap`, `zip`, `window`). These operators allow developers to declaratively define complex [temporal logic](TemporalLogic): "When Stream A emits X, wait for Stream B to emit Y within 5 seconds, and if both happen, combine them and emit Z."
-*   **The Reactive Manifesto Pillars:** This is crucial context. A truly reactive system must exhibit:
-    1.  **Responsive:** The system responds in a timely manner, even under load.
-    2.  **Resilient:** It recovers automatically from failure (fault tolerance).
-    3.  **Elastic:** It scales up and down dynamically to meet demand.
-    4.  **Message-Driven:** It communicates via asynchronous messages/events.
-
-**The Synergy:** EDA provides the *source* of the streams (the events published to the broker). Reactive Programming provides the *tools* to process, transform, combine, and react to those streams in a mathematically sound, non-blocking manner.
-
-***
-
-## II. Advanced Architectural Patterns Built on EDA
-
-The combination of EDA and Reactive principles enables several powerful, advanced architectural patterns that move far beyond simple publish/subscribe models.
-
-### A. Event Sourcing (ES)
-
-[Event Sourcing](EventSourcing) is perhaps the most profound shift in state management since the adoption of the database itself. It dictates that the state of an entity is not stored directly, but rather is *derived* by replaying the sequence of immutable events that have ever occurred concerning that entity.
-
-**Mechanism:**
-1.  Instead of updating a row in a `User` table (e.g., `SET balance = 100`), you append an event to an `User_Events` stream (e.g., `UserCredited(100)`).
-2.  The current state is merely a materialized *projection* of this event log.
-
-**Technical Implications for Experts:**
-*   **Auditability:** Perfect, inherent audit trail. You know *why* the state is what it is.
-*   **Temporal Querying:** You can reconstruct the state of the system at *any point in the past* by stopping the replay at a specific sequence number. This is invaluable for debugging and regulatory compliance.
-*   **Projection Management:** The complexity shifts from transactional integrity (ACID on a single row) to **[Eventual Consistency](EventualConsistency)** across multiple read models (projections).
-
-**Pseudocode Concept (Conceptual Stream Replay):**
-```
-FUNCTION ReconstructState(AggregateID, Stream):
-    State = InitialState()
-    FOR Event IN Stream.GetEvents(AggregateID):
-        State = Apply(State, Event) // Apply is the business logic handler
-    RETURN State
+```sql
+BEGIN;
+  UPDATE orders SET status = 'shipped' WHERE id = 42;
+  INSERT INTO outbox (event_type, payload) 
+    VALUES ('OrderShipped', '{"order_id":42}');
+COMMIT;
 ```
 
-### B. Command Query Responsibility Segregation (CQRS)
+A worker polls or CDC-tails the outbox and publishes. At-least-once delivery; consumers must be idempotent. Standard pattern; widely applicable; non-negotiable if you care about exactly-once-state.
 
-CQRS is the natural partner to Event Sourcing, and together they form a robust pattern for high-scale systems.
+### Idempotent consumers
 
-**The Problem Solved:** In traditional CRUD systems, the write model (the business logic that changes state) and the read model (the optimized data structure for querying) are often coupled, leading to performance compromises.
+At-least-once delivery means duplicates. The consumer must produce the same final state whether the event arrives once or three times.
 
-**The Solution:**
-1.  **Write Model (Command Side):** This path is responsible for accepting commands, validating business rules, and generating *Events*. It is highly transactional and often uses Event Sourcing internally.
-2.  **Read Model (Query Side):** This path subscribes to the stream of generated Events. It consumes these facts and updates one or more highly optimized, denormalized data stores (e.g., Elasticsearch for search, Redis for caching, PostgreSQL for relational data).
+Achieved by:
+- Storing the event ID consumed alongside the side effect, and skipping events with a previously-seen ID.
+- Designing operations to be naturally idempotent — `set_status('shipped')` instead of `increment_count(1)`.
+- Using deduplication windows in the broker (Kafka exactly-once, Pulsar dedup).
 
-**The Flow:**
-`Client sends Command` $\rightarrow$ `Write Service validates & emits Event` $\rightarrow$ `Event Broker persists Event` $\rightarrow$ `Read Model Subscribers consume Event` $\rightarrow$ `Read Model updates optimized DB` $\rightarrow$ `Client queries optimized DB`
+Don't deploy event-driven systems without idempotent consumers. The first network blip will create duplicates and the data will be wrong forever.
 
-**Expert Consideration (The Consistency Trade-off):** CQRS *mandates* accepting eventual consistency. The gap between the event being emitted and the read model being updated is the window of inconsistency. Architects must rigorously define the acceptable latency bounds for this gap based on business criticality.
+### Saga (compensating transactions)
 
-### C. Choreography vs. Orchestration
+For business processes that span multiple services, distributed transactions (2PC) don't work in practice. Saga is the alternative:
 
-When multiple services react to an event, how is the flow managed? This is a critical design decision.
+1. Each step is a local transaction in one service.
+2. Each step has a compensating action that undoes it.
+3. If a later step fails, the saga executes compensations in reverse.
 
-#### 1. Choreography (The Decentralized Approach)
-*   **Mechanism:** Services communicate purely by reacting to events published to the broker. There is no central coordinator. Service A emits Event X. Service B listens to X and emits Event Y. Service C listens to Y.
-*   **Pros:** Extreme decoupling. Adding a new consumer (Service D) requires zero changes to A, B, or C. This is the purest form of EDA.
-*   **Cons:** **The "Spaghetti Graph" Problem.** As the number of services grows, understanding the overall business flow becomes incredibly difficult. Debugging requires tracing events across dozens of independent services, leading to complex observability requirements.
-
-#### 2. Orchestration (The Centralized Approach)
-*   **Mechanism:** A dedicated service (the Orchestrator) subscribes to the initial event and explicitly calls subsequent services in a defined sequence, often managing state transitions itself.
-*   **Pros:** Clear, linear control flow. Easier to debug and reason about the overall business process.
-*   **Cons:** **The Coupling Trap.** The Orchestrator becomes a single point of failure and a bottleneck. If the orchestration logic is complex, it reintroduces the tight coupling EDA sought to eliminate.
-
-**The Expert Synthesis (The Hybrid Model):**
-The most resilient systems use a **Hybrid Model**.
-1.  Use **Choreography** for the *core, high-volume, non-linear reactions* (e.g., inventory updates, notifications).
-2.  Use a dedicated **Orchestrator Service** (which itself is event-driven) for *complex, multi-step business workflows* that require strict sequencing and compensation logic (e.g., loan application processing). The orchestrator acts as a state machine consumer, emitting events only when a major phase completes.
-
-***
-
-## III. Backpressure and Observability
-
-To achieve true resilience and elasticity, we must address the mechanics of data flow under stress. This brings us to the technical core of Reactive Programming: **Backpressure**.
-
-### A. The Necessity of Backpressure
-
-In a naive asynchronous system, if a fast Producer generates events faster than a slow Consumer can process them, the Consumer's internal buffer will overflow, leading to data loss, memory exhaustion, or, at best, unpredictable throttling.
-
-**Backpressure** is the mechanism by which the Consumer signals to the Producer (or the Broker) that it is currently overwhelmed and needs the rate of data emission to slow down.
-
-*   **Reactive Streams Specification:** This formalizes the concept. It defines a contract where the Subscriber explicitly requests a specific number of items (`request(N)`). The Publisher is then contractually obligated *not* to emit more than requested until the next request arrives.
-*   **Implementation in Brokers:** Modern brokers like Kafka handle this implicitly via consumer group offsets and polling mechanisms, but the *application logic* consuming from the stream must still implement backpressure awareness.
-
-**Pseudocode Concept (Reactive Stream Consumption):**
 ```
-// Instead of: for (event in stream) { process(event) } // Dangerous!
-// Use:
-Observable.subscribe(
-    onNext: (event) => {
-        process(event);
-        requestMoreData(); // Explicitly signal readiness for the next item
-    },
-    onError: (e) => { /* Handle failure */ },
-    onComplete: () => { /* Stream finished */ }
-);
+Place order:
+  1. reserve_inventory  →  on_failure: nothing yet, just stop
+  2. charge_payment     →  on_failure: release_inventory
+  3. ship_order         →  on_failure: refund_payment, release_inventory
 ```
 
-### B. Handling Backpressure in Distributed Streams
+Implementation:
+- **Choreography** — each service listens for events and acts; no central coordinator.
+- **Orchestration** — a saga orchestrator service drives the steps.
 
-When the stream crosses service boundaries (i.e., from the Broker to the Consumer Service), backpressure must be managed across network hops.
+Choreography is simpler for small flows; orchestration scales better when flows have branching, retries, or human approval. Most production sagas converge on orchestration over time.
 
-1.  **Broker Level:** Kafka partitions inherently manage throughput by allowing consumers to control their fetch rate.
-2.  **Consumer Service Level:** The service must implement **Rate Limiting** and **Batching**. Instead of processing events one-by-one, it should accumulate a batch of $N$ events and process them atomically (e.g., within a single database transaction or a single batch API call). This amortizes the overhead of context switching and network round trips.
+### Event sourcing (sometimes)
 
-### C. Observability in Event Streams
+Store all state changes as a sequence of events; current state is derived by replaying. Powerful for auditability, time-travel debugging, and CQRS read models.
 
-Debugging a system where state changes are propagated via asynchronous events is notoriously difficult. The system becomes a "black box" of temporal interactions.
+It's also enormous added complexity. Don't event-source by default. Adopt event sourcing for specific aggregates where the audit trail or replay is genuinely valuable (financial transactions, ticket booking history). For everything else, regular state + outbox events is simpler.
 
-**Required Observability Pillars:**
-1.  **Distributed Tracing (e.g., OpenTelemetry):** Every event must carry correlation IDs (Trace IDs and Span IDs). When Service A emits an event, the ID must be injected. When Service B consumes it, it must extract the ID and continue the trace. This allows tracing the *entire path* of a single business transaction across multiple services and time boundaries.
-2.  **Event Schema Registry:** Using a schema registry (like Confluent Schema Registry) is mandatory. It enforces compatibility rules (backward, forward, full) for the event payload. This prevents a producer from unilaterally breaking the contract for downstream consumers by changing a field name or type.
-3.  **Dead Letter Queues (DLQs):** Any consumer that fails to process an event after a defined number of retries (e.g., 3 attempts) must *not* discard the event. It must be routed to a DLQ for manual inspection and replay, preventing poison pill messages from halting the entire stream.
+## Schema management
 
-***
+Events are an integration contract. Once published, you can't take them back, and consumers depend on the shape.
 
-## IV. Advanced Topics and Edge Cases
+- **Strong schema, evolved carefully.** Avro, Protobuf, or JSONSchema in a registry (Confluent Schema Registry, Apicurio).
+- **Backward-compatible changes by default.** Add fields, never remove or rename. Use deprecation cycles for retired fields.
+- **Schema review is part of code review.** A new event type should be reviewed by consumers as much as the publisher.
 
-For experts researching new techniques, the focus must shift from "how to build it" to "what breaks it, and how do we prove it won't break?"
+The teams that get bitten skipped the schema registry, then regretted it for years. Worth the upfront work.
 
-### A. The Challenge of Idempotency
+## Topic / channel design
 
-In any distributed system relying on retries (which is inevitable), the same event *will* be delivered more than once. This is the definition of "at-least-once" delivery semantics, and it is fundamentally unsafe for state modification.
+Topic granularity is a recurring decision:
 
-**Idempotency:** The property that applying an operation multiple times yields the same result as applying it once.
+- **Per-aggregate topic** — `orders`, `users`, `payments`. The default. Easy to reason about. Scales reasonably.
+- **Per-event-type topic** — `order_placed`, `order_shipped`. More topics, narrower consumers. Better at fine-grained subscriptions but more operational overhead.
+- **Single firehose** — all events on one topic. Simple but ungovernable; consumers filter what they want. Don't.
 
-**Implementing Idempotency:**
-1.  **Unique Event Keys:** Every event must carry a globally unique identifier (UUID) that represents the specific *instance* of the event.
-2.  **Consumer Check:** The consumer service must maintain a record (often in a dedicated, fast key-value store like Redis) of the IDs it has successfully processed.
-3.  **The Check:** Before executing any state change logic, the consumer must check: `IF EventID EXISTS in ProcessedIDs THEN RETURN (already processed) ELSE ProcessAndRecord(EventID)`.
+For Kafka specifically, partition design dominates throughput. Pick a partition key with high cardinality and even distribution; key by aggregate ID so events for the same aggregate are ordered. See [ApacheKafkaFundamentals].
 
-This pattern is non-negotiable for any critical write path in an EDA/CQRS setup.
+## Failure modes
 
-### B. Handling Temporal Consistency
+**Lost events.** Publish-without-outbox loses events on crash. Add the outbox.
 
-When we embrace EDA, we embrace eventual consistency. An expert must be able to quantify *how* eventual.
+**Duplicate side-effects.** At-least-once delivery + non-idempotent consumer = double-billed customers. Make the consumer idempotent.
 
-*   **Causality:** The system must guarantee that if Event $E_1$ causes Event $E_2$, then $E_2$ will never be processed before $E_1$ has been processed by all necessary parties. This is usually guaranteed by the ordered, partitioned nature of the broker.
-*   **Ordering Guarantees:** If multiple events pertaining to the same aggregate (e.g., `User_123`) are processed, they *must* be processed in the order they were emitted. This is achieved by ensuring all related events are routed to the same partition key in the message broker.
+**Out-of-order processing.** Two events for the same aggregate arrive out of order at a consumer. If they have causal dependencies, the consumer corrupts state. Mitigations: partition by aggregate ID (preserves order within partition), or version events with logical timestamps and reject out-of-order updates.
 
-### C. State Management in Stream Processing Frameworks
+**Schema drift.** Producer ships a schema change; one consumer didn't update; that consumer crashes. Schema registry with compatibility checks blocks this at publish time.
 
-Modern stream processing frameworks (Apache Flink, Kafka Streams) are the operational realization of EDA/Reactive principles. They allow developers to write logic that processes unbounded streams of data, treating time itself as a dimension.
+**Cascade storms.** Event A triggers consumer B which publishes event C which triggers consumer D... A flood of events from one upstream change. Defence: rate limiting at consumers, idempotency, bounded retries.
 
-**Key Concepts in Stream Processing:**
-1.  **Windowing:** Grouping events that occur within a defined time boundary (e.g., "Calculate the average transaction value for this user over the last 5 minutes"). This requires managing state *over time*.
-2.  **Watermarks:** A mechanism used by stream processors to manage event time versus processing time. A watermark signals that the system believes it has seen all events up to a certain timestamp, allowing it to safely close a window and emit a result, even if late-arriving data might technically exist.
-3.  **State Backends:** These frameworks manage the internal state (e.g., running counts, running sums) using fault-tolerant, checkpointed storage (like RocksDB), ensuring that if the processing node fails, it can restart exactly where it left off, using the last successfully checkpointed state.
+**Hot consumer lag.** One consumer can't keep up; lag grows without bound. Monitor consumer lag per topic per consumer group. Alert at thresholds. Scale consumers horizontally or partition more aggressively.
 
-### D. Schema Evolution and Versioning
+## Observability
 
-As systems evolve, the structure of events *must* change. This is the Achilles' heel of EDA.
+Event-driven systems are tracers' nightmares without effort. A user request hits service A, which publishes event X, which is consumed by B and C, which publish more events...
 
-**The Problem:** If Service A updates its event payload from `v1` to `v2` (e.g., renaming `old_field` to `new_field`), and Service B (a legacy consumer) is still running, the system breaks unless safeguards are in place.
+Minimum:
+- **Trace context propagation** — every event carries the W3C `traceparent`. Consumers continue the trace span. OpenTelemetry handles this for major brokers.
+- **Per-event metadata** — event ID, timestamp, producer, schema version, trace ID.
+- **End-to-end trace UI** — Jaeger, Tempo, Datadog, etc., that can render the full trace across services.
 
-**The Solution (Versioning Strategy):**
-1.  **Schema Registry Enforcement:** As mentioned, this is the gatekeeper.
-2.  **Consumer Compatibility:** Consumers must be written to handle multiple versions. When a consumer reads an event, it must first check the event's embedded schema version.
-3.  **Upcasting/Downcasting:** The consumer logic must contain explicit logic to "upcast" older versions to the current expected structure, or "downcast" newer versions if it is a legacy component that cannot handle the latest fields.
+Without this, "why did the user see X" takes hours per investigation. With it, minutes.
 
-***
+## The architecture's hidden cost
 
-## V. Comparison and Future Directions
+Event-driven systems trade *easy reasoning* for *flexibility*. In a synchronous monolith, you can read code top-to-bottom and follow what happens. In an event-driven system, the only way to know what happens after an event is to grep all consumers.
 
-To conclude this deep dive, we must place EDA/Reactive systems in context against other paradigms and look toward the research frontier.
+This shows up in:
 
-### A. EDA vs. Microservices (A Necessary Clarification)
+- **Onboarding time.** New engineers take longer to understand the system.
+- **Debugging time.** "Why did this happen" requires tracing across services.
+- **Refactoring caution.** Changing event semantics requires consumer-side coordination.
 
-Many assume that "Microservices" *means* "EDA." This is a dangerous oversimplification.
+For these reasons, event-driven within a service ("internal events") is rarely worth it. The pattern is for crossing service boundaries where decoupling is genuinely valuable. Inside a service, regular function calls are simpler and faster.
 
-*   **Microservices:** Is an *organizational and deployment* pattern. It dictates that a large application should be broken down into small, independently deployable services.
-*   **EDA:** Is a *communication and data flow* pattern. It dictates *how* those services should communicate (via asynchronous events, not direct RPC calls).
+## When to pick this style
 
-**The Ideal State:** A well-designed, resilient, modern system will be implemented using a **[Microservices architecture](MicroservicesArchitecture)** where the primary inter-service communication mechanism is **Event-Driven and Reactive**.
+Use event-driven for:
 
-### B. Transaction Management in Distributed Systems
+- Inter-service communication where N services react to the same upstream change.
+- Audit trails.
+- Streaming data pipelines.
+- Saga / long-running business processes.
 
-The ACID guarantees of traditional databases vanish when you span transactions across multiple services communicating via events. We must replace ACID with patterns that guarantee *business consistency*.
+Don't use it for:
 
-*   **[Saga Pattern](SagaPattern):** This is the canonical solution for distributed transactions. A Saga is a sequence of local transactions. If any local transaction fails, the Saga executes a series of **compensating transactions** to undo the work done by the preceding successful steps.
-    *   *Example:* Order Placement $\rightarrow$ (1) Reserve Inventory $\rightarrow$ (2) Process Payment $\rightarrow$ (3) Notify Shipping. If (3) fails, the Saga triggers compensating actions: (2) Refund Payment, and (1) Release Inventory.
+- Simple request/response inside a service.
+- Cases where you actually need synchronous failure feedback to the user. (Use commands, not events, for these.)
+- Workflows where the event count would explode (every keystroke generating an event is rarely useful).
 
-### C. Decentralization and Event Mesh
+## Further reading
 
-The next evolution moves away from centralized brokers (like a single Kafka cluster) toward decentralized, peer-to-peer event fabrics.
-
-*   **Event Mesh:** This concept treats the event backbone not as a single queue, but as a mesh of interconnected, specialized event streams. Instead of every service connecting to one massive broker, services connect to the specific "topics" or "domains" they care about. This increases resilience by localizing failure domains.
-*   **Decentralized Identity and Events:** Future research is exploring how to anchor event provenance using distributed ledger technologies (DLT) or blockchain concepts. While using a blockchain for *every* event is overkill (due to latency and cost), using it to cryptographically *attest* to the integrity and sequence of critical, high-value events (e.g., financial settlements) is a rapidly maturing area.
-
-***
-
-## Conclusion
-
-To summarize for the researcher: EDA is not merely a communication style; it is a fundamental shift in how we model time, state, and causality within software.
-
-| Paradigm | Core Concept | Communication Style | State Management | Resilience Focus |
-| :--- | :--- | :--- | :--- | :--- |
-| **Request/Response** | Command | Synchronous, Blocking | Centralized, ACID | Availability (if the service is up) |
-| **Message-Driven** | Task/Intent | Asynchronous, Guaranteed Delivery | Stateful, Transactional | Reliability (guaranteed delivery) |
-| **Event-Driven (EDA)** | Fact/Event | Asynchronous, Broadcast | Event Sourcing, Derived | Resilience & Scalability (decoupling) |
-| **Reactive** | Stream/Observable | Asynchronous, Backpressured | Stream-based, Temporal | Responsiveness & Elasticity (handling load) |
-
-Mastering this domain requires moving beyond the "happy path." It demands rigorous attention to:
-
-1.  **Idempotency** at every write boundary.
-2.  **Schema Governance** to manage evolution.
-3.  **Backpressure** mechanisms to survive overload.
-4.  **Saga Logic** to manage distributed failure compensation.
-5.  **Observability** to trace the temporal journey of a single business unit across dozens of asynchronous hops.
-
-If your system cannot be modeled as a stream of immutable facts reacting to observable changes, you are likely still architecting for the last decade, not the next. Now, go build something that actually scales.
+- [DomainAndIntegrationEvents] — distinguishing the two
+- [ApacheKafkaFundamentals] — the most common substrate
+- [MicroservicesArchitecture] — events as the cross-service glue
+- [CqrsPattern] — separating command and query sides
+- [DistributedTracing] — observability for event flows

@@ -1,291 +1,211 @@
 ---
-canonical_id: 01KQ0P44PHMATE616FK5CT4A1A
+canonical_id: 01KQ12YDTMVYT7HTEWG6DD4EHY
 title: Design Patterns Overview
 type: article
+cluster: software-architecture
+status: active
+date: '2026-04-25'
 tags:
-- pattern
-- object
-- you
-summary: They are the distilled wisdom of decades of accumulated failure and subsequent
-  refinement.
-auto-generated: true
+- design-patterns
+- gof
+- software-design
+- patterns
+summary: GoF patterns at 30 — which still pay rent, which became language features,
+  and which were always overkill. A reading guide for new engineers and a
+  reality check for old ones.
+related:
+- AdapterPattern
+- ObserverPattern
+- DecoratorPattern
+- SingletonPatternAndAlternatives
+- DomainDrivenDesign
+- HexagonalArchitecture
+- CqrsPattern
+hubs:
+- SoftwareArchitecture Hub
 ---
 # Design Patterns Overview
 
-For those of us who spend our professional lives wrestling with the inherent chaos of emergent complexity—the kind of system where a simple feature request spirals into a multi-threaded, state-dependent nightmare—design patterns are not merely helpful suggestions; they are the fundamental vocabulary of robust software engineering. They are the distilled wisdom of decades of accumulated failure and subsequent refinement.
+The Gang of Four book (Gamma, Helm, Johnson, Vlissides, 1994) catalogued 23 patterns in C++ and Smalltalk. Half of them still earn their keep in 2026. The other half either became language features (so you don't notice you're using them) or were always overengineering for problems most code doesn't have.
 
-This tutorial is not intended for the novice who needs to know the difference between an abstract class and an interface. We are addressing experts, researchers, and architects who are already fluent in polymorphism, generics, and the nuances of memory management. Our goal is to move beyond the textbook definitions of the Gang of Four (GoF) patterns and explore their theoretical underpinnings, their modern manifestations in reactive and distributed computing paradigms, and the subtle pitfalls that can turn an elegant pattern into an architectural straitjacket.
+This page is the calibrated tour: which patterns to actually use, which to recognise but not invoke, and which to mostly skip.
 
-We will dissect the three canonical groupings—Creational, Structural, and Behavioral—not as isolated checklists, but as interconnected layers of abstraction that govern the lifecycle, composition, and communication flow within a sophisticated software system.
+## Patterns that still earn rent
 
-***
+### Adapter
 
-## I. Why Patterns Matter
+A class that wraps another class to expose a different interface. Used everywhere you have a third-party API, a legacy system, or two incompatible interfaces that need to talk.
 
-Before diving into the specific blueprints, we must establish the philosophical context. Design patterns, at their core, are not code; they are **meta-solutions**. They represent the recognition that certain classes of problems are recurrent, regardless of the specific domain (be it financial trading, genomic sequencing, or user interface rendering).
+Example: your code expects `PaymentProcessor.charge(Money)` but the Stripe SDK has `stripe.Charge.create(amount=int_cents, currency='usd')`. Adapter: `StripePaymentProcessor` implements `PaymentProcessor.charge` and translates internally.
 
-### A. Managing Complexity and Coupling
+Always relevant. See [AdapterPattern].
 
-The primary objective of applying a pattern is to manage the inherent tension between **flexibility** and **predictability**.
+### Strategy
 
-1.  **Coupling:** We strive for *low coupling*—meaning components should know as little as possible about the internal workings of other components. High coupling leads to the dreaded "ripple effect," where changing one module necessitates cascading changes across unrelated parts of the codebase.
-2.  **Cohesion:** Conversely, we demand *high cohesion*—meaning the elements within a single module or class should belong together logically and work toward a single, well-defined responsibility.
+Encapsulate a family of algorithms; pick one at runtime. The classic example is sorting comparators; the modern example is dependency-injected behaviours.
 
-Design patterns are the mechanisms by which we enforce this delicate balance. They provide the necessary abstraction layers to allow components to interact via stable, well-defined contracts (interfaces or abstract base classes) rather than direct, brittle dependencies.
+```python
+class Discount:
+    def __init__(self, strategy: PricingStrategy):
+        self.strategy = strategy
+    def apply(self, cart): return self.strategy.compute(cart)
 
-### B. SOLID as the Pattern Filter
-
-While patterns are the *solutions*, the SOLID principles are the *constraints* that guide the selection and implementation of those solutions. For an expert audience, understanding this relationship is paramount:
-
-*   **Single Responsibility Principle (SRP):** A class should have only one reason to change. This principle often dictates *where* a pattern boundary should be drawn. If a class violates SRP, it is a strong signal that a structural pattern (like Facade or Decorator) is required to decompose its responsibilities.
-*   **Open/Closed Principle (OCP):** Software entities should be open for extension but closed for modification. This is the pattern's holy grail. When you implement a pattern, you are usually doing so to satisfy OCP—allowing new behaviors or types to be added without touching existing, tested code paths.
-*   **Liskov Substitution Principle (LSP):** Subtypes must be substitutable for their base types without altering the correctness of the program. This is critical when using inheritance-based patterns (like Strategy or Template Method) and demands rigorous adherence to contract enforcement.
-
-***
-
-## II. Creational Patterns
-
-Creational patterns address the question: **"How and when should an object be instantiated?"**
-
-They are concerned with decoupling the client code (the code that *needs* an object) from the concrete implementation details of the object's creation. If you hardcode `new ConcreteService()`, you have created a dependency nightmare. Creational patterns solve this by introducing an intermediary layer of indirection.
-
-### A. The Factory Method Pattern
-
-The Factory Method is arguably the most fundamental pattern for managing object creation polymorphism.
-
-**Mechanism:** Instead of calling a constructor directly, the client calls a method on a creator object (the "factory") which is responsible for returning an object conforming to a specific interface or abstract class.
-
-**Expert Analysis & Edge Cases:**
-The Factory Method pattern is superior to simply using a static factory method on the client class because it promotes polymorphism at the *creation point*.
-
-Consider a system integrating multiple payment gateways (Stripe, PayPal, Braintree). If the client code directly calls `new StripeGateway()`, the client is coupled to Stripe. By implementing a `PaymentGatewayFactory` interface, the client only depends on `IGatewayFactory.createGateway()`.
-
-*   **The Limitation:** The Factory Method pattern typically dictates that the *creator* class must be responsible for knowing *which* concrete product to instantiate. If the decision logic becomes too complex (e.g., "If the user is premium AND the transaction is international AND the currency is JPY, use Gateway X"), the factory itself becomes bloated, violating SRP.
-
-### B. The Abstract Factory Pattern
-
-When the complexity increases from creating *one* type of object to creating *families* of related, interdependent objects, the Abstract Factory steps in.
-
-**Mechanism:** It provides an interface for creating families of related or dependent objects (e.g., a UI toolkit might require a Button, a Checkbox, and a Scrollbar, all adhering to a specific OS style—Windows, macOS, or Linux). The factory ensures that all created components belong to the same consistent "theme" or "family."
-
-**Expert Analysis & Trade-offs:**
-The Abstract Factory is powerful because it guarantees *coherence*. You never end up with a `WindowsButton` paired with a `MacOSScrollBar`.
-
-However, the trade-off is rigidity. If you need to add a *new* product family (e.g., adding a "Touchscreen" theme to an existing Windows/Mac/Linux system), you must modify the Abstract Factory interface and potentially all concrete factory implementations. This violates the Open/Closed Principle at the *factory definition* level, making it a pattern to use judiciously.
-
-### C. The Builder Pattern
-
-When an object requires a large number of optional or sequential parameters, the constructor signature quickly becomes an unmanageable mess of default values and optional arguments—the "telescoping constructor anti-pattern." The Builder pattern is the surgical solution.
-
-**Mechanism:** It separates the construction logic from the representation. A `Builder` object is responsible for setting the internal state of a complex product step-by-step. The final product is then assembled by a dedicated `Director` (optional, but useful for enforcing construction sequences) or simply by calling a final `build()` method.
-
-**Advanced Use Case: Immutability and State Management:**
-The Builder pattern is intrinsically linked to creating immutable objects. By forcing construction through a builder, you ensure that the final object is fully initialized and cannot be mutated unexpectedly after construction, which is critical in concurrent, multi-threaded environments.
-
-**Pseudocode Concept (Conceptual Flow):**
-
-```pseudocode
-// Product: ComplexReport
-class ComplexReport {
-    private final List<DataPoint> data;
-    private final String format;
-    private final boolean isAudited;
-
-    // Constructor is private or package-private, forcing use of Builder
-    private ComplexReport(Builder builder) {
-        this.data = builder.data;
-        this.format = builder.format;
-        this.isAudited = builder.isAudited;
-    }
-
-    // Getters...
-}
-
-// Builder: The construction mechanism
-class ReportBuilder {
-    private List<DataPoint> data = new ArrayList<>();
-    private String format = "PDF";
-    private boolean isAudited = false;
-
-    public ReportBuilder addData(DataPoint dp) {
-        this.data.add(dp);
-        return this; // Enables fluent interface chaining
-    }
-
-    public ReportBuilder setFormat(String fmt) {
-        this.format = fmt;
-        return this;
-    }
-
-    public ReportBuilder markAsAudited() {
-        this.isAudited = true;
-        return this;
-    }
-
-    public ComplexReport build() {
-        return new ComplexReport(this);
-    }
-}
+# At runtime: pass StandardPricing(), HolidayPricing(), or VipPricing()
 ```
 
-### D. The Singleton Pattern: The Necessary Evil (And How to Avoid It)
+In modern languages, often just a function passed as an argument. Pattern is alive; the boilerplate is gone.
 
-The Singleton pattern is the most frequently misused and misunderstood pattern. It dictates that a class has only one instance and provides a global point of access to it.
+### Observer / Pub-Sub
 
-**The Expert Critique:**
-In modern, highly decoupled architectures (especially those leveraging Dependency Injection containers like Spring or Guice), the Singleton pattern is often an **anti-pattern**. Why? Because it introduces hidden, global state, making unit testing excruciatingly difficult. Tests become non-deterministic because one test's side effects can corrupt the global state for the next test.
+Subjects publish events; subscribers react. Modern descendants: event buses, message queues, reactive streams.
 
-**When is it *Acceptable*?**
-It is acceptable only when the resource being managed is inherently a global, unique resource that *must* be singular by definition, such as a hardware connection manager, a system-wide logger instance, or a configuration registry loaded at startup.
+The OO version (a `Subject` class with `addObserver`/`removeObserver`) is rarely written by hand anymore — your event bus, framework signal system, or message broker handles it. The pattern persists; the implementation is library-provided.
 
-**The Modern Solution: Dependency Injection (DI) Containers:**
-Instead of implementing the Singleton pattern manually (which is error-prone, especially regarding thread safety), the superior approach is to let a robust DI container manage the scope. By configuring the container to manage the service with a `Singleton` scope, you achieve the *effect* of a Singleton without writing the brittle boilerplate code, and crucially, the container can often manage the lifecycle hooks necessary for proper cleanup and testing isolation.
+See [ObserverPattern], [EventDrivenArchitecture].
 
-***
+### Decorator
 
-## III. Structural Patterns
+Wrap an object to add behaviour without modifying it. The HTTP middleware stack is a decorator chain. Logging wrappers, caching wrappers, retry wrappers — all decorators.
 
-Structural patterns address the question: **"How should classes and objects be composed to form larger, more robust structures?"**
+Python's `@decorator` syntax is named after this pattern. JavaScript / TypeScript decorators (TC39) too. The pattern is so embedded in modern language design that "decorator" the syntactic feature is what most engineers think of, not the GoF pattern.
 
-These patterns are less about *creating* objects and more about *arranging* them—how they fit together to achieve a specific architectural goal, often relating to interfaces, composition, and delegation.
+See [DecoratorPattern].
 
-### A. The Adapter Pattern
+### Iterator
 
-The Adapter pattern is the quintessential "translator." It allows two incompatible interfaces to work together by wrapping one of the components.
+Traverse a collection without exposing its internal structure. Every modern language ships this as a language feature (Python `__iter__`, C# `IEnumerable`, Rust `Iterator`, Java `Iterator`, JS `for...of`).
 
-**Mechanism:** The Adapter implements the interface expected by the client, but internally, it translates the client's calls into the format required by the existing, incompatible service (the "Adaptee").
+You don't write it; you use it. Recognise that it's an instance of the GoF pattern.
 
-**Advanced Use Case: API Versioning and Legacy Integration:**
-This is its most valuable application in enterprise architecture. Imagine a core service written against `V1` of a third-party API, but the client code is now running against `V2`. Instead of rewriting the entire client, you build an `V2ToV1Adapter`. This adapter handles the necessary data mapping, field renaming, and method signature adjustments, allowing the core business logic to remain untouched while the external dependency evolves.
+### Composite
 
-**Critique:** Overuse of Adapters can mask underlying architectural debt. If you find yourself writing many Adapters, it might signal that the core system needs a unified abstraction layer (perhaps an Abstract Factory or a dedicated Service Layer) rather than just translation wrappers.
+Tree of objects where leaf and internal nodes share an interface. Used in DOM (every node is `Node`), AST traversal, file system hierarchies, and any UI tree.
 
-### B. The Decorator Pattern
+When a UI framework lets you nest components arbitrarily and treats the whole tree as one renderable thing, that's Composite.
 
-If the Decorator pattern is the structural pattern most frequently misused, it is also the most powerful for enforcing the Open/Closed Principle (OCP).
+### Template Method
 
-**Mechanism:** It attaches responsibilities to an object dynamically. Instead of subclassing to add functionality (which requires modifying the subclass and potentially violating OCP), you wrap the original object in a decorator class that implements the *same* interface. This wrapper adds its behavior *before* or *after* delegating the call to the wrapped object.
+Define an algorithm's skeleton; subclasses fill in steps. Every framework's "extend this base class and override these hooks" is Template Method.
 
-**Expert Deep Dive: Composition vs. Inheritance:**
-The Decorator pattern is the canonical demonstration of **Composition over Inheritance**.
+Less idiomatic in modern languages (we prefer composition over inheritance), but still pervasive in framework APIs.
 
-*   **Inheritance:** If you need to add logging, validation, and caching to a `DataService`, subclassing `DataService` to create `LoggingDataService` and then subclassing *that* to create `CachedLoggingDataService` leads to an exponential explosion of classes ($N^2$ complexity).
-*   **Decoration:** Using Decorators, you simply stack the responsibilities: `new CachingDecorator(new LoggingDecorator(new DataService()))`. The structure remains linear, scalable, and adheres perfectly to OCP.
+### Facade
 
-**Edge Case: The Decorator Stack Depth:**
-Be mindful of the stack depth. While theoretically infinite, in practice, excessive decoration can lead to performance overhead due to the repeated method calls and object instantiation overhead. Furthermore, debugging a deeply nested decorator chain can become a nightmare of call stacks.
+A single simplified interface in front of a complex subsystem. Most "client SDK" libraries are facades over the underlying APIs.
 
-### C. The Facade Pattern
+Recognise it; use it when wrapping complexity is genuinely useful. Skip it when the subsystem is already simple — you're just adding indirection.
 
-The Facade pattern is the architectural simplification tool. It provides a unified, high-level interface to a set of interfaces in a subsystem.
+## Patterns that became language features
 
-**Mechanism:** It acts as a simplified entry point. Instead of forcing the client to know about the five distinct classes (`DatabaseConnector`, `AuthService`, `TransactionValidator`, `Logger`, `CacheManager`) required to process a single user login, the Facade exposes one method: `loginUser(credentials)`.
+### Singleton (with caveats)
 
-**Expert Analysis: The Danger of Over-Abstraction:**
-The Facade is powerful, but it carries a risk: **Information Hiding leading to Blindness.**
+Originally: a class with a private constructor and a static `getInstance()`. In practice, singletons turn into hidden global state, complicate testing, and resist dependency injection.
 
-If the Facade becomes too comprehensive, it can become a "God Object" itself. The client becomes entirely dependent on the Facade, and the internal complexity of the subsystem is hidden *too* well. When a bug appears in the `TransactionValidator` deep within the subsystem, the client developer might not even know that component exists because the Facade never exposed it directly.
+Modern replacement: dependency injection container manages lifecycle; the "single instance" property is a configuration choice, not a class structural feature.
 
-**Best Practice:** Use the Facade to *simplify* the initial interaction, but ensure that the subsystem components remain modular and testable in isolation. The Facade should be a *guide*, not a *barrier*.
+If you find yourself reaching for Singleton, ask whether you actually want a registered service in your DI container. Usually you do. See [SingletonPatternAndAlternatives].
 
-***
+### Factory / Abstract Factory
 
-## IV. Behavioral Patterns
+Originally: a class whose method creates instances of related families.
 
-Behavioral patterns address the question: **"How do objects communicate and coordinate their responsibilities?"**
+In modern languages, often just a function that returns a configured object. In TypeScript / Java with DI, the framework is the factory. Still useful as a concept; the explicit `FooFactory` class is rarely needed.
 
-These patterns deal with the algorithms, the flow of control, and the management of state transitions across multiple interacting objects. They are the glue that holds the structural components together.
+### Command
 
-### A. The Observer Pattern
+Encapsulate a request as an object. CQRS (see [CqrsPattern]) is Command at architecture scale. Undo/redo systems use Command. Job queues use Command.
 
-The Observer pattern is the cornerstone of reactive programming and event-driven architectures. It defines a one-to-many dependency between objects so that when one object (the Subject/Observable) changes state, all its dependents (the Observers) are notified and updated automatically.
+The pattern is alive; the explicit hand-rolled `CommandInterface` is rarely how it shows up — it's serialized job records, message envelopes, or domain events.
 
-**Mechanism:** It formalizes the publish/subscribe (Pub/Sub) model. The Subject maintains a list of registered Observers. When an event occurs, it iterates through the list and calls a standardized `update()` method on each registered observer.
+## Patterns to use sparingly
 
-**Modern Manifestations (The Evolution):**
-In modern systems, the raw Observer pattern is often superseded or enhanced by more robust frameworks:
+### Visitor
 
-1.  **Event Buses/Message Brokers (e.g., Kafka, RabbitMQ):** These are distributed, persistent implementations of the Observer pattern. Instead of direct method calls, the Subject publishes a message to a topic, and any interested service (Observer) subscribes to that topic. This achieves massive decoupling across process boundaries.
-2.  **Reactive Streams (RxJava/Reactor):** These frameworks formalize the Observer pattern into a powerful, composable stream abstraction. Instead of manually managing subscriptions, you chain operators (`.map()`, `.filter()`, `.flatMap()`) onto an `Observable` stream, treating asynchronous data flow as a sequence of transformations.
+Add operations to a class hierarchy without modifying the classes. Powerful for AST processing or anything else with a closed type hierarchy and an open set of operations.
 
-**Expert Consideration: State Management vs. Event Sourcing:**
-When designing systems that rely heavily on the Observer pattern, consider **Event Sourcing**. Instead of the Subject simply notifying Observers of a *new state* (e.g., `User.setEmail("new@example.com")`), the Subject should emit an immutable *event* (e.g., `UserEmailChangedEvent(oldEmail, newEmail, timestamp)`). This provides a complete, auditable log of *how* the state arrived at its current point, which is invaluable for debugging and temporal querying.
+Trade-off: forces a double dispatch. In languages with pattern matching (Rust, Scala, modern Python), straight pattern matching is cleaner. Reach for Visitor only when the type hierarchy genuinely is closed and frequently traversed by new operations.
 
-### B. The Strategy Pattern
+### Memento
 
-The Strategy pattern allows a client to select an algorithm or behavior at runtime without changing the client's core code.
+Save and restore an object's internal state. Useful for undo, snapshots, transactional rollback. Often replaced by immutable data structures + persistent collections.
 
-**Mechanism:** It defines a family of algorithms, encapsulates each one, and makes them interchangeable. The client holds a reference to a Strategy interface and delegates the execution to the currently selected concrete strategy object.
+If you have immutable state, "snapshot" is just keeping the old reference; Memento adds nothing. If you have mutable state, Memento is sometimes the right pattern, but usually a redesign toward immutable state is better.
 
-**Comparison to State Pattern:**
-This is a common point of confusion.
-*   **Strategy:** The client *chooses* the strategy based on external input or configuration. The context object remains largely stable, merely delegating work.
-*   **State:** The object *changes* its internal behavior based on its own internal state. The object itself transitions between states, and the behavior changes *because* of the state change.
+### Mediator
 
-**When to use which?**
-If the decision logic resides *outside* the object (e.g., "Should I calculate tax using US rules or EU rules?"), use **Strategy**. If the object's *entire operational mode* changes based on its internal status (e.g., a connection object being in `DISCONNECTED`, `CONNECTING`, or `CONNECTED` state), use **State**.
+A class that handles communication between many other classes, so they don't need direct references to each other.
 
-### C. The Command Pattern
+In practice, frequently turns into a "god object" containing all coupling rather than no coupling. The intent is sound; the executions go badly. Often: a message bus or event system is a better implementation.
 
-The Command pattern encapsulates a request as an object. This is profoundly useful because it decouples the object that *issues* the request (the Invoker) from the object that *knows how to perform* the request (the Receiver).
+## Patterns that were mostly always overkill
 
-**Mechanism:** The Command object holds a reference to the Receiver and an execution method (`execute()`). The Invoker only knows how to call `execute()` on the Command object; it has zero knowledge of the Receiver's internal methods.
+### Bridge
 
-**Advanced Application: Undo/Redo Functionality:**
-The Command pattern is the foundational pattern for implementing undo/redo stacks. To support undo, the `Command` interface must be extended to include an `undo()` method. The Invoker, upon executing a command, pushes the command object onto the history stack. To undo, it pops the command and calls `undo()`.
+Decouple abstraction from implementation so they can vary independently. The example in the book is shapes (Circle/Square) crossed with renderers (Vector/Raster), so you get one class per (shape, renderer) pair without combinatorial explosion.
 
-**The Command Chain (Combining with Chain of Responsibility):**
-A sophisticated system might use a Command object that, upon execution, triggers a chain of other commands. For instance, a "SubmitOrderCommand" might execute, which in turn triggers a `ValidateInventoryCommand`, followed by a `ProcessPaymentCommand`.
+In practice: rarely the actual problem. Most code doesn't have an orthogonal abstraction × implementation matrix. When it does, composition handles it without naming it Bridge.
 
-***
+### Flyweight
 
-## V. Synthesis and Intersections
+Share fine-grained objects to save memory. The classic example is character glyphs in a text editor.
 
-The true mastery of design patterns comes not from knowing them individually, but from understanding how they interact to solve problems that are too complex for any single pattern.
+Almost never the problem in modern systems. Memory is cheap; the overhead of fine-grained objects is a micro-optimization for narrow workloads (game engines, embedded systems). Skip unless profiling demands it.
 
-### A. Pattern Interplay
+### Prototype
 
-Consider a modern, highly transactional microservice endpoint that processes a user profile update. This single action might require the combination of several patterns:
+Create new objects by cloning an existing one. JavaScript's prototype-based inheritance is conceptually related but not the same pattern. The GoF Prototype is rarely the right answer — explicit constructors, builders, or factory methods are clearer.
 
-1.  **Facade:** The external API gateway exposes a single endpoint, `updateProfile(data)`. This is the Facade.
-2.  **Command:** The request payload is wrapped into a `UpdateProfileCommand`. This decouples the API gateway from the complex business logic.
-3.  **Strategy:** Inside the command execution, the system must determine the appropriate validation rules based on the user's subscription tier. A `ValidationStrategyFactory` selects the correct `IValidationStrategy` (e.g., `PremiumValidationStrategy` vs. `BasicValidationStrategy`).
-4.  **Decorator:** The core `ProfileService` object is wrapped by a `AuditingDecorator` (to log the change) and potentially a `RateLimitingDecorator` (to prevent abuse).
-5.  **Observer:** Upon successful completion of the command, the service publishes a `ProfileUpdatedEvent` to the event bus, which triggers downstream services (e.g., sending a welcome email, invalidating a cache entry).
+### Chain of Responsibility
 
-This sequence demonstrates that the pattern selection is dictated by the *requirements* of the interaction, not by the pattern itself.
+A request passes through a chain of handlers; each can handle it or pass on. Useful for some specific cases (HTTP middleware, exception handlers), but the explicit chain object is rarely the cleanest implementation.
 
-### B. The Role of Dependency Injection (DI) as a Meta-Pattern
+The "middleware stack" pattern in modern web frameworks is essentially this; you rarely need to instantiate `Handler` classes by hand.
 
-If we must single out one concept that underpins the modern application of all patterns, it is **Dependency Injection (DI)**.
+### Interpreter
 
-DI is not a pattern itself; it is an *implementation technique* that makes the application of patterns possible, scalable, and testable.
+Define a grammar and an interpreter for it. Useful for narrow DSLs; usually overkill — generate a parser with a tool (ANTLR, Lark, Pest) or use existing language features.
 
-*   **How it relates:** DI containers manage the lifecycle and wiring of components that would otherwise require manual instantiation (violating the principles addressed by Factory/Builder).
-*   **The Benefit:** By injecting dependencies (e.g., injecting `ILogger` instead of calling `Logger.getInstance()`), you are effectively making the *dependency* the contract, allowing you to swap out the concrete implementation (e.g., swapping `FileLogger` for `InMemoryLogger` during testing) without touching the consuming class. This is the ultimate realization of low coupling.
+## Modern patterns the GoF book didn't have
 
-### C. Patterns in Concurrent and Distributed Systems
+The book is 30 years old. Patterns that have emerged or been formalised since:
 
-As systems move beyond the single process memory space, traditional GoF patterns require significant augmentation:
+- **Dependency Injection** — the framework supplies what an object needs. Pervasive. Often replaces Factory and Singleton.
+- **Repository / Unit of Work** — abstraction over data access. Almost always paired with ORMs. See [DomainDrivenDesign].
+- **CQRS** — separate read and write models. See [CqrsPattern].
+- **Hexagonal / Ports and Adapters** — domain at the centre, adapters at the edges. See [HexagonalArchitecture].
+- **Saga** — long-running transactions across services. See [EventDrivenArchitecture].
+- **Circuit Breaker** — fail fast when a downstream is unhealthy.
+- **Retry with backoff** — robust handling of transient failures.
+- **Bulkhead** — isolate failures so one part of the system doesn't take down others.
+- **Outbox** — reliably publish events alongside DB writes.
 
-1.  **Distributed Singleton:** This is nearly impossible to solve perfectly without consensus algorithms (like Paxos or Raft). Instead of aiming for a true Singleton, architects aim for **Idempotency**—ensuring that executing the operation multiple times yields the same result as executing it once.
-2.  **Distributed Observer:** This is the domain of Message Queues and Event Streaming (as mentioned above). The "Subject" becomes the message broker, and the "Observer" becomes any service capable of consuming messages from the relevant topic.
-3.  **[Circuit Breaker Pattern](CircuitBreakerPattern):** This is a crucial behavioral pattern for resilience in microservices. It wraps calls to external services. If the failure rate exceeds a threshold, the Circuit Breaker "trips," immediately failing subsequent calls without attempting to contact the failing service, allowing it time to recover and preventing cascading failures.
+Most of these address distributed systems concerns the GoF book never anticipated.
 
-***
+## Reading the original
 
-## VI. Conclusion
+The book is worth reading once. Mental model: each pattern has a problem, a solution, consequences, and known uses. The catalogue style was novel in 1994 and the format set the template for every subsequent pattern catalogue.
 
-To conclude this exhaustive exploration: Design patterns are not a checklist to be ticked off. They are a sophisticated toolkit for managing the inherent tension between coupling and cohesion in the face of evolving requirements.
+Caveats when reading:
 
-For the expert researcher, the most valuable takeaway is this: **The pattern you choose is less important than the *reason* you choose it.**
+- The C++ examples are dated; squint past the syntax.
+- Many patterns assumed less powerful languages (no first-class functions, no generics). The pattern's original verbosity often disappears in a modern language.
+- "Favour composition over inheritance" is the book's own advice you should weight more heavily than it appears.
 
-If you find yourself reaching for a pattern because the code feels "messy," stop. First, ask:
+## A pragmatic stance on patterns
 
-1.  **Is this a structural problem?** (Composition/Assembly $\rightarrow$ Adapter, Decorator, Facade)
-2.  **Is this an instantiation problem?** (Creation Control $\rightarrow$ Factory, Builder)
-3.  **Is this a communication/flow problem?** (Coordination $\rightarrow$ Observer, Strategy, Command)
+- **Recognise them.** Reading code becomes easier if you know the vocabulary.
+- **Use them when they fit.** Force-fitting patterns produces overengineered code.
+- **Don't name-drop.** "I implemented it as a Strategy with an Abstract Factory" is the kind of thing that drives team-mates nuts. Just describe what the code does.
+- **Modern primitives often subsume them.** Functions, generics, and DI containers obviate many GoF patterns; learn the modern primitives and you'll need fewer patterns.
 
-If the answer to all three is "No," then you are likely suffering from **premature abstraction**—the intellectual sin of solving a problem that hasn't materialized yet.
+The pattern catalogue is a vocabulary, not a checklist.
 
-Mastery in this domain is achieved not by memorizing the 23 patterns, but by developing the architectural intuition to recognize the underlying *structural weakness* in a system and applying the minimal, most precise pattern necessary to reinforce that weakness. Keep researching, keep testing the boundaries, and remember that the best design pattern is often the one that allows the system to remain simple enough to reason about, even when it is handling the complexity of the entire enterprise.
+## Further reading
+
+- [AdapterPattern] — most-used pattern in this list, in depth
+- [ObserverPattern] — and its modern descendants
+- [DecoratorPattern] — through to language-level decorators
+- [SingletonPatternAndAlternatives] — why DI usually wins
+- [DomainDrivenDesign] — modern higher-level patterns
+- [HexagonalArchitecture] — modern higher-level patterns
+- [CqrsPattern] — modern higher-level patterns

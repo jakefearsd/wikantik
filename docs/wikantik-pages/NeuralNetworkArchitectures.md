@@ -1,259 +1,180 @@
 ---
-canonical_id: 01KQ0P44T1BEFJ2ZAE0WKKCQWM
+canonical_id: 01KQ12YDW1PVAGBGRZ8ECJ6346
 title: Neural Network Architectures
 type: article
+cluster: machine-learning
+status: active
+date: '2026-04-25'
 tags:
-- text
-- mathbf
-- activ
-summary: This tutorial is not for the novice who needs to know that a neural network
-  passes data forward.
-auto-generated: true
+- neural-networks
+- deep-learning
+- transformers
+- cnn
+- rnn
+summary: The architectures that show up in 2026 — MLPs, CNNs, RNNs, transformers,
+  mixture-of-experts — what each is good at, why transformers eat everything,
+  and where the others still fit.
+related:
+- DeepLearningFundamentals
+- ConvolutionalNeuralNetworks
+- RecurrentNeuralNetworks
+- GradientDescentAndOptimizers
+- LinearAlgebra
+hubs:
+- MachineLearning Hub
 ---
-# The Calculus of Computation
+# Neural Network Architectures
 
-For those of us who spend our days wrestling with gradient descent, optimizing loss landscapes, and arguing over the precise mathematical definition of "sufficiently non-linear," the interplay between architectural layers and activation functions is not merely a set of best practices—it is the fundamental physics of modern deep learning.
+By 2026, transformers have eaten most of the deep-learning landscape. They started in language, took over vision, made meaningful inroads into speech, audio, and biology. Older architectures (CNNs, RNNs, MLPs) still appear, but the slope of "transformers everywhere" has steepened year over year.
 
-This tutorial is not for the novice who needs to know that a neural network passes data forward. We assume a working knowledge of [linear algebra](LinearAlgebra), calculus (specifically multivariable differentiation), and the mechanics of stochastic gradient descent. Our focus here is on the *theoretical underpinnings*, the *optimization implications*, and the *cutting-edge research frontiers* concerning how these components interact to define the expressive power and stability of deep models.
+This page is the architectures you'll meet, what they do, and the cases where each is still the right pick.
 
----
+## MLP (Multi-Layer Perceptron)
 
-## 1. The Foundational Mechanics: Linear Transformations and Layer Abstraction
+The simplest neural network: stacked dense layers with non-linearities.
 
-At the most fundamental level, any layer in a standard feedforward network performs a linear transformation followed by a non-linear activation. Understanding this separation is paramount.
+```
+input -> linear(W1) -> ReLU -> linear(W2) -> ReLU -> ... -> output
+```
 
-### 1.1 The Linear Core: $\mathbf{y} = \mathbf{W}\mathbf{x} + \mathbf{b}$
+When it's the right answer:
 
-Every layer, whether it's a fully connected (Dense) layer, a convolutional layer, or even the core mechanism within an attention head, boils down to a weighted sum of inputs plus a bias term.
+- **Tabular data.** Flat vectors of features, no spatial or sequential structure. Pure MLPs (or gradient-boosted trees, often more accurate at this scale) are the right tool.
+- **Final classification heads** on top of bigger models. The 7B-parameter Llama ends in an MLP that maps the final hidden state to vocabulary logits.
 
-For a standard fully connected layer mapping an input vector $\mathbf{x} \in \mathbb{R}^{D_{in}}$ to an output vector $\mathbf{y} \in \mathbb{R}^{D_{out}}$, the operation is:
-$$
-\mathbf{z} = \mathbf{W} \mathbf{x} + \mathbf{b}
-$$
-Where:
-*   $\mathbf{W} \in \mathbb{R}^{D_{out} \times D_{in}}$ is the weight matrix.
-*   $\mathbf{x} \in \mathbb{R}^{D_{in}}$ is the input feature vector.
-*   $\mathbf{b} \in \mathbb{R}^{D_{out}}$ is the bias vector.
-*   $\mathbf{z} \in \mathbb{R}^{D_{out}}$ is the pre-activation output (the "logits").
+When it's not:
 
-**Expert Insight:** The efficiency of this operation is dictated by the underlying hardware (BLAS libraries, GPU tensor cores). When researching new techniques, one must always consider the computational complexity. A layer with $D_{out} \cdot D_{in}$ parameters is computationally expensive, regardless of the activation function used afterward.
+- Anything with structure (images, text, time-series). You'll lose to architectures that exploit it.
 
-### 1.2 Layer Abstraction in Modern Frameworks
+## CNN (Convolutional Neural Network)
 
-Frameworks like Keras abstract this process beautifully. A `Layer` instance is essentially a container for state (weights $\mathbf{W}, \mathbf{b}$) and a defined computation graph (the `call` method).
+Convolutions detect local patterns; stacking convolutions detects hierarchical patterns. The original "ImageNet moment" architecture (AlexNet, 2012) was a CNN.
 
-When we speak of a layer, we are referring to the entire sequence:
-$$
-\text{Layer}(\mathbf{x}) = \text{Activation}(\mathbf{W}\mathbf{x} + \mathbf{b})
-$$
+When CNNs are still the right pick:
 
-The crucial realization for advanced research is that **the layer's expressive power is defined by the composition of its linear mapping and its non-linear activation.** If the activation function were simply the identity function ($\sigma(z) = z$), the entire network, no matter how deep, would collapse into a single linear transformation, losing all capacity for complex pattern recognition.
+- **Edge / embedded inference** where parameter and compute budgets are tight. CNNs are often 10-100× more efficient than transformers at the same task on small images.
+- **Highly local-pattern tasks** (defect detection, OCR character recognition). Pure local features; no need for global attention.
+- **Some specialised vision tasks** where ResNets and EfficientNets remain strong baselines.
 
----
+When CNNs lose:
 
-## 2. The Non-Linear Engine: Deep Analysis of Activation Functions
+- **General vision.** Vision Transformers (ViTs), Swin Transformers, and hybrid CLIP-like models beat CNNs on ImageNet, COCO, and most modern benchmarks given enough data.
+- **Multimodal tasks.** Transformers' shared input format makes vision-language modelling tractable in a way CNNs don't.
 
-Activation functions, $\sigma(\cdot)$, are the mechanism by which a network gains its ability to model non-linear relationships. They introduce the necessary curvature into the decision boundary, allowing the network to approximate arbitrary functions (the Universal Approximation Theorem, though its practical implications are often more nuanced).
+See [ConvolutionalNeuralNetworks].
 
-We must move beyond simply knowing *which* function to use and instead analyze *why* they behave the way they do under gradient flow.
+## RNN / LSTM / GRU
 
-### 2.1 The Classics: Sigmoid, Tanh, and Their Pitfalls
+Recurrent networks process sequences one step at a time, maintaining state across steps. LSTMs and GRUs added gating to handle long-range dependencies.
 
-These functions were foundational, but their limitations are well-documented—and frankly, should be historical footnotes for a researcher of your caliber.
+By 2026, RNNs are mostly historical for language. Transformers replaced them in 2017–2019. They persist in:
 
-#### A. Sigmoid ($\sigma(z)$)
-$$
-\sigma(z) = \frac{1}{1 + e^{-z}}
-$$
-*   **Range:** $(0, 1)$. This makes it ideal for output layers in binary classification (interpreting the output as a probability).
-*   **Derivative:** $\sigma'(z) = \sigma(z)(1 - \sigma(z))$.
-*   **The Problem (Vanishing Gradient):** The derivative approaches zero rapidly as $|z|$ becomes large (i.e., when $z \gg 0$ or $z \ll 0$). In the saturated regions (the tails), the gradient is near zero. During backpropagation, these small gradients are repeatedly multiplied across many layers, causing the gradients in the initial layers to vanish exponentially towards zero. The network effectively "forgets" how to learn the early features.
+- **Tiny embedded / on-device** inference where parameter count matters and sequences are short.
+- **Streaming / online** settings where step-by-step processing is natural and transformers' parallelisation advantage is moot.
+- **State-space models** (Mamba, S4, S6) — a 2023-onwards revival of recurrent ideas with stronger long-context properties than attention. Increasingly competitive at long-context tasks.
 
-#### B. Hyperbolic Tangent ($\text{Tanh}(z)$)
-$$
-\text{Tanh}(z) = \frac{e^z - e^{-z}}{e^z + e^{-z}}
-$$
-*   **Range:** $(-1, 1)$. Centering the output around zero is a significant improvement over Sigmoid, which is always positive.
-*   **Derivative:** $\text{Tanh}'(z) = 1 - \text{Tanh}^2(z)$.
-*   **The Problem (Still Present):** While better than Sigmoid due to zero-centering, Tanh suffers from the exact same saturation problem. Its tails still approach zero gradient, making it susceptible to vanishing gradients in very deep architectures.
+For most sequence work in 2026, transformers are the default; state-space models are emerging as a contender for very-long-context tasks.
 
-### 2.2 The Modern Workhorses: ReLU and Its Variants
+See [RecurrentNeuralNetworks].
 
-The introduction of Rectified Linear Unit (ReLU) was a watershed moment, largely because it solved the vanishing gradient problem for positive inputs.
+## Transformers
 
-#### A. ReLU ($\text{ReLU}(z)$)
-$$
-\text{ReLU}(z) = \max(0, z)
-$$
-*   **Derivative:**
-    $$
-    \text{ReLU}'(z) = \begin{cases} 1 & \text{if } z > 0 \\ 0 & \text{if } z < 0 \\ \text{undefined (or 0/1)} & \text{if } z = 0 \end{cases}
-    $$
-*   **The Advantage:** For $z>0$, the derivative is exactly $1$. This constant gradient flow prevents the multiplicative decay seen with Sigmoid/Tanh, allowing gradients to propagate effectively through deep layers.
-*   **The Edge Case (Dying ReLU):** If a large negative gradient flows through a ReLU neuron, it can push the weighted sum $z$ into the negative regime. Once $z < 0$, the output is $0$, and the gradient is $0$. If this happens consistently for a specific neuron, that neuron *dies* and contributes nothing to the gradient update, effectively removing it from the network's capacity.
+The architecture that changed everything (Vaswani et al., 2017). Self-attention + position encoding + feedforward, stacked.
 
-#### B. Leaky ReLU (LReLU)
-To combat the Dying ReLU problem, we introduce a small, non-zero gradient for negative inputs:
-$$
-\text{LReLU}(z) = \begin{cases} z & \text{if } z > 0 \\ \alpha z & \text{if } z \le 0 \end{cases}
-$$
-Where $\alpha$ is a small constant (e.g., $0.01$). This ensures that even if the input is negative, the gradient is non-zero, allowing the neuron a chance to "wake up" during subsequent training steps.
+The core idea: every token can attend to every other token, weighted by learned similarity. The model decides what's relevant; you don't pre-specify locality (CNN) or recurrence (RNN).
 
-#### C. Parametric ReLU (PReLU)
-PReLU generalizes LReLU by making $\alpha$ a *learnable parameter* for each channel or neuron, rather than a fixed hyperparameter.
-$$
-\text{PReLU}(z) = \begin{cases} z & \text{if } z > 0 \\ \alpha_i z & \text{if } z \le 0 \end{cases}
-$$
-This grants the network the freedom to determine the optimal slope for negative activations, often leading to superior performance over fixed $\alpha$.
+Properties that made it dominant:
 
-### 2.3 The Smooth Transition: GELU and Swish
+- **Parallelisable training.** Unlike RNNs, you can compute all positions at once. GPUs love this.
+- **Scales gracefully.** Performance improves predictably with parameters, data, and compute (the "scaling laws").
+- **Universal substrate.** The same architecture handles text, images, audio, code, biology — anything you can tokenise.
+- **Pretraining + fine-tuning.** A big pretrained transformer is a strong starting point for many tasks.
 
-As research progressed, the sharp, piecewise nature of ReLU became a point of contention. While computationally efficient, the non-differentiability at $z=0$ (or the abrupt change in gradient) can sometimes introduce optimization artifacts. This led to the development of smoother, continuous approximations.
+Variants:
 
-#### A. Swish ($\text{Swish}(z)$)
-$$
-\text{Swish}(z) = z \cdot \sigma(\beta z)
-$$
-Where $\sigma$ is the sigmoid function and $\beta$ is a learnable parameter (often set to 1).
-*   **Advantage:** Swish is smooth everywhere. Its inclusion of the sigmoid term allows it to smoothly transition between the linear and saturated regions, often yielding better performance than ReLU in certain deep models.
+- **Encoder-only** (BERT, RoBERTa) — for understanding tasks; no autoregressive generation.
+- **Decoder-only** (GPT family, Llama, Claude) — for generation. Dominant since GPT-3.
+- **Encoder-decoder** (T5, BART) — for sequence-to-sequence (translation, summarisation). Still used; less common than decoder-only by 2026.
 
-#### B. Gaussian Error Linear Unit (GELU)
-$$
-\text{GELU}(z) = z \cdot \Phi(z) = z \cdot \frac{1}{\sqrt{2\pi}} \int_{-\infty}^{z} e^{-t^2/2} dt
-$$
-Where $\Phi(z)$ is the Cumulative Distribution Function (CDF) of the standard normal distribution.
-*   **Significance:** GELU is arguably the most impactful recent development, particularly in the [Transformer architecture](TransformerArchitecture). Its mathematical derivation links the activation directly to the Gaussian distribution, which is theoretically appealing.
-*   **Gradient Flow:** GELU is smooth and has been empirically shown to stabilize training and improve performance in sequence modeling tasks compared to ReLU, especially when the model depth is extreme.
+Cost: attention is O(n²) in sequence length. Long-context tricks (FlashAttention, ring attention, sparse attention, linear attention) push this lower in practice.
 
-| Activation Function | Formula (Conceptual) | Range | Key Advantage | Primary Drawback | Best Use Case |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Sigmoid** | $1 / (1 + e^{-z})$ | $(0, 1)$ | Probability interpretation | Vanishing Gradients | Output layer (Binary) |
-| **Tanh** | $\frac{e^z - e^{-z}}{e^z + e^{-z}}$ | $(-1, 1)$ | Zero-centered output | Vanishing Gradients | Older hidden layers (rarely optimal) |
-| **ReLU** | $\max(0, z)$ | $[0, \infty)$ | Computational simplicity, constant gradient | Dying Neurons, Non-smooth | General purpose, CNNs |
-| **Leaky ReLU** | $\max(\alpha z, z)$ | $(-\infty, \infty)$ | Prevents dying neurons | $\alpha$ is a hyperparameter | General purpose, robust baseline |
-| **PReLU** | $\max(\alpha_i z, z)$ | $(-\infty, \infty)$ | Learnable negative slope | Requires parameter tuning | High-performance general use |
-| **Swish** | $z \cdot \sigma(\beta z)$ | $\approx (-0.2, \infty)$ | Smooth, non-monotonic | Slightly more complex computation | General purpose, deep MLPs |
-| **GELU** | $z \cdot \Phi(z)$ | $(-\infty, \infty)$ | Smooth, theoretically grounded (Gaussian) | Computationally intensive (requires CDF approximation) | Transformers, modern NLP |
+## Mixture of Experts (MoE)
 
----
+Each layer has multiple "expert" sub-networks; a router picks which ones process each token. Total parameters are huge; activated parameters per token are small.
 
-## 3. Architectural Specialization: Layer Interactions Beyond MLP
+Examples: Mixtral 8x7B (47B total parameters, ~13B activated per token), DeepSeek-V3.
 
-The choice of activation function is highly context-dependent. A function optimal for a standard MLP might be suboptimal for a CNN or a Transformer.
+Win:
 
-### 3.1 Convolutional Neural Networks (CNNs)
+- Far better quality per inference FLOP than a dense model of the same activated size.
+- Allows scaling parameters past where dense models become uneconomical to serve.
 
-CNNs fundamentally alter the linear transformation by introducing **parameter sharing** and **local receptive fields**.
+Trade-off:
 
-The linear operation in a convolution layer is not $\mathbf{W}\mathbf{x} + \mathbf{b}$, but rather a sliding dot product:
-$$
-\mathbf{z}(i, j) = \sum_{k} \sum_{l} \mathbf{W}_{k,l} \cdot \mathbf{x}(i+k, j+l) + b
-$$
-Where $\mathbf{W}$ is the kernel (filter) weights, and the summation is performed over the kernel dimensions.
+- Memory footprint is large (you load all experts even if you only activate a few).
+- Routing introduces complexity in training and serving.
 
-**Activation Choice in CNNs:**
-1.  **ReLU Dominance:** ReLU remains the default choice. Its sparsity (setting negative activations to zero) is beneficial because it encourages the network to focus only on the most salient, positive features detected by the kernel.
-2.  **Batch Normalization Interaction:** The combination of $\text{Conv} \rightarrow \text{BatchNorm} \rightarrow \text{ReLU}$ is the industry standard. Normalization stabilizes the inputs to the activation function, keeping the pre-activation values ($\mathbf{z}$) away from the saturated tails of the activation function, thus mitigating gradient issues even if the activation itself has weaknesses.
+Production trend: most frontier models in 2026 are MoEs internally. Open-weights MoEs are increasingly common.
 
-### 3.2 Recurrent Architectures (RNNs, LSTMs, GRUs)
+## Diffusion models
 
-In sequence modeling, the "input" to a layer is not just the current feature vector $\mathbf{x}_t$, but also the hidden state $\mathbf{h}_{t-1}$ from the previous time step. This state management introduces temporal dependencies that must be handled by the activation functions.
+For generation tasks (image, video, audio, occasionally text), diffusion models work by learning to reverse a noise process. Given pure noise, they progressively denoise into a sample.
 
-*   **LSTM/GRU Gates:** These architectures are inherently complex because they use multiple specialized gates (Input Gate, Forget Gate, Output Gate). These gates *themselves* rely heavily on the $\text{Sigmoid}$ function ($\sigma$) because their purpose is to calculate a *gate factor*—a value between 0 and 1 that determines how much information to let through (forgetting or remembering).
-*   **The Hidden State Activation:** While the gates use Sigmoid, the final candidate state ($\tilde{C}_t$) often uses $\text{Tanh}$. The $\text{Tanh}$ here is critical because it constrains the *potential* new information to a bounded range $[-1, 1]$, which helps stabilize the overall state vector $\mathbf{h}_t$.
+State of the art for image and video generation in 2026 (Stable Diffusion 3, FLUX, video-generation models). Different in spirit from autoregressive language models — generates the full output in parallel rather than token-by-token.
 
-### 3.3 The Transformer Paradigm: Attention and GELU
+Use when:
 
-The Transformer architecture, which eschewed recurrence entirely in favor of self-attention, represents a paradigm shift. Its core mechanism is the Scaled Dot-Product Attention:
-$$
-\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}}\right) \mathbf{V}
-$$
-The output of this attention mechanism is then passed through a feedforward network (FFN) layer, which *always* uses an activation function.
+- Image / video / audio generation is the task.
+- You want high-fidelity samples; latency budget allows multiple denoising steps.
 
-**The GELU Mandate:** The FFN layer within a Transformer block almost universally employs GELU. The theoretical justification is that the attention mechanism itself is inherently related to probability distributions (via $\text{softmax}$), and GELU, being derived from the Gaussian CDF, provides the most mathematically consistent and empirically superior non-linearity for this context.
+Don't use when:
 
----
+- The task is fundamentally autoregressive (text generation, code generation). Transformers do this better.
 
-## 4. Advanced Stabilization Techniques: Normalization and Regularization
+## Architecture decisions you might actually face
 
-A truly expert-level understanding requires acknowledging that the activation function is rarely used in isolation. It is almost always paired with normalization and [regularization techniques](RegularizationTechniques) that modify the input distribution to the activation.
+### "What architecture for my custom task?"
 
-### 4.1 Normalization Layers: Stabilizing the Input Manifold
+In 2026, the answer is almost always:
 
-Normalization layers address the problem of **Internal Covariate Shift**—the phenomenon where the distribution of inputs to a layer changes drastically during training, forcing subsequent layers to constantly readjust their weights.
+1. **If labelled data is small (< 100k examples)**: fine-tune a pretrained model. The pretrained backbone is more important than the architecture choice. For text → fine-tune an existing LLM. For vision → fine-tune a CLIP or DINO.
+2. **If you're doing image classification/detection/segmentation specifically**: a vision transformer or hybrid (DINOv2, EVA, ConvNext) pretrained at scale, fine-tuned on your data.
+3. **If you're doing tabular data**: try gradient-boosted trees first. They often win.
+4. **If you have a genuinely novel modality**: tokenise it and use a transformer. The substrate is universal enough.
 
-#### A. Batch Normalization ($\text{BatchNorm}$)
-$\text{BatchNorm}$ normalizes the activations *across the mini-batch* dimension. For a feature $x_i$ in a layer, it computes:
-$$
-\hat{x}_i = \frac{x_i - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}}
-$$
-Where $\mu_B$ and $\sigma_B^2$ are the mean and variance calculated across the mini-batch $B$. The layer then applies learnable scale ($\gamma$) and shift ($\beta$):
-$$
-y_i = \gamma \hat{x}_i + \beta
-$$
-**Interaction with Activation:** $\text{BatchNorm}$ is typically applied *before* the activation function ($\text{Activation}(\text{BatchNorm}(\mathbf{z}))$). By stabilizing the input $\mathbf{z}$ to the activation, it ensures that the activation function operates in a region where its gradient is reliably large, preventing the network from falling into the saturated tails of Sigmoid or Tanh.
+The era of designing custom architectures for specific tasks is mostly over. Pretrained big models, adapted, win.
 
-#### B. Layer Normalization ($\text{LayerNorm}$)
-$\text{LayerNorm}$ normalizes the activations *across the feature dimension* for a single sample, independent of the batch size.
-$$
-\hat{x}_i = \frac{x_i - \mu_L}{\sqrt{\sigma_L^2 + \epsilon}}
-$$
-Where $\mu_L$ and $\sigma_L^2$ are calculated across the feature dimension for that specific sample.
-**Use Case:** This is the preferred method in sequence models (like Transformers) because its performance is independent of the batch size, making it robust for tasks where batch sizes might be constrained or variable.
+### "How big a model do I need?"
 
-#### C. Instance Normalization ($\text{InstanceNorm}$)
-$\text{InstanceNorm}$ normalizes across the spatial dimensions (height and width) for a single instance, often used in style transfer tasks where the statistics of the content itself are paramount.
+For most production deployments:
 
-### 4.2 Regularization: Constraining the Search Space
+- **1-3B parameters**: sufficient for most narrow fine-tuned tasks, fast on commodity GPUs.
+- **7-70B parameters**: better quality; may need quantisation or self-hosted GPUs.
+- **Frontier (100B+)**: API-only for most teams; reserved for tasks where quality matters most.
 
-Regularization techniques constrain the weight space, indirectly influencing the effective behavior of the activation functions by preventing weights from becoming too large or too specialized.
+The right size is task-dependent. Run a few, measure, pick.
 
-*   **Dropout:** The most famous. During training, it randomly sets a fraction $p$ of the activations to zero. This forces the network to learn redundant representations, meaning no single neuron can rely too heavily on the output of another.
-    *   **Impact on Activation:** Dropout effectively makes the activation function *stochastic* during training. The network learns an expectation over many different, thinned-out versions of itself.
-*   **Weight Decay ($\ell_2$ Regularization):** Penalizes large weights ($\sum \mathbf{W}^2$). This encourages the model to use smaller, more distributed weights, leading to smoother overall mappings and reducing the likelihood of extreme, highly saturated inputs to the activation function.
+### "Open weights or commercial API?"
 
----
+- **Commercial API** (Claude, GPT, Gemini): better quality, simpler operations.
+- **Open-weights** (Llama, Mistral, Qwen, DeepSeek): control, lower cost at scale, on-prem.
 
-## 5. The Theoretical Frontier: Beyond Standard Activations
+Most production systems pair: open-weights for high-volume routine tasks, commercial API for hard tasks where the quality gap pays.
 
-For researchers pushing the boundaries, the focus shifts from *which* function to *how* to construct a function that optimizes gradient flow while maintaining computational tractability.
+## What's emerging
 
-### 5.1 Piecewise Linear vs. Smooth Approximations
+- **Mamba / state-space models** — competitive with transformers at long context; cheaper inference.
+- **Sparse / mixture-of-depths** architectures that prune compute per token.
+- **Multimodal-by-default** models (Gemini, GPT-4o-style) that handle text, vision, audio in one substrate.
+- **Reasoning models** (o1, Claude extended thinking, DeepSeek R1) — separate inference-time reasoning compute.
+- **Test-time compute scaling** — spending more inference compute for harder tasks rather than larger models.
 
-The tension between ReLU (piecewise linear, computationally cheap) and GELU (smooth, theoretically elegant) defines much of modern research.
+Where the 2027-2028 architectures land is unclear. The trend over the past five years has been "transformers but bigger" with some innovation around efficiency. Expect continued mostly-transformers with significant inference-time techniques.
 
-**The Piecewise Linear Argument (The "Sharp Edge"):**
-Piecewise linear functions are mathematically simple to differentiate and optimize. They create sharp, distinct decision boundaries, which is excellent for tasks like image segmentation where hard boundaries are expected. The inherent "discontinuity" at $z=0$ is often viewed not as a flaw, but as a feature that enforces strong feature separation.
+## Further reading
 
-**The Smooth Approximation Argument (The "Gentle Curve"):**
-Smooth functions (like GELU or Swish) are preferred when the underlying data manifold is expected to be continuous and smooth (e.g., natural language embeddings). A smooth activation implies that small changes in the input $\mathbf{x}$ result in small, predictable changes in the output $\sigma(\mathbf{x})$, which is desirable for tasks requiring high fidelity in gradient propagation.
-
-### 5.2 Spectral Normalization (SN)
-
-Spectral Normalization is a technique applied directly to the weight matrices $\mathbf{W}$ of a layer, rather than being an activation function itself, but it profoundly affects the stability of the entire layer computation.
-
-SN constrains the Lipschitz constant of the layer mapping. It ensures that the spectral norm of the weight matrix, $\|\mathbf{W}\|_2$, is bounded by 1.
-$$
-\text{SN}(\mathbf{W}) = \frac{\mathbf{W}}{\sigma(\mathbf{W})}
-$$
-Where $\sigma(\mathbf{W})$ is the largest singular value of $\mathbf{W}$.
-**Why it matters:** By controlling the spectral norm, SN directly controls the maximum possible gradient amplification across the layer, providing a powerful, mathematically rigorous form of regularization that stabilizes training, especially in Generative Adversarial Networks (GANs) and complex sequence models.
-
-### 5.3 Hypernetworks and Meta-Learning Activations
-
-In highly advanced research, the activation function itself can become a *learned module*.
-
-*   **Hypernetworks:** Instead of using a fixed $\sigma(z)$, a hypernetwork can be trained to output the parameters (e.g., the slope $\alpha$ and intercept $\beta$) for a function that modifies the activation. This allows the network to dynamically adjust its non-linearity based on the input context, moving beyond fixed functional forms.
-*   **Meta-Learning Activations:** Some approaches treat the activation function as a meta-parameter, optimizing the *form* of the non-linearity itself based on the task difficulty or data domain, rather than just optimizing the weights $\mathbf{W}$.
-
----
-
-## 6. Synthesis and Conclusion: The Art of Composition
-
-To summarize for the researcher: the modern deep learning architecture is not a stack of independent components; it is a highly coupled, iterative optimization problem where the choice of activation dictates the stability, the normalization dictates the scale, and the regularization dictates the generalization capacity.
-
-1.  **For Image Data (CNNs):** Start with $\text{Conv} \rightarrow \text{BatchNorm} \rightarrow \text{ReLU}$. If performance plateaus, investigate $\text{PReLU}$ or $\text{Swish}$ within the $\text{Conv}$ block, and consider $\text{LayerNorm}$ if batch size variation is an issue.
-2.  **For Sequence Data (Transformers):** The default stack is $\text{Attention} \rightarrow \text{LayerNorm} \rightarrow \text{Linear} \rightarrow \text{GELU} \rightarrow \text{Dropout}$. Deviations here require strong theoretical justification.
-3.  **For General MLPs:** $\text{Linear} \rightarrow \text{BatchNorm} \rightarrow \text{GELU}$ often provides the best balance of smoothness and gradient stability, unless the problem domain strongly suggests hard boundaries, in which case $\text{PReLU}$ might be superior.
-
-The pursuit of the "perfect" activation function is likely a Sisyphean task. The optimal choice is always the one whose mathematical properties best align with the underlying statistical assumptions of the data manifold you are trying to model. Keep your calculus book handy; the gradient is where the real magic—and the real headaches—reside.
+- [DeepLearningFundamentals] — the math underneath
+- [ConvolutionalNeuralNetworks] — CNNs in depth
+- [RecurrentNeuralNetworks] — RNNs and their successors
+- [GradientDescentAndOptimizers] — how any of these are trained
+- [LinearAlgebra] — the operations that fill GPUs

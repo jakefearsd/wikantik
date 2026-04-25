@@ -1,320 +1,201 @@
 ---
-canonical_id: 01KQ0P44KYYAM69ENPEDGCFYGD
+canonical_id: 01KQ12YDS4PEG0YNE5737WDGJA
 title: Api Rate Limiting Algorithms
 type: article
+cluster: software-architecture
+status: active
+date: '2026-04-25'
 tags:
-- rate
-- bucket
-- token
-summary: An API, by definition, is a contract governing resource access.
-auto-generated: true
+- rate-limiting
+- token-bucket
+- leaky-bucket
+- sliding-window
+- api-design
+summary: Token bucket, leaky bucket, fixed window, sliding window — what each
+  guarantees, where each fails, and the implementation hooks (Redis, in-memory,
+  cluster-wide) that decide whether your rate limiting actually works.
+related:
+- ApiSecurityPatterns
+- ApiDesignBestPractices
+- DistributedComputingAlgorithms
+hubs:
+- SoftwareArchitecture Hub
 ---
-# API Rate Limiting
+# API Rate Limiting Algorithms
 
-## Introduction
+Rate limiting is "how many requests can a caller make per unit time." It looks simple. The implementations are surprisingly subtle, and getting it wrong shows up as either the rate limit being too easy to game or being so strict that legitimate users hit limits they shouldn't.
 
-In the contemporary landscape of microservices, distributed APIs, and high-throughput data pipelines, the concept of "rate limiting" has evolved from a mere defensive measure into a core pillar of robust system architecture. An API, by definition, is a contract governing resource access. When this contract is violated—either through malicious abuse, accidental runaway clients, or internal service misbehavior—the consequences can range from degraded user experience (latency spikes, timeouts) to catastrophic cascading failures (denial of service, resource exhaustion).
+The four canonical algorithms each make a different trade-off. Pick deliberately.
 
-Rate limiting, at its heart, is not just about counting requests; it is about **flow control**. It is the mechanism by which a service provider imposes an artificial, yet necessary, constraint on the rate at which consumers can interact with its resources.
+## Fixed window
 
-For experts researching novel techniques, the choice between rate-limiting algorithms—specifically the Token Bucket and the Leaky Bucket—is rarely trivial. Both are fundamentally concerned with managing throughput, but they model the underlying system dynamics using distinct physical metaphors, leading to vastly different guarantees regarding burst tolerance, smoothing capability, and steady-state behavior.
+Count requests in 1-second (or 1-minute, etc.) windows. Reset at the boundary.
 
-This tutorial aims to move beyond the introductory "what is it" level. We will conduct a rigorous, comparative analysis of these two seminal algorithms, exploring their mathematical underpinnings, their practical implications in distributed, high-concurrency environments, and the advanced scenarios where one demonstrably outperforms the other.
-
----
-
-## I. Rate Limiting Paradigms
-
-Before dissecting the two primary models, it is crucial to establish a shared vocabulary and understand the spectrum of rate-limiting strategies.
-
-### A. Defining the Problem Space
-
-Rate limiting policies must answer several critical questions:
-1.  **What is the constraint?** (e.g., $R$ requests per second, $B$ total requests per minute).
-2.  **What is the burst tolerance?** (Can the system handle a sudden spike above the average rate?).
-3.  **What is the desired output profile?** (Should the output be smooth and steady, or should it allow for controlled peaks?).
-
-### B. Taxonomy of Rate Limiting Algorithms
-
-While the Token Bucket and Leaky Bucket are the most discussed, they exist within a broader taxonomy:
-
-*   **Fixed Window Counter:** The simplest approach. Count requests within fixed, non-overlapping time intervals (e.g., 100 requests between 10:00:00 and 10:00:59).
-    *   *Weakness:* Prone to the "burst at the boundary" problem. If the limit is 100/minute, a client can send 100 requests at 10:00:59 and another 100 requests at 10:01:00, effectively sending 200 requests in two seconds, violating the spirit of the limit.
-*   **Sliding Window Log/Counter:** Tracks the precise timestamp of every request. This is mathematically superior to the fixed window as it prevents boundary bursts.
-    *   *Complexity:* Requires storing and querying timestamps, which can be memory-intensive or computationally expensive in distributed caches.
-*   **Token Bucket:** Models the *accumulation* of permission to send data.
-*   **Leaky Bucket:** Models the *physical outflow* of data, enforcing a steady drain rate.
-
-The choice between Token Bucket and Leaky Bucket often boils down to whether the system needs to model **capacity accumulation (Token Bucket)** or **output smoothing (Leaky Bucket)**.
-
----
-
-## II. The Token Bucket Algorithm
-
-The Token Bucket algorithm is perhaps the most widely adopted default for general-purpose API rate limiting because it elegantly handles the concept of **burst capacity**.
-
-### A. Theoretical Model and Mechanics
-
-Imagine a bucket with a finite capacity, $C$. Tokens are added to this bucket at a constant, predetermined rate, $R$ (tokens per unit time). Each incoming request requires one token.
-
-1.  **Capacity ($C$):** The maximum number of tokens the bucket can hold. This defines the maximum allowable burst size.
-2.  **Refill Rate ($R$):** The rate at which tokens are generated (e.g., 5 tokens/second). This defines the sustained, long-term rate limit.
-3.  **Consumption:** When a request arrives, the system checks if $\text{Tokens} \ge 1$.
-    *   If yes: Consume one token ($\text{Tokens} \leftarrow \text{Tokens} - 1$) and process the request.
-    *   If no: Reject the request (HTTP 429 Too Many Requests).
-
-The key mathematical insight here is that the bucket size $C$ dictates the *maximum deviation* from the average rate $R$ that the system can sustain.
-
-### B. Mathematical Formulation
-
-Let $t$ be the current time, $t_0$ be the time the bucket was last checked, $T_{elapsed} = t - t_0$.
-
-The number of tokens generated since $t_0$ is:
-$$\text{Tokens Generated} = R \cdot T_{elapsed}$$
-
-The current token count, $N(t)$, is calculated as:
-$$N(t) = \min(C, N(t_0) + R \cdot T_{elapsed})$$
-
-When a request arrives, the new count is:
-$$N(t+1) = N(t) - 1 \quad \text{if } N(t) \ge 1$$
-
-### C. Burst Handling and Burst Capacity
-
-This is where the Token Bucket shines. If a client has been idle, the bucket refills up to $C$. When the client suddenly sends $C$ requests, they are all processed immediately because the capacity was pre-filled.
-
-*   **Example:** $C=10$, $R=2$ tokens/sec.
-    *   Client sends 10 requests instantly. (Success, uses all 10 tokens).
-    *   Client sends 11th request 1 second later. (Failure, only 2 tokens refilled, 9 remaining).
-    *   The system allowed a burst of 10, followed by a sustained rate of 2/sec.
-
-### D. Implementation Considerations (Distributed State)
-
-In a distributed environment (multiple API servers), the token count $N(t)$ must be stored in a centralized, highly available, and atomic data store, typically **Redis**.
-
-The critical operation is the atomic decrement and refill calculation. Using Redis Lua scripting is the industry standard for ensuring atomicity:
-
-```lua
--- KEYS[1]: The key representing the user/client ID
--- ARGV[1]: Capacity C
--- ARGV[2]: Refill Rate R
--- ARGV[3]: Current Timestamp (Unix time)
-
-local key = KEYS[1]
-local capacity = tonumber(ARGV[1])
-local rate = tonumber(ARGV[2])
-local current_time = tonumber(ARGV[3])
-
--- 1. Retrieve current token count and last update time (assuming these are stored together)
-local data = redis.call('HMGET', key, 'tokens', 'last_time')
-local current_tokens = tonumber(data[1])
-local last_time = tonumber(data[2])
-
-if not current_tokens or not last_time then
-    -- Initialization case
-    current_tokens = capacity
-    last_time = current_time
-end
-
--- 2. Calculate refill
-local time_elapsed = current_time - last_time
-local tokens_to_add = rate * time_elapsed
-local new_tokens = math.min(capacity, current_tokens + tokens_to_add)
-
--- 3. Check for request consumption
-if new_tokens >= 1 then
-    new_tokens = new_tokens - 1
-    
-    -- 4. Update state atomically
-    redis.call('HMSET', key, 'tokens', new_tokens, 'last_time', current_time)
-    return 1 -- Success
-else
-    -- 5. No tokens available
-    redis.call('HMSET', key, 'tokens', new_tokens, 'last_time', current_time) -- Still update time to prevent drift issues
-    return 0 -- Failure
-end
+```
+At each request:
+  current_count = redis.incr("rate:user_42:" + current_minute)
+  if current_count > limit: reject
 ```
 
-**Expert Note:** The use of Lua scripting is non-negotiable here. Any attempt to read the token count, calculate the refill, and then write the new count across multiple network round trips risks a race condition, leading to inaccurate accounting and potential resource over-consumption.
+**Pros:** simple, cheap, one Redis op per request, intuitive.
 
----
+**Cons:** the boundary problem. A user can send `limit` requests at second 59 of minute N and another `limit` requests at second 0 of minute N+1 — twice the limit in a one-second span.
 
-## III. The Leaky Bucket Algorithm
+**When to use:** soft, generous limits where the boundary spike doesn't matter ("100 calls per hour, but if you do 200 in two seconds across the boundary, it's OK").
 
-If the Token Bucket models *permission* (tokens), the Leaky Bucket models *physical flow* (water draining from a container). This distinction is crucial for understanding its intended use cases.
+## Sliding window log
 
-### A. Theoretical Model and Mechanics
+Store every request timestamp; count timestamps in the last window.
 
-The Leaky Bucket operates on the principle of **constant outflow**. It assumes that the service's downstream dependency (the "leak") can only process data at a steady, predictable rate, $L$ (leak rate).
+```
+At each request:
+  redis.zadd("rate:user_42", now, request_id)
+  redis.zremrangebyscore("rate:user_42", 0, now - window)
+  count = redis.zcard("rate:user_42")
+  if count > limit: reject
+```
 
-1.  **Capacity ($C$):** The maximum size of the queue (the bucket). This defines the maximum burst of requests that can be buffered *before* rejection.
-2.  **Leak Rate ($L$):** The constant rate at which requests are processed and passed downstream (e.g., 5 requests/second). This is the hard limit on the service's sustained throughput.
-3.  **Consumption:** When a request arrives, it attempts to enter the queue.
-    *   If the queue is full ($\text{Queue Size} \ge C$): The request is rejected immediately.
-    *   If the queue has space: The request enters, increasing the queue size.
+**Pros:** exact. No boundary problem.
 
-The key difference from the Token Bucket is that the Leaky Bucket *does not* refill based on time elapsed; it is defined by its *drain rate*. The rate of tokens entering (the arrival rate) is irrelevant to the rate of tokens leaving (the leak rate).
+**Cons:** memory-heavy at high RPS (one entry per request), more Redis ops per request.
 
-### B. Mathematical Formulation
+**When to use:** very precise limits at moderate volume (few hundred RPS per user max).
 
-The queue size, $Q(t)$, is governed by the difference between the arrival rate, $\lambda(t)$, and the leak rate, $L$:
-$$\frac{dQ(t)}{dt} = \lambda(t) - L$$
+## Sliding window counter
 
-The bucket size is constrained by capacity $C$:
-$$Q(t) = \min\left(C, Q(t_0) + \int_{t_0}^{t} (\lambda(\tau) - L) d\tau \right)$$
+Hybrid: maintain counts for two adjacent windows; weight by overlap.
 
-When a request arrives, it consumes one unit of space, provided $Q(t) < C$. The system processes the request only when the queue drains, which happens at rate $L$.
+```
+count = (count[previous_minute] * overlap_fraction) + count[current_minute]
+```
 
-### C. The Smoothing Effect: Why Leaky is Preferred for Downstream Services
+If you're 30 seconds into a minute, weight the previous minute's count by 0.5 and add the current minute's count.
 
-The Leaky Bucket is superior when the *downstream* system cannot handle variable loads.
+**Pros:** approximates exact sliding-window with fixed-window memory.
 
-Consider a streaming service (like video chunk delivery, as mentioned in the context). If the API receives 100 chunks in one second (a burst), but the underlying network connection or processing pipeline can only handle 10 chunks per second, allowing the burst to pass through will cause immediate backpressure, buffer overflow, or connection drops.
+**Cons:** slightly less accurate than the log approach. Approximation is acceptable for most use cases.
 
-The Leaky Bucket acts as a **shock absorber**. It accepts the burst (up to $C$) and then releases the data at the steady rate $L$, ensuring the downstream dependency receives a predictable, smooth stream of work.
+**When to use:** the default for high-volume APIs. Cheap, accurate enough, no boundary problem. Most production rate limiters land here.
 
-### D. Edge Case Analysis: Queue Overflow vs. Token Depletion
+## Token bucket
 
-*   **Token Bucket Failure:** If the bucket is empty, the request fails immediately, regardless of how much time has passed since the last request. It only cares about the *current* token count.
-*   **Leaky Bucket Failure:** If the bucket is full, the request fails immediately. However, if the bucket is not full, the request is *queued*, and its processing is guaranteed to happen at the rate $L$, provided $L > 0$.
+Each user has a bucket of `capacity` tokens that refills at `rate` per second. Each request consumes a token. Empty bucket = reject.
 
----
+```
+Each request:
+  tokens, last_refill = redis.hgetall("rate:user_42")
+  elapsed = now - last_refill
+  tokens = min(capacity, tokens + elapsed * rate)
+  if tokens < 1: reject
+  tokens -= 1
+  redis.hset("rate:user_42", tokens=tokens, last_refill=now)
+```
 
-## IV. Token Bucket vs. Leaky Bucket
+**Pros:** allows bursts up to `capacity` while enforcing average rate of `rate`. Matches what users actually want — "I should be able to send a quick burst, then a steady stream." Well-suited for bursty real workloads.
 
-This section synthesizes the differences, moving from conceptual understanding to actionable architectural decisions.
+**Cons:** stateful; needs atomicity (Lua script in Redis to avoid race conditions).
 
-| Feature | Token Bucket | Leaky Bucket |
-| :--- | :--- | :--- |
-| **Primary Goal** | Controlling *permission* to send requests. | Controlling *physical outflow* or processing rate. |
-| **Metaphor** | A reservoir filling up with credits. | A physical queue draining through a pipe. |
-| **Burst Handling** | Excellent. Burst size is explicitly defined by Capacity ($C$). | Good, but limited by Capacity ($C$). If the burst exceeds $C$, it fails. |
-| **Rate Guarantee** | Guarantees an *average* rate ($R$) over time, but allows peaks up to $C$. | Guarantees a *maximum sustained* rate ($L$), smoothing out all peaks. |
-| **Failure Mode** | Rejection when tokens are zero. | Rejection when the queue is full. |
-| **Best Use Case** | Public-facing APIs where burst traffic is expected (e.g., payment gateways). | Internal service boundaries, network egress, or rate-limiting against slow/unstable downstream dependencies. |
-| **Mathematical Focus** | Accumulation ($\min(C, N_{old} + R \cdot \Delta t)$). | Differential Equation ($\frac{dQ}{dt} = \lambda - L$). |
+**When to use:** the right default for most user-facing APIs. AWS, Stripe, GitHub all use variants.
 
-### A. When to Choose Token Bucket (The "API Gateway" Default)
+## Leaky bucket
 
-Use the Token Bucket when the primary concern is **client-side abuse prevention** and **allowing for predictable, controlled bursts**.
+Same idea as token bucket from a different framing: requests fill a bucket at variable rate; the bucket drains at fixed rate. Overflow = reject.
 
-*   **Scenario:** A public-facing API endpoint that allows users to perform a quick sequence of related actions (e.g., fetching 10 related records in a single batch request).
-*   **Rationale:** You want to allow the user to "get ahead" by sending a burst, provided they haven't done so too often. The bucket capacity $C$ models the user's accumulated "credit" for burst usage.
-*   **Example:** A payment gateway allowing 10 rapid calls to check balances, followed by a sustained rate of 5 calls per second.
+In practice, leaky bucket and token bucket are equivalent in their typical implementations. Leaky-bucket is sometimes implemented as an actual FIFO queue of requests, processed at the leak rate — which is more like *traffic shaping* than rate limiting. If you care about smoothing bursts (not just rejecting them), this is the algorithm.
 
-### B. When to Choose Leaky Bucket (The "Service Mesh" Default)
+## Distributed concerns
 
-Use the Leaky Bucket when the primary concern is **protecting the stability of a downstream dependency** or **enforcing a steady service level agreement (SLA)**.
+A rate limiter has to work across however many app servers handle the user's traffic. Two failure modes:
 
-*   **Scenario:** A core business service that calls an external, rate-limited third-party API, or a message queue consumer that must process data at a constant rate to avoid backpressure.
-*   **Rationale:** You don't care if the upstream client sends 100 requests in one millisecond; you only care that your service sends data to the third party at a steady, manageable rate $L$. The bucket absorbs the shock.
-*   **Example:** A video transcoding service that must feed chunks to a CDN endpoint which mandates a constant 1 Mbps stream rate.
+**Per-instance counters undercount.** If the user hits load balancer node A 10 times and node B 10 times, neither sees 20. Limit not enforced.
 
-### C. The Hybrid Approach: The Best of Both Worlds
+**Centralised counters become bottlenecks.** Every request waits on Redis. Adds latency; Redis becomes a single point of failure.
 
-For advanced systems, the optimal solution is often a layered, hybrid approach.
+The middle path:
 
-1.  **Outer Layer (API Gateway):** Implement **Token Bucket** rate limiting based on the client's API key. This prevents the client from overwhelming your ingress points.
-2.  **Inner Layer (Service Boundary):** Implement **Leaky Bucket** rate limiting before calling any critical, external, or resource-constrained downstream service. This protects your internal infrastructure from the bursts allowed by the outer layer.
+- **Centralised** for low-RPS cases (Redis with INCR or token-bucket Lua script).
+- **Decentralised with reconciliation** for high-RPS — each instance has a local counter with a small local burst budget; periodically reconciles with a central counter. Approximate but scales.
+- **Per-shard rate limiting** — partition users to shards, each shard owns its rate limits. Common at very large scale.
 
-This layered defense ensures that the system is protected both from the client's behavior *and* from the inherent instability of its dependencies.
+For most teams under 50K RPS total: Redis-backed with Lua is fine. Past that, decentralised approaches start earning their complexity.
 
----
+## What to limit by
 
-## V. Advanced Topics and Edge Case Analysis
+- **API key / user ID** — most common. Identifies the caller.
+- **IP address** — fallback for anonymous traffic. Trickier with NAT, proxies, mobile carriers (many users behind one IP).
+- **Endpoint** — different limits per endpoint (login is stricter than search).
+- **Tier** — paid customers get higher limits than free.
+- **Cost** — limit by an abstract "cost" instead of count. A simple GET costs 1; an expensive aggregation costs 10. Smooths out variable-cost endpoints.
 
-For researchers pushing the boundaries of rate limiting, the simple models presented above are insufficient. We must address the complexities of real-world deployment.
+Most production systems combine these — limit by `(user, endpoint, tier)` with multipliers.
 
-### A. Distributed State Management and Clock Skew
+## What to do when limited
 
-The biggest vulnerability in any rate-limiting system is the shared state. When multiple nodes (Node A, Node B, Node C) are running the service, they must agree on the token count and the last update time.
+The 429 response with helpful headers:
 
-**The Problem of Clock Skew:** If Node A's clock is slightly ahead of Node B's, and both nodes calculate refills based on their local time, the token count can become inconsistent.
+```
+HTTP/1.1 429 Too Many Requests
+Retry-After: 30
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 1735340000
+```
 
-**Mitigation Strategies:**
-1.  **Centralized Atomic Store (Redis/Memcached):** As shown previously, using atomic operations (like Lua scripting) is mandatory.
-2.  **Time Synchronization:** Relying on Network Time Protocol (NTP) is necessary, but never sufficient. The *computation* must be atomic, not just the time source.
-3.  **Leaky Bucket Advantage in Skew:** The Leaky Bucket, when implemented using a time-based queue depth calculation, can sometimes be more resilient if the leak rate $L$ is derived from a stable, external source (like a dedicated rate-limiting service endpoint) rather than local time calculation.
+`Retry-After` is the contract. Seconds (or HTTP-date). Honest. Clients honour it.
 
-### B. Handling Non-Uniform Request Costs (Weighted Rate Limiting)
+For client SDKs, **honour `Retry-After` literally**. Don't add jitter beyond what the header says; don't exponential-backoff faster than the server requested. Naive exponential retries are how you DDoS your own service when the rate limiter is degraded.
 
-The standard models assume a uniform cost: 1 request = 1 token/unit of work. Real-world APIs are not so simple. A `GET /user/123` might cost 1 unit, while a `POST /process/large_file` might cost 50 units due to database lookups, complex validation, or external calls.
+## DDoS vs rate limiting: not the same problem
 
-**Solution: Weighted Token Bucket (W-TB)**
-Instead of simply decrementing by 1, the cost $W$ is factored in:
-$$\text{Tokens Required} = W$$
-$$\text{If } N(t) \ge W: N(t+1) = N(t) - W$$
+Rate limiting per legitimate user defends against legitimate-user abuse and accidental DOS. It doesn't defend against:
 
-This requires the client or the request metadata to explicitly declare the cost associated with the operation.
+- High-volume distributed attacks from many IPs / synthetic accounts.
+- Layer-3 / layer-4 floods (SYN, UDP, amp).
+- Slow-loris and similar slowloris-style attacks.
 
-### C. Backpressure Integration: Moving Beyond Rejection
+For DDoS protection, you need WAF + CDN + provider-level mitigation (Cloudflare, AWS Shield, Akamai). Rate limiting in your application is the *last* layer, not the first.
 
-The current models are binary: either you have tokens/space, or you fail (HTTP 429). A more sophisticated approach integrates rate limiting directly into the flow control mechanism, effectively implementing **backpressure**.
+## Common mistakes
 
-**Mechanism:** Instead of rejecting the request, the service returns a `Retry-After` header, calculated based on the estimated time until the next token/slot becomes available.
+**Limiting by IP only.** Mobile users behind NAT trip the limit collectively. Limit by authenticated user where possible; IP only as fallback.
 
-*   **Token Bucket Backpressure:** If $N(t) < 1$, calculate the time $\Delta t$ needed to generate one token:
-    $$\Delta t = \frac{1}{R - \text{Rate of Arrival}}$$
-    The response header should suggest waiting $\lceil \Delta t \rceil$ seconds.
-*   **Leaky Bucket Backpressure:** If the queue is full, the backpressure signal should indicate the time until the next slot drains:
-    $$\Delta t = \frac{\text{Queue Size}}{L}$$
+**Hard-coded limits in the application.** Limits should be configurable and per-tenant. Hard-coded means changing them is a deploy.
 
-This transforms rate limiting from a failure mechanism into a **predictive scheduling tool**.
+**No way to raise a limit for a customer.** Some customer asks; they're a paying enterprise; you can't accommodate without a code change. Build in a tier system.
 
-### D. Advanced Modeling: The Combination of Exponential Decay and Rate Limiting
+**Rejecting silently.** Drop the request without a 429. Clients have no idea what happened; they retry blindly. Always 429 with `Retry-After`.
 
-For extremely high-fidelity modeling, some research suggests incorporating concepts from exponential decay processes, particularly when modeling resource exhaustion that isn't purely linear.
+**Counters that grow unboundedly.** Keys that include timestamps / IDs and never expire. Set TTLs.
 
-While not strictly a replacement for TB or LB, understanding the decay function $\exp(-\lambda t)$ helps model how the *probability* of failure increases over time if the system is under sustained stress, providing a more nuanced failure prediction than a simple counter reset.
+**Counting before authorisation.** A rate limiter that runs after auth means unauthenticated requests don't hit it; abusers send unauthenticated requests freely. Limit at the edge.
 
----
+## Practical reference
 
-## VI. Implementation: Practical Considerations
+A reasonable starter for a public API:
 
-To finalize this technical overview, we must address the practical engineering decisions surrounding implementation.
+- 60 requests/minute per anonymous IP (login, signup, public endpoints).
+- 1000 requests/minute per authenticated free user.
+- 10000 requests/minute per authenticated paid user.
+- Per-endpoint multipliers: writes count 5×, reads count 1×.
+- Token-bucket implementation in Redis with Lua script.
+- 429 with Retry-After on rejection.
+- Per-tier limits configurable via admin UI.
 
-### A. Choosing the Right Data Store
+Tune from observed traffic; expect to adjust quarterly.
 
-The choice of storage dictates performance, consistency, and complexity.
+## Tools
 
-1.  **In-Memory Cache (e.g., Redis):**
-    *   **Pros:** Extremely low latency (sub-millisecond). Supports atomic scripting (Lua). Ideal for high-throughput, low-latency API gateways.
-    *   **Cons:** Requires careful management of TTLs and persistence strategies.
-2.  **Distributed Database (e.g., Cassandra, CockroachDB):**
-    *   **Pros:** High durability and consistency guarantees across nodes.
-    *   **Cons:** Significantly higher write latency due to consensus protocols (Paxos/Raft). Generally unsuitable for the core rate-limiting check path unless the rate limit is very coarse (e.g., per minute per region).
+- **Redis with Lua** — the standard substrate.
+- **Envoy / Istio rate limiting** — at the proxy / mesh layer; no app code.
+- **NGINX `limit_req` / `limit_conn`** — at the web server. Crude but effective.
+- **Cloudflare / Fastly rate limiting** — edge layer; protects origin.
+- **Kong / Tyk / Apigee** — API gateways with built-in rate limiting.
+- **token-bucket libraries** in every language — for in-process limiting.
 
-**Recommendation:** For the core rate-limiting check, Redis with Lua scripting remains the industry gold standard due to its balance of speed and transactional capability.
+For most teams: edge layer (Cloudflare) for abuse protection, application layer (Redis token bucket) for fair-use enforcement. Both, not either.
 
-### B. Time Granularity and Precision
+## Further reading
 
-The choice of time unit ($\Delta t$) is critical.
-
-*   **Second-based (Standard):** Simplest to implement. $R$ is tokens/second.
-*   **Millisecond-based (High Precision):** Necessary when burst tolerance must be measured in tens of milliseconds. This increases the computational load on the atomic store but provides superior accuracy for burst handling.
-
-If the required precision is sub-second, the system must track time using high-resolution timestamps (e.g., nanoseconds) and the refill calculation must account for the fractional time elapsed.
-
-### C. Handling Client Identification (The Key Space)
-
-The key used in the rate limiter store must be granular enough to enforce the policy but broad enough to scale. Common key structures include:
-
-1.  **`rate_limit:{API_KEY}:{WINDOW_TYPE}`:** Limits based on the client's credentials.
-2.  **`rate_limit:{IP_ADDRESS}:{WINDOW_TYPE}`:** Limits based on network origin (useful for unauthenticated endpoints).
-3.  **`rate_limit:{USER_ID}:{WINDOW_TYPE}`:** Limits based on the authenticated principal.
-
-**Expert Consideration:** A robust system often employs a **cascading key structure**, applying the strictest limit (e.g., per-user) first, falling back to a less strict limit (e.g., per-IP) if the primary key is unavailable or invalid.
-
----
-
-## VII. Conclusion
-
-The distinction between Token Bucket and Leaky Bucket is not one of superiority, but of **modeling fidelity**. They are tools for different jobs.
-
-*   **If your goal is to model the *permission* to act (allowing controlled bursts):** Use the **Token Bucket**. It is the default choice for public-facing APIs where burst capacity is a feature, not a bug.
-*   **If your goal is to model the *physical constraint* of a downstream resource (ensuring smooth, predictable outflow):** Use the **Leaky Bucket**. It is the superior choice for internal service mesh boundaries and backpressure management.
-
-For the most resilient, enterprise-grade architecture, the implementation must be **hybrid**: Token Bucket at the ingress point to manage client behavior, and Leaky Bucket at the egress point to manage dependency stability.
-
-Mastering these algorithms requires moving beyond simple counter increments. It demands an understanding of atomic operations in distributed memory stores, the mathematical implications of time-based decay, and the ability to map abstract system requirements (e.g., "must not overload the database") onto concrete flow control mechanisms.
-
-The evolution of rate limiting continues to merge with concepts from network flow control, queuing theory, and distributed consensus, making this field a perpetually fertile ground for advanced research. By understanding the underlying physics—accumulation versus drainage—researchers can design rate limiters that are not merely reactive counters, but proactive architects of system stability.
+- [ApiSecurityPatterns] — auth and authorisation alongside rate limiting
+- [ApiDesignBestPractices] — broader API design context
+- [DistributedComputingAlgorithms] — for the distributed-counter algorithms

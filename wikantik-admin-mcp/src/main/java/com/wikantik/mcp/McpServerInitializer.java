@@ -150,6 +150,16 @@ public class McpServerInitializer implements ServletContextListener {
 
             servletContext.setAttribute( ATTR_MCP_SERVER, mcpServer );
             final int totalTools = toolRegistry.readOnlyTools().size() + toolRegistry.authorConfigurableTools().size();
+            // D12: warn loudly when the static instructions text mentions tools that are
+            // not actually registered (or vice versa). The instructions are loaded from
+            // a static file; tool registration is dynamic. A drift means the description
+            // we hand the agent is lying about what's available.
+            if ( instructions != null ) {
+                final java.util.Set< String > registered = new java.util.LinkedHashSet<>();
+                for ( final McpTool t : toolRegistry.readOnlyTools() ) registered.add( t.name() );
+                for ( final McpTool t : toolRegistry.authorConfigurableTools() ) registered.add( t.name() );
+                logToolNameDriftIfAny( instructions, registered );
+            }
             LOG.info( "MCP server started with {} tools, 6 resources, 8 prompts, and 3 completions at /wikantik-admin-mcp", totalTools );
         } catch ( final Exception e ) {
             LOG.error( "MCP server startup failed while wiring tools/resources/prompts — " +
@@ -166,6 +176,59 @@ public class McpServerInitializer implements ServletContextListener {
             } catch ( final Exception e ) {
                 LOG.warn( "Error shutting down MCP server: {}", e.getMessage() );
             }
+        }
+    }
+
+    /**
+     * D12: log a warning when the instructions text and the live tool registry disagree.
+     * The check is deliberately conservative — we only flag names that look like tool
+     * identifiers (lowercase + underscores). Hits an exact-name regex `\b[a-z][a-z0-9_]+\b`
+     * against the instructions, intersects with the registered set, and reports both
+     * directions of the diff.
+     */
+    static void logToolNameDriftIfAny( final String instructions, final java.util.Set< String > registered ) {
+        // Find candidate tool names mentioned in the instructions: lower-case + underscore tokens.
+        final java.util.regex.Matcher m = java.util.regex.Pattern.compile( "\\b[a-z][a-z0-9_]{2,}\\b" )
+                .matcher( instructions );
+        final java.util.Set< String > mentioned = new java.util.LinkedHashSet<>();
+        while ( m.find() ) {
+            final String tok = m.group();
+            // A heuristic to avoid noise: only consider tokens that look like tool names
+            // (must contain an underscore, since all our tools follow snake_case).
+            if ( tok.indexOf( '_' ) >= 0 ) {
+                mentioned.add( tok );
+            }
+        }
+        // For drift reporting we look at "mentioned but not registered" — the most
+        // misleading case for an agent.
+        final java.util.Set< String > toolLikeNames = new java.util.LinkedHashSet<>();
+        for ( final String name : mentioned ) {
+            // Filter mentioned tokens to those that actually look like tool identifiers
+            // by intersecting with a small set of common verb prefixes used in our registry.
+            if ( name.startsWith( "get_" ) || name.startsWith( "list_" ) || name.startsWith( "search_" )
+                    || name.startsWith( "find_" ) || name.startsWith( "write_" ) || name.startsWith( "delete_" )
+                    || name.startsWith( "rename_" ) || name.startsWith( "diff_" ) || name.startsWith( "verify_" )
+                    || name.startsWith( "ping_" ) || name.startsWith( "preview_" ) || name.startsWith( "propose_" )
+                    || name.startsWith( "mark_" ) || name.startsWith( "update_" ) || name.startsWith( "read_" )
+                    || name.startsWith( "retrieve_" ) || name.startsWith( "traverse" ) || name.startsWith( "discover_" )
+                    || name.startsWith( "query_" ) ) {
+                toolLikeNames.add( name );
+            }
+        }
+        final java.util.Set< String > missingFromRegistry = new java.util.LinkedHashSet<>( toolLikeNames );
+        missingFromRegistry.removeAll( registered );
+        if ( !missingFromRegistry.isEmpty() ) {
+            LOG.warn( "MCP instructions mention tool name(s) that are NOT registered: {} — "
+                    + "the description text is drifting from the runtime registry. "
+                    + "Update wikantik-mcp-instructions.txt or implement the missing tools.",
+                    missingFromRegistry );
+        }
+        final java.util.Set< String > missingFromInstructions = new java.util.LinkedHashSet<>( registered );
+        missingFromInstructions.removeAll( toolLikeNames );
+        if ( !missingFromInstructions.isEmpty() ) {
+            LOG.warn( "MCP tools registered but NOT mentioned in the instructions text: {} — "
+                    + "the agent will not know about these without seeing tools/list directly.",
+                    missingFromInstructions );
         }
     }
 

@@ -56,12 +56,39 @@ public final class McpToolUtils {
 
     /**
      * Builds an error {@link McpSchema.CallToolResult} with the given message.
+     * D11: messages are sanitized to drop class names, stack frames, and JDBC URLs
+     * so the MCP response never echoes Java internals back to the agent.
      */
     public static McpSchema.CallToolResult errorResult( final Gson gson, final String message ) {
         return McpSchema.CallToolResult.builder()
-                .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "error", message ) ) ) ) )
+                .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "error", sanitizeErrorMessage( message ) ) ) ) ) )
                 .isError( true )
                 .build();
+    }
+
+    /**
+     * D11: strip Java class names, package prefixes, stack-trace frames, and JDBC URLs
+     * out of an error message before it is returned to the MCP caller. The method is
+     * conservative — when in doubt, prefer to keep human-meaningful text — and is
+     * package-internal-friendly so individual tools can call it directly when they
+     * already have a richer context to assemble.
+     */
+    public static String sanitizeErrorMessage( final String raw ) {
+        if ( raw == null || raw.isEmpty() ) {
+            return "internal error (see server log)";
+        }
+        // Drop "at com.example.Foo.bar(Foo.java:123)" stack frame fragments
+        String s = raw.replaceAll( "\\s*at\\s+[\\w$.]+\\([\\w$.:]+\\)", "" );
+        // Drop fully-qualified Exception class names
+        s = s.replaceAll( "[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_$]*)+(?:Exception|Error|Throwable)", "error" );
+        // Drop JDBC URLs
+        s = s.replaceAll( "jdbc:[^\\s'\"]+", "[jdbc-url]" );
+        // Collapse whitespace
+        s = s.replaceAll( "\\s+", " " ).trim();
+        if ( s.isEmpty() ) {
+            return "internal error (see server log)";
+        }
+        return s;
     }
 
     /**
@@ -105,6 +132,22 @@ public final class McpToolUtils {
      */
     public static String getString( final Map< String, Object > args, final String key, final String defaultVal ) {
         return ( String ) args.getOrDefault( key, defaultVal );
+    }
+
+    /**
+     * D13: tries each {@code keys} in order and returns the first non-null, non-blank
+     * String value. Used so MCP tools can accept multiple historical argument names
+     * (e.g. {@code slug} and {@code pageName}, {@code id} and {@code canonical_id})
+     * without breaking existing callers.
+     */
+    public static String getStringAny( final Map< String, Object > args, final String... keys ) {
+        for ( final String key : keys ) {
+            final Object v = args.get( key );
+            if ( v instanceof String s && !s.isBlank() ) {
+                return s;
+            }
+        }
+        return null;
     }
 
     /**

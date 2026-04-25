@@ -108,6 +108,17 @@ public class PingSearchEnginesTool implements McpTool {
         final Map< String, Object > entry = new LinkedHashMap<>();
         entry.put( "service", "google_ping" );
 
+        // D18: an empty/null/relative baseUrl produced "/sitemap.xml" which is not a
+        // valid public URL — Google rejected it and the tool reported success=false
+        // with a confusing message. Bail with a clear error explaining the config.
+        if ( !isAbsoluteBaseUrl( baseUrl ) ) {
+            entry.put( "success", false );
+            entry.put( "error", "ping_search_engines requires an absolute wikantik.baseURL "
+                    + "(scheme + host); current value is '" + baseUrl + "'. "
+                    + "Set wikantik.baseURL=https://your.wiki.example.com in wikantik-custom.properties." );
+            return entry;
+        }
+
         try {
             final String sitemapUrl = baseUrl + "/sitemap.xml";
             final String pingUrl = "https://www.google.com/ping?sitemap="
@@ -137,6 +148,15 @@ public class PingSearchEnginesTool implements McpTool {
     private Map< String, Object > pingIndexNow( final List< String > urls ) {
         final Map< String, Object > entry = new LinkedHashMap<>();
         entry.put( "service", "indexnow" );
+
+        // D18: also fail-fast for IndexNow when baseUrl is not absolute; the host
+        // extraction otherwise produces "null" and IndexNow rejects the request.
+        if ( !isAbsoluteBaseUrl( baseUrl ) ) {
+            entry.put( "success", false );
+            entry.put( "error", "ping_search_engines requires an absolute wikantik.baseURL "
+                    + "(scheme + host); current value is '" + baseUrl + "'." );
+            return entry;
+        }
 
         if ( indexNowApiKey == null || indexNowApiKey.isBlank() ) {
             entry.put( "success", false );
@@ -217,6 +237,24 @@ public class PingSearchEnginesTool implements McpTool {
             return base.getPort() == candidate.getPort();
         } catch ( final IllegalArgumentException e ) {
             LOG.info( "Rejecting malformed URL '{}' against baseUrl '{}': {}", url, baseUrl, e.getMessage() );
+            return false;
+        }
+    }
+
+    /**
+     * D18: returns true when {@code baseUrl} is an absolute http(s) URL with a host —
+     * the precondition for both ping endpoints to work.
+     */
+    static boolean isAbsoluteBaseUrl( final String baseUrl ) {
+        if ( baseUrl == null || baseUrl.isBlank() ) {
+            return false;
+        }
+        try {
+            final URI uri = URI.create( baseUrl );
+            return uri.isAbsolute()
+                    && ( "http".equalsIgnoreCase( uri.getScheme() ) || "https".equalsIgnoreCase( uri.getScheme() ) )
+                    && uri.getHost() != null && !uri.getHost().isEmpty();
+        } catch ( final IllegalArgumentException e ) {
             return false;
         }
     }

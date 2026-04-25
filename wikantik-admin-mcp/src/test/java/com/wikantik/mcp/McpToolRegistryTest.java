@@ -69,14 +69,22 @@ class McpToolRegistryTest {
         assertTrue( names.contains( "verify_pages" ), "should contain verify_pages" );
         assertTrue( names.contains( "preview_structured_data" ), "should contain preview_structured_data" );
 
-        // Tools moved to wikantik-knowledge — must NOT be present here
-        assertFalse( names.contains( "read_page" ), "read_page moved to knowledge-mcp" );
-        assertFalse( names.contains( "search_pages" ), "search_pages moved to knowledge-mcp" );
-        assertFalse( names.contains( "list_pages" ), "list_pages moved to knowledge-mcp" );
-        assertFalse( names.contains( "recent_changes" ), "recent_changes moved to knowledge-mcp" );
-        assertFalse( names.contains( "query_metadata" ), "query_metadata moved to knowledge-mcp" );
-        assertFalse( names.contains( "export_content" ), "export_content moved to knowledge-mcp" );
-        assertFalse( names.contains( "preview_import" ), "preview_import moved to knowledge-mcp" );
+        // Page-level read + delete are intentionally re-registered on admin-mcp
+        // alongside their /knowledge-mcp counterparts: agents authoring with the
+        // admin tool surface need a single-page fetch and a bulk delete without
+        // hopping endpoints. Don't reduce the duplication unless both surfaces
+        // converge on a single client-facing endpoint.
+        assertTrue( names.contains( "read_page" ),    "should contain read_page (admin write workflow)" );
+        assertTrue( names.contains( "delete_pages" ), "should contain delete_pages (admin write workflow)" );
+
+        // Bulk-discovery and search tools belong only on /knowledge-mcp — keep
+        // the admin surface small.
+        assertFalse( names.contains( "search_pages" ),   "search_pages lives on knowledge-mcp" );
+        assertFalse( names.contains( "list_pages" ),     "list_pages lives on knowledge-mcp" );
+        assertFalse( names.contains( "recent_changes" ), "recent_changes lives on knowledge-mcp" );
+        assertFalse( names.contains( "query_metadata" ), "query_metadata lives on knowledge-mcp" );
+        assertFalse( names.contains( "export_content" ), "export_content lives on knowledge-mcp" );
+        assertFalse( names.contains( "preview_import" ), "preview_import lives on knowledge-mcp" );
     }
 
     @Test
@@ -143,9 +151,11 @@ class McpToolRegistryTest {
     void testTotalToolCount() {
         final int total = registry.readOnlyTools().size()
                 + registry.authorConfigurableTools().size();
-        // 10 read-only + 3 author-configurable = 13 base (+ KG tools if available)
-        // Read/search/list/query/export/import tools absorbed by wikantik-knowledge MCP
-        assertTrue( total >= 13, "Expected at least 13 tools, found " + total );
+        // 12 read-only (10 base + read_page + delete_pages) + 3 author-configurable
+        // = 15 base (+ ListProposalsTool / ProposeKnowledgeTool when KG is wired).
+        // Bulk-discovery, search, recent-changes, metadata, and import/export
+        // tools live on /knowledge-mcp.
+        assertTrue( total >= 15, "Expected at least 15 tools, found " + total );
     }
 
     @Test

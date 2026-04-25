@@ -85,6 +85,12 @@ public class McpToolRegistry {
                 verifyPages, previewStructuredData, pingSearchEngines
         ) );
 
+        final DeletePagesTool deletePages = new DeletePagesTool( pageManager, referenceManager, systemPageRegistry );
+        readOnlyList.add( deletePages );
+
+        final ReadPageTool readPage = new ReadPageTool( pageManager );
+        readOnlyList.add( readPage );
+
         // --- Author-configurable tools (need author resolution from MCP exchange) ---
         final RenamePageTool renamePage = new RenamePageTool( engine, pageManager, pageRenamer, systemPageRegistry );
         final WritePagesTool writePages = new WritePagesTool( pageSaveHelper, pageManager );

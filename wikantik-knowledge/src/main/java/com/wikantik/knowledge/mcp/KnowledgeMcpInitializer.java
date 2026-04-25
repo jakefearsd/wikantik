@@ -29,6 +29,7 @@ import jakarta.servlet.ServletContextListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.Release;
+import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
@@ -85,6 +86,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         final KnowledgeGraphService kgService = engine.getManager( KnowledgeGraphService.class );
         final ContextRetrievalService ctxService = engine.getManager( ContextRetrievalService.class );
         final StructuralIndexService structuralIndex = engine.getManager( StructuralIndexService.class );
+        final ForAgentProjectionService forAgent = engine.getManager( ForAgentProjectionService.class );
 
         if ( kgService == null && ctxService == null && structuralIndex == null ) {
             LOG.info( "Neither KnowledgeGraphService, ContextRetrievalService, nor " +
@@ -148,6 +150,9 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 tools.add( new ListPagesByFilterTool( structuralIndex ) );
                 tools.add( new GetPageByIdTool( structuralIndex ) );
                 tools.add( new TraverseRelationsTool( structuralIndex ) );
+            }
+            if ( forAgent != null ) {
+                tools.add( new GetPageForAgentTool( forAgent ) );
             }
         } catch ( final Exception e ) {
             LOG.error( "Knowledge MCP startup failed while assembling tools — transport servlet is registered " +

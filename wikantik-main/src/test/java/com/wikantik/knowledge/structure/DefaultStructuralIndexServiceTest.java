@@ -163,4 +163,32 @@ class DefaultStructuralIndexServiceTest {
                 "01AAAAAAAAAAAAAAAAAAAAAAAA", Optional.empty() );
         assertEquals( 0, outgoing.size(), "ghost target must be filtered out" );
     }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void conflicts_track_missing_canonical_id_and_relation_issues() throws Exception {
+        final Page noId = fakePage( "NoId", "title: NoId\ntype: article", "" );
+        final Page broken = fakePage( "Broken",
+                "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\n" +
+                "title: Broken\ntype: article\n" +
+                "relations:\n" +
+                "  - {type: part-of, target: 01GHOSTGHOSTGHOSTGHOSTGHOS}\n", "" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( noId, broken ) );
+
+        svc.rebuild();
+
+        final var conflicts = svc.conflicts();
+        assertEquals( 2, conflicts.size() );
+
+        final var missing = conflicts.stream()
+                .filter( c -> c.kind() == com.wikantik.api.structure.StructuralConflict.Kind.MISSING_CANONICAL_ID )
+                .findFirst().orElseThrow();
+        assertEquals( "NoId", missing.slug() );
+
+        final var brokenRel = conflicts.stream()
+                .filter( c -> c.kind() == com.wikantik.api.structure.StructuralConflict.Kind.RELATION_ISSUE )
+                .findFirst().orElseThrow();
+        assertEquals( "Broken", brokenRel.slug() );
+        assertEquals( "01BBBBBBBBBBBBBBBBBBBBBBBB", brokenRel.canonicalId() );
+    }
 }

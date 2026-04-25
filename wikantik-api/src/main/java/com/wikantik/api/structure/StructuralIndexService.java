@@ -77,6 +77,14 @@ public interface StructuralIndexService {
 
     IndexHealth health();
 
+    /**
+     * Conflicts surfaced by the most recent rebuild — pages with a missing
+     * canonical_id, relations whose target didn't resolve, etc. Admin-facing
+     * endpoints expose this list under {@code /api/admin/structural-conflicts}.
+     * Returns an immutable snapshot; safe to retain across calls.
+     */
+    List< StructuralConflict > conflicts();
+
     /** Snapshot of the current projection used by metrics and admin UIs. Stable for the duration of the call. */
     StructuralProjectionSnapshot snapshot();
 

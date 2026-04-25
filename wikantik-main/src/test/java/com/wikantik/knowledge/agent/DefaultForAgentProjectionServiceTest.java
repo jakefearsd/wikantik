@@ -169,6 +169,71 @@ class DefaultForAgentProjectionServiceTest {
         return p;
     }
 
+    @Test
+    void runbook_pages_populate_the_runbook_field_when_block_validates() {
+        final PageDescriptor d = new PageDescriptor(
+                "01ABC", "ChoosingARetrievalMode", "Choosing a Retrieval Mode",
+                PageType.RUNBOOK, "agent-cookbook", List.of(), null,
+                java.time.Instant.parse( "2026-04-22T11:10:00Z" ) );
+        when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
+        when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.empty() );
+        when( idx.outgoingRelations( anyString(), any() ) ).thenReturn( List.of() );
+        when( idx.incomingRelations( anyString(), any() ) ).thenReturn( List.of() );
+        when( pm.getVersionHistory( "ChoosingARetrievalMode" ) ).thenReturn( List.of() );
+        when( pm.getPureText( "ChoosingARetrievalMode", -1 ) ).thenReturn(
+                "---\n" +
+                "type: runbook\n" +
+                "runbook:\n" +
+                "  when_to_use:\n" +
+                "    - Agent needs to pick between BM25 and hybrid\n" +
+                "  steps:\n" +
+                "    - Try /knowledge-mcp/search_knowledge first\n" +
+                "    - Fall back to /api/search BM25 if recall is poor\n" +
+                "  pitfalls:\n" +
+                "    - Do not chain more than 3 retrieval calls\n" +
+                "---\n" );
+
+        final ForAgentProjection p = svc.project( "01ABC" ).orElseThrow();
+        assertNotNull( p.runbook(),
+                "type:runbook page must populate the runbook field" );
+        assertInstanceOf( com.wikantik.api.agent.RunbookBlock.class, p.runbook() );
+        final var rb = (com.wikantik.api.agent.RunbookBlock) p.runbook();
+        assertEquals( 1, rb.when_to_use().size() );
+        assertEquals( 2, rb.steps().size() );
+        assertFalse( p.degraded() );
+        assertFalse( p.missingFields().contains( "runbook" ) );
+    }
+
+    @Test
+    void runbook_field_is_null_when_block_invalid_and_marked_missing() {
+        final PageDescriptor d = new PageDescriptor(
+                "01ABC", "BadRunbook", "Bad Runbook",
+                PageType.RUNBOOK, "agent-cookbook", List.of(), null,
+                java.time.Instant.parse( "2026-04-22T11:10:00Z" ) );
+        when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
+        when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.empty() );
+        when( idx.outgoingRelations( anyString(), any() ) ).thenReturn( List.of() );
+        when( idx.incomingRelations( anyString(), any() ) ).thenReturn( List.of() );
+        when( pm.getVersionHistory( "BadRunbook" ) ).thenReturn( List.of() );
+        when( pm.getPureText( "BadRunbook", -1 ) ).thenReturn(
+                "---\n" +
+                "type: runbook\n" +
+                "runbook:\n" +
+                "  when_to_use:\n" +
+                "    - x\n" +
+                "  steps:\n" +
+                "    - only one step\n" +
+                "  pitfalls:\n" +
+                "    - (none known)\n" +
+                "---\n" );
+
+        final ForAgentProjection p = svc.project( "01ABC" ).orElseThrow();
+        assertNull( p.runbook(),
+                "invalid runbook block must leave runbook = null" );
+        assertTrue( p.degraded() );
+        assertTrue( p.missingFields().contains( "runbook" ) );
+    }
+
     private static ForAgentProjection miniProjection( final String id ) {
         return new ForAgentProjection(
                 id, "Slug", "Title", "article", null,

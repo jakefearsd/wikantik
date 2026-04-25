@@ -81,6 +81,9 @@ import com.wikantik.util.PropertyReader;
 import com.wikantik.util.TextUtil;
 import com.wikantik.variables.VariableManager;
 
+import com.google.inject.ConfigurationException;
+import com.google.inject.Injector;
+import com.google.inject.ProvisionException;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import java.io.File;
@@ -158,6 +161,9 @@ public class WikiEngine implements Engine {
 
     /** Stores WikiEngine's associated managers. */
     protected final Map< Class< ? >, Object > managers = new ConcurrentHashMap<>();
+
+    /** Guice injector for modern dependency management. */
+    private Injector injector;
 
     /** Hybrid-retrieval lifecycle handles; null when hybrid is disabled. */
     private com.wikantik.search.embedding.AsyncEmbeddingIndexListener hybridIndexListener;
@@ -455,6 +461,17 @@ public class WikiEngine implements Engine {
     @Override
     @SuppressWarnings( "unchecked" )
     public < T > T getManager( final Class< T > manager ) {
+        // 1. Try Guice first
+        try {
+            if( injector != null ) {
+                return injector.getInstance( manager );
+            }
+        } catch( final ConfigurationException | ProvisionException e ) {
+            // Not bound in Guice or failed to provision, fall back to legacy map
+            LOG.trace( "Manager {} not found in Guice, falling back to legacy map", manager.getName() );
+        }
+
+        // 2. Fallback to legacy manual map
         return ( T )managers.entrySet().stream()
                                        .filter( e -> manager.isAssignableFrom( e.getKey() ) )
                                        .map( Map.Entry::getValue )

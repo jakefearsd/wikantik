@@ -70,6 +70,7 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
 
     private final EntityExtractor extractor;
     private final EntityExtractorConfig config;
+    private final ChunkExtractionPrefilter prefilter;
     private final ContentChunkRepository chunkRepository;
     private final ChunkEntityMentionRepository mentionRepository;
     private final JdbcKnowledgeRepository knowledgeRepository;
@@ -129,6 +130,11 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
         }
         this.extractor = extractor;
         this.config = config;
+        this.prefilter = new ChunkExtractionPrefilter(
+            config.prefilterEnabled(),
+            config.prefilterDryRun(),
+            config.prefilterSkipPureCode(),
+            config.prefilterSkipNoProperNoun() );
         this.chunkRepository = chunkRepository;
         this.mentionRepository = mentionRepository;
         this.knowledgeRepository = knowledgeRepository;
@@ -218,6 +224,14 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
             final ExtractionContext ctx = new ExtractionContext( pageName, existingNodes, Map.of() );
 
             for( final ContentChunkRepository.MentionableChunk c : chunks ) {
+                final ChunkExtractionPrefilter.Decision d = prefilter.evaluate( c.text(), c.headingPath() );
+                if( !d.shouldExtract() ) {
+                    if( LOG.isDebugEnabled() ) {
+                        LOG.debug( "Prefilter dropped chunk {} on page '{}': reason={}",
+                            c.id(), c.pageName(), d.reason() );
+                    }
+                    continue;
+                }
                 final ExtractionChunk ec = new ExtractionChunk(
                     c.id(), c.pageName(), c.chunkIndex(), c.headingPath(), c.text() );
                 final ExtractionResult result;

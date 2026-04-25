@@ -63,21 +63,43 @@ public class QueryNodesTool implements McpTool {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "filters", Map.of(
                 "type", "object",
-                "description", "Filter criteria — keys like node_type, source_page, or any property key"
+                "description", "Filter criteria — keys like node_type, source_page, or any property key",
+                "examples", List.of( Map.of(
+                        "node_type", "design_doc",
+                        "cluster", "retrieval"
+                ) )
         ) );
         properties.put( "provenance_filter", Map.of(
                 "type", "array",
                 "items", Map.of( "type", "string" ),
-                "description", "Provenance values to include (e.g. human-authored, ai-reviewed, ai-inferred)"
+                "description", "Provenance values to include (e.g. human-authored, ai-reviewed, ai-inferred)",
+                "examples", List.of( List.of( "human-authored" ) )
         ) );
         properties.put( "limit", Map.of(
                 "type", "integer",
-                "description", "Maximum number of results (default 50)"
+                "description", "Maximum number of results (default 50)",
+                "examples", List.of( 25 )
         ) );
         properties.put( "offset", Map.of(
                 "type", "integer",
-                "description", "Offset for pagination (default 0)"
+                "description", "Offset for pagination (default 0)",
+                "examples", List.of( 0 )
         ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "results", List.of( Map.of(
+                        "id", "8f3c2a1b-7e4d-4f5a-9b6c-1d2e3f4a5b6c",
+                        "name", "HybridRetrieval",
+                        "node_type", "design_doc",
+                        "properties", Map.of(
+                                "canonical_id", "01H8G3Z1K6Q5W7P9X2V4R0T8MN",
+                                "cluster", "retrieval"
+                        ),
+                        "provenance", "human-authored"
+                ) )
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -86,6 +108,7 @@ public class QueryNodesTool implements McpTool {
                         " Results are filtered to nodes the entity extractor has actually found in wiki content;" +
                         " nodes present only from legacy frontmatter/link projection are hidden." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of(), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

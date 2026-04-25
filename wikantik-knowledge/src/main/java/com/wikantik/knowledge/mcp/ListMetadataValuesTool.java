@@ -56,10 +56,25 @@ public class ListMetadataValuesTool implements McpTool {
         // D13: canonical name is `field`. Accept the legacy `key` alias.
         properties.put( "field", Map.of(
             "type", "string",
-            "description", "Frontmatter key (e.g. cluster, type, tags) to enumerate." ) );
+            "description", "Frontmatter key (e.g. cluster, type, tags) to enumerate.",
+            "examples", List.of( "cluster" )
+        ) );
         properties.put( "key", Map.of(
             "type", "string",
-            "description", "Deprecated alias for `field`." ) );
+            "description", "Deprecated alias for `field`.",
+            "examples", List.of( "cluster" )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "field", "cluster",
+                "values", List.of(
+                        Map.of( "value", "retrieval", "count", 14 ),
+                        Map.of( "value", "agents", "count", 11 ),
+                        Map.of( "value", "ops", "count", 7 )
+                )
+        ) ) );
 
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
@@ -67,6 +82,7 @@ public class ListMetadataValuesTool implements McpTool {
                 "with the count of pages for each value. Results are sorted by count descending." )
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties, List.of(), null, null, null ) )
+            .outputSchema( outputSchema )
             .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
             .build();
     }

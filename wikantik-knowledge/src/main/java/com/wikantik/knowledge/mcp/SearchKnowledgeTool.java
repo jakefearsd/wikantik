@@ -63,17 +63,48 @@ public class SearchKnowledgeTool implements McpTool {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "query", Map.of(
                 "type", "string",
-                "description", "Full-text search query across node names and properties"
+                "description", "Full-text search query across node names and properties",
+                "examples", List.of( "hybrid retrieval", "graph traversal" )
         ) );
         properties.put( "provenance_filter", Map.of(
                 "type", "array",
                 "items", Map.of( "type", "string" ),
-                "description", "Provenance values to include (e.g. human-authored, ai-reviewed, ai-inferred)"
+                "description", "Provenance values to include (e.g. human-authored, ai-reviewed, ai-inferred)",
+                "examples", List.of( List.of( "human-authored", "ai-reviewed" ) )
         ) );
         properties.put( "limit", Map.of(
                 "type", "integer",
-                "description", "Maximum number of results (default 20)"
+                "description", "Maximum number of results (default 20)",
+                "examples", List.of( 5 )
         ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "results", List.of(
+                        Map.of(
+                                "id", "8f3c2a1b-7e4d-4f5a-9b6c-1d2e3f4a5b6c",
+                                "name", "HybridRetrieval",
+                                "node_type", "design_doc",
+                                "properties", Map.of(
+                                        "canonical_id", "01H8G3Z1K6Q5W7P9X2V4R0T8MN",
+                                        "summary", "BM25 + dense + graph-aware rerank with fail-closed BM25 fallback."
+                                ),
+                                "provenance", "human-authored"
+                        ),
+                        Map.of(
+                                "id", "9a4d3b2c-8f5e-4c6b-ad7d-2e3f4a5b6c7d",
+                                "name", "RetrievalExperimentHarness",
+                                "node_type", "design_doc",
+                                "properties", Map.of(
+                                        "canonical_id", "01H8G3Z2E7FD8R1Q4V9X2T0NMP",
+                                        "summary", "Offline harness for replaying canned queries against snapshots."
+                                ),
+                                "provenance", "human-authored"
+                        )
+                ),
+                "scope", "knowledge_graph_nodes_only"
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -85,6 +116,7 @@ public class SearchKnowledgeTool implements McpTool {
                         "D29: NOTE — this searches the knowledge-graph node table only. For " +
                         "page-body content searches use retrieve_context (hybrid BM25+dense) instead." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "query" ), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

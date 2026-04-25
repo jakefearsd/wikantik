@@ -59,25 +59,55 @@ public class TraverseRelationsTool implements McpTool {
         // D13: canonical name is `id`. Accept the legacy `from` form too.
         props.put( "id", Map.of(
                 "type", "string",
-                "description", "Canonical id (ULID) of the page to traverse from."
+                "description", "Canonical id (ULID) of the page to traverse from.",
+                "examples", List.of( "01H8G3Z1K6Q5W7P9X2V4R0T8MN" )
         ) );
         props.put( "from", Map.of(
                 "type", "string",
-                "description", "Deprecated alias for `id`."
+                "description", "Deprecated alias for `id`.",
+                "examples", List.of( "01H8G3Z1K6Q5W7P9X2V4R0T8MN" )
         ) );
         props.put( "direction", Map.of(
                 "type", "string",
-                "description", "out (default) | in | both."
+                "description", "out (default) | in | both.",
+                "examples", List.of( "out" )
         ) );
         props.put( "type_filter", Map.of(
                 "type", "string",
                 "description", "Optional relation type: part-of, example-of, prerequisite-for, " +
-                        "supersedes, contradicts, implements, derived-from."
+                        "supersedes, contradicts, implements, derived-from.",
+                "examples", List.of( "part-of" )
         ) );
         props.put( "depth_cap", Map.of(
                 "type", "integer",
-                "description", "Maximum BFS depth, clamped to 1..5 (default 1)."
+                "description", "Maximum BFS depth, clamped to 1..5 (default 1).",
+                "examples", List.of( 2 )
         ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "edges", List.of(
+                        Map.of(
+                                "from_id", "01H8G3Z1K6Q5W7P9X2V4R0T8MN",
+                                "to_id", "01H8G3Z2E7FD8R1Q4V9X2T0NMP",
+                                "to_slug", "RetrievalExperimentHarness",
+                                "to_title", "Retrieval Experiment Harness",
+                                "type", "part-of",
+                                "depth", 1
+                        ),
+                        Map.of(
+                                "from_id", "01H8G3Z1K6Q5W7P9X2V4R0T8MN",
+                                "to_id", "01H8G3Z3F9JK7M2N6P8Q1R3S5T",
+                                "to_slug", "HandlingEmbeddingServiceOutages",
+                                "to_title", "Handling Embedding Service Outages",
+                                "type", "example-of",
+                                "depth", 1
+                        )
+                ),
+                "count", 2
+        ) ) );
+
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Walk the typed-relation graph from a canonical_id. Returns edges " +
@@ -85,6 +115,7 @@ public class TraverseRelationsTool implements McpTool {
                         "Use this to expand a known page into its declared neighborhood (parts, examples, " +
                         "prerequisites, supersedes chains) without paying for full-text search." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

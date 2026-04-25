@@ -54,14 +54,41 @@ public class GetNodeTool implements McpTool {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "node", Map.of(
                 "type", "string",
-                "description", "Node name or UUID"
+                "description", "Node name or UUID",
+                "examples", List.of( "HybridRetrieval", "8f3c2a1b-7e4d-4f5a-9b6c-1d2e3f4a5b6c" )
         ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "node", Map.of(
+                        "id", "8f3c2a1b-7e4d-4f5a-9b6c-1d2e3f4a5b6c",
+                        "name", "HybridRetrieval",
+                        "node_type", "design_doc",
+                        "properties", Map.of(
+                                "canonical_id", "01H8G3Z1K6Q5W7P9X2V4R0T8MN",
+                                "cluster", "retrieval"
+                        ),
+                        "provenance", "human-authored"
+                ),
+                "outbound_edges", List.of( Map.of(
+                        "target", "BM25",
+                        "relationship", "falls_back_to",
+                        "provenance", "human-authored"
+                ) ),
+                "inbound_edges", List.of( Map.of(
+                        "source", "AgentMemory",
+                        "relationship", "depends_on",
+                        "provenance", "ai-reviewed"
+                ) )
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Get full details for a single node: all properties, all edges " +
                         "(inbound and outbound), source page, and provenance." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "node" ), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

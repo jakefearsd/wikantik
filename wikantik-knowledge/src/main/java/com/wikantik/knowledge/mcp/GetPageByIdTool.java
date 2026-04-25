@@ -48,18 +48,35 @@ public class GetPageByIdTool implements McpTool {
         // D13: canonical name is `id`. Accept the legacy `canonical_id` form too.
         props.put( "id", Map.of(
                 "type", "string",
-                "description", "26-character ULID canonical identifier for the page."
+                "description", "26-character ULID canonical identifier for the page.",
+                "examples", List.of( "01H8G3Z1K6Q5W7P9X2V4R0T8MN" )
         ) );
         props.put( "canonical_id", Map.of(
                 "type", "string",
-                "description", "Deprecated alias for `id`."
+                "description", "Deprecated alias for `id`.",
+                "examples", List.of( "01H8G3Z1K6Q5W7P9X2V4R0T8MN" )
         ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "id", "01H8G3Z1K6Q5W7P9X2V4R0T8MN",
+                "slug", "HybridRetrieval",
+                "title", "Hybrid Retrieval",
+                "type", "design",
+                "cluster", "retrieval",
+                "tags", List.of( "retrieval", "search" ),
+                "summary", "BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.",
+                "updated", "2026-04-25T14:30:00Z"
+        ) ) );
+
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Resolve a canonical id to the current page descriptor. Returns " +
                         "{id, slug, title, type, cluster, tags, summary, updated}. Prefer this over " +
                         "get_page when citing sources — the canonical id is stable across renames." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

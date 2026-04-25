@@ -58,16 +58,54 @@ public class RetrieveContextTool implements McpTool {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "query", Map.of(
             "type", "string",
-            "description", "Natural-language query for BM25 + dense retrieval." ) );
+            "description", "Natural-language query for BM25 + dense retrieval.",
+            "examples", List.of( "how does hybrid retrieval handle embedding service outages" )
+        ) );
         properties.put( "maxPages", Map.of(
             "type", "integer",
-            "description", "Max pages to return (default 5, max 20)." ) );
+            "description", "Max pages to return (default 5, max 20).",
+            "examples", List.of( 5 )
+        ) );
         properties.put( "chunksPerPage", Map.of(
             "type", "integer",
-            "description", "Top contributing chunks per page (default 3, max 5)." ) );
+            "description", "Top contributing chunks per page (default 3, max 5).",
+            "examples", List.of( 3 )
+        ) );
         properties.put( "filters", Map.of(
             "type", "object",
-            "description", "Optional pre-filter — cluster, tags, type, modifiedAfter (ISO-8601)." ) );
+            "description", "Optional pre-filter — cluster, tags, type, modifiedAfter (ISO-8601).",
+            "examples", List.of( Map.of(
+                    "cluster", "retrieval",
+                    "tags", List.of( "agents" ),
+                    "modifiedAfter", "2026-01-01T00:00:00Z"
+            ) )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "query", "how does hybrid retrieval handle embedding service outages",
+                "pages", List.of( Map.of(
+                        "name", "HybridRetrieval",
+                        "url", "https://wiki.example.com/HybridRetrieval",
+                        "score", 0.87,
+                        "summary", "BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.",
+                        "cluster", "retrieval",
+                        "tags", List.of( "retrieval", "search" ),
+                        "contributingChunks", List.of( Map.of(
+                                "headingPath", List.of( "HybridRetrieval", "Failure modes" ),
+                                "text", "When the embedding service is unreachable, hybrid degrades to BM25...",
+                                "chunkScore", 0.92
+                        ) ),
+                        "relatedPages", List.of( Map.of(
+                                "name", "HandlingEmbeddingServiceOutages",
+                                "reason", "co-mentioned in chunks about fail-closed degradation"
+                        ) ),
+                        "author", "jakefear",
+                        "lastModified", "2026-04-25T14:30:00Z"
+                ) ),
+                "totalMatched", 1
+        ) ) );
 
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
@@ -77,6 +115,7 @@ public class RetrieveContextTool implements McpTool {
                 "Primary RAG entry point for agents consuming wiki context." )
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties, List.of( "query" ), null, null, null ) )
+            .outputSchema( outputSchema )
             .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
             .build();
     }

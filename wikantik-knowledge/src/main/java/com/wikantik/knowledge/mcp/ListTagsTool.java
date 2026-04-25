@@ -46,14 +46,35 @@ public class ListTagsTool implements McpTool {
         final Map< String, Object > props = new LinkedHashMap<>();
         props.put( "min_pages", Map.of(
                 "type", "integer",
-                "description", "Only return tags used by at least this many pages (default 1)."
+                "description", "Only return tags used by at least this many pages (default 1).",
+                "examples", List.of( 3 )
         ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "tags", List.of(
+                        Map.of(
+                                "tag", "retrieval",
+                                "page_count", 18,
+                                "sample_ids", List.of( "01H8G3Z1K6Q5W7P9X2V4R0T8MN", "01H8G3Z2E7FD8R1Q4V9X2T0NMP" )
+                        ),
+                        Map.of(
+                                "tag", "agents",
+                                "page_count", 12,
+                                "sample_ids", List.of( "01H8G3Z3F9JK7M2N6P8Q1R3S5T" )
+                        )
+                ),
+                "count", 2
+        ) ) );
+
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Return the tag dictionary for the wiki — one entry per tag, with the " +
                         "page count and a sample of canonical IDs using that tag. Useful when an agent " +
                         "wants to discover what topics the wiki covers." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

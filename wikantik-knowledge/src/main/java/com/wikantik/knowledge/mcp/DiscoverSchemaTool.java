@@ -61,6 +61,21 @@ public class DiscoverSchemaTool implements McpTool {
 
     @Override
     public McpSchema.Tool definition() {
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "schema", Map.of(
+                        "node_types", List.of( "design_doc", "runbook", "concept", "person" ),
+                        "relationship_types", List.of( "part_of", "supersedes", "implements", "falls_back_to" ),
+                        "property_keys", Map.of(
+                                "canonical_id", Map.of( "cardinality", 412, "samples", List.of( "01H8G3Z1K6Q5W7P9X2V4R0T8MN" ) ),
+                                "cluster", Map.of( "cardinality", 14, "samples", List.of( "retrieval", "agents", "ops" ) )
+                        ),
+                        "totals", Map.of( "nodes", 1287, "edges", 3104 )
+                ),
+                "mentionedNodeCount", 962
+        ) ) );
+
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Returns the current shape of the knowledge base: node types, " +
@@ -68,6 +83,7 @@ public class DiscoverSchemaTool implements McpTool {
                         "and aggregate statistics. Use this first to understand what's in this " +
                         "knowledge base before querying." )
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

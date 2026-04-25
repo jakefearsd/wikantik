@@ -26,6 +26,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -46,12 +47,35 @@ public class ListClustersTool implements McpTool {
 
     @Override
     public McpSchema.Tool definition() {
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "clusters", List.of(
+                        Map.of(
+                                "name", "retrieval",
+                                "hub_id", "01H8G3Z1K6Q5W7P9X2V4R0T8MN",
+                                "hub_slug", "HybridRetrieval",
+                                "article_count", 14,
+                                "last_updated", "2026-04-25T14:30:00Z"
+                        ),
+                        Map.of(
+                                "name", "agents",
+                                "hub_id", "01H8G3Z2E7FD8R1Q4V9X2T0NMP",
+                                "hub_slug", "AgentMemory",
+                                "article_count", 11,
+                                "last_updated", "2026-04-22T10:11:00Z"
+                        )
+                ),
+                "count", 2
+        ) ) );
+
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "List every cluster in the wiki with its hub page, article count, " +
                         "and most-recent update time. Call this first when an agent needs a map of " +
                         "topic areas before drilling into a specific cluster." )
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

@@ -50,15 +50,36 @@ public class ListPagesByFilterTool implements McpTool {
     public McpSchema.Tool definition() {
         final Map< String, Object > props = new LinkedHashMap<>();
         props.put( "type",           Map.of( "type", "string",
-                "description", "One of hub, article, reference, runbook, design." ) );
+                "description", "One of hub, article, reference, runbook, design.",
+                "examples", List.of( "runbook" ) ) );
         props.put( "cluster",        Map.of( "type", "string",
-                "description", "Cluster name; limits results to pages with that cluster frontmatter." ) );
+                "description", "Cluster name; limits results to pages with that cluster frontmatter.",
+                "examples", List.of( "retrieval" ) ) );
         props.put( "tag",            Map.of( "type", "array", "items", Map.of( "type", "string" ),
-                "description", "All listed tags must appear on the page (AND semantics)." ) );
+                "description", "All listed tags must appear on the page (AND semantics).",
+                "examples", List.of( List.of( "agents", "ops" ) ) ) );
         props.put( "updated_since",  Map.of( "type", "string",
-                "description", "ISO-8601 timestamp; include pages modified on or after this instant." ) );
+                "description", "ISO-8601 timestamp; include pages modified on or after this instant.",
+                "examples", List.of( "2026-01-01T00:00:00Z" ) ) );
         props.put( "limit",          Map.of( "type", "integer",
-                "description", "Maximum number of pages (default 100, max 1000)." ) );
+                "description", "Maximum number of pages (default 100, max 1000).",
+                "examples", List.of( 50 ) ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "pages", List.of( Map.of(
+                        "id", "01H8G3Z1K6Q5W7P9X2V4R0T8MN",
+                        "slug", "HandlingEmbeddingServiceOutages",
+                        "title", "Handling Embedding Service Outages",
+                        "type", "runbook",
+                        "cluster", "retrieval",
+                        "tags", List.of( "agents", "ops" ),
+                        "updated", "2026-04-22T10:11:00Z"
+                ) ),
+                "count", 1
+        ) ) );
+
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "List wiki pages matching a structural filter (type, cluster, tags, freshness). " +
@@ -66,6 +87,7 @@ public class ListPagesByFilterTool implements McpTool {
                         "structural queries — it reads the canonical page index directly and does not depend " +
                         "on the retrieval pipeline." )
                 .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

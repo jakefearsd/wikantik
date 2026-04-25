@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -117,5 +118,49 @@ class DefaultStructuralIndexServiceTest {
                 Optional.of( PageType.ARTICLE ), null, null, null, 10, null ) );
         assertEquals( 1, articles.size() );
         assertEquals( "A", articles.get( 0 ).slug() );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void rebuild_indexes_relations_when_target_resolves() throws Exception {
+        final Page a = fakePage( "A",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\n" +
+                "title: A\ntype: article\n" +
+                "relations:\n" +
+                "  - {type: part-of, target: 01BBBBBBBBBBBBBBBBBBBBBBBB}\n" +
+                "  - {type: example-of, target: 01CCCCCCCCCCCCCCCCCCCCCCCC}\n", "" );
+        final Page b = fakePage( "B",
+                "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\ntitle: B\ntype: hub", "" );
+        final Page c = fakePage( "C",
+                "canonical_id: 01CCCCCCCCCCCCCCCCCCCCCCCC\ntitle: C\ntype: article", "" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a, b, c ) );
+
+        final PageRelationsDao relDao = mock( PageRelationsDao.class );
+        final DefaultStructuralIndexService withRel = new DefaultStructuralIndexService(
+                pageManager, dao, relDao, new StructuralIndexMetrics() );
+
+        withRel.rebuild();
+
+        final var outgoing = withRel.outgoingRelations(
+                "01AAAAAAAAAAAAAAAAAAAAAAAA", Optional.empty() );
+        assertEquals( 2, outgoing.size() );
+        verify( relDao, times( 1 ) ).replaceFor( eq( "01AAAAAAAAAAAAAAAAAAAAAAAA" ), any() );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void rebuild_skips_relations_with_unresolved_target() throws Exception {
+        final Page a = fakePage( "A",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\n" +
+                "title: A\ntype: article\n" +
+                "relations:\n" +
+                "  - {type: part-of, target: 01GHOSTGHOSTGHOSTGHOSTGHOS}\n", "" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a ) );
+
+        svc.rebuild();
+
+        final var outgoing = svc.outgoingRelations(
+                "01AAAAAAAAAAAAAAAAAAAAAAAA", Optional.empty() );
+        assertEquals( 0, outgoing.size(), "ghost target must be filtered out" );
     }
 }

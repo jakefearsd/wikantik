@@ -41,9 +41,11 @@ import org.apache.logging.log4j.Logger;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -62,6 +64,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
     private final PageManager pageManager;
     private final PageCanonicalIdsDao dao;
+    private final PageRelationsDao relationsDao;
     private final StructuralIndexMetrics metrics;
 
     private final AtomicReference< StructuralProjection > current =
@@ -72,16 +75,25 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
     public DefaultStructuralIndexService( final PageManager pageManager,
                                           final PageCanonicalIdsDao dao,
+                                          final PageRelationsDao relationsDao,
                                           final StructuralIndexMetrics metrics ) {
         this.pageManager = pageManager;
         this.dao = dao;
+        this.relationsDao = relationsDao;
         this.metrics = metrics == null ? new StructuralIndexMetrics() : metrics;
     }
 
-    /** Convenience constructor for tests — uses a no-op metrics holder. */
+    /** Three-arg ctor without explicit metrics — used by Phase-1 production path until WikiEngine wires Phase 2 in. */
+    public DefaultStructuralIndexService( final PageManager pageManager,
+                                          final PageCanonicalIdsDao dao,
+                                          final StructuralIndexMetrics metrics ) {
+        this( pageManager, dao, /* relationsDao */ null, metrics );
+    }
+
+    /** Convenience constructor for tests — no relations DAO, no-op metrics. */
     public DefaultStructuralIndexService( final PageManager pageManager,
                                           final PageCanonicalIdsDao dao ) {
-        this( pageManager, dao, new StructuralIndexMetrics() );
+        this( pageManager, dao, /* relationsDao */ null, new StructuralIndexMetrics() );
     }
 
     @Override
@@ -91,8 +103,6 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 current.get().pageCount(), unclaimed, start, null, 0L, 0L );
 
         final StructuralProjectionBuilder builder = new StructuralProjectionBuilder();
-        int missing = 0;
-        int indexed = 0;
         Collection< Page > pages;
         try {
             pages = pageManager.getAllPages();
@@ -101,6 +111,13 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             this.health = new IndexHealth( IndexHealth.Status.DEGRADED, 0, 0, start, Instant.now(), 0L, 0L );
             return;
         }
+
+        // Pass 1: parse pages, record canonical_ids, defer relations until we know which targets resolve.
+        record PendingRelations( String sourceId, Object rawField, boolean authored ) {}
+        final List< PendingRelations > pendingRelations = new ArrayList<>();
+        final Set< String > knownAuthoredIds = new HashSet<>();
+        int missing = 0;
+        int indexed = 0;
 
         for ( final Page p : pages ) {
             try {
@@ -113,6 +130,8 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 if ( !authored ) {
                     canonicalId = UlidCreator.getUlid().toString();
                     missing++;
+                } else {
+                    knownAuthoredIds.add( canonicalId );
                 }
 
                 final PageType type = PageType.fromFrontmatter( fm.get( "type" ) );
@@ -137,9 +156,42 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                     }
                 }
 
+                final Object relationsField = fm.get( "relations" );
+                if ( relationsField != null ) {
+                    pendingRelations.add( new PendingRelations( canonicalId, relationsField, authored ) );
+                }
+
                 indexed++;
             } catch ( final Exception e ) {
                 LOG.warn( "rebuild(): failed to index page {}: {}", p.getName(), e.getMessage() );
+            }
+        }
+
+        // Pass 2: validate + persist relations now that we know every authored canonical_id.
+        int relationsIndexed = 0;
+        int relationIssues = 0;
+        for ( final PendingRelations pr : pendingRelations ) {
+            final var result = FrontmatterRelationValidator.validate(
+                    pr.sourceId(), pr.rawField(), knownAuthoredIds::contains );
+            if ( result.hasIssues() ) {
+                relationIssues += result.issues().size();
+                for ( final var issue : result.issues() ) {
+                    LOG.warn( "relations issue (source={}): {} — {}",
+                              pr.sourceId(), issue.kind(), issue.detail() );
+                }
+            }
+            for ( final var rel : result.valid() ) {
+                builder.addRelation( rel );
+                relationsIndexed++;
+            }
+            // Persist only when source canonical_id was authored — synthesised IDs aren't in the DB.
+            if ( pr.authored() && relationsDao != null ) {
+                try {
+                    relationsDao.replaceFor( pr.sourceId(), result.valid() );
+                } catch ( final RuntimeException dbx ) {
+                    LOG.warn( "relations replaceFor({}) failed — in-memory projection still serves: {}",
+                              pr.sourceId(), dbx.getMessage() );
+                }
             }
         }
 
@@ -152,8 +204,9 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 start, finish, durationMs, 0L );
         metrics.update( snapshot(), health );
         metrics.recordRebuildMillis( durationMs );
-        LOG.info( "Structural index rebuilt: {} pages indexed ({} without canonical_id) in {} ms",
-                  indexed, missing, durationMs );
+        LOG.info( "Structural index rebuilt: {} pages indexed ({} without canonical_id), "
+                + "{} relations indexed ({} issues), in {} ms",
+                  indexed, missing, relationsIndexed, relationIssues, durationMs );
     }
 
     @Override

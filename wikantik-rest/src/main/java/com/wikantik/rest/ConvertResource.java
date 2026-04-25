@@ -56,8 +56,10 @@ public class ConvertResource extends RestServletBase {
             throws ServletException, IOException {
 
         final String action = extractPathParam( request );
-        if( !"wiki-to-markdown".equals( action ) ) {
-            sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown conversion: " + action );
+        if( !"wiki-to-markdown".equals( action ) && !"markdown-to-html".equals( action ) ) {
+            // D25: surface the supported conversions so callers see they exist
+            sendError( response, HttpServletResponse.SC_NOT_FOUND,
+                    "Unknown conversion: '" + action + "'. Supported: wiki-to-markdown, markdown-to-html" );
             return;
         }
 
@@ -79,6 +81,13 @@ public class ConvertResource extends RestServletBase {
 
         final String content = body.has( "content" ) ? body.get( "content" ).getAsString() : "";
 
+        if( "markdown-to-html".equals( action ) ) {
+            // D25: render markdown to HTML using the configured RenderingManager so the
+            // output matches what the wiki will emit when this content is stored as a page.
+            handleMarkdownToHtml( request, response, content );
+            return;
+        }
+
         LOG.debug( "Converting wiki syntax to markdown ({} chars)", content.length() );
 
         final ConversionResult result = WikiToMarkdownConverter.convert( content );
@@ -88,5 +97,27 @@ public class ConvertResource extends RestServletBase {
         responseBody.put( "warnings", result.warnings() );
 
         sendJson( response, responseBody );
+    }
+
+    private void handleMarkdownToHtml( final HttpServletRequest request,
+                                        final HttpServletResponse response,
+                                        final String content ) throws IOException {
+        try {
+            final com.wikantik.api.core.Engine engine = getEngine();
+            final com.wikantik.render.RenderingManager rm =
+                    engine.getManager( com.wikantik.render.RenderingManager.class );
+            // Headless context — no current page needed for ad-hoc conversion.
+            final com.wikantik.api.core.Context ctx =
+                    com.wikantik.api.spi.Wiki.context().create( engine, request, (com.wikantik.api.core.Page) null );
+            final String html = rm.textToHTML( ctx, content );
+
+            final Map< String, Object > responseBody = new LinkedHashMap<>();
+            responseBody.put( "html", html );
+            sendJson( response, responseBody );
+        } catch( final Exception e ) {
+            LOG.error( "markdown-to-html conversion failed: {}", e.getMessage(), e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Conversion failed: see server log" );
+        }
     }
 }

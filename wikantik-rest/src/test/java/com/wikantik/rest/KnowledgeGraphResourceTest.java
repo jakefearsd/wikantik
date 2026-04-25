@@ -105,7 +105,10 @@ class KnowledgeGraphResourceTest {
     }
 
     @Test
-    void doGet_anonymous_returns401() throws Exception {
+    void doGet_anonymous_returns200() throws Exception {
+        // D27: knowledge graph reads are now public to match /api/structure/*. The graph
+        // contains only canonical ids and relationship types — no ACL-restricted content —
+        // so anonymous readers and agents can use it freely.
         final StringWriter sw = new StringWriter();
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
@@ -115,8 +118,8 @@ class KnowledgeGraphResourceTest {
         servlet.doGet( request, response );
 
         final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
-        assertTrue( obj.get( "error" ).getAsBoolean() );
-        assertEquals( 401, obj.get( "status" ).getAsInt() );
+        assertFalse( obj.has( "error" ), "Anonymous access should be permitted: " + sw );
+        assertTrue( obj.has( "nodeCount" ) );
     }
 
     private HttpServletRequest createAuthenticatedRequest() {

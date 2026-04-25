@@ -89,9 +89,40 @@ public class AuthResource extends RestServletBase {
             handleGetUser( request, response );
         } else if ( "profile".equals( action ) ) {
             handleGetProfile( request, response );
+        } else if ( "me".equals( action ) || "session".equals( action ) || "status".equals( action ) ) {
+            // D24: idiomatic /me alias plus /session and /status which agents commonly try.
+            // All three return the same compact { authenticated, login, fullName, roles } shape.
+            handleGetMe( request, response );
         } else {
             sendNotFound( response, "Unknown auth endpoint: " + action );
         }
+    }
+
+    /**
+     * D24: returns a small JSON object describing the current session. Always 200.
+     * For anonymous callers, {@code authenticated} is false, {@code login} is null,
+     * and {@code roles} is an empty list.
+     */
+    private void handleGetMe( final HttpServletRequest request, final HttpServletResponse response )
+            throws IOException {
+        final Engine engine = getEngine();
+        final Session session = Wiki.session().find( engine, request );
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "authenticated", session.isAuthenticated() );
+        if ( session.isAuthenticated() ) {
+            result.put( "login", session.getLoginPrincipal().getName() );
+            result.put( "fullName", session.getUserPrincipal().getName() );
+        } else {
+            result.put( "login", null );
+            result.put( "fullName", null );
+        }
+        final List< String > roles = Arrays.stream( session.getRoles() )
+                .map( Principal::getName )
+                .toList();
+        result.put( "roles", roles );
+
+        sendJson( response, result );
     }
 
     @Override

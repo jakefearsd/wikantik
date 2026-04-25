@@ -358,9 +358,37 @@ public abstract class RestServletBase extends HttpServlet {
         try ( BufferedReader reader = request.getReader() ) {
             return JsonParser.parseReader( reader ).getAsJsonObject();
         } catch ( final Exception e ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON body: " + e.getMessage() );
+            // D23: do not echo the raw GSON parser message — it can include URLs to the
+            // GSON troubleshooting docs and class names that leak the parser library to
+            // API consumers. Log the full cause server-side and return a sanitized
+            // human-readable summary.
+            LOG.warn( "Rejecting malformed JSON body for {}: {}", request.getRequestURI(), e.getMessage() );
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "Invalid JSON body: " + sanitizeParseError( e.getMessage() ) );
             return null;
         }
+    }
+
+    /**
+     * D23: returns a short, library-neutral description of the parser failure. Strips
+     * any URLs (e.g. links to GSON's documentation) and Java class names, so the
+     * client never sees that we use GSON.
+     */
+    static String sanitizeParseError( final String raw ) {
+        if ( raw == null || raw.isEmpty() ) {
+            return "could not parse body as JSON object";
+        }
+        // Drop URL fragments
+        String s = raw.replaceAll( "https?://\\S+", "" );
+        // Drop fully-qualified class names (com.google.gson.x.y) and com/google/gson references
+        s = s.replaceAll( "(?i)gson", "" );
+        s = s.replaceAll( "[A-Za-z][A-Za-z0-9_]*\\.[A-Za-z][A-Za-z0-9_.]*Exception", "parse error" );
+        // Trim trailing whitespace, collapse runs
+        s = s.replaceAll( "\\s+", " " ).trim();
+        if ( s.isEmpty() ) {
+            return "could not parse body as JSON object";
+        }
+        return s;
     }
 
     /**

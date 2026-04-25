@@ -166,6 +166,56 @@ class PageListResourceTest {
                 "Invalid offset should default to 0" );
     }
 
+    @Test
+    void testNegativeLimitReturns400() throws Exception {
+        // D8: ?limit=-1 used to propagate to Stream.limit(-1) which throws and
+        // surfaces as a 500 with a stack trace.
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages" );
+        Mockito.doReturn( "-1" ).when( request ).getParameter( "limit" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+        Mockito.verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "limit" ) );
+    }
+
+    @Test
+    void testHugeLimitReturns400() throws Exception {
+        // D8: limit beyond MAX_LIMIT must return 400, not allocate the world.
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages" );
+        Mockito.doReturn( "999999999" ).when( request ).getParameter( "limit" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+        Mockito.verify( response ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+    }
+
+    @Test
+    void testZeroLimitReturnsEmptyArray() throws Exception {
+        // D8: zero is a legal degenerate case — no results, no error.
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/pages" );
+        Mockito.doReturn( "0" ).when( request ).getParameter( "limit" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+        // Should not error
+        Mockito.verify( response, Mockito.never() ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertEquals( 0, obj.getAsJsonArray( "pages" ).size() );
+    }
+
     // ----- Helper methods -----
 
     private String doGetList( final String prefix, final String limit, final String offset ) throws Exception {

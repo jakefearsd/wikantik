@@ -214,7 +214,7 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 - **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers, SPA routing, `/wiki/{slug}?format=md|json` content filter
 - **wikantik-rest**: REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`)
 - **wikantik-admin-mcp**: Admin MCP server at `/wikantik-admin-mcp` — 16 tools (writes + link/metadata analytics), 6 resources, 8 prompts, 3 completions. See `com.wikantik.mcp.McpServerInitializer`.
-- **wikantik-knowledge**: Knowledge MCP server at `/knowledge-mcp` — 10 read-only tools (hybrid retrieval, knowledge-graph traversal, schema discovery) plus the knowledge-graph service (pgvector-backed embeddings, co-mention graph, hub discovery). See `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
+- **wikantik-knowledge**: Knowledge MCP server at `/knowledge-mcp` — 16 read-only tools (hybrid retrieval, knowledge-graph traversal, schema discovery, structural-spine navigation, agent-grade page projection) plus the knowledge-graph service (pgvector-backed embeddings, co-mention graph, hub discovery). See `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
 - **wikantik-tools**: OpenAPI 3.1 tool server at `/tools/*` — 2 tools (`search_wiki`, `get_page`) for OpenWebUI-compatible non-MCP clients.
 - **wikantik-extract-cli**: Standalone entity-extractor CLI (offline/batch extraction against the knowledge-graph pipeline)
 - **wikantik-observability**: Health checks, Prometheus metrics, request correlation
@@ -228,9 +228,9 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 | Endpoint | Module | Protocol | Tools | Auth |
 |----------|--------|----------|-------|------|
 | `/wikantik-admin-mcp` | wikantik-admin-mcp | MCP (Streamable HTTP) | 16 write/analytics tools | `McpAccessFilter` (bearer token / API key) |
-| `/knowledge-mcp` | wikantik-knowledge | MCP (Streamable HTTP) | 10 read-only retrieval + KG tools | `KnowledgeMcpAccessFilter` (same scheme) |
+| `/knowledge-mcp` | wikantik-knowledge | MCP (Streamable HTTP) | 16 read-only retrieval + KG + structural-spine + agent-projection tools | `KnowledgeMcpAccessFilter` (same scheme) |
 | `/tools/*` | wikantik-tools | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) | API key |
-| `/api/*` | wikantik-rest | REST/JSON | 23 Resource classes | `RestServletBase.checkPagePermission()` (ACL + policy grants) |
+| `/api/*` | wikantik-rest | REST/JSON | 24 Resource classes | `RestServletBase.checkPagePermission()` (ACL + policy grants) |
 | `/admin/*` | wikantik-rest | REST/JSON | 8 admin resources | `AdminAuthFilter` (`AllPermission`) |
 | `/wiki/{slug}?format=md\|json` | wikantik-rest | HTTP | Raw content for RAG ingestion / crawlers | Public (same ACL as page view) |
 | `/api/changes?since=…` | wikantik-rest | REST/JSON | Incremental change feed for sync pipelines | Public |
@@ -302,9 +302,11 @@ Living design docs for in-flight architectural work (read before touching the re
 **`Main.md` is generated.** Edit `docs/wikantik-pages/Main.pins.yaml` instead, then run `mvn package -pl wikantik-extract-cli -am -DskipTests -q && java -cp wikantik-extract-cli/target/wikantik-extract-cli.jar com.wikantik.extractcli.GenerateMainPageCli docs/wikantik-pages --write`. Hand-edits to `Main.md` will be reverted by the next regeneration and will fail `MainPageRegressionTest` on CI.
 
 **Save-time enforcement is on.** `StructuralSpinePageFilter` runs in `preSave`: pages saved without `canonical_id` get one auto-assigned and injected into frontmatter; pages with invalid `relations:` (unknown type or unresolvable target) are rejected with a `FilterException`. Toggle with `wikantik.structural_spine.enforcement.enabled=false` (default `true`). Operators triage lingering issues at `GET /admin/structural-conflicts`.
-- **[docs/wikantik-pages/AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md)** — Agent-grade content layer (`type: runbook`, verification metadata, `/api/pages/{id}/for-agent` token-optimised projection, scheduled retrieval-quality CI using `RetrievalExperimentHarness`). Phase 1 (verification metadata) implemented; Phases 2-6 pending.
+- **[docs/wikantik-pages/AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md)** — Agent-grade content layer (`type: runbook`, verification metadata, `/api/pages/for-agent/{id}` token-optimised projection, scheduled retrieval-quality CI using `RetrievalExperimentHarness`). Phase 1 (verification metadata) and Phase 2 (`/for-agent` projection + `get_page_for_agent` MCP tool + memoisation) implemented; Phases 3-6 pending.
 
 **Page verification is in.** Frontmatter accepts `verified_at`, `verified_by`, `confidence` (authoritative | provisional | stale — usually computed; author can pin), and `audience` (`humans` | `agents` | `[humans, agents]`). The structural index rebuild reads these and writes them through to `page_verification`. Confidence is computed from `verified_at` + the `trusted_authors` registry by `ConfidenceComputer` (90-day stale window, configurable via `wikantik.verification.stale_days`). Authors stamp pages via the `mark_page_verified` MCP tool on `/wikantik-admin-mcp`; operators triage at `GET /admin/verification?confidence=stale`.
+
+**`/for-agent` projection is in.** `GET /api/pages/for-agent/{canonical_id}` and the matching `get_page_for_agent` MCP tool on `/knowledge-mcp` return a token-budgeted projection of any page: summary, key facts, headings outline, typed relations, recent changes, MCP tool hints, and verification state — without the full markdown body. The service composes four extractors (`HeadingsOutlineExtractor`, `KeyFactsExtractor`, `RecentChangesAdapter`, `McpToolHintsResolver`) with per-field try/catch graceful degradation; failures surface on a `degraded` flag + `missing_fields` list rather than blowing the whole response. Memoised in `wikantik.forAgentCache` (1h TTL, 5K entries) by `(canonical_id, updated_at_millis)`. Response sizes flow into the `wikantik_for_agent_response_bytes` Prometheus histogram. URL deviation: design said `/api/pages/{id}/for-agent` but Servlet API can't tail-segment-pattern; current path mirrors `/api/pages/by-id/{id}`.
 - **[docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md)** — Implemented. BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.
 - **[docs/wikantik-pages/RetrievalExperimentHarness.md](docs/wikantik-pages/RetrievalExperimentHarness.md)** — Implemented but not yet scheduled; targeted by `AgentGradeContentDesign.md` for CI integration.
 - **[IndexingSupport.md](IndexingSupport.md)** — Implemented. Raw content + change feed + sitemap for RAG ingestion and SEO.

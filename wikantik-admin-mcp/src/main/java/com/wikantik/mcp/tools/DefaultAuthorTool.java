@@ -38,4 +38,8 @@ public abstract class DefaultAuthorTool implements AuthorConfigurable {
             this.defaultAuthor = author;
         }
     }
+
+    protected final String getDefaultAuthor() {
+        return defaultAuthor;
+    }
 }

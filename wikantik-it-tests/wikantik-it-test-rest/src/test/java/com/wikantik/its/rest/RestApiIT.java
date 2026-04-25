@@ -504,12 +504,26 @@ public class RestApiIT {
     private void waitForStructuralIndexUp() throws Exception {
         for ( int attempt = 0; attempt < 30; attempt++ ) {
             final HttpResponse< String > resp = get( "/api/health/structural-index" );
-            if ( resp.statusCode() == 200 && resp.body().contains( "\"status\":\"UP\"" ) ) {
+            if ( resp.statusCode() == 200 && hasJsonField( resp.body(), "status", "\"UP\"" ) ) {
                 return;
             }
             Thread.sleep( 1000 );
         }
         throw new AssertionError( "Structural index never reached UP within 30s" );
+    }
+
+    /**
+     * RestServletBase serialises with {@code setPrettyPrinting()}, so JSON keys and
+     * values are separated by {@code ": "} rather than {@code ":"}. This helper
+     * matches either form so an assertion isn't tied to a particular Gson layout.
+     */
+    private static boolean hasJsonField( final String body, final String key, final String value ) {
+        return body.matches( "(?s).*\"" + java.util.regex.Pattern.quote( key ) + "\"\\s*:\\s*"
+                + java.util.regex.Pattern.quote( value ) + ".*" );
+    }
+
+    private static boolean hasJsonKey( final String body, final String key ) {
+        return body.matches( "(?s).*\"" + java.util.regex.Pattern.quote( key ) + "\"\\s*:.*" );
     }
 
     @Test
@@ -518,8 +532,8 @@ public class RestApiIT {
         waitForStructuralIndexUp();
         final HttpResponse< String > resp = get( "/api/health/structural-index" );
         assertEquals( 200, resp.statusCode() );
-        assertTrue( resp.body().contains( "\"status\":\"UP\"" ) );
-        assertTrue( resp.body().contains( "\"pages\":" ) );
+        assertTrue( hasJsonField( resp.body(), "status", "\"UP\"" ) );
+        assertTrue( hasJsonKey( resp.body(), "pages" ) );
     }
 
     @Test
@@ -528,8 +542,8 @@ public class RestApiIT {
         waitForStructuralIndexUp();
         final HttpResponse< String > resp = get( "/api/structure/sitemap" );
         assertEquals( 200, resp.statusCode() );
-        assertTrue( resp.body().contains( "\"count\":" ) );
-        assertTrue( resp.body().contains( "\"pages\"" ) );
+        assertTrue( hasJsonKey( resp.body(), "count" ) );
+        assertTrue( hasJsonKey( resp.body(), "pages" ) );
     }
 
     @Test
@@ -538,7 +552,7 @@ public class RestApiIT {
         waitForStructuralIndexUp();
         final HttpResponse< String > resp = get( "/api/structure/clusters" );
         assertEquals( 200, resp.statusCode() );
-        assertTrue( resp.body().contains( "\"clusters\"" ) );
+        assertTrue( hasJsonKey( resp.body(), "clusters" ) );
     }
 
     @Test
@@ -547,7 +561,7 @@ public class RestApiIT {
         waitForStructuralIndexUp();
         final HttpResponse< String > resp = get( "/api/structure/tags" );
         assertEquals( 200, resp.statusCode() );
-        assertTrue( resp.body().contains( "\"tags\"" ) );
+        assertTrue( hasJsonKey( resp.body(), "tags" ) );
     }
 
     @Test
@@ -557,20 +571,20 @@ public class RestApiIT {
         // Pick any canonical_id from the sitemap and ask for its relations.
         final HttpResponse< String > sitemap = get( "/api/structure/sitemap" );
         assertEquals( 200, sitemap.statusCode() );
-        final int idStart = sitemap.body().indexOf( "\"id\":\"" );
+        final java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile( "\"id\"\\s*:\\s*\"([^\"]+)\"" )
+                .matcher( sitemap.body() );
         // Skip the test gracefully when the IT WAR ships zero pages — the structural
         // index will be empty and there's nothing to traverse.
-        if ( idStart < 0 ) {
+        if ( !m.find() ) {
             return;
         }
-        final int valueStart = idStart + "\"id\":\"".length();
-        final int valueEnd = sitemap.body().indexOf( "\"", valueStart );
-        final String anyId = sitemap.body().substring( valueStart, valueEnd );
+        final String anyId = m.group( 1 );
 
         final HttpResponse< String > resp = get( "/api/relations/" + anyId );
         assertEquals( 200, resp.statusCode() );
-        assertTrue( resp.body().contains( "\"edges\"" ) );
-        assertTrue( resp.body().contains( "\"count\"" ) );
+        assertTrue( hasJsonKey( resp.body(), "edges" ) );
+        assertTrue( hasJsonKey( resp.body(), "count" ) );
     }
 
     @Test

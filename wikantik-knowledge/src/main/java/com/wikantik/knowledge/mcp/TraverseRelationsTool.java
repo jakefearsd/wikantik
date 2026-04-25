@@ -56,9 +56,14 @@ public class TraverseRelationsTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > props = new LinkedHashMap<>();
+        // D13: canonical name is `id`. Accept the legacy `from` form too.
+        props.put( "id", Map.of(
+                "type", "string",
+                "description", "Canonical id (ULID) of the page to traverse from."
+        ) );
         props.put( "from", Map.of(
                 "type", "string",
-                "description", "Canonical_id (ULID) of the page to traverse from."
+                "description", "Deprecated alias for `id`."
         ) );
         props.put( "direction", Map.of(
                 "type", "string",
@@ -79,7 +84,7 @@ public class TraverseRelationsTool implements McpTool {
                         "with resolved target slug+title and the depth at which each was discovered. " +
                         "Use this to expand a known page into its declared neighborhood (parts, examples, " +
                         "prerequisites, supersedes chains) without paying for full-text search." )
-                .inputSchema( new McpSchema.JsonSchema( "object", props, List.of( "from" ), null, null, null ) )
+                .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }
@@ -87,9 +92,13 @@ public class TraverseRelationsTool implements McpTool {
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         try {
-            final String from = (String) arguments.get( "from" );
+            // D13: accept both `id` (canonical) and `from` (deprecated alias).
+            final String from = McpToolUtils.getStringAny( arguments, "id", "from" );
+            if ( arguments.containsKey( "from" ) && !arguments.containsKey( "id" ) ) {
+                LOG.warn( "traverse_relations called with deprecated argument 'from'; prefer 'id'" );
+            }
             if ( from == null || from.isBlank() ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "from argument is required" );
+                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "id (or from) argument is required" );
             }
             final RelationDirection direction = RelationDirection.fromString(
                     (String) arguments.get( "direction" ) );

@@ -38,9 +38,12 @@ class ListMetadataValuesToolTest {
     }
 
     @Test
-    void definition_requiresField() {
+    void definition_advertisesFieldAndKey() {
+        // D13: tool accepts both `field` (canonical) and `key` (deprecated). Validation
+        // is performed in execute() so we can return a clearer message.
         final McpSchema.Tool def = new ListMetadataValuesTool( mock( ContextRetrievalService.class ) ).definition();
-        assertTrue( def.inputSchema().required().contains( "field" ) );
+        assertTrue( def.inputSchema().properties().containsKey( "field" ) );
+        assertTrue( def.inputSchema().properties().containsKey( "key" ) );
     }
 
     @Test

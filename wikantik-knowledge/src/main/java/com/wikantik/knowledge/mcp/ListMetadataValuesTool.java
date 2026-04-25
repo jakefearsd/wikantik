@@ -53,16 +53,20 @@ public class ListMetadataValuesTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
+        // D13: canonical name is `field`. Accept the legacy `key` alias.
         properties.put( "field", Map.of(
             "type", "string",
             "description", "Frontmatter key (e.g. cluster, type, tags) to enumerate." ) );
+        properties.put( "key", Map.of(
+            "type", "string",
+            "description", "Deprecated alias for `field`." ) );
 
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
             .description( "Return distinct values of a frontmatter field across all pages, " +
                 "with the count of pages for each value. Results are sorted by count descending." )
             .inputSchema( new McpSchema.JsonSchema(
-                "object", properties, List.of( "field" ), null, null, null ) )
+                "object", properties, List.of(), null, null, null ) )
             .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
             .build();
     }
@@ -70,7 +74,11 @@ public class ListMetadataValuesTool implements McpTool {
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         try {
-            final String field = McpToolUtils.getString( arguments, "field" );
+            // D13: accept `field` or the deprecated `key`.
+            final String field = McpToolUtils.getStringAny( arguments, "field", "key" );
+            if ( arguments.containsKey( "key" ) && !arguments.containsKey( "field" ) ) {
+                LOG.warn( "list_metadata_values called with deprecated argument 'key'; prefer 'field'" );
+            }
             if ( field == null || field.isBlank() ) {
                 return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "field must not be blank" );
             }

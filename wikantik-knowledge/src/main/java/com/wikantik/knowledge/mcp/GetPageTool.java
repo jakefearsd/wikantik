@@ -54,9 +54,14 @@ public class GetPageTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
+        // D13: canonical name is `slug`. Accept the legacy `pageName` for callers that
+        // were generated from older tool definitions.
+        properties.put( "slug", Map.of(
+            "type", "string",
+            "description", "Name (slug) of the wiki page to fetch." ) );
         properties.put( "pageName", Map.of(
             "type", "string",
-            "description", "Name of the wiki page to fetch." ) );
+            "description", "Deprecated alias for `slug`. Prefer `slug` for new code." ) );
 
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
@@ -64,7 +69,7 @@ public class GetPageTool implements McpTool {
                 "when you already know which page to load. Returns the page's frontmatter " +
                 "metadata and a URL. Use retrieve_context instead when querying by topic." )
             .inputSchema( new McpSchema.JsonSchema(
-                "object", properties, List.of( "pageName" ), null, null, null ) )
+                "object", properties, List.of(), null, null, null ) )
             .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
             .build();
     }
@@ -72,9 +77,13 @@ public class GetPageTool implements McpTool {
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         try {
-            final String pageName = McpToolUtils.getString( arguments, "pageName" );
+            // D13: accept both `slug` (canonical) and `pageName` (deprecated alias).
+            final String pageName = McpToolUtils.getStringAny( arguments, "slug", "pageName" );
+            if ( arguments.containsKey( "pageName" ) && !arguments.containsKey( "slug" ) ) {
+                LOG.warn( "get_page called with deprecated argument 'pageName'; prefer 'slug'" );
+            }
             if ( pageName == null || pageName.isBlank() ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "pageName must not be blank" );
+                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "slug must not be blank" );
             }
             final RetrievedPage page = service.getPage( pageName );
             if ( page == null ) {

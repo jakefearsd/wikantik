@@ -45,16 +45,21 @@ public class GetPageByIdTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > props = new LinkedHashMap<>();
-        props.put( "canonical_id", Map.of(
+        // D13: canonical name is `id`. Accept the legacy `canonical_id` form too.
+        props.put( "id", Map.of(
                 "type", "string",
                 "description", "26-character ULID canonical identifier for the page."
         ) );
+        props.put( "canonical_id", Map.of(
+                "type", "string",
+                "description", "Deprecated alias for `id`."
+        ) );
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Resolve a canonical_id to the current page descriptor. Returns " +
+                .description( "Resolve a canonical id to the current page descriptor. Returns " +
                         "{id, slug, title, type, cluster, tags, summary, updated}. Prefer this over " +
-                        "get_page when citing sources — the canonical_id is stable across renames." )
-                .inputSchema( new McpSchema.JsonSchema( "object", props, List.of( "canonical_id" ), null, null, null ) )
+                        "get_page when citing sources — the canonical id is stable across renames." )
+                .inputSchema( new McpSchema.JsonSchema( "object", props, List.of(), null, null, null ) )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }
@@ -62,9 +67,13 @@ public class GetPageByIdTool implements McpTool {
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         try {
-            final String canonicalId = (String) arguments.get( "canonical_id" );
+            // D13: accept both `id` (canonical) and `canonical_id` (deprecated).
+            final String canonicalId = McpToolUtils.getStringAny( arguments, "id", "canonical_id" );
+            if ( arguments.containsKey( "canonical_id" ) && !arguments.containsKey( "id" ) ) {
+                LOG.warn( "get_page_by_id called with deprecated argument 'canonical_id'; prefer 'id'" );
+            }
             if ( canonicalId == null || canonicalId.isBlank() ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "canonical_id argument is required" );
+                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "id (or canonical_id) argument is required" );
             }
             final Optional< PageDescriptor > found = service.getByCanonicalId( canonicalId );
             if ( found.isEmpty() ) {

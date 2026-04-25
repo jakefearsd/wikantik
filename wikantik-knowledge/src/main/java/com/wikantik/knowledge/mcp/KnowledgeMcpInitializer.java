@@ -147,6 +147,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 tools.add( new ListTagsTool( structuralIndex ) );
                 tools.add( new ListPagesByFilterTool( structuralIndex ) );
                 tools.add( new GetPageByIdTool( structuralIndex ) );
+                tools.add( new TraverseRelationsTool( structuralIndex ) );
             }
         } catch ( final Exception e ) {
             LOG.error( "Knowledge MCP startup failed while assembling tools — transport servlet is registered " +
@@ -163,10 +164,12 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                     .serverInfo( serverImpl )
                     .instructions( "Agent-facing MCP endpoint. For wiki structure (fastest, " +
                         "no full-text search) use list_clusters, list_tags, list_pages_by_filter, " +
-                        "or get_page_by_id. For wiki content use retrieve_context (primary RAG), " +
-                        "get_page (pinned fetch), list_pages (browse), or list_metadata_values " +
-                        "(discovery). For knowledge graph structure use discover_schema, query_nodes, " +
-                        "get_node, traverse, search_knowledge, or find_similar." )
+                        "or get_page_by_id; expand a known page through its declared relation " +
+                        "graph with traverse_relations. For wiki content use retrieve_context " +
+                        "(primary RAG), get_page (pinned fetch), list_pages (browse), or " +
+                        "list_metadata_values (discovery). For knowledge graph structure use " +
+                        "discover_schema, query_nodes, get_node, traverse, search_knowledge, " +
+                        "or find_similar." )
                     .capabilities( ServerCapabilities.builder()
                             .tools( true )
                             .build() );

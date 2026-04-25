@@ -74,6 +74,13 @@ sections:
         title: "Mathematical Foundations of Machine Learning"
         summary: "The math that underpins ML: [linear algebra](LinearAlgebra), calculus, probability, optimization, and information theory, with concrete examples of how each concept drives real techniques"
 
+  - label: "Agent Cookbook"
+    cluster: agent-cookbook
+    pages:
+      - id: 01KQ44QTJGS34S8VKGDMPTK9TC
+        title: "Agent Cookbook"
+        summary: "Scenario-keyed runbooks for AI coding agents: choosing a retrieval mode, finding the right MCP tool, citing pages, debugging integration tests, planning migrations, and a dozen more recurring playbooks"
+
   - label: "Hobby Woodworking"
     cluster: hobby-woodworking
     pages:

@@ -36,6 +36,10 @@ You can read the [site blogs here]( ../blog/) and learn about the [Wikantik Know
 - [Embedded AI on Limited Hardware](EmbeddedAiOnLimitedHardware) — Running AI models on microcontrollers, phones, and edge devices: proven use cases, quantization, TinyML, and the economics of on-device inference
 - [Mathematical Foundations of Machine Learning](MathematicalFoundationsOfMachineLearning) — The math that underpins ML: [linear algebra](LinearAlgebra), calculus, probability, optimization, and information theory, with concrete examples of how each concept drives real techniques
 
+### Agent Cookbook
+
+- [Agent Cookbook](AgentCookbook) — Scenario-keyed runbooks for AI coding agents: choosing a retrieval mode, finding the right MCP tool, citing pages, debugging integration tests, planning migrations, and a dozen more recurring playbooks
+
 ### Hobby Woodworking
 
 - [Hobby Woodworking in the Twenty-First Century](HobbyWoodworkingInTheTwentyFirstCentury) — How computer-controlled tools, digital design, and a hand tool revival have transformed hobby woodworking since 2000

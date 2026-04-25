@@ -4,7 +4,7 @@ title: Agent Cookbook
 type: hub
 cluster: agent-cookbook
 audience: [agents, humans]
-summary: Hub of scenario-keyed runbooks for AI coding agents working with this wiki and codebase. Each entry is a `type: runbook` page whose schema-validated frontmatter answers a specific recurring question.
+summary: "Hub of scenario-keyed runbooks for AI coding agents working with this wiki and codebase. Each entry is a `type: runbook` page whose schema-validated frontmatter answers a specific recurring question."
 tags:
   - agent-context
   - runbook

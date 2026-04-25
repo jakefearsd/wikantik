@@ -117,21 +117,45 @@ Targeted tests (all green):
 Module-scoped install (excluding modules unrelated to Phase 6):
 - `mvn install -T 1C -DskipITs -pl '!wikantik-rest,!wikantik-it-tests'` — green at commit `13a06f6c5`.
 
-**Final-build deviation:** between commit `13a06f6c5` and Phase 6
-wrap-up, an unrelated parallel defect-repair session left an
-in-progress pom.xml change with an undefined `${guice.version}`
-property, which breaks any subsequent `mvn install` until that
-property is defined or the dependency is reverted. This is unrelated
-to Phase 6 and was deliberately not modified per the task contract.
-The full `mvn clean install -T 1C -DskipITs` cannot be re-run until
-the parallel session commits its pom.xml fix.
+**Final-build deviation (re-verified post-handoff, commit-of-record `4335c02eb`+):**
 
-Wire-JSON smoke (executed via `SearchKnowledgeToolTest`'s new
-serialization assertion): `search_knowledge`'s `Tool` record
-serialises with the canonical `"examples"` keyword on both the
-`inputSchema.properties.query` map and on the top-level
-`outputSchema`, and includes the design-doc canonical example value
-`"hybrid retrieval"`.
+- ✅ The earlier `${guice.version}` pom.xml issue is **resolved** — the
+  parallel session committed the missing property, and `pom.xml:61`
+  now defines `<guice.version>7.0.0</guice.version>`.
+- ✅ `wikantik-main` through `wikantik-tools` (all Phase 6-touched
+  modules) build and test green sequentially:
+  `mvn install -DskipITs -rf :wikantik-main` reaches `wikantik-rest`
+  with everything before it ✅.
+- ⚠️ `wikantik-rest` **test compilation** breaks on
+  `AdminExtractionResourceTest` because the parallel session extended
+  `BootstrapEntityExtractionIndexer.Status` from a 15-arg record to
+  a 17-arg record (added `Map<String,Integer>` and a couple other
+  fields) and didn't update the test's three call sites. Production
+  code (`wikantik-rest/src/main/java/...`) compiles fine. This is
+  **not Phase 6's regression** — Phase 6 didn't touch
+  `BootstrapEntityExtractionIndexer` or that test. Per the task
+  contract the parallel session owns the fix.
+- ⚠️ One Phase 6 regression was caught and fixed during this
+  re-verification: the agent's wire-JSON smoke in
+  `SearchKnowledgeToolTest.definition_carriesPhase6WorkedExamples`
+  used Jackson's `ObjectMapper`, which pulled `JsonSerializeAs` from
+  Jackson's annotation jar — not on `wikantik-knowledge`'s test
+  classpath. The smoke now uses the package-private
+  `KnowledgeMcpUtils.GSON` already in use by every tool at runtime,
+  asserts the same two keywords (`"examples"` and the design-doc
+  canonical value `"hybrid retrieval"`) against the schema-map JSON
+  rather than the full `Tool` record, and passes cleanly.
+
+Wire-JSON smoke (executed via the now-Gson-based assertion in
+`SearchKnowledgeToolTest`): `search_knowledge`'s
+`inputSchema.properties.query` map serialises with the
+`"examples"` keyword and the canonical specimen `"hybrid retrieval"`,
+and the top-level `outputSchema` carries `"examples"` as well.
+
+**Status:** all Phase 6 modules green. Full reactor build remains
+blocked **only** by the parallel session's stale `AdminExtractionResourceTest`
+constructor calls. That blocker is independent of Phase 6 and
+documented above for the parallel session to resolve.
 
 ## Lessons learnt
 

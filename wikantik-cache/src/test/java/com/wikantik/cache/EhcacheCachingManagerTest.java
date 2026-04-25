@@ -49,10 +49,10 @@ public class EhcacheCachingManagerTest {
         props.setProperty( CachingManager.PROP_CACHE_CONF_FILE, "ehcache-wikantik-test.xml" );
         EhcacheCachingManager testEcm = new EhcacheCachingManager();
         testEcm.initialize( null, props );
-        Assertions.assertEquals( 7, testEcm.cacheMap.size() );
+        Assertions.assertEquals( 8, testEcm.cacheMap.size() );
 
         testEcm.registerCache( "anotherCache" );
-        Assertions.assertEquals( 8, testEcm.cacheMap.size() );
+        Assertions.assertEquals( 9, testEcm.cacheMap.size() );
 
         testEcm.shutdown();
         testEcm.shutdown(); // does nothing if already shutdown

@@ -29,6 +29,7 @@ import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.structure.PageDescriptor;
+import com.wikantik.api.structure.PageType;
 import com.wikantik.api.structure.RelationEdge;
 import com.wikantik.api.structure.StructuralIndexService;
 import com.wikantik.api.structure.Verification;
@@ -178,6 +179,39 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             missing.add( "mcp_tool_hints" );
         }
 
+        // Runbook block — only when this page declares type: runbook.
+        // Phase 3: re-runs the same validator the save-time filter uses, so
+        // corpus drift (or saves made while enforcement was disabled) doesn't
+        // pollute the projection. Invalid blocks degrade gracefully.
+        Object runbook = null;
+        if ( PageType.RUNBOOK == d.type() ) {
+            try {
+                final FrontmatterRunbookValidator.Result rbResult =
+                        FrontmatterRunbookValidator.validate(
+                                frontmatter,
+                                id   -> index.getByCanonicalId( id ).isPresent(),
+                                name -> {
+                                    try {
+                                        return pageManager.pageExists( name );
+                                    } catch ( final Exception e ) {
+                                        LOG.warn( "for-agent: pageExists({}) threw — treating as unresolved: {}",
+                                                name, e.getMessage() );
+                                        return false;
+                                    }
+                                } );
+                if ( rbResult.valid().isPresent() ) {
+                    runbook = rbResult.valid().get();
+                } else if ( rbResult.hasIssues() ) {
+                    LOG.warn( "for-agent: runbook block invalid for {} — leaving null: {}",
+                            d.slug(), rbResult.issues() );
+                    missing.add( "runbook" );
+                }
+            } catch ( final Exception e ) {
+                LOG.warn( "for-agent: runbook validation threw for {}: {}", d.slug(), e.getMessage() );
+                missing.add( "runbook" );
+            }
+        }
+
         return new ForAgentProjection(
                 d.canonicalId(),
                 d.slug(),
@@ -196,7 +230,7 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 incoming,
                 changes,
                 hints,
-                /* runbook */ null,                          // Phase 3 fills this in.
+                runbook,
                 "/api/pages/" + d.slug(),
                 "/wiki/" + d.slug() + "?format=md",
                 !missing.isEmpty(),

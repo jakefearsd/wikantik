@@ -913,14 +913,15 @@ public class WikiEngine implements Engine {
         // Admin-triggered full-corpus extraction: re-runs the extractor for
         // every chunk. Shares the listener's extractor + persistence logic so
         // there's exactly one code path for how mentions / proposals land.
+        final com.wikantik.knowledge.extraction.ChunkExtractionPrefilter bootstrapPrefilter =
+            new com.wikantik.knowledge.extraction.ChunkExtractionPrefilter(
+                extractorCfg.prefilterEnabled(),
+                extractorCfg.prefilterDryRun(),
+                extractorCfg.prefilterSkipPureCode(),
+                extractorCfg.prefilterSkipNoProperNoun() );
         final com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer bootstrap =
             new com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer(
-                listener, contentChunkRepo, mentionRepo, extractorCfg.concurrency(),
-                new com.wikantik.knowledge.extraction.ChunkExtractionPrefilter(
-                    extractorCfg.prefilterEnabled(),
-                    extractorCfg.prefilterDryRun(),
-                    extractorCfg.prefilterSkipPureCode(),
-                    extractorCfg.prefilterSkipNoProperNoun() ) );
+                listener, contentChunkRepo, mentionRepo, extractorCfg.concurrency(), bootstrapPrefilter );
         managers.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class, bootstrap );
 
         // Compose with any existing post-chunk sink so embedding indexing and

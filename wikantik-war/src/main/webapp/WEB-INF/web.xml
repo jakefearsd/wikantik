@@ -352,6 +352,10 @@
        <servlet-class>com.wikantik.rest.AdminVerificationResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>AdminRetrievalQualityResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminRetrievalQualityResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>PageForAgentResource</servlet-name>
        <servlet-class>com.wikantik.rest.PageForAgentResource</servlet-class>
    </servlet>
@@ -528,6 +532,14 @@
    <servlet-mapping>
        <servlet-name>AdminVerificationResource</servlet-name>
        <url-pattern>/admin/verification</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminRetrievalQualityResource</servlet-name>
+       <url-pattern>/admin/retrieval-quality</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminRetrievalQualityResource</servlet-name>
+       <url-pattern>/admin/retrieval-quality/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>PageForAgentResource</servlet-name>

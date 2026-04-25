@@ -915,7 +915,12 @@ public class WikiEngine implements Engine {
         // there's exactly one code path for how mentions / proposals land.
         final com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer bootstrap =
             new com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer(
-                listener, contentChunkRepo, mentionRepo, extractorCfg.concurrency() );
+                listener, contentChunkRepo, mentionRepo, extractorCfg.concurrency(),
+                new com.wikantik.knowledge.extraction.ChunkExtractionPrefilter(
+                    extractorCfg.prefilterEnabled(),
+                    extractorCfg.prefilterDryRun(),
+                    extractorCfg.prefilterSkipPureCode(),
+                    extractorCfg.prefilterSkipNoProperNoun() ) );
         managers.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class, bootstrap );
 
         // Compose with any existing post-chunk sink so embedding indexing and

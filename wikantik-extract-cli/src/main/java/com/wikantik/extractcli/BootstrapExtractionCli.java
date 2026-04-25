@@ -24,6 +24,7 @@ import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.extraction.AsyncEntityExtractionListener;
 import com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer;
 import com.wikantik.knowledge.extraction.ChunkEntityMentionRepository;
+import com.wikantik.knowledge.extraction.ChunkExtractionPrefilter;
 import com.wikantik.knowledge.extraction.EntityExtractorConfig;
 import com.wikantik.knowledge.extraction.EntityExtractorFactory;
 
@@ -105,10 +106,16 @@ public final class BootstrapExtractionCli {
 
         final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
             ext.get(), cfg, chunkRepo, mentionRepo, kgRepo, Metrics.globalRegistry );
+        final ChunkExtractionPrefilter prefilter = new ChunkExtractionPrefilter(
+            cfg.prefilterEnabled(),
+            cfg.prefilterDryRun(),
+            cfg.prefilterSkipPureCode(),
+            cfg.prefilterSkipNoProperNoun() );
         try( BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-                 listener, chunkRepo, mentionRepo, cfg.concurrency() ) ) {
-            LOG.info( "Extract-CLI starting (backend={}, model={}, concurrency={}, force={})",
-                cfg.backend(), modelLabel( cfg ), cfg.concurrency(), a.force );
+                 listener, chunkRepo, mentionRepo, cfg.concurrency(), prefilter ) ) {
+            LOG.info( "Extract-CLI starting (backend={}, model={}, concurrency={}, force={}, prefilter={}{})",
+                cfg.backend(), modelLabel( cfg ), cfg.concurrency(), a.force,
+                cfg.prefilterEnabled(), cfg.prefilterDryRun() ? " dry-run" : "" );
             // Ctrl-C / SIGTERM → request graceful cancel. The indexer finishes
             // any in-flight chunks (the Ollama RPC is blocking) but does not
             // submit new ones. The JVM shutdown sequence then waits on the
@@ -221,6 +228,12 @@ public final class BootstrapExtractionCli {
               --poll-seconds <N>                   progress-log cadence (default 30)
               -h, --help                           show this message
 
+            Pre-filter (optional, opt-in):
+              --prefilter                        enable chunk prefilter (skip pure code + no-proper-noun chunks)
+              --prefilter-dry-run                enable filter but log decisions only — no chunks are skipped
+              --no-prefilter-skip-code           keep the prefilter on but disable the pure-code rule
+              --no-prefilter-skip-nopn           keep the prefilter on but disable the no-proper-noun rule
+
             Exit codes: 0 = completed, 1 = errored / refused to start, 2 = bad arguments.
             """;
         System.out.println( usage );
@@ -241,8 +254,12 @@ public final class BootstrapExtractionCli {
         int    maxNodes      = 200;
         long   timeoutMs     = 120_000L;
         int    pollSeconds   = 30;
-        boolean force        = false;
-        boolean showHelp     = false;
+        boolean force                 = false;
+        boolean showHelp              = false;
+        boolean prefilterEnabled      = false;
+        boolean prefilterDryRun       = false;
+        boolean prefilterSkipCode     = true;
+        boolean prefilterSkipNoProper = true;
 
         static Args parse( final String[] argv ) {
             final Args a = new Args();
@@ -266,6 +283,10 @@ public final class BootstrapExtractionCli {
                     case "--max-existing-nodes"      -> a.maxNodes = parseInt( req( argv, ++i, k ), k );
                     case "--timeout-ms"              -> a.timeoutMs = parseLong( req( argv, ++i, k ), k );
                     case "--poll-seconds"            -> a.pollSeconds = parseInt( req( argv, ++i, k ), k );
+                    case "--prefilter"               -> a.prefilterEnabled = true;
+                    case "--prefilter-dry-run"       -> { a.prefilterEnabled = true; a.prefilterDryRun = true; }
+                    case "--no-prefilter-skip-code"  -> a.prefilterSkipCode = false;
+                    case "--no-prefilter-skip-nopn"  -> a.prefilterSkipNoProper = false;
                     default -> throw new IllegalArgumentException( "unknown argument: " + k );
                 }
             }
@@ -291,6 +312,10 @@ public final class BootstrapExtractionCli {
             // Per-page rate limit is irrelevant in batch mode — we drive chunks directly, not via save events.
             p.setProperty( EntityExtractorConfig.PREFIX + "per_page_min_interval_ms", "0" );
             p.setProperty( EntityExtractorConfig.PREFIX + "concurrency", Integer.toString( concurrency ) );
+            p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.enabled", Boolean.toString( prefilterEnabled ) );
+            p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.dry_run", Boolean.toString( prefilterDryRun ) );
+            p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.skip_pure_code", Boolean.toString( prefilterSkipCode ) );
+            p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.skip_no_proper_noun", Boolean.toString( prefilterSkipNoProper ) );
             return EntityExtractorConfig.fromProperties( p );
         }
 

@@ -142,6 +142,16 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
     public BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
                                              final ContentChunkRepository chunkRepo,
                                              final ChunkEntityMentionRepository mentionRepo,
+                                             final int concurrency,
+                                             final ChunkExtractionPrefilter prefilter ) {
+        this( listener, chunkRepo, mentionRepo, defaultExecutor(), /*ownsExecutor*/ true,
+              defaultWorkerPool( concurrency ), /*ownsWorkerPool*/ true,
+              EntityExtractorConfig.clampConcurrency( concurrency ), prefilter );
+    }
+
+    public BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
+                                             final ContentChunkRepository chunkRepo,
+                                             final ChunkEntityMentionRepository mentionRepo,
                                              final ExecutorService executor ) {
         this( listener, chunkRepo, mentionRepo, executor, /*ownsExecutor*/ false,
               executor, /*ownsWorkerPool*/ false, /*concurrency*/ 1,

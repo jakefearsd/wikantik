@@ -88,7 +88,8 @@ class ChunkExtractionPrefilterTest {
 
     @Test
     void compoundCaseLikeIPadIsTreatedAsNoProperNoun() {
-        // Documented v1 false-negative; iPad does not match \b[A-Z][a-z]{2,}\b.
+        // Documented v1 false-negative; iPad does not match \b[A-Z]\w{2,}\b
+        // because it starts lowercase, not because of the post-capital class.
         // If the chunk has no other capitalised noun, it gets skipped.
         final ChunkExtractionPrefilter.Decision d = both().evaluate(
             "the iPad is a tablet", NO_HEADINGS );

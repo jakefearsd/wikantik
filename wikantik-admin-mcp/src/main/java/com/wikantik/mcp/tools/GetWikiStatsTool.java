@@ -50,6 +50,15 @@ public class GetWikiStatsTool implements McpTool {
 
     @Override
     public McpSchema.Tool definition() {
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "totalPages", 412,
+                "brokenLinkCount", 7,
+                "orphanedPageCount", 3,
+                "recentChangesCount", 28
+        ) ) );
+
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Get a quick overview of wiki health and size. " +
@@ -57,6 +66,7 @@ public class GetWikiStatsTool implements McpTool {
                         "Use this as a starting point before diving into details with " +
                         "get_broken_links or get_orphaned_pages." )
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

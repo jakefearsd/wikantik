@@ -68,14 +68,44 @@ public class DeletePagesTool implements McpTool {
         properties.put( "pageNames", Map.of(
                 "type", "array",
                 "items", Map.of( "type", "string" ),
-                "description", "Names of pages to delete (without .md extension)." ) );
-        properties.put( "confirm", Map.of( "type", "boolean",
-                "description", "Must be true to actually delete. Safety guard." ) );
-        properties.put( "allowWithBacklinks", Map.of( "type", "boolean",
+                "description", "Names of pages to delete (without .md extension).",
+                "examples", List.of( List.of( "AbandonedDraft", "OldRunbook" ) )
+        ) );
+        properties.put( "confirm", Map.of(
+                "type", "boolean",
+                "description", "Must be true to actually delete. Safety guard.",
+                "examples", List.of( true )
+        ) );
+        properties.put( "allowWithBacklinks", Map.of(
+                "type", "boolean",
                 "description", "If true, delete pages even if other pages link to them. " +
-                        "Default false — pages with inbound refs are skipped so the caller can review." ) );
-        properties.put( "changeNote", Map.of( "type", "string",
-                "description", "Optional note recorded in the audit log." ) );
+                        "Default false — pages with inbound refs are skipped so the caller can review.",
+                "examples", List.of( false )
+        ) );
+        properties.put( "changeNote", Map.of(
+                "type", "string",
+                "description", "Optional note recorded in the audit log.",
+                "examples", List.of( "removing dead drafts after 90-day audit" )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "results", List.of(
+                        Map.of( "pageName", "AbandonedDraft", "deleted", true ),
+                        Map.of(
+                                "pageName", "OldRunbook",
+                                "deleted", false,
+                                "error", "skipped: has backlinks; pass allowWithBacklinks=true to override",
+                                "backlinks", List.of( "Main", "AgentMemory" )
+                        )
+                ),
+                "summary", Map.of(
+                        "deletedCount", 1,
+                        "skippedCount", 1,
+                        "failedCount", 0
+                )
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -85,6 +115,7 @@ public class DeletePagesTool implements McpTool {
                         "retry only the skipped items." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties,
                         List.of( "pageNames", "confirm" ), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, false, true, false, null, null ) )
                 .build();
     }

@@ -69,12 +69,46 @@ public class VerifyPagesTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageNames", Map.of( "type", "array", "description",
-                "Array of page names to verify", "items", Map.of( "type", "string" ) ) );
-        properties.put( "checks", Map.of( "type", "array", "description",
-                "Optional subset of checks to run. Defaults to all. " +
+        properties.put( "pageNames", Map.of(
+                "type", "array",
+                "description", "Array of page names to verify",
+                "items", Map.of( "type", "string" ),
+                "examples", List.of( List.of( "HybridRetrieval", "AgentMemory" ) )
+        ) );
+        properties.put( "checks", Map.of(
+                "type", "array",
+                "description", "Optional subset of checks to run. Defaults to all. " +
                         "Valid values: existence, broken_links, backlinks, outbound_links, metadata_completeness, seo_readiness",
-                "items", Map.of( "type", "string" ) ) );
+                "items", Map.of( "type", "string" ),
+                "examples", List.of( List.of( "existence", "metadata_completeness", "seo_readiness" ) )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "pages", List.of(
+                        Map.of(
+                                "pageName", "HybridRetrieval",
+                                "exists", true,
+                                "version", 7,
+                                "missingMetadata", List.of(),
+                                "seoWarnings", List.of()
+                        ),
+                        Map.of(
+                                "pageName", "AgentMemory",
+                                "exists", true,
+                                "version", 3,
+                                "missingMetadata", List.of( "tags" ),
+                                "seoWarnings", List.of( "no summary in frontmatter" )
+                        )
+                ),
+                "summary", Map.of(
+                        "totalPages", 2,
+                        "allExist", true,
+                        "metadataIssues", List.of( "AgentMemory missing: tags" ),
+                        "seoIssues", List.of( "AgentMemory: no summary in frontmatter" )
+                )
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -82,6 +116,7 @@ public class VerifyPagesTool implements McpTool {
                         "Checks existence, broken links, backlinks, outbound links, and metadata completeness. " +
                         "Returns per-page details and a summary. Use after creating or updating pages to confirm integrity." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageNames" ), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

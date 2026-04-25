@@ -57,15 +57,47 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageName", Map.of( "type", "string",
-            "description", "Name of the existing page to update." ) );
-        properties.put( "content", Map.of( "type", "string",
-            "description", "New markdown body." ) );
-        properties.put( "metadata", Map.of( "type", "object",
-            "description", "Optional frontmatter metadata to merge." ) );
-        properties.put( "expectedContentHash", Map.of( "type", "string",
-            "description", "SHA-256 of the page's current raw text, obtained from " +
-                "the last get_page or retrieve_context call. Required for optimistic locking." ) );
+        properties.put( "pageName", Map.of(
+                "type", "string",
+                "description", "Name of the existing page to update.",
+                "examples", List.of( "HybridRetrieval" )
+        ) );
+        properties.put( "content", Map.of(
+                "type", "string",
+                "description", "New markdown body.",
+                "examples", List.of( "---\ntitle: Hybrid Retrieval\nsummary: BM25 + dense + graph-aware rerank, with fail-closed BM25 fallback.\n---\n\n# Hybrid Retrieval\n\nUpdated body..." )
+        ) );
+        properties.put( "metadata", Map.of(
+                "type", "object",
+                "description", "Optional frontmatter metadata to merge.",
+                "examples", List.of( Map.of(
+                        "tags", List.of( "retrieval", "search" ),
+                        "verified_at", "2026-04-25"
+                ) )
+        ) );
+        properties.put( "expectedContentHash", Map.of(
+                "type", "string",
+                "description", "SHA-256 of the page's current raw text, obtained from " +
+                        "the last get_page or retrieve_context call. Required for optimistic locking.",
+                "examples", List.of( "sha256:9c3f8a1d4b6e7c2a5f8e1d3b7a9c0e2d4f6a8b1c3e5d7f9a0b2c4d6e8f0a2b4d" )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of(
+                Map.of(
+                        "pageName", "HybridRetrieval",
+                        "updated", true,
+                        "newContentHash", "sha256:1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+                        "newVersion", 8
+                ),
+                Map.of(
+                        "pageName", "HybridRetrieval",
+                        "updated", false,
+                        "error", "hash mismatch",
+                        "currentHash", "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+                )
+        ) );
 
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
@@ -76,6 +108,7 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties,
                 List.of( "pageName", "content", "expectedContentHash" ), null, null, null ) )
+            .outputSchema( outputSchema )
             .annotations( new McpSchema.ToolAnnotations( null, false, false, true, null, null ) )
             .build();
     }

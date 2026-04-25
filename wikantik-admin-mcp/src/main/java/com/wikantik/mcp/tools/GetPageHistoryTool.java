@@ -49,7 +49,32 @@ public class GetPageHistoryTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageName", Map.of( "type", "string", "description", "Name of the wiki page" ) );
+        properties.put( "pageName", Map.of(
+                "type", "string",
+                "description", "Name of the wiki page",
+                "examples", List.of( "HybridRetrieval" )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "exists", true,
+                "pageName", "HybridRetrieval",
+                "versions", List.of(
+                        Map.of(
+                                "version", 7,
+                                "author", "testbot",
+                                "lastModified", "2026-04-25T14:30:00Z",
+                                "changeNote", "fix: typo in BM25 fallback section"
+                        ),
+                        Map.of(
+                                "version", 6,
+                                "author", "jakefear",
+                                "lastModified", "2026-04-22T10:11:00Z",
+                                "changeNote", "graph rerank step documented"
+                        )
+                )
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -57,6 +82,7 @@ public class GetPageHistoryTool implements McpTool {
                         "Returns {exists, pageName, versions: [{version, author, lastModified, changeNote}]} " +
                         "newest first. Check the exists field first." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

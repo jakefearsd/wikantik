@@ -60,9 +60,30 @@ public class DiffPageTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageName", Map.of( "type", "string", "description", "Name of the wiki page" ) );
-        properties.put( "version1", Map.of( "type", "integer", "description", "First (older) version number" ) );
-        properties.put( "version2", Map.of( "type", "integer", "description", "Second (newer) version number" ) );
+        properties.put( "pageName", Map.of(
+                "type", "string",
+                "description", "Name of the wiki page",
+                "examples", List.of( "HybridRetrieval" )
+        ) );
+        properties.put( "version1", Map.of(
+                "type", "integer",
+                "description", "First (older) version number",
+                "examples", List.of( 6 )
+        ) );
+        properties.put( "version2", Map.of(
+                "type", "integer",
+                "description", "Second (newer) version number",
+                "examples", List.of( 7 )
+        ) );
+
+        final Map< String, Object > outputSchema = new LinkedHashMap<>();
+        outputSchema.put( "type", "object" );
+        outputSchema.put( "examples", List.of( Map.of(
+                "pageName", "HybridRetrieval",
+                "version1", 6,
+                "version2", 7,
+                "diff", "- BM25 fallback is engaged when the embedding service is reachable.\n+ BM25 fallback is engaged when the embedding service is unreachable."
+        ) ) );
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
@@ -71,6 +92,7 @@ public class DiffPageTool implements McpTool {
                         "Use get_page_history first to find available version numbers." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties,
                         List.of( "pageName", "version1", "version2" ), null, null, null ) )
+                .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
     }

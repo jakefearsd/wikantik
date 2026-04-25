@@ -85,6 +85,17 @@ public interface StructuralIndexService {
      */
     List< StructuralConflict > conflicts();
 
+    /**
+     * Resolved verification metadata for {@code canonicalId} — the verifier and
+     * timestamp from frontmatter, plus the rule-engine's confidence. Returns
+     * {@link Optional#empty()} when no entry exists for the page; callers should
+     * treat that as equivalent to {@link Verification#unverified()}.
+     *
+     * <p>Phase 1 of the Agent-Grade Content design populates this; Phase 2's
+     * {@code /for-agent} projection consumes it as a first-class signal.</p>
+     */
+    Optional< Verification > verificationOf( String canonicalId );
+
     /** Snapshot of the current projection used by metrics and admin UIs. Stable for the duration of the call. */
     StructuralProjectionSnapshot snapshot();
 

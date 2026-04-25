@@ -79,7 +79,14 @@ public class SearchResource extends RestServletBase {
             return;
         }
 
-        LOG.debug( "GET search: q={}, limit={}", query, limit );
+        // D26: Lucene-syntax characters (* ? + - ! && || etc.) leaked through to the
+        // query parser, so a casual search for "wei*rd" expanded to a wildcard search
+        // and "AnD" was treated as a boolean operator. Escape these characters by
+        // default; power users can opt in to raw Lucene syntax with ?raw=true.
+        final boolean rawSyntax = "true".equalsIgnoreCase( request.getParameter( "raw" ) );
+        final String effectiveQuery = rawSyntax ? query : escapeLuceneSpecialChars( query );
+
+        LOG.debug( "GET search: q={}, limit={}", effectiveQuery, limit );
 
         final Engine engine = getEngine();
 
@@ -93,7 +100,7 @@ public class SearchResource extends RestServletBase {
         }
         final RetrievalResult retrieval;
         try {
-            retrieval = ctxService.retrieve( new ContextQuery( query, Math.min( limit > 0 ? limit : DEFAULT_LIMIT, ContextQuery.MAX_PAGES_CAP ), 3, null ) );
+            retrieval = ctxService.retrieve( new ContextQuery( effectiveQuery, Math.min( limit > 0 ? limit : DEFAULT_LIMIT, ContextQuery.MAX_PAGES_CAP ), 3, null ) );
         } catch ( final RuntimeException e ) {
             // Malformed user queries (e.g. unbalanced brackets, Lucene-reserved
             // operator misuse) surface here as ProviderException wrapping a
@@ -139,6 +146,48 @@ public class SearchResource extends RestServletBase {
         result.put( "total", resultList.size() );
 
         sendJson( response, result );
+    }
+
+    /**
+     * D26: returns {@code query} with all Lucene-syntax control characters
+     * backslash-escaped, plus the boolean keywords AND/OR/NOT lower-cased so they
+     * do not act as operators. The set of characters comes from Lucene's
+     * QueryParserBase.escape() — the canonical list is + - && || ! ( ) { } [ ] ^ " ~ * ? : \ /.
+     */
+    static String escapeLuceneSpecialChars( final String query ) {
+        if ( query == null || query.isEmpty() ) {
+            return query;
+        }
+        final StringBuilder sb = new StringBuilder( query.length() + 8 );
+        for ( int i = 0; i < query.length(); i++ ) {
+            final char c = query.charAt( i );
+            switch ( c ) {
+                case '\\': case '+': case '-': case '!': case '(': case ')':
+                case '{': case '}': case '[': case ']': case '^': case '"':
+                case '~': case '*': case '?': case ':': case '/':
+                    sb.append( '\\' ).append( c );
+                    break;
+                case '&': case '|':
+                    // Escape & and | only if doubled (the actual Lucene operators).
+                    // Escape both characters of the pair so the escaping is symmetric.
+                    if ( i + 1 < query.length() && query.charAt( i + 1 ) == c ) {
+                        sb.append( '\\' ).append( c );
+                        sb.append( '\\' ).append( c );
+                        i++; // consume the second char of the pair
+                    } else {
+                        sb.append( c );
+                    }
+                    break;
+                default:
+                    sb.append( c );
+            }
+        }
+        // Neutralize the boolean keywords by lower-casing them; Lucene matches them
+        // case-sensitively so "AnD" is operator but "and" is just a token.
+        return sb.toString()
+                .replaceAll( "\\bAND\\b", "and" )
+                .replaceAll( "\\bOR\\b", "or" )
+                .replaceAll( "\\bNOT\\b", "not" );
     }
 
     /**

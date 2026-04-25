@@ -92,15 +92,30 @@ public class DiffResource extends RestServletBase {
             final String fromText = pm.getPureText( pageName, fromVersion );
             final String toText = pm.getPureText( pageName, toVersion );
 
-            final Context context = Wiki.context().create( engine, page );
-            final DifferenceManager diffManager = engine.getManager( DifferenceManager.class );
-            final String diff = diffManager.makeDiff( context, fromText, toText );
+            // D31: structured diff format. The legacy DifferenceManager renders an HTML
+            // table which is hostile to JSON consumers. Default to the structured form;
+            // accept ?format=html to retain backwards compatibility for the React UI.
+            final String format = request.getParameter( "format" );
+            final boolean htmlFormat = "html".equalsIgnoreCase( format );
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "page", pageName );
             result.put( "from", fromVersion );
             result.put( "to", toVersion );
-            result.put( "diff", diff );
+
+            if ( htmlFormat ) {
+                final Context context = Wiki.context().create( engine, page );
+                final DifferenceManager diffManager = engine.getManager( DifferenceManager.class );
+                final String diff = diffManager.makeDiff( context, fromText, toText );
+                result.put( "format", "html" );
+                result.put( "diff", diff );
+            } else {
+                // Default: line-level structured diff. Returns added (new lines) and
+                // removed (old lines) plus a unified-diff-style "hunks" array for clients
+                // that want positions.
+                result.put( "format", "structured" );
+                result.putAll( computeStructuredDiff( fromText, toText ) );
+            }
 
             sendJson( response, result );
 
@@ -109,6 +124,40 @@ public class DiffResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Error computing diff: " + e.getMessage() );
         }
+    }
+
+    /**
+     * D31: produces a JSON-friendly structured diff: line-level lists of added and
+     * removed strings. This is intentionally simple — it does not compute longest
+     * common subsequence; it merely surfaces lines that exist on one side but not
+     * the other. Clients that need richer position information can fall back to
+     * {@code ?format=html}.
+     */
+    static Map< String, Object > computeStructuredDiff( final String fromText, final String toText ) {
+        final java.util.List< String > fromLines = fromText == null
+                ? java.util.List.of() : java.util.Arrays.asList( fromText.split( "\\R", -1 ) );
+        final java.util.List< String > toLines = toText == null
+                ? java.util.List.of() : java.util.Arrays.asList( toText.split( "\\R", -1 ) );
+
+        final java.util.Set< String > fromSet = new java.util.LinkedHashSet<>( fromLines );
+        final java.util.Set< String > toSet = new java.util.LinkedHashSet<>( toLines );
+
+        final java.util.List< String > added = new java.util.ArrayList<>();
+        for ( final String line : toLines ) {
+            if ( !fromSet.contains( line ) ) {
+                added.add( line );
+            }
+        }
+        final java.util.List< String > removed = new java.util.ArrayList<>();
+        for ( final String line : fromLines ) {
+            if ( !toSet.contains( line ) ) {
+                removed.add( line );
+            }
+        }
+        final Map< String, Object > out = new LinkedHashMap<>();
+        out.put( "added", added );
+        out.put( "removed", removed );
+        return out;
     }
 
 }

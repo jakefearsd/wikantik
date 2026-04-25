@@ -155,6 +155,11 @@ public class PageResource extends RestServletBase {
         result.put( "lastModified", page.getLastModified() );
         result.put( "exists", true );
 
+        // D19: surface the content hash so clients can round-trip GET → PUT with
+        // expectedContentHash without computing the digest themselves.
+        result.put( "contentHash",
+                com.wikantik.api.pages.PageSaveHelper.computeContentHash( rawText ) );
+
         // Include markup syntax — "wiki" for legacy .txt pages, "markdown" for .md pages,
         // or "likely-wiki" if heuristic detects wiki syntax in a .md page
         String markupSyntax = page.getAttribute( Page.MARKUP_SYNTAX );
@@ -178,12 +183,61 @@ public class PageResource extends RestServletBase {
         sendJson( response, result );
     }
 
+    /**
+     * D21: maximum permitted page-name length. Names longer than this are rejected with
+     * a 400 before they reach the storage layer (which would otherwise fail with an
+     * absolute filesystem path in the message — see D5). 200 is generous for any
+     * reasonable wiki name and still well under typical filesystem path limits.
+     */
+    static final int MAX_PAGE_NAME_LENGTH = 200;
+
+    /**
+     * D22: maximum permitted page body in bytes (UTF-8). Defaults to 256 KB; can be raised
+     * via the {@code wikantik.api.maxPageBytes} property.
+     */
+    static final String PROP_MAX_PAGE_BYTES = "wikantik.api.maxPageBytes";
+    static final int DEFAULT_MAX_PAGE_BYTES = 256 * 1024;
+
+    /**
+     * D20: opt-in strict-mode property. When {@code true}, PUT requests must supply
+     * {@code expectedVersion}; otherwise the request is rejected with a 400 to avoid
+     * silently overwriting a concurrent update. Defaults to {@code false} for backward
+     * compatibility.
+     */
+    static final String PROP_REQUIRE_EXPECTED_VERSION = "wikantik.api.write.requireExpectedVersion";
+
+    /**
+     * D21: characters never permitted in a wiki page name. Colons, slashes, and
+     * backslashes can resolve onto unintended filesystem paths or cluster ids; control
+     * chars indicate header injection or copy-paste artefacts.
+     */
+    static boolean isInvalidPageName( final String name ) {
+        if ( name == null || name.isEmpty() || name.length() > MAX_PAGE_NAME_LENGTH ) {
+            return true;
+        }
+        for ( int i = 0; i < name.length(); i++ ) {
+            final char c = name.charAt( i );
+            if ( c == ':' || c == '\\' || c == '/' || c < 0x20 || c == 0x7F ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     protected void doPut( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
 
         final String pageName = requirePathParam( request, response );
         if ( pageName == null ) return;
+        // D5/D21: reject pathological page names BEFORE any provider call so the
+        // response is a sanitized 400, not a 500 with a leaked filesystem path.
+        if ( isInvalidPageName( pageName ) ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "Page name is invalid: must be 1-" + MAX_PAGE_NAME_LENGTH
+                            + " characters and must not contain ':', '/', '\\', or control chars." );
+            return;
+        }
         if ( !checkPagePermission( request, response, pageName, "edit" ) ) return;
 
         LOG.debug( "PUT page: {}", pageName );
@@ -192,11 +246,31 @@ public class PageResource extends RestServletBase {
         if ( body == null ) return;
 
         final String content = body.has( "content" ) ? body.get( "content" ).getAsString() : "";
+
+        // D22: enforce the configurable content-size limit before persistence.
+        final int maxBytes = parseMaxPageBytes( getEngine() );
+        final int actualBytes = content.getBytes( java.nio.charset.StandardCharsets.UTF_8 ).length;
+        if ( actualBytes > maxBytes ) {
+            sendError( response, 413,
+                    "Page body is " + actualBytes + " bytes; limit is " + maxBytes
+                            + " bytes (configurable via " + PROP_MAX_PAGE_BYTES + ")." );
+            return;
+        }
+
         final String changeNote = body.has( "changeNote" ) ? body.get( "changeNote" ).getAsString() : null;
         final String author = body.has( "author" ) ? body.get( "author" ).getAsString() : null;
         final int expectedVersion = body.has( "expectedVersion" ) ? body.get( "expectedVersion" ).getAsInt() : -1;
         final String expectedContentHash = body.has( "expectedContentHash" ) ? body.get( "expectedContentHash" ).getAsString() : null;
         final String markupSyntax = body.has( "markupSyntax" ) ? body.get( "markupSyntax" ).getAsString() : null;
+
+        // D20: optional strict mode — refuse a PUT that doesn't carry expectedVersion.
+        if ( expectedVersion < 0 && isExpectedVersionRequired( getEngine() ) ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "expectedVersion is required when " + PROP_REQUIRE_EXPECTED_VERSION
+                            + " is true. Pass the version returned by the prior GET to confirm "
+                            + "you are not silently overwriting a concurrent update." );
+            return;
+        }
 
         // Extract metadata if present
         @SuppressWarnings( "unchecked" )
@@ -246,9 +320,71 @@ public class PageResource extends RestServletBase {
             LOG.debug( "Version conflict saving page {}: {}", pageName, e.getMessage() );
             sendError( response, HttpServletResponse.SC_CONFLICT, e.getMessage() );
         } catch ( final WikiException e ) {
-            LOG.error( "Error saving page {}: {}", pageName, e.getMessage() );
-            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error saving page: " + e.getMessage() );
+            // D5: do not leak the underlying provider message verbatim — a deep IOException
+            // may carry an absolute filesystem path. Log the real cause server-side; return
+            // a sanitized message to the client.
+            LOG.error( "Error saving page {}: {}", pageName, e.getMessage(), e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    sanitizeSaveErrorMessage( e ) );
+        } catch ( final RuntimeException e ) {
+            LOG.error( "Unexpected error saving page {}: {}", pageName, e.getMessage(), e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Error saving page: internal server error." );
         }
+    }
+
+    /**
+     * D5: returns a client-safe error message for a failed page save. Stringifies the
+     * cause for logging callers but never reveals filesystem paths, JDBC URLs, or
+     * stack frames in the response body.
+     */
+    static String sanitizeSaveErrorMessage( final Throwable t ) {
+        // Walk the cause chain looking for a recognisable validation reason; if we
+        // find one, surface a short message. Otherwise fall back to a generic string
+        // that hides absolute paths and class names.
+        Throwable cur = t;
+        while ( cur != null ) {
+            if ( cur instanceof java.io.IOException ) {
+                return "Error saving page: storage I/O failure (see server log).";
+            }
+            cur = cur.getCause();
+        }
+        // Fallback: trust only the top-level message and only if it doesn't look like
+        // a path or class name.
+        final String msg = t.getMessage();
+        if ( msg == null || msg.isEmpty() ) {
+            return "Error saving page: internal error (see server log).";
+        }
+        if ( msg.contains( "/" ) || msg.contains( "\\" ) || msg.contains( "." ) && msg.contains( "Exception" ) ) {
+            return "Error saving page: internal error (see server log).";
+        }
+        return "Error saving page: " + msg;
+    }
+
+    /** D22: read the configured max-bytes property, falling back to the default. */
+    static int parseMaxPageBytes( final Engine engine ) {
+        if ( engine == null ) {
+            return DEFAULT_MAX_PAGE_BYTES;
+        }
+        final String raw = engine.getWikiProperties().getProperty( PROP_MAX_PAGE_BYTES );
+        if ( raw == null || raw.isBlank() ) {
+            return DEFAULT_MAX_PAGE_BYTES;
+        }
+        try {
+            final int v = Integer.parseInt( raw.trim() );
+            return v > 0 ? v : DEFAULT_MAX_PAGE_BYTES;
+        } catch ( final NumberFormatException nfe ) {
+            return DEFAULT_MAX_PAGE_BYTES;
+        }
+    }
+
+    /** D20: read the strict-mode property; defaults to false. */
+    static boolean isExpectedVersionRequired( final Engine engine ) {
+        if ( engine == null ) {
+            return false;
+        }
+        return Boolean.parseBoolean(
+                engine.getWikiProperties().getProperty( PROP_REQUIRE_EXPECTED_VERSION, "false" ).trim() );
     }
 
     @Override
@@ -348,8 +484,17 @@ public class PageResource extends RestServletBase {
 
         try {
             final PageSaveHelper helper = new PageSaveHelper( engine );
+            // D7: the PageSaveHelper builds a headless context so the author would
+            // otherwise default to "Guest". Resolve it from the authenticated session
+            // the same way doPut does.
+            String effectiveAuthor = null;
+            final Session wikiSession = Wiki.session().find( engine, request );
+            if ( wikiSession.isAuthenticated() ) {
+                effectiveAuthor = wikiSession.getUserPrincipal().getName();
+            }
             final SaveOptions options = SaveOptions.builder()
                     .changeNote( "Metadata " + action + " via REST PATCH" )
+                    .author( effectiveAuthor )
                     .build();
             final Page saved = helper.saveText( pageName, newText, options );
 
@@ -357,6 +502,7 @@ public class PageResource extends RestServletBase {
             result.put( "success", true );
             result.put( "name", pageName );
             result.put( "version", Math.max( saved.getVersion(), 1 ) );
+            result.put( "author", saved.getAuthor() ); // D7
             result.put( "metadata", newMetadata );
 
             sendJson( response, result );

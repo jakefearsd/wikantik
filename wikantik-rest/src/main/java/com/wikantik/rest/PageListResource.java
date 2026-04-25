@@ -59,6 +59,9 @@ public class PageListResource extends RestServletBase {
 
     private static final int DEFAULT_LIMIT = 100;
 
+    /** D8: cap on {@code limit} to keep responses bounded; requests above this are rejected. */
+    static final int MAX_LIMIT = 1_000;
+
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
@@ -68,6 +71,25 @@ public class PageListResource extends RestServletBase {
         final String prefix = request.getParameter( "prefix" );
         final int limit = parseIntParam( request, "limit", DEFAULT_LIMIT );
         final int offset = parseIntParam( request, "offset", 0 );
+
+        // D8: previously the negative limit (-1) propagated all the way to Stream.limit(-1)
+        // which throws IllegalArgumentException — surfacing as a 500 with a stack trace.
+        // Validate explicitly and return a 400 with a helpful message.
+        if ( limit < 0 ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "limit must be >= 0 (got " + limit + ")" );
+            return;
+        }
+        if ( limit > MAX_LIMIT ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "limit must be <= " + MAX_LIMIT + " (got " + limit + ")" );
+            return;
+        }
+        if ( offset < 0 ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "offset must be >= 0 (got " + offset + ")" );
+            return;
+        }
 
         final Engine engine = getEngine();
         final PageManager pm = engine.getManager( PageManager.class );

@@ -78,7 +78,11 @@ class DiffResourceTest {
         assertEquals( "RestDiffPage", obj.get( "page" ).getAsString() );
         assertEquals( 1, obj.get( "from" ).getAsInt() );
         assertEquals( 2, obj.get( "to" ).getAsInt() );
-        assertTrue( obj.has( "diff" ) );
+        // D31: default response is now structured (added/removed lists). The legacy
+        // HTML diff is still available via ?format=html.
+        assertEquals( "structured", obj.get( "format" ).getAsString() );
+        assertTrue( obj.has( "added" ) );
+        assertTrue( obj.has( "removed" ) );
     }
 
     @Test

@@ -24,11 +24,9 @@ public class KnowledgeGraphResource extends RestServletBase {
                           final HttpServletResponse response ) throws IOException {
         final Engine engine = getEngine();
         final Session session = Wiki.session().find( engine, request );
-        if ( session == null || session.isAnonymous() ) {
-            sendError( response, HttpServletResponse.SC_UNAUTHORIZED,
-                       "Authentication required" );
-            return;
-        }
+        // D27: knowledge graph reads are now public to match the rest of /api/structure/*.
+        // The graph contains only canonical ids and relationship types — no page bodies
+        // or ACL-restricted content — so anonymous readers and agents can use it freely.
         try {
             final KnowledgeGraphService svc =
                     engine.getManager( KnowledgeGraphService.class );

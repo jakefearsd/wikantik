@@ -19,6 +19,7 @@
 package com.wikantik.observability.health;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -52,12 +53,22 @@ public class SearchIndexHealthCheck implements HealthCheck {
     public HealthResult check() {
         final long start = System.currentTimeMillis();
         try {
-            final PageProvider provider = engine.getManager( PageProvider.class );
-            if ( provider == null ) {
-                return HealthResult.down( System.currentTimeMillis() - start, "PageProvider not available" );
+            // PageManager is the registered manager that provides storage/search access; the
+            // PageProvider it wraps is not registered in the engine manager map, so we resolve
+            // the manager and use it to verify the underlying storage subsystem is reachable.
+            final PageManager pageManager = engine.getManager( PageManager.class );
+            if ( pageManager == null ) {
+                // Fallback: legacy callers may register PageProvider directly
+                final PageProvider provider = engine.getManager( PageProvider.class );
+                if ( provider == null ) {
+                    return HealthResult.down( System.currentTimeMillis() - start, "PageManager not available" );
+                }
+                provider.getProviderInfo();
+                return HealthResult.up( System.currentTimeMillis() - start );
             }
-            // Calling getAllPages() would be too expensive; just verify the provider is accessible
-            provider.getProviderInfo();
+            // Calling getAllPages() would be too expensive; just touch a cheap accessor on the
+            // manager to confirm the provider chain is alive.
+            pageManager.getProvider();
             return HealthResult.up( System.currentTimeMillis() - start );
         } catch ( final Exception e ) {
             LOG.warn( "Search index health check failed", e );

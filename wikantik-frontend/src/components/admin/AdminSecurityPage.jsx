@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../api/client';
+import AdminPage from './AdminPage';
 import GroupFormModal from './GroupFormModal';
 import PolicyGrantFormModal from './PolicyGrantFormModal';
 import '../../styles/admin.css';
@@ -118,11 +119,8 @@ function GroupsSection() {
     return sortAsc ? ' \u25B2' : ' \u25BC';
   };
 
-  if (loading) return <div className="admin-loading">Loading groups…</div>;
-  if (error) return <div className="error-banner">{error}</div>;
-
   return (
-    <>
+    <AdminPage loading={loading} error={error} loadingLabel="Loading groups…" className="">
       {message && (
         <div className={`admin-message ${message.type}`}>{message.text}</div>
       )}
@@ -207,7 +205,7 @@ function GroupsSection() {
           </div>
         </div>
       )}
-    </>
+    </AdminPage>
   );
 }
 
@@ -267,11 +265,8 @@ function GrantsSection() {
   const isAllPermission = (grant) =>
     grant.permissionType === 'all' || grant.actions === '*';
 
-  if (loading) return <div className="admin-loading">Loading policy grants…</div>;
-  if (error) return <div className="error-banner">{error}</div>;
-
   return (
-    <>
+    <AdminPage loading={loading} error={error} loadingLabel="Loading policy grants…" className="">
       {message && (
         <div className={`admin-message ${message.type}`}>{message.text}</div>
       )}
@@ -376,6 +371,6 @@ function GrantsSection() {
           </div>
         </div>
       )}
-    </>
+    </AdminPage>
   );
 }

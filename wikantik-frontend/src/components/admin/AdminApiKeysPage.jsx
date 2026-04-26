@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../api/client';
+import AdminPage from './AdminPage';
 import '../../styles/admin.css';
 
 const SCOPE_OPTIONS = [
@@ -46,11 +47,8 @@ export default function AdminApiKeysPage() {
     await loadKeys();
   };
 
-  if (loading) return <div className="admin-loading">Loading API keys…</div>;
-  if (error) return <div className="error-banner">{error}</div>;
-
   return (
-    <div className="admin-users page-enter">
+    <AdminPage loading={loading} error={error} loadingLabel="Loading API keys…">
       <div className="admin-toolbar">
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
           <input
@@ -147,7 +145,7 @@ export default function AdminApiKeysPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminPage>
   );
 }
 

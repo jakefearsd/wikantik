@@ -67,8 +67,10 @@ public record EntityExtractorConfig(
     public static final String PREFIX = "wikantik.knowledge.extractor.";
 
     /** Hard cap on {@code concurrency}; operator-friendly guard-rail against
-     *  accidentally saturating the inference backend. */
-    public static final int CONCURRENCY_MAX = 4;
+     *  accidentally saturating the inference backend. Loosened from 4 to 10
+     *  to support small-model experiments where the GPU can comfortably
+     *  serve more in-flight requests than a 4B model allows. */
+    public static final int CONCURRENCY_MAX = 10;
 
     public boolean enabled() {
         return !BACKEND_DISABLED.equalsIgnoreCase( backend );

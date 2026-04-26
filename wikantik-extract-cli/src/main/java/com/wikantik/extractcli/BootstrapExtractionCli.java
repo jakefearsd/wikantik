@@ -220,7 +220,7 @@ public final class BootstrapExtractionCli {
               --anthropic-key-env <VAR>            (Claude only)
 
             Run tuning:
-              --concurrency <1..4>                 (default 2; silently clamped)
+              --concurrency <1..10>                (default 2; silently clamped)
               --confidence-threshold <0.0..1.0>    (default 0.6)
               --max-existing-nodes <N>             (default 200)
               --timeout-ms <ms>                    (default 120000)

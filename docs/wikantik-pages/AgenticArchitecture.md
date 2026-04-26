@@ -1,254 +1,197 @@
 ---
-canonical_id: 01KQ0P44K0XHNR75XFQDN26ZM7
 title: Agentic Architecture
 type: article
+cluster: agentic-ai
+status: active
+date: '2026-04-25'
 tags:
 - agent
-- must
-- tool
-summary: From Reactive Tools to Proactive Agents To appreciate agentic architecture,
-  one must first fully internalize what it is not.
-auto-generated: true
+- architecture
+- llm
+- autonomous-systems
+- agentic-design
+summary: Higher-level architectural patterns for agentic systems — LLM-as-router,
+  pipeline-with-agent-supervisor, parallel agents, hybrid graph-and-agent —
+  and the trade-offs each makes.
+related:
+- AgenticWorkflowDesign
+- AiAgentArchitectures
+- AgentLoops
+- AgentPlanning
+- ToolUse
+hubs:
+- AgenticAi Hub
 ---
-# Agentic Software Architecture: Building Autonomous Systems
+# Agentic Architecture
 
-For those of us who have spent enough time wrestling with the limitations of prompt-response paradigms, the concept of "agentic architecture" feels less like an evolution and more like a necessary paradigm collapse. We are moving beyond the era of the sophisticated autocomplete and into the realm of the digital worker—systems capable of receiving a high-level objective, decomposing it into actionable sub-goals, executing those steps across heterogeneous tools, self-correcting upon failure, and ultimately delivering an outcome without constant human supervision.
+Where [AgenticWorkflowDesign] focuses on the loop and [AiAgentArchitectures] on the named patterns (ReAct, Plan-and-Execute, etc.), this page is about how agentic components fit into a larger system. Most production deployments aren't pure agents — they're traditional services with agents embedded at specific points.
 
-This tutorial is not for the curious novice; it is engineered for the seasoned researcher, the principal architect, and the ML engineer who understands that the most significant bottleneck in modern AI deployment is not model capability, but *systemic orchestration*. We will dissect the theoretical underpinnings, the necessary architectural components, the operational patterns, and the production-grade challenges inherent in building truly autonomous, goal-directed software systems.
+## The composition spectrum
 
----
+Three positions a system can take on agency:
 
-## I. From Reactive Tools to Proactive Agents
+| Position | Example | When it fits |
+|---|---|---|
+| **Tool of an agent** | Application is a tool the agent calls. Agent is in charge. | Open-ended assistant tasks, research helpers |
+| **Pipeline with agent steps** | Application is in charge; agent handles certain steps where flexibility is needed | Most production usage; structured workflows with one or two agentic stages |
+| **Agent of a tool** | Application is the system; agent is invoked when it needs help (e.g., from a help button). | Mostly traditional with optional agent assistance |
 
-To appreciate agentic architecture, one must first fully internalize what it is *not*.
+Most production systems are in the middle: a structured workflow where one or two steps need an agent. Pure agent-in-charge architectures are rare in production because they're hard to bound, hard to evaluate, and hard to make compliant.
 
-### A. The Limitations of Traditional LLM Wrappers (The "Tool-Calling" Fallacy)
+## Pattern: LLM-as-Router
 
-Most initial implementations of AI integration treat the LLM as a sophisticated function caller. The workflow is linear:
+An LLM examines incoming requests and routes them to specialised handlers (which may themselves be agents, deterministic services, or other LLMs).
 
-$$\text{Input Prompt} \xrightarrow{\text{LLM Inference}} \text{Structured Output (JSON/Tool Call)} \xrightarrow{\text{External Execution}} \text{Result}$$
-
-In this model, the LLM acts as a highly intelligent router. It interprets the user's intent, decides *which* function to call (e.g., `search_database(query)`), and formats the arguments. The process halts, waits for the external system to return a result, and then the LLM might summarize it.
-
-The critical flaw, which seasoned researchers must recognize, is that **the LLM has no inherent mechanism for iterative self-correction or long-horizon planning beyond the immediate context window.** If the initial tool call fails, or if the result requires a *second, unanticipated* tool call, the system often stalls or requires manual intervention. This is a *reactive* loop, not a *proactive* one.
-
-### B. Defining the Agentic Paradigm
-
-Agentic [software architecture](SoftwareArchitecture), conversely, models the system after cognitive agents found in AI theory and even biological systems. An agent is defined by its ability to operate within an environment, perceive its state, reason about its goals, and execute actions to minimize the distance between its current state and its desired goal state.
-
-As noted in the research context, the shift is from "answering" to "pursuing outcomes" [1].
-
-The core operational loop is not linear; it is **recursive and adaptive**:
-
-$$\text{Goal} \rightarrow \text{Plan} \rightarrow \text{Act} \rightarrow \text{Observe} \rightarrow \text{Reflect} \rightarrow (\text{Loop}) \rightarrow \text{Goal Achieved}$$
-
-This requires the system to manage state, maintain a working hypothesis, and critically, to *know when it doesn't know enough*—a metacognitive capability that must be engineered, not merely prompted.
-
----
-
-## II. Theoretical Foundations
-
-Building an agent is not simply connecting an LLM to an API wrapper; it requires implementing a robust cognitive loop that mimics high-level reasoning processes. We must dissect the necessary components into theoretical modules.
-
-### A. Perception and State Representation (The Sensory Input)
-
-In a traditional application, the state is explicit: a database record, a variable in memory. In an agentic system, the state is *emergent* and *noisy*.
-
-1.  **Intent Interpretation (The Goal State):** This is the initial, high-level directive. The agent must interpret ambiguous human language into a formal, machine-readable objective function. This goes beyond simple keyword extraction; it requires understanding *user intent* [4].
-2.  **Environmental State Vector:** This is the agent's current understanding of the world. It is a composite vector derived from:
-    *   **Initial Context:** The prompt.
-    *   **Observed History:** The sequence of actions taken and the results received (the execution trace).
-    *   **External Data:** Real-time API responses, database queries, etc.
-3.  **The Challenge of Grounding:** The agent must constantly ground its abstract reasoning in concrete, observable data. If the plan suggests "check the quarterly sales report," the agent must know *where* that report lives, *what format* it is in (PDF, CSV, API endpoint), and *how* to parse it. Failure to ground leads to hallucinated actions.
-
-### B. Memory Architectures (The Cognitive Backbone)
-
-Memory is arguably the most complex and least standardized component. An agent cannot operate with only the context window; it needs persistent, structured recall.
-
-1.  **Short-Term Memory (STM):** This is the active context window. It dictates the immediate scope of the current reasoning step. Its size is a hard constraint, forcing the agent to be ruthlessly efficient with token usage.
-2.  **Long-Term Memory (LTM) - Episodic Recall:** This stores the *experience* of past interactions. It is not just a log; it must be indexed for semantic retrieval. When the agent encounters a novel problem, it must query its LTM: "Have I solved a problem *like* this before? What sequence of actions worked?"
-    *   **Implementation Detail:** This necessitates sophisticated **[Vector Databases](VectorDatabases)** coupled with advanced embedding models. The retrieval process must be context-aware, not just keyword-matching.
-3.  **Semantic/Procedural Memory:** This stores generalized knowledge—the *rules* of the environment. Examples include: "To book a flight, you must first check availability via the `flight_api`," or "The user prefers concise, bulleted summaries." This memory guides the *planning* phase, acting as a set of hard-coded, learned constraints.
-
-### C. Planning and Reasoning Engines (The Executive Function)
-
-This is where the agent moves beyond simple tool use. Planning involves transforming a high-level goal into a verifiable, ordered sequence of sub-tasks.
-
-1.  **Decomposition (Task Graph Generation):** The agent must decompose the goal into a Directed Acyclic Graph (DAG) of necessary steps.
-    *   *Example:* Goal: "Analyze Q3 performance and draft a memo."
-    *   *Decomposition:* $\text{Goal} \rightarrow \{\text{Step 1: Fetch Data}\} \rightarrow \{\text{Step 2: Analyze Data}\} \rightarrow \{\text{Step 3: Draft Memo}\}$.
-2.  **Reasoning Frameworks (The "How"):** Modern agents leverage structured reasoning patterns to guide the LLM's internal monologue:
-    *   **Chain-of-Thought (CoT):** The baseline. Asking the model to "think step-by-step."
-    *   **Tree-of-Thought (ToT):** The significant upgrade. Instead of a single path, the agent explores multiple potential reasoning branches simultaneously, evaluating the promise of each path before committing. This mitigates the risk of premature commitment to a suboptimal initial assumption.
-    *   **Graph-of-Thought (GoT):** The most advanced. It models the reasoning process itself as a graph, allowing the agent to backtrack and merge insights from disparate, parallel lines of reasoning.
-
----
-
-## III. The Control Loop
-
-The theoretical components must be bound together by a robust, iterative control loop. This loop is the heart of the agent and is where most production failures occur.
-
-### A. The Action-Observation Cycle (The Core Iteration)
-
-The agent operates in discrete cycles, each cycle representing a single "thought-action-observation" triplet.
-
-1.  **Thought (Internal Monologue):** The agent reasons about the current state, compares it to the goal, and determines the next necessary step. *This is the LLM's primary output.*
-2.  **Action (External Call):** Based on the thought, the agent selects a tool/function and executes it. This action must be atomic and deterministic.
-3.  **Observation (Feedback):** The environment returns the result of the action. This observation is *critical* because it is the only ground truth the agent receives.
-
-**Pseudocode Illustration of the Loop:**
-
-```pseudocode
-FUNCTION Agent_Loop(Goal, Initial_State):
-    Current_State = Initial_State
-    History = []
-    MAX_ITERATIONS = 10
-
-    FOR i IN 1 TO MAX_ITERATIONS:
-        // 1. Thought: Plan the next step based on history and goal
-        Thought = LLM_Reason(Goal, Current_State, History)
-        
-        IF Thought.Decision == STOP_SUCCESS:
-            RETURN Success(Thought.Final_Output)
-        
-        IF Thought.Decision == STOP_FAILURE:
-            RETURN Failure(Thought.Error_Reason)
-
-        // 2. Action: Select and execute the tool
-        Tool_Call = Thought.Next_Action
-        Observation = Execute_Tool(Tool_Call, Current_State)
-        
-        // 3. Observation & Update State
-        Current_State = Update_State(Current_State, Observation)
-        History.Append({Thought, Tool_Call, Observation})
-        
-    RETURN Timeout_Error("Exceeded max iterations without reaching goal.")
+```
+User query → Classifier LLM → 
+  ├─ FAQ handler (deterministic, fast)
+  ├─ Account lookup (RAG agent)
+  ├─ Refund request (multi-step agent with approval)
+  └─ Escalate to human
 ```
 
-### B. Handling Asynchrony and State Management
+Why it works: most user requests fall into a small number of categories. A cheap router classifies once; the right specialist handles the rest. Saves cost (specialists are cheaper / faster than one all-purpose agent) and improves quality (specialists are tuned for their case).
 
-For enterprise-grade systems, the loop cannot be synchronous. Waiting for a complex data pipeline, an external microservice, or a human review introduces latency that breaks the simple synchronous loop model.
+Failure modes:
+- Misclassification cascade. Wrong category routes the request to a handler that can't help. Defence: confidence threshold; on low confidence, route to default or human.
+- Drift. The set of handlers grows; the router doesn't update. Periodic eval of routing quality.
 
-**Asynchrony is not a feature; it is a prerequisite for scale.**
+## Pattern: Pipeline with embedded agent
 
-The architecture must transition from a single, monolithic execution thread to a **State Machine Orchestrator**.
+A traditional pipeline (validation → enrichment → processing → response) where one stage uses an agent:
 
-1.  **State Persistence:** The entire state (Goal, History, Current Context, Next Expected Action) must be checkpointed to a durable store (e.g., Redis, dedicated state database) after *every* successful cycle.
-2.  **Event-Driven Triggers:** Instead of the agent calling the next step, the system should listen for *events*.
-    *   *Example:* Agent initiates `DataFetchJob(ID=123)`. The orchestrator registers a listener. When the external ETL pipeline completes, it emits an `EVENT: DataFetchJob_123_Complete` message. The agent's listening service consumes this event and triggers the next `Thought` cycle.
+```
+Request → Validate → Enrich (RAG agent) → Generate response (LLM) → Audit log → Send
+```
 
-This decoupling (as highlighted by the necessity of asynchronous patterns in robust architecture [5]) allows the agent to manage long-running, non-deterministic processes without timing out or losing context.
+The validate, audit, and send stages are deterministic. The enrich and generate stages are agentic. The pipeline structure constrains the agent's scope — it doesn't have to decide when to terminate; the pipeline does.
 
----
+This is the dominant pattern for chatbots, support agents, and most "smart" features. The agent is doing the open-ended work; the pipeline ensures the user gets a response in bounded time with bounded cost.
 
-## IV. Architectural Patterns for Robustness
+## Pattern: Parallel agents with synthesiser
 
-To move from a functional prototype to a production-grade system, the architecture must incorporate sophisticated patterns to manage uncertainty and complexity.
+For tasks where multiple perspectives or modalities help, run agents in parallel; synthesise.
 
-### A. Multi-Agent Systems (MAS)
+```
+Question → 
+  ├─ Search-the-web agent
+  ├─ Search-internal-docs agent  
+  ├─ Search-recent-conversations agent
+  → Synthesiser LLM → Final answer
+```
 
-The most powerful evolution of agentic design is recognizing that no single LLM can encapsulate all necessary expertise. MAS treats the overall system as a collaboration of specialized, interacting agents.
+Wins on questions where the right answer is a combination of sources. Costs more (multiple agents); is fast in wall-clock if parallelised.
 
-1.  **Role Definition:** Each agent is assigned a specific, narrow expertise and a defined set of tools.
-    *   *Example:* `Data_Extractor_Agent` (Tools: Regex, CSV Parser). `Legal_Review_Agent` (Tools: Legal Corpus Search, Citation Generator). `Synthesis_Agent` (Tools: Summarizer, Tone Adjuster).
-2.  **Coordination Mechanism:** A central **Orchestrator Agent** (or a dedicated Mediator component) is required. This agent does not perform the work; it manages the *conversation* between the specialized agents.
-    *   *Process:* Goal $\rightarrow$ Orchestrator $\rightarrow$ Assign Task to Agent A $\rightarrow$ Agent A executes $\rightarrow$ Agent A reports findings $\rightarrow$ Orchestrator synthesizes findings and assigns next task to Agent B $\rightarrow$ ... $\rightarrow$ Final Synthesis.
-3.  **Conflict Resolution:** A major challenge in MAS is conflicting outputs. The architecture must include a consensus mechanism—a meta-agent or a weighted voting system—to resolve disagreements between specialized agents.
+The synthesiser is critical. A weak synthesiser produces inconsistent or contradictory output; a good one weighs the sources and surfaces conflict. Tune the synthesiser prompt heavily; A/B against simpler "use only source N" baselines.
 
-### B. Self-Correction and Reflection Loops (The Meta-Cognition)
+## Pattern: Agent supervisor over deterministic workers
 
-The difference between a basic agent and a truly autonomous one lies in its ability to critique its own work. This requires explicit reflection steps.
+Inverse of the embedded-agent pattern. A long-running agent decides what to do next; specialised tools or services execute deterministically.
 
-1.  **Critique Module:** After an action sequence, the agent must pause and invoke a dedicated "Critic" LLM prompt. This prompt forces the model to adopt a skeptical persona.
-    *   *Prompt Directive:* "Review the preceding steps. Identify any assumptions made, any potential points of failure, or any areas where the initial goal might have been misinterpreted. Provide a list of 3 potential risks."
-2.  **Error Taxonomy Mapping:** The system must map observed failures to a taxonomy of errors:
-    *   *Type 1: Tool Failure:* API returned 404. (Action: Retry with different parameters).
-    *   *Type 2: Data Inconsistency:* Data retrieved contradicts prior knowledge. (Action: Flag for human review, or query a secondary source).
-    *   *Type 3: Reasoning Failure:* The plan logically leads to an impossibility. (Action: Trigger a full backtrack to the last stable state and invoke ToT).
+```
+                    ┌──────────┐
+goal ──────────────▶│  Agent   │
+                    │ (planner │
+                    │ + state) │
+                    └────┬─────┘
+                         ▼
+        dispatches to one of:
+        ├─ DB query tool
+        ├─ HTTP fetch tool
+        ├─ Email send tool
+        └─ Calendar tool
+```
 
-### C. Managing Contextual Correctness and Drift (AgentOps)
+The agent has the autonomy; the tools are just deterministic capabilities. Each tool has a narrow contract; the agent composes them.
 
-This is the most critical area for production deployment, as noted by the concept of AgentOps [8].
+This is ReAct architecturally. Productionising it requires:
 
-In traditional software, correctness is binary: the compiled code either runs or it throws a predictable exception. In agentic systems, correctness is **contextual and probabilistic**.
+- **Idempotency on tools** — agents retry; non-idempotent tools cause double-billing.
+- **Permission scoping** — what tools can the agent invoke; for what scopes.
+- **Cost / step caps** — bound runaway loops.
+- **Auditability** — every decision logged.
 
-1.  **Drift Detection:** Agents can "drift" silently. They might successfully complete a task that *looks* correct but fundamentally misses the user's underlying intent because the initial prompt was ambiguous.
-    *   **Mitigation:** Implement **Guardrails** at the output layer. These guardrails are not just input validators; they are semantic validators that check the final output against the *original intent vector* and a set of predefined constraints (e.g., "The final memo must not contain any financial projections without a corresponding source citation").
-2.  **Observability (The Black Box Problem):** Because the path to the answer is non-linear and involves multiple LLM calls, debugging is a nightmare.
-    *   **Solution:** Every single input, every prompt, every tool call, and every raw output must be logged immutably and indexed against the session ID. This creates a complete, auditable **Execution Trace Graph**. When an error occurs, the engineer must be able to replay the exact sequence of thoughts and observations that led to the failure.
+## Pattern: Long-running agent with checkpoints
 
----
+For tasks lasting minutes to hours: research, complex code generation, multi-step business processes. The agent runs as a graph (LangGraph or similar); state is checkpointed at every transition; human can intervene.
 
-## V. Tooling and Frameworks
+```
+Start ─▶ Research ─▶ Plan ─▶ Execute ─▶ Review ─▶ Submit
+   │       │          │        │         │
+   ▼       ▼          ▼        ▼         ▼
+   checkpoint table — resumable, inspectable, interruptible
+```
 
-While the theory is rich, the practice requires mastery of the underlying tooling. We must discuss the practical implementation layers.
+Difference from embedded-agent pattern: the agent is the system, not a step inside one. Production examples: code-generation agents (Devin and similar), research agents, customer-support agents handling complex multi-turn cases.
 
-### A. The Tool Definition Layer (The API Contract)
+Operational requirements:
 
-The agent's ability to act is entirely constrained by the tools it knows about. These tools must be defined with extreme rigor.
+- **Durable state** — the checkpoint table is the source of truth; can survive crashes and restarts.
+- **Human-in-the-loop hooks** — at every transition, the agent can pause and ask.
+- **Time / cost budgets** — bounded; alert before exceeding.
+- **Replay capability** — for debugging, you can re-run a checkpoint sequence.
 
-1.  **Schema Enforcement:** Tools must be defined using strict OpenAPI/JSON Schema standards. The agent's reasoning engine must be prompted not just to *use* the tool, but to *validate* the parameters against the schema *before* calling it.
-2.  **Tool Documentation as Prompt Context:** The documentation for every tool must be injected into the agent's context window, but it must be presented in a highly structured, actionable format. Simply pasting the docstring is insufficient; the prompt must guide the LLM to extract the *purpose*, the *required inputs*, and the *expected output format* from the documentation itself.
+## Where to draw the autonomy line
 
-### B. Orchestration Frameworks (LangChain, AutoGen, etc.)
+For each decision the system makes, ask: deterministic logic, agent decision, or human approval?
 
-Frameworks like LangChain and AutoGen abstract away much of the boilerplate, but an expert must understand *how* they implement the underlying theory, rather than just using their high-level chains.
+| Decision class | Best mechanism |
+|---|---|
+| Data validation against fixed schema | Deterministic |
+| Routing user request to category | Agent (LLM router) |
+| Selecting which tool to call | Agent |
+| Executing a known operation | Deterministic |
+| Composing a response | Agent |
+| Triggering a refund > $threshold | Human approval |
+| Modifying production data | Deterministic + audit |
+| Acknowledging an alert | Agent or human depending on severity |
 
-*   **AutoGen's Strength:** AutoGen excels at modeling the *conversation* between multiple agents, making it inherently suited for MAS research. It formalizes the role-playing aspect of agent interaction.
-*   **LangChain's Strength:** Often provides more modularity for chaining specific components (Retrievers, Parsers, Chains) into a defined sequence, making it excellent for building complex, single-agent workflows with explicit state management.
+The pattern: agents handle ambiguous decisions; deterministic code handles unambiguous ones; humans handle decisions with stakes you wouldn't put in code.
 
-**Expert Caveat:** Do not treat these frameworks as black boxes. Understand that they are merely sophisticated *scaffolding* for the control loop. The intelligence—the logic for when to backtrack, how to weigh conflicting observations, and how to define the failure taxonomy—must still be engineered by the developer, often requiring custom Python logic injected *around* the framework calls.
+This decomposition is the work. Draw the boundaries badly (agent making decisions that should be deterministic, deterministic code where flexibility is needed) and the system disappoints.
 
-### C. Optimization for Latency and Cost
+## The cost equation
 
-Autonomy is expensive. Every thought, every retrieval, and every tool call incurs latency and cost.
+Agentic architectures cost more than their non-agentic equivalents:
 
-1.  **Cascading Reasoning:** Implement a tiered reasoning approach:
-    *   **Tier 1 (Fast/Cheap):** Use a smaller, highly optimized model (e.g., GPT-3.5 Turbo, or a fine-tuned open-source model) for initial parsing, tool selection, and simple state updates.
-    *   **Tier 2 (Slow/Expensive):** Reserve the largest, most capable model (e.g., GPT-4o, Claude Opus) only for the **Reflection/Critique** step or the final **Synthesis** step, where deep, complex reasoning is absolutely necessary.
-2.  **[Caching Strategies](CachingStrategies):** Aggressively cache results for idempotent operations. If the agent needs to know "What is the population of Paris?" and the system has already executed that query in the current session, the agent must be programmed to check the cache *before* invoking the tool.
+- **Inference cost.** Every agent step is an LLM call. 10 steps × $0.01 per step = $0.10 per task; multiply by traffic.
+- **Latency.** LLM calls take seconds. Multi-step agents take tens of seconds. User-facing UX needs to handle this — streaming responses, progress indicators, async patterns.
+- **Operational cost.** Observability, evaluation, compliance — agentic systems need more of all three than traditional services.
 
----
+The savings (relative to fully-coded equivalents) come from:
 
-## VI. Edge Cases, Failure Modes, and Ethical Guardrails
+- Less code to write for handling many input variations.
+- Faster iteration on behaviour (prompt change vs code change).
+- Capabilities that genuinely couldn't be coded (open-ended reasoning).
 
-A comprehensive tutorial must dedicate significant space to what goes wrong. The failure modes of autonomous systems are fundamentally different from traditional software bugs.
+For tasks where the variation is small and the logic is simple, agentic architecture is overkill. For tasks where the variation is large or the logic is genuinely hard to specify, agents earn their keep.
 
-### A. The Hallucination Spectrum
+## Anti-patterns
 
-In traditional software, a bug is a deviation from expected logic. In agentic systems, hallucination manifests in several ways:
+- **Agent for deterministic tasks.** "Use an LLM to validate this email format." Regex is faster, more reliable, free.
+- **Multi-agent where single agent suffices.** "We'll have a researcher agent, a writer agent, and a reviewer agent." Often the writer agent could do all three with a single prompt.
+- **Agent without bounds.** No step cap, no cost cap, no termination condition. Runaway loops are a matter of time.
+- **Agent without observability.** When it goes wrong (it will), you have no way to debug.
+- **Agent on top of unreliable tools.** The agent retries; the tools cascade-fail; the agent retries more. Make tools robust before depending on them in agent context.
+- **Skipping the deterministic baseline.** "Will the agent be better than a coded solution?" — measure. Often the coded solution is good enough and 10× cheaper.
 
-1.  **Factual Hallucination:** Making up data points or sources. (Mitigated by grounding to retrieved/provided context).
-2.  **Procedural Hallucination:** Inventing a tool or API endpoint that does not exist. (Mitigated by strict schema validation and tool introspection).
-3.  **Intentional Hallucination (Goal Misalignment):** The agent successfully executes a plan, but the plan solves a problem that is *related* to the goal, but not the actual goal. This is the most dangerous form, as the system reports success based on a flawed premise.
+## A pragmatic decision tree
 
-### B. The Problem of Non-Determinism in Testing
+For a new feature where agentic might fit:
 
-How do you write a unit test for an agent? You cannot write a test for a single output. You must test the *process*.
+1. **Can this be solved with a query / template / coded logic?** Try first; baseline.
+2. **Can it be solved with a single LLM call (no tools)?** Try second.
+3. **Does it need RAG?** Add retrieval; still single-LLM-call.
+4. **Does it need tool use?** Add tool use; single agent.
+5. **Does it need multi-step planning?** Add a graph orchestrator.
+6. **Does it need multiple specialists?** Add supervisor / parallel agents.
 
-1.  **State-Based Testing:** Tests must be defined by the required sequence of states. Test Case 1: Start State $\rightarrow$ Action A $\rightarrow$ Expected Intermediate State $S_1$. Test Case 2: From $S_1 \rightarrow$ Action B $\rightarrow$ Expected Final State $S_2$.
-2.  **Adversarial Testing:** Actively try to break the agent by feeding it ambiguous, contradictory, or incomplete information. This forces the agent to exercise its error handling and reflection mechanisms under duress.
+Stop at the simplest level that works. Don't skip levels.
 
-### C. Ethical and Safety Guardrails (The Human-in-the-Loop Spectrum)
+## Further reading
 
-Autonomy implies risk. The architecture must support graduated levels of human oversight.
-
-1.  **Human-in-the-Loop (HITL):** The agent pauses at critical decision points (e.g., "Before sending this email, please review the draft.") This is the safest default.
-2.  **Human-on-the-Loop (HOTL):** The agent runs autonomously but streams its entire execution trace to a dashboard, allowing a human operator to monitor the *process* in real-time, ready to intervene if the drift is detected.
-3.  **Human-Out-of-the-Loop (HOOTL):** Full autonomy. This is reserved only for tasks where the risk profile has been mathematically modeled and accepted (e.g., optimizing resource allocation within a known budget constraint).
-
----
-
-## VII. Conclusion
-
-We have traversed the landscape from simple prompt-response mechanisms to complex, multi-agent, self-correcting systems. The consensus among leading researchers is clear: the future of enterprise AI is not about bigger models, but about **smarter, more resilient orchestration**.
-
-The transition from *capability* (what the LLM *can* generate) to *reliability* (what the system *will* do under pressure) is the defining engineering challenge of the decade.
-
-For the expert researcher, the focus must shift from optimizing the prompt to optimizing the **Control Graph**. This involves:
-
-1.  **Formalizing the State Transition System:** Treating the entire agent workflow as a formal state machine where transitions are governed by probabilistic reasoning, not deterministic code paths.
-2.  **Developing Universal Observability Standards:** Creating industry standards for logging agentic execution traces to allow for cross-platform debugging and auditing.
-3.  **Integrating Causal Inference:** Moving beyond correlation (what the LLM *thinks* happened) to true causal modeling (what *must* happen next to achieve the goal).
-
-Building autonomous systems is less about writing code and more about designing a reliable, self-aware cognitive architecture. It is a monumental undertaking, but one that promises to redefine the very concept of software utility. Now, if you'll excuse me, I have a few architectural diagrams to draw that will require significantly more coffee than is ethically advisable.
+- [AgenticWorkflowDesign] — the per-loop engineering
+- [AiAgentArchitectures] — named architectural patterns
+- [AgentLoops] — failure modes
+- [AgentPlanning] — plan representations
+- [ToolUse] — tool design

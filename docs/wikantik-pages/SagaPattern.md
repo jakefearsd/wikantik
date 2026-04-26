@@ -1,239 +1,239 @@
 ---
-canonical_id: 01KQ0P44W13PXEMM7YZW7PJTG1
 title: Saga Pattern
 type: article
+cluster: software-architecture
+status: active
+date: '2026-04-25'
 tags:
-- servic
 - saga
-- state
-summary: This document is not a beginner's guide.
-auto-generated: true
+- distributed-transactions
+- microservices
+- compensating-transactions
+- event-driven
+summary: Saga pattern for distributed transactions across microservices —
+  choreography vs orchestration, when each pays, and the failure modes
+  unique to compensating-transaction designs.
+related:
+- EventDrivenArchitecture
+- MicroservicesArchitecture
+- DomainAndIntegrationEvents
+- CqrsPattern
+hubs:
+- SoftwareArchitecture Hub
 ---
-# The Saga Pattern: Architecting Consistency in the Age of Distributed Transactions
+# Saga Pattern
 
-For those of us who spend our professional lives wrestling with the inherent complexities of distributed systems, the concept of transactional integrity often feels like a historical artifact—a beautiful, yet fundamentally brittle, ideal derived from the monolithic era. We are building systems where services communicate over the network, where failure is not an exception but a statistical certainty, and where the notion of a single, atomic boundary (the ACID guarantee) is a luxury we can rarely afford.
+Saga is the pattern for "I need a transaction, but it spans multiple services / databases." Two-phase commit doesn't work in practice across service boundaries (slow, fragile, blocking). Saga replaces it with a chain of local transactions, each having a compensating action that undoes it if a later step fails.
 
-This document is not a beginner's guide. We assume a deep familiarity with distributed computing primitives, consensus algorithms, [eventual consistency](EventualConsistency) models, and the inherent limitations of two-phase commit (2PC) protocols in high-throughput, polyglot microservice environments. Our focus here is to dissect the Saga Pattern—not merely as a pattern, but as a comprehensive architectural philosophy for managing transactional state across service boundaries.
+It's the canonical answer to "how do we handle distributed transactions in a microservices architecture." It's also genuinely complex; getting it right is harder than the diagrams suggest.
 
----
+## The core idea
 
-## 1. The Theoretical Imperative: Why Traditional Transactions Fail in Microservices
+A business process becomes a sequence of steps, each in its own service:
 
-Before diving into the mechanics of Sagas, we must establish the precise failure domain we are attempting to solve. The traditional mechanism for ensuring atomicity across multiple resources is the **ACID** property, epitomized by protocols like Two-Phase Commit (2PC) or XA transactions.
+```
+Place Order:
+  1. ReserveInventory      → compensate: ReleaseInventory
+  2. ChargePayment         → compensate: RefundPayment
+  3. CreateShipment        → compensate: CancelShipment
+  4. SendConfirmationEmail → compensate: (nothing, it's idempotent)
+```
 
-### 1.1 The Limitations of Two-Phase Commit (2PC)
+If step 3 fails, you execute compensations in reverse: cancel-shipment isn't relevant because step 3 never finished, but you do need to refund payment (step 2's compensation) and release inventory (step 1's compensation).
 
-In a monolithic or tightly coupled service mesh, 2PC works by coordinating a transaction manager that forces all participating resource managers (databases) to either *commit* or *abort* simultaneously.
+The result: distributed atomicity, achieved through compensations rather than locking.
 
-The protocol proceeds as follows:
-1.  **Prepare Phase:** The coordinator asks all participants if they are ready to commit. Participants lock the necessary resources and respond affirmatively.
-2.  **Commit/Abort Phase:** If all respond positively, the coordinator issues the commit command. If any fail, it issues the abort command.
+## Choreography vs orchestration
 
-While theoretically sound for ACID compliance, 2PC introduces crippling operational overhead in a modern microservices context:
+Two implementation styles.
 
-*   **Blocking Nature:** The "Prepare" phase requires participants to hold locks on resources until the final commit decision is received. In a high-scale, low-latency system, this lock contention drastically reduces throughput and increases the risk of deadlocks.
-*   **Availability Concerns (The Coordinator Single Point of Failure):** If the transaction coordinator fails *after* the prepare phase but *before* the commit phase, the participating services are left in an **indefinite prepared state**. They hold locks indefinitely, effectively halting business processes until manual intervention resolves the deadlock—a catastrophic operational failure mode.
-*   **Protocol Overhead:** The network round-trip latency and the coordination complexity scale poorly with the number of participating services ($N$).
+### Choreography
 
-In essence, 2PC trades **Availability** and **Partition Tolerance** for absolute **Consistency** (C in [CAP theorem](CapTheorem)), making it fundamentally incompatible with the requirements of highly available, partition-tolerant cloud-native architectures.
+Each service listens for events; reacts; emits its own events. No central coordinator.
 
-### 1.2 The Shift to Eventual Consistency
+```
+OrderService publishes "OrderPlaced"
+  ↓
+InventoryService consumes; tries to reserve
+  ↓ on success: publishes "InventoryReserved"
+  ↓ on failure: publishes "InventoryReservationFailed"
+  
+PaymentService consumes "InventoryReserved"; tries to charge
+  ↓ on success: publishes "PaymentCharged"
+  ↓ on failure: publishes "PaymentFailed"
+                + InventoryService consumes; releases inventory
 
-Microservices architectures, by design, embrace the principles of the CAP theorem, prioritizing Availability and Partition Tolerance over immediate, strong consistency. This forces us to adopt **Eventual Consistency**.
+ShipmentService consumes "PaymentCharged"; tries to ship
+  ↓ failure: publishes "ShipmentFailed"
+            + PaymentService consumes; refunds
+            + InventoryService consumes; releases
+```
 
-The Saga Pattern is the architectural mechanism that allows us to *simulate* the transactional guarantees of ACID—the *business outcome* of atomicity—without relying on the underlying database mechanisms that enforce it. We accept that the system state will be temporarily inconsistent during the transaction's execution, provided we have a mathematically sound mechanism to resolve that inconsistency upon failure.
+Each service knows its own logic; the saga emerges from the events. Decoupled.
 
----
+Strengths:
+- Decentralised; each service owns its part.
+- Easy to add new participants (just listen for the event).
 
-## 2. The Conceptual Framework of Sagas
+Weaknesses:
+- Hard to reason about the whole flow — it's spread across N services.
+- Hard to debug — "why did this saga get stuck" requires tracing across services.
+- Cyclic event dependencies are easy to create accidentally.
+- No single place to inspect saga state.
 
-A Saga is not a single transaction; it is a **sequence of local transactions** ($T_1, T_2, \dots, T_n$) where each local transaction updates the database within a single service and publishes an event or message that triggers the next step in the sequence.
+Use for: simple sagas (≤ 4 steps); independent teams owning each step; you're comfortable with the debugging cost.
 
-The critical addition that elevates a simple sequence of operations into a Saga is the concept of the **Compensating Transaction** ($C_i$).
+### Orchestration
 
-### 2.1 Local Transactions and Compensating Actions
+A central orchestrator (a saga service) drives the flow:
 
-Every local transaction $T_i$ must be designed to be **idempotent** (running it multiple times yields the same result as running it once) and must guarantee that its failure can be gracefully rolled back by a corresponding compensating transaction $C_i$.
+```
+OrderSaga:
+  step 1: call InventoryService.Reserve(...)
+    on failure: terminate saga; publish failure
+  step 2: call PaymentService.Charge(...)
+    on failure: call InventoryService.Release(...); terminate
+  step 3: call ShipmentService.CreateShipment(...)
+    on failure: call PaymentService.Refund(...); 
+                call InventoryService.Release(...); terminate
+  step 4: publish success
+```
 
-*   **Local Transaction ($T_i$):** This is the atomic unit of work within Service A. It executes successfully against Service A's local database. It *commits* its changes.
-*   **Compensating Transaction ($C_i$):** This is the business logic designed to *undo* the effects of $T_i$. It does not simply issue a database `ROLLBACK`; it executes a compensating business action.
+The orchestrator is itself a stateful service — saga state persisted, durable, observable.
 
-**Example:**
-If $T_1$ is `ReserveInventory(Item X, Quantity 1)` in the Inventory Service, the compensating transaction $C_1$ is *not* `ROLLBACK`. Instead, $C_1$ must be `ReleaseInventory(Item X, Quantity 1)`, which increments the available stock count.
+Strengths:
+- Centralised logic; readable.
+- Saga state inspectable in one place.
+- Easier to add new steps or alter flow.
+- Built-in observability of saga progress.
 
-This distinction is paramount: **Sagas compensate business state, they do not roll back database transactions.**
+Weaknesses:
+- Orchestrator is a single point of failure (mitigated by replicating it).
+- Tighter coupling — orchestrator knows about all participants.
+- More infrastructure (the orchestrator service itself).
 
-### 2.2 The Saga Flow Diagram
+Use for: complex sagas (5+ steps, branches, retries); when you need observability of saga state; when the team can own the orchestrator.
 
-A successful Saga execution follows this logical flow:
+**For most production sagas in 2026, orchestration wins.** Tools (Temporal, Camunda, AWS Step Functions, Cadence) make orchestration tractable. The choreography path scales poorly past trivial flows.
 
-$$
-\text{Start} \xrightarrow{T_1} \text{Service}_1 \xrightarrow{\text{Event } E_1} \text{Service}_2 \xrightarrow{T_2} \text{Service}_2 \xrightarrow{\text{Event } E_2} \dots \xrightarrow{T_n} \text{Service}_n \xrightarrow{\text{Success}} \text{End}
-$$
+## Idempotency: non-negotiable
 
-If any step $T_k$ fails, the Saga executes the compensation sequence in reverse order:
+Saga steps and compensations must be idempotent. The orchestrator may retry; events may be delivered twice; partial failures may leave you uncertain whether a step ran.
 
-$$
-\text{Failure at } T_k \implies \text{Trigger } C_{k-1} \rightarrow C_{k-2} \rightarrow \dots \rightarrow C_1 \rightarrow \text{End (Failed)}
-$$
+For each step:
 
-The complexity, therefore, shifts from managing distributed locks to meticulously designing, testing, and maintaining the compensation logic for every single step.
+- Use an idempotency key generated once per step instance.
+- The receiving service checks: "have I done this already with this key? Return the prior result. Else perform and record."
+- Compensations same way — "have I refunded this payment for this saga? Return idempotent."
 
----
+Without idempotency, retries during failure produce double-charges, double-refunds, and corrupted state.
 
-## 3. Architectural Implementation Paradigms
+## State management
 
-The core decision when implementing a Saga is choosing the coordination mechanism. The two dominant, and fundamentally different, approaches are **Choreography** and **Orchestration**. Choosing between them dictates the coupling, complexity, and observability of the entire system.
+The saga has a state. Persistent, accessible, recoverable:
 
-### 3.1 Choreography-Based Sagas (Decentralized Control)
+```
+saga_id: ord-2026-04-25-12345
+status: in_progress
+current_step: 3
+steps_completed: [reserve_inventory, charge_payment]
+context: {order_id: 42, user_id: 100, ...}
+created_at: ...
+updated_at: ...
+```
 
-In the Choreography model, there is no central coordinator. Services communicate peer-to-peer by emitting and listening to domain events via a message broker (e.g., Kafka, RabbitMQ). Each service is responsible for knowing which other services need to be notified upon its local transaction completion.
+Tools:
 
-#### Mechanism
-1.  **Service A** performs $T_1$ and commits.
-2.  Service A publishes a domain event, e.g., `OrderCreatedEvent`.
-3.  **Service B** (Inventory) subscribes to `OrderCreatedEvent`. Upon receipt, it executes $T_2$ (e.g., reserving stock) and commits.
-4.  Service B publishes a subsequent event, e.g., `InventoryReservedEvent`.
-5.  **Service C** (Payment) subscribes to `InventoryReservedEvent` and executes $T_3$ (charging the card).
+- **Temporal / Cadence** — workflow engines designed for this; durable execution; built-in retry, compensation, observability. The category leader.
+- **AWS Step Functions** — managed; AWS-only.
+- **Apache Camel Sagas** — for Java shops on Camel.
+- **Custom on Postgres** — for simpler cases; saga state in a table; a worker advances it.
 
-#### Expert Analysis: Pros and Cons
-*   **Pros:**
-    *   **Decoupling:** Services are highly decoupled. Adding a new service that needs to react to an existing event requires only subscribing to the event; no existing service needs modification. This is excellent for rapid feature iteration.
-    *   **Resilience:** No single point of failure exists in the coordination logic.
-*   **Cons:**
-    *   **Complexity of Flow Tracking (The "Spaghetti Graph"):** The entire business process logic is implicitly distributed across event subscriptions. Tracing the full flow, understanding the current state, or debugging a failure requires tracing logs across multiple disparate services and the message broker itself. This leads to the "spaghetti graph" anti-pattern.
-    *   **Cyclic Dependencies:** It is exceptionally easy for services to create unintended circular dependencies (Service A triggers B, which triggers C, which triggers A), leading to infinite loops or race conditions that are notoriously difficult to debug.
-    *   **Compensation Complexity:** If $T_3$ fails, Service C must publish a `PaymentFailedEvent`. Service B must listen for this and execute $C_2$. Service A must listen for $C_2$'s resulting event and execute $C_1$. The compensation logic must be explicitly wired into the event subscription model, which can become brittle.
+For new orchestration-based sagas in 2026, Temporal is the standard choice. The mental model maps directly to saga semantics; durability and visibility come built in.
 
-#### When to Use Choreography
-Choreography is best suited for **simple, linear workflows** or when the domain naturally suggests a highly reactive, event-sourced architecture where the primary concern is maximizing decoupling and minimizing synchronous dependencies.
+## Failure modes
 
-### 3.2 Orchestration-Based Sagas (Centralized Control)
+### Forgotten compensations
 
-In the Orchestration model, a dedicated service—the **Saga Orchestrator**—is responsible for managing the state, directing the flow, and issuing commands to the participant services. The participants are entirely passive; they only react to direct commands from the Orchestrator.
+Step succeeded; later step failed; compensation didn't run because of a bug. State is inconsistent.
 
-#### Mechanism
-1.  **Client Request:** The client calls the Orchestrator (e.g., `OrderService`).
-2.  **Orchestrator State Machine:** The Orchestrator initializes its internal state machine (e.g., `Order: PENDING_INVENTORY`).
-3.  **Command Issuance:** The Orchestrator sends a direct command: `ReserveInventoryCommand` to the Inventory Service.
-4.  **Participant Execution:** Inventory Service executes $T_2$ and responds to the Orchestrator with a success message (e.g., `InventoryReservedReply`).
-5.  **State Transition:** The Orchestrator receives the reply, updates its internal state (`Order: INVENTORY_RESERVED`), and issues the next command: `ProcessPaymentCommand` to the Payment Service.
-6.  **Completion/Compensation:** If the Payment Service fails, it replies with a failure status. The Orchestrator detects this, consults its state graph, and systematically issues compensating commands: `ReleaseInventoryCommand` to Inventory, and finally reports the overall failure to the client.
+Defence: every step has a defined compensation; tested. Sagas are reviewed for compensation correctness, not just happy path.
 
-#### Expert Analysis: Pros and Cons
-*   **Pros:**
-    *   **Visibility and Observability:** The entire transaction flow is contained within one service's state machine. Debugging, monitoring, and auditing are vastly simpler because the state transitions are explicit and centralized.
-    *   **Control Flow Management:** It provides explicit control over the sequence, making it easier to manage complex branching logic (e.g., "If payment fails, try alternative payment method X, otherwise compensate").
-    *   **Compensation Clarity:** The compensation path is explicitly coded within the Orchestrator's failure handling logic, making it far less prone to omission than in a choreography model.
-*   **Cons:**
-    *   **Coupling:** The Orchestrator becomes a central point of knowledge and coupling. It must know the API contracts, success paths, and failure compensation paths for *every* service it coordinates.
-    *   **Scalability Bottleneck (Potential):** If the Orchestrator itself becomes a bottleneck due to high transaction volume, it must be designed with extreme care (e.g., using durable, scalable state stores like dedicated workflow engines).
+### Compensation that fails
 
-#### When to Use Orchestration
-Orchestration is the preferred pattern for **complex, multi-step business processes** where the failure path is as important as the success path. It trades some degree of service decoupling for massive gains in transactional clarity and maintainability.
+Compensation is a service call; service calls fail. What if the compensation itself fails?
 
----
+Strategies:
 
-## 4. Making Sagas Production-Grade
+- **Retry with backoff** — most failures are transient; retry resolves them.
+- **Dead letter / human intervention** — if retries exhaust, escalate to human; saga is paused, not lost.
+- **Eventual consistency tolerance** — sometimes "the inventory is still reserved" is OK to wait out; not all inconsistencies are urgent.
 
-A conceptual understanding of Sagas is trivial; building one that survives real-world network partitions, service crashes, and data corruption is an exercise in paranoia. For experts, the discussion must pivot to the failure modes and the patterns required to mitigate them.
+The saga literature is sparser on "compensation fails permanently" because the answer is application-specific.
 
-### 4.1 The Non-Negotiable Requirement: Idempotency
+### Compensation when prior steps shouldn't undo
 
-This is the single most frequently overlooked requirement. Because message brokers guarantee *at-least-once* delivery, a service *will* receive the same command or event multiple times if a network hiccup occurs or if the consumer crashes immediately after processing but before acknowledging receipt.
+Some steps' effects can't be reversed. A confirmation email sent to the customer; you can't unsend.
 
-**Failure Scenario:** The Orchestrator sends `ProcessPaymentCommand`. The Payment Service processes the charge successfully, but the network drops the acknowledgment. The Orchestrator retries the command.
+In these cases, the compensation is "send an apology email" or "do nothing and accept the inconsistency." The pattern admits this; the design must contemplate it.
 
-If the Payment Service is not idempotent, the second attempt will result in a double charge.
+### Long-running sagas and timeout
 
-**Mitigation Strategy:**
-Every service endpoint that processes a command or event must check for transaction uniqueness *before* executing business logic.
+Saga in progress for hours / days; what if you need to deploy a new version of the orchestrator? Temporal-style engines version their workflows; older sagas run their original code; new sagas use the new code.
 
-1.  **Using Unique Keys:** The command payload must contain a globally unique `TransactionId` or `CorrelationId`.
-2.  **Database Check:** The service must wrap its logic in a check: `SELECT EXISTS (SELECT 1 FROM processed_commands WHERE correlation_id = :id)`. If the ID exists, the service immediately returns success without executing any business logic, effectively absorbing the duplicate message.
+Without this, mid-flight sagas can break on deploy. Plan for it.
 
-### 4.2 Guaranteeing Message Delivery: The Transactional Outbox Pattern
+### Cascading sagas
 
-In the Choreography model, or even when the Orchestrator needs to signal an event, how do you guarantee that the database update *and* the message publication happen atomically? If the service commits the database change but crashes before sending the message, the Saga stalls forever.
+Step in saga A triggers saga B, which triggers saga C. Failures cascade across; debugging becomes hard.
 
-The **Transactional [Outbox Pattern](OutboxPattern)** solves this by treating the message publication as a local database transaction.
+Defence: keep saga scope narrow; resist the urge to make every cross-service flow a saga.
 
-**Mechanism:**
-1.  Instead of publishing directly to the message broker, the service writes two records within a single, ACID-compliant database transaction:
-    a. The necessary state change record (e.g., `Order` status updated to `PAID`).
-    b. A record in a dedicated `Outbox` table, containing the message payload and destination topic (e.g., `{"topic": "payment_succeeded", "payload": {...}}`).
-2.  A separate, reliable **Message Relay** process (often a dedicated worker or [Change Data Capture](ChangeDataCapture) mechanism like Debezium) polls the `Outbox` table.
-3.  The Relay reads the pending message, publishes it to the broker, and *only then* marks the message as sent or deletes it from the Outbox table.
+## When saga is overkill
 
-This pattern ensures that the state change and the intent to communicate are bound by the same ACID boundary, guaranteeing that if the state changes, the message *will* eventually be sent.
+Not every multi-step process needs a saga:
 
-### 4.3 Handling Compensation Failures (The Compensation Saga)
+- **Tasks with no failure recovery requirement.** "Send these notifications" — failure means notifications didn't go; user notices; manual fix. Saga is overhead.
+- **Strict consistency not required.** "Update analytics from this event" — can be eventually consistent without compensation.
+- **Single-service operations** even if they touch multiple tables. Database transactions handle it.
+- **Idempotent operations.** If retry-until-success works, saga's compensation logic is unused.
 
-What happens if the compensation itself fails? This is the "Compensation Saga" or "Saga of Sagas."
+Saga is for cases where you genuinely need atomicity-like guarantees across service boundaries with non-idempotent operations.
 
-Consider the flow: $T_1 \rightarrow T_2 \rightarrow T_3$. $T_3$ fails. We execute $C_2$. But $C_2$ fails because the Inventory Service is temporarily offline.
+## Modelling business processes
 
-The system cannot simply retry $C_2$ indefinitely; it must escalate.
+The saga concept maps cleanly onto business processes that span multiple "departments":
 
-**Advanced Strategies for Compensation Failure:**
-1.  **Dead Letter Queues (DLQ) with Alerting:** The failed compensation message must be routed to a DLQ. This triggers an immediate, high-priority alert to the operations team, indicating that manual intervention is required to resolve the underlying service dependency.
-2.  **Exponential Backoff and Jitter:** Retries for compensation attempts must use exponential backoff with added jitter (random delay) to prevent the compensation attempts from overwhelming the recovering service, which could trigger cascading failures.
-3.  **Human Workflow Integration:** For critical failures (e.g., financial reconciliation), the Saga Orchestrator must have a defined "Human Intervention State," pausing the process and requiring an operator to review the state and manually trigger the next compensation step or override the failure.
+- **Order fulfilment.** Inventory + Payment + Shipment + Notification.
+- **Account opening.** Identity verification + KYC + Account creation + Notification.
+- **Booking.** Availability check + Hold + Payment + Confirmation.
+- **Cancellation.** Notify + Refund + Release reservations + Update accounting.
 
----
+Each step is a distinct business action; the orchestrator captures the policy linking them.
 
-## 5. Advanced State Management and Workflow Engines
+This is also where Temporal / Camunda's "BPMN-style" diagrams become useful — they're how the business owns the flow, while engineers implement steps.
 
-As the complexity of Sagas grows, managing the state machine manually within application code (e.g., using `if/else` blocks or complex switch statements) becomes an anti-pattern that violates the Single Responsibility Principle. Experts must abstract this state management.
+## Patterns within sagas
 
-### 5.1 Workflow Engines as the Orchestrator Implementation
+- **Pivot transactions.** A step beyond which compensation is no longer possible. After "issue physical certificate," you can't un-issue. Plan for these; design the saga so the pivot point is well-understood.
+- **Parallel steps.** Some sagas have non-dependent steps that can run in parallel. Tools support this; do it where it shortens latency.
+- **Human-in-loop steps.** A saga can wait for human approval. Temporal / similar handle this with signals; the saga is paused awaiting an external event.
+- **Compensation chains.** If step 3 fails, compensate 2 and 1; if step 4 fails, compensate 3, 2, and 1. The orchestration engine handles this.
 
-The most robust, modern approach is to delegate the state management entirely to a dedicated, durable workflow engine. These engines are designed specifically to manage long-running, stateful processes that must survive service restarts, infrastructure failures, and network partitions.
+## A pragmatic adoption path
 
-**Leading Technologies:**
-*   **Temporal/Cadence:** These frameworks are purpose-built for this. They allow developers to write workflow logic using standard programming languages (Go, Java, Python) but abstract the execution state management into a durable, fault-tolerant backend. The engine guarantees that the workflow execution state persists across failures.
-*   **AWS Step Functions:** A managed service that provides a visual, state-machine definition language (ASL) to coordinate steps, retries, and error handling across AWS services.
+For a team adopting sagas:
 
-**How they improve Sagas:**
-Instead of the application code managing the state, the workflow engine manages it. The developer defines the *graph* of the process (the sequence, the parallel paths, the failure branches), and the engine handles the persistence, retries, and state transitions automatically. This elevates the Saga implementation from "coding a state machine" to "defining a process graph."
+1. **Identify the actual cross-service flows that need atomicity.** Most don't. List the few that do.
+2. **Pick orchestration over choreography** for any non-trivial saga.
+3. **Adopt Temporal (or Step Functions, or similar)** rather than rolling your own orchestrator.
+4. **Design every step to be idempotent.** Test that retry produces the right result.
+5. **Test compensation paths.** Don't ship a saga whose compensation has only ever been written, never run.
+6. **Monitor sagas in production.** Stuck sagas need attention; failing compensations need alerting.
 
-### 5.2 Saga Compositionality and Sub-Sagas
+## Further reading
 
-In massive enterprise systems, a single business process might be composed of several distinct, independently managed Sagas. This is **Saga Compositionality**.
-
-If the overall process is: `User Onboarding` $\rightarrow$ `Provisioning` $\rightarrow$ `Account Activation`.
-
-1.  The `User Onboarding` Saga might complete successfully, resulting in a `UserCreatedEvent`.
-2.  The `Provisioning` Saga subscribes to this event and executes its own internal sequence (e.g., creating roles, setting up initial permissions).
-3.  The `Account Activation` Saga subscribes to the `ProvisioningCompleteEvent` and executes its final steps.
-
-The key here is that the compensation logic must be carefully scoped. If the `Account Activation` Saga fails, it must only compensate for the steps *it* initiated, leaving the state established by the `Provisioning` Saga intact, unless the failure is so severe that it invalidates the entire preceding work. This requires rigorous domain boundary definition.
-
----
-
-## 6. Consistency Models: A Final Word on Guarantees
-
-When discussing Sagas, it is crucial to anchor the discussion within the context of consistency models.
-
-| Model | Guarantee Provided | Mechanism | Best For | Trade-off Accepted |
-| :--- | :--- | :--- | :--- | :--- |
-| **ACID** | Immediate, Strong Consistency | 2PC/XA (Locking) | Small, critical, synchronous operations. | Availability, Performance (Locking) |
-| **Saga** | Eventual Consistency (Business Atomicity) | Compensating Transactions | Long-running, complex workflows. | Temporary Inconsistency Window |
-| **Event Sourcing** | Temporal Consistency (Auditability) | Event Log Append-Only | Core domain state tracking. | Query Complexity (Requires Projections) |
-
-A mature system often employs a hybrid approach: using [Event Sourcing](EventSourcing) to capture the *history* of state changes, using Sagas to manage the *workflow* across services, and using local ACID transactions within each service to ensure the *local* state change is atomic.
-
----
-
-## Conclusion: The Expert Synthesis
-
-The Saga Pattern is not a silver bullet; it is a sophisticated, necessary abstraction layer over the inherent unreliability of network communication. It represents a fundamental shift in thinking—moving from the *mechanism* of atomicity (locking) to the *guarantee* of business outcome (compensation).
-
-For the researching expert, the takeaway is not *if* to use Sagas, but *how* to implement them with industrial-grade resilience:
-
-1.  **Prefer Orchestration:** Unless extreme decoupling is the absolute highest priority, use a dedicated workflow engine (Temporal, Step Functions) to manage the Saga state graph. This centralizes complexity and maximizes observability.
-2.  **Enforce Idempotency:** Treat every message delivery as potentially duplicated. This is non-negotiable.
-3.  **Adopt the Outbox Pattern:** Never rely on synchronous message publishing to guarantee atomicity between state change and message emission.
-4.  **Model Compensation Explicitly:** Treat the compensation logic ($C_i$) with the same rigor, testing, and documentation as the forward transaction ($T_i$).
-
-Mastering Sagas means mastering the art of accepting temporary inconsistency while building an ironclad, verifiable path back to a consistent final state. It is a complex, yet profoundly rewarding, area of distributed systems architecture.
+- [EventDrivenArchitecture] — events as saga substrate
+- [MicroservicesArchitecture] — context where sagas matter
+- [DomainAndIntegrationEvents] — events between services
+- [CqrsPattern] — adjacent pattern; often co-occurs with sagas

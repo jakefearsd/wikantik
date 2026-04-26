@@ -1,242 +1,304 @@
 ---
-canonical_id: 01KQ0P44NY15F37N133JMDVQYW
 title: Container Security
 type: article
+cluster: security
+status: active
+date: '2026-04-25'
 tags:
-- imag
-- secur
-- contain
-summary: Digital Fortification The container ecosystem, while revolutionary for deployment
-  velocity, has simultaneously introduced a sprawling, complex attack surface.
-auto-generated: true
+- container-security
+- kubernetes
+- docker
+- supply-chain
+- runtime-security
+summary: Defending containerised workloads — image scanning, runtime security,
+  network policies, supply chain — and the controls that distinguish a real
+  posture from a checkbox.
+related:
+- ContainerOrchestration
+- ApplicationSecurityFundamentals
+- ThreatModeling
+- ZeroTrustArchitecture
+hubs:
+- Security Hub
 ---
-# Digital Fortification
+# Container Security
 
-The container ecosystem, while revolutionary for deployment velocity, has simultaneously introduced a sprawling, complex attack surface. For the seasoned security researcher or the architect designing mission-critical infrastructure, merely running a container is no longer sufficient assurance. We must treat the container image not as a deployable artifact, but as a meticulously engineered, hardened piece of software—a digital fortress.
+Containerising your application doesn't make it secure. Containers add isolation but introduce a new attack surface — image registries, container runtimes, orchestrators, supply chains. The 2026 threat landscape includes supply-chain attacks (the SolarWinds template), runtime escapes, misconfigured K8s exposures, and credential theft through container metadata services.
 
-This guide moves far beyond the basic "run a scanner and patch" paradigm. We are delving into the deep mechanics of image integrity, [supply chain resilience](SupplyChainResilience), and proactive hardening techniques required to secure modern, complex containerized workloads. If you are researching the next frontier in container security, this document is your reference point.
+This page is the working defence in depth.
 
-***
+## The threat layers
 
-## 1. Introduction: Redefining the Attack Surface in Containerization
+| Layer | Threat | Defence |
+|---|---|---|
+| **Image** | Vulnerable dependencies; embedded secrets | Image scanning; minimal base images; secret hygiene |
+| **Registry** | Tampered images; unauthorised pulls | Signed images; private registry; access controls |
+| **Build pipeline** | Compromised CI; malicious dependencies | SBOM; provenance attestations; pipeline isolation |
+| **Runtime (container)** | Escape; privilege escalation; lateral movement | Non-root users; read-only filesystem; seccomp/AppArmor |
+| **Runtime (orchestrator)** | Misconfigured RBAC; pod-to-pod attacks | Network policies; PSA; admission controllers |
+| **Network** | Lateral movement; data exfiltration | mTLS; egress controls; service mesh policies |
 
-Container security, at its core, is about **risk minimization**. It is the disciplined process of reducing the potential vectors through which an attacker can gain unauthorized access, escalate privileges, or exfiltrate data. As the context suggests, a single flawed image can propagate vulnerabilities across hundreds of instances (Source [2]). Therefore, the focus must shift from perimeter defense (which is often porous in microservices) to **intrinsic artifact security**.
+Most teams do half of these well and neglect the other half. Each gap is exploited regularly.
 
-### 1.1. The Evolution from VM to Container Security
+## Image security
 
-Historically, securing an application meant hardening the Virtual Machine (VM) layer—managing the hypervisor, guest OS, and kernel interactions. Containers, leveraging OS-level virtualization (namespaces and cgroups), abstract away the hardware but concentrate the risk within the image layers themselves.
+### Minimal base images
 
-The modern threat model dictates that an attacker who compromises the container runtime environment (e.g., via a kernel exploit or a vulnerable library call) will exploit weaknesses *within* the image blueprint.
+Smaller images = fewer vulnerabilities + fewer tools for attackers.
 
-**Key Concept: The Image as the Contract.**
-The container image is the immutable contract defining the runtime environment. Any deviation from this contract—an unpatched library, an unnecessary tool, or a weak default user—is a potential breach point.
+- **Distroless** (Google) — base image with only the runtime your app needs. No shell, no package manager.
+- **Alpine** — small Linux distribution; popular base.
+- **Scratch** — for static binaries (Go, Rust) — image is just your binary.
 
-### 1.2. Scope Definition: Scanning vs. Hardening
+A Python app on `python:3.11-slim` (~80MB) has dozens of CVEs at any time. The same app on `python:3.11-slim-distroless` has fewer because there are fewer packages.
 
-It is crucial to delineate these two, often conflated, processes:
+### Image scanning
 
-1.  **Security Scanning (Detection):** This is the *assessment* phase. It involves automated tools analyzing the image layers to identify known vulnerabilities (CVEs), misconfigurations, and policy violations (Source [6], [8]). It answers the question: *“What is wrong with this image?”*
-2.  **Image Hardening (Remediation/Prevention):** This is the *engineering* phase. It involves deliberately modifying the build process, the base layers, and the runtime configuration to eliminate the potential for exploitation, even if a vulnerability exists (Source [1], [4]). It answers the question: *“How do we make this image resilient to known and unknown attacks?”*
+Scan images for known vulnerabilities at build time and on registry push.
 
-A robust security posture requires both to be integrated into a continuous feedback loop.
+Tools:
+- **Trivy** — open source; widely used; fast.
+- **Grype** — Anchore's scanner; integrates with SBOM.
+- **Snyk Container** — commercial; deeper analysis.
+- **AWS Inspector / Google Container Analysis** — managed cloud scanners.
 
-***
+Scan on every build. Block deploys with critical CVEs in production-bound images.
 
-## 2. Container Image Scanning Techniques
+### No embedded secrets
 
-Scanning is not a single action; it is a multi-layered process requiring specialized tools and advanced policy enforcement. For experts, the goal is to achieve **Shift-Left Security**—finding and fixing issues at the earliest possible stage of the CI/CD pipeline.
+A surprising number of images ship with API keys, database passwords, SSH keys baked into layers. Tools (`detect-secrets`, `gitleaks`, `trufflehog`) scan for this.
 
-### 2.1. Vulnerability Scanning (CVE Analysis)
+The fix: secrets at runtime via environment variables, mounted volumes, or secret managers (AWS Secrets Manager, HashiCorp Vault, Kubernetes Secrets). Never in the image.
 
-This is the most common form of scanning. Tools analyze the package manifests (e.g., `package.json`, `requirements.txt`, `FROM` statements) against public vulnerability databases (NVD, vendor advisories).
+### SBOM (Software Bill of Materials)
 
-**Expert Consideration: Depth and Scope.**
-Basic scanners often only check the top-level packages. Advanced scanning must perform **Software Bill of Materials (SBOM)** generation and analysis.
+A list of every component in the image. Enables vulnerability tracking, license compliance, supply-chain analysis.
 
-*   **SBOM Generation:** An SBOM is a formal, machine-readable inventory of all components, libraries, and dependencies within the image. Tools like CycloneDX or SPDX are used to generate these artifacts.
-    *   *Why it matters:* If a vulnerability (e.g., Log4Shell) is discovered *after* the image was built, the SBOM allows immediate, precise identification of every affected deployment without needing to re-scan the entire image from scratch.
-*   **Transitive Dependency Mapping:** The most dangerous vulnerabilities often reside several layers deep in the dependency tree. A scanner must recursively map every dependency to its ultimate source package.
+Standards: SPDX, CycloneDX. Tools: Syft, ScribeSecurity, Microsoft SBOM Tool.
 
-### 2.2. Misconfiguration Scanning (Policy Enforcement)
+Generate at build; attach to the image; consumed by scanners and policy engines.
 
-This goes beyond CVEs and checks adherence to best practices. These policies are often expressed in Policy-as-Code (PaC) languages like OPA/Rego.
+## Supply-chain security
 
-**Key Areas for Policy Checks:**
+The 2020-2024 wave of supply-chain attacks (SolarWinds, npm packages, PyPI typosquatting, GitHub Actions compromise) made supply-chain security a first-class concern.
 
-1.  **Privilege Escalation Vectors:** Checking for the presence of unnecessary `sudo` packages, root-level execution paths, or insecure capabilities.
-2.  **Secret Management:** Scanning for hardcoded credentials, API keys, or sensitive environment variables baked into the image layers (a common developer oversight).
-3.  **Image Layer Integrity:** Ensuring that the build process hasn't accidentally included sensitive build artifacts (e.g., `.git` directories, temporary build caches).
+### Pin dependencies
 
-**Pseudocode Example: Policy Check Logic**
+Don't `pip install requests` in your Dockerfile (latest version, could change anytime). Pin: `pip install requests==2.32.4`. Use lockfiles (`requirements.txt`, `package-lock.json`, `go.sum`, `Cargo.lock`).
 
-```pseudocode
-FUNCTION check_image_policy(image_manifest, policy_set):
-    FOR layer IN image_manifest.layers:
-        IF layer.contains_file("/root/.ssh/id_rsa"):
-            RETURN FAILURE("Hardcoded credentials detected in layer.")
-        
-        IF layer.exec_user == "root" AND policy_set.require_non_root:
-            RETURN WARNING("Running as root is prohibited by policy.")
-            
-    RETURN SUCCESS("Image adheres to defined security policies.")
+### Dependency review
+
+Tools that examine new dependencies for known issues:
+- **GitHub Dependency Review action** — flags risky deps in PRs.
+- **Snyk Open Source** — commercial.
+- **Socket.dev** — analyses package behaviour, not just CVEs.
+
+Review dependencies before adding. The `left-pad` style "we depend on this 12-line library" is also a supply-chain risk.
+
+### Image signing and verification
+
+Sign images at build with Sigstore (Cosign), Notary, or registry-native signing. Verify at deploy.
+
+```
+# Build and sign
+cosign sign --key cosign.key registry.example/app:v1.2.3
+
+# Verify before deploy
+cosign verify --key cosign.pub registry.example/app:v1.2.3
 ```
 
-### 2.3. Provenance and Trust Scanning (Supply Chain Integrity)
+Kubernetes admission controllers (Kyverno, OPA Gatekeeper) can enforce: only deploy signed images.
 
-This is arguably the most critical area for modern research. If an attacker compromises the build pipeline (a "Man-in-the-Middle" attack on the registry or build server), they can inject malicious code that passes standard vulnerability scans.
+### Provenance attestations
 
-**Techniques to Counter Supply Chain Attacks:**
+SLSA (Supply-chain Levels for Software Artifacts) framework. Attestations prove "this image was built by this CI on this commit." Verifiable; tamper-evident.
 
-*   **Digital Signing (Notary/TUF):** Every image must be cryptographically signed by the entity that built and approved it. The deployment runtime (Kubernetes admission controller, container runtime) must be configured to *refuse* pulling or running any image lacking a valid signature from a trusted key.
-*   **Attestation:** Beyond just signing, we need *attestation*. This is metadata proving *how* the image was built. Did it pass unit tests? Was it built using a specific, audited base image? Tools leveraging in-toto frameworks are essential here.
-*   **Source Verification:** Verifying that the base image pulled from a registry (e.g., `ubuntu:latest`) matches the expected digest and has not been tampered with between the registry and the build agent.
+In 2026, SLSA Level 3 is achievable with mainstream CI (GitHub Actions, GitLab CI). Adopt for production-bound builds.
 
-***
+## Runtime security
 
-## 3. Advanced Image Hardening Techniques: Layer by Layer Fortification
+### Non-root user
 
-Hardening is the proactive engineering effort. It requires a deep understanding of the container runtime mechanics and the operating system layers involved. We must move beyond simply "using a smaller base image" to implementing architectural security patterns.
-
-### 3.1. Minimizing the Attack Surface (The Principle of Least Functionality)
-
-The goal is to strip the image down to *only* what is absolutely necessary for the application to run. Every extra package, library, or utility is potential attack surface area.
-
-*   **Base Image Selection:**
-    *   **Avoid General Purpose OSes:** Never use full distributions like standard Ubuntu or CentOS if you only need Python.
-    *   **Adopt Distroless/Scratch:** Use Google's **Distroless** images or build directly from `scratch`. Distroless images contain only the application and its runtime dependencies (e.g., glibc, necessary SSL libraries), omitting shells (`/bin/bash`), package managers (`apt`, `yum`), and common utilities like `curl` or `ping`. This drastically reduces the available tools for an attacker to pivot with.
-*   **Multi-Stage Builds (The Cornerstone Technique):** This is non-negotiable for modern development.
-    *   **Stage 1 (Builder):** Use a large, feature-rich image (e.g., `golang:latest`) containing compilers, SDKs, and build tools. This stage compiles the application.
-    *   **Stage 2 (Runtime):** Use the smallest possible base image (e.g., `alpine` or `distroless/static`). Copy *only* the compiled, statically linked binary artifacts from Stage 1 into Stage 2.
-    *   *The Benefit:* The build tools, source code, compilers, and development headers—which are massive and vulnerable—are discarded entirely, leaving only the executable payload.
-
-### 3.2. User and Privilege Management
-
-Running processes as `root` inside a container is a catastrophic mistake. If an attacker exploits a vulnerability, they gain root privileges *within the container*, which can often be leveraged to escape to the host kernel or gain elevated privileges on the node.
-
-*   **Non-Root User Enforcement:** Always define a dedicated, unprivileged user in the `Dockerfile` and switch to it immediately.
+Don't run containers as root. Even if the container escapes, root inside means root outside (in some configurations).
 
 ```dockerfile
-# BAD PRACTICE: Runs as root by default
-FROM node:lts
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-CMD ["node", "server.js"]
-
-# GOOD PRACTICE: Enforcing least privilege
-FROM node:lts AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-
-# --- Second Stage ---
-FROM node:lts:slim AS runtime
-WORKDIR /app
-# 1. Create a dedicated, non-root user
+FROM alpine
 RUN adduser -D appuser
-# 2. Copy only necessary artifacts
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/server.js .
-
-# 3. Set ownership and switch user context
-RUN chown -R appuser:appuser /app
-USER appuser 
-
-CMD ["node", "server.js"]
+USER appuser
 ```
 
-*   **Capabilities Dropping:** Even when running as a non-root user, the container might inherit excessive Linux capabilities (e.g., `CAP_NET_ADMIN`, `CAP_SYS_ADMIN`). The runtime must explicitly drop capabilities that the application does not require. Kubernetes and container runtimes allow specifying a precise set of required capabilities, adhering strictly to the principle of least privilege at the kernel level.
+Most images run as root by default. Audit; fix.
 
-### 3.3. Filesystem and Kernel Hardening
+### Read-only root filesystem
 
-This addresses the runtime environment itself, assuming the image has been built as securely as possible.
+Containers don't need to write to most paths. Mark them read-only:
 
-*   **Read-Only Filesystems:** Configure the container runtime to mount the root filesystem as read-only (`readOnlyRootFilesystem: true` in Kubernetes). This prevents an attacker who gains initial access from writing malicious files, modifying binaries, or installing persistence mechanisms.
-    *   *Edge Case:* If the application *must* write logs or temporary data, mount specific, small volumes (e.g., `/var/log`) explicitly as writable, leaving the rest of the filesystem immutable.
-*   **Seccomp Profiles:** Seccomp (Secure Computing Mode) filters the system calls (syscalls) that a process is allowed to make to the host kernel. By default, containers use a broad profile. Experts must generate a custom profile that only permits the syscalls absolutely necessary for the application's function.
-    *   *Example:* If a web server only needs to listen on a port and read files, the profile should block syscalls related to raw socket creation, mounting filesystems, or modifying network interfaces.
-*   **AppArmor/SELinux Integration:** These Mandatory Access Control (MAC) systems provide an additional, kernel-enforced layer of confinement that operates orthogonal to standard Linux user/group permissions. Integrating these profiles ensures that even if a process escapes its container namespace, its actions are constrained by the kernel policy.
+```yaml
+securityContext:
+  readOnlyRootFilesystem: true
+```
 
-***
+Limits an attacker's ability to drop persistence. Mount specific writable volumes for legitimate writes.
 
-## 4. Advanced and Emerging Research Vectors
+### Drop capabilities
 
-For those researching the bleeding edge, the focus must shift from *fixing* known vulnerabilities to *preventing* the possibility of exploitation through architectural design and advanced tooling integration.
+Linux capabilities give fine-grained privileges. Containers usually don't need most of them. Drop all and add back only what's required:
 
-### 4.1. Runtime Security and Behavioral Analysis
+```yaml
+securityContext:
+  capabilities:
+    drop: ["ALL"]
+    add: ["NET_BIND_SERVICE"]
+```
 
-Scanning is static; runtime security is dynamic. The most sophisticated attacks bypass static checks by exploiting zero-day vulnerabilities or by behaving in ways that are technically allowed but contextually malicious.
+### Seccomp / AppArmor / SELinux
 
-*   **eBPF (extended Berkeley Packet Filter):** This is the current gold standard for kernel-level observability without sacrificing performance. eBPF allows security tools to hook into the Linux kernel networking stack, syscalls, and process execution paths *before* they are processed by the kernel.
-    *   *Application:* Instead of just checking if a syscall *can* happen (like Seccomp), eBPF allows you to check if the syscall *should* happen given the process's established baseline behavior. If a web server suddenly attempts to execute a shell (`execve`) or open a raw socket, eBPF can intercept and terminate the process immediately, regardless of the image's contents.
-*   **Behavioral Baselining:** The system must learn what "normal" looks like. This involves monitoring the application during a period of known good operation (the "training phase"). The security policy is then derived from this baseline, flagging any statistically significant deviation (e.g., unusual outbound connections, unexpected file writes).
+Kernel-level syscall filtering. Restricts what the container can ask the kernel to do.
 
-### 4.2. Memory Safety and Language Choice
+- Kubernetes: `securityContext.seccompProfile.type: RuntimeDefault` is a sane default; tighten further if possible.
+- Docker: `--security-opt seccomp=profile.json`.
 
-The choice of programming language has profound security implications.
+Most workloads tolerate the default seccomp profile; few break things.
 
-*   **The C/C++ Problem:** Languages like C and C++ are powerful but inherently unsafe due to manual memory management, leading to classic vulnerabilities like Buffer Overflows, Use-After-Free (UAF), and Integer Overflows. These are the prime targets for kernel escape exploits.
-    *   *Mitigation:* While hardening mitigates the *impact*, the best mitigation is to avoid the language if possible.
-*   **The Rust Solution:** Rust has gained significant traction in security-critical infrastructure precisely because its ownership model and compile-time borrow checker enforce memory safety guarantees at compile time, eliminating entire classes of vulnerabilities (like data races and UAF) that plague C/C++.
-*   **Go Language Considerations:** Go is generally safer than C/C++ but can still suffer from vulnerabilities related to reflection or dependency mismanagement.
+### Pod Security Admission (PSA)
 
-### 4.3. Secrets Management Beyond Environment Variables
+Kubernetes' built-in policy enforcer. Three modes:
+- `privileged` — no restrictions (legacy).
+- `baseline` — common-sense restrictions.
+- `restricted` — strict; root prevented; capabilities dropped.
 
-Relying on environment variables (`ENV`) is an anti-pattern because they are easily discoverable via `docker inspect` or `kubectl describe`.
+Set `restricted` on application namespaces; relax only for specific exemptions.
 
-*   **Vault Integration:** Secrets must be injected at runtime via dedicated secret management solutions (HashiCorp Vault, AWS Secrets Manager).
-*   **Sidecar Pattern:** The recommended pattern involves deploying a dedicated "secret-fetching" sidecar container alongside the main application container. This sidecar authenticates with the secret store using a short-lived, workload-specific identity (e.g., Kubernetes Service Account Token) and injects the secret into a shared, ephemeral memory volume (tmpfs) accessible only by the main application container. This minimizes the secret's exposure window.
+### Namespaces and cgroups
 
-***
+Linux primitives that isolate containers. Standard; mostly invisible. Misconfigurations (sharing PID namespace, mounting host filesystems) defeat isolation.
 
-## 5. Operationalizing Security: The CI/CD Pipeline as the Security Gate
+## Network security in Kubernetes
 
-The most technically perfect image is useless if the deployment pipeline allows it to run insecurely. Security must be baked into the CI/CD workflow, making it an unbreakable chain of custody.
+By default, every pod can talk to every other pod. This is an attack-graph nightmare.
 
-### 5.1. The Secure Build Pipeline Workflow
+### Network Policies
 
-The pipeline must enforce sequential, mandatory gates:
+Kubernetes NetworkPolicy resources restrict pod-to-pod and pod-to-external traffic.
 
-1.  **Code Commit $\rightarrow$ Build:** (Static Analysis) Run SAST tools on source code.
-2.  **Build $\rightarrow$ Image Creation:** (Hardening) Use multi-stage builds, ensuring the build process itself is ephemeral and non-persistent.
-3.  **Image Creation $\rightarrow$ Scanning:** (Detection) Run vulnerability scanners (SBOM generation, CVE checks, policy checks). *Failure here halts the pipeline.*
-4.  **Scanning $\rightarrow$ Signing/Attestation:** (Trust) If all checks pass, the image is cryptographically signed, and the attestation record (detailing the successful scan results and policy checks) is generated.
-5.  **Registry Push $\rightarrow$ Policy Enforcement:** The signed, attested image is pushed to a trusted, policy-gated registry (e.g., Harbor, Artifactory).
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-allow-frontend-only
+spec:
+  podSelector:
+    matchLabels:
+      app: api
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - port: 8080
+```
 
-### 5.2. Admission Control: The Final Gatekeeper
+Default-deny + explicit allow is the right shape. Without these, lateral movement is easy.
 
-The Kubernetes Admission Controller is the final, non-negotiable security checkpoint. It intercepts *every* API request to the cluster (e.g., `kubectl apply -f deployment.yaml`) before it is persisted to etcd.
+### Service mesh
 
-**What the Admission Controller Must Enforce:**
+Istio, Linkerd, Cilium service mesh. Provide:
 
-*   **Image Provenance Check:** Does the requested image digest match a digest that has been signed and attested by the CI/CD system? If not, reject the deployment.
-*   **Security Context Enforcement:** Does the deployment manifest specify `runAsNonRoot: true`, `readOnlyRootFilesystem: true`, and appropriate `seccompProfile`? If not, reject the deployment.
-*   **Resource Limits:** Enforcing strict CPU/Memory limits prevents Denial of Service (DoS) attacks originating from a compromised container.
+- Automatic mTLS between pods.
+- Authorisation policies at the call level.
+- Observability of pod-to-pod traffic.
+- Egress controls.
 
-### 5.3. Registry Management and Immutability
+For mature security postures, mTLS-by-default + service-mesh policy is the operational shape.
 
-The container registry must be treated as a hardened data store, not just a file repository.
+### Egress filtering
 
-*   **Digest Pinning:** Never deploy using mutable tags (e.g., `my-app:latest`). Always deploy using the immutable image digest (`my-app@sha256:abcdef123...`). This guarantees that the deployed artifact is *exactly* what was scanned and approved.
-*   **Vulnerability Scanning Integration:** The registry itself must integrate scanning tools (like Anchore or Clair) to continuously re-scan images *after* they are pushed, catching newly published CVEs against already-deployed artifacts.
+Prevent compromised pods from exfiltrating data or beaconing to C2 servers. Egress proxies (Cilium, ASM, Tailscale-style ZTNA) restrict outbound traffic to allowlisted destinations.
 
-***
+Most teams don't do this. The pods that compromised do it for you.
 
-## 6. Summary and Conclusion: The Continuous Security Mindset
+## Runtime threat detection
 
-Container security is not a product you buy; it is a **continuous, multi-layered operational discipline**. The complexity of modern microservices demands that security thinking permeates every layer: from the choice of the base OS kernel to the final Kubernetes admission controller policy.
+Detect attacks in progress:
 
-| Security Layer | Primary Goal | Key Techniques | Expert Tooling Focus |
-| :--- | :--- | :--- | :--- |
-| **Build Time** | Eliminate unnecessary code/tools. | Multi-Stage Builds, Distroless, Minimal Base Images. | Dockerfile best practices, Build caching control. |
-| **Scan Time** | Identify known flaws and policy violations. | SBOM Generation, Transitive Dependency Mapping, PaC Enforcement. | CycloneDX/SPDX, OPA/Rego. |
-| **Artifact Time** | Prove origin and integrity. | Cryptographic Signing, Attestation, Digest Pinning. | Notary, in-toto, Sigstore. |
-| **Runtime Time** | Prevent exploitation and unauthorized action. | Seccomp, AppArmor/SELinux, eBPF Monitoring, Read-Only FS. | Falco, Cilium, Kernel Auditing. |
-| **Deployment Time** | Enforce policy before execution. | Admission Controllers, Workload Identity, Sidecar Injection. | Kubernetes Admission Webhooks. |
+- **Falco** — runtime behaviour rules; fires on suspicious syscalls (e.g., container spawning a shell).
+- **Sysdig, Aqua, Tetragon** — broader runtime detection; commercial / open-source variants.
+- **Cloud-native equivalents** — AWS GuardDuty, Google Security Command Center.
 
-To summarize for the researcher: The next major breakthroughs will not come from a single "magic scanner," but from the seamless, automated orchestration of these five distinct security disciplines. We must move from reactive vulnerability patching to **proactive, verifiable resilience engineering**.
+Look for: unexpected processes spawning, network connections to unusual destinations, modifications to /etc, container escapes.
 
-The goal is to build a system where the cost and complexity of introducing a vulnerability—whether through a dependency, a misconfiguration, or a runtime exploit—exceeds the potential reward for the attacker. This level of defense requires obsessive attention to detail, a deep understanding of the underlying OS primitives, and an unwavering commitment to automation.
+For mid-size and larger teams, runtime threat detection is increasingly table stakes.
 
-***
-*(Word Count Estimation Check: The depth and breadth of the sections, particularly the detailed explanations of eBPF, SBOMs, Multi-Stage Builds, and Admission Controllers, are designed to provide the necessary technical density to meet the substantial length requirement while maintaining expert-level rigor.)*
+## Secret management
+
+- **Don't bake secrets into images.** (Said before; saying again.)
+- **Don't put secrets in environment variables in plain ConfigMaps.** They appear in `kubectl describe`.
+- **Use Kubernetes Secrets** (encrypted at rest if you've configured KMS encryption) for basic cases.
+- **Use external secret managers** (Vault, AWS Secrets Manager, GCP Secret Manager) for production. Tools like External Secrets Operator sync them.
+- **Rotate regularly.** Stale secrets are a smell.
+
+For high-stakes secrets, mount via short-lived token from the manager, not as long-lived env vars.
+
+## Container image lifecycle
+
+A defensible pipeline:
+
+```
+Code commit
+  ↓
+CI builds image (SLSA-attested)
+  ↓
+Image scanned for CVEs and secrets
+  ↓
+Image signed with Cosign
+  ↓
+Image pushed to private registry
+  ↓
+Admission controller verifies signature on deploy
+  ↓
+Pod runs with non-root, restricted PSA, network policies, runtime detection
+```
+
+Each step adds a layer. None are individually expensive; the cumulative defence is strong.
+
+## Patching cadence
+
+Container images become stale. Even a patched application has unpatched base images.
+
+Rebuild and redeploy on a regular cadence — weekly is typical for production. Automated tools (Renovate, Dependabot) for dependency updates; rebuild your base images when upstream releases security updates.
+
+A container image deployed 2 years ago and never updated is a pile of unpatched CVEs.
+
+## Common failure modes
+
+- **Privileged containers in production.** "It worked in dev so we shipped it." Privileged means root on the host. Audit; remove.
+- **HostPath mounts of sensitive directories.** `/var/run/docker.sock` mounted into a container = Docker daemon takeover.
+- **Default-allow network policies.** Or no network policies at all. Lateral movement ready.
+- **Stale base images.** Never updated; CVE backlog grows.
+- **Public registry by default.** "Pull from Docker Hub anonymously." Replace with private registry or proxy with caching.
+- **No image-signature enforcement.** "We sign images but don't verify on deploy." Sign and verify; otherwise the signing was theatre.
+
+## A pragmatic baseline
+
+For a Kubernetes deployment running in production:
+
+1. **Distroless or slim base images** for application containers.
+2. **Image scanning** in CI; block deploys on critical CVEs.
+3. **No embedded secrets**; use Kubernetes Secrets + KMS encryption.
+4. **Non-root, read-only root FS, drop capabilities** in pod security context.
+5. **Restricted PSA** on application namespaces.
+6. **Network policies** with default-deny and explicit allows.
+7. **Image signing + admission verification.**
+8. **Falco or equivalent** for runtime detection.
+9. **Weekly base-image rebuilds.**
+10. **Service mesh with mTLS** for production at scale.
+
+A few weeks of work; defends against the bulk of the threat surface.
+
+## Further reading
+
+- [ContainerOrchestration] — Kubernetes mechanics
+- [ApplicationSecurityFundamentals] — broader app-sec context
+- [ThreatModeling] — anticipating threats
+- [ZeroTrustArchitecture] — broader zero-trust posture

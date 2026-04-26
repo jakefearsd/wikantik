@@ -23,14 +23,22 @@ import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventListener;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
+import com.wikantik.filters.FilterManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /**
  * Forwards wiki {@link WikiPageEvent}s to the {@link DefaultStructuralIndexService}.
- * Wired from {@link com.wikantik.knowledge.mcp.KnowledgeMcpInitializer} or the
- * WikiEngine bootstrap, following the same pattern as
- * {@code com.wikantik.mcp.resources.WikiEventSubscriptionBridge}.
+ * Wired from the {@code WikiEngine} bootstrap.
+ *
+ * <p>The save-side events fired in production come from
+ * {@code DefaultFilterManager.fireEvent(...)} during {@code doPostSaveFiltering},
+ * with the {@link FilterManager} as the event source — not the
+ * {@link PageManager}. {@code PAGE_DELETED} is fired from {@link PageManager}.
+ * The listener therefore registers on both sources and routes
+ * {@code POST_SAVE_END} (or the bare {@code POST_SAVE}, in case a
+ * {@code PageEventFilter} is ever wired in) to {@code onPageSaved}, and
+ * {@code PAGE_DELETED} to {@code onPageDeleted}.</p>
  */
 public class StructuralIndexEventListener implements WikiEventListener {
 
@@ -42,9 +50,10 @@ public class StructuralIndexEventListener implements WikiEventListener {
         this.service = service;
     }
 
-    public void register( final PageManager pageManager ) {
+    public void register( final PageManager pageManager, final FilterManager filterManager ) {
         WikiEventManager.addWikiEventListener( pageManager, this );
-        LOG.info( "Structural index event listener registered for PageManager events" );
+        WikiEventManager.addWikiEventListener( filterManager, this );
+        LOG.info( "Structural index event listener registered for PageManager + FilterManager events" );
     }
 
     @Override
@@ -53,9 +62,10 @@ public class StructuralIndexEventListener implements WikiEventListener {
             return;
         }
         switch ( pageEvent.getType() ) {
-            case WikiPageEvent.POST_SAVE    -> service.onPageSaved( pageEvent.getPageName() );
-            case WikiPageEvent.PAGE_DELETED -> service.onPageDeleted( pageEvent.getPageName() );
-            default                         -> { /* ignore other event types */ }
+            case WikiPageEvent.POST_SAVE_END,
+                 WikiPageEvent.POST_SAVE     -> service.onPageSaved( pageEvent.getPageName() );
+            case WikiPageEvent.PAGE_DELETED  -> service.onPageDeleted( pageEvent.getPageName() );
+            default                          -> { /* ignore other event types */ }
         }
     }
 }

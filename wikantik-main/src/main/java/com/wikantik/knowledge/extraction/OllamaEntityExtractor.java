@@ -64,29 +64,52 @@ public class OllamaEntityExtractor implements EntityExtractor {
         this.config = config;
     }
 
+    /**
+     * Returns the configured Ollama model tag (e.g. {@code "gemma4-assist"},
+     * {@code "qwen2.5:1.5b-instruct"}) so {@code chunk_entity_mentions.extractor}
+     * carries the actual model lineage rather than the literal {@code "ollama"}
+     * for every Ollama-served model. The {@code :latest} suffix is stripped
+     * because it adds no information — Ollama uses it as the default tag.
+     *
+     * <p>Falls back to {@link #CODE} ({@code "ollama"}) only if the configured
+     * model is null or blank, which would already be a broken extractor.
+     */
     @Override
     public String code() {
-        return CODE;
+        final String model = config == null ? null : config.ollamaModel();
+        if( model == null || model.isBlank() ) {
+            return CODE;
+        }
+        final String trimmed = model.trim();
+        return trimmed.endsWith( ":latest" )
+            ? trimmed.substring( 0, trimmed.length() - ":latest".length() )
+            : trimmed;
     }
 
     @Override
     public ExtractionResult extract( final ExtractionChunk chunk, final ExtractionContext context ) {
+        // Resolve the dynamic code once per call so every result this extractor
+        // returns — success, empty, or failure — carries the same model lineage
+        // tag. Using the static CODE constant here would skip the model-name
+        // logic added in code() and re-introduce the "ollama" everywhere
+        // problem.
+        final String code = code();
         final long started = System.nanoTime();
         try {
             final String raw = callOllama( chunk, context );
             final Duration latency = Duration.ofNanos( System.nanoTime() - started );
             if( raw == null ) {
-                return ExtractionResult.empty( CODE, latency );
+                return ExtractionResult.empty( code, latency );
             }
             return ExtractionResponseParser.parse(
-                raw, chunk, context, CODE, latency, config.confidenceThreshold() );
+                raw, chunk, context, code, latency, config.confidenceThreshold() );
         } catch( final InterruptedException ie ) {
             Thread.currentThread().interrupt();
             LOG.warn( "Ollama extraction interrupted for chunk {}", chunk.id() );
-            return ExtractionResult.empty( CODE, Duration.ofNanos( System.nanoTime() - started ) );
+            return ExtractionResult.empty( code, Duration.ofNanos( System.nanoTime() - started ) );
         } catch( final RuntimeException | IOException e ) {
             LOG.warn( "Ollama extraction failed for chunk {}: {}", chunk.id(), e.getMessage() );
-            return ExtractionResult.empty( CODE, Duration.ofNanos( System.nanoTime() - started ) );
+            return ExtractionResult.empty( code, Duration.ofNanos( System.nanoTime() - started ) );
         }
     }
 

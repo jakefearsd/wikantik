@@ -1,375 +1,242 @@
 ---
-canonical_id: 01KQ0P44NTYHK82ZD3ZEB7RMXG
 title: Concurrency Patterns
 type: article
+cluster: software-architecture
+status: active
+date: '2026-04-25'
 tags:
-- lock
-- thread
-- read
-summary: Concurrency Patterns and Thread Safety Locks Welcome.
-auto-generated: true
+- concurrency
+- threads
+- async
+- channels
+- locks
+summary: The concurrency primitives and patterns that show up across modern
+  languages — locks, channels, async/await, actors, futures — with the
+  trade-offs and the failure modes each one introduces.
+related:
+- ConcurrencyDistributed
+- ActorModelProgramming
+- JavaConcurrencyPatterns
+- ReactiveProgramming
+hubs:
+- SoftwareArchitecture Hub
 ---
-# Concurrency Patterns and Thread Safety Locks
+# Concurrency Patterns
 
-Welcome. If you are reading this, you are presumably past the point of merely using `synchronized` blocks and are now wrestling with the subtle, often invisible, complexities of shared mutable state across multiple execution threads. Good. Because understanding concurrency is less about knowing the syntax and more about mastering the underlying mathematical and hardware guarantees of memory visibility and ordering.
+Concurrency is "doing multiple things, possibly overlapping in time." Parallelism is "doing multiple things truly simultaneously, on different cores." You can have one without the other — async I/O is concurrent without being parallel; SIMD math is parallel without typical concurrency overhead.
 
-This tutorial is not a refresher for junior developers. It is a comprehensive, deep-dive exploration into the theoretical underpinnings, practical implementations, and advanced failure modes associated with concurrency patterns and synchronization primitives. We will treat locks not as simple guards, but as complex, stateful contracts governing access to shared resources.
+Most application concurrency is about *waiting*. A web server isn't doing computation 99% of the time; it's waiting for a database, a downstream service, a file. The patterns are about how to wait for many things efficiently.
 
----
+## The primitives
 
-## I. The Theoretical Foundation: Why Locks Are Necessary
+### Locks (mutexes)
 
-Before diving into specific patterns, we must establish the core problem: **Race Conditions**.
+Mutual exclusion. Only one thread holds the lock at a time. Critical sections inside the lock are atomic.
 
-In a single-threaded environment, execution is sequential, and memory operations are inherently ordered. In a multi-threaded environment, the CPU, the operating system scheduler, and the compiler are all optimizing for performance, often reordering memory reads and writes (Instruction Reordering) and caching data locally (Cache Coherency Issues).
-
-When multiple threads operate on shared mutable state ($\text{State} \in \text{SharedMemory}$), the final outcome depends entirely on the non-deterministic interleaving of their instructions. This non-determinism is the enemy of correctness.
-
-### A. Memory Models and Visibility Guarantees
-
-At the expert level, we must move beyond the concept of "locking" and understand *why* locking works. It works because locks enforce **Memory Barriers** (or Fences).
-
-1.  **The Problem of Visibility:** Without explicit synchronization, Thread A might write a value to a variable $X$ and store it only in its local CPU cache. Thread B, reading $X$, might read the stale value directly from main memory or an outdated cache line, never seeing the update from Thread A.
-2.  **The Solution (Memory Barriers):** Synchronization primitives (like acquiring a lock or using `volatile` in Java) force the CPU and compiler to issue memory barriers. These barriers guarantee that all memory writes preceding the barrier are flushed from local caches to main memory, and all subsequent reads must observe the most recent state from main memory.
-3.  **The Happens-Before Relationship:** In formal terms (as defined by the Java Memory Model, JMM), synchronization establishes a *happens-before* relationship. If Action A happens-before Action B, then the effects of A are guaranteed to be visible to B. Locks are the primary mechanism for establishing this relationship.
-
-### B. The Spectrum of Synchronization Primitives
-
-Synchronization mechanisms exist on a spectrum of increasing complexity and decreasing overhead:
-
-1.  **Atomic Operations (The Lowest Level):** Utilizing hardware instructions like Compare-And-Swap (CAS). These are non-blocking and operate directly on memory locations, making them the fastest option when applicable.
-2.  **Locks (The Mid-Level):** Mutual Exclusion (Mutexes). These enforce mutual exclusion—only one thread can proceed. They are robust but introduce overhead due to context switching and contention management.
-3.  **Higher-Level Constructs (The Abstraction):** Semaphores, Read-Write Locks. These are sophisticated abstractions built *using* lower-level primitives to solve specific access patterns more efficiently than a simple binary lock.
-
----
-
-## II. Core Synchronization Patterns: From Basics to Mastery
-
-We will now dissect the primary tools, moving from the simplest to the most nuanced.
-
-### A. Mutexes (Mutual Exclusion Locks)
-
-A Mutex is the most fundamental synchronization tool. It acts as a binary gate: either the resource is available (unlocked), or it is in use (locked).
-
-**Mechanism:** A thread must successfully *acquire* the lock before entering the critical section and *release* it upon exiting.
-
-**Expert Consideration: Lock Granularity:**
-The single most critical performance decision when using locks is **granularity**.
-*   **Coarse-Grained Locking:** Locking an entire object or data structure (e.g., locking the entire `Map` object). Simple to implement, but severely limits concurrency, as only one thread can operate on *any* part of the structure at a time.
-*   **Fine-Grained Locking:** Locking only the specific element or segment being modified (e.g., locking individual nodes within a linked list, or using separate locks for different keys in a hash map). This maximizes parallelism but introduces significant complexity, as developers must correctly identify all potential points of contention and ensure that *all* necessary components are locked together (the "deadly embrace" risk).
-
-**Pseudocode Concept (Conceptual):**
-```pseudocode
-lock(Resource_A) {
-    // Critical Section for A
-    modify(A)
-}
-lock(Resource_B) {
-    // Critical Section for B
-    modify(B)
-}
-// If A and B must be modified together, we must acquire locks in a defined order (e.g., alphabetical order of resource names)
+```python
+with lock:
+    counter += 1
 ```
 
-### B. Semaphores: Counting Access Control
+Costs:
 
-A Semaphore is a generalization of a Mutex. While a Mutex is a binary semaphore (count = 1), a counting semaphore allows a fixed number, $N$, of threads to access a resource pool concurrently.
+- **Contention** — threads queue at the lock. The "single-threaded section" becomes the bottleneck.
+- **Deadlock** — two threads each holding a lock the other wants. Easy to create; surprisingly hard to debug.
+- **Priority inversion** — low-priority thread holds lock; high-priority thread waits.
 
-**Use Case:** Resource pooling, such as managing a limited set of database connections or worker threads in a thread pool.
+Use sparingly. The pattern "data structure protected by a lock" is correct but doesn't scale; "many readers, occasional writer" is the canonical example where read-write locks help; "shared mutable state" is a smell, not a pattern.
 
-**Mechanism:**
-1.  Initialize the semaphore count to $N$.
-2.  A thread must `acquire()` a permit (decrementing the count). If the count is zero, the thread blocks.
-3.  When finished, the thread must `release()` the permit (incrementing the count).
+### Read-write locks
 
-**Advanced Consideration: Bounded vs. Unbounded:**
-In practice, we almost always deal with *bounded* semaphores, as an unbounded semaphore implies infinite resources, which is physically impossible. The management of the permit count *is* the resource management pattern itself.
+Multiple concurrent readers; exclusive writer. Useful when reads dominate and you can stand the complexity.
 
-### C. Read-Write Locks: Optimizing Read-Heavy Workloads
+Implementation gotchas: writer starvation (constant readers prevent writes), priority handling, upgrade-to-writer (deadlock-prone). Many languages provide tested implementations; use those.
 
-This is a classic optimization pattern that directly addresses the inefficiency of using a simple Mutex when reads vastly outnumber writes.
+### Atomic operations
 
-**The Limitation of Mutexes:** If we use a standard Mutex, even if 100 threads are only *reading* data, they must wait in line, one by one, because the lock mechanism treats a read operation as a write operation (i.e., it requires exclusive access).
+Hardware-supported single-word operations: compare-and-swap (CAS), atomic increment, atomic exchange. Building blocks for lock-free data structures.
 
-**The Solution (Read-Write Lock):**
-1.  **Read Access:** Multiple threads can hold the lock simultaneously, provided no writer is active. This allows for high read concurrency.
-2.  **Write Access:** A thread must acquire an *exclusive* write lock. While this lock is held, *no* other thread (reader or writer) can proceed.
-
-**Implementation Depth:**
-Implementing a robust Read-Write Lock often requires more than just a single lock. It typically involves:
-*   A primary lock (to protect the internal state, like the read count).
-*   A counter tracking the number of active readers.
-*   A mechanism (like condition variables or condition waiting) to block incoming readers when a writer is waiting, and vice versa, to prevent writer starvation.
-
-**Performance Trade-off:** While superior to a simple Mutex in read-heavy scenarios, Read-Write Locks themselves introduce overhead. The overhead of checking the read count and managing the state transitions can sometimes negate the benefits if the critical sections are extremely short.
-
----
-
-## III. The Non-Blocking Frontier: Atomic Operations and CAS
-
-For the truly advanced researcher, the goal is often to *avoid* locks entirely. This leads us to the realm of non-blocking algorithms, which rely on hardware guarantees rather than OS scheduling primitives.
-
-### A. Compare-And-Swap (CAS)
-
-CAS is the cornerstone of lock-free programming. It is an atomic instruction provided by modern CPUs (e.g., `CMPXCHG` on x86).
-
-**The Operation:** CAS takes three operands:
-1.  Memory Location ($L$)
-2.  Expected Old Value ($E$)
-3.  New Value ($N$)
-
-The operation atomically checks: **"Is the value at $L$ *still* equal to $E$? If yes, set $L$ to $N$ and return true; otherwise, do nothing and return false."**
-
-**The Loop Structure:**
-Lock-free algorithms are implemented using a retry loop:
-
-```pseudocode
-do {
-    current_value = read(L)
-    if (current_value != expected_value) {
-        // State changed by another thread; restart the loop
-        continue
-    }
-    // Attempt the write atomically
-    success = CAS(L, current_value, new_value)
-    if (success) {
-        break // Success!
-    }
-    // If CAS failed, another thread beat us; loop again
-} while (true)
+```rust
+counter.fetch_add(1, Ordering::SeqCst);
 ```
 
-**Why is this powerful?**
-It eliminates the need for the OS scheduler to intervene with context switches associated with acquiring and releasing locks. The contention is resolved purely in hardware cycles.
+Faster than locks for simple operations; harder to compose for complex ones. Used heavily inside libraries (queues, hash tables); rarely the right level for application code.
 
-### B. Memory Model Implications for Atomics
+### Channels
 
-The use of `volatile` or explicit atomic types (like `java.util.concurrent.atomic.AtomicInteger`) is not just about visibility; it's about *ordering*.
+A queue with sender(s) and receiver(s). Senders put messages in; receivers take them out.
 
-*   **`volatile` (Java Context):** Guarantees visibility and prevents compiler reordering across reads/writes to that specific variable. However, it does *not* guarantee atomicity for compound operations (e.g., `count++` is read, increment, write—three steps; `volatile` only guarantees visibility between these steps, not that the entire sequence is atomic).
-*   **Atomic Classes (CAS Implementation):** These classes wrap CAS operations, ensuring that the entire read-modify-write cycle is atomic, thereby guaranteeing both visibility *and* atomicity for the compound operation.
+```go
+ch := make(chan int, 10)  // buffered channel, size 10
+ch <- 42                  // send
+val := <-ch               // receive
+```
 
-### C. Lock-Free vs. Wait-Free
+The defining feature of Go's concurrency model. Also present in Rust (`std::sync::mpsc`, crossbeam), and effectively built on top of futures in async languages.
 
-These terms are often conflated, but for the expert, the distinction is crucial:
+Why they're popular: communication without shared mutable state. "Don't communicate by sharing memory; share memory by communicating" (Go's mantra).
 
-1.  **Lock-Free:** Guarantees that *at least one* thread will make progress in a finite number of steps, even if other threads are delayed or fail. Progress is guaranteed system-wide.
-2.  **Wait-Free:** A stronger guarantee. It guarantees that *every* thread will complete its operation in a finite number of steps, regardless of the speed or failure of other threads. Wait-free algorithms are significantly harder to design and implement correctly.
+Costs: channels are usually slower than direct shared-memory access; debugging "where did this message go" can be harder than tracing function calls.
 
----
+### Futures / Promises
 
-## IV. Advanced Design Patterns for Concurrency Control
+A handle to a value that will be available later.
 
-The choice of pattern dictates the performance profile and complexity ceiling of the system.
+```javascript
+const result = await fetchData();  // suspends here until data arrives
+```
 
-### A. The Singleton Pattern in Concurrency
+The dominant model in modern JavaScript, Python (asyncio), Rust (async/await), C# (Task), Java (CompletableFuture, virtual threads).
 
-The Singleton pattern is a textbook example of where concurrency failure is immediate and catastrophic. If multiple threads can instantiate the object, the core invariant (single instance) is violated.
+Win: code looks synchronous but doesn't block. One thread handles thousands of concurrent operations.
 
-**The Pitfall (Naive Implementation):**
-```pseudocode
-class Singleton {
-    static instance = null;
-    static getInstance() {
-        if (Singleton.instance == null) { // Check 1
-            Singleton.instance = new Singleton(); // Check 2 (Race Condition here!)
-        }
-        return Singleton.instance;
-    }
+Cost: the "function colour problem" — async functions can only be called from async contexts. A library half-converted to async is more painful than a fully sync or fully async one.
+
+### Actor model
+
+Each actor has its own state and a mailbox. Actors communicate by sending messages. State is never shared; concurrency is structural.
+
+```scala
+class Counter extends Actor {
+  var count = 0
+  def receive = {
+    case Increment => count += 1
+    case Get => sender ! count
+  }
 }
 ```
-Two threads can pass Check 1 simultaneously, leading to two instances being created.
 
-**The Solutions (In Order of Increasing Complexity/Performance):**
+Strong isolation; great for distributed systems where actors might be on different machines. Used in Erlang/Elixir (the canonical example), Akka, Orleans, Pony.
 
-1.  **Synchronized Method (Coarse Lock):**
-    ```pseudocode
-    static getInstance() {
-        if (Singleton.instance == null) {
-            synchronized (Singleton.class) { // Lock on the class object
-                if (Singleton.instance == null) {
-                    Singleton.instance = new Singleton();
-                }
-            }
-        }
-        return Singleton.instance;
-    }
-    ```
-    *Critique:* Correct, but the lock is held on *every* call, even after initialization, incurring unnecessary overhead.
+See [ActorModelProgramming].
 
-2.  **Double-Checked Locking (DCL) (The Optimization):**
-    This pattern attempts to minimize synchronization overhead by checking the state *outside* the lock.
-    ```pseudocode
-    static getInstance() {
-        if (Singleton.instance == null) { // Check 1 (No lock)
-            synchronized (Singleton.class) {
-                if (Singleton.instance == null) { // Check 2 (Inside lock)
-                    Singleton.instance = new Singleton();
-                }
-            }
-        }
-        return Singleton.instance;
-    }
-    ```
-    *Crucial Caveat (The Expert Warning):* In languages like Java, DCL *requires* the `volatile` keyword on the `instance` field. Without `volatile`, the JVM might reorder the write of the object reference, allowing a thread to see a non-null reference pointing to a partially constructed object (a memory visibility failure).
+## Patterns
 
-3.  **Initialization-on-Demand Holder Idiom (The Best Practice):**
-    This leverages the JVM's guarantee that class initialization is inherently thread-safe.
-    ```pseudocode
-    class Singleton {
-        private Singleton() {} // Private constructor
-        private static class SingletonHolder {
-            private static final Singleton INSTANCE = new Singleton();
-        }
-        public static Singleton getInstance() {
-            return SingletonHolder.INSTANCE;
-        }
-    }
-    ```
-    *Analysis:* This is superior because the initialization of `SingletonHolder` only happens when `getInstance()` is called, and the JVM guarantees this initialization is atomic and thread-safe, requiring no explicit locks or volatile keywords.
+### Producer-consumer
 
-### B. The Strategy Pattern Applied to Locking (Pluggable Synchronization)
+Producers generate work; consumers process it. A buffer / queue between them decouples rate.
 
-As noted in the research context, treating the locking mechanism itself as a pluggable component is a powerful architectural pattern.
+```go
+jobs := make(chan Job, 100)
+go producer(jobs)
+go consumer(jobs)
+```
 
-Instead of embedding `synchronized` blocks everywhere, you define a `LockingStrategy` interface:
+Universal pattern. Consider:
 
-```pseudocode
-interface LockingStrategy {
-    void acquire(Resource r);
-    void release(Resource r);
+- **Bounded vs unbounded buffer.** Unbounded means producer can flood memory. Bounded means producer back-pressure when consumer is slow. Almost always bounded.
+- **One producer, many consumers** — load balancing.
+- **Many producers, one consumer** — serialisation.
+- **Many producers, many consumers** — scaling.
+
+### Fan-out / fan-in
+
+Split work across multiple workers; collect results.
+
+```go
+// Fan out
+for i := 0; i < numWorkers; i++ {
+    go worker(jobs, results)
 }
 
-class ReadWriteLockStrategy implements LockingStrategy {
-    // Implementation using ReentrantReadWriteLock
-}
-
-class AtomicCASStrategy implements LockingStrategy {
-    // Implementation using CAS loops
+// Fan in
+for r := range results {
+    process(r)
 }
 ```
-The resource manager then accepts an instance of this strategy: `ResourceManager(strategy: LockingStrategy)`.
 
-**Benefit:** This decouples the *business logic* (what needs protection) from the *concurrency mechanism* (how it is protected). If you need to migrate from fine-grained mutexes to optimistic concurrency control (CAS), you only swap out the strategy object, leaving the core business logic untouched.
+Pattern is the same across languages with different syntax. The difficulty is error handling: if one worker fails, do you cancel the rest, retry, or proceed? Each is right in different contexts.
 
-### C. The Balking Pattern (Backoff Strategies)
+### Pipeline
 
-When multiple threads contend for a lock, they often fail the CAS operation or fail to acquire the lock immediately. Instead of immediately retrying (which can exacerbate the problem, leading to *thrashing*), advanced systems employ backoff.
+Chain of stages connected by channels. Each stage transforms data.
 
-**Mechanism:**
-1.  Attempt operation (e.g., CAS).
-2.  If failed, wait for a calculated, increasing duration before retrying.
+```
+source → parser → enricher → writer
+```
 
-**Types of Backoff:**
-*   **Exponential Backoff:** Wait time increases exponentially ($T, 2T, 4T, 8T, \dots$). This is effective for reducing contention rapidly.
-*   **Jitter:** Adding a small, random component to the calculated wait time ($\text{Wait} = \text{Calculated} + \text{Random}(0, \text{JitterRange})$). Jitter is crucial because if all threads use pure exponential backoff, they will all retry at the exact same moment, causing a synchronized "thundering herd" problem.
+Each stage runs as its own goroutine / task / thread. Buffered channels between stages provide backpressure.
 
----
+Used in stream processing (Apache Beam, Flink internally), build systems, data pipelines.
 
-## V. Language-Specific Implementations
+### Worker pool
 
-The "best" pattern is entirely dependent on the language's memory model and available primitives.
+Fixed number of workers; pull work from a shared queue. Limits resource use; balances load.
 
-### A. Java Concurrency Deep Dive (The Gold Standard for Explicit Control)
+```python
+with ThreadPoolExecutor(max_workers=10) as pool:
+    results = pool.map(work, items)
+```
 
-Java provides a rich, mature ecosystem, but experts must know the nuances between its tools.
+The default for "I want to process N items in parallel but don't want N threads." Use the standard library's pool; don't roll your own.
 
-1.  **`synchronized` Keyword:**
-    *   *Mechanism:* Uses intrinsic object monitors (a form of implicit mutex).
-    *   *Scope:* Blocks on the object instance or the class object.
-    *   *Limitation:* Cannot be used to implement Read-Write separation efficiently. It is inherently coarse-grained.
+### Single-flight
 
-2.  **`java.util.concurrent.locks.ReentrantLock`:**
-    *   *Advantage:* Offers explicit control over locking, allowing `tryLock()` (non-blocking attempts) and timed waits (`tryLock(long time, TimeUnit unit)`).
-    *   *Flexibility:* Allows for `Condition` objects, which are superior to `wait()`/`notify()` because they allow threads to wait on specific, named conditions rather than just the object monitor itself.
+When many concurrent callers would do the same work, only do it once. Other callers wait for the first to finish.
 
-3.  **`java.util.concurrent.locks.ReadWriteLock` (and `ReentrantReadWriteLock`):**
-    *   As discussed, this is the go-to for read-heavy data structures.
-    *   *Advanced Note:* For maximum performance in modern Java (Java 8+), developers should investigate `StampedLock`. It attempts to combine the best features: it allows optimistic reading, which attempts to read without acquiring any lock at all. If a write occurs during the read, the optimistic read fails, and the developer must then fall back to acquiring a full read lock. This is significantly faster than the traditional ReadWriteLock if write contention is low.
+```go
+result, err, _ := singleflight.Do("key", func() (interface{}, error) {
+    return expensiveOperation()
+})
+```
 
-### B. JavaScript/TypeScript Concurrency (The Asynchronous Model)
+Critical for cache stampedes — when a hot cache key expires and 1000 requests miss simultaneously, you don't want 1000 database queries.
 
-JavaScript is fundamentally single-threaded (the Event Loop model). Therefore, traditional OS-level locks (like Mutexes) do not exist in the same way. Concurrency is managed through *asynchronicity* and *coordination* of execution flow.
+### Cancellation
 
-1.  **The Problem:** Race conditions in JS usually manifest as incorrect state updates when multiple asynchronous operations (Promises, `async/await`) resolve out of order.
-2.  **The Solution: Semaphores and Queuing:**
-    Since we cannot block a thread, we must *throttle* the rate of execution. A Semaphore pattern is implemented by maintaining a counter and using a queue.
-    *   When a task arrives, it checks the semaphore count.
-    *   If the count is $\ge 0$, the task is immediately queued for execution.
-    *   If the count is $0$, the task is placed in a waiting queue, and the execution flow pauses until another task completes and signals the semaphore.
+Long-running concurrent work needs a cancellation mechanism — request abandoned by the user, timeout, system shutdown. Modern languages provide context.Context (Go), CancellationToken (C#), AbortController (JS), drop-on-future-cancel (Rust).
 
-**Conceptual Implementation (Using Promises):**
-A semaphore implementation in JS manages a queue of pending resolvers, ensuring that only $N$ asynchronous operations are allowed to proceed concurrently.
+The pattern: every async function takes a cancellation handle; checks it periodically; returns early if cancelled.
 
-### C. Rust Concurrency (Ownership and Compile-Time Safety)
+Forgetting cancellation is the most common cause of "the request was cancelled but the work continued anyway" bugs.
 
-Rust takes concurrency safety to an entirely different level by integrating it into the ownership system. The compiler forces the developer to prove thread safety *at compile time*.
+### Backpressure
 
-1.  **`Send` and `Sync` Traits:**
-    *   `Send`: A type is `Send` if it is safe to transfer ownership of it across thread boundaries.
-    *   `Sync`: A type is `Sync` if it is safe to access references to it (`&T`) from multiple threads concurrently.
-2.  **Smart Pointers for Shared State:**
-    *   `Arc<T>` (Atomic Reference Counted): Allows multiple threads to own a pointer to the data $T$. This handles the memory management aspect (ensuring the data isn't dropped while threads are using it).
-    *   `Mutex<T>`: Wraps the data $T$ inside the `Arc`. When a thread needs access, it calls `.lock()` on the `Mutex`. This call blocks until the lock is acquired, returning a `MutexGuard`—a RAII (Resource Acquisition Is Initialization) wrapper that *guarantees* the lock is released when the guard goes out of scope, even if a panic occurs.
+When producer is faster than consumer, something has to give:
 
-**The Safety Guarantee:** Rust's compiler enforces that if a type is not `Sync`, you cannot share it across threads, effectively eliminating entire classes of data races before the code even runs.
+- **Drop messages** — fastest, can lose data.
+- **Buffer with bound** — pushes pressure back to producer.
+- **Block producer** — simplest, can deadlock if producer holds resources.
+- **Sample / aggregate** — producer-side smarts to reduce volume.
 
----
+Reactive streams (Reactor, Rx, Akka Streams) make backpressure explicit and composable. See [ReactiveProgramming].
 
-## VI. Advanced Failure Modes and Mitigation Strategies
+## Failure modes
 
-For experts, the discussion must pivot from "how to make it work" to "how to make it fail gracefully and predictably."
+**Deadlock.** Lock ordering is the standard prevention: every code path acquires locks in the same global order. Deadlock detection tools (Java's `jstack`, Go's deadlock detector) help in development.
 
-### A. Deadlock Detection and Prevention
+**Race condition.** Two threads update shared state without synchronisation; result depends on timing. Symptoms: passes in development, fails in production under load. Prevention: profile shared state; lock or use atomics; design state to be thread-local where possible.
 
-A deadlock occurs when two or more threads are permanently blocked because each is waiting for a resource held by another thread in the cycle.
+**Livelock.** Threads continually retry a failed operation, never making progress. Add backoff (with jitter); add a max-retry budget; eventually surface the failure.
 
-**The Classic Example (The Deadly Embrace):**
-*   Thread 1 acquires Lock A.
-*   Thread 2 acquires Lock B.
-*   Thread 1 attempts to acquire Lock B $\rightarrow$ BLOCKS.
-*   Thread 2 attempts to acquire Lock A $\rightarrow$ BLOCKS.
+**Lost wakeup.** Thread waits on a condition that signals just before the wait. Standard pattern: check condition after waking, retry if not yet satisfied. Use language's condition-variable API correctly.
 
-**Prevention Strategies (The Banker's Algorithm in Practice):**
+**Goroutine / thread leak.** Started a worker; never told it to stop. Memory grows; eventually OOM. Always have a stop signal; verify shutdown.
 
-1.  **Lock Ordering (The Primary Defense):** Always acquire multiple required locks in a globally defined, strict order (e.g., always acquire the lock associated with the lower memory address first, or alphabetically by resource name). This breaks the circular wait condition necessary for deadlock.
-2.  **Timeouts and Backoff:** Using `tryLock()` with a timeout. If the lock isn't acquired within the timeout, the thread must *release all locks it currently holds* and retry the entire transaction later (incorporating backoff). This prevents indefinite blocking.
-3.  **Resource Ordering Graph:** For complex systems, modeling all resources and defining a strict acquisition graph can prove deadlock freedom mathematically.
+**Memory model surprises.** Without proper synchronisation, the compiler / CPU may reorder memory accesses. Reads can see stale values, partial writes. Use language-provided synchronisation primitives; don't try to reason about reordering yourself.
 
-### B. Livelock and Starvation
+## Choosing a model
 
-These are subtler failures than deadlocks:
+For new code:
 
-1.  **Starvation:** A thread is perpetually denied necessary resources to proceed, even though the resources are periodically available. This usually happens due to unfair scheduling or poorly designed lock acquisition policies (e.g., a high-priority thread constantly preempting a low-priority thread).
-2.  **Livelock:** The threads are not blocked, but they are continuously changing state in response to each other's actions without making any *forward progress*. Example: Two people trying to pass each other in a narrow hallway, repeatedly stepping back and forth in perfect synchronization, exhausting energy but never passing.
+- **CPU-bound parallel work** → thread pool, structured concurrency, parallel collections.
+- **I/O-bound concurrent work** → async/await (the language native version).
+- **Many independent agents communicating** → channels (Go) or actors (Erlang/Akka).
+- **Pipelines of transformations** → channels with stages, or reactive streams for explicit backpressure.
+- **Shared state with low contention** → atomics + locks, used judiciously.
+- **Shared state with high contention** → redesign. Almost always there's a way to avoid sharing.
 
-**Mitigation:**
-*   **Fair Locks:** Some advanced lock implementations (like `ReentrantLock` in Java, when configured for fairness) attempt to guarantee that threads acquire the lock in the order they requested it, mitigating starvation.
-*   **Priority Aging:** In OS scheduling, giving increasing priority to threads that have been waiting the longest.
+## Language-specific notes
 
-### C. Memory Model Violations: The Subtle Bugs
+- **Go** — channels and goroutines as primary. Mature, well-trodden. See [JavaConcurrencyPatterns]-style equivalent for Go.
+- **Java** — threads + Executor framework + virtual threads (Project Loom, GA in JDK 21). Virtual threads change the calculus dramatically — async/await mostly unnecessary in modern Java.
+- **Python** — asyncio for I/O-bound, multiprocessing for CPU-bound (the GIL prevents true threading parallelism for CPU work). PEP 703 (no-GIL build) increasingly available.
+- **Rust** — async/await + tokio runtime. Borrow checker catches data races at compile time; phenomenally good for concurrent code correctness.
+- **JavaScript** — single-threaded event loop + Promises + async/await. Workers for CPU-bound work; the "shared memory model" is rare.
 
-The most difficult bugs are those that only appear under specific, high-load, non-deterministic conditions.
+## Further reading
 
-*   **Instruction Reordering:** The compiler or CPU reorders instructions for efficiency, violating the programmer's assumed sequence. This is why `volatile` or explicit memory barriers are necessary—they act as "stop signs" for the hardware/compiler pipeline.
-*   **Happens-Before Violation:** If a write to variable $X$ is not guaranteed to happen-before a read of $X$, the reading thread might see stale data, even if the write *logically* happened first.
-
----
-
-## VII. Conclusion: The Expert's Mindset
-
-Mastering concurrency is not about memorizing patterns; it is about adopting a rigorous, mathematical mindset regarding state transitions.
-
-The evolution of concurrency primitives reflects a constant battle against the inherent unpredictability of parallel execution:
-
-*   We moved from simple mutual exclusion (Mutexes) to optimizing access patterns (Read-Write Locks).
-*   We moved from blocking mechanisms (Locks) to non-blocking, hardware-assisted guarantees (CAS/Atomics).
-*   We are now incorporating architectural patterns ([Strategy Pattern](StrategyPattern)) to make the choice of synchronization mechanism itself pluggable and testable.
-
-For the researcher, the frontier remains in:
-1.  **Formal Verification:** Using tools to mathematically prove that a concurrent system is deadlock-free and starvation-free across all possible interleavings.
-2.  **Hardware Acceleration:** Designing algorithms that map perfectly onto emerging hardware features (e.g., transactional memory, if fully standardized and reliable).
-
-The goal is always to reduce the reliance on the operating system scheduler (which is slow and non-deterministic) and maximize reliance on atomic, hardware-guaranteed operations.
-
-If you find yourself writing code that relies on the *assumption* that the system will behave correctly under maximum load, you are in the right place. Now, go forth and prove your invariants.
+- [ConcurrencyDistributed] — concurrency across machines, not just cores
+- [ActorModelProgramming] — actor model in depth
+- [JavaConcurrencyPatterns] — Java specifics
+- [ReactiveProgramming] — push-based, explicit-backpressure approach

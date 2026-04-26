@@ -1,6 +1,3 @@
----
-canonical_id: 01KQ0P44T2TZRAAMD0KV60ZEA7
----
 # JSPWiki Development News
 
 A log of recent development activity on the JSPWiki project.
@@ -8,6 +5,254 @@ A log of recent development activity on the JSPWiki project.
 ---
 
 ## April 2026
+
+**2026-04-26** — fix(knowledge,structure): keep StructuralIndexEventListener strongly referenced
+
+**2026-04-26** — fix(knowledge,structure): register StructuralIndexEventListener on the right event source
+
+**2026-04-26** — feat(frontend,admin): wire AdminRetrievalQualityPage route + nav link
+
+**2026-04-26** — feat(frontend,admin): AdminRetrievalQualityPage (Phase 5b)
+
+**2026-04-26** — feat(frontend,admin): dependency-free Sparkline SVG component
+
+**2026-04-26** — feat(frontend,api): admin client for retrieval-quality runs
+
+**2026-04-26** — docs(plans,cookbook): post-Phase-6 follow-up plan + Editorial/ongoing
+
+**2026-04-26** — fix(extract-cli): reject prefilter sub-flags without --prefilter master switch
+
+**2026-04-25** — test(rest): extend AdminExtractionResourceTest Status fixtures with skip fields
+
+**2026-04-25** — refactor(engine): hoist bootstrap prefilter to a local for readability
+
+**2026-04-25** — feat(extraction): expose prefilter via CLI flags and engine wiring
+
+**2026-04-25** — fix(knowledge,test): SearchKnowledgeTool wire-JSON smoke uses Gson, not Jackson
+
+**2026-04-25** — test(extraction): pin skip_no_proper_noun explicitly in prefilter listener test
+
+**2026-04-25** — feat(extraction): apply prefilter inside save-time listener loop
+
+**2026-04-25** — docs(agent-grade): retrospective Phase 6 plan + CLAUDE.md status flip
+
+**2026-04-25** — fix(extract-cli): include skipped chunks in progress percentage
+
+**2026-04-25** — feat(extraction): wire prefilter into bootstrap indexer + CLI status
+
+**2026-04-25** — feat(tools): AG-Phase 6 worked examples on the OpenAPI tool server
+
+**2026-04-25** — feat(knowledge-mcp): AG-Phase 6 worked examples on every knowledge tool
+
+**2026-04-25** — docs(extraction): fix stale regex reference in prefilter test comment
+
+**2026-04-25** — docs(extraction): correct prefilter proper-noun regex in spec
+
+**2026-04-25** — feat(extraction): ChunkExtractionPrefilter with code/proper-noun predicates
+
+**2026-04-25** — feat(admin-mcp): AG-Phase 6 worked examples on every admin tool
+
+**2026-04-25** — feat(extraction): add prefilter flags to EntityExtractorConfig
+
+**2026-04-25** — docs+feat(admin-mcp): AG-Phase 6 prospective plan + GetBacklinksTool examples
+
+**2026-04-25** — docs(extraction): chunk pre-filter implementation plan
+
+**2026-04-25** — docs(extraction): chunk pre-filter design spec
+
+**2026-04-25** — docs: AG-Phase 5 retrospective + CLAUDE.md status update
+
+**2026-04-25** — feat(db): V017 seed core-agent-queries retrieval query set
+
+**2026-04-25** — test(eval): RetrievalQualitySmokeTest pre-merge gate
+
+**2026-04-25** — feat(engine): wire RetrievalQualityRunner into initKnowledgeGraph
+
+**2026-04-25** — feat(rest): /admin/retrieval-quality endpoint
+
+**2026-04-25** — feat(knowledge,eval): DefaultRetrievalQualityRunner
+
+**2026-04-25** — feat(knowledge,eval): RetrievalQualityMetrics
+
+**2026-04-25** — feat(knowledge,eval): RetrievalQualityDao
+
+**2026-04-25** — feat(knowledge,eval): RetrievalMetricsCalculator (nDCG/Recall/MRR)
+
+**2026-04-25** — feat(api,eval): RetrievalMode, RetrievalRunResult, RetrievalQualityRunner
+
+**2026-04-25** — feat(db): V016 retrieval-quality tables
+
+**2026-04-25** — docs(main): surface AgentCookbook on front page + quote summary
+
+**2026-04-25** — docs(cookbook): seed 15 agent-cookbook runbooks + AgentCookbook hub
+
+**2026-04-25** — fix(rest): JSON error pages for container-level errors (D10)
+
+**2026-04-25** — fix(structural-index): persist canonical_id of just-saved page (D6)
+
+**2026-04-25** — chore(db,docs): D17,D28 — dedup user_profiles migration + update tool counts in CLAUDE.md
+
+**2026-04-25** — fix(knowledge-mcp): D13,D29,D30 — accept dual arg names, document scope, fix find_similar message
+
+**2026-04-25** — fix(admin-mcp): D11,D12,D16,D18 — sanitize errors, log instructions drift, filter broken links, validate baseURL
+
+**2026-04-25** — fix(rest): D5,D7,D8,D19-D27,D31 — input validation, sanitized errors, structured diff, public KG
+
+**2026-04-25** — fix(http): D3 — CsrfProtectionFilter exempts Bearer-authenticated requests
+
+**2026-04-25** — fix(auth,knowledge,providers): D2,D4,D9,D27 — login throttle reset, chunk upsert, attachment rename, public KG
+
+**2026-04-25** — fix(observability): D1 — searchIndex health probes PageManager, not unregistered PageProvider
+
+**2026-04-25** — docs(plans,agent): Phase 3 retrospective ledger + CLAUDE.md update
+
+**2026-04-25** — feat(knowledge,agent): /for-agent populates runbook for type:runbook pages
+
+**2026-04-25** — feat(engine,agent): register RunbookValidationPageFilter at -1003
+
+**2026-04-25** — feat(knowledge,agent): RunbookValidationPageFilter for save-time enforcement
+
+**2026-04-25** — feat(knowledge,agent): FrontmatterRunbookValidator (Phase 3 schema)
+
+**2026-04-25** — feat(api,agent): RunbookBlock value type for Phase 3
+
+**2026-04-25** — docs(plans,agent): Phase 2 retrospective ledger + CLAUDE.md update
+
+**2026-04-25** — feat(knowledge-mcp,agent): get_page_for_agent MCP tool on /knowledge-mcp
+
+**2026-04-25** — feat(rest,agent): /api/pages/for-agent/{canonical_id} endpoint
+
+**2026-04-25** — feat(knowledge,agent): DefaultForAgentProjectionService + WikiEngine wiring
+
+**2026-04-25** — feat(cache,agent): wikantik.forAgentCache alias + ForAgentMetrics histogram
+
+**2026-04-25** — feat(knowledge,agent): McpToolHintsResolver for /for-agent projection
+
+**2026-04-25** — feat(knowledge,agent): RecentChangesAdapter for /for-agent projection
+
+**2026-04-25** — feat(knowledge,agent): KeyFactsExtractor with frontmatter + body heuristic
+
+**2026-04-25** — feat(knowledge,agent): HeadingsOutlineExtractor for /for-agent projection
+
+**2026-04-25** — feat(api,agent): ForAgentProjection record + service interface
+
+**2026-04-25** — fix(it-tests): green up integration test suite
+
+**2026-04-25** — docs: Agent-Grade Content Phase 1 plan + CLAUDE.md note
+
+**2026-04-25** — feat(rest): /admin/verification endpoint
+
+**2026-04-25** — feat(admin-mcp): mark_page_verified tool
+
+**2026-04-25** — feat(knowledge,engine): rebuild() persists verification with computed confidence
+
+**2026-04-25** — feat(api,knowledge): verificationOf() on StructuralIndexService
+
+**2026-04-25** — feat(knowledge): ConfidenceComputer rule engine
+
+**2026-04-25** — feat(knowledge): TrustedAuthorsDao with cached read path
+
+**2026-04-25** — feat(knowledge): PageVerificationDao with H2-tested CRUD
+
+**2026-04-25** — feat(api): verification value types (Confidence, Audience, Verification)
+
+**2026-04-25** — db: V014 migration adds page_verification and trusted_authors
+
+**2026-04-25** — docs: Phase 4 plan + CLAUDE.md note for save-time structural enforcement
+
+**2026-04-25** — feat(rest): /admin/structural-conflicts endpoint
+
+**2026-04-25** — feat(engine): wire StructuralSpinePageFilter into the filter chain
+
+**2026-04-25** — feat(knowledge): StructuralSpinePageFilter for save-time enforcement
+
+**2026-04-25** — feat(api,knowledge): surface structural conflicts from rebuild
+
+**2026-04-25** — feat(admin-mcp): re-introduce read_page + delete_pages on /wikantik-admin-mcp
+
+**2026-04-25** — docs(plan): Structural Spine Phase 3 plan + regression gate + CLAUDE.md note
+
+**2026-04-25** — data: migrate Main.md to generated form (Phase 3 of structural spine)
+
+**2026-04-25** — feat(extract-cli): GenerateMainPageCli (--check / --write)
+
+**2026-04-25** — feat(extract-cli): Main.md Mustache template + MainPageRenderer
+
+**2026-04-25** — feat(extract-cli): MainPageDataLoader (offline pins+frontmatter join)
+
+**2026-04-25** — feat(extract-cli): PinsParser for Main.pins.yaml
+
+**2026-04-25** — feat(extract-cli): PinsConfig + MainPageData value types
+
+**2026-04-25** — build: add jmustache 1.16 for Main.md generator (Phase 3 of structural spine)
+
+**2026-04-25** — docs(plan): Structural Spine Phase 2 implementation record
+
+**2026-04-25** — test(it): /api/relations/{id} integration coverage
+
+**2026-04-25** — feat(knowledge-mcp): register traverse_relations tool
+
+**2026-04-25** — feat(knowledge-mcp): traverse_relations tool
+
+**2026-04-25** — feat(rest): /api/relations/{canonical_id} endpoint
+
+**2026-04-25** — feat(knowledge): rebuild() parses + persists relations from frontmatter
+
+**2026-04-25** — feat(knowledge): FrontmatterRelationValidator (warn-only for Phase 2)
+
+**2026-04-25** — feat(knowledge): relation graph in StructuralProjection + service surface
+
+**2026-04-25** — feat(knowledge): PageRelationsDao for typed page-relation edges
+
+**2026-04-25** — feat(api): relation value types for structural-spine Phase 2
+
+**2026-04-25** — data: restore canonical_id on 46 pages rewritten by external process
+
+**2026-04-24** — test(it): structural-spine IT coverage in RestApiIT
+
+**2026-04-24** — feat(rest): /api/health/structural-index endpoint
+
+**2026-04-24** — feat(observability): Prometheus metrics for the structural index
+
+**2026-04-24** — feat(knowledge-mcp): register structural-spine tools in KnowledgeMcpInitializer
+
+**2026-04-24** — feat(knowledge-mcp): list_clusters, list_tags, list_pages_by_filter, get_page_by_id
+
+**2026-04-24** — feat(rest): PageByIdResource for canonical_id lookups
+
+**2026-04-24** — feat(rest): StructureResource at /api/structure/*
+
+**2026-04-24** — data: backfill canonical_id ULID into all 934 wiki pages (Phase 1 of structural spine)
+
+**2026-04-24** — fix(extract-cli): use FrontmatterParser for canonical_id presence check
+
+**2026-04-24** — feat(extract-cli): AssignCanonicalIdsCli — ULID backfill tool
+
+**2026-04-24** — feat(engine): register StructuralIndexService and move structure package to wikantik-main
+
+**2026-04-24** — feat(knowledge): StructuralIndexEventListener wires WikiPageEvents to rebuild
+
+**2026-04-24** — feat(knowledge): DefaultStructuralIndexService with observe-only rebuild
+
+**2026-04-24** — feat(knowledge): StructuralProjection immutable snapshot + builder
+
+**2026-04-24** — feat(knowledge): PageCanonicalIdsDao for canonical_id + slug history
+
+**2026-04-24** — feat(api): StructuralIndexService interface
+
+**2026-04-24** — feat(api): structural-index value types
+
+**2026-04-24** — db: V013 migration adds page_canonical_ids, page_slug_history, page_relations
+
+**2026-04-24** — build: use ${ulid-creator.version} property in wikantik-bom BOM entry
+
+**2026-04-24** — build: add ulid-creator 5.2.3 for canonical page IDs
+
+**2026-04-24** — docs(plan): Structural Spine Phase 1 implementation plan
+
+**2026-04-24** — docs(design): StructuralSpineDesign and AgentGradeContentDesign
+
+**2026-04-24** — docs: reconcile CLAUDE.md / README.md / GEMINI.md / connected docs with actual module layout and MCP surface
 
 **2026-04-24** — test(rest): lift wikantik-rest unit coverage from 67.7% to 80.7%
 

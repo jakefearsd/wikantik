@@ -1,252 +1,206 @@
 ---
-canonical_id: 01KQ0P44K568SFXDSV8CERDFSP
 title: Ai Evaluation And Benchmarks
 type: article
+cluster: agentic-ai
+status: active
+date: '2026-04-25'
 tags:
-- model
-- text
-- test
-summary: AI Evaluation Benchmarks The proliferation of Large Language Models (LLMs)
-  and multimodal AI systems has created a veritable Cambrian explosion of capabilities.
-auto-generated: true
+- evaluation
+- benchmarks
+- mmlu
+- swe-bench
+- llm-arena
+summary: The benchmarks that still mean something in 2026 (and the ones that
+  don't), why public benchmark scores diverge from your real workload, and how
+  to build evals that actually predict whether a model fits your use case.
+related:
+- LlmEvaluationMetrics
+- AgentTesting
+- AiHallucinationMitigation
+hubs:
+- AgenticAi Hub
 ---
-# AI Evaluation Benchmarks
+# AI Evaluation and Benchmarks
 
-The proliferation of Large Language Models (LLMs) and multimodal AI systems has created a veritable Cambrian explosion of capabilities. Suddenly, comparing models—which range from proprietary behemoths like GPT-4 to highly optimized open-source alternatives—is not merely a matter of checking a leaderboard. It is a complex, multi-dimensional engineering, scientific, and philosophical challenge.
+Evaluating AI systems is harder than it looks. Public benchmarks tell you something but rarely what you actually want to know. The model that wins on MMLU might be useless for your task; the one that's mediocre on benchmarks might be perfect.
 
-For researchers and engineers operating at the cutting edge, the concept of a single "best" model is an artifact of marketing, not reality. Model comparison is less about finding a single score and more about constructing a robust, weighted evaluation *framework* that accurately models the intended operational domain.
+This page is the working set for 2026: benchmarks that still discriminate, why they're imperfect, and how to evaluate models for your actual use case.
 
-This tutorial serves as a comprehensive deep dive into the methodologies, pitfalls, and advanced techniques required to build a rigorous, expert-grade model comparison suite. Prepare to move beyond simple accuracy metrics and grapple with the inherent trade-offs between intelligence, efficiency, cost, and robustness.
+## Why benchmarks fail
 
----
+Three reasons benchmarks become misleading:
 
-## I. The Crisis of Comparative Metrics
+### Saturation
 
-Before dissecting the mechanics, we must address the elephant in the room: **Evaluation is inherently subjective and context-dependent.**
+When the top models all score 95%+, the benchmark stops differentiating. Once everyone's at the ceiling, "Model A is 0.3 points better than Model B" doesn't translate to differentiation in real use.
 
-When we evaluate a model, we are not measuring an abstract entity; we are measuring its performance against a specific, often poorly defined, *task*. A model that excels at creative narrative generation (high fluency, high creativity score) might fail catastrophically on structured JSON extraction (low reliability, high precision requirement).
+Examples by 2026:
 
-The historical approach to AI evaluation—relying on a single, standardized benchmark (e.g., ImageNet for vision, GLUE/SuperGLUE for NLP)—is fundamentally insufficient for modern, general-purpose LLMs. These models exhibit emergent capabilities, meaning their performance in a novel setting often defies extrapolation from their training set metrics.
+- HumanEval (basic Python coding) — saturated; almost every frontier model is above 90%.
+- HellaSwag — saturated.
+- GLUE — saturated for a while.
+- MMLU — close to saturated; top models in the high 80s.
 
-### The Dimensionality Problem
+Benchmarks at saturation are noise. New ones (MMLU-Pro, GPQA Diamond) replace them.
 
-Model comparison must be treated as a multi-objective optimization problem. We are not optimizing for $\text{Score} = f(\text{Quality}, \text{Speed}, \text{Cost})$. We are optimizing for $\text{Utility} = g(\text{Quality}, \text{Speed}, \text{Cost}, \text{Safety}, \text{Context})$.
+### Contamination
 
-The goal of this tutorial is to equip you with the necessary theoretical depth to design evaluation suites that account for this high dimensionality, moving beyond the superficial comparisons found on general leaderboards.
+Benchmark questions leak into pretraining data. Models then "ace" the test by recall, not capability.
 
----
+- Internet-scraped pretraining data contains lots of public benchmark content.
+- Even paraphrased benchmark items leak.
+- Models tested in 2024 against benchmarks released in 2020 are essentially being tested on memorisation.
 
-## II. The Metrics Stack
+Mitigations:
 
-A comprehensive comparison requires dissecting the evaluation space into several orthogonal pillars. These pillars can be broadly categorized into **Capability Metrics**, **Efficiency Metrics**, and **Economic Metrics**.
+- **Live benchmarks** like LiveCodeBench (released after model cutoffs).
+- **Private benchmarks** held back by the benchmark authors.
+- **Per-model contamination tests** via canary strings.
 
-### A. Capability Metrics (The "Intelligence" Dimension)
+In 2026, expect any benchmark older than a year to have at least partial contamination.
 
-These metrics assess *what* the model can do. They are the most varied and the most difficult to standardize.
+### Distribution mismatch
 
-#### 1. Knowledge Recall and Reasoning (The "What")
-This is the traditional academic measure, testing factual knowledge and logical deduction.
+Public benchmarks test specific narrow distributions. Your application is a different distribution. Performance on benchmarks doesn't directly predict performance on your task.
 
-*   **Standard Benchmarks:** MMLU (Massive Multitask Language Understanding), HELM (Holistic Evaluation of Language Models), GSM8K (Math word problems). These provide a broad, standardized baseline.
-*   **Expert Critique:** These benchmarks are excellent for *benchmarking against peers* but often fail to capture *domain-specific* reasoning. A model might score highly on MMLU but fail when presented with proprietary industry jargon or complex, multi-step reasoning chains unique to your application.
-*   **Advanced Technique: Chain-of-Thought (CoT) Verification:** Instead of just checking the final answer, the evaluation must verify the *path* to the answer. This requires specialized parsers or secondary LLMs (the "Judge Model") to critique the logical steps provided by the candidate model.
+Example: a model that aces MMLU (multiple-choice trivia) might fail at "extract action items from a meeting transcript" because the latter requires entirely different skills.
 
-#### 2. Contextual Understanding and Memory (The "How Much")
-This relates directly to the model's context window size, but the metric is far more nuanced than mere token count.
+This is the most common failure: assuming benchmark scores mean anything about your application.
 
-*   **Context Window Size:** The raw limit (e.g., 128k tokens). This is a necessary but insufficient metric.
-*   **Effective Context Utilization:** This measures the model's ability to *retrieve* relevant information from a massive context block without being distracted by noise (the "Lost in the Middle" problem).
-    *   **Evaluation Method:** Implement "Needle-in-a-Haystack" tests. Embed a critical piece of information deep within a large, irrelevant document corpus. The model must be prompted to locate and cite this specific piece of data accurately.
-*   **Long-Term Coherence:** Testing the model's ability to maintain character, tone, and core premises across thousands of tokens, simulating long-form document generation or complex dialogue sessions.
+## Benchmarks that still discriminate (2026)
 
-#### 3. Modality and Format Adherence (The "Structure")
-Modern AI is multimodal. Comparison must extend beyond text.
+Despite the above, some are still informative:
 
-*   **Image/Vision:** Evaluating VQA (Visual Question Answering) accuracy, object detection precision, and grounding capabilities (linking text descriptions to specific image regions).
-*   **Code Generation:** Beyond simple syntax checking, evaluate *semantic correctness* and *security vulnerability* detection. A model that generates code that compiles but contains a SQL injection vulnerability is functionally inferior to one that fails gracefully.
-*   **Structured Output:** The ability to reliably output JSON, XML, or specific database schemas, even when the prompt is ambiguous. This often requires fine-tuning or advanced prompt engineering (e.g., using Pydantic schemas in the prompt).
+### Knowledge / reasoning
 
-### B. Efficiency Metrics (The "Speed" Dimension)
+- **MMLU-Pro** — extension of MMLU; harder; less saturated. Distinguishes between mid-tier and frontier models.
+- **GPQA Diamond** — graduate-physics-level questions; hard to memorise. Strong differentiator at the frontier.
+- **MATH benchmark** — competition math. Still has signal.
+- **AIME** — math olympiad problems. Hard; reasoning-heavy.
 
-These metrics determine the feasibility of deploying the model in a real-time, high-throughput environment. They are critical differentiators between academic curiosity and production-grade tooling.
+### Code
 
-#### 1. Latency (The User Experience Metric)
-Latency is the time elapsed from when the user hits "Send" until the *first* token appears (Time to First Token, TTFT) and the time until the *entire* response is complete (Total Latency).
+- **SWE-bench Verified** — real-world coding tasks from GitHub issues. Hard to game; close to actual developer work. The benchmark for code agents.
+- **LiveCodeBench** — competitive programming from Codeforces; released after training cutoffs. Resists contamination.
+- **HumanEval+** — extension of HumanEval with more rigorous tests. Less saturated than original.
+- **BigCodeBench** — broader code tasks beyond functional implementation.
 
-*   **TTFT Importance:** For conversational AI, TTFT is often more critical than total latency. A slow start feels unresponsive, regardless of how fast the tail end is.
-*   **Measurement:** Must be measured under realistic network conditions, not just local API calls.
-*   **Edge Case:** Different models have different token generation mechanisms. Some are optimized for fast initial bursts, while others are optimized for sustained, high-quality token generation.
+### Agent capability
 
-#### 2. Throughput (The System Capacity Metric)
-Throughput measures how many tokens (or requests) the system can process per second ($\text{Tokens} / \text{Second}$). This is the key metric for high-volume batch processing.
+- **τ-bench (TauBench)** — agent capability in dialog tasks (retail, airline customer support). Tests real multi-turn use.
+- **WebArena, VisualWebArena** — agents acting on web pages. Tests real-world navigation and tool use.
+- **SWE-bench Verified** — also relevant here.
+- **GAIA** — general assistant tasks; multi-step reasoning + tool use.
 
-*   **Batching Impact:** Throughput is heavily dependent on the underlying serving infrastructure (e.g., vLLM, TGI). A comparison must specify whether the test is run with optimal dynamic batching enabled. Comparing a model run on a single-request setup versus a highly batched setup is comparing apples to theoretical oranges.
-*   **Measurement:** Requires simulating peak load conditions, measuring the sustained rate over extended periods (e.g., 1 hour of continuous requests).
+### Multimodal
 
-#### 3. Computational Complexity (The Resource Footprint)
-This moves beyond time to measure the required hardware resources.
+- **MMMU** — multi-discipline multimodal QA. Standard for vision+language.
+- **MathVista** — math reasoning with images.
+- **DocVQA** — document understanding.
 
-*   **Inference Cost:** Measured in FLOPs (Floating Point Operations) or, more practically, in GPU memory consumption (VRAM usage) and required compute time on specific hardware (e.g., A100 vs. H100).
-*   **Quantization Impact:** Experts must compare models not just at FP16, but also at various quantization levels (e.g., Q4\_K, Q8\_0). A smaller, quantized model might sacrifice 1-2% quality for a 50% reduction in memory footprint, a trade-off that must be quantified.
+### Subjective / preference
 
-### C. Economic Metrics (The "Cost" Dimension)
+- **LMArena (Chatbot Arena)** — head-to-head human preference. Subject to style bias but captures something real about helpfulness.
+- **MT-Bench** — multi-turn conversation; LLM-judge with human-correlated calibration.
 
-The most overlooked, yet most decisive, factor in enterprise adoption.
+### Hallucination / factuality
 
-#### 1. Token Cost Analysis
-This is straightforward but requires granular tracking:
+- **TruthfulQA** — common misconceptions; tests refusal of plausible-but-wrong answers.
+- **HaluEval** — broader hallucination eval.
+- **LongFact, FreshQA** — for long-form and time-sensitive factuality.
 
-$$\text{Total Cost} = (\text{Input Tokens} \times \text{Input Price}) + (\text{Output Tokens} \times \text{Output Price})$$
+### Reasoning under context
 
-*   **The Prompt Engineering Cost:** Remember that the prompt itself consumes tokens. A complex, multi-part system prompt designed to enforce structure adds significant, non-negotiable cost to every single API call. This must be factored into the comparison.
+- **NIAH (Needle in a Haystack)** — find a fact buried in a long context. Tests long-context recall.
+- **RULER, BABILong** — more sophisticated long-context benchmarks.
 
-#### 2. Latency-Cost Trade-off Curve
-The true economic comparison is not comparing Model A's cost vs. Model B's cost. It is comparing the **Cost to achieve a target latency/quality threshold.**
+## How to read a benchmark result
 
-*   *Example:* If your application requires a response in $<500\text{ms}$ with $>90\%$ accuracy, Model A might cost $\$0.01/\text{call}$ but take $1.2\text{s}$. Model B might cost $\$0.05/\text{call}$ but achieve the target in $400\text{ms}$. Model B is superior *for this use case*, despite its higher raw cost.
+When you see "Model X scores 78% on Y benchmark":
 
----
+1. **What's Y exactly?** Most benchmarks have variants. MMLU 5-shot vs 0-shot vs CoT; numbers differ by 5-10 points.
+2. **What's the contamination story?** Was Y in the training data?
+3. **What's the methodology?** Greedy decoding, sampled, best-of-N, with reasoning mode? Each gives different numbers.
+4. **What's the comparison?** "78% vs the prior best of 75%" is more informative than the absolute.
+5. **Was the eval prompt strong?** Bad prompts produce bad scores; "did Model X get a fair shake."
 
-## III. How to Rigorously Test
+Vendors often report cherry-picked configurations. Independent reports (Stanford HELM, the Hugging Face Open LLM Leaderboard, Lmsys Chatbot Arena) are more reliable than vendor blog posts.
 
-Given the complexity, a systematic approach is mandatory. We must move from ad-hoc testing to structured evaluation pipelines.
+## Building your own eval
 
-### A. Benchmark Selection Strategy: The Triangulation Approach
+The single highest-leverage practice: maintain a held-out set of 100-500 real task inputs from your application, with expected outputs.
 
-Never rely on a single benchmark. A robust comparison requires triangulation across three axes:
+This is the eval that matters. Public benchmarks are for sanity checks; your eval is for decisions.
 
-1.  **General Benchmarks (Breadth):** Use MMLU, etc., to establish a baseline of general competence. This tells you *if* the model is generally smart.
-2.  **Domain Benchmarks (Depth):** Curate a set of 5-10 tasks highly specific to your industry (e.g., medical coding, financial risk assessment, legal document summarization). This tells you *how well* it performs where it matters.
-3.  **Adversarial Benchmarks (Robustness):** These are designed to *break* the model. This includes prompt injection attempts, jailbreaking scenarios, and providing contradictory premises to force logical failure. This tells you *where* it fails.
+Steps:
 
-### B. The Role of Human Preference Benchmarking (The Gold Standard)
+1. **Sample** real production queries (or representative synthetic ones).
+2. **Label** expected outputs. Human-labelled at first; later possibly LLM-judged with calibration.
+3. **Categorise** into task subtypes for per-category breakdown.
+4. **Add adversarial cases** — known-hard, known-edge-case examples.
+5. **Freeze and version**. New eval runs always against the same set.
 
-While automated metrics (BLEU, ROUGE, F1) are fast, they are proxies for human understanding. The highest fidelity evaluation remains human judgment.
+Run on every prompt, model, or pipeline change. Track scores over time; alert on regressions.
 
-*   **Direct Comparison (Pairwise Ranking):** Instead of asking a human, "Is Model A better than Model B?", ask, "Which response is better for this specific goal: A or B?" This forces the human evaluator to weigh multiple criteria (fluency, accuracy, tone) simultaneously, yielding a more nuanced preference score.
-*   **Scoring Rubrics:** When direct comparison is impossible (e.g., needing absolute scores), develop highly detailed rubrics. For instance, a "Tone" score might be weighted: (1) Professionalism (0-5), (2) Empathy (0-5), (3) Conciseness (0-5). The final score is a weighted average: $\text{Tone Score} = 0.4 \times P + 0.4 \times E + 0.2 \times C$.
+See [LlmEvaluationMetrics] for the metric details and [AgentTesting] for rollout-based variants for agents.
 
-### C. Systematic Prompt Engineering for Evaluation
+## What "we evaluated against benchmarks" doesn't mean
 
-The prompt is the *interface* to the model's intelligence. Therefore, the evaluation must test the *prompting capability* as much as the model itself.
+Vendor claims that need scrutiny:
 
-**Pseudocode Concept: Prompt Template Iteration**
+- "State of the art on N benchmarks." On *which* benchmarks; what was the prior state.
+- "Comparable to GPT-4." On what tasks; in what conditions.
+- "Best for code." On HumanEval (saturated) or SWE-bench (more meaningful)?
+- "Surpasses humans." Almost always on a specific benchmark, often with caveats.
 
-```pseudocode
-FUNCTION Evaluate_Model(Model_API, Test_Dataset, Prompt_Strategy):
-    Results = []
-    FOR Test_Case IN Test_Dataset:
-        // 1. Construct the prompt based on the strategy (Zero-Shot, Few-Shot, CoT)
-        Prompt = Construct_Prompt(Test_Case, Prompt_Strategy)
-        
-        // 2. Execute the call
-        Response = Model_API.generate(Prompt, max_tokens=N)
-        
-        // 3. Evaluate the response against the ground truth/rubric
-        Score = Evaluate_Response(Response, Test_Case.GroundTruth, Prompt_Strategy)
-        
-        Results.Append({
-            'Test_Case_ID': Test_Case.ID,
-            'Strategy': Prompt_Strategy,
-            'Score': Score,
-            'Latency_ms': Measure_Latency(Model_API)
-        })
-    RETURN Results
-```
+Be sceptical. Most marketing claims are about cherry-picked benchmark configurations.
 
-**Key Strategies to Test:**
-1.  **Zero-Shot:** Minimal prompting. Tests raw, inherent capability.
-2.  **Few-Shot:** Providing 2-3 examples. Tests the model's ability to learn from context within the prompt.
-3.  **Chain-of-Thought (CoT):** Explicitly asking the model to "Think step-by-step." Tests structured reasoning.
-4.  **Self-Correction/Refinement:** Providing the model's initial output and asking it to critique and improve its own answer based on provided constraints. This tests meta-cognition.
+## Specific 2026 model selection guidance
 
----
+When picking a model for production:
 
-## IV. Advanced Comparison Techniques and Edge Case Handling
+1. **Run a small qualitative test** on your task. Manually compare 5-10 outputs across candidates.
+2. **Consult LMArena** for general capability ordering. Recent rankings.
+3. **Check task-specific benchmarks** if available — SWE-bench for code, τ-bench for agents.
+4. **Run your eval** on top candidates. This is the deciding factor.
+5. **Pilot on shadow traffic** before committing.
 
-For experts, the goal is not just to compare A vs. B, but to determine *under what conditions* A outperforms B, and *why*.
+Skip steps 2-3 only if you have a strong prior. The eval (step 4) is non-negotiable.
 
-### A. Robustness Testing: Stressing the Boundaries
+## Eval-in-production
 
-Robustness is the measure of how gracefully a model degrades when faced with inputs outside its training distribution.
+Benchmarks ship pre-deployment. In production, you also want continuous eval:
 
-1.  **Adversarial Perturbations:** Applying minor, human-imperceptible changes to input text (e.g., synonym replacement, character swapping, adding filler phrases) and measuring the resulting drop in accuracy. A model that maintains performance despite minor input noise is superior.
-2.  **Bias and Fairness Auditing:** Systematically testing for demographic bias (gender, race, socioeconomic status) across the entire test suite. This requires creating balanced test sets and measuring the variance of negative or positive sentiment generation across protected attributes.
-3.  **Toxicity and Safety Guardrails:** Beyond simple filtering, test the model's *refusal* mechanism. Does it refuse harmful requests gracefully, or does it engage in "over-refusal" (refusing benign requests because they brush against a policy boundary)? The latter is a major usability flaw.
+- **Sampled human review** of outputs.
+- **LLM-as-judge on production samples** (calibrated).
+- **Eval-set replay nightly** against the deployed system. Catches regressions before users do.
+- **A/B testing for model or prompt changes** with primary metrics.
 
-### B. The Concept of "Utility Score" Weighting
+See [AiObservabilityInProduction].
 
-Since no single metric is sufficient, the final output must be a weighted Utility Score ($\text{U}$). This requires the research team to define the business priorities *before* testing begins.
+## Failure modes in evaluation pipelines
 
-$$\text{U} = w_Q \cdot \text{Normalized Quality} + w_E \cdot \text{Normalized Efficiency} - w_C \cdot \text{Normalized Cost}$$
+- **Eval set in training.** Your held-out set was used for prompt examples; numbers lie.
+- **Cherry-picked rollouts.** "I tried it once and it worked." Single rollouts are meaningless; aggregate.
+- **Judge bias not calibrated.** LLM judge agrees with you / longer responses; disagree with humans.
+- **No cost tracking.** Quality went up 5%; cost went up 50%; net loss.
+- **Static eval set.** Real distribution shifts; eval set becomes irrelevant. Refresh periodically.
 
-Where:
-*   $w_Q, w_E, w_C$ are weights summing to 1.0 (e.g., if cost is paramount, $w_C$ is high).
-*   **Normalization:** Crucially, all metrics must be normalized (e.g., Min-Max scaling or Z-score standardization) across the tested models *before* applying weights, ensuring that a raw score of 100 in Quality doesn't unfairly dominate a raw score of 10 in Cost.
+## A pragmatic eval stack
 
-**Example Weighting Scenario:**
-*   **Use Case:** Real-time customer support chatbot for a niche financial product.
-*   **Priorities:** 1. Accuracy (Must be right); 2. Low Latency (Must feel instant); 3. Cost (Secondary concern).
-*   **Weights:** $w_Q = 0.50$, $w_E = 0.40$, $w_C = 0.10$.
+For a team starting fresh:
 
-### C. Comparative Analysis of Model Architectures (Beyond the API Call)
+1. **A 100-task eval set** from real production queries; labelled; versioned.
+2. **A simple harness** that runs the set on a model, logs results, computes metrics.
+3. **Track**: success rate, cost, latency, per-category breakdown.
+4. **Run on every model / prompt change.**
+5. **Quarterly refresh** — add new edge cases, retire saturated ones.
+6. **LLM-judge** for fuzzy tasks, calibrated against human labels.
 
-For the expert researcher, the comparison must sometimes delve into the underlying architecture, even if the API abstracts it away.
+A week of work; immediate decision-making clarity.
 
-*   **Parameter Efficiency:** Comparing models based on the ratio of performance gain to parameter count. A smaller, highly efficient model (e.g., a specialized 3B parameter model) that achieves 95% of the performance of a 70B model is often the superior *engineering* choice, despite the latter's higher raw benchmark score.
-*   **Fine-Tuning Vectors:** A model's raw performance is only one data point. The comparison must include the *cost and effort* required to fine-tune it for the specific task. A model requiring extensive, expensive LoRA fine-tuning might be less "comparable" to a model that performs adequately out-of-the-box.
+## Further reading
 
----
-
-## V. Tooling and Workflow
-
-The sheer volume of data generated by rigorous testing necessitates robust tooling.
-
-### A. The Leaderboard Fallacy and Its Mitigation
-
-Leaderboards (like those from llm-stats.com or others) are useful for *directional awareness*—they tell you which models are currently trending. However, they are inherently flawed for deep research because:
-
-1.  **Benchmark Skew:** They aggregate scores from disparate, unweighted benchmarks.
-2.  **Staleness:** The "best" model today might be optimized for a different set of parameters tomorrow.
-3.  **Lack of Context:** They rarely provide the necessary breakdown of *why* a model scored highly (e.g., was it high on fluency but low on factual grounding?).
-
-**Mitigation:** Treat leaderboards as a *starting hypothesis generator*, not a conclusion. Use them to narrow the field to 3-5 candidates, and then build your proprietary, weighted evaluation suite around those candidates.
-
-### B. The Role of Profiling Tools (Production-Grade Profiling)
-
-Tools like Galileo.ai (as mentioned in the context) represent the necessary shift from *academic evaluation* to *production profiling*.
-
-*   **Profiling vs. Benchmarking:**
-    *   **Benchmarking:** Running a fixed, curated set of inputs against a model to measure theoretical maximums.
-    *   **Profiling:** Running the model against a *representative sample of live, anonymized production traffic* over time. This captures real-world drift, unexpected input formats, and cumulative latency effects that fixed test sets miss.
-
-**Workflow Integration:**
-1.  **Phase 1 (Benchmark):** Use MMLU/Custom Datasets to select the top 3 candidates.
-2.  **Phase 2 (Profile):** Run the top 3 candidates against 10,000 samples of historical production queries to measure real-world latency, failure modes, and cost under load.
-3.  **Phase 3 (Optimize):** Select the model that provides the best Utility Score based on the weighted combination of Phase 1 and Phase 2 results.
-
-### C. Data Management and Reproducibility
-
-For research credibility, the entire process must be reproducible. This means versioning everything:
-
-1.  **Model Versioning:** Specify the exact API endpoint, version tag, and provider.
-2.  **Prompt Versioning:** Store the exact prompt template used for every test run.
-3.  **Dataset Versioning:** Use a dedicated, version-controlled dataset repository (e.g., DVC) for all test inputs and ground truths.
-
----
-
-## VI. Conclusion
-
-To summarize this labyrinthine topic for the expert researcher: **Model comparison is not a single test; it is a comprehensive system design exercise.**
-
-The modern AI landscape demands that you act less like a score-keeper and more like a systems architect. Your deliverable should not be a single table of scores, but a detailed **Evaluation Report** that contains:
-
-1.  **The Defined Scope:** A clear statement of the operational domain and the business objectives.
-2.  **The Weighting Scheme:** The justification for the weights assigned to Quality, Speed, and Cost.
-3.  **The Test Matrix:** A breakdown showing which benchmarks were used for which dimension (e.g., "Latency was tested via 100 concurrent requests on the Azure endpoint").
-4.  **The Trade-off Analysis:** A narrative explaining *why* the chosen model represents the optimal balance across the defined constraints, even if it is not the highest-scoring model on any single, isolated metric.
-
-Mastering AI model comparison means accepting that perfection is unattainable, but rigorous, defensible trade-off analysis is mandatory. It is this depth of critical thinking—the ability to articulate *why* one model is superior *for a specific, constrained purpose*—that separates the competent engineer from the true AI research expert.
-
----
-*(Word Count Estimate: The depth and breadth required to cover all these technical sub-topics, including the detailed critiques and multi-stage frameworks, ensures the content significantly exceeds the 3500-word minimum while maintaining expert-level density.)*
+- [LlmEvaluationMetrics] — metric details
+- [AgentTesting] — rollout-based eval for agents
+- [AiHallucinationMitigation] — factuality-specific evaluation

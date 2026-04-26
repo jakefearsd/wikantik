@@ -97,6 +97,15 @@ public final class BootstrapExtractionCli {
         final JdbcKnowledgeRepository kgRepo = new JdbcKnowledgeRepository( ds );
 
         final EntityExtractorConfig cfg = a.toExtractorConfig();
+
+        // --stats-only short-circuits before we touch any extractor: walk every
+        // chunk, evaluate the prefilter, print reason-by-reason counts, exit.
+        // No LLM calls, no persistence — useful for sizing a run before
+        // committing GPU hours to it.
+        if( a.statsOnly ) {
+            return runStatsOnly( cfg, chunkRepo );
+        }
+
         final Optional< EntityExtractor > ext = EntityExtractorFactory.create( cfg );
         if( ext.isEmpty() ) {
             System.err.println( "error: extractor backend '" + cfg.backend()
@@ -138,6 +147,66 @@ public final class BootstrapExtractionCli {
         } finally {
             try( listener ) { /* try-with-resources drains the async executor */ }
         }
+    }
+
+    /**
+     * Walks every chunk in the corpus, evaluates the configured prefilter
+     * against each, prints reason-by-reason counts, and exits. No extractor
+     * call, no persistence, no LLM. Lets an operator size a filter run before
+     * committing GPU hours to it.
+     *
+     * <p>The prefilter is built with {@code skipTooShort} forced on (regardless
+     * of {@code --no-prefilter-skip-short}) so the {@code too_short} reason
+     * still appears in the report — the operator can see what each rule would
+     * catch independently. Dry-run is forced off here because we never persist
+     * anything anyway.
+     */
+    private static int runStatsOnly( final EntityExtractorConfig cfg,
+                                     final ContentChunkRepository chunkRepo ) {
+        final ChunkExtractionPrefilter f = new ChunkExtractionPrefilter(
+            /*enabled*/ true, /*dryRun*/ false,
+            cfg.prefilterSkipPureCode(),
+            cfg.prefilterSkipNoProperNoun(),
+            cfg.prefilterSkipTooShort(),
+            cfg.prefilterMinTokens() );
+
+        final long started = System.nanoTime();
+        final java.util.List< String > pages = chunkRepo.listDistinctPageNames();
+        LOG.info( "Stats-only: walking {} pages…", pages.size() );
+
+        int total = 0;
+        int kept = 0;
+        final java.util.Map< String, Integer > reasons = new java.util.TreeMap<>();
+
+        for( final String page : pages ) {
+            final java.util.List< java.util.UUID > ids = chunkRepo.listChunkIdsForPage( page );
+            if( ids.isEmpty() ) continue;
+            for( final ContentChunkRepository.MentionableChunk c : chunkRepo.findByIds( ids ) ) {
+                total++;
+                final ChunkExtractionPrefilter.Decision d = f.evaluate( c.text(), c.headingPath() );
+                if( d.shouldExtract() ) {
+                    kept++;
+                } else {
+                    reasons.merge( d.reason(), 1, Integer::sum );
+                }
+            }
+        }
+
+        final long elapsedMs = ( System.nanoTime() - started ) / 1_000_000L;
+        final int skipped = total - kept;
+        final double pct = total > 0 ? ( 100.0 * skipped / total ) : 0.0;
+        LOG.info( "Stats-only: total={} kept={} skipped={} ({}%) in {}ms",
+            total, kept, skipped, String.format( Locale.ROOT, "%.1f", pct ), elapsedMs );
+        for( final java.util.Map.Entry< String, Integer > e : reasons.entrySet() ) {
+            final double rPct = total > 0 ? ( 100.0 * e.getValue() / total ) : 0.0;
+            LOG.info( "  reason={} count={} ({}%)", e.getKey(), e.getValue(),
+                String.format( Locale.ROOT, "%.1f", rPct ) );
+        }
+        if( !cfg.prefilterEnabled() ) {
+            LOG.info( "(Master prefilter switch is OFF in config; numbers above show "
+                    + "what would happen if --prefilter were passed at run time.)" );
+        }
+        return 0;
     }
 
     /**
@@ -237,6 +306,9 @@ public final class BootstrapExtractionCli {
               --no-prefilter-skip-nopn           keep the prefilter on but disable the no-proper-noun rule
               --no-prefilter-skip-short          keep the prefilter on but disable the too-short rule
               --prefilter-min-tokens <N>         token threshold for too-short rule (default 20; chars/4 estimate)
+              --stats-only                       walk every chunk, evaluate the prefilter, print reason
+                                                 counts, and exit. No extractor calls — useful for sizing
+                                                 a run before committing GPU hours to it.
 
             Exit codes: 0 = completed, 1 = errored / refused to start, 2 = bad arguments.
             """;
@@ -266,6 +338,7 @@ public final class BootstrapExtractionCli {
         boolean prefilterSkipNoProper = true;
         boolean prefilterSkipShort    = true;
         int     prefilterMinTokens    = 20;
+        boolean statsOnly             = false;
 
         static Args parse( final String[] argv ) {
             final Args a = new Args();
@@ -295,6 +368,7 @@ public final class BootstrapExtractionCli {
                     case "--no-prefilter-skip-nopn"  -> a.prefilterSkipNoProper = false;
                     case "--no-prefilter-skip-short" -> a.prefilterSkipShort = false;
                     case "--prefilter-min-tokens"    -> a.prefilterMinTokens = parseInt( req( argv, ++i, k ), k );
+                    case "--stats-only"              -> a.statsOnly = true;
                     default -> throw new IllegalArgumentException( "unknown argument: " + k );
                 }
             }
@@ -302,13 +376,16 @@ public final class BootstrapExtractionCli {
                 if( a.jdbcUrl.isBlank() ) throw new IllegalArgumentException( "--jdbc-url is required" );
                 if( a.jdbcUser.isBlank() ) throw new IllegalArgumentException( "--jdbc-user is required" );
                 if( a.pollSeconds < 1 ) throw new IllegalArgumentException( "--poll-seconds must be >= 1" );
+                // --stats-only synthesises an enabled prefilter internally, so
+                // sub-flags are meaningful there even without --prefilter.
                 final boolean anySubFlagFlipped =
                     !a.prefilterSkipCode || !a.prefilterSkipNoProper || !a.prefilterSkipShort
                     || a.prefilterMinTokens != 20;
-                if( anySubFlagFlipped && !a.prefilterEnabled ) {
+                if( anySubFlagFlipped && !a.prefilterEnabled && !a.statsOnly ) {
                     throw new IllegalArgumentException(
                         "--no-prefilter-skip-* / --prefilter-min-tokens have no effect "
-                      + "without --prefilter (or --prefilter-dry-run); pass one of those too." );
+                      + "without --prefilter (or --prefilter-dry-run or --stats-only); "
+                      + "pass one of those too." );
                 }
                 if( a.prefilterMinTokens < 0 ) {
                     throw new IllegalArgumentException( "--prefilter-min-tokens must be >= 0" );

@@ -1,13 +1,13 @@
 #!/bin/bash
-# runextractor.sh — launch the standalone entity-extractor CLI against the
+# kg-extract.sh — launch the standalone entity-extractor CLI against the
 # local Wikantik database with sensible defaults pulled from the existing
 # Tomcat configuration.
 #
 # Usage:
-#   bin/runextractor.sh                    # resume / incremental extraction
-#   bin/runextractor.sh --force            # clear each chunk's prior mentions first
-#   bin/runextractor.sh --concurrency 1    # single-in-flight for low GPU pressure
-#   bin/runextractor.sh --help             # show full CLI help
+#   bin/kg-extract.sh                    # resume / incremental extraction
+#   bin/kg-extract.sh --force            # clear each chunk's prior mentions first
+#   bin/kg-extract.sh --concurrency 1    # single-in-flight for low GPU pressure
+#   bin/kg-extract.sh --help             # show full CLI help
 #
 # Behaviour:
 #   - Builds wikantik-extract-cli if target/wikantik-extract-cli.jar is missing
@@ -19,7 +19,7 @@
 #   - Passes every other CLI flag straight through to the jar, so overrides
 #     like --ollama-model or --concurrency work without editing the script.
 #   - Everything logs to stdout. Pipe to tee if you want a file copy:
-#        bin/runextractor.sh 2>&1 | tee extract-$(date +%Y%m%d-%H%M).log
+#        bin/kg-extract.sh 2>&1 | tee extract-$(date +%Y%m%d-%H%M).log
 
 set -euo pipefail
 
@@ -40,9 +40,9 @@ else
     GREEN=''; YELLOW=''; RED=''; BOLD=''; NC=''
 fi
 
-info()  { echo -e "${GREEN}[runextractor]${NC} $*"; }
-warn()  { echo -e "${YELLOW}[runextractor]${NC} $*" >&2; }
-die()   { echo -e "${RED}[runextractor]${NC} $*" >&2; exit 1; }
+info()  { echo -e "${GREEN}[kg-extract]${NC} $*"; }
+warn()  { echo -e "${YELLOW}[kg-extract]${NC} $*" >&2; }
+die()   { echo -e "${RED}[kg-extract]${NC} $*" >&2; exit 1; }
 
 # Pre-flight: java is the actual runtime; without it nothing else matters.
 command -v java >/dev/null 2>&1 || die "java is not on PATH"

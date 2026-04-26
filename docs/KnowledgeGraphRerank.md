@@ -317,16 +317,16 @@ Build and launch:
 # One-line launch — the wrapper builds the jar on first run, reads JDBC
 # credentials from the local Tomcat deploy (tomcat-11/conf/Catalina/localhost/ROOT.xml),
 # and tails progress to stdout.
-bin/runextractor.sh
+bin/kg-extract.sh
 
 # Force-overwrite every chunk's prior mentions first (swap extractor backends):
-bin/runextractor.sh --force
+bin/kg-extract.sh --force
 
 # Single-in-flight if you want minimal GPU pressure:
-bin/runextractor.sh --concurrency 1
+bin/kg-extract.sh --concurrency 1
 
 # See every knob the jar accepts:
-bin/runextractor.sh --help
+bin/kg-extract.sh --help
 ```
 
 Progress line format (logged every `--poll-seconds`, default 30):

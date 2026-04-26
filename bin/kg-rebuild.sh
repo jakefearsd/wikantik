@@ -1,18 +1,18 @@
 #!/bin/bash
-# bin/full-rebuild.sh — orchestrate the full content + KG rebuild pipeline.
+# bin/kg-rebuild.sh — orchestrate the full content + KG rebuild pipeline.
 #
 # Phases (each polls to completion before the next starts):
 #   1. POST /admin/content/rebuild-indexes  — wipe + re-chunk + Lucene
 #   2. POST /admin/content/reindex-embeddings — re-embed every chunk
 #   3. (optional, --reset-kg) DELETE pending proposals + ai-inferred nodes
-#   4. bin/runextractor.sh ... — re-extract mentions and proposals
+#   4. bin/kg-extract.sh ... — re-extract mentions and proposals
 #
 # Each phase can be skipped (--skip-chunks / --skip-embeddings / --skip-extract)
 # so you can resume mid-pipeline. Dry-run mode (--dry-run) prints the plan.
 #
-# Args after `--` (or unrecognised args) are forwarded to bin/runextractor.sh:
+# Args after `--` (or unrecognised args) are forwarded to bin/kg-extract.sh:
 #
-#   bin/full-rebuild.sh --reset-kg -- \
+#   bin/kg-rebuild.sh --reset-kg -- \
 #       --ollama-model qwen2.5:1.5b-instruct \
 #       --concurrency 6 --prefilter --force
 #
@@ -39,10 +39,10 @@ if [[ -t 1 ]]; then
 else
     GREEN=''; YELLOW=''; RED=''; BOLD=''; DIM=''; NC=''
 fi
-info()  { echo -e "${GREEN}[full-rebuild]${NC} $*"; }
+info()  { echo -e "${GREEN}[kg-rebuild]${NC} $*"; }
 phase() { echo; echo -e "${BOLD}== $* ==${NC}"; }
-warn()  { echo -e "${YELLOW}[full-rebuild]${NC} $*" >&2; }
-die()   { echo -e "${RED}[full-rebuild]${NC} $*" >&2; exit 1; }
+warn()  { echo -e "${YELLOW}[kg-rebuild]${NC} $*" >&2; }
+die()   { echo -e "${RED}[kg-rebuild]${NC} $*" >&2; exit 1; }
 
 # ---- Args ----
 
@@ -195,12 +195,12 @@ wait_for_embedding_bootstrap() {
 
 if [[ $SKIP_CHUNKS -eq 0 ]]; then
     phase "Phase 1 — chunk + Lucene rebuild"
-    code=$(curl -s -o /tmp/full-rebuild-resp -w "%{http_code}" \
+    code=$(curl -s -o /tmp/kg-rebuild-resp -w "%{http_code}" \
                 "${CURL_AUTH[@]}" -X POST "$TOMCAT_URL/admin/content/rebuild-indexes")
     case "$code" in
         202) info "Triggered. Polling /admin/content/index-status…" ;;
         409) warn "Rebuild already in flight; will wait for it to finish." ;;
-        *)   die  "rebuild-indexes returned HTTP $code: $(cat /tmp/full-rebuild-resp)" ;;
+        *)   die  "rebuild-indexes returned HTTP $code: $(cat /tmp/kg-rebuild-resp)" ;;
     esac
     wait_for_chunk_rebuild || die "chunk rebuild failed; see /admin/content/index-status"
 fi
@@ -209,7 +209,7 @@ fi
 
 if [[ $SKIP_EMBEDDINGS -eq 0 ]]; then
     phase "Phase 2 — chunk embedding reindex"
-    code=$(curl -s -o /tmp/full-rebuild-resp -w "%{http_code}" \
+    code=$(curl -s -o /tmp/kg-rebuild-resp -w "%{http_code}" \
                 "${CURL_AUTH[@]}" -X POST "$TOMCAT_URL/admin/content/reindex-embeddings")
     case "$code" in
         202) info "Triggered. Polling embeddings.bootstrap…" ;;
@@ -217,7 +217,7 @@ if [[ $SKIP_EMBEDDINGS -eq 0 ]]; then
         503) warn "Hybrid retrieval disabled (HTTP 503) — skipping phase 2."
              SKIP_EMBEDDINGS=1
              ;;
-        *)   die  "reindex-embeddings returned HTTP $code: $(cat /tmp/full-rebuild-resp)" ;;
+        *)   die  "reindex-embeddings returned HTTP $code: $(cat /tmp/kg-rebuild-resp)" ;;
     esac
     if [[ $SKIP_EMBEDDINGS -eq 0 ]]; then
         wait_for_embedding_bootstrap \
@@ -251,9 +251,9 @@ if [[ $SKIP_EXTRACT -eq 0 ]]; then
     if [[ ${#EXTRACTOR_ARGS[@]} -eq 0 ]]; then
         info "No extra extractor args supplied — running with CLI defaults"
         info "(tip: pass after --, e.g. --reset-kg -- --ollama-model qwen2.5:1.5b-instruct --concurrency 6 --prefilter)"
-        "$SCRIPT_DIR/runextractor.sh"
+        "$SCRIPT_DIR/kg-extract.sh"
     else
-        info "Forwarding to bin/runextractor.sh ${EXTRACTOR_ARGS[*]}"
-        "$SCRIPT_DIR/runextractor.sh" "${EXTRACTOR_ARGS[@]}"
+        info "Forwarding to bin/kg-extract.sh ${EXTRACTOR_ARGS[*]}"
+        "$SCRIPT_DIR/kg-extract.sh" "${EXTRACTOR_ARGS[@]}"
     fi
 fi

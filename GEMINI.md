@@ -1,107 +1,56 @@
-# Gemini Development Guide for Wikantik
+# Gemini Development Guide: Tactical Refactoring & Feature Additions
 
-This document orients the Gemini agent to the Wikantik codebase. For authoritative project rules (coding conventions, test policy, token-efficiency rules, commit etiquette) read **[CLAUDE.md](CLAUDE.md)** — it is the canonical agent-development guide and the rules there apply to every agent working in this repo.
+This guide orients Gemini to the Wikantik codebase for the specific purposes of **tactical quality refactoring** and **minor feature additions**. 
 
-## Project overview
+### 1. Authoritative Rules (Via CLAUDE.md)
+*   **TDD First:** Always write or update a test before fixing a bug or refactoring.
+*   **Direct to Main:** Work directly on `main`; no PRs or feature branches.
+*   **No Silent Failures:** Never swallow exceptions. Use `LOG.warn()` with context.
+*   **Token Efficiency:** Use targeted reads (`start_line`/`end_line`) and `grep_search` to minimize context waste.
+*   **Verification:** A task is incomplete until `mvn compile` (module-specific) and relevant tests pass.
 
-Wikantik is a modular Java 21 / Jakarta EE wiki-and-knowledge-base engine. It serves 1000+ Markdown pages from a version-controlled content root (`docs/wikantik-pages/`) through:
+---
 
-- A **React SPA** (`wikantik-frontend`, Vite) served at `/`
-- A **REST/JSON API** (`wikantik-rest`) at `/api/*` and admin endpoints at `/admin/*`
-- Two independent **MCP servers** at `/wikantik-admin-mcp` (writes + analytics) and `/knowledge-mcp` (read-only retrieval + graph)
-- An **OpenAPI 3.1 tool server** (`wikantik-tools`) at `/tools/*` for OpenWebUI-compatible non-MCP clients
-- A **Tomcat 11** servlet container with **PostgreSQL 15+ and pgvector** as the primary datastore
+### 2. Tactical Refactoring Guidelines
+When performing refactoring (e.g., decoupling `WikiEngine` or modernizing legacy JSPWiki code):
 
-Unit tests use JUnit 5 with in-memory H2. Integration tests use Selenide + Cargo against PostgreSQL + pgvector.
+*   **Follow the Guice Migration:** Refer to `docs/ArchitectureCritique.md`. Prioritize moving "Leaf" managers (I18n, Variable, Progress) to the hybrid DI bridge before tackling core managers.
+*   **Interface Over Implementation:** Always code against the interfaces in `wikantik-api`, not the implementations in `wikantik-main`.
+*   **Clean Up Legacy "Junk":** Replace legacy `TextUtil` or manual string manipulation with modern Java 21 features (`String.formatted()`, `Record` classes, or the `java.nio.file` API) where it improves readability.
+*   **Maintain Semantic Stability:** Ensure that refactors do not break `canonical_id` stability or frontmatter parsing logic.
 
-## Module map (authoritative)
+---
 
-| Module | Role |
-|--------|------|
-| `wikantik-bom` | Dependency BOM |
-| `wikantik-api` | Core interfaces and contracts (`com.wikantik.api.*`) |
-| `wikantik-main` | Main engine: rendering, providers, auth, search, references, math parser, entity extraction |
-| `wikantik-event` | Event system (`WikiEvent`, listeners) |
-| `wikantik-util` | Utilities and helpers |
-| `wikantik-cache` | EhCache-based caching |
-| `wikantik-cache-memcached` | Memcached adapter |
-| `wikantik-http` | Servlet filters (CSRF, CORS, CSP, SPA routing, `/wiki/{slug}?format=*` content filter) |
-| `wikantik-rest` | REST `/api/*` and admin `/admin/*` endpoints |
-| `wikantik-admin-mcp` | Admin MCP server (16 tools + 6 resources + 8 prompts + 3 completions) |
-| `wikantik-knowledge` | Knowledge MCP server (10 tools) + knowledge-graph service (pgvector, co-mention graph, hub discovery) |
-| `wikantik-tools` | OpenAPI 3.1 tool server (2 tools) |
-| `wikantik-extract-cli` | Offline entity-extractor CLI |
-| `wikantik-observability` | Health, Prometheus, correlation |
-| `wikantik-frontend` | React SPA (Vite) |
-| `wikantik-war` | WAR packaging |
-| `wikantik-wikipages` | Default pages for a fresh install |
-| `wikantik-it-tests` | Selenide + REST + Cargo integration tests |
+### 3. Minor Feature Addition Workflow
+For adding small features like new Plugins, Filters, or REST endpoints:
 
-## Extension points
+*   **New Plugins:** Implement `com.wikantik.api.plugin.Plugin` and add the package to `jspwiki.plugin.searchPath` in `wikantik-custom.properties`.
+*   **New Filters:** Implement `com.wikantik.api.filters.PageFilter`. Note that `StructuralSpinePageFilter` and `RunbookValidationPageFilter` are critical—do not interfere with their priority levels.
+*   **New MCP Tools:** Add to `com.wikantik.mcp.McpToolRegistry` (Admin) or `com.wikantik.knowledge.mcp` (Knowledge). Tool names MUST be `snake_case`.
+*   **Small REST Endpoints:** Extend `RestServletBase` to inherit ACL and policy grant enforcement.
 
-Extend Wikantik by implementing interfaces from `wikantik-api` (not `jspwiki-api` — the JSPWiki rebrand is complete; see [docs/full_rebrand_project.md](docs/full_rebrand_project.md)):
+---
 
-- **Plugins** — `com.wikantik.api.plugin.Plugin`: dynamic content rendered from `[{PluginName param=value}]` markup
-- **Providers** — `com.wikantik.api.providers.PageProvider`, `AttachmentProvider`, `WikiProvider`: swap how pages/attachments are stored
-- **Filters** — `com.wikantik.api.filters.PageFilter`: intercept and mutate page content before display or save
-- **MCP tools** — implement `com.wikantik.mcp.tools.McpTool` (admin) or add to `com.wikantik.knowledge.mcp.*` (read-only retrieval)
-- **REST resources** — extend `com.wikantik.rest.RestServletBase` (enforces ACLs + policy grants)
-
-### Example: a minimal `Plugin`
-
-```java
-package com.example.wiki.plugins;
-
-import java.util.Map;
-import com.wikantik.api.core.Context;
-import com.wikantik.api.plugin.Plugin;
-import com.wikantik.api.plugin.PluginException;
-
-public class HelloWorldPlugin implements Plugin {
-    @Override
-    public String execute(Context context, Map<String, String> params) throws PluginException {
-        String name = params.getOrDefault("name", "World");
-        return "Hello " + name + "!";
-    }
-}
-```
-
-1. Compile and JAR as usual.
-2. Drop the JAR into `tomcat/tomcat-11/webapps/ROOT/WEB-INF/lib/` (or add as a Maven dep to `wikantik-war`).
-3. Add your package to `jspwiki.plugin.searchPath` in `wikantik-custom.properties`.
-4. Restart Tomcat.
-5. Use on any wiki page: `[{HelloWorldPlugin name='Wikantik Developer'}]`.
-
-## Commands you actually need
+### 4. Build & Verification (Tactical Loop)
+To keep the feedback loop fast and avoid massive context builds:
 
 ```bash
-# Build everything (React frontend + WAR + tests)
-mvn clean install
+# 1. Compile only the affected module (e.g., wikantik-main)
+mvn compile -pl wikantik-main -am -q
 
-# Fast compile-check of a single module
-mvn compile -pl wikantik-admin-mcp -am -q
+# 2. Run only the specific test affected
+mvn test -pl wikantik-main -Dtest=MyNewFeatureTest
 
-# Unit tests only, parallel
-mvn clean install -T 1C -DskipITs
+# 3. Verify the Structural Spine hasn't regressed (if changing content logic)
+mvn test -pl wikantik-it-tests -Dtest=MainPageRegressionTest -Pintegration-tests
 
-# Integration tests — MUST be sequential (no -T flag)
-mvn clean install -Pintegration-tests -fae
-
-# Single test method
-mvn test -pl wikantik-main -Dtest=MarkdownRendererTest#testMarkupSimpleMarkdown
-
-# Deploy to the local Tomcat 11 (never use Cargo outside of IT tests)
+# 4. Final tactical deploy
 bin/deploy-local.sh
-tomcat/tomcat-11/bin/startup.sh
 ```
 
-**Do not use `cargo:run`** to bring the app up for manual testing. Cargo is reserved for integration-test harnesses in `wikantik-it-tests`. For local dev, the `tomcat/tomcat-11/` instance deployed by `bin/deploy-local.sh` is the only supported path.
+---
 
-## See also
-
-- [CLAUDE.md](CLAUDE.md) — the canonical agent-development guide (rules, token-efficiency, test policy, security model, architecture overview)
-- [README.md](README.md) — user-facing overview and quick-start
-- [docs/wikantik-pages/GoodMcpDesign.md](docs/wikantik-pages/GoodMcpDesign.md) — design principles for MCP tool authors
-- [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md) — retrieval architecture
-- [docs/wikantik-pages/StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md) — planned structural-index surface
-- [docs/wikantik-pages/AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md) — planned agent-grade content layer and retrieval-quality CI
+### 5. Gemini Performance Tips
+*   **Ask for Context:** If a refactor involves a manager you haven't seen yet, ask me to grep for its usage in `WikiEngine` or `WikiContext` first.
+*   **Reasoning Over Code:** I excel at identifying patterns (like the "Service Locator" anti-pattern). Ask for an architectural opinion before I start editing large files.
+*   **Surgical Edits:** Favor the `replace` tool for targeted changes over `write_file` to keep the diffs clean and understandable.

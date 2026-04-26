@@ -650,7 +650,8 @@ public class WikiEngine implements Engine {
             managers.put( TrustedAuthorsDao.class, trustedAuthorsDao );
             managers.put( StructuralIndexService.class, structuralIndex );
             new StructuralIndexEventListener( structuralIndex )
-                .register( getManager( PageManager.class ) );
+                .register( getManager( PageManager.class ),
+                           getManager( com.wikantik.filters.FilterManager.class ) );
             new Thread( structuralIndex::rebuild, "structural-index-bootstrap" ).start();
             LOG.info( "StructuralIndexService registered; initial rebuild dispatched" );
 

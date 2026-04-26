@@ -205,6 +205,148 @@ class DefaultStructuralIndexServiceTest {
 
     @Test
     @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void onPageSaved_does_not_re_enumerate_every_page() throws Exception {
+        final Page a = fakePage( "A",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article", "" );
+        final Page b = fakePage( "B",
+                "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\ntitle: B\ntype: article", "" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a, b ) );
+        svc.rebuild();
+        clearInvocations( pageManager );
+
+        final Page bUpdated = fakePage( "B",
+                "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\ntitle: B (updated)\ntype: article", "" );
+        when( pageManager.getPage( "B" ) ).thenReturn( bUpdated );
+
+        svc.onPageSaved( "B" );
+
+        verify( pageManager, never() ).getAllPages();
+        verify( pageManager, atLeastOnce() ).getPage( "B" );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void onPageSaved_refreshes_just_the_named_page_descriptor() throws Exception {
+        final Page a = fakePage( "A",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article\ntags: [old]", "" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a ) );
+        svc.rebuild();
+
+        final Page aUpdated = fakePage( "A",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A v2\ntype: article\ntags: [fresh]", "" );
+        when( pageManager.getPage( "A" ) ).thenReturn( aUpdated );
+
+        svc.onPageSaved( "A" );
+
+        final var d = svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).orElseThrow();
+        assertEquals( "A v2", d.title() );
+        assertEquals( List.of( "fresh" ), d.tags() );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void onPageSaved_inserts_a_brand_new_page_without_full_rebuild() throws Exception {
+        final Page a = fakePage( "A",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article", "" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a ) );
+        svc.rebuild();
+        clearInvocations( pageManager );
+
+        final Page newPage = fakePage( "Brand",
+                "canonical_id: 01CCCCCCCCCCCCCCCCCCCCCCCC\ntitle: Brand\ntype: article", "" );
+        when( pageManager.getPage( "Brand" ) ).thenReturn( newPage );
+
+        svc.onPageSaved( "Brand" );
+
+        verify( pageManager, never() ).getAllPages();
+        assertEquals( 2, svc.snapshot().pageCount() );
+        assertTrue( svc.getByCanonicalId( "01CCCCCCCCCCCCCCCCCCCCCCCC" ).isPresent() );
+        assertTrue( svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).isPresent() );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void onPageSaved_replaces_relations_from_new_content() throws Exception {
+        final Page a = fakePage( "A",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article\n" +
+                "relations:\n" +
+                "  - {type: part-of, target: 01BBBBBBBBBBBBBBBBBBBBBBBB}\n", "" );
+        final Page b = fakePage( "B",
+                "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\ntitle: B\ntype: hub", "" );
+        final Page c = fakePage( "C",
+                "canonical_id: 01CCCCCCCCCCCCCCCCCCCCCCCC\ntitle: C\ntype: article", "" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a, b, c ) );
+
+        final PageRelationsDao relDao = mock( PageRelationsDao.class );
+        final DefaultStructuralIndexService withRel = new DefaultStructuralIndexService(
+                pageManager, dao, relDao, new StructuralIndexMetrics() );
+        withRel.rebuild();
+        clearInvocations( relDao );
+
+        // A is rewritten: drops part-of(B), adds example-of(C).
+        final Page aUpdated = fakePage( "A",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article\n" +
+                "relations:\n" +
+                "  - {type: example-of, target: 01CCCCCCCCCCCCCCCCCCCCCCCC}\n", "" );
+        when( pageManager.getPage( "A" ) ).thenReturn( aUpdated );
+
+        withRel.onPageSaved( "A" );
+
+        final var outgoing = withRel.outgoingRelations(
+                "01AAAAAAAAAAAAAAAAAAAAAAAA", Optional.empty() );
+        assertEquals( 1, outgoing.size() );
+        assertEquals( "01CCCCCCCCCCCCCCCCCCCCCCCC", outgoing.get( 0 ).targetId() );
+        verify( relDao, times( 1 ) ).replaceFor( eq( "01AAAAAAAAAAAAAAAAAAAAAAAA" ), any() );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void onPageDeleted_removes_descriptor_and_outgoing_relations_without_full_rebuild() throws Exception {
+        final Page a = fakePage( "A",
+                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article\n" +
+                "relations:\n" +
+                "  - {type: part-of, target: 01BBBBBBBBBBBBBBBBBBBBBBBB}\n", "" );
+        final Page b = fakePage( "B",
+                "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\ntitle: B\ntype: hub", "" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a, b ) );
+
+        final PageRelationsDao relDao = mock( PageRelationsDao.class );
+        final DefaultStructuralIndexService withRel = new DefaultStructuralIndexService(
+                pageManager, dao, relDao, new StructuralIndexMetrics() );
+        withRel.rebuild();
+        clearInvocations( pageManager, dao, relDao );
+
+        withRel.onPageDeleted( "A" );
+
+        verify( pageManager, never() ).getAllPages();
+        assertTrue( withRel.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).isEmpty() );
+        assertTrue( withRel.getByCanonicalId( "01BBBBBBBBBBBBBBBBBBBBBBBB" ).isPresent() );
+        assertEquals( 0,
+                withRel.outgoingRelations( "01AAAAAAAAAAAAAAAAAAAAAAAA", Optional.empty() ).size() );
+        verify( dao, times( 1 ) ).delete( "01AAAAAAAAAAAAAAAAAAAAAAAA" );
+        verify( relDao, times( 1 ) ).deleteBySource( "01AAAAAAAAAAAAAAAAAAAAAAAA" );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    void onPageSaved_updates_unclaimed_count_when_canonical_id_is_added() throws Exception {
+        final Page noId = fakePage( "Drafty", "title: Drafty\ntype: article", "" );
+        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( noId ) );
+        svc.rebuild();
+        assertEquals( 1, svc.health().unclaimedCanonicalIds() );
+
+        final Page authored = fakePage( "Drafty",
+                "canonical_id: 01DDDDDDDDDDDDDDDDDDDDDDDD\ntitle: Drafty\ntype: article", "" );
+        when( pageManager.getPage( "Drafty" ) ).thenReturn( authored );
+
+        svc.onPageSaved( "Drafty" );
+
+        assertEquals( 0, svc.health().unclaimedCanonicalIds() );
+        assertTrue( svc.getByCanonicalId( "01DDDDDDDDDDDDDDDDDDDDDDDD" ).isPresent() );
+    }
+
+    @Test
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
     void conflicts_track_missing_canonical_id_and_relation_issues() throws Exception {
         final Page noId = fakePage( "NoId", "title: NoId\ntype: article", "" );
         final Page broken = fakePage( "Broken",

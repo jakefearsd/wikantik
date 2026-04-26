@@ -649,9 +649,14 @@ public class WikiEngine implements Engine {
             managers.put( PageVerificationDao.class, pageVerificationDao );
             managers.put( TrustedAuthorsDao.class, trustedAuthorsDao );
             managers.put( StructuralIndexService.class, structuralIndex );
-            new StructuralIndexEventListener( structuralIndex )
-                .register( getManager( PageManager.class ),
-                           getManager( com.wikantik.filters.FilterManager.class ) );
+            // WikiEventManager holds listeners as WeakReferences — keep a strong
+            // reference in the managers map so the listener is not GC'd between
+            // events. Without this, REST-saved pages don't reach onPageSaved.
+            final StructuralIndexEventListener structuralIndexListener =
+                new StructuralIndexEventListener( structuralIndex );
+            structuralIndexListener.register( getManager( PageManager.class ),
+                                              getManager( com.wikantik.filters.FilterManager.class ) );
+            managers.put( StructuralIndexEventListener.class, structuralIndexListener );
             new Thread( structuralIndex::rebuild, "structural-index-bootstrap" ).start();
             LOG.info( "StructuralIndexService registered; initial rebuild dispatched" );
 

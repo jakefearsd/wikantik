@@ -4,7 +4,11 @@
 # Phases (each polls to completion before the next starts):
 #   1. POST /admin/content/rebuild-indexes  — wipe + re-chunk + Lucene
 #   2. POST /admin/content/reindex-embeddings — re-embed every chunk
-#   3. (optional, --reset-kg) DELETE pending proposals + ai-inferred nodes
+#   3. (optional, --reset-kg)  DELETE pending proposals + ai-inferred nodes
+#      (optional, --purge-kg)  TRUNCATE the entire KG layer including
+#                              human-authored nodes, edges, embeddings,
+#                              rejections, hub tables. Mutually exclusive
+#                              with --reset-kg (purge wins if both set).
 #   4. bin/kg-extract.sh ... — re-extract mentions and proposals
 #
 # Each phase can be skipped (--skip-chunks / --skip-embeddings / --skip-extract)
@@ -48,6 +52,7 @@ die()   { echo -e "${RED}[kg-rebuild]${NC} $*" >&2; exit 1; }
 # ---- Args ----
 
 RESET_KG=0
+PURGE_KG=0
 SKIP_CHUNKS=0
 SKIP_EMBEDDINGS=0
 SKIP_EXTRACT=0
@@ -62,6 +67,7 @@ usage() {
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --reset-kg)         RESET_KG=1 ;;
+        --purge-kg)         PURGE_KG=1 ;;
         --skip-chunks)      SKIP_CHUNKS=1 ;;
         --skip-embeddings)  SKIP_EMBEDDINGS=1 ;;
         --skip-extract)     SKIP_EXTRACT=1 ;;
@@ -111,8 +117,16 @@ info "Phases:"
                               || warn "  1. chunk + Lucene rebuild — SKIPPED"
 [[ $SKIP_EMBEDDINGS -eq 0 ]] && info "  2. chunk embedding reindex" \
                               || warn "  2. chunk embedding reindex — SKIPPED"
-[[ $RESET_KG        -eq 1 ]] && warn "  3. KG reset (DELETE pending proposals + ai-inferred nodes)" \
-                              || info "  3. KG reset — DISABLED (--reset-kg to enable)"
+if [[ $PURGE_KG -eq 1 ]]; then
+    warn "  3. KG PURGE (TRUNCATE every kg_*/hub_* table — human-authored data destroyed)"
+    if [[ $RESET_KG -eq 1 ]]; then
+        warn "     (--reset-kg overridden by --purge-kg)"
+    fi
+elif [[ $RESET_KG -eq 1 ]]; then
+    warn "  3. KG reset (DELETE pending proposals + ai-inferred nodes)"
+else
+    info "  3. KG reset — DISABLED (--reset-kg or --purge-kg to enable)"
+fi
 [[ $SKIP_EXTRACT    -eq 0 ]] && info "  4. entity extraction: ${EXTRACTOR_ARGS[*]:-(no extra args)}" \
                               || warn "  4. entity extraction — SKIPPED"
 
@@ -121,7 +135,21 @@ if [[ $DRY_RUN -eq 1 ]]; then
     exit 0
 fi
 
-if [[ $RESET_KG -eq 1 && $ASSUME_YES -eq 0 ]]; then
+if [[ $PURGE_KG -eq 1 && $ASSUME_YES -eq 0 ]]; then
+    echo
+    echo -e "${RED}╔══════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║  --purge-kg destroys the ENTIRE knowledge graph layer.           ║${NC}"
+    echo -e "${RED}║  This INCLUDES human-authored nodes, edges, and curated hubs.    ║${NC}"
+    echo -e "${RED}║  TRUNCATEs: kg_nodes, kg_edges, kg_proposals, kg_rejections,     ║${NC}"
+    echo -e "${RED}║             kg_embeddings, kg_content_embeddings,                ║${NC}"
+    echo -e "${RED}║             chunk_entity_mentions,                               ║${NC}"
+    echo -e "${RED}║             hub_centroids, hub_proposals, hub_discovery_proposals║${NC}"
+    echo -e "${RED}║                                                                  ║${NC}"
+    echo -e "${RED}║  This action cannot be undone except from a backup.              ║${NC}"
+    echo -e "${RED}╚══════════════════════════════════════════════════════════════════╝${NC}"
+    read -r -p "Type PURGE (uppercase, exact) to proceed: " confirm
+    [[ "$confirm" == "PURGE" ]] || die "aborted by operator (confirmation did not match)"
+elif [[ $RESET_KG -eq 1 && $PURGE_KG -eq 0 && $ASSUME_YES -eq 0 ]]; then
     echo
     echo -e "${YELLOW}--reset-kg will DELETE all pending proposals AND every kg_node with"
     echo -e "provenance='ai-inferred' (cascading to their edges). Human-authored and"
@@ -273,9 +301,57 @@ if [[ $SKIP_EMBEDDINGS -eq 0 ]]; then
     fi
 fi
 
-# ---- Phase 3 (optional): KG reset ----
+# ---- Phase 3 (optional): KG reset or full purge ----
+#
+# --purge-kg overrides --reset-kg if both are set. Purge TRUNCATEs every
+# table in the KG layer; reset prunes only ai-inferred state. The two are
+# mutually exclusive in practice but the conditional ordering makes that
+# explicit.
 
-if [[ $RESET_KG -eq 1 ]]; then
+if [[ $PURGE_KG -eq 1 ]]; then
+    phase "Phase 3 — KG PURGE (full destructive wipe)"
+
+    info "Before (row counts per KG table):"
+    "${PSQL[@]}" -c "
+        SELECT 'kg_nodes' AS tbl, COUNT(*) FROM kg_nodes UNION ALL
+        SELECT 'kg_edges', COUNT(*) FROM kg_edges UNION ALL
+        SELECT 'kg_proposals', COUNT(*) FROM kg_proposals UNION ALL
+        SELECT 'kg_rejections', COUNT(*) FROM kg_rejections UNION ALL
+        SELECT 'kg_embeddings', COUNT(*) FROM kg_embeddings UNION ALL
+        SELECT 'kg_content_embeddings', COUNT(*) FROM kg_content_embeddings UNION ALL
+        SELECT 'chunk_entity_mentions', COUNT(*) FROM chunk_entity_mentions UNION ALL
+        SELECT 'hub_centroids', COUNT(*) FROM hub_centroids UNION ALL
+        SELECT 'hub_proposals', COUNT(*) FROM hub_proposals UNION ALL
+        SELECT 'hub_discovery_proposals', COUNT(*) FROM hub_discovery_proposals
+        ORDER BY 1;" || true
+
+    info "Truncating all KG-layer tables (single statement, RESTART IDENTITY CASCADE)…"
+    # CASCADE handles any FK we missed; RESTART IDENTITY resets sequences so
+    # post-purge IDs start clean. Single TRUNCATE is atomic — no partial
+    # state if any table errors mid-purge.
+    "${PSQL[@]}" -c "
+        TRUNCATE TABLE
+            kg_nodes, kg_edges,
+            kg_proposals, kg_rejections,
+            kg_embeddings, kg_content_embeddings,
+            chunk_entity_mentions,
+            hub_centroids, hub_proposals, hub_discovery_proposals
+        RESTART IDENTITY CASCADE;"
+
+    info "After (every count should be 0):"
+    "${PSQL[@]}" -c "
+        SELECT 'kg_nodes' AS tbl, COUNT(*) FROM kg_nodes UNION ALL
+        SELECT 'kg_edges', COUNT(*) FROM kg_edges UNION ALL
+        SELECT 'kg_proposals', COUNT(*) FROM kg_proposals UNION ALL
+        SELECT 'kg_rejections', COUNT(*) FROM kg_rejections UNION ALL
+        SELECT 'kg_embeddings', COUNT(*) FROM kg_embeddings UNION ALL
+        SELECT 'kg_content_embeddings', COUNT(*) FROM kg_content_embeddings UNION ALL
+        SELECT 'chunk_entity_mentions', COUNT(*) FROM chunk_entity_mentions UNION ALL
+        SELECT 'hub_centroids', COUNT(*) FROM hub_centroids UNION ALL
+        SELECT 'hub_proposals', COUNT(*) FROM hub_proposals UNION ALL
+        SELECT 'hub_discovery_proposals', COUNT(*) FROM hub_discovery_proposals
+        ORDER BY 1;" || true
+elif [[ $RESET_KG -eq 1 ]]; then
     phase "Phase 3 — KG reset (ai-inferred prune)"
 
     info "Before:"

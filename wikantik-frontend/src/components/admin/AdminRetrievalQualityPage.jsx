@@ -1,10 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../api/client';
 import Sparkline from './Sparkline';
 import '../../styles/admin.css';
 
+// Mirrors com.wikantik.api.eval.RetrievalMode (wikantik-api).
 const MODES = ['bm25', 'hybrid', 'hybrid_graph'];
 const METRICS = ['ndcg_at_5', 'ndcg_at_10', 'recall_at_20', 'mrr'];
+const DEFAULT_LIMIT = 30;
+
+const cellKey = (querySetId, mode) => `${querySetId}|${mode}`;
 
 export default function AdminRetrievalQualityPage() {
   const [runs, setRuns] = useState([]);
@@ -12,52 +16,69 @@ export default function AdminRetrievalQualityPage() {
   const [error, setError] = useState(null);
   const [filterSet, setFilterSet] = useState('');
   const [filterMode, setFilterMode] = useState('');
-  const [running, setRunning] = useState(false);
+  const [runningKey, setRunningKey] = useState(null);
 
-  const loadRuns = async () => {
+  const loadRuns = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const resp = await api.admin.listRetrievalRuns({
         querySetId: filterSet || undefined,
         mode: filterMode || undefined,
-        limit: 30,
+        limit: DEFAULT_LIMIT,
       });
-      setRuns(resp?.data?.recent_runs || []);
-    } catch (err) {
-      setError(err.message);
+      return resp?.data?.recent_runs || [];
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadRuns();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterSet, filterMode]);
 
+  useEffect(() => {
+    let cancelled = false;
+    loadRuns()
+      .then(rows => { if (!cancelled) setRuns(rows); })
+      .catch(err => { if (!cancelled) setError(err.message); });
+    return () => { cancelled = true; };
+  }, [loadRuns]);
+
   const runNow = async (querySetId, mode) => {
-    setRunning(true);
+    const key = cellKey(querySetId, mode);
+    setRunningKey(key);
     try {
       await api.admin.runRetrievalNow(querySetId, mode);
-      await loadRuns();
+      const rows = await loadRuns();
+      setRuns(rows);
     } catch (err) {
       setError(err.message);
     } finally {
-      setRunning(false);
+      setRunningKey(null);
     }
   };
 
   // Bucket runs by (querySetId, mode). Backend returns recent-first; the latest
-  // entry per bucket becomes the headline value, the rest feed the sparkline.
+  // entry per bucket becomes the headline value, the rest feed the sparklines.
   const cells = useMemo(() => {
-    const out = {};
+    const buckets = {};
     for (const r of runs) {
-      const k = `${r.query_set_id}|${r.mode}`;
-      if (!out[k]) out[k] = { querySetId: r.query_set_id, mode: r.mode, latest: r, history: [] };
-      out[k].history.push(r);
+      const k = cellKey(r.query_set_id, r.mode);
+      if (!buckets[k]) {
+        buckets[k] = { querySetId: r.query_set_id, mode: r.mode, latest: r, history: [] };
+      }
+      buckets[k].history.push(r);
     }
-    return Object.values(out);
+    // Precompute the chronological series per metric so render is allocation-free.
+    return Object.values(buckets).map(b => ({
+      ...b,
+      seriesByMetric: Object.fromEntries(
+        METRICS.map(m => [
+          m,
+          b.history
+            .map(r => r[m])
+            .filter(v => typeof v === 'number')
+            .reverse(),
+        ]),
+      ),
+    }));
   }, [runs]);
 
   if (loading) return <div className="admin-loading">Loading retrieval-quality runs…</div>;
@@ -102,35 +123,33 @@ export default function AdminRetrievalQualityPage() {
               <td colSpan={2 + METRICS.length + 1}><em>No runs yet.</em></td>
             </tr>
           )}
-          {cells.map(cell => (
-            <tr key={`${cell.querySetId}-${cell.mode}`}>
-              <td>{cell.querySetId}</td>
-              <td>{cell.mode}</td>
-              {METRICS.map(metric => {
-                // history is recent-first; reverse so the sparkline runs left-to-right in time order.
-                const series = cell.history
-                  .map(r => r[metric])
-                  .filter(v => typeof v === 'number')
-                  .slice()
-                  .reverse();
-                const latest = cell.latest[metric];
-                return (
-                  <td key={metric}>
-                    <div>{typeof latest === 'number' ? latest.toFixed(3) : '—'}</div>
-                    <Sparkline values={series} />
-                  </td>
-                );
-              })}
-              <td>
-                <button
-                  disabled={running}
-                  onClick={() => runNow(cell.querySetId, cell.mode)}
-                >
-                  {running ? '…' : 'Run now'}
-                </button>
-              </td>
-            </tr>
-          ))}
+          {cells.map(cell => {
+            const key = cellKey(cell.querySetId, cell.mode);
+            const isRunning = runningKey === key;
+            return (
+              <tr key={key}>
+                <td>{cell.querySetId}</td>
+                <td>{cell.mode}</td>
+                {METRICS.map(metric => {
+                  const latest = cell.latest[metric];
+                  return (
+                    <td key={metric}>
+                      <div>{typeof latest === 'number' ? latest.toFixed(3) : '—'}</div>
+                      <Sparkline values={cell.seriesByMetric[metric]} />
+                    </td>
+                  );
+                })}
+                <td>
+                  <button
+                    disabled={isRunning}
+                    onClick={() => runNow(cell.querySetId, cell.mode)}
+                  >
+                    {isRunning ? '…' : 'Run now'}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
